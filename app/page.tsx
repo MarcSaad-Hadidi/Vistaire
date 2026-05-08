@@ -21,16 +21,23 @@ function BenefitsSection() {
   return (
     <section
       id="benefices"
-      className="bg-[#070504] px-5 py-20 sm:px-10 lg:px-16 lg:py-28"
+      className="relative overflow-hidden bg-[#070504] px-5 py-20 sm:px-10 lg:px-16 lg:py-28"
     >
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-champagne/35 to-transparent" />
       <div className="mx-auto max-w-6xl">
-        <h2 className="max-w-4xl font-display text-[clamp(2.35rem,6vw,5.5rem)] font-normal leading-[1.02] text-cream">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-champagne/85">
+          Impact restaurant
+        </p>
+        <h2 className="mt-5 max-w-5xl font-display text-[clamp(2.45rem,6vw,5.8rem)] font-normal leading-[0.98] text-cream">
           Une expérience plus claire pour vos clients. Plus forte pour votre restaurant.
         </h2>
 
         <div className="mt-12 grid gap-8 border-t border-white/12 pt-9 md:grid-cols-3 lg:mt-16 lg:pt-11">
-          {benefits.map((benefit) => (
+          {benefits.map((benefit, index) => (
             <article key={benefit.title} className="max-w-sm md:pr-8">
+              <p className="mb-5 text-xs font-semibold tracking-[0.2em] text-white/28">
+                0{index + 1}
+              </p>
               <h3 className="text-xl font-semibold text-champagne">
                 {benefit.title}
               </h3>
