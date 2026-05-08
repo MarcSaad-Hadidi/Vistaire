@@ -24,8 +24,13 @@ export function DishGrid({ dishes, currency, categorySlug }: DishGridProps) {
           : "grid gap-4 px-4 py-5 sm:grid-cols-2 sm:gap-5 sm:px-5 sm:py-6 lg:grid-cols-3"
       }
     >
-      {dishes.map((dish) => (
-        <DishCard key={dish.id} dish={dish} currency={currency} />
+      {dishes.map((dish, index) => (
+        <DishCard
+          key={dish.id}
+          dish={dish}
+          currency={currency}
+          priorityImage={index === 0}
+        />
       ))}
     </div>
   );

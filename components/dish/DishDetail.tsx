@@ -62,11 +62,14 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, [showAndScrollToPlat3d]);
 
   const handleVoirDevantMoiClick = useCallback(() => {
-    if (showPlat3d && modelViewerRef.current?.requestAr()) {
+    if (showPlat3d) {
+      modelViewerRef.current?.requestAr();
       return;
     }
 
     showAndScrollToPlat3d();
+    /** Laisser le temps au <model-viewer> de monter et au GLB de commencer à charger. */
+    window.setTimeout(() => modelViewerRef.current?.requestAr(), 700);
   }, [showAndScrollToPlat3d, showPlat3d]);
 
   return (

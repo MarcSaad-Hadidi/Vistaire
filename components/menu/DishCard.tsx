@@ -12,16 +12,19 @@ import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 type DishCardProps = {
   dish: Dish;
   currency: CurrencyCode;
+  priorityImage?: boolean;
 };
 
 function DishCardHeroImage({
   dish,
   variant,
-  unavailable
+  unavailable,
+  priorityImage
 }: {
   dish: Dish;
   variant: "phone" | "desktop";
   unavailable: boolean;
+  priorityImage: boolean;
 }) {
   const objectPosition = getDishCardImageObjectPosition(dish);
   const base =
@@ -38,6 +41,8 @@ function DishCardHeroImage({
               src={dish.image}
               alt={`Photo du plat : ${dish.name}`}
               fill
+              priority={priorityImage}
+              loading={priorityImage ? "eager" : undefined}
               sizes={
                 variant === "phone"
                   ? "(max-width: 480px) 92vw, 380px"
@@ -93,7 +98,7 @@ function DishCardHeroImage({
   );
 }
 
-export function DishCard({ dish, currency }: DishCardProps) {
+export function DishCard({ dish, currency, priorityImage = false }: DishCardProps) {
   const { isPhoneSimulation } = useDemoSimulation();
   const unavailable = !dish.isAvailable;
   const has3d = dishHas3dModel(dish);
@@ -105,7 +110,12 @@ export function DishCard({ dish, currency }: DishCardProps) {
           unavailable ? "opacity-[0.82]" : ""
         }`}
       >
-        <DishCardHeroImage dish={dish} variant="phone" unavailable={unavailable} />
+        <DishCardHeroImage
+          dish={dish}
+          variant="phone"
+          unavailable={unavailable}
+          priorityImage={priorityImage}
+        />
 
         <div className="flex flex-col gap-2 p-3 pt-2.5">
           <div className="flex flex-wrap gap-1">
@@ -178,7 +188,12 @@ export function DishCard({ dish, currency }: DishCardProps) {
         unavailable ? "opacity-[0.78]" : ""
       }`}
     >
-      <DishCardHeroImage dish={dish} variant="desktop" unavailable={unavailable} />
+      <DishCardHeroImage
+        dish={dish}
+        variant="desktop"
+        unavailable={unavailable}
+        priorityImage={priorityImage}
+      />
 
       <div className="flex flex-1 flex-col p-4">
         <div className="flex flex-wrap gap-1.5">

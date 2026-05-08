@@ -20,7 +20,7 @@ const MV_INIT_TIMEOUT_MS = 12_000;
 const AR_HELP_TEXT =
   "Placez le plat sur votre table avec la cam\u00e9ra de votre t\u00e9l\u00e9phone.";
 const AR_UNAVAILABLE_TEXT =
-  "La vue devant vous est disponible sur les t\u00e9l\u00e9phones compatibles AR.";
+  "Ouvrez la page dans Safari ou Chrome (pas un navigateur int\u00e9gr\u00e9 \u00e0 une app) et utilisez HTTPS pour la vue AR.";
 const IOS_USDZ_MISSING_TEXT =
   "Pour activer l\u2019AR iPhone, ajoutez un fichier USDZ \u00e0 ce plat.";
 
@@ -67,7 +67,6 @@ export const DishModelViewer = forwardRef<
   const [mvReady, setMvReady] = useState(() => modelViewerDefined());
   const [initTimedOut, setInitTimedOut] = useState(false);
   const [modelLoadError, setModelLoadError] = useState(false);
-  const [arAvailable, setArAvailable] = useState(false);
   const [arLaunchFailed, setArLaunchFailed] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
@@ -80,17 +79,16 @@ export const DishModelViewer = forwardRef<
     void ensureModelViewer().then(() => setMvReady(true));
   }, []);
 
-  const refreshArAvailability = useCallback(() => {
-    const el = loadWatchRef.current;
-    setArAvailable(Boolean(el?.canActivateAR));
-  }, []);
-
+  /**
+   * Lancement AR (Quick Look / Scene Viewer / WebXR).
+   * Ne pas exiger `canActivateAR` : sur mobile il peut rester faux un moment alors que
+   * `activateAR()` fonctionne ; et `webxr` en premier dans `ar-modes` bloquait souvent iOS.
+   */
   const requestAr = useCallback(() => {
     const el = loadWatchRef.current;
 
-    if (!el?.activateAR || !el.canActivateAR || missingIosAr) {
+    if (!el?.activateAR || missingIosAr) {
       setArLaunchFailed(true);
-      refreshArAvailability();
       return false;
     }
 
@@ -105,7 +103,7 @@ export const DishModelViewer = forwardRef<
       setArLaunchFailed(true);
       return false;
     }
-  }, [missingIosAr, refreshArAvailability]);
+  }, [missingIosAr]);
 
   useImperativeHandle(ref, () => ({ requestAr }), [requestAr]);
 
@@ -143,18 +141,11 @@ export const DishModelViewer = forwardRef<
       const el = loadWatchRef.current;
       if (!el) return;
       const onMvError = () => setModelLoadError(true);
-      const onMvLoad = () => {
-        setModelLoadError(false);
-        refreshArAvailability();
-      };
-      const onArStatus = () => {
-        setArLaunchFailed(false);
-        refreshArAvailability();
-      };
+      const onMvLoad = () => setModelLoadError(false);
+      const onArStatus = () => setArLaunchFailed(false);
       el.addEventListener("error", onMvError);
       el.addEventListener("load", onMvLoad);
       el.addEventListener("ar-status", onArStatus);
-      refreshArAvailability();
       teardown = () => {
         el.removeEventListener("error", onMvError);
         el.removeEventListener("load", onMvLoad);
@@ -165,7 +156,7 @@ export const DishModelViewer = forwardRef<
       window.clearTimeout(wait);
       teardown?.();
     };
-  }, [hasModel, mvReady, modelSrc, refreshArAvailability]);
+  }, [hasModel, mvReady, modelSrc]);
 
   if (!hasModel) {
     return (
@@ -239,9 +230,9 @@ export const DishModelViewer = forwardRef<
               camera-controls
               auto-rotate
               ar
-              ar-modes="webxr scene-viewer quick-look"
+              ar-modes="quick-look scene-viewer webxr"
               ar-placement="floor"
-              ar-scale="fixed"
+              ar-scale="auto"
               shadow-intensity="1"
               exposure="1.05"
               loading="auto"
@@ -251,7 +242,6 @@ export const DishModelViewer = forwardRef<
                 type="button"
                 slot="ar-button"
                 className="absolute bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
-                onClick={requestAr}
               >
                 Voir devant moi
               </button>
@@ -260,10 +250,8 @@ export const DishModelViewer = forwardRef<
               <p id={helpId}>
                 {AR_HELP_TEXT}
               </p>
-              {!arAvailable || arLaunchFailed ? (
-                <p className="text-[#8f806d]">
-                  {AR_UNAVAILABLE_TEXT}
-                </p>
+              {arLaunchFailed ? (
+                <p className="text-[#8f806d]">{AR_UNAVAILABLE_TEXT}</p>
               ) : null}
               {missingIosAr ? (
                 <p className="text-[#c4a892]">

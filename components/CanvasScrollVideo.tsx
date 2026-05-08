@@ -9,26 +9,29 @@ import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
 
 const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
 const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
-const INITIAL_FRAME_BATCH = 12;
-const NEARBY_PRELOAD_RADIUS = 12;
-const PRELOAD_FRAME_STEP = 8;
-const BACKGROUND_FRAME_BATCH = 3;
-const BACKGROUND_PRELOAD_LIMIT = 84;
-const MAX_CACHED_FRAMES = 56;
-const PROGRESS_EASE = 0.22;
+const INITIAL_FRAME_BATCH = 32;
+const NEARBY_PRELOAD_RADIUS = 22;
+const PRELOAD_FRAME_STEP = 1;
+const BACKGROUND_FRAME_BATCH = 6;
+const BACKGROUND_PRELOAD_LIMIT = 280;
+const MAX_CACHED_FRAMES = 100;
+/** Aligné sur ScrollTrigger uniquement (pas de second lissage qui cumule le scrub). */
+const PROGRESS_EASE = 1;
 const MAX_DEVICE_PIXEL_RATIO = 1.5;
-const FRAME_SAFE_CROP_SCALE = 1.075;
+const MOBILE_MAX_DEVICE_PIXEL_RATIO = 1.22;
+const FRAME_SAFE_CROP_SCALE = 1.02;
 const MOBILE_FRAME_SAFE_CROP_SCALE = 1;
 const MOBILE_BACKGROUND_CROP_SCALE = 1.015;
-const MOBILE_INITIAL_FRAME_BATCH = 8;
-const MOBILE_NEARBY_PRELOAD_RADIUS = 7;
-const MOBILE_BACKGROUND_PRELOAD_LIMIT = 48;
-const MOBILE_MAX_CACHED_FRAMES = 38;
-const MOBILE_NEAREST_FRAME_FALLBACK_RADIUS = 8;
+const MOBILE_INITIAL_FRAME_BATCH = 16;
+const MOBILE_NEARBY_PRELOAD_RADIUS = 14;
+const MOBILE_BACKGROUND_PRELOAD_LIMIT = 140;
+const MOBILE_MAX_CACHED_FRAMES = 58;
+const MOBILE_NEAREST_FRAME_FALLBACK_RADIUS = 10;
+const MOBILE_FRAME_INDEX_STEP = 2;
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
 const TRANSITION_SOFTNESS = 0.025;
-const NEAREST_FRAME_FALLBACK_RADIUS = 2;
+const NEAREST_FRAME_FALLBACK_RADIUS = 6;
 const ENABLE_SCROLL_DEBUG = process.env.NODE_ENV !== "production";
 
 type MobileFrameComposition = {
@@ -208,9 +211,11 @@ export function CanvasScrollVideo() {
     }
 
     let cancelled = false;
-    let removeResizeListener = () => {};
-    let removeMobileViewportListener = () => {};
-    let killScrollTrigger = () => {};
+    let renderRafPending = false;
+    let lastTransitionVeilOpacity = -1;
+    let removeResizeListener = () => { };
+    let removeMobileViewportListener = () => { };
+    let killScrollTrigger = () => { };
 
     imagesRef.current = Array.from({ length: frameConfig.frameCount }, () => null);
     imageRequestsRef.current.clear();
@@ -222,7 +227,9 @@ export function CanvasScrollVideo() {
 
     const configureContext = () => {
       context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = "high";
+      context.imageSmoothingQuality = isMobileViewportRef.current
+        ? "medium"
+        : "high";
     };
 
     const clampFrameIndex = (index: number) =>
@@ -274,10 +281,10 @@ export function CanvasScrollVideo() {
           distantIndex >= 0
             ? distantIndex
             : cacheOrder.findIndex(
-                (cachedIndex) =>
-                  cachedIndex !== centerIndex &&
-                  !protectedFrameIndexes.has(cachedIndex)
-              );
+              (cachedIndex) =>
+                cachedIndex !== centerIndex &&
+                !protectedFrameIndexes.has(cachedIndex)
+            );
 
         if (removableIndex < 0) {
           return;
@@ -331,6 +338,7 @@ export function CanvasScrollVideo() {
           pruneFrameCache(
             currentFrameRef.current >= 0 ? currentFrameRef.current : safeIndex
           );
+          scheduleRender();
           resolve(image);
         };
         image.onerror = () => {
@@ -496,9 +504,14 @@ export function CanvasScrollVideo() {
           return Math.max(strongest, 1 - distance / TRANSITION_SOFTNESS);
         }, 0);
 
-      transitionVeilRef.current.style.opacity = String(
-        Math.min(0.16, transitionStrength * 0.16)
-      );
+      const opacity = Math.min(0.16, transitionStrength * 0.16);
+
+      if (Math.abs(opacity - lastTransitionVeilOpacity) < 0.002) {
+        return;
+      }
+
+      lastTransitionVeilOpacity = opacity;
+      transitionVeilRef.current.style.opacity = String(opacity);
     };
 
     const drawImageCover = (
@@ -581,16 +594,14 @@ export function CanvasScrollVideo() {
       const drawY =
         canvasHeight * composition.canvasY - drawHeight * composition.focalY;
 
-      context.save();
-      context.filter = "blur(16px) saturate(0.94) brightness(0.68)";
+      // Pas de filter canvas sur cette section : le blur GPU coûte cher et saccade au scroll.
       drawImageCover(
         image,
-        0.76,
+        0.58,
         MOBILE_BACKGROUND_CROP_SCALE,
         composition.focalX,
         composition.focalY
       );
-      context.restore();
 
       context.fillStyle = "rgba(8, 7, 6, 0.2)";
       context.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -640,7 +651,13 @@ export function CanvasScrollVideo() {
       );
 
       if (!image) {
-        loadFrame(safeIndex, "high").catch(() => undefined);
+        loadFrame(safeIndex, "high")
+          .then(() => {
+            if (!cancelled) {
+              scheduleRender();
+            }
+          })
+          .catch(() => undefined);
         return;
       }
 
@@ -686,7 +703,9 @@ export function CanvasScrollVideo() {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(
         window.devicePixelRatio || 1,
-        MAX_DEVICE_PIXEL_RATIO
+        isMobileViewportRef.current
+          ? MOBILE_MAX_DEVICE_PIXEL_RATIO
+          : MAX_DEVICE_PIXEL_RATIO
       );
       const displayWidth = Math.max(1, Math.floor(rect.width || window.innerWidth));
       const displayHeight = Math.max(
@@ -721,27 +740,49 @@ export function CanvasScrollVideo() {
 
       const targetProgress = targetProgressRef.current;
       const currentProgress = displayedProgressRef.current;
+      const ease = shouldReduceMotion ? 1 : PROGRESS_EASE;
       const nextProgress =
         Math.abs(targetProgress - currentProgress) < 0.0008
           ? targetProgress
-          : currentProgress +
-            (targetProgress - currentProgress) *
-              (shouldReduceMotion ? 1 : PROGRESS_EASE);
+          : currentProgress + (targetProgress - currentProgress) * ease;
 
       displayedProgressRef.current = nextProgress;
 
       const clampedProgress = Math.min(1, Math.max(0, nextProgress));
-      const exactFrame = clampedProgress * (frameConfig.frameCount - 1);
+      let exactFrame = clampedProgress * (frameConfig.frameCount - 1);
+
+      if (isMobileViewportRef.current) {
+        exactFrame =
+          Math.round(exactFrame / MOBILE_FRAME_INDEX_STEP) *
+          MOBILE_FRAME_INDEX_STEP;
+      }
+
+      exactFrame = clamp(exactFrame, 0, frameConfig.frameCount - 1);
+
       const frameIndex = Math.min(
         frameConfig.frameCount - 1,
         Math.max(0, Math.floor(exactFrame))
       );
-      const direction = targetProgress >= previousTargetProgressRef.current ? 1 : -1;
+      const direction =
+        targetProgress > previousTargetProgressRef.current
+          ? 1
+          : targetProgress < previousTargetProgressRef.current
+            ? -1
+            : lastPreloadDirectionRef.current;
 
       preloadNearbyFramesOnce(frameIndex, direction);
       drawFrame(exactFrame);
       setTransitionVeil(clampedProgress);
       previousTargetProgressRef.current = targetProgress;
+
+      const progressSettled =
+        Math.abs(targetProgressRef.current - displayedProgressRef.current) <
+        0.0008;
+
+      if (!progressSettled && !cancelled) {
+        scheduleRender();
+      }
+
       if (ENABLE_SCROLL_DEBUG) {
         const mobileComposition = isMobileViewportRef.current
           ? getMobileFrameComposition(clampedProgress)
@@ -760,8 +801,20 @@ export function CanvasScrollVideo() {
             mobileComposition?.visibleSourceWidthRatio
         };
       }
-      rafRef.current = window.requestAnimationFrame(renderLoop);
     };
+
+    function scheduleRender() {
+      if (cancelled || renderRafPending) {
+        return;
+      }
+
+      renderRafPending = true;
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null;
+        renderRafPending = false;
+        renderLoop();
+      });
+    }
 
     const preloadFrames = async () => {
       try {
@@ -788,6 +841,7 @@ export function CanvasScrollVideo() {
         preloadNearbyFrames(0);
         preloadStoryFrames();
         scheduleBackgroundPreload();
+        scheduleRender();
       } catch {
         if (!cancelled && mountedRef.current) {
           setLoadState("fallback");
@@ -806,13 +860,14 @@ export function CanvasScrollVideo() {
         trigger: section,
         start: "top top",
         end: "bottom bottom",
-        scrub: 0.12,
+        scrub: true,
         invalidateOnRefresh: true,
         onUpdate: (self) => {
           const progress = self.progress;
 
           targetProgressRef.current = progress;
           updateActiveChapter(progress);
+          scheduleRender();
         }
       });
 
@@ -825,6 +880,7 @@ export function CanvasScrollVideo() {
       };
 
       ScrollTrigger.refresh();
+      scheduleRender();
     };
 
     const mobileViewportQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
@@ -835,7 +891,9 @@ export function CanvasScrollVideo() {
 
     const handleMobileViewportChange = (event: MediaQueryListEvent) => {
       isMobileViewportRef.current = event.matches;
-      drawFrame(currentFrameRef.current < 0 ? 0 : currentFrameRef.current, true);
+      lastTransitionVeilOpacity = -1;
+      resizeCanvas();
+      scheduleRender();
     };
 
     if (typeof mobileViewportQuery.addEventListener === "function") {
@@ -858,8 +916,6 @@ export function CanvasScrollVideo() {
     removeResizeListener = () => {
       window.removeEventListener("resize", resizeCanvas);
     };
-
-    rafRef.current = window.requestAnimationFrame(renderLoop);
 
     preloadFrames();
 
@@ -933,9 +989,8 @@ export function CanvasScrollVideo() {
         <canvas
           ref={canvasRef}
           aria-hidden="true"
-          className={`absolute inset-0 h-full w-full transition-opacity duration-500 ${
-            loadState === "canvas" ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 h-full w-full transition-opacity duration-500 ${loadState === "canvas" ? "opacity-100" : "opacity-0"
+            }`}
         />
         <div className="video-readable-overlay absolute inset-0 z-10" />
         <div className="video-warmth absolute inset-0 z-10" />
