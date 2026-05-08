@@ -99,7 +99,7 @@ export function DishCard({ dish, currency }: DishCardProps) {
   if (isPhoneSimulation) {
     return (
       <article
-        className={`group overflow-hidden rounded-xl border border-white/9 bg-gradient-to-b from-[#15110e]/98 to-[#080706] shadow-[0_4px_28px_rgba(0,0,0,0.3)] ${
+        className={`group isolate overflow-hidden rounded-xl bg-gradient-to-b from-[#15110e]/98 to-[#080706] shadow-[0_0_0_1px_rgba(255,255,255,0.055),0_8px_32px_rgba(0,0,0,0.38)] ${
           unavailable ? "opacity-[0.82]" : ""
         }`}
       >
@@ -142,7 +142,7 @@ export function DishCard({ dish, currency }: DishCardProps) {
           <div className="pt-0.5">
             {unavailable ? (
               <span
-                className="inline-flex min-h-9 w-full cursor-not-allowed items-center justify-center rounded-lg border border-white/7 bg-white/[0.03] text-[11px] font-semibold text-white/32"
+                className="inline-flex min-h-9 w-full cursor-not-allowed items-center justify-center rounded-lg bg-white/[0.03] text-[11px] font-semibold text-white/32 ring-1 ring-inset ring-white/12"
                 aria-label={`${dish.name} indisponible`}
               >
                 Indisponible
@@ -150,10 +150,10 @@ export function DishCard({ dish, currency }: DishCardProps) {
             ) : (
               <Link
                 href={`/demo/dishes/${dish.slug}`}
-                className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-champagne/35 bg-champagne/[0.12] text-[11px] font-semibold text-cream transition active:bg-champagne/[0.18] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#080706]"
-                aria-label={`Voir les détails — ${dish.name}`}
+                className="inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-champagne/[0.12] text-[11px] font-semibold text-cream ring-1 ring-inset ring-champagne/35 transition active:bg-champagne/[0.18] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#080706]"
+                aria-label={`Voir le plat — ${dish.name}`}
               >
-                Voir les détails
+                Voir le plat
               </Link>
             )}
           </div>
@@ -217,9 +217,9 @@ export function DishCard({ dish, currency }: DishCardProps) {
             <Link
               href={`/demo/dishes/${dish.slug}`}
               className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-champagne/40 bg-champagne/[0.1] text-center text-xs font-semibold text-cream transition hover:border-champagne/55 hover:bg-champagne/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0806]"
-              aria-label={`Voir les détails — ${dish.name}`}
+              aria-label={`Voir le plat — ${dish.name}`}
             >
-              Voir les détails
+              Voir le plat
             </Link>
           )}
         </div>

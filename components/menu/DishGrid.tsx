@@ -20,7 +20,7 @@ export function DishGrid({ dishes, currency, categorySlug }: DishGridProps) {
       aria-labelledby={`tab-${categorySlug}`}
       className={
         isPhoneSimulation
-          ? "grid grid-cols-1 gap-3 px-0 py-3.5"
+          ? "grid grid-cols-1 gap-4 px-0 pb-6 pt-6"
           : "grid gap-4 px-4 py-5 sm:grid-cols-2 sm:gap-5 sm:px-5 sm:py-6 lg:grid-cols-3"
       }
     >

@@ -13,6 +13,16 @@ type CategoryTabsProps = {
   stickyMode: CategoryStickyMode;
 };
 
+/**
+ * Stratégie d’affichage :
+ * - Mockup téléphone (`viewportInner`) : grille wrappée et centrée — toutes les
+ *   catégories visibles d’un coup (généralement sur 2 lignes), aucun scroll.
+ * - Mobile réel (`pageHeader`) : sticky sous le header, wrap centré aussi.
+ * - Desktop (`off`) : ligne centrée wrappée à grand écran.
+ *
+ * Le scroll horizontal a été retiré : il ne tenait pas la largeur utile du
+ * téléphone simulé et donnait toujours une impression de barre tronquée.
+ */
 export function CategoryTabs({
   tabs,
   activeSlug,
@@ -21,26 +31,33 @@ export function CategoryTabs({
 }: CategoryTabsProps) {
   const isViewportInner = stickyMode === "viewportInner";
   const isPageHeader = stickyMode === "pageHeader";
-  const sticky = isViewportInner || isPageHeader;
 
-  const shell = !sticky
-    ? "relative z-20 border-b border-white/8 bg-[#080706] py-2"
-    : isViewportInner
-      ? "sticky top-0 z-30 border-b border-white/10 bg-[#080706]/98 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md supports-[backdrop-filter]:bg-[#080706]/90"
-      : "sticky top-16 z-30 border-b border-white/10 bg-[#080706]/96 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-[#080706]/88";
+  const shell = isViewportInner
+    ? "relative z-20 min-w-0 border-b border-white/[0.08] bg-[#080706] px-3 py-3"
+    : isPageHeader
+      ? "sticky top-16 z-30 min-w-0 border-b border-white/10 bg-[#080706]/96 px-3 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-[#080706]/88"
+      : "relative z-20 min-w-0 border-b border-white/8 bg-[#080706] px-4 py-3 sm:px-5";
 
   const rowClass = isViewportInner
-    ? "flex gap-1.5 overflow-x-auto overscroll-x-contain px-0.5 py-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    : "flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-0.5 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5 sm:px-0 lg:flex-wrap lg:justify-center lg:overflow-visible";
+    ? "flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1.5 gap-y-2"
+    : isPageHeader
+      ? "flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1.5 gap-y-2 sm:gap-x-2"
+      : "flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-2 sm:gap-x-2.5";
 
+  /**
+   * Chips : `leading-[1.2]` (et `pb-` légèrement supérieur à `pt-`) pour laisser
+   * respirer les descendantes (« g » de signatures, « p » de Plats, etc.) sans
+   * agrandir visuellement la pill. Pas de `truncate` : `overflow: hidden`
+   * combiné à un line-height serré coupait le bas des lettres.
+   */
   const chipClass = (selected: boolean) =>
     isViewportInner
-      ? `min-h-[31px] shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium leading-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal ${
+      ? `inline-flex min-h-[34px] max-w-full items-center justify-center whitespace-nowrap rounded-full border px-3 pb-[7px] pt-[5px] text-[12px] font-medium leading-[1.2] tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal ${
           selected
-            ? "border-champagne/60 bg-champagne/16 text-cream shadow-[0_0_0_1px_rgba(217,184,121,0.12)]"
-            : "border-white/10 bg-black/40 text-[#c4b5a0] hover:border-white/18 hover:text-cream"
+            ? "border-champagne/55 bg-champagne/[0.15] text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-champagne/25"
+            : "border-white/[0.12] bg-black/45 text-[#d1c2aa] hover:border-white/22 hover:bg-black/55 hover:text-cream"
         }`
-      : `min-h-10 shrink-0 rounded-full border px-4 text-[13px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:min-h-11 sm:px-5 sm:text-sm ${
+      : `inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-full border px-3.5 pb-[7px] pt-[5px] text-[12.5px] font-medium leading-[1.2] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:px-4 sm:pb-[8px] sm:pt-[6px] sm:text-sm ${
           selected
             ? "border-champagne/55 bg-champagne/14 text-cream shadow-sm"
             : "border-white/12 bg-black/35 text-[#c9b79d] hover:border-white/22 hover:text-cream"

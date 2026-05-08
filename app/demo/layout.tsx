@@ -4,9 +4,9 @@ import { DemoSimulationProvider } from "@/components/menu/DemoSimulationContext"
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
-  title: "Maison Élyse — Menu digital | MenuAlive",
+  title: "Maison Élyse — La carte",
   description:
-    "Menu interactif après scan QR : cartes, allergènes, signatures du chef et aperçu 3D — démo Montréal."
+    "Cuisine française contemporaine : entrées, plats signatures, desserts et cocktails — allergènes, accords et regard sur nos créations."
 };
 
 export default function DemoLayout({

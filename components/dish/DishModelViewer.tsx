@@ -1,20 +1,97 @@
 "use client";
 
 import Script from "next/script";
-import { useId, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import type { Dish } from "@/lib/demoMenuData";
 
 const MODEL_VIEWER_CDN =
   "https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js";
 
+const MV_INIT_TIMEOUT_MS = 12_000;
+
 type DishModelViewerProps = {
   dish: Pick<Dish, "name" | "model3dUrl" | "usdzUrl">;
+  /** Chrome minimal : titres et aide fournis par le parent si besoin. */
+  minimalChrome?: boolean;
 };
 
-export function DishModelViewer({ dish }: DishModelViewerProps) {
+function modelViewerDefined(): boolean {
+  return typeof window !== "undefined" && Boolean(customElements.get("model-viewer"));
+}
+
+async function ensureModelViewer(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (customElements.get("model-viewer")) return true;
+  await customElements.whenDefined("model-viewer");
+  return true;
+}
+
+export function DishModelViewer({
+  dish,
+  minimalChrome = false
+}: DishModelViewerProps) {
   const titleId = useId();
-  const [scriptReady, setScriptReady] = useState(false);
+  const [mvReady, setMvReady] = useState(() => modelViewerDefined());
+  const [initTimedOut, setInitTimedOut] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState(false);
+  const loadWatchRef = useRef<HTMLElement | null>(null);
   const hasModel = Boolean(dish.model3dUrl?.trim());
+  const modelSrc = useMemo(() => dish.model3dUrl?.trim() ?? "", [dish.model3dUrl]);
+
+  const handleScriptLoad = useCallback(() => {
+    void ensureModelViewer().then(() => setMvReady(true));
+  }, []);
+
+  /** Détection lecteur : microtask évite setState synchrone dans l’effet (eslint). */
+  useEffect(() => {
+    if (!hasModel) return;
+    let alive = true;
+    queueMicrotask(() => {
+      if (alive && modelViewerDefined()) setMvReady(true);
+    });
+    void ensureModelViewer().then(() => {
+      if (alive) setMvReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [hasModel]);
+
+  /** Ne pas rester bloqué indéfiniment si le lecteur ne s’initialise pas */
+  useEffect(() => {
+    if (!hasModel || mvReady) return;
+    const t = window.setTimeout(() => setInitTimedOut(true), MV_INIT_TIMEOUT_MS);
+    return () => window.clearTimeout(t);
+  }, [hasModel, mvReady]);
+
+  /** Listeners chargement mesh : ref posée après le commit React */
+  useEffect(() => {
+    if (!hasModel || !mvReady) return;
+    let teardown: (() => void) | undefined;
+    const wait = window.setTimeout(() => {
+      const el = loadWatchRef.current;
+      if (!el) return;
+      const onMvError = () => setModelLoadError(true);
+      const onMvLoad = () => setModelLoadError(false);
+      el.addEventListener("error", onMvError);
+      el.addEventListener("load", onMvLoad);
+      teardown = () => {
+        el.removeEventListener("error", onMvError);
+        el.removeEventListener("load", onMvLoad);
+      };
+    }, 0);
+    return () => {
+      window.clearTimeout(wait);
+      teardown?.();
+    };
+  }, [hasModel, mvReady, modelSrc]);
 
   if (!hasModel) {
     return (
@@ -27,64 +104,80 @@ export function DishModelViewer({ dish }: DishModelViewerProps) {
             className="mb-5 h-20 w-20 rounded-2xl border border-dashed border-champagne/28 bg-black/40 shadow-[inset_0_0_36px_rgba(217,184,121,0.05)]"
             aria-hidden
           />
-          <h3
+          <p
             id={titleId}
-            className="font-display text-lg text-cream sm:text-xl"
+            className="max-w-md font-display text-base leading-relaxed text-[#d8caba] sm:text-lg"
           >
-            Aperçu 3D
-          </h3>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-[#b9aa94]">
-            Modèle 3D bientôt disponible pour ce plat signature.
-          </p>
-          <p className="mt-3 max-w-md text-xs leading-relaxed text-[#7a6c5c]">
-            La structure technique est prête pour l’ajout de fichiers GLB /
-            USDZ — aucun modèle n’est chargé sur cet appareil pour cette démo.
-          </p>
-          <p className="mt-6 text-[10px] uppercase tracking-[0.22em] text-white/35">
-            Prêt pour GLB / USDZ
+            Ce plat sera bientôt disponible en 3D.
           </p>
         </div>
       </section>
     );
   }
 
+  const showLoader = !mvReady && !initTimedOut;
+  const showInitFail = !mvReady && initTimedOut;
+
   return (
     <section
-      className="rounded-2xl border border-white/12 bg-[#0a0806] p-3 sm:p-4"
-      aria-labelledby={titleId}
+      className="overflow-hidden rounded-2xl border border-white/[0.14] bg-gradient-to-b from-[#14100c] to-[#070605] p-3 shadow-[inset_0_1px_0_rgba(217,184,121,0.08)] transition-opacity duration-300 sm:p-4"
+      aria-labelledby={minimalChrome ? undefined : titleId}
     >
-      <h3 id={titleId} className="sr-only">
-        Modèle 3D — {dish.name}
-      </h3>
       <Script
-        id="model-viewer-module"
+        id="model-viewer-cdn"
         src={MODEL_VIEWER_CDN}
         type="module"
-        strategy="lazyOnload"
-        onLoad={() => setScriptReady(true)}
+        strategy="afterInteractive"
+        onReady={handleScriptLoad}
+        onLoad={handleScriptLoad}
       />
-      {scriptReady ? (
-        <model-viewer
-          src={dish.model3dUrl}
-          {...(dish.usdzUrl?.trim() ? { "ios-src": dish.usdzUrl.trim() } : {})}
-          alt={`Modèle 3D de ${dish.name}`}
-          camera-controls
-          auto-rotate
-          ar
-          ar-modes="webxr scene-viewer quick-look"
-          shadow-intensity="1"
-          exposure="1"
-          className="mx-auto h-[min(65vh,420px)] w-full max-w-lg rounded-xl bg-[#14100c]"
-        />
-      ) : (
-        <div className="flex h-[min(65vh,420px)] w-full items-center justify-center rounded-xl bg-[#14100c] text-sm text-[#9a8b78]">
-          Initialisation du lecteur 3D…
+      {!minimalChrome ? (
+        <div className="mb-2 text-center sm:mb-3">
+          <h3 id={titleId} className="font-display text-lg text-cream sm:text-xl">
+            {dish.name}
+          </h3>
         </div>
-      )}
-      <p className="mt-3 text-center text-xs text-[#8a7b68]">
-        Contrôlez la vue au doigt · La réalité augmentée dépend du navigateur et
-        de l’appareil.
-      </p>
+      ) : null}
+
+      <div className="relative mx-auto w-full max-w-lg">
+        {showLoader ? (
+          <div
+            className="flex h-[min(65vh,460px)] w-full animate-pulse items-center justify-center rounded-xl bg-[#10100e] ring-1 ring-white/8"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <span className="text-sm text-[#9a8b78]">Chargement…</span>
+          </div>
+        ) : showInitFail ? (
+          <div className="flex min-h-[min(65vh,460px)] w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#10100e] px-6 text-center text-sm text-[#c4a892] ring-1 ring-white/8">
+            <p>Affichage impossible pour le moment.</p>
+            <p className="text-xs text-[#7d6e5c]">Actualisez la page.</p>
+          </div>
+        ) : (
+          <>
+            <model-viewer
+              ref={loadWatchRef}
+              src={modelSrc}
+              {...(dish.usdzUrl?.trim() ? { "ios-src": dish.usdzUrl.trim() } : {})}
+              alt={`Vue du plat : ${dish.name}`}
+              camera-controls
+              auto-rotate
+              ar
+              ar-modes="webxr scene-viewer quick-look"
+              shadow-intensity="1"
+              exposure="1.05"
+              loading="auto"
+              className="mx-auto block h-[min(65vh,460px)] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8"
+            />
+            {modelLoadError ? (
+              <p className="mt-2 text-center text-xs text-[#c49a84]">
+                Le modèle ne s’affiche pas. Réessayez dans un instant.
+              </p>
+            ) : null}
+          </>
+        )}
+      </div>
     </section>
   );
 }

@@ -27,7 +27,7 @@ export default function AdminPage() {
         <div className="flex flex-col gap-6 border-b border-white/10 pb-10 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-champagne/85">
-              Espace opérateur · démo
+              Espace restaurateur
             </p>
             <h1 className="mt-4 font-display text-4xl text-cream sm:text-5xl">
               {restaurant.name}
@@ -47,7 +47,7 @@ export default function AdminPage() {
           <AdminMetricCard
             label="Avec modèle 3D"
             value={with3d}
-            hint="Fichiers GLB / USDZ reliés"
+            hint="Fichiers modèle reliés"
           />
         </div>
 
@@ -77,8 +77,8 @@ export default function AdminPage() {
             Carte en cours
           </h2>
           <p className="mt-2 text-sm text-[#9a8b78]">
-            Synthèse des plats publiés sur le menu démo — les champs sont issus
-            des mêmes données que l’app client.
+            Vue d’ensemble de la carte publiée — mêmes informations que le
+            menu client.
           </p>
           <div className="mt-8">
             <AdminDishTable

@@ -8,7 +8,7 @@ import {
 } from "@/lib/menuQuery";
 
 const ALLERGEN_OPTIONS: { value: Allergen | ""; label: string }[] = [
-  { value: "", label: "Sans filtre allergène" },
+  { value: "", label: "Tous les plats" },
   { value: "gluten", label: "Sans gluten" },
   { value: "dairy", label: "Sans lactose / laitiers" },
   { value: "nuts", label: "Sans fruits à coque" },
@@ -40,20 +40,26 @@ export function MenuFilterBar({
     <div
       className={
         compact
-          ? "flex flex-col gap-2"
+          ? "flex flex-col gap-3"
           : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       }
     >
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div
+        className={
+          compact
+            ? "flex flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain py-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            : "flex flex-wrap items-center gap-1.5"
+        }
+      >
         <span className="sr-only">Filtres rapides</span>
         <button
           type="button"
           onClick={() => toggle("signatureOnly")}
           aria-pressed={filters.signatureOnly}
-          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
             filters.signatureOnly
-              ? "border-champagne/55 bg-champagne/14 text-cream"
-              : "border-white/10 bg-black/35 text-[#b9aa94] hover:border-white/18"
+              ? "border-champagne/50 bg-champagne/[0.13] text-cream ring-1 ring-champagne/20"
+              : "border-white/[0.1] bg-black/40 text-[#b9aa94] hover:border-white/18 hover:bg-black/48"
           }`}
         >
           Signature
@@ -62,10 +68,10 @@ export function MenuFilterBar({
           type="button"
           onClick={() => toggle("recommendedOnly")}
           aria-pressed={filters.recommendedOnly}
-          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
             filters.recommendedOnly
-              ? "border-champagne/55 bg-champagne/14 text-cream"
-              : "border-white/10 bg-black/35 text-[#b9aa94] hover:border-white/18"
+              ? "border-champagne/50 bg-champagne/[0.13] text-cream ring-1 ring-champagne/20"
+              : "border-white/[0.1] bg-black/40 text-[#b9aa94] hover:border-white/18 hover:bg-black/48"
           }`}
         >
           Recommandés
@@ -74,20 +80,21 @@ export function MenuFilterBar({
           type="button"
           onClick={() => toggle("availableOnly")}
           aria-pressed={filters.availableOnly}
-          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
             filters.availableOnly
-              ? "border-champagne/55 bg-champagne/14 text-cream"
-              : "border-white/10 bg-black/35 text-[#b9aa94] hover:border-white/18"
+              ? "border-champagne/50 bg-champagne/[0.13] text-cream ring-1 ring-champagne/20"
+              : "border-white/[0.1] bg-black/40 text-[#b9aa94] hover:border-white/18 hover:bg-black/48"
           }`}
         >
           Disponibles
         </button>
+        {compact ? <span className="w-2 shrink-0" aria-hidden /> : null}
       </div>
 
       <div
         className={
           compact
-            ? "flex flex-col gap-1.5"
+            ? "flex flex-col gap-2"
             : "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
         }
       >
@@ -106,7 +113,7 @@ export function MenuFilterBar({
           }}
           className={
             compact
-              ? "min-h-8 w-full rounded-md border border-white/10 bg-black/45 px-2 py-1 text-[11px] text-cream outline-none focus:border-champagne/35 focus:ring-1 focus:ring-champagne/25"
+              ? "min-h-[40px] w-full rounded-xl border border-white/[0.11] bg-black/50 px-3.5 py-2 text-[13px] text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none focus:border-champagne/35 focus:ring-1 focus:ring-champagne/22"
               : "min-h-9 min-w-[12rem] rounded-lg border border-white/12 bg-black/40 px-3 py-1.5 text-xs text-cream outline-none focus:border-champagne/35 focus:ring-2 focus:ring-champagne/20 sm:text-sm"
           }
         >
@@ -127,7 +134,7 @@ export function MenuFilterBar({
                 : "shrink-0 text-xs font-medium text-champagne/90 underline decoration-champagne/30 underline-offset-4 transition hover:text-champagne sm:text-sm"
             }
           >
-            Réinitialiser les filtres
+            Réinitialiser
           </button>
         ) : null}
       </div>

@@ -110,7 +110,7 @@ export function AdminDishTable({
         </tbody>
       </table>
       <p className="border-t border-white/10 px-4 py-3 text-center text-xs text-[#7a6c5c]">
-        Aperçu lecture seule — les actions sont simulées pour la démonstration.
+        Les modifications ne sont pas enregistrées dans cette prévisualisation.
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useRef, useState } from "react";
 import type { Dish } from "@/lib/demoMenuData";
 import { getRestaurant } from "@/lib/demoMenuData";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
@@ -13,11 +14,42 @@ type DishDetailProps = {
   dish: Dish;
 };
 
+/**
+ * Défile jusqu’à la section 3D : dans le mockup téléphone le scrollable est un
+ * conteneur interne (`data-phone-mockup-scroll`), pas le viewport.
+ */
+function scrollToPlat3dAnchor(target: HTMLElement) {
+  const scroller = target.closest("[data-phone-mockup-scroll]");
+  const margin = 12;
+  if (scroller instanceof HTMLElement) {
+    const top =
+      target.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop -
+      margin;
+    scroller.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    return;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 export function DishDetail({ dish }: DishDetailProps) {
   const restaurant = getRestaurant();
   const unavailable = !dish.isAvailable;
   const { isRealMobile, isPhoneSimulation } = useDemoSimulation();
   const immersive = isRealMobile || isPhoneSimulation;
+  const [showPlat3d, setShowPlat3d] = useState(false);
+  const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  const handleVoir3dClick = useCallback(() => {
+    setShowPlat3d(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = plat3dAnchorRef.current;
+        if (el) scrollToPlat3dAnchor(el);
+      });
+    });
+  }, []);
 
   return (
     <article className={immersive ? "pb-24 pt-2.5" : "pb-24 pt-4 sm:pt-5"}>
@@ -57,7 +89,7 @@ export function DishDetail({ dish }: DishDetailProps) {
           ) : null}
           {dish.isRecommended ? (
             <span className="rounded-full border border-white/20 bg-white/8 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-cream">
-              Recommandé par le chef
+              Recommandé
             </span>
           ) : null}
         </div>
@@ -83,7 +115,7 @@ export function DishDetail({ dish }: DishDetailProps) {
             id="ingredients-heading"
             className="text-xs font-semibold uppercase tracking-[0.22em] text-champagne/90"
           >
-            Ingrédients principaux
+            Ingrédients
           </h2>
           <ul className="mt-3 grid gap-2 text-[#d1c2aa] sm:grid-cols-2">
             {dish.ingredients.map((item) => (
@@ -133,7 +165,7 @@ export function DishDetail({ dish }: DishDetailProps) {
               id="sides-heading"
               className="text-xs font-semibold uppercase tracking-[0.22em] text-champagne/90"
             >
-              Accompagnements proposés
+              Accompagnements
             </h2>
             <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[#d1c2aa]">
               {dish.sides.map((side) => (
@@ -160,30 +192,28 @@ export function DishDetail({ dish }: DishDetailProps) {
         </section>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <a
-            href="#plat-3d"
+          <button
+            type="button"
             className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/18 bg-white/6 px-5 text-center text-sm font-semibold text-cream transition hover:border-champagne/35 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[180px]"
+            onClick={handleVoir3dClick}
           >
             Voir en 3D
-          </a>
-          <a
-            href="#recommandation-chef"
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/26 bg-champagne/8 px-5 text-center text-sm font-semibold text-champagne transition hover:border-champagne/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[220px]"
-          >
-            Découvrir la recommandation du chef
-          </a>
+          </button>
         </div>
       </div>
 
-      <div
-        id="plat-3d"
-        className="mx-auto mt-12 max-w-3xl scroll-mt-28 px-4 sm:px-6"
-      >
-        <h2 className="mb-3 text-center font-display text-xl text-cream sm:text-2xl">
-          Aperçu 3D / réalité augmentée
-        </h2>
-        <DishModelViewer dish={dish} />
-      </div>
+      {showPlat3d ? (
+        <section
+          id="plat-3d"
+          ref={plat3dAnchorRef}
+          aria-label="Présentation du plat"
+          className={`mx-auto max-w-3xl scroll-mt-28 px-4 motion-safe:transition-opacity motion-safe:duration-300 sm:px-6 ${
+            immersive ? "mt-10" : "mt-12"
+          }`}
+        >
+          <DishModelViewer dish={dish} minimalChrome />
+        </section>
+      ) : null}
     </article>
   );
 }

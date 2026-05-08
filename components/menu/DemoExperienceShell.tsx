@@ -1,6 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect } from "react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useLenisRef } from "@/components/SmoothScrollProvider";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 
 type DemoExperienceShellProps = {
@@ -8,14 +11,61 @@ type DemoExperienceShellProps = {
 };
 
 /**
- * Desktop : menu plein écran large par défaut.
- * Option « Simuler mobile » : mockup téléphone avec scroll interne (prévisualisation seulement).
- * Vrai téléphone : pas de mockup, page naturelle (scroll document).
+ * Desktop : carte pleine largeur.
+ * Option « Simuler mobile » : cadre téléphone avec scroll interne.
+ * Appareil mobile réel : pas de cadre, défilement document natif.
  */
 export function DemoExperienceShell({ children }: DemoExperienceShellProps) {
   const { isRealMobile, simulateMobile, setSimulateMobile } = useDemoSimulation();
+  const lenisRef = useLenisRef();
 
   const showPhoneChrome = !isRealMobile && simulateMobile;
+
+  useEffect(() => {
+    const lock = simulateMobile && !isRealMobile;
+    if (!lock) return undefined;
+
+    const lenis = lenisRef?.current ?? null;
+    lenis?.stop();
+
+    const scrollY = window.scrollY;
+    const html = document.documentElement;
+    const body = document.body;
+
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevOverscroll = html.style.overscrollBehavior;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyLeft = body.style.left;
+    const prevBodyRight = body.style.right;
+    const prevBodyWidth = body.style.width;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      html.style.overscrollBehavior = prevOverscroll;
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.left = prevBodyLeft;
+      body.style.right = prevBodyRight;
+      body.style.width = prevBodyWidth;
+
+      lenis?.start();
+      window.scrollTo(0, scrollY);
+      lenis?.scrollTo(scrollY, { immediate: true, force: true });
+      ScrollTrigger.refresh();
+    };
+  }, [simulateMobile, isRealMobile, lenisRef]);
 
   return (
     <div
@@ -24,12 +74,8 @@ export function DemoExperienceShell({ children }: DemoExperienceShellProps) {
       data-demo-root
     >
       {!isRealMobile ? (
-        <div className="bg-[#060504] px-4 py-2.5 sm:px-6">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[10px] font-medium text-[#5c5248] sm:text-[11px]">
-              <span className="sr-only">Mode démonstration : </span>
-              Prévisualisation bureau — activez la simulation pour voir le rendu téléphone.
-            </p>
+        <div className="bg-[#060504] py-2.5 pl-4 pr-2 sm:pl-6 sm:pr-4">
+          <div className="flex w-full justify-end">
             <button
               type="button"
               onClick={() => setSimulateMobile(!simulateMobile)}
@@ -66,15 +112,11 @@ export function DemoExperienceShell({ children }: DemoExperienceShellProps) {
                 data-lenis-prevent
                 data-phone-mockup-scroll
               >
-                <div className="px-3.5 pb-10 pt-3 sm:px-4">
+                <div className="min-w-0 px-4 pb-10 pt-4 sm:px-4">
                   {children}
                 </div>
               </div>
             </div>
-            <p className="mt-5 text-center text-xs text-[#6a5c4e]">
-              Prévisualisation format téléphone — l’expérience réelle sur mobile
-              utilise tout l’écran.
-            </p>
           </div>
         </div>
       ) : (

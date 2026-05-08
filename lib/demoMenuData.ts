@@ -72,7 +72,7 @@ const RESTAURANT: Restaurant = {
   logoMonogram: "MÉ",
   currency: "CAD",
   contextLine:
-    "Carte illustrée MenuAlive · Saisonnalité, produits du marché et créations du chef."
+    "Saisonnalité, produits du marché et créations de la maison."
 };
 
 const CATEGORIES: Category[] = [
@@ -162,7 +162,7 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "12 min",
-    model3dUrl: "",
+    model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
     usdzUrl: ""
   },
   {
@@ -226,7 +226,7 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "28 min",
-    model3dUrl: "",
+    model3dUrl: "/models/demo/homard-bisque.glb",
     usdzUrl: ""
   },
   {
@@ -382,7 +382,7 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "16 min",
-    model3dUrl: "",
+    model3dUrl: "/models/demo/souffle-chocolat.glb",
     usdzUrl: ""
   },
   {
@@ -443,7 +443,7 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "5 min",
-    model3dUrl: "",
+    model3dUrl: "/models/demo/maison-elyse-n1.glb",
     usdzUrl: ""
   },
   {

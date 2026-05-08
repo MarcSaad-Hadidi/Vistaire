@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const dish = getDishBySlug(slug);
   const restaurant = getRestaurant();
   if (!dish) {
-    return { title: "Plat introuvable | MenuAlive" };
+    return { title: "Plat introuvable | Maison Élyse" };
   }
   return {
     title: `${dish.name} — ${restaurant.name}`,

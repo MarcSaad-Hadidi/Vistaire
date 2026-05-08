@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
-  title: "Espace restaurateur (démo) | MenuAlive",
+  title: "Espace restaurateur | MenuAlive",
   description:
-    "Aperçu du pilotage menu, plats et médias — démonstration sans persistance."
+    "Pilotage de la carte, des plats et des médias — prévisualisation locale."
 };
 
 export default function AdminLayout({

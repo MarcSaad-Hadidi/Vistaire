@@ -14,6 +14,8 @@ type ModelViewerProps = DetailedHTMLProps<
   "shadow-intensity"?: string;
   "environment-image"?: string;
   exposure?: string;
+  /** https://modelviewer.dev/ — comportement pendant le fetch du poster / modèle */
+  loading?: string;
 };
 
 declare module "react" {
