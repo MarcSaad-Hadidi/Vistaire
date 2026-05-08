@@ -13,7 +13,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const LenisRefContext = createContext<RefObject<Lenis | null> | null>(null);
-const TOUCH_SCROLL_MEDIA_QUERY = "(pointer: coarse)";
 const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
 
 /** Référence vers l’instance Lenis globale (pour stop/start hors du provider). */
@@ -35,22 +34,14 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
     window.history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
 
-    const shouldUseNativeScroll =
-      window.matchMedia(TOUCH_SCROLL_MEDIA_QUERY).matches ||
-      window.matchMedia(REDUCED_MOTION_MEDIA_QUERY).matches;
-
-    if (shouldUseNativeScroll) {
-      ScrollTrigger.refresh();
-
-      return () => {
-        window.history.scrollRestoration = previousScrollRestoration;
-      };
-    }
+    const prefersReducedMotion = window.matchMedia(
+      REDUCED_MOTION_MEDIA_QUERY
+    ).matches;
 
     const lenis = new Lenis({
-      duration: 1,
+      duration: prefersReducedMotion ? 0.01 : 1,
       easing: (time) => Math.min(1, 1.001 - 2 ** (-10 * time)),
-      smoothWheel: true,
+      smoothWheel: !prefersReducedMotion,
       wheelMultiplier: 0.72,
       touchMultiplier: 1
     });

@@ -1,0 +1,31 @@
+[    1802ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[    1832ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[    1877ms] [WARNING] Image with src "/images/demo/dishes/ravioles-chevre-miel-monteregie.png" is using quality "92" which is not configured in images.qualities [75]. Please update your config to [75, 92].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[    4010ms] [WARNING] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40089ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40436ms] [LOG] [Fast Refresh] done in 450ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40466ms] [WARNING] Image with src "/images/demo/dishes/ravioles-chevre-miel-monteregie.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40471ms] [WARNING] Image with src "/images/demo/dishes/tartare-saumon-label-rouge.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40474ms] [WARNING] Image with src "/images/demo/dishes/homard-bleu-bisque-fenouil.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40478ms] [WARNING] Image with src "/images/demo/dishes/canette-rotie-figues-epices.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40481ms] [WARNING] Image with src "/images/demo/dishes/risotto-cepes-parmesan.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40484ms] [WARNING] Image with src "/images/demo/dishes/bar-de-ligne-artichaut-citron.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40487ms] [WARNING] Image with src "/images/demo/dishes/pave-boeuf-mature-bordelaise.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40489ms] [WARNING] Image with src "/images/demo/dishes/souffle-chocolat-grand-cru.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40494ms] [WARNING] Image with src "/images/demo/dishes/tarte-citron-basilic-pourpre.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40497ms] [WARNING] Image with src "/images/demo/dishes/maison-elyse-n1.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40501ms] [WARNING] Image with src "/images/demo/dishes/negroni-vieilli-fut.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   40503ms] [WARNING] Image with src "/images/demo/dishes/elixir-bergamote-earl-grey.png" is using quality "90" which is not configured in images.qualities [75]. Please update your config to [75, 90].
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477

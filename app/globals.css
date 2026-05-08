@@ -190,14 +190,8 @@ button[aria-label="Open Next.js Dev Tools"] {
     transition-duration: 0.01ms !important;
   }
 
-  .scroll-video-section {
-    height: 100svh;
-  }
-
-  @supports (height: 100dvh) {
-    .scroll-video-section {
-      height: 100dvh;
-    }
+  .chapter-copy {
+    animation: none !important;
   }
 }
 

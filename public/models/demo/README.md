@@ -1,11 +1,11 @@
 # Modèles 3D démo Maison Élyse (MVP stylisés)
 
-Ces fichiers **GLB** sont des **assets de démonstration stylisés**, générés en procédural (Three.js via `npm run demo:generate-3d`, équivalent possible avec Blender via `scripts/create-demo-3d-models.py`). Ce ne sont **pas** des scans photoréalistes.
+Ces fichiers **GLB** et **USDZ** sont des **assets de démonstration stylisés**. Ce ne sont **pas** des scans photoréalistes.
 
 | Fichier | Usage |
 | ------- | ----- |
 | `.glb`  | Web et Android (Chrome, `model-viewer`, AR via WebXR / Scene Viewer) |
-| `.usdz` | iPhone / iPad (Quick Look) — **non inclus** pour l’instant ; ajouter puis renseigner `usdzUrl` dans `lib/demoMenuData.ts` |
+| `.usdz` | iPhone / iPad — attribut `ios-src` de `model-viewer` (Quick Look quand le navigateur l’expose) |
 
 ## Régénérer les GLB
 
@@ -21,11 +21,21 @@ Avec Blender (3.6+) :
 blender --background --python scripts/create-demo-3d-models.py
 ```
 
-Les deux approches peuvent produire des variantes géométriques / matériaux légèrement différentes.
+## Régénérer les USDZ (à partir des GLB)
+
+Conversion locale (Babylon.js + `fflate`, fonctionne sur Windows) :
+
+```bash
+npm run demo:convert-usdz
+```
+
+Après modification des GLB, relancer **generate-3d** puis **convert-usdz**, et vérifier les chemins dans `lib/demoMenuData.ts` (`model3dUrl` / `usdzUrl`).
+
+**macOS (alternative)** : `xcrun usdz_converter` ou l’app **Reality Converter** peuvent produire des USDZ ; les fichiers générés par le script npm restent valides pour la démo.
 
 ## Déploiement
 
-Pour **AR terrain** exploitable depuis un téléphone : servir le site en **HTTPS** (ex. Vercel).
+Pour **AR** : servir le site en **HTTPS** (ex. Vercel). Le comportement exact dépend du navigateur (Safari iOS privilégie souvent Quick Look avec `ios-src`).
 
 ## Version commerciale
 

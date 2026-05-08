@@ -163,7 +163,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "12 min",
     model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
-    usdzUrl: ""
+    usdzUrl: "/models/demo/ravioles-chevre-miel.usdz"
   },
   {
     id: "dish-2",
@@ -227,7 +227,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "28 min",
     model3dUrl: "/models/demo/homard-bisque.glb",
-    usdzUrl: ""
+    usdzUrl: "/models/demo/homard-bisque.usdz"
   },
   {
     id: "dish-4",
@@ -383,7 +383,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "16 min",
     model3dUrl: "/models/demo/souffle-chocolat.glb",
-    usdzUrl: ""
+    usdzUrl: "/models/demo/souffle-chocolat.usdz"
   },
   {
     id: "dish-9",
@@ -444,7 +444,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "5 min",
     model3dUrl: "/models/demo/maison-elyse-n1.glb",
-    usdzUrl: ""
+    usdzUrl: "/models/demo/maison-elyse-n1.usdz"
   },
   {
     id: "dish-11",

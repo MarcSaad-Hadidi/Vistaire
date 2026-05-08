@@ -624,7 +624,11 @@ export function CanvasScrollVideo() {
       );
       const safeIndex = clampFrameIndex(Math.floor(safeExactFrame));
 
-      if (!force && safeIndex === currentFrameRef.current) {
+      if (
+        !force &&
+        safeIndex === currentFrameRef.current &&
+        imagesRef.current[safeIndex]
+      ) {
         return;
       }
 
@@ -720,7 +724,9 @@ export function CanvasScrollVideo() {
       const nextProgress =
         Math.abs(targetProgress - currentProgress) < 0.0008
           ? targetProgress
-          : currentProgress + (targetProgress - currentProgress) * PROGRESS_EASE;
+          : currentProgress +
+            (targetProgress - currentProgress) *
+              (shouldReduceMotion ? 1 : PROGRESS_EASE);
 
       displayedProgressRef.current = nextProgress;
 
@@ -768,10 +774,6 @@ export function CanvasScrollVideo() {
         resizeCanvas();
         drawFrame(0, true);
         setLoadState("canvas");
-
-        if (shouldReduceMotion) {
-          return;
-        }
 
         const initialFrameBatch = getInitialFrameBatch();
 
@@ -857,15 +859,11 @@ export function CanvasScrollVideo() {
       window.removeEventListener("resize", resizeCanvas);
     };
 
-    if (!shouldReduceMotion) {
-      rafRef.current = window.requestAnimationFrame(renderLoop);
-    }
+    rafRef.current = window.requestAnimationFrame(renderLoop);
 
     preloadFrames();
 
-    if (!shouldReduceMotion) {
-      initialiseScroll();
-    }
+    initialiseScroll();
 
     return () => {
       cancelled = true;
