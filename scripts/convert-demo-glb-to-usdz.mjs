@@ -199,7 +199,7 @@ async function convertOne(glbName) {
   let targetMaxDimMeters = null;
 
   if (glbName === "homard-bisque.glb") {
-    targetMaxDimMeters = 0.25;
+    targetMaxDimMeters = 0.21;
     boundsBefore = getSceneBounds(scene);
     forcePositiveScales(scene);
     normalizeSceneForAr(scene, targetMaxDimMeters);
