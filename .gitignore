@@ -24,6 +24,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# local heavy 3D source drops
+3D Plat/RavioliAvecAssiete.glb
+
 # local env files
 .env*.local
 .env
