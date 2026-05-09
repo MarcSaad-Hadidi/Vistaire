@@ -58,6 +58,17 @@ type ModelViewerElement = HTMLElement & {
   activateAR?: () => Promise<void> | void;
 };
 
+function openQuickLook(iosSrc: string): boolean {
+  if (typeof window === "undefined") return false;
+  if (!iosSrc) return false;
+  try {
+    window.location.assign(iosSrc);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function arUnavailableVariant(): ArUnavailableVariant {
   if (!isIosDevice()) return "default";
   if (isBraveUserAgent()) return "iosBrave";
@@ -158,12 +169,19 @@ export const DishModelViewer = forwardRef<
     }
     const el = loadWatchRef.current;
     if (!el?.activateAR) {
+      // Fallback robuste iOS: ouvrir directement le USDZ dans Quick Look.
+      if (isIos && openQuickLook(iosSrc)) {
+        return "launched";
+      }
       return "deferred";
     }
     if (!modelLoaded) {
       return "deferred";
     }
     if (el.canActivateAR === false) {
+      if (isIos && openQuickLook(iosSrc)) {
+        return "launched";
+      }
       setArUnsupported(true);
       return "unsupported";
     }
@@ -173,16 +191,22 @@ export const DishModelViewer = forwardRef<
       const result = el.activateAR();
       if (result && typeof result.then === "function") {
         result.catch(() => {
+          if (isIos && openQuickLook(iosSrc)) {
+            return;
+          }
           setArUnsupported(true);
           openSystemBrowserHandoffForAr();
         });
       }
       return "launched";
     } catch {
+      if (isIos && openQuickLook(iosSrc)) {
+        return "launched";
+      }
       setArUnsupported(true);
       return "unsupported";
     }
-  }, [missingIosAr, mvReady, modelLoaded]);
+  }, [missingIosAr, mvReady, modelLoaded, isIos, iosSrc]);
 
   useImperativeHandle(ref, () => ({ requestAr }), [requestAr]);
 
