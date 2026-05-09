@@ -14,8 +14,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  Color3,
+  MeshBuilder,
   NullEngine,
   Matrix,
+  PBRMaterial,
   Scene,
   TransformNode,
   Vector3,
@@ -152,6 +155,75 @@ function rotateRenderableMeshesAroundY(scene, radians) {
   }
 }
 
+function isRaviolesPlateMesh(mesh) {
+  const name = `${mesh.name} ${mesh.material?.name ?? ""}`.toLowerCase();
+  return (
+    name.includes("assiette") ||
+    name.includes("rebord") ||
+    name.includes("céramique") ||
+    name.includes("ceramique")
+  );
+}
+
+function tuneRaviolesArScene(scene) {
+  const meshes = getRenderableMeshes(scene);
+  const plateMeshes = meshes.filter(isRaviolesPlateMesh);
+  const foodMeshes = meshes.filter((mesh) => !isRaviolesPlateMesh(mesh));
+  if (plateMeshes.length === 0 || foodMeshes.length === 0) return;
+
+  const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
+  const foodBounds = scene.getWorldExtends((mesh) => foodMeshes.includes(mesh));
+  const plateSize = plateBounds.max.subtract(plateBounds.min);
+  const plateTopY = plateBounds.max.y;
+
+  for (const material of scene.materials) {
+    if (!material.name.toLowerCase().includes("céramique") && !material.name.toLowerCase().includes("ceramique")) {
+      continue;
+    }
+    material.alpha = 1;
+    material.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
+    material.albedoColor = new Color3(0.96, 0.92, 0.84);
+    material.metallic = 0;
+    material.roughness = 0.58;
+    material.backFaceCulling = false;
+  }
+
+  // Quick Look peut rendre la géométrie très fine de l'assiette comme une tranche.
+  // On ajoute un disque AR-only très mince, opaque, au niveau supérieur de l'assiette.
+  const support = MeshBuilder.CreateCylinder(
+    "ravioles-ar-opaque-plate-surface",
+    {
+      height: 0.004,
+      diameter: Math.max(plateSize.x, plateSize.z) * 0.92,
+      tessellation: 128
+    },
+    scene
+  );
+  support.position.set(
+    (plateBounds.min.x + plateBounds.max.x) / 2,
+    plateTopY - 0.001,
+    (plateBounds.min.z + plateBounds.max.z) / 2
+  );
+  const supportMat = new PBRMaterial("ravioles-ar-ceramic-opaque", scene);
+  supportMat.albedoColor = new Color3(0.96, 0.92, 0.84);
+  supportMat.metallic = 0;
+  supportMat.roughness = 0.58;
+  supportMat.alpha = 1;
+  supportMat.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
+  supportMat.backFaceCulling = false;
+  support.material = supportMat;
+
+  // Repose la nourriture légèrement dans la surface visible pour supprimer l'effet flottant.
+  const foodBottomY = foodBounds.min.y;
+  const targetFoodBottomY = plateTopY - 0.002;
+  const deltaY = targetFoodBottomY - foodBottomY;
+  const translation = Matrix.Translation(0, deltaY, 0);
+  for (const mesh of foodMeshes) {
+    mesh.bakeTransformIntoVertices(translation);
+    mesh.refreshBoundingInfo(true);
+  }
+}
+
 function ensureMeshNormals(scene) {
   for (const mesh of getRenderableMeshes(scene)) {
     if (mesh.getVerticesData(VertexBuffer.NormalKind)) continue;
@@ -229,6 +301,9 @@ async function convertOne(glbName) {
     flattenRenderableMeshesForUsdz(scene);
     if (arYawDegrees !== 0) {
       rotateRenderableMeshesAroundY(scene, (arYawDegrees * Math.PI) / 180);
+    }
+    if (glbName === "ravioles-chevre-miel.glb") {
+      tuneRaviolesArScene(scene);
     }
     ensureMeshNormals(scene);
     boundsAfter = getSceneBounds(scene);
