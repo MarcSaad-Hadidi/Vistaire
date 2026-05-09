@@ -227,7 +227,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "28 min",
     model3dUrl: "/models/demo/homard-bisque.glb",
-    usdzUrl: "/models/demo/homard-bisque-ar-lite.usdz"
+    usdzUrl: "/models/demo/homard-bisque.usdz"
   },
   {
     id: "dish-4",
