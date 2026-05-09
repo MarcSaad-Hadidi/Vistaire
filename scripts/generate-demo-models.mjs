@@ -573,8 +573,8 @@ function cocktailScene() {
 async function main() {
   console.log(`Export GLB vers ${OUT_DIR}`);
   /* Plus petite cible métrique (~25–28 cm max dim assiettes, dessert/verre plus compacts). */
-  await exportBinaryGlb(raviolesScene(), "ravioles-chevre-miel.glb", 0.24);
-  await exportBinaryGlb(homardScene(), "homard-bisque.glb", 0.28);
+  await exportBinaryGlb(raviolesScene(), "ravioles-chevre-miel.glb", 0.21);
+  await exportBinaryGlb(homardScene(), "homard-bisque.glb", 0.25);
   await exportBinaryGlb(souffleScene(), "souffle-chocolat.glb", 0.17);
   await exportBinaryGlb(cocktailScene(), "maison-elyse-n1.glb", 0.095);
   console.log("Terminé.");

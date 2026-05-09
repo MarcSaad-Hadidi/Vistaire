@@ -11,12 +11,20 @@ export function isIosDevice(): boolean {
   return /iPad|iPhone|iPod/.test(getUserAgent());
 }
 
-/** Safari WebKit sur iOS (pas Chrome/Firefox/Edge embarqués). */
-export function isSafariOnIos(): boolean {
+/**
+ * Safari « natif » iOS — pas Chrome/Firefox/Edge/Brave/Opera dans leur shell WebKit,
+ * où l’AR Quick Look est souvent indisponible.
+ */
+export function isNativeSafariOnIos(): boolean {
   const ua = getUserAgent();
   if (!isIosDevice()) return false;
-  if (/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua)) return false;
-  return /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+  if (/CriOS|FxiOS|EdgiOS|OPiOS|Brave/i.test(ua)) return false;
+  return /Version\/[\d.]+/.test(ua) && /Safari/i.test(ua);
+}
+
+/** Alias sémantique (Safari iOS natif). */
+export function isSafariOnIos(): boolean {
+  return isNativeSafariOnIos();
 }
 
 /** Navigateurs iOS autres que Safari (WKWebView / restrictions AR fréquentes). */

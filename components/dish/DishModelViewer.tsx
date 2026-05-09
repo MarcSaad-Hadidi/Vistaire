@@ -19,6 +19,7 @@ import {
   isIosEmbeddedBrowser,
   type ArUnavailableVariant
 } from "@/lib/arEnvironment";
+import { openSystemBrowserHandoffForAr } from "@/lib/openSystemBrowser";
 
 const MV_INIT_TIMEOUT_MS = 12_000;
 const AR_HELP_TEXT =
@@ -171,7 +172,10 @@ export const DishModelViewer = forwardRef<
     try {
       const result = el.activateAR();
       if (result && typeof result.then === "function") {
-        result.catch(() => setArUnsupported(true));
+        result.catch(() => {
+          setArUnsupported(true);
+          openSystemBrowserHandoffForAr();
+        });
       }
       return "launched";
     } catch {

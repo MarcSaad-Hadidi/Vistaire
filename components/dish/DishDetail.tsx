@@ -14,6 +14,7 @@ import {
   type DishModelViewerHandle
 } from "@/components/dish/DishModelViewer";
 import { DishDetailHero } from "@/components/dish/DishDetailHero";
+import { openSystemBrowserHandoffForAr } from "@/lib/openSystemBrowser";
 
 type DishDetailProps = {
   dish: Dish;
@@ -116,6 +117,9 @@ export function DishDetail({ dish }: DishDetailProps) {
 
     if (status === "unsupported") {
       setHeroArDeferredHint(false);
+      if (openSystemBrowserHandoffForAr()) {
+        return;
+      }
       requestAnimationFrame(() => {
         const el = plat3dAnchorRef.current;
         if (el) scrollToPlat3dAnchor(el);
