@@ -264,11 +264,11 @@ export const DishModelViewer = forwardRef<
                 shadow-intensity="1"
                 exposure="1.05"
                 loading="auto"
-                camera-orbit="0deg 68deg 118%"
-                camera-target="0m 0.02m 0m"
-                field-of-view="30deg"
-                min-camera-orbit="auto auto 55%"
-                max-camera-orbit="auto auto 145%"
+                camera-orbit="0deg 68deg 145%"
+                camera-target="0m 0.015m 0m"
+                field-of-view="34deg"
+                min-camera-orbit="auto auto 65%"
+                max-camera-orbit="auto auto 175%"
                 className="mx-auto block h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]"
               >
                 <button
