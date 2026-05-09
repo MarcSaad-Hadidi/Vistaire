@@ -51,6 +51,10 @@ const AR_EXPORT_CONFIG = {
   "homard-bisque.glb": {
     targetMaxDimMeters: 0.21,
     yawDegrees: 180
+  },
+  "souffle-chocolat.glb": {
+    targetMaxDimMeters: 0.17,
+    yawDegrees: 0
   }
 };
 

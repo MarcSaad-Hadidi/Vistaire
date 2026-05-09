@@ -26,6 +26,8 @@ yarn-error.log*
 
 # local heavy 3D source drops
 3D Plat/RavioliAvecAssiete.glb
+3D Plat/HomardAvecAssiette.glb
+3D Plat/SouffleAvecAssiette.glb
 
 # local env files
 .env*.local
