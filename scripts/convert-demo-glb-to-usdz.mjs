@@ -40,6 +40,17 @@ const FILES = [
   "maison-elyse-n1.glb"
 ];
 
+const AR_EXPORT_CONFIG = {
+  "ravioles-chevre-miel.glb": {
+    targetMaxDimMeters: 0.21,
+    yawDegrees: 0
+  },
+  "homard-bisque.glb": {
+    targetMaxDimMeters: 0.21,
+    yawDegrees: 180
+  }
+};
+
 /**
  * Normalisation AR (USDZ only) :
  * - centre X/Z à l’origine,
@@ -208,14 +219,17 @@ async function convertOne(glbName) {
   let targetMaxDimMeters = null;
   let arYawDegrees = null;
 
-  if (glbName === "homard-bisque.glb") {
-    targetMaxDimMeters = 0.21;
-    arYawDegrees = 180;
+  const arConfig = AR_EXPORT_CONFIG[glbName];
+  if (arConfig) {
+    targetMaxDimMeters = arConfig.targetMaxDimMeters;
+    arYawDegrees = arConfig.yawDegrees;
     boundsBefore = getSceneBounds(scene);
     forcePositiveScales(scene);
     normalizeSceneForAr(scene, targetMaxDimMeters);
     flattenRenderableMeshesForUsdz(scene);
-    rotateRenderableMeshesAroundY(scene, (arYawDegrees * Math.PI) / 180);
+    if (arYawDegrees !== 0) {
+      rotateRenderableMeshesAroundY(scene, (arYawDegrees * Math.PI) / 180);
+    }
     ensureMeshNormals(scene);
     boundsAfter = getSceneBounds(scene);
   }
@@ -245,7 +259,7 @@ async function convertOne(glbName) {
   ensureUsdzContainsGeometry(bytes, usdzName);
   writeFileSync(usdzPath, Buffer.from(bytes));
   const finalSize = statSync(usdzPath).size;
-  if (glbName === "homard-bisque.glb") {
+  if (arConfig) {
     logBounds(`${glbName} bounding box avant`, boundsBefore);
     logBounds(`${glbName} bounding box après`, boundsAfter);
     console.log(`${glbName} meshCount=${meshCount}`);

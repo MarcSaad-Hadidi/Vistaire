@@ -70,6 +70,9 @@ function openAndroidSceneViewer(modelSrc: string): boolean {
   }
 }
 
+const AR_BUTTON_CLASS =
+  "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/50 bg-champagne px-5 text-center text-sm font-semibold text-[#17100a] shadow-[0_12px_34px_rgba(217,184,121,0.18)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[190px]";
+
 export function DishDetail({ dish }: DishDetailProps) {
   const restaurant = getRestaurant();
   const unavailable = !dish.isAvailable;
@@ -109,12 +112,6 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, [showAndScrollToPlat3d]);
 
   const handleVoirDevantMoiClick = useCallback(() => {
-    // AR direct dans le geste utilisateur: ne monte pas le viewer 3D avant Quick Look / Scene Viewer.
-    if (isIos && dish.usdzUrl?.trim()) {
-      window.location.assign(dish.usdzUrl.trim());
-      return;
-    }
-
     if (isAndroidDevice() && dish.model3dUrl?.trim()) {
       if (openAndroidSceneViewer(dish.model3dUrl.trim())) {
         return;
@@ -372,13 +369,32 @@ export function DishDetail({ dish }: DishDetailProps) {
               </p>
             ) : null}
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <button
-                type="button"
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/50 bg-champagne px-5 text-center text-sm font-semibold text-[#17100a] shadow-[0_12px_34px_rgba(217,184,121,0.18)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[190px]"
-                onClick={handleVoirDevantMoiClick}
-              >
-                Voir devant moi
-              </button>
+              {isIos && dish.usdzUrl?.trim() ? (
+                <a
+                  href={dish.usdzUrl.trim()}
+                  rel="ar"
+                  className={AR_BUTTON_CLASS}
+                  aria-label="Voir devant moi"
+                >
+                  {/* Safari Quick Look exige un enfant img/picture sur les liens rel="ar". */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute h-px w-px opacity-0"
+                  />
+                  <span>Voir devant moi</span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={AR_BUTTON_CLASS}
+                  onClick={handleVoirDevantMoiClick}
+                >
+                  Voir devant moi
+                </button>
+              )}
               <button
                 type="button"
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/18 bg-white/6 px-5 text-center text-sm font-semibold text-cream transition hover:border-champagne/35 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[170px]"
