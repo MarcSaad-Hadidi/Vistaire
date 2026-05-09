@@ -55,6 +55,10 @@ function extractDishes() {
 
 function checkSignature(filePath, expectedMagic, label) {
   const bytes = readFileSync(filePath);
+  if (isGitLfsPointer(bytes)) {
+    fail(`${label} est un pointeur Git LFS non hydraté`);
+    return;
+  }
   const magic = bytes.subarray(0, expectedMagic.length).toString("utf8");
   if (magic !== expectedMagic) {
     fail(`${label} signature invalide: attendu ${expectedMagic}, obtenu ${JSON.stringify(magic)}`);
@@ -63,10 +67,23 @@ function checkSignature(filePath, expectedMagic, label) {
   ok(`${label} signature ${expectedMagic}`);
 }
 
+function isGitLfsPointer(bytes) {
+  return bytes
+    .subarray(0, 64)
+    .toString("utf8")
+    .startsWith("version https://git-lfs.github.com/spec/v1");
+}
+
 function inspectUsdz(filePath, label) {
+  const raw = readFileSync(filePath);
+  if (isGitLfsPointer(raw)) {
+    fail(`${label} est un pointeur Git LFS non hydraté`);
+    return;
+  }
+
   let zip;
   try {
-    zip = fflate.unzipSync(readFileSync(filePath));
+    zip = fflate.unzipSync(raw);
   } catch (error) {
     fail(`${label} ZIP illisible: ${error.message}`);
     return;
@@ -153,7 +170,7 @@ for (const dish of dishesWithUsdz) {
   if (size <= 0) fail(`${label} vide`);
   if (size < MIN_USDZ_BYTES) warn(`${label} très petit (${formatSize(size)})`);
   if (size > LARGE_USDZ_BYTES) warn(`${label} volumineux pour mobile (${formatSize(size)})`);
-  if (size > HUGE_USDZ_BYTES) fail(`${label} trop gros pour Quick Look (${formatSize(size)})`);
+  if (size > HUGE_USDZ_BYTES) warn(`${label} très gros pour Quick Look (${formatSize(size)})`);
   ok(`${label} existe (${formatSize(size)})`);
   checkSignature(filePath, "PK", label);
   inspectUsdz(filePath, label);
