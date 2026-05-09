@@ -46,11 +46,13 @@ export function DishDetail({ dish }: DishDetailProps) {
   const immersive = isRealMobile || isPhoneSimulation;
   const [showPlat3d, setShowPlat3d] = useState(false);
   const [desktopArHint, setDesktopArHint] = useState(false);
+  const [phoneSimulationArHint, setPhoneSimulationArHint] = useState(false);
+  const [heroArDeferredHint, setHeroArDeferredHint] = useState(false);
   const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
   const modelViewerRef = useRef<DishModelViewerHandle | null>(null);
-  const canExpectMobileAr = immersive;
+  const canExpectMobileUi = immersive;
 
-  /** Précharge le lecteur 3D pour que le premier « Voir devant moi » ait souvent déjà le custom element. */
+  /** Précharge model-viewer pour réduire la fenêtre où le lecteur n’est pas prêt. */
   useEffect(() => {
     if (!has3d) return;
     void import("@google/model-viewer");
@@ -68,13 +70,29 @@ export function DishDetail({ dish }: DishDetailProps) {
 
   const handleVoir3dClick = useCallback(() => {
     setDesktopArHint(false);
+    setPhoneSimulationArHint(false);
+    setHeroArDeferredHint(false);
     showAndScrollToPlat3d();
   }, [showAndScrollToPlat3d]);
 
   const handleVoirDevantMoiClick = useCallback(() => {
-    if (!canExpectMobileAr) {
+    if (!canExpectMobileUi) {
       flushSync(() => setShowPlat3d(true));
       setDesktopArHint(true);
+      setPhoneSimulationArHint(false);
+      setHeroArDeferredHint(false);
+      requestAnimationFrame(() => {
+        const el = plat3dAnchorRef.current;
+        if (el) scrollToPlat3dAnchor(el);
+      });
+      return;
+    }
+
+    if (!isRealMobile) {
+      flushSync(() => setShowPlat3d(true));
+      setDesktopArHint(false);
+      setPhoneSimulationArHint(true);
+      setHeroArDeferredHint(false);
       requestAnimationFrame(() => {
         const el = plat3dAnchorRef.current;
         if (el) scrollToPlat3dAnchor(el);
@@ -83,20 +101,34 @@ export function DishDetail({ dish }: DishDetailProps) {
     }
 
     setDesktopArHint(false);
+    setPhoneSimulationArHint(false);
 
     if (!showPlat3d) {
       flushSync(() => setShowPlat3d(true));
     }
 
-    const arInvoked = modelViewerRef.current?.requestAr() ?? false;
+    const status = modelViewerRef.current?.requestAr() ?? "deferred";
 
-    if (!arInvoked) {
+    if (status === "launched") {
+      setHeroArDeferredHint(false);
+      return;
+    }
+
+    if (status === "unsupported") {
+      setHeroArDeferredHint(false);
       requestAnimationFrame(() => {
         const el = plat3dAnchorRef.current;
         if (el) scrollToPlat3dAnchor(el);
       });
+      return;
     }
-  }, [canExpectMobileAr, showPlat3d]);
+
+    setHeroArDeferredHint(true);
+    requestAnimationFrame(() => {
+      const el = plat3dAnchorRef.current;
+      if (el) scrollToPlat3dAnchor(el);
+    });
+  }, [canExpectMobileUi, isRealMobile, showPlat3d]);
 
   return (
     <article className={immersive ? "pb-24 pt-2.5" : "pb-24 pt-4 sm:pt-5"}>
@@ -259,6 +291,28 @@ export function DishDetail({ dish }: DishDetailProps) {
                 moi ».
               </p>
             ) : null}
+            {phoneSimulationArHint ? (
+              <p
+                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-3 text-sm leading-relaxed text-[#eadcc6]"
+                role="status"
+                aria-live="polite"
+              >
+                Aperçu bureau : lancez l’AR depuis le bouton sous le modèle 3D
+                ci-dessous. Sur votre téléphone, « Voir devant moi » démarre
+                directement lorsque l’appareil la prend en charge.
+              </p>
+            ) : null}
+            {heroArDeferredHint ? (
+              <p
+                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-3 text-sm leading-relaxed text-[#eadcc6]"
+                role="status"
+                aria-live="polite"
+              >
+                Le lecteur ou le modèle finalise son chargement. Touchez « Ouvrir en
+                réalité augmentée » dans l’encadré ci-dessous pour lancer l’AR — ce
+                geste est requis sur certains navigateurs.
+              </p>
+            ) : null}
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
@@ -288,11 +342,7 @@ export function DishDetail({ dish }: DishDetailProps) {
             immersive ? "mt-10" : "mt-12"
           }`}
         >
-          <DishModelViewer
-            ref={modelViewerRef}
-            dish={dish}
-            minimalChrome
-          />
+          <DishModelViewer ref={modelViewerRef} dish={dish} minimalChrome />
         </section>
       ) : null}
     </article>

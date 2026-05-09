@@ -7,20 +7,33 @@ import {
   useId,
   useImperativeHandle,
   useMemo,
+  useLayoutEffect,
   useRef,
   useState
 } from "react";
 import type { Dish } from "@/lib/demoMenuData";
+import {
+  getArUnavailableMessage,
+  isBraveUserAgent,
+  isIosDevice,
+  isIosEmbeddedBrowser,
+  type ArUnavailableVariant
+} from "@/lib/arEnvironment";
 
 const MV_INIT_TIMEOUT_MS = 12_000;
 const AR_HELP_TEXT =
   "Placez le plat sur votre table avec la cam\u00e9ra de votre t\u00e9l\u00e9phone.";
-const AR_UNAVAILABLE_TEXT =
-  "Votre navigateur ne permet pas d\u2019ouvrir ce plat en r\u00e9alit\u00e9 augment\u00e9e. Vous pouvez le visualiser en 3D ici.";
-const IOS_BRAVE_AR_TEXT =
-  "Ce navigateur ne permet pas encore l\u2019ouverture AR de ce plat. Pour l\u2019exp\u00e9rience compl\u00e8te sur iPhone, ouvrez cette page dans Safari, ou visualisez le plat en 3D ici.";
 const IOS_USDZ_MISSING_TEXT =
   "Pour activer l\u2019AR iPhone, ajoutez un fichier USDZ \u00e0 ce plat.";
+
+export type ArRequestStatus =
+  | "launched"
+  /** Lecteur ou mod\u00e8le pas pr\u00eat : l\u2019utilisateur doit utiliser le bouton dans le viewer. */
+  | "deferred"
+  /** AR indisponible sur cet appareil / navigateur. */
+  | "unsupported"
+  /** iOS sans fichier USDZ. */
+  | "missing-ios-src";
 
 type DishModelViewerProps = {
   dish: Pick<Dish, "name" | "model3dUrl" | "usdzUrl">;
@@ -29,8 +42,7 @@ type DishModelViewerProps = {
 };
 
 export type DishModelViewerHandle = {
-  /** Vrai si `activateAR` a bien été invoquée (l’AR peut encore échouer ensuite). */
-  requestAr: () => boolean;
+  requestAr: () => ArRequestStatus;
 };
 
 async function ensureModelViewerLoaded(): Promise<void> {
@@ -45,13 +57,11 @@ type ModelViewerElement = HTMLElement & {
   activateAR?: () => Promise<void> | void;
 };
 
-function isIosDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent);
-}
-
-function isBraveUserAgent(): boolean {
-  return typeof navigator !== "undefined" && /Brave/i.test(navigator.userAgent);
+function arUnavailableVariant(): ArUnavailableVariant {
+  if (!isIosDevice()) return "default";
+  if (isBraveUserAgent()) return "iosBrave";
+  if (isIosEmbeddedBrowser()) return "iosEmbedded";
+  return "default";
 }
 
 export const DishModelViewer = forwardRef<
@@ -63,13 +73,19 @@ export const DishModelViewer = forwardRef<
   const [mvReady, setMvReady] = useState(false);
   const [initTimedOut, setInitTimedOut] = useState(false);
   const [modelLoadError, setModelLoadError] = useState(false);
-  const [arLaunchFailed, setArLaunchFailed] = useState(false);
-  const [isIos, setIsIos] = useState(false);
-  const [isBrave, setIsBrave] = useState(false);
+  const [modelLoaded, setModelLoaded] = useState(false);
+  /** \u00c9chec apr\u00e8s tentative AR r\u00e9elle (pas simple diff\u00e9r\u00e9). */
+  const [arUnsupported, setArUnsupported] = useState(false);
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
+  const listenerCleanupRef = useRef<(() => void) | null>(null);
+
   const hasModel = Boolean(dish.model3dUrl?.trim());
   const modelSrc = useMemo(() => dish.model3dUrl?.trim() ?? "", [dish.model3dUrl]);
   const iosSrc = useMemo(() => dish.usdzUrl?.trim() ?? "", [dish.usdzUrl]);
+  const [isIos, setIsIos] = useState(false);
+  useLayoutEffect(() => {
+    setIsIos(isIosDevice());
+  }, []);
   const missingIosAr = isIos && !iosSrc;
 
   useEffect(() => {
@@ -82,69 +98,95 @@ export const DishModelViewer = forwardRef<
     };
   }, []);
 
-  /**
-   * Lancement AR (Quick Look / Scene Viewer / WebXR).
-   * Doit rester dans la pile du geste utilisateur autant que possible (pas de setTimeout avant).
-   */
-  const requestAr = useCallback((): boolean => {
-    const el = loadWatchRef.current;
+  const bindModelViewerRef = useCallback(
+    (node: ModelViewerElement | null) => {
+      listenerCleanupRef.current?.();
+      listenerCleanupRef.current = null;
+      loadWatchRef.current = node;
+      setModelLoaded(false);
+      if (!node) return;
 
-    if (!el?.activateAR || missingIosAr) {
-      setArLaunchFailed(true);
-      return false;
+      const onLoad = () => {
+        setModelLoaded(true);
+        setModelLoadError(false);
+      };
+      const onError = () => {
+        setModelLoadError(true);
+        setModelLoaded(false);
+      };
+      const onArStatus = () => setArUnsupported(false);
+
+      node.addEventListener("load", onLoad);
+      node.addEventListener("error", onError);
+      node.addEventListener("ar-status", onArStatus);
+
+      listenerCleanupRef.current = () => {
+        node.removeEventListener("load", onLoad);
+        node.removeEventListener("error", onError);
+        node.removeEventListener("ar-status", onArStatus);
+      };
+
+      // Mod\u00e8le d\u00e9j\u00e0 en cache : pas toujours un nouveau \u00e9v\u00e9nement load.
+      queueMicrotask(() => {
+        const loaded =
+          (node as unknown as { loaded?: boolean }).loaded === true;
+        if (loaded) onLoad();
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    setModelLoaded(false);
+  }, [modelSrc]);
+
+  useEffect(
+    () => () => {
+      listenerCleanupRef.current?.();
+      listenerCleanupRef.current = null;
+    },
+    []
+  );
+
+  const requestAr = useCallback((): ArRequestStatus => {
+    if (missingIosAr) {
+      return "missing-ios-src";
+    }
+    if (!mvReady) {
+      return "deferred";
+    }
+    const el = loadWatchRef.current;
+    if (!el?.activateAR) {
+      return "deferred";
+    }
+    if (!modelLoaded) {
+      return "deferred";
+    }
+    if (el.canActivateAR === false) {
+      setArUnsupported(true);
+      return "unsupported";
     }
 
-    setArLaunchFailed(false);
+    setArUnsupported(false);
     try {
       const result = el.activateAR();
       if (result && typeof result.then === "function") {
-        result.catch(() => setArLaunchFailed(true));
+        result.catch(() => setArUnsupported(true));
       }
-      return true;
+      return "launched";
     } catch {
-      setArLaunchFailed(true);
-      return false;
+      setArUnsupported(true);
+      return "unsupported";
     }
-  }, [missingIosAr]);
+  }, [missingIosAr, mvReady, modelLoaded]);
 
   useImperativeHandle(ref, () => ({ requestAr }), [requestAr]);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      setIsIos(isIosDevice());
-      setIsBrave(isBraveUserAgent());
-    });
-  }, []);
 
   useEffect(() => {
     if (!hasModel || mvReady) return;
     const t = window.setTimeout(() => setInitTimedOut(true), MV_INIT_TIMEOUT_MS);
     return () => window.clearTimeout(t);
   }, [hasModel, mvReady]);
-
-  useEffect(() => {
-    if (!hasModel || !mvReady) return;
-    let teardown: (() => void) | undefined;
-    const wait = window.setTimeout(() => {
-      const el = loadWatchRef.current;
-      if (!el) return;
-      const onMvError = () => setModelLoadError(true);
-      const onMvLoad = () => setModelLoadError(false);
-      const onArStatus = () => setArLaunchFailed(false);
-      el.addEventListener("error", onMvError);
-      el.addEventListener("load", onMvLoad);
-      el.addEventListener("ar-status", onArStatus);
-      teardown = () => {
-        el.removeEventListener("error", onMvError);
-        el.removeEventListener("load", onMvLoad);
-        el.removeEventListener("ar-status", onArStatus);
-      };
-    }, 0);
-    return () => {
-      window.clearTimeout(wait);
-      teardown?.();
-    };
-  }, [hasModel, mvReady, modelSrc]);
 
   if (!hasModel) {
     return (
@@ -170,6 +212,9 @@ export const DishModelViewer = forwardRef<
 
   const showLoader = !mvReady && !initTimedOut;
   const showInitFail = !mvReady && initTimedOut;
+  const arHintVariant = arUnsupported
+    ? arUnavailableVariant()
+    : "default";
 
   return (
     <section
@@ -203,8 +248,9 @@ export const DishModelViewer = forwardRef<
               </div>
             ) : null}
             {mvReady ? (
+              /* GLB en mètres réalistes ; ar-scale fixed évite l’auto-scale agressif sur Android */
               <model-viewer
-                ref={loadWatchRef}
+                ref={bindModelViewerRef}
                 src={modelSrc}
                 {...(iosSrc ? { "ios-src": iosSrc } : {})}
                 alt={`Vue du plat : ${dish.name}`}
@@ -218,11 +264,11 @@ export const DishModelViewer = forwardRef<
                 shadow-intensity="1"
                 exposure="1.05"
                 loading="auto"
-                camera-orbit="0deg 72deg 105%"
-                camera-target="0m 0.04m 0m"
-                field-of-view="32deg"
-                min-camera-orbit="auto auto 50%"
-                max-camera-orbit="auto auto 140%"
+                camera-orbit="0deg 68deg 118%"
+                camera-target="0m 0.02m 0m"
+                field-of-view="30deg"
+                min-camera-orbit="auto auto 55%"
+                max-camera-orbit="auto auto 145%"
                 className="mx-auto block h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]"
               >
                 <button
@@ -241,9 +287,9 @@ export const DishModelViewer = forwardRef<
             )}
             <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
               <p id={helpId}>{AR_HELP_TEXT}</p>
-              {arLaunchFailed ? (
+              {arUnsupported ? (
                 <p className="text-[#8f806d]">
-                  {isIos && isBrave ? IOS_BRAVE_AR_TEXT : AR_UNAVAILABLE_TEXT}
+                  {getArUnavailableMessage(arHintVariant)}
                 </p>
               ) : null}
               {missingIosAr ? (
@@ -252,7 +298,7 @@ export const DishModelViewer = forwardRef<
             </div>
             {modelLoadError ? (
               <p className="mt-2 text-center text-xs text-[#c49a84]">
-                Le modèle ne s’affiche pas. Réessayez dans un instant.
+                {getArUnavailableMessage("modelLoad")}
               </p>
             ) : null}
           </div>

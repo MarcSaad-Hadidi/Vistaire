@@ -310,3 +310,1724 @@ Fast Refresh requires at least one parent function component in your React tree.
 [ 3012395ms] [LOG] [Fast Refresh] done in 124ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
 [ 3012506ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
 [ 3012675ms] [LOG] [Fast Refresh] done in 270ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3370325ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3371254ms] [LOG] [Fast Refresh] done in 1033ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3384923ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3384945ms] [LOG] [Fast Refresh] done in 123ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3385296ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3385329ms] [LOG] [Fast Refresh] done in 136ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3387854ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3387855ms] [LOG] [Fast Refresh] done in 106ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3388082ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3388086ms] [LOG] [Fast Refresh] done in 105ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3391307ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3391312ms] [LOG] [Fast Refresh] done in 107ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3402958ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403366ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403393ms] [LOG] [Fast Refresh] done in 511ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403504ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403596ms] [LOG] [Fast Refresh] done in 196ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403698ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403721ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403728ms] [LOG] [Fast Refresh] done in 123ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3403848ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3404784ms] [LOG] [Fast Refresh] done in 1040ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3404887ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3413838ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3418563ms] [LOG] [Fast Refresh] done in 12890ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3418971ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3419015ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3493439ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3496134ms] [LOG] [Fast Refresh] done in 2753ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3496248ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3497213ms] [LOG] [Fast Refresh] done in 1070ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3513559ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3513704ms] [LOG] [Fast Refresh] done in 218ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3513805ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3513941ms] [LOG] [Fast Refresh] done in 237ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3514516ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3514652ms] [LOG] [Fast Refresh] done in 216ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3514755ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3514838ms] [LOG] [Fast Refresh] done in 185ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3520177ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3520297ms] [LOG] [Fast Refresh] done in 202ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3520400ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3520507ms] [LOG] [Fast Refresh] done in 209ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521234ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521379ms] [LOG] [Fast Refresh] done in 230ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521484ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521589ms] [LOG] [Fast Refresh] done in 207ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521682ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521729ms] [LOG] [Fast Refresh] done in 122ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521834ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521868ms] [LOG] [Fast Refresh] done in 136ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521973ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3521979ms] [LOG] [Fast Refresh] done in 111ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523186ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523325ms] [LOG] [Fast Refresh] done in 225ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523428ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523500ms] [LOG] [Fast Refresh] done in 173ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523664ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523766ms] [LOG] [Fast Refresh] done in 188ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523870ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3523935ms] [LOG] [Fast Refresh] done in 168ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3524081ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3524205ms] [LOG] [Fast Refresh] done in 208ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3524309ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3524435ms] [LOG] [Fast Refresh] done in 227ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3532306ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3532433ms] [LOG] [Fast Refresh] done in 215ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3532538ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3532619ms] [LOG] [Fast Refresh] done in 183ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3533925ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3534096ms] [LOG] [Fast Refresh] done in 255ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3534203ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3534298ms] [LOG] [Fast Refresh] done in 200ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3536282ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3536411ms] [ERROR] The final argument passed to %s changed size between renders. The order and size of this array must remain constant.
+
+Previous: %s
+Incoming: %s useEffect [false, [object Object]] [false] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 3536425ms] [LOG] [Fast Refresh] done in 216ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3536566ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3536781ms] [LOG] [Fast Refresh] done in 321ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3536928ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3537543ms] [LOG] [Fast Refresh] done in 717ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3545358ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3545495ms] [LOG] [Fast Refresh] done in 204ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3545598ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3545675ms] [LOG] [Fast Refresh] done in 180ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3548640ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3548775ms] [LOG] [Fast Refresh] done in 220ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3548884ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3548984ms] [LOG] [Fast Refresh] done in 205ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3549090ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3549374ms] [LOG] [Fast Refresh] done in 357ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3549482ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3549597ms] [LOG] [Fast Refresh] done in 217ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3553410ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3553584ms] [LOG] [Fast Refresh] done in 260ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3553701ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3553805ms] [LOG] [Fast Refresh] done in 204ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3557665ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3557825ms] [LOG] [Fast Refresh] done in 240ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3557928ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3558009ms] [LOG] [Fast Refresh] done in 181ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3601721ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3601866ms] [LOG] [Fast Refresh] done in 217ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3601967ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3602093ms] [LOG] [Fast Refresh] done in 226ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3609666ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3609909ms] [LOG] [Fast Refresh] done in 337ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3610024ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3610094ms] [LOG] [Fast Refresh] done in 174ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3615318ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3616876ms] [LOG] [Fast Refresh] done in 1624ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3759337ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3766925ms] [LOG] [Fast Refresh] done in 7688ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3767028ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3767096ms] [LOG] [Fast Refresh] done in 171ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3767451ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3782755ms] [LOG] [Fast Refresh] done in 15410ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3813075ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3814324ms] [LOG] [Fast Refresh] done in 1352ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3834177ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3834219ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3839172ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3839204ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3844602ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3844614ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3870140ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3870170ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3884687ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3884705ms] [LOG] [Fast Refresh] done in 119ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3945743ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3946001ms] [LOG] [Fast Refresh] done in 358ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3949130ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3949394ms] [LOG] [Fast Refresh] done in 368ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3968811ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3987396ms] [LOG] [Fast Refresh] done in 18684ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3987508ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3988114ms] [LOG] [Fast Refresh] done in 709ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3988381ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 3988441ms] [LOG] [Fast Refresh] done in 160ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4006370ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4010613ms] [LOG] [Fast Refresh] done in 4342ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4010722ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4010783ms] [LOG] [Fast Refresh] done in 162ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012183ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012267ms] [LOG] [Fast Refresh] done in 181ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012378ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012449ms] [LOG] [Fast Refresh] done in 175ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012772ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012838ms] [LOG] [Fast Refresh] done in 165ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4012945ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4013043ms] [LOG] [Fast Refresh] done in 198ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4013412ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4013603ms] [LOG] [Fast Refresh] done in 293ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4013712ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4013808ms] [LOG] [Fast Refresh] done in 198ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4048208ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4048292ms] [LOG] [Fast Refresh] done in 185ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4048402ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4048487ms] [LOG] [Fast Refresh] done in 186ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4057184ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4057255ms] [LOG] [Fast Refresh] done in 171ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4057362ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4057447ms] [LOG] [Fast Refresh] done in 188ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4139640ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4141924ms] [LOG] [Fast Refresh] done in 2387ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4151730ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4152310ms] [LOG] [Fast Refresh] done in 681ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4165127ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4165174ms] [LOG] [Fast Refresh] done in 150ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4177890ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4233122ms] [LOG] [Fast Refresh] done in 54603ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4233262ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4233292ms] [LOG] [Fast Refresh] done in 134ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4233920ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4233924ms] [LOG] [Fast Refresh] done in 110ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4236432ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4236442ms] [LOG] [Fast Refresh] done in 111ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4487458ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4487519ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4534964ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4537445ms] [LOG] [Fast Refresh] done in 2564ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4538840ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4559662ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4559663ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4559894ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4565861ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4565862ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4565862ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/?_rsc=q3mOO9BClNZHexY7:0
+[ 4565877ms] [ERROR] Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() call inside `%s`, follow the stack trace as described in https://react.dev/link/setstate-in-render CanvasScrollVideo Router Router @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4565977ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4565978ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 4566019ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/?_rsc=q3mOO9BClNZHexY7:0
+[ 4566079ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4566183ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/:0
+[ 4567990ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0bruynb._.js:15305
+[ 4568093ms] Error: ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx
+
+
+    at <unknown> (Error: ./components/CanvasScrollVideo.tsx:13:1)
+    at Object.getCompilationErrors (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\base-server.js:1753:26)
+[ 4568110ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4568119ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0
+[ 4568135ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4568135ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4572807ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4572807ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4575585ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4575634ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4575634ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4575686ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4575686ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4575728ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/:0
+[ 4575811ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0bruynb._.js:15305
+[ 4575836ms] Error: ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx
+
+
+    at <unknown> (Error: ./components/CanvasScrollVideo.tsx:13:1)
+    at Object.getCompilationErrors (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\base-server.js:1753:26)
+[ 4575851ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4575866ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4575867ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576108ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576108ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576215ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4576223ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576224ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576232ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/:0
+[ 4576433ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0bruynb._.js:15305
+[ 4576447ms] Error: ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx
+
+
+    at <unknown> (Error: ./components/CanvasScrollVideo.tsx:13:1)
+    at Object.getCompilationErrors (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\base-server.js:1753:26)
+[ 4576495ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4576542ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576543ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576576ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576576ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576681ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4576791ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576791ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576869ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576870ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4576975ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4577017ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577017ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577103ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577103ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577149ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/:0
+[ 4577207ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0bruynb._.js:15305
+[ 4577217ms] Error: ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx
+
+
+    at <unknown> (Error: ./components/CanvasScrollVideo.tsx:13:1)
+    at Object.getCompilationErrors (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\base-server.js:1753:26)
+[ 4577239ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4577261ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577261ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577348ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577348ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577751ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577751ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577842ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-client] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577842ms] [ERROR] ./components/CanvasScrollVideo.tsx:13:1
+Export getActiveChapter doesn't exist in target module
+  11 |   type ScrollTierProfile
+  12 | } from "@/lib/scrollExperienceTier";
+> 13 | import { getActiveChapter, videoChapters } from "@/lib/videoChapters";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  14 |
+  15 | const PRIMARY_VIDEO_SRC = "/videos/upscaled-video.mp4";
+  16 | const LEGACY_VIDEO_FALLBACK_SRC = "/videos/menualive-full.mp4";
+
+The export getActiveChapter was not found in module [project]/lib/videoChapters.ts [app-ssr] (ecmascript).
+Did you mean to import videoChapters?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./components/CanvasScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 4577916ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4582523ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4593463ms] [LOG] [Fast Refresh] done in 11046ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4594688ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4594852ms] [LOG] [Fast Refresh] done in 270ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 4595136ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4595271ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4736914ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4738558ms] [LOG] [Fast Refresh] done in 1705ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4738818ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4739008ms] [LOG] [Fast Refresh] done in 290ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4783773ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4783774ms] [LOG] [Fast Refresh] done in 105ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4812880ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4813036ms] [LOG] [Fast Refresh] done in 244ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4813177ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4813448ms] [LOG] [Fast Refresh] done in 374ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4844587ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4845340ms] [LOG] [Fast Refresh] done in 854ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4845403ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 4845426ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5119364ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5119423ms] [LOG] [Fast Refresh] done in 163ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5320020ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5354166ms] [LOG] [Fast Refresh] done in 34197ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5355332ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5355483ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5355650ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5355818ms] [LOG] [Fast Refresh] done in 277ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5368392ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5368421ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5371208ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5371408ms] [LOG] [Fast Refresh] done in 301ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5380346ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5427502ms] [LOG] [Fast Refresh] done in 47186ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5429001ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5429054ms] [LOG] [Fast Refresh] done in 156ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5429157ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5429567ms] [LOG] [Fast Refresh] done in 512ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5429764ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5429886ms] [LOG] [Fast Refresh] done in 242ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5430469ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5432618ms] [LOG] [Fast Refresh] done in 2253ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5432721ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5435750ms] [LOG] [Fast Refresh] done in 3131ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5435852ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5435904ms] [LOG] [Fast Refresh] done in 153ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5435912ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-2.jpg:0
+[ 5435915ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-4.jpg:0
+[ 5435937ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-1.jpg:0
+[ 5436037ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-3.jpg:0
+[ 5436286ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5436433ms] [LOG] [Fast Refresh] done in 248ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5436814ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5436904ms] [LOG] [Fast Refresh] done in 191ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5521478ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5521507ms] [LOG] [Fast Refresh] done in 133ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5581309ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5581596ms] [LOG] [Fast Refresh] done in 363ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5581699ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5584776ms] [LOG] [Fast Refresh] done in 3144ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5585721ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5585813ms] [LOG] [Fast Refresh] done in 197ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5585921ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5588183ms] [LOG] [Fast Refresh] done in 2364ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5588293ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-4.jpg:0
+[ 5588299ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-1.jpg:0
+[ 5588306ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-2.jpg:0
+[ 5588517ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-3.jpg:0
+[ 5588963ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5589291ms] [LOG] [Fast Refresh] done in 430ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5589629ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5589649ms] [LOG] [Fast Refresh] done in 130ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5590454ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5590515ms] [LOG] [Fast Refresh] done in 162ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5634782ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5634813ms] [LOG] [Fast Refresh] done in 133ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5655336ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5655392ms] [LOG] [Fast Refresh] done in 156ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5828869ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5829386ms] [LOG] [Fast Refresh] done in 617ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5829603ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-1.jpg:0
+[ 5829606ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-2.jpg:0
+[ 5829710ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-3.jpg:0
+[ 5829711ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-4.jpg:0
+[ 5829762ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5829820ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5840202ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-1.jpg:0
+[ 5840255ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-2.jpg:0
+[ 5840289ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-3.jpg:0
+[ 5840291ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/videos/posters/video-4.jpg:0
+[ 5840320ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5840341ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5902637ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5902660ms] [LOG] [Fast Refresh] done in 123ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5902864ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5902945ms] [LOG] [Fast Refresh] done in 184ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5911958ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5913037ms] [LOG] [Fast Refresh] done in 1168ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5913148ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5914101ms] [LOG] [Fast Refresh] done in 1054ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5914527ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5914711ms] [LOG] [Fast Refresh] done in 286ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5914833ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5914926ms] [LOG] [Fast Refresh] done in 194ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5915033ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5915484ms] [LOG] [Fast Refresh] done in 549ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5915589ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5915641ms] [LOG] [Fast Refresh] done in 157ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5915745ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5915776ms] [LOG] [Fast Refresh] done in 133ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5930709ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5932690ms] [LOG] [Fast Refresh] done in 2085ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5932791ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5932867ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 5932901ms] [ERROR] Failed to load resource: net::ERR_CACHE_OPERATION_NOT_SUPPORTED @ http://localhost:3000/videos/video-3.mp4:0
+[ 6102451ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6145274ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6146176ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6148467ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6150344ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6150502ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6150606ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6150610ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6150717ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6151716ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152127ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/?_rsc=q3mOO9BClNZHexY7:0
+[ 6152223ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152225ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6152318ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152404ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/?_rsc=q3mOO9BClNZHexY7:0
+[ 6152417ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152481ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152544ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152630ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318
+[ 6152742ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/:0
+[ 6153283ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0bruynb._.js:15305
+[ 6153539ms] Error: ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx
+
+
+    at <unknown> (Error: ./components/SegmentedScrollVideo.tsx:205:19)
+    at Object.getCompilationErrors (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://E:\Projet perso\MenuAlive\node_modules\next\dist\server\base-server.js:1753:26)
+[ 6153500ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6153521ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6154601ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6155637ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6159629ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6159704ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6652974ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6654859ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6663132ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6663214ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6665179ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6665255ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6753436ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6753481ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6753573ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6753639ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6753717ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6753778ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6756538ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6756599ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6756724ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6756786ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6756865ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6756958ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6757018ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6760042ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6760103ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6773841ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6773887ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6805812ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6805858ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6805984ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6806060ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6807653ms] [ERROR] ./components/SegmentedScrollVideo.tsx:205:19
+Nullish coalescing operator(??) requires parens when mixing with logical operators
+  203 |         localProgress,
+  204 |         currentTime: appliedTime ?? v?.currentTime ?? null,
+> 205 |         duration: duration || v?.duration ?? null,
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^
+  206 |         readyState: v?.readyState ?? null,
+  207 |         videoSrc: effectiveSrcs[segmentIndex],
+  208 |         sectionTop: rect.top,
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./components/SegmentedScrollVideo.tsx
+    ./app/page.tsx @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1945
+[ 6807684ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6826998ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6829171ms] [LOG] [Fast Refresh] done in 2264ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6833161ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[ 6833742ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6833874ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6834031ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 6834121ms] [LOG] [Fast Refresh] done in 216ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 7117148ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 7117207ms] [LOG] [Fast Refresh] done in 159ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 7117277ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 7117309ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 7525379ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 7560556ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 8326357ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 8326473ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 8326652ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[ 8333215ms] [LOG] [Fast Refresh] done in 6702ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477

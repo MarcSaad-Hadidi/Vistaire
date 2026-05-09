@@ -43,8 +43,9 @@ function hexColor(hex) {
 /**
  * @param {THREE.Object3D} root
  * @param {string} fileName
+ * @param {number} targetMeters Plus grande dimension du groupe après normalisation (ordre de grandeur assiette / verre, en mètres).
  */
-async function exportBinaryGlb(root, fileName) {
+async function exportBinaryGlb(root, fileName, targetMeters) {
   const scene = new THREE.Scene();
 
   const grouped = new THREE.Group();
@@ -58,8 +59,6 @@ async function exportBinaryGlb(root, fileName) {
 
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  /** Mètres : ~34 cm — assiette / verre crédible en AR (2,2 m rendait les plats géants). */
-  const targetMeters = 0.34;
   grouped.scale.multiplyScalar(targetMeters / maxDim);
   grouped.updateMatrixWorld(true);
 
@@ -573,10 +572,10 @@ function cocktailScene() {
 
 async function main() {
   console.log(`Export GLB vers ${OUT_DIR}`);
-  await exportBinaryGlb(raviolesScene(), "ravioles-chevre-miel.glb");
-  await exportBinaryGlb(homardScene(), "homard-bisque.glb");
-  await exportBinaryGlb(souffleScene(), "souffle-chocolat.glb");
-  await exportBinaryGlb(cocktailScene(), "maison-elyse-n1.glb");
+  await exportBinaryGlb(raviolesScene(), "ravioles-chevre-miel.glb", 0.32);
+  await exportBinaryGlb(homardScene(), "homard-bisque.glb", 0.38);
+  await exportBinaryGlb(souffleScene(), "souffle-chocolat.glb", 0.24);
+  await exportBinaryGlb(cocktailScene(), "maison-elyse-n1.glb", 0.14);
   console.log("Terminé.");
 }
 
