@@ -8,8 +8,7 @@ import {
   MeshBuilder,
   NullEngine,
   PBRMaterial,
-  Scene,
-  Vector3
+  Scene
 } from "@babylonjs/core";
 import { AppendSceneAsync } from "@babylonjs/core/Loading/sceneLoader.js";
 import "@babylonjs/loaders/glTF/index.js";
@@ -70,26 +69,6 @@ function bakeTranslate(meshes, y) {
   }
 }
 
-function meshYQuantile(meshes, quantile) {
-  const ys = [];
-  for (const mesh of meshes) {
-    const positions = mesh.getVerticesData("position");
-    if (!positions) continue;
-    const world = mesh.computeWorldMatrix(true);
-    for (let i = 0; i < positions.length; i += 3) {
-      ys.push(
-        Vector3.TransformCoordinates(
-          new Vector3(positions[i], positions[i + 1], positions[i + 2]),
-          world
-        ).y
-      );
-    }
-  }
-  ys.sort((a, b) => a - b);
-  if (ys.length === 0) return null;
-  return ys[Math.floor(Math.max(0, Math.min(1, quantile)) * (ys.length - 1))];
-}
-
 function makeCeramicMaterial(scene) {
   const material = new PBRMaterial("ravioles-ceramic-opaque-surface", scene);
   material.albedoColor = new Color3(0.96, 0.92, 0.84);
@@ -140,12 +119,19 @@ async function main() {
     material.backFaceCulling = false;
   }
 
-  const foodContactY = meshYQuantile(foodMeshes, 0.2);
-  if (foodContactY !== null) {
-    const targetFoodContactY = plateBounds.max.y - 0.012;
-    const deltaY = targetFoodContactY - foodContactY;
+  const foodBoundsBeforeLift = boundsFor(scene, foodMeshes);
+  const targetFoodMinY = plateBounds.max.y + 0.006;
+  const deltaY = targetFoodMinY - foodBoundsBeforeLift.min.y;
+  if (deltaY > 0) {
     bakeTranslate(foodMeshes, deltaY);
-    console.log(`ravioles foodDeltaY=${Number(deltaY.toFixed(5))}`);
+    const foodBoundsAfterLift = boundsFor(scene, foodMeshes);
+    console.log(
+      `ravioles foodDeltaY=${Number(deltaY.toFixed(5))} foodMinYAvant=${Number(
+        foodBoundsBeforeLift.min.y.toFixed(5)
+      )} plateTopY=${Number(plateBounds.max.y.toFixed(5))} foodMinYApres=${Number(
+        foodBoundsAfterLift.min.y.toFixed(5)
+      )}`
+    );
   }
 
   const support = MeshBuilder.CreateCylinder(

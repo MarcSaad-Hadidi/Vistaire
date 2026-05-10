@@ -186,12 +186,14 @@ function isRaviolesPlateMesh(mesh) {
 function tuneRaviolesArScene(scene) {
   const meshes = getRenderableMeshes(scene);
   const plateMeshes = meshes.filter(isRaviolesPlateMesh);
+  const foodMeshes = meshes.filter((mesh) => !isRaviolesPlateMesh(mesh));
   if (plateMeshes.length === 0) return;
 
   const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
   const plateSize = plateBounds.max.subtract(plateBounds.min);
   const tiltRatio =
     plateSize.y / Math.max(plateSize.x, plateSize.z, Number.EPSILON);
+  const plateTopY = plateBounds.max.y;
 
   for (const material of scene.materials) {
     if (!material.name.toLowerCase().includes("céramique") && !material.name.toLowerCase().includes("ceramique")) {
@@ -203,6 +205,29 @@ function tuneRaviolesArScene(scene) {
     material.metallic = 0;
     material.roughness = 0.58;
     material.backFaceCulling = false;
+  }
+
+  if (foodMeshes.length > 0) {
+    const foodBounds = scene.getWorldExtends((mesh) => foodMeshes.includes(mesh));
+    const targetFoodMinY = plateTopY + 0.002;
+    const liftY = Math.max(0, targetFoodMinY - foodBounds.min.y);
+    if (liftY > 0) {
+      const lift = Matrix.Translation(0, liftY, 0);
+      for (const mesh of foodMeshes) {
+        mesh.bakeTransformIntoVertices(lift);
+        mesh.refreshBoundingInfo(true);
+      }
+    }
+    const adjustedFoodBounds = scene.getWorldExtends((mesh) =>
+      foodMeshes.includes(mesh)
+    );
+    console.log(
+      `ravioles food lift: beforeMinY=${Number(
+        foodBounds.min.y.toFixed(5)
+      )} plateTopY=${Number(plateTopY.toFixed(5))} liftY=${Number(
+        liftY.toFixed(5)
+      )} afterMinY=${Number(adjustedFoodBounds.min.y.toFixed(5))}`
+    );
   }
 
   console.log(
