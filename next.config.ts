@@ -9,7 +9,7 @@ const USDZ_DEMO_HEADERS = [
 const nextConfig: NextConfig = {
   devIndicators: false,
   images: {
-    qualities: [75, 90],
+    qualities: [75, 90, 92],
   },
   async headers() {
     return [

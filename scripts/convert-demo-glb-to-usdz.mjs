@@ -41,6 +41,8 @@ const FILES = [
   "souffle-chocolat.glb",
   "maison-elyse-n1.glb"
 ];
+const REQUESTED_FILES = process.argv.slice(2);
+const FILES_TO_CONVERT = REQUESTED_FILES.length > 0 ? REQUESTED_FILES : FILES;
 
 const AR_EXPORT_CONFIG = {
   "ravioles-chevre-miel.glb": {
@@ -104,6 +106,26 @@ function getSceneBounds(scene) {
 
 function formatVector(v) {
   return v.asArray().map((n) => Number(n.toFixed(5)));
+}
+
+function meshYQuantile(meshes, quantile) {
+  const ys = [];
+  for (const mesh of meshes) {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) continue;
+    const world = mesh.computeWorldMatrix(true);
+    for (let i = 0; i < positions.length; i += 3) {
+      ys.push(
+        Vector3.TransformCoordinates(
+          new Vector3(positions[i], positions[i + 1], positions[i + 2]),
+          world
+        ).y
+      );
+    }
+  }
+  ys.sort((a, b) => a - b);
+  if (ys.length === 0) return null;
+  return ys[Math.floor(Math.max(0, Math.min(1, quantile)) * (ys.length - 1))];
 }
 
 function logBounds(label, bounds) {
@@ -178,6 +200,7 @@ function isRaviolesPlateMesh(mesh) {
   return (
     name.includes("assiette") ||
     name.includes("rebord") ||
+    name.includes("opaque-plate-surface") ||
     name.includes("céramique") ||
     name.includes("ceramique")
   );
@@ -209,9 +232,11 @@ function tuneRaviolesArScene(scene) {
 
   if (foodMeshes.length > 0) {
     const foodBounds = scene.getWorldExtends((mesh) => foodMeshes.includes(mesh));
-    const targetFoodMinY = plateTopY + 0.002;
-    const liftY = Math.max(0, targetFoodMinY - foodBounds.min.y);
-    if (liftY > 0) {
+    const contactQuantile = 0.1;
+    const contactY = meshYQuantile(foodMeshes, contactQuantile);
+    const targetFoodContactY = plateTopY - 0.008;
+    const liftY = contactY === null ? 0 : targetFoodContactY - contactY;
+    if (Math.abs(liftY) > 0.00001) {
       const lift = Matrix.Translation(0, liftY, 0);
       for (const mesh of foodMeshes) {
         mesh.bakeTransformIntoVertices(lift);
@@ -222,7 +247,9 @@ function tuneRaviolesArScene(scene) {
       foodMeshes.includes(mesh)
     );
     console.log(
-      `ravioles food lift: beforeMinY=${Number(
+      `ravioles food lift: contactQuantile=${contactQuantile} contactY=${Number(
+        (contactY ?? foodBounds.min.y).toFixed(5)
+      )} beforeMinY=${Number(
         foodBounds.min.y.toFixed(5)
       )} plateTopY=${Number(plateTopY.toFixed(5))} liftY=${Number(
         liftY.toFixed(5)
@@ -366,7 +393,7 @@ async function convertOne(glbName) {
 }
 
 async function main() {
-  for (const f of FILES) {
+  for (const f of FILES_TO_CONVERT) {
     await convertOne(f);
   }
 }

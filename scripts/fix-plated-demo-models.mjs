@@ -19,8 +19,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEMO_DIR = join(__dirname, "..", "public", "models", "demo");
 
 const MODELS = [
-  { fileName: "homard-bisque.glb", contactQuantile: 0.2, targetFoodContactOffset: 0.02 },
-  { fileName: "souffle-chocolat.glb", contactQuantile: 0.2, targetFoodContactOffset: -0.01 }
+  { fileName: "ravioles-chevre-miel.glb", contactQuantile: 0.1, targetFoodContactOffset: -0.012 },
+  { fileName: "homard-bisque.glb", contactQuantile: 0.1, targetFoodContactOffset: -0.012 }
 ];
 
 function renderableMeshes(scene) {

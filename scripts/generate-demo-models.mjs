@@ -10,6 +10,19 @@ import { fileURLToPath } from "node:url";
 
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
+import {
+  Color3,
+  MeshBuilder,
+  NullEngine,
+  PBRMaterial,
+  Scene as BabylonScene,
+  Vector3 as BabylonVector3,
+  VertexBuffer,
+  VertexData
+} from "@babylonjs/core";
+import { AppendSceneAsync } from "@babylonjs/core/Loading/sceneLoader.js";
+import "@babylonjs/loaders/glTF/index.js";
+import { GLTF2Export } from "@babylonjs/serializers/glTF/2.0/glTFSerializer.js";
 
 if (typeof globalThis.FileReader === "undefined") {
   globalThis.FileReader = class {
@@ -34,6 +47,23 @@ if (typeof globalThis.FileReader === "undefined") {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "public", "models", "demo");
+
+const PLATED_MODEL_FIXES = [
+  {
+    fileName: "ravioles-chevre-miel.glb",
+    foodBottomQuantile: 0.1,
+    foodContactQuantile: 0.1,
+    targetFoodClearance: -0.012,
+    supportDrop: 0.012
+  },
+  {
+    fileName: "homard-bisque.glb",
+    foodBottomQuantile: 0.1,
+    foodContactQuantile: 0.1,
+    targetFoodClearance: -0.012,
+    supportDrop: 0.012
+  }
+];
 
 /** @param {number} hex */
 function hexColor(hex) {
@@ -89,6 +119,356 @@ async function exportBinaryGlb(root, fileName, targetMeters) {
   console.log(`OK ${fileName} (${kb} KB)`);
 }
 
+function getRenderableMeshes(scene) {
+  return scene.meshes.filter((mesh) => mesh.getTotalVertices() > 0);
+}
+
+function isPlateMesh(mesh) {
+  const name = `${mesh.name} ${mesh.material?.name ?? ""}`.toLowerCase();
+  return (
+    name.includes("assiette") ||
+    name.includes("opaque-plate-surface") ||
+    name.includes("ceramique") ||
+    name.includes("céramique")
+  );
+}
+
+function isDisposablePlateHelper(mesh) {
+  return mesh.name.toLowerCase().includes("opaque-plate-surface");
+}
+
+function boundsFor(scene, meshes) {
+  const bounds = scene.getWorldExtends((mesh) => meshes.includes(mesh));
+  return { min: bounds.min, max: bounds.max, size: bounds.max.subtract(bounds.min) };
+}
+
+function formatVector(v) {
+  return v.asArray().map((n) => Number(n.toFixed(5)));
+}
+
+function logBounds(label, bounds) {
+  console.log(
+    `${label}: min=${JSON.stringify(formatVector(bounds.min))} max=${JSON.stringify(
+      formatVector(bounds.max)
+    )} size=${JSON.stringify(formatVector(bounds.size))}`
+  );
+}
+
+function bakeWorldTransforms(scene) {
+  for (const mesh of getRenderableMeshes(scene)) {
+    const world = mesh.computeWorldMatrix(true).clone();
+    mesh.setParent(null);
+    mesh.bakeTransformIntoVertices(world);
+    mesh.position = BabylonVector3.Zero();
+    mesh.rotationQuaternion = null;
+    mesh.rotation = BabylonVector3.Zero();
+    mesh.scaling = BabylonVector3.One();
+    mesh.computeWorldMatrix(true);
+    mesh.refreshBoundingInfo(true);
+  }
+
+  for (const mesh of [...scene.meshes]) {
+    if (mesh.getTotalVertices() === 0) mesh.dispose(false, true);
+  }
+
+  for (const node of [...scene.transformNodes]) {
+    if ((node.getChildren?.() ?? []).length === 0) node.dispose(false, true);
+  }
+}
+
+function getMeshWorldYValues(meshes) {
+  const ys = [];
+  for (const mesh of meshes) {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) continue;
+    const world = mesh.computeWorldMatrix(true);
+    for (let i = 0; i < positions.length; i += 3) {
+      ys.push(
+        BabylonVector3.TransformCoordinates(
+          new BabylonVector3(positions[i], positions[i + 1], positions[i + 2]),
+          world
+        ).y
+      );
+    }
+  }
+  ys.sort((a, b) => a - b);
+  return ys;
+}
+
+function yQuantile(meshes, quantile) {
+  const ys = getMeshWorldYValues(meshes);
+  if (ys.length === 0) return null;
+  return ys[Math.floor(Math.max(0, Math.min(1, quantile)) * (ys.length - 1))];
+}
+
+function fitBottomPlane(meshes, quantile) {
+  const cutoff = yQuantile(meshes, quantile);
+  if (cutoff === null) return null;
+
+  let sx = 0;
+  let sz = 0;
+  let sy = 0;
+  let sxx = 0;
+  let szz = 0;
+  let sxz = 0;
+  let sxy = 0;
+  let szy = 0;
+  let n = 0;
+
+  for (const mesh of meshes) {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) continue;
+    const world = mesh.computeWorldMatrix(true);
+    for (let i = 0; i < positions.length; i += 3) {
+      const p = BabylonVector3.TransformCoordinates(
+        new BabylonVector3(positions[i], positions[i + 1], positions[i + 2]),
+        world
+      );
+      if (p.y > cutoff) continue;
+      sx += p.x;
+      sz += p.z;
+      sy += p.y;
+      sxx += p.x * p.x;
+      szz += p.z * p.z;
+      sxz += p.x * p.z;
+      sxy += p.x * p.y;
+      szy += p.z * p.y;
+      n += 1;
+    }
+  }
+
+  const a = [
+    [sxx, sxz, sx],
+    [sxz, szz, sz],
+    [sx, sz, n]
+  ];
+  const b = [sxy, szy, sy];
+  for (let i = 0; i < 3; i += 1) {
+    let max = i;
+    for (let r = i + 1; r < 3; r += 1) {
+      if (Math.abs(a[r][i]) > Math.abs(a[max][i])) max = r;
+    }
+    [a[i], a[max]] = [a[max], a[i]];
+    [b[i], b[max]] = [b[max], b[i]];
+    const pivot = a[i][i] || 1e-12;
+    for (let j = i; j < 3; j += 1) a[i][j] /= pivot;
+    b[i] /= pivot;
+    for (let r = 0; r < 3; r += 1) {
+      if (r === i) continue;
+      const factor = a[r][i];
+      for (let j = i; j < 3; j += 1) a[r][j] -= factor * a[i][j];
+      b[r] -= factor * b[i];
+    }
+  }
+
+  return {
+    slopeX: b[0],
+    slopeZ: b[1],
+    intercept: b[2],
+    pointCount: n
+  };
+}
+
+function rotateFoodToHorizontal(foodMeshes, foodBounds, plane) {
+  const pivotX = (foodBounds.min.x + foodBounds.max.x) / 2;
+  const pivotZ = (foodBounds.min.z + foodBounds.max.z) / 2;
+  const pivotY = plane.slopeX * pivotX + plane.slopeZ * pivotZ + plane.intercept;
+  const thetaZ = -plane.slopeX;
+  const thetaX = plane.slopeZ;
+  const cosZ = Math.cos(thetaZ);
+  const sinZ = Math.sin(thetaZ);
+  const cosX = Math.cos(thetaX);
+  const sinX = Math.sin(thetaX);
+
+  for (const mesh of foodMeshes) {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) continue;
+    for (let i = 0; i < positions.length; i += 3) {
+      const x0 = positions[i] - pivotX;
+      const y0 = positions[i + 1] - pivotY;
+      const z0 = positions[i + 2] - pivotZ;
+      const x1 = x0 * cosZ - y0 * sinZ;
+      const y1 = x0 * sinZ + y0 * cosZ;
+      const y2 = y1 * cosX - z0 * sinX;
+      const z2 = y1 * sinX + z0 * cosX;
+      positions[i] = x1 + pivotX;
+      positions[i + 1] = y2 + pivotY;
+      positions[i + 2] = z2 + pivotZ;
+    }
+    mesh.setVerticesData(VertexBuffer.PositionKind, positions);
+    mesh.refreshBoundingInfo(true);
+  }
+
+  return {
+    rotationX: thetaX,
+    rotationZ: thetaZ
+  };
+}
+
+function translateMeshesY(meshes, deltaY) {
+  if (Math.abs(deltaY) < 0.000001) return;
+  for (const mesh of meshes) {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) continue;
+    for (let i = 1; i < positions.length; i += 3) {
+      positions[i] += deltaY;
+    }
+    mesh.setVerticesData(VertexBuffer.PositionKind, positions);
+    mesh.refreshBoundingInfo(true);
+  }
+}
+
+function ensureMeshNormals(meshes) {
+  for (const mesh of meshes) {
+    if (mesh.getVerticesData(VertexBuffer.NormalKind)) continue;
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    const indices = mesh.getIndices();
+    if (!positions || !indices) continue;
+    const normals = [];
+    VertexData.ComputeNormals(positions, indices, normals);
+    mesh.setVerticesData(VertexBuffer.NormalKind, normals);
+  }
+}
+
+function makeCeramicMaterial(scene) {
+  const material = new PBRMaterial("opaque-plate-surface", scene);
+  material.albedoColor = new Color3(0.96, 0.92, 0.84);
+  material.metallic = 0;
+  material.roughness = 0.58;
+  material.alpha = 1;
+  material.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
+  material.backFaceCulling = false;
+  return material;
+}
+
+async function correctExistingPlatedModel({
+  fileName,
+  foodBottomQuantile,
+  foodContactQuantile,
+  targetFoodClearance,
+  supportDrop
+}) {
+  const modelPath = path.join(OUT_DIR, fileName);
+  if (!fs.existsSync(modelPath)) {
+    throw new Error(`Modèle source introuvable: ${modelPath}`);
+  }
+
+  const engine = new NullEngine();
+  const scene = new BabylonScene(engine);
+  await AppendSceneAsync(new Uint8Array(fs.readFileSync(modelPath)), scene, {
+    pluginExtension: ".glb",
+    name: fileName
+  });
+
+  for (const mesh of getRenderableMeshes(scene).filter(isDisposablePlateHelper)) {
+    mesh.dispose(false, true);
+  }
+  bakeWorldTransforms(scene);
+
+  const meshes = getRenderableMeshes(scene);
+  const plateMeshes = meshes.filter(isPlateMesh);
+  const foodMeshes = meshes.filter((mesh) => !isPlateMesh(mesh));
+  if (plateMeshes.length === 0 || foodMeshes.length === 0) {
+    throw new Error(`Impossible de distinguer assiette/nourriture pour ${fileName}.`);
+  }
+
+  const before = boundsFor(scene, meshes);
+  const plateBounds = boundsFor(scene, plateMeshes);
+  const foodBoundsBefore = boundsFor(scene, foodMeshes);
+  let plane = fitBottomPlane(foodMeshes, foodBottomQuantile);
+  if (!plane) throw new Error(`Plan de contact introuvable pour ${fileName}.`);
+
+  logBounds(`${fileName} avant`, before);
+  logBounds(`${fileName} assiette`, plateBounds);
+  logBounds(`${fileName} nourriture avant`, foodBoundsBefore);
+  console.log(
+    `${fileName} bottomPlane slopeX=${Number(plane.slopeX.toFixed(5))} slopeZ=${Number(
+      plane.slopeZ.toFixed(5)
+    )} points=${plane.pointCount}`
+  );
+
+  const applied = { rotationX: 0, rotationZ: 0 };
+  for (let i = 0; i < 4; i += 1) {
+    const angleXDeg = Math.abs((Math.atan(plane.slopeZ) * 180) / Math.PI);
+    const angleZDeg = Math.abs((Math.atan(plane.slopeX) * 180) / Math.PI);
+    if (Math.max(angleXDeg, angleZDeg) <= 0.75) break;
+    const iterationBounds = boundsFor(scene, foodMeshes);
+    const iterationApplied = rotateFoodToHorizontal(foodMeshes, iterationBounds, plane);
+    applied.rotationX += iterationApplied.rotationX;
+    applied.rotationZ += iterationApplied.rotationZ;
+    plane = fitBottomPlane(foodMeshes, foodBottomQuantile);
+    if (!plane) throw new Error(`Plan de contact introuvable pour ${fileName}.`);
+  }
+
+  const plateTopY = plateBounds.max.y;
+  const contactY = yQuantile(foodMeshes, foodContactQuantile);
+  if (contactY === null) {
+    throw new Error(`Point de contact nourriture introuvable pour ${fileName}.`);
+  }
+  const targetFoodContactY = plateTopY + targetFoodClearance;
+  const deltaY = targetFoodContactY - contactY;
+  translateMeshesY(foodMeshes, deltaY);
+
+  for (const material of scene.materials) {
+    const name = material.name.toLowerCase();
+    if (!name.includes("ceramique") && !name.includes("céramique")) continue;
+    material.alpha = 1;
+    material.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
+    material.albedoColor = new Color3(0.96, 0.92, 0.84);
+    material.metallic = 0;
+    material.roughness = 0.58;
+    material.backFaceCulling = false;
+  }
+
+  const support = MeshBuilder.CreateCylinder(
+    `${fileName.replace(/\.glb$/i, "")}-opaque-plate-surface`,
+    {
+      height: 0.004,
+      diameter: Math.max(plateBounds.size.x, plateBounds.size.z) * 0.9,
+      tessellation: 128
+    },
+    scene
+  );
+  support.position.set(
+    (plateBounds.min.x + plateBounds.max.x) / 2,
+    plateTopY - supportDrop,
+    (plateBounds.min.z + plateBounds.max.z) / 2
+  );
+  support.material = makeCeramicMaterial(scene);
+
+  ensureMeshNormals(getRenderableMeshes(scene));
+
+  const finalMeshes = getRenderableMeshes(scene);
+  const finalBounds = boundsFor(scene, finalMeshes);
+  const foodBoundsAfter = boundsFor(scene, finalMeshes.filter((mesh) => !isPlateMesh(mesh)));
+  logBounds(`${fileName} nourriture après`, foodBoundsAfter);
+  logBounds(`${fileName} après`, finalBounds);
+  console.log(
+    `${fileName} appliedRotationX=${Number(applied.rotationX.toFixed(5))} appliedRotationZ=${Number(
+      applied.rotationZ.toFixed(5)
+    )} foodDeltaY=${Number(deltaY.toFixed(5))} foodContactQuantile=${foodContactQuantile} contactYMinusPlateTop=${Number(
+      ((contactY + deltaY) - plateTopY).toFixed(5)
+    )} foodMinYMinusPlateTop=${Number((foodBoundsAfter.min.y - plateTopY).toFixed(5))}`
+  );
+
+  const glb = await GLTF2Export.GLBAsync(scene, fileName, {
+    exportWithoutWaitingForScene: true,
+    removeNoopRootNodes: false
+  });
+  const blob = glb.files[fileName] ?? glb.glTFFiles?.[fileName];
+  if (!blob || typeof blob === "string") {
+    throw new Error(`Export GLB invalide pour ${fileName}.`);
+  }
+
+  fs.writeFileSync(modelPath, Buffer.from(await blob.arrayBuffer()));
+  console.log(`OK ${fileName} corrigé (${Math.round(fs.statSync(modelPath).size / 102.4) / 10} KB)`);
+
+  scene.dispose();
+  engine.dispose();
+}
+
+// Conservé comme générateur procédural de référence; les GLB premium actuels sont corrigés plus bas.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function raviolesScene() {
   const g = new THREE.Group();
 
@@ -207,6 +587,8 @@ function raviolesScene() {
   return g;
 }
 
+// Conservé comme générateur procédural de référence; les GLB premium actuels sont corrigés plus bas.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function homardScene() {
   const g = new THREE.Group();
 
@@ -573,8 +955,9 @@ function cocktailScene() {
 async function main() {
   console.log(`Export GLB vers ${OUT_DIR}`);
   /* Plus petite cible métrique (~25–28 cm max dim assiettes, dessert/verre plus compacts). */
-  await exportBinaryGlb(raviolesScene(), "ravioles-chevre-miel.glb", 0.21);
-  await exportBinaryGlb(homardScene(), "homard-bisque.glb", 0.25);
+  for (const model of PLATED_MODEL_FIXES) {
+    await correctExistingPlatedModel(model);
+  }
   await exportBinaryGlb(souffleScene(), "souffle-chocolat.glb", 0.17);
   await exportBinaryGlb(cocktailScene(), "maison-elyse-n1.glb", 0.095);
   console.log("Terminé.");
