@@ -15,7 +15,12 @@ import {
 } from "@/components/dish/DishModelViewer";
 import { DishDetailHero } from "@/components/dish/DishDetailHero";
 import { openSystemBrowserHandoffForAr } from "@/lib/openSystemBrowser";
-import { isIosDevice } from "@/lib/arEnvironment";
+import {
+  canUseIosQuickLookDirectly,
+  isAndroidDevice,
+  isIosDevice,
+  shouldShowArBrowserHandoff
+} from "@/lib/arEnvironment";
 
 type DishDetailProps = {
   dish: Dish;
@@ -38,11 +43,6 @@ function scrollToPlat3dAnchor(target: HTMLElement) {
     return;
   }
   target.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function isAndroidDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /Android/i.test(navigator.userAgent);
 }
 
 function openAndroidSceneViewer(modelSrc: string): boolean {
@@ -70,6 +70,42 @@ function openAndroidSceneViewer(modelSrc: string): boolean {
   }
 }
 
+function currentPageUrl(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.href;
+}
+
+function openCompatiblePage(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.open(currentPageUrl(), "_blank", "noopener,noreferrer"));
+}
+
+async function copyCurrentPageLink(): Promise<boolean> {
+  const url = currentPageUrl();
+  if (!url || !navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function shareCurrentPageLink(dishName: string): Promise<boolean> {
+  const url = currentPageUrl();
+  if (!url || !navigator.share) return false;
+  try {
+    await navigator.share({
+      title: dishName,
+      text: "Ouvrez cette fiche dans Safari pour placer le plat en AR.",
+      url
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const AR_BUTTON_CLASS =
   "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/50 bg-champagne px-5 text-center text-sm font-semibold text-[#17100a] shadow-[0_12px_34px_rgba(217,184,121,0.18)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[190px]";
 
@@ -83,10 +119,14 @@ export function DishDetail({ dish }: DishDetailProps) {
   const [desktopArHint, setDesktopArHint] = useState(false);
   const [phoneSimulationArHint, setPhoneSimulationArHint] = useState(false);
   const [heroArDeferredHint, setHeroArDeferredHint] = useState(false);
+  const [arBrowserHandoff, setArBrowserHandoff] = useState(false);
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
   const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
   const modelViewerRef = useRef<DishModelViewerHandle | null>(null);
   const canExpectMobileUi = immersive;
   const isIos = isIosDevice();
+  const canOpenQuickLookDirectly = canUseIosQuickLookDirectly();
+  const needsBrowserHandoff = shouldShowArBrowserHandoff();
 
   /** Précharge model-viewer pour réduire la fenêtre où le lecteur n’est pas prêt. */
   useEffect(() => {
@@ -108,6 +148,7 @@ export function DishDetail({ dish }: DishDetailProps) {
     setDesktopArHint(false);
     setPhoneSimulationArHint(false);
     setHeroArDeferredHint(false);
+    setArBrowserHandoff(false);
     showAndScrollToPlat3d();
   }, [showAndScrollToPlat3d]);
 
@@ -122,6 +163,7 @@ export function DishDetail({ dish }: DishDetailProps) {
       setDesktopArHint(true);
       setPhoneSimulationArHint(false);
       setHeroArDeferredHint(false);
+      setArBrowserHandoff(false);
       return;
     }
 
@@ -130,6 +172,7 @@ export function DishDetail({ dish }: DishDetailProps) {
       setDesktopArHint(false);
       setPhoneSimulationArHint(true);
       setHeroArDeferredHint(false);
+      setArBrowserHandoff(false);
       requestAnimationFrame(() => {
         const el = plat3dAnchorRef.current;
         if (el) scrollToPlat3dAnchor(el);
@@ -139,13 +182,29 @@ export function DishDetail({ dish }: DishDetailProps) {
 
     // Chemin le plus fiable sur iPhone/iPad: ouvrir Quick Look directement
     // dans le geste utilisateur (évite les pertes de gesture via états/render).
-    if (isIos && dish.usdzUrl?.trim()) {
+    if (needsBrowserHandoff) {
+      setDesktopArHint(false);
+      setPhoneSimulationArHint(false);
+      setHeroArDeferredHint(false);
+      setArBrowserHandoff(true);
+      if (!showPlat3d) {
+        flushSync(() => setShowPlat3d(true));
+      }
+      requestAnimationFrame(() => {
+        const el = plat3dAnchorRef.current;
+        if (el) scrollToPlat3dAnchor(el);
+      });
+      return;
+    }
+
+    if (canOpenQuickLookDirectly && dish.usdzUrl?.trim()) {
       window.location.assign(dish.usdzUrl.trim());
       return;
     }
 
     setDesktopArHint(false);
     setPhoneSimulationArHint(false);
+    setArBrowserHandoff(false);
 
     if (!showPlat3d) {
       flushSync(() => setShowPlat3d(true));
@@ -179,7 +238,8 @@ export function DishDetail({ dish }: DishDetailProps) {
     canExpectMobileUi,
     isRealMobile,
     showPlat3d,
-    isIos,
+    canOpenQuickLookDirectly,
+    needsBrowserHandoff,
     dish.usdzUrl,
     dish.model3dUrl
   ]);
@@ -368,8 +428,55 @@ export function DishDetail({ dish }: DishDetailProps) {
                 geste est requis sur certains navigateurs.
               </p>
             ) : null}
+            {arBrowserHandoff ? (
+              <div
+                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-4 text-sm leading-relaxed text-[#eadcc6]"
+                role="status"
+                aria-live="polite"
+              >
+                <p>
+                  Ce navigateur ne permet pas d&apos;ouvrir l&apos;AR directement.
+                  Ouvrez cette page dans Safari pour placer le plat sur votre
+                  table.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                    onClick={() => {
+                      openCompatiblePage();
+                    }}
+                  >
+                    Ouvrir la page compatible
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                    onClick={() => {
+                      void copyCurrentPageLink().then((ok) => {
+                        setCopyConfirmed(ok);
+                        if (ok) {
+                          window.setTimeout(() => setCopyConfirmed(false), 1800);
+                        }
+                      });
+                    }}
+                  >
+                    {copyConfirmed ? "Lien copi\u00e9" : "Copier le lien"}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                    onClick={() => {
+                      void shareCurrentPageLink(dish.name);
+                    }}
+                  >
+                    Partager
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              {isIos && dish.usdzUrl?.trim() ? (
+              {isIos && canOpenQuickLookDirectly && dish.usdzUrl?.trim() ? (
                 <a
                   href={dish.usdzUrl.trim()}
                   rel="ar"

@@ -12,17 +12,12 @@ const nextConfig: NextConfig = {
     qualities: [75, 90],
   },
   async headers() {
-    const demoUsdz = [
-      "ravioles-chevre-miel.usdz",
-      "homard-bisque.usdz",
-      "homard-bisque-ar-lite.usdz",
-      "souffle-chocolat.usdz",
-      "maison-elyse-n1.usdz",
+    return [
+      {
+        source: "/models/demo/:path*.usdz",
+        headers: [...USDZ_DEMO_HEADERS],
+      },
     ];
-    return demoUsdz.map((file) => ({
-      source: `/models/demo/${file}`,
-      headers: [...USDZ_DEMO_HEADERS],
-    }));
   },
 };
 

@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   Color3,
-  MeshBuilder,
   NullEngine,
   Matrix,
   PBRMaterial,
@@ -119,13 +118,28 @@ function logBounds(label, bounds) {
   );
 }
 
+function logRootTransforms(label, scene) {
+  const transforms = scene.rootNodes.map((node) => {
+    const rotation = node.rotationQuaternion
+      ? node.rotationQuaternion.toEulerAngles()
+      : node.rotation;
+    return {
+      name: node.name,
+      position: formatVector(node.position),
+      rotation: formatVector(rotation),
+      scale: formatVector(node.scaling)
+    };
+  });
+  console.log(`${label}: ${JSON.stringify(transforms)}`);
+}
+
 /**
  * Certains GLB optimisés ont un root mesh vide au-dessus du vrai mesh. L'export
  * USDZ Babylon peut alors référencer ce parent vide et écrire une géométrie
  * `undefined`. On bake les transforms monde sur les meshes rendus, puis on les
  * détache avant export.
  */
-function flattenRenderableMeshesForUsdz(scene) {
+function bakeWorldTransforms(scene) {
   for (const mesh of getRenderableMeshes(scene)) {
     const world = mesh.computeWorldMatrix(true).clone();
     mesh.setParent(null);
@@ -172,12 +186,12 @@ function isRaviolesPlateMesh(mesh) {
 function tuneRaviolesArScene(scene) {
   const meshes = getRenderableMeshes(scene);
   const plateMeshes = meshes.filter(isRaviolesPlateMesh);
-  const foodMeshes = meshes.filter((mesh) => !isRaviolesPlateMesh(mesh));
-  if (plateMeshes.length === 0 || foodMeshes.length === 0) return;
+  if (plateMeshes.length === 0) return;
 
   const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
   const plateSize = plateBounds.max.subtract(plateBounds.min);
-  const plateTopY = plateBounds.max.y;
+  const tiltRatio =
+    plateSize.y / Math.max(plateSize.x, plateSize.z, Number.EPSILON);
 
   for (const material of scene.materials) {
     if (!material.name.toLowerCase().includes("céramique") && !material.name.toLowerCase().includes("ceramique")) {
@@ -191,33 +205,11 @@ function tuneRaviolesArScene(scene) {
     material.backFaceCulling = false;
   }
 
-  // Quick Look peut rendre la géométrie très fine de l'assiette comme une tranche.
-  // On ajoute un disque AR-only très mince, opaque, au niveau supérieur de l'assiette.
-  const support = MeshBuilder.CreateCylinder(
-    "ravioles-ar-opaque-plate-surface",
-    {
-      height: 0.004,
-      diameter: Math.max(plateSize.x, plateSize.z) * 0.92,
-      tessellation: 128
-    },
-    scene
+  console.log(
+    `ravioles plate plane check: size=${JSON.stringify(
+      formatVector(plateSize)
+    )} tiltRatio=${Number(tiltRatio.toFixed(5))}`
   );
-  support.position.set(
-    (plateBounds.min.x + plateBounds.max.x) / 2,
-    plateTopY - 0.035,
-    (plateBounds.min.z + plateBounds.max.z) / 2
-  );
-  const supportMat = new PBRMaterial("ravioles-ar-ceramic-opaque", scene);
-  supportMat.albedoColor = new Color3(0.96, 0.92, 0.84);
-  supportMat.metallic = 0;
-  supportMat.roughness = 0.58;
-  supportMat.alpha = 1;
-  supportMat.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
-  supportMat.backFaceCulling = false;
-  support.material = supportMat;
-
-  // La hauteur nourriture/assiette est corrigee dans le GLB source.
-  void foodMeshes;
 }
 
 function ensureMeshNormals(scene) {
@@ -292,9 +284,10 @@ async function convertOne(glbName) {
     targetMaxDimMeters = arConfig.targetMaxDimMeters;
     arYawDegrees = arConfig.yawDegrees;
     boundsBefore = getSceneBounds(scene);
+    logRootTransforms(`${glbName} transforms avant`, scene);
     forcePositiveScales(scene);
     normalizeSceneForAr(scene, targetMaxDimMeters);
-    flattenRenderableMeshesForUsdz(scene);
+    bakeWorldTransforms(scene);
     if (arYawDegrees !== 0) {
       rotateRenderableMeshesAroundY(scene, (arYawDegrees * Math.PI) / 180);
     }
@@ -303,6 +296,7 @@ async function convertOne(glbName) {
     }
     ensureMeshNormals(scene);
     boundsAfter = getSceneBounds(scene);
+    logRootTransforms(`${glbName} transforms aprÃ¨s`, scene);
   }
 
   const meshCount = getRenderableMeshes(scene).length;

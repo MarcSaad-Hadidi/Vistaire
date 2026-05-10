@@ -13,13 +13,14 @@ import {
 } from "react";
 import type { Dish } from "@/lib/demoMenuData";
 import {
+  canUseIosQuickLookDirectly,
   getArUnavailableMessage,
   isBraveUserAgent,
   isIosDevice,
   isIosEmbeddedBrowser,
+  shouldShowArBrowserHandoff,
   type ArUnavailableVariant
 } from "@/lib/arEnvironment";
-import { openSystemBrowserHandoffForAr } from "@/lib/openSystemBrowser";
 
 const MV_INIT_TIMEOUT_MS = 12_000;
 const AR_HELP_TEXT =
@@ -66,6 +67,7 @@ function debugAr(event: string, payload: Record<string, unknown> = {}) {
 function openQuickLook(iosSrc: string): boolean {
   if (typeof window === "undefined") return false;
   if (!iosSrc) return false;
+  if (!canUseIosQuickLookDirectly()) return false;
   try {
     window.location.assign(iosSrc);
     return true;
@@ -78,7 +80,46 @@ function arUnavailableVariant(): ArUnavailableVariant {
   if (!isIosDevice()) return "default";
   if (isBraveUserAgent()) return "iosBrave";
   if (isIosEmbeddedBrowser()) return "iosEmbedded";
+  if (shouldShowArBrowserHandoff()) return "iosHandoff";
   return "default";
+}
+
+function getCurrentPageUrl(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.href;
+}
+
+function openCompatiblePage(): boolean {
+  if (typeof window === "undefined") return false;
+  const url = getCurrentPageUrl();
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  return Boolean(opened);
+}
+
+async function copyPageLink(): Promise<boolean> {
+  const url = getCurrentPageUrl();
+  if (!url || !navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function sharePageLink(dishName: string): Promise<boolean> {
+  const url = getCurrentPageUrl();
+  if (!url || !navigator.share) return false;
+  try {
+    await navigator.share({
+      title: dishName,
+      text: "Ouvrez cette fiche dans Safari pour placer le plat en AR.",
+      url
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const DishModelViewer = forwardRef<
@@ -93,6 +134,8 @@ export const DishModelViewer = forwardRef<
   const [modelLoaded, setModelLoaded] = useState(false);
   /** \u00c9chec apr\u00e8s tentative AR r\u00e9elle (pas simple diff\u00e9r\u00e9). */
   const [arUnsupported, setArUnsupported] = useState(false);
+  const [arBrowserHandoff, setArBrowserHandoff] = useState(false);
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
 
@@ -104,6 +147,7 @@ export const DishModelViewer = forwardRef<
     setIsIos(isIosDevice());
   }, []);
   const missingIosAr = isIos && !iosSrc;
+  const needsIosHandoff = shouldShowArBrowserHandoff();
 
   useEffect(() => {
     debugAr("state", {
@@ -117,7 +161,8 @@ export const DishModelViewer = forwardRef<
       userAgent: typeof navigator === "undefined" ? "" : navigator.userAgent,
       isIosDevice: isIosDevice(),
       isIosEmbeddedBrowser: isIosEmbeddedBrowser(),
-      isBraveUserAgent: isBraveUserAgent()
+      isBraveUserAgent: isBraveUserAgent(),
+      shouldShowArBrowserHandoff: shouldShowArBrowserHandoff()
     });
   }, [modelSrc, iosSrc, mvReady, modelLoaded, modelLoadError]);
 
@@ -201,6 +246,17 @@ export const DishModelViewer = forwardRef<
   );
 
   const requestAr = useCallback((): ArRequestStatus => {
+    if (needsIosHandoff) {
+      setArBrowserHandoff(true);
+      setArUnsupported(true);
+      debugAr("requestAr", {
+        result: "unsupported",
+        reason: "ios-browser-handoff-required",
+        modelSrc,
+        iosSrc
+      });
+      return "unsupported";
+    }
     if (missingIosAr) {
       debugAr("requestAr", {
         result: "missing-ios-src",
@@ -302,7 +358,6 @@ export const DishModelViewer = forwardRef<
             iosSrc,
             isIos
           });
-          openSystemBrowserHandoffForAr();
         });
       }
       return "launched";
@@ -326,7 +381,15 @@ export const DishModelViewer = forwardRef<
       });
       return "unsupported";
     }
-  }, [missingIosAr, mvReady, modelLoaded, isIos, iosSrc, modelSrc]);
+  }, [
+    missingIosAr,
+    mvReady,
+    modelLoaded,
+    isIos,
+    iosSrc,
+    modelSrc,
+    needsIosHandoff
+  ]);
 
   useImperativeHandle(ref, () => ({ requestAr }), [requestAr]);
 
@@ -363,6 +426,7 @@ export const DishModelViewer = forwardRef<
   const arHintVariant = arUnsupported
     ? arUnavailableVariant()
     : "default";
+  const showHandoff = arBrowserHandoff || needsIosHandoff;
 
   return (
     <section
@@ -405,7 +469,7 @@ export const DishModelViewer = forwardRef<
                 aria-describedby={helpId}
                 camera-controls
                 auto-rotate
-                ar
+                {...(needsIosHandoff ? {} : { ar: true })}
                 ar-modes="quick-look scene-viewer webxr"
                 ar-placement="floor"
                 ar-scale="fixed"
@@ -439,6 +503,49 @@ export const DishModelViewer = forwardRef<
                 <p className="text-[#8f806d]">
                   {getArUnavailableMessage(arHintVariant)}
                 </p>
+              ) : null}
+              {showHandoff ? (
+                <div
+                  className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-sm leading-relaxed text-[#eadcc6]">
+                    {getArUnavailableMessage("iosHandoff")}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                      onClick={() => {
+                        openCompatiblePage();
+                      }}
+                    >
+                      Ouvrir la page compatible
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                      onClick={() => {
+                        void copyPageLink().then((ok) => {
+                          setCopyConfirmed(ok);
+                          if (ok) window.setTimeout(() => setCopyConfirmed(false), 1800);
+                        });
+                      }}
+                    >
+                      {copyConfirmed ? "Lien copi\u00e9" : "Copier le lien"}
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                      onClick={() => {
+                        void sharePageLink(dish.name);
+                      }}
+                    >
+                      Partager
+                    </button>
+                  </div>
+                </div>
               ) : null}
               {missingIosAr ? (
                 <p className="text-[#c4a892]">{IOS_USDZ_MISSING_TEXT}</p>

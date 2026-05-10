@@ -123,6 +123,7 @@ const dishesWithGlb = dishes.filter((dish) => dish.model3dUrl);
 const dishesWithUsdz = dishes.filter((dish) => dish.usdzUrl);
 const nextConfig = readText(NEXT_CONFIG);
 const homard = dishes.find((dish) => dish.slug === "homard-bisque");
+const ravioles = dishes.find((dish) => dish.slug === "ravioles-romarin");
 
 if (!homard) {
   fail("plat homard-bisque introuvable dans demoMenuData.ts");
@@ -145,6 +146,32 @@ if (!homard) {
     ok("homard-bisque-ar-lite.usdz non utilisé par le plat homard");
   }
 }
+
+if (!ravioles) {
+  fail("plat ravioles-romarin introuvable dans demoMenuData.ts");
+} else {
+  if (ravioles.model3dUrl !== "/models/demo/ravioles-chevre-miel.glb") {
+    fail(`ravioles model3dUrl inattendu: ${ravioles.model3dUrl}`);
+  } else {
+    ok("ravioles pointe vers /models/demo/ravioles-chevre-miel.glb");
+  }
+
+  if (ravioles.usdzUrl !== "/models/demo/ravioles-chevre-miel.usdz") {
+    fail(`ravioles usdzUrl inattendu: ${ravioles.usdzUrl}`);
+  } else {
+    ok("ravioles pointe vers /models/demo/ravioles-chevre-miel.usdz");
+  }
+
+  if (/lite/i.test(`${ravioles.model3dUrl} ${ravioles.usdzUrl}`)) {
+    fail("ravioles pointe vers une version lite");
+  } else {
+    ok("ravioles ne pointe pas vers une version lite");
+  }
+}
+
+const hasGenericUsdzHeaderRule =
+  nextConfig.includes('source: "/models/demo/:path*.usdz"') ||
+  nextConfig.includes("source: '/models/demo/:path*.usdz'");
 
 for (const dish of dishesWithGlb) {
   const filePath = assetPath(dish.model3dUrl);
@@ -176,11 +203,17 @@ for (const dish of dishesWithUsdz) {
   inspectUsdz(filePath, label);
 
   const fileName = basename(filePath);
-  if (!nextConfig.includes(fileName)) {
-    fail(`${fileName} absent des headers next.config.ts`);
+  if (!hasGenericUsdzHeaderRule && !nextConfig.includes(fileName)) {
+    fail(`${fileName} non couvert par les headers next.config.ts`);
   } else {
     ok(`${fileName} déclaré dans next.config.ts`);
   }
+}
+
+if (!hasGenericUsdzHeaderRule) {
+  fail("rÃ¨gle gÃ©nÃ©rique /models/demo/:path*.usdz absente de next.config.ts");
+} else {
+  ok("rÃ¨gle gÃ©nÃ©rique /models/demo/:path*.usdz configurÃ©e");
 }
 
 if (!nextConfig.includes("model/vnd.usdz+zip")) {
