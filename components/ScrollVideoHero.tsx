@@ -40,27 +40,32 @@ export function ScrollVideoHero() {
     return () => motion.removeEventListener("change", sync);
   }, []);
 
-  // Dessin sur Canvas
+  // Dessin sur Canvas (Version optimisée pour Brave/Shields)
   const drawFrame = useCallback((progress: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
+    
+    // On évite les options de contexte trop spécifiques qui peuvent être bloquées par les protections Brave
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Redimensionnement du canvas
-    const { clientWidth, clientHeight } = canvas;
-    const dpr = window.devicePixelRatio || 1;
+    // Redimensionnement du canvas (Robuste face au "Farbling" de Brave sur le DPR)
+    const clientWidth = canvas.clientWidth || window.innerWidth;
+    const clientHeight = canvas.clientHeight || window.innerHeight;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
     const renderDpr = Math.min(dpr, 1.5); 
     
-    if (canvas.width !== Math.floor(clientWidth * renderDpr) || canvas.height !== Math.floor(clientHeight * renderDpr)) {
-      canvas.width = Math.floor(clientWidth * renderDpr);
-      canvas.height = Math.floor(clientHeight * renderDpr);
+    const targetW = Math.round(clientWidth * renderDpr);
+    const targetH = Math.round(clientHeight * renderDpr);
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
     }
 
-    // Paramètres de lissage (importants après redimensionnement)
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    // Reset systématique pour éviter les bugs de persistance
     ctx.globalAlpha = 1.0;
+    ctx.imageSmoothingEnabled = true;
 
     const exactFrame = progress * (frameConfig.frameCount - 1);
     const targetIndex = Math.round(exactFrame);
@@ -70,7 +75,7 @@ export function ScrollVideoHero() {
     let actualIndex = targetIndex;
 
     if (!imgToDraw) {
-      for (let offset = 1; offset < 10; offset++) {
+      for (let offset = 1; offset < 15; offset++) { // Plus grande tolérance de recherche
         if (targetIndex - offset >= 0 && imagesRef.current[targetIndex - offset]) {
           imgToDraw = imagesRef.current[targetIndex - offset];
           actualIndex = targetIndex - offset;
@@ -91,11 +96,14 @@ export function ScrollVideoHero() {
       if (!imgToDraw) return;
     }
 
+    // Sécurité naturalWidth pour Brave
+    const imgW = imgToDraw.naturalWidth || imgToDraw.width;
+    const imgH = imgToDraw.naturalHeight || imgToDraw.height;
+    if (imgW === 0 || imgH === 0) return;
+
     currentDrawnIndexRef.current = actualIndex;
 
     // --- MATHÉMATIQUES DE RENDU ---
-    const imgW = imgToDraw.naturalWidth;
-    const imgH = imgToDraw.naturalHeight;
     const cvsW = canvas.width;
     const cvsH = canvas.height;
     const scaleX = cvsW / imgW;
@@ -145,7 +153,7 @@ export function ScrollVideoHero() {
     if (imagesRef.current[index]) return imagesRef.current[index];
     
     const img = new Image();
-    img.decoding = "async";
+    // Brave gère mieux le chargement sans décodage explicite synchrone/asynchrone forcé
     img.fetchPriority = priority;
     img.src = frameConfig.framePath(index);
     img.onload = () => {
@@ -162,7 +170,7 @@ export function ScrollVideoHero() {
     loadFrameRef.current = loadFrame;
   }, [loadFrame]);
 
-  // Préchargement avec boucle de secours
+  // Préchargement avec boucle de secours robuste
   useEffect(() => {
     if (reducedMotion) return;
     
@@ -187,7 +195,7 @@ export function ScrollVideoHero() {
         currentIndex++;
       }
       if (currentIndex < frameConfig.frameCount) {
-        timeoutId = setTimeout(backgroundLoad, 50);
+        timeoutId = setTimeout(backgroundLoad, 40); // Légèrement plus rapide
       }
     };
 
@@ -254,7 +262,7 @@ export function ScrollVideoHero() {
   return (
     <section ref={sectionRef} id="experience" className="scroll-video-section relative overflow-clip bg-[#080706]">
       <div className="video-sticky-viewport sticky top-0 overflow-hidden bg-[#080706]">
-        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" style={{ objectFit: 'cover' }} />
         <div className="video-readable-overlay absolute inset-0 z-10" />
         <div className="video-warmth absolute inset-0 z-10" />
         <div className="video-grain absolute inset-0 z-10" />
