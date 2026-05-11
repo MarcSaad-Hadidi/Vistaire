@@ -45,5 +45,7 @@ ffmpeg.zip
 ffmpeg_bin/
 lint.txt
 lint_utf8.txt
-public/videos/optimized/
+public/videos/optimized/*
+!public/videos/optimized/
+!public/videos/optimized/upscaled-video-desktop-scrub.mp4
 
