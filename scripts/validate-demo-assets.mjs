@@ -121,19 +121,17 @@ function parseUsdPoints(text) {
   ].map((match) => [Number(match[1]), Number(match[2]), Number(match[3])]);
 }
 
-function checkUsdzHasThickWhitePlateInsert(filePath, label) {
+function getUsdzGeometrySummaries(filePath, label) {
   let zip;
   try {
     zip = fflate.unzipSync(readFileSync(filePath));
   } catch (error) {
     fail(`${label} ZIP illisible: ${error.message}`);
-    return;
+    return [];
   }
 
-  const geometryEntries = Object.entries(zip).filter(([name]) =>
-    /geometries\/.*\.usda$/i.test(name)
-  );
-  const insert = geometryEntries
+  return Object.entries(zip)
+    .filter(([name]) => /geometries\/.*\.usda$/i.test(name))
     .map(([name, bytes]) => ({
       name,
       points: parseUsdPoints(Buffer.from(bytes).toString("utf8"))
@@ -150,27 +148,75 @@ function checkUsdzHasThickWhitePlateInsert(filePath, label) {
       }
       return {
         ...entry,
+        min,
+        max,
         size: max.map((value, axis) => value - min[axis])
       };
-    })
-    .find(
-      (entry) =>
-        entry.points.length < 1000 &&
-        entry.size[0] > 0.12 &&
-        entry.size[2] > 0.12
+    });
+}
+
+function checkUsdzHasStableWhitePlate(filePath, label) {
+  const summaries = getUsdzGeometrySummaries(filePath, label);
+  const food = summaries.find((entry) => entry.points.length > 10_000);
+  const lowPolyPlateParts = summaries.filter(
+    (entry) =>
+      entry.points.length < 1000 &&
+      entry.size[0] > 0.12 &&
+      entry.size[2] > 0.12
+  );
+
+  if (!food) {
+    fail(`${label} geometrie nourriture introuvable`);
+    return;
+  }
+
+  if (lowPolyPlateParts.length < 2) {
+    fail(`${label} assiette AR simplifiee incomplete (${lowPolyPlateParts.length})`);
+    return;
+  }
+
+  const base = lowPolyPlateParts.find(
+    (entry) =>
+      entry.size[1] >= 0.001 &&
+      entry.size[1] <= 0.003 &&
+      entry.max[1] < food.min[1] - 0.0003
+  );
+
+  if (!base) {
+    fail(`${label} fond blanc stable sous la nourriture introuvable`);
+    return;
+  }
+
+  ok(`${label} fond blanc stable (${base.size[1].toFixed(5)}m)`);
+}
+
+function checkUsdzCenteredAndGrounded(filePath, label) {
+  const summaries = getUsdzGeometrySummaries(filePath, label);
+  if (summaries.length === 0) return;
+
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const entry of summaries) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      min[axis] = Math.min(min[axis], entry.min[axis]);
+      max[axis] = Math.max(max[axis], entry.max[axis]);
+    }
+  }
+
+  const centerX = (min[0] + max[0]) / 2;
+  const centerZ = (min[2] + max[2]) / 2;
+  if (Math.abs(min[1]) > 0.0005) {
+    fail(`${label} base AR pas au sol: minY=${min[1].toFixed(5)}m`);
+    return;
+  }
+  if (Math.abs(centerX) > 0.006 || Math.abs(centerZ) > 0.006) {
+    fail(
+      `${label} pivot AR decentre: centerX=${centerX.toFixed(5)}m centerZ=${centerZ.toFixed(5)}m`
     );
-
-  if (!insert) {
-    fail(`${label} insert blanc introuvable`);
     return;
   }
 
-  if (insert.size[1] < 0.001) {
-    fail(`${label} insert trop plat: epaisseur ${insert.size[1].toFixed(5)}m`);
-    return;
-  }
-
-  ok(`${label} insert epais (${insert.size[1].toFixed(5)}m)`);
+  ok(`${label} pivot centre et base au sol`);
 }
 
 function extractDishes() {
@@ -312,7 +358,7 @@ if (!souffle) {
     ok("souffle pointe vers /models/demo/souffle-chocolat.glb");
   }
 
-  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-solid-20260511") {
+  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-stable-20260511") {
     fail(`souffle usdzUrl inattendu: ${souffle.usdzUrl}`);
   } else {
     ok("souffle pointe vers /models/demo/souffle-chocolat.usdz avec cache-bust");
@@ -330,12 +376,16 @@ if (!souffle) {
   );
   checkUsdzGeometryCountAtLeast(
     assetPath(souffle.usdzUrl),
-    4,
+    3,
     "souffle USDZ surface blanche AR"
   );
-  checkUsdzHasThickWhitePlateInsert(
+  checkUsdzHasStableWhitePlate(
     assetPath(souffle.usdzUrl),
     "souffle USDZ surface blanche AR"
+  );
+  checkUsdzCenteredAndGrounded(
+    assetPath(souffle.usdzUrl),
+    "souffle USDZ stabilite AR"
   );
 }
 
