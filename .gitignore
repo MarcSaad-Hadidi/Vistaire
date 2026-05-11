@@ -7,6 +7,8 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -20,9 +22,17 @@
 *.pem
 
 # debug
+*.log
+*.trace
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+/.playwright-mcp/
+/tmp_*
+/eval-test.json
+/frames-chunk-*.json
+/menualive-desktop.png
+/vistaire-desktop-*.png
 
 # local heavy 3D source drops
 3D Plat/RavioliAvecAssiete.glb
