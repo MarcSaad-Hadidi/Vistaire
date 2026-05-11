@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   Color3,
-  Mesh,
   NullEngine,
   Matrix,
   PBRMaterial,
@@ -279,98 +278,67 @@ function makeWarmWhitePlateMaterial(scene, name) {
   const material = new PBRMaterial(name, scene);
   material.alpha = 1;
   material.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
-  material.albedoColor = new Color3(0.98, 0.955, 0.9);
+  material.albedoColor = new Color3(1, 0.985, 0.94);
+  material.emissiveColor = new Color3(0.18, 0.16, 0.11);
   material.metallic = 0;
-  material.roughness = 0.58;
+  material.roughness = 0.48;
   material.backFaceCulling = false;
   return material;
 }
 
-function addSolidDisc(scene, { name, centerX, centerZ, yTop, radius, thickness, material }) {
-  const segments = 128;
-  const yBottom = yTop - thickness;
-  const positions = [];
-  const normals = [];
-  const uvs = [];
-  const indices = [];
+function recenterRenderableMeshesForAr(scene) {
+  const meshes = getRenderableMeshes(scene);
+  if (meshes.length === 0) return;
 
-  const topCenter = 0;
-  positions.push(centerX, yTop, centerZ);
-  normals.push(0, 1, 0);
-  uvs.push(0.5, 0.5);
+  const bounds = scene.getWorldExtends((mesh) => meshes.includes(mesh));
+  const center = bounds.min.add(bounds.max).scale(0.5);
+  const translate = Matrix.Translation(-center.x, -bounds.min.y, -center.z);
+  for (const mesh of meshes) {
+    mesh.bakeTransformIntoVertices(translate);
+    mesh.refreshBoundingInfo(true);
+  }
+}
 
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radius;
-    const z = centerZ + Math.sin(angle) * radius;
-    positions.push(x, yTop, z);
-    normals.push(0, 1, 0);
-    uvs.push(
-      0.5 + Math.cos(angle) * 0.5,
-      0.5 + Math.sin(angle) * 0.5
+function averageTopNormalY(mesh) {
+  const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+  const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+  if (!positions || !normals) return 0;
+
+  const ys = [];
+  for (let i = 1; i < positions.length; i += 3) {
+    ys.push(positions[i]);
+  }
+  ys.sort((a, b) => a - b);
+  const topCutoff = ys[Math.floor(ys.length * 0.85)];
+
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    if (positions[i + 1] < topCutoff) continue;
+    sum += normals[i + 1];
+    count += 1;
+  }
+  return count === 0 ? 0 : sum / count;
+}
+
+function flipMeshFaceOrientation(mesh) {
+  const indices = mesh.getIndices();
+  if (indices) {
+    const flipped = [];
+    for (let i = 0; i < indices.length; i += 3) {
+      flipped.push(indices[i], indices[i + 2], indices[i + 1]);
+    }
+    mesh.setIndices(flipped);
+  }
+
+  const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+  if (normals) {
+    mesh.setVerticesData(
+      VertexBuffer.NormalKind,
+      normals.map((normal) => -normal)
     );
   }
-
-  const bottomCenter = positions.length / 3;
-  positions.push(centerX, yBottom, centerZ);
-  normals.push(0, -1, 0);
-  uvs.push(0.5, 0.5);
-
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radius;
-    const z = centerZ + Math.sin(angle) * radius;
-    positions.push(x, yBottom, z);
-    normals.push(0, -1, 0);
-    uvs.push(
-      0.5 + Math.cos(angle) * 0.5,
-      0.5 + Math.sin(angle) * 0.5
-    );
-  }
-
-  const sideStart = positions.length / 3;
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const nx = Math.cos(angle);
-    const nz = Math.sin(angle);
-    const x = centerX + nx * radius;
-    const z = centerZ + nz * radius;
-    positions.push(x, yTop, z, x, yBottom, z);
-    normals.push(nx, 0, nz, nx, 0, nz);
-    uvs.push(i / segments, 1, i / segments, 0);
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const current = i + 1;
-    const next = i === segments - 1 ? 1 : i + 2;
-    indices.push(topCenter, next, current);
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const current = bottomCenter + 1 + i;
-    const next = i === segments - 1 ? bottomCenter + 1 : current + 1;
-    indices.push(bottomCenter, current, next);
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const topCurrent = sideStart + i * 2;
-    const bottomCurrent = topCurrent + 1;
-    const topNext = i === segments - 1 ? sideStart : topCurrent + 2;
-    const bottomNext = i === segments - 1 ? sideStart + 1 : topCurrent + 3;
-    indices.push(topCurrent, topNext, bottomCurrent);
-    indices.push(topNext, bottomNext, bottomCurrent);
-  }
-
-  const mesh = new Mesh(name, scene);
-  const vertexData = new VertexData();
-  vertexData.positions = positions;
-  vertexData.normals = normals;
-  vertexData.uvs = uvs;
-  vertexData.indices = indices;
-  vertexData.applyToMesh(mesh);
-  mesh.material = material;
   mesh.refreshBoundingInfo(true);
-  return mesh;
 }
 
 function tuneSouffleArScene(scene) {
@@ -378,9 +346,6 @@ function tuneSouffleArScene(scene) {
   const plateMeshes = meshes.filter(isSoufflePlateMesh);
   if (plateMeshes.length === 0) return;
 
-  const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
-  const plateSize = plateBounds.max.subtract(plateBounds.min);
-  const center = plateBounds.min.add(plateBounds.max).scale(0.5);
   const plateMaterial = makeWarmWhitePlateMaterial(
     scene,
     "souffle-ar-warm-white-plate-material"
@@ -388,27 +353,18 @@ function tuneSouffleArScene(scene) {
 
   for (const mesh of plateMeshes) {
     mesh.material = plateMaterial;
+    if (mesh.name.toLowerCase().includes("assiette") && averageTopNormalY(mesh) < 0) {
+      flipMeshFaceOrientation(mesh);
+    }
   }
 
-  const radius = Math.min(plateSize.x, plateSize.z) * 0.462;
-  const thickness = 0.0018;
-  const yTop = plateBounds.max.y + 0.00045;
-  const cover = addSolidDisc(scene, {
-    name: "souffle-ar-white-plate-insert",
-    centerX: center.x,
-    centerZ: center.z,
-    radius,
-    yTop,
-    thickness,
-    material: plateMaterial
-  });
+  recenterRenderableMeshesForAr(scene);
 
+  const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
   console.log(
-    `souffle AR white plate insert: center=${JSON.stringify(
-      formatVector(new Vector3(center.x, yTop - thickness / 2, center.z))
-    )} radius=${Number(radius.toFixed(5))} thickness=${Number(
-      thickness.toFixed(5)
-    )} verts=${cover.getTotalVertices()}`
+    `souffle AR source plate preserved: meshes=${plateMeshes.length} size=${JSON.stringify(
+      formatVector(plateBounds.max.subtract(plateBounds.min))
+    )}`
   );
 }
 
