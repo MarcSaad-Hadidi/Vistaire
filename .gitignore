@@ -32,6 +32,7 @@ yarn-error.log*
 /eval-test.json
 /frames-chunk-*.json
 /menualive-desktop.png
+/vistaire-desktop-*.png
 
 # local heavy 3D source drops
 3D Plat/RavioliAvecAssiete.glb
