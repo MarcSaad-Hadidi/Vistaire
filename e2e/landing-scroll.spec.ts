@@ -24,9 +24,20 @@ test.describe("Landing responsive", () => {
 test.describe("Landing scroll experience", () => {
   test("hero renders video and responds to scroll", async ({ page }) => {
     const frameRequests: string[] = [];
+    const videoResponseStatuses: number[] = [];
+
     page.on("request", (request) => {
       if (/\/frames\/|frame_\d{4}\.webp/i.test(request.url())) {
         frameRequests.push(request.url());
+      }
+    });
+    page.on("response", (response) => {
+      if (
+        response
+          .url()
+          .includes("/videos/optimized/upscaled-video-desktop-scrub.mp4")
+      ) {
+        videoResponseStatuses.push(response.status());
       }
     });
 
@@ -49,6 +60,29 @@ test.describe("Landing scroll experience", () => {
       const video = document.querySelector<HTMLVideoElement>("#experience video");
       return Boolean(video && video.readyState >= 1 && video.duration > 0);
     });
+
+    await expect
+      .poll(() =>
+        videoResponseStatuses.some(
+          (status) => status === 200 || status === 206
+        )
+      )
+      .toBe(true);
+
+    const videoNetworkState = await experience
+      .locator("video")
+      .evaluate((video) => {
+        const element = video as HTMLVideoElement;
+        return {
+          currentSrc: element.currentSrc,
+          errorCode: element.error?.code ?? null,
+          networkState: element.networkState
+        };
+      });
+    expect(videoNetworkState.currentSrc).toContain(
+      "/videos/optimized/upscaled-video-desktop-scrub.mp4"
+    );
+    expect(videoNetworkState.errorCode).toBeNull();
 
     const t0 = await experience
       .locator("video")
