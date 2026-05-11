@@ -36,7 +36,8 @@ function ok(message) {
 }
 
 function assetPath(url) {
-  return join(PUBLIC_DIR, url.replace(/^\//, ""));
+  const path = url.split(/[?#]/)[0];
+  return join(PUBLIC_DIR, path.replace(/^\//, ""));
 }
 
 function formatSize(bytes) {
@@ -311,10 +312,10 @@ if (!souffle) {
     ok("souffle pointe vers /models/demo/souffle-chocolat.glb");
   }
 
-  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz") {
+  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-solid-20260511") {
     fail(`souffle usdzUrl inattendu: ${souffle.usdzUrl}`);
   } else {
-    ok("souffle pointe vers /models/demo/souffle-chocolat.usdz");
+    ok("souffle pointe vers /models/demo/souffle-chocolat.usdz avec cache-bust");
   }
 
   checkFileHash(

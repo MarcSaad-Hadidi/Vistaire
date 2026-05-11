@@ -383,7 +383,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "16 min",
     model3dUrl: "/models/demo/souffle-chocolat.glb",
-    usdzUrl: "/models/demo/souffle-chocolat.usdz"
+    usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-solid-20260511"
   },
   {
     id: "dish-9",
