@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   Color3,
+  Mesh,
   NullEngine,
   Matrix,
   PBRMaterial,
@@ -264,6 +265,99 @@ function tuneRaviolesArScene(scene) {
   );
 }
 
+function isSoufflePlateMesh(mesh) {
+  const name = `${mesh.name} ${mesh.material?.name ?? ""}`.toLowerCase();
+  return (
+    name.includes("assiette") ||
+    name.includes("rebord") ||
+    name.includes("céramique") ||
+    name.includes("ceramique")
+  );
+}
+
+function makeWarmWhitePlateMaterial(scene, name) {
+  const material = new PBRMaterial(name, scene);
+  material.alpha = 1;
+  material.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
+  material.albedoColor = new Color3(0.98, 0.955, 0.9);
+  material.metallic = 0;
+  material.roughness = 0.58;
+  material.backFaceCulling = false;
+  return material;
+}
+
+function addHorizontalDisc(scene, { name, centerX, centerZ, y, radius, material }) {
+  const segments = 128;
+  const positions = [centerX, y, centerZ];
+  const normals = [0, 1, 0];
+  const uvs = [0.5, 0.5];
+  const indices = [];
+
+  for (let i = 0; i < segments; i += 1) {
+    const angle = (i / segments) * Math.PI * 2;
+    const x = centerX + Math.cos(angle) * radius;
+    const z = centerZ + Math.sin(angle) * radius;
+    positions.push(x, y, z);
+    normals.push(0, 1, 0);
+    uvs.push(
+      0.5 + Math.cos(angle) * 0.5,
+      0.5 + Math.sin(angle) * 0.5
+    );
+  }
+
+  for (let i = 0; i < segments; i += 1) {
+    const current = i + 1;
+    const next = i === segments - 1 ? 1 : i + 2;
+    indices.push(0, next, current);
+  }
+
+  const mesh = new Mesh(name, scene);
+  const vertexData = new VertexData();
+  vertexData.positions = positions;
+  vertexData.normals = normals;
+  vertexData.uvs = uvs;
+  vertexData.indices = indices;
+  vertexData.applyToMesh(mesh);
+  mesh.material = material;
+  mesh.refreshBoundingInfo(true);
+  return mesh;
+}
+
+function tuneSouffleArScene(scene) {
+  const meshes = getRenderableMeshes(scene);
+  const plateMeshes = meshes.filter(isSoufflePlateMesh);
+  if (plateMeshes.length === 0) return;
+
+  const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
+  const plateSize = plateBounds.max.subtract(plateBounds.min);
+  const center = plateBounds.min.add(plateBounds.max).scale(0.5);
+  const plateMaterial = makeWarmWhitePlateMaterial(
+    scene,
+    "souffle-ar-warm-white-plate-material"
+  );
+
+  for (const mesh of plateMeshes) {
+    mesh.material = plateMaterial;
+  }
+
+  const radius = Math.min(plateSize.x, plateSize.z) * 0.455;
+  const y = plateBounds.min.y + plateSize.y * 0.82;
+  const cover = addHorizontalDisc(scene, {
+    name: "souffle-ar-white-plate-surface",
+    centerX: center.x,
+    centerZ: center.z,
+    y,
+    radius,
+    material: plateMaterial
+  });
+
+  console.log(
+    `souffle AR white plate surface: center=${JSON.stringify(
+      formatVector(new Vector3(center.x, y, center.z))
+    )} radius=${Number(radius.toFixed(5))} verts=${cover.getTotalVertices()}`
+  );
+}
+
 function ensureMeshNormals(scene) {
   for (const mesh of getRenderableMeshes(scene)) {
     if (mesh.getVerticesData(VertexBuffer.NormalKind)) continue;
@@ -345,6 +439,9 @@ async function convertOne(glbName) {
     }
     if (glbName === "ravioles-chevre-miel.glb") {
       tuneRaviolesArScene(scene);
+    }
+    if (glbName === "souffle-chocolat.glb") {
+      tuneSouffleArScene(scene);
     }
     ensureMeshNormals(scene);
     boundsAfter = getSceneBounds(scene);

@@ -83,6 +83,32 @@ function checkMinimumSize(filePath, minBytes, label) {
   ok(`${label} taille compatible (${formatSize(size)})`);
 }
 
+function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
+  if (!existsSync(filePath)) {
+    fail(`${label} fichier introuvable: ${filePath}`);
+    return;
+  }
+
+  let zip;
+  try {
+    zip = fflate.unzipSync(readFileSync(filePath));
+  } catch (error) {
+    fail(`${label} ZIP illisible: ${error.message}`);
+    return;
+  }
+
+  const geometryCount = Object.keys(zip).filter((name) =>
+    /geometries\/.*\.usda$/i.test(name)
+  ).length;
+
+  if (geometryCount < minCount) {
+    fail(`${label} geometries USD: ${geometryCount}, attendu au moins ${minCount}`);
+    return;
+  }
+
+  ok(`${label} geometries USD: ${geometryCount}`);
+}
+
 function extractDishes() {
   const source = readText(DEMO_DATA);
   const blocks = source.match(/\{\s*id:\s*"dish-[\s\S]*?\n  \}/g) ?? [];
@@ -237,6 +263,11 @@ if (!souffle) {
     assetPath(souffle.usdzUrl),
     SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES,
     "souffle USDZ avec assiette"
+  );
+  checkUsdzGeometryCountAtLeast(
+    assetPath(souffle.usdzUrl),
+    4,
+    "souffle USDZ surface blanche AR"
   );
 }
 
