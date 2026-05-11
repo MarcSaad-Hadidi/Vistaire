@@ -1,0 +1,76 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation "Navigation principale" [ref=e3]:
+      - link "Vistaire — accueil de la page" [ref=e5] [cursor=pointer]:
+        - /url: "#experience"
+        - text: Vistaire
+      - generic [ref=e6]:
+        - link "Expérience" [ref=e7] [cursor=pointer]:
+          - /url: "#experience"
+        - link "Bénéfices" [ref=e8] [cursor=pointer]:
+          - /url: "#benefices"
+      - generic [ref=e9]:
+        - link "Voir la démo du menu interactif" [ref=e10] [cursor=pointer]:
+          - /url: /demo
+          - text: Voir la démo
+        - link "Demander une démo" [ref=e11] [cursor=pointer]:
+          - /url: "#demo"
+  - main [ref=e12]:
+    - region "Experience Vistaire" [ref=e13]:
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: Vistaire
+        - heading "Du QR code au menu vivant." [level=1] [ref=e20]
+        - paragraph [ref=e21]: Le client scanne à table. L’expérience s’ouvre instantanément, sans application.
+        - generic [ref=e22]:
+          - link "Voir la démo" [ref=e23] [cursor=pointer]:
+            - /url: /demo
+          - link "Demander une démo" [ref=e24] [cursor=pointer]:
+            - /url: "#demo"
+    - generic [ref=e27]:
+      - paragraph [ref=e28]: Impact restaurant
+      - heading "Une expérience plus claire pour vos clients. Plus forte pour votre restaurant." [level=2] [ref=e29]
+      - generic [ref=e30]:
+        - article [ref=e31]:
+          - paragraph [ref=e32]: "01"
+          - heading "Plus visuel" [level=3] [ref=e33]
+          - paragraph [ref=e34]: Des photos et fiches plats qui aident les clients à choisir avec confiance.
+        - article [ref=e35]:
+          - paragraph [ref=e36]: "02"
+          - heading "Plus premium" [level=3] [ref=e37]
+          - paragraph [ref=e38]: Une présentation qui valorise vos plats signatures et votre image de marque.
+        - article [ref=e39]:
+          - paragraph [ref=e40]: "03"
+          - heading "Plus immersif" [level=3] [ref=e41]
+          - paragraph [ref=e42]: La 3D / AR crée un moment mémorable, sans téléchargement d’application.
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: Démo privée
+        - heading "Demander une démo Vistaire" [level=2] [ref=e47]
+        - paragraph [ref=e48]: Préparez une première expérience autour de vos plats signatures, de votre ambiance et de votre carte actuelle.
+        - paragraph [ref=e49]:
+          - link "Explorer le menu démo" [ref=e50] [cursor=pointer]:
+            - /url: /demo
+          - text: — aperçu client réaliste après scan QR (données fictives).
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - generic [ref=e53]:
+            - generic [ref=e54]: Nom
+            - textbox "Nom" [ref=e55]
+          - generic [ref=e56]:
+            - generic [ref=e57]: Restaurant
+            - textbox "Restaurant" [ref=e58]
+          - generic [ref=e59]:
+            - generic [ref=e60]: Email
+            - textbox "Email" [ref=e61]
+          - generic [ref=e62]:
+            - generic [ref=e63]: Téléphone
+            - textbox "Téléphone" [ref=e64]
+        - generic [ref=e65]:
+          - generic [ref=e66]: Message
+          - textbox "Message" [ref=e67]
+        - button "Envoyer la demande" [ref=e68] [cursor=pointer]
+  - contentinfo [ref=e69]:
+    - generic [ref=e70]:
+      - paragraph [ref=e71]: Vistaire
+      - paragraph [ref=e72]: Menu digital premium pour restaurants.
+  - alert [ref=e73]
