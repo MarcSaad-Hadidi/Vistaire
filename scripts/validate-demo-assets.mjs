@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,9 @@ const PUBLIC_DIR = join(ROOT, "public");
 const MIN_USDZ_BYTES = 10 * 1024;
 const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
 const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
+const SOUFFLE_WITH_PLATE_GLB_SHA256 =
+  "6aaab33a629b79ecf7f01bcedc03534528cc49ebb50064772e57cec9ecb1fc79";
+const SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES = 5 * 1024 * 1024;
 
 function readText(path) {
   return readFileSync(path, "utf8");
@@ -38,6 +42,45 @@ function assetPath(url) {
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function checkFileHash(filePath, expectedHash, label) {
+  if (!existsSync(filePath)) {
+    fail(`${label} fichier public introuvable: ${filePath}`);
+    return;
+  }
+
+  const actualHash = sha256File(filePath);
+  if (actualHash !== expectedHash) {
+    fail(
+      `${label} hash inattendu: public ${actualHash.slice(
+        0,
+        12
+      )}, attendu ${expectedHash.slice(0, 12)}`
+    );
+    return;
+  }
+
+  ok(`${label} hash attendu`);
+}
+
+function checkMinimumSize(filePath, minBytes, label) {
+  if (!existsSync(filePath)) {
+    fail(`${label} fichier introuvable: ${filePath}`);
+    return;
+  }
+  const size = statSync(filePath).size;
+  if (size < minBytes) {
+    fail(
+      `${label} trop petit: ${formatSize(size)} (attendu au moins ${formatSize(minBytes)})`
+    );
+    return;
+  }
+  ok(`${label} taille compatible (${formatSize(size)})`);
 }
 
 function extractDishes() {
@@ -124,6 +167,7 @@ const dishesWithUsdz = dishes.filter((dish) => dish.usdzUrl);
 const nextConfig = readText(NEXT_CONFIG);
 const homard = dishes.find((dish) => dish.slug === "homard-bisque");
 const ravioles = dishes.find((dish) => dish.slug === "ravioles-romarin");
+const souffle = dishes.find((dish) => dish.slug === "souffle-chocolat");
 
 if (!homard) {
   fail("plat homard-bisque introuvable dans demoMenuData.ts");
@@ -167,6 +211,33 @@ if (!ravioles) {
   } else {
     ok("ravioles ne pointe pas vers une version lite");
   }
+}
+
+if (!souffle) {
+  fail("plat souffle-chocolat introuvable dans demoMenuData.ts");
+} else {
+  if (souffle.model3dUrl !== "/models/demo/souffle-chocolat.glb") {
+    fail(`souffle model3dUrl inattendu: ${souffle.model3dUrl}`);
+  } else {
+    ok("souffle pointe vers /models/demo/souffle-chocolat.glb");
+  }
+
+  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz") {
+    fail(`souffle usdzUrl inattendu: ${souffle.usdzUrl}`);
+  } else {
+    ok("souffle pointe vers /models/demo/souffle-chocolat.usdz");
+  }
+
+  checkFileHash(
+    assetPath(souffle.model3dUrl),
+    SOUFFLE_WITH_PLATE_GLB_SHA256,
+    "souffle GLB avec assiette"
+  );
+  checkMinimumSize(
+    assetPath(souffle.usdzUrl),
+    SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES,
+    "souffle USDZ avec assiette"
+  );
 }
 
 const hasGenericUsdzHeaderRule =
