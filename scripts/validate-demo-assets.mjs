@@ -155,39 +155,22 @@ function getUsdzGeometrySummaries(filePath, label) {
     });
 }
 
-function checkUsdzHasStableWhitePlate(filePath, label) {
+function checkUsdzUsesSourcePlateGeometry(filePath, label) {
   const summaries = getUsdzGeometrySummaries(filePath, label);
-  const food = summaries.find((entry) => entry.points.length > 10_000);
-  const lowPolyPlateParts = summaries.filter(
+  const sourcePlateParts = summaries.filter(
     (entry) =>
-      entry.points.length < 1000 &&
+      entry.points.length > 1000 &&
+      entry.points.length < 10_000 &&
       entry.size[0] > 0.12 &&
       entry.size[2] > 0.12
   );
 
-  if (!food) {
-    fail(`${label} geometrie nourriture introuvable`);
+  if (sourcePlateParts.length < 2) {
+    fail(`${label} assiette source absente (${sourcePlateParts.length}/2)`);
     return;
   }
 
-  if (lowPolyPlateParts.length < 2) {
-    fail(`${label} assiette AR simplifiee incomplete (${lowPolyPlateParts.length})`);
-    return;
-  }
-
-  const base = lowPolyPlateParts.find(
-    (entry) =>
-      entry.size[1] >= 0.001 &&
-      entry.size[1] <= 0.003 &&
-      entry.max[1] < food.min[1] - 0.0003
-  );
-
-  if (!base) {
-    fail(`${label} fond blanc stable sous la nourriture introuvable`);
-    return;
-  }
-
-  ok(`${label} fond blanc stable (${base.size[1].toFixed(5)}m)`);
+  ok(`${label} assiette source conservee (${sourcePlateParts.length} pieces)`);
 }
 
 function checkUsdzCenteredAndGrounded(filePath, label) {
@@ -358,7 +341,7 @@ if (!souffle) {
     ok("souffle pointe vers /models/demo/souffle-chocolat.glb");
   }
 
-  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-stable-20260511") {
+  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511") {
     fail(`souffle usdzUrl inattendu: ${souffle.usdzUrl}`);
   } else {
     ok("souffle pointe vers /models/demo/souffle-chocolat.usdz avec cache-bust");
@@ -379,7 +362,7 @@ if (!souffle) {
     3,
     "souffle USDZ surface blanche AR"
   );
-  checkUsdzHasStableWhitePlate(
+  checkUsdzUsesSourcePlateGeometry(
     assetPath(souffle.usdzUrl),
     "souffle USDZ surface blanche AR"
   );

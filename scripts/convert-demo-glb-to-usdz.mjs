@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   Color3,
-  Mesh,
   NullEngine,
   Matrix,
   PBRMaterial,
@@ -287,159 +286,6 @@ function makeWarmWhitePlateMaterial(scene, name) {
   return material;
 }
 
-function addSolidDisc(scene, { name, centerX, centerZ, yTop, radius, thickness, material }) {
-  const segments = 128;
-  const yBottom = yTop - thickness;
-  const positions = [];
-  const normals = [];
-  const uvs = [];
-  const indices = [];
-
-  const topCenter = 0;
-  positions.push(centerX, yTop, centerZ);
-  normals.push(0, 1, 0);
-  uvs.push(0.5, 0.5);
-
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radius;
-    const z = centerZ + Math.sin(angle) * radius;
-    positions.push(x, yTop, z);
-    normals.push(0, 1, 0);
-    uvs.push(
-      0.5 + Math.cos(angle) * 0.5,
-      0.5 + Math.sin(angle) * 0.5
-    );
-  }
-
-  const bottomCenter = positions.length / 3;
-  positions.push(centerX, yBottom, centerZ);
-  normals.push(0, -1, 0);
-  uvs.push(0.5, 0.5);
-
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radius;
-    const z = centerZ + Math.sin(angle) * radius;
-    positions.push(x, yBottom, z);
-    normals.push(0, -1, 0);
-    uvs.push(
-      0.5 + Math.cos(angle) * 0.5,
-      0.5 + Math.sin(angle) * 0.5
-    );
-  }
-
-  const sideStart = positions.length / 3;
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const nx = Math.cos(angle);
-    const nz = Math.sin(angle);
-    const x = centerX + nx * radius;
-    const z = centerZ + nz * radius;
-    positions.push(x, yTop, z, x, yBottom, z);
-    normals.push(nx, 0, nz, nx, 0, nz);
-    uvs.push(i / segments, 1, i / segments, 0);
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const current = i + 1;
-    const next = i === segments - 1 ? 1 : i + 2;
-    indices.push(topCenter, next, current);
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const current = bottomCenter + 1 + i;
-    const next = i === segments - 1 ? bottomCenter + 1 : current + 1;
-    indices.push(bottomCenter, current, next);
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const topCurrent = sideStart + i * 2;
-    const bottomCurrent = topCurrent + 1;
-    const topNext = i === segments - 1 ? sideStart : topCurrent + 2;
-    const bottomNext = i === segments - 1 ? sideStart + 1 : topCurrent + 3;
-    indices.push(topCurrent, topNext, bottomCurrent);
-    indices.push(topNext, bottomNext, bottomCurrent);
-  }
-
-  const mesh = new Mesh(name, scene);
-  const vertexData = new VertexData();
-  vertexData.positions = positions;
-  vertexData.normals = normals;
-  vertexData.uvs = uvs;
-  vertexData.indices = indices;
-  vertexData.applyToMesh(mesh);
-  mesh.material = material;
-  mesh.refreshBoundingInfo(true);
-  return mesh;
-}
-
-function addSolidRing(scene, { name, centerX, centerZ, yBottom, yTop, innerRadius, outerRadius, material }) {
-  const segments = 96;
-  const positions = [];
-  const normals = [];
-  const uvs = [];
-  const indices = [];
-
-  function addVertex(x, y, z, nx, ny, nz, u, v) {
-    positions.push(x, y, z);
-    normals.push(nx, ny, nz);
-    uvs.push(u, v);
-    return positions.length / 3 - 1;
-  }
-
-  const topOuter = [];
-  const topInner = [];
-  const bottomOuter = [];
-  const bottomInner = [];
-  const sideOuterTop = [];
-  const sideOuterBottom = [];
-  const sideInnerTop = [];
-  const sideInnerBottom = [];
-
-  for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
-    const nx = Math.cos(angle);
-    const nz = Math.sin(angle);
-    const u = i / segments;
-
-    topOuter.push(addVertex(centerX + nx * outerRadius, yTop, centerZ + nz * outerRadius, 0, 1, 0, u, 1));
-    topInner.push(addVertex(centerX + nx * innerRadius, yTop, centerZ + nz * innerRadius, 0, 1, 0, u, 0));
-    bottomOuter.push(addVertex(centerX + nx * outerRadius, yBottom, centerZ + nz * outerRadius, 0, -1, 0, u, 1));
-    bottomInner.push(addVertex(centerX + nx * innerRadius, yBottom, centerZ + nz * innerRadius, 0, -1, 0, u, 0));
-    sideOuterTop.push(addVertex(centerX + nx * outerRadius, yTop, centerZ + nz * outerRadius, nx, 0, nz, u, 1));
-    sideOuterBottom.push(addVertex(centerX + nx * outerRadius, yBottom, centerZ + nz * outerRadius, nx, 0, nz, u, 0));
-    sideInnerTop.push(addVertex(centerX + nx * innerRadius, yTop, centerZ + nz * innerRadius, -nx, 0, -nz, u, 1));
-    sideInnerBottom.push(addVertex(centerX + nx * innerRadius, yBottom, centerZ + nz * innerRadius, -nx, 0, -nz, u, 0));
-  }
-
-  for (let i = 0; i < segments; i += 1) {
-    const next = i === segments - 1 ? 0 : i + 1;
-    indices.push(topInner[i], topOuter[next], topOuter[i]);
-    indices.push(topInner[i], topInner[next], topOuter[next]);
-
-    indices.push(bottomInner[i], bottomOuter[i], bottomOuter[next]);
-    indices.push(bottomInner[i], bottomOuter[next], bottomInner[next]);
-
-    indices.push(sideOuterBottom[i], sideOuterTop[i], sideOuterTop[next]);
-    indices.push(sideOuterBottom[i], sideOuterTop[next], sideOuterBottom[next]);
-
-    indices.push(sideInnerBottom[i], sideInnerTop[next], sideInnerTop[i]);
-    indices.push(sideInnerBottom[i], sideInnerBottom[next], sideInnerTop[next]);
-  }
-
-  const mesh = new Mesh(name, scene);
-  const vertexData = new VertexData();
-  vertexData.positions = positions;
-  vertexData.normals = normals;
-  vertexData.uvs = uvs;
-  vertexData.indices = indices;
-  vertexData.applyToMesh(mesh);
-  mesh.material = material;
-  mesh.refreshBoundingInfo(true);
-  return mesh;
-}
-
 function recenterRenderableMeshesForAr(scene) {
   const meshes = getRenderableMeshes(scene);
   if (meshes.length === 0) return;
@@ -453,67 +299,72 @@ function recenterRenderableMeshesForAr(scene) {
   }
 }
 
+function averageTopNormalY(mesh) {
+  const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+  const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+  if (!positions || !normals) return 0;
+
+  const ys = [];
+  for (let i = 1; i < positions.length; i += 3) {
+    ys.push(positions[i]);
+  }
+  ys.sort((a, b) => a - b);
+  const topCutoff = ys[Math.floor(ys.length * 0.85)];
+
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    if (positions[i + 1] < topCutoff) continue;
+    sum += normals[i + 1];
+    count += 1;
+  }
+  return count === 0 ? 0 : sum / count;
+}
+
+function flipMeshFaceOrientation(mesh) {
+  const indices = mesh.getIndices();
+  if (indices) {
+    const flipped = [];
+    for (let i = 0; i < indices.length; i += 3) {
+      flipped.push(indices[i], indices[i + 2], indices[i + 1]);
+    }
+    mesh.setIndices(flipped);
+  }
+
+  const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
+  if (normals) {
+    mesh.setVerticesData(
+      VertexBuffer.NormalKind,
+      normals.map((normal) => -normal)
+    );
+  }
+  mesh.refreshBoundingInfo(true);
+}
+
 function tuneSouffleArScene(scene) {
   const meshes = getRenderableMeshes(scene);
   const plateMeshes = meshes.filter(isSoufflePlateMesh);
-  const foodMeshes = meshes.filter((mesh) => !isSoufflePlateMesh(mesh));
   if (plateMeshes.length === 0) return;
 
-  const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
-  const foodBounds = scene.getWorldExtends((mesh) => foodMeshes.includes(mesh));
-  const plateSize = plateBounds.max.subtract(plateBounds.min);
-  const center = plateBounds.min.add(plateBounds.max).scale(0.5);
   const plateMaterial = makeWarmWhitePlateMaterial(
     scene,
     "souffle-ar-warm-white-plate-material"
   );
 
   for (const mesh of plateMeshes) {
-    mesh.dispose(false, true);
+    mesh.material = plateMaterial;
+    if (mesh.name.toLowerCase().includes("assiette") && averageTopNormalY(mesh) < 0) {
+      flipMeshFaceOrientation(mesh);
+    }
   }
-
-  const plateRadius = Math.max(plateSize.x, plateSize.z) * 0.5;
-  const foodRadius = Math.max(
-    Math.hypot(foodBounds.min.x - center.x, foodBounds.min.z - center.z),
-    Math.hypot(foodBounds.min.x - center.x, foodBounds.max.z - center.z),
-    Math.hypot(foodBounds.max.x - center.x, foodBounds.min.z - center.z),
-    Math.hypot(foodBounds.max.x - center.x, foodBounds.max.z - center.z)
-  );
-  const baseThickness = 0.0014;
-  const baseTopY = Math.max(
-    plateBounds.min.y + baseThickness,
-    Math.min(foodBounds.min.y - 0.0012, plateBounds.min.y + 0.0018)
-  );
-  const base = addSolidDisc(scene, {
-    name: "souffle-ar-white-plate-base",
-    centerX: center.x,
-    centerZ: center.z,
-    radius: plateRadius * 0.965,
-    yTop: baseTopY,
-    thickness: baseThickness,
-    material: plateMaterial
-  });
-  const rimInnerRadius = Math.min(
-    plateRadius * 0.9,
-    Math.max(plateRadius * 0.78, foodRadius + 0.012)
-  );
-  const rim = addSolidRing(scene, {
-    name: "souffle-ar-white-plate-rim",
-    centerX: center.x,
-    centerZ: center.z,
-    yBottom: baseTopY - baseThickness,
-    yTop: plateBounds.max.y,
-    innerRadius: rimInnerRadius,
-    outerRadius: plateRadius,
-    material: plateMaterial
-  });
 
   recenterRenderableMeshesForAr(scene);
 
+  const plateBounds = scene.getWorldExtends((mesh) => plateMeshes.includes(mesh));
   console.log(
-    `souffle AR stable white plate: baseVerts=${base.getTotalVertices()} rimVerts=${rim.getTotalVertices()} baseTopY=${Number(
-      baseTopY.toFixed(5)
-    )} rimInnerRadius=${Number(rimInnerRadius.toFixed(5))}`
+    `souffle AR source plate preserved: meshes=${plateMeshes.length} size=${JSON.stringify(
+      formatVector(plateBounds.max.subtract(plateBounds.min))
+    )}`
   );
 }
 
