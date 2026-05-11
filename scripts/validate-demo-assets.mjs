@@ -109,6 +109,69 @@ function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
   ok(`${label} geometries USD: ${geometryCount}`);
 }
 
+function parseUsdPoints(text) {
+  const pointsBlock = text.match(/point3f\[\]\s+points\s*=\s*\[([\s\S]*?)\]/);
+  if (!pointsBlock) return [];
+
+  return [
+    ...pointsBlock[1].matchAll(
+      /\((-?\d+(?:\.\d+)?(?:e[-+]?\d+)?),\s*(-?\d+(?:\.\d+)?(?:e[-+]?\d+)?),\s*(-?\d+(?:\.\d+)?(?:e[-+]?\d+)?)\)/gi
+    )
+  ].map((match) => [Number(match[1]), Number(match[2]), Number(match[3])]);
+}
+
+function checkUsdzHasThickWhitePlateInsert(filePath, label) {
+  let zip;
+  try {
+    zip = fflate.unzipSync(readFileSync(filePath));
+  } catch (error) {
+    fail(`${label} ZIP illisible: ${error.message}`);
+    return;
+  }
+
+  const geometryEntries = Object.entries(zip).filter(([name]) =>
+    /geometries\/.*\.usda$/i.test(name)
+  );
+  const insert = geometryEntries
+    .map(([name, bytes]) => ({
+      name,
+      points: parseUsdPoints(Buffer.from(bytes).toString("utf8"))
+    }))
+    .filter((entry) => entry.points.length > 0)
+    .map((entry) => {
+      const min = [Infinity, Infinity, Infinity];
+      const max = [-Infinity, -Infinity, -Infinity];
+      for (const point of entry.points) {
+        for (let axis = 0; axis < 3; axis += 1) {
+          min[axis] = Math.min(min[axis], point[axis]);
+          max[axis] = Math.max(max[axis], point[axis]);
+        }
+      }
+      return {
+        ...entry,
+        size: max.map((value, axis) => value - min[axis])
+      };
+    })
+    .find(
+      (entry) =>
+        entry.points.length < 1000 &&
+        entry.size[0] > 0.12 &&
+        entry.size[2] > 0.12
+    );
+
+  if (!insert) {
+    fail(`${label} insert blanc introuvable`);
+    return;
+  }
+
+  if (insert.size[1] < 0.001) {
+    fail(`${label} insert trop plat: epaisseur ${insert.size[1].toFixed(5)}m`);
+    return;
+  }
+
+  ok(`${label} insert epais (${insert.size[1].toFixed(5)}m)`);
+}
+
 function extractDishes() {
   const source = readText(DEMO_DATA);
   const blocks = source.match(/\{\s*id:\s*"dish-[\s\S]*?\n  \}/g) ?? [];
@@ -267,6 +330,10 @@ if (!souffle) {
   checkUsdzGeometryCountAtLeast(
     assetPath(souffle.usdzUrl),
     4,
+    "souffle USDZ surface blanche AR"
+  );
+  checkUsdzHasThickWhitePlateInsert(
+    assetPath(souffle.usdzUrl),
     "souffle USDZ surface blanche AR"
   );
 }

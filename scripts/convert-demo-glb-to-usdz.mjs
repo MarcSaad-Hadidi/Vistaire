@@ -286,18 +286,24 @@ function makeWarmWhitePlateMaterial(scene, name) {
   return material;
 }
 
-function addHorizontalDisc(scene, { name, centerX, centerZ, y, radius, material }) {
+function addSolidDisc(scene, { name, centerX, centerZ, yTop, radius, thickness, material }) {
   const segments = 128;
-  const positions = [centerX, y, centerZ];
-  const normals = [0, 1, 0];
-  const uvs = [0.5, 0.5];
+  const yBottom = yTop - thickness;
+  const positions = [];
+  const normals = [];
+  const uvs = [];
   const indices = [];
+
+  const topCenter = 0;
+  positions.push(centerX, yTop, centerZ);
+  normals.push(0, 1, 0);
+  uvs.push(0.5, 0.5);
 
   for (let i = 0; i < segments; i += 1) {
     const angle = (i / segments) * Math.PI * 2;
     const x = centerX + Math.cos(angle) * radius;
     const z = centerZ + Math.sin(angle) * radius;
-    positions.push(x, y, z);
+    positions.push(x, yTop, z);
     normals.push(0, 1, 0);
     uvs.push(
       0.5 + Math.cos(angle) * 0.5,
@@ -305,10 +311,54 @@ function addHorizontalDisc(scene, { name, centerX, centerZ, y, radius, material 
     );
   }
 
+  const bottomCenter = positions.length / 3;
+  positions.push(centerX, yBottom, centerZ);
+  normals.push(0, -1, 0);
+  uvs.push(0.5, 0.5);
+
+  for (let i = 0; i < segments; i += 1) {
+    const angle = (i / segments) * Math.PI * 2;
+    const x = centerX + Math.cos(angle) * radius;
+    const z = centerZ + Math.sin(angle) * radius;
+    positions.push(x, yBottom, z);
+    normals.push(0, -1, 0);
+    uvs.push(
+      0.5 + Math.cos(angle) * 0.5,
+      0.5 + Math.sin(angle) * 0.5
+    );
+  }
+
+  const sideStart = positions.length / 3;
+  for (let i = 0; i < segments; i += 1) {
+    const angle = (i / segments) * Math.PI * 2;
+    const nx = Math.cos(angle);
+    const nz = Math.sin(angle);
+    const x = centerX + nx * radius;
+    const z = centerZ + nz * radius;
+    positions.push(x, yTop, z, x, yBottom, z);
+    normals.push(nx, 0, nz, nx, 0, nz);
+    uvs.push(i / segments, 1, i / segments, 0);
+  }
+
   for (let i = 0; i < segments; i += 1) {
     const current = i + 1;
     const next = i === segments - 1 ? 1 : i + 2;
-    indices.push(0, next, current);
+    indices.push(topCenter, next, current);
+  }
+
+  for (let i = 0; i < segments; i += 1) {
+    const current = bottomCenter + 1 + i;
+    const next = i === segments - 1 ? bottomCenter + 1 : current + 1;
+    indices.push(bottomCenter, current, next);
+  }
+
+  for (let i = 0; i < segments; i += 1) {
+    const topCurrent = sideStart + i * 2;
+    const bottomCurrent = topCurrent + 1;
+    const topNext = i === segments - 1 ? sideStart : topCurrent + 2;
+    const bottomNext = i === segments - 1 ? sideStart + 1 : topCurrent + 3;
+    indices.push(topCurrent, topNext, bottomCurrent);
+    indices.push(topNext, bottomNext, bottomCurrent);
   }
 
   const mesh = new Mesh(name, scene);
@@ -340,21 +390,25 @@ function tuneSouffleArScene(scene) {
     mesh.material = plateMaterial;
   }
 
-  const radius = Math.min(plateSize.x, plateSize.z) * 0.455;
-  const y = plateBounds.min.y + plateSize.y * 0.82;
-  const cover = addHorizontalDisc(scene, {
-    name: "souffle-ar-white-plate-surface",
+  const radius = Math.min(plateSize.x, plateSize.z) * 0.462;
+  const thickness = 0.0018;
+  const yTop = plateBounds.max.y + 0.00045;
+  const cover = addSolidDisc(scene, {
+    name: "souffle-ar-white-plate-insert",
     centerX: center.x,
     centerZ: center.z,
-    y,
     radius,
+    yTop,
+    thickness,
     material: plateMaterial
   });
 
   console.log(
-    `souffle AR white plate surface: center=${JSON.stringify(
-      formatVector(new Vector3(center.x, y, center.z))
-    )} radius=${Number(radius.toFixed(5))} verts=${cover.getTotalVertices()}`
+    `souffle AR white plate insert: center=${JSON.stringify(
+      formatVector(new Vector3(center.x, yTop - thickness / 2, center.z))
+    )} radius=${Number(radius.toFixed(5))} thickness=${Number(
+      thickness.toFixed(5)
+    )} verts=${cover.getTotalVertices()}`
   );
 }
 
