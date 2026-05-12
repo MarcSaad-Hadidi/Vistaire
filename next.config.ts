@@ -11,6 +11,11 @@ const DEMO_STATIC_ASSET_HEADERS = [
   { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ] as const;
 
+const GLB_DEMO_HEADERS = [
+  { key: "Content-Type", value: "model/gltf-binary" },
+  ...DEMO_STATIC_ASSET_HEADERS,
+] as const;
+
 const nextConfig: NextConfig = {
   devIndicators: false,
   images: {
@@ -24,7 +29,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/models/demo/:path*.glb",
-        headers: [...DEMO_STATIC_ASSET_HEADERS],
+        headers: [...GLB_DEMO_HEADERS],
       },
       {
         source: "/images/demo/:path*",

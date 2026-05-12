@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dish } from "@/lib/demoMenuData";
 import { getRestaurant } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
+import { warmDishAssets } from "@/lib/dishAssetWarmup";
 import { dishHas3dModel } from "@/lib/menuQuery";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 import { formatPrice } from "@/lib/formatPrice";
@@ -17,27 +18,30 @@ type DishDetailProps = {
   dish: Dish;
 };
 
-const VIEWER_IMPORT_LOADING_DELAY_MS = 700;
-
 function DelayedModelViewerImportFallback() {
-  const [showMessage, setShowMessage] = useState(false);
-
-  useEffect(() => {
-    const t = window.setTimeout(
-      () => setShowMessage(true),
-      VIEWER_IMPORT_LOADING_DELAY_MS
-    );
-    return () => window.clearTimeout(t);
-  }, []);
-
   return (
     <div
-      className="flex h-[min(58vh,420px)] min-h-[280px] w-full items-center justify-center rounded-2xl border border-white/[0.14] bg-[#10100e] px-5 text-center text-sm text-[#bba88f] sm:h-[min(65vh,460px)] sm:min-h-[340px]"
-      role={showMessage ? "status" : undefined}
-      aria-live={showMessage ? "polite" : undefined}
-      aria-hidden={showMessage ? undefined : true}
+      className="relative isolate flex h-[min(58vh,420px)] min-h-[280px] w-full flex-col justify-end overflow-hidden rounded-2xl border border-white/[0.14] bg-[#10100e] px-5 py-6 text-left shadow-[inset_0_1px_0_rgba(217,184,121,0.08)] sm:h-[min(65vh,460px)] sm:min-h-[340px]"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
     >
-      {showMessage ? "Préparation de la vue immersive..." : null}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#211810] via-[#100c08] to-[#070605]" />
+      <div
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_18%,rgba(217,184,121,0.16),transparent_48%)]"
+        aria-hidden
+      />
+      <div className="relative">
+        <p className="font-display text-lg leading-tight text-cream sm:text-xl">
+          Préparation de la vue immersive...
+        </p>
+        <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
+          Le modèle se charge selon la qualité du réseau.
+        </p>
+        <div className="mt-5 h-px w-full overflow-hidden rounded-full bg-white/12">
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-transparent via-champagne to-transparent" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -49,28 +53,6 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
     loading: () => <DelayedModelViewerImportFallback />
   }
 );
-
-let modelViewerWarmupPromise: Promise<unknown> | null = null;
-
-function canWarmModelViewer(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const connection = (
-    navigator as Navigator & {
-      connection?: { saveData?: boolean; effectiveType?: string };
-    }
-  ).connection;
-
-  if (connection?.saveData) return false;
-  if (/^(slow-2g|2g)$/i.test(connection?.effectiveType ?? "")) return false;
-  return true;
-}
-
-function warmModelViewerOnIntent() {
-  if (!canWarmModelViewer()) return;
-  modelViewerWarmupPromise ??= import("@/components/dish/DishModelViewer").then(
-    () => import("@google/model-viewer")
-  );
-}
 
 /**
  * Défile jusqu’à la section 3D : dans le mockup téléphone le scrollable est un
@@ -123,6 +105,14 @@ export function DishDetail({ dish }: DishDetailProps) {
     };
   }, [dish.categorySlug, dish.slug]);
 
+  useEffect(() => {
+    if (!has3d) return undefined;
+    const t = window.setTimeout(() => {
+      warmDishAssets(dish, { phase: "dish-open" });
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [dish, has3d]);
+
   const showAndScrollToPlat3d = useCallback(() => {
     setShowPlat3d(true);
     requestAnimationFrame(() => {
@@ -134,8 +124,8 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, []);
 
   const handleModelIntentWarmup = useCallback(() => {
-    if (has3d) warmModelViewerOnIntent();
-  }, [has3d]);
+    if (has3d) warmDishAssets(dish, { phase: "viewer-intent" });
+  }, [dish, has3d]);
 
   const handleReturnToDish = useCallback(() => {
     setShowPlat3d(false);
@@ -146,7 +136,7 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, []);
 
   const handleVoir3dClick = useCallback(() => {
-    warmModelViewerOnIntent();
+    warmDishAssets(dish, { phase: "viewer-intent" });
     showAndScrollToPlat3d();
     window.setTimeout(() => {
       trackMenuEvent({
@@ -155,7 +145,7 @@ export function DishDetail({ dish }: DishDetailProps) {
         categorySlug: dish.categorySlug
       });
     }, 0);
-  }, [dish.categorySlug, dish.slug, showAndScrollToPlat3d]);
+  }, [dish, showAndScrollToPlat3d]);
 
   return (
     <article className={immersive ? "pb-24 pt-2.5" : "pb-24 pt-4 sm:pt-5"}>
@@ -312,6 +302,9 @@ export function DishDetail({ dish }: DishDetailProps) {
               type="button"
               className={VIEW_3D_BUTTON_CLASS}
               onPointerEnter={handleModelIntentWarmup}
+              onPointerDown={handleModelIntentWarmup}
+              onMouseEnter={handleModelIntentWarmup}
+              onMouseDown={handleModelIntentWarmup}
               onFocus={handleModelIntentWarmup}
               onClick={handleVoir3dClick}
             >
