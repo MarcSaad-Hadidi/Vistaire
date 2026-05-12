@@ -320,6 +320,29 @@ export function trackAssetWarmupState(
   });
 }
 
+export function releaseAssetWarmupState(
+  url: string | null | undefined,
+  kind: DishAssetKind = "model3d"
+): void {
+  const cleanUrl = cleanAssetUrl(url);
+  if (!cleanUrl) return;
+
+  const key = getAssetKey(cleanUrl);
+  const existing = assetWarmups.get(key);
+
+  if (
+    !existing ||
+    existing.kind !== kind ||
+    existing.status !== "warming" ||
+    existing.promise
+  ) {
+    return;
+  }
+
+  activeHeavyAssetWarmups.delete(key);
+  assetWarmups.delete(key);
+}
+
 export function warmDish3dAsset(
   dish: Pick<Dish, "model3dUrl">,
   options: {

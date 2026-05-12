@@ -15,6 +15,7 @@ import {
   getDishArAsset,
   getDishArPlatform,
   getDishAssetWarmupState,
+  releaseAssetWarmupState,
   trackAssetWarmupState,
   warmDishArAsset,
   warmDishAssets,
@@ -395,6 +396,7 @@ export function DishModelViewer({
         node.removeEventListener("load", onLoad);
         node.removeEventListener("error", onError);
         node.removeEventListener("progress", onProgress);
+        releaseAssetWarmupState(modelSrc, "model3d");
       };
 
       // Modèle déjà en cache : pas toujours un nouveau événement load.
