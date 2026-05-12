@@ -17,19 +17,36 @@ type DishDetailProps = {
   dish: Dish;
 };
 
+const VIEWER_IMPORT_LOADING_DELAY_MS = 700;
+
+function DelayedModelViewerImportFallback() {
+  const [showMessage, setShowMessage] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(
+      () => setShowMessage(true),
+      VIEWER_IMPORT_LOADING_DELAY_MS
+    );
+    return () => window.clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className="flex h-[min(58vh,420px)] min-h-[280px] w-full items-center justify-center rounded-2xl border border-white/[0.14] bg-[#10100e] px-5 text-center text-sm text-[#bba88f] sm:h-[min(65vh,460px)] sm:min-h-[340px]"
+      role={showMessage ? "status" : undefined}
+      aria-live={showMessage ? "polite" : undefined}
+      aria-hidden={showMessage ? undefined : true}
+    >
+      {showMessage ? "Préparation de la vue immersive..." : null}
+    </div>
+  );
+}
+
 const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   () => import("@/components/dish/DishModelViewer").then((mod) => mod.DishModelViewer),
   {
     ssr: false,
-    loading: () => (
-      <div
-        className="flex h-[min(58vh,420px)] min-h-[280px] w-full items-center justify-center rounded-2xl border border-white/[0.14] bg-[#10100e] px-5 text-center text-sm text-[#bba88f] sm:h-[min(65vh,460px)] sm:min-h-[340px]"
-        role="status"
-        aria-live="polite"
-      >
-        Préparation de la vue immersive...
-      </div>
-    )
+    loading: () => <DelayedModelViewerImportFallback />
   }
 );
 
@@ -130,12 +147,14 @@ export function DishDetail({ dish }: DishDetailProps) {
 
   const handleVoir3dClick = useCallback(() => {
     warmModelViewerOnIntent();
-    trackMenuEvent({
-      eventName: "dish_3d_clicked",
-      dishSlug: dish.slug,
-      categorySlug: dish.categorySlug
-    });
     showAndScrollToPlat3d();
+    window.setTimeout(() => {
+      trackMenuEvent({
+        eventName: "dish_3d_clicked",
+        dishSlug: dish.slug,
+        categorySlug: dish.categorySlug
+      });
+    }, 0);
   }, [dish.categorySlug, dish.slug, showAndScrollToPlat3d]);
 
   return (

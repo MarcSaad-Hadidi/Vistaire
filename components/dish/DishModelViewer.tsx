@@ -21,6 +21,7 @@ import {
 
 const MV_INIT_TIMEOUT_MS = 12_000;
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
+const LOADER_REVEAL_DELAY_MS = 700;
 const AR_HELP_TEXT =
   "Faites tourner le plat en 3D. L’option AR apparaît ici sur téléphone compatible.";
 const IOS_USDZ_MISSING_TEXT =
@@ -179,10 +180,36 @@ function PremiumLoadingState({
   );
 }
 
+function IosQuickLookArLink({
+  href,
+  className,
+  onClick
+}: {
+  href: string;
+  className: string;
+  onClick: () => void;
+}) {
+  return (
+    <a href={href} rel="ar" className={className} onClick={onClick}>
+      {/* Safari Quick Look exige un enfant img/picture sur les liens rel="ar". */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute h-px w-px opacity-0"
+      />
+      <span>Afficher devant moi</span>
+    </a>
+  );
+}
+
 function PremiumFailureState({
   dish,
   onRetry,
-  onReturnToDish
+  onReturnToDish,
+  quickLookHref,
+  onQuickLookClick
 }: {
   dish: Pick<
     Dish,
@@ -190,7 +217,11 @@ function PremiumFailureState({
   >;
   onRetry: () => void;
   onReturnToDish?: () => void;
+  quickLookHref?: string;
+  onQuickLookClick?: () => void;
 }) {
+  const hasDirectAr = Boolean(quickLookHref && onQuickLookClick);
+
   return (
     <div
       className={`relative isolate flex ${MODEL_FRAME_CLASS} flex-col justify-end overflow-hidden px-5 py-6 text-left`}
@@ -200,15 +231,28 @@ function PremiumFailureState({
       <PremiumDishBackdrop dish={dish} />
       <div className="relative">
         <p className="font-display text-lg leading-tight text-cream sm:text-xl">
-          La vue immersive n’a pas pu être chargée pour le moment.
+          La vue 3D n’a pas pu être chargée pour le moment.
         </p>
         <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
-          Vous pouvez réessayer maintenant ou revenir à la fiche du plat.
+          {hasDirectAr
+            ? "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari."
+            : "Vous pouvez réessayer maintenant ou revenir à la fiche du plat."}
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          {hasDirectAr ? (
+            <IosQuickLookArLink
+              href={quickLookHref!}
+              onClick={onQuickLookClick!}
+              className="relative inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-4 text-xs font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            />
+          ) : null}
           <button
             type="button"
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-4 text-xs font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            className={`inline-flex min-h-10 items-center justify-center rounded-full px-4 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
+              hasDirectAr
+                ? "border border-white/18 bg-black/35 text-cream hover:bg-white/10"
+                : "border border-champagne/45 bg-champagne text-[#17100a] hover:bg-[#e3c785]"
+            }`}
             onClick={onRetry}
           >
             Réessayer
@@ -238,6 +282,7 @@ export function DishModelViewer({
   const [modelLoadError, setModelLoadError] = useState(false);
   const [modelLoadTimedOut, setModelLoadTimedOut] = useState(false);
   const [modelLoaded, setModelLoaded] = useState(false);
+  const [loaderRevealed, setLoaderRevealed] = useState(false);
   const [modelAttempt, setModelAttempt] = useState(0);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [copyConfirmed, setCopyConfirmed] = useState(false);
@@ -257,6 +302,8 @@ export function DishModelViewer({
     isAndroid && !isAndroidLikelySceneViewerCapable();
   const nativeArEnabled =
     !needsIosHandoff && !missingIosAr && !androidArUnavailable;
+  const directIosQuickLookHref =
+    isIos && !needsIosHandoff && iosSrc ? iosSrc : "";
 
   const markModelLoaded = useCallback(() => {
     setModelLoaded(true);
@@ -348,14 +395,46 @@ export function DishModelViewer({
     markModelLoaded
   ]);
 
+  const trackArIntent = useCallback(() => {
+    trackMenuEvent({
+      eventName: "dish_ar_clicked",
+      dishSlug: dish.slug,
+      categorySlug: dish.categorySlug
+    });
+  }, [dish.categorySlug, dish.slug]);
+
   const handleRetry = useCallback(() => {
     setInitTimedOut(false);
     setModelLoadError(false);
     setModelLoadTimedOut(false);
     setModelLoaded(false);
+    setLoaderRevealed(false);
     setHandoffDismissed(false);
     setModelAttempt((attempt) => attempt + 1);
   }, []);
+
+  const showInitFail = !mvReady && initTimedOut;
+  const showLoadFailure = showInitFail || modelLoadError || modelLoadTimedOut;
+  const isLoadingModel =
+    hasModel && !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
+  const showLoader = isLoadingModel && loaderRevealed;
+  const showArReady = modelLoaded && !showLoadFailure;
+  const showNativeArButton = showArReady && nativeArEnabled;
+  const showHandoff =
+    showArReady && !handoffDismissed && needsIosHandoff;
+  const showAndroidFallback =
+    showArReady && !handoffDismissed && androidArUnavailable;
+  const showMissingIosAr = showArReady && missingIosAr;
+  const showDesktopArHint = showArReady && !isIos && !isAndroid;
+
+  useEffect(() => {
+    if (!isLoadingModel) return undefined;
+    const t = window.setTimeout(
+      () => setLoaderRevealed(true),
+      LOADER_REVEAL_DELAY_MS
+    );
+    return () => window.clearTimeout(t);
+  }, [isLoadingModel, modelAttempt]);
 
   if (!hasModel) {
     return (
@@ -379,19 +458,6 @@ export function DishModelViewer({
     );
   }
 
-  const showInitFail = !mvReady && initTimedOut;
-  const showLoadFailure = showInitFail || modelLoadError || modelLoadTimedOut;
-  const showLoader =
-    !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
-  const showArReady = modelLoaded && !showLoadFailure;
-  const showNativeArButton = showArReady && nativeArEnabled;
-  const showHandoff =
-    showArReady && !handoffDismissed && needsIosHandoff;
-  const showAndroidFallback =
-    showArReady && !handoffDismissed && androidArUnavailable;
-  const showMissingIosAr = showArReady && missingIosAr;
-  const showDesktopArHint = showArReady && !isIos && !isAndroid;
-
   return (
     <section
       className="overflow-hidden rounded-2xl border border-white/[0.14] bg-gradient-to-b from-[#14100c] to-[#070605] p-3 shadow-[inset_0_1px_0_rgba(217,184,121,0.08)] transition-opacity duration-300 sm:p-4"
@@ -411,6 +477,8 @@ export function DishModelViewer({
             dish={dish}
             onRetry={handleRetry}
             onReturnToDish={onReturnToDish}
+            quickLookHref={directIosQuickLookHref || undefined}
+            onQuickLookClick={directIosQuickLookHref ? trackArIntent : undefined}
           />
         ) : (
           <div className="relative">
@@ -446,13 +514,7 @@ export function DishModelViewer({
                       type="button"
                       slot="ar-button"
                       className="absolute bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
-                      onClick={() =>
-                        trackMenuEvent({
-                          eventName: "dish_ar_clicked",
-                          dishSlug: dish.slug,
-                          categorySlug: dish.categorySlug
-                        })
-                      }
+                      onClick={trackArIntent}
                     >
                       Afficher devant moi
                     </button>

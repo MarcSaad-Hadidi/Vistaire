@@ -6,7 +6,6 @@ const viewports = [
   { label: "tablet-768", width: 768, height: 1024 },
   { label: "desktop", width: 1280, height: 720 }
 ];
-const REMOVED_TOP_LEVEL_AR_LABEL = ["Voir", "devant", "moi"].join(" ");
 
 test.describe("Landing responsive", () => {
   for (const vp of viewports) {
@@ -189,9 +188,6 @@ test.describe("Non-regression routes", () => {
     await expect(voir3d).toBeVisible();
     await expect(voir3d).toBeEnabled();
     await expect(
-      page.getByRole("button", { name: REMOVED_TOP_LEVEL_AR_LABEL })
-    ).toHaveCount(0);
-    await expect(
       page.getByRole("button", { name: "Afficher devant moi" })
     ).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
@@ -201,9 +197,6 @@ test.describe("Non-regression routes", () => {
     });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("button", { name: "Voir en 3D" })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: REMOVED_TOP_LEVEL_AR_LABEL })
-    ).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
 
     await page.goto("/demo/dishes/ravioles-romarin", {

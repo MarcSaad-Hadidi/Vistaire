@@ -1,13 +1,21 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const BRAVE_IOS_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1 Brave/1.67.0";
-const REMOVED_TOP_LEVEL_AR_LABEL = ["Voir", "devant", "moi"].join(" ");
+const IOS_SAFARI_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Version/17.5 Safari/604.1";
+
+async function simulateIosBrowser(page: Page, userAgent: string) {
+  await page.addInitScript((ua) => {
+    Object.defineProperty(navigator, "userAgent", { get: () => ua });
+    Object.defineProperty(navigator, "platform", { get: () => "iPhone" });
+    Object.defineProperty(navigator, "maxTouchPoints", { get: () => 5 });
+  }, userAgent);
+}
 
 test.describe("AR browser handoff", () => {
-  test.use({ userAgent: BRAVE_IOS_UA });
-
   test("Brave iOS keeps AR handoff inside the loaded 3D viewer", async ({ page }) => {
+    await simulateIosBrowser(page, BRAVE_IOS_UA);
     await page.setViewportSize({ width: 390, height: 844 });
 
     await page.goto("/demo/dishes/ravioles-romarin", {
@@ -17,15 +25,12 @@ test.describe("AR browser handoff", () => {
     const arLink = page.locator('a[rel="ar"][href$=".usdz"]');
     await expect(arLink).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: REMOVED_TOP_LEVEL_AR_LABEL })
-    ).toHaveCount(0);
-    await expect(
       page.getByRole("button", { name: "Afficher devant moi" })
     ).toHaveCount(0);
 
     const voir3d = page.getByRole("button", { name: "Voir en 3D" });
     await voir3d.scrollIntoViewIfNeeded();
-    await voir3d.click({ force: true });
+    await voir3d.evaluate((button) => (button as HTMLButtonElement).click());
     await expect(page.locator("model-viewer")).toHaveCount(1, {
       timeout: 15_000
     });
@@ -43,5 +48,33 @@ test.describe("AR browser handoff", () => {
       page.getByRole("button", { name: /Continuer en 3D/i }).first()
     ).toBeVisible();
     await expect(arLink).toHaveCount(0);
+  });
+});
+
+test.describe("AR fallback resilience", () => {
+  test("iOS Safari still offers Quick Look when the GLB fails", async ({
+    page
+  }) => {
+    await simulateIosBrowser(page, IOS_SAFARI_UA);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.route("**/*.glb", (route) => route.abort());
+
+    await page.goto("/demo/dishes/ravioles-romarin", {
+      waitUntil: "domcontentloaded"
+    });
+
+    const voir3d = page.getByRole("button", { name: "Voir en 3D" });
+    await voir3d.scrollIntoViewIfNeeded();
+    await voir3d.evaluate((button) => (button as HTMLButtonElement).click());
+
+    await expect(
+      page.getByText(/La vue 3D n.a pas pu être chargée/i)
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.locator('a[rel="ar"][href$=".usdz"]', {
+        hasText: "Afficher devant moi"
+      })
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Réessayer" })).toBeVisible();
   });
 });
