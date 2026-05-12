@@ -53,7 +53,7 @@ test.describe("Premium public auth boundaries", () => {
       }
     });
 
-    expect([200, 503]).toContain(response.status());
+    expect([200, 202, 503]).toContain(response.status());
   });
 
   test("owner APIs stay protected when signed out", async ({ request }) => {

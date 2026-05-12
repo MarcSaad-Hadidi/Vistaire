@@ -286,8 +286,8 @@ export function getDemoAdminInsights(): DemoAdminInsights {
         helper: "Clients qui ont exploré un plat en détail."
       },
       {
-        id: "see-in-room",
-        label: "« Voir devant moi »",
+        id: "ar-option-used",
+        label: "« Afficher devant moi »",
         value: "31",
         helper: "Moments où un client a voulu projeter le plat à table."
       },
@@ -313,7 +313,7 @@ export function getDemoAdminInsights(): DemoAdminInsights {
         helper: "Les plats que les clients prennent le temps d’explorer avant de choisir."
       },
       {
-        label: "Clients qui ont touché « Voir devant moi »",
+        label: "Clients qui ont utilisé « Afficher devant moi »",
         value: "31",
         helper: "Un signal fort d’envie et de projection à table."
       },
@@ -351,8 +351,8 @@ export function getDemoAdminInsights(): DemoAdminInsights {
         helper: "Clients qui explorent un plat en détail."
       },
       {
-        id: "immersive-launched",
-        label: "Voir devant moi",
+        id: "ar-option-used",
+        label: "Afficher devant moi",
         value: 31,
         share: 13,
         helper: "Moments où un client projette le plat à table."

@@ -6,6 +6,7 @@ const viewports = [
   { label: "tablet-768", width: 768, height: 1024 },
   { label: "desktop", width: 1280, height: 720 }
 ];
+const REMOVED_TOP_LEVEL_AR_LABEL = ["Voir", "devant", "moi"].join(" ");
 
 test.describe("Landing responsive", () => {
   for (const vp of viewports) {
@@ -179,24 +180,41 @@ test.describe("Non-regression routes", () => {
     await expect(page.locator("[data-demo-root]").first()).toBeVisible();
   });
 
-  test("dish pages load with 3D / AR actions visible", async ({ page }) => {
+  test("dish pages load with 3D action before AR is offered in the viewer", async ({ page }) => {
     await page.goto("/demo/dishes/ravioles-romarin", {
       waitUntil: "domcontentloaded"
     });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     const voir3d = page.getByRole("button", { name: "Voir en 3D" });
-    const voirAr = page.getByRole("button", { name: "Voir devant moi" });
     await expect(voir3d).toBeVisible();
-    await expect(voirAr).toBeVisible();
     await expect(voir3d).toBeEnabled();
-    await expect(voirAr).toBeEnabled();
+    await expect(
+      page.getByRole("button", { name: REMOVED_TOP_LEVEL_AR_LABEL })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Afficher devant moi" })
+    ).toHaveCount(0);
+    await expect(page.locator("model-viewer")).toHaveCount(0);
 
     await page.goto("/demo/dishes/homard-bisque", {
       waitUntil: "domcontentloaded"
     });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("button", { name: "Voir en 3D" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Voir devant moi" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: REMOVED_TOP_LEVEL_AR_LABEL })
+    ).toHaveCount(0);
+    await expect(page.locator("model-viewer")).toHaveCount(0);
+
+    await page.goto("/demo/dishes/ravioles-romarin", {
+      waitUntil: "domcontentloaded"
+    });
+    const loadedVoir3d = page.getByRole("button", { name: "Voir en 3D" });
+    await loadedVoir3d.scrollIntoViewIfNeeded();
+    await loadedVoir3d.click({ force: true });
+    await expect(page.locator("model-viewer")).toHaveCount(1, {
+      timeout: 15_000
+    });
   });
 
   test("/admin loads", async ({ page }) => {

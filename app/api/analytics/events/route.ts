@@ -39,6 +39,13 @@ export async function POST(request: NextRequest) {
   const inserted = await insertAnalyticsEvent(validation.payload, userAgent);
 
   if (!inserted.ok) {
+    if (validation.payload.source === "demo") {
+      return NextResponse.json<AnalyticsApiResponse>(
+        { ok: true, persisted: false },
+        { status: 202 }
+      );
+    }
+
     return NextResponse.json<AnalyticsApiResponse>(
       { ok: false, error: "Analytics event was accepted but could not be saved." },
       { status: 503 }

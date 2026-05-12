@@ -31,6 +31,7 @@ export default function RootLayout({
         <ClerkProvider
           appearance={vistaireClerkAppearance}
           localization={vistaireClerkLocalization}
+          telemetry={false}
           signInUrl="/sign-in"
           signUpUrl="/sign-in"
           afterSignOutUrl="/"

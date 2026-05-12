@@ -171,6 +171,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
             ) : (
               <Link
                 href={`/demo/dishes/${dish.slug}`}
+                prefetch={false}
                 onClick={() =>
                   trackMenuEvent({
                     eventName: "cta_clicked",
@@ -257,6 +258,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
           ) : (
             <Link
               href={`/demo/dishes/${dish.slug}`}
+              prefetch={false}
               onClick={() =>
                 trackMenuEvent({
                   eventName: "cta_clicked",

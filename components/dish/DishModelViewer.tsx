@@ -1,50 +1,48 @@
 "use client";
 
+import Image from "next/image";
 import {
-  forwardRef,
   useCallback,
   useEffect,
   useId,
-  useImperativeHandle,
   useMemo,
-  useLayoutEffect,
   useRef,
   useState
 } from "react";
+import { trackMenuEvent } from "@/lib/analytics/client";
 import type { Dish } from "@/lib/demoMenuData";
 import {
-  canUseIosQuickLookDirectly,
   getArUnavailableMessage,
-  isBraveUserAgent,
+  isAndroidDevice,
+  isAndroidLikelySceneViewerCapable,
   isIosDevice,
-  isIosEmbeddedBrowser,
-  shouldShowArBrowserHandoff,
-  type ArUnavailableVariant
+  shouldShowArBrowserHandoff
 } from "@/lib/arEnvironment";
 
 const MV_INIT_TIMEOUT_MS = 12_000;
+const MODEL_LOAD_TIMEOUT_MS = 15_000;
 const AR_HELP_TEXT =
-  "Placez le plat sur votre table avec la cam\u00e9ra de votre t\u00e9l\u00e9phone.";
+  "Faites tourner le plat en 3D. L’option AR apparaît ici sur téléphone compatible.";
 const IOS_USDZ_MISSING_TEXT =
-  "Pour activer l\u2019AR iPhone, ajoutez un fichier USDZ \u00e0 ce plat.";
+  "Pour activer l’AR iPhone, ajoutez un fichier USDZ à ce plat.";
+const MODEL_FRAME_CLASS =
+  "h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]";
 
-export type ArRequestStatus =
-  | "launched"
-  /** Lecteur ou mod\u00e8le pas pr\u00eat : l\u2019utilisateur doit utiliser le bouton dans le viewer. */
-  | "deferred"
-  /** AR indisponible sur cet appareil / navigateur. */
-  | "unsupported"
-  /** iOS sans fichier USDZ. */
-  | "missing-ios-src";
-
-type DishModelViewerProps = {
-  dish: Pick<Dish, "name" | "model3dUrl" | "usdzUrl">;
+export type DishModelViewerProps = {
+  dish: Pick<
+    Dish,
+    | "slug"
+    | "categorySlug"
+    | "name"
+    | "model3dUrl"
+    | "usdzUrl"
+    | "image"
+    | "imageObjectPosition"
+    | "imageObjectPositionDetail"
+  >;
   /** Chrome minimal : titres et aide fournis par le parent si besoin. */
   minimalChrome?: boolean;
-};
-
-export type DishModelViewerHandle = {
-  requestAr: () => ArRequestStatus;
+  onReturnToDish?: () => void;
 };
 
 async function ensureModelViewerLoaded(): Promise<void> {
@@ -55,45 +53,27 @@ async function ensureModelViewerLoaded(): Promise<void> {
 }
 
 type ModelViewerElement = HTMLElement & {
-  canActivateAR?: boolean;
-  activateAR?: () => Promise<void> | void;
+  loaded?: boolean;
 };
 
-function debugAr(event: string, payload: Record<string, unknown> = {}) {
-  if (process.env.NODE_ENV === "production") return;
-  console.debug("[Vistaire AR]", { event, ...payload });
-}
+type ArClientEnvironment = {
+  isIos: boolean;
+  missingIosAr: boolean;
+  needsIosHandoff: boolean;
+};
 
-function openQuickLook(iosSrc: string): boolean {
-  if (typeof window === "undefined") return false;
-  if (!iosSrc) return false;
-  if (!canUseIosQuickLookDirectly()) return false;
-  try {
-    window.location.assign(iosSrc);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function arUnavailableVariant(): ArUnavailableVariant {
-  if (!isIosDevice()) return "default";
-  if (isBraveUserAgent()) return "iosBrave";
-  if (isIosEmbeddedBrowser()) return "iosEmbedded";
-  if (shouldShowArBrowserHandoff()) return "iosHandoff";
-  return "default";
+function readArClientEnvironment(iosSrc: string): ArClientEnvironment {
+  const isIos = isIosDevice();
+  return {
+    isIos,
+    missingIosAr: isIos && !iosSrc,
+    needsIosHandoff: shouldShowArBrowserHandoff()
+  };
 }
 
 function getCurrentPageUrl(): string {
   if (typeof window === "undefined") return "";
   return window.location.href;
-}
-
-function openCompatiblePage(): boolean {
-  if (typeof window === "undefined") return false;
-  const url = getCurrentPageUrl();
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  return Boolean(opened);
 }
 
 async function copyPageLink(): Promise<boolean> {
@@ -122,19 +102,144 @@ async function sharePageLink(dishName: string): Promise<boolean> {
   }
 }
 
-export const DishModelViewer = forwardRef<
-  DishModelViewerHandle,
-  DishModelViewerProps
->(function DishModelViewer({ dish, minimalChrome = false }, ref) {
+function getPosterPosition(
+  dish: Pick<Dish, "imageObjectPosition" | "imageObjectPositionDetail">
+): string {
+  return (
+    dish.imageObjectPositionDetail ??
+    dish.imageObjectPosition ??
+    "center 44%"
+  );
+}
+
+function PremiumDishBackdrop({
+  dish
+}: {
+  dish: Pick<
+    Dish,
+    "name" | "image" | "imageObjectPosition" | "imageObjectPositionDetail"
+  >;
+}) {
+  return (
+    <>
+      {dish.image ? (
+        <Image
+          src={dish.image}
+          alt=""
+          fill
+          sizes="(max-width: 768px) 100vw, 672px"
+          className="object-cover opacity-80"
+          style={{ objectPosition: getPosterPosition(dish) }}
+          quality={90}
+          aria-hidden
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#2a1f18] via-[#16100c] to-[#080706]" />
+      )}
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-[#080706]/20 via-[#080706]/68 to-[#080706]/94"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_18%,rgba(217,184,121,0.18),transparent_48%)]"
+        aria-hidden
+      />
+    </>
+  );
+}
+
+function PremiumLoadingState({
+  dish
+}: {
+  dish: Pick<
+    Dish,
+    "name" | "image" | "imageObjectPosition" | "imageObjectPositionDetail"
+  >;
+}) {
+  return (
+    <div
+      className={`absolute inset-0 z-20 isolate flex ${MODEL_FRAME_CLASS} flex-col justify-end overflow-hidden px-5 py-6 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <PremiumDishBackdrop dish={dish} />
+      <div className="relative">
+        <p className="font-display text-lg leading-tight text-cream sm:text-xl">
+          Préparation de la vue immersive...
+        </p>
+        <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
+          Quelques secondes peuvent être nécessaires selon le réseau.
+        </p>
+        <div className="mt-5 h-px w-full overflow-hidden rounded-full bg-white/12">
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-transparent via-champagne to-transparent" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PremiumFailureState({
+  dish,
+  onRetry,
+  onReturnToDish
+}: {
+  dish: Pick<
+    Dish,
+    "name" | "image" | "imageObjectPosition" | "imageObjectPositionDetail"
+  >;
+  onRetry: () => void;
+  onReturnToDish?: () => void;
+}) {
+  return (
+    <div
+      className={`relative isolate flex ${MODEL_FRAME_CLASS} flex-col justify-end overflow-hidden px-5 py-6 text-left`}
+      role="status"
+      aria-live="polite"
+    >
+      <PremiumDishBackdrop dish={dish} />
+      <div className="relative">
+        <p className="font-display text-lg leading-tight text-cream sm:text-xl">
+          La vue immersive n’a pas pu être chargée pour le moment.
+        </p>
+        <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
+          Vous pouvez réessayer maintenant ou revenir à la fiche du plat.
+        </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-4 text-xs font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            onClick={onRetry}
+          >
+            Réessayer
+          </button>
+          <button
+            type="button"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            onClick={onReturnToDish}
+          >
+            Revenir à la fiche du plat
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function DishModelViewer({
+  dish,
+  minimalChrome = false,
+  onReturnToDish
+}: DishModelViewerProps) {
   const titleId = useId();
   const helpId = useId();
   const [mvReady, setMvReady] = useState(false);
   const [initTimedOut, setInitTimedOut] = useState(false);
   const [modelLoadError, setModelLoadError] = useState(false);
+  const [modelLoadTimedOut, setModelLoadTimedOut] = useState(false);
   const [modelLoaded, setModelLoaded] = useState(false);
-  /** \u00c9chec apr\u00e8s tentative AR r\u00e9elle (pas simple diff\u00e9r\u00e9). */
-  const [arUnsupported, setArUnsupported] = useState(false);
-  const [arBrowserHandoff, setArBrowserHandoff] = useState(false);
+  const [modelAttempt, setModelAttempt] = useState(0);
+  const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [copyConfirmed, setCopyConfirmed] = useState(false);
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
@@ -142,39 +247,34 @@ export const DishModelViewer = forwardRef<
   const hasModel = Boolean(dish.model3dUrl?.trim());
   const modelSrc = useMemo(() => dish.model3dUrl?.trim() ?? "", [dish.model3dUrl]);
   const iosSrc = useMemo(() => dish.usdzUrl?.trim() ?? "", [dish.usdzUrl]);
-  const [isIos, setIsIos] = useState(false);
-  useLayoutEffect(() => {
-    setIsIos(isIosDevice());
-  }, []);
-  const missingIosAr = isIos && !iosSrc;
-  const needsIosHandoff = shouldShowArBrowserHandoff();
+  const arEnvironment = useMemo(
+    () => readArClientEnvironment(iosSrc),
+    [iosSrc]
+  );
+  const { isIos, missingIosAr, needsIosHandoff } = arEnvironment;
+  const isAndroid = isAndroidDevice();
+  const androidArUnavailable =
+    isAndroid && !isAndroidLikelySceneViewerCapable();
+  const nativeArEnabled =
+    !needsIosHandoff && !missingIosAr && !androidArUnavailable;
 
-  useEffect(() => {
-    debugAr("state", {
-      modelSrc,
-      iosSrc,
-      mvReady,
-      modelLoaded,
-      modelLoadError,
-      canActivateAR: loadWatchRef.current?.canActivateAR,
-      hasActivateAR: typeof loadWatchRef.current?.activateAR === "function",
-      userAgent: typeof navigator === "undefined" ? "" : navigator.userAgent,
-      isIosDevice: isIosDevice(),
-      isIosEmbeddedBrowser: isIosEmbeddedBrowser(),
-      isBraveUserAgent: isBraveUserAgent(),
-      shouldShowArBrowserHandoff: shouldShowArBrowserHandoff()
-    });
-  }, [modelSrc, iosSrc, mvReady, modelLoaded, modelLoadError]);
+  const markModelLoaded = useCallback(() => {
+    setModelLoaded(true);
+    setModelLoadError(false);
+    setModelLoadTimedOut(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+
     void ensureModelViewerLoaded().then(() => {
       if (!cancelled) setMvReady(true);
     });
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [modelAttempt]);
 
   const bindModelViewerRef = useCallback(
     (node: ModelViewerElement | null) => {
@@ -184,58 +284,28 @@ export const DishModelViewer = forwardRef<
       setModelLoaded(false);
       if (!node) return;
 
-      const onLoad = () => {
-        setModelLoaded(true);
-        setModelLoadError(false);
-        debugAr("load", {
-          modelSrc,
-          iosSrc,
-          canActivateAR: node.canActivateAR,
-          hasActivateAR: typeof node.activateAR === "function"
-        });
-      };
-      const onError = (event: Event) => {
+      const onLoad = () => markModelLoaded();
+      const onError = () => {
         setModelLoadError(true);
+        setModelLoadTimedOut(false);
         setModelLoaded(false);
-        debugAr("error", {
-          modelSrc,
-          iosSrc,
-          eventType: event.type,
-          canActivateAR: node.canActivateAR
-        });
-      };
-      const onArStatus = (event: Event) => {
-        setArUnsupported(false);
-        debugAr("ar-status", {
-          status: (event as CustomEvent).detail?.status,
-          canActivateAR: node.canActivateAR,
-          hasActivateAR: typeof node.activateAR === "function"
-        });
       };
 
       node.addEventListener("load", onLoad);
       node.addEventListener("error", onError);
-      node.addEventListener("ar-status", onArStatus);
 
       listenerCleanupRef.current = () => {
         node.removeEventListener("load", onLoad);
         node.removeEventListener("error", onError);
-        node.removeEventListener("ar-status", onArStatus);
       };
 
-      // Mod\u00e8le d\u00e9j\u00e0 en cache : pas toujours un nouveau \u00e9v\u00e9nement load.
+      // Modèle déjà en cache : pas toujours un nouveau événement load.
       queueMicrotask(() => {
-        const loaded =
-          (node as unknown as { loaded?: boolean }).loaded === true;
-        if (loaded) onLoad();
+        if (node.loaded === true) onLoad();
       });
     },
-    [modelSrc, iosSrc]
+    [markModelLoaded]
   );
-
-  useEffect(() => {
-    setModelLoaded(false);
-  }, [modelSrc]);
 
   useEffect(
     () => () => {
@@ -245,159 +315,47 @@ export const DishModelViewer = forwardRef<
     []
   );
 
-  const requestAr = useCallback((): ArRequestStatus => {
-    if (needsIosHandoff) {
-      setArBrowserHandoff(true);
-      setArUnsupported(true);
-      debugAr("requestAr", {
-        result: "unsupported",
-        reason: "ios-browser-handoff-required",
-        modelSrc,
-        iosSrc
-      });
-      return "unsupported";
-    }
-    if (missingIosAr) {
-      debugAr("requestAr", {
-        result: "missing-ios-src",
-        modelSrc,
-        iosSrc,
-        mvReady,
-        modelLoaded
-      });
-      return "missing-ios-src";
-    }
-    if (!mvReady) {
-      debugAr("requestAr", {
-        result: "deferred",
-        reason: "model-viewer-not-ready",
-        modelSrc,
-        iosSrc
-      });
-      return "deferred";
-    }
-    const el = loadWatchRef.current;
-    if (!el?.activateAR) {
-      // Fallback robuste iOS: ouvrir directement le USDZ dans Quick Look.
-      if (isIos && openQuickLook(iosSrc)) {
-        debugAr("requestAr", {
-          result: "launched",
-          reason: "fallback-quick-look-no-activate-ar",
-          modelSrc,
-          iosSrc
-        });
-        return "launched";
-      }
-      debugAr("requestAr", {
-        result: "deferred",
-        reason: "missing-activate-ar",
-        modelSrc,
-        iosSrc,
-        isIos
-      });
-      return "deferred";
-    }
-    if (!modelLoaded) {
-      debugAr("requestAr", {
-        result: "deferred",
-        reason: "model-not-loaded",
-        modelSrc,
-        iosSrc,
-        canActivateAR: el.canActivateAR
-      });
-      return "deferred";
-    }
-    if (el.canActivateAR === false) {
-      if (isIos && openQuickLook(iosSrc)) {
-        debugAr("requestAr", {
-          result: "launched",
-          reason: "fallback-quick-look-can-activate-ar-false",
-          modelSrc,
-          iosSrc
-        });
-        return "launched";
-      }
-      setArUnsupported(true);
-      debugAr("requestAr", {
-        result: "unsupported",
-        reason: "can-activate-ar-false",
-        modelSrc,
-        iosSrc,
-        isIos
-      });
-      return "unsupported";
-    }
-
-    setArUnsupported(false);
-    try {
-      const result = el.activateAR();
-      debugAr("requestAr", {
-        result: "launched",
-        reason: "activate-ar-called",
-        modelSrc,
-        iosSrc,
-        canActivateAR: el.canActivateAR,
-        hasActivateAR: true
-      });
-      if (result && typeof result.then === "function") {
-        result.catch(() => {
-          if (isIos && openQuickLook(iosSrc)) {
-            debugAr("requestAr", {
-              result: "launched",
-              reason: "fallback-quick-look-activate-ar-rejected",
-              modelSrc,
-              iosSrc
-            });
-            return;
-          }
-          setArUnsupported(true);
-          debugAr("requestAr", {
-            result: "unsupported",
-            reason: "activate-ar-rejected",
-            modelSrc,
-            iosSrc,
-            isIos
-          });
-        });
-      }
-      return "launched";
-    } catch {
-      if (isIos && openQuickLook(iosSrc)) {
-        debugAr("requestAr", {
-          result: "launched",
-          reason: "fallback-quick-look-activate-ar-threw",
-          modelSrc,
-          iosSrc
-        });
-        return "launched";
-      }
-      setArUnsupported(true);
-      debugAr("requestAr", {
-        result: "unsupported",
-        reason: "activate-ar-threw",
-        modelSrc,
-        iosSrc,
-        isIos
-      });
-      return "unsupported";
-    }
-  }, [
-    missingIosAr,
-    mvReady,
-    modelLoaded,
-    isIos,
-    iosSrc,
-    modelSrc,
-    needsIosHandoff
-  ]);
-
-  useImperativeHandle(ref, () => ({ requestAr }), [requestAr]);
-
   useEffect(() => {
     if (!hasModel || mvReady) return;
     const t = window.setTimeout(() => setInitTimedOut(true), MV_INIT_TIMEOUT_MS);
     return () => window.clearTimeout(t);
-  }, [hasModel, mvReady]);
+  }, [hasModel, mvReady, modelAttempt]);
+
+  useEffect(() => {
+    if (!hasModel || !mvReady || modelLoaded || modelLoadError || modelLoadTimedOut) {
+      return undefined;
+    }
+    const syncLoaded = window.setInterval(() => {
+      if (loadWatchRef.current?.loaded === true) {
+        markModelLoaded();
+      }
+    }, 250);
+    const t = window.setTimeout(
+      () => setModelLoadTimedOut(true),
+      MODEL_LOAD_TIMEOUT_MS
+    );
+    return () => {
+      window.clearInterval(syncLoaded);
+      window.clearTimeout(t);
+    };
+  }, [
+    hasModel,
+    mvReady,
+    modelLoaded,
+    modelLoadError,
+    modelLoadTimedOut,
+    modelAttempt,
+    markModelLoaded
+  ]);
+
+  const handleRetry = useCallback(() => {
+    setInitTimedOut(false);
+    setModelLoadError(false);
+    setModelLoadTimedOut(false);
+    setModelLoaded(false);
+    setHandoffDismissed(false);
+    setModelAttempt((attempt) => attempt + 1);
+  }, []);
 
   if (!hasModel) {
     return (
@@ -421,12 +379,18 @@ export const DishModelViewer = forwardRef<
     );
   }
 
-  const showLoader = !mvReady && !initTimedOut;
   const showInitFail = !mvReady && initTimedOut;
-  const arHintVariant = arUnsupported
-    ? arUnavailableVariant()
-    : "default";
-  const showHandoff = arBrowserHandoff || needsIosHandoff;
+  const showLoadFailure = showInitFail || modelLoadError || modelLoadTimedOut;
+  const showLoader =
+    !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
+  const showArReady = modelLoaded && !showLoadFailure;
+  const showNativeArButton = showArReady && nativeArEnabled;
+  const showHandoff =
+    showArReady && !handoffDismissed && needsIosHandoff;
+  const showAndroidFallback =
+    showArReady && !handoffDismissed && androidArUnavailable;
+  const showMissingIosAr = showArReady && missingIosAr;
+  const showDesktopArHint = showArReady && !isIos && !isAndroid;
 
   return (
     <section
@@ -442,75 +406,76 @@ export const DishModelViewer = forwardRef<
       ) : null}
 
       <div className="relative mx-auto w-full max-w-lg">
-        {showInitFail ? (
-          <div className="flex min-h-[min(65vh,460px)] w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#10100e] px-6 text-center text-sm text-[#c4a892] ring-1 ring-white/8">
-            <p>Affichage impossible pour le moment.</p>
-            <p className="text-xs text-[#7d6e5c]">Actualisez la page.</p>
-          </div>
+        {showLoadFailure ? (
+          <PremiumFailureState
+            dish={dish}
+            onRetry={handleRetry}
+            onReturnToDish={onReturnToDish}
+          />
         ) : (
           <div className="relative">
-            {showLoader ? (
-              <div
-                className="absolute inset-0 z-20 flex h-[min(58vh,420px)] min-h-[280px] w-full animate-pulse items-center justify-center rounded-xl bg-[#10100e]/95 ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]"
-                role="status"
-                aria-live="polite"
-                aria-busy="true"
-              >
-                <span className="text-sm text-[#9a8b78]">Chargement…</span>
-              </div>
-            ) : null}
-            {mvReady ? (
-              /* GLB en mètres réalistes ; ar-scale fixed évite l’auto-scale agressif sur Android */
-              <model-viewer
-                ref={bindModelViewerRef}
-                src={modelSrc}
-                {...(iosSrc ? { "ios-src": iosSrc } : {})}
-                alt={`Vue du plat : ${dish.name}`}
-                aria-describedby={helpId}
-                camera-controls
-                auto-rotate
-                {...(needsIosHandoff ? {} : { ar: true })}
-                ar-modes="quick-look scene-viewer webxr"
-                ar-placement="floor"
-                ar-scale="fixed"
-                shadow-intensity="1"
-                exposure="1.05"
-                loading="auto"
-                camera-orbit="0deg 68deg 145%"
-                camera-target="0m 0.015m 0m"
-                field-of-view="34deg"
-                min-camera-orbit="auto auto 65%"
-                max-camera-orbit="auto auto 175%"
-                className="mx-auto block h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]"
-              >
-                <button
-                  type="button"
-                  slot="ar-button"
-                  className="absolute bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+            <div className="relative">
+              {mvReady ? (
+                /* GLB en mètres réalistes ; ar-scale fixed évite l’auto-scale agressif sur Android */
+                <model-viewer
+                  key={`${modelSrc}-${modelAttempt}`}
+                  ref={bindModelViewerRef}
+                  src={modelSrc}
+                  {...(iosSrc ? { "ios-src": iosSrc } : {})}
+                  alt={`Vue du plat : ${dish.name}`}
+                  aria-describedby={helpId}
+                  camera-controls
+                  auto-rotate
+                  {...(nativeArEnabled ? { ar: true } : {})}
+                  ar-modes="quick-look scene-viewer webxr"
+                  ar-placement="floor"
+                  ar-scale="fixed"
+                  shadow-intensity="1"
+                  exposure="1.05"
+                  loading="auto"
+                  reveal="auto"
+                  camera-orbit="0deg 68deg 145%"
+                  camera-target="0m 0.015m 0m"
+                  field-of-view="34deg"
+                  min-camera-orbit="auto auto 65%"
+                  max-camera-orbit="auto auto 175%"
+                  className={`mx-auto block ${MODEL_FRAME_CLASS}`}
                 >
-                  Ouvrir en réalité augmentée
-                </button>
-              </model-viewer>
-            ) : (
-              <div
-                className="h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]"
-                aria-hidden
-              />
-            )}
+                  {showNativeArButton ? (
+                    <button
+                      type="button"
+                      slot="ar-button"
+                      className="absolute bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+                      onClick={() =>
+                        trackMenuEvent({
+                          eventName: "dish_ar_clicked",
+                          dishSlug: dish.slug,
+                          categorySlug: dish.categorySlug
+                        })
+                      }
+                    >
+                      Afficher devant moi
+                    </button>
+                  ) : null}
+                </model-viewer>
+              ) : (
+                <div className={MODEL_FRAME_CLASS} aria-hidden />
+              )}
+              {showLoader ? <PremiumLoadingState dish={dish} /> : null}
+            </div>
+
             <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
               <p id={helpId}>{AR_HELP_TEXT}</p>
-              {arUnsupported ? (
-                <p className="text-[#8f806d]">
-                  {getArUnavailableMessage(arHintVariant)}
-                </p>
-              ) : null}
               {showHandoff ? (
                 <div
                   className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
                   role="status"
                   aria-live="polite"
                 >
-                  <p className="text-sm leading-relaxed text-[#eadcc6]">
+                  <p className="font-display text-base leading-tight text-cream">
+                    Réalité augmentée disponible dans Safari
+                  </p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
                     {getArUnavailableMessage("iosHandoff")}
                   </p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -518,10 +483,56 @@ export const DishModelViewer = forwardRef<
                       type="button"
                       className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                       onClick={() => {
-                        openCompatiblePage();
+                        void copyPageLink().then((ok) => {
+                          setCopyConfirmed(ok);
+                          if (ok) {
+                            window.setTimeout(() => setCopyConfirmed(false), 1800);
+                          }
+                        });
                       }}
                     >
-                      Ouvrir la page compatible
+                      {copyConfirmed ? "Lien copié" : "Copier le lien"}
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                      onClick={() => {
+                        void sharePageLink(dish.name);
+                      }}
+                    >
+                      Partager
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                      onClick={() => {
+                        setHandoffDismissed(true);
+                      }}
+                    >
+                      Continuer en 3D
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {showAndroidFallback ? (
+                <div
+                  className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="font-display text-base leading-tight text-cream">
+                    Réalité augmentée indisponible ici
+                  </p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
+                    {getArUnavailableMessage("androidBrowser")}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                      onClick={() => setHandoffDismissed(true)}
+                    >
+                      Continuer en 3D
                     </button>
                     <button
                       type="button"
@@ -529,11 +540,13 @@ export const DishModelViewer = forwardRef<
                       onClick={() => {
                         void copyPageLink().then((ok) => {
                           setCopyConfirmed(ok);
-                          if (ok) window.setTimeout(() => setCopyConfirmed(false), 1800);
+                          if (ok) {
+                            window.setTimeout(() => setCopyConfirmed(false), 1800);
+                          }
                         });
                       }}
                     >
-                      {copyConfirmed ? "Lien copi\u00e9" : "Copier le lien"}
+                      {copyConfirmed ? "Lien copié" : "Copier le lien"}
                     </button>
                     <button
                       type="button"
@@ -547,18 +560,18 @@ export const DishModelViewer = forwardRef<
                   </div>
                 </div>
               ) : null}
-              {missingIosAr ? (
+              {showDesktopArHint ? (
+                <p className="text-[#8f806d]">
+                  La réalité augmentée se lance depuis un téléphone compatible.
+                </p>
+              ) : null}
+              {showMissingIosAr ? (
                 <p className="text-[#c4a892]">{IOS_USDZ_MISSING_TEXT}</p>
               ) : null}
             </div>
-            {modelLoadError ? (
-              <p className="mt-2 text-center text-xs text-[#c49a84]">
-                {getArUnavailableMessage("modelLoad")}
-              </p>
-            ) : null}
           </div>
         )}
       </div>
     </section>
   );
-});
+}
