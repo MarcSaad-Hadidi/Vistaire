@@ -15,7 +15,7 @@ function logServerDataError(scope: string, error: unknown) {
     console.error(`[Vistaire data] ${scope}`);
     return;
   }
-  console.error(`[Vistaire data] ${scope}`, error);
+  console.warn(`[Vistaire data] ${scope}`, error);
 }
 
 export async function readSupabaseRows<T extends AnyRow>(

@@ -7,6 +7,7 @@ type ModelViewerProps = DetailedHTMLProps<
   src?: string;
   "ios-src"?: string;
   alt?: string;
+  poster?: string;
   "camera-controls"?: boolean | "";
   "auto-rotate"?: boolean | "";
   ar?: boolean | "";
@@ -18,6 +19,7 @@ type ModelViewerProps = DetailedHTMLProps<
   exposure?: string;
   /** https://modelviewer.dev/ — comportement pendant le fetch du poster / modèle */
   loading?: string;
+  reveal?: "auto" | "interaction" | "manual";
   "camera-orbit"?: string;
   "camera-target"?: string;
   "field-of-view"?: string;

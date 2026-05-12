@@ -439,7 +439,7 @@ function hasCompleteAdminInsights(insights: DemoAdminInsights): boolean {
     "dish-views",
     "searches",
     "immersive-views",
-    "see-in-room",
+    "ar-option-used",
     "top-dish",
     "top-category"
   ];
@@ -596,8 +596,8 @@ function buildRealInsights(args: {
         helper: "Clients qui ont exploré un plat en détail."
       },
       {
-        id: "see-in-room",
-        label: "« Voir devant moi »",
+        id: "ar-option-used",
+        label: "« Afficher devant moi »",
         value: formatCount(arCount),
         helper: "Moments où un client a voulu projeter le plat à table."
       },
@@ -623,7 +623,7 @@ function buildRealInsights(args: {
         helper: "Les plats que les clients prennent le temps d'explorer avant de choisir."
       },
       {
-        label: "Clients qui ont touché « Voir devant moi »",
+        label: "Clients qui ont utilisé « Afficher devant moi »",
         value: formatCount(arCount),
         helper: "Un signal fort d'envie et de projection à table."
       },

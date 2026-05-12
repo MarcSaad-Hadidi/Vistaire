@@ -4,6 +4,11 @@ import type { NextConfig } from "next";
 const USDZ_DEMO_HEADERS = [
   { key: "Content-Type", value: "model/vnd.usdz+zip" },
   { key: "Content-Disposition", value: "inline" },
+  { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+] as const;
+
+const DEMO_STATIC_ASSET_HEADERS = [
+  { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ] as const;
 
 const nextConfig: NextConfig = {
@@ -16,6 +21,14 @@ const nextConfig: NextConfig = {
       {
         source: "/models/demo/:path*.usdz",
         headers: [...USDZ_DEMO_HEADERS],
+      },
+      {
+        source: "/models/demo/:path*.glb",
+        headers: [...DEMO_STATIC_ASSET_HEADERS],
+      },
+      {
+        source: "/images/demo/:path*",
+        headers: [...DEMO_STATIC_ASSET_HEADERS],
       },
     ];
   },

@@ -154,7 +154,7 @@ const IN_SCOPE_TERMS = [
   "immersion",
   "3d",
   "ar",
-  "voir devant moi",
+  "afficher devant moi",
   "activité",
   "activite",
   "service",
@@ -472,7 +472,7 @@ export function buildRuleBasedAdminAssistantAnswer({
     normalizedQuestion.includes("immers") ||
     normalizedQuestion.includes("3d") ||
     normalizedQuestion.includes("ar") ||
-    normalizedQuestion.includes("voir devant moi")
+    normalizedQuestion.includes("afficher devant moi")
   ) {
     return `Oui, le suivi montre un usage immersif à observer : ${immersiveUsage}. Les clients explorent surtout les plats qui concentrent déjà le plus d'attention.`;
   }
@@ -526,7 +526,7 @@ export function buildEngagementFunnel(args: {
       id: "immersive-launched",
       label: "Vue immersive lancée",
       value: Math.max(0, args.immersiveViews),
-      helper: "Vues 3D ou « Voir devant moi »."
+      helper: "Vues 3D ou option « Afficher devant moi »."
     }
   ];
 

@@ -1,8 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import type { Dish } from "@/lib/demoMenuData";
 import { getRestaurant } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
@@ -10,22 +10,50 @@ import { dishHas3dModel } from "@/lib/menuQuery";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
-import {
-  DishModelViewer,
-  type DishModelViewerHandle
-} from "@/components/dish/DishModelViewer";
+import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { DishDetailHero } from "@/components/dish/DishDetailHero";
-import { openSystemBrowserHandoffForAr } from "@/lib/openSystemBrowser";
-import {
-  canUseIosQuickLookDirectly,
-  isAndroidDevice,
-  isIosDevice,
-  shouldShowArBrowserHandoff
-} from "@/lib/arEnvironment";
 
 type DishDetailProps = {
   dish: Dish;
 };
+
+const LazyDishModelViewer = dynamic<DishModelViewerProps>(
+  () => import("@/components/dish/DishModelViewer").then((mod) => mod.DishModelViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="flex h-[min(58vh,420px)] min-h-[280px] w-full items-center justify-center rounded-2xl border border-white/[0.14] bg-[#10100e] px-5 text-center text-sm text-[#bba88f] sm:h-[min(65vh,460px)] sm:min-h-[340px]"
+        role="status"
+        aria-live="polite"
+      >
+        Préparation de la vue immersive...
+      </div>
+    )
+  }
+);
+
+let modelViewerWarmupPromise: Promise<unknown> | null = null;
+
+function canWarmModelViewer(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection;
+
+  if (connection?.saveData) return false;
+  if (/^(slow-2g|2g)$/i.test(connection?.effectiveType ?? "")) return false;
+  return true;
+}
+
+function warmModelViewerOnIntent() {
+  if (!canWarmModelViewer()) return;
+  modelViewerWarmupPromise ??= import("@/components/dish/DishModelViewer").then(
+    () => import("@google/model-viewer")
+  );
+}
 
 /**
  * Défile jusqu’à la section 3D : dans le mockup téléphone le scrollable est un
@@ -46,74 +74,8 @@ function scrollToPlat3dAnchor(target: HTMLElement) {
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function openAndroidSceneViewer(modelSrc: string): boolean {
-  if (typeof window === "undefined" || !modelSrc) return false;
-
-  let modelUrl: URL;
-  try {
-    modelUrl = new URL(modelSrc, window.location.href);
-  } catch {
-    return false;
-  }
-
-  const sceneViewerPath = `/scene-viewer/1.0?file=${encodeURIComponent(
-    modelUrl.toString()
-  )}&mode=ar_preferred`;
-  const intent = `intent://arvr.google.com${sceneViewerPath}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(
-    window.location.href
-  )};end;`;
-
-  try {
-    window.location.assign(intent);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function currentPageUrl(): string {
-  if (typeof window === "undefined") return "";
-  return window.location.href;
-}
-
-function openCompatiblePage(): boolean {
-  if (typeof window === "undefined") return false;
-  return Boolean(window.open(currentPageUrl(), "_blank", "noopener,noreferrer"));
-}
-
-async function copyCurrentPageLink(): Promise<boolean> {
-  const url = currentPageUrl();
-  if (!url || !navigator.clipboard?.writeText) return false;
-  try {
-    await navigator.clipboard.writeText(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function shareCurrentPageLink(dishName: string): Promise<boolean> {
-  const url = currentPageUrl();
-  if (!url || !navigator.share) return false;
-  try {
-    await navigator.share({
-      title: dishName,
-      text: "Ouvrez cette fiche dans Safari pour placer le plat en AR.",
-      url
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const AR_BUTTON_CLASS =
+const VIEW_3D_BUTTON_CLASS =
   "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/50 bg-champagne px-5 text-center text-sm font-semibold text-[#17100a] shadow-[0_12px_34px_rgba(217,184,121,0.18)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[190px]";
-
-function isNarrowViewportNow(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(max-width: 767px)").matches;
-}
 
 export function DishDetail({ dish }: DishDetailProps) {
   const restaurant = getRestaurant();
@@ -122,24 +84,8 @@ export function DishDetail({ dish }: DishDetailProps) {
   const { isRealMobile, isPhoneSimulation } = useDemoSimulation();
   const immersive = isRealMobile || isPhoneSimulation;
   const [showPlat3d, setShowPlat3d] = useState(false);
-  const [desktopArHint, setDesktopArHint] = useState(false);
-  const [phoneSimulationArHint, setPhoneSimulationArHint] = useState(false);
-  const [heroArDeferredHint, setHeroArDeferredHint] = useState(false);
-  const [arBrowserHandoff, setArBrowserHandoff] = useState(false);
-  const [copyConfirmed, setCopyConfirmed] = useState(false);
   const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
-  const modelViewerRef = useRef<DishModelViewerHandle | null>(null);
   const viewStartRef = useRef(0);
-  const canExpectMobileUi = immersive;
-  const isIos = isIosDevice();
-  const canOpenQuickLookDirectly = canUseIosQuickLookDirectly();
-  const needsBrowserHandoff = shouldShowArBrowserHandoff();
-
-  /** Précharge model-viewer pour réduire la fenêtre où le lecteur n’est pas prêt. */
-  useEffect(() => {
-    if (!has3d) return;
-    void import("@google/model-viewer");
-  }, [has3d]);
 
   useEffect(() => {
     viewStartRef.current = Date.now();
@@ -170,121 +116,27 @@ export function DishDetail({ dish }: DishDetailProps) {
     });
   }, []);
 
+  const handleModelIntentWarmup = useCallback(() => {
+    if (has3d) warmModelViewerOnIntent();
+  }, [has3d]);
+
+  const handleReturnToDish = useCallback(() => {
+    setShowPlat3d(false);
+    requestAnimationFrame(() => {
+      const el = document.getElementById("dish-main-info");
+      if (el) scrollToPlat3dAnchor(el);
+    });
+  }, []);
+
   const handleVoir3dClick = useCallback(() => {
+    warmModelViewerOnIntent();
     trackMenuEvent({
       eventName: "dish_3d_clicked",
       dishSlug: dish.slug,
       categorySlug: dish.categorySlug
     });
-    setDesktopArHint(false);
-    setPhoneSimulationArHint(false);
-    setHeroArDeferredHint(false);
-    setArBrowserHandoff(false);
     showAndScrollToPlat3d();
   }, [dish.categorySlug, dish.slug, showAndScrollToPlat3d]);
-
-  const handleVoirDevantMoiClick = useCallback(() => {
-    trackMenuEvent({
-      eventName: "dish_ar_clicked",
-      dishSlug: dish.slug,
-      categorySlug: dish.categorySlug
-    });
-    const isNarrowViewport = isNarrowViewportNow();
-    const canExpectMobileUiNow = canExpectMobileUi || isNarrowViewport;
-    const isRealMobileNow = isRealMobile || isNarrowViewport;
-
-    if (isAndroidDevice() && dish.model3dUrl?.trim()) {
-      if (openAndroidSceneViewer(dish.model3dUrl.trim())) {
-        return;
-      }
-    }
-
-    if (!canExpectMobileUiNow) {
-      setDesktopArHint(true);
-      setPhoneSimulationArHint(false);
-      setHeroArDeferredHint(false);
-      setArBrowserHandoff(false);
-      return;
-    }
-
-    if (!isRealMobileNow) {
-      flushSync(() => setShowPlat3d(true));
-      setDesktopArHint(false);
-      setPhoneSimulationArHint(true);
-      setHeroArDeferredHint(false);
-      setArBrowserHandoff(false);
-      requestAnimationFrame(() => {
-        const el = plat3dAnchorRef.current;
-        if (el) scrollToPlat3dAnchor(el);
-      });
-      return;
-    }
-
-    // Chemin le plus fiable sur iPhone/iPad: ouvrir Quick Look directement
-    // dans le geste utilisateur (évite les pertes de gesture via états/render).
-    if (needsBrowserHandoff) {
-      setDesktopArHint(false);
-      setPhoneSimulationArHint(false);
-      setHeroArDeferredHint(false);
-      setArBrowserHandoff(true);
-      if (!showPlat3d) {
-        flushSync(() => setShowPlat3d(true));
-      }
-      requestAnimationFrame(() => {
-        const el = plat3dAnchorRef.current;
-        if (el) scrollToPlat3dAnchor(el);
-      });
-      return;
-    }
-
-    if (canOpenQuickLookDirectly && dish.usdzUrl?.trim()) {
-      window.location.assign(dish.usdzUrl.trim());
-      return;
-    }
-
-    setDesktopArHint(false);
-    setPhoneSimulationArHint(false);
-    setArBrowserHandoff(false);
-
-    if (!showPlat3d) {
-      flushSync(() => setShowPlat3d(true));
-    }
-
-    const status = modelViewerRef.current?.requestAr() ?? "deferred";
-
-    if (status === "launched") {
-      setHeroArDeferredHint(false);
-      return;
-    }
-
-    if (status === "unsupported") {
-      setHeroArDeferredHint(false);
-      if (openSystemBrowserHandoffForAr()) {
-        return;
-      }
-      requestAnimationFrame(() => {
-        const el = plat3dAnchorRef.current;
-        if (el) scrollToPlat3dAnchor(el);
-      });
-      return;
-    }
-
-    setHeroArDeferredHint(true);
-    requestAnimationFrame(() => {
-      const el = plat3dAnchorRef.current;
-      if (el) scrollToPlat3dAnchor(el);
-    });
-  }, [
-    canExpectMobileUi,
-    isRealMobile,
-    showPlat3d,
-    canOpenQuickLookDirectly,
-    needsBrowserHandoff,
-    dish.usdzUrl,
-    dish.model3dUrl,
-    dish.slug,
-    dish.categorySlug
-  ]);
 
   return (
     <article className={immersive ? "pb-24 pt-2.5" : "pb-24 pt-4 sm:pt-5"}>
@@ -312,6 +164,7 @@ export function DishDetail({ dish }: DishDetailProps) {
       />
 
       <div
+        id="dish-main-info"
         className={`mx-auto max-w-3xl px-4 sm:px-6 ${
           immersive ? "mt-6 sm:mt-7" : "mt-7 sm:mt-8"
         }`}
@@ -435,136 +288,16 @@ export function DishDetail({ dish }: DishDetailProps) {
         </section>
 
         {has3d ? (
-          <div className="mt-8 space-y-3">
-            {desktopArHint ? (
-              <p
-                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-3 text-sm leading-relaxed text-[#eadcc6]"
-                role="status"
-                aria-live="polite"
-              >
-                Sur ordinateur, l’AR n’est pas disponible partout : faites tourner le
-                modèle 3D ci-dessous, ou ouvrez cette fiche sur votre téléphone pour
-                placer le plat avec « Voir devant moi » (WebXR / Quick Look selon
-                l’appareil).
-              </p>
-            ) : null}
-            {phoneSimulationArHint ? (
-              <p
-                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-3 text-sm leading-relaxed text-[#eadcc6]"
-                role="status"
-                aria-live="polite"
-              >
-                Simulation d’écran téléphone sur bureau : l’AR se pilote comme sur
-                mobile réel via le bouton sous le modèle. Sur appareil physique, le
-                même bouton lance l’AR lorsque le navigateur l’expose.
-              </p>
-            ) : null}
-            {heroArDeferredHint ? (
-              <p
-                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-3 text-sm leading-relaxed text-[#eadcc6]"
-                role="status"
-                aria-live="polite"
-              >
-                Le lecteur ou le modèle finalise son chargement. Touchez « Ouvrir en
-                réalité augmentée » dans l’encadré ci-dessous pour lancer l’AR — ce
-                geste est requis sur certains navigateurs.
-              </p>
-            ) : null}
-            {arBrowserHandoff ? (
-              <div
-                className="rounded-2xl border border-champagne/25 bg-champagne/10 px-4 py-4 text-sm leading-relaxed text-[#eadcc6]"
-                role="status"
-                aria-live="polite"
-              >
-                <p>
-                  Ce navigateur ne permet pas d&apos;ouvrir l&apos;AR directement.
-                  Ouvrez cette page dans Safari pour placer le plat sur votre
-                  table.
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                    onClick={() => {
-                      openCompatiblePage();
-                    }}
-                  >
-                    Ouvrir la page compatible
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                    onClick={() => {
-                      void copyCurrentPageLink().then((ok) => {
-                        setCopyConfirmed(ok);
-                        if (ok) {
-                          window.setTimeout(() => setCopyConfirmed(false), 1800);
-                        }
-                      });
-                    }}
-                  >
-                    {copyConfirmed ? "Lien copi\u00e9" : "Copier le lien"}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                    onClick={() => {
-                      void shareCurrentPageLink(dish.name);
-                    }}
-                  >
-                    Partager
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              {isIos && canOpenQuickLookDirectly && dish.usdzUrl?.trim() ? (
-                <a
-                  href={dish.usdzUrl.trim()}
-                  rel="ar"
-                  className={AR_BUTTON_CLASS}
-                  aria-label="Voir devant moi"
-                  onClick={() =>
-                    trackMenuEvent({
-                      eventName: "dish_ar_clicked",
-                      dishSlug: dish.slug,
-                      categorySlug: dish.categorySlug
-                    })
-                  }
-                >
-                  {/* Safari Quick Look exige un enfant img/picture sur les liens rel="ar". */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute h-px w-px opacity-0"
-                  />
-                  <span>Voir devant moi</span>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className={AR_BUTTON_CLASS}
-                  onClick={handleVoirDevantMoiClick}
-                >
-                  Voir devant moi
-                </button>
-              )}
-              <button
-                type="button"
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-white/18 bg-white/6 px-5 text-center text-sm font-semibold text-cream transition hover:border-champagne/35 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[170px]"
-                onClick={handleVoir3dClick}
-              >
-                Voir en 3D
-              </button>
-            </div>
-            {isRealMobile ? (
-              <p className="text-xs leading-relaxed text-[#7a6b5c]">
-                Sur ce téléphone, « Voir devant moi » ouvre l’AR lorsque le système la
-                propose ; « Voir en 3D » affiche le modèle interactif sans caméra.
-              </p>
-            ) : null}
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              className={VIEW_3D_BUTTON_CLASS}
+              onPointerEnter={handleModelIntentWarmup}
+              onFocus={handleModelIntentWarmup}
+              onClick={handleVoir3dClick}
+            >
+              Voir en 3D
+            </button>
           </div>
         ) : null}
       </div>
@@ -578,7 +311,11 @@ export function DishDetail({ dish }: DishDetailProps) {
             immersive ? "mt-10" : "mt-12"
           }`}
         >
-          <DishModelViewer ref={modelViewerRef} dish={dish} minimalChrome />
+          <LazyDishModelViewer
+            dish={dish}
+            minimalChrome
+            onReturnToDish={handleReturnToDish}
+          />
         </section>
       ) : null}
     </article>

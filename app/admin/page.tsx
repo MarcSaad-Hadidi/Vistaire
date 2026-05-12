@@ -18,7 +18,7 @@ const SUMMARY_METRIC_IDS = [
   "dish-views",
   "searches",
   "immersive-views",
-  "see-in-room",
+  "ar-option-used",
   "top-dish",
   "top-category"
 ];
