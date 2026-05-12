@@ -33,7 +33,10 @@ export function isAndroidDevice(): boolean {
 export function isNativeSafariOnIos(): boolean {
   const ua = getUserAgent();
   if (!isIosDevice()) return false;
-  if (/CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|Brave|DuckDuckGo|YaBrowser/i.test(ua)) {
+  if (
+    /CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|Brave|DuckDuckGo|YaBrowser/i.test(ua) ||
+    isBraveUserAgent()
+  ) {
     return false;
   }
   if (isIosInAppBrowser()) return false;
@@ -86,10 +89,18 @@ export function isAndroidFirefox(): boolean {
   return isAndroidDevice() && /Firefox\/|Fennec\//i.test(getUserAgent());
 }
 
+export function isAndroidWebView(): boolean {
+  const ua = getUserAgent();
+  if (!isAndroidDevice()) return false;
+  return /; wv\)|\bwv\b|Version\/[\d.]+.*Chrome\//i.test(ua);
+}
+
 export function isAndroidLikelySceneViewerCapable(): boolean {
   const ua = getUserAgent();
   if (!isAndroidDevice()) return false;
-  if (isAndroidInAppBrowser() || isAndroidFirefox()) return false;
+  if (isAndroidInAppBrowser() || isAndroidFirefox() || isAndroidWebView()) {
+    return false;
+  }
   if (/EdgA|OPR\/|Opera|DuckDuckGo|YaBrowser|SamsungBrowser/i.test(ua)) {
     return false;
   }

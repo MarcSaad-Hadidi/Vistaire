@@ -18,6 +18,7 @@ import { CategoryTabs } from "@/components/menu/CategoryTabs";
 import { DishGrid } from "@/components/menu/DishGrid";
 import { MenuFilterBar } from "@/components/menu/MenuFilterBar";
 import { MenuSearchBar } from "@/components/menu/MenuSearchBar";
+import { prepareDemoAssetOrigin } from "@/lib/dishAssetWarmup";
 
 type DemoMenuClientProps = {
   categories: Category[];
@@ -37,6 +38,7 @@ export function DemoMenuClient({
   const [filters, setFilters] = useState<MenuFilterState>(defaultMenuFilterState);
 
   useEffect(() => {
+    prepareDemoAssetOrigin();
     trackMenuEvent({ eventName: "session_started" });
     trackMenuEvent({ eventName: "menu_opened" });
   }, []);

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useCallback } from "react";
 import type { CurrencyCode, Dish } from "@/lib/demoMenuData";
 import { getDishCardImageObjectPosition } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
@@ -9,6 +10,7 @@ import { dishHas3dModel } from "@/lib/menuQuery";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
+import { warmDishAssets } from "@/lib/dishAssetWarmup";
 
 type DishCardProps = {
   dish: Dish;
@@ -103,6 +105,10 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
   const { isPhoneSimulation } = useDemoSimulation();
   const unavailable = !dish.isAvailable;
   const has3d = dishHas3dModel(dish);
+  const handleDishAssetIntent = useCallback(() => {
+    if (unavailable || !has3d) return;
+    warmDishAssets(dish, { phase: "menu-intent" });
+  }, [dish, has3d, unavailable]);
 
   if (isPhoneSimulation) {
     return (
@@ -110,6 +116,12 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
         className={`group isolate overflow-hidden rounded-xl bg-gradient-to-b from-[#15110e]/98 to-[#080706] shadow-[0_0_0_1px_rgba(255,255,255,0.055),0_8px_32px_rgba(0,0,0,0.38)] ${
           unavailable ? "opacity-[0.82]" : ""
         }`}
+        onPointerEnter={handleDishAssetIntent}
+        onPointerDown={handleDishAssetIntent}
+        onMouseEnter={handleDishAssetIntent}
+        onMouseDown={handleDishAssetIntent}
+        onTouchStart={handleDishAssetIntent}
+        onFocusCapture={handleDishAssetIntent}
       >
         <DishCardHeroImage
           dish={dish}
@@ -172,13 +184,20 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
               <Link
                 href={`/demo/dishes/${dish.slug}`}
                 prefetch={false}
-                onClick={() =>
+                onPointerEnter={handleDishAssetIntent}
+                onPointerDown={handleDishAssetIntent}
+                onMouseEnter={handleDishAssetIntent}
+                onMouseDown={handleDishAssetIntent}
+                onTouchStart={handleDishAssetIntent}
+                onFocus={handleDishAssetIntent}
+                onClick={() => {
+                  handleDishAssetIntent();
                   trackMenuEvent({
                     eventName: "cta_clicked",
                     dishSlug: dish.slug,
                     ctaName: "dish_card_open"
-                  })
-                }
+                  });
+                }}
                 className="inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-champagne/[0.12] text-[11px] font-semibold text-cream ring-1 ring-inset ring-champagne/35 transition active:bg-champagne/[0.18] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#080706]"
                 aria-label={`Voir le plat — ${dish.name}`}
               >
@@ -196,6 +215,12 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
       className={`group flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#16100d]/95 to-[#0a0806] shadow-[0_8px_40px_rgba(0,0,0,0.28)] transition hover:border-champagne/22 ${
         unavailable ? "opacity-[0.78]" : ""
       }`}
+      onPointerEnter={handleDishAssetIntent}
+      onPointerDown={handleDishAssetIntent}
+      onMouseEnter={handleDishAssetIntent}
+      onMouseDown={handleDishAssetIntent}
+      onTouchStart={handleDishAssetIntent}
+      onFocusCapture={handleDishAssetIntent}
     >
       <DishCardHeroImage
         dish={dish}
@@ -259,13 +284,20 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
             <Link
               href={`/demo/dishes/${dish.slug}`}
               prefetch={false}
-              onClick={() =>
+              onPointerEnter={handleDishAssetIntent}
+              onPointerDown={handleDishAssetIntent}
+              onMouseEnter={handleDishAssetIntent}
+              onMouseDown={handleDishAssetIntent}
+              onTouchStart={handleDishAssetIntent}
+              onFocus={handleDishAssetIntent}
+              onClick={() => {
+                handleDishAssetIntent();
                 trackMenuEvent({
                   eventName: "cta_clicked",
                   dishSlug: dish.slug,
                   ctaName: "dish_card_open"
-                })
-              }
+                });
+              }}
               className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-champagne/40 bg-champagne/[0.1] text-center text-xs font-semibold text-cream transition hover:border-champagne/55 hover:bg-champagne/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0806]"
               aria-label={`Voir le plat — ${dish.name}`}
             >
