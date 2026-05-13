@@ -12,17 +12,6 @@ import {
 import { trackMenuEvent } from "@/lib/analytics/client";
 import type { Dish } from "@/lib/demoMenuData";
 import {
-  getDishArAsset,
-  getDishArPlatform,
-  getDishAssetWarmupState,
-  releaseAssetWarmupState,
-  trackAssetWarmupState,
-  warmDishArAsset,
-  warmDishAssets,
-  warmModelViewerRuntime,
-  type AssetWarmupStatus
-} from "@/lib/dishAssetWarmup";
-import {
   getArUnavailableMessage,
   isAndroidDevice,
   isAndroidLikelySceneViewerCapable,
@@ -34,9 +23,9 @@ const MV_INIT_TIMEOUT_MS = 12_000;
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
 const LOADER_REVEAL_DELAY_MS = 700;
 const AR_HELP_TEXT =
-  "Faites tourner le plat en 3D. L’option AR apparaît ici sur téléphone compatible.";
+  "Faites tourner le plat en 3D. Sur téléphone compatible, le bouton AR apparaît dès que le modèle est prêt.";
 const IOS_USDZ_MISSING_TEXT =
-  "Pour activer l’AR iPhone, ajoutez un fichier USDZ à ce plat.";
+  "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.";
 const MODEL_FRAME_CLASS =
   "h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]";
 
@@ -58,7 +47,7 @@ export type DishModelViewerProps = {
 };
 
 async function ensureModelViewerLoaded(): Promise<void> {
-  await (warmModelViewerRuntime() ?? import("@google/model-viewer"));
+  await import("@google/model-viewer");
   if (!customElements.get("model-viewer")) {
     await customElements.whenDefined("model-viewer");
   }
@@ -71,6 +60,12 @@ type ModelViewerElement = HTMLElement & {
 type ModelViewerProgressEvent = Event & {
   detail?: {
     totalProgress?: number;
+  };
+};
+
+type ModelViewerArStatusEvent = Event & {
+  detail?: {
+    status?: "not-presenting" | "session-started" | "object-placed" | "failed";
   };
 };
 
@@ -111,7 +106,7 @@ async function sharePageLink(dishName: string): Promise<boolean> {
   try {
     await navigator.share({
       title: dishName,
-      text: "Ouvrez cette fiche dans Safari pour placer le plat en AR.",
+      text: "Découvrez ce plat en 3D.",
       url
     });
     return true;
@@ -307,8 +302,7 @@ export function DishModelViewer({
   const [modelLoadTimedOut, setModelLoadTimedOut] = useState(false);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [modelProgress, setModelProgress] = useState(0);
-  const [arWarmupStatus, setArWarmupStatus] =
-    useState<AssetWarmupStatus>("idle");
+  const [runtimeArFailed, setRuntimeArFailed] = useState(false);
   const [loaderRevealed, setLoaderRevealed] = useState(false);
   const [modelAttempt, setModelAttempt] = useState(0);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
@@ -329,41 +323,33 @@ export function DishModelViewer({
     isAndroid && !isAndroidLikelySceneViewerCapable();
   const iosNativeArEnabled = isIos && !needsIosHandoff && !missingIosAr;
   const androidNativeArEnabled = isAndroid && !androidArUnavailable;
-  const nativeArEnabled =
-    iosNativeArEnabled || androidNativeArEnabled;
   const directIosQuickLookHref =
     isIos && !needsIosHandoff && iosSrc ? iosSrc : "";
-  const arAssetUrl = useMemo(
-    () => getDishArAsset(dish, getDishArPlatform()),
-    [dish]
-  );
 
   const markModelLoaded = useCallback(() => {
     setModelLoaded(true);
     setModelLoadError(false);
     setModelLoadTimedOut(false);
     setModelProgress(1);
-    trackAssetWarmupState(modelSrc, "ready", "model3d");
-  }, [modelSrc]);
+    setRuntimeArFailed(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    void ensureModelViewerLoaded().then(() => {
-      if (!cancelled) setMvReady(true);
-    });
+    void ensureModelViewerLoaded().then(
+      () => {
+        if (!cancelled) setMvReady(true);
+      },
+      () => {
+        if (!cancelled) setInitTimedOut(true);
+      }
+    );
 
     return () => {
       cancelled = true;
     };
   }, [modelAttempt]);
-
-  useEffect(() => {
-    if (!hasModel) return;
-    warmDishAssets(dish, { phase: "viewer-open" });
-    const state = getDishAssetWarmupState(arAssetUrl);
-    queueMicrotask(() => setArWarmupStatus(state.status));
-  }, [arAssetUrl, dish, hasModel]);
 
   const bindModelViewerRef = useCallback(
     (node: ModelViewerElement | null) => {
@@ -379,24 +365,33 @@ export function DishModelViewer({
         setModelLoadError(true);
         setModelLoadTimedOut(false);
         setModelLoaded(false);
-        trackAssetWarmupState(modelSrc, "error", "model3d");
       };
       const onProgress = (event: Event) => {
         const totalProgress =
           (event as ModelViewerProgressEvent).detail?.totalProgress ?? 0;
         setModelProgress((current) => Math.max(current, totalProgress));
       };
+      const onArStatus = (event: Event) => {
+        const status = (event as ModelViewerArStatusEvent).detail?.status;
+        if (status === "failed") {
+          setRuntimeArFailed(true);
+          return;
+        }
+        if (status === "not-presenting" || status === "session-started") {
+          setRuntimeArFailed(false);
+        }
+      };
 
-      trackAssetWarmupState(modelSrc, "warming", "model3d");
       node.addEventListener("load", onLoad);
       node.addEventListener("error", onError);
       node.addEventListener("progress", onProgress);
+      node.addEventListener("ar-status", onArStatus);
 
       listenerCleanupRef.current = () => {
         node.removeEventListener("load", onLoad);
         node.removeEventListener("error", onError);
         node.removeEventListener("progress", onProgress);
-        releaseAssetWarmupState(modelSrc, "model3d");
+        node.removeEventListener("ar-status", onArStatus);
       };
 
       // Modèle déjà en cache : pas toujours un nouveau événement load.
@@ -404,7 +399,7 @@ export function DishModelViewer({
         if (node.loaded === true) onLoad();
       });
     },
-    [markModelLoaded, modelSrc]
+    [markModelLoaded]
   );
 
   useEffect(
@@ -414,6 +409,23 @@ export function DishModelViewer({
     },
     []
   );
+
+  useEffect(() => {
+    const resetAfterArReturn = () => setRuntimeArFailed(false);
+    const resetWhenVisible = () => {
+      if (document.visibilityState === "visible") resetAfterArReturn();
+    };
+
+    document.addEventListener("visibilitychange", resetWhenVisible);
+    window.addEventListener("pageshow", resetAfterArReturn);
+    window.addEventListener("focus", resetAfterArReturn);
+
+    return () => {
+      document.removeEventListener("visibilitychange", resetWhenVisible);
+      window.removeEventListener("pageshow", resetAfterArReturn);
+      window.removeEventListener("focus", resetAfterArReturn);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasModel || mvReady) return;
@@ -432,7 +444,6 @@ export function DishModelViewer({
     }, 250);
     const t = window.setTimeout(() => {
       setModelLoadTimedOut(true);
-      trackAssetWarmupState(modelSrc, "error", "model3d");
     }, MODEL_LOAD_TIMEOUT_MS);
     return () => {
       window.clearInterval(syncLoaded);
@@ -445,16 +456,17 @@ export function DishModelViewer({
     modelLoadError,
     modelLoadTimedOut,
     modelAttempt,
-    markModelLoaded,
-    modelSrc
+    markModelLoaded
   ]);
 
   const trackArIntent = useCallback(() => {
-    trackMenuEvent({
-      eventName: "dish_ar_clicked",
-      dishSlug: dish.slug,
-      categorySlug: dish.categorySlug
-    });
+    window.setTimeout(() => {
+      trackMenuEvent({
+        eventName: "dish_ar_clicked",
+        dishSlug: dish.slug,
+        categorySlug: dish.categorySlug
+      });
+    }, 0);
   }, [dish.categorySlug, dish.slug]);
 
   const handleRetry = useCallback(() => {
@@ -463,11 +475,11 @@ export function DishModelViewer({
     setModelLoadTimedOut(false);
     setModelLoaded(false);
     setModelProgress(0);
-    setArWarmupStatus(getDishAssetWarmupState(arAssetUrl).status);
+    setRuntimeArFailed(false);
     setLoaderRevealed(false);
     setHandoffDismissed(false);
     setModelAttempt((attempt) => attempt + 1);
-  }, [arAssetUrl]);
+  }, []);
 
   const showInitFail = !mvReady && initTimedOut;
   const showLoadFailure = showInitFail || modelLoadError || modelLoadTimedOut;
@@ -475,16 +487,17 @@ export function DishModelViewer({
     hasModel && !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
   const showLoader = isLoadingModel && loaderRevealed;
   const showArReady = modelLoaded && !showLoadFailure;
-  const showNativeArButton = showArReady && nativeArEnabled;
+  const showIosQuickLookButton =
+    showArReady && iosNativeArEnabled && Boolean(directIosQuickLookHref);
+  const showAndroidSceneViewerButton = showArReady && androidNativeArEnabled;
   const showHandoff =
     showArReady && !handoffDismissed && needsIosHandoff;
   const showAndroidFallback =
-    showArReady && !handoffDismissed && androidArUnavailable;
+    showArReady &&
+    !handoffDismissed &&
+    (androidArUnavailable || (isAndroid && runtimeArFailed));
   const showMissingIosAr = showArReady && missingIosAr;
   const showDesktopArHint = showArReady && !isIos && !isAndroid;
-  const showArPreparingHint =
-    showNativeArButton &&
-    (arWarmupStatus === "idle" || arWarmupStatus === "warming");
 
   useEffect(() => {
     if (!isLoadingModel) return undefined;
@@ -494,32 +507,6 @@ export function DishModelViewer({
     );
     return () => window.clearTimeout(t);
   }, [isLoadingModel, modelAttempt]);
-
-  useEffect(() => {
-    if (!showArReady || !nativeArEnabled || !arAssetUrl) return undefined;
-
-    let cancelled = false;
-    const result = warmDishArAsset(dish, {
-      phase: "ar-visible",
-      priority: "low"
-    });
-    queueMicrotask(() => setArWarmupStatus(result.status));
-
-    if (result.promise) {
-      void result.promise.then(
-        () => {
-          if (!cancelled) setArWarmupStatus("ready");
-        },
-        () => {
-          if (!cancelled) setArWarmupStatus("error");
-        }
-      );
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [arAssetUrl, dish, nativeArEnabled, showArReady]);
 
   if (!hasModel) {
     return (
@@ -579,14 +566,15 @@ export function DishModelViewer({
                   aria-describedby={helpId}
                   camera-controls
                   auto-rotate
-                  {...(nativeArEnabled ? { ar: true } : {})}
+                  {...(androidNativeArEnabled ? { ar: true } : {})}
                   ar-modes="quick-look scene-viewer webxr"
                   ar-placement="floor"
                   ar-scale="fixed"
                   shadow-intensity="1"
                   exposure="1.05"
-                  loading="eager"
+                  loading="auto"
                   reveal="auto"
+                  touch-action="pan-y"
                   camera-orbit="0deg 68deg 145%"
                   camera-target="0m 0.015m 0m"
                   field-of-view="34deg"
@@ -594,7 +582,7 @@ export function DishModelViewer({
                   max-camera-orbit="auto auto 175%"
                   className={`mx-auto block ${MODEL_FRAME_CLASS}`}
                 >
-                  {showNativeArButton ? (
+                  {showAndroidSceneViewerButton ? (
                     <button
                       type="button"
                       slot="ar-button"
@@ -608,6 +596,13 @@ export function DishModelViewer({
               ) : (
                 <div className={MODEL_FRAME_CLASS} aria-hidden />
               )}
+              {showIosQuickLookButton ? (
+                <IosQuickLookArLink
+                  href={directIosQuickLookHref}
+                  onClick={trackArIntent}
+                  className="absolute bottom-4 left-1/2 z-10 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+                />
+              ) : null}
               {showLoader ? (
                 <PremiumLoadingState dish={dish} progress={modelProgress} />
               ) : null}
@@ -615,11 +610,6 @@ export function DishModelViewer({
 
             <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
               <p id={helpId}>{AR_HELP_TEXT}</p>
-              {showArPreparingHint ? (
-                <p className="text-[#8f806d]" role="status" aria-live="polite">
-                  Préparation de l&apos;affichage devant vous...
-                </p>
-              ) : null}
               {showHandoff ? (
                 <div
                   className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"

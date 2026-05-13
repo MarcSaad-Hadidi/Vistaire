@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dish } from "@/lib/demoMenuData";
 import { getRestaurant } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
-import { warmDishAssets } from "@/lib/dishAssetWarmup";
 import { dishHas3dModel } from "@/lib/menuQuery";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 import { formatPrice } from "@/lib/formatPrice";
@@ -17,6 +16,31 @@ import { DishDetailHero } from "@/components/dish/DishDetailHero";
 type DishDetailProps = {
   dish: Dish;
 };
+
+let modelViewerWarmupPromise: Promise<unknown> | null = null;
+
+function canWarmModelViewer(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection;
+
+  if (connection?.saveData) return false;
+  if (/^(slow-2g|2g)$/i.test(connection?.effectiveType ?? "")) return false;
+  return true;
+}
+
+function warmModelViewerOnIntent() {
+  if (!canWarmModelViewer()) return;
+  modelViewerWarmupPromise ??= import("@/components/dish/DishModelViewer").then(
+    () => import("@google/model-viewer")
+  ).catch(() => {
+    modelViewerWarmupPromise = null;
+  });
+  void modelViewerWarmupPromise;
+}
 
 function DelayedModelViewerImportFallback() {
   return (
@@ -105,14 +129,6 @@ export function DishDetail({ dish }: DishDetailProps) {
     };
   }, [dish.categorySlug, dish.slug]);
 
-  useEffect(() => {
-    if (!has3d) return undefined;
-    const t = window.setTimeout(() => {
-      warmDishAssets(dish, { phase: "dish-open" });
-    }, 350);
-    return () => window.clearTimeout(t);
-  }, [dish, has3d]);
-
   const showAndScrollToPlat3d = useCallback(() => {
     setShowPlat3d(true);
     requestAnimationFrame(() => {
@@ -124,8 +140,8 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, []);
 
   const handleModelIntentWarmup = useCallback(() => {
-    if (has3d) warmDishAssets(dish, { phase: "viewer-intent" });
-  }, [dish, has3d]);
+    if (has3d) warmModelViewerOnIntent();
+  }, [has3d]);
 
   const handleReturnToDish = useCallback(() => {
     setShowPlat3d(false);
@@ -136,7 +152,7 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, []);
 
   const handleVoir3dClick = useCallback(() => {
-    warmDishAssets(dish, { phase: "viewer-intent" });
+    warmModelViewerOnIntent();
     showAndScrollToPlat3d();
     window.setTimeout(() => {
       trackMenuEvent({
@@ -145,7 +161,7 @@ export function DishDetail({ dish }: DishDetailProps) {
         categorySlug: dish.categorySlug
       });
     }, 0);
-  }, [dish, showAndScrollToPlat3d]);
+  }, [dish.categorySlug, dish.slug, showAndScrollToPlat3d]);
 
   return (
     <article className={immersive ? "pb-24 pt-2.5" : "pb-24 pt-4 sm:pt-5"}>
@@ -302,9 +318,6 @@ export function DishDetail({ dish }: DishDetailProps) {
               type="button"
               className={VIEW_3D_BUTTON_CLASS}
               onPointerEnter={handleModelIntentWarmup}
-              onPointerDown={handleModelIntentWarmup}
-              onMouseEnter={handleModelIntentWarmup}
-              onMouseDown={handleModelIntentWarmup}
               onFocus={handleModelIntentWarmup}
               onClick={handleVoir3dClick}
             >

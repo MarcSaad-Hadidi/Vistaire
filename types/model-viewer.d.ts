@@ -20,6 +20,7 @@ type ModelViewerProps = DetailedHTMLProps<
   /** https://modelviewer.dev/ — comportement pendant le fetch du poster / modèle */
   loading?: string;
   reveal?: "auto" | "interaction" | "manual";
+  "touch-action"?: "pan-y" | "pan-x" | "none";
   "camera-orbit"?: string;
   "camera-target"?: string;
   "field-of-view"?: string;

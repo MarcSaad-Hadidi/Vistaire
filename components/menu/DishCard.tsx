@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback } from "react";
 import type { CurrencyCode, Dish } from "@/lib/demoMenuData";
 import { getDishCardImageObjectPosition } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
@@ -10,7 +9,6 @@ import { dishHas3dModel } from "@/lib/menuQuery";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
-import { warmDishAssets } from "@/lib/dishAssetWarmup";
 
 type DishCardProps = {
   dish: Dish;
@@ -105,10 +103,6 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
   const { isPhoneSimulation } = useDemoSimulation();
   const unavailable = !dish.isAvailable;
   const has3d = dishHas3dModel(dish);
-  const handleDishAssetIntent = useCallback(() => {
-    if (unavailable || !has3d) return;
-    warmDishAssets(dish, { phase: "menu-intent" });
-  }, [dish, has3d, unavailable]);
 
   if (isPhoneSimulation) {
     return (
@@ -116,12 +110,6 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
         className={`group isolate overflow-hidden rounded-xl bg-gradient-to-b from-[#15110e]/98 to-[#080706] shadow-[0_0_0_1px_rgba(255,255,255,0.055),0_8px_32px_rgba(0,0,0,0.38)] ${
           unavailable ? "opacity-[0.82]" : ""
         }`}
-        onPointerEnter={handleDishAssetIntent}
-        onPointerDown={handleDishAssetIntent}
-        onMouseEnter={handleDishAssetIntent}
-        onMouseDown={handleDishAssetIntent}
-        onTouchStart={handleDishAssetIntent}
-        onFocusCapture={handleDishAssetIntent}
       >
         <DishCardHeroImage
           dish={dish}
@@ -184,14 +172,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
               <Link
                 href={`/demo/dishes/${dish.slug}`}
                 prefetch={false}
-                onPointerEnter={handleDishAssetIntent}
-                onPointerDown={handleDishAssetIntent}
-                onMouseEnter={handleDishAssetIntent}
-                onMouseDown={handleDishAssetIntent}
-                onTouchStart={handleDishAssetIntent}
-                onFocus={handleDishAssetIntent}
                 onClick={() => {
-                  handleDishAssetIntent();
                   trackMenuEvent({
                     eventName: "cta_clicked",
                     dishSlug: dish.slug,
@@ -215,12 +196,6 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
       className={`group flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#16100d]/95 to-[#0a0806] shadow-[0_8px_40px_rgba(0,0,0,0.28)] transition hover:border-champagne/22 ${
         unavailable ? "opacity-[0.78]" : ""
       }`}
-      onPointerEnter={handleDishAssetIntent}
-      onPointerDown={handleDishAssetIntent}
-      onMouseEnter={handleDishAssetIntent}
-      onMouseDown={handleDishAssetIntent}
-      onTouchStart={handleDishAssetIntent}
-      onFocusCapture={handleDishAssetIntent}
     >
       <DishCardHeroImage
         dish={dish}
@@ -284,14 +259,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
             <Link
               href={`/demo/dishes/${dish.slug}`}
               prefetch={false}
-              onPointerEnter={handleDishAssetIntent}
-              onPointerDown={handleDishAssetIntent}
-              onMouseEnter={handleDishAssetIntent}
-              onMouseDown={handleDishAssetIntent}
-              onTouchStart={handleDishAssetIntent}
-              onFocus={handleDishAssetIntent}
               onClick={() => {
-                handleDishAssetIntent();
                 trackMenuEvent({
                   eventName: "cta_clicked",
                   dishSlug: dish.slug,
