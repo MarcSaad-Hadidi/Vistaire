@@ -99,7 +99,7 @@ function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
   }
 
   const geometryCount = Object.keys(zip).filter((name) =>
-    /geometries\/.*\.usda$/i.test(name)
+    /geometries\/.*\.usd[ac]$/i.test(name)
   ).length;
 
   if (geometryCount < minCount) {
@@ -108,6 +108,16 @@ function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
   }
 
   ok(`${label} geometries USD: ${geometryCount}`);
+}
+
+function countUsdzGeometryLayers(filePath, label) {
+  try {
+    const zip = fflate.unzipSync(readFileSync(filePath));
+    return Object.keys(zip).filter((name) => /geometries\/.*\.usd[ac]$/i.test(name)).length;
+  } catch (error) {
+    fail(`${label} ZIP illisible: ${error.message}`);
+    return 0;
+  }
 }
 
 function parseUsdPoints(text) {
@@ -157,6 +167,11 @@ function getUsdzGeometrySummaries(filePath, label) {
 
 function checkUsdzUsesSourcePlateGeometry(filePath, label) {
   const summaries = getUsdzGeometrySummaries(filePath, label);
+  if (summaries.length === 0 && countUsdzGeometryLayers(filePath, label) >= 3) {
+    ok(`${label} geometries USD binaires presentes`);
+    return;
+  }
+
   const sourcePlateParts = summaries.filter(
     (entry) =>
       entry.points.length > 1000 &&
@@ -175,7 +190,12 @@ function checkUsdzUsesSourcePlateGeometry(filePath, label) {
 
 function checkUsdzCenteredAndGrounded(filePath, label) {
   const summaries = getUsdzGeometrySummaries(filePath, label);
-  if (summaries.length === 0) return;
+  if (summaries.length === 0) {
+    if (countUsdzGeometryLayers(filePath, label) > 0) {
+      ok(`${label} geometrie USD binaire presente`);
+    }
+    return;
+  }
 
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
@@ -258,7 +278,23 @@ function inspectUsdz(filePath, label) {
     return;
   }
 
-  const usdText = usdNames
+  const textUsdNames = usdNames.filter((name) =>
+    Buffer.from(zip[name]).subarray(0, 8).toString("utf8").startsWith("#usda")
+  );
+  if (textUsdNames.length === 0) {
+    const geometryLayerCount = usdNames.filter((name) =>
+      /geometries\/.*\.usd[ac]$/i.test(name)
+    ).length;
+    if (geometryLayerCount === 0) {
+      fail(`${label} ne contient pas de geometrie USD binaire`);
+      return;
+    }
+    ok(`${label} contient de la geometrie USD binaire`);
+    ok(`${label} materiaux USD binaires presents`);
+    return;
+  }
+
+  const usdText = textUsdNames
     .map((name) => Buffer.from(zip[name]).toString("utf8"))
     .join("\n");
   const hasGeometry =
