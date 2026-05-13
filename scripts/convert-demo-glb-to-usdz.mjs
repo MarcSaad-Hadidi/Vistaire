@@ -10,7 +10,7 @@
  */
 /* global globalThis */
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -58,6 +58,14 @@ const AR_EXPORT_CONFIG = {
     yawDegrees: 0
   }
 };
+
+function getArProfileName(glbName) {
+  const fileName = basename(glbName);
+  return Object.keys(AR_EXPORT_CONFIG).find((sourceName) => {
+    const sourceBase = sourceName.replace(/\.glb$/i, "");
+    return fileName === sourceName || fileName.startsWith(`${sourceBase}.`);
+  });
+}
 
 /**
  * Normalisation AR (USDZ only) :
@@ -435,7 +443,8 @@ async function convertOne(glbName) {
   let targetMaxDimMeters = null;
   let arYawDegrees = null;
 
-  const arConfig = AR_EXPORT_CONFIG[glbName];
+  const arProfileName = getArProfileName(glbName);
+  const arConfig = arProfileName ? AR_EXPORT_CONFIG[arProfileName] : null;
   if (arConfig) {
     targetMaxDimMeters = arConfig.targetMaxDimMeters;
     arYawDegrees = arConfig.yawDegrees;
@@ -447,10 +456,10 @@ async function convertOne(glbName) {
     if (arYawDegrees !== 0) {
       rotateRenderableMeshesAroundY(scene, (arYawDegrees * Math.PI) / 180);
     }
-    if (glbName === "ravioles-chevre-miel.glb") {
+    if (arProfileName === "ravioles-chevre-miel.glb") {
       tuneRaviolesArScene(scene);
     }
-    if (glbName === "souffle-chocolat.glb") {
+    if (arProfileName === "souffle-chocolat.glb") {
       tuneSouffleArScene(scene);
     }
     ensureMeshNormals(scene);

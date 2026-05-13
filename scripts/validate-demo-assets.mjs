@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,8 @@ const ROOT = join(__dirname, "..");
 const DEMO_DATA = join(ROOT, "lib", "demoMenuData.ts");
 const NEXT_CONFIG = join(ROOT, "next.config.ts");
 const PUBLIC_DIR = join(ROOT, "public");
+const USDZ_SCENE_INSPECTOR = join(__dirname, "inspect-usdz-scene.py");
+const PYTHON_BIN = process.env.USDZ_VALIDATION_PYTHON ?? "python";
 
 const MIN_USDZ_BYTES = 10 * 1024;
 const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
@@ -17,6 +20,7 @@ const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
 const SOUFFLE_WITH_PLATE_GLB_SHA256 =
   "6aaab33a629b79ecf7f01bcedc03534528cc49ebb50064772e57cec9ecb1fc79";
 const SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES = 5 * 1024 * 1024;
+const sceneInspectionCache = new Map();
 
 function readText(path) {
   return readFileSync(path, "utf8");
@@ -99,7 +103,7 @@ function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
   }
 
   const geometryCount = Object.keys(zip).filter((name) =>
-    /geometries\/.*\.usda$/i.test(name)
+    /geometries\/.*\.usd[ac]$/i.test(name)
   ).length;
 
   if (geometryCount < minCount) {
@@ -108,6 +112,45 @@ function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
   }
 
   ok(`${label} geometries USD: ${geometryCount}`);
+}
+
+function countUsdzGeometryLayers(filePath, label) {
+  try {
+    const zip = fflate.unzipSync(readFileSync(filePath));
+    return Object.keys(zip).filter((name) => /geometries\/.*\.usd[ac]$/i.test(name)).length;
+  } catch (error) {
+    fail(`${label} ZIP illisible: ${error.message}`);
+    return 0;
+  }
+}
+
+function inspectUsdzScene(filePath, label) {
+  if (sceneInspectionCache.has(filePath)) return sceneInspectionCache.get(filePath);
+
+  const result = spawnSync(PYTHON_BIN, [USDZ_SCENE_INSPECTOR, filePath], {
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024
+  });
+
+  if (result.status !== 0) {
+    fail(
+      `${label} inspection OpenUSD impossible. Installez usd-core ou configurez USDZ_VALIDATION_PYTHON. ${
+        result.stderr || result.error?.message || "Erreur inconnue"
+      }`.trim()
+    );
+    sceneInspectionCache.set(filePath, null);
+    return null;
+  }
+
+  try {
+    const stats = JSON.parse(result.stdout);
+    sceneInspectionCache.set(filePath, stats);
+    return stats;
+  } catch (error) {
+    fail(`${label} inspection OpenUSD JSON illisible: ${error.message}`);
+    sceneInspectionCache.set(filePath, null);
+    return null;
+  }
 }
 
 function parseUsdPoints(text) {
@@ -157,6 +200,17 @@ function getUsdzGeometrySummaries(filePath, label) {
 
 function checkUsdzUsesSourcePlateGeometry(filePath, label) {
   const summaries = getUsdzGeometrySummaries(filePath, label);
+  if (summaries.length === 0 && countUsdzGeometryLayers(filePath, label) > 0) {
+    const scene = inspectUsdzScene(filePath, label);
+    if (!scene) return;
+    if (scene.sourcePlateMeshCount < 2) {
+      fail(`${label} assiette source absente (${scene.sourcePlateMeshCount}/2)`);
+      return;
+    }
+    ok(`${label} assiette source conservee (${scene.sourcePlateMeshCount} pieces)`);
+    return;
+  }
+
   const sourcePlateParts = summaries.filter(
     (entry) =>
       entry.points.length > 1000 &&
@@ -175,7 +229,30 @@ function checkUsdzUsesSourcePlateGeometry(filePath, label) {
 
 function checkUsdzCenteredAndGrounded(filePath, label) {
   const summaries = getUsdzGeometrySummaries(filePath, label);
-  if (summaries.length === 0) return;
+  if (summaries.length === 0) {
+    if (countUsdzGeometryLayers(filePath, label) > 0) {
+      const scene = inspectUsdzScene(filePath, label);
+      if (!scene) return;
+      const min = scene.bounds.min;
+      const max = scene.bounds.max;
+      const centerX = (min[0] + max[0]) / 2;
+      const centerZ = (min[2] + max[2]) / 2;
+      if (Math.abs(min[1]) > 0.0005) {
+        fail(`${label} base AR pas au sol: minY=${min[1].toFixed(5)}m`);
+        return;
+      }
+      if (Math.abs(centerX) > 0.006 || Math.abs(centerZ) > 0.006) {
+        fail(
+          `${label} pivot AR decentre: centerX=${centerX.toFixed(5)}m centerZ=${centerZ.toFixed(
+            5
+          )}m`
+        );
+        return;
+      }
+      ok(`${label} pivot centre et base au sol`);
+    }
+    return;
+  }
 
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
@@ -258,7 +335,45 @@ function inspectUsdz(filePath, label) {
     return;
   }
 
-  const usdText = usdNames
+  const textUsdNames = usdNames.filter((name) =>
+    Buffer.from(zip[name]).subarray(0, 8).toString("utf8").startsWith("#usda")
+  );
+  if (textUsdNames.length === 0) {
+    const scene = inspectUsdzScene(filePath, label);
+    if (!scene) return;
+    if (scene.meshCount === 0) {
+      fail(`${label} ne contient pas de geometrie USD binaire`);
+      return;
+    }
+    ok(`${label} contient de la geometrie USD binaire (${scene.meshCount} meshes)`);
+
+    if (scene.materialCount === 0 || scene.shaderCount === 0) {
+      fail(
+        `${label} materiaux/shaders USD binaires absents: ${scene.materialCount} materiaux, ${scene.shaderCount} shaders`
+      );
+      return;
+    }
+    if (scene.meshMaterialBindingCount < scene.meshCount) {
+      fail(
+        `${label} material bindings incomplets: ${scene.meshMaterialBindingCount}/${scene.meshCount} meshes`
+      );
+      return;
+    }
+    if (scene.textureCount === 0) {
+      fail(`${label} ne contient aucune texture USD resolue`);
+      return;
+    }
+    if (scene.unresolvedTextures.length > 0) {
+      fail(`${label} textures USD non resolues: ${scene.unresolvedTextures.join(", ")}`);
+      return;
+    }
+    ok(
+      `${label} materiaux USD binaires: ${scene.materialCount}, shaders: ${scene.shaderCount}, textures resolues: ${scene.textureCount}`
+    );
+    return;
+  }
+
+  const usdText = textUsdNames
     .map((name) => Buffer.from(zip[name]).toString("utf8"))
     .join("\n");
   const hasGeometry =
