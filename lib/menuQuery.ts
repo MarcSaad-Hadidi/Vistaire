@@ -28,6 +28,12 @@ export function dishHas3dModel(dish: Pick<Dish, "model3dUrl">): boolean {
   return Boolean(dish.model3dUrl?.trim());
 }
 
+export function dishHasImmersiveAsset(
+  dish: Pick<Dish, "model3dUrl" | "usdzUrl">
+): boolean {
+  return Boolean(dish.model3dUrl?.trim() || dish.usdzUrl?.trim());
+}
+
 export type MenuFilterState = {
   signatureOnly: boolean;
   recommendedOnly: boolean;

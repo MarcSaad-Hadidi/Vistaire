@@ -5,7 +5,8 @@ import Link from "next/link";
 import type { CurrencyCode, Dish } from "@/lib/demoMenuData";
 import { getDishCardImageObjectPosition } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
-import { dishHas3dModel } from "@/lib/menuQuery";
+import { warmDishAssets } from "@/lib/dishAssetWarmup";
+import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
@@ -102,7 +103,10 @@ function DishCardHeroImage({
 export function DishCard({ dish, currency, priorityImage = false }: DishCardProps) {
   const { isPhoneSimulation } = useDemoSimulation();
   const unavailable = !dish.isAvailable;
-  const has3d = dishHas3dModel(dish);
+  const has3d = dishHasImmersiveAsset(dish);
+  const handleDishIntentWarmup = () => {
+    if (has3d) warmDishAssets(dish);
+  };
 
   if (isPhoneSimulation) {
     return (
@@ -172,6 +176,10 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
               <Link
                 href={`/demo/dishes/${dish.slug}`}
                 prefetch={false}
+                onPointerEnter={handleDishIntentWarmup}
+                onPointerDown={handleDishIntentWarmup}
+                onTouchStart={handleDishIntentWarmup}
+                onFocus={handleDishIntentWarmup}
                 onClick={() => {
                   trackMenuEvent({
                     eventName: "cta_clicked",
@@ -259,6 +267,10 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
             <Link
               href={`/demo/dishes/${dish.slug}`}
               prefetch={false}
+              onPointerEnter={handleDishIntentWarmup}
+              onPointerDown={handleDishIntentWarmup}
+              onTouchStart={handleDishIntentWarmup}
+              onFocus={handleDishIntentWarmup}
               onClick={() => {
                 trackMenuEvent({
                   eventName: "cta_clicked",
