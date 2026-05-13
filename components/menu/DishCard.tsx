@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { CurrencyCode, Dish } from "@/lib/demoMenuData";
 import { getDishCardImageObjectPosition } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
-import { warmDishAssets } from "@/lib/dishAssetWarmup";
+import { prepareDishAssetIntent } from "@/lib/dishAssetWarmup";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
@@ -105,7 +105,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
   const unavailable = !dish.isAvailable;
   const has3d = dishHasImmersiveAsset(dish);
   const handleDishIntentWarmup = () => {
-    if (has3d) warmDishAssets(dish);
+    if (has3d) prepareDishAssetIntent(dish);
   };
 
   if (isPhoneSimulation) {
