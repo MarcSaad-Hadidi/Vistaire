@@ -11,7 +11,6 @@ import {
 } from "react";
 import { trackMenuEvent } from "@/lib/analytics/client";
 import type { Dish } from "@/lib/demoMenuData";
-import { warmDishAssets } from "@/lib/dishAssetWarmup";
 import {
   getArUnavailableMessage,
   isAndroidDevice,
@@ -327,10 +326,6 @@ export function DishModelViewer({
   const directIosQuickLookHref =
     isIos && !needsIosHandoff && iosSrc ? iosSrc : "";
 
-  useEffect(() => {
-    if (hasModel) warmDishAssets(dish);
-  }, [dish, hasModel]);
-
   const markModelLoaded = useCallback(() => {
     setModelLoaded(true);
     setModelLoadError(false);
@@ -619,7 +614,7 @@ export function DishModelViewer({
           />
         ) : (
           <div className="relative">
-            <div className="relative">
+            <div className="relative touch-none overscroll-contain [contain:layout_paint]">
               {mvReady ? (
                 /* GLB en mètres réalistes ; ar-scale fixed évite l’auto-scale agressif sur Android */
                 <model-viewer
@@ -639,13 +634,13 @@ export function DishModelViewer({
                   exposure="1.05"
                   loading="auto"
                   reveal="auto"
-                  touch-action="pan-y"
+                  touch-action="none"
                   camera-orbit="0deg 68deg 145%"
                   camera-target="0m 0.015m 0m"
                   field-of-view="34deg"
                   min-camera-orbit="auto auto 65%"
                   max-camera-orbit="auto auto 175%"
-                  className={`mx-auto block ${MODEL_FRAME_CLASS}`}
+                  className={`mx-auto block touch-none ${MODEL_FRAME_CLASS}`}
                 >
                   {showAndroidSceneViewerButton ? (
                     <button

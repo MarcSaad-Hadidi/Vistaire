@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dish } from "@/lib/demoMenuData";
 import { getRestaurant } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
-import { warmDishAssets } from "@/lib/dishAssetWarmup";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 import { formatPrice } from "@/lib/formatPrice";
@@ -130,10 +129,6 @@ export function DishDetail({ dish }: DishDetailProps) {
     };
   }, [dish.categorySlug, dish.slug]);
 
-  useEffect(() => {
-    if (has3d) warmDishAssets(dish);
-  }, [dish, has3d]);
-
   const showAndScrollToPlat3d = useCallback(() => {
     setShowPlat3d(true);
     requestAnimationFrame(() => {
@@ -144,11 +139,9 @@ export function DishDetail({ dish }: DishDetailProps) {
     });
   }, []);
 
-  const handleModelIntentWarmup = useCallback(() => {
-    if (!has3d) return;
-    warmDishAssets(dish);
+  const handleModelModuleWarmup = useCallback(() => {
     warmModelViewerOnIntent();
-  }, [dish, has3d]);
+  }, []);
 
   const handleReturnToDish = useCallback(() => {
     setShowPlat3d(false);
@@ -159,7 +152,6 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, []);
 
   const handleVoir3dClick = useCallback(() => {
-    if (has3d) warmDishAssets(dish);
     warmModelViewerOnIntent();
     showAndScrollToPlat3d();
     window.setTimeout(() => {
@@ -169,7 +161,7 @@ export function DishDetail({ dish }: DishDetailProps) {
         categorySlug: dish.categorySlug
       });
     }, 0);
-  }, [dish, has3d, showAndScrollToPlat3d]);
+  }, [dish, showAndScrollToPlat3d]);
 
   return (
     <article className={immersive ? "pb-24 pt-2.5" : "pb-24 pt-4 sm:pt-5"}>
@@ -325,8 +317,8 @@ export function DishDetail({ dish }: DishDetailProps) {
             <button
               type="button"
               className={VIEW_3D_BUTTON_CLASS}
-              onPointerEnter={handleModelIntentWarmup}
-              onFocus={handleModelIntentWarmup}
+              onPointerEnter={handleModelModuleWarmup}
+              onFocus={handleModelModuleWarmup}
               onClick={handleVoir3dClick}
             >
               Voir en 3D
