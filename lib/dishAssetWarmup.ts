@@ -9,6 +9,7 @@ const attemptedAssetAt = new Map<string, number>();
 
 const ASSET_WARMUP_TIMEOUT_MS = 4_000;
 const ASSET_WARMUP_RETRY_COOLDOWN_MS = 30_000;
+const QUICK_LOOK_PREFETCH_TIMEOUT_MS = 25_000;
 const SMALL_ASSET_WARMUP_MAX_BYTES = 1024 * 1024;
 
 const demoAssetByteSizes = new Map<string, number>([
@@ -18,6 +19,7 @@ const demoAssetByteSizes = new Map<string, number>([
   ["/models/demo/homard-bisque.usdz", 26_352_806],
   ["/models/demo/ar-lite/homard-bisque-ar-lite.glb", 12_032_888],
   ["/models/demo/ar-lite/homard-bisque-ar-lite.usdz", 10_365_689],
+  ["/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz", 9_060_893],
   ["/models/demo/souffle-chocolat.glb", 27_286_348],
   ["/models/demo/souffle-chocolat.usdz", 24_873_890],
   ["/models/demo/maison-elyse-n1.glb", 86_380],
@@ -30,6 +32,19 @@ type AssetWarmupRequest = {
   url: string;
   kind: AssetKind;
 };
+
+export type QuickLookPrefetchState = "idle" | "preparing" | "ready" | "failed";
+
+type QuickLookPrefetchListener = (state: QuickLookPrefetchState) => void;
+
+type QuickLookPrefetchRecord = {
+  listeners: Set<QuickLookPrefetchListener>;
+  promise: Promise<void>;
+  status: QuickLookPrefetchState;
+};
+
+const quickLookPrefetchLinks = new Set<string>();
+const quickLookPrefetchRecords = new Map<string, QuickLookPrefetchRecord>();
 
 export function prepareDemoAssetOrigin(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -67,6 +82,26 @@ function isLikelyIos(): boolean {
   );
 }
 
+function isLikelyNativeIosSafari(): boolean {
+  if (!isLikelyIos()) return false;
+  const ua = navigator.userAgent;
+  const nav = navigator as Navigator & { brave?: unknown };
+  if (
+    /CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|Brave|DuckDuckGo|YaBrowser/i.test(ua) ||
+    Boolean(nav.brave)
+  ) {
+    return false;
+  }
+  if (
+    /Instagram|FBAN|FBAV|FBIOS|FB_IAB|Line\/|MicroMessenger|TikTok|Bytedance|Pinterest|Snapchat|LinkedInApp/i.test(
+      ua
+    )
+  ) {
+    return false;
+  }
+  return /Version\/[\d.]+/.test(ua) && /Safari/i.test(ua);
+}
+
 function normalizeAssetUrl(url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed || typeof window === "undefined") return null;
@@ -93,6 +128,39 @@ function getDemoAssetByteSize(normalizedUrl: string): number | null {
 function canWarmAssetFromMenuCard(normalizedUrl: string): boolean {
   const byteSize = getDemoAssetByteSize(normalizedUrl);
   return Boolean(byteSize && byteSize <= SMALL_ASSET_WARMUP_MAX_BYTES);
+}
+
+function resolveDishUsdzUrl(dish: WarmableDish): string {
+  return dish.arUsdzUrl?.trim() || dish.usdzUrl?.trim() || "";
+}
+
+function appendQuickLookPrefetchLink(normalizedUrl: string): void {
+  if (typeof document === "undefined" || quickLookPrefetchLinks.has(normalizedUrl)) {
+    return;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "prefetch";
+  link.href = normalizedUrl;
+  link.as = "fetch";
+  link.type = "model/vnd.usdz+zip";
+  link.setAttribute("data-vistaire-quicklook-prefetch", "true");
+  document.head.appendChild(link);
+  quickLookPrefetchLinks.add(normalizedUrl);
+}
+
+function notifyQuickLookPrefetch(record: QuickLookPrefetchRecord): void {
+  for (const listener of record.listeners) {
+    listener(record.status);
+  }
+}
+
+function setQuickLookPrefetchStatus(
+  record: QuickLookPrefetchRecord,
+  status: QuickLookPrefetchState
+): void {
+  record.status = status;
+  notifyQuickLookPrefetch(record);
 }
 
 export function hasWarmedAsset(url: string): boolean {
@@ -199,7 +267,7 @@ function getWarmupOrder(dish: WarmableDish): AssetWarmupRequest[] {
     dish.arModel3dUrl?.trim() ||
     dish.webModel3dUrl?.trim() ||
     dish.model3dUrl?.trim();
-  const usdzUrl = dish.arUsdzUrl?.trim() || dish.usdzUrl?.trim();
+  const usdzUrl = resolveDishUsdzUrl(dish);
   const requests: AssetWarmupRequest[] = [];
 
   if (isLikelyIos()) {
@@ -236,6 +304,73 @@ export function warmDishAssets(dish: WarmableDish): void {
 }
 
 export const warmDishModelAssets = warmDishAssets;
+
+export function prefetchUsdzForQuickLook(
+  dish: WarmableDish,
+  onStatus?: QuickLookPrefetchListener
+): () => void {
+  if (
+    typeof window === "undefined" ||
+    !isLikelyNativeIosSafari() ||
+    !shouldWarmHeavyAsset()
+  ) {
+    onStatus?.("idle");
+    return () => {};
+  }
+
+  const normalizedUrl = normalizeAssetUrl(resolveDishUsdzUrl(dish));
+  if (!normalizedUrl) {
+    onStatus?.("idle");
+    return () => {};
+  }
+
+  prepareDemoAssetOrigin();
+  appendQuickLookPrefetchLink(normalizedUrl);
+
+  let record = quickLookPrefetchRecords.get(normalizedUrl);
+  if (!record) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(
+      () => controller.abort(),
+      QUICK_LOOK_PREFETCH_TIMEOUT_MS
+    );
+    const promise = fetch(normalizedUrl, {
+      cache: "force-cache",
+      credentials: "same-origin",
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        if (!(await consumeAssetResponse(response))) {
+          throw new Error("Quick Look USDZ prefetch failed");
+        }
+        const current = quickLookPrefetchRecords.get(normalizedUrl);
+        if (current) setQuickLookPrefetchStatus(current, "ready");
+      })
+      .catch(() => {
+        const current = quickLookPrefetchRecords.get(normalizedUrl);
+        if (current) setQuickLookPrefetchStatus(current, "failed");
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+      });
+
+    record = {
+      listeners: new Set<QuickLookPrefetchListener>(),
+      promise,
+      status: "preparing"
+    };
+    quickLookPrefetchRecords.set(normalizedUrl, record);
+  }
+
+  if (onStatus) record.listeners.add(onStatus);
+  onStatus?.(record.status);
+  void record.promise;
+
+  return () => {
+    if (!onStatus) return;
+    record?.listeners.delete(onStatus);
+  };
+}
 
 export function prepareDishAssetIntent(dish: WarmableDish): void {
   if (typeof window === "undefined" || !shouldWarmHeavyAsset()) return;

@@ -83,6 +83,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
 ]);
 const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "homard-bisque-ar-lite.usdz",
+  "homard-bisque-ios-quicklook-v2.usdz",
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
   "ravioles-chevre-miel.usdz",
@@ -572,10 +573,10 @@ if (!homard) {
     ok("homard arModel3dUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite.glb");
   }
 
-  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ar-lite.usdz") {
+  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz") {
     fail(`homard arUsdzUrl inattendu: ${homard.arUsdzUrl || "(absent)"}`);
   } else {
-    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite.usdz");
+    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz");
   }
 
   checkExpectedWebGlb(homard, "homard");

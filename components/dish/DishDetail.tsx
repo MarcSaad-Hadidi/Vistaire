@@ -7,6 +7,10 @@ import type { Dish } from "@/lib/demoMenuData";
 import { getRestaurant } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
+import {
+  prefetchUsdzForQuickLook,
+  type QuickLookPrefetchState
+} from "@/lib/dishAssetWarmup";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
@@ -109,6 +113,14 @@ function refreshVisibleModelViewerLayout() {
 const VIEW_3D_BUTTON_CLASS =
   "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/50 bg-champagne px-5 text-center text-sm font-semibold text-[#17100a] shadow-[0_12px_34px_rgba(217,184,121,0.18)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[190px]";
 
+function getQuickLookPreparationLabel(
+  state: QuickLookPrefetchState
+): string {
+  if (state === "preparing") return "Préparation de la vue AR...";
+  if (state === "ready") return "Vue AR prête";
+  return "";
+}
+
 export function DishDetail({ dish }: DishDetailProps) {
   const restaurant = getRestaurant();
   const unavailable = !dish.isAvailable;
@@ -117,8 +129,14 @@ export function DishDetail({ dish }: DishDetailProps) {
   const immersive = isRealMobile || isPhoneSimulation;
   const [showPlat3d, setShowPlat3d] = useState(false);
   const [hasMountedPlat3d, setHasMountedPlat3d] = useState(false);
+  const [quickLookPrefetchState, setQuickLookPrefetchState] =
+    useState<QuickLookPrefetchState>("idle");
   const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
   const viewStartRef = useRef(0);
+  const shouldPrefetchQuickLook = dish.slug === "homard-bisque";
+  const quickLookPreparationLabel = shouldPrefetchQuickLook
+    ? getQuickLookPreparationLabel(quickLookPrefetchState)
+    : "";
 
   useEffect(() => {
     viewStartRef.current = Date.now();
@@ -138,6 +156,12 @@ export function DishDetail({ dish }: DishDetailProps) {
       });
     };
   }, [dish.categorySlug, dish.slug]);
+
+  useEffect(() => {
+    if (!shouldPrefetchQuickLook) return undefined;
+
+    return prefetchUsdzForQuickLook(dish, setQuickLookPrefetchState);
+  }, [dish, shouldPrefetchQuickLook]);
 
   const showAndScrollToPlat3d = useCallback(() => {
     setHasMountedPlat3d(true);
@@ -327,15 +351,25 @@ export function DishDetail({ dish }: DishDetailProps) {
 
         {has3d ? (
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              className={VIEW_3D_BUTTON_CLASS}
-              onPointerEnter={handleModelModuleWarmup}
-              onFocus={handleModelModuleWarmup}
-              onClick={handleVoir3dClick}
-            >
-              Voir en 3D
-            </button>
+            <div>
+              <button
+                type="button"
+                className={VIEW_3D_BUTTON_CLASS}
+                onPointerEnter={handleModelModuleWarmup}
+                onFocus={handleModelModuleWarmup}
+                onClick={handleVoir3dClick}
+              >
+                Voir en 3D
+              </button>
+              {quickLookPreparationLabel ? (
+                <p
+                  className="mt-2 text-center text-xs font-medium text-champagne/80 sm:text-left"
+                  aria-live="polite"
+                >
+                  {quickLookPreparationLabel}
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

@@ -22,7 +22,7 @@ const ASSETS = [
     sourceGlb: "homard-bisque.glb",
     sourceUsdz: "homard-bisque.usdz",
     arGlbUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
-    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.usdz"
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
   }
 ];
 

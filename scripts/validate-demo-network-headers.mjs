@@ -97,6 +97,15 @@ async function checkRoute(route) {
 
 async function checkAsset(assetUrl, label) {
   const response = await head(absoluteUrl(assetUrl));
+  if (response.status >= 300 && response.status < 400) {
+    fail(
+      `${label} redirect status ${response.status}: ${
+        response.headers.get("location") ?? "(missing Location)"
+      }`
+    );
+    return;
+  }
+
   if (response.status >= 400) {
     fail(`${label} status ${response.status}`);
     return;
@@ -107,6 +116,7 @@ async function checkAsset(assetUrl, label) {
   if (pathname.endsWith(".usdz")) {
     headerIncludes(response, "content-type", "model/vnd.usdz+zip", label);
     headerIncludes(response, "content-disposition", "inline", label);
+    headerIncludes(response, "cache-control", "public", label);
     headerIncludes(response, "cache-control", "max-age=31536000", label);
     headerIncludes(response, "cache-control", "immutable", label);
     return;
@@ -114,6 +124,7 @@ async function checkAsset(assetUrl, label) {
 
   if (pathname.endsWith(".glb")) {
     headerIncludes(response, "content-type", "model/gltf-binary", label);
+    headerIncludes(response, "cache-control", "public", label);
     headerIncludes(response, "cache-control", "max-age=31536000", label);
     headerIncludes(response, "cache-control", "immutable", label);
     return;
@@ -121,6 +132,7 @@ async function checkAsset(assetUrl, label) {
 
   if (pathname.endsWith(".js")) {
     headerIncludes(response, "content-type", "javascript", label);
+    headerIncludes(response, "cache-control", "public", label);
     headerIncludes(response, "cache-control", "max-age=31536000", label);
     headerIncludes(response, "cache-control", "immutable", label);
   }

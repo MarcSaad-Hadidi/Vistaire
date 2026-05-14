@@ -1,18 +1,48 @@
-import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+
+import { NullEngine, Scene } from "@babylonjs/core";
+import { AppendSceneAsync } from "@babylonjs/core/Loading/sceneLoader.js";
+import "@babylonjs/loaders/glTF/index.js";
+import { USDZExportAsync } from "@babylonjs/serializers";
+import * as fflate from "fflate";
+
+globalThis.fflate = fflate;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DEMO_DIR = join(ROOT, "public", "models", "demo");
 const AR_LITE_DIR = join(DEMO_DIR, "ar-lite");
 const OPTIMIZER = join(__dirname, "optimize-usdz-binary-layers.py");
+const GLTF_TRANSFORM_CLI = join(
+  ROOT,
+  "node_modules",
+  "@gltf-transform",
+  "cli",
+  "bin",
+  "cli.js"
+);
 const TEMP_ROOT = join(ROOT, "asset-review", "3d-candidates", "ar-lite-usdz-build");
 
-const USDZ_GOOD_BYTES = 15 * 1024 * 1024;
+const USDZ_GOOD_BYTES = 10 * 1024 * 1024;
 
-const FILES = ["homard-bisque-ar-lite.glb"];
+const FILES = [
+  {
+    input: "homard-bisque-ar-lite.glb",
+    output: "homard-bisque-ios-quicklook-v2.usdz",
+    maxTextureSize: 1536
+  }
+];
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -22,7 +52,11 @@ function run(command, args, options = {}) {
     ...options
   });
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed with status ${result.status}`);
+    throw new Error(
+      `${command} ${args.join(" ")} failed with status ${result.status}${
+        result.error ? `: ${result.error.message}` : ""
+      }`
+    );
   }
 }
 
@@ -82,37 +116,74 @@ function findOpenUsdPython() {
   );
 }
 
+function resizeGlbTextures(asset, sourceGlb, tempDir) {
+  if (!asset.maxTextureSize) return sourceGlb;
+
+  const resizedGlb = join(
+    tempDir,
+    asset.input.replace(/\.glb$/i, `-${asset.maxTextureSize}.glb`)
+  );
+  run(process.execPath, [
+    GLTF_TRANSFORM_CLI,
+    "resize",
+    sourceGlb,
+    resizedGlb,
+    "--width",
+    String(asset.maxTextureSize),
+    "--height",
+    String(asset.maxTextureSize)
+  ]);
+  return resizedGlb;
+}
+
+async function convertGlbToUsdz(glbPath, usdzPath, name) {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const data = readFileSync(glbPath);
+
+  await AppendSceneAsync(new Uint8Array(data), scene, {
+    pluginExtension: ".glb",
+    name
+  });
+
+  const bytes = await USDZExportAsync(scene, {
+    includeAnchoringProperties: true,
+    modelFileName: "model.usda"
+  });
+
+  writeFileSync(usdzPath, Buffer.from(bytes));
+  console.log(`OK ${name} unoptimized USDZ ${formatSize(bytes.byteLength)}`);
+  scene.dispose();
+  engine.dispose();
+}
+
 async function main() {
   mkdirSync(AR_LITE_DIR, { recursive: true });
   mkdirSync(TEMP_ROOT, { recursive: true });
   const optimizerPython = findOpenUsdPython();
 
-  for (const file of FILES) {
-    const glbPath = join(AR_LITE_DIR, file);
+  for (const asset of FILES) {
+    const glbPath = join(AR_LITE_DIR, asset.input);
     if (!existsSync(glbPath)) {
       throw new Error(`Missing AR-lite GLB: ${glbPath}`);
     }
 
-    const nestedName = `ar-lite/${file}`;
-    console.log(`\nConverting ${nestedName} to USDZ`);
+    console.log(`\nConverting ar-lite/${asset.input} to ${asset.output}`);
 
-    const usdzName = file.replace(/\.glb$/i, ".usdz");
-    const publicUsdz = join(AR_LITE_DIR, usdzName);
-    const tempDir = join(TEMP_ROOT, `${Date.now()}-${usdzName.replace(/[^a-z0-9.-]/gi, "-")}`);
-    const optimizedUsdz = join(tempDir, usdzName);
-    const backupUsdz = join(tempDir, `${usdzName}.backup`);
+    const publicUsdz = join(AR_LITE_DIR, asset.output);
+    const tempDir = join(TEMP_ROOT, `${Date.now()}-${asset.output.replace(/[^a-z0-9.-]/gi, "-")}`);
+    const unoptimizedUsdz = join(tempDir, asset.output.replace(/\.usdz$/i, ".unoptimized.usdz"));
+    const optimizedUsdz = join(tempDir, asset.output);
+    const backupUsdz = join(tempDir, `${asset.output}.backup`);
 
     mkdirSync(tempDir, { recursive: true });
     if (existsSync(publicUsdz)) {
       copyWithRetry(publicUsdz, backupUsdz);
     }
     try {
-      run(process.execPath, [join(__dirname, "convert-demo-glb-to-usdz.mjs"), nestedName]);
-      run(optimizerPython, [
-        OPTIMIZER,
-        publicUsdz,
-        optimizedUsdz
-      ]);
+      const workingGlb = resizeGlbTextures(asset, glbPath, tempDir);
+      await convertGlbToUsdz(workingGlb, unoptimizedUsdz, asset.output);
+      run(optimizerPython, [OPTIMIZER, unoptimizedUsdz, optimizedUsdz]);
       copyWithRetry(optimizedUsdz, publicUsdz);
     } catch (error) {
       if (existsSync(backupUsdz)) {
