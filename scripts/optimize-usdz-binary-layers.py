@@ -17,9 +17,31 @@ from pathlib import Path
 
 from pxr import Sdf, Usd, UsdUtils
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PUBLIC_ROOT = REPO_ROOT / "public"
+USDZ_CANDIDATE_ROOT = REPO_ROOT / "asset-review" / "3d-candidates"
+
 
 def mib(size: int) -> float:
     return round(size / (1024 * 1024), 2)
+
+
+def is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_candidate_output(output: Path) -> None:
+    if is_relative_to(output, PUBLIC_ROOT):
+        raise ValueError(f"Refusing to write USDZ candidate under public: {output}")
+    if not is_relative_to(output, USDZ_CANDIDATE_ROOT):
+        raise ValueError(
+            "Refusing to write USDZ candidate outside asset-review/3d-candidates: "
+            f"{output}"
+        )
 
 
 def package_entries(path: Path) -> list[str]:
@@ -48,6 +70,7 @@ def optimize(source: Path, output: Path) -> dict[str, object]:
     output = output.resolve()
     if source == output:
         raise ValueError("Refusing in-place optimization; write a candidate first, then promote it after validation.")
+    validate_candidate_output(output)
     entries_before = package_entries(source)
     if not entries_before:
         raise RuntimeError(f"USDZ package is empty: {source}")

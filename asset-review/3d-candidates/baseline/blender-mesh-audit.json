@@ -1,0 +1,1051 @@
+{
+  "reports": [
+    {
+      "file": "public/models/demo/ravioles-chevre-miel.glb",
+      "sha256": "c665ca403a9543296383a8234310b01c58e5bfce47efa9fa1bae39caa28847b0",
+      "meshObjectCount": 4,
+      "totalVertices": 1666454,
+      "totalFaces": 825838,
+      "totalTriangles": 825838,
+      "meshes": [
+        {
+          "objectName": "geometry_0",
+          "meshName": "Mesh_0",
+          "vertexCount": 1231088,
+          "faceCount": 411031,
+          "triangleCount": 411031,
+          "materialSlots": [
+            "Material_0"
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.498373,
+              -0.196077
+            ],
+            "max": [
+              0.50274,
+              0.500009,
+              0.100047
+            ],
+            "size": [
+              1.001551,
+              0.998382,
+              0.296124
+            ]
+          },
+          "worldMatrix": [
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": [
+            "heavy mesh candidate; inspect silhouette before any simplification"
+          ]
+        },
+        {
+          "objectName": "geometry_0.001",
+          "meshName": "Mesh_1",
+          "vertexCount": 433119,
+          "faceCount": 411031,
+          "triangleCount": 411031,
+          "materialSlots": [
+            "Material_0.001"
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.498373,
+              -0.196077
+            ],
+            "max": [
+              0.50274,
+              0.500009,
+              0.100047
+            ],
+            "size": [
+              1.001551,
+              0.998382,
+              0.296124
+            ]
+          },
+          "worldMatrix": [
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": [
+            "heavy mesh candidate; inspect silhouette before any simplification"
+          ]
+        },
+        {
+          "objectName": "Assiette c\u00e9ramique r\u00e9aliste",
+          "meshName": "Mesh_2",
+          "vertexCount": 1729,
+          "faceCount": 3264,
+          "triangleCount": 3264,
+          "materialSlots": [
+            "default material"
+          ],
+          "bounds": {
+            "min": [
+              -0.724961,
+              -0.724597,
+              -0.187334
+            ],
+            "max": [
+              0.724823,
+              0.725187,
+              -0.133334
+            ],
+            "size": [
+              1.449784,
+              1.449784,
+              0.054
+            ]
+          },
+          "worldMatrix": [
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": true,
+          "riskNotes": [
+            "protect: likely plate/support/contact surface"
+          ]
+        },
+        {
+          "objectName": "ravioles-chevre-miel-opaque-plate-surface",
+          "meshName": "Mesh_3",
+          "vertexCount": 518,
+          "faceCount": 512,
+          "triangleCount": 512,
+          "materialSlots": [
+            "opaque-plate-surface"
+          ],
+          "bounds": {
+            "min": [
+              -0.652472,
+              -0.652108,
+              -0.148334
+            ],
+            "max": [
+              0.652333,
+              0.652698,
+              -0.142334
+            ],
+            "size": [
+              1.304806,
+              1.304806,
+              0.006
+            ]
+          },
+          "worldMatrix": [
+            1.0,
+            0.0,
+            0.0,
+            -6.9e-05,
+            0.0,
+            1.0,
+            0.0,
+            0.000295,
+            0.0,
+            0.0,
+            1.0,
+            -0.145334,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": true,
+          "riskNotes": [
+            "protect: likely plate/support/contact surface"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "public/models/demo/homard-bisque.glb",
+      "sha256": "ff7a4377c0cdfb3deba984f4514942e8e392ba2a3e9ab83d93e62071777c0f14",
+      "meshObjectCount": 3,
+      "totalVertices": 337369,
+      "totalFaces": 310917,
+      "totalTriangles": 310917,
+      "meshes": [
+        {
+          "objectName": "geometry_0",
+          "meshName": "Mesh_0.001",
+          "vertexCount": 335122,
+          "faceCount": 307141,
+          "triangleCount": 307141,
+          "materialSlots": [
+            "Material_0.002"
+          ],
+          "bounds": {
+            "min": [
+              -0.499528,
+              -0.4948,
+              -0.336133
+            ],
+            "max": [
+              0.528412,
+              0.504701,
+              0.172014
+            ],
+            "size": [
+              1.02794,
+              0.999501,
+              0.508147
+            ]
+          },
+          "worldMatrix": [
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": [
+            "heavy mesh candidate; inspect silhouette before any simplification"
+          ]
+        },
+        {
+          "objectName": "Assiette c\u00e9ramique r\u00e9aliste",
+          "meshName": "Mesh_1.001",
+          "vertexCount": 1729,
+          "faceCount": 3264,
+          "triangleCount": 3264,
+          "materialSlots": [
+            "default material.001"
+          ],
+          "bounds": {
+            "min": [
+              -0.72472,
+              -0.724939,
+              -0.345581
+            ],
+            "max": [
+              0.725202,
+              0.724983,
+              -0.291581
+            ],
+            "size": [
+              1.449922,
+              1.449922,
+              0.054
+            ]
+          },
+          "worldMatrix": [
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": true,
+          "riskNotes": [
+            "protect: likely plate/support/contact surface"
+          ]
+        },
+        {
+          "objectName": "homard-bisque-opaque-plate-surface",
+          "meshName": "Mesh_2.001",
+          "vertexCount": 518,
+          "faceCount": 512,
+          "triangleCount": 512,
+          "materialSlots": [
+            "opaque-plate-surface.001"
+          ],
+          "bounds": {
+            "min": [
+              -0.652224,
+              -0.652443,
+              -0.306581
+            ],
+            "max": [
+              0.652706,
+              0.652487,
+              -0.300581
+            ],
+            "size": [
+              1.30493,
+              1.30493,
+              0.006
+            ]
+          },
+          "worldMatrix": [
+            1.0,
+            0.0,
+            0.0,
+            0.000241,
+            0.0,
+            1.0,
+            0.0,
+            2.2e-05,
+            0.0,
+            0.0,
+            1.0,
+            -0.303581,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": true,
+          "riskNotes": [
+            "protect: likely plate/support/contact surface"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "public/models/demo/souffle-chocolat.glb",
+      "sha256": "6aaab33a629b79ecf7f01bcedc03534528cc49ebb50064772e57cec9ecb1fc79",
+      "meshObjectCount": 3,
+      "totalVertices": 302119,
+      "totalFaces": 289438,
+      "totalTriangles": 289438,
+      "meshes": [
+        {
+          "objectName": "geometry_0",
+          "meshName": "geometry_0",
+          "vertexCount": 296723,
+          "faceCount": 279262,
+          "triangleCount": 279262,
+          "materialSlots": [
+            "Material_0.003"
+          ],
+          "bounds": {
+            "min": [
+              -0.597346,
+              -0.598452,
+              -0.217731
+            ],
+            "max": [
+              0.582766,
+              0.535461,
+              0.204107
+            ],
+            "size": [
+              1.180112,
+              1.133912,
+              0.421838
+            ]
+          },
+          "worldMatrix": [
+            0.22303,
+            -0.974812,
+            0.0,
+            0.0,
+            0.974812,
+            0.22303,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": [
+            "heavy mesh candidate; inspect silhouette before any simplification"
+          ]
+        },
+        {
+          "objectName": "Rebord assiette r\u00e9aliste",
+          "meshName": "Torus",
+          "vertexCount": 3667,
+          "faceCount": 6912,
+          "triangleCount": 6912,
+          "materialSlots": [
+            "C\u00e9ramique blanc cass\u00e9 l\u00e9g\u00e8rement satin\u00e9e"
+          ],
+          "bounds": {
+            "min": [
+              -0.848327,
+              -0.872532,
+              -0.214898
+            ],
+            "max": [
+              0.833746,
+              0.809541,
+              -0.184565
+            ],
+            "size": [
+              1.682073,
+              1.682073,
+              0.030333
+            ]
+          },
+          "worldMatrix": [
+            1.0,
+            0.0,
+            0.0,
+            -0.00729,
+            0.0,
+            1.0,
+            0.0,
+            -0.031496,
+            0.0,
+            0.0,
+            1.0,
+            -0.199731,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": true,
+          "riskNotes": [
+            "protect: likely plate/support/contact surface"
+          ]
+        },
+        {
+          "objectName": "Assiette c\u00e9ramique r\u00e9aliste",
+          "meshName": "Mesh_Assiette_Ceramique",
+          "vertexCount": 1729,
+          "faceCount": 3264,
+          "triangleCount": 3264,
+          "materialSlots": [
+            "C\u00e9ramique blanc cass\u00e9 l\u00e9g\u00e8rement satin\u00e9e"
+          ],
+          "bounds": {
+            "min": [
+              -0.862871,
+              -0.887077,
+              -0.249731
+            ],
+            "max": [
+              0.848291,
+              0.824086,
+              -0.195731
+            ],
+            "size": [
+              1.711163,
+              1.711163,
+              0.054
+            ]
+          },
+          "worldMatrix": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": true,
+          "riskNotes": [
+            "protect: likely plate/support/contact surface"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "public/models/demo/maison-elyse-n1.glb",
+      "sha256": "7f12cd7bc6f47ec97f6cef3b65c453bbef537aa7c095289899c51782e48eebef",
+      "meshObjectCount": 11,
+      "totalVertices": 1803,
+      "totalFaces": 2560,
+      "totalTriangles": 2560,
+      "meshes": [
+        {
+          "objectName": "Mesh_0.002",
+          "meshName": "Mesh_0.002",
+          "vertexCount": 343,
+          "faceCount": 576,
+          "triangleCount": 576,
+          "materialSlots": [
+            "Material_0.004"
+          ],
+          "bounds": {
+            "min": [
+              -0.0475,
+              -0.0475,
+              0.042996
+            ],
+            "max": [
+              0.0475,
+              0.0475,
+              0.076573
+            ],
+            "size": [
+              0.095,
+              0.095,
+              0.033578
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.042996,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_1.002",
+          "meshName": "Mesh_1.002",
+          "vertexCount": 287,
+          "faceCount": 480,
+          "triangleCount": 480,
+          "materialSlots": [
+            "Material_1"
+          ],
+          "bounds": {
+            "min": [
+              -0.0418,
+              -0.0418,
+              0.047909
+            ],
+            "max": [
+              0.0418,
+              0.0418,
+              0.075443
+            ],
+            "size": [
+              0.0836,
+              0.0836,
+              0.027534
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.044634,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_4",
+          "meshName": "Mesh_4",
+          "vertexCount": 220,
+          "faceCount": 368,
+          "triangleCount": 368,
+          "materialSlots": [
+            "Material_2"
+          ],
+          "bounds": {
+            "min": [
+              0.023757,
+              -0.00819,
+              0.075855
+            ],
+            "max": [
+              0.033795,
+              0.001638,
+              0.083154
+            ],
+            "size": [
+              0.010038,
+              0.009828,
+              0.007299
+            ]
+          },
+          "worldMatrix": [
+            0.071871,
+            0.0,
+            -0.023558,
+            0.029483,
+            0.0,
+            0.081897,
+            0.0,
+            -0.003276,
+            0.039263,
+            0.0,
+            0.043123,
+            0.078211,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_6",
+          "meshName": "Mesh_6",
+          "vertexCount": 119,
+          "faceCount": 180,
+          "triangleCount": 180,
+          "materialSlots": [
+            "Material_4"
+          ],
+          "bounds": {
+            "min": [
+              0.005897,
+              -0.014465,
+              0.054625
+            ],
+            "max": [
+              0.010483,
+              -0.010104,
+              0.059211
+            ],
+            "size": [
+              0.004586,
+              0.004362,
+              0.004586
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.00819,
+            0.0,
+            0.081897,
+            0.0,
+            -0.012284,
+            0.0,
+            0.0,
+            0.081897,
+            0.056918,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_7",
+          "meshName": "Mesh_7",
+          "vertexCount": 119,
+          "faceCount": 180,
+          "triangleCount": 180,
+          "materialSlots": [
+            "Material_4"
+          ],
+          "bounds": {
+            "min": [
+              -0.012121,
+              -0.007095,
+              0.059539
+            ],
+            "max": [
+              -0.007534,
+              -0.002733,
+              0.064125
+            ],
+            "size": [
+              0.004586,
+              0.004362,
+              0.004586
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            -0.009828,
+            0.0,
+            0.081897,
+            0.0,
+            -0.004914,
+            0.0,
+            0.0,
+            0.081897,
+            0.061832,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_8",
+          "meshName": "Mesh_8",
+          "vertexCount": 119,
+          "faceCount": 180,
+          "triangleCount": 180,
+          "materialSlots": [
+            "Material_4"
+          ],
+          "bounds": {
+            "min": [
+              0.000983,
+              0.006009,
+              0.065272
+            ],
+            "max": [
+              0.005569,
+              0.010371,
+              0.069858
+            ],
+            "size": [
+              0.004586,
+              0.004362,
+              0.004586
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.003276,
+            0.0,
+            0.081897,
+            0.0,
+            0.00819,
+            0.0,
+            0.0,
+            0.081897,
+            0.067565,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_9",
+          "meshName": "Mesh_9",
+          "vertexCount": 119,
+          "faceCount": 180,
+          "triangleCount": 180,
+          "materialSlots": [
+            "Material_4"
+          ],
+          "bounds": {
+            "min": [
+              0.015724,
+              0.001095,
+              0.061177
+            ],
+            "max": [
+              0.02031,
+              0.005457,
+              0.065763
+            ],
+            "size": [
+              0.004586,
+              0.004362,
+              0.004586
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.018017,
+            0.0,
+            0.081897,
+            0.0,
+            0.003276,
+            0.0,
+            0.0,
+            0.081897,
+            0.06347,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_10",
+          "meshName": "Mesh_10",
+          "vertexCount": 119,
+          "faceCount": 180,
+          "triangleCount": 180,
+          "materialSlots": [
+            "Material_4"
+          ],
+          "bounds": {
+            "min": [
+              -0.018672,
+              0.007647,
+              0.056263
+            ],
+            "max": [
+              -0.014086,
+              0.012008,
+              0.060849
+            ],
+            "size": [
+              0.004586,
+              0.004362,
+              0.004586
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            -0.016379,
+            0.0,
+            0.081897,
+            0.0,
+            0.009828,
+            0.0,
+            0.0,
+            0.081897,
+            0.058556,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_3.001",
+          "meshName": "Mesh_3.001",
+          "vertexCount": 220,
+          "faceCount": 144,
+          "triangleCount": 144,
+          "materialSlots": [
+            "Material_0.004"
+          ],
+          "bounds": {
+            "min": [
+              -0.036853,
+              -0.036853,
+              0.0
+            ],
+            "max": [
+              0.036853,
+              0.036853,
+              0.004095
+            ],
+            "size": [
+              0.073707,
+              0.073707,
+              0.004095
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.002047,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_2.002",
+          "meshName": "Mesh_2.002",
+          "vertexCount": 124,
+          "faceCount": 80,
+          "triangleCount": 80,
+          "materialSlots": [
+            "Material_0.004"
+          ],
+          "bounds": {
+            "min": [
+              -0.006552,
+              -0.006552,
+              0.003685
+            ],
+            "max": [
+              0.006552,
+              0.006552,
+              0.038082
+            ],
+            "size": [
+              0.013103,
+              0.013103,
+              0.034397
+            ]
+          },
+          "worldMatrix": [
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.081897,
+            0.020884,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        },
+        {
+          "objectName": "Mesh_5",
+          "meshName": "Mesh_5",
+          "vertexCount": 14,
+          "faceCount": 12,
+          "triangleCount": 12,
+          "materialSlots": [
+            "Material_3"
+          ],
+          "bounds": {
+            "min": [
+              -0.033096,
+              -0.012967,
+              0.065358
+            ],
+            "max": [
+              -0.007852,
+              -0.000136,
+              0.087789
+            ],
+            "size": [
+              0.025244,
+              0.01283,
+              0.022431
+            ]
+          },
+          "worldMatrix": [
+            0.073928,
+            -0.01627,
+            -0.031256,
+            -0.020474,
+            -0.005639,
+            0.066245,
+            -0.047821,
+            -0.006552,
+            0.034783,
+            0.045321,
+            0.058679,
+            0.076573,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "sensitiveKeepLocked": false,
+          "riskNotes": []
+        }
+      ]
+    }
+  ]
+}

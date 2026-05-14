@@ -28,6 +28,7 @@ const IOS_USDZ_MISSING_TEXT =
   "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.";
 const MODEL_FRAME_CLASS =
   "h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]";
+const MESHOPT_DECODER_URL = "/model-viewer/meshopt-decoder-74188840.js";
 
 export type DishModelViewerProps = {
   dish: Pick<
@@ -36,6 +37,7 @@ export type DishModelViewerProps = {
     | "categorySlug"
     | "name"
     | "model3dUrl"
+    | "webModel3dUrl"
     | "usdzUrl"
     | "image"
     | "imageObjectPosition"
@@ -47,14 +49,20 @@ export type DishModelViewerProps = {
 };
 
 async function ensureModelViewerLoaded(): Promise<void> {
+  configureModelViewerAssetDecoders();
   await import("@google/model-viewer");
   if (!customElements.get("model-viewer")) {
     await customElements.whenDefined("model-viewer");
   }
+  configureModelViewerAssetDecoders();
 }
 
 type ModelViewerElement = HTMLElement & {
   loaded?: boolean;
+};
+
+type ModelViewerStaticConfig = CustomElementConstructor & {
+  meshoptDecoderLocation?: string;
 };
 
 type ModelViewerProgressEvent = Event & {
@@ -74,6 +82,25 @@ type ArClientEnvironment = {
   missingIosAr: boolean;
   needsIosHandoff: boolean;
 };
+
+export function configureModelViewerAssetDecoders(): void {
+  if (typeof window === "undefined") return;
+
+  const modelViewerGlobal = window as Window & {
+    ModelViewerElement?: { meshoptDecoderLocation?: string };
+  };
+  modelViewerGlobal.ModelViewerElement = {
+    ...(modelViewerGlobal.ModelViewerElement ?? {}),
+    meshoptDecoderLocation: MESHOPT_DECODER_URL
+  };
+
+  const ModelViewerElement = customElements.get("model-viewer") as
+    | ModelViewerStaticConfig
+    | undefined;
+  if (ModelViewerElement) {
+    ModelViewerElement.meshoptDecoderLocation = MESHOPT_DECODER_URL;
+  }
+}
 
 function readArClientEnvironment(iosSrc: string): ArClientEnvironment {
   const isIos = isIosDevice();
@@ -310,15 +337,23 @@ export function DishModelViewer({
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
 
-  const hasModel = Boolean(dish.model3dUrl?.trim());
-  const modelSrc = useMemo(() => dish.model3dUrl?.trim() ?? "", [dish.model3dUrl]);
+  const isAndroid = isAndroidDevice();
+  const originalModelSrc = useMemo(
+    () => dish.model3dUrl?.trim() ?? "",
+    [dish.model3dUrl]
+  );
+  const webModelSrc = useMemo(
+    () => dish.webModel3dUrl?.trim() ?? "",
+    [dish.webModel3dUrl]
+  );
+  const modelSrc = isAndroid ? originalModelSrc : webModelSrc || originalModelSrc;
+  const hasModel = Boolean(modelSrc);
   const iosSrc = useMemo(() => dish.usdzUrl?.trim() ?? "", [dish.usdzUrl]);
   const arEnvironment = useMemo(
     () => readArClientEnvironment(iosSrc),
     [iosSrc]
   );
   const { isIos, missingIosAr, needsIosHandoff } = arEnvironment;
-  const isAndroid = isAndroidDevice();
   const androidArUnavailable =
     isAndroid && !isAndroidLikelySceneViewerCapable();
   const iosNativeArEnabled = isIos && !needsIosHandoff && !missingIosAr;

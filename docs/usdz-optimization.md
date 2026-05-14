@@ -13,6 +13,43 @@ through `ios-src` and the direct `rel="ar"` link.
 | Souffle chocolat | 27,286,348 | 26.02 | 24,873,890 | 23.72 | -47.29% |
 | Maison Elyse N1 | 86,380 | 0.08 | 208,984 | 0.20 | unchanged |
 
+Only these production 3D assets should live in `public/models/demo`:
+
+- `ravioles-chevre-miel.glb`
+- `ravioles-chevre-miel.usdz`
+- `homard-bisque.glb`
+- `homard-bisque.usdz`
+- `souffle-chocolat.glb`
+- `souffle-chocolat.usdz`
+- `maison-elyse-n1.glb`
+- `maison-elyse-n1.usdz`
+
+## Public Asset Hygiene
+
+The `public` directory is served directly by Next.js. Backups, generated
+intermediates, source drops, and unvalidated candidates must not be kept there,
+because they become public URLs and can be fetched even when they are not
+referenced by `demoMenuData.ts`.
+
+These Homard intermediate files were removed from `public/models/demo` because
+they were not production references:
+
+- `homard-bisque-ar.glb`
+- `homard-bisque-ar.usdz`
+- `homard-bisque-ar-lite.glb`
+- `homard-bisque-ar-lite.usdz`
+- `homard-bisque.before-mesh-opt.glb`
+- `homard-bisque.before-texture-opt.glb`
+- `homard-bisque.pre-opt.glb`
+- `homard-bisque.raw-backup.glb`
+- `homard-bisque.user-source.glb`
+- `homard-bisque.user-source.usdz`
+
+Future 3D candidates and heavy source drops should stay outside `public` until
+they are structurally valid, visually reviewed, and intentionally wired into the
+frontend. If a source asset must remain in the repo, place it in a documented
+non-public source area; otherwise keep local drops ignored and outside commits.
+
 ## Ravioles Diagnosis
 
 `ravioles-chevre-miel.usdz` is heavy because geometry dominates the package.

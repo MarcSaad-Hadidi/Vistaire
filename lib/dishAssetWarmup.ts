@@ -9,6 +9,18 @@ const attemptedAssetAt = new Map<string, number>();
 
 const ASSET_WARMUP_TIMEOUT_MS = 4_000;
 const ASSET_WARMUP_RETRY_COOLDOWN_MS = 30_000;
+const SMALL_ASSET_WARMUP_MAX_BYTES = 1024 * 1024;
+
+const demoAssetByteSizes = new Map<string, number>([
+  ["/models/demo/ravioles-chevre-miel.glb", 76_609_104],
+  ["/models/demo/ravioles-chevre-miel.usdz", 70_375_208],
+  ["/models/demo/homard-bisque.glb", 29_010_112],
+  ["/models/demo/homard-bisque.usdz", 26_352_806],
+  ["/models/demo/souffle-chocolat.glb", 27_286_348],
+  ["/models/demo/souffle-chocolat.usdz", 24_873_890],
+  ["/models/demo/maison-elyse-n1.glb", 86_380],
+  ["/models/demo/maison-elyse-n1.usdz", 208_984]
+]);
 
 type AssetKind = "glb" | "usdz";
 
@@ -65,6 +77,20 @@ function normalizeAssetUrl(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+function getDemoAssetByteSize(normalizedUrl: string): number | null {
+  try {
+    const parsed = new URL(normalizedUrl);
+    return demoAssetByteSizes.get(parsed.pathname) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function canWarmAssetFromMenuCard(normalizedUrl: string): boolean {
+  const byteSize = getDemoAssetByteSize(normalizedUrl);
+  return Boolean(byteSize && byteSize <= SMALL_ASSET_WARMUP_MAX_BYTES);
 }
 
 export function hasWarmedAsset(url: string): boolean {
@@ -202,3 +228,20 @@ export function warmDishAssets(
 }
 
 export const warmDishModelAssets = warmDishAssets;
+
+export function prepareDishAssetIntent(
+  dish: Pick<Dish, "model3dUrl" | "usdzUrl">
+): void {
+  if (typeof window === "undefined" || !shouldWarmHeavyAsset()) return;
+
+  prepareDemoAssetOrigin();
+
+  const requests = getWarmupOrder(dish).filter((request) => {
+    const normalizedUrl = normalizeAssetUrl(request.url);
+    return Boolean(normalizedUrl && canWarmAssetFromMenuCard(normalizedUrl));
+  });
+
+  for (const request of requests) {
+    warmAsset(request.url, request.kind);
+  }
+}

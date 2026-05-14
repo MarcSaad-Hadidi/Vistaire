@@ -1,0 +1,817 @@
+{
+  "generatedAt": "2026-05-13T23:12:21.622Z",
+  "branch": "codex/deep-lossless-3d-asset-optimization",
+  "productionPolicy": {
+    "productionAssetsReplaced": false,
+    "demoMenuDataModified": true,
+    "webGlbProductionAssetsAdded": true,
+    "usdzCandidatesInPublic": false,
+    "glbCandidatesInPublic": "only owner-validated Meshopt GLB promoted as webModel3dUrl assets",
+    "candidateRoot": "asset-review/3d-candidates"
+  },
+  "baselineFiles": [
+    "asset-review/3d-candidates/baseline/glb-baseline.json",
+    "asset-review/3d-candidates/baseline/usdz-baseline.json",
+    "asset-review/3d-candidates/baseline/blender-mesh-audit.json",
+    "asset-review/3d-candidates/baseline/glb-candidates-audit.json"
+  ],
+  "visualQa": {
+    "status": "partial",
+    "note": "Owner visually approved the Meshopt GLB candidates for Ravioles, Homard, and Souffle. USDZ binary-repack candidates remain review-only and were not validated in Quick Look.",
+    "results": "asset-review/3d-candidates/visual-qa/meshopt/meshopt-visual-qa-results.json"
+  },
+  "candidates": [
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "meshopt-web-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.meshopt-web-only.glb",
+      "source": "public/models/demo/ravioles-chevre-miel.glb",
+      "toolchain": "glTF Transform 4.3.0",
+      "command": "npx.cmd gltf-transform meshopt <safe.glb> <meshopt-web-only.glb> --level high",
+      "parameters": {
+        "level": "high"
+      },
+      "beforeBytes": 76609104,
+      "beforeMiB": 73.0601,
+      "afterBytes": 27714228,
+      "afterMiB": 26.4303,
+      "reductionPercent": 63.82,
+      "sha256": "6b812a046c383581aaf642e74e2e2f5d2eac4594b23ec8c4148a64fec0f62fd6",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors; validator reports unsupported EXT_meshopt_compression info only",
+        "extensionsRequired": [
+          "EXT_meshopt_compression",
+          "KHR_mesh_quantization"
+        ],
+        "meshCount": 4,
+        "vertexCount": 1666454,
+        "faceCount": 825838,
+        "bounds": {
+          "min": [
+            -0.724961,
+            -0.196091,
+            -0.725187
+          ],
+          "max": [
+            0.724823,
+            0.100061,
+            0.724597
+          ],
+          "size": [
+            1.449784,
+            0.296153,
+            1.449784
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Meshopt candidate was not included in normalized screenshot pass because prior run stalled on model-viewer load; requires dedicated model-viewer QA.",
+        "capturedAngles": [],
+        "loadedCount": 0,
+        "totalCount": 0,
+        "screenshots": [],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "web-only transfer optimization; requires EXT_meshopt_compression and KHR_mesh_quantization, not suitable as USDZ source without separate conversion validation",
+      "recommendation": "Promising for web GLB delivery only after model-viewer/mobile QA; do not use for USDZ/Quick Look source.",
+      "status": "review-only"
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "medium-targeted-review-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.medium-targeted-review-only.glb",
+      "source": "public/models/demo/ravioles-chevre-miel.glb",
+      "toolchain": "Blender 5.1.1",
+      "command": "E:\\blender.exe --background --python asset-review\\3d-candidates\\tools\\blender-decimate-candidate.py -- --input <source.glb> --output <medium.glb> --summary <medium.summary.json> --ratio 0.9 --min-triangles 100000",
+      "parameters": {
+        "ratio": 0.9,
+        "minTriangles": 100000,
+        "lockedSupportMeshes": true
+      },
+      "beforeBytes": 76609104,
+      "beforeMiB": 73.0601,
+      "afterBytes": 70949728,
+      "afterMiB": 67.6629,
+      "reductionPercent": 7.39,
+      "sha256": "9dfee4b1e6b0c0c0ec0427d9fa05ccea539678a202fa706e1e4246566f8ab5f8",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors",
+        "extensionsRequired": [],
+        "meshCount": 4,
+        "vertexCount": 1520566,
+        "faceCount": 743629,
+        "bounds": {
+          "min": [
+            -0.724961,
+            -0.196077,
+            -0.725187
+          ],
+          "max": [
+            0.724823,
+            0.100047,
+            0.724597
+          ],
+          "size": [
+            1.449784,
+            0.296124,
+            1.449784
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "visually-reviewed",
+        "note": "Normalized Playwright side-by-side screenshots generated at 4 angles. Representative frames were inspected; no production claim is made.",
+        "capturedAngles": [
+          "front",
+          "left45",
+          "right45",
+          "high"
+        ],
+        "loadedCount": 4,
+        "totalCount": 4,
+        "screenshots": [
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.front.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.left45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.right45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.high.png"
+        ],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "lossy geometry reduction on heavy food meshes only; plate/support/contact meshes locked; requires human visual approval",
+      "recommendation": "Potential review candidate, especially ravioles; requires human visual review and real-device tests before any promotion.",
+      "status": "review-only"
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "aggressive-targeted-review-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.aggressive-targeted-review-only.glb",
+      "source": "public/models/demo/ravioles-chevre-miel.glb",
+      "toolchain": "Blender 5.1.1",
+      "command": "E:\\blender.exe --background --python asset-review\\3d-candidates\\tools\\blender-decimate-candidate.py -- --input <source.glb> --output <aggressive.glb> --summary <aggressive.summary.json> --ratio 0.65 --min-triangles 100000",
+      "parameters": {
+        "ratio": 0.65,
+        "minTriangles": 100000,
+        "lockedSupportMeshes": true
+      },
+      "beforeBytes": 76609104,
+      "beforeMiB": 73.0601,
+      "afterBytes": 55798028,
+      "afterMiB": 53.2131,
+      "reductionPercent": 27.17,
+      "sha256": "089f937ac317492234d812efcc9a34f533d94c8e9a647e2e18f3fb2e7ef680c3",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors",
+        "extensionsRequired": [],
+        "meshCount": 4,
+        "vertexCount": 1124143,
+        "faceCount": 538116,
+        "bounds": {
+          "min": [
+            -0.724961,
+            -0.196077,
+            -0.725187
+          ],
+          "max": [
+            0.724823,
+            0.100047,
+            0.724597
+          ],
+          "size": [
+            1.449784,
+            0.296124,
+            1.449784
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "visually-reviewed",
+        "note": "Normalized Playwright side-by-side screenshots generated at 4 angles. Representative frames were inspected; no production claim is made.",
+        "capturedAngles": [
+          "front",
+          "left45",
+          "right45",
+          "high"
+        ],
+        "loadedCount": 4,
+        "totalCount": 4,
+        "screenshots": [
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.front.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.left45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.right45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.high.png"
+        ],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "lossy geometry reduction on heavy food meshes only; plate/support/contact meshes locked; requires human visual approval",
+      "recommendation": "Use only to understand upper-bound reduction potential; not recommended for production without much stricter visual review.",
+      "status": "review-only"
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "meshopt-web-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/homard-bisque/homard-bisque.meshopt-web-only.glb",
+      "source": "public/models/demo/homard-bisque.glb",
+      "toolchain": "glTF Transform 4.3.0",
+      "command": "npx.cmd gltf-transform meshopt <safe.glb> <meshopt-web-only.glb> --level high",
+      "parameters": {
+        "level": "high"
+      },
+      "beforeBytes": 29010112,
+      "beforeMiB": 27.6662,
+      "afterBytes": 17732992,
+      "afterMiB": 16.9115,
+      "reductionPercent": 38.87,
+      "sha256": "73be717526e94964c581de1e2bcf983e826a2ea16ee71044e10651b8eb6b69c3",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors; validator reports unsupported EXT_meshopt_compression info only",
+        "extensionsRequired": [
+          "EXT_meshopt_compression",
+          "KHR_mesh_quantization"
+        ],
+        "meshCount": 3,
+        "vertexCount": 337369,
+        "faceCount": 310917,
+        "bounds": {
+          "min": [
+            -0.72472,
+            -0.345573,
+            -0.724983
+          ],
+          "max": [
+            0.725202,
+            0.172,
+            0.724939
+          ],
+          "size": [
+            1.449922,
+            0.517573,
+            1.449922
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Meshopt candidate was not included in normalized screenshot pass because prior run stalled on model-viewer load; requires dedicated model-viewer QA.",
+        "capturedAngles": [],
+        "loadedCount": 0,
+        "totalCount": 0,
+        "screenshots": [],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "web-only transfer optimization; requires EXT_meshopt_compression and KHR_mesh_quantization, not suitable as USDZ source without separate conversion validation",
+      "recommendation": "Promising for web GLB delivery only after model-viewer/mobile QA; do not use for USDZ/Quick Look source.",
+      "status": "review-only"
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "medium-targeted-review-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/homard-bisque/homard-bisque.medium-targeted-review-only.glb",
+      "source": "public/models/demo/homard-bisque.glb",
+      "toolchain": "Blender 5.1.1",
+      "command": "E:\\blender.exe --background --python asset-review\\3d-candidates\\tools\\blender-decimate-candidate.py -- --input <source.glb> --output <medium.glb> --summary <medium.summary.json> --ratio 0.9 --min-triangles 100000",
+      "parameters": {
+        "ratio": 0.9,
+        "minTriangles": 100000,
+        "lockedSupportMeshes": true
+      },
+      "beforeBytes": 29010112,
+      "beforeMiB": 27.6662,
+      "afterBytes": 28060704,
+      "afterMiB": 26.7608,
+      "reductionPercent": 3.27,
+      "sha256": "ac8edf70de98dc34b11e0a0f719c7017f2074af60afde344aff69b5c01f0bbdd",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors",
+        "extensionsRequired": [],
+        "meshCount": 3,
+        "vertexCount": 319355,
+        "faceCount": 280202,
+        "bounds": {
+          "min": [
+            -0.72472,
+            -0.345581,
+            -0.724983
+          ],
+          "max": [
+            0.725202,
+            0.172014,
+            0.724939
+          ],
+          "size": [
+            1.449922,
+            0.517595,
+            1.449922
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "visually-reviewed",
+        "note": "Normalized Playwright side-by-side screenshots generated at 4 angles. Representative frames were inspected; no production claim is made.",
+        "capturedAngles": [
+          "front",
+          "left45",
+          "right45",
+          "high"
+        ],
+        "loadedCount": 4,
+        "totalCount": 4,
+        "screenshots": [
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.front.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.left45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.right45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.high.png"
+        ],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "lossy geometry reduction on heavy food meshes only; plate/support/contact meshes locked; requires human visual approval",
+      "recommendation": "Potential review candidate, especially ravioles; requires human visual review and real-device tests before any promotion.",
+      "status": "review-only"
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "aggressive-targeted-review-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/homard-bisque/homard-bisque.aggressive-targeted-review-only.glb",
+      "source": "public/models/demo/homard-bisque.glb",
+      "toolchain": "Blender 5.1.1",
+      "command": "E:\\blender.exe --background --python asset-review\\3d-candidates\\tools\\blender-decimate-candidate.py -- --input <source.glb> --output <aggressive.glb> --summary <aggressive.summary.json> --ratio 0.65 --min-triangles 100000",
+      "parameters": {
+        "ratio": 0.65,
+        "minTriangles": 100000,
+        "lockedSupportMeshes": true
+      },
+      "beforeBytes": 29010112,
+      "beforeMiB": 27.6662,
+      "afterBytes": 24746100,
+      "afterMiB": 23.5997,
+      "reductionPercent": 14.7,
+      "sha256": "fd7c9ace5091caf737cf4c1a75e2d6a319664d220a6123df04f471c8461238ef",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors",
+        "extensionsRequired": [],
+        "meshCount": 3,
+        "vertexCount": 244568,
+        "faceCount": 203417,
+        "bounds": {
+          "min": [
+            -0.72472,
+            -0.345581,
+            -0.724983
+          ],
+          "max": [
+            0.725202,
+            0.172023,
+            0.724939
+          ],
+          "size": [
+            1.449922,
+            0.517603,
+            1.449922
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "visually-reviewed",
+        "note": "Normalized Playwright side-by-side screenshots generated at 4 angles. Representative frames were inspected; no production claim is made.",
+        "capturedAngles": [
+          "front",
+          "left45",
+          "right45",
+          "high"
+        ],
+        "loadedCount": 4,
+        "totalCount": 4,
+        "screenshots": [
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.front.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.left45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.right45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.high.png"
+        ],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "lossy geometry reduction on heavy food meshes only; plate/support/contact meshes locked; requires human visual approval",
+      "recommendation": "Use only to understand upper-bound reduction potential; not recommended for production without much stricter visual review.",
+      "status": "review-only"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "meshopt-web-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.meshopt-web-only.glb",
+      "source": "public/models/demo/souffle-chocolat.glb",
+      "toolchain": "glTF Transform 4.3.0",
+      "command": "npx.cmd gltf-transform meshopt <safe.glb> <meshopt-web-only.glb> --level high",
+      "parameters": {
+        "level": "high"
+      },
+      "beforeBytes": 27286348,
+      "beforeMiB": 26.0223,
+      "afterBytes": 17011872,
+      "afterMiB": 16.2238,
+      "reductionPercent": 37.65,
+      "sha256": "76eb0faa401dc853d0c8c27835a9083dbc006377f07c65f1284281144f943608",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors; validator reports unsupported EXT_meshopt_compression info only",
+        "extensionsRequired": [
+          "EXT_meshopt_compression",
+          "KHR_mesh_quantization"
+        ],
+        "meshCount": 3,
+        "vertexCount": 302119,
+        "faceCount": 289438,
+        "bounds": {
+          "min": [
+            -0.862871,
+            -0.249678,
+            -0.824086
+          ],
+          "max": [
+            0.848291,
+            0.204108,
+            0.887077
+          ],
+          "size": [
+            1.711163,
+            0.453785,
+            1.711163
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Meshopt candidate was not included in normalized screenshot pass because prior run stalled on model-viewer load; requires dedicated model-viewer QA.",
+        "capturedAngles": [],
+        "loadedCount": 0,
+        "totalCount": 0,
+        "screenshots": [],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "web-only transfer optimization; requires EXT_meshopt_compression and KHR_mesh_quantization, not suitable as USDZ source without separate conversion validation",
+      "recommendation": "Promising for web GLB delivery only after model-viewer/mobile QA; do not use for USDZ/Quick Look source.",
+      "status": "review-only"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "medium-targeted-review-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.medium-targeted-review-only.glb",
+      "source": "public/models/demo/souffle-chocolat.glb",
+      "toolchain": "Blender 5.1.1",
+      "command": "E:\\blender.exe --background --python asset-review\\3d-candidates\\tools\\blender-decimate-candidate.py -- --input <source.glb> --output <medium.glb> --summary <medium.summary.json> --ratio 0.9 --min-triangles 100000",
+      "parameters": {
+        "ratio": 0.9,
+        "minTriangles": 100000,
+        "lockedSupportMeshes": true
+      },
+      "beforeBytes": 27286348,
+      "beforeMiB": 26.0223,
+      "afterBytes": 26441016,
+      "afterMiB": 25.2161,
+      "reductionPercent": 3.1,
+      "sha256": "50437c9ef1cfde7310c985691145cf66ab185e25ec33c86d649318aea14142c9",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors",
+        "extensionsRequired": [],
+        "meshCount": 3,
+        "vertexCount": 286175,
+        "faceCount": 261511,
+        "bounds": {
+          "min": [
+            -0.862871,
+            -0.249731,
+            -0.824086
+          ],
+          "max": [
+            0.848291,
+            0.204107,
+            0.887077
+          ],
+          "size": [
+            1.711163,
+            0.453838,
+            1.711163
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "visually-reviewed",
+        "note": "Normalized Playwright side-by-side screenshots generated at 4 angles. Representative frames were inspected; no production claim is made.",
+        "capturedAngles": [
+          "front",
+          "left45",
+          "right45",
+          "high"
+        ],
+        "loadedCount": 4,
+        "totalCount": 4,
+        "screenshots": [
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.front.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.left45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.right45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.high.png"
+        ],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "lossy geometry reduction on heavy food meshes only; plate/support/contact meshes locked; requires human visual approval",
+      "recommendation": "Potential review candidate, especially ravioles; requires human visual review and real-device tests before any promotion.",
+      "status": "review-only"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "aggressive-targeted-review-only",
+      "retained": true,
+      "path": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.aggressive-targeted-review-only.glb",
+      "source": "public/models/demo/souffle-chocolat.glb",
+      "toolchain": "Blender 5.1.1",
+      "command": "E:\\blender.exe --background --python asset-review\\3d-candidates\\tools\\blender-decimate-candidate.py -- --input <source.glb> --output <aggressive.glb> --summary <aggressive.summary.json> --ratio 0.65 --min-triangles 100000",
+      "parameters": {
+        "ratio": 0.65,
+        "minTriangles": 100000,
+        "lockedSupportMeshes": true
+      },
+      "beforeBytes": 27286348,
+      "beforeMiB": 26.0223,
+      "afterBytes": 23591236,
+      "afterMiB": 22.4984,
+      "reductionPercent": 13.54,
+      "sha256": "73ef0c99787192f629f6e683b4c456fa0190d35e34d146db081ca8ae93e3aa0e",
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "gltfTransformValidate": "0 errors",
+        "extensionsRequired": [],
+        "meshCount": 3,
+        "vertexCount": 223300,
+        "faceCount": 191696,
+        "bounds": {
+          "min": [
+            -0.862871,
+            -0.249731,
+            -0.824086
+          ],
+          "max": [
+            0.848291,
+            0.204187,
+            0.887077
+          ],
+          "size": [
+            1.711163,
+            0.453918,
+            1.711163
+          ]
+        }
+      },
+      "visualValidation": {
+        "status": "visually-reviewed",
+        "note": "Normalized Playwright side-by-side screenshots generated at 4 angles. Representative frames were inspected; no production claim is made.",
+        "capturedAngles": [
+          "front",
+          "left45",
+          "right45",
+          "high"
+        ],
+        "loadedCount": 4,
+        "totalCount": 4,
+        "screenshots": [
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.front.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.left45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.right45.png",
+          "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.high.png"
+        ],
+        "consoleMessages": []
+      },
+      "deviceValidation": {
+        "quickLookIPhoneSafariHttps": "not-tested",
+        "androidChromeArCoreSceneViewer": "not-tested",
+        "status": "needs-real-device-test"
+      },
+      "risk": "lossy geometry reduction on heavy food meshes only; plate/support/contact meshes locked; requires human visual approval",
+      "recommendation": "Use only to understand upper-bound reduction potential; not recommended for production without much stricter visual review.",
+      "status": "review-only"
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "safe",
+      "retained": false,
+      "path": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.safe.glb",
+      "source": "public/models/demo/ravioles-chevre-miel.glb",
+      "toolchain": "glTF Transform 4.3.0",
+      "command": "npx.cmd gltf-transform prune <source.glb> <safe-prune.glb> --keep-attributes true --keep-indices true --keep-leaves true --keep-solid-textures true; npx.cmd gltf-transform dedup <safe-prune.glb> <safe-dedup.glb>; npx.cmd gltf-transform reorder <safe-dedup.glb> <safe.glb> --target performance",
+      "beforeBytes": 76609104,
+      "beforeMiB": 73.0601,
+      "afterBytes": 76604028,
+      "afterMiB": 73.0553,
+      "reductionPercent": 0.01,
+      "structuralValidation": {
+        "status": "structurally-valid"
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Deleted no-gain candidate; screenshots/structural audit retained where relevant."
+      },
+      "deviceValidation": {
+        "status": "not-tested"
+      },
+      "risk": "No useful optimization gain.",
+      "recommendation": "Do not retain or promote.",
+      "status": "rejected",
+      "rejectionReason": "Deleted after audit: 0.01% reduction only; no useful optimization value."
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "safe",
+      "retained": false,
+      "path": "asset-review/3d-candidates/homard-bisque/homard-bisque.safe.glb",
+      "source": "public/models/demo/homard-bisque.glb",
+      "toolchain": "glTF Transform 4.3.0",
+      "command": "npx.cmd gltf-transform prune <source.glb> <safe-prune.glb> --keep-attributes true --keep-indices true --keep-leaves true --keep-solid-textures true; npx.cmd gltf-transform dedup <safe-prune.glb> <safe-dedup.glb>; npx.cmd gltf-transform reorder <safe-dedup.glb> <safe.glb> --target performance",
+      "beforeBytes": 29010112,
+      "beforeMiB": 27.6662,
+      "afterBytes": 29005468,
+      "afterMiB": 27.6618,
+      "reductionPercent": 0.02,
+      "structuralValidation": {
+        "status": "structurally-valid"
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Deleted no-gain candidate; screenshots/structural audit retained where relevant."
+      },
+      "deviceValidation": {
+        "status": "not-tested"
+      },
+      "risk": "No useful optimization gain.",
+      "recommendation": "Do not retain or promote.",
+      "status": "rejected",
+      "rejectionReason": "Deleted after audit: 0.02% reduction only; no useful optimization value."
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "safe",
+      "retained": false,
+      "path": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.safe.glb",
+      "source": "public/models/demo/souffle-chocolat.glb",
+      "toolchain": "glTF Transform 4.3.0",
+      "command": "npx.cmd gltf-transform prune <source.glb> <safe-prune.glb> --keep-attributes true --keep-indices true --keep-leaves true --keep-solid-textures true; npx.cmd gltf-transform dedup <safe-prune.glb> <safe-dedup.glb>; npx.cmd gltf-transform reorder <safe-dedup.glb> <safe.glb> --target performance",
+      "beforeBytes": 27286348,
+      "beforeMiB": 26.0223,
+      "afterBytes": 27286108,
+      "afterMiB": 26.0221,
+      "reductionPercent": 0,
+      "structuralValidation": {
+        "status": "structurally-valid"
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Deleted no-gain candidate; screenshots/structural audit retained where relevant."
+      },
+      "deviceValidation": {
+        "status": "not-tested"
+      },
+      "risk": "No useful optimization gain.",
+      "recommendation": "Do not retain or promote.",
+      "status": "rejected",
+      "rejectionReason": "Deleted after audit: 0.00% reduction only; no useful optimization value."
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "usdz-repack",
+      "retained": false,
+      "path": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.repack.usdz",
+      "source": "public/models/demo/ravioles-chevre-miel.usdz",
+      "toolchain": "OpenUSD via E:\\5.1\\python\\bin\\python.exe",
+      "command": "E:\\5.1\\python\\bin\\python.exe scripts\\optimize-usdz-binary-layers.py <source.usdz> <repack.usdz>",
+      "beforeBytes": 70375208,
+      "beforeMiB": 67.115,
+      "afterBytes": 70375208,
+      "afterMiB": 67.115,
+      "reductionPercent": 0,
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "compareUsdzScenes": "same=true"
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Deleted no-gain candidate; screenshots/structural audit retained where relevant."
+      },
+      "deviceValidation": {
+        "status": "not-tested"
+      },
+      "risk": "No useful optimization gain.",
+      "recommendation": "Do not retain or promote.",
+      "status": "rejected",
+      "rejectionReason": "Deleted after OpenUSD compare: same=true but 0.00% reduction; active USDZ already USDC/store-only."
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "usdz-repack",
+      "retained": false,
+      "path": "asset-review/3d-candidates/homard-bisque/homard-bisque.repack.usdz",
+      "source": "public/models/demo/homard-bisque.usdz",
+      "toolchain": "OpenUSD via E:\\5.1\\python\\bin\\python.exe",
+      "command": "E:\\5.1\\python\\bin\\python.exe scripts\\optimize-usdz-binary-layers.py <source.usdz> <repack.usdz>",
+      "beforeBytes": 26352806,
+      "beforeMiB": 25.132,
+      "afterBytes": 26352806,
+      "afterMiB": 25.132,
+      "reductionPercent": 0,
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "compareUsdzScenes": "same=true"
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Deleted no-gain candidate; screenshots/structural audit retained where relevant."
+      },
+      "deviceValidation": {
+        "status": "not-tested"
+      },
+      "risk": "No useful optimization gain.",
+      "recommendation": "Do not retain or promote.",
+      "status": "rejected",
+      "rejectionReason": "Deleted after OpenUSD compare: same=true but 0.00% reduction; active USDZ already USDC/store-only."
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "usdz-repack",
+      "retained": false,
+      "path": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.repack.usdz",
+      "source": "public/models/demo/souffle-chocolat.usdz",
+      "toolchain": "OpenUSD via E:\\5.1\\python\\bin\\python.exe",
+      "command": "E:\\5.1\\python\\bin\\python.exe scripts\\optimize-usdz-binary-layers.py <source.usdz> <repack.usdz>",
+      "beforeBytes": 24873890,
+      "beforeMiB": 23.7216,
+      "afterBytes": 24873890,
+      "afterMiB": 23.7216,
+      "reductionPercent": 0,
+      "structuralValidation": {
+        "status": "structurally-valid",
+        "compareUsdzScenes": "same=true"
+      },
+      "visualValidation": {
+        "status": "review-only",
+        "note": "Deleted no-gain candidate; screenshots/structural audit retained where relevant."
+      },
+      "deviceValidation": {
+        "status": "not-tested"
+      },
+      "risk": "No useful optimization gain.",
+      "recommendation": "Do not retain or promote.",
+      "status": "rejected",
+      "rejectionReason": "Deleted after OpenUSD compare: same=true but 0.00% reduction; active USDZ already USDC/store-only."
+    }
+  ]
+}

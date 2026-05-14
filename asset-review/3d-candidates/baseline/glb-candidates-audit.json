@@ -1,0 +1,5947 @@
+{
+  "generatedAt": "2026-05-13T22:46:40.364Z",
+  "reports": [
+    {
+      "file": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.safe.glb",
+      "usage": null,
+      "bytes": 76604028,
+      "mib": 73.0553,
+      "sha256": "5ef99a3f5395df7d3de07cf95a7968c3b2178f28fad4272ad105a5ab69e1737f",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": null,
+      "sceneBounds": {
+        "min": [
+          -0.724961,
+          -0.196077,
+          -0.725187
+        ],
+        "max": [
+          0.724823,
+          0.100047,
+          0.724597
+        ],
+        "size": [
+          1.449784,
+          0.296124,
+          1.449784
+        ]
+      },
+      "nodeCount": 5,
+      "meshNodeCount": 4,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            1,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ]
+        }
+      ],
+      "meshCount": 4,
+      "primitiveCount": 4,
+      "vertexCount": 1666454,
+      "faceCount": 825838,
+      "accessorCount": 14,
+      "accessorBytes": 63195952,
+      "materialCount": 3,
+      "textureCount": 2,
+      "textureEncodedBytes": 13404108,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 8544200
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4859908
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 1231088,
+          "indexCount": 1233093,
+          "faceCount": 411031,
+          "accessorBytes": 44327188,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 1231088,
+              "indexCount": 1233093,
+              "faceCount": 411031,
+              "positionAccessorBytes": 14773056,
+              "normalAccessorBytes": 14773056,
+              "texcoordAccessorBytes": 9848704,
+              "indexAccessorBytes": 4932372,
+              "attributeBytes": 39394816,
+              "totalPrimitiveBytes": 44327188
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 433119,
+          "indexCount": 1233093,
+          "faceCount": 411031,
+          "accessorBytes": 18792180,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 433119,
+              "indexCount": 1233093,
+              "faceCount": 411031,
+              "positionAccessorBytes": 5197428,
+              "normalAccessorBytes": 5197428,
+              "texcoordAccessorBytes": 3464952,
+              "indexAccessorBytes": 4932372,
+              "attributeBytes": 13859808,
+              "totalPrimitiveBytes": 18792180
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 15504,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 6216,
+              "normalAccessorBytes": 6216,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 12432,
+              "totalPrimitiveBytes": 15504
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": null,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196077,
+              -0.500009
+            ],
+            "max": [
+              0.50274,
+              0.100047,
+              0.498373
+            ],
+            "size": [
+              1.001551,
+              0.296124,
+              0.998382
+            ]
+          }
+        },
+        {
+          "name": "geometry_0.001",
+          "mesh": null,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196077,
+              -0.500009
+            ],
+            "max": [
+              0.50274,
+              0.100047,
+              0.498373
+            ],
+            "size": [
+              1.001551,
+              0.296124,
+              0.998382
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": null,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.724961,
+              -0.187334,
+              -0.725187
+            ],
+            "max": [
+              0.724823,
+              -0.133334,
+              0.724597
+            ],
+            "size": [
+              1.449784,
+              0.054,
+              1.449784
+            ]
+          }
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "mesh": null,
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652472,
+              -0.148334,
+              -0.652698
+            ],
+            "max": [
+              0.652333,
+              -0.142334,
+              0.652108
+            ],
+            "size": [
+              1.304806,
+              0.006,
+              1.304806
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.meshopt-web-only.glb",
+      "usage": null,
+      "bytes": 27714228,
+      "mib": 26.4303,
+      "sha256": "6b812a046c383581aaf642e74e2e2f5d2eac4594b23ec8c4148a64fec0f62fd6",
+      "extensionsUsed": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "sceneCount": 1,
+      "defaultScene": null,
+      "sceneBounds": {
+        "min": [
+          -0.724961,
+          -0.196091,
+          -0.725187
+        ],
+        "max": [
+          0.724823,
+          0.100061,
+          0.724597
+        ],
+        "size": [
+          1.449784,
+          0.296153,
+          1.449784
+        ]
+      },
+      "nodeCount": 5,
+      "meshNodeCount": 4,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            1,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.652403,
+            0.652403,
+            0.652403
+          ],
+          "matrix": [
+            0.652403,
+            0,
+            0,
+            0,
+            0,
+            0.652403,
+            0,
+            0,
+            0,
+            0,
+            0.652403,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ]
+        }
+      ],
+      "meshCount": 4,
+      "primitiveCount": 4,
+      "vertexCount": 1666454,
+      "faceCount": 825838,
+      "accessorCount": 14,
+      "accessorBytes": 31542314,
+      "materialCount": 3,
+      "textureCount": 2,
+      "textureEncodedBytes": 13404108,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 8544200
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4859908
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 1231088,
+          "indexCount": 1233093,
+          "faceCount": 411031,
+          "accessorBytes": 20936516,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "NORMAL",
+                "POSITION",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 1231088,
+              "indexCount": 1233093,
+              "faceCount": 411031,
+              "positionAccessorBytes": 7386528,
+              "normalAccessorBytes": 3693264,
+              "texcoordAccessorBytes": 4924352,
+              "indexAccessorBytes": 4932372,
+              "attributeBytes": 16004144,
+              "totalPrimitiveBytes": 20936516
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 433119,
+          "indexCount": 1233093,
+          "faceCount": 411031,
+          "accessorBytes": 10562919,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "NORMAL",
+                "POSITION",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 433119,
+              "indexCount": 1233093,
+              "faceCount": 411031,
+              "positionAccessorBytes": 2598714,
+              "normalAccessorBytes": 1299357,
+              "texcoordAccessorBytes": 1732476,
+              "indexAccessorBytes": 4932372,
+              "attributeBytes": 5630547,
+              "totalPrimitiveBytes": 10562919
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 35145,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "NORMAL",
+                "POSITION"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 10374,
+              "normalAccessorBytes": 5187,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 15561,
+              "totalPrimitiveBytes": 35145
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 7734,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "NORMAL",
+                "POSITION"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 3108,
+              "normalAccessorBytes": 1554,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 4662,
+              "totalPrimitiveBytes": 7734
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": null,
+          "translation": [
+            -0.001964,
+            -0.048015,
+            -0.000818
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.500776,
+            0.500776,
+            0.500776
+          ],
+          "worldMatrix": [
+            -0.500776,
+            0,
+            0,
+            0,
+            0,
+            0.500776,
+            0,
+            0,
+            0,
+            0,
+            0.500776,
+            0,
+            0.001964,
+            -0.048015,
+            -0.000818,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196091,
+              -0.500005
+            ],
+            "max": [
+              0.50274,
+              0.100061,
+              0.498368
+            ],
+            "size": [
+              1.001551,
+              0.296153,
+              0.998372
+            ]
+          }
+        },
+        {
+          "name": "geometry_0.001",
+          "mesh": null,
+          "translation": [
+            -0.001964,
+            -0.048015,
+            -0.000818
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.500776,
+            0.500776,
+            0.500776
+          ],
+          "worldMatrix": [
+            -0.500776,
+            0,
+            0,
+            0,
+            0,
+            0.500776,
+            0,
+            0,
+            0,
+            0,
+            0.500776,
+            0,
+            0.001964,
+            -0.048015,
+            -0.000818,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196091,
+              -0.500005
+            ],
+            "max": [
+              0.50274,
+              0.100061,
+              0.498368
+            ],
+            "size": [
+              1.001551,
+              0.296153,
+              0.998372
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": null,
+          "translation": [
+            0.000069,
+            -0.160334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.724892,
+            0.724892,
+            0.724892
+          ],
+          "worldMatrix": [
+            -0.724892,
+            0,
+            0,
+            0,
+            0,
+            0.724892,
+            0,
+            0,
+            0,
+            0,
+            0.724892,
+            0,
+            -0.000069,
+            -0.160334,
+            -0.000295,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.724961,
+              -0.187323,
+              -0.725187
+            ],
+            "max": [
+              0.724823,
+              -0.133344,
+              0.724597
+            ],
+            "size": [
+              1.449784,
+              0.053979,
+              1.449784
+            ]
+          }
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "mesh": null,
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.652403,
+            0.652403,
+            0.652403
+          ],
+          "worldMatrix": [
+            0.652403,
+            0,
+            0,
+            0,
+            0,
+            0.652403,
+            0,
+            0,
+            0,
+            0,
+            0.652403,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652472,
+              -0.14836,
+              -0.652698
+            ],
+            "max": [
+              0.652333,
+              -0.142307,
+              0.652108
+            ],
+            "size": [
+              1.304806,
+              0.006053,
+              1.304806
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.medium-targeted-review-only.glb",
+      "usage": null,
+      "bytes": 70949728,
+      "mib": 67.6629,
+      "sha256": "9dfee4b1e6b0c0c0ec0427d9fa05ccea539678a202fa706e1e4246566f8ab5f8",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.724961,
+          -0.196077,
+          -0.725187
+        ],
+        "max": [
+          0.724823,
+          0.100047,
+          0.724597
+        ],
+        "size": [
+          1.449784,
+          0.296124,
+          1.449784
+        ]
+      },
+      "nodeCount": 5,
+      "meshNodeCount": 4,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            -1,
+            -1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ]
+        }
+      ],
+      "meshCount": 4,
+      "primitiveCount": 4,
+      "vertexCount": 1520566,
+      "faceCount": 743629,
+      "accessorCount": 14,
+      "accessorBytes": 57541028,
+      "materialCount": 4,
+      "textureCount": 2,
+      "textureEncodedBytes": 13404108,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 8544200
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4859908
+        }
+      ],
+      "materials": [
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Material_0.001",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "Mesh_0",
+          "primitiveCount": 1,
+          "vertexCount": 1108979,
+          "indexCount": 1109781,
+          "faceCount": 369927,
+          "accessorBytes": 39926452,
+          "primitives": [
+            {
+              "meshName": "Mesh_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 1108979,
+              "indexCount": 1109781,
+              "faceCount": 369927,
+              "positionAccessorBytes": 13307748,
+              "normalAccessorBytes": 13307748,
+              "texcoordAccessorBytes": 8871832,
+              "indexAccessorBytes": 4439124,
+              "attributeBytes": 35487328,
+              "totalPrimitiveBytes": 39926452
+            }
+          ]
+        },
+        {
+          "name": "Mesh_1",
+          "primitiveCount": 1,
+          "vertexCount": 409340,
+          "indexCount": 1109778,
+          "faceCount": 369926,
+          "accessorBytes": 17537992,
+          "primitives": [
+            {
+              "meshName": "Mesh_1",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0.001",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 409340,
+              "indexCount": 1109778,
+              "faceCount": 369926,
+              "positionAccessorBytes": 4912080,
+              "normalAccessorBytes": 4912080,
+              "texcoordAccessorBytes": 3274720,
+              "indexAccessorBytes": 4439112,
+              "attributeBytes": 13098880,
+              "totalPrimitiveBytes": 17537992
+            }
+          ]
+        },
+        {
+          "name": "Mesh_2",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_2",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        },
+        {
+          "name": "Mesh_3",
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 15504,
+          "primitives": [
+            {
+              "meshName": "Mesh_3",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 6216,
+              "normalAccessorBytes": 6216,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 12432,
+              "totalPrimitiveBytes": 15504
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_2",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.724961,
+              -0.187334,
+              -0.725187
+            ],
+            "max": [
+              0.724823,
+              -0.133334,
+              0.724597
+            ],
+            "size": [
+              1.449784,
+              0.054,
+              1.449784
+            ]
+          }
+        },
+        {
+          "name": "geometry_0",
+          "mesh": "Mesh_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196077,
+              -0.500009
+            ],
+            "max": [
+              0.50274,
+              0.100047,
+              0.498373
+            ],
+            "size": [
+              1.001551,
+              0.296124,
+              0.998382
+            ]
+          }
+        },
+        {
+          "name": "geometry_0.001",
+          "mesh": "Mesh_1",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196077,
+              -0.500009
+            ],
+            "max": [
+              0.50274,
+              0.100047,
+              0.498373
+            ],
+            "size": [
+              1.001551,
+              0.296124,
+              0.998382
+            ]
+          }
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "mesh": "Mesh_3",
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652472,
+              -0.148334,
+              -0.652698
+            ],
+            "max": [
+              0.652333,
+              -0.142334,
+              0.652108
+            ],
+            "size": [
+              1.304806,
+              0.006,
+              1.304806
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.aggressive-targeted-review-only.glb",
+      "usage": null,
+      "bytes": 55798028,
+      "mib": 53.2131,
+      "sha256": "089f937ac317492234d812efcc9a34f533d94c8e9a647e2e18f3fb2e7ef680c3",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.724961,
+          -0.196077,
+          -0.725187
+        ],
+        "max": [
+          0.724823,
+          0.100047,
+          0.724597
+        ],
+        "size": [
+          1.449784,
+          0.296124,
+          1.449784
+        ]
+      },
+      "nodeCount": 5,
+      "meshNodeCount": 4,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            -1,
+            -1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ]
+        }
+      ],
+      "meshCount": 4,
+      "primitiveCount": 4,
+      "vertexCount": 1124143,
+      "faceCount": 538116,
+      "accessorCount": 14,
+      "accessorBytes": 42389336,
+      "materialCount": 4,
+      "textureCount": 2,
+      "textureEncodedBytes": 13404108,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 8544200
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4859908
+        }
+      ],
+      "materials": [
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Material_0.001",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "Mesh_0",
+          "primitiveCount": 1,
+          "vertexCount": 801159,
+          "indexCount": 801510,
+          "faceCount": 267170,
+          "accessorBytes": 28843128,
+          "primitives": [
+            {
+              "meshName": "Mesh_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 801159,
+              "indexCount": 801510,
+              "faceCount": 267170,
+              "positionAccessorBytes": 9613908,
+              "normalAccessorBytes": 9613908,
+              "texcoordAccessorBytes": 6409272,
+              "indexAccessorBytes": 3206040,
+              "attributeBytes": 25637088,
+              "totalPrimitiveBytes": 28843128
+            }
+          ]
+        },
+        {
+          "name": "Mesh_1",
+          "primitiveCount": 1,
+          "vertexCount": 320737,
+          "indexCount": 801510,
+          "faceCount": 267170,
+          "accessorBytes": 13469624,
+          "primitives": [
+            {
+              "meshName": "Mesh_1",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0.001",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 320737,
+              "indexCount": 801510,
+              "faceCount": 267170,
+              "positionAccessorBytes": 3848844,
+              "normalAccessorBytes": 3848844,
+              "texcoordAccessorBytes": 2565896,
+              "indexAccessorBytes": 3206040,
+              "attributeBytes": 10263584,
+              "totalPrimitiveBytes": 13469624
+            }
+          ]
+        },
+        {
+          "name": "Mesh_2",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_2",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        },
+        {
+          "name": "Mesh_3",
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 15504,
+          "primitives": [
+            {
+              "meshName": "Mesh_3",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 6216,
+              "normalAccessorBytes": 6216,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 12432,
+              "totalPrimitiveBytes": 15504
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_2",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.724961,
+              -0.187334,
+              -0.725187
+            ],
+            "max": [
+              0.724823,
+              -0.133334,
+              0.724597
+            ],
+            "size": [
+              1.449784,
+              0.054,
+              1.449784
+            ]
+          }
+        },
+        {
+          "name": "geometry_0",
+          "mesh": "Mesh_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498811,
+              -0.196077,
+              -0.500009
+            ],
+            "max": [
+              0.50274,
+              0.100047,
+              0.498373
+            ],
+            "size": [
+              1.001551,
+              0.296124,
+              0.998382
+            ]
+          }
+        },
+        {
+          "name": "geometry_0.001",
+          "mesh": "Mesh_1",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.498852,
+              -0.196077,
+              -0.50001
+            ],
+            "max": [
+              0.502827,
+              0.100047,
+              0.498373
+            ],
+            "size": [
+              1.001678,
+              0.296124,
+              0.998382
+            ]
+          }
+        },
+        {
+          "name": "ravioles-chevre-miel-opaque-plate-surface",
+          "mesh": "Mesh_3",
+          "translation": [
+            -0.000069,
+            -0.145334,
+            -0.000295
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.000069,
+            -0.145334,
+            -0.000295,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652472,
+              -0.148334,
+              -0.652698
+            ],
+            "max": [
+              0.652333,
+              -0.142334,
+              0.652108
+            ],
+            "size": [
+              1.304806,
+              0.006,
+              1.304806
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/homard-bisque/homard-bisque.safe.glb",
+      "usage": null,
+      "bytes": 29005468,
+      "mib": 27.6618,
+      "sha256": "d1baf49f63f4eb86d98f1d8ce4492d815bddc1841df08f80a835d5b3f2bbef7a",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": null,
+      "sceneBounds": {
+        "min": [
+          -0.72472,
+          -0.345581,
+          -0.724983
+        ],
+        "max": [
+          0.725202,
+          0.172014,
+          0.724939
+        ],
+        "size": [
+          1.449922,
+          0.517595,
+          1.449922
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            1,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 337369,
+      "faceCount": 310917,
+      "accessorCount": 10,
+      "accessorBytes": 14486180,
+      "materialCount": 3,
+      "textureCount": 2,
+      "textureEncodedBytes": 14516036,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9307320
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 5208716
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 335122,
+          "indexCount": 921423,
+          "faceCount": 307141,
+          "accessorBytes": 14409596,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 335122,
+              "indexCount": 921423,
+              "faceCount": 307141,
+              "positionAccessorBytes": 4021464,
+              "normalAccessorBytes": 4021464,
+              "texcoordAccessorBytes": 2680976,
+              "indexAccessorBytes": 3685692,
+              "attributeBytes": 10723904,
+              "totalPrimitiveBytes": 14409596
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 15504,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 6216,
+              "normalAccessorBytes": 6216,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 12432,
+              "totalPrimitiveBytes": 15504
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": null,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.499528,
+              -0.336133,
+              -0.504701
+            ],
+            "max": [
+              0.528412,
+              0.172014,
+              0.4948
+            ],
+            "size": [
+              1.02794,
+              0.508147,
+              0.999501
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": null,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.72472,
+              -0.345581,
+              -0.724983
+            ],
+            "max": [
+              0.725202,
+              -0.291581,
+              0.724939
+            ],
+            "size": [
+              1.449922,
+              0.054,
+              1.449922
+            ]
+          }
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "mesh": null,
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652224,
+              -0.306581,
+              -0.652487
+            ],
+            "max": [
+              0.652706,
+              -0.300581,
+              0.652443
+            ],
+            "size": [
+              1.30493,
+              0.006,
+              1.30493
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/homard-bisque/homard-bisque.meshopt-web-only.glb",
+      "usage": null,
+      "bytes": 17732992,
+      "mib": 16.9115,
+      "sha256": "73be717526e94964c581de1e2bcf983e826a2ea16ee71044e10651b8eb6b69c3",
+      "extensionsUsed": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "sceneCount": 1,
+      "defaultScene": null,
+      "sceneBounds": {
+        "min": [
+          -0.72472,
+          -0.345573,
+          -0.724983
+        ],
+        "max": [
+          0.725202,
+          0.172,
+          0.724939
+        ],
+        "size": [
+          1.449922,
+          0.517573,
+          1.449922
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            1,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.652465,
+            0.652465,
+            0.652465
+          ],
+          "matrix": [
+            0.652465,
+            0,
+            0,
+            0,
+            0,
+            0.652465,
+            0,
+            0,
+            0,
+            0,
+            0.652465,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 337369,
+      "faceCount": 310917,
+      "accessorCount": 10,
+      "accessorBytes": 8085157,
+      "materialCount": 3,
+      "textureCount": 2,
+      "textureEncodedBytes": 14516036,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9307320
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 5208716
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 335122,
+          "indexCount": 921423,
+          "faceCount": 307141,
+          "accessorBytes": 8042278,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "NORMAL",
+                "POSITION",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 335122,
+              "indexCount": 921423,
+              "faceCount": 307141,
+              "positionAccessorBytes": 2010732,
+              "normalAccessorBytes": 1005366,
+              "texcoordAccessorBytes": 1340488,
+              "indexAccessorBytes": 3685692,
+              "attributeBytes": 4356586,
+              "totalPrimitiveBytes": 8042278
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 35145,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "NORMAL",
+                "POSITION"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 10374,
+              "normalAccessorBytes": 5187,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 15561,
+              "totalPrimitiveBytes": 35145
+            }
+          ]
+        },
+        {
+          "name": null,
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 7734,
+          "primitives": [
+            {
+              "meshName": null,
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "NORMAL",
+                "POSITION"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 3108,
+              "normalAccessorBytes": 1554,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 4662,
+              "totalPrimitiveBytes": 7734
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": null,
+          "translation": [
+            -0.014442,
+            -0.08206,
+            -0.00495
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.51397,
+            0.51397,
+            0.51397
+          ],
+          "worldMatrix": [
+            -0.51397,
+            0,
+            0,
+            0,
+            0,
+            0.51397,
+            0,
+            0,
+            0,
+            0,
+            0.51397,
+            0,
+            0.014442,
+            -0.08206,
+            -0.00495,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.499528,
+              -0.336119,
+              -0.504678
+            ],
+            "max": [
+              0.528412,
+              0.172,
+              0.494777
+            ],
+            "size": [
+              1.02794,
+              0.508119,
+              0.999455
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": null,
+          "translation": [
+            -0.000241,
+            -0.318581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.724961,
+            0.724961,
+            0.724961
+          ],
+          "worldMatrix": [
+            -0.724961,
+            0,
+            0,
+            0,
+            0,
+            0.724961,
+            0,
+            0,
+            0,
+            0,
+            0.724961,
+            0,
+            0.000241,
+            -0.318581,
+            -0.000022,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.72472,
+              -0.345573,
+              -0.724983
+            ],
+            "max": [
+              0.725202,
+              -0.291589,
+              0.724939
+            ],
+            "size": [
+              1.449922,
+              0.053984,
+              1.449922
+            ]
+          }
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "mesh": null,
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.652465,
+            0.652465,
+            0.652465
+          ],
+          "worldMatrix": [
+            0.652465,
+            0,
+            0,
+            0,
+            0,
+            0.652465,
+            0,
+            0,
+            0,
+            0,
+            0.652465,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652224,
+              -0.306607,
+              -0.652487
+            ],
+            "max": [
+              0.652706,
+              -0.300554,
+              0.652443
+            ],
+            "size": [
+              1.30493,
+              0.006053,
+              1.30493
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/homard-bisque/homard-bisque.medium-targeted-review-only.glb",
+      "usage": null,
+      "bytes": 28060704,
+      "mib": 26.7608,
+      "sha256": "ac8edf70de98dc34b11e0a0f719c7017f2074af60afde344aff69b5c01f0bbdd",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.72472,
+          -0.345581,
+          -0.724983
+        ],
+        "max": [
+          0.725202,
+          0.172014,
+          0.724939
+        ],
+        "size": [
+          1.449922,
+          0.517595,
+          1.449922
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            -1,
+            -1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 319355,
+      "faceCount": 280202,
+      "accessorCount": 10,
+      "accessorBytes": 13541152,
+      "materialCount": 3,
+      "textureCount": 2,
+      "textureEncodedBytes": 14516036,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9307320
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 5208716
+        }
+      ],
+      "materials": [
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "Mesh_0",
+          "primitiveCount": 1,
+          "vertexCount": 317108,
+          "indexCount": 829278,
+          "faceCount": 276426,
+          "accessorBytes": 13464568,
+          "primitives": [
+            {
+              "meshName": "Mesh_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 317108,
+              "indexCount": 829278,
+              "faceCount": 276426,
+              "positionAccessorBytes": 3805296,
+              "normalAccessorBytes": 3805296,
+              "texcoordAccessorBytes": 2536864,
+              "indexAccessorBytes": 3317112,
+              "attributeBytes": 10147456,
+              "totalPrimitiveBytes": 13464568
+            }
+          ]
+        },
+        {
+          "name": "Mesh_1",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_1",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        },
+        {
+          "name": "Mesh_2",
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 15504,
+          "primitives": [
+            {
+              "meshName": "Mesh_2",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 6216,
+              "normalAccessorBytes": 6216,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 12432,
+              "totalPrimitiveBytes": 15504
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_1",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.72472,
+              -0.345581,
+              -0.724983
+            ],
+            "max": [
+              0.725202,
+              -0.291581,
+              0.724939
+            ],
+            "size": [
+              1.449922,
+              0.054,
+              1.449922
+            ]
+          }
+        },
+        {
+          "name": "geometry_0",
+          "mesh": "Mesh_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.499528,
+              -0.336133,
+              -0.504701
+            ],
+            "max": [
+              0.528412,
+              0.172014,
+              0.4948
+            ],
+            "size": [
+              1.02794,
+              0.508147,
+              0.999501
+            ]
+          }
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "mesh": "Mesh_2",
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652224,
+              -0.306581,
+              -0.652487
+            ],
+            "max": [
+              0.652706,
+              -0.300581,
+              0.652443
+            ],
+            "size": [
+              1.30493,
+              0.006,
+              1.30493
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/homard-bisque/homard-bisque.aggressive-targeted-review-only.glb",
+      "usage": null,
+      "bytes": 24746100,
+      "mib": 23.5997,
+      "sha256": "fd7c9ace5091caf737cf4c1a75e2d6a319664d220a6123df04f471c8461238ef",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.72472,
+          -0.345581,
+          -0.724983
+        ],
+        "max": [
+          0.725202,
+          0.172023,
+          0.724939
+        ],
+        "size": [
+          1.449922,
+          0.517603,
+          1.449922
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "__root__",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            -1,
+            -1,
+            -1
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 244568,
+      "faceCount": 203417,
+      "accessorCount": 10,
+      "accessorBytes": 10226548,
+      "materialCount": 3,
+      "textureCount": 2,
+      "textureEncodedBytes": 14516036,
+      "textures": [
+        {
+          "name": "Material_0 (Base Color)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9307320
+        },
+        {
+          "name": "Material_0 (Metallic Roughness)",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 5208716
+        }
+      ],
+      "materials": [
+        {
+          "name": "default material",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false,
+          "baseColorFactor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.328809,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Material_0 (Base Color)",
+            "metallicRoughness": "Material_0 (Metallic Roughness)",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "opaque-plate-surface",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.58,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "Mesh_0",
+          "primitiveCount": 1,
+          "vertexCount": 242321,
+          "indexCount": 598923,
+          "faceCount": 199641,
+          "accessorBytes": 10149964,
+          "primitives": [
+            {
+              "meshName": "Mesh_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 242321,
+              "indexCount": 598923,
+              "faceCount": 199641,
+              "positionAccessorBytes": 2907852,
+              "normalAccessorBytes": 2907852,
+              "texcoordAccessorBytes": 1938568,
+              "indexAccessorBytes": 2395692,
+              "attributeBytes": 7754272,
+              "totalPrimitiveBytes": 10149964
+            }
+          ]
+        },
+        {
+          "name": "Mesh_1",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_1",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "default material",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        },
+        {
+          "name": "Mesh_2",
+          "primitiveCount": 1,
+          "vertexCount": 518,
+          "indexCount": 1536,
+          "faceCount": 512,
+          "accessorBytes": 15504,
+          "primitives": [
+            {
+              "meshName": "Mesh_2",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "opaque-plate-surface",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 518,
+              "indexCount": 1536,
+              "faceCount": 512,
+              "positionAccessorBytes": 6216,
+              "normalAccessorBytes": 6216,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 3072,
+              "attributeBytes": 12432,
+              "totalPrimitiveBytes": 15504
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_1",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.72472,
+              -0.345581,
+              -0.724983
+            ],
+            "max": [
+              0.725202,
+              -0.291581,
+              0.724939
+            ],
+            "size": [
+              1.449922,
+              0.054,
+              1.449922
+            ]
+          }
+        },
+        {
+          "name": "geometry_0",
+          "mesh": "Mesh_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.499602,
+              -0.336229,
+              -0.504701
+            ],
+            "max": [
+              0.528412,
+              0.172023,
+              0.494811
+            ],
+            "size": [
+              1.028014,
+              0.508251,
+              0.999512
+            ]
+          }
+        },
+        {
+          "name": "homard-bisque-opaque-plate-surface",
+          "mesh": "Mesh_2",
+          "translation": [
+            0.000241,
+            -0.303581,
+            -0.000022
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.000241,
+            -0.303581,
+            -0.000022,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.652224,
+              -0.306581,
+              -0.652487
+            ],
+            "max": [
+              0.652706,
+              -0.300581,
+              0.652443
+            ],
+            "size": [
+              1.30493,
+              0.006,
+              1.30493
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.safe.glb",
+      "usage": null,
+      "bytes": 27286108,
+      "mib": 26.0221,
+      "sha256": "d33ff6e6659cb8915248eb424a2716f4537f5e5337cecb1bf5bd6687394d67b0",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.862871,
+          -0.249731,
+          -0.824086
+        ],
+        "max": [
+          0.848291,
+          0.204107,
+          0.887077
+        ],
+        "size": [
+          1.711163,
+          0.453838,
+          1.711163
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "world",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.623286,
+            0,
+            0.781994
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 302119,
+      "faceCount": 289438,
+      "accessorCount": 11,
+      "accessorBytes": 13066176,
+      "materialCount": 2,
+      "textureCount": 2,
+      "textureEncodedBytes": 14216604,
+      "textures": [
+        {
+          "name": "Image_0",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9246808
+        },
+        {
+          "name": "Image_1",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4969796
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Image_0",
+            "metallicRoughness": "Image_1",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Céramique blanc cassé légèrement satinée",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.68,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "geometry_0",
+          "primitiveCount": 1,
+          "vertexCount": 296723,
+          "indexCount": 837786,
+          "faceCount": 279262,
+          "accessorBytes": 12846280,
+          "primitives": [
+            {
+              "meshName": "geometry_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 296723,
+              "indexCount": 837786,
+              "faceCount": 279262,
+              "positionAccessorBytes": 3560676,
+              "normalAccessorBytes": 3560676,
+              "texcoordAccessorBytes": 2373784,
+              "indexAccessorBytes": 3351144,
+              "attributeBytes": 9495136,
+              "totalPrimitiveBytes": 12846280
+            }
+          ]
+        },
+        {
+          "name": "Torus",
+          "primitiveCount": 1,
+          "vertexCount": 3667,
+          "indexCount": 20736,
+          "faceCount": 6912,
+          "accessorBytes": 158816,
+          "primitives": [
+            {
+              "meshName": "Torus",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 3667,
+              "indexCount": 20736,
+              "faceCount": 6912,
+              "positionAccessorBytes": 44004,
+              "normalAccessorBytes": 44004,
+              "texcoordAccessorBytes": 29336,
+              "indexAccessorBytes": 41472,
+              "attributeBytes": 117344,
+              "totalPrimitiveBytes": 158816
+            }
+          ]
+        },
+        {
+          "name": "Mesh_Assiette_Ceramique",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_Assiette_Ceramique",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": "geometry_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.526277,
+              -0.217731,
+              -0.373162
+            ],
+            "max": [
+              0.527488,
+              0.204107,
+              0.470145
+            ],
+            "size": [
+              1.053766,
+              0.421838,
+              0.843307
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_Assiette_Ceramique",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.862871,
+              -0.249731,
+              -0.824086
+            ],
+            "max": [
+              0.848291,
+              -0.195731,
+              0.887077
+            ],
+            "size": [
+              1.711163,
+              0.054,
+              1.711163
+            ]
+          }
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "mesh": "Torus",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.848327,
+              -0.214898,
+              -0.809541
+            ],
+            "max": [
+              0.833746,
+              -0.184565,
+              0.872532
+            ],
+            "size": [
+              1.682073,
+              0.030333,
+              1.682073
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.meshopt-web-only.glb",
+      "usage": null,
+      "bytes": 17011872,
+      "mib": 16.2238,
+      "sha256": "76eb0faa401dc853d0c8c27835a9083dbc006377f07c65f1284281144f943608",
+      "extensionsUsed": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.862871,
+          -0.249678,
+          -0.824086
+        ],
+        "max": [
+          0.848291,
+          0.204108,
+          0.887077
+        ],
+        "size": [
+          1.711163,
+          0.453785,
+          1.711163
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "world",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.623286,
+            0,
+            0.781994
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "translation": [
+            -0.00729,
+            -0.222731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.855581,
+            0.855581,
+            0.855581
+          ],
+          "matrix": [
+            0.855581,
+            0,
+            0,
+            0,
+            0,
+            0.855581,
+            0,
+            0,
+            0,
+            0,
+            0.855581,
+            0,
+            -0.00729,
+            -0.222731,
+            0.031496,
+            1
+          ]
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.841036,
+            0.841036,
+            0.841036
+          ],
+          "matrix": [
+            0.841036,
+            0,
+            0,
+            0,
+            0,
+            0.841036,
+            0,
+            0,
+            0,
+            0,
+            0.841036,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 302119,
+      "faceCount": 289438,
+      "accessorCount": 11,
+      "accessorBytes": 7332831,
+      "materialCount": 2,
+      "textureCount": 2,
+      "textureEncodedBytes": 14216604,
+      "textures": [
+        {
+          "name": "Image_0",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9246808
+        },
+        {
+          "name": "Image_1",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4969796
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Image_0",
+            "metallicRoughness": "Image_1",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Céramique blanc cassé légèrement satinée",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.68,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "geometry_0",
+          "primitiveCount": 1,
+          "vertexCount": 296723,
+          "indexCount": 837786,
+          "faceCount": 279262,
+          "accessorBytes": 7208543,
+          "primitives": [
+            {
+              "meshName": "geometry_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "NORMAL",
+                "POSITION",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 296723,
+              "indexCount": 837786,
+              "faceCount": 279262,
+              "positionAccessorBytes": 1780338,
+              "normalAccessorBytes": 890169,
+              "texcoordAccessorBytes": 1186892,
+              "indexAccessorBytes": 3351144,
+              "attributeBytes": 3857399,
+              "totalPrimitiveBytes": 7208543
+            }
+          ]
+        },
+        {
+          "name": "Torus",
+          "primitiveCount": 1,
+          "vertexCount": 3667,
+          "indexCount": 20736,
+          "faceCount": 6912,
+          "accessorBytes": 89143,
+          "primitives": [
+            {
+              "meshName": "Torus",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "NORMAL",
+                "POSITION",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 3667,
+              "indexCount": 20736,
+              "faceCount": 6912,
+              "positionAccessorBytes": 22002,
+              "normalAccessorBytes": 11001,
+              "texcoordAccessorBytes": 14668,
+              "indexAccessorBytes": 41472,
+              "attributeBytes": 47671,
+              "totalPrimitiveBytes": 89143
+            }
+          ]
+        },
+        {
+          "name": "Mesh_Assiette_Ceramique",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 35145,
+          "primitives": [
+            {
+              "meshName": "Mesh_Assiette_Ceramique",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "NORMAL",
+                "POSITION"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 10374,
+              "normalAccessorBytes": 5187,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 15561,
+              "totalPrimitiveBytes": 35145
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": "geometry_0",
+          "translation": [
+            -0.032328,
+            -0.006812,
+            -0.000082
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.498321,
+            0.498321,
+            0.498321
+          ],
+          "worldMatrix": [
+            0.11114,
+            0,
+            -0.485769,
+            0,
+            0,
+            0.498321,
+            0,
+            0,
+            0.485769,
+            0,
+            0.11114,
+            0,
+            -0.00729,
+            -0.006812,
+            0.031496,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.526294,
+              -0.217732,
+              -0.373183
+            ],
+            "max": [
+              0.527509,
+              0.204108,
+              0.470121
+            ],
+            "size": [
+              1.053802,
+              0.42184,
+              0.843303
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_Assiette_Ceramique",
+          "translation": [
+            -0.00729,
+            -0.222731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.855581,
+            0.855581,
+            0.855581
+          ],
+          "worldMatrix": [
+            0.855581,
+            0,
+            0,
+            0,
+            0,
+            0.855581,
+            0,
+            0,
+            0,
+            0,
+            0.855581,
+            0,
+            -0.00729,
+            -0.222731,
+            0.031496,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.862871,
+              -0.249678,
+              -0.824086
+            ],
+            "max": [
+              0.848291,
+              -0.195784,
+              0.887077
+            ],
+            "size": [
+              1.711163,
+              0.053893,
+              1.711163
+            ]
+          }
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "mesh": "Torus",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            0.841036,
+            0.841036,
+            0.841036
+          ],
+          "worldMatrix": [
+            0.841036,
+            0,
+            0,
+            0,
+            0,
+            0.841036,
+            0,
+            0,
+            0,
+            0,
+            0.841036,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.848327,
+              -0.214926,
+              -0.809541
+            ],
+            "max": [
+              0.833746,
+              -0.184536,
+              0.872532
+            ],
+            "size": [
+              1.682073,
+              0.03039,
+              1.682073
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.medium-targeted-review-only.glb",
+      "usage": null,
+      "bytes": 26441016,
+      "mib": 25.2161,
+      "sha256": "50437c9ef1cfde7310c985691145cf66ab185e25ec33c86d649318aea14142c9",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.862871,
+          -0.249731,
+          -0.824086
+        ],
+        "max": [
+          0.848291,
+          0.204107,
+          0.887077
+        ],
+        "size": [
+          1.711163,
+          0.453838,
+          1.711163
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "world",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.623286,
+            0,
+            0.781994
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 286175,
+      "faceCount": 261511,
+      "accessorCount": 11,
+      "accessorBytes": 12220844,
+      "materialCount": 2,
+      "textureCount": 2,
+      "textureEncodedBytes": 14216604,
+      "textures": [
+        {
+          "name": "Image_0",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9246808
+        },
+        {
+          "name": "Image_1",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4969796
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Image_0",
+            "metallicRoughness": "Image_1",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Céramique blanc cassé légèrement satinée",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.68,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "geometry_0",
+          "primitiveCount": 1,
+          "vertexCount": 280779,
+          "indexCount": 754005,
+          "faceCount": 251335,
+          "accessorBytes": 12000948,
+          "primitives": [
+            {
+              "meshName": "geometry_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 280779,
+              "indexCount": 754005,
+              "faceCount": 251335,
+              "positionAccessorBytes": 3369348,
+              "normalAccessorBytes": 3369348,
+              "texcoordAccessorBytes": 2246232,
+              "indexAccessorBytes": 3016020,
+              "attributeBytes": 8984928,
+              "totalPrimitiveBytes": 12000948
+            }
+          ]
+        },
+        {
+          "name": "Torus",
+          "primitiveCount": 1,
+          "vertexCount": 3667,
+          "indexCount": 20736,
+          "faceCount": 6912,
+          "accessorBytes": 158816,
+          "primitives": [
+            {
+              "meshName": "Torus",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 3667,
+              "indexCount": 20736,
+              "faceCount": 6912,
+              "positionAccessorBytes": 44004,
+              "normalAccessorBytes": 44004,
+              "texcoordAccessorBytes": 29336,
+              "indexAccessorBytes": 41472,
+              "attributeBytes": 117344,
+              "totalPrimitiveBytes": 158816
+            }
+          ]
+        },
+        {
+          "name": "Mesh_Assiette_Ceramique",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_Assiette_Ceramique",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": "geometry_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.526277,
+              -0.217732,
+              -0.373162
+            ],
+            "max": [
+              0.527495,
+              0.204107,
+              0.470145
+            ],
+            "size": [
+              1.053772,
+              0.421839,
+              0.843307
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_Assiette_Ceramique",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.862871,
+              -0.249731,
+              -0.824086
+            ],
+            "max": [
+              0.848291,
+              -0.195731,
+              0.887077
+            ],
+            "size": [
+              1.711163,
+              0.054,
+              1.711163
+            ]
+          }
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "mesh": "Torus",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.848327,
+              -0.214898,
+              -0.809541
+            ],
+            "max": [
+              0.833746,
+              -0.184565,
+              0.872532
+            ],
+            "size": [
+              1.682073,
+              0.030333,
+              1.682073
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "file": "asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.aggressive-targeted-review-only.glb",
+      "usage": null,
+      "bytes": 23591236,
+      "mib": 22.4984,
+      "sha256": "73ef0c99787192f629f6e683b4c456fa0190d35e34d146db081ca8ae93e3aa0e",
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "sceneCount": 1,
+      "defaultScene": "Scene",
+      "sceneBounds": {
+        "min": [
+          -0.862871,
+          -0.249731,
+          -0.824086
+        ],
+        "max": [
+          0.848291,
+          0.204187,
+          0.887077
+        ],
+        "size": [
+          1.711163,
+          0.453918,
+          1.711163
+        ]
+      },
+      "nodeCount": 4,
+      "meshNodeCount": 3,
+      "rootTransforms": [
+        {
+          "name": "world",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.623286,
+            0,
+            0.781994
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ]
+        }
+      ],
+      "meshCount": 3,
+      "primitiveCount": 3,
+      "vertexCount": 223300,
+      "faceCount": 191696,
+      "accessorCount": 11,
+      "accessorBytes": 9371064,
+      "materialCount": 2,
+      "textureCount": 2,
+      "textureEncodedBytes": 14216604,
+      "textures": [
+        {
+          "name": "Image_0",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 9246808
+        },
+        {
+          "name": "Image_1",
+          "uri": null,
+          "mimeType": "image/png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "encodedBytes": 4969796
+        }
+      ],
+      "materials": [
+        {
+          "name": "Material_0",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 1,
+          "textureSlots": {
+            "baseColor": "Image_0",
+            "metallicRoughness": "Image_1",
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        },
+        {
+          "name": "Céramique blanc cassé légèrement satinée",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true,
+          "baseColorFactor": [
+            0.96,
+            0.92,
+            0.84,
+            1
+          ],
+          "metallicFactor": 0,
+          "roughnessFactor": 0.68,
+          "textureSlots": {
+            "baseColor": null,
+            "metallicRoughness": null,
+            "normal": null,
+            "occlusion": null,
+            "emissive": null
+          }
+        }
+      ],
+      "meshes": [
+        {
+          "name": "geometry_0",
+          "primitiveCount": 1,
+          "vertexCount": 217904,
+          "indexCount": 544560,
+          "faceCount": 181520,
+          "accessorBytes": 9151168,
+          "primitives": [
+            {
+              "meshName": "geometry_0",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Material_0",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 217904,
+              "indexCount": 544560,
+              "faceCount": 181520,
+              "positionAccessorBytes": 2614848,
+              "normalAccessorBytes": 2614848,
+              "texcoordAccessorBytes": 1743232,
+              "indexAccessorBytes": 2178240,
+              "attributeBytes": 6972928,
+              "totalPrimitiveBytes": 9151168
+            }
+          ]
+        },
+        {
+          "name": "Torus",
+          "primitiveCount": 1,
+          "vertexCount": 3667,
+          "indexCount": 20736,
+          "faceCount": 6912,
+          "accessorBytes": 158816,
+          "primitives": [
+            {
+              "meshName": "Torus",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "POSITION",
+                "NORMAL",
+                "TEXCOORD_0"
+              ],
+              "vertexCount": 3667,
+              "indexCount": 20736,
+              "faceCount": 6912,
+              "positionAccessorBytes": 44004,
+              "normalAccessorBytes": 44004,
+              "texcoordAccessorBytes": 29336,
+              "indexAccessorBytes": 41472,
+              "attributeBytes": 117344,
+              "totalPrimitiveBytes": 158816
+            }
+          ]
+        },
+        {
+          "name": "Mesh_Assiette_Ceramique",
+          "primitiveCount": 1,
+          "vertexCount": 1729,
+          "indexCount": 9792,
+          "faceCount": 3264,
+          "accessorBytes": 61080,
+          "primitives": [
+            {
+              "meshName": "Mesh_Assiette_Ceramique",
+              "primitiveIndex": 0,
+              "mode": 4,
+              "material": "Céramique blanc cassé légèrement satinée",
+              "semantics": [
+                "POSITION",
+                "NORMAL"
+              ],
+              "vertexCount": 1729,
+              "indexCount": 9792,
+              "faceCount": 3264,
+              "positionAccessorBytes": 20748,
+              "normalAccessorBytes": 20748,
+              "texcoordAccessorBytes": 0,
+              "indexAccessorBytes": 19584,
+              "attributeBytes": 41496,
+              "totalPrimitiveBytes": 61080
+            }
+          ]
+        }
+      ],
+      "meshNodes": [
+        {
+          "name": "geometry_0",
+          "mesh": "geometry_0",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            0.22303,
+            0,
+            -0.974812,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0.974812,
+            0,
+            0.22303,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.526277,
+              -0.217829,
+              -0.373162
+            ],
+            "max": [
+              0.52749,
+              0.204187,
+              0.470262
+            ],
+            "size": [
+              1.053767,
+              0.422015,
+              0.843425
+            ]
+          }
+        },
+        {
+          "name": "Assiette céramique réaliste",
+          "mesh": "Mesh_Assiette_Ceramique",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.862871,
+              -0.249731,
+              -0.824086
+            ],
+            "max": [
+              0.848291,
+              -0.195731,
+              0.887077
+            ],
+            "size": [
+              1.711163,
+              0.054,
+              1.711163
+            ]
+          }
+        },
+        {
+          "name": "Rebord assiette réaliste",
+          "mesh": "Torus",
+          "translation": [
+            -0.00729,
+            -0.199731,
+            0.031496
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "worldMatrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.00729,
+            -0.199731,
+            0.031496,
+            1
+          ],
+          "bounds": {
+            "min": [
+              -0.848327,
+              -0.214898,
+              -0.809541
+            ],
+            "max": [
+              0.833746,
+              -0.184565,
+              0.872532
+            ],
+            "size": [
+              1.682073,
+              0.030333,
+              1.682073
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
