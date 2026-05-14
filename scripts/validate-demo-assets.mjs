@@ -12,7 +12,7 @@ const DEMO_DATA = join(ROOT, "lib", "demoMenuData.ts");
 const NEXT_CONFIG = join(ROOT, "next.config.ts");
 const PUBLIC_DIR = join(ROOT, "public");
 const USDZ_SCENE_INSPECTOR = join(__dirname, "inspect-usdz-scene.py");
-const PYTHON_BIN = process.env.USDZ_VALIDATION_PYTHON ?? "python";
+const PYTHON_BIN = findOpenUsdPython();
 
 const MIN_USDZ_BYTES = 10 * 1024;
 const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
@@ -82,6 +82,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
   ]
 ]);
 const ACTIVE_PUBLIC_USDZ_FILES = new Set([
+  "homard-bisque-ar-lite.usdz",
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
   "ravioles-chevre-miel.usdz",
@@ -92,6 +93,29 @@ const MESHOPT_DECODER_EXPECTATION = {
   sha256: "74188840936594a7161be0bb8822927279ec72ed9e4585e482f2c47c40d1aa80"
 };
 const sceneInspectionCache = new Map();
+
+function canImportOpenUsd(command) {
+  const result = spawnSync(command, ["-c", "from pxr import Usd, UsdGeom, UsdShade"], {
+    encoding: "utf8",
+    stdio: "ignore"
+  });
+  return result.status === 0;
+}
+
+function findOpenUsdPython() {
+  const candidates = [
+    process.env.USDZ_VALIDATION_PYTHON,
+    "E:\\5.1\\python\\bin\\python.exe",
+    "python"
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (candidate.includes("\\") && !existsSync(candidate)) continue;
+    if (canImportOpenUsd(candidate)) return candidate;
+  }
+
+  return process.env.USDZ_VALIDATION_PYTHON ?? "python";
+}
 
 function readText(path) {
   return readFileSync(path, "utf8");
@@ -400,7 +424,9 @@ function extractDishes() {
       name: block.match(/name:\s*"([^"]+)"/)?.[1] ?? "",
       model3dUrl: block.match(/model3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
       webModel3dUrl: block.match(/webModel3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
-      usdzUrl: block.match(/usdzUrl:\s*"([^"]*)"/)?.[1] ?? ""
+      arModel3dUrl: block.match(/arModel3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
+      usdzUrl: block.match(/usdzUrl:\s*"([^"]*)"/)?.[1] ?? "",
+      arUsdzUrl: block.match(/arUsdzUrl:\s*"([^"]*)"/)?.[1] ?? ""
     }))
     .filter((dish) => dish.slug);
 }
@@ -535,9 +561,21 @@ if (!homard) {
   }
 
   if (homard.usdzUrl.includes("homard-bisque-ar-lite.usdz")) {
-    fail("homard pointe vers homard-bisque-ar-lite.usdz");
+    fail("homard usdzUrl source pointe vers homard-bisque-ar-lite.usdz");
   } else {
-    ok("homard-bisque-ar-lite.usdz non utilisé par le plat homard");
+    ok("homard usdzUrl source conserve l'USDZ original");
+  }
+
+  if (homard.arModel3dUrl !== "/models/demo/ar-lite/homard-bisque-ar-lite.glb") {
+    fail(`homard arModel3dUrl inattendu: ${homard.arModel3dUrl || "(absent)"}`);
+  } else {
+    ok("homard arModel3dUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite.glb");
+  }
+
+  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ar-lite.usdz") {
+    fail(`homard arUsdzUrl inattendu: ${homard.arUsdzUrl || "(absent)"}`);
+  } else {
+    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite.usdz");
   }
 
   checkExpectedWebGlb(homard, "homard");

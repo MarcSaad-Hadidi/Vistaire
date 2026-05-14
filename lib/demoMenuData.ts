@@ -57,7 +57,9 @@ export type Dish = {
   preparationTime: string;
   model3dUrl: string;
   webModel3dUrl?: string;
+  arModel3dUrl?: string;
   usdzUrl: string;
+  arUsdzUrl?: string;
 };
 
 const RESTAURANT: Restaurant = {
@@ -230,7 +232,9 @@ const DISHES: Dish[] = [
     preparationTime: "28 min",
     model3dUrl: "/models/demo/homard-bisque.glb",
     webModel3dUrl: "/models/demo/homard-bisque-meshopt-73be7175.glb",
-    usdzUrl: "/models/demo/homard-bisque.usdz"
+    arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+    usdzUrl: "/models/demo/homard-bisque.usdz",
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.usdz"
   },
   {
     id: "dish-4",

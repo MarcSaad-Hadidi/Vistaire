@@ -38,7 +38,9 @@ export type DishModelViewerProps = {
     | "name"
     | "model3dUrl"
     | "webModel3dUrl"
+    | "arModel3dUrl"
     | "usdzUrl"
+    | "arUsdzUrl"
     | "image"
     | "imageObjectPosition"
     | "imageObjectPositionDetail"
@@ -346,9 +348,16 @@ export function DishModelViewer({
     () => dish.webModel3dUrl?.trim() ?? "",
     [dish.webModel3dUrl]
   );
-  const modelSrc = isAndroid ? originalModelSrc : webModelSrc || originalModelSrc;
+  const arModelSrc = useMemo(
+    () => dish.arModel3dUrl?.trim() ?? "",
+    [dish.arModel3dUrl]
+  );
+  const modelSrc = arModelSrc || webModelSrc || originalModelSrc;
   const hasModel = Boolean(modelSrc);
-  const iosSrc = useMemo(() => dish.usdzUrl?.trim() ?? "", [dish.usdzUrl]);
+  const iosSrc = useMemo(
+    () => dish.arUsdzUrl?.trim() || dish.usdzUrl?.trim() || "",
+    [dish.arUsdzUrl, dish.usdzUrl]
+  );
   const arEnvironment = useMemo(
     () => readArClientEnvironment(iosSrc),
     [iosSrc]
@@ -662,7 +671,7 @@ export function DishModelViewer({
                   camera-controls
                   auto-rotate
                   {...(androidNativeArEnabled ? { ar: true } : {})}
-                  ar-modes="quick-look scene-viewer webxr"
+                  ar-modes="webxr scene-viewer quick-look"
                   ar-placement="floor"
                   ar-scale="fixed"
                   shadow-intensity="1"
@@ -705,6 +714,15 @@ export function DishModelViewer({
 
             <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
               <p id={helpId}>{AR_HELP_TEXT}</p>
+              {onReturnToDish ? (
+                <button
+                  type="button"
+                  className="mt-2 inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                  onClick={onReturnToDish}
+                >
+                  Revenir a la fiche du plat
+                </button>
+              ) : null}
               {showHandoff ? (
                 <div
                   className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"

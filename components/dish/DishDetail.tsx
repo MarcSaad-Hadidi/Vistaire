@@ -100,6 +100,12 @@ function scrollToPlat3dAnchor(target: HTMLElement) {
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function refreshVisibleModelViewerLayout() {
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event("resize"));
+  });
+}
+
 const VIEW_3D_BUTTON_CLASS =
   "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-champagne/50 bg-champagne px-5 text-center text-sm font-semibold text-[#17100a] shadow-[0_12px_34px_rgba(217,184,121,0.18)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:w-auto sm:min-w-[190px]";
 
@@ -110,6 +116,7 @@ export function DishDetail({ dish }: DishDetailProps) {
   const { isRealMobile, isPhoneSimulation } = useDemoSimulation();
   const immersive = isRealMobile || isPhoneSimulation;
   const [showPlat3d, setShowPlat3d] = useState(false);
+  const [hasMountedPlat3d, setHasMountedPlat3d] = useState(false);
   const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
   const viewStartRef = useRef(0);
 
@@ -133,11 +140,14 @@ export function DishDetail({ dish }: DishDetailProps) {
   }, [dish.categorySlug, dish.slug]);
 
   const showAndScrollToPlat3d = useCallback(() => {
+    setHasMountedPlat3d(true);
     setShowPlat3d(true);
+    refreshVisibleModelViewerLayout();
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const el = plat3dAnchorRef.current;
         if (el) scrollToPlat3dAnchor(el);
+        refreshVisibleModelViewerLayout();
       });
     });
   }, []);
@@ -330,11 +340,12 @@ export function DishDetail({ dish }: DishDetailProps) {
         ) : null}
       </div>
 
-      {showPlat3d ? (
+      {hasMountedPlat3d ? (
         <section
           id="plat-3d"
           ref={plat3dAnchorRef}
           aria-label="Présentation du plat"
+          hidden={!showPlat3d}
           className={`mx-auto max-w-3xl scroll-mt-28 px-4 motion-safe:transition-opacity motion-safe:duration-300 sm:px-6 ${
             immersive ? "mt-10" : "mt-12"
           }`}

@@ -49,7 +49,9 @@ function extractDishes() {
       slug: block.match(/slug:\s*"([^"]+)"/)?.[1] ?? "",
       model3dUrl: block.match(/model3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
       webModel3dUrl: block.match(/webModel3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
-      usdzUrl: block.match(/usdzUrl:\s*"([^"]*)"/)?.[1] ?? ""
+      arModel3dUrl: block.match(/arModel3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
+      usdzUrl: block.match(/usdzUrl:\s*"([^"]*)"/)?.[1] ?? "",
+      arUsdzUrl: block.match(/arUsdzUrl:\s*"([^"]*)"/)?.[1] ?? ""
     }))
     .filter((dish) => dish.slug);
 }
@@ -146,10 +148,22 @@ async function main() {
         label: `${dish.slug} web GLB ${dish.webModel3dUrl}`
       });
     }
+    if (dish.arModel3dUrl) {
+      assets.push({
+        url: dish.arModel3dUrl,
+        label: `${dish.slug} AR-lite GLB ${dish.arModel3dUrl}`
+      });
+    }
     if (dish.usdzUrl) {
       assets.push({
         url: dish.usdzUrl,
         label: `${dish.slug} USDZ ${dish.usdzUrl}`
+      });
+    }
+    if (dish.arUsdzUrl) {
+      assets.push({
+        url: dish.arUsdzUrl,
+        label: `${dish.slug} AR-lite USDZ ${dish.arUsdzUrl}`
       });
     }
   }

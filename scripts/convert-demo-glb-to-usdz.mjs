@@ -63,7 +63,11 @@ function getArProfileName(glbName) {
   const fileName = basename(glbName);
   return Object.keys(AR_EXPORT_CONFIG).find((sourceName) => {
     const sourceBase = sourceName.replace(/\.glb$/i, "");
-    return fileName === sourceName || fileName.startsWith(`${sourceBase}.`);
+    return (
+      fileName === sourceName ||
+      fileName.startsWith(`${sourceBase}.`) ||
+      fileName.startsWith(`${sourceBase}-`)
+    );
   });
 }
 

@@ -17,6 +17,7 @@ const GLB_DEMO_HEADERS = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
   images: {
     qualities: [75, 90, 92],
