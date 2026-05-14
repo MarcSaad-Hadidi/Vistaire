@@ -16,6 +16,8 @@ const demoAssetByteSizes = new Map<string, number>([
   ["/models/demo/ravioles-chevre-miel.usdz", 70_375_208],
   ["/models/demo/homard-bisque.glb", 29_010_112],
   ["/models/demo/homard-bisque.usdz", 26_352_806],
+  ["/models/demo/ar-lite/homard-bisque-ar-lite.glb", 12_032_888],
+  ["/models/demo/ar-lite/homard-bisque-ar-lite.usdz", 10_365_689],
   ["/models/demo/souffle-chocolat.glb", 27_286_348],
   ["/models/demo/souffle-chocolat.usdz", 24_873_890],
   ["/models/demo/maison-elyse-n1.glb", 86_380],
@@ -187,9 +189,17 @@ export function warmAsset(url: string, kind: AssetKind): void {
   runNextWarmup();
 }
 
-function getWarmupOrder(dish: Pick<Dish, "model3dUrl" | "usdzUrl">): AssetWarmupRequest[] {
-  const glbUrl = dish.model3dUrl?.trim();
-  const usdzUrl = dish.usdzUrl?.trim();
+type WarmableDish = Pick<
+  Dish,
+  "model3dUrl" | "webModel3dUrl" | "arModel3dUrl" | "usdzUrl" | "arUsdzUrl"
+>;
+
+function getWarmupOrder(dish: WarmableDish): AssetWarmupRequest[] {
+  const glbUrl =
+    dish.arModel3dUrl?.trim() ||
+    dish.webModel3dUrl?.trim() ||
+    dish.model3dUrl?.trim();
+  const usdzUrl = dish.arUsdzUrl?.trim() || dish.usdzUrl?.trim();
   const requests: AssetWarmupRequest[] = [];
 
   if (isLikelyIos()) {
@@ -203,9 +213,7 @@ function getWarmupOrder(dish: Pick<Dish, "model3dUrl" | "usdzUrl">): AssetWarmup
   return requests;
 }
 
-export function warmDishAssets(
-  dish: Pick<Dish, "model3dUrl" | "usdzUrl">
-): void {
+export function warmDishAssets(dish: WarmableDish): void {
   if (typeof window === "undefined" || !shouldWarmHeavyAsset()) return;
 
   const requests = getWarmupOrder(dish);
@@ -229,9 +237,7 @@ export function warmDishAssets(
 
 export const warmDishModelAssets = warmDishAssets;
 
-export function prepareDishAssetIntent(
-  dish: Pick<Dish, "model3dUrl" | "usdzUrl">
-): void {
+export function prepareDishAssetIntent(dish: WarmableDish): void {
   if (typeof window === "undefined" || !shouldWarmHeavyAsset()) return;
 
   prepareDemoAssetOrigin();

@@ -25,9 +25,18 @@ export function dishMatchesSearch(dish: Dish, rawQuery: string): boolean {
 
 /** True when a dish has a web 3D or iOS AR asset. */
 export function dishHasImmersiveAsset(
-  dish: Pick<Dish, "model3dUrl" | "usdzUrl">
+  dish: Pick<
+    Dish,
+    "model3dUrl" | "webModel3dUrl" | "arModel3dUrl" | "usdzUrl" | "arUsdzUrl"
+  >
 ): boolean {
-  return Boolean(dish.model3dUrl?.trim() || dish.usdzUrl?.trim());
+  return Boolean(
+    dish.arModel3dUrl?.trim() ||
+      dish.webModel3dUrl?.trim() ||
+      dish.model3dUrl?.trim() ||
+      dish.arUsdzUrl?.trim() ||
+      dish.usdzUrl?.trim()
+  );
 }
 
 export type MenuFilterState = {

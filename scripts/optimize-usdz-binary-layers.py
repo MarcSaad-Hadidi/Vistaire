@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import tempfile
 import zipfile
@@ -57,12 +58,63 @@ def rewrite_layer_references(text: str, mapping: dict[str, str]) -> str:
     return updated
 
 
+def rewrite_texture_references(text: str) -> str:
+    return re.sub(r"@(?:\./)?textures/([^@]+)@", r"@0/\1@", text)
+
+
+def copy_package_textures(root: Path) -> list[str]:
+    source_dir = root / "textures"
+    if not source_dir.exists():
+        return []
+
+    copied: list[str] = []
+    package_dir = root / "0"
+    package_dir.mkdir(parents=True, exist_ok=True)
+    for source in sorted(path for path in source_dir.iterdir() if path.is_file()):
+        target = package_dir / source.name
+        shutil.copy2(source, target)
+        copied.append(target.relative_to(root).as_posix())
+    return copied
+
+
 def convert_layer(source: Path, target: Path) -> None:
     layer = Sdf.Layer.FindOrOpen(str(source))
     if layer is None:
         raise RuntimeError(f"Unable to open USD layer: {source}")
     if not layer.Export(str(target)):
         raise RuntimeError(f"Unable to export binary USD layer: {target}")
+
+
+def export_layer_text(layer_path: Path) -> str:
+    layer = Sdf.Layer.FindOrOpen(str(layer_path))
+    if layer is None:
+        raise RuntimeError(f"Unable to open USD layer: {layer_path}")
+    return layer.ExportToString()
+
+
+def ensure_rewritten_asset_paths_exist(root: Path, layer_path: Path) -> list[str]:
+    """OpenUSD may rewrite package-local texture paths while exporting USDC.
+
+    Babylon exports textures under `textures/`, while OpenUSD can rewrite those
+    asset paths to package-local folders like `0/`. Ensure the rewritten paths
+    exist before creating the USDZ package, otherwise CreateNewUsdzPackage emits
+    missing texture warnings even though the final package can sometimes recover.
+    """
+
+    text = export_layer_text(layer_path)
+    asset_paths = sorted(set(re.findall(r"@([^@]+\.(?:jpe?g|png|webp))@", text, re.IGNORECASE)))
+    copied: list[str] = []
+    for asset_path in asset_paths:
+        target = root / asset_path
+        if target.exists():
+            continue
+        matches = [path for path in root.rglob(Path(asset_path).name) if path.is_file()]
+        if not matches:
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(matches[0], target)
+        copied.append(asset_path)
+    return copied
 
 
 def optimize(source: Path, output: Path) -> dict[str, object]:
@@ -94,8 +146,11 @@ def optimize(source: Path, output: Path) -> dict[str, object]:
         for layer_path in usda_layers:
             original = layer_path.read_text(encoding="utf-8")
             rewritten = rewrite_layer_references(original, mapping)
+            rewritten = rewrite_texture_references(rewritten)
             if rewritten != original:
                 layer_path.write_text(rewritten, encoding="utf-8")
+
+        copied_package_textures = copy_package_textures(extracted)
 
         converted_layers: list[str] = []
         for layer_path in usda_layers:
@@ -109,6 +164,8 @@ def optimize(source: Path, output: Path) -> dict[str, object]:
         root_binary_path = extracted / root_binary_rel
         if not root_binary_path.exists():
             raise RuntimeError(f"Converted root layer is missing: {root_binary_path}")
+
+        copied_assets = ensure_rewritten_asset_paths_exist(extracted, root_binary_path)
 
         local_stage = Usd.Stage.Open(str(root_binary_path))
         if local_stage is None:
@@ -139,6 +196,8 @@ def optimize(source: Path, output: Path) -> dict[str, object]:
         "entriesBefore": entries_before,
         "entriesAfter": entries_after,
         "convertedLayers": converted_layers,
+        "copiedPackageTextures": copied_package_textures,
+        "copiedRewrittenAssets": copied_assets,
         "stageDefaultPrim": str(packaged_stage.GetDefaultPrim().GetPath()),
     }
 
