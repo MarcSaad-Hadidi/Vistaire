@@ -1,0 +1,511 @@
+﻿{
+    "sourceAsset":  "public/models/demo/maison-elyse-n1.usdz",
+    "sourceCandidateGlb":  null,
+    "candidatePath":  "asset-review/3d-candidates/maison-elyse-n1/maison-elyse-n1-usdz-binary-repack.usdz",
+    "command":  "E:\\5.1\\python\\bin\\python.exe scripts/optimize-usdz-binary-layers.py public/models/demo/maison-elyse-n1.usdz asset-review/3d-candidates/maison-elyse-n1/maison-elyse-n1-usdz-binary-repack.usdz",
+    "toolsAndVersions":  {
+                             "openUsdPython":  "E:\\5.1\\python\\bin\\python.exe",
+                             "openUsdValidation":  "pxr Usd/UsdGeom/UsdUtils/Sdf import passed",
+                             "optimizer":  "scripts/optimize-usdz-binary-layers.py",
+                             "comparator":  "scripts/compare-usdz-scenes.py",
+                             "inspector":  "scripts/inspect-usdz-scene.py"
+                         },
+    "parameters":  {
+                       "mode":  "binary-layer-repack",
+                       "outputRoot":  "asset-review/3d-candidates",
+                       "publicOutputAllowed":  false,
+                       "geometryReduction":  false
+                   },
+    "originalSizeBytes":  208984,
+    "candidateSizeBytes":  79607,
+    "reductionPercent":  61.91,
+    "originalSha256":  "0c3f6233e237cc27c26d0784927059ef0ea7ba15e83b92e9a472a3dd2961213a",
+    "candidateSha256":  "ffb62cc4e9f9fb1d7ce63c63204928688a4e210e10e77cf5aa1b26cc1aea5455",
+    "structuralStatus":  "passed",
+    "visualStatus":  "not-run",
+    "deviceStatus":  "iphone-safari-not-tested",
+    "riskLevel":  "safe",
+    "recommendation":  "needs-real-device-test",
+    "rejectionReason":  null,
+    "notes":  [
+                  "OpenUSD opened candidate successfully.",
+                  "compare-usdz-scenes same=True",
+                  "meshCount=11; materialCount=5; textureCount=0; unresolvedTextures=0",
+                  "Quick Look on real iPhone Safari HTTPS was not tested."
+              ],
+    "compare":  {
+                    "same":  true,
+                    "original":  {
+                                     "defaultPrim":  "/Root",
+                                     "primCount":  36,
+                                     "meshCount":  11,
+                                     "meshes":  [
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_199/Geometry",
+                                                        "points":  343,
+                                                        "faces":  576,
+                                                        "faceVertexIndices":  1728
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_204/Geometry",
+                                                        "points":  287,
+                                                        "faces":  480,
+                                                        "faceVertexIndices":  1440
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_207/Geometry",
+                                                        "points":  124,
+                                                        "faces":  80,
+                                                        "faceVertexIndices":  240
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_209/Geometry",
+                                                        "points":  220,
+                                                        "faces":  144,
+                                                        "faceVertexIndices":  432
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_211/Geometry",
+                                                        "points":  221,
+                                                        "faces":  368,
+                                                        "faceVertexIndices":  1104
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_214/Geometry",
+                                                        "points":  14,
+                                                        "faces":  12,
+                                                        "faceVertexIndices":  36
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_217/Geometry",
+                                                        "points":  121,
+                                                        "faces":  180,
+                                                        "faceVertexIndices":  540
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_220/Geometry",
+                                                        "points":  121,
+                                                        "faces":  180,
+                                                        "faceVertexIndices":  540
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_222/Geometry",
+                                                        "points":  121,
+                                                        "faces":  180,
+                                                        "faceVertexIndices":  540
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_224/Geometry",
+                                                        "points":  121,
+                                                        "faces":  180,
+                                                        "faceVertexIndices":  540
+                                                    },
+                                                    {
+                                                        "path":  "/Root/Scenes/Scene/Object_226/Geometry",
+                                                        "points":  121,
+                                                        "faces":  180,
+                                                        "faceVertexIndices":  540
+                                                    }
+                                                ],
+                                     "materialCount":  5,
+                                     "shaderCount":  5,
+                                     "textures":  [
+
+                                                  ],
+                                     "boundsMin":  [
+                                                       -0.0475,
+                                                       0.0,
+                                                       -0.0475
+                                                   ],
+                                     "boundsMax":  [
+                                                       0.0475,
+                                                       0.087789,
+                                                       0.0475
+                                                   ]
+                                 },
+                    "candidate":  {
+                                      "defaultPrim":  "/Root",
+                                      "primCount":  36,
+                                      "meshCount":  11,
+                                      "meshes":  [
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_199/Geometry",
+                                                         "points":  343,
+                                                         "faces":  576,
+                                                         "faceVertexIndices":  1728
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_204/Geometry",
+                                                         "points":  287,
+                                                         "faces":  480,
+                                                         "faceVertexIndices":  1440
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_207/Geometry",
+                                                         "points":  124,
+                                                         "faces":  80,
+                                                         "faceVertexIndices":  240
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_209/Geometry",
+                                                         "points":  220,
+                                                         "faces":  144,
+                                                         "faceVertexIndices":  432
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_211/Geometry",
+                                                         "points":  221,
+                                                         "faces":  368,
+                                                         "faceVertexIndices":  1104
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_214/Geometry",
+                                                         "points":  14,
+                                                         "faces":  12,
+                                                         "faceVertexIndices":  36
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_217/Geometry",
+                                                         "points":  121,
+                                                         "faces":  180,
+                                                         "faceVertexIndices":  540
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_220/Geometry",
+                                                         "points":  121,
+                                                         "faces":  180,
+                                                         "faceVertexIndices":  540
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_222/Geometry",
+                                                         "points":  121,
+                                                         "faces":  180,
+                                                         "faceVertexIndices":  540
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_224/Geometry",
+                                                         "points":  121,
+                                                         "faces":  180,
+                                                         "faceVertexIndices":  540
+                                                     },
+                                                     {
+                                                         "path":  "/Root/Scenes/Scene/Object_226/Geometry",
+                                                         "points":  121,
+                                                         "faces":  180,
+                                                         "faceVertexIndices":  540
+                                                     }
+                                                 ],
+                                      "materialCount":  5,
+                                      "shaderCount":  5,
+                                      "textures":  [
+
+                                                   ],
+                                      "boundsMin":  [
+                                                        -0.0475,
+                                                        0.0,
+                                                        -0.0475
+                                                    ],
+                                      "boundsMax":  [
+                                                        0.0475,
+                                                        0.087789,
+                                                        0.0475
+                                                    ]
+                                  }
+                },
+    "inspect":  {
+                    "defaultPrim":  "/Root",
+                    "primCount":  36,
+                    "meshCount":  11,
+                    "meshes":  [
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_199/Geometry",
+                                       "points":  343,
+                                       "faces":  576,
+                                       "faceVertexIndices":  1728,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.0475,
+                                                                  0.042996,
+                                                                  -0.0475
+                                                              ],
+                                                      "max":  [
+                                                                  0.0475,
+                                                                  0.076573,
+                                                                  0.0475
+                                                              ],
+                                                      "size":  [
+                                                                   0.095,
+                                                                   0.033578,
+                                                                   0.095
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_201"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_204/Geometry",
+                                       "points":  287,
+                                       "faces":  480,
+                                       "faceVertexIndices":  1440,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.0418,
+                                                                  0.047909,
+                                                                  -0.0418
+                                                              ],
+                                                      "max":  [
+                                                                  0.0418,
+                                                                  0.075443,
+                                                                  0.0418
+                                                              ],
+                                                      "size":  [
+                                                                   0.0836,
+                                                                   0.027534,
+                                                                   0.0836
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_206"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_207/Geometry",
+                                       "points":  124,
+                                       "faces":  80,
+                                       "faceVertexIndices":  240,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.006552,
+                                                                  0.003685,
+                                                                  -0.006552
+                                                              ],
+                                                      "max":  [
+                                                                  0.006552,
+                                                                  0.038082,
+                                                                  0.006552
+                                                              ],
+                                                      "size":  [
+                                                                   0.013103,
+                                                                   0.034397,
+                                                                   0.013103
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_201"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_209/Geometry",
+                                       "points":  220,
+                                       "faces":  144,
+                                       "faceVertexIndices":  432,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.036853,
+                                                                  0.0,
+                                                                  -0.036853
+                                                              ],
+                                                      "max":  [
+                                                                  0.036853,
+                                                                  0.004095,
+                                                                  0.036853
+                                                              ],
+                                                      "size":  [
+                                                                   0.073707,
+                                                                   0.004095,
+                                                                   0.073707
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_201"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_211/Geometry",
+                                       "points":  221,
+                                       "faces":  368,
+                                       "faceVertexIndices":  1104,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  0.023757,
+                                                                  0.075855,
+                                                                  -0.001638
+                                                              ],
+                                                      "max":  [
+                                                                  0.033795,
+                                                                  0.083154,
+                                                                  0.00819
+                                                              ],
+                                                      "size":  [
+                                                                   0.010038,
+                                                                   0.007299,
+                                                                   0.009828
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_213"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_214/Geometry",
+                                       "points":  14,
+                                       "faces":  12,
+                                       "faceVertexIndices":  36,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.033096,
+                                                                  0.065358,
+                                                                  0.000136
+                                                              ],
+                                                      "max":  [
+                                                                  -0.007852,
+                                                                  0.087789,
+                                                                  0.012967
+                                                              ],
+                                                      "size":  [
+                                                                   0.025244,
+                                                                   0.022431,
+                                                                   0.01283
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_216"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_217/Geometry",
+                                       "points":  121,
+                                       "faces":  180,
+                                       "faceVertexIndices":  540,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  0.005897,
+                                                                  0.054625,
+                                                                  0.010104
+                                                              ],
+                                                      "max":  [
+                                                                  0.010483,
+                                                                  0.059211,
+                                                                  0.014465
+                                                              ],
+                                                      "size":  [
+                                                                   0.004586,
+                                                                   0.004586,
+                                                                   0.004362
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_219"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_220/Geometry",
+                                       "points":  121,
+                                       "faces":  180,
+                                       "faceVertexIndices":  540,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.012121,
+                                                                  0.059539,
+                                                                  0.002733
+                                                              ],
+                                                      "max":  [
+                                                                  -0.007534,
+                                                                  0.064125,
+                                                                  0.007095
+                                                              ],
+                                                      "size":  [
+                                                                   0.004586,
+                                                                   0.004586,
+                                                                   0.004362
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_219"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_222/Geometry",
+                                       "points":  121,
+                                       "faces":  180,
+                                       "faceVertexIndices":  540,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  0.000983,
+                                                                  0.065272,
+                                                                  -0.010371
+                                                              ],
+                                                      "max":  [
+                                                                  0.005569,
+                                                                  0.069858,
+                                                                  -0.006009
+                                                              ],
+                                                      "size":  [
+                                                                   0.004586,
+                                                                   0.004586,
+                                                                   0.004362
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_219"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_224/Geometry",
+                                       "points":  121,
+                                       "faces":  180,
+                                       "faceVertexIndices":  540,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  0.015724,
+                                                                  0.061177,
+                                                                  -0.005457
+                                                              ],
+                                                      "max":  [
+                                                                  0.02031,
+                                                                  0.065763,
+                                                                  -0.001095
+                                                              ],
+                                                      "size":  [
+                                                                   0.004586,
+                                                                   0.004586,
+                                                                   0.004362
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_219"
+                                   },
+                                   {
+                                       "path":  "/Root/Scenes/Scene/Object_226/Geometry",
+                                       "points":  121,
+                                       "faces":  180,
+                                       "faceVertexIndices":  540,
+                                       "bounds":  {
+                                                      "min":  [
+                                                                  -0.018672,
+                                                                  0.056263,
+                                                                  -0.012008
+                                                              ],
+                                                      "max":  [
+                                                                  -0.014086,
+                                                                  0.060849,
+                                                                  -0.007647
+                                                              ],
+                                                      "size":  [
+                                                                   0.004586,
+                                                                   0.004586,
+                                                                   0.004362
+                                                               ]
+                                                  },
+                                       "boundMaterial":  "/Root/Materials/Material_219"
+                                   }
+                               ],
+                    "meshMaterialBindingCount":  11,
+                    "sourcePlateMeshCount":  0,
+                    "materialCount":  5,
+                    "shaderCount":  5,
+                    "textureCount":  0,
+                    "unresolvedTextures":  [
+
+                                           ],
+                    "bounds":  {
+                                   "min":  [
+                                               -0.0475,
+                                               0.0,
+                                               -0.0475
+                                           ],
+                                   "max":  [
+                                               0.0475,
+                                               0.087789,
+                                               0.0475
+                                           ],
+                                   "size":  [
+                                                0.095,
+                                                0.087789,
+                                                0.095
+                                            ]
+                               }
+                }
+}

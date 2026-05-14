@@ -48,6 +48,7 @@ function extractDishes() {
     .map((block) => ({
       slug: block.match(/slug:\s*"([^"]+)"/)?.[1] ?? "",
       model3dUrl: block.match(/model3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
+      webModel3dUrl: block.match(/webModel3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
       usdzUrl: block.match(/usdzUrl:\s*"([^"]*)"/)?.[1] ?? ""
     }))
     .filter((dish) => dish.slug);
@@ -113,6 +114,13 @@ async function checkAsset(assetUrl, label) {
     headerIncludes(response, "content-type", "model/gltf-binary", label);
     headerIncludes(response, "cache-control", "max-age=31536000", label);
     headerIncludes(response, "cache-control", "immutable", label);
+    return;
+  }
+
+  if (pathname.endsWith(".js")) {
+    headerIncludes(response, "content-type", "javascript", label);
+    headerIncludes(response, "cache-control", "max-age=31536000", label);
+    headerIncludes(response, "cache-control", "immutable", label);
   }
 }
 
@@ -132,6 +140,12 @@ async function main() {
         label: `${dish.slug} GLB ${dish.model3dUrl}`
       });
     }
+    if (dish.webModel3dUrl) {
+      assets.push({
+        url: dish.webModel3dUrl,
+        label: `${dish.slug} web GLB ${dish.webModel3dUrl}`
+      });
+    }
     if (dish.usdzUrl) {
       assets.push({
         url: dish.usdzUrl,
@@ -139,6 +153,10 @@ async function main() {
       });
     }
   }
+  assets.push({
+    url: "/model-viewer/meshopt-decoder-74188840.js",
+    label: "model-viewer Meshopt decoder /model-viewer/meshopt-decoder-74188840.js"
+  });
 
   if (assets.length === 0) {
     warn("No 3D assets found in demoMenuData.ts");

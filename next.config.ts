@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
         source: "/images/demo/:path*",
         headers: [...DEMO_STATIC_ASSET_HEADERS],
       },
+      {
+        source: "/model-viewer/:path*.js",
+        headers: [...DEMO_STATIC_ASSET_HEADERS],
+      },
     ];
   },
 };

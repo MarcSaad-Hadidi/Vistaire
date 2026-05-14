@@ -1,0 +1,405 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 760
+  },
+  "deviceScaleFactor": 1,
+  "cameraTarget": "0m 0m 0m",
+  "fieldOfView": "30deg",
+  "exposure": "1.05",
+  "shadowIntensity": "1",
+  "autoRotate": false,
+  "server": "http://127.0.0.1:4179",
+  "results": [
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "safe",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.safe.front.png",
+      "consoleMessages": [
+        {
+          "type": "warning",
+          "text": "WebGL: CONTEXT_LOST_WEBGL: loseContext: context lost"
+        },
+        {
+          "type": "log",
+          "text": "THREE.WebGLRenderer: Context Lost."
+        },
+        {
+          "type": "log",
+          "text": "THREE.WebGLRenderer: Context Restored."
+        },
+        {
+          "type": "warning",
+          "text": "[.WebGL-0x21c4049a8600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+        },
+        {
+          "type": "warning",
+          "text": "[.WebGL-0x21c4049a8600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+        }
+      ]
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "safe",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.safe.left45.png",
+      "consoleMessages": [
+        {
+          "type": "warning",
+          "text": "[.WebGL-0x73140016e600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+        },
+        {
+          "type": "warning",
+          "text": "[.WebGL-0x73140016e600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+        }
+      ]
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "safe",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.safe.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "safe",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.safe.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.medium-targeted-review-only.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/ravioles-chevre-miel.aggressive-targeted-review-only.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "safe",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.safe.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "safe",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.safe.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "safe",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.safe.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "safe",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.safe.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.medium-targeted-review-only.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "homard-bisque",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/homard-bisque.aggressive-targeted-review-only.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "safe",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.safe.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "safe",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.safe.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "safe",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.safe.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "safe",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.safe.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "medium-targeted-review-only",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.medium-targeted-review-only.high.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "front",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.front.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "left45",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.left45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "right45",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.right45.png",
+      "consoleMessages": []
+    },
+    {
+      "slug": "souffle-chocolat",
+      "candidateName": "aggressive-targeted-review-only",
+      "angleName": "high",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/screenshots/souffle-chocolat.aggressive-targeted-review-only.high.png",
+      "consoleMessages": []
+    }
+  ]
+}

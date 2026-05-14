@@ -56,6 +56,7 @@ export type Dish = {
   isAvailable: boolean;
   preparationTime: string;
   model3dUrl: string;
+  webModel3dUrl?: string;
   usdzUrl: string;
 };
 
@@ -163,6 +164,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "12 min",
     model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
+    webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
     usdzUrl: "/models/demo/ravioles-chevre-miel.usdz"
   },
   {
@@ -227,6 +229,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "28 min",
     model3dUrl: "/models/demo/homard-bisque.glb",
+    webModel3dUrl: "/models/demo/homard-bisque-meshopt-73be7175.glb",
     usdzUrl: "/models/demo/homard-bisque.usdz"
   },
   {
@@ -383,6 +386,7 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "16 min",
     model3dUrl: "/models/demo/souffle-chocolat.glb",
+    webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
     usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511"
   },
   {

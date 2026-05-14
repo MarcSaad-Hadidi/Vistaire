@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,6 +20,77 @@ const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
 const SOUFFLE_WITH_PLATE_GLB_SHA256 =
   "6aaab33a629b79ecf7f01bcedc03534528cc49ebb50064772e57cec9ecb1fc79";
 const SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES = 5 * 1024 * 1024;
+const WEB_GLB_EXPECTATIONS = new Map([
+  [
+    "ravioles-romarin",
+    {
+      url: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
+      sha256: "6b812a046c383581aaf642e74e2e2f5d2eac4594b23ec8c4148a64fec0f62fd6"
+    }
+  ],
+  [
+    "homard-bisque",
+    {
+      url: "/models/demo/homard-bisque-meshopt-73be7175.glb",
+      sha256: "73be717526e94964c581de1e2bcf983e826a2ea16ee71044e10651b8eb6b69c3"
+    }
+  ],
+  [
+    "souffle-chocolat",
+    {
+      url: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
+      sha256: "76eb0faa401dc853d0c8c27835a9083dbc006377f07c65f1284281144f943608"
+    }
+  ]
+]);
+const CORE_ASSET_EXPECTATIONS = new Map([
+  [
+    "ravioles-romarin",
+    {
+      model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
+      modelSha256: "c665ca403a9543296383a8234310b01c58e5bfce47efa9fa1bae39caa28847b0",
+      usdzUrl: "/models/demo/ravioles-chevre-miel.usdz",
+      usdzSha256: "b22994f9ce416d9342bcbea0d9d0ba71a4005c258ecd33cca7210a844ec11d53"
+    }
+  ],
+  [
+    "homard-bisque",
+    {
+      model3dUrl: "/models/demo/homard-bisque.glb",
+      modelSha256: "ff7a4377c0cdfb3deba984f4514942e8e392ba2a3e9ab83d93e62071777c0f14",
+      usdzUrl: "/models/demo/homard-bisque.usdz",
+      usdzSha256: "099ba9e974b7a63519f52b017198385a748e18845c59312e7490c28d4f88b18b"
+    }
+  ],
+  [
+    "souffle-chocolat",
+    {
+      model3dUrl: "/models/demo/souffle-chocolat.glb",
+      modelSha256: SOUFFLE_WITH_PLATE_GLB_SHA256,
+      usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+      usdzSha256: "8fbdd7dc6d60e2c75da334c665ae30953328df426c64fedc6a5be68895e5284f"
+    }
+  ],
+  [
+    "cocktail-maison-elyse",
+    {
+      model3dUrl: "/models/demo/maison-elyse-n1.glb",
+      modelSha256: "7f12cd7bc6f47ec97f6cef3b65c453bbef537aa7c095289899c51782e48eebef",
+      usdzUrl: "/models/demo/maison-elyse-n1.usdz",
+      usdzSha256: "0c3f6233e237cc27c26d0784927059ef0ea7ba15e83b92e9a472a3dd2961213a"
+    }
+  ]
+]);
+const ACTIVE_PUBLIC_USDZ_FILES = new Set([
+  "homard-bisque.usdz",
+  "maison-elyse-n1.usdz",
+  "ravioles-chevre-miel.usdz",
+  "souffle-chocolat.usdz"
+]);
+const MESHOPT_DECODER_EXPECTATION = {
+  url: "/model-viewer/meshopt-decoder-74188840.js",
+  sha256: "74188840936594a7161be0bb8822927279ec72ed9e4585e482f2c47c40d1aa80"
+};
 const sceneInspectionCache = new Map();
 
 function readText(path) {
@@ -71,6 +142,47 @@ function checkFileHash(filePath, expectedHash, label) {
   }
 
   ok(`${label} hash attendu`);
+}
+
+function checkExpectedWebGlb(dish, label) {
+  const expected = WEB_GLB_EXPECTATIONS.get(dish.slug);
+  if (!expected) return;
+
+  if (dish.webModel3dUrl !== expected.url) {
+    fail(`${label} webModel3dUrl inattendu: ${dish.webModel3dUrl || "(absent)"}`);
+    return;
+  }
+
+  ok(`${label} pointe vers ${expected.url}`);
+  checkFileHash(assetPath(expected.url), expected.sha256, `${label} webModel3dUrl Meshopt`);
+}
+
+function checkExpectedCoreAssets(dishes) {
+  for (const [slug, expected] of CORE_ASSET_EXPECTATIONS) {
+    const dish = dishes.find((item) => item.slug === slug);
+    if (!dish) {
+      fail(`plat attendu absent: ${slug}`);
+      continue;
+    }
+
+    if (dish.model3dUrl !== expected.model3dUrl) {
+      fail(`${slug} model3dUrl original modifie: ${dish.model3dUrl || "(absent)"}`);
+    } else {
+      ok(`${slug} model3dUrl original conserve`);
+      checkFileHash(assetPath(expected.model3dUrl), expected.modelSha256, `${slug} GLB original`);
+    }
+
+    if (dish.usdzUrl !== expected.usdzUrl) {
+      fail(`${slug} usdzUrl actif modifie: ${dish.usdzUrl || "(absent)"}`);
+    } else {
+      ok(`${slug} usdzUrl actif conserve`);
+      checkFileHash(assetPath(expected.usdzUrl), expected.usdzSha256, `${slug} USDZ actif`);
+    }
+
+    if (!WEB_GLB_EXPECTATIONS.has(slug) && dish.webModel3dUrl) {
+      fail(`${slug} declare un webModel3dUrl inattendu: ${dish.webModel3dUrl}`);
+    }
+  }
 }
 
 function checkMinimumSize(filePath, minBytes, label) {
@@ -287,6 +399,7 @@ function extractDishes() {
       slug: block.match(/slug:\s*"([^"]+)"/)?.[1] ?? "",
       name: block.match(/name:\s*"([^"]+)"/)?.[1] ?? "",
       model3dUrl: block.match(/model3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
+      webModel3dUrl: block.match(/webModel3dUrl:\s*"([^"]*)"/)?.[1] ?? "",
       usdzUrl: block.match(/usdzUrl:\s*"([^"]*)"/)?.[1] ?? ""
     }))
     .filter((dish) => dish.slug);
@@ -397,11 +510,14 @@ function inspectUsdz(filePath, label) {
 
 const dishes = extractDishes();
 const dishesWithGlb = dishes.filter((dish) => dish.model3dUrl);
+const dishesWithWebGlb = dishes.filter((dish) => dish.webModel3dUrl);
 const dishesWithUsdz = dishes.filter((dish) => dish.usdzUrl);
 const nextConfig = readText(NEXT_CONFIG);
 const homard = dishes.find((dish) => dish.slug === "homard-bisque");
 const ravioles = dishes.find((dish) => dish.slug === "ravioles-romarin");
 const souffle = dishes.find((dish) => dish.slug === "souffle-chocolat");
+
+checkExpectedCoreAssets(dishes);
 
 if (!homard) {
   fail("plat homard-bisque introuvable dans demoMenuData.ts");
@@ -423,6 +539,8 @@ if (!homard) {
   } else {
     ok("homard-bisque-ar-lite.usdz non utilisé par le plat homard");
   }
+
+  checkExpectedWebGlb(homard, "homard");
 }
 
 if (!ravioles) {
@@ -445,6 +563,8 @@ if (!ravioles) {
   } else {
     ok("ravioles ne pointe pas vers une version lite");
   }
+
+  checkExpectedWebGlb(ravioles, "ravioles");
 }
 
 if (!souffle) {
@@ -485,6 +605,8 @@ if (!souffle) {
     assetPath(souffle.usdzUrl),
     "souffle USDZ stabilite AR"
   );
+
+  checkExpectedWebGlb(souffle, "souffle");
 }
 
 const hasGenericUsdzHeaderRule =
@@ -503,6 +625,25 @@ for (const dish of dishesWithGlb) {
   ok(`${label} existe (${formatSize(size)})`);
   checkSignature(filePath, "glTF", label);
 }
+
+for (const dish of dishesWithWebGlb) {
+  const filePath = assetPath(dish.webModel3dUrl);
+  const label = `${dish.slug} web GLB ${basename(filePath)}`;
+  if (!existsSync(filePath)) {
+    fail(`${label} manquant`);
+    continue;
+  }
+  const size = statSync(filePath).size;
+  if (size <= 0) fail(`${label} vide`);
+  ok(`${label} existe (${formatSize(size)})`);
+  checkSignature(filePath, "glTF", label);
+}
+
+checkFileHash(
+  assetPath(MESHOPT_DECODER_EXPECTATION.url),
+  MESHOPT_DECODER_EXPECTATION.sha256,
+  "model-viewer Meshopt decoder"
+);
 
 for (const dish of dishesWithUsdz) {
   const filePath = assetPath(dish.usdzUrl);
@@ -525,6 +666,22 @@ for (const dish of dishesWithUsdz) {
     fail(`${fileName} non couvert par les headers next.config.ts`);
   } else {
     ok(`${fileName} déclaré dans next.config.ts`);
+  }
+}
+
+function walkFiles(dir) {
+  if (!existsSync(dir)) return [];
+  const entries = readdirSync(dir, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const path = join(dir, entry.name);
+    return entry.isDirectory() ? walkFiles(path) : [path];
+  });
+}
+
+for (const filePath of walkFiles(PUBLIC_DIR).filter((path) => path.endsWith(".usdz"))) {
+  const fileName = basename(filePath);
+  if (!ACTIVE_PUBLIC_USDZ_FILES.has(fileName)) {
+    fail(`USDZ non actif dans public: ${filePath}`);
   }
 }
 

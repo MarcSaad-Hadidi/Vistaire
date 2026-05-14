@@ -1,0 +1,78 @@
+{
+  "route": "http://localhost:3000/demo/dishes/homard-bisque",
+  "hasTouch": true,
+  "steps": [
+    "model-viewer loaded",
+    "simulated drag over model-viewer",
+    "page scroll outside viewer checked"
+  ],
+  "consoleMessages": [
+    {
+      "type": "log",
+      "text": "[HMR] connected"
+    },
+    {
+      "type": "warning",
+      "text": "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information."
+    },
+    {
+      "type": "warning",
+      "text": "Element model-viewer scheduled an update (generally because a property was set) after an update completed, causing a new update to be scheduled. This is inefficient and should be avoided unless the next update can only be scheduled as a side effect of the previous update. See https://lit.dev/msg/change-in-update for more information."
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x12fc0321da00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x12fc0321da00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x12fc0321da00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x12fc0321da00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_NETWORK_ACCESS_DENIED"
+    }
+  ],
+  "arLinkVisible": true,
+  "arHref": "/models/demo/homard-bisque.usdz",
+  "scrollOutsideViewerChanged": true,
+  "resourceUrls": [
+    "http://localhost:3000/models/demo/homard-bisque.glb"
+  ],
+  "ok": true
+}

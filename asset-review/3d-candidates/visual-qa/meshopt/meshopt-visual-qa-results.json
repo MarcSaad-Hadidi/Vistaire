@@ -1,0 +1,913 @@
+{
+  "generatedAt": "2026-05-14T00:05:09.866Z",
+  "purpose": "Non-production visual QA for original GLB vs Meshopt GLB candidates.",
+  "productionSafety": {
+    "publicModelsModified": false,
+    "demoMenuDataModified": false,
+    "usdzTouched": false,
+    "candidatesServedFromPublic": false
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 760
+  },
+  "deviceScaleFactor": 1,
+  "cameraTarget": "0m 0m 0m",
+  "fieldOfView": "30deg",
+  "exposure": "1.05",
+  "environmentImage": "neutral",
+  "shadowIntensity": "1",
+  "autoRotate": false,
+  "meshoptDecoder": "model-viewer configured with local meshopt decoder trigger",
+  "assetSizes": {
+    "ravioles-chevre-miel": {
+      "originalBytes": 76609104,
+      "originalMiB": 73.0601,
+      "candidateBytes": 27714228,
+      "candidateMiB": 26.4303,
+      "reductionPercent": 63.82
+    },
+    "homard-bisque": {
+      "originalBytes": 29010112,
+      "originalMiB": 27.6662,
+      "candidateBytes": 17732992,
+      "candidateMiB": 16.9115,
+      "reductionPercent": 38.87
+    },
+    "souffle-chocolat": {
+      "originalBytes": 27286348,
+      "originalMiB": 26.0223,
+      "candidateBytes": 17011872,
+      "candidateMiB": 16.2238,
+      "reductionPercent": 37.65
+    }
+  },
+  "results": [
+    {
+      "slug": "ravioles-chevre-miel",
+      "label": "Ravioles",
+      "angleName": "front",
+      "angleLabel": "face",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/ravioles-chevre-miel.meshopt.front.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497840404510498,
+            "y": 0.29612425714731216,
+            "z": 1.4497841000556946
+          },
+          "orbit": "0deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497841000556946,
+            "y": 0.2961525041874332,
+            "z": 1.4497841000556946
+          },
+          "orbit": "0deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/ravioles-chevre-miel.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: useProgram: program not valid"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: INVALID_OPERATION: drawElements: no valid shader program in use"
+        },
+        {
+          "type": "warning",
+          "text": "WebGL: CONTEXT_LOST_WEBGL: loseContext: context lost"
+        },
+        {
+          "type": "log",
+          "text": "THREE.WebGLRenderer: Context Lost."
+        },
+        {
+          "type": "log",
+          "text": "THREE.WebGLRenderer: Context Restored."
+        },
+        {
+          "type": "warning",
+          "text": "[.WebGL-0xb0c01f20000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+        },
+        {
+          "type": "warning",
+          "text": "[.WebGL-0xb0c01f20000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+        }
+      ],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/ravioles-chevre-miel.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "label": "Ravioles",
+      "angleName": "left45",
+      "angleLabel": "45 degres gauche",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/ravioles-chevre-miel.meshopt.left45.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497840404510498,
+            "y": 0.29612425714731216,
+            "z": 1.4497841000556946
+          },
+          "orbit": "45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497841000556946,
+            "y": 0.2961525041874332,
+            "z": 1.4497841000556946
+          },
+          "orbit": "45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/ravioles-chevre-miel.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [
+        {
+          "type": "warning",
+          "text": "[.WebGL-0x4f4c0016e000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+        },
+        {
+          "type": "warning",
+          "text": "[.WebGL-0x4f4c0016e000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+        }
+      ],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/ravioles-chevre-miel.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "label": "Ravioles",
+      "angleName": "right45",
+      "angleLabel": "45 degres droite",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/ravioles-chevre-miel.meshopt.right45.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497840404510498,
+            "y": 0.29612425714731216,
+            "z": 1.4497841000556946
+          },
+          "orbit": "-45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497841000556946,
+            "y": 0.2961525041874332,
+            "z": 1.4497841000556946
+          },
+          "orbit": "-45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/ravioles-chevre-miel/ravioles-chevre-miel.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/ravioles-chevre-miel.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/ravioles-chevre-miel.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "ravioles-chevre-miel",
+      "label": "Ravioles",
+      "angleName": "high",
+      "angleLabel": "vue legerement haute",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/ravioles-chevre-miel.meshopt.high.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497840404510498,
+            "y": 0.29612425714731216,
+            "z": 1.4497841000556946
+          },
+          "orbit": "0deg 45deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4497841000556946,
+            "y": 0.2961525041874332,
+            "z": 1.4497841000556946
+          },
+          "orbit": "0deg 45deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/ravioles-chevre-miel.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/ravioles-chevre-miel.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "homard-bisque",
+      "label": "Homard",
+      "angleName": "front",
+      "angleLabel": "face",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/homard-bisque.meshopt.front.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.517594575881958,
+            "z": 1.4499217867851257
+          },
+          "orbit": "0deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.5175728972859241,
+            "z": 1.4499217867851257
+          },
+          "orbit": "0deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/homard-bisque/homard-bisque.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/homard-bisque.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/homard-bisque.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "homard-bisque",
+      "label": "Homard",
+      "angleName": "left45",
+      "angleLabel": "45 degres gauche",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/homard-bisque.meshopt.left45.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.517594575881958,
+            "z": 1.4499217867851257
+          },
+          "orbit": "45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.5175728972859241,
+            "z": 1.4499217867851257
+          },
+          "orbit": "45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/homard-bisque/homard-bisque.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/homard-bisque.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "homard-bisque",
+      "label": "Homard",
+      "angleName": "right45",
+      "angleLabel": "45 degres droite",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/homard-bisque.meshopt.right45.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.517594575881958,
+            "z": 1.4499217867851257
+          },
+          "orbit": "-45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.5175728972859241,
+            "z": 1.4499217867851257
+          },
+          "orbit": "-45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/homard-bisque/homard-bisque.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/homard-bisque.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "homard-bisque",
+      "label": "Homard",
+      "angleName": "high",
+      "angleLabel": "vue legerement haute",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/homard-bisque.meshopt.high.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.517594575881958,
+            "z": 1.4499217867851257
+          },
+          "orbit": "0deg 45deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.4499217867851257,
+            "y": 0.5175728972859241,
+            "z": 1.4499217867851257
+          },
+          "orbit": "0deg 45deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/homard-bisque.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/homard-bisque.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "label": "Souffle",
+      "angleName": "front",
+      "angleLabel": "face",
+      "orbit": "0deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/souffle-chocolat.meshopt.front.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.4538377970457077,
+            "z": 1.711162805557251
+          },
+          "orbit": "0deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.45378530498161,
+            "z": 1.711162805557251
+          },
+          "orbit": "0deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/souffle-chocolat.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/souffle-chocolat.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "label": "Souffle",
+      "angleName": "left45",
+      "angleLabel": "45 degres gauche",
+      "orbit": "45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/souffle-chocolat.meshopt.left45.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.4538377970457077,
+            "z": 1.711162805557251
+          },
+          "orbit": "45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.45378530498161,
+            "z": 1.711162805557251
+          },
+          "orbit": "45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/souffle-chocolat.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/souffle-chocolat.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "label": "Souffle",
+      "angleName": "right45",
+      "angleLabel": "45 degres droite",
+      "orbit": "-45deg 70deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/souffle-chocolat.meshopt.right45.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.4538377970457077,
+            "z": 1.711162805557251
+          },
+          "orbit": "-45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.45378530498161,
+            "z": 1.711162805557251
+          },
+          "orbit": "-45deg 70deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/souffle-chocolat.meshopt.contact-sheet.png"
+    },
+    {
+      "slug": "souffle-chocolat",
+      "label": "Souffle",
+      "angleName": "high",
+      "angleLabel": "vue legerement haute",
+      "orbit": "0deg 45deg 105%",
+      "loaded": true,
+      "error": null,
+      "screenshot": "asset-review/3d-candidates/visual-qa/meshopt/screenshots/souffle-chocolat.meshopt.high.png",
+      "loadDetails": [
+        {
+          "id": "original",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.4538377970457077,
+            "z": 1.711162805557251
+          },
+          "orbit": "0deg 45deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        },
+        {
+          "id": "candidate",
+          "loaded": true,
+          "dimensions": {
+            "x": 1.711162805557251,
+            "y": 0.45378530498161,
+            "z": 1.711162805557251
+          },
+          "orbit": "0deg 45deg 105%",
+          "target": "0m 0m 0m",
+          "fieldOfView": "30deg",
+          "exposure": "1.05",
+          "environmentImage": "neutral"
+        }
+      ],
+      "failedRequests": [
+        {
+          "url": "http://127.0.0.1:61210/asset-review/3d-candidates/souffle-chocolat/souffle-chocolat.meshopt-web-only.glb",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:61210/public/models/demo/souffle-chocolat.glb",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "consoleMessages": [],
+      "contactSheet": "asset-review/3d-candidates/visual-qa/meshopt/contact-sheets/souffle-chocolat.meshopt.contact-sheet.png"
+    }
+  ]
+}

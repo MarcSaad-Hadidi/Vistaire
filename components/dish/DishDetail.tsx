@@ -35,7 +35,10 @@ function canWarmModelViewer(): boolean {
 function warmModelViewerOnIntent() {
   if (!canWarmModelViewer()) return;
   modelViewerWarmupPromise ??= import("@/components/dish/DishModelViewer").then(
-    () => import("@google/model-viewer")
+    (mod) => {
+      mod.configureModelViewerAssetDecoders();
+      return import("@google/model-viewer");
+    }
   ).catch(() => {
     modelViewerWarmupPromise = null;
   });
