@@ -145,6 +145,77 @@ test.describe("Landing scroll experience", () => {
       .toBeGreaterThan(videoBefore + 0.1);
   });
 
+  test("mobile viewport uses the upscaled mobile scrub video", async ({
+    page
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "deviceMemory", {
+        configurable: true,
+        get: () => 2
+      });
+      Object.defineProperty(navigator, "hardwareConcurrency", {
+        configurable: true,
+        get: () => 4
+      });
+      Object.defineProperty(navigator, "connection", {
+        configurable: true,
+        get: () => ({ effectiveType: "3g", saveData: false })
+      });
+    });
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const experience = page.locator("#experience");
+    await expect(experience).toBeVisible();
+    await expect(experience).toHaveAttribute("data-landing-hero-mode", "mobile");
+    await expect(experience).toHaveAttribute(
+      "data-video-source",
+      "/videos/optimized/upscaled-video-mobile-scrub.mp4"
+    );
+
+    await expect
+      .poll(() =>
+        experience
+          .locator("video")
+          .evaluate((video) => (video as HTMLVideoElement).currentSrc)
+      )
+      .toContain("/videos/optimized/upscaled-video-mobile-scrub.mp4");
+  });
+
+  test("low-end desktop still uses the upscaled desktop scrub video", async ({
+    page
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "deviceMemory", {
+        configurable: true,
+        get: () => 2
+      });
+      Object.defineProperty(navigator, "hardwareConcurrency", {
+        configurable: true,
+        get: () => 4
+      });
+      Object.defineProperty(navigator, "connection", {
+        configurable: true,
+        get: () => ({ effectiveType: "3g", saveData: false })
+      });
+    });
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const experience = page.locator("#experience");
+    await expect(experience).toBeVisible();
+    await expect(experience).toHaveAttribute(
+      "data-landing-hero-mode",
+      "desktopHigh"
+    );
+    await expect(experience).toHaveAttribute(
+      "data-video-source",
+      "/videos/optimized/upscaled-video-desktop-scrub.mp4"
+    );
+  });
+
   test('primary CTA "Explorer l\'expérience" points to /demo', async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const link = page

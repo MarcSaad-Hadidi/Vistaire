@@ -77,31 +77,6 @@ const variants = [
       "-movflags",
       "faststart"
     ]
-  },
-  {
-    output: "upscaled-video-low.mp4",
-    description: "low-end, 540px wide, scrub keyframes",
-    args: [
-      "-vcodec",
-      "libx264",
-      "-vf",
-      "scale=540:-2",
-      "-pix_fmt",
-      "yuv420p",
-      "-crf",
-      "30",
-      "-preset",
-      "fast",
-      "-g",
-      "12",
-      "-keyint_min",
-      "1",
-      "-sc_threshold",
-      "0",
-      "-an",
-      "-movflags",
-      "faststart"
-    ]
   }
 ];
 
