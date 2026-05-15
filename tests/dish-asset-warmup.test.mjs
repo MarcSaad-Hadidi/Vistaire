@@ -148,6 +148,63 @@ test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a
   assert.deepEqual(states, ["preparing", "ready"]);
 });
 
+test("iPhone Quick Look prefetch can target another approved production USDZ", async () => {
+  const env = installBrowserLikeEnvironment({
+    origin: "http://localhost:3006",
+    platform: "iPhone",
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1"
+  });
+  const states = [];
+
+  prefetchUsdzForQuickLook(
+    {
+      model3dUrl: "/models/demo/souffle-chocolat.glb",
+      webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
+      usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+      arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz"
+    },
+    (state) => states.push(state)
+  );
+  await env.settleWarmupQueue();
+
+  assert.deepEqual(env.fetchCalls, [
+    "http://localhost:3006/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz"
+  ]);
+  assert.equal(env.fetchCalls[0].includes("?"), false);
+  assert.equal(env.fetchOptions[0].cache, "force-cache");
+  assert.deepEqual(states, ["preparing", "ready"]);
+});
+
+test("iPhone Quick Look prefetch rejects unstable or non-production USDZ URLs", async () => {
+  const env = installBrowserLikeEnvironment({
+    origin: "http://localhost:3007",
+    platform: "iPhone",
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1"
+  });
+  const states = [];
+
+  for (const arUsdzUrl of [
+    "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz?v=1",
+    "/models/demo/souffle-chocolat.usdz",
+    "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.glb"
+  ]) {
+    prefetchUsdzForQuickLook(
+      {
+        model3dUrl: "/models/demo/souffle-chocolat.glb",
+        arUsdzUrl
+      },
+      (state) => states.push(state)
+    );
+  }
+  await env.settleWarmupQueue();
+
+  assert.deepEqual(env.fetchCalls, []);
+  assert.deepEqual(env.appendedLinks, []);
+  assert.deepEqual(states, ["idle", "idle", "idle"]);
+});
+
 test("iPhone Quick Look prefetch respects Save-Data", async () => {
   const env = installBrowserLikeEnvironment({
     origin: "http://localhost:3002",

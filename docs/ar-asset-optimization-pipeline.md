@@ -21,9 +21,19 @@ The script creates conservative, balanced, ultra, and extreme candidates. It onl
 
 ```bash
 npm run demo:build-ios-ultra -- homard-bisque --promote ultra --quality-approved
+npm run demo:build-ios-ultra -- souffle-chocolat --promote ultra --quality-approved
 ```
 
 Reject candidates that look cheap, cartoon-like, toy-like, visibly low-poly, blurry, fake, or that damage the dish silhouette, plate, scale, or grounding.
+
+Current approved production iPhone Quick Look USDZ:
+
+- `homard-bisque`: `/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz`
+- `souffle-chocolat`: `/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz`
+
+Current failed dish:
+
+- `ravioles-chevre-miel`: generated candidates remain around 50 MB because the asset is geometry-bound. Do not add `arUsdzUrl` until artist retopology/mesh cleanup or a better source asset brings a visually acceptable candidate under 5 MiB.
 
 ## Gates
 

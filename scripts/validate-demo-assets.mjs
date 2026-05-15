@@ -87,7 +87,24 @@ const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
   "ravioles-chevre-miel.usdz",
+  "souffle-chocolat-ios-quicklook-ultra.usdz",
   "souffle-chocolat.usdz"
+]);
+const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
+  [
+    "homard-bisque",
+    {
+      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+      sha256: "2bc1c0e6f33b807417bd03e931ae552a724935b8b193c419cdbf989337a18a13"
+    }
+  ],
+  [
+    "souffle-chocolat",
+    {
+      url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz",
+      sha256: "1ab81a3e292e0f290441028e20b7f2fb56e547c07851e2818abb651c8acfcea5"
+    }
+  ]
 ]);
 const MESHOPT_DECODER_EXPECTATION = {
   url: "/model-viewer/meshopt-decoder-74188840.js",
@@ -180,6 +197,51 @@ function checkExpectedWebGlb(dish, label) {
 
   ok(`${label} pointe vers ${expected.url}`);
   checkFileHash(assetPath(expected.url), expected.sha256, `${label} webModel3dUrl Meshopt`);
+}
+
+function checkApprovedArUsdz(dish, label) {
+  const expected = APPROVED_IOS_QUICK_LOOK_USDZ.get(dish.slug);
+  if (!expected) {
+    if (dish.arUsdzUrl) {
+      fail(`${label} declare un arUsdzUrl non approuve: ${dish.arUsdzUrl}`);
+    } else {
+      ok(`${label} ne declare pas d'arUsdzUrl iPhone production actif`);
+    }
+    return;
+  }
+
+  if (dish.arUsdzUrl !== expected.url) {
+    fail(`${label} arUsdzUrl inattendu: ${dish.arUsdzUrl || "(absent)"}`);
+    return;
+  }
+
+  ok(`${label} arUsdzUrl pointe vers ${expected.url}`);
+  if (/[?#]/.test(dish.arUsdzUrl)) {
+    fail(`${label} arUsdzUrl contient une query string ou un hash`);
+  } else {
+    ok(`${label} arUsdzUrl stable sans query string/hash`);
+  }
+  if (!dish.arUsdzUrl.startsWith("/models/demo/ar-lite/") || !dish.arUsdzUrl.endsWith(".usdz")) {
+    fail(`${label} arUsdzUrl doit pointer vers /models/demo/ar-lite/*.usdz`);
+  } else {
+    ok(`${label} arUsdzUrl dans /models/demo/ar-lite/*.usdz`);
+  }
+
+  const arUsdzPath = assetPath(dish.arUsdzUrl);
+  if (!existsSync(arUsdzPath)) {
+    fail(`${label} arUsdzUrl fichier introuvable: ${arUsdzPath}`);
+    return;
+  }
+
+  const size = statSync(arUsdzPath).size;
+  if (size > MAX_PRODUCTION_IOS_USDZ_BYTES) {
+    fail(`${label} arUsdzUrl depasse 5 MiB: ${formatSize(size)}`);
+  } else {
+    ok(`${label} arUsdzUrl respecte le budget iPhone <= 5 MiB`);
+  }
+  checkFileHash(arUsdzPath, expected.sha256, `${label} arUsdzUrl approuve`);
+  inspectUsdz(arUsdzPath, `${label} arUsdzUrl USDZ production`);
+  checkUsdzCenteredAndGrounded(arUsdzPath, `${label} arUsdzUrl stabilite AR`);
 }
 
 function checkExpectedCoreAssets(dishes) {
@@ -611,11 +673,7 @@ if (!ravioles) {
   }
 
   checkExpectedWebGlb(ravioles, "ravioles");
-  if (ravioles.arUsdzUrl) {
-    fail(`ravioles declare un arUsdzUrl inattendu: ${ravioles.arUsdzUrl}`);
-  } else {
-    ok("ravioles ne declare pas encore d'arUsdzUrl actif");
-  }
+  checkApprovedArUsdz(ravioles, "ravioles");
 }
 
 if (!souffle) {
@@ -658,11 +716,7 @@ if (!souffle) {
   );
 
   checkExpectedWebGlb(souffle, "souffle");
-  if (souffle.arUsdzUrl) {
-    fail(`souffle declare un arUsdzUrl inattendu: ${souffle.arUsdzUrl}`);
-  } else {
-    ok("souffle ne declare pas encore d'arUsdzUrl actif");
-  }
+  checkApprovedArUsdz(souffle, "souffle");
 }
 
 const hasGenericUsdzHeaderRule =

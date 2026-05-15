@@ -77,6 +77,17 @@ const DISHES = new Map([
         ultra: "souffle-chocolat-ios-quicklook-ultra.usdz",
         extreme: "souffle-chocolat-ios-quicklook-extreme.usdz"
       },
+      levelOverrides: {
+        ultra: {
+          simplifyRatio: 0.17,
+          simplifyError: 0.006,
+          textureSize: 512,
+          preJpegQuality: 60,
+          finalJpegQuality: 36,
+          risk:
+            "Production target tuned for souffle; verify ramekin silhouette, souffle volume, and chocolate texture impression manually before promotion."
+        }
+      },
       visualPriorities:
         "Preserve souffle height, ramekin/plate silhouette, chocolate surface texture, and premium dessert color."
     }
@@ -133,6 +144,13 @@ const LEVELS = [
     risk: "Weak-network fallback; likely visible quality loss, only promote if it still reads premium on an iPhone."
   }
 ];
+
+function levelsForDish(dish) {
+  return LEVELS.map((level) => ({
+    ...level,
+    ...(dish.levelOverrides?.[level.key] ?? {})
+  }));
+}
 
 function usage() {
   return [
@@ -308,7 +326,7 @@ function normalizeSceneForAr(scene, targetMaxDimMeters) {
   const group = new TransformNode("ios-quicklook-normalize-root", scene);
   for (const node of scene.rootNodes) {
     if (node === group) continue;
-    if (node instanceof TransformNode) node.setParent(group);
+    if (typeof node.setParent === "function") node.setParent(group);
   }
 
   const boundsBefore = group.getHierarchyBoundingVectors(true);
@@ -346,6 +364,33 @@ function bakeWorldTransforms(scene) {
   }
 }
 
+function measureRenderableBounds(meshes) {
+  let min = null;
+  let max = null;
+  for (const mesh of meshes) {
+    mesh.computeWorldMatrix(true);
+    mesh.refreshBoundingInfo(true);
+    const box = mesh.getBoundingInfo().boundingBox;
+    min = min ? Vector3.Minimize(min, box.minimumWorld) : box.minimumWorld.clone();
+    max = max ? Vector3.Maximize(max, box.maximumWorld) : box.maximumWorld.clone();
+  }
+  return min && max ? { min, max } : null;
+}
+
+function centerBakedScene(scene) {
+  const meshes = getRenderableMeshes(scene);
+  const bounds = measureRenderableBounds(meshes);
+  if (!bounds) return;
+
+  const center = bounds.min.add(bounds.max).scale(0.5);
+  const offset = new Vector3(-center.x, -bounds.min.y, -center.z);
+  for (const mesh of meshes) {
+    mesh.position.addInPlace(offset);
+    mesh.computeWorldMatrix(true);
+    mesh.refreshBoundingInfo(true);
+  }
+}
+
 async function normalizeGlbForAr(inputPath, outputPath, targetMaxDimMeters) {
   const engine = new NullEngine();
   const scene = new Scene(engine);
@@ -357,6 +402,7 @@ async function normalizeGlbForAr(inputPath, outputPath, targetMaxDimMeters) {
   forcePositiveScales(scene);
   normalizeSceneForAr(scene, targetMaxDimMeters);
   bakeWorldTransforms(scene);
+  centerBakedScene(scene);
 
   const glb = await GLTF2Export.GLBAsync(scene, "ios-quicklook-normalized.glb", {
     exportWithoutWaitingForScene: true,
@@ -474,7 +520,7 @@ function candidateRisk(level, glbInfo, usdzInfo, bounds) {
     risks.push("Ultra candidate is above the preferred 90k triangle ceiling; size may be fragile.");
   }
   if (level.textureSize <= 768) {
-    risks.push("Texture cap is 768px; inspect close-up food texture realism.");
+    risks.push(`Texture cap is ${level.textureSize}px; inspect close-up food texture realism.`);
   }
   if (!usdzInfo.valid) {
     risks.push("USDZ package is missing expected geometry or texture entries.");
@@ -635,6 +681,11 @@ function writeManifest(candidateDir, slug, sourcePath, candidates) {
 }
 
 function promoteCandidate({ dish, levelKey, candidate, qualityApproved }) {
+  if (candidate.failed) {
+    throw new Error(
+      `Refusing production promotion: ${candidate.label} candidate failed to build.`
+    );
+  }
   if (!qualityApproved) {
     throw new Error(
       "Refusing production promotion without --quality-approved. Manual visual review must reject cheap/cartoon/placeholder-looking candidates."
@@ -694,25 +745,51 @@ async function main() {
   console.log(`Visual priorities: ${dish.visualPriorities}`);
 
   const candidates = [];
+  const levels = levelsForDish(dish);
   try {
-    for (const level of LEVELS) {
-      candidates.push(
-        await buildCandidate({
-          dish,
-          slug,
-          level,
-          sourcePath,
-          candidateDir,
-          workDir,
-          optimizerPython
-        })
-      );
+    for (const level of levels) {
+      try {
+        candidates.push(
+          await buildCandidate({
+            dish,
+            slug,
+            level,
+            sourcePath,
+            candidateDir,
+            workDir,
+            optimizerPython
+          })
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`\n${level.label}: failed; continuing to next candidate level.`);
+        console.warn(message);
+        candidates.push({
+          level: level.key,
+          label: level.label,
+          targetBytes: level.targetBytes,
+          sourceGlb: sourcePath,
+          failed: true,
+          error: message,
+          visualPriorities: dish.visualPriorities,
+          risks: [
+            level.risk,
+            "Candidate build failed before technical/visual approval; not production-approved."
+          ],
+          productionBudgetPass: false,
+          idealBudgetPass: false
+        });
+      }
     }
 
     const manifestPath = writeManifest(candidateDir, slug, sourcePath, candidates);
     console.log(`\nWrote candidate manifest: ${manifestPath}`);
     console.log("\nCandidate summary:");
     for (const candidate of candidates) {
+      if (candidate.failed) {
+        console.log(`- ${candidate.label}: failed (${candidate.error})`);
+        continue;
+      }
       const flags = [
         candidate.productionBudgetPass ? "<=5MiB" : ">5MiB",
         candidate.idealBudgetPass ? "<=3MiB" : ">3MiB",
@@ -731,7 +808,7 @@ async function main() {
       const candidate = candidates.find((item) => item.level === options.promote);
       if (!candidate) {
         throw new Error(
-          `Cannot promote unknown candidate level: ${options.promote}. Known levels: ${LEVELS.map(
+          `Cannot promote unknown candidate level: ${options.promote}. Known levels: ${levels.map(
             (level) => level.key
           ).join(", ")}`
         );
