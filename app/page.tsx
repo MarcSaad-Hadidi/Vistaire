@@ -62,7 +62,7 @@ function Footer() {
           <p>Menu vivant premium pour restaurants.</p>
           <Link
             href="/owner"
-            className="text-[10px] text-white/25 transition hover:text-champagne/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            className="rounded-sm text-[10px] text-[#cdbd9f] transition hover:text-cream focus:outline-none focus-visible:text-cream focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#050403]"
           >
             Accès interne
           </Link>

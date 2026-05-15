@@ -61,6 +61,8 @@ lint_utf8.txt
 public/videos/optimized/*
 !public/videos/optimized/
 !public/videos/optimized/upscaled-video-desktop-scrub.mp4
+!public/videos/optimized/upscaled-video-mobile-scrub.mp4
+!public/videos/optimized/upscaled-video-low.mp4
 
 
 # clerk configuration (can include secrets)

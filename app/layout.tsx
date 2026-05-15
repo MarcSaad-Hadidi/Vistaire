@@ -1,10 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
-import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
-import {
-  vistaireClerkAppearance,
-  vistaireClerkLocalization
-} from "@/lib/clerkAppearance";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,18 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" data-scroll-behavior="smooth">
-      <body>
-        <ClerkProvider
-          appearance={vistaireClerkAppearance}
-          localization={vistaireClerkLocalization}
-          telemetry={false}
-          signInUrl="/sign-in"
-          signUpUrl="/sign-in"
-          afterSignOutUrl="/"
-        >
-          <SmoothScrollProvider>{children}</SmoothScrollProvider>
-        </ClerkProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

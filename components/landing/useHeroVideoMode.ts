@@ -25,7 +25,7 @@ export type HeroVideoMode = {
   isReducedMotion: boolean;
   isSaveData: boolean;
   isLowEndDevice: boolean;
-  preload: "metadata" | "auto";
+  preload: "metadata";
   minSeekDelta: number;
 };
 
@@ -74,7 +74,7 @@ function selectHeroVideoMode(): HeroVideoMode {
       isReducedMotion,
       isSaveData,
       isLowEndDevice,
-      preload: "auto",
+      preload: "metadata",
       minSeekDelta: 1 / 24
     };
   }
@@ -85,7 +85,7 @@ function selectHeroVideoMode(): HeroVideoMode {
     isReducedMotion,
     isSaveData,
     isLowEndDevice,
-    preload: "auto",
+    preload: "metadata",
     minSeekDelta: 1 / 30
   };
 }

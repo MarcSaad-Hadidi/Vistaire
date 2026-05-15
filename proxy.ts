@@ -1,4 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import {
+  NextResponse,
+  type NextFetchEvent,
+  type NextRequest
+} from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 
 const isProtectedRoute = createRouteMatcher([
@@ -9,13 +14,31 @@ const isProtectedRoute = createRouteMatcher([
   "/todos(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, request) => {
+const needsSupabaseSession = createRouteMatcher(["/todos(.*)"]);
+
+const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
   if (isProtectedRoute(request)) {
     await auth.protect();
   }
 
-  return updateSession(request);
+  if (needsSupabaseSession(request)) {
+    return updateSession(request);
+  }
+
+  return NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 }, { signInUrl: "/sign-in" });
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  if (isProtectedRoute(request)) {
+    return handleProtectedRoute(request, event);
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [

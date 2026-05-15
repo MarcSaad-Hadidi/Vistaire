@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useLenisRef } from "@/components/SmoothScrollProvider";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 
@@ -63,7 +62,9 @@ export function DemoExperienceShell({ children }: DemoExperienceShellProps) {
       lenis?.start();
       window.scrollTo(0, scrollY);
       lenis?.scrollTo(scrollY, { immediate: true, force: true });
-      ScrollTrigger.refresh();
+      void import("gsap/ScrollTrigger").then(({ ScrollTrigger }) => {
+        ScrollTrigger.refresh();
+      });
     };
   }, [simulateMobile, isRealMobile, lenisRef]);
 

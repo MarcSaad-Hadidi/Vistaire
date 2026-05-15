@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
 import { DemoExperienceShell } from "@/components/menu/DemoExperienceShell";
 import { DemoSimulationProvider } from "@/components/menu/DemoSimulationContext";
 import { Header } from "@/components/Header";
@@ -18,9 +19,11 @@ export default function DemoLayout({
     <>
       <Header />
       <main className="min-h-screen bg-[#080706] pt-[4.5rem] sm:pt-20">
-        <DemoSimulationProvider>
-          <DemoExperienceShell>{children}</DemoExperienceShell>
-        </DemoSimulationProvider>
+        <SmoothScrollProvider>
+          <DemoSimulationProvider>
+            <DemoExperienceShell>{children}</DemoExperienceShell>
+          </DemoSimulationProvider>
+        </SmoothScrollProvider>
       </main>
     </>
   );

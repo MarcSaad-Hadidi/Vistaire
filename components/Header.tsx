@@ -1,12 +1,12 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { trackMenuEvent } from "@/lib/analytics/client";
 
-export function Header() {
+export function Header({ userSlot }: { userSlot?: ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const isDemoRoute = pathname.startsWith("/demo");
@@ -144,9 +144,9 @@ export function Header() {
               </PrimaryButton>
             </>
           )}
-          {isOwnerRoute ? (
+          {isOwnerRoute && userSlot ? (
             <div className="ml-1 flex items-center">
-              <UserButton />
+              {userSlot}
             </div>
           ) : null}
         </div>

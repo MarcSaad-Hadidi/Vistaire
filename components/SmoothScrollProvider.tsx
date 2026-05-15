@@ -9,28 +9,24 @@ import {
   type RefObject
 } from "react";
 import { usePathname } from "next/navigation";
-import Lenis from "lenis";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-const LenisRefContext = createContext<RefObject<Lenis | null> | null>(null);
+type LenisInstance = import("lenis").default;
+
+const LenisRefContext =
+  createContext<RefObject<LenisInstance | null> | null>(null);
 const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
 const MOBILE_SCROLL_MEDIA_QUERY = "(max-width: 767px)";
 
-/**
- * Lenis + ScrollTrigger peut saccader sur Brave (wheel / RAF) et Firefox.
- * Scroll natif + ScrollTrigger.update reste fluide et évite le double lissage.
- */
 function prefersNativeScrollDesktop(): boolean {
   if (typeof navigator === "undefined") {
     return false;
   }
+
   const ua = navigator.userAgent;
   return /Brave/i.test(ua) || /Firefox\//i.test(ua);
 }
 
-/** Référence vers l’instance Lenis globale (pour stop/start hors du provider). */
-export function useLenisRef(): RefObject<Lenis | null> | null {
+export function useLenisRef(): RefObject<LenisInstance | null> | null {
   return useContext(LenisRefContext);
 }
 
@@ -39,127 +35,152 @@ type SmoothScrollProviderProps = {
 };
 
 export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
-  const lenisRef = useRef<Lenis | null>(null);
+  const lenisRef = useRef<LenisInstance | null>(null);
   const pathname = usePathname();
 
   useLayoutEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-    const previousScrollRestoration = window.history.scrollRestoration;
-    const isLanding = pathname === "/";
+    let cancelled = false;
+    let cleanup: (() => void) | null = null;
 
-    window.history.scrollRestoration = "manual";
-    window.scrollTo(0, 0);
+    const setupSmoothScroll = async () => {
+      const [{ default: Lenis }, { default: gsap }, { ScrollTrigger }] =
+        await Promise.all([
+          import("lenis"),
+          import("gsap"),
+          import("gsap/ScrollTrigger")
+        ]);
 
-    const prefersReducedMotion = window.matchMedia(
-      REDUCED_MOTION_MEDIA_QUERY
-    ).matches;
+      if (cancelled) return undefined;
 
-    const mobileScrollQuery = window.matchMedia(MOBILE_SCROLL_MEDIA_QUERY);
+      gsap.registerPlugin(ScrollTrigger);
 
-    const resetScrollBeforeReload = () => {
-      lenisRef.current?.scrollTo(0, { immediate: true, force: true });
+      const previousScrollRestoration = window.history.scrollRestoration;
+      const isLanding = pathname === "/";
+
+      window.history.scrollRestoration = "manual";
       window.scrollTo(0, 0);
-    };
 
-    let removeDesktopScroll: (() => void) | null = null;
-    let removeMobileScroll: (() => void) | null = null;
+      const prefersReducedMotion = window.matchMedia(
+        REDUCED_MOTION_MEDIA_QUERY
+      ).matches;
+      const mobileScrollQuery = window.matchMedia(MOBILE_SCROLL_MEDIA_QUERY);
 
-    const attachNativeScrollUpdates = () => {
-      const onScroll = () => {
-        ScrollTrigger.update();
+      const resetScrollBeforeReload = () => {
+        lenisRef.current?.scrollTo(0, { immediate: true, force: true });
+        window.scrollTo(0, 0);
       };
 
-      window.addEventListener("scroll", onScroll, { passive: true });
-      return () => {
-        window.removeEventListener("scroll", onScroll);
-      };
-    };
+      let removeDesktopScroll: (() => void) | null = null;
+      let removeMobileScroll: (() => void) | null = null;
 
-    const startDesktopLenis = () => {
-      const lenis = new Lenis({
-        // Un peu plus court = moins de « trainée » vis-à-vis du scrub ScrollTrigger.
-        duration: prefersReducedMotion ? 0.01 : 0.58,
-        easing: (time) => Math.min(1, 1.001 - 2 ** (-10 * time)),
-        smoothWheel: !prefersReducedMotion,
-        wheelMultiplier: 0.88,
-        touchMultiplier: 1
-      });
+      const attachNativeScrollUpdates = () => {
+        const onScroll = () => {
+          ScrollTrigger.update();
+        };
 
-      lenisRef.current = lenis;
-
-      lenis.scrollTo(0, { immediate: true, force: true });
-      lenis.on("scroll", ScrollTrigger.update);
-
-      const update = (time: number) => {
-        lenis.raf(time * 1000);
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => {
+          window.removeEventListener("scroll", onScroll);
+        };
       };
 
-      gsap.ticker.add(update);
-      gsap.ticker.lagSmoothing(0);
+      const startDesktopLenis = () => {
+        const lenis = new Lenis({
+          duration: prefersReducedMotion ? 0.01 : 0.58,
+          easing: (time) => Math.min(1, 1.001 - 2 ** (-10 * time)),
+          smoothWheel: !prefersReducedMotion,
+          wheelMultiplier: 0.88,
+          touchMultiplier: 1
+        });
 
-      return () => {
-        gsap.ticker.remove(update);
-        gsap.ticker.lagSmoothing(500, 33);
-        lenis.destroy();
-        lenisRef.current = null;
+        lenisRef.current = lenis;
+        lenis.scrollTo(0, { immediate: true, force: true });
+        lenis.on("scroll", ScrollTrigger.update);
+
+        const update = (time: number) => {
+          lenis.raf(time * 1000);
+        };
+
+        gsap.ticker.add(update);
+        gsap.ticker.lagSmoothing(0);
+
+        return () => {
+          gsap.ticker.remove(update);
+          gsap.ticker.lagSmoothing(500, 33);
+          lenis.destroy();
+          lenisRef.current = null;
+        };
       };
-    };
 
-    /** Mobile : natif. Desktop Brave/Firefox : natif. Autres desktop : Lenis. */
-    const applyScrollMode = () => {
-      removeDesktopScroll?.();
-      removeMobileScroll?.();
-      removeDesktopScroll = null;
-      removeMobileScroll = null;
+      const applyScrollMode = () => {
+        removeDesktopScroll?.();
+        removeMobileScroll?.();
+        removeDesktopScroll = null;
+        removeMobileScroll = null;
 
-      if (isLanding) {
+        if (isLanding) {
+          requestAnimationFrame(() => {
+            ScrollTrigger.refresh();
+          });
+          return;
+        }
+
+        const isMobileViewport = mobileScrollQuery.matches;
+        const useLenis = !isMobileViewport && !prefersNativeScrollDesktop();
+
+        if (useLenis) {
+          removeDesktopScroll = startDesktopLenis();
+        } else {
+          removeMobileScroll = attachNativeScrollUpdates();
+        }
+
         requestAnimationFrame(() => {
           ScrollTrigger.refresh();
         });
+      };
+
+      applyScrollMode();
+
+      const onViewportChange = () => {
+        applyScrollMode();
+      };
+
+      if (typeof mobileScrollQuery.addEventListener === "function") {
+        mobileScrollQuery.addEventListener("change", onViewportChange);
+      } else {
+        mobileScrollQuery.addListener(onViewportChange);
+      }
+
+      window.addEventListener("beforeunload", resetScrollBeforeReload);
+      ScrollTrigger.refresh();
+
+      return () => {
+        window.removeEventListener("beforeunload", resetScrollBeforeReload);
+        window.history.scrollRestoration = previousScrollRestoration;
+
+        if (typeof mobileScrollQuery.removeEventListener === "function") {
+          mobileScrollQuery.removeEventListener("change", onViewportChange);
+        } else {
+          mobileScrollQuery.removeListener(onViewportChange);
+        }
+
+        removeDesktopScroll?.();
+        removeMobileScroll?.();
+      };
+    };
+
+    void setupSmoothScroll().then((teardown) => {
+      if (cancelled) {
+        teardown?.();
         return;
       }
 
-      const isMobileViewport = mobileScrollQuery.matches;
-      const useLenis = !isMobileViewport && !prefersNativeScrollDesktop();
-
-      if (useLenis) {
-        removeDesktopScroll = startDesktopLenis();
-      } else {
-        removeMobileScroll = attachNativeScrollUpdates();
-      }
-
-      requestAnimationFrame(() => {
-        ScrollTrigger.refresh();
-      });
-    };
-
-    applyScrollMode();
-
-    const onViewportChange = () => {
-      applyScrollMode();
-    };
-
-    if (typeof mobileScrollQuery.addEventListener === "function") {
-      mobileScrollQuery.addEventListener("change", onViewportChange);
-    } else {
-      mobileScrollQuery.addListener(onViewportChange);
-    }
-
-    window.addEventListener("beforeunload", resetScrollBeforeReload);
-    ScrollTrigger.refresh();
+      cleanup = teardown ?? null;
+    });
 
     return () => {
-      window.removeEventListener("beforeunload", resetScrollBeforeReload);
-      window.history.scrollRestoration = previousScrollRestoration;
-
-      if (typeof mobileScrollQuery.removeEventListener === "function") {
-        mobileScrollQuery.removeEventListener("change", onViewportChange);
-      } else {
-        mobileScrollQuery.removeListener(onViewportChange);
-      }
-
-      removeDesktopScroll?.();
-      removeMobileScroll?.();
+      cancelled = true;
+      cleanup?.();
     };
   }, [pathname]);
 
