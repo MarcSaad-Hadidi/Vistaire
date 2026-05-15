@@ -1,15 +1,45 @@
 # AR Asset Optimization Pipeline
 
-Use this repeatable flow for each dish, one dish at a time.
+Use this flow one dish at a time. The original source GLB/USDZ in `public/models/demo` stays untouched and is never the iPhone Quick Look production target.
 
-1. Keep the original source GLB/USDZ untouched in `public/models/demo`.
-2. Inspect the original GLB with `npx gltf-transform inspect` and record size, triangles, materials, textures, and extensions.
-3. Generate conservative, balanced, and aggressive review candidates outside `public`; never promote a file by size alone.
-4. Reject candidates that look cheap, blurry, low-poly, cartoon-like, or that alter the dish silhouette, plate, or food composition.
-5. Choose the smallest candidate that still looks premium at normal mobile viewing distance.
-6. Build the chosen AR-lite GLB without Scene Viewer-risky required extensions, then convert it to USDZ.
-7. Add or update `arModel3dUrl` and `arUsdzUrl` while keeping the original `model3dUrl`, `webModel3dUrl`, and `usdzUrl`.
-8. Run asset validation, network/header validation, lint, and build.
-9. Verify in Chrome DevTools: requested AR-lite GLB/USDZ paths, no heavy original GLB for the web viewer, cache behavior, mobile viewport, throttled network, and console health.
-10. Test real iPhone Quick Look and Android Scene Viewer/WebXR on mobile networks when possible.
-11. Remove temporary candidates, logs, profiles, screenshots, and scratch scripts before shipping.
+## Asset Roles
+
+- Original source asset: high-quality GLB/USDZ master, allowed to be large.
+- Web 3D preview asset: `webModel3dUrl` GLB for `model-viewer`, allowed to use web-only compression.
+- iPhone Quick Look production asset: `arUsdzUrl` USDZ under `/models/demo/ar-lite/`, no query string, `<= 5 MiB`.
+- Candidate assets: temporary review outputs outside production under ignored `asset-review/3d-candidates/`; delete them before finishing unless intentionally documented.
+
+## Build Candidates
+
+```bash
+npm run demo:build-ios-ultra -- homard-bisque
+npm run demo:build-ios-ultra -- ravioles-chevre-miel
+npm run demo:build-ios-ultra -- souffle-chocolat
+```
+
+The script creates conservative, balanced, ultra, and extreme candidates. It only promotes a production USDZ when a human visual review passes:
+
+```bash
+npm run demo:build-ios-ultra -- homard-bisque --promote ultra --quality-approved
+```
+
+Reject candidates that look cheap, cartoon-like, toy-like, visibly low-poly, blurry, fake, or that damage the dish silhouette, plate, scale, or grounding.
+
+## Gates
+
+Run:
+
+```bash
+npm run demo:validate-ios-budget
+npm run demo:validate-ar-lite
+npm run demo:validate-assets
+npm run demo:validate-network
+```
+
+`arUsdzUrl` must point only to a production-approved USDZ `<= 5 MiB`. Do not fall back to `usdzUrl` for iPhone Quick Look. If no candidate passes both size and visual quality, keep the original source untouched, mark the dish as failed/not production-approved, and request artist work: texture atlas, baked details, mesh cleanup, retopology, or better source preparation.
+
+## QA
+
+Use Chrome DevTools to verify URL wiring, headers, console health, prefetch, mobile viewport, and throttled network behavior. Then test real iPhone Safari on 5G and WiFi, first and second open, with and without clearing Safari website data.
+
+Quick Look cache reuse is native iOS behavior outside React control. Use small USDZ files, stable URLs, correct headers, current-dish prefetch, and readiness UX, but do not promise full native cache control.

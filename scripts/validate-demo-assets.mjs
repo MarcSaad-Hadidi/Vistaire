@@ -15,6 +15,7 @@ const USDZ_SCENE_INSPECTOR = join(__dirname, "inspect-usdz-scene.py");
 const PYTHON_BIN = findOpenUsdPython();
 
 const MIN_USDZ_BYTES = 10 * 1024;
+const MAX_PRODUCTION_IOS_USDZ_BYTES = 5 * 1024 * 1024;
 const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
 const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
 const SOUFFLE_WITH_PLATE_GLB_SHA256 =
@@ -82,8 +83,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
   ]
 ]);
 const ACTIVE_PUBLIC_USDZ_FILES = new Set([
-  "homard-bisque-ar-lite.usdz",
-  "homard-bisque-ios-quicklook-v2.usdz",
+  "homard-bisque-ios-quicklook-ultra.usdz",
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
   "ravioles-chevre-miel.usdz",
@@ -573,10 +573,17 @@ if (!homard) {
     ok("homard arModel3dUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite.glb");
   }
 
-  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz") {
+  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz") {
     fail(`homard arUsdzUrl inattendu: ${homard.arUsdzUrl || "(absent)"}`);
   } else {
-    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz");
+    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz");
+    const arUsdzPath = assetPath(homard.arUsdzUrl);
+    if (statSync(arUsdzPath).size > MAX_PRODUCTION_IOS_USDZ_BYTES) {
+      fail(`homard arUsdzUrl dÃ©passe 5 MiB: ${formatSize(statSync(arUsdzPath).size)}`);
+    } else {
+      ok("homard arUsdzUrl respecte le budget iPhone <= 5 MiB");
+    }
+    checkUsdzCenteredAndGrounded(arUsdzPath, "homard arUsdzUrl stabilite AR");
   }
 
   checkExpectedWebGlb(homard, "homard");
@@ -604,6 +611,11 @@ if (!ravioles) {
   }
 
   checkExpectedWebGlb(ravioles, "ravioles");
+  if (ravioles.arUsdzUrl) {
+    fail(`ravioles declare un arUsdzUrl inattendu: ${ravioles.arUsdzUrl}`);
+  } else {
+    ok("ravioles ne declare pas encore d'arUsdzUrl actif");
+  }
 }
 
 if (!souffle) {
@@ -646,6 +658,11 @@ if (!souffle) {
   );
 
   checkExpectedWebGlb(souffle, "souffle");
+  if (souffle.arUsdzUrl) {
+    fail(`souffle declare un arUsdzUrl inattendu: ${souffle.arUsdzUrl}`);
+  } else {
+    ok("souffle ne declare pas encore d'arUsdzUrl actif");
+  }
 }
 
 const hasGenericUsdzHeaderRule =

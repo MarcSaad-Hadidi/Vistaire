@@ -19,6 +19,8 @@ Only these production 3D assets should live in `public/models/demo`:
 - `ravioles-chevre-miel.usdz`
 - `homard-bisque.glb`
 - `homard-bisque.usdz`
+- `ar-lite/homard-bisque-ar-lite.glb`
+- `ar-lite/homard-bisque-ios-quicklook-ultra.usdz`
 - `souffle-chocolat.glb`
 - `souffle-chocolat.usdz`
 - `maison-elyse-n1.glb`
@@ -36,8 +38,8 @@ they were not production references:
 
 - `homard-bisque-ar.glb`
 - `homard-bisque-ar.usdz`
-- `homard-bisque-ar-lite.glb`
 - `homard-bisque-ar-lite.usdz`
+- `homard-bisque-ios-quicklook-v2.usdz`
 - `homard-bisque.before-mesh-opt.glb`
 - `homard-bisque.before-texture-opt.glb`
 - `homard-bisque.pre-opt.glb`

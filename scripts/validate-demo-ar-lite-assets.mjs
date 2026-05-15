@@ -13,8 +13,7 @@ const DEMO_DATA = join(ROOT, "lib", "demoMenuData.ts");
 
 const GLB_GOOD_BYTES = 12 * 1024 * 1024;
 const GLB_MAX_BYTES = 15 * 1024 * 1024;
-const USDZ_GOOD_BYTES = 10 * 1024 * 1024;
-const USDZ_MAX_BYTES = 15 * 1024 * 1024;
+const USDZ_MAX_BYTES = 5 * 1024 * 1024;
 
 const ASSETS = [
   {
@@ -22,7 +21,7 @@ const ASSETS = [
     sourceGlb: "homard-bisque.glb",
     sourceUsdz: "homard-bisque.usdz",
     arGlbUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
-    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
   }
 ];
 
@@ -139,10 +138,8 @@ function checkUsdz(filePath, label) {
   const size = statSync(filePath).size;
   if (size > USDZ_MAX_BYTES) {
     fail(`${label} above max iOS USDZ budget: ${formatSize(size)}`);
-  } else if (size > USDZ_GOOD_BYTES) {
-    warn(`${label} above ideal iOS USDZ budget, accepted for premium visual fidelity: ${formatSize(size)}`);
   } else {
-    ok(`${label} within ideal iOS USDZ budget`);
+    ok(`${label} within production iOS USDZ budget`);
   }
 }
 

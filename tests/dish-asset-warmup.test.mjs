@@ -62,6 +62,7 @@ function installBrowserLikeEnvironment(overrides = {}) {
     value: async (url, options) => {
       fetchCalls.push(String(url));
       fetchOptions.push(options ?? {});
+      if (overrides.fetch) return overrides.fetch(url, options);
       return new Response("");
     }
   });
@@ -88,7 +89,7 @@ test("menu-card asset intent does not fetch large demo GLB or USDZ files", async
   assert.deepEqual(env.fetchCalls, []);
 });
 
-test("menu-card asset intent can warm very small demo assets only", async () => {
+test("menu-card asset intent can warm very small GLB assets but not source-only USDZ", async () => {
   const env = installBrowserLikeEnvironment();
 
   prepareDishAssetIntent({
@@ -98,8 +99,7 @@ test("menu-card asset intent can warm very small demo assets only", async () => 
   await env.settleWarmupQueue();
 
   assert.deepEqual(env.fetchCalls, [
-    "http://localhost:3000/models/demo/maison-elyse-n1.glb",
-    "http://localhost:3000/models/demo/maison-elyse-n1.usdz"
+    "http://localhost:3000/models/demo/maison-elyse-n1.glb"
   ]);
 });
 
@@ -118,14 +118,14 @@ test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a
       webModel3dUrl: "/models/demo/homard-bisque-meshopt-73be7175.glb",
       arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
     },
     (state) => states.push(state)
   );
   await env.settleWarmupQueue();
 
   assert.deepEqual(env.fetchCalls, [
-    "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
+    "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
   ]);
   assert.equal(env.fetchCalls[0].includes("?"), false);
   assert.equal(env.fetchOptions[0].cache, "force-cache");
@@ -139,7 +139,7 @@ test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a
     [
       {
         as: "fetch",
-        href: "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz",
+        href: "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
         rel: "prefetch",
         type: "model/vnd.usdz+zip"
       }
@@ -162,7 +162,7 @@ test("iPhone Quick Look prefetch respects Save-Data", async () => {
     {
       model3dUrl: "/models/demo/homard-bisque.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
     },
     (state) => states.push(state)
   );
@@ -185,7 +185,7 @@ test("iPhone Quick Look prefetch does not run in iOS Chrome shells", async () =>
     {
       model3dUrl: "/models/demo/homard-bisque.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
     },
     (state) => states.push(state)
   );
@@ -193,4 +193,62 @@ test("iPhone Quick Look prefetch does not run in iOS Chrome shells", async () =>
 
   assert.deepEqual(env.fetchCalls, []);
   assert.deepEqual(states, ["idle"]);
+});
+
+test("iPhone Quick Look prefetch ignores source-only USDZ fields", async () => {
+  const env = installBrowserLikeEnvironment({
+    origin: "http://localhost:3004",
+    platform: "iPhone",
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1"
+  });
+  const states = [];
+
+  prefetchUsdzForQuickLook(
+    {
+      model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
+      webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
+      usdzUrl: "/models/demo/ravioles-chevre-miel.usdz"
+    },
+    (state) => states.push(state)
+  );
+  await env.settleWarmupQueue();
+
+  assert.deepEqual(env.fetchCalls, []);
+  assert.deepEqual(env.appendedLinks, []);
+  assert.deepEqual(states, ["idle"]);
+});
+
+test("iPhone Quick Look prefetch retries after a transient failed attempt", async () => {
+  let attempts = 0;
+  const env = installBrowserLikeEnvironment({
+    origin: "http://localhost:3005",
+    platform: "iPhone",
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+    fetch: async () => {
+      attempts += 1;
+      if (attempts === 1) return new Response("", { status: 503 });
+      return new Response("");
+    }
+  });
+  const dish = {
+    model3dUrl: "/models/demo/homard-bisque.glb",
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+  };
+  const firstStates = [];
+  const secondStates = [];
+
+  prefetchUsdzForQuickLook(dish, (state) => firstStates.push(state));
+  await env.settleWarmupQueue();
+
+  prefetchUsdzForQuickLook(dish, (state) => secondStates.push(state));
+  await env.settleWarmupQueue();
+
+  assert.deepEqual(env.fetchCalls, [
+    "http://localhost:3005/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+    "http://localhost:3005/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+  ]);
+  assert.deepEqual(firstStates, ["preparing", "failed"]);
+  assert.deepEqual(secondStates, ["preparing", "ready"]);
 });

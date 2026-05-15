@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DEMO_DATA = join(ROOT, "lib", "demoMenuData.ts");
+const MAX_PRODUCTION_IOS_USDZ_BYTES = 5 * 1024 * 1024;
 
 const BASE_URL = (
   process.env.VALIDATE_DEMO_BASE_URL ?? "http://localhost:3000"
@@ -35,6 +36,11 @@ function ok(message) {
 
 function warn(message) {
   console.warn(`WARN ${message}`);
+}
+
+function formatSize(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
+  return `${(bytes / 1024).toFixed(1)} KiB`;
 }
 
 function absoluteUrl(pathOrUrl) {
@@ -95,7 +101,11 @@ async function checkRoute(route) {
   ok(`${route} status ${response.status}`);
 }
 
-async function checkAsset(assetUrl, label) {
+async function checkAsset(assetUrl, label, options = {}) {
+  if (options.productionQuickLook && /[?#]/.test(assetUrl)) {
+    fail(`${label} active arUsdzUrl must not include query string or hash`);
+  }
+
   const response = await head(absoluteUrl(assetUrl));
   if (response.status >= 300 && response.status < 400) {
     fail(
@@ -112,6 +122,20 @@ async function checkAsset(assetUrl, label) {
   }
 
   ok(`${label} status ${response.status}`);
+  if (options.productionQuickLook) {
+    const contentLength = Number(response.headers.get("content-length") ?? "0");
+    if (!Number.isFinite(contentLength) || contentLength <= 0) {
+      fail(`${label} missing Content-Length for production iPhone USDZ`);
+    } else if (contentLength > MAX_PRODUCTION_IOS_USDZ_BYTES) {
+      fail(
+        `${label} exceeds production iPhone USDZ budget over network: ${formatSize(
+          contentLength
+        )}`
+      );
+    } else {
+      ok(`${label} network Content-Length within <= 5 MiB budget`);
+    }
+  }
   const pathname = new URL(assetUrl, "http://local").pathname;
   if (pathname.endsWith(".usdz")) {
     headerIncludes(response, "content-type", "model/vnd.usdz+zip", label);
@@ -175,7 +199,8 @@ async function main() {
     if (dish.arUsdzUrl) {
       assets.push({
         url: dish.arUsdzUrl,
-        label: `${dish.slug} AR-lite USDZ ${dish.arUsdzUrl}`
+        label: `${dish.slug} AR-lite USDZ ${dish.arUsdzUrl}`,
+        productionQuickLook: true
       });
     }
   }
@@ -189,7 +214,9 @@ async function main() {
   }
 
   for (const asset of assets) {
-    await checkAsset(asset.url, asset.label);
+    await checkAsset(asset.url, asset.label, {
+      productionQuickLook: Boolean(asset.productionQuickLook)
+    });
   }
 
   if (process.exitCode) {

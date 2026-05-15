@@ -10,6 +10,13 @@ import * as fflate from "fflate";
 
 globalThis.fflate = fflate;
 
+if (process.env.ALLOW_LEGACY_AR_LITE_USDZ_CONVERTER !== "1") {
+  console.error(
+    "This legacy Homard converter can create an oversized iPhone USDZ. Use `npm run demo:build-ios-ultra -- homard-bisque` instead."
+  );
+  process.exit(1);
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEMO_DIR = join(__dirname, "..", "public", "models", "demo");
 const SRC = join(DEMO_DIR, "homard-bisque-ar-lite.glb");

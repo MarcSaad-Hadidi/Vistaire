@@ -11,6 +11,7 @@ import {
   prefetchUsdzForQuickLook,
   type QuickLookPrefetchState
 } from "@/lib/dishAssetWarmup";
+import { hasActiveQuickLookUsdzUrl } from "@/lib/quickLookAssets";
 import { useDemoSimulation } from "@/components/menu/DemoSimulationContext";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
@@ -133,7 +134,7 @@ export function DishDetail({ dish }: DishDetailProps) {
     useState<QuickLookPrefetchState>("idle");
   const plat3dAnchorRef = useRef<HTMLDivElement | null>(null);
   const viewStartRef = useRef(0);
-  const shouldPrefetchQuickLook = dish.slug === "homard-bisque";
+  const shouldPrefetchQuickLook = hasActiveQuickLookUsdzUrl(dish);
   const quickLookPreparationLabel = shouldPrefetchQuickLook
     ? getQuickLookPreparationLabel(quickLookPrefetchState)
     : "";

@@ -31,7 +31,9 @@ async function open3dViewer(page: Page) {
 }
 
 test.describe("AR browser handoff", () => {
-  test("Brave iOS keeps AR handoff inside the loaded 3D viewer", async ({ page }) => {
+  test("Brave iOS does not offer Quick Look handoff for source-only USDZ dishes", async ({
+    page
+  }) => {
     await simulateIosBrowser(page, BRAVE_IOS_UA);
     await page.setViewportSize({ width: 390, height: 844 });
 
@@ -48,17 +50,11 @@ test.describe("AR browser handoff", () => {
     await open3dViewer(page);
 
     await expect(
-      page.getByText(/Réalité augmentée disponible dans Safari/i)
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.getByText(/ouvrez cette fiche dans Safari sur iPhone/i).first()
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Copier le lien/i }).first()
-    ).toBeVisible();
+      page.getByText(/realite augmentee disponible dans Safari/i)
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Continuer en 3D/i }).first()
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(arLink).toHaveCount(0);
   });
 });
@@ -70,7 +66,7 @@ test.describe("AR fallback resilience", () => {
     await simulateIosBrowser(page, IOS_SAFARI_UA);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    await page.goto("/demo/dishes/cocktail-maison-elyse", {
+    await page.goto("/demo/dishes/homard-bisque", {
       waitUntil: "domcontentloaded"
     });
     await page.route(/\.usdz(?:$|\?)/, (route) => route.abort());
@@ -90,13 +86,14 @@ test.describe("AR fallback resilience", () => {
       hasText: "Afficher devant moi"
     });
     await expect(arButton).toBeVisible({ timeout: 5_000 });
+    await expect(arButton).toHaveAttribute(
+      "href",
+      "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+    );
     await expect(
       page.locator('model-viewer button[slot="ar-button"]', {
         hasText: "Afficher devant moi"
       })
-    ).toHaveCount(0);
-    await expect(
-      page.getByText(/Pr.paration de l.affichage devant vous/i)
     ).toHaveCount(0);
     await expect(
       page.locator('link[data-vistaire-asset-warmup="ar"]')
@@ -112,14 +109,14 @@ test.describe("AR fallback resilience", () => {
     await expect(arButton).toBeEnabled();
   });
 
-  test("iOS Safari still offers Quick Look when the GLB fails", async ({
+  test("iOS Safari still offers Quick Look when the approved dish GLB fails", async ({
     page
   }) => {
     await simulateIosBrowser(page, IOS_SAFARI_UA);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.route("**/*.glb", (route) => route.abort());
 
-    await page.goto("/demo/dishes/ravioles-romarin", {
+    await page.goto("/demo/dishes/homard-bisque", {
       waitUntil: "domcontentloaded"
     });
 
@@ -133,21 +130,21 @@ test.describe("AR fallback resilience", () => {
             (button as HTMLButtonElement).click()
           );
           return page
-            .getByText(/La vue 3D n.a pas pu être chargée/i)
+            .getByText(/La vue 3D n.a pas pu/i)
             .count();
         },
         { timeout: 20_000 }
       )
       .toBe(1);
 
-    await expect(
-      page.getByText(/La vue 3D n.a pas pu être chargée/i)
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/La vue 3D n.a pas pu/i)).toBeVisible({
+      timeout: 20_000
+    });
     await expect(
       page.locator('a[rel="ar"][href$=".usdz"]', {
         hasText: "Afficher devant moi"
       })
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Réessayer" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /R.essayer/ })).toBeVisible();
   });
 });

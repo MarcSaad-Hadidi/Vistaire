@@ -18,8 +18,7 @@ const demoAssetByteSizes = new Map<string, number>([
   ["/models/demo/homard-bisque.glb", 29_010_112],
   ["/models/demo/homard-bisque.usdz", 26_352_806],
   ["/models/demo/ar-lite/homard-bisque-ar-lite.glb", 12_032_888],
-  ["/models/demo/ar-lite/homard-bisque-ar-lite.usdz", 10_365_689],
-  ["/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz", 9_060_893],
+  ["/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz", 5_239_742],
   ["/models/demo/souffle-chocolat.glb", 27_286_348],
   ["/models/demo/souffle-chocolat.usdz", 24_873_890],
   ["/models/demo/maison-elyse-n1.glb", 86_380],
@@ -131,7 +130,12 @@ function canWarmAssetFromMenuCard(normalizedUrl: string): boolean {
 }
 
 function resolveDishUsdzUrl(dish: WarmableDish): string {
-  return dish.arUsdzUrl?.trim() || dish.usdzUrl?.trim() || "";
+  const url = dish.arUsdzUrl?.trim() ?? "";
+  if (!url) return "";
+  if (/[?#]/.test(url)) return "";
+  if (!url.startsWith("/models/demo/ar-lite/")) return "";
+  if (!url.endsWith(".usdz")) return "";
+  return url;
 }
 
 function appendQuickLookPrefetchLink(normalizedUrl: string): void {
@@ -259,7 +263,7 @@ export function warmAsset(url: string, kind: AssetKind): void {
 
 type WarmableDish = Pick<
   Dish,
-  "model3dUrl" | "webModel3dUrl" | "arModel3dUrl" | "usdzUrl" | "arUsdzUrl"
+  "model3dUrl" | "webModel3dUrl" | "arModel3dUrl" | "arUsdzUrl"
 >;
 
 function getWarmupOrder(dish: WarmableDish): AssetWarmupRequest[] {
@@ -348,7 +352,10 @@ export function prefetchUsdzForQuickLook(
       })
       .catch(() => {
         const current = quickLookPrefetchRecords.get(normalizedUrl);
-        if (current) setQuickLookPrefetchStatus(current, "failed");
+        if (current) {
+          setQuickLookPrefetchStatus(current, "failed");
+          quickLookPrefetchRecords.delete(normalizedUrl);
+        }
       })
       .finally(() => {
         window.clearTimeout(timeout);

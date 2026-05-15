@@ -19,6 +19,13 @@ import * as fflate from "fflate";
 
 globalThis.fflate = fflate;
 
+if (process.env.ALLOW_LEGACY_AR_LITE_USDZ_CONVERTER !== "1") {
+  console.error(
+    "This legacy converter can create oversized iPhone USDZ files. Use `npm run demo:build-ios-ultra -- <dish-slug>` instead."
+  );
+  process.exit(1);
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DEMO_DIR = join(ROOT, "public", "models", "demo");

@@ -34,8 +34,7 @@ export function dishHasImmersiveAsset(
     dish.arModel3dUrl?.trim() ||
       dish.webModel3dUrl?.trim() ||
       dish.model3dUrl?.trim() ||
-      dish.arUsdzUrl?.trim() ||
-      dish.usdzUrl?.trim()
+      dish.arUsdzUrl?.trim()
   );
 }
 

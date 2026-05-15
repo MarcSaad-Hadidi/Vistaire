@@ -18,6 +18,7 @@ import {
   isIosDevice,
   shouldShowArBrowserHandoff
 } from "@/lib/arEnvironment";
+import { resolveActiveQuickLookUsdzUrl } from "@/lib/quickLookAssets";
 
 const MV_INIT_TIMEOUT_MS = 12_000;
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
@@ -39,7 +40,6 @@ export type DishModelViewerProps = {
     | "model3dUrl"
     | "webModel3dUrl"
     | "arModel3dUrl"
-    | "usdzUrl"
     | "arUsdzUrl"
     | "image"
     | "imageObjectPosition"
@@ -355,8 +355,8 @@ export function DishModelViewer({
   const modelSrc = arModelSrc || webModelSrc || originalModelSrc;
   const hasModel = Boolean(modelSrc);
   const iosSrc = useMemo(
-    () => dish.arUsdzUrl?.trim() || dish.usdzUrl?.trim() || "",
-    [dish.arUsdzUrl, dish.usdzUrl]
+    () => resolveActiveQuickLookUsdzUrl({ arUsdzUrl: dish.arUsdzUrl }),
+    [dish.arUsdzUrl]
   );
   const arEnvironment = useMemo(
     () => readArClientEnvironment(iosSrc),
@@ -544,7 +544,7 @@ export function DishModelViewer({
     iosNativeArEnabled && Boolean(directIosQuickLookHref);
   const showAndroidSceneViewerButton = showArReady && androidNativeArEnabled;
   const showHandoff =
-    showArReady && !handoffDismissed && needsIosHandoff;
+    showArReady && !handoffDismissed && needsIosHandoff && Boolean(iosSrc);
   const showAndroidFallback =
     showArReady &&
     !handoffDismissed &&

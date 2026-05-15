@@ -14,8 +14,10 @@
     "demo:generate-3d": "node scripts/generate-demo-models.mjs",
     "demo:convert-usdz": "node scripts/convert-demo-glb-to-usdz.mjs",
     "demo:build-ar-lite": "node scripts/build-demo-ar-lite-assets.mjs",
+    "demo:build-ios-ultra": "node scripts/build-ios-quicklook-ultra-assets.mjs",
     "demo:convert-ar-lite-usdz": "node scripts/convert-demo-ar-lite-to-usdz.mjs",
     "demo:validate-ar-lite": "node scripts/validate-demo-ar-lite-assets.mjs",
+    "demo:validate-ios-budget": "node scripts/validate-ios-quicklook-budget.mjs",
     "demo:validate-assets": "node scripts/validate-demo-assets.mjs",
     "demo:validate-network": "node scripts/validate-demo-network-headers.mjs"
   },

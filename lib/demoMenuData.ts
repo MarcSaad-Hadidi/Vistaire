@@ -234,7 +234,7 @@ const DISHES: Dish[] = [
     webModel3dUrl: "/models/demo/homard-bisque-meshopt-73be7175.glb",
     arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
     usdzUrl: "/models/demo/homard-bisque.usdz",
-    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-v2.usdz"
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
   },
   {
     id: "dish-4",
