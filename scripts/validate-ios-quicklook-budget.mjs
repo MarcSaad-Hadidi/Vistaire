@@ -11,16 +11,9 @@ const DEMO_DATA = join(ROOT, "lib", "demoMenuData.ts");
 
 export const MAX_PRODUCTION_IOS_USDZ_BYTES = 5 * 1024 * 1024;
 
-const NON_PRODUCTION_APPROVAL_MARKER =
-  /\b(?:not\s+production[-\s]?approved|non[-\s]?production[-\s]?approved|production[-\s]?approved\s*[:=]\s*false)\b/i;
-
 function fail(message) {
   console.error(`FAIL ${message}`);
   process.exitCode = 1;
-}
-
-function warn(message) {
-  console.warn(`WARN ${message}`);
 }
 
 function ok(message) {
@@ -69,8 +62,7 @@ function readActiveArUsdzUrls() {
     dishes.push({
       slug,
       name,
-      arUsdzUrl,
-      isProductionApproved: !NON_PRODUCTION_APPROVAL_MARKER.test(block)
+      arUsdzUrl
     });
   }
 
@@ -252,7 +244,7 @@ function inspectUsdzResources(zip, label) {
   } else if (imageNames.length > 0) {
     ok(`${label} texture resources present`);
   } else {
-    warn(`${label} has no texture indicators; accepted only for intentionally untextured USDZ`);
+    fail(`${label} has no texture indicators; active production iPhone USDZ must be textured`);
   }
 
   if (/\bundefined\b/i.test(usdText)) {
@@ -262,27 +254,14 @@ function inspectUsdzResources(zip, label) {
 
 function checkProductionBudget(bytes, dish, label) {
   const size = bytes.length;
-  if (dish.isProductionApproved) {
-    if (size > MAX_PRODUCTION_IOS_USDZ_BYTES) {
-      fail(
-        `${label} exceeds production iOS Quick Look budget: ${formatSize(size)} > ${formatSize(
-          MAX_PRODUCTION_IOS_USDZ_BYTES
-        )}`
-      );
-    } else {
-      ok(`${label} within production iOS Quick Look budget`);
-    }
-    return;
-  }
-
   if (size > MAX_PRODUCTION_IOS_USDZ_BYTES) {
-    warn(
-      `${label} exceeds ${formatSize(
+    fail(
+      `${label} exceeds production iOS Quick Look budget: ${formatSize(size)} > ${formatSize(
         MAX_PRODUCTION_IOS_USDZ_BYTES
-      )}, but is explicitly marked not production-approved`
+      )}`
     );
   } else {
-    ok(`${label} marked not production-approved and within budget`);
+    ok(`${label} within production iOS Quick Look budget`);
   }
 }
 

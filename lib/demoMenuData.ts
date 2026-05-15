@@ -391,7 +391,8 @@ const DISHES: Dish[] = [
     preparationTime: "16 min",
     model3dUrl: "/models/demo/souffle-chocolat.glb",
     webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
-    usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511"
+    usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+    arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz"
   },
   {
     id: "dish-9",
