@@ -860,7 +860,16 @@ function promotionOutputName(dish, levelKey) {
   return output;
 }
 
-async function buildCandidate({ dish, slug, level, sourcePath, candidateDir, workDir, optimizerPython }) {
+async function buildCandidate({
+  dish,
+  slug,
+  level,
+  sourcePath,
+  manifestSourcePath,
+  candidateDir,
+  workDir,
+  optimizerPython
+}) {
   const levelWork = join(workDir, level.key);
   const geometryGlb = join(levelWork, `${slug}-${level.key}-geometry.glb`);
   const resizedGlb = join(levelWork, `${slug}-${level.key}-${level.textureSize}.glb`);
@@ -959,7 +968,7 @@ async function buildCandidate({ dish, slug, level, sourcePath, candidateDir, wor
     level: level.key,
     label: level.label,
     targetBytes: level.targetBytes,
-    sourceGlb: levelSourcePath,
+    sourceGlb: manifestSourcePath,
     sourcePreparation: prepared.preparation,
     glbPath: finalGlb,
     usdzPath: optimizedUsdz,
@@ -1080,6 +1089,7 @@ async function main() {
             slug,
             level,
             sourcePath,
+            manifestSourcePath: originalSourcePath,
             candidateDir,
             workDir,
             optimizerPython
@@ -1093,7 +1103,7 @@ async function main() {
           level: level.key,
           label: level.label,
           targetBytes: level.targetBytes,
-          sourceGlb: sourcePath,
+          sourceGlb: originalSourcePath,
           failed: true,
           error: message,
           visualPriorities: dish.visualPriorities,
@@ -1107,7 +1117,7 @@ async function main() {
       }
     }
 
-    const manifestPath = writeManifest(candidateDir, slug, sourcePath, candidates);
+    const manifestPath = writeManifest(candidateDir, slug, originalSourcePath, candidates);
     console.log(`\nWrote candidate manifest: ${manifestPath}`);
     console.log("\nCandidate summary:");
     for (const candidate of candidates) {
