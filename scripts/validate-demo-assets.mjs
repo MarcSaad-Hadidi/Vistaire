@@ -116,7 +116,7 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
 ]);
 const MESHOPT_DECODER_EXPECTATION = {
   url: "/model-viewer/meshopt-decoder-74188840.js",
-  sha256: "e845b1a9f299c9629143d2a6a80100d21bfe877f32a2ee07b744ef2327d08f75"
+  sha256: "74188840936594a7161be0bb8822927279ec72ed9e4585e482f2c47c40d1aa80"
 };
 const sceneInspectionCache = new Map();
 

@@ -55,18 +55,6 @@ function selectHeroVideoMode(): HeroVideoMode {
   const isLowEndDevice =
     deviceMemory <= 2 || hardwareConcurrency <= 4 || isSlowConnection;
 
-  if (isSaveData || isReducedMotion || isLowEndDevice) {
-    return {
-      source: HERO_VIDEO_SOURCES.lowEnd,
-      variant: "lowEnd",
-      isReducedMotion,
-      isSaveData,
-      isLowEndDevice,
-      preload: "metadata",
-      minSeekDelta: isReducedMotion ? 1 / 6 : 1 / 10
-    };
-  }
-
   if (isMobileViewport || isTouchDevice) {
     return {
       source: HERO_VIDEO_SOURCES.mobile,
@@ -75,7 +63,7 @@ function selectHeroVideoMode(): HeroVideoMode {
       isSaveData,
       isLowEndDevice,
       preload: "metadata",
-      minSeekDelta: 1 / 24
+      minSeekDelta: isReducedMotion || isLowEndDevice ? 1 / 12 : 1 / 24
     };
   }
 
@@ -86,7 +74,7 @@ function selectHeroVideoMode(): HeroVideoMode {
     isSaveData,
     isLowEndDevice,
     preload: "metadata",
-    minSeekDelta: 1 / 30
+    minSeekDelta: isReducedMotion || isLowEndDevice ? 1 / 10 : 1 / 30
   };
 }
 

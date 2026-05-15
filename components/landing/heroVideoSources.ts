@@ -1,4 +1,4 @@
-export type HeroVideoVariant = "desktopHigh" | "mobile" | "lowEnd";
+export type HeroVideoVariant = "desktopHigh" | "mobile";
 
 export type HeroVideoSource = {
   variant: HeroVideoVariant;
@@ -29,16 +29,6 @@ export const HERO_VIDEO_SOURCES: Record<HeroVideoVariant, HeroVideoSource> = {
     width: 722,
     height: 406,
     sizeMb: 2.95,
-    durationSeconds: 30.067,
-    scrubReady: true
-  },
-  lowEnd: {
-    variant: "lowEnd",
-    src: "/videos/optimized/upscaled-video-low.mp4",
-    label: "low-end",
-    width: 480,
-    height: 270,
-    sizeMb: 0.55,
     durationSeconds: 30.067,
     scrubReady: true
   }
