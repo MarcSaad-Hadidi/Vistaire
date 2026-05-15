@@ -20,6 +20,7 @@ npm run demo:build-ios-ultra -- souffle-chocolat
 The script creates conservative, balanced, ultra, and extreme candidates. It only promotes a production USDZ when a human visual review passes:
 
 ```bash
+npm run demo:build-ios-ultra -- ravioles-chevre-miel --promote ultra --quality-approved
 npm run demo:build-ios-ultra -- homard-bisque --promote ultra --quality-approved
 npm run demo:build-ios-ultra -- souffle-chocolat --promote ultra --quality-approved
 ```
@@ -28,12 +29,22 @@ Reject candidates that look cheap, cartoon-like, toy-like, visibly low-poly, blu
 
 Current approved production iPhone Quick Look USDZ:
 
+- `ravioles-chevre-miel`: `/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz`
 - `homard-bisque`: `/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz`
 - `souffle-chocolat`: `/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz`
 
-Current failed dish:
+## Hard-Case Dishes
 
-- `ravioles-chevre-miel`: generated candidates remain around 50 MB because the asset is geometry-bound. Do not add `arUsdzUrl` until artist retopology/mesh cleanup or a better source asset brings a visually acceptable candidate under 5 MiB.
+`ravioles-chevre-miel` was the first dish that failed the generic pipeline badly. Its source contains two nearly coincident high-density food shells with identical bounds, plus thousands of tiny loose geometry islands. Generic simplification preserved too much duplicated/split topology, so candidates stayed around 50 MB.
+
+The approved ravioles iPhone asset required deeper AR-only source preparation:
+
+- delete the duplicated expensive food shell while keeping the visible ravioles shell
+- remove the unnecessary metallic/roughness texture and use scalar food roughness
+- prune tiny loose components per candidate level
+- simplify the retained visible shell, resize/recompress the base-color atlas, normalize, ground, and optimize USDZ binary layers
+
+Future complex dishes that remain above budget after the standard candidate build should follow this pattern before activation: inspect for duplicated shells/internal geometry, remove invisible or phone-distance-insignificant islands, bake material detail into one small base-color texture where possible, then build a dedicated AR-only source. Do not activate `arUsdzUrl` until the production USDZ is valid, grounded, visually acceptable, and `<= 5 MiB`.
 
 ## Gates
 

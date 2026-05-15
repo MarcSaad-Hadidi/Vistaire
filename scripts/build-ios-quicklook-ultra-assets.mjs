@@ -16,6 +16,8 @@ import { AppendSceneAsync } from "@babylonjs/core/Loading/sceneLoader.js";
 import "@babylonjs/loaders/glTF/index.js";
 import { GLTF2Export } from "@babylonjs/serializers/glTF/2.0/glTFSerializer.js";
 import { USDZExportAsync } from "@babylonjs/serializers";
+import { Accessor, NodeIO } from "@gltf-transform/core";
+import { dedup, prune, weld } from "@gltf-transform/functions";
 import * as fflate from "fflate";
 
 globalThis.fflate = fflate;
@@ -59,10 +61,56 @@ const DISHES = new Map([
     "ravioles-chevre-miel",
     {
       sourceGlb: "ravioles-chevre-miel.glb",
+      quickLookPreparation: "ravioles-visible-shell",
       targetMaxDimMeters: 0.2,
       productionOutputs: {
         ultra: "ravioles-chevre-miel-ios-quicklook-ultra.usdz",
         extreme: "ravioles-chevre-miel-ios-quicklook-extreme.usdz"
+      },
+      levelOverrides: {
+        conservative: {
+          simplifyRatio: 0.72,
+          simplifyError: 0.01,
+          componentMinTriangles: 20,
+          textureSize: 1280,
+          preJpegQuality: 84,
+          finalJpegQuality: 78,
+          risk:
+            "Quality reference from the AR-only visible-shell source; expected to exceed the production iPhone budget."
+        },
+        balanced: {
+          simplifyRatio: 0.56,
+          simplifyError: 0.5,
+          simplifyLockBorder: false,
+          componentMinTriangles: 50,
+          textureSize: 1024,
+          preJpegQuality: 80,
+          finalJpegQuality: 70,
+          risk:
+            "Balanced ravioles review candidate; inspect pasta folds, sauce/herb read, and premium color before considering stronger compression."
+        },
+        ultra: {
+          simplifyRatio: 0.44,
+          simplifyError: 0.2,
+          simplifyLockBorder: false,
+          componentMinTriangles: 100,
+          textureSize: 896,
+          preJpegQuality: 74,
+          finalJpegQuality: 62,
+          risk:
+            "Production ravioles target from the visible-shell AR source; verify pasta identity, sauce highlights, plate composition, grounding, and phone-distance realism before promotion."
+        },
+        extreme: {
+          simplifyRatio: 0.3,
+          simplifyError: 1,
+          simplifyLockBorder: false,
+          componentMinTriangles: 200,
+          textureSize: 640,
+          preJpegQuality: 64,
+          finalJpegQuality: 46,
+          risk:
+            "Aggressive weak-network ravioles candidate; only promote if it avoids low-poly, blurry, placeholder-like food."
+        }
       },
       visualPriorities:
         "Preserve pasta folds, sauce gloss, plate composition, and warm realistic food color."
@@ -301,6 +349,273 @@ function inspectGlb(filePath) {
     textureCount: json.textures?.length ?? 0,
     materialCount: json.materials?.length ?? 0,
     requiredExtensions: json.extensionsRequired ?? []
+  };
+}
+
+async function prepareRaviolesQuickLookSource(sourcePath, outputPath) {
+  const io = new NodeIO();
+  const document = await io.read(sourcePath);
+  const root = document.getRoot();
+  const nodes = root.listNodes();
+  const expensiveDuplicate = nodes.find((node) => node.getName() === "geometry_0");
+  const retainedFood = nodes.find((node) => node.getName() === "geometry_0.001");
+
+  if (!expensiveDuplicate || !retainedFood) {
+    throw new Error(
+      "Ravioles AR source preparation expected geometry_0 and geometry_0.001 food shells."
+    );
+  }
+
+  const removedMesh = expensiveDuplicate.getMesh();
+  expensiveDuplicate.dispose();
+  if (removedMesh) removedMesh.dispose();
+
+  for (const material of root.listMaterials()) {
+    const name = material.getName().toLowerCase();
+    if (name.includes("material_0")) {
+      material.setMetallicRoughnessTexture(null);
+      material.setMetallicFactor(0);
+      material.setRoughnessFactor(0.5);
+    }
+  }
+
+  await document.transform(prune(), dedup(), weld({ tolerance: 1e-6 }));
+  mkdirSync(dirname(outputPath), { recursive: true });
+  await io.write(outputPath, document);
+
+  const prepared = inspectGlb(outputPath);
+  console.log(
+    `Prepared ravioles AR source: ${formatSize(prepared.bytes)}, ${prepared.triangleCount.toLocaleString(
+      "en-US"
+    )} triangles, ${prepared.materialCount} materials, ${prepared.textureCount} texture(s)`
+  );
+}
+
+async function prepareQuickLookSource({ dish, slug, sourcePath, workDir }) {
+  if (dish.quickLookPreparation !== "ravioles-visible-shell") return sourcePath;
+
+  const outputPath = join(workDir, "source", `${slug}-visible-shell-source.glb`);
+  await prepareRaviolesQuickLookSource(sourcePath, outputPath);
+  return outputPath;
+}
+
+function createDisjointSet(count) {
+  const parent = new Int32Array(count);
+  const size = new Int32Array(count);
+  for (let index = 0; index < count; index += 1) {
+    parent[index] = index;
+    size[index] = 1;
+  }
+
+  function find(value) {
+    let root = value;
+    while (parent[root] !== root) root = parent[root];
+    while (parent[value] !== value) {
+      const next = parent[value];
+      parent[value] = root;
+      value = next;
+    }
+    return root;
+  }
+
+  function union(a, b) {
+    let rootA = find(a);
+    let rootB = find(b);
+    if (rootA === rootB) return;
+    if (size[rootA] < size[rootB]) {
+      const temp = rootA;
+      rootA = rootB;
+      rootB = temp;
+    }
+    parent[rootB] = rootA;
+    size[rootA] += size[rootB];
+  }
+
+  return { find, union };
+}
+
+function copyAccessorElements(document, buffer, sourceAccessor, orderedIndices, semantic) {
+  const sourceArray = sourceAccessor.getArray();
+  if (!sourceArray) {
+    throw new Error(`Missing accessor array for ${semantic}.`);
+  }
+
+  const elementSize = sourceAccessor.getElementSize();
+  const TargetArray = sourceArray.constructor;
+  const targetArray = new TargetArray(orderedIndices.length * elementSize);
+
+  for (let newIndex = 0; newIndex < orderedIndices.length; newIndex += 1) {
+    const sourceIndex = orderedIndices[newIndex];
+    for (let component = 0; component < elementSize; component += 1) {
+      targetArray[newIndex * elementSize + component] =
+        sourceArray[sourceIndex * elementSize + component];
+    }
+  }
+
+  return document
+    .createAccessor(`${sourceAccessor.getName() || semantic}-pruned`)
+    .setArray(targetArray)
+    .setType(sourceAccessor.getType())
+    .setBuffer(buffer)
+    .setNormalized(sourceAccessor.getNormalized());
+}
+
+function prunePrimitiveSmallComponents(document, buffer, primitive, minTriangles) {
+  const indices = primitive.getIndices();
+  const position = primitive.getAttribute("POSITION");
+  if (!indices || !position) return null;
+
+  const indexArray = indices.getArray();
+  if (!indexArray) {
+    throw new Error("Missing ravioles primitive indices during component pruning.");
+  }
+
+  const triangleCount = Math.floor(indexArray.length / 3);
+  const vertexCount = position.getCount();
+  const disjointSet = createDisjointSet(vertexCount);
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const a = indexArray[triangle * 3];
+    const b = indexArray[triangle * 3 + 1];
+    const c = indexArray[triangle * 3 + 2];
+    disjointSet.union(a, b);
+    disjointSet.union(a, c);
+  }
+
+  const componentTriangles = new Map();
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const root = disjointSet.find(indexArray[triangle * 3]);
+    componentTriangles.set(root, (componentTriangles.get(root) ?? 0) + 1);
+  }
+
+  const oldToNew = new Map();
+  const newIndices = [];
+  let removedTriangles = 0;
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const root = disjointSet.find(indexArray[triangle * 3]);
+    if ((componentTriangles.get(root) ?? 0) < minTriangles) {
+      removedTriangles += 1;
+      continue;
+    }
+
+    for (let corner = 0; corner < 3; corner += 1) {
+      const oldIndex = indexArray[triangle * 3 + corner];
+      let newIndex = oldToNew.get(oldIndex);
+      if (newIndex === undefined) {
+        newIndex = oldToNew.size;
+        oldToNew.set(oldIndex, newIndex);
+      }
+      newIndices.push(newIndex);
+    }
+  }
+
+  if (removedTriangles === 0) {
+    return {
+      beforeTriangles: triangleCount,
+      afterTriangles: triangleCount,
+      removedTriangles: 0,
+      afterVertices: vertexCount
+    };
+  }
+
+  const orderedOldIndices = Array.from(oldToNew.keys());
+  for (const semantic of primitive.listSemantics()) {
+    const sourceAccessor = primitive.getAttribute(semantic);
+    primitive.setAttribute(
+      semantic,
+      copyAccessorElements(document, buffer, sourceAccessor, orderedOldIndices, semantic)
+    );
+  }
+
+  const IndexArray = orderedOldIndices.length > 65535 ? Uint32Array : Uint16Array;
+  primitive.setIndices(
+    document
+      .createAccessor("indices-pruned")
+      .setArray(new IndexArray(newIndices))
+      .setType(Accessor.Type.SCALAR)
+      .setBuffer(buffer)
+  );
+
+  return {
+    beforeTriangles: triangleCount,
+    afterTriangles: Math.floor(newIndices.length / 3),
+    removedTriangles,
+    afterVertices: orderedOldIndices.length
+  };
+}
+
+async function pruneRaviolesSmallComponents(inputPath, outputPath, minTriangles) {
+  const io = new NodeIO();
+  const document = await io.read(inputPath);
+  const root = document.getRoot();
+  const buffer = root.listBuffers()[0] ?? document.createBuffer();
+  const summaries = [];
+
+  for (const mesh of root.listMeshes()) {
+    for (const primitive of mesh.listPrimitives()) {
+      const materialName = primitive.getMaterial()?.getName().toLowerCase() ?? "";
+      if (!materialName.includes("material_0")) continue;
+
+      const summary = prunePrimitiveSmallComponents(
+        document,
+        buffer,
+        primitive,
+        minTriangles
+      );
+      if (summary) summaries.push(summary);
+    }
+  }
+
+  if (summaries.length === 0) {
+    throw new Error("Ravioles component pruning found no food primitive to process.");
+  }
+
+  await document.transform(prune(), dedup(), weld({ tolerance: 1e-6 }));
+  mkdirSync(dirname(outputPath), { recursive: true });
+  await io.write(outputPath, document);
+
+  const aggregate = summaries.reduce(
+    (total, summary) => ({
+      beforeTriangles: total.beforeTriangles + summary.beforeTriangles,
+      afterTriangles: total.afterTriangles + summary.afterTriangles,
+      removedTriangles: total.removedTriangles + summary.removedTriangles,
+      afterVertices: total.afterVertices + summary.afterVertices
+    }),
+    { beforeTriangles: 0, afterTriangles: 0, removedTriangles: 0, afterVertices: 0 }
+  );
+
+  console.log(
+    `Ravioles component pruning >=${minTriangles} tris: ${aggregate.beforeTriangles.toLocaleString(
+      "en-US"
+    )} -> ${aggregate.afterTriangles.toLocaleString("en-US")} food triangles`
+  );
+  return aggregate;
+}
+
+async function prepareCandidateSource({ dish, level, sourcePath, levelWork }) {
+  if (
+    dish.quickLookPreparation !== "ravioles-visible-shell" ||
+    !level.componentMinTriangles
+  ) {
+    return { sourcePath, preparation: null };
+  }
+
+  const outputPath = join(
+    levelWork,
+    `source-min${level.componentMinTriangles}.glb`
+  );
+  const preparation = await pruneRaviolesSmallComponents(
+    sourcePath,
+    outputPath,
+    level.componentMinTriangles
+  );
+  return {
+    sourcePath: outputPath,
+    preparation: {
+      componentMinTriangles: level.componentMinTriangles,
+      ...preparation
+    }
   };
 }
 
@@ -557,12 +872,14 @@ async function buildCandidate({ dish, slug, level, sourcePath, candidateDir, wor
   const optimizedUsdz = join(candidateDir, `${slug}-ios-${level.key}.usdz`);
 
   mkdirSync(levelWork, { recursive: true });
+  const prepared = await prepareCandidateSource({ dish, level, sourcePath, levelWork });
+  const levelSourcePath = prepared.sourcePath;
 
   console.log(`\n${level.label}: generating GLB candidate`);
   run(process.execPath, [
     GLTF_TRANSFORM_CLI,
     "optimize",
-    sourcePath,
+    levelSourcePath,
     geometryGlb,
     "--compress",
     "false",
@@ -642,7 +959,8 @@ async function buildCandidate({ dish, slug, level, sourcePath, candidateDir, wor
     level: level.key,
     label: level.label,
     targetBytes: level.targetBytes,
-    sourceGlb: sourcePath,
+    sourceGlb: levelSourcePath,
+    sourcePreparation: prepared.preparation,
     glbPath: finalGlb,
     usdzPath: optimizedUsdz,
     glb: glbInfo,
@@ -724,7 +1042,8 @@ async function main() {
     throw new Error(`Missing glTF Transform CLI: ${GLTF_TRANSFORM_CLI}`);
   }
 
-  const sourcePath = join(DEMO_DIR, dish.quickLookSourceGlb ?? dish.sourceGlb);
+  const originalSourcePath = join(DEMO_DIR, dish.quickLookSourceGlb ?? dish.sourceGlb);
+  let sourcePath = originalSourcePath;
   assertSourceGlb(sourcePath);
   const optimizerPython = findOpenUsdPython();
   const candidateDir = join(CANDIDATE_ROOT, slug);
@@ -747,6 +1066,12 @@ async function main() {
   const candidates = [];
   const levels = levelsForDish(dish);
   try {
+    sourcePath = await prepareQuickLookSource({ dish, slug, sourcePath, workDir });
+    if (sourcePath !== originalSourcePath) {
+      console.log(`AR-only prepared source: ${sourcePath} (${formatSize(statSync(sourcePath).size)})`);
+      console.log(`Original source kept untouched: ${originalSourcePath}`);
+    }
+
     for (const level of levels) {
       try {
         candidates.push(

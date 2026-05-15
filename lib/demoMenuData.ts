@@ -167,7 +167,8 @@ const DISHES: Dish[] = [
     preparationTime: "12 min",
     model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
     webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
-    usdzUrl: "/models/demo/ravioles-chevre-miel.usdz"
+    usdzUrl: "/models/demo/ravioles-chevre-miel.usdz",
+    arUsdzUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz"
   },
   {
     id: "dish-2",

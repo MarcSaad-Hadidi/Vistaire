@@ -86,11 +86,19 @@ const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "homard-bisque-ios-quicklook-ultra.usdz",
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
+  "ravioles-chevre-miel-ios-quicklook-ultra.usdz",
   "ravioles-chevre-miel.usdz",
   "souffle-chocolat-ios-quicklook-ultra.usdz",
   "souffle-chocolat.usdz"
 ]);
 const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
+  [
+    "ravioles-romarin",
+    {
+      url: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz",
+      sha256: "7b4ea63dbcdd92f3e41a8f7d062d307a8242ecb86cbfaa452fef7a6398924908"
+    }
+  ],
   [
     "homard-bisque",
     {

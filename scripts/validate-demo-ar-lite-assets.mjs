@@ -37,6 +37,13 @@ const AR_GLB_ASSETS = new Map([
 
 const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
+    "ravioles-romarin",
+    {
+      url: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz",
+      sha256: "7b4ea63dbcdd92f3e41a8f7d062d307a8242ecb86cbfaa452fef7a6398924908"
+    }
+  ],
+  [
     "homard-bisque",
     {
       url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
