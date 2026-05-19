@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { JsonLd } from "@/components/JsonLd";
 import { DemoMenuClient } from "@/components/menu/DemoMenuClient";
 import { MenuHero } from "@/components/menu/MenuHero";
 import {
@@ -6,6 +7,7 @@ import {
   getCategories,
   getRestaurant
 } from "@/lib/demoMenuData";
+import { buildBreadcrumbJsonLd } from "@/lib/seo";
 
 function PresentationPathway() {
   return (
@@ -53,6 +55,12 @@ export default function DemoPage() {
 
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Accueil", path: "/" },
+          { name: "Menu client exemple", path: "/demo" }
+        ])}
+      />
       <MenuHero restaurant={restaurant} />
       <PresentationPathway />
       <DemoMenuClient

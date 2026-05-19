@@ -1,10 +1,32 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/Header";
+import { absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Aperçu restaurateur | Vistaire",
+  title: "Aperçu restaurateur de démonstration",
   description:
-    "Aperçu restaurateur de présentation pour lire les comportements clients autour du menu Vistaire de Maison Élyse."
+    "Aperçu restaurateur de démonstration Vistaire pour lire les comportements anonymes autour d'un menu client exemple.",
+  alternates: {
+    canonical: "/admin"
+  },
+  robots: {
+    index: true,
+    follow: true,
+    noarchive: true
+  },
+  openGraph: {
+    url: absoluteUrl("/admin"),
+    title: "Aperçu restaurateur de démonstration | Vistaire",
+    description:
+      "Découvrez comment Vistaire présente les comportements anonymes autour d'un menu client exemple.",
+    type: "website"
+  },
+  twitter: {
+    card: "summary",
+    title: "Aperçu restaurateur de démonstration | Vistaire",
+    description:
+      "Découvrez comment Vistaire présente les comportements anonymes autour d'un menu client exemple."
+  }
 };
 
 export default function AdminLayout({

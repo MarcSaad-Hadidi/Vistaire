@@ -1,5 +1,16 @@
+import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
+
+export const metadata: Metadata = {
+  title: "Todos",
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    nocache: true
+  }
+};
 
 export default async function TodosPage() {
   const cookieStore = await cookies();
