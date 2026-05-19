@@ -1,7 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { DemoRequestSection } from "@/components/DemoRequestSection";
 import { Header } from "@/components/Header";
+import { JsonLd } from "@/components/JsonLd";
 import { ResponsiveLandingHero } from "@/components/landing/ResponsiveLandingHero";
+import {
+  DEFAULT_SITE_DESCRIPTION,
+  absoluteUrl,
+  buildVistaireServiceJsonLd
+} from "@/lib/seo";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/"
+  },
+  openGraph: {
+    url: absoluteUrl("/"),
+    title: "Vistaire — Menu digital premium pour restaurants",
+    description: DEFAULT_SITE_DESCRIPTION
+  },
+  twitter: {
+    card: "summary",
+    title: "Vistaire — Menu digital premium pour restaurants",
+    description: DEFAULT_SITE_DESCRIPTION
+  }
+};
 
 const benefits = [
   {
@@ -32,6 +55,12 @@ function BenefitsSection() {
         <h2 className="mt-5 max-w-5xl font-display text-[clamp(2.45rem,6vw,5.8rem)] font-normal leading-[0.98] text-cream">
           Un menu plus clair pour vos clients. Une carte mieux valorisée pour votre restaurant.
         </h2>
+        <p className="mt-6 max-w-3xl text-base leading-7 text-[#d1c2aa] sm:text-lg sm:leading-8">
+          Vistaire est un menu digital premium pour restaurants : le client scanne
+          un QR code à table, consulte des fiches plats visuelles, explore la 3D
+          ou l&apos;AR quand elle est disponible, puis le restaurateur visualise un
+          aperçu clair de l&apos;attention portée à sa carte.
+        </p>
 
         <div className="mt-12 grid gap-8 border-t border-white/12 pt-9 md:grid-cols-3 lg:mt-16 lg:pt-11">
           {benefits.map((benefit, index) => (
@@ -76,6 +105,7 @@ export default function Home() {
   return (
     <>
       <Header />
+      <JsonLd data={buildVistaireServiceJsonLd()} />
       <main>
         <ResponsiveLandingHero />
         <BenefitsSection />

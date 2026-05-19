@@ -8,9 +8,15 @@ import {
 } from "@/lib/clerkAppearance";
 
 export const metadata: Metadata = {
-  title: "Pilotage Vistaire | Owner",
+  title: "Pilotage Vistaire",
   description:
-    "Espace de pilotage Vistaire pour suivre les restaurants, les menus et les recommandations automatiques."
+    "Espace interne Vistaire pour suivre les restaurants, les menus et les recommandations automatiques.",
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    nocache: true
+  }
 };
 
 export default async function OwnerLayout({

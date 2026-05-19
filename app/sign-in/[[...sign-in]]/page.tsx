@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import { ClerkProvider, SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import {
   vistaireClerkAppearance,
   vistaireClerkLocalization
 } from "@/lib/clerkAppearance";
+
+export const metadata: Metadata = {
+  title: "Accès interne",
+  description: "Connexion réservée à l'espace interne Vistaire.",
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    nocache: true
+  }
+};
 
 export default function SignInPage() {
   return (
