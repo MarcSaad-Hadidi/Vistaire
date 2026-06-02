@@ -3,6 +3,7 @@ import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Owner3dCdnWorkflowPanel } from "@/components/owner/Owner3dCdnWorkflowPanel";
 import { Owner3dJobsPanel } from "@/components/owner/Owner3dJobsPanel";
 import { Owner3dLifecyclePanel } from "@/components/owner/Owner3dLifecyclePanel";
+import { Owner3dOptimizeGlbWorkflowPanel } from "@/components/owner/Owner3dOptimizeGlbWorkflowPanel";
 import { Owner3dSourceUploadPanel } from "@/components/owner/Owner3dSourceUploadPanel";
 import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
 import {
@@ -49,6 +50,8 @@ export function Owner3dArPipelineCenter({
       </section>
 
       <Owner3dSourceUploadPanel initialIdentity={initialUploadIdentity} />
+
+      <Owner3dOptimizeGlbWorkflowPanel identity={initialUploadIdentity} />
 
       <Owner3dJobsPanel />
 
