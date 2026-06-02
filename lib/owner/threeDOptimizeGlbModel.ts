@@ -234,6 +234,12 @@ export function buildCandidateSetView(
   sourceSha256: string,
   candidates: OptimizeGlbCandidateRecord[]
 ): CandidateSetView {
+  // Defense in depth: even if a caller passes a mixed list, only candidates
+  // bound to the active source contribute to recommendations and the set.
+  const scopedCandidates = sourceSha256
+    ? candidates.filter((candidate) => candidate.sourceSha256 === sourceSha256)
+    : candidates;
+
   const byRole = {
     web: [],
     mobile: [],
@@ -241,7 +247,7 @@ export function buildCandidateSetView(
     iosSource: [],
     posterSource: []
   } as Record<VariantRole, OptimizeGlbCandidateRecord[]>;
-  for (const candidate of candidates) {
+  for (const candidate of scopedCandidates) {
     byRole[candidate.variantRole]?.push(candidate);
   }
   for (const role of Object.keys(byRole) as VariantRole[]) {
@@ -252,13 +258,13 @@ export function buildCandidateSetView(
     );
   }
 
-  const recommendedMembers = recommendCandidatePerRole(candidates.map(candidateToMember));
+  const recommendedMembers = recommendCandidatePerRole(scopedCandidates.map(candidateToMember));
   const recommended: Partial<Record<VariantRole, OptimizeGlbCandidateRecord | null>> = {};
   const members: Partial<Record<VariantRole, OptimizeGlbCandidateRecord>> = {};
   for (const role of Object.keys(recommendedMembers) as VariantRole[]) {
     const member = recommendedMembers[role];
     const record = member
-      ? candidates.find((candidate) => candidate.sha256 === member.sha256) ?? null
+      ? scopedCandidates.find((candidate) => candidate.sha256 === member.sha256) ?? null
       : null;
     recommended[role] = record;
     if (record) members[role] = record;

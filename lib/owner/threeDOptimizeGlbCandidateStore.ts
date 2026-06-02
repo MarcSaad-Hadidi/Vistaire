@@ -281,7 +281,8 @@ export async function createOptimizeGlbCandidate(args: {
 }
 
 export async function listOptimizeGlbCandidates(
-  identity: SourceUploadIdentity
+  identity: SourceUploadIdentity,
+  options: { sourceUploadId?: string } = {}
 ): Promise<{ ok: true; configured: boolean; candidates: OptimizeGlbCandidateRecord[] } | CandidateStoreFailure> {
   const storage = getStorage();
   if (!storage.ok) {
@@ -289,15 +290,21 @@ export async function listOptimizeGlbCandidates(
     return storage;
   }
 
-  const { data, error } = await storage.ctx.client
+  let query = storage.ctx.client
     .from(CANDIDATES_TABLE)
     .select("*")
     .eq("restaurant_slug", identity.restaurantSlug)
     .eq("menu_slug", identity.menuSlug)
     .eq("dish_slug", identity.dishSlug)
-    .eq("version", identity.version)
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .eq("version", identity.version);
+
+  // Scope candidates to the active source upload so historical sources under
+  // the same identity never leak into recommendations or set approval.
+  if (options.sourceUploadId) {
+    query = query.eq("source_upload_id", options.sourceUploadId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(100);
 
   if (error) {
     logStoreError("candidate list failed", error.message);

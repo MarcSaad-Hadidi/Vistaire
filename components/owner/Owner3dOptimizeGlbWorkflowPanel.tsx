@@ -108,15 +108,23 @@ export function Owner3dOptimizeGlbWorkflowPanel({ identity }: { identity: Identi
       return;
     }
     try {
-      const [sourceResponse, candidateResponse] = await Promise.all([
-        fetch(`/api/owner/3d-ar/sources/status?${params}`),
-        fetch(`/api/owner/3d-ar/optimizeglb-candidates?${params}`)
-      ]);
+      // Resolve the active source first so the candidate list can be scoped to
+      // it; otherwise candidates from older sources under the same identity mix
+      // into recommendations and approval.
+      const sourceResponse = await fetch(`/api/owner/3d-ar/sources/status?${params}`);
       const sourcePayload = (await sourceResponse.json()) as {
         ok: boolean;
         configured?: boolean;
         record?: SourceRecord | null;
       };
+      setConfigured(Boolean(sourcePayload.configured));
+      setSource(sourcePayload.record ?? null);
+
+      const activeSourceId = sourcePayload.record?.id ?? "";
+      const candidateQuery = activeSourceId
+        ? `${params}&sourceUploadId=${encodeURIComponent(activeSourceId)}`
+        : params;
+      const candidateResponse = await fetch(`/api/owner/3d-ar/optimizeglb-candidates?${candidateQuery}`);
       const candidatePayload = (await candidateResponse.json()) as {
         ok: boolean;
         configured?: boolean;
@@ -124,8 +132,6 @@ export function Owner3dOptimizeGlbWorkflowPanel({ identity }: { identity: Identi
         set?: SetSummary;
         error?: string;
       };
-      setConfigured(Boolean(sourcePayload.configured));
-      setSource(sourcePayload.record ?? null);
       if (candidatePayload.ok) {
         setCandidates(candidatePayload.candidates ?? []);
         setSet(candidatePayload.set ?? null);

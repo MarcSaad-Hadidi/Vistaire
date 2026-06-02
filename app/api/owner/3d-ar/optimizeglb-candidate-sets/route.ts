@@ -59,7 +59,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: source.message }, { status: source.status });
   }
 
-  const list = await listOptimizeGlbCandidates(identityResult.identity);
+  // Scope to the active source so approval can never resolve a candidate that
+  // belongs to a different (historical) source under the same identity.
+  const list = await listOptimizeGlbCandidates(identityResult.identity, {
+    sourceUploadId: source.source.id
+  });
   if (!list.ok) {
     return NextResponse.json({ ok: false, error: list.message }, { status: list.status });
   }

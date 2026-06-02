@@ -25,6 +25,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
+const CANDIDATE_SOURCE_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   const owner = await requireVistaireOwnerApi();
@@ -190,12 +192,31 @@ export async function GET(request: NextRequest) {
   const accessError = requireOwner3dRestaurantAccess(owner, identityResult.identity.restaurantSlug);
   if (accessError) return accessError;
 
-  const list = await listOptimizeGlbCandidates(identityResult.identity);
+  // Scope candidates to the active source upload. Without this, candidates from
+  // historical sources under the same identity leak into recommendations and the
+  // approval path, recommending an older candidate or matching the wrong source.
+  const sourceUploadId = params.get("sourceUploadId") ?? "";
+  let scopedSourceSha256 = "";
+  if (sourceUploadId) {
+    if (!CANDIDATE_SOURCE_ID_PATTERN.test(sourceUploadId)) {
+      return NextResponse.json({ ok: false, error: "sourceUploadId is invalid." }, { status: 400 });
+    }
+    const source = await resolveSourceUpload({ sourceUploadId, identity: identityResult.identity });
+    if (!source.ok) {
+      return NextResponse.json({ ok: false, error: source.message }, { status: source.status });
+    }
+    scopedSourceSha256 = source.source.sha256;
+  }
+
+  const list = await listOptimizeGlbCandidates(
+    identityResult.identity,
+    sourceUploadId ? { sourceUploadId } : {}
+  );
   if (!list.ok) {
     return NextResponse.json({ ok: false, error: list.message }, { status: list.status });
   }
 
-  const sourceSha256 = list.candidates[0]?.sourceSha256 ?? "";
+  const sourceSha256 = scopedSourceSha256 || list.candidates[0]?.sourceSha256 || "";
   const view = buildCandidateSetView(sourceSha256, list.candidates);
 
   return NextResponse.json({
