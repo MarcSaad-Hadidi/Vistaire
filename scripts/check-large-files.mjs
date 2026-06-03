@@ -134,9 +134,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/ar-lite/homard-bisque-ar-lite.glb",
       {
-        maxBytes: 12032888,
+        maxBytes: 8594588,
         sha256: [
-          "76c30180ca12fafd8f6ed792ffd04fd7f1400cc0923741ab53938d067e92db11"
+          "e2a1022c24ffcf807f47b43c5334a66478736d82e518247788cffc45c06af54a"
         ],
         reason: "Existing demo 3D runtime asset."
       }
@@ -144,9 +144,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
       {
-        maxBytes: 5239742,
+        maxBytes: 2450572,
         sha256: [
-          "2bc1c0e6f33b807417bd03e931ae552a724935b8b193c419cdbf989337a18a13"
+          "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4"
         ],
         reason: "Existing demo Quick Look runtime asset."
       }
@@ -172,11 +172,11 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/homard-bisque-meshopt-73be7175.glb",
+      "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
       {
-        maxBytes: 17732992,
+        maxBytes: 4955904,
         sha256: [
-          "73be717526e94964c581de1e2bcf983e826a2ea16ee71044e10651b8eb6b69c3"
+          "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874"
         ],
         reason: "Existing demo optimized GLB runtime asset."
       }
@@ -184,9 +184,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/homard-bisque.glb",
       {
-        maxBytes: 29010112,
+        maxBytes: 3405480,
         sha256: [
-          "ff7a4377c0cdfb3deba984f4514942e8e392ba2a3e9ab83d93e62071777c0f14"
+          "3f3fec43de7642d26acc7c9920a82a5c1c80a55c61857df1b7f3aef29f15bb1f"
         ],
         reason: "Existing demo GLB runtime asset."
       }
@@ -194,9 +194,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/homard-bisque.usdz",
       {
-        maxBytes: 26352806,
+        maxBytes: 80333353,
         sha256: [
-          "099ba9e974b7a63519f52b017198385a748e18845c59312e7490c28d4f88b18b"
+          "dd8e4e24af9b6e782bcd953ae07a0f3134bc8d87ff4ea0f7c9dbaec487badefc"
         ],
         reason: "Existing demo USDZ runtime asset."
       }

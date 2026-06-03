@@ -115,7 +115,7 @@ test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a
   prefetchUsdzForQuickLook(
     {
       model3dUrl: "/models/demo/homard-bisque.glb",
-      webModel3dUrl: "/models/demo/homard-bisque-meshopt-73be7175.glb",
+      webModel3dUrl: "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
       arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
       arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"

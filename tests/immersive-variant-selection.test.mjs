@@ -11,7 +11,7 @@ const baseDish = {
   categorySlug: "plats-signatures",
   name: "Homard bleu",
   model3dUrl: "/models/demo/homard-bisque.glb",
-  webModel3dUrl: "/models/demo/homard-bisque-meshopt-73be7175.glb",
+  webModel3dUrl: "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
   arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
   arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
   image: "/images/demo/dishes/homard-bleu-bisque-fenouil.png"

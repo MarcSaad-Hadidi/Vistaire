@@ -23,12 +23,12 @@ const PROFILES = [
     slug: "homard-bisque",
     source: "homard-bisque.glb",
     output: "homard-bisque-ar-lite.glb",
-    simplifyRatio: 0.8,
-    simplifyError: 0.00065,
-    jpegQuality: 88,
-    balancedSimplifyRatio: 0.72,
-    balancedSimplifyError: 0.00045,
-    finalJpegQuality: 84,
+    simplifyRatio: 0.52,
+    simplifyError: 0.0012,
+    jpegQuality: 80,
+    balancedSimplifyRatio: 0.38,
+    balancedSimplifyError: 0.0009,
+    finalJpegQuality: 76,
     targetMaxDimMeters: 0.21,
     note:
       "Core Scene Viewer-compatible GLB: no Meshopt, no quantization, 2048 JPEG textures, balanced final geometry pass."
