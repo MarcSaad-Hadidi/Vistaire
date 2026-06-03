@@ -1,6 +1,6 @@
 /**
  * Normalise le modèle homard importé (centrage, taille réaliste, base au sol),
- * puis réécrit public/models/demo/homard-bisque.glb.
+ * puis réécrit public/models/demo/homard-bisque-meshy.glb.
  */
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -12,7 +12,7 @@ import "@babylonjs/loaders/glTF/index.js";
 import { GLTF2Export } from "@babylonjs/serializers";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const MODEL_PATH = join(__dirname, "..", "public", "models", "demo", "homard-bisque.glb");
+const MODEL_PATH = join(__dirname, "..", "public", "models", "demo", "homard-bisque-meshy.glb");
 const BACKUP_PATH = join(
   __dirname,
   "..",
@@ -48,7 +48,7 @@ async function main() {
 
   await AppendSceneAsync(new Uint8Array(data), scene, {
     pluginExtension: ".glb",
-    name: "homard-bisque.glb"
+    name: "homard-bisque-meshy.glb"
   });
   forcePositiveScales(scene);
 
@@ -73,14 +73,14 @@ async function main() {
   ({ min } = root.getHierarchyBoundingVectors(true));
   root.position.subtractInPlace(new Vector3(0, min.y, 0));
 
-  const glb = await GLTF2Export.GLBAsync(scene, "homard-bisque");
-  const glbBuffer = Buffer.from(await glb.glTFFiles["homard-bisque.glb"].arrayBuffer());
+  const glb = await GLTF2Export.GLBAsync(scene, "homard-bisque-meshy");
+  const glbBuffer = Buffer.from(await glb.glTFFiles["homard-bisque-meshy.glb"].arrayBuffer());
   writeFileSync(MODEL_PATH, glbBuffer);
 
   const finalBounds = root.getHierarchyBoundingVectors(true);
   const finalSize = finalBounds.max.subtract(finalBounds.min);
   console.log(
-    `OK homard-bisque.glb normalisé (maxDim=${Math.max(finalSize.x, finalSize.y, finalSize.z).toFixed(3)}m, bytes=${glbBuffer.byteLength})`
+    `OK homard-bisque-meshy.glb normalisé (maxDim=${Math.max(finalSize.x, finalSize.y, finalSize.z).toFixed(3)}m, bytes=${glbBuffer.byteLength})`
   );
 
   scene.dispose();

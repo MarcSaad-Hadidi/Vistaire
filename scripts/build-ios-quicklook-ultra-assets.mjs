@@ -46,11 +46,11 @@ const DISHES = new Map([
   [
     "homard-bisque",
     {
-      sourceGlb: "homard-bisque.glb",
-      quickLookSourceGlb: "ar-lite/homard-bisque-ar-lite.glb",
+      sourceGlb: "homard-bisque-meshy.glb",
+      quickLookSourceGlb: "ar-lite/homard-bisque-ar-lite-meshy.glb",
       targetMaxDimMeters: 0.21,
       productionOutputs: {
-        ultra: "homard-bisque-ios-quicklook-ultra.usdz",
+        ultra: "homard-bisque-ios-quicklook-meshy.usdz",
         extreme: "homard-bisque-ios-quicklook-extreme.usdz"
       },
       visualPriorities:
