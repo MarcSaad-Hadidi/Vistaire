@@ -162,11 +162,11 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz",
+      "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
       {
-        maxBytes: 5231780,
+        maxBytes: 5116956,
         sha256: [
-          "1ab81a3e292e0f290441028e20b7f2fb56e547c07851e2818abb651c8acfcea5"
+          "b90d2ce8ef90a5e2094756579767f32e3f0f4c41c400308e5092598a8cbb72af"
         ],
         reason: "Existing demo Quick Look runtime asset."
       }
@@ -242,21 +242,21 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
+      "public/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
       {
-        maxBytes: 17011872,
+        maxBytes: 3427392,
         sha256: [
-          "76eb0faa401dc853d0c8c27835a9083dbc006377f07c65f1284281144f943608"
+          "111ef8b79628639725d0cb41e973d40c2d38eb5b385df737c95faabe938045d3"
         ],
         reason: "Existing demo optimized GLB runtime asset."
       }
     ],
     [
-      "public/models/demo/souffle-chocolat.glb",
+      "public/models/demo/souffle-chocolat-meshy.glb",
       {
-        maxBytes: 27286348,
+        maxBytes: 2725316,
         sha256: [
-          "6aaab33a629b79ecf7f01bcedc03534528cc49ebb50064772e57cec9ecb1fc79"
+          "30d09b5c0dc012cac3182e0e8338b77ae427bead3eab5079b800a0fbee30a227"
         ],
         reason: "Existing demo GLB runtime asset."
       }

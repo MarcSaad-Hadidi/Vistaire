@@ -24,7 +24,7 @@ const SOURCE_ASSETS = new Map([
   ],
   [
     "souffle-chocolat",
-    { sourceGlb: "souffle-chocolat.glb", sourceUsdz: "souffle-chocolat.usdz" }
+    { sourceGlb: "souffle-chocolat-meshy.glb", sourceUsdz: "souffle-chocolat.usdz" }
   ]
 ]);
 
@@ -53,8 +53,8 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
     "souffle-chocolat",
     {
-      url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz",
-      sha256: "1ab81a3e292e0f290441028e20b7f2fb56e547c07851e2818abb651c8acfcea5"
+      url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
+      sha256: "b90d2ce8ef90a5e2094756579767f32e3f0f4c41c400308e5092598a8cbb72af"
     }
   ]
 ]);

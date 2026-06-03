@@ -119,10 +119,10 @@ const DISHES = new Map([
   [
     "souffle-chocolat",
     {
-      sourceGlb: "souffle-chocolat.glb",
+      sourceGlb: "souffle-chocolat-meshy.glb",
       targetMaxDimMeters: 0.18,
       productionOutputs: {
-        ultra: "souffle-chocolat-ios-quicklook-ultra.usdz",
+        ultra: "souffle-chocolat-ios-quicklook-meshy.usdz",
         extreme: "souffle-chocolat-ios-quicklook-extreme.usdz"
       },
       levelOverrides: {
