@@ -21,8 +21,8 @@ const GLB_MAX_BYTES = 15 * 1024 * 1024;
 const PROFILES = [
   {
     slug: "homard-bisque",
-    source: "homard-bisque.glb",
-    output: "homard-bisque-ar-lite.glb",
+    source: "homard-bisque-meshy.glb",
+    output: "homard-bisque-ar-lite-meshy.glb",
     simplifyRatio: 0.52,
     simplifyError: 0.0012,
     jpegQuality: 80,

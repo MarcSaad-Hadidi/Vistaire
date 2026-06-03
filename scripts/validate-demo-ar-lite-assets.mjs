@@ -17,7 +17,7 @@ const GLB_MAX_BYTES = 15 * 1024 * 1024;
 const USDZ_MAX_BYTES = 5 * 1024 * 1024;
 
 const SOURCE_ASSETS = new Map([
-  ["homard-bisque", { sourceGlb: "homard-bisque.glb", sourceUsdz: "homard-bisque.usdz" }],
+  ["homard-bisque", { sourceGlb: "homard-bisque-meshy.glb", sourceUsdz: "homard-bisque.usdz" }],
   [
     "ravioles-romarin",
     { sourceGlb: "ravioles-chevre-miel.glb", sourceUsdz: "" }
@@ -31,7 +31,7 @@ const SOURCE_ASSETS = new Map([
 const AR_GLB_ASSETS = new Map([
   [
     "homard-bisque",
-    { url: "/models/demo/ar-lite/homard-bisque-ar-lite.glb" }
+    { url: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb" }
   ]
 ]);
 
@@ -46,8 +46,8 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
     "homard-bisque",
     {
-      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
-      sha256: "2bc1c0e6f33b807417bd03e931ae552a724935b8b193c419cdbf989337a18a13"
+      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
+      sha256: "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4"
     }
   ],
   [

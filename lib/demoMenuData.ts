@@ -231,11 +231,11 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "28 min",
-    model3dUrl: "/models/demo/homard-bisque.glb",
+    model3dUrl: "/models/demo/homard-bisque-meshy.glb",
     webModel3dUrl: "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
-    arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+    arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
     usdzUrl: "/models/demo/homard-bisque.usdz",
-    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-4",

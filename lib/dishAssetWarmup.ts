@@ -15,10 +15,10 @@ const SMALL_ASSET_WARMUP_MAX_BYTES = 1024 * 1024;
 const demoAssetByteSizes = new Map<string, number>([
   ["/models/demo/ravioles-chevre-miel.glb", 76_609_104],
   ["/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz", 3_540_884],
-  ["/models/demo/homard-bisque.glb", 29_010_112],
+  ["/models/demo/homard-bisque-meshy.glb", 3_405_480],
   ["/models/demo/homard-bisque.usdz", 26_352_806],
-  ["/models/demo/ar-lite/homard-bisque-ar-lite.glb", 12_032_888],
-  ["/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz", 5_239_742],
+  ["/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb", 8_594_588],
+  ["/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz", 2_450_572],
   ["/models/demo/souffle-chocolat.glb", 27_286_348],
   ["/models/demo/souffle-chocolat.usdz", 24_873_890],
   ["/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz", 5_231_780],
