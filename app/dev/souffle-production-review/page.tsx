@@ -28,30 +28,21 @@ type UsdzAsset = {
 const GLB_ASSETS: GlbAsset[] = [
   {
     id: "source-draco",
-    label: "GLB principal — Draco (Meshy compressed)",
+    label: "GLB principal — Draco (compressé avec assiette)",
     role: "model3dUrl",
-    path: "public/models/demo/homard-bisque-meshy.glb",
-    sizeMb: "3,4 Mo",
-    modelUrl: "/models/demo/homard-bisque-meshy.glb",
-    note: "Source 3D Plat/Homard bleu Meshy.compressed.glb — Android / fallback web"
+    path: "public/models/demo/souffle-chocolat-meshy.glb",
+    sizeMb: "2,6 Mo",
+    modelUrl: "/models/demo/souffle-chocolat-meshy.glb",
+    note: "Source 3D Plat/SouffleAvecAssietteCompresser.glb"
   },
   {
     id: "web-meshopt",
     label: "GLB web — Meshopt",
     role: "webModel3dUrl",
-    path: "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
-    sizeMb: "4,7 Mo",
-    modelUrl: "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
-    note: "Variante chargée par le viewer desktop après clic « Voir en 3D »"
-  },
-  {
-    id: "ar-lite",
-    label: "GLB AR-lite",
-    role: "arModel3dUrl",
-    path: "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
-    sizeMb: "8,2 Mo",
-    modelUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
-    note: "Scene Viewer Android — simplifié pour l’AR"
+    path: "public/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
+    sizeMb: "3,3 Mo",
+    modelUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
+    note: "Variante chargée sur mobile et desktop après « Voir en 3D » (pas d’AR-lite GLB dédié)"
   }
 ];
 
@@ -60,21 +51,21 @@ const USDZ_ASSETS: UsdzAsset[] = [
     id: "ios-ultra",
     label: "USDZ iPhone Quick Look (ultra)",
     role: "arUsdzUrl",
-    path: "public/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
-    sizeMb: "2,3 Mo",
-    usdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
-    glbPreviewUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
+    path: "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
+    sizeMb: "4,9 Mo",
+    usdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
+    glbPreviewUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
     note: "Production iOS AR — promu depuis le pipeline ultra"
   },
   {
     id: "source-usdz",
     label: "USDZ source (legacy, inchangé sur main)",
     role: "usdzUrl",
-    path: "public/models/demo/homard-bisque.usdz",
-    sizeMb: "~25 Mo",
-    usdzUrl: "/models/demo/homard-bisque.usdz",
-    glbPreviewUrl: "/models/demo/homard-bisque-meshy.glb",
-    note: "Grandfather asset conservé tel quel — pas régénéré avec le nouveau GLB. Quick Look iPhone = ultra ci-dessus."
+    path: "public/models/demo/souffle-chocolat.usdz",
+    sizeMb: "~24 Mo",
+    usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+    glbPreviewUrl: "/models/demo/souffle-chocolat-meshy.glb",
+    note: "Grandfather asset conservé — pas régénéré. Quick Look iPhone = meshy ci-dessus."
   }
 ];
 
@@ -128,7 +119,7 @@ function ModelPane({ asset }: { asset: GlbAsset }) {
             reveal: "auto",
             "touch-action": "none",
             "camera-orbit": "0deg 68deg 145%",
-            "camera-target": "0m 0.015m 0m",
+            "camera-target": "0m 0.02m 0m",
             "field-of-view": "34deg",
             "min-camera-orbit": "auto auto 65%",
             "max-camera-orbit": "auto auto 175%",
@@ -182,7 +173,7 @@ function UsdzPane({ asset }: { asset: UsdzAsset }) {
         </p>
         {asset.note ? <p className="mt-2 text-sm leading-relaxed text-[#a89882]">{asset.note}</p> : null}
         <div className="mt-3 flex flex-wrap gap-3 text-xs">
-          <a href={asset.usdzUrl} className="text-champagne underline-offset-2 hover:underline" download>
+          <a href={asset.usdzUrl.split("?")[0]} className="text-champagne underline-offset-2 hover:underline" download>
             Télécharger l’USDZ
           </a>
           {asset.glbPreviewUrl ? (
@@ -195,11 +186,11 @@ function UsdzPane({ asset }: { asset: UsdzAsset }) {
         <div className="relative mx-auto w-full max-w-lg">
           {createElement("model-viewer", {
             src: previewUrl,
-            "ios-src": asset.usdzUrl,
+            "ios-src": asset.usdzUrl.split("?")[0],
             alt: `AR — ${asset.label}`,
             "camera-controls": true,
             "auto-rotate": true,
-            "ar": true,
+            ar: true,
             "ar-modes": "quick-look",
             "shadow-intensity": "1",
             exposure: "1.05",
@@ -217,31 +208,31 @@ function UsdzPane({ asset }: { asset: UsdzAsset }) {
   );
 }
 
-export default function HomardProductionReviewPage() {
+export default function SouffleProductionReviewPage() {
   return (
     <main className="min-h-screen bg-[#070605] px-4 py-8 text-cream sm:px-6">
       <div className="mx-auto max-w-3xl">
-        <p className="text-xs uppercase tracking-[0.18em] text-champagne/80">Revu local — rebuild homard</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-champagne/80">Revu local — rebuild soufflé</p>
         <h1 className="mt-2 font-display text-2xl text-cream sm:text-3xl">
-          Tous les fichiers homard générés
+          Tous les fichiers soufflé générés
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#d8caba]">
-          Aperçu des assets de production créés ou régénérés depuis{" "}
-          <span className="text-cream">3D Plat/Homard bleu Meshy.compressed.glb</span>. Comparez chaque
+          Aperçu des assets de production créés depuis{" "}
+          <span className="text-cream">3D Plat/SouffleAvecAssietteCompresser.glb</span>. Comparez chaque
           variante avant de valider sur la fiche plat démo.
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <Link
-            href="/demo/dishes/homard-bisque"
+            href="/demo/dishes/souffle-chocolat"
             className="rounded-full border border-champagne/40 px-4 py-2 text-champagne transition hover:bg-champagne/10"
           >
             Fiche plat démo
           </Link>
           <Link
-            href="/dev/souffle-production-review"
+            href="/dev/homard-production-review"
             className="rounded-full border border-white/15 px-4 py-2 text-[#d8caba] transition hover:bg-white/5"
           >
-            Revue soufflé
+            Revue homard
           </Link>
         </div>
       </div>
