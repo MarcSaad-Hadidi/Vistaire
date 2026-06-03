@@ -194,9 +194,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/homard-bisque.usdz",
       {
-        maxBytes: 80333353,
+        maxBytes: 26352806,
         sha256: [
-          "dd8e4e24af9b6e782bcd953ae07a0f3134bc8d87ff4ea0f7c9dbaec487badefc"
+          "099ba9e974b7a63519f52b017198385a748e18845c59312e7490c28d4f88b18b"
         ],
         reason: "Existing demo USDZ runtime asset."
       }

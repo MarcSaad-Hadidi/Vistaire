@@ -68,13 +68,13 @@ const USDZ_ASSETS: UsdzAsset[] = [
   },
   {
     id: "source-usdz",
-    label: "USDZ source (legacy)",
+    label: "USDZ source (legacy, inchangé sur main)",
     role: "usdzUrl",
     path: "public/models/demo/homard-bisque.usdz",
-    sizeMb: "76,6 Mo",
+    sizeMb: "~25 Mo",
     usdzUrl: "/models/demo/homard-bisque.usdz",
     glbPreviewUrl: "/models/demo/homard-bisque.glb",
-    note: "Export source volumineux — non utilisé pour Quick Look production"
+    note: "Grandfather asset conservé tel quel — pas régénéré avec le nouveau GLB. Quick Look iPhone = ultra ci-dessus."
   }
 ];
 

@@ -58,7 +58,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
       model3dUrl: "/models/demo/homard-bisque.glb",
       modelSha256: "3f3fec43de7642d26acc7c9920a82a5c1c80a55c61857df1b7f3aef29f15bb1f",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      usdzSha256: "dd8e4e24af9b6e782bcd953ae07a0f3134bc8d87ff4ea0f7c9dbaec487badefc"
+      usdzSha256: "099ba9e974b7a63519f52b017198385a748e18845c59312e7490c28d4f88b18b"
     }
   ],
   [
