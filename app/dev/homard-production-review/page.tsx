@@ -238,10 +238,10 @@ export default function HomardProductionReviewPage() {
             Fiche plat démo
           </Link>
           <Link
-            href="/dev/homard-compress-test"
+            href="/dev/souffle-production-review"
             className="rounded-full border border-white/15 px-4 py-2 text-[#d8caba] transition hover:bg-white/5"
           >
-            Anciens tests compressés
+            Revue soufflé
           </Link>
         </div>
       </div>

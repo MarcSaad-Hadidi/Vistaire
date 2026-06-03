@@ -390,10 +390,10 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "16 min",
-    model3dUrl: "/models/demo/souffle-chocolat.glb",
-    webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
+    model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
+    webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
     usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
-    arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz"
+    arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-9",

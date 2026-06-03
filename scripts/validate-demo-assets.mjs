@@ -19,7 +19,7 @@ const MAX_PRODUCTION_IOS_USDZ_BYTES = 5 * 1024 * 1024;
 const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
 const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
 const SOUFFLE_WITH_PLATE_GLB_SHA256 =
-  "6aaab33a629b79ecf7f01bcedc03534528cc49ebb50064772e57cec9ecb1fc79";
+  "30d09b5c0dc012cac3182e0e8338b77ae427bead3eab5079b800a0fbee30a227";
 const SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES = 5 * 1024 * 1024;
 const WEB_GLB_EXPECTATIONS = new Map([
   [
@@ -39,8 +39,8 @@ const WEB_GLB_EXPECTATIONS = new Map([
   [
     "souffle-chocolat",
     {
-      url: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
-      sha256: "76eb0faa401dc853d0c8c27835a9083dbc006377f07c65f1284281144f943608"
+      url: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
+      sha256: "111ef8b79628639725d0cb41e973d40c2d38eb5b385df737c95faabe938045d3"
     }
   ]
 ]);
@@ -64,7 +64,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
   [
     "souffle-chocolat",
     {
-      model3dUrl: "/models/demo/souffle-chocolat.glb",
+      model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
       modelSha256: SOUFFLE_WITH_PLATE_GLB_SHA256,
       usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
       usdzSha256: "8fbdd7dc6d60e2c75da334c665ae30953328df426c64fedc6a5be68895e5284f"
@@ -85,7 +85,7 @@ const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
   "ravioles-chevre-miel-ios-quicklook-ultra.usdz",
-  "souffle-chocolat-ios-quicklook-ultra.usdz",
+  "souffle-chocolat-ios-quicklook-meshy.usdz",
   "souffle-chocolat.usdz"
 ]);
 const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
@@ -106,8 +106,8 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
     "souffle-chocolat",
     {
-      url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz",
-      sha256: "1ab81a3e292e0f290441028e20b7f2fb56e547c07851e2818abb651c8acfcea5"
+      url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
+      sha256: "b90d2ce8ef90a5e2094756579767f32e3f0f4c41c400308e5092598a8cbb72af"
     }
   ]
 ]);
@@ -690,10 +690,10 @@ if (!ravioles) {
 if (!souffle) {
   fail("plat souffle-chocolat introuvable dans demoMenuData.ts");
 } else {
-  if (souffle.model3dUrl !== "/models/demo/souffle-chocolat.glb") {
+  if (souffle.model3dUrl !== "/models/demo/souffle-chocolat-meshy.glb") {
     fail(`souffle model3dUrl inattendu: ${souffle.model3dUrl}`);
   } else {
-    ok("souffle pointe vers /models/demo/souffle-chocolat.glb");
+    ok("souffle pointe vers /models/demo/souffle-chocolat-meshy.glb");
   }
 
   if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511") {

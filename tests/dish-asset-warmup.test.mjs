@@ -159,17 +159,17 @@ test("iPhone Quick Look prefetch can target another approved production USDZ", a
 
   prefetchUsdzForQuickLook(
     {
-      model3dUrl: "/models/demo/souffle-chocolat.glb",
-      webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-76eb0faa.glb",
+      model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
+      webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
       usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
-      arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz"
     },
     (state) => states.push(state)
   );
   await env.settleWarmupQueue();
 
   assert.deepEqual(env.fetchCalls, [
-    "http://localhost:3006/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz"
+    "http://localhost:3006/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz"
   ]);
   assert.equal(env.fetchCalls[0].includes("?"), false);
   assert.equal(env.fetchOptions[0].cache, "force-cache");
@@ -186,13 +186,13 @@ test("iPhone Quick Look prefetch rejects unstable or non-production USDZ URLs", 
   const states = [];
 
   for (const arUsdzUrl of [
-    "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.usdz?v=1",
+    "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz?v=1",
     "/models/demo/souffle-chocolat.usdz",
     "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-ultra.glb"
   ]) {
     prefetchUsdzForQuickLook(
       {
-        model3dUrl: "/models/demo/souffle-chocolat.glb",
+        model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
         arUsdzUrl
       },
       (state) => states.push(state)
