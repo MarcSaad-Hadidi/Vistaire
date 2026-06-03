@@ -31,7 +31,7 @@ const SOURCE_ASSETS = new Map([
 const AR_GLB_ASSETS = new Map([
   [
     "homard-bisque",
-    { url: "/models/demo/ar-lite/homard-bisque-ar-lite.glb" }
+    { url: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb" }
   ]
 ]);
 
@@ -46,7 +46,7 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
     "homard-bisque",
     {
-      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
       sha256: "2bc1c0e6f33b807417bd03e931ae552a724935b8b193c419cdbf989337a18a13"
     }
   ],

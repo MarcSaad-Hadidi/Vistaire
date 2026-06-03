@@ -55,7 +55,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
   [
     "homard-bisque",
     {
-      model3dUrl: "/models/demo/homard-bisque.glb",
+      model3dUrl: "/models/demo/homard-bisque-meshy.glb",
       modelSha256: "3f3fec43de7642d26acc7c9920a82a5c1c80a55c61857df1b7f3aef29f15bb1f",
       usdzUrl: "/models/demo/homard-bisque.usdz",
       usdzSha256: "099ba9e974b7a63519f52b017198385a748e18845c59312e7490c28d4f88b18b"
@@ -81,7 +81,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
   ]
 ]);
 const ACTIVE_PUBLIC_USDZ_FILES = new Set([
-  "homard-bisque-ios-quicklook-ultra.usdz",
+  "homard-bisque-ios-quicklook-meshy.usdz",
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
   "ravioles-chevre-miel-ios-quicklook-ultra.usdz",
@@ -99,7 +99,7 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
     "homard-bisque",
     {
-      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+      url: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
       sha256: "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4"
     }
   ],
@@ -622,10 +622,10 @@ checkExpectedCoreAssets(dishes);
 if (!homard) {
   fail("plat homard-bisque introuvable dans demoMenuData.ts");
 } else {
-  if (homard.model3dUrl !== "/models/demo/homard-bisque.glb") {
+  if (homard.model3dUrl !== "/models/demo/homard-bisque-meshy.glb") {
     fail(`homard model3dUrl inattendu: ${homard.model3dUrl}`);
   } else {
-    ok("homard pointe vers /models/demo/homard-bisque.glb");
+    ok("homard pointe vers /models/demo/homard-bisque-meshy.glb");
   }
 
   if (homard.usdzUrl !== "/models/demo/homard-bisque.usdz") {
@@ -640,16 +640,16 @@ if (!homard) {
     ok("homard usdzUrl source conserve l'USDZ original");
   }
 
-  if (homard.arModel3dUrl !== "/models/demo/ar-lite/homard-bisque-ar-lite.glb") {
+  if (homard.arModel3dUrl !== "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb") {
     fail(`homard arModel3dUrl inattendu: ${homard.arModel3dUrl || "(absent)"}`);
   } else {
-    ok("homard arModel3dUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite.glb");
+    ok("homard arModel3dUrl pointe vers /models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb");
   }
 
-  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz") {
+  if (homard.arUsdzUrl !== "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz") {
     fail(`homard arUsdzUrl inattendu: ${homard.arUsdzUrl || "(absent)"}`);
   } else {
-    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz");
+    ok("homard arUsdzUrl pointe vers /models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz");
     const arUsdzPath = assetPath(homard.arUsdzUrl);
     if (statSync(arUsdzPath).size > MAX_PRODUCTION_IOS_USDZ_BYTES) {
       fail(`homard arUsdzUrl dÃ©passe 5 MiB: ${formatSize(statSync(arUsdzPath).size)}`);

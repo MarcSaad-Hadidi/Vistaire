@@ -30,9 +30,9 @@ const GLB_ASSETS: GlbAsset[] = [
     id: "source-draco",
     label: "GLB principal — Draco (Meshy compressed)",
     role: "model3dUrl",
-    path: "public/models/demo/homard-bisque.glb",
+    path: "public/models/demo/homard-bisque-meshy.glb",
     sizeMb: "3,4 Mo",
-    modelUrl: "/models/demo/homard-bisque.glb",
+    modelUrl: "/models/demo/homard-bisque-meshy.glb",
     note: "Source 3D Plat/Homard bleu Meshy.compressed.glb — Android / fallback web"
   },
   {
@@ -48,9 +48,9 @@ const GLB_ASSETS: GlbAsset[] = [
     id: "ar-lite",
     label: "GLB AR-lite",
     role: "arModel3dUrl",
-    path: "public/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+    path: "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
     sizeMb: "8,2 Mo",
-    modelUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+    modelUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
     note: "Scene Viewer Android — simplifié pour l’AR"
   }
 ];
@@ -60,10 +60,10 @@ const USDZ_ASSETS: UsdzAsset[] = [
     id: "ios-ultra",
     label: "USDZ iPhone Quick Look (ultra)",
     role: "arUsdzUrl",
-    path: "public/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+    path: "public/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
     sizeMb: "2,3 Mo",
-    usdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
-    glbPreviewUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+    usdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
+    glbPreviewUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
     note: "Production iOS AR — promu depuis le pipeline ultra"
   },
   {
@@ -73,7 +73,7 @@ const USDZ_ASSETS: UsdzAsset[] = [
     path: "public/models/demo/homard-bisque.usdz",
     sizeMb: "~25 Mo",
     usdzUrl: "/models/demo/homard-bisque.usdz",
-    glbPreviewUrl: "/models/demo/homard-bisque.glb",
+    glbPreviewUrl: "/models/demo/homard-bisque-meshy.glb",
     note: "Grandfather asset conservé tel quel — pas régénéré avec le nouveau GLB. Quick Look iPhone = ultra ci-dessus."
   }
 ];

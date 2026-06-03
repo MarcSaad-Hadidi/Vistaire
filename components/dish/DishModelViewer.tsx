@@ -305,7 +305,7 @@ function IosQuickLookArLink({
         aria-hidden="true"
         className="pointer-events-none absolute h-px w-px opacity-0"
       />
-      <span>Afficher devant moi</span>
+      <span className="whitespace-nowrap">Afficher devant moi</span>
     </a>
   );
 }
@@ -820,7 +820,7 @@ export function DishModelViewer({
                     <button
                       type="button"
                       slot="ar-button"
-                      className="absolute bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+                      className="absolute bottom-4 left-1/2 inline-flex min-h-11 max-w-[calc(100%-2rem)] -translate-x-1/2 items-center justify-center whitespace-nowrap rounded-full border border-champagne/45 bg-[#080706]/92 px-6 text-center text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
                       onClick={trackArIntent}
                     >
                       Afficher devant moi
@@ -834,7 +834,7 @@ export function DishModelViewer({
                 <IosQuickLookArLink
                   href={directIosQuickLookHref}
                   onClick={trackArIntent}
-                  className="absolute bottom-4 left-1/2 z-30 inline-flex min-h-11 -translate-x-1/2 items-center justify-center rounded-full border border-champagne/45 bg-[#080706]/92 px-5 text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+                  className="absolute bottom-4 left-1/2 z-30 inline-flex min-h-11 max-w-[calc(100%-2rem)] -translate-x-1/2 items-center justify-center whitespace-nowrap rounded-full border border-champagne/45 bg-[#080706]/92 px-6 text-center text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
                 />
               ) : null}
               {showLoader ? (

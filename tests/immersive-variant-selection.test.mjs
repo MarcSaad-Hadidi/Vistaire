@@ -10,10 +10,10 @@ const baseDish = {
   slug: "homard-bisque",
   categorySlug: "plats-signatures",
   name: "Homard bleu",
-  model3dUrl: "/models/demo/homard-bisque.glb",
+  model3dUrl: "/models/demo/homard-bisque-meshy.glb",
   webModel3dUrl: "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
-  arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
-  arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+  arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
+  arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
   image: "/images/demo/dishes/homard-bleu-bisque-fenouil.png"
 };
 

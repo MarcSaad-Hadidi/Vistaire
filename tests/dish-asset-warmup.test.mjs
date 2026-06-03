@@ -114,18 +114,18 @@ test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a
 
   prefetchUsdzForQuickLook(
     {
-      model3dUrl: "/models/demo/homard-bisque.glb",
+      model3dUrl: "/models/demo/homard-bisque-meshy.glb",
       webModel3dUrl: "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
-      arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+      arModel3dUrl: "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
     },
     (state) => states.push(state)
   );
   await env.settleWarmupQueue();
 
   assert.deepEqual(env.fetchCalls, [
-    "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+    "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
   ]);
   assert.equal(env.fetchCalls[0].includes("?"), false);
   assert.equal(env.fetchOptions[0].cache, "force-cache");
@@ -139,7 +139,7 @@ test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a
     [
       {
         as: "fetch",
-        href: "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+        href: "http://localhost:3001/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
         rel: "prefetch",
         type: "model/vnd.usdz+zip"
       }
@@ -217,9 +217,9 @@ test("iPhone Quick Look prefetch respects Save-Data", async () => {
 
   prefetchUsdzForQuickLook(
     {
-      model3dUrl: "/models/demo/homard-bisque.glb",
+      model3dUrl: "/models/demo/homard-bisque-meshy.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
     },
     (state) => states.push(state)
   );
@@ -240,9 +240,9 @@ test("iPhone Quick Look prefetch does not run in iOS Chrome shells", async () =>
 
   prefetchUsdzForQuickLook(
     {
-      model3dUrl: "/models/demo/homard-bisque.glb",
+      model3dUrl: "/models/demo/homard-bisque-meshy.glb",
       usdzUrl: "/models/demo/homard-bisque.usdz",
-      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+      arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
     },
     (state) => states.push(state)
   );
@@ -290,8 +290,8 @@ test("iPhone Quick Look prefetch retries after a transient failed attempt", asyn
     }
   });
   const dish = {
-    model3dUrl: "/models/demo/homard-bisque.glb",
-    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+    model3dUrl: "/models/demo/homard-bisque-meshy.glb",
+    arUsdzUrl: "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
   };
   const firstStates = [];
   const secondStates = [];
@@ -303,8 +303,8 @@ test("iPhone Quick Look prefetch retries after a transient failed attempt", asyn
   await env.settleWarmupQueue();
 
   assert.deepEqual(env.fetchCalls, [
-    "http://localhost:3005/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
-    "http://localhost:3005/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz"
+    "http://localhost:3005/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
+    "http://localhost:3005/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz"
   ]);
   assert.deepEqual(firstStates, ["preparing", "failed"]);
   assert.deepEqual(secondStates, ["preparing", "ready"]);

@@ -132,7 +132,7 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/ar-lite/homard-bisque-ar-lite.glb",
+      "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
       {
         maxBytes: 8594588,
         sha256: [
@@ -142,7 +142,7 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/ar-lite/homard-bisque-ios-quicklook-ultra.usdz",
+      "public/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
       {
         maxBytes: 2450572,
         sha256: [
@@ -182,7 +182,7 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/homard-bisque.glb",
+      "public/models/demo/homard-bisque-meshy.glb",
       {
         maxBytes: 3405480,
         sha256: [
