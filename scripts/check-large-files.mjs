@@ -259,7 +259,7 @@ const ALLOWLIST = new Map(
       {
         maxBytes: 1736180,
         sha256: [
-          "e7bc7b515d88e372cb126a77cd9bee60730580147c1150718b647dd61aaeb51f"
+          "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef"
         ],
         reason: "Existing demo Quick Look runtime asset.",
         owner: DEMO_RUNTIME_ASSET_OWNER
@@ -427,16 +427,6 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/souffle-chocolat.usdz",
-      {
-        maxBytes: 24873890,
-        sha256: [
-          "8fbdd7dc6d60e2c75da334c665ae30953328df426c64fedc6a5be68895e5284f"
-        ],
-        reason: "Existing demo USDZ runtime asset."
-      }
-    ],
-    [
       "public/videos/menualive-full.mp4",
       {
         maxBytes: 6615443,
@@ -582,8 +572,7 @@ const ALLOWLIST = new Map(
 
 const GRANDFATHERED_DEMO_RUNTIME_ALLOWLIST = new Set([
   "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
-  "public/models/demo/homard-bisque.usdz",
-  "public/models/demo/souffle-chocolat.usdz"
+  "public/models/demo/homard-bisque.usdz"
 ]);
 
 function requiresDemoRuntimeOwner(filePath) {

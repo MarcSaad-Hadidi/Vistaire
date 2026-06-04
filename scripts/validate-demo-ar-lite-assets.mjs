@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join, normalize, sep } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as fflate from "fflate";
@@ -9,7 +9,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const PUBLIC_DIR = join(ROOT, "public");
 const DEMO_DIR = join(PUBLIC_DIR, "models", "demo");
-const AR_LITE_DIR = join(DEMO_DIR, "ar-lite");
 const DEMO_DATA = join(ROOT, "lib", "demoMenuData.ts");
 
 const GLB_GOOD_BYTES = 12 * 1024 * 1024;
@@ -30,7 +29,7 @@ const SOURCE_ASSETS = new Map([
   ["pave-boeuf", { sourceGlb: "pave-boeuf-meshy.glb", sourceUsdz: "" }],
   [
     "souffle-chocolat",
-    { sourceGlb: "souffle-chocolat-meshy.glb", sourceUsdz: "souffle-chocolat.usdz" }
+    { sourceGlb: "souffle-chocolat-meshy.glb", sourceUsdz: "" }
   ]
 ]);
 
@@ -95,7 +94,7 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
     "souffle-chocolat",
     {
       url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-      sha256: "e7bc7b515d88e372cb126a77cd9bee60730580147c1150718b647dd61aaeb51f"
+      sha256: "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef"
     }
   ]
 ]);

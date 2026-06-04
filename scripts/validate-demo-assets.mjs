@@ -20,7 +20,6 @@ const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
 const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
 const SOUFFLE_MESHY_GLB_SHA256 =
   "74d8c3148ff87074df60d0a025b77b4f34704c950d6184d95ebb96fbf49aa8ea";
-const SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES = 5 * 1024 * 1024;
 const WEB_GLB_EXPECTATIONS = new Map([
   [
     "ravioles-romarin",
@@ -107,9 +106,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
     "souffle-chocolat",
     {
       model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
-      modelSha256: SOUFFLE_MESHY_GLB_SHA256,
-      usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
-      usdzSha256: "8fbdd7dc6d60e2c75da334c665ae30953328df426c64fedc6a5be68895e5284f"
+      modelSha256: SOUFFLE_MESHY_GLB_SHA256
     }
   ],
   [
@@ -130,8 +127,7 @@ const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "canette-aux-figues-ios-quicklook-meshy.usdz",
   "bar-de-ligne-ios-quicklook-meshy.usdz",
   "pave-boeuf-ios-quicklook-meshy.usdz",
-  "souffle-chocolat-ios-quicklook-meshy.usdz",
-  "souffle-chocolat.usdz"
+  "souffle-chocolat-ios-quicklook-meshy.usdz"
 ]);
 const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
@@ -173,7 +169,7 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
     "souffle-chocolat",
     {
       url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-      sha256: "e7bc7b515d88e372cb126a77cd9bee60730580147c1150718b647dd61aaeb51f"
+      sha256: "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef"
     }
   ]
 ]);
@@ -349,47 +345,6 @@ function checkExpectedCoreAssets(dishes) {
   }
 }
 
-function checkMinimumSize(filePath, minBytes, label) {
-  if (!existsSync(filePath)) {
-    fail(`${label} fichier introuvable: ${filePath}`);
-    return;
-  }
-  const size = statSync(filePath).size;
-  if (size < minBytes) {
-    fail(
-      `${label} trop petit: ${formatSize(size)} (attendu au moins ${formatSize(minBytes)})`
-    );
-    return;
-  }
-  ok(`${label} taille compatible (${formatSize(size)})`);
-}
-
-function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
-  if (!existsSync(filePath)) {
-    fail(`${label} fichier introuvable: ${filePath}`);
-    return;
-  }
-
-  let zip;
-  try {
-    zip = fflate.unzipSync(readFileSync(filePath));
-  } catch (error) {
-    fail(`${label} ZIP illisible: ${error.message}`);
-    return;
-  }
-
-  const geometryCount = Object.keys(zip).filter((name) =>
-    /geometries\/.*\.usd[ac]$/i.test(name)
-  ).length;
-
-  if (geometryCount < minCount) {
-    fail(`${label} geometries USD: ${geometryCount}, attendu au moins ${minCount}`);
-    return;
-  }
-
-  ok(`${label} geometries USD: ${geometryCount}`);
-}
-
 function countUsdzGeometryLayers(filePath, label) {
   try {
     const zip = fflate.unzipSync(readFileSync(filePath));
@@ -472,35 +427,6 @@ function getUsdzGeometrySummaries(filePath, label) {
         size: max.map((value, axis) => value - min[axis])
       };
     });
-}
-
-function checkUsdzUsesSourcePlateGeometry(filePath, label) {
-  const summaries = getUsdzGeometrySummaries(filePath, label);
-  if (summaries.length === 0 && countUsdzGeometryLayers(filePath, label) > 0) {
-    const scene = inspectUsdzScene(filePath, label);
-    if (!scene) return;
-    if (scene.sourcePlateMeshCount < 2) {
-      fail(`${label} assiette source absente (${scene.sourcePlateMeshCount}/2)`);
-      return;
-    }
-    ok(`${label} assiette source conservee (${scene.sourcePlateMeshCount} pieces)`);
-    return;
-  }
-
-  const sourcePlateParts = summaries.filter(
-    (entry) =>
-      entry.points.length > 1000 &&
-      entry.points.length < 10_000 &&
-      entry.size[0] > 0.12 &&
-      entry.size[2] > 0.12
-  );
-
-  if (sourcePlateParts.length < 2) {
-    fail(`${label} assiette source absente (${sourcePlateParts.length}/2)`);
-    return;
-  }
-
-  ok(`${label} assiette source conservee (${sourcePlateParts.length} pieces)`);
 }
 
 function checkUsdzCenteredAndGrounded(filePath, label) {
@@ -812,10 +738,10 @@ if (!souffle) {
     ok("souffle pointe vers /models/demo/souffle-chocolat-meshy.glb");
   }
 
-  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511") {
-    fail(`souffle usdzUrl inattendu: ${souffle.usdzUrl}`);
+  if (souffle.usdzUrl !== "") {
+    fail(`souffle usdzUrl source legacy doit rester vide: ${souffle.usdzUrl}`);
   } else {
-    ok("souffle pointe vers /models/demo/souffle-chocolat.usdz avec cache-bust");
+    ok("souffle ne publie pas l'ancien USDZ source avec assiette");
   }
 
   if (souffle.arModel3dUrl !== "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb") {
@@ -828,24 +754,6 @@ if (!souffle) {
     assetPath(souffle.model3dUrl),
     SOUFFLE_MESHY_GLB_SHA256,
     "souffle GLB Meshy"
-  );
-  checkMinimumSize(
-    assetPath(souffle.usdzUrl),
-    SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES,
-    "souffle USDZ avec assiette"
-  );
-  checkUsdzGeometryCountAtLeast(
-    assetPath(souffle.usdzUrl),
-    3,
-    "souffle USDZ surface blanche AR"
-  );
-  checkUsdzUsesSourcePlateGeometry(
-    assetPath(souffle.usdzUrl),
-    "souffle USDZ surface blanche AR"
-  );
-  checkUsdzCenteredAndGrounded(
-    assetPath(souffle.usdzUrl),
-    "souffle USDZ stabilite AR"
   );
 
   checkExpectedWebGlb(souffle, "souffle");

@@ -162,7 +162,7 @@ test("iPhone Quick Look prefetch can target another approved production USDZ", a
       model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
       webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
       arModel3dUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
-      usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+      usdzUrl: "",
       arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz"
     },
     (state) => states.push(state)

@@ -141,6 +141,13 @@ const DISHES: DishReview[] = [
   }
 ];
 
+/** Force le navigateur à recharger les GLB/USDZ après remplacement des sources Meshy. */
+const PREVIEW_CACHE_BUST = "meshy-20260604";
+
+function previewAssetUrl(url: string): string {
+  return `${url}?v=${PREVIEW_CACHE_BUST}`;
+}
+
 const MODEL_FRAME_CLASS =
   "h-[min(50vh,380px)] min-h-[260px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8";
 
@@ -154,6 +161,8 @@ function ModelViewerPane({
   label: string;
 }) {
   const [ready, setReady] = useState(false);
+  const previewSrc = previewAssetUrl(src);
+  const previewIosSrc = iosSrc ? previewAssetUrl(iosSrc) : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -165,15 +174,16 @@ function ModelViewerPane({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [previewSrc, previewIosSrc]);
 
   if (!ready) {
     return <div className={MODEL_FRAME_CLASS} aria-hidden />;
   }
 
   return createElement("model-viewer", {
-    src,
-    ...(iosSrc ? { "ios-src": iosSrc, ar: true, "ar-modes": "quick-look" } : {}),
+    key: previewSrc,
+    src: previewSrc,
+    ...(previewIosSrc ? { "ios-src": previewIosSrc, ar: true, "ar-modes": "quick-look" } : {}),
     alt: label,
     "camera-controls": true,
     "auto-rotate": true,
