@@ -46,6 +46,8 @@ const BLOCKED_PREFIXES = [
 
 // Grandfathered assets already present on origin/main. These are exceptions,
 // not precedent: any new or changed heavy media must go through asset review.
+const DEMO_RUNTIME_ASSET_OWNER = "MarcSaad-Hadidi";
+
 const ALLOWLIST = new Map(
   [
     [
@@ -138,7 +140,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001"
         ],
-        reason: "Existing demo 3D runtime asset."
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -148,7 +151,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4"
         ],
-        reason: "Existing demo Quick Look runtime asset."
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -158,7 +162,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "c95510dad02e5ca93f38ac4d8ac9355d063a107c418d3aed81a8cbb425c1eb4a"
         ],
-        reason: "Existing demo 3D runtime asset."
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -168,7 +173,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "9b34710b096d5841ad1d132f34e6e72d57f1d62947461e162dc33e587c01f46a"
         ],
-        reason: "Existing demo Quick Look runtime asset."
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -178,7 +184,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "b004a8fa96c136a7da2b5dde2fbc20fb0fe971be284afb9f4e32bf47f5cdb7c9"
         ],
-        reason: "Existing demo 3D runtime asset."
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -188,7 +195,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "ee59fc87f9d82fd25ade110785902c5010067e04bb3d0d95daaa6cc7bda2e022"
         ],
-        reason: "Existing demo Quick Look runtime asset."
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -198,7 +206,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "f3531ee5b367b2f7b173eeb53704c4c2163e7236e6891400626d555671d2ea5d"
         ],
-        reason: "Existing demo 3D runtime asset."
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -208,7 +217,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "609863e9d20b06e3cb346adf10419bfb6b2f7a0ce1dcd57f7ad5b7ffcc8e5fb6"
         ],
-        reason: "Existing demo Quick Look runtime asset."
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -218,7 +228,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "e575464722b7ef98822424506d3e0b1dbe8b830f38f5d689a30c36cfb1339cdd"
         ],
-        reason: "Existing demo 3D runtime asset."
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -228,7 +239,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "4c039567bf3311f9f1412ee865a875236087e01c98b51f27dadc21493e77fda4"
         ],
-        reason: "Existing demo Quick Look runtime asset."
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -238,7 +250,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "97c97928890ebe926cc423d6607080777c29439292906e9d98faa174517751d5"
         ],
-        reason: "Existing demo 3D runtime asset."
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -248,7 +261,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "e7bc7b515d88e372cb126a77cd9bee60730580147c1150718b647dd61aaeb51f"
         ],
-        reason: "Existing demo Quick Look runtime asset."
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -268,7 +282,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "3f3fec43de7642d26acc7c9920a82a5c1c80a55c61857df1b7f3aef29f15bb1f"
         ],
-        reason: "Existing demo GLB runtime asset."
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -308,7 +323,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "32a4a2379313897c213cebc30b85f874791939681d1a23194019644cabbc025c"
         ],
-        reason: "Existing demo GLB runtime asset."
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -318,7 +334,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42"
         ],
-        reason: "Existing demo optimized GLB runtime asset."
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -328,7 +345,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "29b958f4ae9788fb1c8c9c8ffed5a5e9406a721937ff0ae17e5c143b0c62c7e0"
         ],
-        reason: "Existing demo GLB runtime asset."
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -338,7 +356,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0"
         ],
-        reason: "Existing demo optimized GLB runtime asset."
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -348,7 +367,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "2a3241e6cfc566960a21485a923432f4419b03dcea0285d3b4864f8dd0e1ac45"
         ],
-        reason: "Existing demo GLB runtime asset."
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -358,7 +378,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8"
         ],
-        reason: "Existing demo optimized GLB runtime asset."
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -368,7 +389,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "282e310b1ed020de886d16cefae3e95d6004381d53753d90e1d96891c3f1ee6e"
         ],
-        reason: "Existing demo GLB runtime asset."
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -378,7 +400,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350"
         ],
-        reason: "Existing demo optimized GLB runtime asset."
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -388,7 +411,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
         ],
-        reason: "Existing demo optimized GLB runtime asset."
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -398,7 +422,8 @@ const ALLOWLIST = new Map(
         sha256: [
           "74d8c3148ff87074df60d0a025b77b4f34704c950d6184d95ebb96fbf49aa8ea"
         ],
-        reason: "Existing demo GLB runtime asset."
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [
@@ -555,6 +580,42 @@ const ALLOWLIST = new Map(
   ]
 );
 
+const GRANDFATHERED_DEMO_RUNTIME_ALLOWLIST = new Set([
+  "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
+  "public/models/demo/homard-bisque.usdz",
+  "public/models/demo/souffle-chocolat.usdz"
+]);
+
+function requiresDemoRuntimeOwner(filePath) {
+  if (!filePath.startsWith("public/models/demo/")) return false;
+  if (GRANDFATHERED_DEMO_RUNTIME_ALLOWLIST.has(filePath)) return false;
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension !== ".glb" && extension !== ".usdz") return false;
+  const baseName = path.basename(filePath);
+  if (filePath.startsWith("public/models/demo/ar-lite/")) return true;
+  if (baseName.includes("-meshy.")) return true;
+  if (/-meshopt-[0-9a-f]{8}\.glb$/i.test(baseName)) return true;
+  return false;
+}
+
+function validateAllowlistOwners() {
+  const problems = [];
+  for (const [filePath, entry] of ALLOWLIST) {
+    if (!requiresDemoRuntimeOwner(filePath)) continue;
+    const owner = typeof entry.owner === "string" ? entry.owner.trim() : "";
+    if (!owner) {
+      problems.push(`${filePath} is missing allowlist owner`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Asset allowlist configuration is invalid:\n- ${problems.join("\n- ")}`
+    );
+  }
+}
+
+validateAllowlistOwners();
+
 function runGit(args) {
   return execFileSync("git", ["-c", "core.quotepath=false", ...args], {
     encoding: "buffer",
@@ -584,6 +645,10 @@ function isBlockedPrefix(filePath) {
 function allowlistProblem(filePath, size, digest) {
   const entry = ALLOWLIST.get(filePath);
   if (!entry) return "not allowlisted";
+  if (requiresDemoRuntimeOwner(filePath)) {
+    const owner = typeof entry.owner === "string" ? entry.owner.trim() : "";
+    if (!owner) return "missing allowlist owner";
+  }
   if (size > entry.maxBytes) {
     return `allowlisted max is ${entry.maxBytes} bytes`;
   }
