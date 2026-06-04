@@ -238,6 +238,12 @@ export default function HomardProductionReviewPage() {
             Fiche plat démo
           </Link>
           <Link
+            href="/dev/meshy-dishes-review"
+            className="rounded-full border border-white/15 px-4 py-2 text-[#d8caba] transition hover:bg-white/5"
+          >
+            Revue plats Meshy
+          </Link>
+          <Link
             href="/dev/souffle-production-review"
             className="rounded-full border border-white/15 px-4 py-2 text-[#d8caba] transition hover:bg-white/5"
           >

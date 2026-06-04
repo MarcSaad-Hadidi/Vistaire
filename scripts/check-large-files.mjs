@@ -134,9 +134,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
       {
-        maxBytes: 8594588,
+        maxBytes: 8590900,
         sha256: [
-          "e2a1022c24ffcf807f47b43c5334a66478736d82e518247788cffc45c06af54a"
+          "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001"
         ],
         reason: "Existing demo 3D runtime asset."
       }
@@ -152,21 +152,101 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz",
+      "public/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
       {
-        maxBytes: 3540884,
+        maxBytes: 8112832,
         sha256: [
-          "7b4ea63dbcdd92f3e41a8f7d062d307a8242ecb86cbfaa452fef7a6398924908"
+          "c95510dad02e5ca93f38ac4d8ac9355d063a107c418d3aed81a8cbb425c1eb4a"
+        ],
+        reason: "Existing demo 3D runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 3438515,
+        sha256: [
+          "9b34710b096d5841ad1d132f34e6e72d57f1d62947461e162dc33e587c01f46a"
         ],
         reason: "Existing demo Quick Look runtime asset."
       }
     ],
     [
+      "public/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb",
+      {
+        maxBytes: 7801972,
+        sha256: [
+          "b004a8fa96c136a7da2b5dde2fbc20fb0fe971be284afb9f4e32bf47f5cdb7c9"
+        ],
+        reason: "Existing demo 3D runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 1786076,
+        sha256: [
+          "ee59fc87f9d82fd25ade110785902c5010067e04bb3d0d95daaa6cc7bda2e022"
+        ],
+        reason: "Existing demo Quick Look runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb",
+      {
+        maxBytes: 5557396,
+        sha256: [
+          "f3531ee5b367b2f7b173eeb53704c4c2163e7236e6891400626d555671d2ea5d"
+        ],
+        reason: "Existing demo 3D runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 1317457,
+        sha256: [
+          "609863e9d20b06e3cb346adf10419bfb6b2f7a0ce1dcd57f7ad5b7ffcc8e5fb6"
+        ],
+        reason: "Existing demo Quick Look runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb",
+      {
+        maxBytes: 4499952,
+        sha256: [
+          "e575464722b7ef98822424506d3e0b1dbe8b830f38f5d689a30c36cfb1339cdd"
+        ],
+        reason: "Existing demo 3D runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 1043589,
+        sha256: [
+          "4c039567bf3311f9f1412ee865a875236087e01c98b51f27dadc21493e77fda4"
+        ],
+        reason: "Existing demo Quick Look runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+      {
+        maxBytes: 4707036,
+        sha256: [
+          "97c97928890ebe926cc423d6607080777c29439292906e9d98faa174517751d5"
+        ],
+        reason: "Existing demo 3D runtime asset."
+      }
+    ],
+    [
       "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
       {
-        maxBytes: 5116956,
+        maxBytes: 1736180,
         sha256: [
-          "b90d2ce8ef90a5e2094756579767f32e3f0f4c41c400308e5092598a8cbb72af"
+          "e7bc7b515d88e372cb126a77cd9bee60730580147c1150718b647dd61aaeb51f"
         ],
         reason: "Existing demo Quick Look runtime asset."
       }
@@ -222,31 +302,91 @@ const ALLOWLIST = new Map(
       }
     ],
     [
-      "public/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
+      "public/models/demo/ravioles-chevre-miel-meshy.glb",
       {
-        maxBytes: 27714228,
+        maxBytes: 2861744,
         sha256: [
-          "6b812a046c383581aaf642e74e2e2f5d2eac4594b23ec8c4148a64fec0f62fd6"
-        ],
-        reason: "Existing demo optimized GLB runtime asset."
-      }
-    ],
-    [
-      "public/models/demo/ravioles-chevre-miel.glb",
-      {
-        maxBytes: 76609104,
-        sha256: [
-          "c665ca403a9543296383a8234310b01c58e5bfce47efa9fa1bae39caa28847b0"
+          "32a4a2379313897c213cebc30b85f874791939681d1a23194019644cabbc025c"
         ],
         reason: "Existing demo GLB runtime asset."
       }
     ],
     [
-      "public/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
+      "public/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
       {
-        maxBytes: 3427392,
+        maxBytes: 3332584,
         sha256: [
-          "111ef8b79628639725d0cb41e973d40c2d38eb5b385df737c95faabe938045d3"
+          "8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42"
+        ],
+        reason: "Existing demo optimized GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/canette-aux-figues-meshy.glb",
+      {
+        maxBytes: 2782652,
+        sha256: [
+          "29b958f4ae9788fb1c8c9c8ffed5a5e9406a721937ff0ae17e5c143b0c62c7e0"
+        ],
+        reason: "Existing demo GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/canette-aux-figues-meshopt-d54f097e.glb",
+      {
+        maxBytes: 3434508,
+        sha256: [
+          "d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0"
+        ],
+        reason: "Existing demo optimized GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/bar-de-ligne-meshy.glb",
+      {
+        maxBytes: 1942636,
+        sha256: [
+          "2a3241e6cfc566960a21485a923432f4419b03dcea0285d3b4864f8dd0e1ac45"
+        ],
+        reason: "Existing demo GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/bar-de-ligne-meshopt-e67c9019.glb",
+      {
+        maxBytes: 2690484,
+        sha256: [
+          "e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8"
+        ],
+        reason: "Existing demo optimized GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/pave-boeuf-meshy.glb",
+      {
+        maxBytes: 1650004,
+        sha256: [
+          "282e310b1ed020de886d16cefae3e95d6004381d53753d90e1d96891c3f1ee6e"
+        ],
+        reason: "Existing demo GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/pave-boeuf-meshopt-9e10c3a6.glb",
+      {
+        maxBytes: 1774344,
+        sha256: [
+          "9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350"
+        ],
+        reason: "Existing demo optimized GLB runtime asset."
+      }
+    ],
+    [
+      "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+      {
+        maxBytes: 1754380,
+        sha256: [
+          "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
         ],
         reason: "Existing demo optimized GLB runtime asset."
       }
@@ -254,9 +394,9 @@ const ALLOWLIST = new Map(
     [
       "public/models/demo/souffle-chocolat-meshy.glb",
       {
-        maxBytes: 2725316,
+        maxBytes: 1672464,
         sha256: [
-          "30d09b5c0dc012cac3182e0e8338b77ae427bead3eab5079b800a0fbee30a227"
+          "74d8c3148ff87074df60d0a025b77b4f34704c950d6184d95ebb96fbf49aa8ea"
         ],
         reason: "Existing demo GLB runtime asset."
       }

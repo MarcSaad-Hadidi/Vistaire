@@ -32,6 +32,72 @@ const PROFILES = [
     targetMaxDimMeters: 0.21,
     note:
       "Core Scene Viewer-compatible GLB: no Meshopt, no quantization, 2048 JPEG textures, balanced final geometry pass."
+  },
+  {
+    slug: "ravioles-romarin",
+    source: "ravioles-chevre-miel-meshy.glb",
+    output: "ravioles-chevre-miel-ar-lite-meshy.glb",
+    simplifyRatio: 0.55,
+    simplifyError: 0.001,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.42,
+    balancedSimplifyError: 0.0008,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.2,
+    note: "Ravioles AR-lite from Meshy compressed source."
+  },
+  {
+    slug: "canette-aux-figues",
+    source: "canette-aux-figues-meshy.glb",
+    output: "canette-aux-figues-ar-lite-meshy.glb",
+    simplifyRatio: 0.56,
+    simplifyError: 0.001,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.44,
+    balancedSimplifyError: 0.0008,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.22,
+    note: "Canette AR-lite from Meshy compressed source."
+  },
+  {
+    slug: "bar-ligne",
+    source: "bar-de-ligne-meshy.glb",
+    output: "bar-de-ligne-ar-lite-meshy.glb",
+    simplifyRatio: 0.56,
+    simplifyError: 0.001,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.44,
+    balancedSimplifyError: 0.0008,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.2,
+    note: "Bar de ligne AR-lite from Meshy compressed source."
+  },
+  {
+    slug: "pave-boeuf",
+    source: "pave-boeuf-meshy.glb",
+    output: "pave-boeuf-ar-lite-meshy.glb",
+    simplifyRatio: 0.56,
+    simplifyError: 0.001,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.44,
+    balancedSimplifyError: 0.0008,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.2,
+    note: "Pave boeuf AR-lite from Meshy compressed source."
+  },
+  {
+    slug: "souffle-chocolat",
+    source: "souffle-chocolat-meshy.glb",
+    output: "souffle-chocolat-ar-lite-meshy.glb",
+    simplifyRatio: 0.58,
+    simplifyError: 0.0009,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.45,
+    balancedSimplifyError: 0.0007,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.18,
+    note:
+      "Souffle AR-lite source for iOS Quick Look; tuned to stay closer to the Meshopt web preview."
   }
 ];
 

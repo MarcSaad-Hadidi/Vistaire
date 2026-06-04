@@ -28,21 +28,30 @@ type UsdzAsset = {
 const GLB_ASSETS: GlbAsset[] = [
   {
     id: "source-draco",
-    label: "GLB principal — Draco (compressé avec assiette)",
+    label: "GLB principal — Draco (Meshy)",
     role: "model3dUrl",
     path: "public/models/demo/souffle-chocolat-meshy.glb",
-    sizeMb: "2,6 Mo",
+    sizeMb: "1,6 Mo",
     modelUrl: "/models/demo/souffle-chocolat-meshy.glb",
-    note: "Source 3D Plat/SouffleAvecAssietteCompresser.glb"
+    note: "Source 3D Plat/SouffleMeshyCompresser"
   },
   {
     id: "web-meshopt",
     label: "GLB web — Meshopt",
     role: "webModel3dUrl",
-    path: "public/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    sizeMb: "3,3 Mo",
-    modelUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    note: "Variante chargée sur mobile et desktop après « Voir en 3D » (pas d’AR-lite GLB dédié)"
+    path: "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    sizeMb: "1,8 Mo",
+    modelUrl: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    note: "Aperçu 3D dans la fiche plat"
+  },
+  {
+    id: "ar-lite",
+    label: "GLB AR-lite",
+    role: "arModel3dUrl",
+    path: "public/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    sizeMb: "4,5 Mo",
+    modelUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    note: "Base visuelle Quick Look iPhone"
   }
 ];
 
@@ -52,10 +61,10 @@ const USDZ_ASSETS: UsdzAsset[] = [
     label: "USDZ iPhone Quick Look (ultra)",
     role: "arUsdzUrl",
     path: "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-    sizeMb: "4,9 Mo",
+    sizeMb: "1,7 Mo",
     usdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-    glbPreviewUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    note: "Production iOS AR — promu depuis le pipeline ultra"
+    glbPreviewUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    note: "Quick Look iPhone — dérivé de l’AR-lite (pas du Meshopt web)"
   },
   {
     id: "source-usdz",
