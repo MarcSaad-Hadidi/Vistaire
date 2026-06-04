@@ -104,18 +104,10 @@ function getDishBadges(dish: Dish) {
 
   if (dish.isSignature) badges.push("Signature");
   if (dish.isRecommended) badges.push("Recommandé");
-  if (dishHasImmersiveAsset(dish)) badges.push("Vue 3D");
+  if (dishHasImmersiveAsset(dish)) badges.push("3D");
   if (!dish.isAvailable) badges.push("Indisponible");
 
   return badges;
-}
-
-function hasWebModel(dish: Dish): boolean {
-  return Boolean(
-    dish.arModel3dUrl?.trim() ||
-      dish.webModel3dUrl?.trim() ||
-      dish.model3dUrl?.trim()
-  );
 }
 
 function getDishPreviewAriaLabel(dish: Dish, badges: string[]) {
@@ -394,18 +386,18 @@ export function VistaireMenuPreview({
                       3D / AR sélective
                     </p>
                     <h3 id="phone-dish-model-heading">
-                      {hasWebModel(selectedPhoneDish)
+                      {dishHasImmersiveAsset(selectedPhoneDish)
                         ? "Aperçu immersif disponible"
                         : "Vue 3D bientôt disponible pour ce plat"}
                     </h3>
                     <p>
-                      {hasWebModel(selectedPhoneDish)
+                      {dishHasImmersiveAsset(selectedPhoneDish)
                         ? "Ouvrez la vue 3D directement dans cet aperçu téléphone."
                         : "Ce plat garde sa fiche premium ici; la 3D peut être ajoutée seulement quand un modèle est disponible."}
                     </p>
                   </div>
 
-                  {hasWebModel(selectedPhoneDish) ? (
+                  {dishHasImmersiveAsset(selectedPhoneDish) ? (
                     <>
                       <button
                         aria-controls="phone-dish-model-viewer"

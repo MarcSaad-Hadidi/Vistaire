@@ -165,10 +165,11 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "12 min",
-    model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
-    webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
+    model3dUrl: "/models/demo/ravioles-chevre-miel-meshy.glb",
+    webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
+    arModel3dUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
     usdzUrl: "",
-    arUsdzUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz"
+    arUsdzUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-2",
@@ -264,10 +265,13 @@ const DISHES: Dish[] = [
       "Le plat de la maison pour un dîner à deux, à partager ou en solo gourmand.",
     isSignature: true,
     isRecommended: true,
-    isAvailable: false,
+    isAvailable: true,
     preparationTime: "42 min",
-    model3dUrl: "",
-    usdzUrl: ""
+    model3dUrl: "/models/demo/canette-aux-figues-meshy.glb",
+    webModel3dUrl: "/models/demo/canette-aux-figues-meshopt-d54f097e.glb",
+    arModel3dUrl: "/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb",
+    usdzUrl: "",
+    arUsdzUrl: "/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-5",
@@ -328,8 +332,11 @@ const DISHES: Dish[] = [
     isRecommended: true,
     isAvailable: true,
     preparationTime: "18 min",
-    model3dUrl: "",
-    usdzUrl: ""
+    model3dUrl: "/models/demo/bar-de-ligne-meshy.glb",
+    webModel3dUrl: "/models/demo/bar-de-ligne-meshopt-e67c9019.glb",
+    arModel3dUrl: "/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb",
+    usdzUrl: "",
+    arUsdzUrl: "/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-7",
@@ -359,8 +366,11 @@ const DISHES: Dish[] = [
     isRecommended: false,
     isAvailable: true,
     preparationTime: "24 min",
-    model3dUrl: "",
-    usdzUrl: ""
+    model3dUrl: "/models/demo/pave-boeuf-meshy.glb",
+    webModel3dUrl: "/models/demo/pave-boeuf-meshopt-9e10c3a6.glb",
+    arModel3dUrl: "/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb",
+    usdzUrl: "",
+    arUsdzUrl: "/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-8",
@@ -391,8 +401,9 @@ const DISHES: Dish[] = [
     isAvailable: true,
     preparationTime: "16 min",
     model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
-    webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+    webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    arModel3dUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    usdzUrl: "",
     arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz"
   },
   {

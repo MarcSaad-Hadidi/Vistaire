@@ -28,21 +28,30 @@ type UsdzAsset = {
 const GLB_ASSETS: GlbAsset[] = [
   {
     id: "source-draco",
-    label: "GLB principal — Draco (compressé avec assiette)",
+    label: "GLB principal — Draco (Meshy)",
     role: "model3dUrl",
     path: "public/models/demo/souffle-chocolat-meshy.glb",
-    sizeMb: "2,6 Mo",
+    sizeMb: "1,6 Mo",
     modelUrl: "/models/demo/souffle-chocolat-meshy.glb",
-    note: "Source 3D Plat/SouffleAvecAssietteCompresser.glb"
+    note: "Source 3D Plat/SouffleMeshyCompresser"
   },
   {
     id: "web-meshopt",
     label: "GLB web — Meshopt",
     role: "webModel3dUrl",
-    path: "public/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    sizeMb: "3,3 Mo",
-    modelUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    note: "Variante chargée sur mobile et desktop après « Voir en 3D » (pas d’AR-lite GLB dédié)"
+    path: "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    sizeMb: "1,8 Mo",
+    modelUrl: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    note: "Aperçu 3D dans la fiche plat"
+  },
+  {
+    id: "ar-lite",
+    label: "GLB AR-lite",
+    role: "arModel3dUrl",
+    path: "public/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    sizeMb: "4,5 Mo",
+    modelUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    note: "Base visuelle Quick Look iPhone"
   }
 ];
 
@@ -52,22 +61,18 @@ const USDZ_ASSETS: UsdzAsset[] = [
     label: "USDZ iPhone Quick Look (ultra)",
     role: "arUsdzUrl",
     path: "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-    sizeMb: "4,9 Mo",
+    sizeMb: "1,7 Mo",
     usdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-    glbPreviewUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-    note: "Production iOS AR — promu depuis le pipeline ultra"
-  },
-  {
-    id: "source-usdz",
-    label: "USDZ source (legacy, inchangé sur main)",
-    role: "usdzUrl",
-    path: "public/models/demo/souffle-chocolat.usdz",
-    sizeMb: "~24 Mo",
-    usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
-    glbPreviewUrl: "/models/demo/souffle-chocolat-meshy.glb",
-    note: "Grandfather asset conservé — pas régénéré. Quick Look iPhone = meshy ci-dessus."
+    glbPreviewUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+    note: "Quick Look iPhone — dérivé de l’AR-lite (pas du Meshopt web)"
   }
 ];
+
+const PREVIEW_CACHE_BUST = "meshy-20260604";
+
+function previewAssetUrl(url: string): string {
+  return `${url}?v=${PREVIEW_CACHE_BUST}`;
+}
 
 const MODEL_FRAME_CLASS =
   "h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]";
@@ -109,7 +114,8 @@ function ModelPane({ asset }: { asset: GlbAsset }) {
       <div className="relative mx-auto w-full max-w-lg">
         {ready ? (
           createElement("model-viewer", {
-            src: asset.modelUrl,
+            key: asset.modelUrl,
+            src: previewAssetUrl(asset.modelUrl),
             alt: `Vue 3D — ${asset.label}`,
             "camera-controls": true,
             "auto-rotate": true,
@@ -161,7 +167,8 @@ function UsdzPane({ asset }: { asset: UsdzAsset }) {
     };
   }, []);
 
-  const previewUrl = asset.glbPreviewUrl ?? asset.usdzUrl;
+  const previewUrl = previewAssetUrl(asset.glbPreviewUrl ?? asset.usdzUrl);
+  const previewUsdzUrl = previewAssetUrl(asset.usdzUrl.split("?")[0]);
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#10100e]/80 p-4 sm:p-5">
@@ -185,8 +192,9 @@ function UsdzPane({ asset }: { asset: UsdzAsset }) {
       {asset.glbPreviewUrl && ready ? (
         <div className="relative mx-auto w-full max-w-lg">
           {createElement("model-viewer", {
+            key: previewUrl,
             src: previewUrl,
-            "ios-src": asset.usdzUrl.split("?")[0],
+            "ios-src": previewUsdzUrl,
             alt: `AR — ${asset.label}`,
             "camera-controls": true,
             "auto-rotate": true,

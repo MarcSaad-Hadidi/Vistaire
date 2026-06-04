@@ -13,15 +13,25 @@ const QUICK_LOOK_PREFETCH_TIMEOUT_MS = 25_000;
 const SMALL_ASSET_WARMUP_MAX_BYTES = 1024 * 1024;
 
 const demoAssetByteSizes = new Map<string, number>([
-  ["/models/demo/ravioles-chevre-miel.glb", 76_609_104],
-  ["/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz", 3_540_884],
+  ["/models/demo/ravioles-chevre-miel-meshy.glb", 2_861_744],
+  ["/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb", 8_112_832],
+  ["/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz", 3_438_515],
+  ["/models/demo/canette-aux-figues-meshy.glb", 2_782_652],
+  ["/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb", 7_801_972],
+  ["/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz", 1_786_076],
+  ["/models/demo/bar-de-ligne-meshy.glb", 1_942_636],
+  ["/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb", 5_557_396],
+  ["/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz", 1_317_457],
+  ["/models/demo/pave-boeuf-meshy.glb", 1_650_004],
+  ["/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb", 4_499_952],
+  ["/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz", 1_043_589],
   ["/models/demo/homard-bisque-meshy.glb", 3_405_480],
   ["/models/demo/homard-bisque.usdz", 26_352_806],
   ["/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb", 8_594_588],
   ["/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz", 2_450_572],
-  ["/models/demo/souffle-chocolat-meshy.glb", 2_725_316],
-  ["/models/demo/souffle-chocolat.usdz", 24_873_890],
-  ["/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz", 5_116_956],
+  ["/models/demo/souffle-chocolat-meshy.glb", 1_672_464],
+  ["/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb", 4_707_036],
+  ["/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz", 1_736_180],
   ["/models/demo/maison-elyse-n1.glb", 86_380],
   ["/models/demo/maison-elyse-n1.usdz", 208_984]
 ]);

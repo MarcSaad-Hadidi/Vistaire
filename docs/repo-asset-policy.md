@@ -61,7 +61,8 @@ non-public asset workflow, so LFS cannot block Vercel clone or checkout.
 2. Run optimization and validation locally.
 3. Put reviewed manifests and lightweight posters in Git.
 4. Put heavy GLB/USDZ production assets in storage/CDN, or request an explicit
-   temporary allowlist exception with owner, reason, max bytes, and checksum.
+   temporary allowlist exception in `scripts/check-large-files.mjs` with
+   `owner`, `reason`, `maxBytes`, and `sha256` checksum.
 5. Never promote `review` assets to published client surfaces without a
    separate production approval.
 

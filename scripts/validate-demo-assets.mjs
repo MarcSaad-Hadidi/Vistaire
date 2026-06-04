@@ -18,15 +18,14 @@ const MIN_USDZ_BYTES = 10 * 1024;
 const MAX_PRODUCTION_IOS_USDZ_BYTES = 5 * 1024 * 1024;
 const LARGE_USDZ_BYTES = 25 * 1024 * 1024;
 const HUGE_USDZ_BYTES = 60 * 1024 * 1024;
-const SOUFFLE_WITH_PLATE_GLB_SHA256 =
-  "30d09b5c0dc012cac3182e0e8338b77ae427bead3eab5079b800a0fbee30a227";
-const SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES = 5 * 1024 * 1024;
+const SOUFFLE_MESHY_GLB_SHA256 =
+  "74d8c3148ff87074df60d0a025b77b4f34704c950d6184d95ebb96fbf49aa8ea";
 const WEB_GLB_EXPECTATIONS = new Map([
   [
     "ravioles-romarin",
     {
-      url: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
-      sha256: "6b812a046c383581aaf642e74e2e2f5d2eac4594b23ec8c4148a64fec0f62fd6"
+      url: "/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
+      sha256: "8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42"
     }
   ],
   [
@@ -37,10 +36,31 @@ const WEB_GLB_EXPECTATIONS = new Map([
     }
   ],
   [
+    "canette-aux-figues",
+    {
+      url: "/models/demo/canette-aux-figues-meshopt-d54f097e.glb",
+      sha256: "d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0"
+    }
+  ],
+  [
+    "bar-ligne",
+    {
+      url: "/models/demo/bar-de-ligne-meshopt-e67c9019.glb",
+      sha256: "e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8"
+    }
+  ],
+  [
+    "pave-boeuf",
+    {
+      url: "/models/demo/pave-boeuf-meshopt-9e10c3a6.glb",
+      sha256: "9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350"
+    }
+  ],
+  [
     "souffle-chocolat",
     {
-      url: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-      sha256: "111ef8b79628639725d0cb41e973d40c2d38eb5b385df737c95faabe938045d3"
+      url: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+      sha256: "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
     }
   ]
 ]);
@@ -48,8 +68,29 @@ const CORE_ASSET_EXPECTATIONS = new Map([
   [
     "ravioles-romarin",
     {
-      model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
-      modelSha256: "c665ca403a9543296383a8234310b01c58e5bfce47efa9fa1bae39caa28847b0"
+      model3dUrl: "/models/demo/ravioles-chevre-miel-meshy.glb",
+      modelSha256: "32a4a2379313897c213cebc30b85f874791939681d1a23194019644cabbc025c"
+    }
+  ],
+  [
+    "canette-aux-figues",
+    {
+      model3dUrl: "/models/demo/canette-aux-figues-meshy.glb",
+      modelSha256: "29b958f4ae9788fb1c8c9c8ffed5a5e9406a721937ff0ae17e5c143b0c62c7e0"
+    }
+  ],
+  [
+    "bar-ligne",
+    {
+      model3dUrl: "/models/demo/bar-de-ligne-meshy.glb",
+      modelSha256: "2a3241e6cfc566960a21485a923432f4419b03dcea0285d3b4864f8dd0e1ac45"
+    }
+  ],
+  [
+    "pave-boeuf",
+    {
+      model3dUrl: "/models/demo/pave-boeuf-meshy.glb",
+      modelSha256: "282e310b1ed020de886d16cefae3e95d6004381d53753d90e1d96891c3f1ee6e"
     }
   ],
   [
@@ -65,9 +106,7 @@ const CORE_ASSET_EXPECTATIONS = new Map([
     "souffle-chocolat",
     {
       model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
-      modelSha256: SOUFFLE_WITH_PLATE_GLB_SHA256,
-      usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
-      usdzSha256: "8fbdd7dc6d60e2c75da334c665ae30953328df426c64fedc6a5be68895e5284f"
+      modelSha256: SOUFFLE_MESHY_GLB_SHA256
     }
   ],
   [
@@ -84,16 +123,39 @@ const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "homard-bisque-ios-quicklook-meshy.usdz",
   "homard-bisque.usdz",
   "maison-elyse-n1.usdz",
-  "ravioles-chevre-miel-ios-quicklook-ultra.usdz",
-  "souffle-chocolat-ios-quicklook-meshy.usdz",
-  "souffle-chocolat.usdz"
+  "ravioles-chevre-miel-ios-quicklook-meshy.usdz",
+  "canette-aux-figues-ios-quicklook-meshy.usdz",
+  "bar-de-ligne-ios-quicklook-meshy.usdz",
+  "pave-boeuf-ios-quicklook-meshy.usdz",
+  "souffle-chocolat-ios-quicklook-meshy.usdz"
 ]);
 const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
     "ravioles-romarin",
     {
-      url: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-ultra.usdz",
-      sha256: "7b4ea63dbcdd92f3e41a8f7d062d307a8242ecb86cbfaa452fef7a6398924908"
+      url: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz",
+      sha256: "9b34710b096d5841ad1d132f34e6e72d57f1d62947461e162dc33e587c01f46a"
+    }
+  ],
+  [
+    "canette-aux-figues",
+    {
+      url: "/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz",
+      sha256: "ee59fc87f9d82fd25ade110785902c5010067e04bb3d0d95daaa6cc7bda2e022"
+    }
+  ],
+  [
+    "bar-ligne",
+    {
+      url: "/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz",
+      sha256: "609863e9d20b06e3cb346adf10419bfb6b2f7a0ce1dcd57f7ad5b7ffcc8e5fb6"
+    }
+  ],
+  [
+    "pave-boeuf",
+    {
+      url: "/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz",
+      sha256: "4c039567bf3311f9f1412ee865a875236087e01c98b51f27dadc21493e77fda4"
     }
   ],
   [
@@ -107,7 +169,7 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
     "souffle-chocolat",
     {
       url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
-      sha256: "b90d2ce8ef90a5e2094756579767f32e3f0f4c41c400308e5092598a8cbb72af"
+      sha256: "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef"
     }
   ]
 ]);
@@ -283,47 +345,6 @@ function checkExpectedCoreAssets(dishes) {
   }
 }
 
-function checkMinimumSize(filePath, minBytes, label) {
-  if (!existsSync(filePath)) {
-    fail(`${label} fichier introuvable: ${filePath}`);
-    return;
-  }
-  const size = statSync(filePath).size;
-  if (size < minBytes) {
-    fail(
-      `${label} trop petit: ${formatSize(size)} (attendu au moins ${formatSize(minBytes)})`
-    );
-    return;
-  }
-  ok(`${label} taille compatible (${formatSize(size)})`);
-}
-
-function checkUsdzGeometryCountAtLeast(filePath, minCount, label) {
-  if (!existsSync(filePath)) {
-    fail(`${label} fichier introuvable: ${filePath}`);
-    return;
-  }
-
-  let zip;
-  try {
-    zip = fflate.unzipSync(readFileSync(filePath));
-  } catch (error) {
-    fail(`${label} ZIP illisible: ${error.message}`);
-    return;
-  }
-
-  const geometryCount = Object.keys(zip).filter((name) =>
-    /geometries\/.*\.usd[ac]$/i.test(name)
-  ).length;
-
-  if (geometryCount < minCount) {
-    fail(`${label} geometries USD: ${geometryCount}, attendu au moins ${minCount}`);
-    return;
-  }
-
-  ok(`${label} geometries USD: ${geometryCount}`);
-}
-
 function countUsdzGeometryLayers(filePath, label) {
   try {
     const zip = fflate.unzipSync(readFileSync(filePath));
@@ -406,35 +427,6 @@ function getUsdzGeometrySummaries(filePath, label) {
         size: max.map((value, axis) => value - min[axis])
       };
     });
-}
-
-function checkUsdzUsesSourcePlateGeometry(filePath, label) {
-  const summaries = getUsdzGeometrySummaries(filePath, label);
-  if (summaries.length === 0 && countUsdzGeometryLayers(filePath, label) > 0) {
-    const scene = inspectUsdzScene(filePath, label);
-    if (!scene) return;
-    if (scene.sourcePlateMeshCount < 2) {
-      fail(`${label} assiette source absente (${scene.sourcePlateMeshCount}/2)`);
-      return;
-    }
-    ok(`${label} assiette source conservee (${scene.sourcePlateMeshCount} pieces)`);
-    return;
-  }
-
-  const sourcePlateParts = summaries.filter(
-    (entry) =>
-      entry.points.length > 1000 &&
-      entry.points.length < 10_000 &&
-      entry.size[0] > 0.12 &&
-      entry.size[2] > 0.12
-  );
-
-  if (sourcePlateParts.length < 2) {
-    fail(`${label} assiette source absente (${sourcePlateParts.length}/2)`);
-    return;
-  }
-
-  ok(`${label} assiette source conservee (${sourcePlateParts.length} pieces)`);
 }
 
 function checkUsdzCenteredAndGrounded(filePath, label) {
@@ -665,10 +657,10 @@ if (!homard) {
 if (!ravioles) {
   fail("plat ravioles-romarin introuvable dans demoMenuData.ts");
 } else {
-  if (ravioles.model3dUrl !== "/models/demo/ravioles-chevre-miel.glb") {
+  if (ravioles.model3dUrl !== "/models/demo/ravioles-chevre-miel-meshy.glb") {
     fail(`ravioles model3dUrl inattendu: ${ravioles.model3dUrl}`);
   } else {
-    ok("ravioles pointe vers /models/demo/ravioles-chevre-miel.glb");
+    ok("ravioles pointe vers /models/demo/ravioles-chevre-miel-meshy.glb");
   }
 
   if (ravioles.usdzUrl !== "") {
@@ -677,14 +669,64 @@ if (!ravioles) {
     ok("ravioles ne publie pas l'ancien USDZ source LFS");
   }
 
-  if (/lite/i.test(`${ravioles.model3dUrl} ${ravioles.usdzUrl}`)) {
-    fail("ravioles pointe vers une version lite");
+  if (ravioles.arModel3dUrl !== "/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb") {
+    fail(`ravioles arModel3dUrl inattendu: ${ravioles.arModel3dUrl || "(absent)"}`);
   } else {
-    ok("ravioles ne pointe pas vers une version lite");
+    ok("ravioles arModel3dUrl pointe vers ravioles-chevre-miel-ar-lite-meshy.glb");
   }
 
   checkExpectedWebGlb(ravioles, "ravioles");
   checkApprovedArUsdz(ravioles, "ravioles");
+}
+
+const canette = dishes.find((dish) => dish.slug === "canette-aux-figues");
+const barLigne = dishes.find((dish) => dish.slug === "bar-ligne");
+const paveBoeuf = dishes.find((dish) => dish.slug === "pave-boeuf");
+
+for (const [dish, label, meshyPath, arLitePath, arUsdzPath] of [
+  [
+    canette,
+    "canette",
+    "/models/demo/canette-aux-figues-meshy.glb",
+    "/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb",
+    "/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz"
+  ],
+  [
+    barLigne,
+    "bar",
+    "/models/demo/bar-de-ligne-meshy.glb",
+    "/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb",
+    "/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz"
+  ],
+  [
+    paveBoeuf,
+    "pave",
+    "/models/demo/pave-boeuf-meshy.glb",
+    "/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb",
+    "/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz"
+  ]
+]) {
+  if (!dish) {
+    fail(`plat ${label} introuvable dans demoMenuData.ts`);
+    continue;
+  }
+  if (dish.model3dUrl !== meshyPath) {
+    fail(`${label} model3dUrl inattendu: ${dish.model3dUrl}`);
+  } else {
+    ok(`${label} pointe vers ${meshyPath}`);
+  }
+  if (dish.arModel3dUrl !== arLitePath) {
+    fail(`${label} arModel3dUrl inattendu: ${dish.arModel3dUrl || "(absent)"}`);
+  } else {
+    ok(`${label} arModel3dUrl approuve`);
+  }
+  if (dish.arUsdzUrl !== arUsdzPath) {
+    fail(`${label} arUsdzUrl inattendu: ${dish.arUsdzUrl || "(absent)"}`);
+  } else {
+    ok(`${label} arUsdzUrl approuve`);
+  }
+  checkExpectedWebGlb(dish, label);
+  checkApprovedArUsdz(dish, label);
 }
 
 if (!souffle) {
@@ -696,34 +738,22 @@ if (!souffle) {
     ok("souffle pointe vers /models/demo/souffle-chocolat-meshy.glb");
   }
 
-  if (souffle.usdzUrl !== "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511") {
-    fail(`souffle usdzUrl inattendu: ${souffle.usdzUrl}`);
+  if (souffle.usdzUrl !== "") {
+    fail(`souffle usdzUrl source legacy doit rester vide: ${souffle.usdzUrl}`);
   } else {
-    ok("souffle pointe vers /models/demo/souffle-chocolat.usdz avec cache-bust");
+    ok("souffle ne publie pas l'ancien USDZ source avec assiette");
+  }
+
+  if (souffle.arModel3dUrl !== "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb") {
+    fail(`souffle arModel3dUrl inattendu: ${souffle.arModel3dUrl || "(absent)"}`);
+  } else {
+    ok("souffle arModel3dUrl pointe vers souffle-chocolat-ar-lite-meshy.glb");
   }
 
   checkFileHash(
     assetPath(souffle.model3dUrl),
-    SOUFFLE_WITH_PLATE_GLB_SHA256,
-    "souffle GLB avec assiette"
-  );
-  checkMinimumSize(
-    assetPath(souffle.usdzUrl),
-    SOUFFLE_WITH_PLATE_MIN_USDZ_BYTES,
-    "souffle USDZ avec assiette"
-  );
-  checkUsdzGeometryCountAtLeast(
-    assetPath(souffle.usdzUrl),
-    3,
-    "souffle USDZ surface blanche AR"
-  );
-  checkUsdzUsesSourcePlateGeometry(
-    assetPath(souffle.usdzUrl),
-    "souffle USDZ surface blanche AR"
-  );
-  checkUsdzCenteredAndGrounded(
-    assetPath(souffle.usdzUrl),
-    "souffle USDZ stabilite AR"
+    SOUFFLE_MESHY_GLB_SHA256,
+    "souffle GLB Meshy"
   );
 
   checkExpectedWebGlb(souffle, "souffle");

@@ -60,11 +60,11 @@ const DISHES = new Map([
   [
     "ravioles-chevre-miel",
     {
-      sourceGlb: "ravioles-chevre-miel.glb",
-      quickLookPreparation: "ravioles-visible-shell",
+      sourceGlb: "ravioles-chevre-miel-meshy.glb",
+      quickLookSourceGlb: "ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
       targetMaxDimMeters: 0.2,
       productionOutputs: {
-        ultra: "ravioles-chevre-miel-ios-quicklook-ultra.usdz",
+        ultra: "ravioles-chevre-miel-ios-quicklook-meshy.usdz",
         extreme: "ravioles-chevre-miel-ios-quicklook-extreme.usdz"
       },
       levelOverrides: {
@@ -120,6 +120,7 @@ const DISHES = new Map([
     "souffle-chocolat",
     {
       sourceGlb: "souffle-chocolat-meshy.glb",
+      quickLookSourceGlb: "ar-lite/souffle-chocolat-ar-lite-meshy.glb",
       targetMaxDimMeters: 0.18,
       productionOutputs: {
         ultra: "souffle-chocolat-ios-quicklook-meshy.usdz",
@@ -127,17 +128,59 @@ const DISHES = new Map([
       },
       levelOverrides: {
         ultra: {
-          simplifyRatio: 0.17,
-          simplifyError: 0.006,
-          textureSize: 512,
-          preJpegQuality: 60,
-          finalJpegQuality: 36,
+          simplifyRatio: 0.38,
+          simplifyError: 0.0035,
+          textureSize: 768,
+          preJpegQuality: 72,
+          finalJpegQuality: 52,
           risk:
-            "Production target tuned for souffle; verify ramekin silhouette, souffle volume, and chocolate texture impression manually before promotion."
+            "Closer visual match to web preview; verify ramekin silhouette and chocolate texture before promotion."
         }
       },
       visualPriorities:
         "Preserve souffle height, ramekin/plate silhouette, chocolate surface texture, and premium dessert color."
+    }
+  ],
+  [
+    "canette-aux-figues",
+    {
+      sourceGlb: "canette-aux-figues-meshy.glb",
+      quickLookSourceGlb: "ar-lite/canette-aux-figues-ar-lite-meshy.glb",
+      targetMaxDimMeters: 0.22,
+      productionOutputs: {
+        ultra: "canette-aux-figues-ios-quicklook-meshy.usdz",
+        extreme: "canette-aux-figues-ios-quicklook-extreme.usdz"
+      },
+      visualPriorities:
+        "Preserve duck silhouette, fig glaze, polenta read, and plated composition."
+    }
+  ],
+  [
+    "bar-de-ligne",
+    {
+      sourceGlb: "bar-de-ligne-meshy.glb",
+      quickLookSourceGlb: "ar-lite/bar-de-ligne-ar-lite-meshy.glb",
+      targetMaxDimMeters: 0.2,
+      productionOutputs: {
+        ultra: "bar-de-ligne-ios-quicklook-meshy.usdz",
+        extreme: "bar-de-ligne-ios-quicklook-extreme.usdz"
+      },
+      visualPriorities:
+        "Preserve fish skin crispness, artichaut read, citrus emulsion color, and plate scale."
+    }
+  ],
+  [
+    "pave-boeuf",
+    {
+      sourceGlb: "pave-boeuf-meshy.glb",
+      quickLookSourceGlb: "ar-lite/pave-boeuf-ar-lite-meshy.glb",
+      targetMaxDimMeters: 0.2,
+      productionOutputs: {
+        ultra: "pave-boeuf-ios-quicklook-meshy.usdz",
+        extreme: "pave-boeuf-ios-quicklook-extreme.usdz"
+      },
+      visualPriorities:
+        "Preserve beef sear, puree texture, jus gloss, and classic brasserie plating."
     }
   ]
 ]);

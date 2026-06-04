@@ -76,6 +76,18 @@ test("large-file guard ignores ignored local output directories", () => {
   assert.match(result.stdout, /passed/i);
 });
 
+test("demo runtime allowlist entries declare an accountable owner", () => {
+  const script = readFileSync(LARGE_FILE_CHECK, "utf8");
+
+  assert.match(script, /DEMO_RUNTIME_ASSET_OWNER/);
+  assert.match(script, /requiresDemoRuntimeOwner/);
+  assert.match(script, /validateAllowlistOwners/);
+  assert.match(
+    script,
+    /public\/models\/demo\/ar-lite\/ravioles-chevre-miel-ar-lite-meshy\.glb[\s\S]*owner: DEMO_RUNTIME_ASSET_OWNER/
+  );
+});
+
 test("LFS policy guard rejects broad binary LFS patterns", () => {
   const repo = makeRepo();
   writeFileSync(join(repo, ".gitattributes"), "*.glb filter=lfs diff=lfs merge=lfs -text\n");

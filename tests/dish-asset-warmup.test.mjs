@@ -81,7 +81,7 @@ test("menu-card asset intent does not fetch large demo GLB or USDZ files", async
   const env = installBrowserLikeEnvironment();
 
   prepareDishAssetIntent({
-    model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
+    model3dUrl: "/models/demo/ravioles-chevre-miel-meshy.glb",
     usdzUrl: ""
   });
   await env.settleWarmupQueue();
@@ -160,8 +160,9 @@ test("iPhone Quick Look prefetch can target another approved production USDZ", a
   prefetchUsdzForQuickLook(
     {
       model3dUrl: "/models/demo/souffle-chocolat-meshy.glb",
-      webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-111ef8b7.glb",
-      usdzUrl: "/models/demo/souffle-chocolat.usdz?v=plate-source-20260511",
+      webModel3dUrl: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+      arModel3dUrl: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+      usdzUrl: "",
       arUsdzUrl: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz"
     },
     (state) => states.push(state)
@@ -263,9 +264,8 @@ test("iPhone Quick Look prefetch ignores source-only USDZ fields", async () => {
 
   prefetchUsdzForQuickLook(
     {
-      model3dUrl: "/models/demo/ravioles-chevre-miel.glb",
-      webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-6b812a04.glb",
-      usdzUrl: ""
+      model3dUrl: "/models/demo/homard-bisque-meshy.glb",
+      usdzUrl: "/models/demo/homard-bisque.usdz"
     },
     (state) => states.push(state)
   );
