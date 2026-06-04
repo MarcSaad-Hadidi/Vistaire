@@ -30,7 +30,10 @@ const MV_INIT_TIMEOUT_MS = 12_000;
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
 const LOADER_REVEAL_DELAY_MS = 700;
 const AR_HELP_TEXT =
-  "Faites tourner le plat en 3D. Sur téléphone compatible, le plat peut aussi s'afficher devant vous en réalité augmentée.";
+  "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).";
+const AR_READY_CAMERA_ORBIT = "0deg 68deg 145%";
+const AR_READY_CAMERA_TARGET = "0m 0.015m 0m";
+const AR_READY_FIELD_OF_VIEW = "34deg";
 const IOS_USDZ_MISSING_TEXT =
   "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.";
 const MODEL_FRAME_CLASS =
@@ -71,7 +74,20 @@ async function ensureModelViewerLoaded(): Promise<void> {
 
 type ModelViewerElement = HTMLElement & {
   loaded?: boolean;
+  cameraOrbit?: string;
+  cameraTarget?: string;
+  fieldOfView?: string;
+  jumpCameraToGoal?: () => void;
 };
+
+function prepareModelViewerForAr(node: ModelViewerElement | null): void {
+  if (!node) return;
+  node.removeAttribute("auto-rotate");
+  node.cameraOrbit = AR_READY_CAMERA_ORBIT;
+  node.cameraTarget = AR_READY_CAMERA_TARGET;
+  node.fieldOfView = AR_READY_FIELD_OF_VIEW;
+  node.jumpCameraToGoal?.();
+}
 
 type ModelViewerStaticConfig = CustomElementConstructor & {
   meshoptDecoderLocation?: string;
@@ -392,6 +408,7 @@ export function DishModelViewer({
   const [runtimeArFailed, setRuntimeArFailed] = useState(false);
   const [loaderRevealed, setLoaderRevealed] = useState(false);
   const [modelAttempt, setModelAttempt] = useState(0);
+  const [arSessionActive, setArSessionActive] = useState(false);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [copyConfirmed, setCopyConfirmed] = useState(false);
   const [slowNetworkConfirmed, setSlowNetworkConfirmed] = useState(false);
@@ -503,10 +520,18 @@ export function DishModelViewer({
         const status = (event as ModelViewerArStatusEvent).detail?.status;
         if (status === "failed") {
           setRuntimeArFailed(true);
+          setArSessionActive(false);
           return;
         }
-        if (status === "not-presenting" || status === "session-started") {
+        if (status === "session-started" || status === "object-placed") {
           setRuntimeArFailed(false);
+          setArSessionActive(true);
+          prepareModelViewerForAr(node);
+          return;
+        }
+        if (status === "not-presenting") {
+          setRuntimeArFailed(false);
+          setArSessionActive(false);
         }
       };
 
@@ -593,6 +618,7 @@ export function DishModelViewer({
   ]);
 
   const trackArIntent = useCallback(() => {
+    prepareModelViewerForAr(loadWatchRef.current);
     window.setTimeout(() => {
       try {
         trackMenuEvent({
@@ -635,6 +661,9 @@ export function DishModelViewer({
     (androidArUnavailable || (isAndroid && runtimeArFailed));
   const showMissingIosAr = showArReady && missingIosAr;
   const showDesktopArHint = showArReady && !isIos && !isAndroid;
+  const arModes = isAndroid
+    ? "scene-viewer webxr quick-look"
+    : "webxr scene-viewer quick-look";
 
   useEffect(() => {
     if (!isLoadingModel) return undefined;
@@ -799,11 +828,13 @@ export function DishModelViewer({
                   alt={`Vue du plat : ${dish.name}`}
                   aria-describedby={helpId}
                   camera-controls
-                  {...(!prefersReducedMotion ? { "auto-rotate": true } : {})}
+                  {...(!prefersReducedMotion && !arSessionActive ? { "auto-rotate": true } : {})}
                   {...(androidNativeArEnabled ? { ar: true } : {})}
-                  ar-modes="webxr scene-viewer quick-look"
+                  ar-modes={arModes}
                   ar-placement="floor"
                   ar-scale="fixed"
+                  xr-environment
+                  interaction-prompt="none"
                   shadow-intensity="1"
                   exposure="1.05"
                   loading="auto"
