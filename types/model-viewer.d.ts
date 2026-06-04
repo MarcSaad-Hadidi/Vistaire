@@ -14,6 +14,8 @@ type ModelViewerProps = DetailedHTMLProps<
   "ar-modes"?: string;
   "ar-placement"?: "floor" | "wall";
   "ar-scale"?: "auto" | "fixed";
+  "xr-environment"?: boolean | "";
+  "interaction-prompt"?: "auto" | "when-focused" | "none";
   "shadow-intensity"?: string;
   "environment-image"?: string;
   exposure?: string;
