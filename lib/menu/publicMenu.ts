@@ -96,7 +96,8 @@ function demoMenu(slug: string): PublicMenu {
         dish.model3dUrl ||
           dish.webModel3dUrl ||
           dish.arModel3dUrl ||
-          dish.usdzUrl
+          dish.usdzUrl ||
+          dish.arUsdzUrl
       )
     }))
   };

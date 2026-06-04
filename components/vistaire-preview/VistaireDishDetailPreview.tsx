@@ -58,20 +58,12 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   }
 );
 
-function hasWebModel(dish: Dish): boolean {
-  return Boolean(
-    dish.arModel3dUrl?.trim() ||
-      dish.webModel3dUrl?.trim() ||
-      dish.model3dUrl?.trim()
-  );
-}
-
 function getDishBadges(dish: Dish): DetailBadge[] {
   const badges: DetailBadge[] = [];
 
   if (dish.isSignature) badges.push({ label: "Signature" });
   if (dish.isRecommended) badges.push({ label: "Recommandé" });
-  if (hasWebModel(dish)) badges.push({ label: "Avec vue 3D" });
+  if (dishHasImmersiveAsset(dish)) badges.push({ label: "3D" });
   if (!dish.isAvailable) badges.push({ label: "Indisponible", tone: "alert" });
 
   return badges;
@@ -84,7 +76,7 @@ function getArAvailabilityCopy(dish: Dish): string {
   if (dish.arModel3dUrl?.trim()) {
     return "La vue 3D utilise un modèle optimisé pour les appareils compatibles avec la réalité augmentée.";
   }
-  if (hasWebModel(dish)) {
+  if (dishHasImmersiveAsset(dish)) {
     return "La vue 3D est disponible ici. La réalité augmentée est activée seulement sur les plats et appareils compatibles.";
   }
   return "Vistaire peut intégrer la 3D/AR de façon sélective selon les créations, sans alourdir toute la carte.";
@@ -99,8 +91,8 @@ export function VistaireDishDetailPreview({
   const routes = getVistaireChromeRoutes(routeMode);
   const [activeModelPanel, setActiveModelPanel] =
     useState<ModelPanelVariant | null>(null);
-  const has3d = hasWebModel(dish);
-  const hasImmersiveAsset = dishHasImmersiveAsset(dish);
+  const has3d = dishHasImmersiveAsset(dish);
+  const hasImmersiveAsset = has3d;
   const badges = useMemo(() => getDishBadges(dish), [dish]);
   const objectPosition = getDishDetailImageObjectPosition(dish);
   const primaryIngredients = dish.ingredients.slice(0, 6);

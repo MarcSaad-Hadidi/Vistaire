@@ -265,7 +265,7 @@ const DISHES: Dish[] = [
       "Le plat de la maison pour un dîner à deux, à partager ou en solo gourmand.",
     isSignature: true,
     isRecommended: true,
-    isAvailable: false,
+    isAvailable: true,
     preparationTime: "42 min",
     model3dUrl: "/models/demo/canette-aux-figues-meshy.glb",
     webModel3dUrl: "/models/demo/canette-aux-figues-meshopt-d54f097e.glb",

@@ -828,11 +828,38 @@ test("vistaire menu preview is a real filtered menu, not a static screenshot", a
   for (const demoDishSlug of [
     "homard-bisque",
     "ravioles-romarin",
+    "canette-aux-figues",
+    "bar-ligne",
+    "pave-boeuf",
     "souffle-chocolat",
     "cocktail-maison-elyse"
   ]) {
     assert.match(demoData, literalPattern(`slug: "${demoDishSlug}"`));
   }
+
+  for (const meshyDishSlug of [
+    "ravioles-romarin",
+    "canette-aux-figues",
+    "bar-ligne",
+    "pave-boeuf",
+    "souffle-chocolat"
+  ]) {
+    assert.match(
+      demoData,
+      new RegExp(
+        `slug: "${meshyDishSlug}"[\\s\\S]*?model3dUrl: "/models/demo/[^"]+-meshy\\.glb"`
+      )
+    );
+    assert.match(
+      demoData,
+      new RegExp(
+        `slug: "${meshyDishSlug}"[\\s\\S]*?arUsdzUrl: "/models/demo/ar-lite/[^"]+-ios-quicklook-meshy\\.usdz"`
+      )
+    );
+  }
+
+  assert.match(demoData, /canette-aux-figues[\s\S]*?isAvailable: true/);
+  assert.match(component, /if \(dishHasImmersiveAsset\(dish\)\) badges\.push\("3D"\)/);
 
   assert.match(component, /useState<MenuFilterState>/);
   assert.match(component, /aria-pressed=\{isActive\}/);
