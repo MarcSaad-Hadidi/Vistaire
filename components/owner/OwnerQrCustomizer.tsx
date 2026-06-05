@@ -13,14 +13,22 @@ import {
   monogramFromName,
   qrContrastRatio
 } from "@/lib/owner/qrStyle";
-import type { OwnerQrStyle } from "@/lib/owner/types";
+import type {
+  OwnerQrCodeRecord,
+  OwnerQrStyle,
+  OwnerQrTargetKind
+} from "@/lib/owner/types";
 
 type OwnerQrCustomizerProps = {
   restaurantId: string;
   restaurantName: string;
   restaurantSlug: string;
-  publicMenuUrl: string;
+  targetKind: OwnerQrTargetKind;
+  targetLabel: string;
+  targetUsage: string;
+  targetBadgeLabel: string;
   targetPath: string;
+  targetDisplayUrl: string;
   initialQrStyle?: Partial<OwnerQrStyle>;
   className?: string;
 };
@@ -28,7 +36,14 @@ type OwnerQrCustomizerProps = {
 type SaveState =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; persisted: boolean; redirectUrl: string }
+  | {
+      kind: "saved";
+      persisted: boolean;
+      redirectUrl: string;
+      targetPath: string;
+      targetKind: OwnerQrTargetKind;
+      record?: OwnerQrCodeRecord;
+    }
   | { kind: "error"; message: string };
 
 function escapeXml(value: string): string {
@@ -79,8 +94,12 @@ export function OwnerQrCustomizer({
   restaurantId,
   restaurantName,
   restaurantSlug,
-  publicMenuUrl,
+  targetKind,
+  targetLabel,
+  targetUsage,
+  targetBadgeLabel,
   targetPath,
+  targetDisplayUrl,
   initialQrStyle,
   className = ""
 }: OwnerQrCustomizerProps) {
@@ -90,7 +109,7 @@ export function OwnerQrCustomizer({
     ...initialQrStyle
   }));
   const [svgMarkup, setSvgMarkup] = useState("");
-  const [qrValue, setQrValue] = useState(publicMenuUrl);
+  const [qrValue, setQrValue] = useState(targetDisplayUrl);
   const [tokenPreview, setTokenPreview] = useState("");
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
@@ -98,13 +117,22 @@ export function OwnerQrCustomizer({
   const contrast = useMemo(() => qrContrastRatio(style), [style]);
   const lowContrast = contrast > 0 && contrast < QR_MIN_SAFE_CONTRAST;
   const fileSlug = restaurantSlug || "restaurant";
+  const exactDestinationUrl = useMemo(
+    () => targetDisplayUrl || targetPath,
+    [targetDisplayUrl, targetPath]
+  );
+
+  const qrValueForBrowser = useCallback((value: string): string => {
+    if (!value.startsWith("/") || typeof window === "undefined") return value;
+    return new URL(value, window.location.origin).toString();
+  }, []);
 
   useEffect(() => {
     let active = true;
     async function render() {
       try {
         const QRCode = await import("qrcode");
-        const base = await QRCode.toString(qrValue, {
+        const base = await QRCode.toString(qrValueForBrowser(qrValue), {
           type: "svg",
           errorCorrectionLevel: style.errorCorrectionLevel,
           margin: style.padding,
@@ -122,12 +150,11 @@ export function OwnerQrCustomizer({
     return () => {
       active = false;
     };
-  }, [qrValue, style]);
+  }, [qrValue, qrValueForBrowser, style]);
 
   const update = useCallback((patch: Partial<OwnerQrStyle>) => {
     setStyle((prev) => {
       const next = { ...prev, ...patch };
-      // A logo punches a hole in the symbol — force high error correction.
       if (next.logoMode !== "none") next.errorCorrectionLevel = "H";
       return next;
     });
@@ -147,7 +174,7 @@ export function OwnerQrCustomizer({
 
   async function copyUrl() {
     try {
-      await navigator.clipboard.writeText(qrValue);
+      await navigator.clipboard.writeText(qrValueForBrowser(qrValue));
       setCopyState("copied");
     } catch {
       setCopyState("error");
@@ -162,7 +189,6 @@ export function OwnerQrCustomizer({
 
   function downloadPng() {
     if (!svgMarkup) return;
-    // Remote logo images taint the canvas; PNG is only safe for monogram/none.
     const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const image = new Image();
@@ -201,7 +227,8 @@ export function OwnerQrCustomizer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurantId,
-          label: `QR ${restaurantName}`,
+          label: targetLabel,
+          targetKind,
           targetPath,
           style: { ...style, updatedAt: new Date().toISOString() }
         })
@@ -211,7 +238,10 @@ export function OwnerQrCustomizer({
         error?: string;
         token?: string;
         redirectUrl?: string;
+        targetPath?: string;
+        targetKind?: OwnerQrTargetKind;
         persisted?: boolean;
+        record?: OwnerQrCodeRecord;
       };
       if (!response.ok || !payload.ok || !payload.redirectUrl) {
         setSaveState({
@@ -220,16 +250,18 @@ export function OwnerQrCustomizer({
         });
         return;
       }
-      // The secure /q/<token> URL becomes the value encoded by the QR.
       setQrValue(payload.redirectUrl);
-      setTokenPreview(payload.token ? `${payload.token.slice(0, 6)}…` : "");
+      setTokenPreview(payload.token ? `${payload.token.slice(0, 6)}...` : "");
       setSaveState({
         kind: "saved",
         persisted: Boolean(payload.persisted),
-        redirectUrl: payload.redirectUrl
+        redirectUrl: payload.redirectUrl,
+        targetPath: payload.targetPath || payload.record?.targetPath || targetPath,
+        targetKind: payload.targetKind || payload.record?.targetKind || targetKind,
+        record: payload.record
       });
     } catch {
-      setSaveState({ kind: "error", message: "Erreur réseau pendant la sauvegarde." });
+      setSaveState({ kind: "error", message: "Erreur reseau pendant la sauvegarde." });
     }
   }
 
@@ -244,20 +276,29 @@ export function OwnerQrCustomizer({
           {svgMarkup ? (
             <span dangerouslySetInnerHTML={{ __html: svgMarkup }} />
           ) : (
-            <span>QR…</span>
+            <span>QR...</span>
           )}
         </div>
         <div className={styles.qrUrlBox}>
           <strong>URL QR :</strong> {qrValue}
-          {tokenPreview ? ` · token ${tokenPreview}` : ""}
+          {tokenPreview ? ` - token ${tokenPreview}` : ""}
         </div>
         <div className={styles.qrUrlBox}>
-          <strong>Destination menu :</strong> {publicMenuUrl}
+          <strong>Destination finale :</strong> {exactDestinationUrl}
         </div>
+        <div className={styles.qrUrlBox}>
+          <strong>Type :</strong> {targetLabel} - {targetBadgeLabel}
+        </div>
+        {targetKind === "admin" ? (
+          <p className={styles.qrWarning}>
+            Interne owner - protege. Ce QR ouvre une route /owner qui exige une
+            connexion autorisee ; il ne contient aucun identifiant ni secret.
+          </p>
+        ) : null}
         {lowContrast ? (
           <p className={styles.qrWarning}>
             Contraste faible ({contrast.toFixed(1)}:1). Sous {QR_MIN_SAFE_CONTRAST}:1 le
-            scan devient peu fiable — assombrissez le premier plan ou éclaircissez le
+            scan devient peu fiable - assombrissez le premier plan ou eclaircissez le
             fond.
           </p>
         ) : null}
@@ -299,7 +340,7 @@ export function OwnerQrCustomizer({
         </div>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>Logo</span>
+          <span className={styles.fieldLabel}>Logo au centre</span>
           <select
             className={styles.select}
             value={style.logoMode}
@@ -307,9 +348,9 @@ export function OwnerQrCustomizer({
               update({ logoMode: event.target.value as OwnerQrStyle["logoMode"] })
             }
           >
-            <option value="monogram">Monogramme</option>
-            <option value="imageUrl">Image (URL)</option>
-            <option value="none">Aucun</option>
+            <option value="none">Aucun logo</option>
+            <option value="monogram">Monogramme du restaurant</option>
+            <option value="imageUrl">Logo image</option>
           </select>
         </label>
 
@@ -326,15 +367,21 @@ export function OwnerQrCustomizer({
         ) : null}
 
         {style.logoMode === "imageUrl" ? (
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>URL du logo</span>
-            <input
-              className={styles.input}
-              value={style.logoImageUrl ?? ""}
-              placeholder="https://…/logo.png"
-              onChange={(event) => update({ logoImageUrl: event.target.value })}
-            />
-          </label>
+          <>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>URL du logo</span>
+              <input
+                className={styles.input}
+                value={style.logoImageUrl ?? ""}
+                placeholder="https://.../logo.png"
+                onChange={(event) => update({ logoImageUrl: event.target.value })}
+              />
+            </label>
+            <p className={styles.qrWarning}>
+              Avec un logo image distant, le SVG reste recommande : certains
+              navigateurs peuvent bloquer l&apos;export PNG.
+            </p>
+          </>
         ) : null}
 
         {style.logoMode !== "none" ? (
@@ -357,7 +404,7 @@ export function OwnerQrCustomizer({
 
         <div className={styles.qrExportRow}>
           <button type="button" className={styles.btn} onClick={copyUrl}>
-            {copyState === "copied" ? "URL copiée" : "Copier l'URL"}
+            {copyState === "copied" ? "URL copiee" : "Copier URL QR"}
           </button>
           <button
             type="button"
@@ -365,7 +412,7 @@ export function OwnerQrCustomizer({
             onClick={downloadSvg}
             disabled={!svgMarkup}
           >
-            SVG
+            Telecharger SVG
           </button>
           <button
             type="button"
@@ -373,10 +420,10 @@ export function OwnerQrCustomizer({
             onClick={downloadPng}
             disabled={!svgMarkup}
           >
-            PNG
+            Telecharger PNG
           </button>
           <button type="button" className={styles.btn} onClick={reset}>
-            Réinitialiser
+            Reinitialiser style
           </button>
           <button
             type="button"
@@ -384,18 +431,20 @@ export function OwnerQrCustomizer({
             onClick={saveStyle}
             disabled={saveState.kind === "saving"}
           >
-            {saveState.kind === "saving" ? "Sauvegarde…" : "Sauvegarder le QR"}
+            {saveState.kind === "saving"
+              ? "Sauvegarde..."
+              : "Sauvegarder / Generer QR"}
           </button>
         </div>
 
-        <p className={styles.qrStatusLine} aria-live="polite">
+        <p className={styles.qrStatusLine} aria-live="polite" role="status">
           {saveState.kind === "saved"
             ? saveState.persisted
-              ? "QR sécurisé enregistré. L'URL QR pointe vers /q/<token>."
-              : "QR généré (non persisté : table qr_codes/Supabase indisponible)."
+              ? `QR securise enregistre. Type ${saveState.targetKind}; destination ${saveState.targetPath}.`
+              : `QR genere non persiste. Type ${saveState.targetKind}; destination ${saveState.targetPath}.`
             : saveState.kind === "error"
               ? saveState.message
-              : "Le QR encode la destination ; sauvegardez pour obtenir l'URL sécurisée /q."}
+              : `Le QR encode ${targetUsage} Sauvegardez pour obtenir l'URL securisee /q.`}
         </p>
       </div>
     </div>

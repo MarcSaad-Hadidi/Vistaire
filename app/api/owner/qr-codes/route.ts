@@ -3,6 +3,11 @@ import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
+import {
+  isOwnerQrTargetPathAllowed,
+  sanitizeOwnerQrTargetPath,
+  type OwnerQrTargetKind
+} from "@/lib/owner/menuUrlCore";
 import { createOwnerQrCode } from "@/lib/owner/qrStore";
 
 export const runtime = "nodejs";
@@ -35,8 +40,17 @@ export async function POST(request: NextRequest) {
   const label = typeof candidate.label === "string" ? candidate.label : "QR menu";
   const targetPath =
     typeof candidate.targetPath === "string" ? candidate.targetPath : "";
+  const targetKind: OwnerQrTargetKind | null =
+    candidate.targetKind === "menu" || candidate.targetKind === "admin"
+      ? candidate.targetKind
+      : null;
+  const sanitizedTargetPath = sanitizeOwnerQrTargetPath(targetPath);
 
-  if (!targetPath.startsWith("/")) {
+  if (
+    !targetKind ||
+    !sanitizedTargetPath ||
+    !isOwnerQrTargetPathAllowed(targetKind, sanitizedTargetPath)
+  ) {
     return NextResponse.json(
       { ok: false, error: "Chemin de destination invalide." },
       { status: 400 }
@@ -46,7 +60,8 @@ export async function POST(request: NextRequest) {
   const created = await createOwnerQrCode({
     restaurantId,
     label,
-    targetPath,
+    targetKind,
+    targetPath: sanitizedTargetPath,
     style: candidate.style
   });
 
@@ -60,6 +75,8 @@ export async function POST(request: NextRequest) {
       ok: true,
       token: created.token,
       redirectUrl: created.record.redirectUrl,
+      targetPath: created.record.targetPath,
+      targetKind: created.record.targetKind,
       persisted: created.persisted,
       record: created.record
     },

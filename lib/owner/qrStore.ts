@@ -19,10 +19,16 @@ import {
   tokenPreview,
   verifySignedQrToken
 } from "@/lib/owner/qrTokens";
+import {
+  inferOwnerQrTargetKind,
+  isOwnerQrTargetPathAllowed,
+  sanitizeOwnerQrTargetPath
+} from "@/lib/owner/menuUrlCore";
 import type {
   CreateOwnerQrCodeResult,
   OwnerQrCodeRecord,
   OwnerQrCodeStatus,
+  OwnerQrTargetKind,
   OwnerQrStyle
 } from "@/lib/owner/types";
 
@@ -49,13 +55,6 @@ function parseStyle(value: unknown): OwnerQrStyle {
     }
   }
   return normalizeOwnerQrStyle(value);
-}
-
-function sanitizeTargetPath(input: string): string | null {
-  const trimmed = input.trim();
-  // Only allow internal absolute paths to avoid open-redirect abuse.
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
-  return trimmed.slice(0, 512);
 }
 
 /** Restaurant ids with at least one active row in qr_codes (dashboard QR status). */
@@ -109,6 +108,9 @@ function mapQrRow(row: AnyRow): OwnerQrCodeRecord {
     id,
     restaurantId: getString(row, ["restaurant_id", "restaurantId"], ""),
     label: getString(row, ["label"], "QR menu"),
+    targetKind: inferOwnerQrTargetKind(
+      getString(row, ["target_path", "targetPath"], "/")
+    ),
     tokenPreview: token,
     targetPath: getString(row, ["target_path", "targetPath"], "/"),
     redirectUrl: "",
@@ -127,11 +129,16 @@ export async function createOwnerQrCode(args: {
   restaurantId: string;
   label: string;
   targetPath: string;
+  targetKind?: OwnerQrTargetKind;
   style?: unknown;
 }): Promise<CreateOwnerQrCodeResult> {
-  const targetPath = sanitizeTargetPath(args.targetPath);
+  const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath);
+  const targetPath = sanitizeOwnerQrTargetPath(args.targetPath);
   if (!targetPath) {
     return { ok: false, error: "Chemin de destination invalide." };
+  }
+  if (!isOwnerQrTargetPathAllowed(targetKind, targetPath)) {
+    return { ok: false, error: "Destination QR incompatible avec le type choisi." };
   }
 
   const style = normalizeOwnerQrStyle(args.style);
@@ -171,6 +178,7 @@ export async function createOwnerQrCode(args: {
 
     const record = mapQrRow((data ?? insertRow) as AnyRow);
     record.style = style;
+    record.targetKind = targetKind;
     record.redirectUrl = buildQrRedirectUrl(token);
     await markRestaurantQrReady(admin.client, args.restaurantId);
     return { ok: true, record, token, persisted: true };
@@ -185,6 +193,7 @@ export async function createOwnerQrCode(args: {
     id: `local-${tokenPreview(token)}`,
     restaurantId: args.restaurantId,
     label,
+    targetKind,
     tokenPreview: tokenPreview(token),
     targetPath,
     redirectUrl: buildQrRedirectUrl(token),
@@ -257,7 +266,7 @@ export async function resolveQrToken(
   // Signed fallback token (dev/build, or when DB lookup missed).
   const signed = verifySignedQrToken(token);
   if (signed) {
-    const targetPath = sanitizeTargetPath(signed.targetPath);
+    const targetPath = sanitizeOwnerQrTargetPath(signed.targetPath);
     if (targetPath) return { ok: true, targetPath };
   }
 
@@ -273,7 +282,7 @@ async function resolvePersistedQrToken(
   });
 
   if (!error && data) {
-    const targetPath = sanitizeTargetPath(String(data));
+    const targetPath = sanitizeOwnerQrTargetPath(String(data));
     if (targetPath) return { ok: true, targetPath };
     return { ok: false };
   }
@@ -295,7 +304,7 @@ async function resolvePersistedQrToken(
   const status = normalizeStatus(getString(row as AnyRow, ["status"], "active"));
   if (status !== "active") return { ok: false };
 
-  const targetPath = sanitizeTargetPath(
+  const targetPath = sanitizeOwnerQrTargetPath(
     getString(row as AnyRow, ["target_path", "targetPath"], "")
   );
   if (!targetPath) return { ok: false };

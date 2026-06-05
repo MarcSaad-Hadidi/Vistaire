@@ -20,3 +20,6 @@ $$;
 
 comment on function public.resolve_qr_code_scan(text) is
   'Atomically increments scan_count for an active QR and returns its target_path, or NULL if invalid/paused.';
+
+revoke execute on function public.resolve_qr_code_scan(text) from public, anon, authenticated;
+grant execute on function public.resolve_qr_code_scan(text) to service_role;

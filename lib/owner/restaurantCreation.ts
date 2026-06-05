@@ -90,7 +90,9 @@ function buildPublicMenuPath(slugOrName: string): string {
 
 function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string {
   const safeId = restaurantIdOrSlug.trim();
-  return safeId ? `/admin?restaurantId=${encodeURIComponent(safeId)}` : "/admin";
+  return safeId
+    ? `/owner/restaurants?restaurantId=${encodeURIComponent(safeId)}`
+    : "/owner";
 }
 
 function getSiteOrigin(env: Record<string, string | undefined> = {}): string {

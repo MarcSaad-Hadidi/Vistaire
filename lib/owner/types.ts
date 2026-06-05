@@ -57,6 +57,8 @@ export type OwnerRestaurant = {
 
 export type OwnerQrLogoMode = "none" | "monogram" | "imageUrl";
 
+export type OwnerQrTargetKind = "menu" | "admin";
+
 export type OwnerQrErrorCorrectionLevel = "M" | "Q" | "H";
 
 export type OwnerQrStyle = {
@@ -78,6 +80,7 @@ export type OwnerQrCodeRecord = {
   id: string;
   restaurantId: string;
   label: string;
+  targetKind: OwnerQrTargetKind;
   tokenPreview: string;
   targetPath: string;
   redirectUrl: string;
