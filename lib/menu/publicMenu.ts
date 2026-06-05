@@ -1,80 +1,19 @@
 import "server-only";
 
 import {
-  getNumber,
   getString,
-  readSupabaseRows,
-  type AnyRow
+  readSupabaseRows
 } from "@/lib/analytics/serverRows";
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
 import { getAllDishes, getRestaurant } from "@/lib/demoMenuData";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import {
+  buildSupabasePublicMenu,
+  getPublicMenuRowSlug,
+  type PublicMenu
+} from "@/lib/menu/publicMenuCore";
 
-export type PublicMenuDish = {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  priceLabel: string;
-  hasPhoto: boolean;
-  hasImmersive: boolean;
-};
-
-export type PublicMenu = {
-  slug: string;
-  name: string;
-  location: string;
-  cuisineType: string;
-  source: "supabase" | "demo";
-  dishes: PublicMenuDish[];
-};
-
-function rowSlug(row: AnyRow): string {
-  const name = getString(row, ["name", "restaurant_name"], "");
-  return getString(row, ["slug", "restaurant_slug"], slugifyRestaurantSlug(name));
-}
-
-function formatPrice(row: AnyRow): string {
-  const value = getNumber(row, ["price", "amount", "price_cad"], 0);
-  if (!value) return "";
-  return new Intl.NumberFormat("fr-CA", {
-    style: "currency",
-    currency: "CAD"
-  }).format(value);
-}
-
-function mapDishRow(row: AnyRow, index: number): PublicMenuDish {
-  return {
-    id: getString(row, ["id", "dish_id", "slug", "dish_slug"], `dish-${index}`),
-    name: getString(row, ["name", "dish_name", "title"], "Plat"),
-    description: getString(row, ["description", "desc", "summary"], ""),
-    category: getString(
-      row,
-      ["category_name", "categoryName", "category", "category_slug"],
-      "Carte"
-    ),
-    priceLabel: formatPrice(row),
-    hasPhoto: Boolean(
-      getString(row, [
-        "image",
-        "image_url",
-        "imageUrl",
-        "photo_url",
-        "photoUrl",
-        "thumbnail_url"
-      ])
-    ),
-    hasImmersive: Boolean(
-      getString(row, [
-        "model3d_url",
-        "model3dUrl",
-        "web_model_3d_url",
-        "ar_model_3d_url",
-        "usdz_url"
-      ])
-    )
-  };
-}
+export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
 function demoMenu(slug: string): PublicMenu {
   const restaurant = getRestaurant();
@@ -118,7 +57,7 @@ export async function getPublicMenuBySlug(
     return null;
   }
 
-  const match = restaurantsResult.rows.find((row) => rowSlug(row) === slug);
+  const match = restaurantsResult.rows.find((row) => getPublicMenuRowSlug(row) === slug);
   if (!match) return null;
 
   const restaurantId = getString(match, ["id", "restaurant_id"], "");
@@ -127,23 +66,9 @@ export async function getPublicMenuBySlug(
   }
 
   const dishesResult = await readSupabaseRows("menu_dishes", 1_000);
-  const dishRows = dishesResult.ok
-    ? dishesResult.rows.filter((row) =>
-        ["restaurant_id", "restaurantId", "restaurant_uuid", "restaurant"].some(
-          (key) => String(row[key] ?? "") === restaurantId
-        ) ||
-        ["restaurant_slug", "restaurantSlug"].some(
-          (key) => String(row[key] ?? "") === slug
-        )
-      )
-    : [];
-
-  return {
+  return buildSupabasePublicMenu(
     slug,
-    name: getString(match, ["name", "restaurant_name"], "Restaurant"),
-    location: getString(match, ["location", "city", "address"], ""),
-    cuisineType: getString(match, ["cuisine_type", "cuisineType"], ""),
-    source: "supabase",
-    dishes: dishRows.slice(0, 200).map(mapDishRow)
-  };
+    match,
+    dishesResult.ok ? dishesResult.rows : []
+  );
 }
