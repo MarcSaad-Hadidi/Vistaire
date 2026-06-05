@@ -405,6 +405,94 @@ const ALLOWLIST = new Map(
       }
     ],
     [
+      "public/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+      {
+        maxBytes: 5091112,
+        sha256: [
+          "4b0b610c0ea76f646849f7b78daca6c29b57abe4538d223d823e43eebf3d6f01"
+        ],
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+      {
+        maxBytes: 2494476,
+        sha256: [
+          "2ab5b779e3122cb1090c3996825194d789e3102b83c9db693204a5d5026c1161"
+        ],
+        reason: "Existing demo optimized GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/tartare-saumon-meshy.glb",
+      {
+        maxBytes: 3845704,
+        sha256: [
+          "34c1bec2c03a016c819c44e6c3a12e5916240a6c03c2587dc867aadd40ad2549"
+        ],
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/tarte-citron-basilic-meshy.glb",
+      {
+        maxBytes: 2226400,
+        sha256: [
+          "ce12f630cba01f3e300c4cf28674ffefbbdcef6fed9a790069249bd2baf78254"
+        ],
+        reason: "Existing demo GLB runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb",
+      {
+        maxBytes: 11786728,
+        sha256: [
+          "9528f0f25d208ed70538cb2ea4b4e71348c0f5d4970ca7e0afa08d06fa022880"
+        ],
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+      {
+        maxBytes: 6255656,
+        sha256: [
+          "22e08f695fcc12b0659feb212d0fb9306500cfde915e99b993ceddd795cb39ff"
+        ],
+        reason: "Existing demo 3D runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 3612924,
+        sha256: [
+          "bc043640c6539705c516a25b135f8b3a6fd4479ea9ea83c375205943bb5a404b"
+        ],
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 1455612,
+        sha256: [
+          "8ebcae39f73e46f501ebe23da4bdfe24dc9fbc8a4ec4eeb4ef3406ad0d0fa8f2"
+        ],
+        reason: "Existing demo Quick Look runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
       "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
       {
         maxBytes: 1754380,

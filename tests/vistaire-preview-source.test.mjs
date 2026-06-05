@@ -842,7 +842,9 @@ test("vistaire menu preview is a real filtered menu, not a static screenshot", a
     "canette-aux-figues",
     "bar-ligne",
     "pave-boeuf",
-    "souffle-chocolat"
+    "souffle-chocolat",
+    "tartare-saumon",
+    "tarte-citron-basilic"
   ]) {
     assert.match(
       demoData,

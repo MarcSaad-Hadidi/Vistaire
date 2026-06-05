@@ -30,6 +30,11 @@ const SOURCE_ASSETS = new Map([
   [
     "souffle-chocolat",
     { sourceGlb: "souffle-chocolat-meshy.glb", sourceUsdz: "" }
+  ],
+  ["tartare-saumon", { sourceGlb: "tartare-saumon-meshy.glb", sourceUsdz: "" }],
+  [
+    "tarte-citron-basilic",
+    { sourceGlb: "tarte-citron-basilic-meshy.glb", sourceUsdz: "" }
   ]
 ]);
 
@@ -51,6 +56,11 @@ const AR_GLB_ASSETS = new Map([
   [
     "souffle-chocolat",
     { url: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb" }
+  ],
+  ["tartare-saumon", { url: "/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb" }],
+  [
+    "tarte-citron-basilic",
+    { url: "/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb" }
   ]
 ]);
 
@@ -95,6 +105,20 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
     {
       url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
       sha256: "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef"
+    }
+  ],
+  [
+    "tartare-saumon",
+    {
+      url: "/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz",
+      sha256: "bc043640c6539705c516a25b135f8b3a6fd4479ea9ea83c375205943bb5a404b"
+    }
+  ],
+  [
+    "tarte-citron-basilic",
+    {
+      url: "/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz",
+      sha256: "8ebcae39f73e46f501ebe23da4bdfe24dc9fbc8a4ec4eeb4ef3406ad0d0fa8f2"
     }
   ]
 ]);

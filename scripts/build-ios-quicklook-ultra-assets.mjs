@@ -182,6 +182,34 @@ const DISHES = new Map([
       visualPriorities:
         "Preserve beef sear, puree texture, jus gloss, and classic brasserie plating."
     }
+  ],
+  [
+    "tartare-saumon",
+    {
+      sourceGlb: "tartare-saumon-meshy.glb",
+      quickLookSourceGlb: "ar-lite/tartare-saumon-ar-lite-meshy.glb",
+      targetMaxDimMeters: 0.19,
+      productionOutputs: {
+        ultra: "tartare-saumon-ios-quicklook-meshy.usdz",
+        extreme: "tartare-saumon-ios-quicklook-extreme.usdz"
+      },
+      visualPriorities:
+        "Preserve salmon tartare texture, citrus garnish, plate composition, and fresh fish color."
+    }
+  ],
+  [
+    "tarte-citron-basilic",
+    {
+      sourceGlb: "tarte-citron-basilic-meshy.glb",
+      quickLookSourceGlb: "ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+      targetMaxDimMeters: 0.18,
+      productionOutputs: {
+        ultra: "tarte-citron-basilic-ios-quicklook-meshy.usdz",
+        extreme: "tarte-citron-basilic-ios-quicklook-extreme.usdz"
+      },
+      visualPriorities:
+        "Preserve tart shell, lemon curd gloss, meringue height, and dessert plating scale."
+    }
   ]
 ]);
 

@@ -200,8 +200,11 @@ const DISHES: Dish[] = [
     isRecommended: false,
     isAvailable: true,
     preparationTime: "10 min",
-    model3dUrl: "",
-    usdzUrl: ""
+    model3dUrl: "/models/demo/tartare-saumon-meshy.glb",
+    webModel3dUrl: "/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+    arModel3dUrl: "/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb",
+    usdzUrl: "",
+    arUsdzUrl: "/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-3",
@@ -434,8 +437,11 @@ const DISHES: Dish[] = [
     isRecommended: false,
     isAvailable: true,
     preparationTime: "12 min",
-    model3dUrl: "",
-    usdzUrl: ""
+    model3dUrl: "/models/demo/tarte-citron-basilic-meshy.glb",
+    webModel3dUrl: "/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+    arModel3dUrl: "/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+    usdzUrl: "",
+    arUsdzUrl: "/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz"
   },
   {
     id: "dish-10",
