@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { CONTACT_PHONE_DISPLAY } from "@/lib/seo";
 import styles from "./VistaireRendezVousPreview.module.css";
 
@@ -10,7 +10,7 @@ type ContactFormValues = Record<ContactField, string>;
 
 type ContactFormErrors = Partial<Record<ContactField, string>>;
 
-type SubmitState = "idle" | "error" | "preparing" | "handoff";
+type SubmitState = "idle" | "error" | "sending" | "success" | "serverError";
 
 const initialValues: ContactFormValues = {
   name: "",
@@ -20,6 +20,11 @@ const initialValues: ContactFormValues = {
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const contactEmail = "contact@vistaire.ca";
+const successMessage =
+  "Votre demande a bien \u00e9t\u00e9 envoy\u00e9e. Nous vous r\u00e9pondrons rapidement \u00e0 l'adresse indiqu\u00e9e.";
+const serverErrorMessage =
+  "L'envoi n'a pas fonctionn\u00e9 pour le moment. Vous pouvez \u00e9crire directement \u00e0 contact@vistaire.ca.";
 
 function normalizeValues(values: ContactFormValues): ContactFormValues {
   return {
@@ -73,9 +78,19 @@ function buildMailtoHref(values: ContactFormValues): string {
     values.message
   ].join("\n");
 
-  return `mailto:contact@vistaire.ca?subject=${encodeURIComponent(
+  return `mailto:${contactEmail}?subject=${encodeURIComponent(
     subject
   )}&body=${encodeURIComponent(body)}`;
+}
+
+function buildSubmissionSignature(values: ContactFormValues, company: string) {
+  return JSON.stringify([
+    values.name,
+    values.email,
+    values.restaurant,
+    values.message,
+    company.trim()
+  ]);
 }
 
 function getErrorId(field: ContactField): string {
@@ -88,14 +103,21 @@ function getFieldId(field: ContactField): string {
 
 export function VistaireContactForm() {
   const [values, setValues] = useState<ContactFormValues>(initialValues);
+  const [company, setCompany] = useState("");
   const [errors, setErrors] = useState<ContactFormErrors>({});
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [successfulSubmissionSignature, setSuccessfulSubmissionSignature] =
+    useState<string | null>(null);
+  const submitInFlightRef = useRef(false);
+  const submittedSignatureRef = useRef<string | null>(null);
 
   const updateField =
     (field: ContactField) =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const nextValue = event.target.value;
 
+      submittedSignatureRef.current = null;
+      setSuccessfulSubmissionSignature(null);
       setValues((current) => ({
         ...current,
         [field]: nextValue
@@ -112,10 +134,25 @@ export function VistaireContactForm() {
       }
     };
 
-  const submitContactRequest = (event: FormEvent<HTMLFormElement>) => {
+  const submitContactRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (submitInFlightRef.current || submitState === "sending") return;
+
     const normalizedValues = normalizeValues(values);
+    const trimmedCompany = company.trim();
+    const submissionSignature = buildSubmissionSignature(
+      normalizedValues,
+      trimmedCompany
+    );
+
+    if (
+      submittedSignatureRef.current === submissionSignature ||
+      successfulSubmissionSignature === submissionSignature
+    ) {
+      return;
+    }
+
     const nextErrors = validateContactForm(normalizedValues);
     const firstInvalidField = Object.keys(nextErrors)[0] as
       | ContactField
@@ -136,23 +173,57 @@ export function VistaireContactForm() {
       return;
     }
 
-    setSubmitState("preparing");
-    window.location.href = buildMailtoHref(normalizedValues);
-    window.setTimeout(() => setSubmitState("handoff"), 250);
+    submitInFlightRef.current = true;
+    setSubmitState("sending");
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...normalizedValues,
+          company: trimmedCompany
+        })
+      });
+      const result = (await response
+        .json()
+        .catch(() => null)) as { ok?: boolean } | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error("Contact request failed");
+      }
+
+      submittedSignatureRef.current = submissionSignature;
+      setSuccessfulSubmissionSignature(submissionSignature);
+      setSubmitState("success");
+    } catch {
+      setSubmitState("serverError");
+    } finally {
+      submitInFlightRef.current = false;
+    }
   };
 
-  const statusMessage =
-    submitState === "error"
-      ? "Veuillez corriger les champs indiqués."
-      : submitState === "preparing"
-        ? "Préparation de votre courriel..."
-        : submitState === "handoff"
-          ? "Votre courriel est prêt dans votre application de messagerie. Si rien ne s'ouvre, écrivez à contact@vistaire.ca."
-          : "";
+  const statusMessages: Record<SubmitState, string> = {
+    idle: "",
+    error: "Veuillez corriger les champs indiqués.",
+    sending: "Envoi de votre demande...",
+    success: successMessage,
+    serverError: serverErrorMessage
+  };
+  const statusMessage = statusMessages[submitState];
+  const fallbackHref = buildMailtoHref(normalizeValues(values));
+  const isSending = submitState === "sending";
+  const isSuccessLocked =
+    submitState === "success" &&
+    successfulSubmissionSignature ===
+      buildSubmissionSignature(normalizeValues(values), company);
 
   return (
     <form
-      aria-busy={submitState === "preparing"}
+      aria-busy={isSending}
       className={styles.contactForm}
       noValidate
       onSubmit={submitContactRequest}
@@ -250,24 +321,57 @@ export function VistaireContactForm() {
         ) : null}
       </div>
 
+      <div aria-hidden="true" className={styles.honeypot}>
+        <label htmlFor="contact-company">Entreprise</label>
+        <input
+          autoComplete="off"
+          id="contact-company"
+          name="company"
+          onChange={(event) => {
+            submittedSignatureRef.current = null;
+            setSuccessfulSubmissionSignature(null);
+            setCompany(event.target.value);
+            if (submitState !== "idle") {
+              setSubmitState("idle");
+            }
+          }}
+          tabIndex={-1}
+          type="text"
+          value={company}
+        />
+      </div>
+
       <button
         className={styles.submitButton}
-        disabled={submitState === "preparing"}
+        disabled={isSending || isSuccessLocked}
         type="submit"
       >
-        Envoyer la demande
+        {isSending
+          ? "Envoi en cours..."
+          : isSuccessLocked
+            ? "Demande envoy\u00e9e"
+            : "Envoyer la demande"}
       </button>
 
       <p
         className={styles.formStatus}
         aria-live="polite"
-        role={submitState === "error" ? "alert" : "status"}
+        role={
+          submitState === "error" || submitState === "serverError"
+            ? "alert"
+            : "status"
+        }
       >
         {statusMessage}
       </p>
       <p className={styles.formNote}>
-        Aucun message n&apos;est envoy&eacute; sans votre confirmation dans
-        votre application de messagerie.
+        {submitState === "serverError" ? (
+          <>
+            Contact direct : <a href={fallbackHref}>{contactEmail}</a>.
+          </>
+        ) : (
+          "Votre demande est transmise directement \u00e0 l'\u00e9quipe Vistaire."
+        )}
       </p>
     </form>
   );

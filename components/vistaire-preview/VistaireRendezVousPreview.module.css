@@ -366,6 +366,7 @@
 
 .backLink:focus-visible,
 .submitButton:focus-visible,
+.formNote a:focus-visible,
 .directContact a:focus-visible {
   outline: 2px solid rgba(232, 207, 155, 0.92);
   outline-offset: 3px;
@@ -392,6 +393,24 @@
   font-size: 11.5px;
   font-weight: 500;
   line-height: 1.35;
+}
+
+.formNote a {
+  color: rgba(255, 250, 240, 0.9);
+  text-decoration-line: underline;
+  text-decoration-color: rgba(232, 207, 155, 0.38);
+  text-underline-offset: 4px;
+  transition:
+    color 180ms ease,
+    text-decoration-color 180ms ease;
+}
+
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 
 .directContact {
@@ -425,6 +444,8 @@
     text-decoration-color 180ms ease;
 }
 
+.formNote a:hover,
+.formNote a:focus-visible,
 .directContact a:hover,
 .directContact a:focus-visible {
   color: #fffaf0;
@@ -445,6 +466,7 @@
   .formField input,
   .formField textarea,
   .submitButton,
+  .formNote a,
   .directContact a {
     transition: none;
   }

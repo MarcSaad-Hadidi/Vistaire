@@ -38,6 +38,7 @@ const contactComponentPath =
   "components/vistaire-preview/VistaireContactPreview.tsx";
 const contactFormComponentPath =
   "components/vistaire-preview/VistaireContactForm.tsx";
+const contactApiRoutePath = "app/api/contact/route.ts";
 const contactCssPath =
   "components/vistaire-preview/VistaireContactPreview.module.css";
 const rendezVousComponentPath =
@@ -658,6 +659,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     route,
     component,
     formComponent,
+    contactApiRoute,
     css,
     chromeComponent,
     chromeCss
@@ -665,6 +667,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     readText(rendezVousRoutePath),
     readText(rendezVousComponentPath),
     readText(contactFormComponentPath),
+    readText(contactApiRoutePath),
     readText(rendezVousCssPath),
     readText(chromeComponentPath),
     readText(chromeCssPath)
@@ -681,7 +684,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     "Message",
     "Envoyer la demande",
     "Retour au contact",
-    "Aucun message n&apos;est envoy&eacute;",
+    "Votre demande est transmise directement",
     "contact@vistaire.ca",
     "CONTACT_PHONE_DISPLAY",
     "Montr&eacute;al",
@@ -710,8 +713,17 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.doesNotMatch(component, /<footer/);
   assert.match(formComponent, /validateContactForm/);
   assert.match(formComponent, /buildMailtoHref/);
-  assert.match(formComponent, /window\.location\.href/);
-  assert.match(formComponent, /mailto:contact@vistaire\.ca/);
+  assert.match(formComponent, /fetch\("\/api\/contact"/);
+  assert.match(formComponent, /company:\s*trimmedCompany/);
+  assert.match(formComponent, /styles\.honeypot/);
+  assert.match(formComponent, /submitInFlightRef/);
+  assert.match(formComponent, /submittedSignatureRef/);
+  assert.match(formComponent, /successfulSubmissionSignature/);
+  assert.match(formComponent, /buildSubmissionSignature/);
+  assert.match(formComponent, /Demande envoy\\u00e9e/);
+  assert.match(formComponent, /mailto:\$\{contactEmail\}/);
+  assert.match(formComponent, /successMessage/);
+  assert.match(formComponent, /serverErrorMessage/);
   assert.match(formComponent, /aria-invalid/);
   assert.match(formComponent, /aria-describedby/);
   assert.match(formComponent, /autoComplete="name"/);
@@ -719,13 +731,20 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.match(formComponent, /autoComplete="organization"/);
   assert.match(formComponent, /type="email"/);
   assert.match(formComponent, /noValidate/);
-  assert.doesNotMatch(formComponent, /message envoy[ée]|Message envoy[ée]/);
+  assert.doesNotMatch(formComponent, /window\.location\.href/);
   assert.match(css, /\.contactForm/);
+  assert.match(css, /\.honeypot/);
   assert.match(css, /\.formField/);
   assert.match(css, /\.formField textarea[\s\S]*resize:\s*none/);
   assert.match(css, /\.submitButton/);
   assert.match(css, /\.fieldError/);
   assert.match(css, /@media \(max-width: 520px\)/);
+  assert.match(contactApiRoute, /requireTrustedContactOrigin/);
+  assert.match(contactApiRoute, /consumeContactRateLimit/);
+  assert.match(contactApiRoute, /CONTACT_RATE_LIMIT_MAX_REQUESTS\s*=\s*5/);
+  assert.match(contactApiRoute, /CONTACT_RATE_LIMIT_WINDOW_MS\s*=\s*10 \* 60/);
+  assert.match(contactApiRoute, /x-forwarded-for/);
+  assert.match(contactApiRoute, /Retry-After/);
   assert.match(chromeCss, /\.previewFooter/);
   assert.match(
     chromeComponent,
