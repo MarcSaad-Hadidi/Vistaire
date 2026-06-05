@@ -2,13 +2,13 @@ import styles from "@/components/owner/OwnerCockpit.module.css";
 import { OwnerRestaurantTable } from "@/components/owner/OwnerRestaurantTable";
 import { RestaurantCreateForm } from "@/components/owner/RestaurantCreateForm";
 import { ModuleHeader, Panel } from "@/components/owner/OwnerUi";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
+import { getOwnerRestaurantsData } from "@/lib/owner/data";
 import { getSiteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 export default async function OwnerRestaurantsPage() {
-  const data = await getOwnerDashboard();
+  const data = await getOwnerRestaurantsData();
   const siteOrigin = getSiteUrl().origin;
 
   return (

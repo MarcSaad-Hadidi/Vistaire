@@ -4,7 +4,10 @@ import {
   getOwnerDashboardData,
   validateCreateRestaurantInput
 } from "@/lib/owner/data";
-import { requireVistaireOwnerApi } from "@/lib/auth/ownerApi";
+import {
+  requireSameOriginOwnerMutation,
+  requireVistaireOwnerApi
+} from "@/lib/auth/ownerApi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +29,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const owner = await requireVistaireOwnerApi();
   if (!owner.ok) return owner.response;
+
+  const originError = requireSameOriginOwnerMutation(request);
+  if (originError) return originError;
 
   let body: unknown;
   try {
@@ -49,12 +55,17 @@ export async function POST(request: NextRequest) {
   if (!created.ok) {
     return NextResponse.json(
       { ok: false, error: created.error },
-      { status: 503 }
+      { status: created.status }
     );
   }
 
   return NextResponse.json(
-    { ok: true, restaurant: created.restaurant },
+    {
+      ok: true,
+      persisted: created.persisted,
+      dataSource: created.dataSource,
+      restaurant: created.restaurant
+    },
     { status: 201 }
   );
 }

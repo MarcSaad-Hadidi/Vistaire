@@ -1,7 +1,6 @@
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, ModuleHeader, Panel } from "@/components/owner/OwnerUi";
 import { OWNER_QR_PRESETS } from "@/lib/owner/qrStyle";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
 import { getSiteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -21,16 +20,14 @@ function StatusRow({ label, ok, hint }: { label: string; ok: boolean; hint: stri
         <div className={styles.cellMain}>{label}</div>
         <div className={styles.cellSub}>{hint}</div>
       </div>
-      <Badge tone={ok ? "ready" : "warn"}>{ok ? "Configuré" : "Non configuré"}</Badge>
+      <Badge tone={ok ? "ready" : "warn"}>{ok ? "Configure" : "Non configure"}</Badge>
     </div>
   );
 }
 
 export default async function OwnerSettingsPage() {
-  const data = await getOwnerDashboard();
   const origin = getSiteUrl().origin;
 
-  // Presence-only checks — never read or expose secret values.
   const supabaseConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
   );
@@ -46,29 +43,33 @@ export default async function OwnerSettingsPage() {
     <>
       <ModuleHeader
         title="Settings"
-        description="Configuration et état des intégrations. Aucune valeur secrète n'est affichée."
+        description="Configuration et etat des integrations. Aucune valeur secrete n'est affichee."
       />
 
-      <Panel title="État des intégrations">
+      <Panel title="Etat des integrations">
         <StatusRow
           label="Supabase"
           ok={supabaseConfigured}
-          hint={data.source === "supabase" ? "Connecté, données live." : "Fallback démo actif."}
+          hint={
+            supabaseConfigured
+              ? "Configure pour les lectures et creations persistantes."
+              : "Fallback demo en lecture, creation production indisponible."
+          }
         />
         <StatusRow
           label="AI (Mistral)"
           ok={mistralConfigured}
-          hint="Sans clé, le copilote utilise les règles déterministes (fallback)."
+          hint="Sans cle, le copilote utilise les regles deterministes (fallback)."
         />
         <StatusRow
           label="Secret token QR"
           ok={qrSecretConfigured}
-          hint="VISTAIRE_QR_TOKEN_SECRET : à définir en production (pepper + signature)."
+          hint="VISTAIRE_QR_TOKEN_SECRET : a definir en production (pepper + signature)."
         />
         <StatusRow
           label="Allowlist owner"
           ok={ownerAllowlistConfigured}
-          hint="VISTAIRE_OWNER_EMAILS / USER_IDS contrôlent l'accès owner-only."
+          hint="VISTAIRE_OWNER_EMAILS / USER_IDS controlent l'acces owner-only."
         />
       </Panel>
 
@@ -80,7 +81,7 @@ export default async function OwnerSettingsPage() {
         </p>
         <p className={styles.cellSub} style={{ marginTop: 10 }}>
           Persistance QR : table <code>qr_codes</code> (voir
-          docs/owner-qr-schema.md). Storage/CDN médias géré hors cockpit.
+          docs/owner-qr-schema.md). Storage/CDN medias gere hors cockpit.
         </p>
         <div className={styles.pillRow} style={{ marginTop: 10 }}>
           {OWNER_QR_PRESETS.map((preset) => (
@@ -92,7 +93,7 @@ export default async function OwnerSettingsPage() {
       </Panel>
 
       <p className={styles.sourceTag}>
-        Accès owner : protégé par Clerk + allowlist (proxy.ts +
+        Acces owner : protege par Clerk + allowlist (proxy.ts +
         app/owner/layout.tsx). Les API owner utilisent requireVistaireOwnerApi.
       </p>
     </>

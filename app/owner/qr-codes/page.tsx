@@ -1,12 +1,12 @@
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { OwnerQrManager } from "@/components/owner/OwnerQrManager";
 import { ModuleHeader, Panel } from "@/components/owner/OwnerUi";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
+import { getOwnerRestaurantsData } from "@/lib/owner/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function OwnerQrCodesPage() {
-  const data = await getOwnerDashboard();
+  const data = await getOwnerRestaurantsData();
 
   return (
     <>

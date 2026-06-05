@@ -1,7 +1,7 @@
 import Link from "next/link";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, EmptyState, ModuleHeader, Panel } from "@/components/owner/OwnerUi";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
+import { getOwnerMenuStatusData } from "@/lib/owner/data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ function menuStatus(dishCount: number, status: string): {
 }
 
 export default async function OwnerMenusPage() {
-  const data = await getOwnerDashboard();
+  const data = await getOwnerMenuStatusData();
 
   return (
     <>

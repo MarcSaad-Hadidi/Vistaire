@@ -32,6 +32,16 @@ Owner-only APIs:
 
 Signed-out users are handled by Clerk on `/owner` and receive JSON `401` on owner APIs. Signed-in non-owners receive a safe blocked response: `/owner` returns not found, and owner APIs return JSON `403`.
 
+## Restaurant creation persistence
+
+`POST /api/restaurants` is an owner-only, same-origin mutation. It only returns a
+creation success when Supabase persists the row and returns a real UUID `id`.
+Missing Supabase configuration, duplicate slugs, failed inserts, or inserts that
+do not return a UUID are returned as errors. The production schema is defined in
+`supabase/migrations/0007_restaurants.sql` with `id uuid primary key default
+gen_random_uuid()`, a unique `slug` index, timestamps, setup/contact fields, and
+RLS enabled.
+
 ## Implementation files
 
 - `lib/auth/ownerPolicy.ts`: parses server-only owner allowlists.
