@@ -681,7 +681,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     "Message",
     "Envoyer la demande",
     "Retour au contact",
-    "Aucun message n&apos;est envoy&eacute;",
+    "Votre demande est transmise directement",
     "contact@vistaire.ca",
     "CONTACT_PHONE_DISPLAY",
     "Montr&eacute;al",
@@ -710,8 +710,12 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.doesNotMatch(component, /<footer/);
   assert.match(formComponent, /validateContactForm/);
   assert.match(formComponent, /buildMailtoHref/);
-  assert.match(formComponent, /window\.location\.href/);
-  assert.match(formComponent, /mailto:contact@vistaire\.ca/);
+  assert.match(formComponent, /fetch\("\/api\/contact"/);
+  assert.match(formComponent, /company:\s*company\.trim\(\)/);
+  assert.match(formComponent, /styles\.honeypot/);
+  assert.match(formComponent, /mailto:\$\{contactEmail\}/);
+  assert.match(formComponent, /successMessage/);
+  assert.match(formComponent, /serverErrorMessage/);
   assert.match(formComponent, /aria-invalid/);
   assert.match(formComponent, /aria-describedby/);
   assert.match(formComponent, /autoComplete="name"/);
@@ -719,8 +723,9 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.match(formComponent, /autoComplete="organization"/);
   assert.match(formComponent, /type="email"/);
   assert.match(formComponent, /noValidate/);
-  assert.doesNotMatch(formComponent, /message envoy[ée]|Message envoy[ée]/);
+  assert.doesNotMatch(formComponent, /window\.location\.href/);
   assert.match(css, /\.contactForm/);
+  assert.match(css, /\.honeypot/);
   assert.match(css, /\.formField/);
   assert.match(css, /\.formField textarea[\s\S]*resize:\s*none/);
   assert.match(css, /\.submitButton/);
