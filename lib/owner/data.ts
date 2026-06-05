@@ -8,14 +8,20 @@ import {
   getNumber,
   getString,
   getSupabaseTableColumns,
-  pickColumn,
   readSupabaseRows,
   type AnyRow
 } from "@/lib/analytics/serverRows";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
-import { getAutomaticOwnerRecommendations } from "@/lib/owner/recommendations";
+import {
+  buildRuleBasedOwnerRecommendations,
+  getAutomaticOwnerRecommendations
+} from "@/lib/owner/recommendations";
 import { buildActiveQrRestaurantIds } from "@/lib/owner/qrStore";
+import {
+  createRestaurantRecord,
+  type CreateRestaurantRecordResult
+} from "@/lib/owner/restaurantCreation";
 import {
   buildPublicMenuPath,
   buildPublicMenuUrl,
@@ -35,6 +41,8 @@ import type {
   OwnerStats
 } from "@/lib/owner/types";
 
+export { validateCreateRestaurantInput } from "@/lib/owner/restaurantCreation";
+
 const STATUS_LABELS: Record<OwnerRestaurantStatus, string> = {
   demo: "Presentation",
   active: "Actif",
@@ -50,10 +58,6 @@ const STATUS_VALUES = new Set<OwnerRestaurantStatus>([
   "paused",
   "archived"
 ]);
-
-type CreateRestaurantResult =
-  | { ok: true; restaurant: OwnerRestaurant }
-  | { ok: false; error: string };
 
 type DishMetrics = {
   dishCount: number;
@@ -644,29 +648,47 @@ function mapStoredRecommendations(rows: AnyRow[]): OwnerRecommendation[] {
   });
 }
 
-export async function getOwnerDashboardData(): Promise<OwnerDashboardData> {
-  const [
-    restaurantsResult,
-    dishesResult,
-    dailyResult,
-    eventsResult,
-    storedResult,
-    qrCodesResult
-  ] = await Promise.all([
-    readSupabaseRows("restaurants", 200),
-    readSupabaseRows("menu_dishes", 1_000),
-    readSupabaseRows("restaurant_daily_analytics", 300),
-    readSupabaseRows("analytics_events", 1_000),
-    readSupabaseRows("owner_ai_recommendations", 100),
-    readSupabaseRows("qr_codes", 500)
-  ]);
+type OwnerRestaurantReadOptions = {
+  includeDishes?: boolean;
+  includeActivity?: boolean;
+  includeQr?: boolean;
+};
 
+type OwnerRestaurantsData = {
+  restaurants: OwnerRestaurant[];
+  source: OwnerDashboardData["source"];
+  note: string;
+};
+
+const skippedRowsResult = {
+  ok: false as const,
+  error: "not requested",
+  rows: [] as AnyRow[]
+};
+
+async function getOwnerRestaurantRowsData(
+  options: OwnerRestaurantReadOptions = {}
+): Promise<OwnerRestaurantsData> {
+  const [restaurantsResult, dishesResult, eventsResult, qrCodesResult] =
+    await Promise.all([
+      readSupabaseRows("restaurants", 200),
+      options.includeDishes
+        ? readSupabaseRows("menu_dishes", 1_000)
+        : Promise.resolve(skippedRowsResult),
+      options.includeActivity
+        ? readSupabaseRows("analytics_events", 1_000)
+        : Promise.resolve(skippedRowsResult),
+      options.includeQr
+        ? readSupabaseRows("qr_codes", 500)
+        : Promise.resolve(skippedRowsResult)
+    ]);
+
+  const dishRows = dishesResult.ok ? dishesResult.rows : [];
   const activeQrRestaurantIds =
     qrCodesResult.ok && qrCodesResult.rows.length
       ? buildActiveQrRestaurantIds(qrCodesResult.rows)
       : new Set<string>();
 
-  const dishRows = dishesResult.ok ? dishesResult.rows : [];
   const restaurants =
     restaurantsResult.ok && restaurantsResult.rows.length
       ? restaurantsResult.rows.map((row) => {
@@ -698,15 +720,54 @@ export async function getOwnerDashboardData(): Promise<OwnerDashboardData> {
             dishMetrics: getDishMetrics({
               rows: dishRows,
               restaurantId,
-              slug,
-              isDemo
-            }),
-            openingsToday,
-            interactionsToday,
+            slug,
+            isDemo
+          }),
+          openingsToday,
+          interactionsToday,
             hasActiveQrCode: activeQrRestaurantIds.has(restaurantId)
           });
         })
       : [fallbackOwnerRestaurant()];
+
+  return {
+    restaurants,
+    source:
+      restaurantsResult.ok && restaurantsResult.rows.length ? "supabase" : "fallback",
+    note:
+      restaurantsResult.ok && restaurantsResult.rows.length
+        ? "Donnees restaurants connectees a Supabase."
+        : "Donnees de presentation affichees tant que Supabase ne repond pas."
+  };
+}
+
+export async function getOwnerRestaurantsData(): Promise<OwnerRestaurantsData> {
+  return getOwnerRestaurantRowsData({
+    includeDishes: true,
+    includeQr: true
+  });
+}
+
+export async function getOwnerMenuStatusData(): Promise<OwnerRestaurantsData> {
+  return getOwnerRestaurantRowsData({
+    includeDishes: true
+  });
+}
+
+export async function getOwnerDashboardData(
+  options: { includeAiRecommendations?: boolean } = {}
+): Promise<OwnerDashboardData> {
+  const [restaurantData, dailyResult, storedResult] = await Promise.all([
+    getOwnerRestaurantRowsData({
+      includeDishes: true,
+      includeActivity: true,
+      includeQr: true
+    }),
+    readSupabaseRows("restaurant_daily_analytics", 300),
+    readSupabaseRows("owner_ai_recommendations", 100)
+  ]);
+
+  const restaurants = restaurantData.restaurants;
 
   const actions = buildOwnerActions(restaurants);
   const stats = buildStats(
@@ -717,11 +778,22 @@ export async function getOwnerDashboardData(): Promise<OwnerDashboardData> {
   const storedRecommendations = storedResult.ok
     ? mapStoredRecommendations(storedResult.rows)
     : [];
-  const automatic = await getAutomaticOwnerRecommendations({
-    stats,
-    restaurants,
-    storedRecommendations
-  });
+  const automatic = options.includeAiRecommendations
+    ? await getAutomaticOwnerRecommendations({
+        stats,
+        restaurants,
+        storedRecommendations
+      })
+    : {
+        recommendations: buildRuleBasedOwnerRecommendations({
+          stats,
+          restaurants,
+          storedRecommendations
+        }),
+        source: storedRecommendations.length
+          ? ("stored" as const)
+          : ("rules" as const)
+      };
 
   return {
     stats,
@@ -729,131 +801,17 @@ export async function getOwnerDashboardData(): Promise<OwnerDashboardData> {
     actions,
     recommendations: automatic.recommendations,
     recommendationSource: automatic.source,
-    source:
-      restaurantsResult.ok && restaurantsResult.rows.length ? "supabase" : "fallback",
-    note:
-      restaurantsResult.ok && restaurantsResult.rows.length
-        ? "Donnees restaurants connectees a Supabase."
-        : "Donnees de presentation affichees tant que Supabase ne repond pas."
+    source: restaurantData.source,
+    note: restaurantData.note
   };
-}
-
-export function validateCreateRestaurantInput(
-  input: unknown
-): { ok: true; value: CreateRestaurantInput } | { ok: false; error: string } {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    return { ok: false, error: "Formulaire invalide." };
-  }
-
-  const candidate = input as Record<string, unknown>;
-  const name = getString(candidate, ["name"], "").slice(0, 120);
-  const slug = slugifyRestaurantSlug(getString(candidate, ["slug"], name)).slice(
-    0,
-    80
-  );
-  const location = getString(candidate, ["location"], "").slice(0, 160);
-  const cuisineType = getString(candidate, ["cuisineType", "cuisine_type"], "").slice(
-    0,
-    120
-  );
-  const status = normalizeStatus(getString(candidate, ["status"], "setup_needed"));
-  const contactName = getString(candidate, ["contactName", "contact_name"], "").slice(
-    0,
-    120
-  );
-  const contactEmail = getString(
-    candidate,
-    ["contactEmail", "contact_email"],
-    ""
-  ).slice(0, 160);
-  const contactPhone = getString(
-    candidate,
-    ["contactPhone", "contact_phone"],
-    ""
-  ).slice(0, 60);
-  const notes = getString(candidate, ["notes"], "").slice(0, 800);
-
-  if (!name || name.length < 2) {
-    return { ok: false, error: "Nom du restaurant requis." };
-  }
-  if (!slug || slug.length < 2) return { ok: false, error: "Slug invalide." };
-  if (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-    return { ok: false, error: "Email contact invalide." };
-  }
-
-  return {
-    ok: true,
-    value: {
-      name,
-      slug,
-      location,
-      cuisineType,
-      status,
-      contactName,
-      contactEmail,
-      ...(contactPhone ? { contactPhone } : {}),
-      ...(notes ? { notes } : {})
-    }
-  };
-}
-
-function assignInsertValue(
-  row: Record<string, unknown>,
-  columns: Set<string>,
-  candidates: string[],
-  value: unknown
-) {
-  if (value === undefined || value === "") return;
-  const column = columns.size > 0 ? pickColumn(columns, candidates) : candidates[0];
-  if (column) row[column] = value;
 }
 
 export async function createRestaurant(
   input: CreateRestaurantInput
-): Promise<CreateRestaurantResult> {
-  const admin = getSupabaseAdminClient();
-  if (!admin.ok) {
-    return { ok: false, error: "Configuration serveur Supabase manquante." };
-  }
-
-  const columns = await getSupabaseTableColumns("restaurants");
-  const row: Record<string, unknown> = {};
-
-  assignInsertValue(row, columns, ["name", "restaurant_name"], input.name);
-  assignInsertValue(row, columns, ["slug", "restaurant_slug"], input.slug);
-  assignInsertValue(row, columns, ["location", "city"], input.location);
-  assignInsertValue(row, columns, ["cuisine_type", "cuisineType"], input.cuisineType);
-  assignInsertValue(row, columns, ["status"], input.status);
-  assignInsertValue(row, columns, ["contact_name", "contactName"], input.contactName);
-  assignInsertValue(row, columns, ["contact_email", "contactEmail"], input.contactEmail);
-  assignInsertValue(row, columns, ["contact_phone", "contactPhone", "phone"], input.contactPhone);
-  assignInsertValue(row, columns, ["notes", "internal_notes"], input.notes);
-
-  const { data, error } = await admin.client
-    .from("restaurants")
-    .insert(row)
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error("[Vistaire owner] create restaurant failed", error.message);
-    return {
-      ok: false,
-      error:
-        "Le restaurant n'a pas pu etre cree. Verifiez les champs et la configuration Supabase."
-    };
-  }
-
-  const mapped = mapRestaurantRow({
-    row: (data ?? row) as AnyRow,
-    dishMetrics: {
-      dishCount: 0,
-      photoDishCount: 0,
-      immersiveDishCount: 0
-    },
-    openingsToday: 0,
-    interactionsToday: 0
+): Promise<CreateRestaurantRecordResult> {
+  return createRestaurantRecord(input, {
+    admin: getSupabaseAdminClient(),
+    getColumns: getSupabaseTableColumns,
+    env: process.env
   });
-
-  return { ok: true, restaurant: mapped };
 }

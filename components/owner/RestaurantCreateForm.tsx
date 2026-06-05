@@ -1,15 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { MenuQrCode } from "@/components/owner/MenuQrCode";
 import styles from "@/components/owner/OwnerCockpit.module.css";
-import { buildRestaurantMenuPath, slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import { buildPublicMenuPath, slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import type { OwnerRestaurant } from "@/lib/owner/types";
 
 type SubmitState =
   | { status: "idle"; message: "" }
-  | { status: "success"; message: string; restaurant: OwnerRestaurant }
+  | { status: "validating"; message: string }
+  | { status: "creating"; message: string }
+  | {
+      status: "success";
+      message: string;
+      restaurant: OwnerRestaurant;
+      persisted: true;
+      dataSource: "supabase";
+    }
+  | { status: "fallback"; message: string }
   | { status: "error"; message: string };
 
 type RestaurantCreateFormProps = {
@@ -17,8 +27,8 @@ type RestaurantCreateFormProps = {
 };
 
 const statusOptions = [
-  { value: "setup_needed", label: "À configurer" },
-  { value: "demo", label: "Présentation" },
+  { value: "setup_needed", label: "A configurer" },
+  { value: "demo", label: "Presentation" },
   { value: "active", label: "Actif" }
 ];
 
@@ -49,11 +59,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const effectiveSlug = slug || slugifyRestaurantSlug(name);
-  const previewMenuPath = buildRestaurantMenuPath(effectiveSlug || name);
+  const previewMenuPath = buildPublicMenuPath(effectiveSlug || name);
   const previewMenuUrl = useMemo(
     () => absoluteMenuUrl(siteOrigin, previewMenuPath),
     [previewMenuPath, siteOrigin]
   );
+  const slugMessage = effectiveSlug
+    ? `Slug public normalise : ${effectiveSlug}`
+    : "Le slug public sera genere depuis le nom.";
 
   function updateName(value: string) {
     setName(value);
@@ -70,7 +83,25 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
-    setState({ status: "idle", message: "" });
+    setState({
+      status: "validating",
+      message: "Validation du slug et du contact..."
+    });
+
+    const normalizedSlug = slugifyRestaurantSlug(effectiveSlug || name);
+    if (!normalizedSlug || normalizedSlug.length < 2) {
+      setIsSubmitting(false);
+      setState({
+        status: "error",
+        message: "Slug public invalide. Ajustez le nom ou le slug."
+      });
+      return;
+    }
+
+    setState({
+      status: "creating",
+      message: "Creation dans Supabase en cours..."
+    });
 
     try {
       const response = await fetch("/api/restaurants", {
@@ -78,7 +109,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          slug: effectiveSlug,
+          slug: normalizedSlug,
           location,
           cuisineType,
           status,
@@ -91,17 +122,31 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       const result = (await response.json()) as {
         ok?: boolean;
         error?: string;
+        persisted?: boolean;
+        dataSource?: "supabase";
         restaurant?: OwnerRestaurant;
       };
 
       if (!response.ok || !result.ok || !result.restaurant) {
-        throw new Error(result.error ?? "Création impossible.");
+        throw new Error(result.error ?? "Creation impossible.");
+      }
+
+      if (!result.persisted || result.dataSource !== "supabase") {
+        setState({
+          status: "fallback",
+          message:
+            "Supabase n'a pas confirme la persistance. Aucun succes production n'est affiche."
+        });
+        return;
       }
 
       setState({
         status: "success",
-        message: "Restaurant créé. QR et liens prêts pour la prochaine étape.",
-        restaurant: result.restaurant
+        message:
+          "Restaurant persiste dans Supabase. Liens et prochaine etape prets.",
+        restaurant: result.restaurant,
+        persisted: true,
+        dataSource: "supabase"
       });
       router.refresh();
     } catch (error) {
@@ -110,12 +155,19 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         message:
           error instanceof Error
             ? error.message
-            : "Le restaurant n'a pas pu être créé."
+            : "Le restaurant n'a pas pu etre cree."
       });
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const buttonLabel =
+    state.status === "validating"
+      ? "Verification..."
+      : state.status === "creating"
+        ? "Creation Supabase..."
+        : "Creer le restaurant";
 
   return (
     <div className={styles.createGrid}>
@@ -134,6 +186,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             required
             value={effectiveSlug}
             onChange={updateSlug}
+            hint={slugMessage}
           />
           <Field
             label="Ville / emplacement"
@@ -180,7 +233,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onChange={setContactEmail}
           />
           <Field
-            label="Téléphone optionnel"
+            label="Telephone optionnel"
             name="contactPhone"
             type="tel"
             value={contactPhone}
@@ -200,11 +253,10 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         </label>
 
         <div className={styles.urlPreview}>
-          <p className={styles.metricLabel}>URL menu preview</p>
+          <p className={styles.metricLabel}>Menu public preview</p>
           <p className={`${styles.bodyText} ${styles.breakText}`}>{previewMenuUrl}</p>
           <p className={styles.sourceNote}>
-            Lien dérivé depuis le domaine configuré du site, jamais hardcodé sur
-            localhost.
+            Lien derive du domaine configure du site. Aucun localhost hardcode.
           </p>
         </div>
 
@@ -214,10 +266,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             disabled={isSubmitting}
             className={styles.submitButton}
           >
-            {isSubmitting ? "Création..." : "Créer le restaurant"}
+            {buttonLabel}
           </button>
           {state.status === "error" ? (
             <p role="status" className={styles.errorText}>
+              {state.message}
+            </p>
+          ) : state.status === "validating" || state.status === "creating" ? (
+            <p role="status" className={styles.sourceNote}>
               {state.message}
             </p>
           ) : null}
@@ -227,6 +283,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       <aside className={styles.asidePanel}>
         {state.status === "success" ? (
           <SuccessPanel state={state} />
+        ) : state.status === "fallback" ? (
+          <FallbackPanel message={state.message} />
         ) : (
           <PreviewPanel
             name={name || "Nouveau restaurant"}
@@ -250,7 +308,7 @@ function PreviewPanel({
 }) {
   return (
     <div>
-      <p className={styles.badge}>Avant création</p>
+      <p className={styles.badge}>Avant creation</p>
       <h3 className={styles.panelTitle}>{name}</h3>
       <dl className={styles.definitionList}>
         <div>
@@ -263,8 +321,22 @@ function PreviewPanel({
         </div>
       </dl>
       <p className={styles.bodyText}>
-        Après création, Vistaire affichera le QR scannable et les prochaines
-        étapes de setup.
+        Apres creation, Vistaire affichera l&apos;id Supabase, les liens utiles et la
+        prochaine etape de setup.
+      </p>
+    </div>
+  );
+}
+
+function FallbackPanel({ message }: { message: string }) {
+  return (
+    <div>
+      <p className={`${styles.badge} ${styles.badgeWarn}`}>Non persiste</p>
+      <h3 className={styles.panelTitle}>Creation non confirmee</h3>
+      <p className={styles.bodyText}>{message}</p>
+      <p className={styles.sourceNote}>
+        Le restaurant doit etre cree dans Supabase avant d&apos;etre annonce comme
+        disponible en production.
       </p>
     </div>
   );
@@ -279,22 +351,34 @@ function SuccessPanel({
 
   return (
     <div>
-      <p className={styles.badge}>Création terminée</p>
+      <p className={`${styles.badge} ${styles.badgeReady}`}>Persiste Supabase</p>
       <h3 className={styles.panelTitle}>{restaurant.name}</h3>
       <p className={styles.bodyText}>{state.message}</p>
 
       <dl className={styles.definitionList}>
         <div>
+          <dt>ID Supabase</dt>
+          <dd>{restaurant.id}</dd>
+        </div>
+        <div>
           <dt>Slug</dt>
           <dd>{restaurant.slug}</dd>
+        </div>
+        <div>
+          <dt>Source</dt>
+          <dd>{state.dataSource}</dd>
         </div>
         <div>
           <dt>Menu public</dt>
           <dd>{restaurant.menuUrl}</dd>
         </div>
         <div>
-          <dt>Dashboard restaurateur</dt>
+          <dt>Apercu restaurateur</dt>
           <dd>{restaurant.dashboardHref}</dd>
+        </div>
+        <div>
+          <dt>Setup</dt>
+          <dd>{restaurant.nextAction}</dd>
         </div>
       </dl>
 
@@ -303,14 +387,32 @@ function SuccessPanel({
         restaurantName={restaurant.name}
         className={styles.successQr}
       />
+      <p className={styles.sourceNote}>
+        QR preview du menu public. Pour un QR securise et persiste, utilisez le
+        module QR.
+      </p>
 
       <div className={styles.nextSteps}>
-        <p className={styles.metricLabel}>Prochaines étapes</p>
-        <ul>
-          <li>Compléter les plats et photos du menu.</li>
-          <li>Choisir les plats signatures pour 3D / AR.</li>
-          <li>Tester le QR sur mobile avant impression.</li>
-        </ul>
+        <p className={styles.metricLabel}>Prochaines etapes</p>
+        <div className={styles.pillRow}>
+          <a
+            className={styles.btn}
+            href={restaurant.menuUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Tester le menu
+          </a>
+          <Link className={styles.btn} href="/owner/plats" prefetch={false}>
+            Gerer les plats
+          </Link>
+          <Link className={styles.btn} href="/owner/qr-codes" prefetch={false}>
+            Generer QR
+          </Link>
+          <Link className={styles.btn} href="/owner/restaurants" prefetch={false}>
+            Ouvrir restaurant
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -322,7 +424,8 @@ function Field({
   value,
   onChange,
   type = "text",
-  required = false
+  required = false,
+  hint
 }: {
   label: string;
   name: string;
@@ -330,6 +433,7 @@ function Field({
   onChange: (value: string) => void;
   type?: string;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <label className={styles.formField}>
@@ -342,6 +446,7 @@ function Field({
         onChange={(event) => onChange(event.target.value)}
         className={styles.control}
       />
+      {hint ? <span className={styles.sourceNote}>{hint}</span> : null}
     </label>
   );
 }

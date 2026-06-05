@@ -1,11 +1,11 @@
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, EmptyState, ModuleHeader, Panel, StatGroup, StatTile } from "@/components/owner/OwnerUi";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
+import { getOwnerMenuStatusData } from "@/lib/owner/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function OwnerPlatsPage() {
-  const data = await getOwnerDashboard();
+  const data = await getOwnerMenuStatusData();
   const totals = data.restaurants.reduce(
     (acc, restaurant) => {
       acc.dishes += restaurant.dishCount;

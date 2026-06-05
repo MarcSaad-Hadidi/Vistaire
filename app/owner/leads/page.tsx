@@ -1,11 +1,11 @@
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, EmptyState, ModuleHeader, Panel } from "@/components/owner/OwnerUi";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
+import { getOwnerMenuStatusData } from "@/lib/owner/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function OwnerLeadsPage() {
-  const data = await getOwnerDashboard();
+  const data = await getOwnerMenuStatusData();
   const leads = data.restaurants.filter((restaurant) => !restaurant.isDemo);
 
   return (

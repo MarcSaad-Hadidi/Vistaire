@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVistaireOwnerApi } from "@/lib/auth/ownerApi";
-import { getOwnerDashboard } from "@/lib/owner/dashboard";
+import { getOwnerDashboardData } from "@/lib/owner/data";
 import { buildOwnerAiPriorities } from "@/lib/owner/ai/rules";
 import type { OwnerAiResult } from "@/lib/owner/types";
 
@@ -17,7 +17,7 @@ export async function POST() {
   const owner = await requireVistaireOwnerApi();
   if (!owner.ok) return owner.response;
 
-  const data = await getOwnerDashboard();
+  const data = await getOwnerDashboardData({ includeAiRecommendations: true });
   const priorities = buildOwnerAiPriorities(data.restaurants);
 
   const result: OwnerAiResult = {

@@ -31,6 +31,7 @@ function isOwnerDevBypassRoute(request: NextRequest): boolean {
   return (
     request.nextUrl.pathname === "/owner" ||
     request.nextUrl.pathname.startsWith("/owner/") ||
+    request.nextUrl.pathname.startsWith("/api/restaurants") ||
     request.nextUrl.pathname.startsWith("/api/owner/")
   );
 }
