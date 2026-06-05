@@ -1579,6 +1579,90 @@
 }
 
 /* QR customizer */
+.qrManager {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.qrSetupGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.32fr) minmax(0, 0.68fr);
+  gap: 12px;
+}
+
+.qrTypeGroup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.qrTypeButton {
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--owner-cream);
+  cursor: pointer;
+  text-align: left;
+}
+
+.qrTypeButton span {
+  display: block;
+  color: var(--owner-cream);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.qrTypeButton small {
+  display: block;
+  margin-top: 6px;
+  color: var(--owner-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.qrTypeButton em {
+  display: inline-block;
+  margin-top: 7px;
+  color: var(--owner-champagne);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.qrTypeButtonActive {
+  border-color: rgba(232, 207, 155, 0.74);
+  background: rgba(232, 207, 155, 0.1);
+  box-shadow: 0 0 0 1px rgba(232, 207, 155, 0.12);
+}
+
+.qrTargetBanner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-0);
+}
+
+.qrTargetBanner strong {
+  color: var(--owner-cream);
+  font-size: 13px;
+}
+
+.qrTargetBanner p {
+  margin: 4px 0 0;
+  color: var(--owner-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .qrCustomizer {
   display: grid;
   grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
@@ -1601,8 +1685,8 @@
 }
 
 .qrPreviewFrame svg {
-  width: 220px;
-  height: 220px;
+  width: min(240px, 100%);
+  height: auto;
 }
 
 .qrUrlBox {
@@ -3060,6 +3144,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .qrSetupGrid,
+  .qrTypeGroup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qrTargetBanner {
+    flex-direction: column;
+  }
+
   .statTilePrimary {
     grid-column: span 1;
   }
@@ -3118,6 +3211,15 @@
   .pipelineObservabilityGrid,
   .pipelineFilterBar {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qrExportRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .qrExportRow .btnPrimary {
+    grid-column: 1 / -1;
   }
 
   .pipelineDetailHeader,

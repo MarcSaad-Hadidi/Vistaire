@@ -1,3 +1,22 @@
+export type OwnerQrTargetKind = "menu" | "admin";
+
+export type OwnerQrTarget = {
+  targetKind: OwnerQrTargetKind;
+  label: string;
+  usage: string;
+  targetPath: string;
+  badgeLabel: string;
+};
+
+type BuildOwnerQrTargetArgs = {
+  targetKind: OwnerQrTargetKind;
+  restaurantId: string;
+  restaurantName: string;
+  restaurantSlug: string;
+};
+
+const MAX_OWNER_QR_TARGET_PATH_LENGTH = 512;
+
 export function slugifyRestaurantSlug(value: string): string {
   return value
     .normalize("NFD")
@@ -17,9 +36,9 @@ export function buildRestaurantMenuPath(slugOrName: string): string {
 
 export function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string {
   const safeId = restaurantIdOrSlug.trim();
-  if (!safeId) return "/admin";
+  if (!safeId) return "/owner";
 
-  return `/admin?restaurantId=${encodeURIComponent(safeId)}`;
+  return `/owner/restaurants?restaurantId=${encodeURIComponent(safeId)}`;
 }
 
 /**
@@ -52,4 +71,64 @@ export function buildPublicMenuPath(
  */
 export function buildQrRedirectPath(token: string): string {
   return `/q/${encodeURIComponent(token)}`;
+}
+
+export function sanitizeOwnerQrTargetPath(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  if (trimmed.includes("\\")) return null;
+
+  try {
+    const parsed = new URL(trimmed, "https://vistaire.local");
+    if (parsed.origin !== "https://vistaire.local") return null;
+    return `${parsed.pathname}${parsed.search}`.slice(0, MAX_OWNER_QR_TARGET_PATH_LENGTH);
+  } catch {
+    return null;
+  }
+}
+
+export function isOwnerQrTargetPathAllowed(
+  targetKind: OwnerQrTargetKind,
+  input: string
+): boolean {
+  const targetPath = sanitizeOwnerQrTargetPath(input);
+  if (!targetPath) return false;
+
+  if (targetKind === "menu") {
+    return targetPath === "/demo" || targetPath.startsWith("/menu/");
+  }
+
+  return (
+    targetPath === "/owner" ||
+    targetPath.startsWith("/owner/") ||
+    targetPath.startsWith("/owner?")
+  );
+}
+
+export function inferOwnerQrTargetKind(targetPath: string): OwnerQrTargetKind {
+  return isOwnerQrTargetPathAllowed("admin", targetPath) ? "admin" : "menu";
+}
+
+export function buildOwnerQrTarget(args: BuildOwnerQrTargetArgs): OwnerQrTarget {
+  const restaurantName = args.restaurantName.trim() || "Restaurant";
+
+  if (args.targetKind === "admin") {
+    const targetPath = buildRestaurantDashboardPath(args.restaurantId || args.restaurantSlug);
+    return {
+      targetKind: "admin",
+      label: `QR admin - ${restaurantName}`,
+      usage: "Interne seulement - ne pas imprimer pour les clients.",
+      targetPath,
+      badgeLabel: "Interne owner - protege"
+    };
+  }
+
+  const targetPath = buildPublicMenuPath(args.restaurantSlug || restaurantName);
+  return {
+    targetKind: "menu",
+    label: `QR menu - ${restaurantName}`,
+    usage: "A imprimer sur les tables ou a donner aux clients.",
+    targetPath,
+    badgeLabel: "Public client"
+  };
 }

@@ -1,0 +1,59 @@
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import assert from "node:assert/strict";
+
+test("owner QR API accepts an explicit target kind and returns target metadata", async () => {
+  const source = await readFile("app/api/owner/qr-codes/route.ts", "utf8");
+
+  assert.match(source, /targetKind/);
+  assert.match(source, /candidate\.targetKind === "menu"/);
+  assert.match(source, /candidate\.targetKind === "admin"/);
+  assert.match(source, /createOwnerQrCode\(\{[\s\S]*targetKind/s);
+  assert.match(source, /targetPath: created\.record\.targetPath/);
+  assert.match(source, /targetKind: created\.record\.targetKind/);
+});
+
+test("owner QR manager exposes restaurant, QR type, destination, and safety badges", async () => {
+  const manager = await readFile("components/owner/OwnerQrManager.tsx", "utf8");
+  const customizer = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
+
+  assert.match(manager, /buildOwnerQrTarget/);
+  assert.match(manager, /QR menu public/);
+  assert.match(manager, /QR admin owner/);
+  assert.match(manager, /Destination exacte/);
+  assert.match(manager, /Public client/);
+  assert.match(manager, /Interne owner/);
+  assert.match(customizer, /Logo au centre/);
+  assert.match(customizer, /Aucun logo/);
+  assert.match(customizer, /Monogramme du restaurant/);
+  assert.match(customizer, /Logo image/);
+});
+
+test("owner QR customizer saves target kind and displays persistence details", async () => {
+  const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
+
+  assert.match(source, /targetKind/);
+  assert.match(source, /targetLabel/);
+  assert.match(source, /targetPath/);
+  assert.match(source, /persisted/);
+  assert.match(source, /record\?:/);
+  assert.match(source, /QR securise enregistre/);
+  assert.match(source, /non persiste/);
+});
+
+test("QR scan RPC is not executable by public browser roles", async () => {
+  const migration = await readFile(
+    "supabase/migrations/0002_qr_resolve_scan_rpc.sql",
+    "utf8"
+  );
+
+  assert.match(migration, /security definer/i);
+  assert.match(
+    migration,
+    /revoke execute on function public\.resolve_qr_code_scan\(text\) from public, anon, authenticated/i
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.resolve_qr_code_scan\(text\) to service_role/i
+  );
+});

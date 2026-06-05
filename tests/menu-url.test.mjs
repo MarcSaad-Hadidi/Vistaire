@@ -31,6 +31,9 @@ test("builds absolute menu URLs from configured site origin only", () => {
 });
 
 test("builds restaurant dashboard preview paths separately from owner cockpit", () => {
-  assert.equal(buildRestaurantDashboardPath("restaurant-id"), "/admin?restaurantId=restaurant-id");
-  assert.equal(buildRestaurantDashboardPath(""), "/admin");
+  assert.equal(
+    buildRestaurantDashboardPath("restaurant-id"),
+    "/owner/restaurants?restaurantId=restaurant-id"
+  );
+  assert.equal(buildRestaurantDashboardPath(""), "/owner");
 });

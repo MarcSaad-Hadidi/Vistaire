@@ -1,0 +1,86 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  buildOwnerQrTarget,
+  inferOwnerQrTargetKind,
+  isOwnerQrTargetPathAllowed,
+  sanitizeOwnerQrTargetPath
+} from "../lib/owner/menuUrlCore.ts";
+import { normalizeOwnerQrStyle } from "../lib/owner/qrStyle.ts";
+
+test("builds a public menu QR target with a clear label", () => {
+  const target = buildOwnerQrTarget({
+    targetKind: "menu",
+    restaurantId: "rest_123",
+    restaurantName: "Maison Elyse",
+    restaurantSlug: "maison-elyse"
+  });
+
+  assert.equal(target.targetKind, "menu");
+  assert.equal(target.targetPath, "/menu/maison-elyse");
+  assert.equal(target.label, "QR menu - Maison Elyse");
+  assert.equal(target.badgeLabel, "Public client");
+});
+
+test("builds an internal protected owner QR target with a clear label", () => {
+  const target = buildOwnerQrTarget({
+    targetKind: "admin",
+    restaurantId: "rest_123",
+    restaurantName: "Maison Elyse",
+    restaurantSlug: "maison-elyse"
+  });
+
+  assert.equal(target.targetKind, "admin");
+  assert.equal(target.targetPath, "/owner/restaurants?restaurantId=rest_123");
+  assert.equal(target.label, "QR admin - Maison Elyse");
+  assert.equal(target.badgeLabel, "Interne owner - protege");
+  assert.doesNotMatch(target.targetPath, /secret|token|key|service_role/i);
+});
+
+test("sanitizes QR target paths without allowing open redirects", () => {
+  assert.equal(sanitizeOwnerQrTargetPath("/menu/maison?table=12"), "/menu/maison?table=12");
+  assert.equal(
+    sanitizeOwnerQrTargetPath("/owner/restaurants?restaurantId=rest_123"),
+    "/owner/restaurants?restaurantId=rest_123"
+  );
+  assert.equal(sanitizeOwnerQrTargetPath("https://evil.example/menu"), null);
+  assert.equal(sanitizeOwnerQrTargetPath("http://evil.example/menu"), null);
+  assert.equal(sanitizeOwnerQrTargetPath("//evil.example/menu"), null);
+  assert.equal(sanitizeOwnerQrTargetPath("/\\evil.example"), null);
+  assert.equal(sanitizeOwnerQrTargetPath("/menu\\evil"), null);
+});
+
+test("enforces allowed target paths by QR type", () => {
+  assert.equal(isOwnerQrTargetPathAllowed("menu", "/menu/maison-elyse"), true);
+  assert.equal(isOwnerQrTargetPathAllowed("menu", "/owner/restaurants"), false);
+  assert.equal(
+    isOwnerQrTargetPathAllowed("admin", "/owner/restaurants?restaurantId=rest_123"),
+    true
+  );
+  assert.equal(isOwnerQrTargetPathAllowed("admin", "/admin?restaurantId=rest_123"), false);
+  assert.equal(isOwnerQrTargetPathAllowed("admin", "/menu/maison-elyse"), false);
+});
+
+test("infers QR target kind from persisted target paths", () => {
+  assert.equal(inferOwnerQrTargetKind("/menu/maison-elyse"), "menu");
+  assert.equal(inferOwnerQrTargetKind("/owner/restaurants?restaurantId=rest_123"), "admin");
+});
+
+test("keeps logo QR styles scannable with high error correction", () => {
+  assert.equal(
+    normalizeOwnerQrStyle({ logoMode: "none", errorCorrectionLevel: "M" })
+      .errorCorrectionLevel,
+    "M"
+  );
+  assert.equal(
+    normalizeOwnerQrStyle({ logoMode: "monogram", errorCorrectionLevel: "M" })
+      .errorCorrectionLevel,
+    "H"
+  );
+  assert.equal(
+    normalizeOwnerQrStyle({ logoMode: "imageUrl", errorCorrectionLevel: "Q" })
+      .errorCorrectionLevel,
+    "H"
+  );
+});
