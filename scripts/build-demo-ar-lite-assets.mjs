@@ -98,6 +98,32 @@ const PROFILES = [
     targetMaxDimMeters: 0.18,
     note:
       "Souffle AR-lite source for iOS Quick Look; tuned to stay closer to the Meshopt web preview."
+  },
+  {
+    slug: "tartare-saumon",
+    source: "tartare-saumon-meshy.glb",
+    output: "tartare-saumon-ar-lite-meshy.glb",
+    simplifyRatio: 0.56,
+    simplifyError: 0.001,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.44,
+    balancedSimplifyError: 0.0008,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.19,
+    note: "Tartare AR-lite from Meshy compressed source."
+  },
+  {
+    slug: "tarte-citron-basilic",
+    source: "tarte-citron-basilic-meshy.glb",
+    output: "tarte-citron-basilic-ar-lite-meshy.glb",
+    simplifyRatio: 0.58,
+    simplifyError: 0.0009,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.45,
+    balancedSimplifyError: 0.0007,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.18,
+    note: "Tarte citron AR-lite from Meshy compressed source."
   }
 ];
 

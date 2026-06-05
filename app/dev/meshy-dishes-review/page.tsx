@@ -138,11 +138,65 @@ const DISHES: DishReview[] = [
       previewGlb: "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
       sizeMb: "1,7 Mo"
     }
+  },
+  {
+    slug: "tartare-saumon",
+    title: "Tartare de saumon",
+    sourceFile: "3D Plat/TartareMeshyCompresser",
+    demoHref: "/demo/dishes/tartare-saumon",
+    glb: [
+      { label: "GLB Draco (meshy)", url: "/models/demo/tartare-saumon-meshy.glb", sizeMb: "3,7 Mo" },
+      {
+        label: "GLB web Meshopt",
+        url: "/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+        sizeMb: "4,9 Mo"
+      },
+      {
+        label: "GLB AR-lite",
+        url: "/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb",
+        sizeMb: "11,2 Mo"
+      }
+    ],
+    usdz: {
+      label: "USDZ Quick Look iPhone",
+      url: "/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz",
+      previewGlb: "/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb",
+      sizeMb: "3,4 Mo"
+    }
+  },
+  {
+    slug: "tarte-citron-basilic",
+    title: "Tarte citron & basilic",
+    sourceFile: "3D Plat/TarteMeshyCompresser",
+    demoHref: "/demo/dishes/tarte-citron-basilic",
+    glb: [
+      {
+        label: "GLB Draco (meshy)",
+        url: "/models/demo/tarte-citron-basilic-meshy.glb",
+        sizeMb: "2,1 Mo"
+      },
+      {
+        label: "GLB web Meshopt",
+        url: "/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+        sizeMb: "2,4 Mo"
+      },
+      {
+        label: "GLB AR-lite",
+        url: "/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+        sizeMb: "6,0 Mo"
+      }
+    ],
+    usdz: {
+      label: "USDZ Quick Look iPhone",
+      url: "/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz",
+      previewGlb: "/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+      sizeMb: "1,4 Mo"
+    }
   }
 ];
 
 /** Force le navigateur à recharger les GLB/USDZ après remplacement des sources Meshy. */
-const PREVIEW_CACHE_BUST = "meshy-20260604";
+const PREVIEW_CACHE_BUST = "meshy-20260605";
 
 function previewAssetUrl(url: string): string {
   return `${url}?v=${PREVIEW_CACHE_BUST}`;

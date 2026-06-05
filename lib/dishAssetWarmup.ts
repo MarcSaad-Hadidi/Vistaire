@@ -32,6 +32,12 @@ const demoAssetByteSizes = new Map<string, number>([
   ["/models/demo/souffle-chocolat-meshy.glb", 1_672_464],
   ["/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb", 4_707_036],
   ["/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz", 1_736_180],
+  ["/models/demo/tartare-saumon-meshy.glb", 3_845_704],
+  ["/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb", 11_786_728],
+  ["/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz", 3_612_924],
+  ["/models/demo/tarte-citron-basilic-meshy.glb", 2_226_400],
+  ["/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb", 6_255_656],
+  ["/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz", 1_455_612],
   ["/models/demo/maison-elyse-n1.glb", 86_380],
   ["/models/demo/maison-elyse-n1.usdz", 208_984]
 ]);

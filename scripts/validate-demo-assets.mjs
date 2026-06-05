@@ -62,6 +62,20 @@ const WEB_GLB_EXPECTATIONS = new Map([
       url: "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
       sha256: "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
     }
+  ],
+  [
+    "tartare-saumon",
+    {
+      url: "/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+      sha256: "4b0b610c0ea76f646849f7b78daca6c29b57abe4538d223d823e43eebf3d6f01"
+    }
+  ],
+  [
+    "tarte-citron-basilic",
+    {
+      url: "/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+      sha256: "2ab5b779e3122cb1090c3996825194d789e3102b83c9db693204a5d5026c1161"
+    }
   ]
 ]);
 const CORE_ASSET_EXPECTATIONS = new Map([
@@ -110,6 +124,20 @@ const CORE_ASSET_EXPECTATIONS = new Map([
     }
   ],
   [
+    "tartare-saumon",
+    {
+      model3dUrl: "/models/demo/tartare-saumon-meshy.glb",
+      modelSha256: "34c1bec2c03a016c819c44e6c3a12e5916240a6c03c2587dc867aadd40ad2549"
+    }
+  ],
+  [
+    "tarte-citron-basilic",
+    {
+      model3dUrl: "/models/demo/tarte-citron-basilic-meshy.glb",
+      modelSha256: "ce12f630cba01f3e300c4cf28674ffefbbdcef6fed9a790069249bd2baf78254"
+    }
+  ],
+  [
     "cocktail-maison-elyse",
     {
       model3dUrl: "/models/demo/maison-elyse-n1.glb",
@@ -127,7 +155,9 @@ const ACTIVE_PUBLIC_USDZ_FILES = new Set([
   "canette-aux-figues-ios-quicklook-meshy.usdz",
   "bar-de-ligne-ios-quicklook-meshy.usdz",
   "pave-boeuf-ios-quicklook-meshy.usdz",
-  "souffle-chocolat-ios-quicklook-meshy.usdz"
+  "souffle-chocolat-ios-quicklook-meshy.usdz",
+  "tartare-saumon-ios-quicklook-meshy.usdz",
+  "tarte-citron-basilic-ios-quicklook-meshy.usdz"
 ]);
 const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
   [
@@ -170,6 +200,20 @@ const APPROVED_IOS_QUICK_LOOK_USDZ = new Map([
     {
       url: "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
       sha256: "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef"
+    }
+  ],
+  [
+    "tartare-saumon",
+    {
+      url: "/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz",
+      sha256: "bc043640c6539705c516a25b135f8b3a6fd4479ea9ea83c375205943bb5a404b"
+    }
+  ],
+  [
+    "tarte-citron-basilic",
+    {
+      url: "/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz",
+      sha256: "8ebcae39f73e46f501ebe23da4bdfe24dc9fbc8a4ec4eeb4ef3406ad0d0fa8f2"
     }
   ]
 ]);
@@ -704,6 +748,20 @@ for (const [dish, label, meshyPath, arLitePath, arUsdzPath] of [
     "/models/demo/pave-boeuf-meshy.glb",
     "/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb",
     "/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz"
+  ],
+  [
+    dishes.find((dish) => dish.slug === "tartare-saumon"),
+    "tartare",
+    "/models/demo/tartare-saumon-meshy.glb",
+    "/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb",
+    "/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz"
+  ],
+  [
+    dishes.find((dish) => dish.slug === "tarte-citron-basilic"),
+    "tarte",
+    "/models/demo/tarte-citron-basilic-meshy.glb",
+    "/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+    "/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz"
   ]
 ]) {
   if (!dish) {
