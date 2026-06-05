@@ -1,5 +1,9 @@
 import { BrevoClient, BrevoError } from "@getbrevo/brevo";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getSiteUrl } from "@/lib/seo";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type ContactField = "name" | "email" | "restaurant" | "message";
 
@@ -11,6 +15,12 @@ const CONTACT_EMAIL = "contact@vistaire.ca";
 const SENDER_NAME = "Vistaire";
 const SOURCE_PATH = "/prendre-rendez-vous";
 const MAX_BODY_LENGTH = 12_000;
+const CONTACT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
+const CONTACT_RATE_LIMIT_MAX_REQUESTS = 5;
+const CONTACT_RATE_LIMIT_STORE_MAX_KEYS = 500;
+const contactOriginError =
+  "Veuillez reessayer depuis le site Vistaire.";
+const contactRateLimitError = "Trop de demandes. Réessayez plus tard.";
 const FIELD_LIMITS: Record<ContactField | "company", number> = {
   name: 80,
   email: 254,
@@ -23,6 +33,15 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type ContactValidationResult =
   | { ok: true; data: ContactRequest }
   | { ok: false; error: string };
+
+type ContactRateLimitBucket = {
+  count: number;
+  resetAt: number;
+};
+
+type ContactRateLimitGlobal = typeof globalThis & {
+  __vistaireContactRateLimit?: Map<string, ContactRateLimitBucket>;
+};
 
 function json(
   body: { ok: boolean; error?: string },
@@ -115,6 +134,176 @@ function validateContactPayload(
   }
 
   return { ok: true, data };
+}
+
+function parseOrigin(value: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalDevelopmentOrigin(origin: string) {
+  if (process.env.NODE_ENV === "production") return false;
+
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return (
+      protocol === "http:" &&
+      (hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1" ||
+        hostname === "[::1]")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function allowedContactOrigins(request: NextRequest) {
+  const origins = new Set<string>([request.nextUrl.origin]);
+
+  origins.add(getSiteUrl().origin);
+
+  for (const envKey of ["VERCEL_URL", "VERCEL_BRANCH_URL"]) {
+    const value = process.env[envKey]?.trim();
+    if (!value) continue;
+    try {
+      origins.add(
+        new URL(`https://${value.replace(/^https?:\/\//i, "")}`).origin
+      );
+    } catch {
+      // Ignore malformed optional platform URLs.
+    }
+  }
+
+  return origins;
+}
+
+function isAllowedContactOrigin(origin: string, request: NextRequest) {
+  if (allowedContactOrigins(request).has(origin)) return true;
+  return isLocalDevelopmentOrigin(origin);
+}
+
+function requireTrustedContactOrigin(request: NextRequest) {
+  const origin = parseOrigin(request.headers.get("origin"));
+  const refererOrigin = parseOrigin(request.headers.get("referer"));
+  const fetchSite = request.headers.get("sec-fetch-site");
+
+  if (!origin && !refererOrigin) {
+    return json({ ok: false, error: contactOriginError }, { status: 403 });
+  }
+
+  if (origin && !isAllowedContactOrigin(origin, request)) {
+    return json({ ok: false, error: contactOriginError }, { status: 403 });
+  }
+
+  if (refererOrigin && !isAllowedContactOrigin(refererOrigin, request)) {
+    return json({ ok: false, error: contactOriginError }, { status: 403 });
+  }
+
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
+    return json({ ok: false, error: contactOriginError }, { status: 403 });
+  }
+
+  return null;
+}
+
+function hasOversizedContentLength(request: NextRequest) {
+  const rawContentLength = request.headers.get("content-length");
+  if (!rawContentLength) return false;
+
+  const contentLength = Number(rawContentLength);
+  return (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_BODY_LENGTH
+  );
+}
+
+function getContactRateLimitStore() {
+  const storeGlobal = globalThis as ContactRateLimitGlobal;
+  const store =
+    storeGlobal.__vistaireContactRateLimit ??
+    new Map<string, ContactRateLimitBucket>();
+
+  storeGlobal.__vistaireContactRateLimit = store;
+  return store;
+}
+
+function pruneContactRateLimitStore(
+  store: Map<string, ContactRateLimitBucket>,
+  now: number
+) {
+  for (const [key, bucket] of store) {
+    if (bucket.resetAt <= now) store.delete(key);
+  }
+
+  while (store.size > CONTACT_RATE_LIMIT_STORE_MAX_KEYS) {
+    const oldestKey = store.keys().next().value;
+    if (!oldestKey) break;
+    store.delete(oldestKey);
+  }
+}
+
+function forwardedHeaderClientIp(value: string | null) {
+  const firstForwardedEntry = value?.split(",")[0]?.trim();
+  const match = firstForwardedEntry?.match(/(?:^|;)\s*for="?([^;"]+)"?/i);
+  return match?.[1]?.replace(/^\[|\]$/g, "").trim() || "";
+}
+
+function getClientRateLimitKey(request: NextRequest) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const candidate =
+    request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    forwardedFor?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    request.headers.get("true-client-ip")?.trim() ||
+    forwardedHeaderClientIp(request.headers.get("forwarded")) ||
+    "unknown";
+
+  const normalized = candidate
+    .replace(/[^a-zA-Z0-9:._-]/g, "")
+    .slice(0, 80);
+
+  return `contact:${normalized || "unknown"}`;
+}
+
+function consumeContactRateLimit(request: NextRequest) {
+  const store = getContactRateLimitStore();
+  const now = Date.now();
+  const key = getClientRateLimitKey(request);
+
+  pruneContactRateLimitStore(store, now);
+
+  const bucket = store.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    store.set(key, {
+      count: 1,
+      resetAt: now + CONTACT_RATE_LIMIT_WINDOW_MS
+    });
+    return null;
+  }
+
+  if (bucket.count >= CONTACT_RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1_000));
+
+    return json(
+      { ok: false, error: contactRateLimitError },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retryAfter)
+        }
+      }
+    );
+  }
+
+  bucket.count += 1;
+  return null;
 }
 
 function escapeHtml(value: string) {
@@ -213,7 +402,17 @@ function logBrevoFailure(error: unknown) {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const originError = requireTrustedContactOrigin(request);
+  if (originError) return originError;
+
+  if (hasOversizedContentLength(request)) {
+    return json(
+      { ok: false, error: "Veuillez verifier les champs du formulaire." },
+      { status: 400 }
+    );
+  }
+
   let payload: unknown;
 
   try {
@@ -239,6 +438,12 @@ export async function POST(request: Request) {
   }
 
   const { data } = validation;
+
+  // Minimal in-memory quota guard. On serverless, this is per warm instance;
+  // production can add a global Cloudflare/Vercel KV/Upstash limiter later.
+  const rateLimitError = consumeContactRateLimit(request);
+  if (rateLimitError) return rateLimitError;
+
   if (data.company) {
     return json({ ok: true }, { status: 202 });
   }

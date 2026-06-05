@@ -38,6 +38,7 @@ const contactComponentPath =
   "components/vistaire-preview/VistaireContactPreview.tsx";
 const contactFormComponentPath =
   "components/vistaire-preview/VistaireContactForm.tsx";
+const contactApiRoutePath = "app/api/contact/route.ts";
 const contactCssPath =
   "components/vistaire-preview/VistaireContactPreview.module.css";
 const rendezVousComponentPath =
@@ -658,6 +659,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     route,
     component,
     formComponent,
+    contactApiRoute,
     css,
     chromeComponent,
     chromeCss
@@ -665,6 +667,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     readText(rendezVousRoutePath),
     readText(rendezVousComponentPath),
     readText(contactFormComponentPath),
+    readText(contactApiRoutePath),
     readText(rendezVousCssPath),
     readText(chromeComponentPath),
     readText(chromeCssPath)
@@ -711,8 +714,13 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.match(formComponent, /validateContactForm/);
   assert.match(formComponent, /buildMailtoHref/);
   assert.match(formComponent, /fetch\("\/api\/contact"/);
-  assert.match(formComponent, /company:\s*company\.trim\(\)/);
+  assert.match(formComponent, /company:\s*trimmedCompany/);
   assert.match(formComponent, /styles\.honeypot/);
+  assert.match(formComponent, /submitInFlightRef/);
+  assert.match(formComponent, /submittedSignatureRef/);
+  assert.match(formComponent, /successfulSubmissionSignature/);
+  assert.match(formComponent, /buildSubmissionSignature/);
+  assert.match(formComponent, /Demande envoy\\u00e9e/);
   assert.match(formComponent, /mailto:\$\{contactEmail\}/);
   assert.match(formComponent, /successMessage/);
   assert.match(formComponent, /serverErrorMessage/);
@@ -731,6 +739,12 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.match(css, /\.submitButton/);
   assert.match(css, /\.fieldError/);
   assert.match(css, /@media \(max-width: 520px\)/);
+  assert.match(contactApiRoute, /requireTrustedContactOrigin/);
+  assert.match(contactApiRoute, /consumeContactRateLimit/);
+  assert.match(contactApiRoute, /CONTACT_RATE_LIMIT_MAX_REQUESTS\s*=\s*5/);
+  assert.match(contactApiRoute, /CONTACT_RATE_LIMIT_WINDOW_MS\s*=\s*10 \* 60/);
+  assert.match(contactApiRoute, /x-forwarded-for/);
+  assert.match(contactApiRoute, /Retry-After/);
   assert.match(chromeCss, /\.previewFooter/);
   assert.match(
     chromeComponent,

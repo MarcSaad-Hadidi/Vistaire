@@ -1,10 +1,21 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test, type TestInfo } from "@playwright/test";
 
 const MODEL_ASSET_RE = /\.(?:glb|usdz)(?:$|[?#])/i;
+const TEST_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+const TEST_ORIGIN = new URL(TEST_BASE_URL).origin;
+const TEST_RUN_ID = Date.now().toString(16).slice(-4);
 const SUCCESS_MESSAGE =
   "Votre demande a bien \u00e9t\u00e9 envoy\u00e9e. Nous vous r\u00e9pondrons rapidement \u00e0 l'adresse indiqu\u00e9e.";
 const ERROR_MESSAGE =
   "L'envoi n'a pas fonctionn\u00e9 pour le moment. Vous pouvez \u00e9crire directement \u00e0 contact@vistaire.ca.";
+const VALID_CONTACT_PAYLOAD = {
+  name: "Camille Laurier",
+  email: "camille@example.com",
+  restaurant: "Maison Laurier",
+  message:
+    "Nous souhaitons planifier un rendez-vous pour moderniser notre carte.",
+  company: ""
+};
 
 type PageHealth = {
   expectClean: () => void;
@@ -114,6 +125,30 @@ async function fillValidContactForm(page: Page) {
     .fill("Nous souhaitons planifier un rendez-vous pour moderniser notre carte.");
 }
 
+function hashTestLabel(label: string) {
+  return [...label].reduce((hash, char) => {
+    return (hash * 31 + char.charCodeAt(0)) % 0xffff;
+  }, 17);
+}
+
+function sameOriginHeaders(
+  testInfo: TestInfo,
+  label: string
+): Record<string, string> {
+  const worker = (testInfo.workerIndex + 1).toString(16);
+  const retry = (testInfo.retry + 1).toString(16);
+  const labelPart = hashTestLabel(label).toString(16);
+  const forwardedFor = `2001:db8:${TEST_RUN_ID}:${worker}:${retry}:${labelPart}:0:1`;
+
+  return {
+    Origin: TEST_ORIGIN,
+    Referer: `${TEST_ORIGIN}/prendre-rendez-vous`,
+    "Sec-Fetch-Site": "same-origin",
+    "X-Forwarded-For": forwardedFor,
+    "X-Vercel-Forwarded-For": forwardedFor
+  };
+}
+
 test.describe("rendez-vous contact form", () => {
   test("renders the expected accessible fields", async ({ page }) => {
     const health = installPageHealth(page);
@@ -181,15 +216,25 @@ test.describe("rendez-vous contact form", () => {
     expect(contactPosts).toBe(0);
   });
 
-  test("valid submit posts to the contact API and shows success", async ({
+  test("rapid repeated submit posts once and shows success", async ({
     page
   }) => {
     let contactPosts = 0;
     let payload: Record<string, unknown> | null = null;
+    let releaseResponse: () => void = () => {};
+    let markFirstRequestSeen: () => void = () => {};
+    const responseGate = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    const firstRequestSeen = new Promise<void>((resolve) => {
+      markFirstRequestSeen = resolve;
+    });
 
     await page.route("**/api/contact", async (route) => {
       contactPosts += 1;
       payload = route.request().postDataJSON() as Record<string, unknown>;
+      markFirstRequestSeen();
+      await responseGate;
       await route.fulfill({
         status: 202,
         contentType: "application/json",
@@ -199,12 +244,22 @@ test.describe("rendez-vous contact form", () => {
 
     await openRendezVous(page);
     await fillValidContactForm(page);
-    await page.getByRole("button", { name: "Envoyer la demande" }).click();
+    const submitButton = page.getByRole("button", {
+      name: "Envoyer la demande"
+    });
+    await submitButton.click();
+    await firstRequestSeen;
+    await expect(
+      page.getByRole("button", { name: "Envoi en cours..." })
+    ).toBeDisabled();
+    await page.locator("form").first().dispatchEvent("submit");
+    expect(contactPosts).toBe(1);
+    releaseResponse();
 
     await expect(page.getByText(SUCCESS_MESSAGE)).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Envoyer la demande" })
-    ).toBeEnabled();
+      page.getByRole("button", { name: "Demande envoy\u00e9e" })
+    ).toBeDisabled();
     expect(page.url()).toContain("/prendre-rendez-vous");
     expect(contactPosts).toBe(1);
     expect(payload).toEqual(
@@ -217,6 +272,45 @@ test.describe("rendez-vous contact form", () => {
         company: ""
       })
     );
+
+    await page.getByLabel("Message").fill(
+      "Nous souhaitons planifier un rendez-vous pour moderniser notre carte cette semaine."
+    );
+    await expect(
+      page.getByRole("button", { name: "Envoyer la demande" })
+    ).toBeEnabled();
+  });
+
+  test("success state locks identical submission until the form changes", async ({
+    page
+  }) => {
+    let contactPosts = 0;
+
+    await page.route("**/api/contact", async (route) => {
+      contactPosts += 1;
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true })
+      });
+    });
+
+    await openRendezVous(page);
+    await fillValidContactForm(page);
+    await page.getByRole("button", { name: "Envoyer la demande" }).click();
+    await expect(page.getByText(SUCCESS_MESSAGE)).toBeVisible();
+
+    await page.locator("form").first().dispatchEvent("submit");
+    expect(contactPosts).toBe(1);
+
+    await page.getByLabel("Message").fill(
+      "Nous souhaitons planifier un rendez-vous pour moderniser notre carte cette semaine."
+    );
+    await page.getByRole("button", { name: "Envoyer la demande" }).click();
+    await expect(
+      page.getByRole("button", { name: "Demande envoy\u00e9e" })
+    ).toBeDisabled();
+    expect(contactPosts).toBe(2);
   });
 
   test("server error keeps a visible direct email fallback", async ({ page }) => {
@@ -261,22 +355,155 @@ test.describe("rendez-vous contact form", () => {
     });
   }
 
-  test("contact API validates bad requests before Brevo config", async ({
-    request
-  }) => {
-    const response = await request.post("/api/contact", {
-      data: {
-        name: "",
-        email: "bad-email",
-        restaurant: "",
-        message: "court",
-        company: ""
-      }
+  test.describe.serial("contact API abuse guards", () => {
+    test("contact API validates bad requests before Brevo config", async (
+      { request },
+      testInfo
+    ) => {
+      const response = await request.post("/api/contact", {
+        headers: sameOriginHeaders(testInfo, "invalid-payload"),
+        data: {
+          name: "",
+          email: "bad-email",
+          restaurant: "",
+          message: "court",
+          company: ""
+        }
+      });
+
+      expect(response.status()).toBe(400);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ ok: false })
+      );
     });
 
-    expect(response.status()).toBe(400);
-    await expect(response.json()).resolves.toEqual(
-      expect.objectContaining({ ok: false })
-    );
+    test("contact API accepts honeypot submissions before Brevo config", async (
+      { request },
+      testInfo
+    ) => {
+      const response = await request.post("/api/contact", {
+        headers: sameOriginHeaders(testInfo, "honeypot"),
+        data: {
+          ...VALID_CONTACT_PAYLOAD,
+          company: "bot-filled-field"
+        }
+      });
+
+      expect(response.status()).toBe(202);
+      await expect(response.json()).resolves.toEqual({ ok: true });
+    });
+
+    test("contact API rejects clearly external origins", async (
+      { request },
+      testInfo
+    ) => {
+      const response = await request.post("/api/contact", {
+        headers: {
+          ...sameOriginHeaders(testInfo, "external-origin"),
+          Origin: "https://attacker.example",
+          Referer: "https://attacker.example/form",
+          "Sec-Fetch-Site": "cross-site"
+        },
+        data: VALID_CONTACT_PAYLOAD
+      });
+
+      expect(response.status()).toBe(403);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ ok: false })
+      );
+    });
+
+    test("contact API rejects external referers without origin", async (
+      { request },
+      testInfo
+    ) => {
+      const headersWithoutOrigin = sameOriginHeaders(
+        testInfo,
+        "external-referer"
+      );
+      delete headersWithoutOrigin.Origin;
+
+      const response = await request.post("/api/contact", {
+        headers: {
+          ...headersWithoutOrigin,
+          Referer: "https://attacker.example/form",
+          "Sec-Fetch-Site": "cross-site"
+        },
+        data: VALID_CONTACT_PAYLOAD
+      });
+
+      expect(response.status()).toBe(403);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ ok: false })
+      );
+    });
+
+    test("contact API rate limits repeated valid submissions", async (
+      { request },
+      testInfo
+    ) => {
+      const headers = sameOriginHeaders(testInfo, "rate-limit");
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const response = await request.post("/api/contact", {
+          headers,
+          data: {
+            ...VALID_CONTACT_PAYLOAD,
+            company: "rate-limit-test"
+          }
+        });
+
+        expect(response.status()).toBe(202);
+      }
+
+      const limited = await request.post("/api/contact", {
+        headers,
+        data: {
+          ...VALID_CONTACT_PAYLOAD,
+          company: "rate-limit-test"
+        }
+      });
+
+      expect(limited.status()).toBe(429);
+      expect(limited.headers()["retry-after"]).toBeTruthy();
+      await expect(limited.json()).resolves.toEqual({
+        ok: false,
+        error: "Trop de demandes. R\u00e9essayez plus tard."
+      });
+    });
+
+    test("contact API returns clean errors for malformed and oversized JSON", async (
+      { request },
+      testInfo
+    ) => {
+      const malformed = await request.post("/api/contact", {
+        headers: {
+          ...sameOriginHeaders(testInfo, "malformed-json"),
+          "Content-Type": "application/json"
+        },
+        data: "{not-json"
+      });
+
+      expect(malformed.status()).toBe(400);
+      await expect(malformed.json()).resolves.toEqual(
+        expect.objectContaining({ ok: false })
+      );
+
+      const oversized = await request.post("/api/contact", {
+        headers: {
+          ...sameOriginHeaders(testInfo, "oversized-json"),
+          "Content-Type": "application/json"
+        },
+        data: JSON.stringify({
+          ...VALID_CONTACT_PAYLOAD,
+          message: "x".repeat(12_001)
+        })
+      });
+
+      expect(oversized.status()).toBe(400);
+      await expect(oversized.json()).resolves.toEqual(
+        expect.objectContaining({ ok: false })
+      );
+    });
   });
 });

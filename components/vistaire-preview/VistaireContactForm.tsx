@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { CONTACT_PHONE_DISPLAY } from "@/lib/seo";
 import styles from "./VistaireRendezVousPreview.module.css";
 
@@ -83,6 +83,16 @@ function buildMailtoHref(values: ContactFormValues): string {
   )}&body=${encodeURIComponent(body)}`;
 }
 
+function buildSubmissionSignature(values: ContactFormValues, company: string) {
+  return JSON.stringify([
+    values.name,
+    values.email,
+    values.restaurant,
+    values.message,
+    company.trim()
+  ]);
+}
+
 function getErrorId(field: ContactField): string {
   return `contact-${field}-error`;
 }
@@ -96,12 +106,18 @@ export function VistaireContactForm() {
   const [company, setCompany] = useState("");
   const [errors, setErrors] = useState<ContactFormErrors>({});
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [successfulSubmissionSignature, setSuccessfulSubmissionSignature] =
+    useState<string | null>(null);
+  const submitInFlightRef = useRef(false);
+  const submittedSignatureRef = useRef<string | null>(null);
 
   const updateField =
     (field: ContactField) =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const nextValue = event.target.value;
 
+      submittedSignatureRef.current = null;
+      setSuccessfulSubmissionSignature(null);
       setValues((current) => ({
         ...current,
         [field]: nextValue
@@ -121,7 +137,22 @@ export function VistaireContactForm() {
   const submitContactRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (submitInFlightRef.current || submitState === "sending") return;
+
     const normalizedValues = normalizeValues(values);
+    const trimmedCompany = company.trim();
+    const submissionSignature = buildSubmissionSignature(
+      normalizedValues,
+      trimmedCompany
+    );
+
+    if (
+      submittedSignatureRef.current === submissionSignature ||
+      successfulSubmissionSignature === submissionSignature
+    ) {
+      return;
+    }
+
     const nextErrors = validateContactForm(normalizedValues);
     const firstInvalidField = Object.keys(nextErrors)[0] as
       | ContactField
@@ -142,6 +173,7 @@ export function VistaireContactForm() {
       return;
     }
 
+    submitInFlightRef.current = true;
     setSubmitState("sending");
 
     try {
@@ -153,7 +185,7 @@ export function VistaireContactForm() {
         },
         body: JSON.stringify({
           ...normalizedValues,
-          company: company.trim()
+          company: trimmedCompany
         })
       });
       const result = (await response
@@ -164,9 +196,13 @@ export function VistaireContactForm() {
         throw new Error("Contact request failed");
       }
 
+      submittedSignatureRef.current = submissionSignature;
+      setSuccessfulSubmissionSignature(submissionSignature);
       setSubmitState("success");
     } catch {
       setSubmitState("serverError");
+    } finally {
+      submitInFlightRef.current = false;
     }
   };
 
@@ -180,6 +216,10 @@ export function VistaireContactForm() {
   const statusMessage = statusMessages[submitState];
   const fallbackHref = buildMailtoHref(normalizeValues(values));
   const isSending = submitState === "sending";
+  const isSuccessLocked =
+    submitState === "success" &&
+    successfulSubmissionSignature ===
+      buildSubmissionSignature(normalizeValues(values), company);
 
   return (
     <form
@@ -287,7 +327,14 @@ export function VistaireContactForm() {
           autoComplete="off"
           id="contact-company"
           name="company"
-          onChange={(event) => setCompany(event.target.value)}
+          onChange={(event) => {
+            submittedSignatureRef.current = null;
+            setSuccessfulSubmissionSignature(null);
+            setCompany(event.target.value);
+            if (submitState !== "idle") {
+              setSubmitState("idle");
+            }
+          }}
           tabIndex={-1}
           type="text"
           value={company}
@@ -296,10 +343,14 @@ export function VistaireContactForm() {
 
       <button
         className={styles.submitButton}
-        disabled={isSending}
+        disabled={isSending || isSuccessLocked}
         type="submit"
       >
-        {isSending ? "Envoi en cours..." : "Envoyer la demande"}
+        {isSending
+          ? "Envoi en cours..."
+          : isSuccessLocked
+            ? "Demande envoy\u00e9e"
+            : "Envoyer la demande"}
       </button>
 
       <p
