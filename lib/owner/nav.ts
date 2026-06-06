@@ -9,6 +9,11 @@ export const OWNER_NAV_ITEMS: OwnerNavItem[] = [
   { href: "/owner/restaurants", label: "Restaurants", hint: "Comptes & readiness" },
   { href: "/owner/qr-codes", label: "QR Codes", hint: "Générer & tester" },
   { href: "/owner/menus", label: "Menus", hint: "Cartes & statut" },
+  {
+    href: "/owner/menu-builder",
+    label: "Menu Builder",
+    hint: "UI menus & preview"
+  },
   { href: "/owner/plats", label: "Plats", hint: "Qualité contenu" },
   { href: "/owner/medias", label: "Médias", hint: "Photos & assets" },
   { href: "/owner/3d-ar", label: "3D / AR", hint: "Pipeline immersif" },
