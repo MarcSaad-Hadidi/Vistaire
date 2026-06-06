@@ -47,7 +47,7 @@ export default async function PublicMenuPage({
     .join(" · ");
 
   if (isFreshHomemadeMenu(menu)) {
-    return <PublicMenuExperience menu={menu} context={context} />;
+    return <PublicMenuExperience menu={menu} context={context} query={query} />;
   }
 
   return (

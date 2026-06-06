@@ -25,6 +25,11 @@ export type PublicMenu = {
   dishes: PublicMenuDish[];
 };
 
+export type PublicMenuContextQuery = {
+  table?: string;
+  zone?: string;
+};
+
 export type PublicMenuCategory = {
   id: string;
   label: string;
@@ -68,6 +73,13 @@ const DEFAULT_CATEGORY = {
   description: "La sélection du moment",
   tone: "blue"
 } as const;
+
+const RESTAURANT_ID_KEYS = [
+  "restaurant_id",
+  "restaurantId",
+  "restaurant_uuid",
+  "restaurant"
+];
 
 function slugify(value: string): string {
   return value
@@ -197,6 +209,10 @@ function rowMatchesValue(
   return candidates.some((key) => String(row[key] ?? "") === expected);
 }
 
+function rowRestaurantId(row: PublicMenuRow): string {
+  return getString(row, RESTAURANT_ID_KEYS, "");
+}
+
 function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
   const name = getString(row, ["name", "dish_name", "title"], "Plat");
   const imageUrl = getString(row, [
@@ -267,19 +283,22 @@ export function buildSupabasePublicMenu(
   const restaurantId = getString(restaurantRow, ["id", "restaurant_id"], "");
   const rowsById = restaurantId
     ? dishRows.filter((row) =>
-        rowMatchesValue(
-          row,
-          ["restaurant_id", "restaurantId", "restaurant_uuid", "restaurant"],
-          restaurantId
-        )
+        rowMatchesValue(row, RESTAURANT_ID_KEYS, restaurantId)
       )
     : [];
+  const rowsBySlug = dishRows.filter((row) =>
+    rowMatchesValue(row, ["restaurant_slug", "restaurantSlug"], slug)
+  );
+  const slugRowsWithoutConflictingId = rowsBySlug.filter((row) => {
+    const dishRestaurantId = rowRestaurantId(row);
+    return !dishRestaurantId || dishRestaurantId === restaurantId;
+  });
   const scopedRows =
     restaurantId
-      ? rowsById
-      : dishRows.filter((row) =>
-          rowMatchesValue(row, ["restaurant_slug", "restaurantSlug"], slug)
-        );
+      ? rowsById.length > 0
+        ? rowsById
+        : slugRowsWithoutConflictingId
+      : rowsBySlug;
 
   const dishes = scopedRows
     .filter(isDishAvailable)
@@ -355,6 +374,26 @@ export function getPublicMenuDishBySlug(
         slugify(dish.id) === dishSlug
     ) ?? null
   );
+}
+
+export function buildPublicDishPath(
+  rawMenuSlug: string,
+  rawDishSlug: string,
+  query?: PublicMenuContextQuery
+): string {
+  const menuSlug = slugify(rawMenuSlug);
+  const dishSlug = slugify(rawDishSlug);
+  if (!menuSlug || !dishSlug) return "/demo";
+
+  const params = new URLSearchParams();
+  const table = query?.table?.toString().trim();
+  const zone = query?.zone?.toString().trim();
+  if (table) params.set("table", table.slice(0, 24));
+  if (zone) params.set("zone", zone.slice(0, 24));
+
+  const suffix = params.toString();
+  const path = `/menu/${encodeURIComponent(menuSlug)}/dishes/${encodeURIComponent(dishSlug)}`;
+  return suffix ? `${path}?${suffix}` : path;
 }
 
 export function isFreshHomemadeMenu(menu: PublicMenu): boolean {

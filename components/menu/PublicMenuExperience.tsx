@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  buildPublicDishPath,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
   type PublicMenuCategory,
+  type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import styles from "./PublicMenuExperience.module.css";
@@ -14,6 +16,7 @@ import styles from "./PublicMenuExperience.module.css";
 type PublicMenuExperienceProps = {
   menu: PublicMenu;
   context?: string;
+  query?: PublicMenuContextQuery;
 };
 
 const ALL_TAB_ID = "all";
@@ -51,10 +54,12 @@ function shortDescription(dish: PublicMenuDish): string {
 
 function PublicDishCard({
   dish,
-  menu
+  menu,
+  query
 }: {
   dish: PublicMenuDish;
   menu: PublicMenu;
+  query?: PublicMenuContextQuery;
 }) {
   const badge = dishBadge(dish);
   return (
@@ -62,7 +67,7 @@ function PublicDishCard({
       <Link
         aria-label={`${dish.name}. Voir la fiche plat.`}
         className={styles.dishLink}
-        href={`/menu/${menu.slug}/dishes/${dish.slug}`}
+        href={buildPublicDishPath(menu.slug, dish.slug, query)}
         prefetch={false}
       >
         <span
@@ -103,7 +108,8 @@ function PublicDishCard({
 
 export function PublicMenuExperience({
   menu,
-  context = ""
+  context = "",
+  query
 }: PublicMenuExperienceProps) {
   const [activeTab, setActiveTab] = useState<string>(HOME_TAB_ID);
   const [welcomeActive, setWelcomeActive] = useState(true);
@@ -293,7 +299,12 @@ export function PublicMenuExperience({
                 </div>
                 <ul className={styles.dishList}>
                   {featuredDishes.map((dish) => (
-                    <PublicDishCard key={dish.id} dish={dish} menu={menu} />
+                    <PublicDishCard
+                      key={dish.id}
+                      dish={dish}
+                      menu={menu}
+                      query={query}
+                    />
                   ))}
                 </ul>
               </section>
@@ -310,7 +321,12 @@ export function PublicMenuExperience({
                     </div>
                     <ul className={styles.dishList}>
                       {dishes.map((dish) => (
-                        <PublicDishCard key={dish.id} dish={dish} menu={menu} />
+                        <PublicDishCard
+                          key={dish.id}
+                          dish={dish}
+                          menu={menu}
+                          query={query}
+                        />
                       ))}
                     </ul>
                   </section>
@@ -325,7 +341,12 @@ export function PublicMenuExperience({
               </div>
               <ul className={styles.dishList}>
                 {selectedDishes.map((dish) => (
-                  <PublicDishCard key={dish.id} dish={dish} menu={menu} />
+                  <PublicDishCard
+                    key={dish.id}
+                    dish={dish}
+                    menu={menu}
+                    query={query}
+                  />
                 ))}
               </ul>
             </section>

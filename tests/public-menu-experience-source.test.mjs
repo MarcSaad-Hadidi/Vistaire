@@ -26,7 +26,8 @@ test("Fresh Homemade experience includes welcome, category, dish, and return sta
   assert.match(source, /role="tablist"/);
   assert.match(source, /aria-selected/);
   assert.match(source, /Entrées/);
-  assert.match(source, /href=\{`\/menu\/\$\{menu\.slug\}\/dishes\/\$\{dish\.slug\}`\}/);
+  assert.match(source, /buildPublicDishPath/);
+  assert.match(source, /query=\{query\}/);
   assert.match(source, /bol de riz au poulet/i);
   assert.match(source, /aria-live="polite"/);
 });

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildPublicDishPath,
   buildSupabasePublicMenu,
   getPublicMenuDishBySlug,
   getPublicMenuCategoryGroups,
@@ -81,7 +82,23 @@ test("keeps a real restaurant with no dishes as an empty public menu", () => {
   assert.deepEqual(menu.dishes, []);
 });
 
-test("can fall back to restaurant_slug only when the restaurant row has no id", () => {
+test("falls back to slug-only dish rows when a restaurant id exists but dish ids are absent", () => {
+  const menu = buildSupabasePublicMenu("resto-marc", restoMarc, [
+    {
+      id: "bol-riz",
+      restaurant_slug: "resto-marc",
+      name: "Bol de riz au poulet et legumes",
+      category_name: "Plats",
+      price: 17.99,
+      sort_order: 1
+    }
+  ]);
+
+  assert.equal(menu.dishes.length, 1);
+  assert.equal(menu.dishes[0].name, "Bol de riz au poulet et legumes");
+});
+
+test("can fall back to restaurant_slug when the restaurant row has no id", () => {
   const menu = buildSupabasePublicMenu("resto-marc", { ...restoMarc, id: "" }, [
     {
       id: "bol-riz",
@@ -180,4 +197,21 @@ test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => 
   assert.deepEqual(dish.tags, ["Maison", "Populaire"]);
   assert.equal(dish.available, true);
   assert.equal(getPublicMenuDishBySlug(menu, "introuvable"), null);
+});
+
+test("builds public dish links without dropping QR table context", () => {
+  assert.equal(
+    buildPublicDishPath("resto-marc", "bol-de-riz", {
+      table: "12",
+      zone: "terrasse"
+    }),
+    "/menu/resto-marc/dishes/bol-de-riz?table=12&zone=terrasse"
+  );
+  assert.equal(
+    buildPublicDishPath("resto-marc", "bol-de-riz", {
+      table: "",
+      zone: " ".repeat(30)
+    }),
+    "/menu/resto-marc/dishes/bol-de-riz"
+  );
 });
