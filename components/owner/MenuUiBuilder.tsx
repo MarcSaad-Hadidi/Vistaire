@@ -49,6 +49,11 @@ type BuilderCategory = {
   dishes: BuilderDish[];
 };
 
+type WelcomeCopy = {
+  title: string;
+  subtitle: string;
+};
+
 const THEME_OPTIONS: Array<{
   id: ThemeId;
   name: string;
@@ -215,6 +220,20 @@ function preferRestaurant(restaurants: MenuBuilderRestaurant[]): string {
   return restoMarc?.id ?? restaurants[0]?.id ?? "";
 }
 
+function buildWelcomeCopy(
+  restaurant: MenuBuilderRestaurant | undefined
+): WelcomeCopy {
+  const name = restaurant?.name.trim() || "Restaurant";
+
+  return {
+    title: `Bienvenue chez ${name}`,
+    subtitle:
+      restaurant?.slug === "resto-marc"
+        ? "Cuisine maison fraîche et généreuse"
+        : "Découvrez notre carte"
+  };
+}
+
 function getDishIcon(dish: BuilderDish): string {
   if (dish.category === "Desserts") return "🍰";
   if (dish.category === "Boissons") return "🥤";
@@ -226,14 +245,21 @@ export function MenuUiBuilder({
   source,
   note
 }: MenuUiBuilderProps) {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
-    preferRestaurant(restaurants)
+  const initialRestaurantId = preferRestaurant(restaurants);
+  const initialRestaurant =
+    restaurants.find((restaurant) => restaurant.id === initialRestaurantId) ??
+    restaurants[0];
+  const initialWelcomeCopy = buildWelcomeCopy(initialRestaurant);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(
+    () => initialRestaurantId
   );
   const [themeId, setThemeId] = useState<ThemeId>("fresh-homemade");
   const [welcomeEnabled, setWelcomeEnabled] = useState(true);
-  const [welcomeTitle, setWelcomeTitle] = useState("Bienvenue chez Resto Marc");
+  const [welcomeTitle, setWelcomeTitle] = useState(
+    () => initialWelcomeCopy.title
+  );
   const [welcomeSubtitle, setWelcomeSubtitle] = useState(
-    "Cuisine maison fraîche et généreuse"
+    () => initialWelcomeCopy.subtitle
   );
   const [motion, setMotion] = useState<WelcomeMotion>("soft");
   const [categoryNavigation, setCategoryNavigation] =
@@ -329,13 +355,9 @@ export function MenuUiBuilder({
   }
 
   function resetWelcomeForRestaurant() {
-    const name = selectedRestaurant?.name ?? "Restaurant";
-    setWelcomeTitle(`Bienvenue chez ${name}`);
-    setWelcomeSubtitle(
-      selectedRestaurant?.slug === "resto-marc"
-        ? "Cuisine maison fraîche et généreuse"
-        : "Découvrez notre carte"
-    );
+    const copy = buildWelcomeCopy(selectedRestaurant);
+    setWelcomeTitle(copy.title);
+    setWelcomeSubtitle(copy.subtitle);
   }
 
   function renderDishCard(dish: BuilderDish) {
@@ -403,7 +425,15 @@ export function MenuUiBuilder({
             <select
               value={selectedRestaurantId}
               onChange={(event) => {
+                const nextRestaurant =
+                  restaurants.find(
+                    (restaurant) => restaurant.id === event.target.value
+                  ) ?? restaurants[0];
+                const nextWelcomeCopy = buildWelcomeCopy(nextRestaurant);
+
                 setSelectedRestaurantId(event.target.value);
+                setWelcomeTitle(nextWelcomeCopy.title);
+                setWelcomeSubtitle(nextWelcomeCopy.subtitle);
                 setActiveTab("Tout");
                 setSelectedDish(null);
                 setSaveStatus("Draft local non sauvegardé");

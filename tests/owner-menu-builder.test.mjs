@@ -35,3 +35,11 @@ test("menu builder includes reusable theme presets", async () => {
   assert.match(source, /cafe-brunch/);
   assert.match(source, /minimal-clean/);
 });
+
+test("menu builder derives welcome copy from the selected restaurant", async () => {
+  const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
+
+  assert.doesNotMatch(source, /useState\("Bienvenue chez Resto Marc"\)/);
+  assert.match(source, /buildWelcomeCopy/);
+  assert.match(source, /useState\(\s*\(\) => initialWelcomeCopy\.title\s*\)/);
+});
