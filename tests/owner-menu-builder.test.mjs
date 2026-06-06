@@ -26,6 +26,28 @@ test("menu builder preview never imports model-viewer or heavy 3D assets", async
   assert.doesNotMatch(source, /\.usdz/);
 });
 
+test("menu builder loads real menu data, config, and shared renderer", async () => {
+  const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
+
+  assert.match(source, /\/api\/owner\/menu-data/);
+  assert.match(source, /\/api\/owner\/menu-ui-config/);
+  assert.match(source, /PublicMenuRenderer/);
+  assert.match(source, /Source : Supabase/);
+  assert.match(source, /Import rapide/);
+});
+
+test("menu builder saves drafts, publishes UI, and generates only public menu QR targets", async () => {
+  const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
+
+  assert.match(source, /Sauvegarder draft UI/);
+  assert.match(source, /Publier UI/);
+  assert.match(source, /\/api\/owner\/qr-codes/);
+  assert.match(source, /targetKind:\s*"menu"/);
+  assert.match(source, /targetPath:\s*publicMenuPath/);
+  assert.doesNotMatch(source, /targetKind:\s*"admin"/);
+  assert.doesNotMatch(source, /targetPath:\s*publicMenuUrl/);
+});
+
 test("menu builder includes reusable theme presets", async () => {
   const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
 
@@ -40,6 +62,6 @@ test("menu builder derives welcome copy from the selected restaurant", async () 
   const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
 
   assert.doesNotMatch(source, /useState\("Bienvenue chez Resto Marc"\)/);
-  assert.match(source, /buildWelcomeCopy/);
-  assert.match(source, /useState\(\s*\(\) => initialWelcomeCopy\.title\s*\)/);
+  assert.match(source, /menuUiConfigForRestaurant/);
+  assert.match(source, /welcomeTitle/);
 });

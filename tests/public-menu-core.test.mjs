@@ -146,6 +146,32 @@ test("groups Resto Marc dishes into visible category cards without empty categor
   assert.equal(isFreshHomemadeMenu(menu), true);
 });
 
+test("uses unique category ids for unknown public menu categories", () => {
+  const menu = buildSupabasePublicMenu("maison-elyse", { ...restoMarc, slug: "maison-elyse" }, [
+    {
+      id: "signature",
+      restaurant_id: restoMarcId,
+      name: "Assiette signature",
+      category_name: "Carte signature",
+      price: 24
+    },
+    {
+      id: "dessert-maison",
+      restaurant_id: restoMarcId,
+      name: "Dessert maison",
+      category_name: "Carte dessert",
+      price: 12
+    }
+  ]);
+
+  const categories = getVisiblePublicMenuCategories(menu.dishes);
+
+  assert.deepEqual(
+    categories.map((category) => category.id),
+    ["carte-signature", "carte-dessert"]
+  );
+});
+
 test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => {
   const menu = buildSupabasePublicMenu("resto-marc", restoMarc, [
     {
@@ -197,6 +223,54 @@ test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => 
   assert.deepEqual(dish.tags, ["Maison", "Populaire"]);
   assert.equal(dish.available, true);
   assert.equal(getPublicMenuDishBySlug(menu, "introuvable"), null);
+});
+
+test("maps real photo and 3D/AR fields without inventing missing assets", () => {
+  const menu = buildSupabasePublicMenu("resto-marc", restoMarc, [
+    {
+      id: "bol-id",
+      restaurant_id: restoMarcId,
+      name: "Bol de riz",
+      category_name: "Plats",
+      price: 17.99,
+      photo_url: "https://cdn.example.test/bol.jpg",
+      thumbnail_url: "/images/resto-marc/bol-thumb.jpg",
+      web_model_3d_url: "/models/restaurants/resto-marc/bol/v1/web/bol.glb",
+      ar_model_3d_url: "/models/restaurants/resto-marc/bol/v1/ar-lite/bol.glb",
+      ar_usdz_url: "/models/restaurants/resto-marc/bol/v1/ios/bol.usdz"
+    },
+    {
+      id: "soupe-id",
+      restaurant_id: restoMarcId,
+      name: "Soupe du jour",
+      category_name: "Entrees",
+      price: 7.49,
+      photo_url: "ftp://unsafe.example/soupe.jpg",
+      model3d_url: ""
+    }
+  ]);
+
+  const [bol, soupe] = menu.dishes;
+
+  assert.equal(bol.hasPhoto, true);
+  assert.equal(bol.photoStatus, "ready");
+  assert.equal(bol.imageUrl, "https://cdn.example.test/bol.jpg");
+  assert.equal(bol.thumbnailUrl, "/images/resto-marc/bol-thumb.jpg");
+  assert.equal(bol.has3d, true);
+  assert.equal(bol.hasAr, true);
+  assert.equal(bol.hasIosAr, true);
+  assert.equal(bol.hasAndroidAr, true);
+  assert.equal(bol.webModel3dUrl, "/models/restaurants/resto-marc/bol/v1/web/bol.glb");
+  assert.equal(bol.arModel3dUrl, "/models/restaurants/resto-marc/bol/v1/ar-lite/bol.glb");
+  assert.equal(bol.arUsdzUrl, "/models/restaurants/resto-marc/bol/v1/ios/bol.usdz");
+  assert.equal(bol.modelStatus, "ready");
+
+  assert.equal(soupe.hasPhoto, false);
+  assert.equal(soupe.photoStatus, "missing");
+  assert.equal(soupe.imageUrl, "");
+  assert.equal(soupe.has3d, false);
+  assert.equal(soupe.hasAr, false);
+  assert.equal(soupe.modelStatus, "missing");
 });
 
 test("builds public dish links without dropping QR table context", () => {

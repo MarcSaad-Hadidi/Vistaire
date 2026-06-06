@@ -321,8 +321,69 @@
   max-height: 800px;
   overflow: auto;
   border-radius: 34px;
-  background: var(--menu-bg);
-  color: var(--menu-text);
+  background: #fffdf6;
+  color: #17324d;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.metricGrid span {
+  min-width: 0;
+  border: 1px solid rgba(255, 250, 240, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.06);
+  padding: 9px;
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.parseErrors {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parseErrors li,
+.qrResult {
+  border: 1px solid rgba(231, 91, 78, 0.28);
+  border-radius: 12px;
+  background: rgba(231, 91, 78, 0.08);
+  color: #ffb5aa;
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.qrResult {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  border-color: rgba(232, 207, 155, 0.28);
+  background: rgba(232, 207, 155, 0.08);
+  color: var(--owner-muted);
+}
+
+.qrResult strong {
+  color: #fffaf0;
+}
+
+.qrResult p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.qrResult small {
+  color: rgba(232, 207, 155, 0.8);
+  font-weight: 800;
 }
 
 .themeFresh {
@@ -906,6 +967,10 @@
 
 @media (max-width: 680px) {
   .optionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricGrid {
     grid-template-columns: 1fr;
   }
 

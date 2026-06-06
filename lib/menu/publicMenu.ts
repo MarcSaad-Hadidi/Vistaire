@@ -19,6 +19,7 @@ function demoMenu(slug: string): PublicMenu {
   const restaurant = getRestaurant();
   const dishes = getAllDishes();
   return {
+    restaurantId: getDemoRestaurantId(),
     slug,
     name: restaurant.name,
     location: restaurant.location,
@@ -32,7 +33,29 @@ function demoMenu(slug: string): PublicMenu {
       category: dish.categorySlug ?? "Carte",
       priceLabel: dish.price ? String(dish.price) : "",
       imageUrl: dish.image ?? "",
+      thumbnailUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
+      photoStatus: dish.image ? "ready" : "missing",
+      has3d: Boolean(
+        dish.model3dUrl || dish.webModel3dUrl || dish.arModel3dUrl
+      ),
+      hasAr: Boolean(dish.arModel3dUrl || dish.usdzUrl || dish.arUsdzUrl),
+      hasIosAr: Boolean(dish.usdzUrl || dish.arUsdzUrl),
+      hasAndroidAr: Boolean(dish.arModel3dUrl),
+      model3dUrl: dish.model3dUrl ?? "",
+      webModel3dUrl: dish.webModel3dUrl ?? dish.model3dUrl ?? "",
+      arModel3dUrl: dish.arModel3dUrl ?? "",
+      usdzUrl: dish.usdzUrl ?? "",
+      arUsdzUrl: dish.arUsdzUrl ?? dish.usdzUrl ?? "",
+      posterUrl: dish.image ?? "",
+      modelStatus:
+        dish.model3dUrl ||
+        dish.webModel3dUrl ||
+        dish.arModel3dUrl ||
+        dish.usdzUrl ||
+        dish.arUsdzUrl
+          ? "ready"
+          : "missing",
       hasImmersive: Boolean(
         dish.model3dUrl ||
           dish.webModel3dUrl ||

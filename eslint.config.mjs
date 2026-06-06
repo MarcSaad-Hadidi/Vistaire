@@ -3,7 +3,14 @@ import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
   {
-    ignores: ["tmp_*", "tmp_*/**"]
+    ignores: [
+      ".next/**",
+      ".worktrees/**",
+      "playwright-report/**",
+      "test-results/**",
+      "tmp_*",
+      "tmp_*/**"
+    ]
   },
   ...nextVitals,
   ...nextTypescript

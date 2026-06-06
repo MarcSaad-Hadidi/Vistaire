@@ -1,7 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { OwnerRestaurant } from "@/lib/owner/types";
+import { useEffect, useMemo, useState } from "react";
+import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
+import {
+  MENU_UI_CATEGORY_NAVIGATION_VALUES,
+  MENU_UI_DENSITY_VALUES,
+  MENU_UI_DETAIL_STYLE_VALUES,
+  MENU_UI_DISH_CARD_STYLE_VALUES,
+  MENU_UI_MOTION_VALUES,
+  menuUiConfigForRestaurant,
+  type MenuUiConfig,
+  type MenuUiThemeId
+} from "@/lib/menu/menuUiConfig";
+import type { PublicMenu, PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCore";
+import { DEFAULT_OWNER_QR_STYLE, monogramFromName } from "@/lib/owner/qrStyle";
+import type { OwnerRestaurant, OwnerQrTargetKind } from "@/lib/owner/types";
 import styles from "./MenuUiBuilder.module.css";
 
 type MenuBuilderRestaurant = Pick<
@@ -15,125 +28,96 @@ type MenuUiBuilderProps = {
   note: string;
 };
 
-type ThemeId =
-  | "fresh-homemade"
-  | "premium-gastronomic"
-  | "street-casual"
-  | "cafe-brunch"
-  | "minimal-clean";
-
-type Density = "compact" | "comfortable" | "expressive";
-
-type WelcomeMotion = "none" | "soft" | "expressive";
-
-type CategoryNavigation = "tabs" | "cards" | "tabs-cards";
-
-type DishCardStyle = "compact" | "photo-compact" | "photo-large" | "minimal-list";
-
-type DetailStyle = "bottom-sheet" | "full-card" | "simple-card";
-
-type BuilderDish = {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  price: string;
-  hasPhoto: boolean;
-  has3d: boolean;
-  hasAr: boolean;
-  tags: string[];
+type MenuDataPayload = {
+  ok: true;
+  restaurant: {
+    id: string;
+    name: string;
+    slug: string;
+    publicMenuPath: string;
+  };
+  menu: PublicMenu;
+  categories: PublicMenuCategory[];
+  dishes: PublicMenuDish[];
+  source: "supabase" | "fallback";
+  note: string;
 };
 
-type BuilderCategory = {
-  name: string;
-  dishes: BuilderDish[];
+type ConfigPayload = {
+  ok: true;
+  config: MenuUiConfig;
+  status: "draft" | "published" | "archived";
+  persisted: boolean;
+  dataSource: "supabase" | "default";
+  updatedAt: string;
+  error?: string;
 };
 
-type WelcomeCopy = {
-  title: string;
-  subtitle: string;
+type QrPayload = {
+  ok: true;
+  redirectUrl: string;
+  targetPath: string;
+  targetKind: OwnerQrTargetKind;
+  persisted: boolean;
+  record?: unknown;
 };
+
+type LoadState = "idle" | "loading" | "ready" | "error";
+type SaveState = "idle" | "dirty" | "saving" | "saved" | "publishing" | "published" | "error";
+
+type QuickImportResult = {
+  menu: PublicMenu;
+  errors: string[];
+  categoryCount: number;
+  dishCount: number;
+};
+
+type ApiFailure = {
+  ok: false;
+  error?: string;
+};
+
+function apiErrorMessage(payload: ApiFailure, fallback: string): string {
+  return payload.error || fallback;
+}
 
 const THEME_OPTIONS: Array<{
-  id: ThemeId;
+  id: MenuUiThemeId;
   name: string;
   description: string;
-  className: string;
 }> = [
   {
     id: "fresh-homemade",
     name: "Fresh Homemade",
-    description: "Clair, coloré, maison. Parfait pour Resto Marc.",
-    className: styles.themeFresh
+    description: "Clair, colore, maison. Parfait pour Resto Marc."
   },
   {
     id: "premium-gastronomic",
     name: "Premium Gastronomic",
-    description: "Sombre, élégant, gastronomique. Plus proche de Maison Élyse.",
-    className: styles.themePremium
+    description: "Sombre, elegant, gastronomique. Plus proche de Maison Elyse."
   },
   {
     id: "street-casual",
     name: "Street Casual",
-    description: "Punchy, rapide, comptoir, prix très visibles.",
-    className: styles.themeStreet
+    description: "Punchy, rapide, comptoir, prix tres visibles."
   },
   {
     id: "cafe-brunch",
-    name: "Café Brunch",
-    description: "Chaud, doux, lumineux, café et brunch.",
-    className: styles.themeCafe
+    name: "Cafe Brunch",
+    description: "Chaud, doux, lumineux, cafe et brunch."
   },
   {
     id: "minimal-clean",
     name: "Minimal Clean",
-    description: "Sobre, propre, très simple, neutre.",
-    className: styles.themeMinimal
+    description: "Sobre, propre, tres simple, neutre."
   }
 ];
 
-const CATEGORY_META: Record<
-  string,
-  { icon: string; description: string; tone: string }
-> = {
-  Entrées: {
-    icon: "🥗",
-    description: "Pour commencer doucement",
-    tone: styles.categoryBlue
-  },
-  Plats: {
-    icon: "🍛",
-    description: "Nos assiettes maison",
-    tone: styles.categoryGreen
-  },
-  Desserts: {
-    icon: "🍰",
-    description: "Une touche sucrée",
-    tone: styles.categoryYellow
-  },
-  Boissons: {
-    icon: "🥤",
-    description: "Frais et simple",
-    tone: styles.categoryRed
-  }
-};
-
-const DEFAULT_MENU = `Entrées
-Salade fraîche maison | 8.99 | Légumes croquants, vinaigrette légère et herbes fraîches.
-Soupe du jour | 7.49 | Soupe maison préparée avec les ingrédients du moment.
+const IMPORT_PLACEHOLDER = `Entrees
+Nom du plat | 12.00 | Description fournie par le restaurant.
 
 Plats
-Bol de riz au poulet et légumes | 17.99 | Riz chaud servi avec morceaux de poulet grillé, légumes sautés, sauce maison légère et garniture fraîche.
-Sandwich poulet grillé | 14.99 | Pain moelleux, poulet grillé, légumes frais et sauce maison.
-Pâtes sauce maison | 15.99 | Pâtes servies avec une sauce tomate maison, herbes et parmesan.
-
-Desserts
-Gâteau au chocolat | 6.99 | Gâteau moelleux au chocolat, servi en portion généreuse.
-Coupe de fruits frais | 5.99 | Mélange de fruits frais coupés, léger et rafraîchissant.
-
-Boissons
-Limonade maison | 4.49 | Limonade fraîche, citronnée et légèrement sucrée.
-Thé glacé | 4.49 | Thé glacé maison servi bien frais.`;
+Nom du plat principal | 24.00 | Description fournie par le restaurant.`;
 
 function slugify(value: string): string {
   return value
@@ -145,69 +129,13 @@ function slugify(value: string): string {
     .slice(0, 90);
 }
 
-function formatPrice(value: string): string {
+function formatPriceLabel(value: string): string {
   const parsed = Number(value.replace(",", ".").replace(/[^0-9.]/g, ""));
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return value || "Prix à confirmer";
-  }
-
+  if (!Number.isFinite(parsed) || parsed <= 0) return value.trim();
   return new Intl.NumberFormat("fr-CA", {
     style: "currency",
     currency: "CAD"
   }).format(parsed);
-}
-
-function parseMenu(raw: string): BuilderCategory[] {
-  const lines = raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const categories: BuilderCategory[] = [];
-  let current: BuilderCategory | null = null;
-
-  for (const line of lines) {
-    if (!line.includes("|")) {
-      current = { name: line, dishes: [] };
-      categories.push(current);
-      continue;
-    }
-
-    if (!current) {
-      current = { name: "Carte", dishes: [] };
-      categories.push(current);
-    }
-
-    const [rawName = "", rawPrice = "", rawDescription = ""] = line
-      .split("|")
-      .map((item) => item.trim());
-
-    if (!rawName) continue;
-
-    const id = slugify(`${current.name}-${rawName}`);
-    const lowerName = rawName.toLowerCase();
-
-    current.dishes.push({
-      id,
-      name: rawName,
-      category: current.name,
-      description: rawDescription,
-      price: rawPrice,
-      hasPhoto:
-        lowerName.includes("bol") ||
-        lowerName.includes("gâteau") ||
-        lowerName.includes("salade"),
-      has3d: lowerName.includes("bol"),
-      hasAr: lowerName.includes("bol"),
-      tags: lowerName.includes("bol") ? ["Maison", "Signature"] : ["Maison"]
-    });
-  }
-
-  return categories.filter((category) => category.dishes.length > 0);
-}
-
-function flattenDishes(categories: BuilderCategory[]): BuilderDish[] {
-  return categories.flatMap((category) => category.dishes);
 }
 
 function preferRestaurant(restaurants: MenuBuilderRestaurant[]): string {
@@ -216,28 +144,123 @@ function preferRestaurant(restaurants: MenuBuilderRestaurant[]): string {
       restaurant.slug === "resto-marc" ||
       restaurant.name.toLowerCase().includes("resto marc")
   );
-
   return restoMarc?.id ?? restaurants[0]?.id ?? "";
 }
 
-function buildWelcomeCopy(
-  restaurant: MenuBuilderRestaurant | undefined
-): WelcomeCopy {
-  const name = restaurant?.name.trim() || "Restaurant";
-
+function emptyMenu(restaurant: MenuBuilderRestaurant | undefined): PublicMenu {
   return {
-    title: `Bienvenue chez ${name}`,
-    subtitle:
-      restaurant?.slug === "resto-marc"
-        ? "Cuisine maison fraîche et généreuse"
-        : "Découvrez notre carte"
+    restaurantId: restaurant?.id ?? "",
+    slug: restaurant?.slug ?? "restaurant",
+    name: restaurant?.name ?? "Restaurant",
+    location: "",
+    cuisineType: "",
+    source: "supabase",
+    dishes: []
   };
 }
 
-function getDishIcon(dish: BuilderDish): string {
-  if (dish.category === "Desserts") return "🍰";
-  if (dish.category === "Boissons") return "🥤";
-  return "🍽️";
+function localDish(args: {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  priceLabel: string;
+}): PublicMenuDish {
+  return {
+    id: args.id,
+    slug: args.id,
+    name: args.name,
+    description: args.description,
+    category: args.category,
+    priceLabel: args.priceLabel,
+    imageUrl: "",
+    thumbnailUrl: "",
+    hasPhoto: false,
+    photoStatus: "missing",
+    hasImmersive: false,
+    has3d: false,
+    hasAr: false,
+    hasIosAr: false,
+    hasAndroidAr: false,
+    model3dUrl: "",
+    webModel3dUrl: "",
+    arModel3dUrl: "",
+    usdzUrl: "",
+    arUsdzUrl: "",
+    posterUrl: "",
+    modelStatus: "missing",
+    available: true,
+    ingredients: [],
+    allergens: [],
+    options: [],
+    houseNote: "",
+    tags: []
+  };
+}
+
+function parseQuickImport(
+  raw: string,
+  restaurant: MenuBuilderRestaurant | undefined
+): QuickImportResult {
+  const errors: string[] = [];
+  const dishes: PublicMenuDish[] = [];
+  const categories = new Set<string>();
+  let currentCategory = "";
+
+  raw
+    .split("\n")
+    .map((line) => line.trim())
+    .forEach((line, index) => {
+      if (!line) return;
+      if (!line.includes("|")) {
+        currentCategory = line.slice(0, 80) || "Carte";
+        categories.add(currentCategory);
+        return;
+      }
+
+      const [rawName = "", rawPrice = "", rawDescription = ""] = line
+        .split("|")
+        .map((item) => item.trim());
+      if (!rawName) {
+        errors.push(`Ligne ${index + 1}: nom du plat manquant.`);
+        return;
+      }
+      if (!currentCategory) {
+        currentCategory = "Carte";
+        categories.add(currentCategory);
+      }
+      const id = slugify(`${currentCategory}-${rawName}`) || `plat-${dishes.length + 1}`;
+      dishes.push(
+        localDish({
+          id,
+          name: rawName.slice(0, 120),
+          category: currentCategory,
+          description: rawDescription.slice(0, 360),
+          priceLabel: formatPriceLabel(rawPrice)
+        })
+      );
+    });
+
+  return {
+    menu: {
+      ...emptyMenu(restaurant),
+      source: "demo",
+      dishes
+    },
+    errors,
+    categoryCount: categories.size,
+    dishCount: dishes.length
+  };
+}
+
+function statusLabel(state: SaveState): string {
+  if (state === "saving") return "Sauvegarde en cours...";
+  if (state === "saved") return "Draft UI sauvegarde.";
+  if (state === "publishing") return "Publication en cours...";
+  if (state === "published") return "Config UI publiee.";
+  if (state === "error") return "Action impossible pour le moment.";
+  if (state === "dirty") return "Modifications non sauvegardees.";
+  return "Pret.";
 }
 
 export function MenuUiBuilder({
@@ -246,100 +269,223 @@ export function MenuUiBuilder({
   note
 }: MenuUiBuilderProps) {
   const initialRestaurantId = preferRestaurant(restaurants);
-  const initialRestaurant =
-    restaurants.find((restaurant) => restaurant.id === initialRestaurantId) ??
-    restaurants[0];
-  const initialWelcomeCopy = buildWelcomeCopy(initialRestaurant);
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState(
-    () => initialRestaurantId
-  );
-  const [themeId, setThemeId] = useState<ThemeId>("fresh-homemade");
-  const [welcomeEnabled, setWelcomeEnabled] = useState(true);
-  const [welcomeTitle, setWelcomeTitle] = useState(
-    () => initialWelcomeCopy.title
-  );
-  const [welcomeSubtitle, setWelcomeSubtitle] = useState(
-    () => initialWelcomeCopy.subtitle
-  );
-  const [motion, setMotion] = useState<WelcomeMotion>("soft");
-  const [categoryNavigation, setCategoryNavigation] =
-    useState<CategoryNavigation>("tabs-cards");
-  const [dishCardStyle, setDishCardStyle] =
-    useState<DishCardStyle>("photo-compact");
-  const [detailStyle, setDetailStyle] = useState<DetailStyle>("bottom-sheet");
-  const [density, setDensity] = useState<Density>("comfortable");
-  const [showPhotoPlaceholders, setShowPhotoPlaceholders] = useState(true);
-  const [show3dBadges, setShow3dBadges] = useState(true);
-  const [showArBadges, setShowArBadges] = useState(true);
-  const [rawMenu, setRawMenu] = useState(DEFAULT_MENU);
-  const [activeTab, setActiveTab] = useState("Tout");
-  const [selectedDish, setSelectedDish] = useState<BuilderDish | null>(null);
-  const [saveStatus, setSaveStatus] = useState("Draft local non sauvegardé");
-
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(initialRestaurantId);
   const selectedRestaurant = useMemo(
     () =>
       restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ??
       restaurants[0],
     [restaurants, selectedRestaurantId]
   );
+  const [config, setConfig] = useState<MenuUiConfig>(() =>
+    menuUiConfigForRestaurant(selectedRestaurant ?? {})
+  );
+  const [menuData, setMenuData] = useState<MenuDataPayload | null>(null);
+  const [localDraft, setLocalDraft] = useState<QuickImportResult | null>(null);
+  const [quickImportText, setQuickImportText] = useState("");
+  const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [configPersisted, setConfigPersisted] = useState(false);
+  const [configStatus, setConfigStatus] = useState<ConfigPayload["status"]>("draft");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [qrState, setQrState] = useState<{
+    redirectUrl: string;
+    targetPath: string;
+    persisted: boolean;
+  } | null>(null);
 
-  const categories = useMemo(() => parseMenu(rawMenu), [rawMenu]);
-  const dishes = useMemo(() => flattenDishes(categories), [categories]);
-
-  const selectedTheme = THEME_OPTIONS.find((theme) => theme.id === themeId)!;
-  const categoryNames = categories.map((category) => category.name);
-  const tabs = ["Tout", "Catégories", ...categoryNames];
   const publicMenuPath = selectedRestaurant?.publicMenuPath ?? "/menu/resto-marc";
   const publicMenuUrl = selectedRestaurant?.publicMenuUrl ?? publicMenuPath;
+  const previewMenu = localDraft?.menu ?? menuData?.menu ?? emptyMenu(selectedRestaurant);
+  const photoCount = previewMenu.dishes.filter((dish) => dish.hasPhoto).length;
+  const modelCount = previewMenu.dishes.filter((dish) => dish.has3d).length;
+  const arCount = previewMenu.dishes.filter((dish) => dish.hasAr).length;
+  const categoryCount = new Set(previewMenu.dishes.map((dish) => dish.category)).size;
+  const sourceLabel = localDraft
+    ? "Source : Draft local importe"
+    : menuData?.source === "supabase"
+      ? "Source : Supabase"
+      : "Source : Fallback demo";
 
-  const activeCategory = categories.find((category) => category.name === activeTab);
+  useEffect(() => {
+    if (!selectedRestaurant?.id) return;
+    const controller = new AbortController();
 
-  const qualityChecks = [
-    {
-      label: selectedRestaurant
-        ? `Restaurant sélectionné : ${selectedRestaurant.name}`
-        : "Aucun restaurant sélectionné",
-      ok: Boolean(selectedRestaurant),
-      blocker: true
-    },
-    {
-      label: `${categories.length} catégorie(s) détectée(s)`,
-      ok: categories.length > 0,
-      blocker: true
-    },
-    {
-      label: `${dishes.length} plat(s) dans le draft`,
-      ok: dishes.length > 0,
-      blocker: true
-    },
-    {
-      label: `${dishes.filter((dish) => dish.hasPhoto).length}/${dishes.length} plat(s) avec photo`,
-      ok: dishes.some((dish) => dish.hasPhoto),
-      blocker: false
-    },
-    {
-      label: `${dishes.filter((dish) => dish.has3d).length}/${dishes.length} plat(s) avec 3D`,
-      ok: true,
-      blocker: false
-    },
-    {
-      label: "Aucun GLB/USDZ chargé automatiquement dans le builder",
-      ok: true,
-      blocker: true
-    },
-    {
-      label: `Menu public prévu : ${publicMenuPath}`,
-      ok: publicMenuPath.startsWith("/menu/") || publicMenuPath === "/demo",
-      blocker: true
+    async function load() {
+      setLoadState("loading");
+      setErrorMessage("");
+      setLocalDraft(null);
+      setQuickImportText("");
+      setQrState(null);
+      setConfig(menuUiConfigForRestaurant(selectedRestaurant));
+      setConfigPersisted(false);
+      setConfigStatus("draft");
+
+      try {
+        const id = encodeURIComponent(selectedRestaurant.id);
+        const [menuResponse, configResponse] = await Promise.all([
+          fetch(`/api/owner/menu-data?restaurantId=${id}`, {
+            signal: controller.signal
+          }),
+          fetch(`/api/owner/menu-ui-config?restaurantId=${id}`, {
+            signal: controller.signal
+          })
+        ]);
+        const menuPayload = (await menuResponse.json()) as
+          | MenuDataPayload
+          | ApiFailure;
+        const configPayload = (await configResponse.json()) as
+          | ConfigPayload
+          | ApiFailure;
+
+        if (!controller.signal.aborted) {
+          if (menuResponse.ok && menuPayload.ok) {
+            setMenuData(menuPayload);
+          } else {
+            setMenuData(null);
+            setErrorMessage(
+              menuPayload.ok
+                ? "Chargement des plats impossible."
+                : apiErrorMessage(menuPayload, "Chargement des plats impossible.")
+            );
+          }
+          if (configResponse.ok && configPayload.ok) {
+            setConfig(configPayload.config);
+            setConfigPersisted(configPayload.persisted);
+            setConfigStatus(configPayload.status);
+          }
+          setLoadState("ready");
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setLoadState("error");
+          setMenuData(null);
+          setErrorMessage("Erreur reseau pendant le chargement du builder.");
+        }
+      }
     }
-  ];
 
-  const densityClass =
-    density === "compact"
-      ? styles.densityCompact
-      : density === "expressive"
-        ? styles.densityExpressive
-        : styles.densityComfortable;
+    void load();
+    return () => controller.abort();
+  }, [selectedRestaurant]);
+
+  function updateConfig(patch: Partial<MenuUiConfig>) {
+    setConfig((current) => ({
+      ...current,
+      ...patch,
+      updatedAt: new Date().toISOString()
+    }));
+    setSaveState("dirty");
+  }
+
+  async function saveDraft() {
+    if (!selectedRestaurant) return;
+    setSaveState("saving");
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/owner/menu-ui-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: selectedRestaurant.id,
+          config
+        })
+      });
+      const payload = (await response.json()) as
+        | ConfigPayload
+        | ApiFailure;
+      if (!response.ok || !payload.ok) {
+        setSaveState("error");
+        setErrorMessage(
+          payload.ok ? "Sauvegarde impossible." : apiErrorMessage(payload, "Sauvegarde impossible.")
+        );
+        return;
+      }
+      setConfig(payload.config);
+      setConfigPersisted(payload.persisted);
+      setConfigStatus(payload.status);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+      setErrorMessage("Erreur reseau pendant la sauvegarde.");
+    }
+  }
+
+  async function publishConfig() {
+    if (!selectedRestaurant) return;
+    setSaveState("publishing");
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/owner/menu-ui-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: selectedRestaurant.id,
+          action: "publish",
+          config
+        })
+      });
+      const payload = (await response.json()) as
+        | ConfigPayload
+        | ApiFailure;
+      if (!response.ok || !payload.ok) {
+        setSaveState("error");
+        setErrorMessage(
+          payload.ok ? "Publication impossible." : apiErrorMessage(payload, "Publication impossible.")
+        );
+        return;
+      }
+      setConfig(payload.config);
+      setConfigPersisted(payload.persisted);
+      setConfigStatus(payload.status);
+      setSaveState("published");
+    } catch {
+      setSaveState("error");
+      setErrorMessage("Erreur reseau pendant la publication.");
+    }
+  }
+
+  async function generateQr() {
+    if (!selectedRestaurant) return;
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/owner/qr-codes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: selectedRestaurant.id,
+          label: `QR menu - ${selectedRestaurant.name}`,
+          targetKind: "menu",
+          targetPath: publicMenuPath,
+          style: {
+            ...DEFAULT_OWNER_QR_STYLE,
+            logoText: monogramFromName(selectedRestaurant.name)
+          }
+        })
+      });
+      const payload = (await response.json()) as QrPayload | ApiFailure;
+      if (!response.ok || !payload.ok) {
+        setErrorMessage(
+          payload.ok
+            ? "Generation QR impossible."
+            : apiErrorMessage(payload, "Generation QR impossible.")
+        );
+        return;
+      }
+      setQrState({
+        redirectUrl: payload.redirectUrl,
+        targetPath: payload.targetPath,
+        persisted: payload.persisted
+      });
+    } catch {
+      setErrorMessage("Erreur reseau pendant la generation QR.");
+    }
+  }
+
+  function applyQuickImport() {
+    const parsed = parseQuickImport(quickImportText, selectedRestaurant);
+    setLocalDraft(parsed);
+    setSaveState("dirty");
+  }
 
   if (restaurants.length === 0) {
     return (
@@ -347,66 +493,100 @@ export function MenuUiBuilder({
         <p className={styles.eyebrow}>Menu Builder</p>
         <h3>Aucun restaurant disponible</h3>
         <p>
-          Créez d’abord un restaurant dans le owner dashboard pour générer une
-          expérience menu.
+          Creez d&apos;abord un restaurant dans le owner dashboard pour generer une
+          experience menu.
         </p>
       </section>
     );
   }
 
-  function resetWelcomeForRestaurant() {
-    const copy = buildWelcomeCopy(selectedRestaurant);
-    setWelcomeTitle(copy.title);
-    setWelcomeSubtitle(copy.subtitle);
-  }
-
-  function renderDishCard(dish: BuilderDish) {
-    const shouldShowVisual =
-      dishCardStyle !== "minimal-list" && (dish.hasPhoto || showPhotoPlaceholders);
-
-    return (
-      <button
-        key={dish.id}
-        type="button"
-        className={`${styles.dishCard} ${
-          dishCardStyle === "photo-large" ? styles.dishCardLarge : ""
-        } ${dishCardStyle === "minimal-list" ? styles.dishCardMinimal : ""} ${
-          !shouldShowVisual ? styles.dishCardNoVisual : ""
-        }`}
-        onClick={() => setSelectedDish(dish)}
-      >
-        {shouldShowVisual ? (
-          <div className={styles.dishVisual} aria-hidden="true">
-            {dish.hasPhoto ? <span>{getDishIcon(dish)}</span> : <span>Photo</span>}
-          </div>
-        ) : null}
-
-        <div className={styles.dishCardBody}>
-          <div className={styles.dishCardTopline}>
-            <h4>{dish.name}</h4>
-            <strong>{formatPrice(dish.price)}</strong>
-          </div>
-          <p>{dish.description}</p>
-          <div className={styles.badgeRow}>
-            {dish.tags.map((tag) => (
-              <span key={tag} className={styles.menuBadge}>
-                {tag}
-              </span>
-            ))}
-            {showPhotoPlaceholders && !dish.hasPhoto ? (
-              <span className={styles.warningBadge}>Photo à faire</span>
-            ) : null}
-            {show3dBadges && dish.has3d ? (
-              <span className={styles.modelBadge}>3D</span>
-            ) : null}
-            {showArBadges && dish.hasAr ? (
-              <span className={styles.modelBadge}>AR</span>
-            ) : null}
-          </div>
-        </div>
-      </button>
-    );
-  }
+  const qualityChecks = [
+    {
+      label: selectedRestaurant
+        ? `Restaurant selectionne : ${selectedRestaurant.name}`
+        : "Aucun restaurant selectionne",
+      level: selectedRestaurant ? "ok" : "blocker"
+    },
+    {
+      label: `Slug public : ${selectedRestaurant?.slug || "manquant"}`,
+      level: selectedRestaurant?.slug ? "ok" : "blocker"
+    },
+    {
+      label: configPersisted
+        ? `Config UI persistee (${configStatus})`
+        : "Config UI non persistee",
+      level: configPersisted ? "ok" : "warning"
+    },
+    {
+      label:
+        configStatus === "published"
+          ? "Config publiee pour le menu public"
+          : "Config non publiee",
+      level: configStatus === "published" ? "ok" : "warning"
+    },
+    {
+      label: `${categoryCount} categorie(s) presentes`,
+      level: categoryCount > 0 ? "ok" : "blocker"
+    },
+    {
+      label: `${previewMenu.dishes.length} plat(s) presents`,
+      level: previewMenu.dishes.length > 0 ? "ok" : "blocker"
+    },
+    {
+      label: "Vue Tout activee",
+      level: config.defaultView === "all" ? "ok" : "warning"
+    },
+    {
+      label: "Fiche detail activee",
+      level: config.detailStyle ? "ok" : "blocker"
+    },
+    {
+      label: `Photos ${photoCount}/${previewMenu.dishes.length}`,
+      level: photoCount === previewMenu.dishes.length && photoCount > 0 ? "ok" : "warning"
+    },
+    {
+      label: `3D ${modelCount}/${previewMenu.dishes.length}`,
+      level: modelCount > 0 ? "ok" : "warning"
+    },
+    {
+      label: `AR ${arCount}/${previewMenu.dishes.length}`,
+      level: arCount > 0 ? "ok" : "warning"
+    },
+    {
+      label: "Aucun modele lourd charge automatiquement",
+      level: "ok"
+    },
+    {
+      label: qrState
+        ? `QR menu genere : ${qrState.redirectUrl}`
+        : "QR menu generable",
+      level: qrState ? "ok" : "warning"
+    },
+    {
+      label: `Menu public path : ${publicMenuPath}`,
+      level: publicMenuPath.startsWith("/menu/") || publicMenuPath === "/demo" ? "ok" : "blocker"
+    },
+    {
+      label:
+        selectedRestaurant?.slug === "resto-marc" &&
+        previewMenu.dishes.some((dish) => /elyse/i.test(dish.name))
+          ? "Maison Elyse detecte dans Resto Marc"
+          : "Pas de melange Maison Elyse / Resto Marc",
+      level:
+        selectedRestaurant?.slug === "resto-marc" &&
+        previewMenu.dishes.some((dish) => /elyse/i.test(dish.name))
+          ? "blocker"
+          : "ok"
+    },
+    {
+      label: sourceLabel,
+      level: localDraft || menuData ? "ok" : "warning"
+    },
+    {
+      label: "Aucun secret stocke dans config_json",
+      level: "ok"
+    }
+  ] as const;
 
   return (
     <div className={styles.builderShell}>
@@ -425,32 +605,29 @@ export function MenuUiBuilder({
             <select
               value={selectedRestaurantId}
               onChange={(event) => {
-                const nextRestaurant =
-                  restaurants.find(
-                    (restaurant) => restaurant.id === event.target.value
-                  ) ?? restaurants[0];
-                const nextWelcomeCopy = buildWelcomeCopy(nextRestaurant);
-
                 setSelectedRestaurantId(event.target.value);
-                setWelcomeTitle(nextWelcomeCopy.title);
-                setWelcomeSubtitle(nextWelcomeCopy.subtitle);
-                setActiveTab("Tout");
-                setSelectedDish(null);
-                setSaveStatus("Draft local non sauvegardé");
+                setSaveState("idle");
               }}
             >
               {restaurants.map((restaurant) => (
                 <option key={restaurant.id} value={restaurant.id}>
-                  {restaurant.name} · {restaurant.slug}
+                  {restaurant.name} - {restaurant.slug}
                 </option>
               ))}
             </select>
           </label>
 
           <div className={styles.infoBox}>
-            <span>Menu public</span>
+            <span>{sourceLabel}</span>
             <strong>{publicMenuPath}</strong>
-            <small>{note}</small>
+            <small>{menuData?.note ?? note}</small>
+            <small>
+              {loadState === "loading"
+                ? "Chargement des vrais plats..."
+                : loadState === "error"
+                  ? "Chargement impossible."
+                  : "Donnees pretes."}
+            </small>
           </div>
         </section>
 
@@ -468,12 +645,9 @@ export function MenuUiBuilder({
                 key={theme.id}
                 type="button"
                 className={`${styles.themeButton} ${
-                  theme.id === themeId ? styles.themeButtonActive : ""
+                  theme.id === config.theme ? styles.themeButtonActive : ""
                 }`}
-                onClick={() => {
-                  setThemeId(theme.id);
-                  setSaveStatus("Draft local non sauvegardé");
-                }}
+                onClick={() => updateConfig({ theme: theme.id })}
               >
                 <strong>{theme.name}</strong>
                 <span>{theme.description}</span>
@@ -493,61 +667,52 @@ export function MenuUiBuilder({
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={welcomeEnabled}
-              onChange={(event) => {
-                setWelcomeEnabled(event.target.checked);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              checked={config.welcomeEnabled}
+              onChange={(event) => updateConfig({ welcomeEnabled: event.target.checked })}
             />
-            Afficher l’accueil animé
+            Afficher l&apos;accueil
           </label>
 
           <label className={styles.field}>
             Titre
             <input
-              value={welcomeTitle}
-              onChange={(event) => {
-                setWelcomeTitle(event.target.value);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              maxLength={120}
+              value={config.welcomeTitle}
+              onChange={(event) => updateConfig({ welcomeTitle: event.target.value })}
             />
           </label>
 
           <label className={styles.field}>
             Sous-titre
             <input
-              value={welcomeSubtitle}
-              onChange={(event) => {
-                setWelcomeSubtitle(event.target.value);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              maxLength={180}
+              value={config.welcomeSubtitle}
+              onChange={(event) => updateConfig({ welcomeSubtitle: event.target.value })}
             />
           </label>
 
           <label className={styles.field}>
             Motion
             <select
-              value={motion}
-              onChange={(event) => {
-                setMotion(event.target.value as WelcomeMotion);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              value={config.motion}
+              onChange={(event) =>
+                updateConfig({ motion: event.target.value as MenuUiConfig["motion"] })
+              }
             >
-              <option value="none">Aucune</option>
-              <option value="soft">Soft</option>
-              <option value="expressive">Expressive</option>
+              {MENU_UI_MOTION_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
             </select>
           </label>
 
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => {
-              resetWelcomeForRestaurant();
-              setSaveStatus("Draft local non sauvegardé");
-            }}
+            onClick={() => updateConfig(menuUiConfigForRestaurant(selectedRestaurant ?? {}))}
           >
-            Réinitialiser avec le nom du resto
+            Reinitialiser avec le restaurant
           </button>
         </section>
 
@@ -563,64 +728,71 @@ export function MenuUiBuilder({
             <label className={styles.field}>
               Navigation
               <select
-                value={categoryNavigation}
-                onChange={(event) => {
-                  setCategoryNavigation(event.target.value as CategoryNavigation);
-                  setActiveTab("Tout");
-                  setSelectedDish(null);
-                  setSaveStatus("Draft local non sauvegardé");
-                }}
+                value={config.categoryNavigation}
+                onChange={(event) =>
+                  updateConfig({
+                    categoryNavigation: event.target
+                      .value as MenuUiConfig["categoryNavigation"]
+                  })
+                }
               >
-                <option value="tabs">Tabs sticky</option>
-                <option value="cards">Cards catégories</option>
-                <option value="tabs-cards">Tabs + cards</option>
+                {MENU_UI_CATEGORY_NAVIGATION_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className={styles.field}>
               Cards plats
               <select
-                value={dishCardStyle}
-                onChange={(event) => {
-                  setDishCardStyle(event.target.value as DishCardStyle);
-                  setSaveStatus("Draft local non sauvegardé");
-                }}
+                value={config.dishCardStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    dishCardStyle: event.target.value as MenuUiConfig["dishCardStyle"]
+                  })
+                }
               >
-                <option value="compact">Compact</option>
-                <option value="photo-compact">Photo compact</option>
-                <option value="photo-large">Photo large</option>
-                <option value="minimal-list">Minimal list</option>
+                {MENU_UI_DISH_CARD_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className={styles.field}>
-              Fiche détail
+              Fiche detail
               <select
-                value={detailStyle}
-                onChange={(event) => {
-                  setDetailStyle(event.target.value as DetailStyle);
-                  setSelectedDish(null);
-                  setSaveStatus("Draft local non sauvegardé");
-                }}
+                value={config.detailStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    detailStyle: event.target.value as MenuUiConfig["detailStyle"]
+                  })
+                }
               >
-                <option value="bottom-sheet">Bottom sheet</option>
-                <option value="full-card">Full card</option>
-                <option value="simple-card">Simple card</option>
+                {MENU_UI_DETAIL_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className={styles.field}>
-              Densité
+              Densite
               <select
-                value={density}
-                onChange={(event) => {
-                  setDensity(event.target.value as Density);
-                  setSaveStatus("Draft local non sauvegardé");
-                }}
+                value={config.density}
+                onChange={(event) =>
+                  updateConfig({ density: event.target.value as MenuUiConfig["density"] })
+                }
               >
-                <option value="compact">Compact</option>
-                <option value="comfortable">Comfortable</option>
-                <option value="expressive">Expressive</option>
+                {MENU_UI_DENSITY_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -637,68 +809,84 @@ export function MenuUiBuilder({
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={showPhotoPlaceholders}
-              onChange={(event) => {
-                setShowPhotoPlaceholders(event.target.checked);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              checked={config.showPhotoPlaceholders}
+              onChange={(event) =>
+                updateConfig({ showPhotoPlaceholders: event.target.checked })
+              }
             />
-            Afficher photos/placeholders
+            Afficher les placeholders photo
           </label>
-
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={show3dBadges}
-              onChange={(event) => {
-                setShow3dBadges(event.target.checked);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              checked={config.show3dBadges}
+              onChange={(event) => updateConfig({ show3dBadges: event.target.checked })}
             />
             Afficher badges 3D si disponible
           </label>
-
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={showArBadges}
-              onChange={(event) => {
-                setShowArBadges(event.target.checked);
-                setSaveStatus("Draft local non sauvegardé");
-              }}
+              checked={config.showArBadges}
+              onChange={(event) => updateConfig({ showArBadges: event.target.checked })}
             />
             Afficher badges AR si disponible
           </label>
 
-          <p className={styles.helpText}>
-            Aucun modèle GLB/USDZ n’est chargé dans le builder : le preview montre
-            seulement le statut et les CTA.
-          </p>
+          <div className={styles.metricGrid}>
+            <span>{photoCount}/{previewMenu.dishes.length} photos</span>
+            <span>{modelCount}/{previewMenu.dishes.length} 3D</span>
+            <span>{arCount}/{previewMenu.dishes.length} AR</span>
+          </div>
         </section>
 
         <section className={styles.controlPanel}>
           <div className={styles.panelHeader}>
             <div>
-              <p className={styles.eyebrow}>Données</p>
-              <h3>Menu draft</h3>
+              <p className={styles.eyebrow}>Donnees</p>
+              <h3>Import rapide</h3>
             </div>
           </div>
 
           <textarea
             className={styles.menuTextarea}
-            value={rawMenu}
-            onChange={(event) => {
-              setRawMenu(event.target.value);
-              setActiveTab("Tout");
-              setSelectedDish(null);
-              setSaveStatus("Draft local non sauvegardé");
-            }}
+            value={quickImportText}
+            placeholder={IMPORT_PLACEHOLDER}
+            onChange={(event) => setQuickImportText(event.target.value)}
           />
-
+          <div className={styles.actionGrid}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={applyQuickImport}
+              disabled={!quickImportText.trim()}
+            >
+              Appliquer au draft preview
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => setLocalDraft(null)}
+            >
+              Revenir aux donnees Supabase
+            </button>
+          </div>
           <p className={styles.helpText}>
-            Format interne rapide : catégorie puis lignes “Nom | Prix |
-            Description”. Ces données restent owner-entered.
+            Donnees locales non sauvegardees. Format : categorie puis lignes
+            Nom | Prix | Description.
           </p>
+          {localDraft ? (
+            <p className={styles.helpText}>
+              Draft local : {localDraft.categoryCount} categorie(s), {localDraft.dishCount} plat(s).
+            </p>
+          ) : null}
+          {localDraft?.errors.length ? (
+            <ul className={styles.parseErrors}>
+              {localDraft.errors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          ) : null}
         </section>
 
         <section className={styles.controlPanel}>
@@ -714,26 +902,44 @@ export function MenuUiBuilder({
               <div
                 key={check.label}
                 className={`${styles.qualityItem} ${
-                  check.ok
+                  check.level === "ok"
                     ? styles.qualityOk
-                    : check.blocker
+                    : check.level === "blocker"
                       ? styles.qualityBad
                       : styles.qualityWarn
                 }`}
               >
-                <span>{check.ok ? "✓" : check.blocker ? "!" : "•"}</span>
+                <span>{check.level === "ok" ? "OK" : check.level === "blocker" ? "!" : "~"}</span>
                 <p>{check.label}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Actions</p>
+              <h3>Sauvegarder / publier / QR</h3>
+            </div>
           </div>
 
           <div className={styles.actionGrid}>
             <button
               type="button"
               className={styles.primaryButton}
-              onClick={() => setSaveStatus("Config UI prête pour publication")}
+              onClick={saveDraft}
+              disabled={saveState === "saving" || saveState === "publishing"}
             >
-              Sauvegarder config UI
+              Sauvegarder draft UI
+            </button>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={publishConfig}
+              disabled={saveState === "saving" || saveState === "publishing"}
+            >
+              Publier UI
             </button>
             <a
               className={styles.secondaryButton}
@@ -741,10 +947,36 @@ export function MenuUiBuilder({
               target="_blank"
               rel="noreferrer"
             >
-              Ouvrir preview publique
+              Ouvrir menu public
+            </a>
+            <button type="button" className={styles.secondaryButton} onClick={generateQr}>
+              Generer QR menu
+            </button>
+            <a
+              className={styles.secondaryButton}
+              href={qrState?.redirectUrl ?? "#"}
+              target={qrState ? "_blank" : undefined}
+              rel={qrState ? "noreferrer" : undefined}
+              onClick={(event) => {
+                if (!qrState) event.preventDefault();
+              }}
+            >
+              Tester scan QR
             </a>
           </div>
-          <p className={styles.saveStatus}>{saveStatus}</p>
+
+          {qrState ? (
+            <div className={styles.qrResult}>
+              <strong>Destination QR</strong>
+              <p>{qrState.redirectUrl} -&gt; {qrState.targetPath}</p>
+              <small>{qrState.persisted ? "QR persiste" : "QR non persiste"}</small>
+            </div>
+          ) : null}
+
+          <p className={styles.saveStatus} aria-live="polite">
+            {statusLabel(saveState)}
+            {errorMessage ? ` ${errorMessage}` : ""}
+          </p>
         </section>
       </aside>
 
@@ -752,206 +984,19 @@ export function MenuUiBuilder({
         <div className={styles.previewHeader}>
           <div>
             <p className={styles.eyebrow}>Preview client</p>
-            <h3>{selectedRestaurant?.name ?? "Menu public"}</h3>
+            <h3>{previewMenu.name}</h3>
           </div>
           <span className={styles.previewUrl}>{publicMenuPath}</span>
         </div>
 
         <div className={styles.phoneShell}>
-          <div
-            className={`${styles.phoneScreen} ${selectedTheme.className} ${densityClass}`}
-          >
-            {welcomeEnabled ? (
-              <header
-                className={`${styles.menuWelcome} ${
-                  motion === "none"
-                    ? styles.motionNone
-                    : motion === "expressive"
-                      ? styles.motionExpressive
-                      : styles.motionSoft
-                }`}
-              >
-                <p>{selectedRestaurant?.name ?? "Restaurant"}</p>
-                <h2>{welcomeTitle || `Bienvenue chez ${selectedRestaurant?.name}`}</h2>
-                <span>{welcomeSubtitle}</span>
-              </header>
-            ) : null}
-
-            {categoryNavigation !== "cards" ? (
-              <nav className={styles.menuTabs} aria-label="Navigation menu preview">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    className={tab === activeTab ? styles.tabActive : ""}
-                    onClick={() => {
-                      setActiveTab(tab);
-                      setSelectedDish(null);
-                    }}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </nav>
-            ) : null}
-
-            <main className={styles.menuPreviewBody}>
-              {activeTab === "Catégories" ? (
-                <div className={styles.categoryGrid}>
-                  {categories.map((category) => {
-                    const meta = CATEGORY_META[category.name] ?? {
-                      icon: "🍽️",
-                      description: "Découvrir",
-                      tone: styles.categoryBlue
-                    };
-
-                    return (
-                      <button
-                        key={category.name}
-                        type="button"
-                        className={`${styles.categoryCard} ${meta.tone}`}
-                        onClick={() => setActiveTab(category.name)}
-                      >
-                        <small>{category.dishes.length} choix</small>
-                        <strong>
-                          {meta.icon} {category.name}
-                        </strong>
-                        <span>{meta.description}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : activeCategory ? (
-                <section className={styles.menuSection}>
-                  <div className={styles.menuSectionHeader}>
-                    <h3>{activeCategory.name}</h3>
-                    <button type="button" onClick={() => setActiveTab("Tout")}>
-                      Tout voir
-                    </button>
-                  </div>
-                  <div className={styles.dishList}>
-                    {activeCategory.dishes.map(renderDishCard)}
-                  </div>
-                </section>
-              ) : (
-                <div className={styles.allSections}>
-                  {categoryNavigation !== "tabs" ? (
-                    <div className={styles.compactCategoryRail}>
-                      {categories.map((category) => {
-                        const meta = CATEGORY_META[category.name] ?? {
-                          icon: "🍽️",
-                          description: "Découvrir",
-                          tone: styles.categoryBlue
-                        };
-
-                        return (
-                          <button
-                            key={category.name}
-                            type="button"
-                            className={`${styles.compactCategory} ${meta.tone}`}
-                            onClick={() => setActiveTab(category.name)}
-                          >
-                            <span>{meta.icon}</span>
-                            <strong>{category.name}</strong>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-
-                  {categories.map((category) => (
-                    <section key={category.name} className={styles.menuSection}>
-                      <div className={styles.menuSectionHeader}>
-                        <h3>{category.name}</h3>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab(category.name)}
-                        >
-                          Voir
-                        </button>
-                      </div>
-                      <div className={styles.dishList}>
-                        {category.dishes.map(renderDishCard)}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </main>
-
-            {selectedDish ? (
-              <div
-                className={`${styles.detailOverlay} ${
-                  detailStyle === "full-card" ? styles.detailFullCard : ""
-                } ${detailStyle === "simple-card" ? styles.detailSimpleCard : ""}`}
-              >
-                <article className={styles.detailSheet}>
-                  <div className={styles.detailHero}>
-                    <span>{selectedDish.hasPhoto ? getDishIcon(selectedDish) : "Photo"}</span>
-                  </div>
-                  <div className={styles.detailBody}>
-                    <div className={styles.detailTop}>
-                      <div>
-                        <p className={styles.detailCategory}>
-                          {selectedDish.category}
-                        </p>
-                        <h3>{selectedDish.name}</h3>
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.closeButton}
-                        onClick={() => setSelectedDish(null)}
-                        aria-label="Fermer le détail"
-                      >
-                        ×
-                      </button>
-                    </div>
-
-                    <strong className={styles.detailPrice}>
-                      {formatPrice(selectedDish.price)}
-                    </strong>
-                    <p className={styles.detailDescription}>
-                      {selectedDish.description}
-                    </p>
-
-                    <div className={styles.badgeRow}>
-                      {selectedDish.tags.map((tag) => (
-                        <span key={tag} className={styles.menuBadge}>
-                          {tag}
-                        </span>
-                      ))}
-                      {selectedDish.hasPhoto ? (
-                        <span className={styles.photoBadge}>Photo OK</span>
-                      ) : (
-                        <span className={styles.warningBadge}>Photo à faire</span>
-                      )}
-                      {show3dBadges && selectedDish.has3d ? (
-                        <span className={styles.modelBadge}>3D disponible</span>
-                      ) : null}
-                      {showArBadges && selectedDish.hasAr ? (
-                        <span className={styles.modelBadge}>AR disponible</span>
-                      ) : null}
-                    </div>
-
-                    {selectedDish.has3d || selectedDish.hasAr ? (
-                      <div className={styles.modelPanel}>
-                        <p>Preview 3D / AR</p>
-                        <strong>Chargement seulement après clic utilisateur.</strong>
-                        <button type="button">Voir en 3D</button>
-                      </div>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      className={styles.primaryButton}
-                      onClick={() => setSelectedDish(null)}
-                    >
-                      Retour au menu
-                    </button>
-                  </div>
-                </article>
-              </div>
-            ) : null}
+          <div className={styles.phoneScreen}>
+            <PublicMenuRenderer
+              menu={previewMenu}
+              config={config}
+              mode="builder-preview"
+              disableHeavyAssets
+            />
           </div>
         </div>
       </section>
