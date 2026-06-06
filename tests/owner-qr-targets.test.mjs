@@ -23,6 +23,19 @@ test("builds a public menu QR target with a clear label", () => {
   assert.equal(target.badgeLabel, "Public client");
 });
 
+test("builds Resto Marc menu QR targets for the secure redirect flow", () => {
+  const target = buildOwnerQrTarget({
+    targetKind: "menu",
+    restaurantId: "33333333-3333-4333-8333-333333333333",
+    restaurantName: "Resto Marc",
+    restaurantSlug: "resto-marc"
+  });
+
+  assert.equal(target.targetKind, "menu");
+  assert.equal(target.targetPath, "/menu/resto-marc");
+  assert.doesNotMatch(target.targetPath, /owner|admin|token|service_role/i);
+});
+
 test("builds an internal protected owner QR target with a clear label", () => {
   const target = buildOwnerQrTarget({
     targetKind: "admin",

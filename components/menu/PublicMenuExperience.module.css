@@ -1,0 +1,504 @@
+.page {
+  min-height: 100svh;
+  overflow-x: clip;
+  background: linear-gradient(180deg, #FFFDF6 0%, #FFFDF6 64%, #EAF6FF 100%);
+  color: #17324D;
+  font-family: "Neue Montreal", system-ui, sans-serif;
+  padding: 12px 14px 34px;
+}
+
+.welcome {
+  display: grid;
+  gap: 14px;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 12px 0 16px;
+}
+
+.welcomeText {
+  animation: welcomeRise 720ms ease both;
+}
+
+.welcomeActive .welcomeText {
+  animation-duration: 880ms;
+}
+
+.kicker,
+.sectionLabel {
+  margin: 0 0 6px;
+  color: #E85D3F;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.welcome h1 {
+  max-width: 13ch;
+  margin: 0;
+  color: #17324D;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.welcome p:not(.kicker) {
+  max-width: 27rem;
+  margin: 8px 0 0;
+  color: #6B5A48;
+  font-size: 16px;
+  line-height: 1.42;
+}
+
+.context {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  color: #5F6F7A;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.quickActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.quickButton,
+.secondaryButton,
+.backButton,
+.previewHeader button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  color: #17324D;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.quickButton {
+  padding: 11px 17px;
+  background: #F6C453;
+  box-shadow: 0 10px 24px rgba(246, 196, 83, 0.3);
+}
+
+.secondaryButton,
+.backButton,
+.previewHeader button {
+  padding: 10px 14px;
+  background: #FFFFFF;
+  border: 1px solid #DDEAF3;
+}
+
+.menuShell {
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+.restaurantIntro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+  margin-bottom: 10px;
+}
+
+.restaurantIntro h2 {
+  margin: 0;
+  color: #17324D;
+  font-size: 27px;
+  line-height: 1.04;
+}
+
+.backButton {
+  flex: 0 0 auto;
+}
+
+.categoryTabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  margin: 0 -14px 14px;
+  padding: 8px 14px 12px;
+  overflow-x: auto;
+  background: rgba(255, 253, 246, 0.94);
+  border-bottom: 1px solid rgba(221, 234, 243, 0.8);
+  backdrop-filter: blur(10px);
+  scrollbar-width: none;
+}
+
+.categoryTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.categoryTabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid #DDEAF3;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #17324D;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.categoryTabs small {
+  color: #5F6F7A;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.categoryTabs .activeTab {
+  background: #F6C453;
+  border-color: #F6C453;
+  box-shadow: 0 8px 18px rgba(246, 196, 83, 0.24);
+}
+
+.menuView {
+  display: grid;
+  gap: 18px;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.categoryCard {
+  display: grid;
+  min-height: 96px;
+  align-content: space-between;
+  gap: 7px;
+  padding: 13px;
+  border: 1px solid #DDEAF3;
+  border-radius: 8px;
+  color: #17324D;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(23, 50, 77, 0.07);
+}
+
+.categoryCard strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.categoryCard small {
+  color: #5F6F7A;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.categoryCount {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #17324D;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.toneblue {
+  background: #EAF6FF;
+}
+
+.tonegreen {
+  background: #EAF8EF;
+}
+
+.toneyellow {
+  background: #FFF3C7;
+}
+
+.tonered {
+  background: #FFE9E3;
+}
+
+.previewSection,
+.fullMenuSection {
+  display: grid;
+  gap: 12px;
+}
+
+.previewHeader,
+.fullMenuSectionHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewHeader h3,
+.fullMenuSection h3 {
+  margin: 0;
+  color: #17324D;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.fullMenuSectionHeader span {
+  flex: 0 0 auto;
+  color: #5F6F7A;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.fullMenuList {
+  display: grid;
+  gap: 24px;
+}
+
+.dishList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dishCard {
+  min-width: 0;
+}
+
+.dishLink {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  min-height: 82px;
+  padding: 11px;
+  border: 1px solid #DDEAF3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #17324D;
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(23, 50, 77, 0.06);
+}
+
+.dishThumb {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background-color: #EAF8EF;
+  background-position: center;
+  background-size: cover;
+  color: #2FA866;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.dishCopy,
+.dishAside {
+  display: grid;
+  min-width: 0;
+}
+
+.dishCopy {
+  gap: 5px;
+}
+
+.dishAside {
+  justify-items: end;
+  gap: 6px;
+}
+
+.dishHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dishName {
+  color: #17324D;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.badge,
+.unavailable {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(47, 168, 102, 0.12);
+  color: #2FA866;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.unavailable {
+  background: rgba(232, 93, 63, 0.1);
+  color: #E85D3F;
+}
+
+.dishDescription,
+.empty span {
+  color: #5F6F7A;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.price {
+  color: #E85D3F;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.cardAction {
+  color: #5F6F7A;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.empty {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid #DDEAF3;
+  border-radius: 8px;
+  background: #FFFFFF;
+}
+
+.empty p {
+  margin: 0;
+  color: #17324D;
+  font-weight: 900;
+}
+
+.categoryCard:focus-visible,
+.categoryTabs button:focus-visible,
+.dishLink:focus-visible,
+.quickButton:focus-visible,
+.secondaryButton:focus-visible,
+.backButton:focus-visible,
+.previewHeader button:focus-visible {
+  outline: 3px solid rgba(232, 93, 63, 0.45);
+  outline-offset: 3px;
+}
+
+@keyframes welcomeRise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: 20px 28px 54px;
+  }
+
+  .welcome {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    padding: 18px 0 20px;
+  }
+
+  .welcome h1 {
+    font-size: 54px;
+  }
+
+  .restaurantIntro h2 {
+    font-size: 38px;
+  }
+
+  .categoryTabs {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .categoryGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dishLink {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    min-height: 96px;
+    padding: 14px;
+  }
+
+  .dishThumb {
+    width: 64px;
+  }
+
+  .dishName {
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 430px) {
+  .restaurantIntro {
+    display: grid;
+    align-items: start;
+  }
+
+  .backButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .page {
+    padding-inline: 12px;
+  }
+
+  .welcome h1 {
+    font-size: 32px;
+  }
+
+  .categoryTabs {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+
+  .dishLink {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .dishThumb {
+    width: 48px;
+  }
+
+  .dishAside {
+    grid-column: 2;
+    justify-items: start;
+    grid-auto-flow: column;
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcomeText,
+  .welcomeActive .welcomeText {
+    animation: none;
+  }
+}

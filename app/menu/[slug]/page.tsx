@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PublicMenuExperience } from "@/components/menu/PublicMenuExperience";
 import { getPublicMenuBySlug, type PublicMenuDish } from "@/lib/menu/publicMenu";
+import { isFreshHomemadeMenu } from "@/lib/menu/publicMenuCore";
 import styles from "./menu.module.css";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +45,10 @@ export default async function PublicMenuPage({
   const context = [query.table ? `Table ${query.table}` : "", query.zone ? `Zone ${query.zone}` : ""]
     .filter(Boolean)
     .join(" · ");
+
+  if (isFreshHomemadeMenu(menu)) {
+    return <PublicMenuExperience menu={menu} context={context} query={query} />;
+  }
 
   return (
     <main className={styles.page}>

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildPublicMenuPath,
   buildRestaurantDashboardPath,
   buildRestaurantMenuPath
 } from "../lib/owner/menuUrlCore.ts";
@@ -36,4 +37,12 @@ test("builds restaurant dashboard preview paths separately from owner cockpit", 
     "/owner/restaurants?restaurantId=restaurant-id"
   );
   assert.equal(buildRestaurantDashboardPath(""), "/owner");
+});
+
+test("builds Resto Marc public menu paths from restaurant names", () => {
+  assert.equal(buildPublicMenuPath("Resto Marc"), "/menu/resto-marc");
+  assert.equal(
+    buildPublicMenuPath("Resto Marc", { table: "12", zone: "terrasse" }),
+    "/menu/resto-marc?table=12&zone=terrasse"
+  );
 });
