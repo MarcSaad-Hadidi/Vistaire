@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildSupabasePublicMenu,
+  getPublicMenuDishBySlug,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   isFreshHomemadeMenu
@@ -63,11 +64,37 @@ test("builds a Resto Marc public menu from Supabase-like rows", () => {
 });
 
 test("keeps a real restaurant with no dishes as an empty public menu", () => {
-  const menu = buildSupabasePublicMenu("resto-marc", restoMarc, []);
+  const menu = buildSupabasePublicMenu("resto-marc", restoMarc, [
+    {
+      id: "maison-elyse-dish",
+      restaurant_id: maisonElyseId,
+      restaurant_slug: "resto-marc",
+      name: "Plat Maison Elyse a ne pas afficher",
+      category_name: "Plats",
+      price: 99,
+      sort_order: 1
+    }
+  ]);
 
   assert.equal(menu.slug, "resto-marc");
   assert.equal(menu.source, "supabase");
   assert.deepEqual(menu.dishes, []);
+});
+
+test("can fall back to restaurant_slug only when the restaurant row has no id", () => {
+  const menu = buildSupabasePublicMenu("resto-marc", { ...restoMarc, id: "" }, [
+    {
+      id: "bol-riz",
+      restaurant_slug: "resto-marc",
+      name: "Bol de riz au poulet et legumes",
+      category_name: "Plats",
+      price: 17.99,
+      sort_order: 1
+    }
+  ]);
+
+  assert.equal(menu.dishes.length, 1);
+  assert.equal(menu.dishes[0].name, "Bol de riz au poulet et legumes");
 });
 
 test("groups Resto Marc dishes into visible category cards without empty categories", () => {
@@ -100,4 +127,57 @@ test("groups Resto Marc dishes into visible category cards without empty categor
   assert.equal(groups.get("Plats")?.[0]?.name, "Bol de riz au poulet et legumes");
   assert.equal(groups.has("Entrees"), false);
   assert.equal(isFreshHomemadeMenu(menu), true);
+});
+
+test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => {
+  const menu = buildSupabasePublicMenu("resto-marc", restoMarc, [
+    {
+      id: "bol-id",
+      slug: "bol-de-riz-au-poulet-et-legumes",
+      restaurant_id: restoMarcId,
+      name: "Bol de riz au poulet et legumes",
+      description:
+        "Riz chaud servi avec morceaux de poulet grille, legumes sautes, sauce maison legere et garniture fraiche.",
+      category_name: "Plats",
+      price: 17.99,
+      image_url: "/images/resto-marc/bol-riz.jpg",
+      ingredients: ["Riz chaud", "Poulet grille"],
+      allergens: "sesame, soja",
+      options: ["Extra sauce maison"],
+      house_note: "Maison",
+      tags: ["Maison", "Populaire"],
+      sort_order: 1
+    },
+    {
+      id: "maison-elyse-bol",
+      slug: "bol-de-riz-au-poulet-et-legumes",
+      restaurant_id: maisonElyseId,
+      restaurant_slug: "resto-marc",
+      name: "Bol Maison Elyse a ne pas afficher",
+      category_name: "Plats",
+      price: 99,
+      sort_order: 2
+    }
+  ]);
+
+  assert.equal(menu.dishes.length, 1);
+
+  const dish = getPublicMenuDishBySlug(
+    menu,
+    "bol-de-riz-au-poulet-et-legumes"
+  );
+
+  assert.ok(dish);
+  assert.equal(dish.name, "Bol de riz au poulet et legumes");
+  assert.equal(dish.slug, "bol-de-riz-au-poulet-et-legumes");
+  assert.equal(dish.category, "Plats");
+  assert.equal(dish.priceLabel, "17,99\u00a0$");
+  assert.equal(dish.imageUrl, "/images/resto-marc/bol-riz.jpg");
+  assert.deepEqual(dish.ingredients, ["Riz chaud", "Poulet grille"]);
+  assert.deepEqual(dish.allergens, ["sesame", "soja"]);
+  assert.deepEqual(dish.options, ["Extra sauce maison"]);
+  assert.equal(dish.houseNote, "Maison");
+  assert.deepEqual(dish.tags, ["Maison", "Populaire"]);
+  assert.equal(dish.available, true);
+  assert.equal(getPublicMenuDishBySlug(menu, "introuvable"), null);
 });

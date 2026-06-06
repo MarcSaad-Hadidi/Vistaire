@@ -1,11 +1,19 @@
 export type PublicMenuDish = {
   id: string;
+  slug: string;
   name: string;
   description: string;
   category: string;
   priceLabel: string;
+  imageUrl: string;
   hasPhoto: boolean;
   hasImmersive: boolean;
+  available: boolean;
+  ingredients: string[];
+  allergens: string[];
+  options: string[];
+  houseNote: string;
+  tags: string[];
 };
 
 export type PublicMenu = {
@@ -112,6 +120,35 @@ function getBoolean(row: PublicMenuRow, candidates: string[]): boolean | null {
   return null;
 }
 
+function getStringList(row: PublicMenuRow, candidates: string[]): string[] {
+  for (const key of candidates) {
+    const value = row[key];
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean);
+    }
+    if (typeof value === "string" && value.trim()) {
+      const trimmed = value.trim();
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => String(item ?? "").trim())
+            .filter(Boolean);
+        }
+      } catch {
+        // Plain comma/semicolon/newline lists are accepted below.
+      }
+      return trimmed
+        .split(/[,;\n]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+  return [];
+}
+
 function formatPrice(row: PublicMenuRow): string {
   const value = getNumber(row, ["price", "amount", "price_cad"], 0);
   if (!value) return "";
@@ -161,9 +198,23 @@ function rowMatchesValue(
 }
 
 function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
+  const name = getString(row, ["name", "dish_name", "title"], "Plat");
+  const imageUrl = getString(row, [
+    "image",
+    "image_url",
+    "imageUrl",
+    "photo_url",
+    "photoUrl",
+    "thumbnail_url"
+  ]);
+  const slug = slugify(
+    getString(row, ["slug", "dish_slug", "dishSlug"], name)
+  );
+
   return {
     id: getString(row, ["id", "dish_id", "slug", "dish_slug"], `dish-${index}`),
-    name: getString(row, ["name", "dish_name", "title"], "Plat"),
+    slug: slug || `dish-${index}`,
+    name,
     description: getString(row, ["description", "desc", "summary"], ""),
     category: normalizeCategory(
       getString(
@@ -173,16 +224,8 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
       )
     ),
     priceLabel: formatPrice(row),
-    hasPhoto: Boolean(
-      getString(row, [
-        "image",
-        "image_url",
-        "imageUrl",
-        "photo_url",
-        "photoUrl",
-        "thumbnail_url"
-      ])
-    ),
+    imageUrl,
+    hasPhoto: Boolean(imageUrl),
     hasImmersive: Boolean(
       getString(row, [
         "model3d_url",
@@ -194,7 +237,19 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
         "usdz_url",
         "usdzUrl"
       ])
-    )
+    ),
+    available: isDishAvailable(row),
+    ingredients: getStringList(row, ["ingredients", "ingredient_list"]),
+    allergens: getStringList(row, ["allergens", "allergenes", "allergen_list"]),
+    options: getStringList(row, ["options", "option_list"]),
+    houseNote: getString(row, [
+      "house_note",
+      "houseNote",
+      "chef_note",
+      "chefNote",
+      "note"
+    ]),
+    tags: getStringList(row, ["tags", "badges", "labels"])
   };
 }
 
@@ -220,7 +275,7 @@ export function buildSupabasePublicMenu(
       )
     : [];
   const scopedRows =
-    rowsById.length > 0
+    restaurantId
       ? rowsById
       : dishRows.filter((row) =>
           rowMatchesValue(row, ["restaurant_slug", "restaurantSlug"], slug)
@@ -283,6 +338,23 @@ export function getVisiblePublicMenuCategories(
       count: categoryDishes.length
     };
   });
+}
+
+export function getPublicMenuDishBySlug(
+  menu: PublicMenu,
+  rawDishSlug: string
+): PublicMenuDish | null {
+  const dishSlug = slugify(rawDishSlug);
+  if (!dishSlug) return null;
+
+  return (
+    menu.dishes.find(
+      (dish) =>
+        slugify(dish.slug) === dishSlug ||
+        slugify(dish.name) === dishSlug ||
+        slugify(dish.id) === dishSlug
+    ) ?? null
+  );
 }
 
 export function isFreshHomemadeMenu(menu: PublicMenu): boolean {

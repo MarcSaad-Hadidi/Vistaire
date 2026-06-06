@@ -20,6 +20,13 @@ test("Fresh Homemade experience includes welcome, category, dish, and return sta
   assert.match(source, /Bienvenue chez Resto Marc/);
   assert.match(source, /Cuisine maison fraîche et généreuse/);
   assert.match(source, /Retour aux catégories/);
+  assert.match(source, /ALL_TAB_ID/);
+  assert.match(source, /setActiveTab\(ALL_TAB_ID\)/);
+  assert.match(source, /Tout le menu/);
+  assert.match(source, /role="tablist"/);
+  assert.match(source, /aria-selected/);
+  assert.match(source, /Entrées/);
+  assert.match(source, /href=\{`\/menu\/\$\{menu\.slug\}\/dishes\/\$\{dish\.slug\}`\}/);
   assert.match(source, /bol de riz au poulet/i);
   assert.match(source, /aria-live="polite"/);
 });

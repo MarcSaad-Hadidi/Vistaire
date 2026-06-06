@@ -1,0 +1,309 @@
+.page {
+  min-height: 100svh;
+  overflow-x: clip;
+  background: linear-gradient(180deg, #FFFDF6 0%, #FFFDF6 58%, #EAF6FF 100%);
+  color: #17324D;
+  font-family: "Neue Montreal", system-ui, sans-serif;
+  padding: 12px 14px 34px;
+}
+
+.shell {
+  display: grid;
+  gap: 12px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.topNav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 46px;
+  padding: 7px 0;
+  background: rgba(255, 253, 246, 0.94);
+  backdrop-filter: blur(10px);
+}
+
+.topNav a,
+.primaryLink,
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: #17324D;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.topNav a,
+.actions button {
+  border: 1px solid #DDEAF3;
+  background: #FFFFFF;
+}
+
+.topNav span {
+  min-width: 0;
+  color: #5F6F7A;
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card {
+  display: grid;
+  gap: 16px;
+}
+
+.visual {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #DDEAF3;
+  border-radius: 8px;
+  background-color: #EAF8EF;
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 12px 30px rgba(23, 50, 77, 0.08);
+}
+
+.imageFallback {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: #2FA866;
+  text-align: center;
+}
+
+.imageFallback span {
+  display: grid;
+  width: 64px;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #2FA866;
+  font-size: 28px;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(23, 50, 77, 0.08);
+}
+
+.imageFallback p {
+  margin: 0;
+  color: #5F6F7A;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.content {
+  display: grid;
+  gap: 16px;
+}
+
+.heading {
+  display: grid;
+  gap: 8px;
+}
+
+.kicker {
+  margin: 0;
+  color: #E85D3F;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heading h1 {
+  margin: 0;
+  color: #17324D;
+  font-size: 34px;
+  line-height: 1.02;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin: 0;
+  color: #6B5A48;
+  font-size: 16px;
+  line-height: 1.48;
+}
+
+.context {
+  width: fit-content;
+  color: #5F6F7A;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badges span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(47, 168, 102, 0.12);
+  color: #2FA866;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.factGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.factGrid div,
+.detailSections section {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #DDEAF3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 22px rgba(23, 50, 77, 0.05);
+}
+
+.factGrid dt,
+.detailSections h2 {
+  margin: 0 0 6px;
+  color: #5F6F7A;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.factGrid dd {
+  margin: 0;
+  color: #17324D;
+  font-size: 15px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.detailSections {
+  display: grid;
+  gap: 10px;
+}
+
+.detailSections ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #17324D;
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.detailSections p {
+  margin: 0;
+  color: #6B5A48;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.houseNote {
+  background: #FFF3C7;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primaryLink {
+  background: #F6C453;
+  box-shadow: 0 10px 24px rgba(246, 196, 83, 0.26);
+}
+
+.actions button {
+  cursor: pointer;
+}
+
+.copyState {
+  min-height: 18px;
+  margin: -6px 0 0;
+  color: #2FA866;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.topNav a:focus-visible,
+.primaryLink:focus-visible,
+.actions button:focus-visible {
+  outline: 3px solid rgba(232, 93, 63, 0.45);
+  outline-offset: 3px;
+}
+
+@media (min-width: 760px) {
+  .page {
+    padding: 20px 28px 54px;
+  }
+
+  .card {
+    grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .visual {
+    position: sticky;
+    top: 72px;
+    min-height: 520px;
+  }
+
+  .heading h1 {
+    font-size: 52px;
+  }
+}
+
+@media (max-width: 430px) {
+  .factGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .topNav {
+    align-items: start;
+  }
+}
+
+@media (max-width: 390px) {
+  .page {
+    padding-inline: 12px;
+  }
+
+  .heading h1 {
+    font-size: 31px;
+  }
+
+  .visual {
+    min-height: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topNav {
+    scroll-behavior: auto;
+  }
+}

@@ -1,86 +1,96 @@
 .page {
   min-height: 100svh;
-  background: linear-gradient(180deg, #FFFDF6 0%, #FFFDF6 58%, #EAF6FF 100%);
+  overflow-x: clip;
+  background: linear-gradient(180deg, #FFFDF6 0%, #FFFDF6 64%, #EAF6FF 100%);
   color: #17324D;
   font-family: "Neue Montreal", system-ui, sans-serif;
-  padding: 18px 16px 36px;
+  padding: 12px 14px 34px;
 }
 
 .welcome {
-  position: relative;
   display: grid;
-  gap: 18px;
-  min-height: 44svh;
-  align-content: end;
-  padding: 38px 2px 28px;
-  overflow: hidden;
+  gap: 14px;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 12px 0 16px;
 }
 
 .welcomeText {
-  position: relative;
-  z-index: 1;
-  animation: welcomeRise 880ms ease both;
+  animation: welcomeRise 720ms ease both;
 }
 
 .welcomeActive .welcomeText {
-  animation-duration: 1.1s;
+  animation-duration: 880ms;
 }
 
 .kicker,
 .sectionLabel {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #E85D3F;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .welcome h1 {
-  max-width: 11ch;
+  max-width: 13ch;
   margin: 0;
   color: #17324D;
-  font-size: 42px;
-  line-height: 0.98;
+  font-size: 34px;
+  line-height: 1;
   font-weight: 900;
 }
 
 .welcome p:not(.kicker) {
-  max-width: 26rem;
-  margin: 14px 0 0;
+  max-width: 27rem;
+  margin: 8px 0 0;
   color: #6B5A48;
-  font-size: 18px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.42;
 }
 
 .context {
   display: inline-flex;
   width: fit-content;
-  margin-top: 12px;
+  margin-top: 8px;
   color: #5F6F7A;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.quickActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .quickButton,
-.backButton {
-  width: fit-content;
-  min-height: 44px;
+.secondaryButton,
+.backButton,
+.previewHeader button {
+  min-height: 42px;
   border: 0;
   border-radius: 999px;
   color: #17324D;
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 900;
   cursor: pointer;
 }
 
 .quickButton {
-  position: relative;
-  z-index: 1;
-  padding: 12px 18px;
+  padding: 11px 17px;
   background: #F6C453;
-  box-shadow: 0 10px 26px rgba(246, 196, 83, 0.34);
+  box-shadow: 0 10px 24px rgba(246, 196, 83, 0.3);
+}
+
+.secondaryButton,
+.backButton,
+.previewHeader button {
+  padding: 10px 14px;
+  background: #FFFFFF;
+  border: 1px solid #DDEAF3;
 }
 
 .menuShell {
@@ -92,65 +102,117 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 12px;
+  padding-top: 4px;
+  margin-bottom: 10px;
 }
 
 .restaurantIntro h2 {
   margin: 0;
   color: #17324D;
-  font-size: 28px;
+  font-size: 27px;
   line-height: 1.04;
 }
 
 .backButton {
   flex: 0 0 auto;
-  padding: 11px 15px;
-  background: #FFFFFF;
+}
+
+.categoryTabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  margin: 0 -14px 14px;
+  padding: 8px 14px 12px;
+  overflow-x: auto;
+  background: rgba(255, 253, 246, 0.94);
+  border-bottom: 1px solid rgba(221, 234, 243, 0.8);
+  backdrop-filter: blur(10px);
+  scrollbar-width: none;
+}
+
+.categoryTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.categoryTabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
   border: 1px solid #DDEAF3;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #17324D;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.categoryTabs small {
+  color: #5F6F7A;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.categoryTabs .activeTab {
+  background: #F6C453;
+  border-color: #F6C453;
+  box-shadow: 0 8px 18px rgba(246, 196, 83, 0.24);
+}
+
+.menuView {
+  display: grid;
+  gap: 18px;
 }
 
 .categoryGrid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .categoryCard {
   display: grid;
-  min-height: 132px;
+  min-height: 96px;
   align-content: space-between;
-  gap: 10px;
-  padding: 18px;
+  gap: 7px;
+  padding: 13px;
   border: 1px solid #DDEAF3;
   border-radius: 8px;
   color: #17324D;
   text-align: left;
   font: inherit;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(23, 50, 77, 0.08);
+  box-shadow: 0 8px 24px rgba(23, 50, 77, 0.07);
 }
 
 .categoryCard strong {
   display: block;
-  font-size: 28px;
-  line-height: 1;
+  font-size: 20px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .categoryCard small {
   color: #5F6F7A;
-  font-size: 15px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .categoryCount {
   width: fit-content;
-  padding: 5px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.76);
   color: #17324D;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .toneblue {
@@ -169,75 +231,172 @@
   background: #FFE9E3;
 }
 
-.dishList {
+.previewSection,
+.fullMenuSection {
   display: grid;
   gap: 12px;
+}
+
+.previewHeader,
+.fullMenuSectionHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewHeader h3,
+.fullMenuSection h3 {
+  margin: 0;
+  color: #17324D;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.fullMenuSectionHeader span {
+  flex: 0 0 auto;
+  color: #5F6F7A;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.fullMenuList {
+  display: grid;
+  gap: 24px;
+}
+
+.dishList {
+  display: grid;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .dishCard {
+  min-width: 0;
+}
+
+.dishLink {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 14px;
-  align-items: start;
-  padding: 16px;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  min-height: 82px;
+  padding: 11px;
   border: 1px solid #DDEAF3;
   border-radius: 8px;
   background: #FFFFFF;
-  box-shadow: 0 8px 24px rgba(23, 50, 77, 0.07);
+  color: #17324D;
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(23, 50, 77, 0.06);
+}
+
+.dishThumb {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background-color: #EAF8EF;
+  background-position: center;
+  background-size: cover;
+  color: #2FA866;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.dishCopy,
+.dishAside {
+  display: grid;
+  min-width: 0;
+}
+
+.dishCopy {
+  gap: 5px;
+}
+
+.dishAside {
+  justify-items: end;
+  gap: 6px;
 }
 
 .dishHeading {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.dishHeading h3 {
-  margin: 0;
+.dishName {
   color: #17324D;
-  font-size: 18px;
-  line-height: 1.2;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
 }
 
-.dishHeading span {
-  padding: 3px 8px;
+.badge,
+.unavailable {
+  width: fit-content;
+  padding: 3px 7px;
   border-radius: 999px;
   background: rgba(47, 168, 102, 0.12);
   color: #2FA866;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
-.dishCard p,
-.empty {
-  margin: 7px 0 0;
+.unavailable {
+  background: rgba(232, 93, 63, 0.1);
+  color: #E85D3F;
+}
+
+.dishDescription,
+.empty span {
   color: #5F6F7A;
-  font-size: 14px;
-  line-height: 1.48;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .price {
   color: #E85D3F;
-  font-size: 16px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
+.cardAction {
+  color: #5F6F7A;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .empty {
+  display: grid;
+  gap: 6px;
   padding: 18px;
   border: 1px solid #DDEAF3;
   border-radius: 8px;
   background: #FFFFFF;
 }
 
+.empty p {
+  margin: 0;
+  color: #17324D;
+  font-weight: 900;
+}
+
 .categoryCard:focus-visible,
+.categoryTabs button:focus-visible,
+.dishLink:focus-visible,
 .quickButton:focus-visible,
-.backButton:focus-visible {
+.secondaryButton:focus-visible,
+.backButton:focus-visible,
+.previewHeader button:focus-visible {
   outline: 3px solid rgba(232, 93, 63, 0.45);
   outline-offset: 3px;
 }
@@ -245,7 +404,7 @@
 @keyframes welcomeRise {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -255,23 +414,44 @@
 
 @media (min-width: 720px) {
   .page {
-    padding: 26px 28px 54px;
+    padding: 20px 28px 54px;
   }
 
   .welcome {
-    min-height: 38svh;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    padding: 18px 0 20px;
   }
 
   .welcome h1 {
-    font-size: 64px;
+    font-size: 54px;
   }
 
   .restaurantIntro h2 {
-    font-size: 40px;
+    font-size: 38px;
+  }
+
+  .categoryTabs {
+    margin-inline: 0;
+    padding-inline: 0;
   }
 
   .categoryGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dishLink {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    min-height: 96px;
+    padding: 14px;
+  }
+
+  .dishThumb {
+    width: 64px;
+  }
+
+  .dishName {
+    font-size: 17px;
   }
 }
 
@@ -288,15 +468,31 @@
 
 @media (max-width: 390px) {
   .page {
-    padding-inline: 14px;
+    padding-inline: 12px;
   }
 
   .welcome h1 {
-    font-size: 39px;
+    font-size: 32px;
   }
 
-  .dishCard {
-    grid-template-columns: 1fr;
+  .categoryTabs {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+
+  .dishLink {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .dishThumb {
+    width: 48px;
+  }
+
+  .dishAside {
+    grid-column: 2;
+    justify-items: start;
+    grid-auto-flow: column;
+    align-items: center;
   }
 }
 

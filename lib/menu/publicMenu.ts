@@ -26,10 +26,12 @@ function demoMenu(slug: string): PublicMenu {
     source: "demo",
     dishes: dishes.slice(0, 60).map((dish, index) => ({
       id: dish.slug || `demo-${index}`,
+      slug: dish.slug || `demo-${index}`,
       name: dish.name,
       description: dish.description ?? "",
       category: dish.categorySlug ?? "Carte",
       priceLabel: dish.price ? String(dish.price) : "",
+      imageUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
       hasImmersive: Boolean(
         dish.model3dUrl ||
@@ -37,7 +39,17 @@ function demoMenu(slug: string): PublicMenu {
           dish.arModel3dUrl ||
           dish.usdzUrl ||
           dish.arUsdzUrl
-      )
+      ),
+      available: dish.isAvailable,
+      ingredients: dish.ingredients,
+      allergens: dish.allergens,
+      options: dish.options,
+      houseNote: dish.chefRecommendation,
+      tags: [
+        dish.isSignature ? "Signature" : "",
+        dish.isRecommended ? "Recommandé" : "",
+        dish.isAvailable ? "" : "Indisponible"
+      ].filter(Boolean)
     }))
   };
 }
