@@ -3,15 +3,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import {
+  MENU_UI_BACKGROUND_SHAPE_VALUES,
+  MENU_UI_BACKGROUND_STYLE_VALUES,
+  MENU_UI_BODY_STYLE_VALUES,
   MENU_UI_CATEGORY_NAVIGATION_VALUES,
   MENU_UI_DENSITY_VALUES,
+  MENU_UI_DESCRIPTION_LENGTH_VALUES,
+  MENU_UI_DETAIL_PHOTO_HERO_VALUES,
   MENU_UI_DETAIL_STYLE_VALUES,
+  MENU_UI_DISH_OPEN_MODE_VALUES,
   MENU_UI_DISH_CARD_STYLE_VALUES,
+  MENU_UI_HEADING_STYLE_VALUES,
+  MENU_UI_MODEL_PANEL_STYLE_VALUES,
   MENU_UI_MOTION_VALUES,
+  MENU_UI_PHOTO_PLACEHOLDER_STYLE_VALUES,
+  MENU_UI_PHOTO_SHAPE_VALUES,
+  MENU_UI_PRICE_STYLE_VALUES,
+  MENU_UI_PUBLIC_MISSING_PHOTO_VALUES,
+  MENU_UI_RADIUS_VALUES,
+  MENU_UI_SHADOW_VALUES,
+  MENU_UI_TITLE_SCALE_VALUES,
+  MENU_UI_WELCOME_LAYOUT_VALUES,
   menuUiConfigForRestaurant,
+  normalizeMenuUiConfig,
   type MenuUiConfig,
-  type MenuUiThemeId
 } from "@/lib/menu/menuUiConfig";
+import {
+  MENU_THEME_PRESETS,
+  buildConfigFromTheme,
+  createMenuThemeVariation,
+  mergeCustomConfig
+} from "@/lib/menu/menuThemePresets";
 import type { PublicMenu, PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 import { DEFAULT_OWNER_QR_STYLE, monogramFromName } from "@/lib/owner/qrStyle";
 import type { OwnerRestaurant, OwnerQrTargetKind } from "@/lib/owner/types";
@@ -81,36 +103,18 @@ function apiErrorMessage(payload: ApiFailure, fallback: string): string {
   return payload.error || fallback;
 }
 
-const THEME_OPTIONS: Array<{
-  id: MenuUiThemeId;
-  name: string;
-  description: string;
-}> = [
-  {
-    id: "fresh-homemade",
-    name: "Fresh Homemade",
-    description: "Clair, colore, maison. Parfait pour Resto Marc."
-  },
-  {
-    id: "premium-gastronomic",
-    name: "Premium Gastronomic",
-    description: "Sombre, elegant, gastronomique. Plus proche de Maison Elyse."
-  },
-  {
-    id: "street-casual",
-    name: "Street Casual",
-    description: "Punchy, rapide, comptoir, prix tres visibles."
-  },
-  {
-    id: "cafe-brunch",
-    name: "Cafe Brunch",
-    description: "Chaud, doux, lumineux, cafe et brunch."
-  },
-  {
-    id: "minimal-clean",
-    name: "Minimal Clean",
-    description: "Sobre, propre, tres simple, neutre."
-  }
+const PALETTE_FIELDS: Array<keyof MenuUiConfig["palette"]> = [
+  "background",
+  "surface",
+  "text",
+  "muted",
+  "accent",
+  "accent2",
+  "accent3",
+  "border",
+  "success",
+  "warning",
+  "danger"
 ];
 
 const IMPORT_PLACEHOLDER = `Entrees
@@ -263,6 +267,25 @@ function statusLabel(state: SaveState): string {
   return "Pret.";
 }
 
+function optionLabel(value: string): string {
+  return value
+    .split("-")
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function configFromTheme(
+  theme: MenuUiConfig["theme"],
+  restaurant: MenuBuilderRestaurant | undefined
+): MenuUiConfig {
+  return normalizeMenuUiConfig(
+    buildConfigFromTheme(theme, {
+      name: restaurant?.name,
+      slug: restaurant?.slug
+    })
+  );
+}
+
 export function MenuUiBuilder({
   restaurants,
   source,
@@ -278,6 +301,9 @@ export function MenuUiBuilder({
   );
   const [config, setConfig] = useState<MenuUiConfig>(() =>
     menuUiConfigForRestaurant(selectedRestaurant ?? {})
+  );
+  const [pendingVariation, setPendingVariation] = useState<MenuUiConfig | null>(
+    null
   );
   const [menuData, setMenuData] = useState<MenuDataPayload | null>(null);
   const [localDraft, setLocalDraft] = useState<QuickImportResult | null>(null);
@@ -296,6 +322,7 @@ export function MenuUiBuilder({
   const publicMenuPath = selectedRestaurant?.publicMenuPath ?? "/menu/resto-marc";
   const publicMenuUrl = selectedRestaurant?.publicMenuUrl ?? publicMenuPath;
   const previewMenu = localDraft?.menu ?? menuData?.menu ?? emptyMenu(selectedRestaurant);
+  const previewConfig = pendingVariation ?? config;
   const photoCount = previewMenu.dishes.filter((dish) => dish.hasPhoto).length;
   const modelCount = previewMenu.dishes.filter((dish) => dish.has3d).length;
   const arCount = previewMenu.dishes.filter((dish) => dish.hasAr).length;
@@ -317,6 +344,7 @@ export function MenuUiBuilder({
       setQuickImportText("");
       setQrState(null);
       setConfig(menuUiConfigForRestaurant(selectedRestaurant));
+      setPendingVariation(null);
       setConfigPersisted(false);
       setConfigStatus("draft");
 
@@ -369,16 +397,22 @@ export function MenuUiBuilder({
   }, [selectedRestaurant]);
 
   function updateConfig(patch: Partial<MenuUiConfig>) {
-    setConfig((current) => ({
-      ...current,
-      ...patch,
-      updatedAt: new Date().toISOString()
-    }));
+    setConfig((current) =>
+      normalizeMenuUiConfig(
+        mergeCustomConfig(current, {
+          ...patch,
+          custom: true,
+          updatedAt: new Date().toISOString()
+        })
+      )
+    );
+    setPendingVariation(null);
     setSaveState("dirty");
   }
 
-  async function saveDraft() {
+  async function saveDraft(configOverride?: MenuUiConfig) {
     if (!selectedRestaurant) return;
+    const configToSave = configOverride ?? pendingVariation ?? config;
     setSaveState("saving");
     setErrorMessage("");
     try {
@@ -387,7 +421,7 @@ export function MenuUiBuilder({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurantId: selectedRestaurant.id,
-          config
+          config: configToSave
         })
       });
       const payload = (await response.json()) as
@@ -401,6 +435,7 @@ export function MenuUiBuilder({
         return;
       }
       setConfig(payload.config);
+      setPendingVariation(null);
       setConfigPersisted(payload.persisted);
       setConfigStatus(payload.status);
       setSaveState("saved");
@@ -412,6 +447,7 @@ export function MenuUiBuilder({
 
   async function publishConfig() {
     if (!selectedRestaurant) return;
+    const configToPublish = pendingVariation ?? config;
     setSaveState("publishing");
     setErrorMessage("");
     try {
@@ -421,7 +457,7 @@ export function MenuUiBuilder({
         body: JSON.stringify({
           restaurantId: selectedRestaurant.id,
           action: "publish",
-          config
+          config: configToPublish
         })
       });
       const payload = (await response.json()) as
@@ -435,6 +471,7 @@ export function MenuUiBuilder({
         return;
       }
       setConfig(payload.config);
+      setPendingVariation(null);
       setConfigPersisted(payload.persisted);
       setConfigStatus(payload.status);
       setSaveState("published");
@@ -487,10 +524,39 @@ export function MenuUiBuilder({
     setSaveState("dirty");
   }
 
+  function applyTheme(theme: MenuUiConfig["theme"]) {
+    setConfig(configFromTheme(theme, selectedRestaurant));
+    setPendingVariation(null);
+    setSaveState("dirty");
+  }
+
+  function createUniqueVariation() {
+    setPendingVariation(
+      normalizeMenuUiConfig(
+        createMenuThemeVariation(
+          previewConfig,
+          `${selectedRestaurant?.id ?? "restaurant"}:${Date.now()}`
+        )
+      )
+    );
+    setSaveState("dirty");
+  }
+
+  function applyVariation() {
+    if (!pendingVariation) return;
+    setConfig(pendingVariation);
+    setPendingVariation(null);
+    setSaveState("dirty");
+  }
+
+  function cancelVariation() {
+    setPendingVariation(null);
+  }
+
   if (restaurants.length === 0) {
     return (
       <section className={styles.emptyBuilder}>
-        <p className={styles.eyebrow}>Menu Builder</p>
+        <p className={styles.eyebrow}>Menu Design Studio</p>
         <h3>Aucun restaurant disponible</h3>
         <p>
           Creez d&apos;abord un restaurant dans le owner dashboard pour generer une
@@ -534,11 +600,11 @@ export function MenuUiBuilder({
     },
     {
       label: "Vue Tout activee",
-      level: config.defaultView === "all" ? "ok" : "warning"
+      level: previewConfig.defaultView === "all" ? "ok" : "warning"
     },
     {
       label: "Fiche detail activee",
-      level: config.detailStyle ? "ok" : "blocker"
+      level: previewConfig.detail.style ? "ok" : "blocker"
     },
     {
       label: `Photos ${photoCount}/${previewMenu.dishes.length}`,
@@ -634,25 +700,295 @@ export function MenuUiBuilder({
         <section className={styles.controlPanel}>
           <div className={styles.panelHeader}>
             <div>
-              <p className={styles.eyebrow}>Theme</p>
-              <h3>Style UI</h3>
+              <p className={styles.eyebrow}>Style preset</p>
+              <h3>Menu Design Studio</h3>
             </div>
           </div>
 
           <div className={styles.themeGrid}>
-            {THEME_OPTIONS.map((theme) => (
+            {MENU_THEME_PRESETS.map((theme) => (
               <button
                 key={theme.id}
                 type="button"
                 className={`${styles.themeButton} ${
-                  theme.id === config.theme ? styles.themeButtonActive : ""
+                  theme.id === previewConfig.theme ? styles.themeButtonActive : ""
                 }`}
-                onClick={() => updateConfig({ theme: theme.id })}
+                onClick={() => applyTheme(theme.id)}
               >
                 <strong>{theme.name}</strong>
                 <span>{theme.description}</span>
               </button>
             ))}
+          </div>
+
+          <div className={styles.variationBox}>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={createUniqueVariation}
+            >
+              Créer variation unique
+            </button>
+            {pendingVariation ? (
+              <>
+                <p className={styles.saveStatus}>
+                  Variation locale non sauvegardée
+                </p>
+                <div className={styles.actionGrid}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={applyVariation}
+                  >
+                    Appliquer
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={cancelVariation}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => saveDraft(pendingVariation)}
+                  >
+                    Sauvegarder draft
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Custom couleurs</p>
+              <h3>Palette</h3>
+            </div>
+          </div>
+
+          <div className={styles.colorGrid}>
+            {PALETTE_FIELDS.map((field) => (
+              <label key={field} className={styles.colorField}>
+                <span>{optionLabel(field)}</span>
+                <input
+                  type="color"
+                  value={previewConfig.palette[field]}
+                  onChange={(event) =>
+                    updateConfig({
+                      palette: {
+                        ...previewConfig.palette,
+                        [field]: event.target.value
+                      }
+                    })
+                  }
+                />
+                <small>{previewConfig.palette[field]}</small>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Typography</p>
+              <h3>Type system</h3>
+            </div>
+          </div>
+
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              Heading style
+              <select
+                value={previewConfig.typography.headingStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    typography: {
+                      ...previewConfig.typography,
+                      headingStyle: event.target
+                        .value as MenuUiConfig["typography"]["headingStyle"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_HEADING_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Body style
+              <select
+                value={previewConfig.typography.bodyStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    typography: {
+                      ...previewConfig.typography,
+                      bodyStyle: event.target
+                        .value as MenuUiConfig["typography"]["bodyStyle"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_BODY_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Price style
+              <select
+                value={previewConfig.typography.priceStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    typography: {
+                      ...previewConfig.typography,
+                      priceStyle: event.target
+                        .value as MenuUiConfig["typography"]["priceStyle"]
+                    },
+                    cards: {
+                      ...previewConfig.cards,
+                      priceStyle: event.target
+                        .value as MenuUiConfig["cards"]["priceStyle"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_PRICE_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Title scale
+              <select
+                value={previewConfig.typography.titleScale}
+                onChange={(event) =>
+                  updateConfig({
+                    typography: {
+                      ...previewConfig.typography,
+                      titleScale: event.target
+                        .value as MenuUiConfig["typography"]["titleScale"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_TITLE_SCALE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Background</p>
+              <h3>Surface globale</h3>
+            </div>
+          </div>
+
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              Background style
+              <select
+                value={previewConfig.global.backgroundStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    global: {
+                      ...previewConfig.global,
+                      backgroundStyle: event.target
+                        .value as MenuUiConfig["global"]["backgroundStyle"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_BACKGROUND_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Radius
+              <select
+                value={previewConfig.global.radius}
+                onChange={(event) =>
+                  updateConfig({
+                    global: {
+                      ...previewConfig.global,
+                      radius: event.target.value as MenuUiConfig["global"]["radius"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_RADIUS_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Shadow
+              <select
+                value={previewConfig.global.shadow}
+                onChange={(event) =>
+                  updateConfig({
+                    global: {
+                      ...previewConfig.global,
+                      shadow: event.target.value as MenuUiConfig["global"]["shadow"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_SHADOW_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Densite
+              <select
+                value={previewConfig.global.density}
+                onChange={(event) =>
+                  updateConfig({
+                    global: {
+                      ...previewConfig.global,
+                      density: event.target.value as MenuUiConfig["global"]["density"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_DENSITY_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </section>
 
@@ -667,7 +1003,7 @@ export function MenuUiBuilder({
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={config.welcomeEnabled}
+              checked={previewConfig.welcomeEnabled}
               onChange={(event) => updateConfig({ welcomeEnabled: event.target.checked })}
             />
             Afficher l&apos;accueil
@@ -677,7 +1013,7 @@ export function MenuUiBuilder({
             Titre
             <input
               maxLength={120}
-              value={config.welcomeTitle}
+              value={previewConfig.welcomeTitle}
               onChange={(event) => updateConfig({ welcomeTitle: event.target.value })}
             />
           </label>
@@ -686,7 +1022,7 @@ export function MenuUiBuilder({
             Sous-titre
             <input
               maxLength={180}
-              value={config.welcomeSubtitle}
+              value={previewConfig.welcomeSubtitle}
               onChange={(event) => updateConfig({ welcomeSubtitle: event.target.value })}
             />
           </label>
@@ -694,7 +1030,7 @@ export function MenuUiBuilder({
           <label className={styles.field}>
             Motion
             <select
-              value={config.motion}
+              value={previewConfig.motion}
               onChange={(event) =>
                 updateConfig({ motion: event.target.value as MenuUiConfig["motion"] })
               }
@@ -707,10 +1043,60 @@ export function MenuUiBuilder({
             </select>
           </label>
 
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              Welcome layout
+              <select
+                value={previewConfig.welcome.layout}
+                onChange={(event) =>
+                  updateConfig({
+                    welcome: {
+                      ...previewConfig.welcome,
+                      layout: event.target
+                        .value as MenuUiConfig["welcome"]["layout"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_WELCOME_LAYOUT_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Background shapes
+              <select
+                value={previewConfig.welcome.backgroundShapes}
+                onChange={(event) =>
+                  updateConfig({
+                    welcome: {
+                      ...previewConfig.welcome,
+                      backgroundShapes: event.target
+                        .value as MenuUiConfig["welcome"]["backgroundShapes"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_BACKGROUND_SHAPE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => updateConfig(menuUiConfigForRestaurant(selectedRestaurant ?? {}))}
+            onClick={() => {
+              setConfig(configFromTheme(previewConfig.theme, selectedRestaurant));
+              setPendingVariation(null);
+              setSaveState("dirty");
+            }}
           >
             Reinitialiser avec le restaurant
           </button>
@@ -719,81 +1105,160 @@ export function MenuUiBuilder({
         <section className={styles.controlPanel}>
           <div className={styles.panelHeader}>
             <div>
-              <p className={styles.eyebrow}>Menu</p>
-              <h3>Navigation & cards</h3>
+              <p className={styles.eyebrow}>Navigation</p>
+              <h3>Navigation & Cards plats</h3>
             </div>
           </div>
 
           <div className={styles.optionGrid}>
             <label className={styles.field}>
-              Navigation
+              Navigation style
               <select
-                value={config.categoryNavigation}
+                value={previewConfig.navigation.style}
                 onChange={(event) =>
                   updateConfig({
-                    categoryNavigation: event.target
-                      .value as MenuUiConfig["categoryNavigation"]
+                    navigation: {
+                      ...previewConfig.navigation,
+                      style: event.target
+                        .value as MenuUiConfig["navigation"]["style"]
+                    }
                   })
                 }
               >
                 {MENU_UI_CATEGORY_NAVIGATION_VALUES.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {optionLabel(value)}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className={styles.field}>
-              Cards plats
+              Card variant
               <select
-                value={config.dishCardStyle}
+                value={previewConfig.cards.variant}
                 onChange={(event) =>
                   updateConfig({
-                    dishCardStyle: event.target.value as MenuUiConfig["dishCardStyle"]
+                    cards: {
+                      ...previewConfig.cards,
+                      variant: event.target.value as MenuUiConfig["cards"]["variant"]
+                    }
                   })
                 }
               >
                 {MENU_UI_DISH_CARD_STYLE_VALUES.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {optionLabel(value)}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className={styles.field}>
-              Fiche detail
+              Photo shape
               <select
-                value={config.detailStyle}
+                value={previewConfig.cards.photoShape}
                 onChange={(event) =>
                   updateConfig({
-                    detailStyle: event.target.value as MenuUiConfig["detailStyle"]
+                    cards: {
+                      ...previewConfig.cards,
+                      photoShape: event.target
+                        .value as MenuUiConfig["cards"]["photoShape"]
+                    }
                   })
                 }
               >
-                {MENU_UI_DETAIL_STYLE_VALUES.map((value) => (
+                {MENU_UI_PHOTO_SHAPE_VALUES.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {optionLabel(value)}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className={styles.field}>
-              Densite
+              Description length
               <select
-                value={config.density}
+                value={previewConfig.cards.descriptionLength}
                 onChange={(event) =>
-                  updateConfig({ density: event.target.value as MenuUiConfig["density"] })
+                  updateConfig({
+                    cards: {
+                      ...previewConfig.cards,
+                      descriptionLength: event.target
+                        .value as MenuUiConfig["cards"]["descriptionLength"]
+                    }
+                  })
                 }
               >
-                {MENU_UI_DENSITY_VALUES.map((value) => (
+                {MENU_UI_DESCRIPTION_LENGTH_VALUES.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {optionLabel(value)}
                   </option>
                 ))}
               </select>
+            </label>
+          </div>
+
+          <div className={styles.toggleGrid}>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.navigation.showAll}
+                onChange={(event) =>
+                  updateConfig({
+                    navigation: {
+                      ...previewConfig.navigation,
+                      showAll: event.target.checked
+                    }
+                  })
+                }
+              />
+              Afficher &quot;Tout&quot;
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.navigation.showDishCounts}
+                onChange={(event) =>
+                  updateConfig({
+                    navigation: {
+                      ...previewConfig.navigation,
+                      showDishCounts: event.target.checked
+                    }
+                  })
+                }
+              />
+              Afficher compteurs plats
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.navigation.showIcons}
+                onChange={(event) =>
+                  updateConfig({
+                    navigation: {
+                      ...previewConfig.navigation,
+                      showIcons: event.target.checked
+                    }
+                  })
+                }
+              />
+              Afficher icons categories
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.cards.showTags}
+                onChange={(event) =>
+                  updateConfig({
+                    cards: {
+                      ...previewConfig.cards,
+                      showTags: event.target.checked
+                    }
+                  })
+                }
+              />
+              Afficher tags plats
             </label>
           </div>
         </section>
@@ -801,40 +1266,284 @@ export function MenuUiBuilder({
         <section className={styles.controlPanel}>
           <div className={styles.panelHeader}>
             <div>
-              <p className={styles.eyebrow}>Assets</p>
-              <h3>Photos + 3D / AR</h3>
+              <p className={styles.eyebrow}>Fiche detail</p>
+              <h3>Ouverture plat</h3>
+            </div>
+          </div>
+
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              Detail style
+              <select
+                value={previewConfig.detail.style}
+                onChange={(event) =>
+                  updateConfig({
+                    detail: {
+                      ...previewConfig.detail,
+                      style: event.target.value as MenuUiConfig["detail"]["style"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_DETAIL_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Photo hero
+              <select
+                value={previewConfig.detail.photoHero}
+                onChange={(event) =>
+                  updateConfig({
+                    detail: {
+                      ...previewConfig.detail,
+                      photoHero: event.target
+                        .value as MenuUiConfig["detail"]["photoHero"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_DETAIL_PHOTO_HERO_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Dish open mode
+              <select
+                value={previewConfig.detail.dishOpenMode}
+                onChange={(event) =>
+                  updateConfig({
+                    detail: {
+                      ...previewConfig.detail,
+                      dishOpenMode: event.target
+                        .value as MenuUiConfig["detail"]["dishOpenMode"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_DISH_OPEN_MODE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              3D panel
+              <select
+                value={previewConfig.detail.modelPanelStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    detail: {
+                      ...previewConfig.detail,
+                      modelPanelStyle: event.target
+                        .value as MenuUiConfig["detail"]["modelPanelStyle"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_MODEL_PANEL_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className={styles.checkField}>
+            <input
+              type="checkbox"
+              checked={previewConfig.detail.showShare}
+              onChange={(event) =>
+                updateConfig({
+                  detail: {
+                    ...previewConfig.detail,
+                    showShare: event.target.checked
+                  }
+                })
+              }
+            />
+            Afficher partage fiche
+          </label>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Photos</p>
+              <h3>Traitement photo</h3>
+            </div>
+          </div>
+
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              Placeholder style
+              <select
+                value={previewConfig.photos.placeholderStyle}
+                onChange={(event) =>
+                  updateConfig({
+                    photos: {
+                      ...previewConfig.photos,
+                      placeholderStyle: event.target
+                        .value as MenuUiConfig["photos"]["placeholderStyle"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_PHOTO_PLACEHOLDER_STYLE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Public missing behavior
+              <select
+                value={previewConfig.photos.publicMissingBehavior}
+                onChange={(event) =>
+                  updateConfig({
+                    photos: {
+                      ...previewConfig.photos,
+                      publicMissingBehavior: event.target
+                        .value as MenuUiConfig["photos"]["publicMissingBehavior"]
+                    }
+                  })
+                }
+              >
+                {MENU_UI_PUBLIC_MISSING_PHOTO_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className={styles.checkField}>
+            <input
+              type="checkbox"
+              checked={previewConfig.photos.ownerMissingWarnings}
+              onChange={(event) =>
+                updateConfig({
+                  photos: {
+                    ...previewConfig.photos,
+                    ownerMissingWarnings: event.target.checked
+                  }
+                })
+              }
+            />
+            Afficher warnings photos manquantes owner
+          </label>
+
+          <div className={styles.metricGrid}>
+            <span>{photoCount}/{previewMenu.dishes.length} photos</span>
+          </div>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>3D / AR</p>
+              <h3>Immersive safe</h3>
             </div>
           </div>
 
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={config.showPhotoPlaceholders}
+              checked={previewConfig.immersive.show3dBadge}
               onChange={(event) =>
-                updateConfig({ showPhotoPlaceholders: event.target.checked })
+                updateConfig({
+                  immersive: {
+                    ...previewConfig.immersive,
+                    show3dBadge: event.target.checked
+                  }
+                })
               }
-            />
-            Afficher les placeholders photo
-          </label>
-          <label className={styles.checkField}>
-            <input
-              type="checkbox"
-              checked={config.show3dBadges}
-              onChange={(event) => updateConfig({ show3dBadges: event.target.checked })}
             />
             Afficher badges 3D si disponible
           </label>
           <label className={styles.checkField}>
             <input
               type="checkbox"
-              checked={config.showArBadges}
-              onChange={(event) => updateConfig({ showArBadges: event.target.checked })}
+              checked={previewConfig.immersive.showArBadge}
+              onChange={(event) =>
+                updateConfig({
+                  immersive: {
+                    ...previewConfig.immersive,
+                    showArBadge: event.target.checked
+                  }
+                })
+              }
             />
             Afficher badges AR si disponible
           </label>
+          <label className={styles.checkField}>
+            <input type="checkbox" checked={false} disabled />
+            Auto-load 3D force desactive
+          </label>
+          <label className={styles.checkField}>
+            <input
+              type="checkbox"
+              checked={previewConfig.immersive.posterUntilClick}
+              onChange={(event) =>
+                updateConfig({
+                  immersive: {
+                    ...previewConfig.immersive,
+                    posterUntilClick: event.target.checked
+                  }
+                })
+              }
+            />
+            Garder poster jusqu&apos;au clic
+          </label>
+
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              CTA 3D
+              <input
+                maxLength={40}
+                value={previewConfig.immersive.cta3d}
+                onChange={(event) =>
+                  updateConfig({
+                    immersive: {
+                      ...previewConfig.immersive,
+                      cta3d: event.target.value
+                    }
+                  })
+                }
+              />
+            </label>
+            <label className={styles.field}>
+              CTA AR
+              <input
+                maxLength={40}
+                value={previewConfig.immersive.ctaAr}
+                onChange={(event) =>
+                  updateConfig({
+                    immersive: {
+                      ...previewConfig.immersive,
+                      ctaAr: event.target.value
+                    }
+                  })
+                }
+              />
+            </label>
+          </div>
 
           <div className={styles.metricGrid}>
-            <span>{photoCount}/{previewMenu.dishes.length} photos</span>
             <span>{modelCount}/{previewMenu.dishes.length} 3D</span>
             <span>{arCount}/{previewMenu.dishes.length} AR</span>
           </div>
@@ -928,7 +1637,7 @@ export function MenuUiBuilder({
             <button
               type="button"
               className={styles.primaryButton}
-              onClick={saveDraft}
+              onClick={() => saveDraft()}
               disabled={saveState === "saving" || saveState === "publishing"}
             >
               Sauvegarder draft UI
@@ -993,7 +1702,7 @@ export function MenuUiBuilder({
           <div className={styles.phoneScreen}>
             <PublicMenuRenderer
               menu={previewMenu}
-              config={config}
+              config={previewConfig}
               mode="builder-preview"
               disableHeavyAssets
             />

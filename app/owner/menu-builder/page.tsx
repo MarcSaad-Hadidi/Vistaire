@@ -21,8 +21,8 @@ export default async function OwnerMenuBuilderPage() {
   return (
     <>
       <ModuleHeader
-        title="Menu UI Builder"
-        description="Outil interne Vistaire : entrez les vraies infos du menu, choisissez le style, puis prévisualisez l’expérience mobile générée avant publication."
+        title="Menu Design Studio"
+        description="Outil interne Vistaire : choisissez un preset, personnalisez couleurs, typography, cartes, fiches, photos et 3D/AR, puis publiez la config du menu public."
         actions={
           <>
             <Link className={styles.btn} href="/owner/menus" prefetch={false}>

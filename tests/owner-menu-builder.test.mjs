@@ -14,7 +14,7 @@ test("owner menu builder route renders the builder component", async () => {
 
   assert.match(source, /MenuUiBuilder/);
   assert.match(source, /getOwnerRestaurantsData/);
-  assert.match(source, /Menu UI Builder/);
+  assert.match(source, /Menu Design Studio/);
 });
 
 test("menu builder preview never imports model-viewer or heavy 3D assets", async () => {
@@ -51,11 +51,9 @@ test("menu builder saves drafts, publishes UI, and generates only public menu QR
 test("menu builder includes reusable theme presets", async () => {
   const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
 
-  assert.match(source, /fresh-homemade/);
-  assert.match(source, /premium-gastronomic/);
-  assert.match(source, /street-casual/);
-  assert.match(source, /cafe-brunch/);
-  assert.match(source, /minimal-clean/);
+  assert.match(source, /MENU_THEME_PRESETS/);
+  assert.match(source, /buildConfigFromTheme/);
+  assert.match(source, /createMenuThemeVariation/);
 });
 
 test("menu builder derives welcome copy from the selected restaurant", async () => {

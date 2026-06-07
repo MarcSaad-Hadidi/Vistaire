@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
-import {
-  getPublicMenuDishBySlug,
-  isFreshHomemadeMenu
-} from "@/lib/menu/publicMenuCore";
+import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +18,7 @@ export async function generateMetadata({
   const menu = await getPublicMenuBySlug(slug);
   const dish = menu ? getPublicMenuDishBySlug(menu, dishSlug) : null;
 
-  if (!menu || !dish || !isFreshHomemadeMenu(menu)) {
+  if (!menu || !dish) {
     return {
       title: "Plat introuvable | Menu Vistaire",
       robots: { index: false, follow: false }
@@ -43,7 +40,7 @@ export default async function PublicDishPage({
   const query = await searchParams;
   const menu = await getPublicMenuBySlug(slug);
 
-  if (!menu || !isFreshHomemadeMenu(menu)) {
+  if (!menu) {
     notFound();
   }
 
@@ -59,5 +56,12 @@ export default async function PublicDishPage({
     .filter(Boolean)
     .join(" · ");
 
-  return <PublicDishDetailExperience context={context} dish={dish} menu={menu} />;
+  return (
+    <PublicDishDetailExperience
+      context={context}
+      dish={dish}
+      menu={menu}
+      query={query}
+    />
+  );
 }
