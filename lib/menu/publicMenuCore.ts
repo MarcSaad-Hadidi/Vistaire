@@ -6,8 +6,21 @@ export type PublicMenuDish = {
   category: string;
   priceLabel: string;
   imageUrl: string;
+  thumbnailUrl: string;
   hasPhoto: boolean;
+  photoStatus: "ready" | "missing" | "draft" | "unknown";
   hasImmersive: boolean;
+  has3d: boolean;
+  hasAr: boolean;
+  hasIosAr: boolean;
+  hasAndroidAr: boolean;
+  model3dUrl: string;
+  webModel3dUrl: string;
+  arModel3dUrl: string;
+  usdzUrl: string;
+  arUsdzUrl: string;
+  posterUrl: string;
+  modelStatus: "ready" | "missing" | "draft" | "unknown";
   available: boolean;
   ingredients: string[];
   allergens: string[];
@@ -17,6 +30,7 @@ export type PublicMenuDish = {
 };
 
 export type PublicMenu = {
+  restaurantId: string;
   slug: string;
   name: string;
   location: string;
@@ -161,6 +175,24 @@ function getStringList(row: PublicMenuRow, candidates: string[]): string[] {
   return [];
 }
 
+function isSafePublicMediaUrl(url: string): boolean {
+  if (!url) return false;
+  if (url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) {
+    return true;
+  }
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getSafeString(row: PublicMenuRow, candidates: string[]): string {
+  const url = getString(row, candidates, "");
+  return isSafePublicMediaUrl(url) ? url : "";
+}
+
 function formatPrice(row: PublicMenuRow): string {
   const value = getNumber(row, ["price", "amount", "price_cad"], 0);
   if (!value) return "";
@@ -215,14 +247,43 @@ function rowRestaurantId(row: PublicMenuRow): string {
 
 function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
   const name = getString(row, ["name", "dish_name", "title"], "Plat");
-  const imageUrl = getString(row, [
+  const imageUrl = getSafeString(row, [
     "image",
     "image_url",
     "imageUrl",
     "photo_url",
-    "photoUrl",
-    "thumbnail_url"
+    "photoUrl"
   ]);
+  const thumbnailUrl =
+    getSafeString(row, [
+      "thumbnail_url",
+      "thumbnailUrl"
+    ]) || imageUrl;
+  const model3dUrl = getSafeString(row, ["model3d_url", "model3dUrl"]);
+  const webModel3dUrl =
+    getSafeString(row, ["web_model_3d_url", "webModel3dUrl"]) || model3dUrl;
+  const arModel3dUrl = getSafeString(row, [
+    "ar_model_3d_url",
+    "arModel3dUrl"
+  ]);
+  const usdzUrl = getSafeString(row, ["usdz_url", "usdzUrl"]);
+  const arUsdzUrl =
+    getSafeString(row, [
+      "ar_usdz_url",
+      "arUsdzUrl",
+      "ios_usdz_url",
+      "iosUsdzUrl"
+    ]) || usdzUrl;
+  const posterUrl = getSafeString(row, [
+    "poster_url",
+    "posterUrl",
+    "model_poster_url",
+    "modelPosterUrl"
+  ]);
+  const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl);
+  const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
+  const hasAndroidAr = Boolean(arModel3dUrl);
+  const hasAr = hasIosAr || hasAndroidAr;
   const slug = slugify(
     getString(row, ["slug", "dish_slug", "dishSlug"], name)
   );
@@ -241,19 +302,21 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
     ),
     priceLabel: formatPrice(row),
     imageUrl,
+    thumbnailUrl,
     hasPhoto: Boolean(imageUrl),
-    hasImmersive: Boolean(
-      getString(row, [
-        "model3d_url",
-        "model3dUrl",
-        "web_model_3d_url",
-        "webModel3dUrl",
-        "ar_model_3d_url",
-        "arModel3dUrl",
-        "usdz_url",
-        "usdzUrl"
-      ])
-    ),
+    photoStatus: imageUrl ? "ready" : "missing",
+    hasImmersive: has3d || hasAr,
+    has3d,
+    hasAr,
+    hasIosAr,
+    hasAndroidAr,
+    model3dUrl,
+    webModel3dUrl,
+    arModel3dUrl,
+    usdzUrl,
+    arUsdzUrl,
+    posterUrl,
+    modelStatus: has3d || hasAr ? "ready" : "missing",
     available: isDishAvailable(row),
     ingredients: getStringList(row, ["ingredients", "ingredient_list"]),
     allergens: getStringList(row, ["allergens", "allergenes", "allergen_list"]),
@@ -308,6 +371,7 @@ export function buildSupabasePublicMenu(
     .map(({ row, index }) => mapDishRow(row, index));
 
   return {
+    restaurantId,
     slug,
     name: getString(restaurantRow, ["name", "restaurant_name"], "Restaurant"),
     location: getString(restaurantRow, ["location", "city", "address"], ""),
@@ -348,12 +412,12 @@ export function getVisiblePublicMenuCategories(
 ): PublicMenuCategory[] {
   const groups = getPublicMenuCategoryGroups(dishes);
   return Array.from(groups.entries()).map(([label, categoryDishes]) => {
-    const definition = categoryDefinition(label) ?? DEFAULT_CATEGORY;
+    const definition = categoryDefinition(label);
     return {
-      id: definition.id,
+      id: definition?.id ?? slugify(label) ?? DEFAULT_CATEGORY.id,
       label,
-      description: definition.description,
-      tone: definition.tone,
+      description: definition?.description ?? DEFAULT_CATEGORY.description,
+      tone: definition?.tone ?? DEFAULT_CATEGORY.tone,
       count: categoryDishes.length
     };
   });
