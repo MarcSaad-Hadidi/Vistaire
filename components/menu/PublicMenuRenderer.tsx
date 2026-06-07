@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  buildPublicDishPath,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
   type PublicMenuCategory,
+  type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
@@ -16,6 +19,7 @@ type PublicMenuRendererProps = {
   config: MenuUiConfig;
   mode: "public" | "builder-preview";
   context?: string;
+  query?: PublicMenuContextQuery;
   disableHeavyAssets?: boolean;
   onDishOpen?: (dish: PublicMenuDish) => void;
 };
@@ -97,6 +101,7 @@ export function PublicMenuRenderer({
   config,
   mode,
   context = "",
+  query,
   disableHeavyAssets = mode === "builder-preview",
   onDishOpen
 }: PublicMenuRendererProps) {
@@ -164,54 +169,73 @@ export function PublicMenuRenderer({
     const minimal = config.dishCardStyle === "minimal-list";
     const large = config.dishCardStyle === "photo-large";
     const showVisual = !minimal && (dish.hasPhoto || config.showPhotoPlaceholders);
+    const dishCardClassName = `${styles.dishCard} ${
+      minimal ? styles.dishCardMinimal : ""
+    } ${large ? styles.dishCardLarge : ""} ${
+      !showVisual ? styles.dishCardNoVisual : ""
+    }`;
+    const dishCardContent = (
+      <>
+        {showVisual ? (
+          <DishVisual
+            dish={dish}
+            menu={menu}
+            showPlaceholder={config.showPhotoPlaceholders}
+            large={large}
+          />
+        ) : null}
+        <span className={styles.dishCopy}>
+          <span className={styles.dishTopline}>
+            <span className={styles.dishName}>{dish.name}</span>
+            {dish.priceLabel ? (
+              <strong className={styles.price}>{dish.priceLabel}</strong>
+            ) : null}
+          </span>
+          {dish.description ? (
+            <span className={styles.dishDescription}>
+              {shortDescription(dish)}
+            </span>
+          ) : null}
+          <span className={styles.badges}>
+            {badges.map((badge) => (
+              <span key={badge} className={styles.badge}>
+                {badge}
+              </span>
+            ))}
+            {config.showPhotoPlaceholders && !dish.hasPhoto ? (
+              <span className={styles.warningBadge}>Photo a faire</span>
+            ) : null}
+            {config.show3dBadges && dish.has3d ? (
+              <span className={styles.modelBadge}>3D</span>
+            ) : null}
+            {config.showArBadges && dish.hasAr ? (
+              <span className={styles.modelBadge}>AR</span>
+            ) : null}
+          </span>
+        </span>
+      </>
+    );
 
     return (
       <li key={dish.id} className={styles.dishItem}>
-        <button
-          type="button"
-          className={`${styles.dishCard} ${minimal ? styles.dishCardMinimal : ""} ${
-            large ? styles.dishCardLarge : ""
-          } ${!showVisual ? styles.dishCardNoVisual : ""}`}
-          onClick={() => openDish(dish)}
-        >
-          {showVisual ? (
-            <DishVisual
-              dish={dish}
-              menu={menu}
-              showPlaceholder={config.showPhotoPlaceholders}
-              large={large}
-            />
-          ) : null}
-          <span className={styles.dishCopy}>
-            <span className={styles.dishTopline}>
-              <span className={styles.dishName}>{dish.name}</span>
-              {dish.priceLabel ? (
-                <strong className={styles.price}>{dish.priceLabel}</strong>
-              ) : null}
-            </span>
-            {dish.description ? (
-              <span className={styles.dishDescription}>
-                {shortDescription(dish)}
-              </span>
-            ) : null}
-            <span className={styles.badges}>
-              {badges.map((badge) => (
-                <span key={badge} className={styles.badge}>
-                  {badge}
-                </span>
-              ))}
-              {config.showPhotoPlaceholders && !dish.hasPhoto ? (
-                <span className={styles.warningBadge}>Photo a faire</span>
-              ) : null}
-              {config.show3dBadges && dish.has3d ? (
-                <span className={styles.modelBadge}>3D</span>
-              ) : null}
-              {config.showArBadges && dish.hasAr ? (
-                <span className={styles.modelBadge}>AR</span>
-              ) : null}
-            </span>
-          </span>
-        </button>
+        {mode === "public" ? (
+          <Link
+            aria-label={`${dish.name}. Voir la fiche plat.`}
+            className={dishCardClassName}
+            href={buildPublicDishPath(menu.slug, dish.slug, query)}
+            prefetch={false}
+          >
+            {dishCardContent}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={dishCardClassName}
+            onClick={() => openDish(dish)}
+          >
+            {dishCardContent}
+          </button>
+        )}
       </li>
     );
   }
@@ -472,4 +496,3 @@ export function PublicMenuRenderer({
     </main>
   );
 }
-

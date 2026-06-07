@@ -21,3 +21,22 @@ test("shared public menu renderer avoids heavy 3D auto-loads", async () => {
   assert.doesNotMatch(source, /\.usdz/);
 });
 
+test("public menu renderer links dish cards to shareable detail routes with QR context", async () => {
+  const pageSource = await readFile("app/menu/[slug]/page.tsx", "utf8");
+  const rendererSource = await readFile(
+    "components/menu/PublicMenuRenderer.tsx",
+    "utf8"
+  );
+
+  assert.match(pageSource, /query=\{query\}/);
+  assert.match(rendererSource, /import Link from "next\/link"/);
+  assert.match(rendererSource, /buildPublicDishPath/);
+  assert.match(rendererSource, /query\?: PublicMenuContextQuery/);
+  assert.match(
+    rendererSource,
+    /href=\{buildPublicDishPath\(menu\.slug, dish\.slug, query\)\}/
+  );
+  assert.match(rendererSource, /prefetch=\{false\}/);
+  assert.match(rendererSource, /mode === "public"/);
+  assert.match(rendererSource, /onClick=\{\(\) => openDish\(dish\)\}/);
+});

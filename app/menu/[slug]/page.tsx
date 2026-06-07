@@ -48,9 +48,9 @@ export default async function PublicMenuPage({
       menu={menu}
       config={configRecord.config}
       context={context}
+      query={query}
       mode="public"
       disableHeavyAssets={false}
     />
   );
 }
-

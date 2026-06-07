@@ -378,6 +378,8 @@
   background: var(--menu-surface);
   color: var(--menu-text);
   text-align: left;
+  text-decoration: none;
+  font: inherit;
   box-shadow: 0 8px 22px rgba(23, 50, 77, 0.06);
   cursor: pointer;
 }
