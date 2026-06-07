@@ -258,6 +258,10 @@ export function PublicMenuRenderer({
     const minimal = cardVariant === "minimal-list";
     const large = cardVariant === "photo-large" || cardVariant === "editorial";
     const priceForward = cardVariant === "price-forward";
+    const showOwnerMissingPhotoWarning =
+      mode === "builder-preview" &&
+      config.photos.ownerMissingWarnings &&
+      !dish.hasPhoto;
     const showMissingPhoto =
       config.photos.publicMissingBehavior === "placeholder" ||
       (mode === "builder-preview" && config.photos.ownerMissingWarnings);
@@ -305,7 +309,7 @@ export function PublicMenuRenderer({
                   </span>
                 ))
               : null}
-            {config.photos.ownerMissingWarnings && !dish.hasPhoto ? (
+            {showOwnerMissingPhotoWarning ? (
               <span className={styles.warningBadge}>Photo a faire</span>
             ) : null}
             {config.immersive.show3dBadge && dish.has3d ? (

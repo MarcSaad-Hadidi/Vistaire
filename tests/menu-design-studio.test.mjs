@@ -213,6 +213,19 @@ test("public renderer supports route, hybrid and builder inline dish opening", a
   assert.match(source, /mode === "builder-preview"/);
 });
 
+test("owner missing photo warning badge is scoped to builder preview", async () => {
+  const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
+
+  assert.match(
+    source,
+    /mode === "builder-preview" &&\s*config\.photos\.ownerMissingWarnings &&\s*!dish\.hasPhoto/
+  );
+  assert.doesNotMatch(
+    source,
+    /\{config\.photos\.ownerMissingWarnings && !dish\.hasPhoto \? \(\s*<span className=\{styles\.warningBadge\}>Photo a faire<\/span>/
+  );
+});
+
 test("public renderer has class support for the expanded theme set", async () => {
   const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
   const css = await readFile("components/menu/PublicMenuRenderer.module.css", "utf8");
