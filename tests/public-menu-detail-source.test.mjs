@@ -5,14 +5,15 @@ import assert from "node:assert/strict";
 const detailPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
 const detailComponentPath = "components/menu/PublicDishDetailExperience.tsx";
 
-test("public dish detail route scopes dishes to the Fresh Homemade menu", async () => {
+test("public dish detail route scopes dishes to the requested public menu", async () => {
   const source = await readFile(detailPagePath, "utf8");
 
   assert.match(source, /getPublicMenuBySlug/);
   assert.match(source, /getPublicMenuDishBySlug/);
-  assert.match(source, /isFreshHomemadeMenu/);
+  assert.doesNotMatch(source, /isFreshHomemadeMenu/);
   assert.match(source, /notFound\(\)/);
   assert.match(source, /PublicDishDetailExperience/);
+  assert.match(source, /query=\{query\}/);
 });
 
 test("public dish detail component renders the required Resto Marc detail affordances", async () => {

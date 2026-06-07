@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 import {
   buildPublicDishPath,
@@ -32,7 +33,14 @@ const preferredCategoryOrder = new Map(
 );
 
 function themeClass(theme: MenuUiConfig["theme"]): string {
+  if (theme === "bbq-smokehouse") return styles.themeBbq;
+  if (theme === "fast-fresh-bowls") return styles.themeBowls;
+  if (theme === "mediterranean-fresh") return styles.themeMediterranean;
+  if (theme === "night-market") return styles.themeNight;
+  if (theme === "patisserie-sweet") return styles.themePatisserie;
   if (theme === "premium-gastronomic") return styles.themePremium;
+  if (theme === "retro-diner") return styles.themeDiner;
+  if (theme === "sushi-minimal") return styles.themeSushi;
   if (theme === "street-casual") return styles.themeStreet;
   if (theme === "cafe-brunch") return styles.themeCafe;
   if (theme === "minimal-clean") return styles.themeMinimal;
@@ -45,14 +53,92 @@ function densityClass(density: MenuUiConfig["density"]): string {
   return styles.densityComfortable;
 }
 
+function backgroundClass(config: MenuUiConfig): string {
+  const value = config.global.backgroundStyle;
+  if (value === "dark") return styles.backgroundDark;
+  if (value === "editorial") return styles.backgroundEditorial;
+  if (value === "gradient") return styles.backgroundGradient;
+  if (value === "pattern-light") return styles.backgroundPatternLight;
+  if (value === "soft-blobs") return styles.backgroundSoftBlobs;
+  if (value === "texture") return styles.backgroundTexture;
+  return styles.backgroundFlat;
+}
+
+function radiusClass(config: MenuUiConfig): string {
+  const value = config.global.radius;
+  if (value === "organic") return styles.radiusOrganic;
+  if (value === "pill") return styles.radiusPill;
+  if (value === "rounded") return styles.radiusRounded;
+  if (value === "soft") return styles.radiusSoft;
+  return styles.radiusSharp;
+}
+
+function shadowClass(config: MenuUiConfig): string {
+  const value = config.global.shadow;
+  if (value === "strong") return styles.shadowStrong;
+  if (value === "medium") return styles.shadowMedium;
+  if (value === "soft") return styles.shadowSoft;
+  return styles.shadowNone;
+}
+
+function typographyClass(config: MenuUiConfig): string {
+  const value = config.typography.headingStyle;
+  if (value === "bold") return styles.typeBold;
+  if (value === "casual") return styles.typeCasual;
+  if (value === "editorial") return styles.typeEditorial;
+  if (value === "minimal") return styles.typeMinimal;
+  return styles.typeElegant;
+}
+
+function detailClass(config: MenuUiConfig): string {
+  const value = config.detail.style;
+  if (value === "compact-detail" || value === "simple-card") {
+    return styles.detailSimpleCard;
+  }
+  if (value === "editorial-detail") return styles.detailEditorial;
+  if (value === "full-page") return styles.detailFullPage;
+  if (value === "modal-card" || value === "full-card") return styles.detailFullCard;
+  return "";
+}
+
+function modelPanelClass(config: MenuUiConfig): string {
+  const value = config.detail.modelPanelStyle;
+  if (value === "large-poster") return styles.modelPanelLarge;
+  if (value === "minimal-cta") return styles.modelPanelMinimal;
+  if (value === "premium-panel") return styles.modelPanelPremium;
+  return styles.modelPanelCompact;
+}
+
+function menuStyleVars(config: MenuUiConfig): CSSProperties {
+  return {
+    "--menu-bg": config.palette.background,
+    "--menu-surface": config.palette.surface,
+    "--menu-text": config.palette.text,
+    "--menu-muted": config.palette.muted,
+    "--menu-accent": config.palette.accent,
+    "--menu-accent-2": config.palette.accent2,
+    "--menu-accent-3": config.palette.accent3,
+    "--menu-fresh": config.palette.accent3,
+    "--menu-border": config.palette.border,
+    "--menu-success": config.palette.success,
+    "--menu-warning": config.palette.warning,
+    "--menu-danger": config.palette.danger
+  } as CSSProperties;
+}
+
 function categoryTone(category: PublicMenuCategory): string {
   return `${styles.categoryCard} ${styles[`tone${category.tone}`]}`;
 }
 
-function shortDescription(dish: PublicMenuDish): string {
+function shortDescription(
+  dish: PublicMenuDish,
+  length: MenuUiConfig["cards"]["descriptionLength"]
+): string {
   if (!dish.description) return "";
-  if (dish.description.length <= 128) return dish.description;
-  return `${dish.description.slice(0, 125).trim()}...`;
+  if (length === "hidden") return "";
+  const max = length === "short" ? 88 : length === "full" ? 280 : 128;
+  if (dish.description.length <= max) return dish.description;
+  return `${dish.description.slice(0, max - 3).trim()}...`;
 }
 
 function dishBadges(dish: PublicMenuDish): string[] {
@@ -139,15 +225,17 @@ export function PublicMenuRenderer({
     .slice(0, 3);
   const welcomeTitle = config.welcomeTitle || `Bienvenue chez ${menu.name}`;
   const welcomeSubtitle = config.welcomeSubtitle || "Decouvrez notre carte";
+  const dishOpenMode =
+    mode === "builder-preview" ? "inline" : config.detail.dishOpenMode;
   const heading =
     activeTab === HOME_TAB_ID
       ? "Categories"
       : activeTab === ALL_TAB_ID
         ? "Tout le menu"
         : activeTab;
-  const showTabs = config.categoryNavigation !== "cards";
+  const showTabs = config.navigation.style !== "cards";
   const showCategoryCards =
-    config.categoryNavigation !== "tabs" || activeTab === HOME_TAB_ID;
+    config.navigation.style !== "tabs" || activeTab === HOME_TAB_ID;
 
   function openDish(dish: PublicMenuDish) {
     setSelectedDish(dish);
@@ -166,12 +254,29 @@ export function PublicMenuRenderer({
 
   function renderDishCard(dish: PublicMenuDish) {
     const badges = dishBadges(dish);
-    const minimal = config.dishCardStyle === "minimal-list";
-    const large = config.dishCardStyle === "photo-large";
-    const showVisual = !minimal && (dish.hasPhoto || config.showPhotoPlaceholders);
+    const cardVariant = config.cards.variant;
+    const minimal = cardVariant === "minimal-list";
+    const large = cardVariant === "photo-large" || cardVariant === "editorial";
+    const priceForward = cardVariant === "price-forward";
+    const showOwnerMissingPhotoWarning =
+      mode === "builder-preview" &&
+      config.photos.ownerMissingWarnings &&
+      !dish.hasPhoto;
+    const showMissingPhoto =
+      config.photos.publicMissingBehavior === "placeholder" ||
+      (mode === "builder-preview" && config.photos.ownerMissingWarnings);
+    const showVisual = !minimal && (dish.hasPhoto || showMissingPhoto);
+    const description = shortDescription(dish, config.cards.descriptionLength);
+    const dishHref = buildPublicDishPath(menu.slug, dish.slug, query);
     const dishCardClassName = `${styles.dishCard} ${
       minimal ? styles.dishCardMinimal : ""
     } ${large ? styles.dishCardLarge : ""} ${
+      priceForward ? styles.dishCardPriceForward : ""
+    } ${
+      cardVariant === "editorial" ? styles.dishCardEditorial : ""
+    } ${
+      cardVariant === "split" ? styles.dishCardSplit : ""
+    } ${
       !showVisual ? styles.dishCardNoVisual : ""
     }`;
     const dishCardContent = (
@@ -180,7 +285,7 @@ export function PublicMenuRenderer({
           <DishVisual
             dish={dish}
             menu={menu}
-            showPlaceholder={config.showPhotoPlaceholders}
+            showPlaceholder={showMissingPhoto}
             large={large}
           />
         ) : null}
@@ -191,24 +296,26 @@ export function PublicMenuRenderer({
               <strong className={styles.price}>{dish.priceLabel}</strong>
             ) : null}
           </span>
-          {dish.description ? (
+          {description ? (
             <span className={styles.dishDescription}>
-              {shortDescription(dish)}
+              {description}
             </span>
           ) : null}
           <span className={styles.badges}>
-            {badges.map((badge) => (
-              <span key={badge} className={styles.badge}>
-                {badge}
-              </span>
-            ))}
-            {config.showPhotoPlaceholders && !dish.hasPhoto ? (
+            {config.cards.showTags
+              ? badges.map((badge) => (
+                  <span key={badge} className={styles.badge}>
+                    {badge}
+                  </span>
+                ))
+              : null}
+            {showOwnerMissingPhotoWarning ? (
               <span className={styles.warningBadge}>Photo a faire</span>
             ) : null}
-            {config.show3dBadges && dish.has3d ? (
+            {config.immersive.show3dBadge && dish.has3d ? (
               <span className={styles.modelBadge}>3D</span>
             ) : null}
-            {config.showArBadges && dish.hasAr ? (
+            {config.immersive.showArBadge && dish.hasAr ? (
               <span className={styles.modelBadge}>AR</span>
             ) : null}
           </span>
@@ -218,15 +325,33 @@ export function PublicMenuRenderer({
 
     return (
       <li key={dish.id} className={styles.dishItem}>
-        {mode === "public" ? (
+        {mode === "public" && dishOpenMode === "route" ? (
           <Link
             aria-label={`${dish.name}. Voir la fiche plat.`}
             className={dishCardClassName}
-            href={buildPublicDishPath(menu.slug, dish.slug, query)}
+            href={dishHref}
             prefetch={false}
           >
             {dishCardContent}
           </Link>
+        ) : mode === "public" && dishOpenMode === "hybrid" ? (
+          <div className={styles.hybridDishActions}>
+            <Link
+              aria-label={`${dish.name}. Voir la fiche plat.`}
+              className={dishCardClassName}
+              href={dishHref}
+              prefetch={false}
+            >
+              {dishCardContent}
+            </Link>
+            <button
+              type="button"
+              className={styles.inlinePreviewButton}
+              onClick={() => openDish(dish)}
+            >
+              Apercu rapide
+            </button>
+          </div>
         ) : (
           <button
             type="button"
@@ -244,7 +369,13 @@ export function PublicMenuRenderer({
     <main
       className={`${styles.page} ${themeClass(config.theme)} ${densityClass(
         config.density
-      )} ${mode === "builder-preview" ? styles.builderPreview : styles.public}`}
+      )} ${backgroundClass(config)} ${radiusClass(config)} ${shadowClass(
+        config
+      )} ${typographyClass(config)} ${
+        mode === "builder-preview" ? styles.builderPreview : styles.public
+      }`}
+      data-theme={config.theme}
+      style={menuStyleVars(config)}
     >
       {config.welcomeEnabled ? (
         <section
@@ -264,9 +395,11 @@ export function PublicMenuRenderer({
             {context ? <small>{context}</small> : null}
           </div>
           <div className={styles.welcomeActions}>
-            <button type="button" onClick={showAll}>
-              Voir le menu
-            </button>
+            {config.navigation.showAll ? (
+              <button type="button" onClick={showAll}>
+                Voir le menu
+              </button>
+            ) : null}
             <button type="button" onClick={showHome}>
               Categories
             </button>
@@ -304,7 +437,7 @@ export function PublicMenuRenderer({
                   }}
                 >
                   <span>{tab.label}</span>
-                  <small>{tab.count}</small>
+                  {config.navigation.showDishCounts ? <small>{tab.count}</small> : null}
                 </button>
               );
             })}
@@ -328,7 +461,9 @@ export function PublicMenuRenderer({
                       className={categoryTone(category)}
                       onClick={() => setActiveTab(category.label)}
                     >
-                      <span>{category.count} choix</span>
+                      {config.navigation.showDishCounts ? (
+                        <span>{category.count} choix</span>
+                      ) : null}
                       <strong>{category.label}</strong>
                       <small>{category.description}</small>
                     </button>
@@ -382,18 +517,26 @@ export function PublicMenuRenderer({
 
       {selectedDish ? (
         <div
-          className={`${styles.detailOverlay} ${
-            config.detailStyle === "full-card" ? styles.detailFullCard : ""
-          } ${config.detailStyle === "simple-card" ? styles.detailSimpleCard : ""}`}
+          className={`${styles.detailOverlay} ${detailClass(config)}`}
         >
           <article className={styles.detailSheet}>
-            <div className={styles.detailHero}>
+            <div
+              className={`${styles.detailHero} ${
+                config.detail.photoHero === "full-bleed"
+                  ? styles.detailHeroFullBleed
+                  : config.detail.photoHero === "compact"
+                    ? styles.detailHeroCompact
+                    : config.detail.photoHero === "none"
+                      ? styles.detailHeroNone
+                      : ""
+              }`}
+            >
               {selectedDish.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img loading="lazy" src={selectedDish.imageUrl} alt="" />
-              ) : (
+              ) : config.detail.photoHero !== "none" ? (
                 <span>{menu.name.slice(0, 1)}</span>
-              )}
+              ) : null}
             </div>
             <div className={styles.detailBody}>
               <div className={styles.detailTop}>
@@ -468,16 +611,20 @@ export function PublicMenuRenderer({
               ) : null}
 
               {selectedDish.has3d || selectedDish.hasAr ? (
-                <section className={styles.modelPanel}>
+                <section className={`${styles.modelPanel} ${modelPanelClass(config)}`}>
                   <p>3D / AR disponible</p>
                   <strong>
-                    {disableHeavyAssets
+                    {disableHeavyAssets || !config.immersive.posterUntilClick
                       ? "Preview statut seulement dans le builder."
                       : "Chargement uniquement apres une action explicite."}
                   </strong>
                   <div>
-                    {selectedDish.has3d ? <button type="button">Voir en 3D</button> : null}
-                    {selectedDish.hasAr ? <button type="button">Voir en AR</button> : null}
+                    {selectedDish.has3d ? (
+                      <button type="button">{config.immersive.cta3d}</button>
+                    ) : null}
+                    {selectedDish.hasAr ? (
+                      <button type="button">{config.immersive.ctaAr}</button>
+                    ) : null}
                   </div>
                 </section>
               ) : null}

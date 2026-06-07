@@ -2,13 +2,20 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
+import {
+  buildPublicDishPath,
+  type PublicMenu,
+  type PublicMenuContextQuery,
+  type PublicMenuDish
+} from "@/lib/menu/publicMenuCore";
+import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import styles from "./PublicDishDetailExperience.module.css";
 
 type PublicDishDetailExperienceProps = {
   menu: PublicMenu;
   dish: PublicMenuDish;
   context?: string;
+  query?: PublicMenuContextQuery;
 };
 
 function dishBadges(dish: PublicMenuDish): string[] {
@@ -39,13 +46,14 @@ function DetailList({ items }: { items: string[] }) {
 export function PublicDishDetailExperience({
   menu,
   dish,
-  context = ""
+  context = "",
+  query
 }: PublicDishDetailExperienceProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
     "idle"
   );
-  const menuHref = `/menu/${menu.slug}`;
-  const dishHref = `/menu/${menu.slug}/dishes/${dish.slug}`;
+  const menuHref = buildPublicMenuPath(menu.slug, query);
+  const dishHref = buildPublicDishPath(menu.slug, dish.slug, query);
   const badges = dishBadges(dish);
 
   async function copyDishLink() {

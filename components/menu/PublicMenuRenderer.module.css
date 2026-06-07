@@ -11,6 +11,14 @@
   --menu-green: #EAF8EF;
   --menu-yellow: #FFF3C7;
   --menu-red: #FFE9E3;
+  --menu-success: #2FA866;
+  --menu-warning: #F6C453;
+  --menu-danger: #E75B4E;
+  --menu-radius-card: 8px;
+  --menu-radius-visual: 8px;
+  --menu-radius-sheet: 24px;
+  --menu-shadow-card: 0 8px 22px rgba(23, 50, 77, 0.06);
+  --menu-shadow-panel: 0 8px 24px rgba(23, 50, 77, 0.07);
   min-height: 100svh;
   overflow-x: clip;
   background: var(--menu-bg);
@@ -102,6 +110,179 @@
   --menu-green: #F4F8F5;
   --menu-yellow: #FAF6EA;
   --menu-red: #F8F1EE;
+}
+
+.themeMediterranean {
+  --menu-blue: #e5fbff;
+  --menu-green: #edf9e8;
+  --menu-yellow: #fff5bd;
+  --menu-red: #ffe9df;
+}
+
+.themeSushi {
+  --menu-blue: #f4f1eb;
+  --menu-green: #f5f7f2;
+  --menu-yellow: #faf2df;
+  --menu-red: #ffe5df;
+}
+
+.themeDiner {
+  --menu-blue: #e2f0ff;
+  --menu-green: #eaf7ed;
+  --menu-yellow: #fff1b8;
+  --menu-red: #ffe0dc;
+}
+
+.themeBowls {
+  --menu-blue: #e4f5ff;
+  --menu-green: #e7ffec;
+  --menu-yellow: #fff1c6;
+  --menu-red: #ffe8df;
+}
+
+.themePatisserie {
+  --menu-blue: #f3efff;
+  --menu-green: #f3f9e7;
+  --menu-yellow: #fff1c9;
+  --menu-red: #ffe5f0;
+}
+
+.themeBbq {
+  --menu-blue: rgba(217, 122, 50, 0.12);
+  --menu-green: rgba(138, 168, 95, 0.14);
+  --menu-yellow: rgba(217, 122, 50, 0.2);
+  --menu-red: rgba(179, 58, 43, 0.18);
+}
+
+.themeNight {
+  --menu-blue: rgba(40, 215, 255, 0.16);
+  --menu-green: rgba(67, 214, 137, 0.16);
+  --menu-yellow: rgba(255, 232, 102, 0.16);
+  --menu-red: rgba(255, 79, 216, 0.14);
+}
+
+.backgroundFlat {
+  background: var(--menu-bg);
+}
+
+.backgroundGradient {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--menu-accent) 16%, transparent), transparent 34%),
+    linear-gradient(180deg, var(--menu-bg) 0%, color-mix(in srgb, var(--menu-accent-3) 12%, var(--menu-bg)) 100%);
+}
+
+.backgroundSoftBlobs {
+  background:
+    radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--menu-accent) 34%, transparent), transparent 28%),
+    radial-gradient(circle at 10% 30%, color-mix(in srgb, var(--menu-accent-3) 18%, transparent), transparent 30%),
+    var(--menu-bg);
+}
+
+.backgroundTexture {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--menu-border) 20%, transparent) 25%, transparent 25%) 0 0 / 18px 18px,
+    var(--menu-bg);
+}
+
+.backgroundEditorial {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--menu-accent) 14%, transparent), transparent 42%),
+    var(--menu-bg);
+}
+
+.backgroundDark {
+  background:
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--menu-accent-2) 26%, transparent), transparent 32%),
+    radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--menu-accent) 16%, transparent), transparent 34%),
+    var(--menu-bg);
+}
+
+.backgroundPatternLight {
+  background:
+    linear-gradient(45deg, color-mix(in srgb, var(--menu-border) 42%, transparent) 25%, transparent 25%) 0 0 / 22px 22px,
+    linear-gradient(180deg, var(--menu-bg), color-mix(in srgb, var(--menu-accent) 10%, var(--menu-bg)));
+}
+
+.radiusSharp {
+  --menu-radius-card: 2px;
+  --menu-radius-visual: 2px;
+  --menu-radius-sheet: 12px;
+}
+
+.radiusSoft {
+  --menu-radius-card: 10px;
+  --menu-radius-visual: 10px;
+  --menu-radius-sheet: 22px;
+}
+
+.radiusRounded {
+  --menu-radius-card: 16px;
+  --menu-radius-visual: 14px;
+  --menu-radius-sheet: 28px;
+}
+
+.radiusPill {
+  --menu-radius-card: 24px;
+  --menu-radius-visual: 999px;
+  --menu-radius-sheet: 34px;
+}
+
+.radiusOrganic {
+  --menu-radius-card: 22px 10px 26px 12px;
+  --menu-radius-visual: 18px 8px 22px 10px;
+  --menu-radius-sheet: 30px 18px 34px 20px;
+}
+
+.shadowNone {
+  --menu-shadow-card: none;
+  --menu-shadow-panel: none;
+}
+
+.shadowSoft {
+  --menu-shadow-card: 0 8px 22px rgba(23, 50, 77, 0.06);
+  --menu-shadow-panel: 0 8px 24px rgba(23, 50, 77, 0.07);
+}
+
+.shadowMedium {
+  --menu-shadow-card: 0 14px 30px rgba(23, 50, 77, 0.12);
+  --menu-shadow-panel: 0 18px 42px rgba(23, 50, 77, 0.13);
+}
+
+.shadowStrong {
+  --menu-shadow-card: 0 20px 48px rgba(0, 0, 0, 0.26);
+  --menu-shadow-panel: 0 24px 58px rgba(0, 0, 0, 0.28);
+}
+
+.typeElegant .welcome h1,
+.typeElegant .menuIntro h2,
+.typeElegant .sectionHeader h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+}
+
+.typeBold .welcome h1,
+.typeBold .menuIntro h2,
+.typeBold .sectionHeader h3 {
+  font-weight: 950;
+}
+
+.typeCasual .welcome h1,
+.typeCasual .menuIntro h2,
+.typeCasual .sectionHeader h3 {
+  font-weight: 800;
+}
+
+.typeMinimal .welcome h1,
+.typeMinimal .menuIntro h2,
+.typeMinimal .sectionHeader h3 {
+  font-weight: 650;
+}
+
+.typeEditorial .welcome h1,
+.typeEditorial .menuIntro h2,
+.typeEditorial .sectionHeader h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 800;
 }
 
 .welcome {
@@ -314,12 +495,12 @@
   gap: 7px;
   padding: 13px;
   border: 1px solid var(--menu-border);
-  border-radius: 8px;
+  border-radius: var(--menu-radius-card);
   color: var(--menu-text);
   text-align: left;
   font: inherit;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(23, 50, 77, 0.07);
+  box-shadow: var(--menu-shadow-panel);
 }
 
 .categoryCard strong {
@@ -374,13 +555,13 @@
   min-height: 86px;
   padding: 10px;
   border: 1px solid var(--menu-border);
-  border-radius: 8px;
+  border-radius: var(--menu-radius-card);
   background: var(--menu-surface);
   color: var(--menu-text);
   text-align: left;
   text-decoration: none;
   font: inherit;
-  box-shadow: 0 8px 22px rgba(23, 50, 77, 0.06);
+  box-shadow: var(--menu-shadow-card);
   cursor: pointer;
 }
 
@@ -390,13 +571,63 @@
   grid-template-columns: 1fr;
 }
 
+.dishCardPriceForward {
+  grid-template-columns: 1fr;
+  border-width: 2px;
+}
+
+.dishCardPriceForward .dishTopline {
+  align-items: center;
+}
+
+.dishCardPriceForward .price {
+  border-radius: 999px;
+  background: var(--menu-accent);
+  color: var(--menu-text);
+  padding: 5px 9px;
+}
+
+.dishCardEditorial {
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+}
+
+.dishCardEditorial .dishCopy {
+  padding: 12px;
+}
+
+.dishCardSplit {
+  grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.hybridDishActions {
+  display: grid;
+  gap: 7px;
+}
+
+.inlinePreviewButton {
+  justify-self: end;
+  min-height: 32px;
+  border: 1px solid var(--menu-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--menu-surface) 90%, transparent);
+  color: var(--menu-text);
+  padding: 0 11px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .dishVisual {
   display: grid;
   place-items: center;
   width: 58px;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--menu-radius-visual);
   background: var(--menu-green);
   color: var(--menu-fresh);
   font-size: 20px;
@@ -495,7 +726,7 @@
   gap: 6px;
   padding: 18px;
   border: 1px solid var(--menu-border);
-  border-radius: 8px;
+  border-radius: var(--menu-radius-card);
   background: var(--menu-surface);
 }
 
@@ -527,7 +758,7 @@
   width: 100%;
   max-height: 88svh;
   overflow: auto;
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--menu-radius-sheet) var(--menu-radius-sheet) 0 0;
   background: var(--menu-bg);
   color: var(--menu-text);
   box-shadow: 0 -18px 54px rgba(0, 0, 0, 0.26);
@@ -550,6 +781,20 @@
   border-radius: 24px;
 }
 
+.detailFullPage {
+  align-items: stretch;
+}
+
+.detailFullPage .detailSheet {
+  min-height: 100svh;
+  max-height: 100svh;
+  border-radius: 0;
+}
+
+.detailEditorial .detailSheet {
+  max-width: 820px;
+}
+
 .detailHero {
   display: grid;
   min-height: 168px;
@@ -562,6 +807,18 @@
 
 .detailSimpleCard .detailHero {
   min-height: 84px;
+}
+
+.detailHeroFullBleed {
+  min-height: 238px;
+}
+
+.detailHeroCompact {
+  min-height: 104px;
+}
+
+.detailHeroNone {
+  display: none;
 }
 
 .detailHero span {
@@ -642,7 +899,7 @@
 .modelPanel,
 .houseNote {
   border: 1px solid var(--menu-border);
-  border-radius: 8px;
+  border-radius: var(--menu-radius-card);
   background: var(--menu-surface);
   padding: 10px;
 }
@@ -675,6 +932,29 @@
 .modelPanel {
   display: grid;
   gap: 7px;
+}
+
+.modelPanelLarge {
+  min-height: 138px;
+  align-content: end;
+  background:
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--menu-accent) 34%, transparent), transparent 34%),
+    var(--menu-surface);
+}
+
+.modelPanelPremium {
+  border-color: color-mix(in srgb, var(--menu-accent) 48%, var(--menu-border));
+  background: color-mix(in srgb, var(--menu-accent) 10%, var(--menu-surface));
+}
+
+.modelPanelMinimal {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.modelPanelCompact {
+  min-height: 0;
 }
 
 .modelPanel div {

@@ -172,9 +172,59 @@
 
 .themeGrid,
 .qualityList,
-.actionGrid {
+.actionGrid,
+.toggleGrid,
+.colorGrid {
   display: grid;
   gap: 10px;
+}
+
+.colorGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.colorField {
+  display: grid;
+  grid-template-columns: 1fr 42px;
+  gap: 7px 9px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(255, 250, 240, 0.14);
+  border-radius: 13px;
+  background: rgba(255, 250, 240, 0.06);
+  padding: 10px;
+  color: rgba(232, 207, 155, 0.84);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.colorField input {
+  width: 42px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0;
+}
+
+.colorField small {
+  grid-column: 1 / -1;
+  color: var(--owner-muted);
+  font-size: 11px;
+  text-transform: none;
+}
+
+.variationBox {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 250, 240, 0.14);
+  padding-top: 12px;
+}
+
+.toggleGrid {
+  margin-top: 12px;
 }
 
 .themeButton {
@@ -966,7 +1016,8 @@
 }
 
 @media (max-width: 680px) {
-  .optionGrid {
+  .optionGrid,
+  .colorGrid {
     grid-template-columns: 1fr;
   }
 

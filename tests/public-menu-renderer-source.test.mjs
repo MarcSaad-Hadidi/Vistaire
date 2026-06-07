@@ -34,8 +34,9 @@ test("public menu renderer links dish cards to shareable detail routes with QR c
   assert.match(rendererSource, /query\?: PublicMenuContextQuery/);
   assert.match(
     rendererSource,
-    /href=\{buildPublicDishPath\(menu\.slug, dish\.slug, query\)\}/
+    /const dishHref = buildPublicDishPath\(menu\.slug, dish\.slug, query\)/
   );
+  assert.match(rendererSource, /href=\{dishHref\}/);
   assert.match(rendererSource, /prefetch=\{false\}/);
   assert.match(rendererSource, /mode === "public"/);
   assert.match(rendererSource, /onClick=\{\(\) => openDish\(dish\)\}/);
