@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 
 import {
   DEFAULT_MENU_UI_CONFIG,
+  MENU_DETAIL_PRESENTATION_VALUES,
+  MENU_DISH_LIST_PRESENTATION_VALUES,
+  MENU_EXPERIENCE_BLUEPRINT_IDS,
+  MENU_HOME_LAYOUT_VALUES,
+  MENU_SECTION_ORDER_VALUES,
   MENU_UI_THEME_IDS,
   normalizeMenuUiConfig,
   validateMenuUiConfig
@@ -10,11 +15,13 @@ import {
 
 test("default menu UI config is safe for public rendering", () => {
   assert.equal(DEFAULT_MENU_UI_CONFIG.theme, "fresh-homemade");
+  assert.equal(DEFAULT_MENU_UI_CONFIG.experience.blueprint, "classic-tabs");
   assert.equal(DEFAULT_MENU_UI_CONFIG.welcomeEnabled, true);
   assert.equal(DEFAULT_MENU_UI_CONFIG.defaultView, "all");
   assert.equal(DEFAULT_MENU_UI_CONFIG.show3dBadges, true);
   assert.equal(DEFAULT_MENU_UI_CONFIG.showArBadges, true);
   assert.equal(MENU_UI_THEME_IDS.includes(DEFAULT_MENU_UI_CONFIG.theme), true);
+  assert.equal(DEFAULT_MENU_UI_CONFIG.immersive.autoLoad, false);
 });
 
 test("rejects invalid menu UI themes and unsafe option values", () => {
@@ -29,6 +36,57 @@ test("rejects invalid menu UI themes and unsafe option values", () => {
 
   assert.equal(result.ok, false);
   assert.match(result.error, /theme/i);
+});
+
+test("normalizes legacy configs with classic-tabs experience fallback", () => {
+  const config = normalizeMenuUiConfig({
+    theme: "premium-gastronomic",
+    navigation: { style: "minimal" },
+    cards: { variant: "editorial" },
+    detail: { style: "editorial-detail", dishOpenMode: "route" }
+  });
+
+  assert.equal(config.experience.blueprint, "classic-tabs");
+  assert.equal(config.experience.homeLayout, "compact-welcome");
+  assert.equal(config.experience.sectionOrder, "categories-then-featured");
+  assert.equal(config.experience.featuredMode, "signature-first");
+  assert.equal(config.experience.categoryPresentation, "tabs");
+  assert.equal(config.experience.dishListPresentation, "grouped-cards");
+  assert.equal(config.experience.detailPresentation, "bottom-sheet");
+});
+
+test("validates whitelisted experience options and rejects invalid blueprint", () => {
+  const accepted = validateMenuUiConfig({
+    theme: "fresh-homemade",
+    experience: {
+      blueprint: "photo-grid",
+      homeLayout: "visual-home",
+      sectionOrder: "featured-then-categories",
+      featuredMode: "photo-led",
+      categoryPresentation: "visual-grid",
+      dishListPresentation: "photo-grid",
+      detailPresentation: "photo-hero"
+    }
+  });
+
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.value.experience.blueprint, "photo-grid");
+  assert.equal(MENU_EXPERIENCE_BLUEPRINT_IDS.includes("photo-grid"), true);
+  assert.equal(MENU_HOME_LAYOUT_VALUES.includes("visual-home"), true);
+  assert.equal(MENU_SECTION_ORDER_VALUES.includes("featured-then-categories"), true);
+  assert.equal(MENU_DISH_LIST_PRESENTATION_VALUES.includes("photo-grid"), true);
+  assert.equal(MENU_DETAIL_PRESENTATION_VALUES.includes("photo-hero"), true);
+
+  const rejected = validateMenuUiConfig({
+    theme: "fresh-homemade",
+    experience: {
+      blueprint: "saas-dashboard",
+      dishListPresentation: "spreadsheet"
+    }
+  });
+
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /experience.*blueprint/i);
 });
 
 test("normalizes booleans, whitelisted options, and text lengths", () => {

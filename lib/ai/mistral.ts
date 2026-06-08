@@ -2,6 +2,7 @@ import "server-only";
 
 import type { OwnerRecommendation } from "@/lib/owner/types";
 import { containsForbiddenAdminAssistantContent } from "@/lib/admin/recommendations";
+import type { MenuStyleAdvisorInput } from "@/lib/menu/menuStyleAdvisor";
 
 type MistralRecommendationPayload = {
   restaurants: Array<{
@@ -55,6 +56,8 @@ export type AdminAssistantMistralResult = {
     body: string;
   }>;
 };
+
+export type MistralMenuStyleAdvisorResult = Record<string, unknown>;
 
 function parseRecommendations(content: string): OwnerRecommendation[] | null {
   const trimmed = content.trim();
@@ -276,6 +279,68 @@ export async function generateMistralAdminAssistantAnswer(
   } catch (error) {
     const reason = error instanceof Error ? error.name : "unknown";
     console.error("[Vistaire admin] Mistral fallback", reason);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function generateMistralMenuStyleAdvice(
+  payload: MenuStyleAdvisorInput
+): Promise<MistralMenuStyleAdvisorResult | null> {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  const model = process.env.MISTRAL_MODEL || "mistral-large-latest";
+
+  if (!apiKey) return null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4_500);
+
+  try {
+    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.1,
+        max_tokens: 650,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es Vistaire Menu Design Advisor. Tu ne generes jamais de plats, prix, ingredients, allergenes, photos, modeles 3D ou disponibilites. Tu recommandes seulement une configuration UI parmi les whitelists fournies. Reponds uniquement en JSON strict."
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              instruction:
+                "Retourne {\"recommendedTheme\":\"...\",\"recommendedBlueprint\":\"...\",\"recommendedConfigPatch\":{\"theme\":\"...\",\"experience\":{},\"navigation\":{},\"cards\":{},\"detail\":{},\"photos\":{},\"immersive\":{}},\"reason\":\"...\",\"confidence\":0.0,\"warnings\":[\"...\"]}. N'inclus jamais de dishes, prices, ingredients, allergens, photos inventees, modeles 3D, disponibilites ou donnees menu nouvelles.",
+              allowedOutput:
+                "theme, experience, navigation, cards, detail, photos strategy, immersive strategy only",
+              signals: payload
+            })
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      console.error("[Vistaire owner] Mistral menu style advisor unavailable", response.status);
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = data.choices?.[0]?.message?.content;
+    return content ? parseJsonObject(content) : null;
+  } catch (error) {
+    const reason = error instanceof Error ? error.name : "unknown";
+    console.error("[Vistaire owner] Mistral menu style advisor fallback", reason);
     return null;
   } finally {
     clearTimeout(timeoutId);

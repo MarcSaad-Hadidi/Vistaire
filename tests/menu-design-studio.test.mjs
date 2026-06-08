@@ -3,10 +3,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import {
+  MENU_EXPERIENCE_BLUEPRINT_IDS,
   MENU_UI_THEME_IDS,
   normalizeMenuUiConfig,
   validateMenuUiConfig
 } from "../lib/menu/menuUiConfig.ts";
+import {
+  MENU_EXPERIENCE_BLUEPRINTS,
+  getMenuExperienceBlueprint
+} from "../lib/menu/menuExperienceBlueprints.ts";
 import {
   MENU_THEME_PRESETS,
   buildConfigFromTheme,
@@ -40,6 +45,38 @@ test("menu design studio exposes at least 12 required theme presets", () => {
     REQUIRED_THEMES.filter((theme) => !getMenuThemePreset(theme)),
     []
   );
+});
+
+test("menu design studio exposes at least 12 required experience blueprints", () => {
+  const requiredBlueprints = [
+    "classic-tabs",
+    "editorial-magazine",
+    "photo-grid",
+    "fast-board",
+    "bento-showcase",
+    "story-first",
+    "minimal-list",
+    "lounge-cocktail",
+    "family-comfort",
+    "immersive-first",
+    "tasting-journey",
+    "compact-qr"
+  ];
+
+  assert.ok(MENU_EXPERIENCE_BLUEPRINT_IDS.length >= 12);
+  assert.equal(
+    MENU_EXPERIENCE_BLUEPRINTS.length,
+    MENU_EXPERIENCE_BLUEPRINT_IDS.length
+  );
+  assert.deepEqual(
+    requiredBlueprints.filter(
+      (blueprint) => !MENU_EXPERIENCE_BLUEPRINT_IDS.includes(blueprint)
+    ),
+    []
+  );
+  for (const blueprint of requiredBlueprints) {
+    assert.equal(getMenuExperienceBlueprint(blueprint).id, blueprint);
+  }
 });
 
 test("each required theme has a complete distinct visual default set", () => {
@@ -136,6 +173,15 @@ test("advanced config normalizes whitelisted options and forces 3D auto load off
       showDishCounts: false,
       showIcons: true
     },
+    experience: {
+      blueprint: "immersive-first",
+      homeLayout: "immersive-poster",
+      sectionOrder: "immersive-then-menu",
+      featuredMode: "immersive-ready",
+      categoryPresentation: "compact-pills",
+      dishListPresentation: "immersive-showcase",
+      detailPresentation: "modal-card"
+    },
     cards: {
       variant: "price-forward",
       photoShape: "organic",
@@ -169,6 +215,8 @@ test("advanced config normalizes whitelisted options and forces 3D auto load off
   assert.equal(config.global.backgroundStyle, "pattern-light");
   assert.equal(config.typography.headingStyle, "editorial");
   assert.equal(config.navigation.style, "rail");
+  assert.equal(config.experience.blueprint, "immersive-first");
+  assert.equal(config.experience.dishListPresentation, "immersive-showcase");
   assert.equal(config.cards.variant, "price-forward");
   assert.equal(config.detail.dishOpenMode, "hybrid");
   assert.equal(config.photos.publicMissingBehavior, "text-only");
@@ -278,6 +326,13 @@ test("builder exposes advanced studio controls without heavy model imports", asy
   for (const label of [
     "Menu Design Studio",
     "Style preset",
+    "Structure du menu",
+    "Experience blueprint",
+    "Home layout",
+    "Category presentation",
+    "Dish list presentation",
+    "Detail presentation",
+    "Featured dishes mode",
     "Custom couleurs",
     "Typography",
     "Background",
@@ -285,6 +340,10 @@ test("builder exposes advanced studio controls without heavy model imports", asy
     "Cards plats",
     "Fiche detail",
     "Photos",
+    "Me conseiller avec Mistral",
+    "Analyse du restaurant",
+    "Voir variation",
+    "Ignorer",
     "3D / AR",
     "Créer variation unique",
     "Variation locale non sauvegardée"
@@ -293,6 +352,8 @@ test("builder exposes advanced studio controls without heavy model imports", asy
   }
 
   assert.match(source, /MENU_THEME_PRESETS/);
+  assert.match(source, /MENU_EXPERIENCE_BLUEPRINTS/);
+  assert.match(source, /\/api\/owner\/menu-style-advisor/);
   assert.match(source, /createMenuThemeVariation/);
   assert.doesNotMatch(source, /DishModelViewer/);
   assert.doesNotMatch(source, /model-viewer/);

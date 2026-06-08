@@ -1,3 +1,5 @@
+import { getMenuExperienceBlueprint } from "./menuExperienceBlueprints.ts";
+
 export const MENU_THEME_IDS = [
   "fresh-homemade",
   "premium-gastronomic",
@@ -995,6 +997,7 @@ function clone<T>(value: T): T {
 
 function presetConfig(preset: MenuThemePreset, restaurant?: { name?: string; slug?: string }) {
   const name = restaurantName(restaurant);
+  const classicTabs = getMenuExperienceBlueprint("classic-tabs");
 
   return {
     schemaVersion: 2,
@@ -1007,6 +1010,10 @@ function presetConfig(preset: MenuThemePreset, restaurant?: { name?: string; slu
     navigation: clone(preset.navigation),
     cards: clone(preset.cards),
     detail: clone(preset.detail),
+    experience: {
+      blueprint: classicTabs.id,
+      ...clone(classicTabs.experienceDefaults)
+    },
     photos: clone(preset.photos),
     immersive: clone(preset.immersive),
     welcomeEnabled: true,
