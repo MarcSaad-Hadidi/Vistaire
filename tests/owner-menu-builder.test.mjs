@@ -56,6 +56,27 @@ test("menu builder includes reusable theme presets", async () => {
   assert.match(source, /createMenuThemeVariation/);
 });
 
+test("menu builder exposes Preview Lab, compare, quality, and config transfer controls", async () => {
+  const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
+
+  assert.match(source, /Preview Lab/);
+  assert.match(source, /PREVIEW_DEVICES/);
+  assert.match(source, /phone-390/);
+  assert.match(source, /phone-430/);
+  assert.match(source, /tablet/);
+  assert.match(source, /desktop/);
+  assert.match(source, /previewMode/);
+  assert.match(source, /dish-detail/);
+  assert.match(source, /qr-flow/);
+  assert.match(source, /missing-photos/);
+  assert.match(source, /themeCompare/);
+  assert.match(source, /blueprintCompare/);
+  assert.match(source, /Menu Design Quality/);
+  assert.match(source, /evaluateMenuDesignQuality/);
+  assert.match(source, /exportMenuDesignConfig/);
+  assert.match(source, /importMenuDesignConfig/);
+});
+
 test("menu builder derives welcome copy from the selected restaurant", async () => {
   const source = await readFile("components/owner/MenuUiBuilder.tsx", "utf8");
 

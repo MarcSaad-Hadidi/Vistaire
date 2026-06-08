@@ -254,6 +254,62 @@
   box-shadow: 0 0 0 3px rgba(232, 207, 155, 0.1);
 }
 
+.compareGrid,
+.proposalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.compareTile,
+.proposalCard {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 112px;
+  border: 1px solid rgba(255, 250, 240, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.06);
+  color: #fffaf0;
+  padding: 11px;
+  text-align: left;
+}
+
+.compareTile {
+  background:
+    linear-gradient(135deg, var(--tile-bg, rgba(255, 250, 240, 0.06)), var(--tile-surface, rgba(255, 250, 240, 0.06)));
+  color: var(--tile-text, #fffaf0);
+}
+
+.compareTile::before {
+  width: 32px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--tile-accent, #e8cf9b);
+  content: "";
+}
+
+.compareTile span,
+.proposalCard span {
+  color: rgba(232, 207, 155, 0.86);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.compareTile strong,
+.proposalCard strong {
+  overflow-wrap: anywhere;
+}
+
+.compareTile small,
+.proposalCard small {
+  color: var(--owner-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .optionGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -334,6 +390,27 @@
   line-height: 1.4;
 }
 
+.qualitySummary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(232, 207, 155, 0.22);
+  border-radius: 14px;
+  background: rgba(232, 207, 155, 0.08);
+  padding: 12px;
+}
+
+.qualitySummary strong {
+  color: #fffaf0;
+}
+
+.qualitySummary span {
+  color: rgba(232, 207, 155, 0.86);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .qualityOk span {
   background: rgba(78, 177, 105, 0.18);
   color: #8ef2a8;
@@ -355,6 +432,36 @@
   padding: 16px;
 }
 
+.labToolbar {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.segmentedControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segmentedControl button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 250, 240, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.06);
+  color: var(--owner-muted);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.segmentedControl .segmentActive {
+  border-color: rgba(232, 207, 155, 0.72);
+  background: rgba(232, 207, 155, 0.16);
+  color: #fffaf0;
+}
+
 .phoneShell {
   width: min(430px, 100%);
   margin: 0 auto;
@@ -365,6 +472,21 @@
   overflow: hidden;
 }
 
+.previewLabShell {
+  width: min(var(--preview-width, 430px), 100%);
+  transition: width 180ms ease;
+}
+
+.previewLabShell[data-preview-device="tablet"],
+.previewLabShell[data-preview-device="desktop"] {
+  border-radius: 28px;
+}
+
+.previewLabShell[data-preview-device="tablet"] .phoneScreen,
+.previewLabShell[data-preview-device="desktop"] .phoneScreen {
+  border-radius: 18px;
+}
+
 .phoneScreen {
   position: relative;
   min-height: 800px;
@@ -373,6 +495,34 @@
   border-radius: 34px;
   background: #fffdf6;
   color: #17324d;
+}
+
+.qrFlowPreview {
+  display: grid;
+  gap: 10px;
+  min-height: 100%;
+  background: #fffdf6;
+}
+
+.qrFlowPreview > span {
+  display: grid;
+  width: 86px;
+  height: 86px;
+  place-items: center;
+  margin: 18px auto 0;
+  border: 1px solid rgba(23, 50, 77, 0.2);
+  border-radius: 12px;
+  color: #17324d;
+  font-weight: 900;
+}
+
+.qrFlowPreview > strong,
+.qrFlowPreview > p {
+  width: min(100% - 28px, 560px);
+  margin: 0 auto;
+  color: #17324d;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .metricGrid {

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   buildOwnerQrTarget,
@@ -96,4 +97,14 @@ test("keeps logo QR styles scannable with high error correction", () => {
       .errorCorrectionLevel,
     "H"
   );
+});
+
+test("signed QR fallback is dev-gated and menu-target validated", async () => {
+  const tokenSource = await readFile("lib/owner/qrTokens.ts", "utf8");
+  const storeSource = await readFile("lib/owner/qrStore.ts", "utf8");
+
+  assert.match(tokenSource, /canUseSignedQrFallback/);
+  assert.match(tokenSource, /process\.env\.NODE_ENV !== "production"/);
+  assert.match(storeSource, /canUseSignedQrFallback/);
+  assert.match(storeSource, /isOwnerQrTargetPathAllowed\("menu", targetPath\)/);
 });

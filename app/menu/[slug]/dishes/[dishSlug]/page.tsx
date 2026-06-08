@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
+import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
+import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
 
 export const dynamic = "force-dynamic";
 
@@ -55,9 +57,18 @@ export default async function PublicDishPage({
   ]
     .filter(Boolean)
     .join(" · ");
+  const fallbackConfig = menuUiConfigForRestaurant({
+    name: menu.name,
+    slug: menu.slug
+  });
+  const configRecord = await getPublishedMenuUiConfigForRestaurant(
+    menu.restaurantId,
+    fallbackConfig
+  );
 
   return (
     <PublicDishDetailExperience
+      config={configRecord.config}
       context={context}
       dish={dish}
       menu={menu}

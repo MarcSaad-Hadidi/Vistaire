@@ -10,6 +10,8 @@ test("public dish detail route scopes dishes to the requested public menu", asyn
 
   assert.match(source, /getPublicMenuBySlug/);
   assert.match(source, /getPublicMenuDishBySlug/);
+  assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
+  assert.match(source, /config=\{configRecord\.config\}/);
   assert.doesNotMatch(source, /isFreshHomemadeMenu/);
   assert.match(source, /notFound\(\)/);
   assert.match(source, /PublicDishDetailExperience/);
@@ -29,4 +31,7 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /dish\.allergens\.length/);
   assert.match(source, /dish\.options\.length/);
   assert.match(source, /dish\.houseNote/);
+  assert.match(source, /config\?: MenuUiConfig/);
+  assert.match(source, /data-theme=\{config\?\.theme/);
+  assert.match(source, /data-blueprint=\{config\?\.experience\.blueprint/);
 });

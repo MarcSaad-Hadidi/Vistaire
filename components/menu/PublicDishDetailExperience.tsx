@@ -8,12 +8,14 @@ import {
   type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import styles from "./PublicDishDetailExperience.module.css";
 
 type PublicDishDetailExperienceProps = {
   menu: PublicMenu;
   dish: PublicMenuDish;
+  config?: MenuUiConfig;
   context?: string;
   query?: PublicMenuContextQuery;
 };
@@ -46,6 +48,7 @@ function DetailList({ items }: { items: string[] }) {
 export function PublicDishDetailExperience({
   menu,
   dish,
+  config,
   context = "",
   query
 }: PublicDishDetailExperienceProps) {
@@ -67,7 +70,11 @@ export function PublicDishDetailExperience({
   }
 
   return (
-    <main className={styles.page}>
+    <main
+      className={styles.page}
+      data-theme={config?.theme}
+      data-blueprint={config?.experience.blueprint}
+    >
       <div className={styles.shell}>
         <nav className={styles.topNav} aria-label="Navigation fiche plat">
           <Link href={menuHref} prefetch={false}>
