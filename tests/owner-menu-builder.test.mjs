@@ -84,3 +84,12 @@ test("menu builder derives welcome copy from the selected restaurant", async () 
   assert.match(source, /menuUiConfigForRestaurant/);
   assert.match(source, /welcomeTitle/);
 });
+
+test("menu builder CSS gives controls, preview, and phone independent scroll containers", async () => {
+  const css = await readFile("components/owner/MenuUiBuilder.module.css", "utf8");
+
+  assert.match(css, /\.builderShell\s*\{[\s\S]*height:\s*calc\(100svh - 156px\);[\s\S]*overflow:\s*hidden;/);
+  assert.match(css, /\.controls\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*overscroll-behavior:\s*contain;/);
+  assert.match(css, /\.previewPane\s*\{[\s\S]*max-height:\s*calc\(100svh - 156px\);[\s\S]*overflow-y:\s*auto;/);
+  assert.match(css, /\.phoneScreen\s*\{[\s\S]*height:\s*min\(800px, calc\(100svh - 292px\)\);[\s\S]*overflow:\s*auto;[\s\S]*overscroll-behavior:\s*contain;/);
+});

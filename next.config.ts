@@ -1,4 +1,8 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+
+const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url));
 
 /** Quick Look iOS attend souvent ce MIME pour les USDZ servis en HTTPS. */
 const USDZ_MODEL_HEADERS = [
@@ -19,6 +23,10 @@ const GLB_MODEL_HEADERS = [
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
+  outputFileTracingRoot: PROJECT_ROOT,
+  turbopack: {
+    root: PROJECT_ROOT,
+  },
   images: {
     qualities: [75, 90, 92, 100],
   },

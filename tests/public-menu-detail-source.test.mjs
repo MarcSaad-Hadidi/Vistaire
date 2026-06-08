@@ -32,6 +32,14 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /dish\.options\.length/);
   assert.match(source, /dish\.houseNote/);
   assert.match(source, /config\?: MenuUiConfig/);
+  assert.match(source, /mode\?: "public" \| "builder-preview"/);
+  assert.match(source, /onBack\?: \(\) => void/);
   assert.match(source, /data-theme=\{config\?\.theme/);
   assert.match(source, /data-blueprint=\{config\?\.experience\.blueprint/);
+  assert.match(source, /mode === "builder-preview"/);
+  assert.match(source, /Chargement apres action explicite/);
+  assert.doesNotMatch(source, /model-viewer/);
+  assert.doesNotMatch(source, /@google\/model-viewer/);
+  assert.doesNotMatch(source, /\.glb/);
+  assert.doesNotMatch(source, /\.usdz/);
 });

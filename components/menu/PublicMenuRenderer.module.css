@@ -37,6 +37,22 @@
   padding: 0;
 }
 
+.builderPreview .welcome {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.builderPreview .welcome h1 {
+  max-width: min(100%, 18ch);
+  font-size: clamp(31px, 9vw, 38px);
+}
+
+.builderPreview .menuIntro h2,
+.builderPreview .sectionHeader h3,
+.builderPreview .fullMenuSection h3 {
+  font-size: clamp(22px, 7vw, 31px);
+}
+
 .themeFresh {
   --menu-bg: #FFFDF6;
   --menu-surface: #FFFFFF;
@@ -308,13 +324,15 @@
 }
 
 .welcome h1 {
-  max-width: 13ch;
+  max-width: min(100%, 16ch);
   margin: 0;
   color: var(--menu-text);
-  font-size: 34px;
+  font-size: clamp(29px, 9vw, 34px);
   line-height: 1;
   font-weight: 900;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+  word-break: normal;
 }
 
 .welcome span,
@@ -411,10 +429,13 @@
   margin: 0 -14px 14px;
   padding: 8px 14px 12px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   background: color-mix(in srgb, var(--menu-bg) 94%, transparent);
   border-bottom: 1px solid var(--menu-border);
   backdrop-filter: blur(10px);
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
+  white-space: nowrap;
 }
 
 .builderPreview .tabs {
@@ -432,6 +453,7 @@
   gap: 7px;
   min-height: 38px;
   flex: 0 0 auto;
+  min-width: max-content;
   padding: 8px 12px;
   border: 1px solid var(--menu-border);
   border-radius: 999px;
@@ -441,6 +463,12 @@
   font-size: 13px;
   font-weight: 900;
   cursor: pointer;
+  scroll-snap-align: start;
+  white-space: nowrap;
+}
+
+.tabs button span {
+  white-space: nowrap;
 }
 
 .tabs small {
@@ -484,7 +512,7 @@
 
 .categoryGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 10px;
 }
 
@@ -507,7 +535,9 @@
   display: block;
   font-size: 20px;
   line-height: 1.05;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+  word-break: normal;
 }
 
 .categoryCard small {
@@ -660,21 +690,26 @@
 }
 
 .dishTopline {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 10px;
+  min-width: 0;
 }
 
 .dishName {
+  min-width: 0;
   color: var(--menu-text);
   font-size: 15px;
   font-weight: 900;
   line-height: 1.18;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+  word-break: normal;
 }
 
 .price {
+  justify-self: end;
   color: var(--menu-accent-2);
   font-size: 14px;
   white-space: nowrap;
@@ -685,7 +720,9 @@
   color: var(--menu-muted);
   font-size: 13px;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
 }
 
 .badges {
@@ -1283,6 +1320,30 @@
   .factGrid {
     grid-template-columns: 1fr;
   }
+
+  .photoGridCards .dishList,
+  .photoGridCards + .fullMenuList .dishList,
+  .bentoFeature .dishList,
+  .immersiveShowcase .dishList {
+    grid-template-columns: 1fr;
+  }
+
+  .dishCardSplit {
+    grid-template-columns: 1fr;
+  }
+
+  .dishTopline {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dishName,
+  .categoryCard strong,
+  .menuIntro h2,
+  .sectionHeader h3,
+  .fullMenuSection h3 {
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
 }
 
 @media (max-width: 390px) {
@@ -1303,12 +1364,28 @@
     padding-inline: 12px;
   }
 
+  .categoryGrid,
+  .bentoCategories .categoryGrid {
+    grid-template-columns: 1fr;
+  }
+
   .dishCard {
     grid-template-columns: 48px minmax(0, 1fr);
   }
 
+  .dishCardLarge,
+  .dishCardMinimal,
+  .dishCardNoVisual,
+  .dishCardSplit {
+    grid-template-columns: 1fr;
+  }
+
   .dishVisual {
     width: 48px;
+  }
+
+  .price {
+    justify-self: start;
   }
 }
 
