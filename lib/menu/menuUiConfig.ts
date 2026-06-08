@@ -2,6 +2,33 @@ import {
   MENU_THEME_IDS,
   buildConfigFromTheme
 } from "./menuThemePresets.ts";
+import {
+  MENU_CATEGORY_PRESENTATION_VALUES,
+  MENU_DETAIL_PRESENTATION_VALUES,
+  MENU_DISH_LIST_PRESENTATION_VALUES,
+  MENU_EXPERIENCE_BLUEPRINT_IDS,
+  MENU_FEATURED_MODE_VALUES,
+  MENU_HOME_LAYOUT_VALUES,
+  MENU_SECTION_ORDER_VALUES,
+  getMenuExperienceBlueprint,
+  type MenuCategoryPresentation,
+  type MenuDetailPresentation,
+  type MenuDishListPresentation,
+  type MenuExperienceBlueprintId,
+  type MenuFeaturedMode,
+  type MenuHomeLayout,
+  type MenuSectionOrder
+} from "./menuExperienceBlueprints.ts";
+
+export {
+  MENU_CATEGORY_PRESENTATION_VALUES,
+  MENU_DETAIL_PRESENTATION_VALUES,
+  MENU_DISH_LIST_PRESENTATION_VALUES,
+  MENU_EXPERIENCE_BLUEPRINT_IDS,
+  MENU_FEATURED_MODE_VALUES,
+  MENU_HOME_LAYOUT_VALUES,
+  MENU_SECTION_ORDER_VALUES
+} from "./menuExperienceBlueprints.ts";
 
 export const MENU_UI_THEME_IDS = MENU_THEME_IDS;
 
@@ -227,6 +254,15 @@ export type MenuUiConfig = {
     showShare: boolean;
     modelPanelStyle: MenuUiModelPanelStyle;
     dishOpenMode: MenuUiDishOpenMode;
+  };
+  experience: {
+    blueprint: MenuExperienceBlueprintId;
+    homeLayout: MenuHomeLayout;
+    sectionOrder: MenuSectionOrder;
+    featuredMode: MenuFeaturedMode;
+    categoryPresentation: MenuCategoryPresentation;
+    dishListPresentation: MenuDishListPresentation;
+    detailPresentation: MenuDetailPresentation;
   };
   photos: {
     placeholderStyle: MenuUiPhotoPlaceholderStyle;
@@ -458,6 +494,7 @@ export function normalizeMenuUiConfig(input: unknown): MenuUiConfig {
   const navigationInput = objectInput(candidate.navigation);
   const cardsInput = objectInput(candidate.cards);
   const detailInput = objectInput(candidate.detail);
+  const experienceInput = objectInput(candidate.experience);
   const photosInput = objectInput(candidate.photos);
   const immersiveInput = objectInput(candidate.immersive);
   const legacyShowPhotoPlaceholders = cleanBoolean(
@@ -577,6 +614,45 @@ export function normalizeMenuUiConfig(input: unknown): MenuUiConfig {
       base.detail.dishOpenMode
     )
   };
+  const blueprint = cleanEnum(
+    MENU_EXPERIENCE_BLUEPRINT_IDS,
+    experienceInput.blueprint,
+    base.experience?.blueprint ?? "classic-tabs"
+  );
+  const blueprintDefaults = getMenuExperienceBlueprint(blueprint).experienceDefaults;
+  const experience = {
+    blueprint,
+    homeLayout: cleanEnum(
+      MENU_HOME_LAYOUT_VALUES,
+      experienceInput.homeLayout,
+      blueprintDefaults.homeLayout
+    ),
+    sectionOrder: cleanEnum(
+      MENU_SECTION_ORDER_VALUES,
+      experienceInput.sectionOrder,
+      blueprintDefaults.sectionOrder
+    ),
+    featuredMode: cleanEnum(
+      MENU_FEATURED_MODE_VALUES,
+      experienceInput.featuredMode,
+      blueprintDefaults.featuredMode
+    ),
+    categoryPresentation: cleanEnum(
+      MENU_CATEGORY_PRESENTATION_VALUES,
+      experienceInput.categoryPresentation,
+      blueprintDefaults.categoryPresentation
+    ),
+    dishListPresentation: cleanEnum(
+      MENU_DISH_LIST_PRESENTATION_VALUES,
+      experienceInput.dishListPresentation,
+      blueprintDefaults.dishListPresentation
+    ),
+    detailPresentation: cleanEnum(
+      MENU_DETAIL_PRESENTATION_VALUES,
+      experienceInput.detailPresentation,
+      blueprintDefaults.detailPresentation
+    )
+  };
   const photos = {
     placeholderStyle: cleanEnum(
       MENU_UI_PHOTO_PLACEHOLDER_STYLE_VALUES,
@@ -628,6 +704,7 @@ export function normalizeMenuUiConfig(input: unknown): MenuUiConfig {
     navigation,
     cards,
     detail,
+    experience,
     photos,
     immersive,
     welcomeEnabled,
@@ -693,6 +770,13 @@ function invalidWhitelistMessage(
     [objectInput(input.detail), "photoHero", MENU_UI_DETAIL_PHOTO_HERO_VALUES, "detail.photoHero"],
     [objectInput(input.detail), "modelPanelStyle", MENU_UI_MODEL_PANEL_STYLE_VALUES, "detail.modelPanelStyle"],
     [objectInput(input.detail), "dishOpenMode", MENU_UI_DISH_OPEN_MODE_VALUES, "detail.dishOpenMode"],
+    [objectInput(input.experience), "blueprint", MENU_EXPERIENCE_BLUEPRINT_IDS, "experience blueprint"],
+    [objectInput(input.experience), "homeLayout", MENU_HOME_LAYOUT_VALUES, "experience.homeLayout"],
+    [objectInput(input.experience), "sectionOrder", MENU_SECTION_ORDER_VALUES, "experience.sectionOrder"],
+    [objectInput(input.experience), "featuredMode", MENU_FEATURED_MODE_VALUES, "experience.featuredMode"],
+    [objectInput(input.experience), "categoryPresentation", MENU_CATEGORY_PRESENTATION_VALUES, "experience.categoryPresentation"],
+    [objectInput(input.experience), "dishListPresentation", MENU_DISH_LIST_PRESENTATION_VALUES, "experience.dishListPresentation"],
+    [objectInput(input.experience), "detailPresentation", MENU_DETAIL_PRESENTATION_VALUES, "experience.detailPresentation"],
     [objectInput(input.photos), "placeholderStyle", MENU_UI_PHOTO_PLACEHOLDER_STYLE_VALUES, "photos.placeholderStyle"],
     [objectInput(input.photos), "publicMissingBehavior", MENU_UI_PUBLIC_MISSING_PHOTO_VALUES, "photos.publicMissingBehavior"]
   ];

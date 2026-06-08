@@ -996,6 +996,203 @@
   padding: 14px;
 }
 
+.classicLayout {
+  --blueprint-gap: 18px;
+}
+
+.editorialLayout .menuShell,
+.tastingLayout .menuShell {
+  max-width: 760px;
+}
+
+.photoGridLayout .menuShell,
+.bentoLayout .menuShell,
+.familyLayout .menuShell {
+  max-width: 980px;
+}
+
+.fastBoardLayout .menuShell,
+.compactQrLayout .menuShell,
+.minimalLayout .menuShell {
+  max-width: 820px;
+}
+
+.welcomeCompact {
+  padding-bottom: 10px;
+}
+
+.welcomeCompact h1 {
+  max-width: 18ch;
+  font-size: 28px;
+}
+
+.welcomeEditorial {
+  padding-top: 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--menu-border) 70%, transparent);
+}
+
+.welcomeEditorial h1 {
+  max-width: 12ch;
+}
+
+.compactHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 820px;
+  margin: 0 auto 12px;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--menu-border);
+}
+
+.builderPreview .compactHeader {
+  padding: 14px 12px 8px;
+}
+
+.compactHeader h1 {
+  margin: 0;
+  color: var(--menu-text);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.compactHeader span,
+.compactHeader small {
+  color: var(--menu-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.editorialFlow,
+.photoGridFlow,
+.fastBoardFlow,
+.storyFlow,
+.minimalFlow,
+.loungeFlow,
+.familyFlow,
+.immersiveFlow,
+.tastingFlow,
+.compactQrFlow {
+  display: grid;
+  gap: 18px;
+}
+
+.editorialFlow {
+  gap: 28px;
+}
+
+.editorialSections .fullMenuSection {
+  padding-top: 18px;
+  border-top: 1px solid var(--menu-border);
+}
+
+.photoGridCards .dishList,
+.photoGridCards + .fullMenuList .dishList {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.photoGridCards .dishCard {
+  align-content: start;
+}
+
+.fastShell .menuIntro,
+.compactShell .menuIntro,
+.minimalShell .menuIntro {
+  margin-bottom: 6px;
+}
+
+.fastBoardFlow {
+  gap: 10px;
+}
+
+.priceBoard {
+  min-height: 58px;
+  padding: 8px 10px;
+}
+
+.priceBoard .dishDescription {
+  display: none;
+}
+
+.bentoGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.bentoCategories .categoryGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.bentoFeature .dishList,
+.bentoMenu .fullMenuList {
+  gap: 12px;
+}
+
+.bentoFeature .dishItem:first-child .dishCard {
+  min-height: 168px;
+}
+
+.storyFlow .previewSection,
+.familyFlow .previewSection {
+  padding: 12px;
+  border: 1px solid var(--menu-border);
+  border-radius: var(--menu-radius-card);
+  background: color-mix(in srgb, var(--menu-surface) 88%, transparent);
+}
+
+.minimalFlow {
+  gap: 8px;
+}
+
+.minimalLines .dishCard {
+  min-height: 58px;
+  border-inline: 0;
+  border-top: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.minimalLines .fullMenuSection {
+  gap: 6px;
+}
+
+.loungeFlow .previewSection {
+  border-bottom: 1px solid var(--menu-border);
+  padding-bottom: 14px;
+}
+
+.comfortBlocks .dishCard {
+  min-height: 98px;
+}
+
+.immersiveShowcase .dishList {
+  gap: 14px;
+}
+
+.immersiveShowcase .dishCard {
+  min-height: 148px;
+  border-color: color-mix(in srgb, var(--menu-accent) 54%, var(--menu-border));
+}
+
+.journeySteps .fullMenuSection {
+  position: relative;
+  padding-left: 12px;
+  border-left: 2px solid var(--menu-accent);
+}
+
+.compactQrLayout .welcome {
+  display: none;
+}
+
+.compactQrFlow {
+  gap: 8px;
+}
+
+.compactList .dishCard {
+  min-height: 66px;
+}
+
 @keyframes welcomeRise {
   from {
     opacity: 0;

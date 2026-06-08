@@ -6,6 +6,12 @@ import {
   MENU_UI_BACKGROUND_SHAPE_VALUES,
   MENU_UI_BACKGROUND_STYLE_VALUES,
   MENU_UI_BODY_STYLE_VALUES,
+  MENU_CATEGORY_PRESENTATION_VALUES,
+  MENU_DETAIL_PRESENTATION_VALUES,
+  MENU_DISH_LIST_PRESENTATION_VALUES,
+  MENU_FEATURED_MODE_VALUES,
+  MENU_HOME_LAYOUT_VALUES,
+  MENU_SECTION_ORDER_VALUES,
   MENU_UI_CATEGORY_NAVIGATION_VALUES,
   MENU_UI_DENSITY_VALUES,
   MENU_UI_DESCRIPTION_LENGTH_VALUES,
@@ -28,6 +34,7 @@ import {
   normalizeMenuUiConfig,
   type MenuUiConfig,
 } from "@/lib/menu/menuUiConfig";
+import { MENU_EXPERIENCE_BLUEPRINTS } from "@/lib/menu/menuExperienceBlueprints";
 import {
   MENU_THEME_PRESETS,
   buildConfigFromTheme,
@@ -84,8 +91,35 @@ type QrPayload = {
   record?: unknown;
 };
 
+type AdvisorRecommendation = {
+  source: "mistral" | "rules";
+  recommendedTheme: MenuUiConfig["theme"];
+  recommendedBlueprint: MenuUiConfig["experience"]["blueprint"];
+  recommendedConfigPatch: Pick<
+    MenuUiConfig,
+    | "theme"
+    | "palette"
+    | "experience"
+    | "navigation"
+    | "cards"
+    | "detail"
+    | "photos"
+    | "immersive"
+  >;
+  reason: string;
+  confidence: number;
+  warnings: string[];
+};
+
+type AdvisorPayload = {
+  ok: true;
+  source: "mistral" | "rules";
+  recommendation: AdvisorRecommendation;
+};
+
 type LoadState = "idle" | "loading" | "ready" | "error";
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "publishing" | "published" | "error";
+type AdvisorState = "idle" | "loading" | "ready" | "error";
 
 type QuickImportResult = {
   menu: PublicMenu;
@@ -318,6 +352,9 @@ export function MenuUiBuilder({
     targetPath: string;
     persisted: boolean;
   } | null>(null);
+  const [advisorState, setAdvisorState] = useState<AdvisorState>("idle");
+  const [advisorRecommendation, setAdvisorRecommendation] =
+    useState<AdvisorRecommendation | null>(null);
 
   const publicMenuPath = selectedRestaurant?.publicMenuPath ?? "/menu/resto-marc";
   const publicMenuUrl = selectedRestaurant?.publicMenuUrl ?? publicMenuPath;
@@ -327,6 +364,7 @@ export function MenuUiBuilder({
   const modelCount = previewMenu.dishes.filter((dish) => dish.has3d).length;
   const arCount = previewMenu.dishes.filter((dish) => dish.hasAr).length;
   const categoryCount = new Set(previewMenu.dishes.map((dish) => dish.category)).size;
+  const activeBlueprint = blueprintById(previewConfig.experience.blueprint);
   const sourceLabel = localDraft
     ? "Source : Draft local importe"
     : menuData?.source === "supabase"
@@ -518,6 +556,113 @@ export function MenuUiBuilder({
     }
   }
 
+  function blueprintById(id: MenuUiConfig["experience"]["blueprint"]) {
+    return (
+      MENU_EXPERIENCE_BLUEPRINTS.find((blueprint) => blueprint.id === id) ??
+      MENU_EXPERIENCE_BLUEPRINTS[0]
+    );
+  }
+
+  function applyBlueprint(id: MenuUiConfig["experience"]["blueprint"]) {
+    const blueprint = blueprintById(id);
+    updateConfig({
+      experience: {
+        blueprint: blueprint.id,
+        ...blueprint.experienceDefaults
+      },
+      welcome: {
+        ...previewConfig.welcome,
+        layout: blueprint.defaultWelcomeLayout
+      },
+      navigation: {
+        ...previewConfig.navigation,
+        style: blueprint.defaultNavigation
+      },
+      cards: {
+        ...previewConfig.cards,
+        variant: blueprint.defaultCardVariant
+      },
+      detail: {
+        ...previewConfig.detail,
+        style: blueprint.defaultDetailStyle,
+        dishOpenMode: blueprint.defaultDishOpenMode
+      },
+      defaultView: blueprint.id === "compact-qr" ? "all" : previewConfig.defaultView,
+      welcomeEnabled: blueprint.id === "compact-qr" ? false : previewConfig.welcomeEnabled
+    });
+  }
+
+  function configWithAdvisorPatch(recommendation: AdvisorRecommendation): MenuUiConfig {
+    return normalizeMenuUiConfig(
+      mergeCustomConfig(previewConfig, {
+        ...recommendation.recommendedConfigPatch,
+        custom: true,
+        updatedAt: new Date().toISOString()
+      })
+    );
+  }
+
+  async function requestMistralAdvisor() {
+    if (!selectedRestaurant) return;
+    setAdvisorState("loading");
+    setAdvisorRecommendation(null);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("/api/owner/menu-style-advisor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: selectedRestaurant.id,
+          restaurantName: selectedRestaurant.name,
+          restaurantSlug: selectedRestaurant.slug,
+          cuisineType: previewMenu.cuisineType,
+          location: previewMenu.location,
+          dishCount: previewMenu.dishes.length,
+          categories: Array.from(new Set(previewMenu.dishes.map((dish) => dish.category))),
+          sampleDishes: previewMenu.dishes.slice(0, 8).map((dish) => dish.name),
+          photoCount,
+          modelCount,
+          arCount,
+          currentConfig: previewConfig
+        })
+      });
+      const payload = (await response.json()) as AdvisorPayload | ApiFailure;
+      if (!response.ok || !payload.ok) {
+        setAdvisorState("error");
+        setErrorMessage(
+          payload.ok
+            ? "Conseil Mistral impossible."
+            : apiErrorMessage(payload, "Conseil Mistral impossible.")
+        );
+        return;
+      }
+      setAdvisorRecommendation(payload.recommendation);
+      setAdvisorState("ready");
+    } catch {
+      setAdvisorState("error");
+      setErrorMessage("Erreur reseau pendant le conseil Mistral.");
+    }
+  }
+
+  function applyAdvisorRecommendation() {
+    if (!advisorRecommendation) return;
+    setConfig(configWithAdvisorPatch(advisorRecommendation));
+    setPendingVariation(null);
+    setSaveState("dirty");
+  }
+
+  function previewAdvisorVariation() {
+    if (!advisorRecommendation) return;
+    setPendingVariation(configWithAdvisorPatch(advisorRecommendation));
+    setSaveState("dirty");
+  }
+
+  function ignoreAdvisorRecommendation() {
+    setAdvisorRecommendation(null);
+    setAdvisorState("idle");
+  }
+
   function applyQuickImport() {
     const parsed = parseQuickImport(quickImportText, selectedRestaurant);
     setLocalDraft(parsed);
@@ -525,7 +670,13 @@ export function MenuUiBuilder({
   }
 
   function applyTheme(theme: MenuUiConfig["theme"]) {
-    setConfig(configFromTheme(theme, selectedRestaurant));
+    const themed = configFromTheme(theme, selectedRestaurant);
+    setConfig(
+      normalizeMenuUiConfig({
+        ...themed,
+        experience: previewConfig.experience
+      })
+    );
     setPendingVariation(null);
     setSaveState("dirty");
   }
@@ -758,6 +909,303 @@ export function MenuUiBuilder({
                   </button>
                 </div>
               </>
+            ) : null}
+          </div>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Structure du menu</p>
+              <h3>Experience blueprint</h3>
+            </div>
+          </div>
+
+          <div className={styles.themeGrid}>
+            {MENU_EXPERIENCE_BLUEPRINTS.map((blueprint) => (
+              <button
+                key={blueprint.id}
+                type="button"
+                className={`${styles.themeButton} ${
+                  blueprint.id === previewConfig.experience.blueprint
+                    ? styles.themeButtonActive
+                    : ""
+                }`}
+                onClick={() => applyBlueprint(blueprint.id)}
+              >
+                <strong>{blueprint.name}</strong>
+                <span>{blueprint.description}</span>
+                <small>{blueprint.bestFor.join(" / ")}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.infoBox}>
+            <span>{activeBlueprint.name}</span>
+            <strong>{activeBlueprint.previewNotes.join(" / ")}</strong>
+            <small>
+              Theme = couleurs/tokens. Blueprint = ordre, densite, navigation et
+              experience de lecture.
+            </small>
+          </div>
+
+          <div className={styles.optionGrid}>
+            <label className={styles.field}>
+              Home layout
+              <select
+                value={previewConfig.experience.homeLayout}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      homeLayout: event.target
+                        .value as MenuUiConfig["experience"]["homeLayout"]
+                    }
+                  })
+                }
+              >
+                {MENU_HOME_LAYOUT_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Category presentation
+              <select
+                value={previewConfig.experience.categoryPresentation}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      categoryPresentation: event.target
+                        .value as MenuUiConfig["experience"]["categoryPresentation"]
+                    }
+                  })
+                }
+              >
+                {MENU_CATEGORY_PRESENTATION_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Dish list presentation
+              <select
+                value={previewConfig.experience.dishListPresentation}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      dishListPresentation: event.target
+                        .value as MenuUiConfig["experience"]["dishListPresentation"]
+                    }
+                  })
+                }
+              >
+                {MENU_DISH_LIST_PRESENTATION_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Detail presentation
+              <select
+                value={previewConfig.experience.detailPresentation}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      detailPresentation: event.target
+                        .value as MenuUiConfig["experience"]["detailPresentation"]
+                    }
+                  })
+                }
+              >
+                {MENU_DETAIL_PRESENTATION_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Featured dishes mode
+              <select
+                value={previewConfig.experience.featuredMode}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      featuredMode: event.target
+                        .value as MenuUiConfig["experience"]["featuredMode"]
+                    }
+                  })
+                }
+              >
+                {MENU_FEATURED_MODE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Section order
+              <select
+                value={previewConfig.experience.sectionOrder}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      sectionOrder: event.target
+                        .value as MenuUiConfig["experience"]["sectionOrder"]
+                    }
+                  })
+                }
+              >
+                {MENU_SECTION_ORDER_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {optionLabel(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className={styles.toggleGrid}>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.welcomeEnabled}
+                onChange={(event) => updateConfig({ welcomeEnabled: event.target.checked })}
+              />
+              Show hero
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.experience.sectionOrder === "categories-then-featured"}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      sectionOrder: event.target.checked
+                        ? "categories-then-featured"
+                        : previewConfig.experience.sectionOrder
+                    }
+                  })
+                }
+              />
+              Show categories first
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.experience.sectionOrder === "all-menu-first"}
+                onChange={(event) =>
+                  updateConfig({
+                    experience: {
+                      ...previewConfig.experience,
+                      sectionOrder: event.target.checked
+                        ? "all-menu-first"
+                        : previewConfig.experience.sectionOrder
+                    }
+                  })
+                }
+              />
+              Show all menu first
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.experience.blueprint === "compact-qr"}
+                onChange={(event) =>
+                  event.target.checked
+                    ? applyBlueprint("compact-qr")
+                    : applyBlueprint("classic-tabs")
+                }
+              />
+              Compact QR mode
+            </label>
+            <label className={styles.checkField}>
+              <input
+                type="checkbox"
+                checked={previewConfig.experience.blueprint === "immersive-first"}
+                onChange={(event) =>
+                  event.target.checked
+                    ? applyBlueprint("immersive-first")
+                    : applyBlueprint("classic-tabs")
+                }
+              />
+              Immersive first mode
+            </label>
+          </div>
+
+          <div className={styles.variationBox}>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={requestMistralAdvisor}
+              disabled={advisorState === "loading"}
+            >
+              Me conseiller avec Mistral
+            </button>
+            {advisorState === "loading" ? (
+              <p className={styles.saveStatus}>Analyse du restaurant...</p>
+            ) : null}
+            {advisorRecommendation ? (
+              <div className={styles.infoBox}>
+                <span>
+                  {advisorRecommendation.source === "rules"
+                    ? "Conseil genere par regles locales"
+                    : "Conseil Mistral"}
+                </span>
+                <strong>
+                  {optionLabel(advisorRecommendation.recommendedTheme)} /{" "}
+                  {optionLabel(advisorRecommendation.recommendedBlueprint)}
+                </strong>
+                <small>{advisorRecommendation.reason}</small>
+                <small>
+                  Confidence {Math.round(advisorRecommendation.confidence * 100)}%
+                </small>
+                {advisorRecommendation.warnings.map((warning) => (
+                  <small key={warning}>{warning}</small>
+                ))}
+                <div className={styles.actionGrid}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={applyAdvisorRecommendation}
+                  >
+                    Appliquer
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={previewAdvisorVariation}
+                  >
+                    Voir variation
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={ignoreAdvisorRecommendation}
+                  >
+                    Ignorer
+                  </button>
+                </div>
+              </div>
             ) : null}
           </div>
         </section>
