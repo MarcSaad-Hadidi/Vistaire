@@ -5,8 +5,11 @@ import {
 } from "@/lib/auth/ownerApi";
 import { validateMenuUiConfig } from "@/lib/menu/menuUiConfig";
 import {
+  duplicatePublishedMenuUiConfigToDraft,
   getOwnerMenuUiConfig,
+  getOwnerMenuUiConfigHistory,
   publishMenuUiConfig,
+  rollbackPublishedMenuUiConfig,
   saveDraftMenuUiConfig
 } from "@/lib/owner/menuUiConfigStore";
 
@@ -37,6 +40,15 @@ export async function GET(request: NextRequest) {
   if (!owner.ok) return owner.response;
 
   const restaurantId = restaurantIdFromRequest(request);
+  if (request.nextUrl.searchParams.get("history") === "1") {
+    const history = await getOwnerMenuUiConfigHistory(restaurantId);
+    return NextResponse.json({
+      ok: true,
+      history: history.records,
+      error: history.error
+    });
+  }
+
   const loaded = await getOwnerMenuUiConfig(restaurantId);
 
   return NextResponse.json({
@@ -64,16 +76,25 @@ export async function POST(request: NextRequest) {
 
   const restaurantId =
     typeof body.restaurantId === "string" ? body.restaurantId.trim() : "";
-  const validated = validateMenuUiConfig(body.config);
-  if (!validated.ok) {
-    return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
-  }
-
   const action = typeof body.action === "string" ? body.action : "save";
   const result =
-    action === "publish"
-      ? await publishMenuUiConfig({ restaurantId, config: validated.value })
-      : await saveDraftMenuUiConfig({ restaurantId, config: validated.value });
+    action === "rollback"
+      ? await rollbackPublishedMenuUiConfig({
+          restaurantId,
+          targetConfigId:
+            typeof body.targetConfigId === "string"
+              ? body.targetConfigId.trim()
+              : undefined
+        })
+      : action === "revert-to-published"
+        ? await duplicatePublishedMenuUiConfigToDraft({ restaurantId })
+        : await (() => {
+            const validated = validateMenuUiConfig(body.config);
+            if (!validated.ok) return Promise.resolve({ ok: false as const, status: 400, error: validated.error });
+            return action === "publish"
+              ? publishMenuUiConfig({ restaurantId, config: validated.value })
+              : saveDraftMenuUiConfig({ restaurantId, config: validated.value });
+          })();
 
   if (!result.ok) {
     if (result.status === 503) return persistenceUnavailable(result.error);

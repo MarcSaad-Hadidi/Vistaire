@@ -13,6 +13,7 @@ import { buildQrRedirectUrl } from "@/lib/owner/menuUrls";
 import { DEFAULT_OWNER_QR_STYLE, normalizeOwnerQrStyle } from "@/lib/owner/qrStyle";
 import {
   createSignedQrToken,
+  canUseSignedQrFallback,
   generateQrToken,
   hashQrToken,
   isSignedQrToken,
@@ -185,6 +186,13 @@ export async function createOwnerQrCode(args: {
   }
 
   // Dev/build fallback only: stateless signed token, nothing persisted.
+  if (!canUseSignedQrFallback()) {
+    return {
+      ok: false,
+      error:
+        "Le QR fallback signe requiert VISTAIRE_QR_TOKEN_SECRET en production."
+    };
+  }
   const token = createSignedQrToken({
     targetPath,
     restaurantId: args.restaurantId
@@ -267,7 +275,9 @@ export async function resolveQrToken(
   const signed = verifySignedQrToken(token);
   if (signed) {
     const targetPath = sanitizeOwnerQrTargetPath(signed.targetPath);
-    if (targetPath) return { ok: true, targetPath };
+    if (targetPath && isOwnerQrTargetPathAllowed("menu", targetPath)) {
+      return { ok: true, targetPath };
+    }
   }
 
   return { ok: false };

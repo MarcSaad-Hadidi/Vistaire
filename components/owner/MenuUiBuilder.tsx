@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import {
   MENU_UI_BACKGROUND_SHAPE_VALUES,
@@ -34,6 +35,19 @@ import {
   normalizeMenuUiConfig,
   type MenuUiConfig,
 } from "@/lib/menu/menuUiConfig";
+import {
+  evaluateMenuDesignQuality,
+  type MenuDesignQualityResult
+} from "@/lib/menu/menuDesignQuality";
+import {
+  duplicateMenuDesignConfig,
+  exportMenuDesignConfig,
+  importMenuDesignConfig
+} from "@/lib/menu/menuConfigTransfer";
+import type {
+  MenuStyleAdvisorProposal,
+  MenuStyleAdvisorRecommendation
+} from "@/lib/menu/menuStyleAdvisor";
 import { MENU_EXPERIENCE_BLUEPRINTS } from "@/lib/menu/menuExperienceBlueprints";
 import {
   MENU_THEME_PRESETS,
@@ -91,35 +105,23 @@ type QrPayload = {
   record?: unknown;
 };
 
-type AdvisorRecommendation = {
-  source: "mistral" | "rules";
-  recommendedTheme: MenuUiConfig["theme"];
-  recommendedBlueprint: MenuUiConfig["experience"]["blueprint"];
-  recommendedConfigPatch: Pick<
-    MenuUiConfig,
-    | "theme"
-    | "palette"
-    | "experience"
-    | "navigation"
-    | "cards"
-    | "detail"
-    | "photos"
-    | "immersive"
-  >;
-  reason: string;
-  confidence: number;
-  warnings: string[];
-};
-
 type AdvisorPayload = {
   ok: true;
   source: "mistral" | "rules";
-  recommendation: AdvisorRecommendation;
+  recommendation: MenuStyleAdvisorRecommendation;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "publishing" | "published" | "error";
 type AdvisorState = "idle" | "loading" | "ready" | "error";
+type PreviewDeviceId = "phone-390" | "phone-430" | "tablet" | "desktop";
+type PreviewMode =
+  | "client-menu"
+  | "dish-detail"
+  | "qr-flow"
+  | "empty-state"
+  | "missing-photos"
+  | "immersive-state";
 
 type QuickImportResult = {
   menu: PublicMenu;
@@ -132,6 +134,26 @@ type ApiFailure = {
   ok: false;
   error?: string;
 };
+
+const PREVIEW_DEVICES: Array<{
+  id: PreviewDeviceId;
+  label: string;
+  width: number;
+}> = [
+  { id: "phone-390", label: "Phone 390px", width: 390 },
+  { id: "phone-430", label: "Phone 430px", width: 430 },
+  { id: "tablet", label: "Tablet", width: 768 },
+  { id: "desktop", label: "Desktop", width: 1120 }
+];
+
+const PREVIEW_MODES: Array<{ id: PreviewMode; label: string }> = [
+  { id: "client-menu", label: "Client menu" },
+  { id: "dish-detail", label: "Dish detail" },
+  { id: "qr-flow", label: "QR scan flow" },
+  { id: "empty-state", label: "Empty state" },
+  { id: "missing-photos", label: "Missing photos" },
+  { id: "immersive-state", label: "3D/AR available" }
+];
 
 function apiErrorMessage(payload: ApiFailure, fallback: string): string {
   return payload.error || fallback;
@@ -343,7 +365,6 @@ export function MenuUiBuilder({
   const [localDraft, setLocalDraft] = useState<QuickImportResult | null>(null);
   const [quickImportText, setQuickImportText] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("idle");
-  const [configPersisted, setConfigPersisted] = useState(false);
   const [configStatus, setConfigStatus] = useState<ConfigPayload["status"]>("draft");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -354,7 +375,15 @@ export function MenuUiBuilder({
   } | null>(null);
   const [advisorState, setAdvisorState] = useState<AdvisorState>("idle");
   const [advisorRecommendation, setAdvisorRecommendation] =
-    useState<AdvisorRecommendation | null>(null);
+    useState<MenuStyleAdvisorRecommendation | null>(null);
+  const [previewDevice, setPreviewDevice] =
+    useState<PreviewDeviceId>("phone-430");
+  const [previewMode, setPreviewMode] =
+    useState<PreviewMode>("client-menu");
+  const [themeCompare, setThemeCompare] = useState(false);
+  const [blueprintCompare, setBlueprintCompare] = useState(false);
+  const [qualityDetailsOpen, setQualityDetailsOpen] = useState(false);
+  const [designImportText, setDesignImportText] = useState("");
 
   const publicMenuPath = selectedRestaurant?.publicMenuPath ?? "/menu/resto-marc";
   const publicMenuUrl = selectedRestaurant?.publicMenuUrl ?? publicMenuPath;
@@ -363,13 +392,74 @@ export function MenuUiBuilder({
   const photoCount = previewMenu.dishes.filter((dish) => dish.hasPhoto).length;
   const modelCount = previewMenu.dishes.filter((dish) => dish.has3d).length;
   const arCount = previewMenu.dishes.filter((dish) => dish.hasAr).length;
-  const categoryCount = new Set(previewMenu.dishes.map((dish) => dish.category)).size;
   const activeBlueprint = blueprintById(previewConfig.experience.blueprint);
+  const selectedPreviewDevice =
+    PREVIEW_DEVICES.find((device) => device.id === previewDevice) ??
+    PREVIEW_DEVICES[1];
+  const designExportText = useMemo(
+    () => exportMenuDesignConfig(previewConfig),
+    [previewConfig]
+  );
+  const qualityResult: MenuDesignQualityResult = useMemo(
+    () =>
+      evaluateMenuDesignQuality({
+        restaurant: selectedRestaurant,
+        menu: previewMenu,
+        config: previewConfig,
+        publicMenuPath,
+        publicRouteOk: true,
+        qrTargetKind: "menu",
+        qrTargetPath: qrState?.targetPath ?? publicMenuPath,
+        configStatus,
+        publicOwnerWarningsExposed: false
+      }),
+    [
+      selectedRestaurant,
+      previewMenu,
+      previewConfig,
+      publicMenuPath,
+      qrState?.targetPath,
+      configStatus
+    ]
+  );
   const sourceLabel = localDraft
     ? "Source : Draft local importe"
     : menuData?.source === "supabase"
       ? "Source : Supabase"
       : "Source : Fallback demo";
+  const labMenu = useMemo(() => {
+    if (previewMode === "empty-state") {
+      return { ...previewMenu, dishes: [] };
+    }
+    if (previewMode === "missing-photos") {
+      return {
+        ...previewMenu,
+        dishes: previewMenu.dishes.map((dish) => ({
+          ...dish,
+          imageUrl: "",
+          thumbnailUrl: "",
+          hasPhoto: false,
+          photoStatus: "missing" as const
+        }))
+      };
+    }
+    if (previewMode === "immersive-state") {
+      return {
+        ...previewMenu,
+        dishes: previewMenu.dishes.map((dish, index) => ({
+          ...dish,
+          hasImmersive: index < 4 ? true : dish.hasImmersive,
+          has3d: index < 4 ? true : dish.has3d,
+          hasAr: index < 4 ? true : dish.hasAr,
+          hasIosAr: index < 4 ? true : dish.hasIosAr,
+          hasAndroidAr: index < 4 ? true : dish.hasAndroidAr,
+          modelStatus: index < 4 ? ("ready" as const) : dish.modelStatus
+        }))
+      };
+    }
+    return previewMenu;
+  }, [previewMenu, previewMode]);
+  const labDish = labMenu.dishes[0] ?? previewMenu.dishes[0] ?? null;
 
   useEffect(() => {
     if (!selectedRestaurant?.id) return;
@@ -383,7 +473,6 @@ export function MenuUiBuilder({
       setQrState(null);
       setConfig(menuUiConfigForRestaurant(selectedRestaurant));
       setPendingVariation(null);
-      setConfigPersisted(false);
       setConfigStatus("draft");
 
       try {
@@ -416,7 +505,6 @@ export function MenuUiBuilder({
           }
           if (configResponse.ok && configPayload.ok) {
             setConfig(configPayload.config);
-            setConfigPersisted(configPayload.persisted);
             setConfigStatus(configPayload.status);
           }
           setLoadState("ready");
@@ -474,7 +562,6 @@ export function MenuUiBuilder({
       }
       setConfig(payload.config);
       setPendingVariation(null);
-      setConfigPersisted(payload.persisted);
       setConfigStatus(payload.status);
       setSaveState("saved");
     } catch {
@@ -486,6 +573,13 @@ export function MenuUiBuilder({
   async function publishConfig() {
     if (!selectedRestaurant) return;
     const configToPublish = pendingVariation ?? config;
+    if (qualityResult.blockers.length > 0) {
+      setSaveState("error");
+      setErrorMessage(
+        `Publication bloquee: ${qualityResult.blockers.slice(0, 2).join(" ")}`
+      );
+      return;
+    }
     setSaveState("publishing");
     setErrorMessage("");
     try {
@@ -510,12 +604,77 @@ export function MenuUiBuilder({
       }
       setConfig(payload.config);
       setPendingVariation(null);
-      setConfigPersisted(payload.persisted);
       setConfigStatus(payload.status);
       setSaveState("published");
     } catch {
       setSaveState("error");
       setErrorMessage("Erreur reseau pendant la publication.");
+    }
+  }
+
+  async function revertToPublishedConfig() {
+    if (!selectedRestaurant) return;
+    setSaveState("saving");
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/owner/menu-ui-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: selectedRestaurant.id,
+          action: "revert-to-published"
+        })
+      });
+      const payload = (await response.json()) as ConfigPayload | ApiFailure;
+      if (!response.ok || !payload.ok) {
+        setSaveState("error");
+        setErrorMessage(
+          payload.ok
+            ? "Retour a la config publiee impossible."
+            : apiErrorMessage(payload, "Retour a la config publiee impossible.")
+        );
+        return;
+      }
+      setConfig(payload.config);
+      setPendingVariation(null);
+      setConfigStatus(payload.status);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+      setErrorMessage("Erreur reseau pendant le retour a la config publiee.");
+    }
+  }
+
+  async function rollbackPublishedConfig() {
+    if (!selectedRestaurant) return;
+    setSaveState("publishing");
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/owner/menu-ui-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: selectedRestaurant.id,
+          action: "rollback"
+        })
+      });
+      const payload = (await response.json()) as ConfigPayload | ApiFailure;
+      if (!response.ok || !payload.ok) {
+        setSaveState("error");
+        setErrorMessage(
+          payload.ok
+            ? "Rollback impossible."
+            : apiErrorMessage(payload, "Rollback impossible.")
+        );
+        return;
+      }
+      setConfig(payload.config);
+      setPendingVariation(null);
+      setConfigStatus(payload.status);
+      setSaveState("published");
+    } catch {
+      setSaveState("error");
+      setErrorMessage("Erreur reseau pendant le rollback.");
     }
   }
 
@@ -592,14 +751,20 @@ export function MenuUiBuilder({
     });
   }
 
-  function configWithAdvisorPatch(recommendation: AdvisorRecommendation): MenuUiConfig {
+  function configWithAdvisorProposal(proposal: MenuStyleAdvisorProposal): MenuUiConfig {
     return normalizeMenuUiConfig(
       mergeCustomConfig(previewConfig, {
-        ...recommendation.recommendedConfigPatch,
+        ...proposal.configPatch,
         custom: true,
         updatedAt: new Date().toISOString()
       })
     );
+  }
+
+  function configWithAdvisorPatch(
+    recommendation: MenuStyleAdvisorRecommendation
+  ): MenuUiConfig {
+    return configWithAdvisorProposal(recommendation.primary);
   }
 
   async function requestMistralAdvisor() {
@@ -658,6 +823,17 @@ export function MenuUiBuilder({
     setSaveState("dirty");
   }
 
+  function applyAdvisorProposal(proposal: MenuStyleAdvisorProposal) {
+    setConfig(configWithAdvisorProposal(proposal));
+    setPendingVariation(null);
+    setSaveState("dirty");
+  }
+
+  function previewAdvisorProposal(proposal: MenuStyleAdvisorProposal) {
+    setPendingVariation(configWithAdvisorProposal(proposal));
+    setSaveState("dirty");
+  }
+
   function ignoreAdvisorRecommendation() {
     setAdvisorRecommendation(null);
     setAdvisorState("idle");
@@ -667,6 +843,68 @@ export function MenuUiBuilder({
     const parsed = parseQuickImport(quickImportText, selectedRestaurant);
     setLocalDraft(parsed);
     setSaveState("dirty");
+  }
+
+  function importDesignConfig() {
+    const imported = importMenuDesignConfig(designImportText);
+    if (!imported.ok) {
+      setErrorMessage(imported.error);
+      setSaveState("error");
+      return;
+    }
+    setConfig(imported.config);
+    setPendingVariation(null);
+    setSaveState("dirty");
+    setErrorMessage("");
+  }
+
+  async function copyDesignConfig() {
+    try {
+      await navigator.clipboard.writeText(designExportText);
+      setErrorMessage("");
+    } catch {
+      setErrorMessage("Copie JSON indisponible sur ce navigateur.");
+    }
+  }
+
+  function duplicateCurrentDesign() {
+    setPendingVariation(duplicateMenuDesignConfig(previewConfig));
+    setSaveState("dirty");
+  }
+
+  function applyQualityQuickFix(kind: "compact-qr" | "hide-owner-warnings" | "safe-missing" | "default-all" | "no-autoload") {
+    if (kind === "compact-qr") {
+      applyBlueprint("compact-qr");
+      return;
+    }
+    if (kind === "hide-owner-warnings") {
+      updateConfig({
+        photos: {
+          ...previewConfig.photos,
+          ownerMissingWarnings: false
+        }
+      });
+      return;
+    }
+    if (kind === "safe-missing") {
+      updateConfig({
+        photos: {
+          ...previewConfig.photos,
+          publicMissingBehavior: "placeholder"
+        }
+      });
+      return;
+    }
+    if (kind === "default-all") {
+      updateConfig({ defaultView: "all" });
+      return;
+    }
+    updateConfig({
+      immersive: {
+        ...previewConfig.immersive,
+        autoLoad: false
+      }
+    });
   }
 
   function applyTheme(theme: MenuUiConfig["theme"]) {
@@ -716,94 +954,6 @@ export function MenuUiBuilder({
       </section>
     );
   }
-
-  const qualityChecks = [
-    {
-      label: selectedRestaurant
-        ? `Restaurant selectionne : ${selectedRestaurant.name}`
-        : "Aucun restaurant selectionne",
-      level: selectedRestaurant ? "ok" : "blocker"
-    },
-    {
-      label: `Slug public : ${selectedRestaurant?.slug || "manquant"}`,
-      level: selectedRestaurant?.slug ? "ok" : "blocker"
-    },
-    {
-      label: configPersisted
-        ? `Config UI persistee (${configStatus})`
-        : "Config UI non persistee",
-      level: configPersisted ? "ok" : "warning"
-    },
-    {
-      label:
-        configStatus === "published"
-          ? "Config publiee pour le menu public"
-          : "Config non publiee",
-      level: configStatus === "published" ? "ok" : "warning"
-    },
-    {
-      label: `${categoryCount} categorie(s) presentes`,
-      level: categoryCount > 0 ? "ok" : "blocker"
-    },
-    {
-      label: `${previewMenu.dishes.length} plat(s) presents`,
-      level: previewMenu.dishes.length > 0 ? "ok" : "blocker"
-    },
-    {
-      label: "Vue Tout activee",
-      level: previewConfig.defaultView === "all" ? "ok" : "warning"
-    },
-    {
-      label: "Fiche detail activee",
-      level: previewConfig.detail.style ? "ok" : "blocker"
-    },
-    {
-      label: `Photos ${photoCount}/${previewMenu.dishes.length}`,
-      level: photoCount === previewMenu.dishes.length && photoCount > 0 ? "ok" : "warning"
-    },
-    {
-      label: `3D ${modelCount}/${previewMenu.dishes.length}`,
-      level: modelCount > 0 ? "ok" : "warning"
-    },
-    {
-      label: `AR ${arCount}/${previewMenu.dishes.length}`,
-      level: arCount > 0 ? "ok" : "warning"
-    },
-    {
-      label: "Aucun modele lourd charge automatiquement",
-      level: "ok"
-    },
-    {
-      label: qrState
-        ? `QR menu genere : ${qrState.redirectUrl}`
-        : "QR menu generable",
-      level: qrState ? "ok" : "warning"
-    },
-    {
-      label: `Menu public path : ${publicMenuPath}`,
-      level: publicMenuPath.startsWith("/menu/") || publicMenuPath === "/demo" ? "ok" : "blocker"
-    },
-    {
-      label:
-        selectedRestaurant?.slug === "resto-marc" &&
-        previewMenu.dishes.some((dish) => /elyse/i.test(dish.name))
-          ? "Maison Elyse detecte dans Resto Marc"
-          : "Pas de melange Maison Elyse / Resto Marc",
-      level:
-        selectedRestaurant?.slug === "resto-marc" &&
-        previewMenu.dishes.some((dish) => /elyse/i.test(dish.name))
-          ? "blocker"
-          : "ok"
-    },
-    {
-      label: sourceLabel,
-      level: localDraft || menuData ? "ok" : "warning"
-    },
-    {
-      label: "Aucun secret stocke dans config_json",
-      level: "ok"
-    }
-  ] as const;
 
   return (
     <div className={styles.builderShell}>
@@ -872,6 +1022,36 @@ export function MenuUiBuilder({
             ))}
           </div>
 
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => setThemeCompare((value) => !value)}
+          >
+            Comparer les 12 themes
+          </button>
+          {themeCompare ? (
+            <div className={styles.compareGrid}>
+              {MENU_THEME_PRESETS.map((theme) => (
+                <button
+                  key={`themeCompare-${theme.id}`}
+                  type="button"
+                  className={styles.compareTile}
+                  onClick={() => applyTheme(theme.id)}
+                  style={{
+                    "--tile-bg": theme.palette.background,
+                    "--tile-surface": theme.palette.surface,
+                    "--tile-text": theme.palette.text,
+                    "--tile-accent": theme.palette.accent
+                  } as CSSProperties}
+                >
+                  <span>{theme.name}</span>
+                  <strong>{theme.global.backgroundStyle}</strong>
+                  <small>{theme.cards.variant}</small>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <div className={styles.variationBox}>
             <button
               type="button"
@@ -906,10 +1086,17 @@ export function MenuUiBuilder({
                     onClick={() => saveDraft(pendingVariation)}
                   >
                     Sauvegarder draft
-                  </button>
-                </div>
-              </>
-            ) : null}
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={duplicateCurrentDesign}
+                >
+                  Dupliquer design
+                </button>
+              </div>
+            </>
+          ) : null}
           </div>
         </section>
 
@@ -948,6 +1135,30 @@ export function MenuUiBuilder({
               experience de lecture.
             </small>
           </div>
+
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => setBlueprintCompare((value) => !value)}
+          >
+            Comparer les 12 structures
+          </button>
+          {blueprintCompare ? (
+            <div className={styles.compareGrid}>
+              {MENU_EXPERIENCE_BLUEPRINTS.map((blueprint) => (
+                <button
+                  key={`blueprintCompare-${blueprint.id}`}
+                  type="button"
+                  className={styles.compareTile}
+                  onClick={() => applyBlueprint(blueprint.id)}
+                >
+                  <span>{blueprint.name}</span>
+                  <strong>{blueprint.renderStrategy}</strong>
+                  <small>{blueprint.previewNotes.join(" / ")}</small>
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div className={styles.optionGrid}>
             <label className={styles.field}>
@@ -1172,14 +1383,19 @@ export function MenuUiBuilder({
                     : "Conseil Mistral"}
                 </span>
                 <strong>
-                  {optionLabel(advisorRecommendation.recommendedTheme)} /{" "}
-                  {optionLabel(advisorRecommendation.recommendedBlueprint)}
+                  {optionLabel(advisorRecommendation.primary.theme)} /{" "}
+                  {optionLabel(advisorRecommendation.primary.blueprint)}
                 </strong>
-                <small>{advisorRecommendation.reason}</small>
+                <small>{advisorRecommendation.primary.reason}</small>
                 <small>
-                  Confidence {Math.round(advisorRecommendation.confidence * 100)}%
+                  Confidence {Math.round(advisorRecommendation.primary.confidence * 100)}%
                 </small>
-                {advisorRecommendation.warnings.map((warning) => (
+                <small>
+                  Analyse: {advisorRecommendation.analysis.restaurantType} /{" "}
+                  {advisorRecommendation.analysis.photoReadiness} photos /{" "}
+                  {advisorRecommendation.analysis.immersiveReadiness} immersive
+                </small>
+                {advisorRecommendation.primary.warnings.map((warning) => (
                   <small key={warning}>{warning}</small>
                 ))}
                 <div className={styles.actionGrid}>
@@ -1205,6 +1421,46 @@ export function MenuUiBuilder({
                     Ignorer
                   </button>
                 </div>
+                {advisorRecommendation.alternatives.length ? (
+                  <div className={styles.proposalGrid}>
+                    {advisorRecommendation.alternatives.map((proposal) => (
+                      <div
+                        key={`${proposal.theme}-${proposal.blueprint}-${proposal.bestFor ?? proposal.reason}`}
+                        className={styles.proposalCard}
+                      >
+                        <span>{proposal.bestFor ?? "Alternative"}</span>
+                        <strong>
+                          {optionLabel(proposal.theme)} / {optionLabel(proposal.blueprint)}
+                        </strong>
+                        <small>{proposal.reason}</small>
+                        <small>Confidence {Math.round(proposal.confidence * 100)}%</small>
+                        <div className={styles.actionGrid}>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => previewAdvisorProposal(proposal)}
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => applyAdvisorProposal(proposal)}
+                          >
+                            Appliquer
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => saveDraft(configWithAdvisorProposal(proposal))}
+                          >
+                            Sauvegarder draft
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -2000,6 +2256,80 @@ export function MenuUiBuilder({
         <section className={styles.controlPanel}>
           <div className={styles.panelHeader}>
             <div>
+              <p className={styles.eyebrow}>Design config</p>
+              <h3>Import / Export / Rollback</h3>
+            </div>
+          </div>
+
+          <textarea
+            className={styles.menuTextarea}
+            readOnly
+            value={designExportText}
+            aria-label="Config design exportee"
+          />
+          <div className={styles.actionGrid}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={copyDesignConfig}
+            >
+              Copier config JSON
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={duplicateCurrentDesign}
+            >
+              Dupliquer config actuelle
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => setConfig(configFromTheme(previewConfig.theme, selectedRestaurant))}
+            >
+              Reset theme
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => applyBlueprint("classic-tabs")}
+            >
+              Reset blueprint
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={revertToPublishedConfig}
+            >
+              Revenir a published
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={rollbackPublishedConfig}
+            >
+              Rollback published
+            </button>
+          </div>
+          <textarea
+            className={styles.menuTextarea}
+            value={designImportText}
+            placeholder="Coller une config design Vistaire JSON. Plats/prix/photos/modeles refuses."
+            onChange={(event) => setDesignImportText(event.target.value)}
+          />
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={importDesignConfig}
+            disabled={!designImportText.trim()}
+          >
+            Importer config JSON safe
+          </button>
+        </section>
+
+        <section className={styles.controlPanel}>
+          <div className={styles.panelHeader}>
+            <div>
               <p className={styles.eyebrow}>Donnees</p>
               <h3>Import rapide</h3>
             </div>
@@ -2050,26 +2380,96 @@ export function MenuUiBuilder({
           <div className={styles.panelHeader}>
             <div>
               <p className={styles.eyebrow}>Quality</p>
-              <h3>Checklist</h3>
+              <h3>Menu Design Quality</h3>
             </div>
+            <span className={styles.sourceBadge}>{qualityResult.score}/100</span>
           </div>
 
-          <div className={styles.qualityList}>
-            {qualityChecks.map((check) => (
-              <div
-                key={check.label}
-                className={`${styles.qualityItem} ${
-                  check.level === "ok"
-                    ? styles.qualityOk
-                    : check.level === "blocker"
-                      ? styles.qualityBad
-                      : styles.qualityWarn
-                }`}
+          <div className={styles.qualitySummary}>
+            <strong>{optionLabel(qualityResult.status)}</strong>
+            <span>
+              {qualityResult.blockers.length === 0
+                ? "Pret a publier"
+                : `${qualityResult.blockers.length} blocker(s)`}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => setQualityDetailsOpen((value) => !value)}
+          >
+            Voir details qualite
+          </button>
+          {qualityDetailsOpen ? (
+            <div className={styles.qualityList}>
+              {qualityResult.blockers.map((blocker) => (
+                <div
+                  key={blocker}
+                  className={`${styles.qualityItem} ${styles.qualityBad}`}
+                >
+                  <span>!</span>
+                  <p>{blocker}</p>
+                </div>
+              ))}
+              {qualityResult.warnings.map((warning) => (
+                <div
+                  key={warning}
+                  className={`${styles.qualityItem} ${styles.qualityWarn}`}
+                >
+                  <span>~</span>
+                  <p>{warning}</p>
+                </div>
+              ))}
+              {qualityResult.suggestions.map((suggestion) => (
+                <div
+                  key={suggestion}
+                  className={`${styles.qualityItem} ${styles.qualityOk}`}
+                >
+                  <span>OK</span>
+                  <p>{suggestion}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className={styles.actionGrid}>
+            {previewMenu.dishes.length > 45 ? (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => applyQualityQuickFix("compact-qr")}
               >
-                <span>{check.level === "ok" ? "OK" : check.level === "blocker" ? "!" : "~"}</span>
-                <p>{check.label}</p>
-              </div>
-            ))}
+                Fix compact QR
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => applyQualityQuickFix("hide-owner-warnings")}
+            >
+              Masquer warnings owner
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => applyQualityQuickFix("safe-missing")}
+            >
+              Missing photos safe
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => applyQualityQuickFix("default-all")}
+            >
+              Default view all
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => applyQualityQuickFix("no-autoload")}
+            >
+              Force no auto-load
+            </button>
           </div>
         </section>
 
@@ -2094,7 +2494,11 @@ export function MenuUiBuilder({
               type="button"
               className={styles.primaryButton}
               onClick={publishConfig}
-              disabled={saveState === "saving" || saveState === "publishing"}
+              disabled={
+                saveState === "saving" ||
+                saveState === "publishing" ||
+                qualityResult.blockers.length > 0
+              }
             >
               Publier UI
             </button>
@@ -2140,20 +2544,75 @@ export function MenuUiBuilder({
       <section className={styles.previewPane}>
         <div className={styles.previewHeader}>
           <div>
-            <p className={styles.eyebrow}>Preview client</p>
+            <p className={styles.eyebrow}>Preview Lab</p>
             <h3>{previewMenu.name}</h3>
           </div>
-          <span className={styles.previewUrl}>{publicMenuPath}</span>
+          <span className={styles.previewUrl}>
+            {optionLabel(previewConfig.theme)} + {optionLabel(previewConfig.experience.blueprint)} /{" "}
+            {qualityResult.score}
+          </span>
         </div>
 
-        <div className={styles.phoneShell}>
+        <div className={styles.labToolbar}>
+          <div className={styles.segmentedControl} aria-label="Preview device">
+            {PREVIEW_DEVICES.map((device) => (
+              <button
+                key={device.id}
+                type="button"
+                className={device.id === previewDevice ? styles.segmentActive : ""}
+                onClick={() => setPreviewDevice(device.id)}
+              >
+                {device.label}
+              </button>
+            ))}
+          </div>
+          <div className={styles.segmentedControl} aria-label="Preview mode">
+            {PREVIEW_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                className={mode.id === previewMode ? styles.segmentActive : ""}
+                onClick={() => setPreviewMode(mode.id)}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          className={`${styles.phoneShell} ${styles.previewLabShell}`}
+          style={{ "--preview-width": `${selectedPreviewDevice.width}px` } as CSSProperties}
+          data-preview-device={previewDevice}
+          data-preview-mode={previewMode}
+        >
           <div className={styles.phoneScreen}>
-            <PublicMenuRenderer
-              menu={previewMenu}
-              config={previewConfig}
-              mode="builder-preview"
-              disableHeavyAssets
-            />
+            {previewMode === "dish-detail" && labDish ? (
+              <PublicDishDetailExperience
+                config={previewConfig}
+                dish={labDish}
+                menu={labMenu}
+              />
+            ) : previewMode === "qr-flow" ? (
+              <div className={styles.qrFlowPreview}>
+                <span>QR</span>
+                <strong>{qrState?.redirectUrl ?? "/q/<token>"}</strong>
+                <p>{qrState?.targetPath ?? publicMenuPath}</p>
+                <PublicMenuRenderer
+                  menu={labMenu}
+                  config={previewConfig}
+                  mode="builder-preview"
+                  disableHeavyAssets
+                />
+              </div>
+            ) : (
+              <PublicMenuRenderer
+                menu={labMenu}
+                config={previewConfig}
+                mode="builder-preview"
+                disableHeavyAssets
+              />
+            )}
           </div>
         </div>
       </section>

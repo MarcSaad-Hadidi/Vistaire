@@ -50,6 +50,25 @@ test("fallback menu style advisor recommends deterministic theme and blueprint",
   assert.equal(sushi.recommendedBlueprint, "minimal-list");
 });
 
+test("fallback menu style advisor v2 returns primary alternatives and analysis", () => {
+  const result = buildFallbackMenuStyleAdvice({
+    ...baseInput,
+    restaurantName: "Cafe Brunch Marc",
+    cuisineType: "cafe brunch",
+    dishCount: 16,
+    photoCount: 8
+  });
+
+  assert.equal(result.source, "rules");
+  assert.ok(result.primary);
+  assert.equal(result.primary.theme, "cafe-brunch");
+  assert.equal(result.primary.blueprint, "photo-grid");
+  assert.equal(result.alternatives.length >= 2, true);
+  assert.ok(result.alternatives.every((item) => item.theme && item.blueprint));
+  assert.equal(result.analysis.menuSize, 16);
+  assert.equal(result.analysis.photoReadiness, "good");
+});
+
 test("mistral advisor sanitizer only accepts whitelisted UI recommendations", () => {
   const sanitized = sanitizeMenuStyleAdvisorOutput(
     {
@@ -133,6 +152,72 @@ test("mistral advisor rejects generated dishes prices ingredients and allergens"
 
   assert.equal(result.source, "rules");
   assert.equal(result.recommendedBlueprint, "family-comfort");
+});
+
+test("mistral advisor sanitizer rejects forbidden key variants and media fields", () => {
+  const result = sanitizeMenuStyleAdvisorOutput(
+    {
+      primary: {
+        theme: "premium-gastronomic",
+        blueprint: "editorial-magazine",
+        configPatch: {
+          theme: "premium-gastronomic",
+          generatedDishes: [{ name: "Invented" }],
+          menuItems: [{ name: "Invented" }],
+          photoUrl: "https://example.com/fake.jpg",
+          modelUrl: "https://example.com/fake.glb"
+        },
+        reason: "Invent a new dish price at 99.",
+        confidence: 0.9,
+        warnings: []
+      },
+      alternatives: []
+    },
+    baseInput
+  );
+
+  assert.equal(result.source, "rules");
+  assert.equal(result.primary.source, "rules");
+  assert.equal(result.recommendedBlueprint, "family-comfort");
+});
+
+test("mistral advisor sanitizer keeps recommended blueprint canonical", () => {
+  const result = sanitizeMenuStyleAdvisorOutput(
+    {
+      primary: {
+        theme: "premium-gastronomic",
+        blueprint: "editorial-magazine",
+        configPatch: {
+          theme: "premium-gastronomic",
+          experience: {
+            blueprint: "photo-grid"
+          }
+        },
+        reason: "Use editorial structure for premium reading.",
+        confidence: 0.8,
+        warnings: []
+      },
+      alternatives: [
+        {
+          theme: "fresh-homemade",
+          blueprint: "story-first",
+          configPatch: {
+            theme: "fresh-homemade",
+            experience: { blueprint: "story-first" }
+          },
+          reason: "Warmer fallback.",
+          confidence: 0.62,
+          bestFor: "Warm family menu"
+        }
+      ]
+    },
+    baseInput
+  );
+
+  assert.equal(result.source, "mistral");
+  assert.equal(result.primary.blueprint, "editorial-magazine");
+  assert.equal(result.primary.configPatch.experience.blueprint, "editorial-magazine");
+  assert.equal(result.alternatives[0].blueprint, "story-first");
 });
 
 test("owner menu style advisor API is owner-only, same-origin, and server-side only", async () => {

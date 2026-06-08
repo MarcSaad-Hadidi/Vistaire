@@ -306,19 +306,19 @@ export async function generateMistralMenuStyleAdvice(
       signal: controller.signal,
       body: JSON.stringify({
         model,
-        temperature: 0.1,
-        max_tokens: 650,
+        temperature: 0.15,
+        max_tokens: 1100,
         messages: [
           {
             role: "system",
             content:
-              "Tu es Vistaire Menu Design Advisor. Tu ne generes jamais de plats, prix, ingredients, allergenes, photos, modeles 3D ou disponibilites. Tu recommandes seulement une configuration UI parmi les whitelists fournies. Reponds uniquement en JSON strict."
+              "Tu es Vistaire Menu Design Advisor. Tu ne generes jamais de plats, prix, ingredients, allergenes, photos, modeles 3D, disponibilites, descriptions de plats ou donnees metier nouvelles. Tu recommandes seulement theme, blueprint, layout, couleurs, typographie, densite, navigation, cards, detail, photos strategy, immersive strategy et UX parmi les whitelists fournies. Reponds uniquement en JSON strict."
           },
           {
             role: "user",
             content: JSON.stringify({
               instruction:
-                "Retourne {\"recommendedTheme\":\"...\",\"recommendedBlueprint\":\"...\",\"recommendedConfigPatch\":{\"theme\":\"...\",\"experience\":{},\"navigation\":{},\"cards\":{},\"detail\":{},\"photos\":{},\"immersive\":{}},\"reason\":\"...\",\"confidence\":0.0,\"warnings\":[\"...\"]}. N'inclus jamais de dishes, prices, ingredients, allergens, photos inventees, modeles 3D, disponibilites ou donnees menu nouvelles.",
+                "Retourne {\"primary\":{\"theme\":\"...\",\"blueprint\":\"...\",\"configPatch\":{\"theme\":\"...\",\"experience\":{},\"navigation\":{},\"cards\":{},\"detail\":{},\"photos\":{},\"immersive\":{}},\"reason\":\"...\",\"confidence\":0.0,\"warnings\":[\"...\"]},\"alternatives\":[{\"theme\":\"...\",\"blueprint\":\"...\",\"configPatch\":{\"theme\":\"...\",\"experience\":{},\"navigation\":{},\"cards\":{},\"detail\":{},\"photos\":{},\"immersive\":{}},\"reason\":\"...\",\"confidence\":0.0,\"bestFor\":\"...\"}],\"analysis\":{\"restaurantType\":\"...\",\"dataSignals\":[\"...\"],\"photoReadiness\":\"none|low|partial|good\",\"immersiveReadiness\":\"none|partial|ready\",\"menuSize\":0,\"recommendedDirection\":\"...\"}}. N'inclus jamais dish, dishes, item, items, menuItem, menuItems, generatedMenu, generatedDishes, price, prices, ingredient, ingredients, allergen, allergens, availability, photoUrl, modelUrl ou description de plat.",
               allowedOutput:
                 "theme, experience, navigation, cards, detail, photos strategy, immersive strategy only",
               signals: payload

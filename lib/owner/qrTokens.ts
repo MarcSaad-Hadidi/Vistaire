@@ -32,6 +32,14 @@ function getQrSigningSecret(): string {
   );
 }
 
+export function canUseSignedQrFallback(): boolean {
+  return (
+    Boolean(process.env.VISTAIRE_QR_TOKEN_SECRET) ||
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+}
+
 /**
  * Generates a non-guessable, URL-safe opaque token using crypto.randomBytes.
  * This is the value encoded into the QR (https://vistaire.ca/q/<token>).
@@ -74,6 +82,9 @@ export function createSignedQrToken(args: {
   targetPath: string;
   restaurantId: string;
 }): string {
+  if (!canUseSignedQrFallback()) {
+    throw new Error("Signed QR fallback requires VISTAIRE_QR_TOKEN_SECRET in production.");
+  }
   const payload: SignedQrPayload = {
     t: args.targetPath,
     r: args.restaurantId,
@@ -93,6 +104,7 @@ export function isSignedQrToken(token: string): boolean {
 export function verifySignedQrToken(
   token: string
 ): { targetPath: string; restaurantId: string } | null {
+  if (!canUseSignedQrFallback()) return null;
   if (!isSignedQrToken(token)) return null;
   const rest = token.slice(SIGNED_PREFIX.length);
   const separator = rest.lastIndexOf(".");

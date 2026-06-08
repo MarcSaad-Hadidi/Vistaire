@@ -34,6 +34,12 @@ export type MenuUiConfigLoadResult = {
   error?: string;
 };
 
+export type MenuUiConfigHistoryResult = {
+  ok: true;
+  records: MenuUiConfigRecord[];
+  error?: string;
+};
+
 function isValidRestaurantId(restaurantId: string): boolean {
   return UUID_PATTERN.test(restaurantId);
 }
@@ -118,6 +124,29 @@ async function readConfigRows(
   return { ok: true, rows: (data ?? []) as MenuUiConfigRow[] };
 }
 
+async function readAllConfigRows(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<{ ok: true; rows: MenuUiConfigRow[] } | StoreFailure> {
+  const { data, error } = await client
+    .from(TABLE)
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .in("status", ["draft", "published", "archived"])
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "La table menu_ui_configs est indisponible. Appliquez la migration 0008_menu_ui_configs.sql."
+    };
+  }
+
+  return { ok: true, rows: (data ?? []) as MenuUiConfigRow[] };
+}
+
 function preferDraftThenPublished(
   rows: MenuUiConfigRow[],
   fallbackConfig: MenuUiConfig
@@ -166,6 +195,41 @@ export async function getOwnerMenuUiConfig(
     ok: true,
     record:
       record ?? defaultMenuUiConfigRecord({ restaurantId, config: fallbackConfig })
+  };
+}
+
+export async function getOwnerMenuUiConfigHistory(
+  restaurantId: string
+): Promise<MenuUiConfigHistoryResult> {
+  if (!isValidRestaurantId(restaurantId)) {
+    return {
+      ok: true,
+      records: [],
+      error: "Restaurant invalide."
+    };
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return {
+      ok: true,
+      records: [],
+      error: admin.reason
+    };
+  }
+
+  const fallbackConfig = await getRestaurantFallbackConfig(
+    admin.client,
+    restaurantId
+  );
+  const rows = await readAllConfigRows(admin.client, restaurantId);
+  if (!rows.ok) {
+    return { ok: true, records: [], error: rows.error };
+  }
+
+  return {
+    ok: true,
+    records: rows.rows.map((row) => mapMenuUiConfigRow(row, fallbackConfig))
   };
 }
 
@@ -243,6 +307,81 @@ async function upsertDraft(
   return { ok: true, record: mapMenuUiConfigRow(data as MenuUiConfigRow, config) };
 }
 
+async function getCurrentPublishedRow(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<{ ok: true; row: MenuUiConfigRow | null } | StoreFailure> {
+  const { data, error } = await client
+    .from(TABLE)
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "published")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      ok: false,
+      status: 503,
+      error: "La config publiee actuelle n'a pas pu etre lue."
+    };
+  }
+
+  return { ok: true, row: (data as MenuUiConfigRow | null) ?? null };
+}
+
+async function archiveCurrentPublishedSnapshot(
+  client: SupabaseClient,
+  current: MenuUiConfigRow
+): Promise<StoreFailure | null> {
+  const archivedRow = {
+    restaurant_id: current.restaurant_id,
+    theme: current.theme,
+    config_json:
+      current.config_json && typeof current.config_json === "object"
+        ? current.config_json
+        : {},
+    status: "archived"
+  };
+  const { error } = await client.from(TABLE).insert(archivedRow);
+  if (!error) return null;
+
+  return {
+    ok: false,
+    status: 503,
+    error: "La config publiee actuelle n'a pas pu etre archivee."
+  };
+}
+
+async function updatePublishedInPlace(
+  client: SupabaseClient,
+  current: MenuUiConfigRow | null,
+  restaurantId: string,
+  config: MenuUiConfig
+): Promise<StoreSuccess | StoreFailure> {
+  const publishedRow = {
+    restaurant_id: restaurantId,
+    theme: config.theme,
+    config_json: serializeMenuUiConfig(config),
+    status: "published"
+  };
+  const writer = current?.id
+    ? client.from(TABLE).update(publishedRow).eq("id", current.id)
+    : client.from(TABLE).insert(publishedRow);
+
+  const { data, error } = await writer.select("*").single();
+  if (error || !data) {
+    return {
+      ok: false,
+      status: 503,
+      error: "La config UI n'a pas pu etre publiee."
+    };
+  }
+
+  return { ok: true, record: mapMenuUiConfigRow(data as MenuUiConfigRow, config) };
+}
+
 export async function saveDraftMenuUiConfig(args: {
   restaurantId: string;
   config: MenuUiConfig;
@@ -283,40 +422,86 @@ export async function publishMenuUiConfig(args: {
   const draft = await upsertDraft(admin.client, args.restaurantId, args.config);
   if (!draft.ok) return draft;
 
-  const archived = await admin.client
-    .from(TABLE)
-    .update({ status: "archived" })
-    .eq("restaurant_id", args.restaurantId)
-    .eq("status", "published");
+  const current = await getCurrentPublishedRow(admin.client, args.restaurantId);
+  if (!current.ok) return current;
 
-  if (archived.error) {
-    return {
-      ok: false,
-      status: 503,
-      error: "L'ancienne config publiee n'a pas pu etre archivee."
-    };
+  if (current.row) {
+    const archived = await archiveCurrentPublishedSnapshot(admin.client, current.row);
+    if (archived) return archived;
   }
 
-  const publishedRow = {
-    restaurant_id: args.restaurantId,
-    theme: args.config.theme,
-    config_json: serializeMenuUiConfig(args.config),
-    status: "published"
-  };
-  const { data, error } = await admin.client
+  return updatePublishedInPlace(
+    admin.client,
+    current.row,
+    args.restaurantId,
+    args.config
+  );
+}
+
+export async function duplicatePublishedMenuUiConfigToDraft(args: {
+  restaurantId: string;
+}): Promise<StoreSuccess | StoreFailure> {
+  if (!isValidRestaurantId(args.restaurantId)) {
+    return { ok: false, status: 400, error: "Restaurant invalide." };
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return missingSupabaseFailure(admin.reason);
+
+  const fallbackConfig = await getRestaurantFallbackConfig(
+    admin.client,
+    args.restaurantId
+  );
+  const published = await getPublishedMenuUiConfigForRestaurant(
+    args.restaurantId,
+    fallbackConfig
+  );
+  if (!published.persisted || published.status !== "published") {
+    return { ok: false, status: 404, error: "Aucune config publiee a dupliquer." };
+  }
+
+  return upsertDraft(admin.client, args.restaurantId, published.config);
+}
+
+export async function rollbackPublishedMenuUiConfig(args: {
+  restaurantId: string;
+  targetConfigId?: string;
+}): Promise<StoreSuccess | StoreFailure> {
+  if (!isValidRestaurantId(args.restaurantId)) {
+    return { ok: false, status: 400, error: "Restaurant invalide." };
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return missingSupabaseFailure(admin.reason);
+
+  const current = await getCurrentPublishedRow(admin.client, args.restaurantId);
+  if (!current.ok) return current;
+
+  const query = admin.client
     .from(TABLE)
-    .insert(publishedRow)
     .select("*")
-    .single();
-
+    .eq("restaurant_id", args.restaurantId)
+    .eq("status", "archived")
+    .order("updated_at", { ascending: false });
+  const finalQuery = args.targetConfigId
+    ? query.eq("id", args.targetConfigId).limit(1)
+    : query.limit(1);
+  const { data, error } = await finalQuery.maybeSingle();
   if (error || !data) {
-    return {
-      ok: false,
-      status: 503,
-      error: "La config UI n'a pas pu etre publiee."
-    };
+    return { ok: false, status: 404, error: "Aucune config archivee disponible pour rollback." };
   }
 
-  return { ok: true, record: mapMenuUiConfigRow(data as MenuUiConfigRow, args.config) };
+  if (current.row) {
+    const archived = await archiveCurrentPublishedSnapshot(admin.client, current.row);
+    if (archived) return archived;
+  }
+
+  const target = mapMenuUiConfigRow(data as MenuUiConfigRow);
+  return updatePublishedInPlace(
+    admin.client,
+    current.row,
+    args.restaurantId,
+    target.config
+  );
 }
 

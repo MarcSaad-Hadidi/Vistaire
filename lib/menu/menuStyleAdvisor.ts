@@ -23,21 +23,46 @@ export type MenuStyleAdvisorInput = {
   currentConfig?: unknown;
 };
 
+type MenuStyleAdvisorConfigPatch = Pick<
+  MenuUiConfig,
+  | "theme"
+  | "palette"
+  | "navigation"
+  | "cards"
+  | "detail"
+  | "photos"
+  | "immersive"
+  | "experience"
+>;
+
+export type MenuStyleAdvisorProposal = {
+  source: "mistral" | "rules";
+  theme: MenuUiThemeId;
+  blueprint: MenuExperienceBlueprintId;
+  configPatch: MenuStyleAdvisorConfigPatch;
+  reason: string;
+  confidence: number;
+  warnings: string[];
+  bestFor?: string;
+};
+
+export type MenuStyleAdvisorAnalysis = {
+  restaurantType: string;
+  dataSignals: string[];
+  photoReadiness: "none" | "low" | "partial" | "good";
+  immersiveReadiness: "none" | "partial" | "ready";
+  menuSize: number;
+  recommendedDirection: string;
+};
+
 export type MenuStyleAdvisorRecommendation = {
   source: "mistral" | "rules";
+  primary: MenuStyleAdvisorProposal;
+  alternatives: MenuStyleAdvisorProposal[];
+  analysis: MenuStyleAdvisorAnalysis;
   recommendedTheme: MenuUiThemeId;
   recommendedBlueprint: MenuExperienceBlueprintId;
-  recommendedConfigPatch: Pick<
-    MenuUiConfig,
-    | "theme"
-    | "palette"
-    | "navigation"
-    | "cards"
-    | "detail"
-    | "photos"
-    | "immersive"
-    | "experience"
-  >;
+  recommendedConfigPatch: MenuStyleAdvisorConfigPatch;
   reason: string;
   confidence: number;
   warnings: string[];
@@ -50,13 +75,26 @@ const MAX_LIST_ITEMS = 18;
 const FORBIDDEN_GENERATED_KEYS = new Set([
   "dish",
   "dishes",
+  "item",
+  "items",
+  "menuitem",
   "menuItems",
+  "menuitems",
+  "generatedmenu",
+  "generateddishes",
   "prices",
   "price",
+  "ingredient",
   "ingredients",
+  "allergen",
   "allergens",
-  "availability"
+  "availability",
+  "photourl",
+  "modelurl",
+  "description"
 ]);
+const SECRET_VALUE_PATTERN =
+  /(sk_live_|sk_test_|service_role|bearer\s+[a-z0-9._-]{12,}|eyJ[a-z0-9_-]{12,})/i;
 
 function stringValue(value: unknown, max = TEXT_MAX): string {
   return typeof value === "string"
@@ -113,16 +151,18 @@ function safeWarnings(value: unknown): string[] {
 }
 
 function hasForbiddenGeneratedContent(value: unknown): boolean {
+  if (typeof value === "string") return SECRET_VALUE_PATTERN.test(value);
   if (!value || typeof value !== "object") return false;
   if (Array.isArray(value)) return value.some(hasForbiddenGeneratedContent);
   for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-    if (FORBIDDEN_GENERATED_KEYS.has(key)) return true;
+    const normalizedKey = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+    if (FORBIDDEN_GENERATED_KEYS.has(normalizedKey)) return true;
     if (hasForbiddenGeneratedContent(nested)) return true;
   }
   return false;
 }
 
-function pickPatch(config: MenuUiConfig): MenuStyleAdvisorRecommendation["recommendedConfigPatch"] {
+function pickPatch(config: MenuUiConfig): MenuStyleAdvisorConfigPatch {
   return {
     theme: config.theme,
     palette: config.palette,
@@ -132,6 +172,88 @@ function pickPatch(config: MenuUiConfig): MenuStyleAdvisorRecommendation["recomm
     detail: config.detail,
     photos: config.photos,
     immersive: config.immersive
+  };
+}
+
+function photoReadiness(input: ReturnType<typeof sanitizeMenuStyleAdvisorInput>): MenuStyleAdvisorAnalysis["photoReadiness"] {
+  if (input.photoCount === 0) return "none";
+  if (!input.dishCount) return "partial";
+  const ratio = input.photoCount / input.dishCount;
+  if (ratio >= 0.5) return "good";
+  if (ratio >= 0.2) return "partial";
+  return "low";
+}
+
+function immersiveReadiness(input: ReturnType<typeof sanitizeMenuStyleAdvisorInput>): MenuStyleAdvisorAnalysis["immersiveReadiness"] {
+  const count = input.modelCount + input.arCount;
+  if (count === 0) return "none";
+  return count >= 2 ? "ready" : "partial";
+}
+
+function classifyRestaurant(text: string): string {
+  if (includesAny(text, ["sushi", "japan", "japon", "izakaya"])) return "sushi";
+  if (includesAny(text, ["cafe", "café", "cafÃ©", "brunch"])) return "cafe-brunch";
+  if (includesAny(text, ["bar", "lounge", "cocktail", "night"])) return "bar-lounge";
+  if (includesAny(text, ["premium", "elyse", "gastronomic", "gastronomique"])) return "premium";
+  if (includesAny(text, ["maison", "resto marc", "family", "famille"])) return "maison";
+  return "general";
+}
+
+function proposalFromChoice(args: {
+  source: "mistral" | "rules";
+  input: ReturnType<typeof sanitizeMenuStyleAdvisorInput>;
+  theme: MenuUiThemeId;
+  blueprint: MenuExperienceBlueprintId;
+  reason: string;
+  confidence: number;
+  warnings?: string[];
+  bestFor?: string;
+  patch?: Record<string, unknown>;
+}): MenuStyleAdvisorProposal {
+  const patch = args.patch ?? {};
+  const patchExperience =
+    patch.experience && typeof patch.experience === "object" && !Array.isArray(patch.experience)
+      ? (patch.experience as Record<string, unknown>)
+      : {};
+  const normalized = normalizeMenuUiConfig({
+    ...args.input.currentConfig,
+    ...patch,
+    theme: args.theme,
+    experience: {
+      ...patchExperience,
+      blueprint: args.blueprint
+    }
+  });
+
+  return {
+    source: args.source,
+    theme: normalized.theme,
+    blueprint: normalized.experience.blueprint,
+    configPatch: pickPatch(normalized),
+    reason: stringValue(args.reason, TEXT_MAX),
+    confidence: clampConfidence(args.confidence, 0.65),
+    warnings: (args.warnings ?? []).slice(0, 4),
+    bestFor: args.bestFor ? stringValue(args.bestFor, 120) : undefined
+  };
+}
+
+function recommendationFromParts(args: {
+  source: "mistral" | "rules";
+  primary: MenuStyleAdvisorProposal;
+  alternatives: MenuStyleAdvisorProposal[];
+  analysis: MenuStyleAdvisorAnalysis;
+}): MenuStyleAdvisorRecommendation {
+  return {
+    source: args.source,
+    primary: args.primary,
+    alternatives: args.alternatives.slice(0, 3),
+    analysis: args.analysis,
+    recommendedTheme: args.primary.theme,
+    recommendedBlueprint: args.primary.blueprint,
+    recommendedConfigPatch: args.primary.configPatch,
+    reason: args.primary.reason,
+    confidence: args.primary.confidence,
+    warnings: args.primary.warnings
   };
 }
 
@@ -202,23 +324,156 @@ export function buildFallbackMenuStyleAdvice(
     reason = "Le positionnement premium merite une structure editoriale et guidee.";
   }
 
-  const normalized = normalizeMenuUiConfig({
-    ...input.currentConfig,
-    theme,
-    experience: { blueprint }
-  });
+  const warnings = [
+    "Vistaire ne modifie pas les plats, prix, ingredients, allergenes, photos ou assets 3D."
+  ];
+  if (blueprint === "photo-grid" && input.photoCount === 0) {
+    warnings.push("Peu ou pas de photos: photo-grid peut perdre en impact.");
+  }
+  if (blueprint === "immersive-first" && input.modelCount + input.arCount === 0) {
+    warnings.push("Aucun plat 3D/AR disponible pour immersive-first.");
+  }
 
-  return {
+  const primary = proposalFromChoice({
     source: "rules",
-    recommendedTheme: normalized.theme,
-    recommendedBlueprint: normalized.experience.blueprint,
-    recommendedConfigPatch: pickPatch(normalized),
+    input,
+    theme,
+    blueprint,
     reason,
     confidence: input.dishCount || input.categories.length ? 0.72 : 0.55,
-    warnings: [
-      "Vistaire ne modifie pas les plats, prix, ingredients, allergenes, photos ou assets 3D."
-    ]
+    warnings
+  });
+
+  const fallbackChoices: Array<{
+    theme: MenuUiThemeId;
+    blueprint: MenuExperienceBlueprintId;
+    reason: string;
+    confidence: number;
+    bestFor: string;
+  }> = [
+    {
+      theme: input.photoCount > Math.max(3, input.dishCount / 3) ? "cafe-brunch" : "fresh-homemade",
+      blueprint: input.photoCount > 3 ? "photo-grid" : "story-first",
+      reason: "Option plus chaleureuse pour valoriser les plats disponibles sans inventer de contenu.",
+      confidence: 0.64,
+      bestFor: "Menu chaleureux avec photos ou narration"
+    },
+    {
+      theme: input.dishCount > 35 ? "street-casual" : "minimal-clean",
+      blueprint: input.dishCount > 35 ? "compact-qr" : "minimal-list",
+      reason: "Option plus rapide et lisible pour consultation QR.",
+      confidence: 0.61,
+      bestFor: "Lecture rapide apres scan QR"
+    },
+    {
+      theme: input.modelCount + input.arCount > 0 ? "premium-gastronomic" : "mediterranean-fresh",
+      blueprint: input.modelCount + input.arCount > 0 ? "immersive-first" : "bento-showcase",
+      reason: "Option plus distinctive pour comparer une direction visuelle forte.",
+      confidence: 0.58,
+      bestFor: "Exploration visuelle differenciante"
+    }
+  ];
+
+  const alternatives = fallbackChoices
+    .filter((choice) => choice.theme !== primary.theme || choice.blueprint !== primary.blueprint)
+    .map((choice) =>
+      proposalFromChoice({
+        source: "rules",
+        input,
+        theme: choice.theme,
+        blueprint: choice.blueprint,
+        reason: choice.reason,
+        confidence: choice.confidence,
+        warnings,
+        bestFor: choice.bestFor
+      })
+    )
+    .slice(0, 3);
+
+  while (alternatives.length < 2) {
+    alternatives.push(
+      proposalFromChoice({
+        source: "rules",
+        input,
+        theme: "fresh-homemade",
+        blueprint: alternatives.length === 0 ? "classic-tabs" : "compact-qr",
+        reason: "Option de secours stable pour comparer une structure simple.",
+        confidence: 0.52,
+        warnings,
+        bestFor: "Fallback stable"
+      })
+    );
+  }
+
+  const restaurantType = classifyRestaurant(text);
+  const analysis: MenuStyleAdvisorAnalysis = {
+    restaurantType,
+    dataSignals: [
+      input.categories.length ? `${input.categories.length} categories` : "",
+      input.dishCount ? `${input.dishCount} plats` : "",
+      input.photoCount ? `${input.photoCount} photos` : "",
+      input.modelCount + input.arCount ? `${input.modelCount + input.arCount} assets immersifs` : ""
+    ].filter(Boolean),
+    photoReadiness: photoReadiness(input),
+    immersiveReadiness: immersiveReadiness(input),
+    menuSize: input.dishCount,
+    recommendedDirection: reason
   };
+
+  return recommendationFromParts({
+    source: "rules",
+    primary,
+    alternatives,
+    analysis
+  });
+}
+
+function candidateRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function proposalFromOutput(
+  value: unknown,
+  input: ReturnType<typeof sanitizeMenuStyleAdvisorInput>,
+  fallback: MenuStyleAdvisorRecommendation,
+  source: "mistral" | "rules"
+): MenuStyleAdvisorProposal | null {
+  const candidate = candidateRecord(value);
+  const legacy = "recommendedTheme" in candidate || "recommendedBlueprint" in candidate;
+  const theme = legacy ? candidate.recommendedTheme : candidate.theme;
+  const blueprint = legacy ? candidate.recommendedBlueprint : candidate.blueprint;
+  if (!isTheme(theme) || !isBlueprint(blueprint)) return null;
+
+  const patchValue = legacy ? candidate.recommendedConfigPatch : candidate.configPatch;
+  const patch = candidateRecord(patchValue);
+  if (hasForbiddenGeneratedContent(patch)) return null;
+
+  const validated = validateMenuUiConfig({
+    ...input.currentConfig,
+    ...patch,
+    theme,
+    experience: {
+      ...(candidateRecord(patch.experience)),
+      blueprint
+    }
+  });
+  if (!validated.ok) return null;
+
+  const proposal = proposalFromChoice({
+    source,
+    input,
+    theme,
+    blueprint,
+    reason: stringValue(candidate.reason, TEXT_MAX) || fallback.reason,
+    confidence: clampConfidence(candidate.confidence, 0.65),
+    warnings: safeWarnings(candidate.warnings),
+    bestFor: stringValue(candidate.bestFor, 120),
+    patch
+  });
+
+  return proposal;
 }
 
 export function sanitizeMenuStyleAdvisorOutput(
@@ -230,39 +485,48 @@ export function sanitizeMenuStyleAdvisorOutput(
   if (hasForbiddenGeneratedContent(output)) return fallback;
 
   const candidate = output as Record<string, unknown>;
-  if (!isTheme(candidate.recommendedTheme)) return fallback;
-  if (!isBlueprint(candidate.recommendedBlueprint)) return fallback;
+  const sanitizedInput = sanitizeMenuStyleAdvisorInput(input);
+  const primaryInput = "primary" in candidate ? candidate.primary : candidate;
+  const primary = proposalFromOutput(primaryInput, sanitizedInput, fallback, "mistral");
+  if (!primary) return fallback;
 
-  const patch =
-    candidate.recommendedConfigPatch &&
-    typeof candidate.recommendedConfigPatch === "object" &&
-    !Array.isArray(candidate.recommendedConfigPatch)
-      ? (candidate.recommendedConfigPatch as Record<string, unknown>)
-      : {};
-  if (hasForbiddenGeneratedContent(patch)) return fallback;
-
-  const currentConfig = sanitizeMenuStyleAdvisorInput(input).currentConfig;
-  const validated = validateMenuUiConfig({
-    ...currentConfig,
-    ...patch,
-    theme: candidate.recommendedTheme,
-    experience: {
-      blueprint: candidate.recommendedBlueprint,
-      ...(typeof patch.experience === "object" && patch.experience && !Array.isArray(patch.experience)
-        ? patch.experience
-        : {})
-    }
-  });
-
-  if (!validated.ok) return fallback;
-
-  return {
-    source: "mistral",
-    recommendedTheme: validated.value.theme,
-    recommendedBlueprint: validated.value.experience.blueprint,
-    recommendedConfigPatch: pickPatch(validated.value),
-    reason: stringValue(candidate.reason, TEXT_MAX) || fallback.reason,
-    confidence: clampConfidence(candidate.confidence, 0.65),
-    warnings: safeWarnings(candidate.warnings)
+  const rawAlternatives = Array.isArray(candidate.alternatives)
+    ? candidate.alternatives
+    : [];
+  const alternatives = rawAlternatives
+    .flatMap((item) => {
+      if (hasForbiddenGeneratedContent(item)) return [];
+      const proposal = proposalFromOutput(item, sanitizedInput, fallback, "mistral");
+      return proposal ? [proposal] : [];
+    })
+    .filter((item) => item.theme !== primary.theme || item.blueprint !== primary.blueprint)
+    .slice(0, 3);
+  const analysisCandidate = candidateRecord(candidate.analysis);
+  const analysis: MenuStyleAdvisorAnalysis = {
+    restaurantType:
+      stringValue(analysisCandidate.restaurantType, 80) ||
+      fallback.analysis.restaurantType,
+    dataSignals: listValue(analysisCandidate.dataSignals),
+    photoReadiness: ["none", "low", "partial", "good"].includes(
+      String(analysisCandidate.photoReadiness)
+    )
+      ? (analysisCandidate.photoReadiness as MenuStyleAdvisorAnalysis["photoReadiness"])
+      : fallback.analysis.photoReadiness,
+    immersiveReadiness: ["none", "partial", "ready"].includes(
+      String(analysisCandidate.immersiveReadiness)
+    )
+      ? (analysisCandidate.immersiveReadiness as MenuStyleAdvisorAnalysis["immersiveReadiness"])
+      : fallback.analysis.immersiveReadiness,
+    menuSize: numberValue(analysisCandidate.menuSize) || fallback.analysis.menuSize,
+    recommendedDirection:
+      stringValue(analysisCandidate.recommendedDirection, TEXT_MAX) ||
+      primary.reason
   };
+
+  return recommendationFromParts({
+    source: "mistral",
+    primary,
+    alternatives: alternatives.length ? alternatives : fallback.alternatives,
+    analysis
+  });
 }
