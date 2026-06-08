@@ -62,6 +62,24 @@ test("blueprint renderers expose genuinely different public structures", async (
   assert.match(source, /featuredDishes/);
 });
 
+test("tabbed compact blueprint lists honor the active category tab", async () => {
+  const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
+
+  assert.match(source, /const activeCategoryList =[\s\S]*categories\.filter/);
+  assert.match(
+    source,
+    /function renderFastBoard\(\)[\s\S]*renderFullMenuList\(activeCategoryList, \{ priceBoard: true \}\)/
+  );
+  assert.match(
+    source,
+    /function renderMinimalList\(\)[\s\S]*renderFullMenuList\(activeCategoryList, \{ className: styles\.minimalLines \}\)/
+  );
+  assert.match(
+    source,
+    /function renderCompactQr\(\)[\s\S]*renderFullMenuList\(activeCategoryList, \{ className: styles\.compactList \}\)/
+  );
+});
+
 test("public menu renderer keeps owner-only status copy out of public mode", async () => {
   const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
 

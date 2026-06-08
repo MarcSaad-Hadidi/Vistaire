@@ -240,6 +240,10 @@ export function PublicMenuRenderer({
     activeTab !== HOME_TAB_ID && activeTab !== ALL_TAB_ID
       ? groups.get(activeTab) ?? []
       : [];
+  const activeCategoryList =
+    activeTab !== HOME_TAB_ID && activeTab !== ALL_TAB_ID
+      ? categories.filter((category) => category.label === activeTab)
+      : categories;
   const featuredDishes = menu.dishes
     .filter((dish) => dish.tags.length > 0 || dish.category === "Plats")
     .slice(0, 4);
@@ -668,7 +672,7 @@ export function PublicMenuRenderer({
         {renderMenuShell(
           <div className={styles.fastBoardFlow}>
             {renderTabs()}
-            {renderFullMenuList(categories, { priceBoard: true })}
+            {renderFullMenuList(activeCategoryList, { priceBoard: true })}
           </div>,
           styles.fastShell
         )}
@@ -718,7 +722,7 @@ export function PublicMenuRenderer({
         {renderMenuShell(
           <div className={styles.minimalFlow}>
             {renderTabs()}
-            {renderFullMenuList(categories, { className: styles.minimalLines })}
+            {renderFullMenuList(activeCategoryList, { className: styles.minimalLines })}
           </div>,
           styles.minimalShell
         )}
@@ -807,7 +811,7 @@ export function PublicMenuRenderer({
         {renderMenuShell(
           <div className={styles.compactQrFlow}>
             {renderTabs()}
-            {renderFullMenuList(categories, { className: styles.compactList })}
+            {renderFullMenuList(activeCategoryList, { className: styles.compactList })}
           </div>,
           styles.compactShell
         )}
