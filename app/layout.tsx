@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { JsonLd } from "@/components/JsonLd";
+import {
+  LOCALE_LANGUAGE_TAG,
+  localeFromHeaderValue,
+  VISTAIRE_LOCALE_HEADER
+} from "@/lib/i18n";
 import {
   DEFAULT_SITE_DESCRIPTION,
   SITE_NAME,
@@ -48,22 +54,26 @@ export const viewport: Viewport = {
   themeColor: "#080706"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headerList = await headers();
+  const locale = localeFromHeaderValue(headerList.get(VISTAIRE_LOCALE_HEADER));
+  const documentLanguage = LOCALE_LANGUAGE_TAG[locale];
+
   return (
-    <html lang="fr-CA" data-scroll-behavior="smooth">
+    <html lang={documentLanguage} data-scroll-behavior="smooth">
       <body>
         <a className="skip-link" href="#contenu">
-          Aller au contenu
+          {locale === "en" ? "Skip to content" : "Aller au contenu"}
         </a>
         <JsonLd
           data={[
             buildOrganizationJsonLd(),
             buildProfessionalServiceJsonLd(),
-            buildWebsiteJsonLd()
+            buildWebsiteJsonLd(undefined, locale)
           ]}
         />
         <div id="contenu">{children}</div>

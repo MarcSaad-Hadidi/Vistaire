@@ -37,12 +37,12 @@ test("menu digital restaurant preview route stays noindex and uses the preview v
     "Vistaire preview | Menu digital restaurant",
     "Menu digital restaurant : une carte premium pensée pour le mobile",
     "Pourquoi un menu PDF ne suffit plus",
-    "Du menu PDF à l&apos;expérience Vistaire",
+    "Du menu PDF à l'expérience Vistaire",
     "PDF, menu digital standard ou Vistaire",
     "Carte mobile en situation",
     "Une carte pensée pour la table",
     "Pensé pour les restaurants haut de gamme",
-    "Votre carte mérite mieux qu&apos;un PDF",
+    "Votre carte mérite mieux qu'un PDF",
     "Voir la carte",
     "Prendre rendez-vous",
     "/vistaire-preview/demo",
@@ -59,9 +59,10 @@ test("menu digital restaurant preview route stays noindex and uses the preview v
   assert.match(component, /className=\{styles\.previewFrame\}/);
   assert.match(component, /styles\.heroCopy/);
   assert.match(component, /aria-label=\{pageTitle\}/);
+  assert.match(component, /const pageTitle =\s*h1 \?\? copy\.defaultTitle/);
   assert.match(
     component,
-    /h1 \?\? "Menu digital restaurant : une carte premium pensée pour le mobile"/
+    /defaultTitle:\s*[\s\S]*"Menu digital restaurant : une carte premium pensée pour le mobile"/
   );
   assert.match(component, /\{pageTitle\}/);
   assert.match(component, /styles\.revealCard/);
@@ -69,8 +70,8 @@ test("menu digital restaurant preview route stays noindex and uses the preview v
   assert.match(component, /styles\.mobileProofCard/);
   assert.match(component, /styles\.heroVisual/);
   assert.match(component, /styles\.premiumVisual/);
-  assert.match(component, /<PreviewNav activeSection="home" routeMode=\{routeMode\} \/>/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
   assert.match(css, /\.previewFrame[\s\S]*width:\s*min\(1520px, calc\(100vw - 48px\)\)/);
   assert.match(css, /\.previewFrame[\s\S]*background:\s*transparent/);
   assert.match(css, /\.previewFrame[\s\S]*backdrop-filter:\s*blur\(9px\) saturate\(112%\)/);
@@ -83,7 +84,7 @@ test("menu digital restaurant preview route stays noindex and uses the preview v
   assert.match(css, /\.problemCard[\s\S]*grid-column:\s*1 \/ -1/);
   assert.match(css, /\.revealCard[\s\S]*grid-column:\s*1 \/ -1/);
   assert.match(component, /buildPdfComparePreviewData/);
-  assert.match(component, /getAllDishes\(\)\.map\(\(dish\) => dish\.slug\)/);
+  assert.match(component, /getAllDishes\(locale\)\.map\(\(dish\) => dish\.slug\)/);
   assert.match(component, /activeCategorySlug:\s*"tous"/);
   assert.match(component, /className=\{styles\.desktopInstruction\}/);
   assert.match(component, /className=\{styles\.mobileInstruction\}/);

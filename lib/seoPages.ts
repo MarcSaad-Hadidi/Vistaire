@@ -1,3 +1,5 @@
+import type { Locale } from "./i18n.ts";
+
 export type SeoPageSlug =
   | "menu-digital-restaurant"
   | "menu-qr-code-restaurant"
@@ -17,6 +19,7 @@ type ComparisonRow = {
 };
 
 export type SeoPageData = {
+  locale?: Locale;
   slug: SeoPageSlug;
   path: string;
   metadataTitle: string;
@@ -533,8 +536,487 @@ export const SEO_PAGES: SeoPageData[] = [
   }
 ];
 
-export function getSeoPage(slug: SeoPageSlug): SeoPageData {
-  const page = SEO_PAGES.find((candidate) => candidate.slug === slug);
+export const SEO_PAGES_EN: SeoPageData[] = [
+  {
+    locale: "en",
+    slug: "menu-digital-restaurant",
+    path: "/en/digital-restaurant-menu",
+    metadataTitle: "Premium digital restaurant menu | Vistaire",
+    metadataDescription:
+      "Vistaire turns a digital restaurant menu into a premium mobile experience: QR code, dish pages, allergens, visuals and selective 3D/AR.",
+    cardDescription:
+      "Dish pages, allergens, visuals and selective 3D: what a premium digital menu should offer at the table.",
+    relatedDescription:
+      "Anatomy of a premium mobile menu: structure, dish pages and useful immersion.",
+    eyebrow: "Premium digital menu",
+    footerLabel: "Digital restaurant menu",
+    linkTitle: "Anatomy of a high-end digital menu",
+    h1: "A premium digital menu turns the menu into an experience.",
+    answer: [
+      "A digital restaurant menu is a menu guests open on their phone, often after scanning a QR code at the table. Vistaire makes it premium: photos, dish pages, allergens, prices, pairings and 3D/AR views when a dish benefits from them, without an app download.",
+      "The goal is not to turn the dining room into cold software. Vistaire keeps the menu, the dish and the restaurant image at the center, with a clear mobile reading for the guest and a restaurant preview of anonymous menu signals."
+    ],
+    takeaway: {
+      heading: "Key takeaway",
+      text:
+        "A premium digital menu structures the menu for mobile, presents dishes with visual pages, and keeps 3D/AR selective for signature dishes that deserve it."
+    },
+    visualImage: {
+      src: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
+      alt: "Signature dish shown in a Vistaire digital menu page"
+    },
+    sections: [
+      {
+        heading: "What is a digital menu for restaurants?",
+        body: [
+          "A digital restaurant menu replaces a static file with a menu designed for the phone. Categories, descriptions, allergens and visuals stay readable during service.",
+          "For a high-end restaurant, the experience must remain calm and faithful to the dining room. The technology supports guest choice; it does not replace hospitality."
+        ],
+        points: [
+          "Menu opened by table QR code",
+          "Visual dish pages with useful details",
+          "Fast mobile journey with no app to install"
+        ]
+      },
+      {
+        heading: "What Vistaire highlights",
+        body: [
+          "Vistaire presents signature dishes with a clear hierarchy: name, price, short story, allergens, pairings and visuals. 3D/AR stays selective and reserved for dishes that benefit from being seen in volume.",
+          "On the restaurant side, the preview helps understand consultations, searches and immersive interactions without promising measurements the menu does not track."
+        ]
+      }
+    ],
+    comparison: {
+      heading: "Simple digital menu or premium experience?",
+      beforeLabel: "Basic menu",
+      afterLabel: "Vistaire",
+      rows: [
+        {
+          label: "Mobile reading",
+          before: "A file or long list to scroll through.",
+          after: "A menu structured by categories, pages and useful details."
+        },
+        {
+          label: "Brand image",
+          before: "A presentation often detached from the atmosphere of the place.",
+          after: "A visual universe aligned with the table and signature dishes."
+        },
+        {
+          label: "Immersion",
+          before: "Isolated photos or no visual content.",
+          after: "Food-first visuals and 3D/AR only when it adds clarity."
+        }
+      ]
+    },
+    faq: [
+      {
+        question: "Does the guest have to install an app?",
+        answer:
+          "No. A Vistaire menu opens in the mobile browser after the QR code is scanned."
+      },
+      {
+        question: "Does every dish need 3D or AR?",
+        answer:
+          "No. Vistaire favors selective 3D/AR for signature dishes or creations that benefit from being explored in volume."
+      },
+      {
+        question: "What should a real digital restaurant menu include?",
+        answer:
+          "Readable categories, dish pages with prices and allergens, food-first visuals, a fast mobile path and immersive content only when it clarifies the dish."
+      },
+      {
+        question: "Does a digital menu replace printed menus?",
+        answer:
+          "Not necessarily. Many restaurants keep printed menus and use digital as a complementary table menu."
+      },
+      {
+        question: "Is Vistaire suitable for high-end restaurants?",
+        answer:
+          "Yes, when the goal is a calm, visual presentation faithful to the dining room, not a cold utility interface."
+      },
+      {
+        question: "How does the restaurant update the menu?",
+        answer:
+          "Through the Vistaire restaurant preview and guided service: dishes, categories, visuals and compatible content can evolve without republishing a PDF."
+      }
+    ],
+    service: {
+      name: "Vistaire digital restaurant menu",
+      serviceType: "Premium digital menu for restaurants",
+      description:
+        "Premium mobile menu with dish pages, visuals, allergens and selective immersion for high-end restaurants."
+    },
+    primaryCta: {
+      href: "/en/vistaire-menu",
+      label: "Explore the sample menu"
+    },
+    secondaryCta: {
+      href: "/en/restaurant-preview",
+      label: "View the restaurant preview"
+    }
+  },
+  {
+    locale: "en",
+    slug: "menu-qr-code-restaurant",
+    path: "/en/qr-code-restaurant-menu",
+    metadataTitle: "Premium QR code restaurant menu | Vistaire",
+    metadataDescription:
+      "A Vistaire QR code menu opens a premium mobile menu: dish pages, visuals, allergens and an experience faithful to the restaurant.",
+    cardDescription:
+      "After the scan: a structured mobile menu, not a file to pinch and zoom.",
+    relatedDescription:
+      "From scan to dish page: what the guest really sees after a QR code.",
+    eyebrow: "Restaurant QR code",
+    footerLabel: "QR code restaurant menu",
+    linkTitle: "QR code to mobile menu, no app",
+    h1: "The QR code should open an experience, not a file.",
+    answer: [
+      "A restaurant QR code menu should not be limited to opening a file guests have to zoom. With Vistaire, the QR code becomes the entrance to a mobile, visual and fluid menu: guests browse categories, open dish pages and discover available immersive content.",
+      "The value of the QR code depends on what happens after the scan. Vistaire turns that access into a menu experience with careful presentation adapted to service."
+    ],
+    takeaway: {
+      heading: "In short",
+      text:
+        "The QR code is only the entrance. Quality depends on the mobile menu it opens: clear, visual and faithful to the restaurant."
+    },
+    visualImage: {
+      src: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
+      alt: "Dish page opened from a Vistaire restaurant QR code"
+    },
+    sections: [
+      {
+        heading: "What does the guest see after the scan?",
+        body: [
+          "The guest arrives on an organized mobile menu, not a frozen document. Categories, dish pages and important details remain easy to consult at the table.",
+          "The QR code keeps its simple role: open quickly. Vistaire then gives the menu a premium mobile reading."
+        ],
+        points: [
+          "Immediate access from the table",
+          "Mobile menu adapted to short reading",
+          "Dish pages for creations that need more context"
+        ]
+      },
+      {
+        heading: "A QR code can still feel high-end",
+        body: [
+          "A QR code is not incompatible with a premium restaurant if the opened experience is carefully made. Text, visuals and interactions should extend the room rather than cheapen it.",
+          "Vistaire avoids cold utility logic: the scan becomes a discreet entrance to an elegant, clear menu centered on dishes."
+        ]
+      }
+    ],
+    comparison: {
+      heading: "QR code alone or Vistaire QR code?",
+      beforeLabel: "QR code alone",
+      afterLabel: "Vistaire QR code",
+      rows: [
+        {
+          label: "After the scan",
+          before: "The guest often opens an uncomfortable file.",
+          after: "The guest arrives on a structured mobile menu."
+        },
+        {
+          label: "Updates",
+          before: "The menu stays tied to a document to republish.",
+          after: "The experience can evolve around dishes and available content."
+        },
+        {
+          label: "Perception",
+          before: "The QR code may feel purely practical.",
+          after: "The QR code becomes discreet access to a premium presentation."
+        }
+      ]
+    },
+    faq: [
+      {
+        question: "Is a QR code enough to modernize a menu?",
+        answer:
+          "No. The QR code is only the entry point; quality depends on the mobile menu that opens afterward."
+      },
+      {
+        question: "Does the guest have to download anything?",
+        answer:
+          "No. Vistaire is designed to open directly in the mobile browser."
+      },
+      {
+        question: "Do we need one QR per table?",
+        answer:
+          "One QR per table or zone can work depending on service. The important part is that the scan opens the same carefully made menu."
+      },
+      {
+        question: "Does the guest need restaurant Wi-Fi?",
+        answer:
+          "No. The menu opens through the guest's mobile connection like any web page."
+      },
+      {
+        question: "Can a QR code stay elegant in a premium restaurant?",
+        answer:
+          "Yes, if the opened experience extends the dining room: careful copy, food-first visuals and a fluid mobile path."
+      },
+      {
+        question: "What if a guest does not have a smartphone?",
+        answer:
+          "The restaurant can keep printed menus or offer a tablet. Vistaire does not replace human hospitality."
+      }
+    ],
+    service: {
+      name: "Vistaire QR code menu",
+      serviceType: "Premium QR code menu for restaurants",
+      description:
+        "Premium mobile menu opened by QR code and designed for table reading and signature dishes."
+    },
+    primaryCta: {
+      href: "/en/vistaire-menu",
+      label: "Try the sample QR menu"
+    },
+    secondaryCta: {
+      href: "/en/pdf-vs-digital-menu",
+      label: "Compare with a PDF"
+    }
+  },
+  {
+    locale: "en",
+    slug: "menu-3d-ar-restaurant",
+    path: "/en/3d-ar-restaurant-menu",
+    metadataTitle: "3D/AR restaurant menu | Vistaire",
+    metadataDescription:
+      "Vistaire adds selective 3D/AR to premium restaurant menus when a compatible dish benefits from being seen in volume.",
+    cardDescription:
+      "When to activate 3D/AR, when to skip it, and how to stay premium without gimmicks.",
+    relatedDescription:
+      "Selective immersion: compatible dishes, clear fallback, no systematic 3D.",
+    eyebrow: "Restaurant 3D/AR",
+    footerLabel: "3D / AR restaurant menu",
+    linkTitle: "Useful 3D vs gimmick: when to activate it",
+    h1: "3D impresses only when it makes the dish more desirable.",
+    answer: [
+      "3D/AR in a restaurant menu helps guests understand a dish before choosing, especially signatures, desserts and visual cocktails. Vistaire integrates it as a presentation layer: compatible dishes can be explored in 3D, and AR opens on compatible mobile devices after guest intent.",
+      "This immersion must stay selective. A Vistaire dish page remains clear with or without AR, so the main menu experience never depends on a specific device or asset."
+    ],
+    takeaway: {
+      heading: "Key takeaway",
+      text:
+        "3D/AR helps when volume or presentation matters. Vistaire reserves it for compatible dishes, with a clear visual page if AR is unavailable."
+    },
+    visualImage: {
+      src: "/images/demo/dishes/maison-elyse-n1.png",
+      alt: "Signature dish presented with an immersive Vistaire experience"
+    },
+    sections: [
+      {
+        heading: "When is 3D or AR relevant?",
+        body: [
+          "3D/AR is useful when volume, texture or presentation tells something a line of text cannot transmit alone.",
+          "Vistaire reserves it for compatible dishes and always keeps a readable visual page for guests who do not open it."
+        ],
+        points: [
+          "Signature dishes with strong presentation",
+          "Desserts, cocktails or visual creations",
+          "Immersive opening only after guest intent"
+        ]
+      },
+      {
+        heading: "Immersion without weighing down the menu",
+        body: [
+          "The menu must remain quick to browse. 3D/AR content is treated as a presentation layer, not a condition for accessing the dish.",
+          "This protects the rhythm of service and keeps a premium experience even when a device does not support AR."
+        ]
+      }
+    ],
+    comparison: {
+      heading: "Systematic or selective 3D/AR?",
+      beforeLabel: "Systematic",
+      afterLabel: "Selective",
+      rows: [
+        {
+          label: "Performance",
+          before: "Can weigh down the menu without clear benefit.",
+          after: "Immersive content is reserved for dishes that deserve it."
+        },
+        {
+          label: "Understanding",
+          before: "The visual effect can overtake the dish.",
+          after: "3D supports the guest decision when it adds context."
+        },
+        {
+          label: "Compatibility",
+          before: "The experience can depend heavily on device support.",
+          after: "The dish page remains useful with a clear visual fallback."
+        }
+      ]
+    },
+    faq: [
+      {
+        question: "Does AR work on every phone?",
+        answer:
+          "No. Vistaire keeps a complete dish page and opens AR only when available and requested by the guest."
+      },
+      {
+        question: "Do we need to model the entire menu?",
+        answer:
+          "No. A selection of signature dishes is often enough to create a coherent immersive moment."
+      },
+      {
+        question: "Does 3D slow the menu down?",
+        answer:
+          "3D/AR content loads only after guest intent on a dish page, not during the initial menu browsing."
+      },
+      {
+        question: "Does AR replace the dish photo?",
+        answer:
+          "No. The page always keeps photo, text, price and allergens. 3D/AR complements the presentation when it adds context."
+      },
+      {
+        question: "Which dishes deserve 3D first?",
+        answer:
+          "Highly presented signatures, visual desserts, crafted cocktails or creations whose volume explains more than text."
+      },
+      {
+        question: "What does the guest see if AR is unavailable?",
+        answer:
+          "The dish page remains complete with premium visuals. AR is a bonus, never a condition for understanding the dish."
+      }
+    ],
+    service: {
+      name: "Vistaire 3D/AR menu",
+      serviceType: "Selective 3D/AR presentation for restaurant menus",
+      description:
+        "Immersive layer for compatible dishes, with a clear dish page and premium fallback."
+    },
+    primaryCta: {
+      href: "/en/vistaire-menu/dishes/homard-bisque",
+      label: "View a dish page"
+    },
+    secondaryCta: {
+      href: "/en/digital-restaurant-menu",
+      label: "Back to digital menu"
+    }
+  },
+  {
+    locale: "en",
+    slug: "menu-pdf-vs-menu-digital",
+    path: "/en/pdf-vs-digital-menu",
+    metadataTitle: "PDF menu vs digital restaurant menu | Vistaire",
+    metadataDescription:
+      "Compare PDF menus and digital menus for premium restaurants: mobile readability, dish pages, allergens and table experience.",
+    cardDescription:
+      "Zooming, fixed pages, generic image: why PDF menus quickly reach their limits on premium mobile.",
+    relatedDescription:
+      "PDF can be acceptable sometimes, but insufficient at the table: the concrete difference with a digital menu.",
+    eyebrow: "PDF or digital",
+    footerLabel: "PDF vs digital menu",
+    linkTitle: "A PDF is not a digital menu",
+    h1: "A PDF is not a digital menu.",
+    answer: [
+      "A PDF is simple to produce and practical for print, but it is often less comfortable to read on mobile at the table. A digital menu like Vistaire structures the menu, presents dishes, makes allergens easier to read and can add visual pages or 3D/AR.",
+      "The right choice depends on the level of experience expected. For a short menu that rarely changes, a PDF may be enough. For a restaurant that wants to elevate dishes and guide guests elegantly, a dedicated digital menu becomes more coherent."
+    ],
+    takeaway: {
+      heading: "Direct answer",
+      text:
+        "A PDF can work for a simple menu, but it struggles on mobile at the table. A dedicated digital menu structures reading, enriches dish pages and extends the restaurant's premium image."
+    },
+    visualImage: {
+      src: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
+      alt: "Dessert presented in a digital menu instead of a PDF menu"
+    },
+    sections: [
+      {
+        heading: "What a PDF does well",
+        body: [
+          "The PDF is easy to create, close to print and quick to share. For some simple menus, it remains an acceptable solution.",
+          "Its limits appear especially on phones: zooming, scrolling, file weight, lack of hierarchy and difficulty presenting dish pages."
+        ]
+      },
+      {
+        heading: "What a digital menu adds",
+        body: [
+          "A digital menu structures mobile reading. Guests navigate by categories, open a dish, check allergens and discover visuals without searching through a full page.",
+          "Vistaire adds a premium layer: brand image, calm pages, food-first visuals and selective immersion when relevant."
+        ],
+        points: [
+          "Mobile readability without zoom",
+          "Richer dish pages",
+          "Experience coherent with a high-end restaurant"
+        ]
+      }
+    ],
+    comparison: {
+      heading: "PDF menu vs digital menu",
+      beforeLabel: "PDF",
+      afterLabel: "Vistaire",
+      rows: [
+        {
+          label: "Mobile",
+          before: "The guest zooms and searches in a fixed page.",
+          after: "The menu is organized for the phone screen."
+        },
+        {
+          label: "Dish pages",
+          before: "Detail is limited by the file layout.",
+          after: "Each dish can receive its image, short story and useful details."
+        },
+        {
+          label: "Premium perception",
+          before: "The file can feel generic even if the dining room is not.",
+          after: "The menu extends the restaurant's presentation level."
+        }
+      ]
+    },
+    faq: [
+      {
+        question: "Is a PDF menu bad for every restaurant?",
+        answer:
+          "No. It can suit a very simple menu, but it quickly reaches its limits in premium mobile reading."
+      },
+      {
+        question: "How can we start without rebuilding everything?",
+        answer:
+          "The safest approach is to start from reliable dish information, then progressively enrich the pages that matter most."
+      },
+      {
+        question: "Is a PDF a digital menu?",
+        answer:
+          "No. A PDF remains a static file to zoom. A digital menu structures the menu for mobile with pages and navigation."
+      },
+      {
+        question: "When is a PDF still acceptable?",
+        answer:
+          "For a short, rarely changed menu without a strong goal to present signature dishes at the table."
+      },
+      {
+        question: "Does a PDF behind a QR code have the same issue?",
+        answer:
+          "Yes. The QR code speeds access, but if a PDF opens, the guest still deals with zoom and a fixed page."
+      },
+      {
+        question: "Do we have to abandon the PDF at once?",
+        answer:
+          "No. Many restaurants first move signature dishes into digital pages, then expand gradually."
+      }
+    ],
+    service: {
+      name: "Premium alternative to a PDF menu",
+      serviceType: "Premium digital menu to replace a QR PDF",
+      description:
+        "Mobile-readable digital menu with dish pages, visuals and useful information for premium restaurants."
+    },
+    primaryCta: {
+      href: "/en/vistaire-menu",
+      label: "Compare with the sample menu"
+    },
+    secondaryCta: {
+      href: "/en/qr-code-restaurant-menu",
+      label: "View the QR code menu"
+    }
+  }
+];
+
+export function getSeoPage(
+  slug: SeoPageSlug,
+  locale: Locale = "fr"
+): SeoPageData {
+  const pages = locale === "en" ? SEO_PAGES_EN : SEO_PAGES;
+  const page = pages.find((candidate) => candidate.slug === slug);
 
   if (!page) {
     throw new Error(`Unknown SEO page: ${slug}`);
@@ -543,6 +1025,11 @@ export function getSeoPage(slug: SeoPageSlug): SeoPageData {
   return page;
 }
 
-export function getRelatedSeoPages(currentSlug: SeoPageSlug): SeoPageData[] {
-  return SEO_PAGES.filter((page) => page.slug !== currentSlug);
+export function getRelatedSeoPages(
+  currentSlug: SeoPageSlug,
+  locale: Locale = "fr"
+): SeoPageData[] {
+  const pages = locale === "en" ? SEO_PAGES_EN : SEO_PAGES;
+
+  return pages.filter((page) => page.slug !== currentSlug);
 }

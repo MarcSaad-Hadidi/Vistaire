@@ -7,6 +7,13 @@ const seoPages = [
   "/menu-pdf-vs-menu-digital"
 ];
 
+const englishSeoPages = [
+  "/en/digital-restaurant-menu",
+  "/en/qr-code-restaurant-menu",
+  "/en/3d-ar-restaurant-menu",
+  "/en/pdf-vs-digital-menu"
+];
+
 const publicProductPages = [
   "/a-propos",
   "/contact",
@@ -14,9 +21,11 @@ const publicProductPages = [
   "/apercu-restaurateur"
 ];
 
-const addedPublicPages = [
-  "/tarifs-menu-digital-restaurant",
-  "/carte-vistaire"
+const englishProductPages = [
+  "/en/about",
+  "/en/contact",
+  "/en/book-a-call",
+  "/en/restaurant-preview"
 ];
 
 const forbiddenJsonLdTypes = [
@@ -117,7 +126,10 @@ test.describe("Vistaire SEO smoke", () => {
       "/sign-in",
       "/sign-in/",
       "/todos",
-      "/todos/"
+      "/todos/",
+      "/dev",
+      "/dev/",
+      "/dev/*"
     ]) {
       expect(robotsText).toContain(`Disallow: ${path}`);
     }
@@ -143,10 +155,17 @@ test.describe("Vistaire SEO smoke", () => {
 
     expect(sitemapUrls).toEqual([
       "/",
-      ...publicProductPages,
-      ...seoPages,
+      "/en",
+      "/carte-vistaire",
+      "/en/vistaire-menu",
       "/demo",
-      ...addedPublicPages
+      "/tarifs-menu-digital-restaurant",
+      "/en/pricing-digital-restaurant-menu",
+      ...seoPages.flatMap((path, index) => [path, englishSeoPages[index]]),
+      ...publicProductPages.flatMap((path, index) => [
+        path,
+        englishProductPages[index]
+      ])
     ]);
   });
 

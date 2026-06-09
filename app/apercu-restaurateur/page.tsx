@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireRestaurateurDashboardPreview } from "@/components/vistaire-preview/VistaireRestaurateurDashboardPreview";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
   buildBreadcrumbJsonLd,
@@ -17,13 +18,12 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  alternates: {
-    canonical: "/apercu-restaurateur"
-  },
+  alternates: buildPageAlternates(canonicalPath),
   openGraph: {
     url: absoluteUrl(canonicalPath),
     title: `${title} | Vistaire`,
     description,
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website"
   },
   twitter: {

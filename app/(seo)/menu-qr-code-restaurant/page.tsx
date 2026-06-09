@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireMenuQrCodeRestaurantPreview } from "@/components/vistaire-preview/VistaireMenuQrCodeRestaurantPreview";
 import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import { buildSeoPillarJsonLd } from "@/lib/seoPillarJsonLd";
 import { getSeoPage } from "@/lib/seoPages";
@@ -13,13 +14,12 @@ export const metadata: Metadata = {
     absolute: page.metadataTitle
   },
   description: page.metadataDescription,
-  alternates: {
-    canonical: page.path
-  },
+  alternates: buildPageAlternates(page.path),
   openGraph: {
     url: absoluteUrl(page.path),
     title: page.metadataTitle,
     description: page.metadataDescription,
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website",
     images: [
       {

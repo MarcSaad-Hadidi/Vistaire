@@ -10,6 +10,7 @@ import {
   shouldApplyDevOwnerBypass,
   shouldApplyDevOwnerBypassToken
 } from "@/lib/auth/devOwnerBypass";
+import { getLocaleFromPath, VISTAIRE_LOCALE_HEADER } from "@/lib/i18n";
 import { updateSession } from "@/utils/supabase/middleware";
 
 const isProtectedRoute = createRouteMatcher([
@@ -27,6 +28,13 @@ const needsClerkAuthContext = createRouteMatcher([
 
 const needsSupabaseSession = createRouteMatcher(["/todos(.*)"]);
 
+function requestHeadersWithLocale(request: NextRequest): Headers {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete(DEV_OWNER_BYPASS_TRUSTED_HEADER);
+  requestHeaders.set(VISTAIRE_LOCALE_HEADER, getLocaleFromPath(request.nextUrl.pathname));
+  return requestHeaders;
+}
+
 function isOwnerDevBypassRoute(request: NextRequest): boolean {
   return (
     request.nextUrl.pathname === "/owner" ||
@@ -37,8 +45,7 @@ function isOwnerDevBypassRoute(request: NextRequest): boolean {
 }
 
 function devOwnerBypassResponse(request: NextRequest): NextResponse | null {
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.delete(DEV_OWNER_BYPASS_TRUSTED_HEADER);
+  const requestHeaders = requestHeadersWithLocale(request);
 
   if (!isOwnerDevBypassRoute(request)) return null;
 
@@ -59,8 +66,7 @@ function devOwnerBypassResponse(request: NextRequest): NextResponse | null {
 }
 
 const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.delete(DEV_OWNER_BYPASS_TRUSTED_HEADER);
+  const requestHeaders = requestHeadersWithLocale(request);
 
   if (isProtectedRoute(request)) {
     await auth.protect();
@@ -85,7 +91,11 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
     return handleProtectedRoute(request, event);
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeadersWithLocale(request),
+    },
+  });
 }
 
 export const config = {

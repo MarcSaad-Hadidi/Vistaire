@@ -5,14 +5,23 @@ import {
   buildWebPageJsonLd,
   type JsonLdObject
 } from "./seo.ts";
+import type { Locale } from "./i18n.ts";
 
 export const PRICING_PATH = "/tarifs-menu-digital-restaurant";
 export const CARTE_VISTAIRE_PATH = "/carte-vistaire";
+export const PRICING_PATH_EN = "/en/pricing-digital-restaurant-menu";
+export const CARTE_VISTAIRE_PATH_EN = "/en/vistaire-menu";
 
 export const pricingMetadata = {
   title: "Tarifs menu digital restaurant avec plats 3D | Vistaire",
   description:
     "Découvrez les tarifs Vistaire pour créer un menu digital premium clé en main avec QR code, fiches plats, photos, allergènes, mise en ligne et plats 3D inclus pour restaurants."
+} as const;
+
+export const pricingMetadataEn = {
+  title: "Digital restaurant menu pricing with 3D dishes | Vistaire",
+  description:
+    "Explore Vistaire pricing for a premium mobile restaurant menu with QR code, dish pages, photos, allergens, launch support and included 3D dishes."
 } as const;
 
 export type PricingPlan = {
@@ -246,6 +255,311 @@ export const PRICING_PAGE = {
   ]
 } as const;
 
+export const PRICING_PAGE_EN = {
+  path: PRICING_PATH_EN,
+  h1: "Vistaire pricing: premium digital menu with included 3D dishes",
+  subtitle:
+    "A guided service to turn your PDF menu into an elegant mobile menu opened by QR code, with selected 3D dishes included in every package.",
+  proof:
+    "Menu structure, dish pages, QR code, launch support and included 3D dishes.",
+  primaryCta: {
+    label: "Talk about your menu",
+    href: "/en/book-a-call"
+  },
+  secondaryCta: {
+    label: "View a Vistaire menu",
+    href: CARTE_VISTAIRE_PATH_EN
+  },
+  plans: [
+    {
+      name: "Vistaire Base",
+      setupPrice: "$950 CAD setup",
+      monthlyPrice: "$125 CAD / month",
+      setupAmount: 950,
+      monthlyAmount: 125,
+      menuDishLimit: 40,
+      included3dDishCount: 5,
+      cta: {
+        label: "Talk about your menu",
+        href: "/en/book-a-call"
+      },
+      bestFor:
+        "An independent restaurant ready to replace a PDF with a premium mobile menu and a first visible 3D moment.",
+      highlights: [
+        "Up to 40 dishes",
+        "5 included 3D dishes",
+        "QR code ready for print",
+        "Guided service"
+      ],
+      included: [
+        "Premium digital menu",
+        "Public menu link",
+        "Category structure",
+        "Dish pages with prices and concise descriptions",
+        "Basic allergen information",
+        "Provided photos integrated",
+        "Photo fallback if a 3D render is not strong enough",
+        "2 correction rounds before launch",
+        "Reasonable small monthly updates"
+      ]
+    },
+    {
+      name: "Vistaire Premium",
+      setupPrice: "$1,450 CAD setup",
+      monthlyPrice: "$169 CAD / month",
+      setupAmount: 1450,
+      monthlyAmount: 169,
+      menuDishLimit: 60,
+      included3dDishCount: 10,
+      recommended: true,
+      cta: {
+        label: "Choose Premium",
+        href: "/en/book-a-call"
+      },
+      bestFor:
+        "A restaurant that wants a fuller Vistaire experience and several key dishes visible in 3D.",
+      highlights: [
+        "Up to 60 dishes",
+        "10 included 3D dishes",
+        "Premium QR",
+        "Stronger signature dish presentation"
+      ],
+      included: [
+        "Everything in Base",
+        "More developed menu structure",
+        "Improved descriptions",
+        "Signature, recommended, popular and new badges",
+        "Allergens, options and sides",
+        "Stronger adaptation to the restaurant identity",
+        "More generous update support",
+        "Better presentation of signature dishes"
+      ]
+    },
+    {
+      name: "Vistaire Signature",
+      setupPrice: "$2,500 CAD setup",
+      monthlyPrice: "$249 CAD / month",
+      setupAmount: 2500,
+      monthlyAmount: 249,
+      menuDishLimit: 100,
+      included3dDishCount: 20,
+      cta: {
+        label: "Discuss a Signature menu",
+        href: "/en/book-a-call"
+      },
+      bestFor:
+        "A high-end restaurant or venue that wants the menu to become a branded visual experience.",
+      highlights: [
+        "Up to 100 dishes",
+        "20 included 3D dishes",
+        "More premium visual direction",
+        "Priority support"
+      ],
+      included: [
+        "Everything in Premium",
+        "More crafted dish pages",
+        "Strategic signature dish highlights",
+        "Launch support",
+        "Premium QR",
+        "Deeper QA",
+        "Recommendations on menu presentation"
+      ]
+    }
+  ] satisfies PricingPlan[],
+  threeDPacks: [
+    {
+      label: "+5 3D dishes",
+      price: "$149 CAD",
+      description: "To extend the experience to a few more signatures."
+    },
+    {
+      label: "+10 3D dishes",
+      price: "$249 CAD",
+      description: "To cover more important dishes without weighing down the menu."
+    },
+    {
+      label: "+20 3D dishes",
+      price: "$449 CAD",
+      description: "For a menu where visual immersion becomes a stronger signal."
+    },
+    {
+      label: "Single additional 3D dish",
+      price: "From $35 to $50 CAD / dish",
+      description: "Depending on dish complexity and validation needs."
+    }
+  ] satisfies PricingThreeDPack[],
+  faq: [
+    {
+      question: "How much does Vistaire cost?",
+      answer:
+        "Vistaire Base starts at $950 CAD setup and $125 CAD per month. Vistaire Premium is $1,450 CAD setup and $169 CAD per month. Vistaire Signature is $2,500 CAD setup and $249 CAD per month. Applicable taxes are extra."
+    },
+    {
+      question: "What is included in the Vistaire setup?",
+      answer:
+        "The setup includes menu structure, categories, dish pages, prices, descriptions, basic allergens, integration of provided photos, QR code, launch support and the included 3D dishes for the selected package."
+    },
+    {
+      question: "Are 3D dishes included?",
+      answer:
+        "Yes. Every package includes selected 3D dishes created from restaurant-provided photos and validated before publication."
+    },
+    {
+      question: "How many 3D dishes are included in each package?",
+      answer:
+        "Vistaire Base includes 5 3D dishes, Vistaire Premium includes 10 and Vistaire Signature includes 20."
+    },
+    {
+      question: "Does Vistaire replace a PDF menu?",
+      answer:
+        "Yes. Vistaire can become the main QR-scanned menu experience while keeping the PDF as an archive if needed."
+    },
+    {
+      question: "Is the QR code included?",
+      answer:
+        "Yes. Every offer includes a print-ready QR code and a public link to the digital menu."
+    },
+    {
+      question: "Does the restaurant have to manage a dashboard?",
+      answer:
+        "No. Vistaire is first a guided service. You send your menu and Vistaire handles creation, launch and planned updates."
+    },
+    {
+      question: "Are updates included?",
+      answer:
+        "Reasonable small monthly updates are included depending on the package. Larger changes are scoped before implementation."
+    },
+    {
+      question: "Are photos required?",
+      answer:
+        "Good photos improve the result. Vistaire can start with existing photos, but some images may need retouching or replacement."
+    },
+    {
+      question: "Does AR work on every device?",
+      answer:
+        "No. Augmented reality depends on the device, browser and validated asset format. Vistaire speaks first about included 3D dishes, with compatible AR when possible."
+    },
+    {
+      question: "Is Vistaire available for Montreal restaurants?",
+      answer:
+        "Yes. Vistaire supports restaurants in Montreal, Quebec and Canada, with an approach suited to independent restaurants, premium bistros and high-end venues."
+    },
+    {
+      question: "Is Vistaire suitable for high-end restaurants?",
+      answer:
+        "Yes. Vistaire is designed for restaurants that want a calm, visual and table-friendly mobile menu aligned with their brand."
+    },
+    {
+      question: "How long does a Vistaire menu take to create?",
+      answer:
+        "The timeline depends on dish count, photo quality, writing needs and 3D validation. A simple menu moves faster when content is ready."
+    },
+    {
+      question: "Can we start with a simple version?",
+      answer:
+        "Yes. Vistaire Base can replace a PDF with a premium digital menu and 5 included 3D dishes, then the experience can expand with a higher package or 3D packs."
+    }
+  ]
+} as const;
+
+export function getPricingPage(locale: Locale = "fr") {
+  return locale === "en" ? PRICING_PAGE_EN : PRICING_PAGE;
+}
+
+export function getPricingMetadata(locale: Locale = "fr") {
+  return locale === "en" ? pricingMetadataEn : pricingMetadata;
+}
+
+function buildPricingOfferCatalogEn(
+  env?: Record<string, string | undefined>
+): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    "@id": `${absoluteUrl(PRICING_PATH_EN, env)}#offer-catalog`,
+    name: "Vistaire packages with included 3D dishes",
+    url: absoluteUrl(PRICING_PATH_EN, env),
+    itemListElement: PRICING_PAGE_EN.plans.map((plan, index) => ({
+      "@type": "Offer",
+      position: index + 1,
+      name: plan.name,
+      url: absoluteUrl(PRICING_PATH_EN, env),
+      priceCurrency: "CAD",
+      itemOffered: {
+        "@type": "Service",
+        name: `${plan.name} - premium digital menu with ${plan.included3dDishCount} included 3D dishes`,
+        serviceType: "Guided digital restaurant menu with included 3D dishes",
+        description: plan.bestFor
+      },
+      priceSpecification: [
+        {
+          "@type": "UnitPriceSpecification",
+          price: plan.setupAmount,
+          priceCurrency: "CAD",
+          unitText: "setup"
+        },
+        {
+          "@type": "UnitPriceSpecification",
+          price: plan.monthlyAmount,
+          priceCurrency: "CAD",
+          unitText: "month"
+        }
+      ],
+      additionalProperty: [
+        {
+          "@type": "PropertyValue",
+          name: "Included dishes",
+          value: `Up to ${plan.menuDishLimit} dishes`
+        },
+        {
+          "@type": "PropertyValue",
+          name: "Included 3D dishes",
+          value: `${plan.included3dDishCount} included 3D dishes, validated before publication`
+        }
+      ]
+    }))
+  };
+}
+
+function buildPricingServiceJsonLdEn(
+  env?: Record<string, string | undefined>
+): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": `${absoluteUrl(PRICING_PATH_EN, env)}#service`,
+    name: "Vistaire digital restaurant menu with included 3D dishes",
+    serviceType: "Guided premium digital menu creation for restaurants",
+    url: absoluteUrl(PRICING_PATH_EN, env),
+    description:
+      "Guided service to create a premium mobile menu with QR code, dish pages, integrated provided photos, allergens, launch support and included 3D dishes.",
+    provider: {
+      "@id": `${absoluteUrl("/", env)}#organization`
+    },
+    areaServed: [
+      {
+        "@type": "City",
+        name: "Montreal"
+      },
+      {
+        "@type": "AdministrativeArea",
+        name: "Quebec"
+      },
+      {
+        "@type": "Country",
+        name: "Canada"
+      }
+    ],
+    audience: {
+      "@type": "BusinessAudience",
+      audienceType: "Independent restaurants, premium bistros and high-end restaurants"
+    },
+    hasOfferCatalog: {
+      "@id": `${absoluteUrl(PRICING_PATH_EN, env)}#offer-catalog`
+    }
+  };
+}
+
 export function buildPricingOfferCatalog(env?: Record<string, string | undefined>): JsonLdObject {
   return {
     "@context": "https://schema.org",
@@ -335,7 +649,34 @@ export function buildPricingServiceJsonLd(
   };
 }
 
-export function buildPricingPageJsonLd(env?: Record<string, string | undefined>) {
+export function buildPricingPageJsonLd(
+  env?: Record<string, string | undefined>,
+  locale: Locale = "fr"
+) {
+  if (locale === "en") {
+    return [
+      buildWebPageJsonLd(
+        {
+          path: PRICING_PATH_EN,
+          name: pricingMetadataEn.title,
+          description: pricingMetadataEn.description,
+          locale: "en"
+        },
+        env
+      ),
+      buildPricingServiceJsonLdEn(env),
+      buildPricingOfferCatalogEn(env),
+      buildFaqPageJsonLd([...PRICING_PAGE_EN.faq], PRICING_PATH_EN, env),
+      buildBreadcrumbJsonLd(
+        [
+          { name: "Home", path: "/en" },
+          { name: "Digital restaurant menu pricing", path: PRICING_PATH_EN }
+        ],
+        env
+      )
+    ];
+  }
+
   return [
     buildWebPageJsonLd(
       {

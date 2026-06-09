@@ -6,6 +6,7 @@ import pageDigitalPhoto from "@/Framer/PageDigital.png";
 import photoDigital2 from "@/Framer/PhotoDigital2.png";
 import photoDigital3 from "@/Framer/PhotoDigital3.png";
 import { getAllDishes } from "@/lib/demoMenuData";
+import type { Locale } from "@/lib/i18n";
 import { buildPdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 import {
   getVistaireChromeRoutes,
@@ -113,27 +114,181 @@ function ArrowIcon() {
 
 export function VistaireMenuDigitalRestaurantPreview({
   h1,
+  locale = "fr",
   routeMode = "preview",
   seoAppendix
 }: {
   h1?: string;
+  locale?: Locale;
   routeMode?: VistaireRouteMode;
   seoAppendix?: ReactNode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode);
+  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const copy =
+    locale === "en"
+      ? {
+          defaultTitle:
+            "Digital restaurant menu: a premium menu designed for mobile",
+          badge: "Restaurant guide",
+          lead:
+            "Vistaire turns a restaurant QR code into an elegant, fast and visual digital menu: clear categories, desirable dish pages, readable prices, allergens and selective 3D / AR when it brings real value.",
+          viewMenu: "View the menu",
+          appointment: "Book a call",
+          pdfBadge: "PDF menu",
+          pdfTitle: "Why a PDF menu is no longer enough",
+          pdfBody:
+            "The PDF remains practical for printing a menu, but it behaves poorly in the real context of service: table, low light, phone in one hand and quick decisions.",
+          revealEyebrow: "PDF to Vistaire",
+          revealTitle: "From PDF menu to Vistaire experience",
+          revealDesktop: "Hover to reveal Vistaire.",
+          revealMobile: "Slide on the card to reveal Vistaire.",
+          comparisonBadge: "Comparison",
+          comparisonTitle: "PDF, standard digital menu or Vistaire",
+          comparisonBody:
+            "The difference is not only the QR code. It is what the guest discovers after the scan: a file to endure, a standard interface, or a Vistaire experience.",
+          criterion: "Criterion",
+          pdf: "PDF menu",
+          standard: "Standard digital menu",
+          mobileBadge: "Mobile menu in context",
+          mobileTitle: "A menu designed for the table",
+          mobileBody:
+            "Vistaire stays readable in the real restaurant context: low light, one-handed phone use, quick decisions and dishes that must remain desirable.",
+          premiumBadge: "High-end restaurant",
+          premiumTitle: "Designed for high-end restaurants",
+          premiumBody:
+            "Digital should extend the restaurant experience, not replace it. Vistaire keeps the room, the dishes and the rhythm of service at the center.",
+          finalBadge: "Next step",
+          finalTitle: "Your menu deserves better than a PDF",
+          finalBody:
+            "Let's talk about your menu, signature dishes and the level of presentation your guests should feel on mobile.",
+          comparePdf: "Compare with a PDF",
+          talk: "Talk to Vistaire",
+          internalLabel: "Vistaire internal links",
+          pdfProblems: [
+            {
+              title: "Forced zoom",
+              text:
+                "The guest enlarges, reframes and loses the thread instead of browsing the menu naturally."
+            },
+            {
+              title: "Dishes feel less desirable",
+              text:
+                "A fixed page leaves little room for visuals, useful details and house signatures."
+            },
+            {
+              title: "Mobile comes second",
+              text:
+                "The PDF reproduces print. Vistaire starts from the screen the guest holds at the table."
+            },
+            {
+              title: "Less premium image",
+              text:
+                "A static file can feel practical, but rarely like a true restaurant experience."
+            }
+          ],
+          comparisonRows: [
+            {
+              label: "Mobile readability",
+              pdf: "Zoom, fixed page and dense reading.",
+              standard: "More readable list, often generic.",
+              vistaire:
+                "Clear navigation, categories and dish pages adapted to the phone."
+            },
+            {
+              label: "Visual quality",
+              pdf: "Little room for presentation.",
+              standard: "Visuals possible, rarely premium.",
+              vistaire: "Food-first visuals, warm dark surfaces and champagne accents."
+            },
+            {
+              label: "Desire to choose",
+              pdf: "The guest searches for a line.",
+              standard: "The guest reads a list.",
+              vistaire:
+                "The guest discovers dishes, readable prices and useful details."
+            },
+            {
+              label: "Dish pages",
+              pdf: "Details limited by the layout.",
+              standard: "Descriptions possible, often uniform.",
+              vistaire:
+                "Visual pages with prices, allergens, badges and short story."
+            },
+            {
+              label: "Updates",
+              pdf: "New file and risk of an old version.",
+              standard: "Faster, depending on the tool.",
+              vistaire: "A digital menu that is simpler to evolve."
+            },
+            {
+              label: "3D / AR",
+              pdf: "Impossible in the file.",
+              standard: "Often gimmicky if everything is treated the same.",
+              vistaire:
+                "Selective, reserved for dishes that benefit from volume."
+            }
+          ],
+          premiumPoints: [
+            "A calm presentation that respects the identity of the place.",
+            "Visual dish pages without turning the menu into a cold app.",
+            "Selective 3D / AR, useful only when it makes the dish clearer."
+          ]
+        }
+      : {
+          defaultTitle:
+            "Menu digital restaurant : une carte premium pensée pour le mobile",
+          badge: "Guide restaurateur",
+          lead:
+            "Vistaire transforme le QR code d'un restaurant en carte digitale élégante, rapide et visuelle : catégories claires, fiches plats désirables, prix lisibles, allergènes et 3D / AR sélective quand elle apporte une vraie valeur.",
+          viewMenu: "Voir la carte",
+          appointment: "Prendre rendez-vous",
+          pdfBadge: "Menu PDF",
+          pdfTitle: "Pourquoi un menu PDF ne suffit plus",
+          pdfBody:
+            "Le PDF reste pratique pour imprimer une carte, mais il se comporte mal dans le contexte réel du service : table, lumière, téléphone tenu d'une main et décision rapide.",
+          revealEyebrow: "PDF vers Vistaire",
+          revealTitle: "Du menu PDF à l'expérience Vistaire",
+          revealDesktop: "Survolez pour révéler Vistaire.",
+          revealMobile: "Glissez le doigt sur la carte pour révéler Vistaire.",
+          comparisonBadge: "Comparaison",
+          comparisonTitle: "PDF, menu digital standard ou Vistaire",
+          comparisonBody:
+            "La différence ne tient pas seulement au QR code. Elle tient à ce que le client découvre après le scan : un fichier à subir, une interface standard, ou une expérience Vistaire.",
+          criterion: "Critère",
+          pdf: "Menu PDF",
+          standard: "Menu digital standard",
+          mobileBadge: "Carte mobile en situation",
+          mobileTitle: "Une carte pensée pour la table",
+          mobileBody:
+            "Vistaire reste lisible dans le vrai contexte du restaurant : lumière basse, téléphone tenu d'une main, décision rapide et plats qui doivent rester désirables.",
+          premiumBadge: "Restaurant haut de gamme",
+          premiumTitle: "Pensé pour les restaurants haut de gamme",
+          premiumBody:
+            "Le digital doit prolonger l'expérience du restaurant, pas la remplacer. Vistaire garde la salle, les plats et le rythme du service au centre.",
+          finalBadge: "Prochaine étape",
+          finalTitle: "Votre carte mérite mieux qu'un PDF",
+          finalBody:
+            "Parlons de votre carte, de vos plats signatures et du niveau de présentation que vos clients doivent ressentir sur mobile.",
+          comparePdf: "Comparer avec un PDF",
+          talk: "Parler à Vistaire",
+          internalLabel: "Liens internes Vistaire",
+          pdfProblems,
+          comparisonRows,
+          premiumPoints
+        };
   const pageTitle =
-    h1 ?? "Menu digital restaurant : une carte premium pensée pour le mobile";
+    h1 ?? copy.defaultTitle;
   const pageInternalLinks =
     routeMode === "preview"
       ? internalLinks
       : [
-          { label: "Explorer la carte", href: routes.menu },
-          { label: "Comparer avec un PDF", href: routes.pdfVsDigital },
-          { label: "Parler à Vistaire", href: routes.contact }
+          { label: copy.viewMenu, href: routes.menu },
+          { label: copy.comparePdf, href: routes.pdfVsDigital },
+          { label: copy.talk, href: routes.contact }
         ];
   const comparePreview = buildPdfComparePreviewData({
     activeCategorySlug: "tous",
-    vistaireDishSlugs: getAllDishes().map((dish) => dish.slug)
+    vistaireDishSlugs: getAllDishes(locale).map((dish) => dish.slug)
   });
 
   return (
@@ -151,7 +306,12 @@ export function VistaireMenuDigitalRestaurantPreview({
       />
 
       <div className={styles.topNav}>
-        <PreviewNav activeSection="home" routeMode={routeMode} />
+        <PreviewNav
+          activeSection="home"
+          currentPath={routes.menuDigital}
+          locale={locale}
+          routeMode={routeMode}
+        />
       </div>
 
       <section
@@ -160,7 +320,7 @@ export function VistaireMenuDigitalRestaurantPreview({
       >
         <div className={styles.previewFrame}>
           <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>Guide restaurateur</p>
+            <p className={styles.badge}>{copy.badge}</p>
             <h1
               aria-label={pageTitle}
               id="menu-digital-restaurant-preview-title"
@@ -168,14 +328,11 @@ export function VistaireMenuDigitalRestaurantPreview({
               {pageTitle}
             </h1>
             <p className={styles.heroLead}>
-              Vistaire transforme le QR code d&apos;un restaurant en carte digitale
-              élégante, rapide et visuelle : catégories claires, fiches plats
-              désirables, prix lisibles, allergènes et 3D / AR sélective quand
-              elle apporte une vraie valeur.
+              {copy.lead}
             </p>
             <div className={styles.heroActions} aria-label="Actions principales">
               <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
-                Voir la carte
+                {copy.viewMenu}
                 <ArrowIcon />
               </Link>
               <Link
@@ -183,7 +340,7 @@ export function VistaireMenuDigitalRestaurantPreview({
                 href={routes.appointment}
                 prefetch={false}
               >
-                Prendre rendez-vous
+                {copy.appointment}
               </Link>
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
@@ -203,15 +360,11 @@ export function VistaireMenuDigitalRestaurantPreview({
             className={`${styles.card} ${styles.problemCard}`}
             aria-labelledby="pdf-problem-title"
           >
-            <p className={styles.badge}>Menu PDF</p>
-            <h2 id="pdf-problem-title">Pourquoi un menu PDF ne suffit plus</h2>
-            <p>
-              Le PDF reste pratique pour imprimer une carte, mais il se comporte
-              mal dans le contexte réel du service : table, lumière, téléphone
-              tenu d&apos;une main et décision rapide.
-            </p>
+            <p className={styles.badge}>{copy.pdfBadge}</p>
+            <h2 id="pdf-problem-title">{copy.pdfTitle}</h2>
+            <p>{copy.pdfBody}</p>
             <div className={styles.problemList}>
-              {pdfProblems.map((problem) => (
+              {copy.pdfProblems.map((problem) => (
                 <section key={problem.title}>
                   <h3>{problem.title}</h3>
                   <p>{problem.text}</p>
@@ -226,15 +379,13 @@ export function VistaireMenuDigitalRestaurantPreview({
             aria-labelledby="hover-reveal-title"
           >
             <div className={styles.revealIntro}>
-              <p>PDF vers Vistaire</p>
-              <h2 id="hover-reveal-title">
-                Du menu PDF à l&apos;expérience Vistaire
-              </h2>
+              <p>{copy.revealEyebrow}</p>
+              <h2 id="hover-reveal-title">{copy.revealTitle}</h2>
               <span className={styles.desktopInstruction}>
-                Survolez pour révéler Vistaire.
+                {copy.revealDesktop}
               </span>
               <span className={styles.mobileInstruction}>
-                Glissez le doigt sur la carte pour révéler Vistaire.
+                {copy.revealMobile}
               </span>
             </div>
             <div className={styles.revealPreviewWrap}>
@@ -247,29 +398,25 @@ export function VistaireMenuDigitalRestaurantPreview({
             aria-labelledby="comparison-title"
           >
             <div className={styles.sectionIntro}>
-              <p className={styles.badge}>Comparaison</p>
-              <h2 id="comparison-title">PDF, menu digital standard ou Vistaire</h2>
-              <p>
-                La différence ne tient pas seulement au QR code. Elle tient à ce
-                que le client découvre après le scan : un fichier à subir, une
-                interface standard, ou une expérience Vistaire.
-              </p>
+              <p className={styles.badge}>{copy.comparisonBadge}</p>
+              <h2 id="comparison-title">{copy.comparisonTitle}</h2>
+              <p>{copy.comparisonBody}</p>
             </div>
             <table className={styles.comparisonTable}>
               <thead>
                 <tr>
-                  <th scope="col">Critère</th>
-                  <th scope="col">Menu PDF</th>
-                  <th scope="col">Menu digital standard</th>
+                  <th scope="col">{copy.criterion}</th>
+                  <th scope="col">{copy.pdf}</th>
+                  <th scope="col">{copy.standard}</th>
                   <th scope="col">Vistaire</th>
                 </tr>
               </thead>
               <tbody>
-                {comparisonRows.map((row) => (
+                {copy.comparisonRows.map((row) => (
                   <tr key={row.label}>
                     <th scope="row">{row.label}</th>
-                    <td data-label="Menu PDF">{row.pdf}</td>
-                    <td data-label="Menu digital standard">{row.standard}</td>
+                    <td data-label={copy.pdf}>{row.pdf}</td>
+                    <td data-label={copy.standard}>{row.standard}</td>
                     <td data-label="Vistaire">{row.vistaire}</td>
                   </tr>
                 ))}
@@ -293,13 +440,9 @@ export function VistaireMenuDigitalRestaurantPreview({
               />
             </figure>
             <div className={styles.visualCopy}>
-              <p className={styles.badge}>Carte mobile en situation</p>
-              <h2 id="mobile-proof-title">Une carte pensée pour la table</h2>
-              <p>
-                Vistaire reste lisible dans le vrai contexte du restaurant :
-                lumière basse, téléphone tenu d&apos;une main, décision rapide et
-                plats qui doivent rester désirables.
-              </p>
+              <p className={styles.badge}>{copy.mobileBadge}</p>
+              <h2 id="mobile-proof-title">{copy.mobileTitle}</h2>
+              <p>{copy.mobileBody}</p>
             </div>
           </section>
 
@@ -309,18 +452,12 @@ export function VistaireMenuDigitalRestaurantPreview({
           >
             <div className={styles.premiumContent}>
               <div className={styles.sectionIntro}>
-                <p className={styles.badge}>Restaurant haut de gamme</p>
-                <h2 id="premium-title">
-                  Pensé pour les restaurants haut de gamme
-                </h2>
-                <p>
-                  Le digital doit prolonger l&apos;expérience du restaurant, pas la
-                  remplacer. Vistaire garde la salle, les plats et le rythme du
-                  service au centre.
-                </p>
+                <p className={styles.badge}>{copy.premiumBadge}</p>
+                <h2 id="premium-title">{copy.premiumTitle}</h2>
+                <p>{copy.premiumBody}</p>
               </div>
               <div className={styles.benefitGrid}>
-                {premiumPoints.map((point) => (
+                {copy.premiumPoints.map((point) => (
                   <article className={styles.benefitItem} key={point}>
                     <h3>{point}</h3>
                   </article>
@@ -345,23 +482,20 @@ export function VistaireMenuDigitalRestaurantPreview({
             aria-labelledby="final-cta-title"
           >
             <div>
-              <p className={styles.badge}>Prochaine étape</p>
-              <h2 id="final-cta-title">Votre carte mérite mieux qu&apos;un PDF</h2>
-              <p>
-                Parlons de votre carte, de vos plats signatures et du niveau de
-                présentation que vos clients doivent ressentir sur mobile.
-              </p>
+              <p className={styles.badge}>{copy.finalBadge}</p>
+              <h2 id="final-cta-title">{copy.finalTitle}</h2>
+              <p>{copy.finalBody}</p>
             </div>
             <div className={styles.finalActions}>
               <Link className={styles.primaryButton} href={routes.appointment} prefetch={false}>
-                Prendre rendez-vous
+                {copy.appointment}
                 <ArrowIcon />
               </Link>
               <Link className={styles.secondaryButton} href={routes.menu} prefetch={false}>
-                Voir la carte
+                {copy.viewMenu}
               </Link>
             </div>
-            <nav className={styles.internalLinks} aria-label="Liens internes Vistaire">
+            <nav className={styles.internalLinks} aria-label={copy.internalLabel}>
               {pageInternalLinks.map((item) => (
                 <Link href={item.href} key={item.href} prefetch={false}>
                   {item.label}
@@ -374,7 +508,12 @@ export function VistaireMenuDigitalRestaurantPreview({
         </div>
       </section>
 
-      <PreviewFooter routeMode={routeMode} width="wide" />
+      <PreviewFooter
+        currentPath={routes.menuDigital}
+        locale={locale}
+        routeMode={routeMode}
+        width="wide"
+      />
     </main>
   );
 }

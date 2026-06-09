@@ -7,6 +7,24 @@ export function VistaireSeoProductionSections({
 }: {
   page: SeoPageData;
 }) {
+  const locale = page.locale ?? "fr";
+  const copy =
+    locale === "en"
+      ? {
+          eyebrow: "Vistaire guide",
+          title: "Complete guide to choosing a premium digital menu",
+          intro:
+            "Visible reference points for restaurants, with answers, deeper sections, frequent questions and connected guides. Vistaire speaks here to high-end restaurants in Montreal, Quebec and Canada that want to replace a PDF or basic QR menu with a true mobile experience.",
+          direct: "Direct answer"
+        }
+      : {
+          eyebrow: "Guide Vistaire",
+          title: "Guide complet pour choisir une carte digitale premium",
+          intro:
+            "Des repères visibles pour les restaurateurs, avec les réponses, les sections de fond, les questions fréquentes et les guides reliés. Vistaire parle ici aux restaurants haut de gamme de Montréal, du Québec et du Canada qui veulent remplacer un PDF ou un QR basique par une vraie expérience mobile.",
+          direct: "Réponse directe"
+        };
+
   return (
     <section
       aria-labelledby={`${page.slug}-seo-guide-title`}
@@ -15,20 +33,16 @@ export function VistaireSeoProductionSections({
       <div className="relative z-[2] mx-auto grid max-w-7xl gap-10 lg:gap-12">
         <div className="max-w-3xl">
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#e8cf9b]/75">
-            Guide Vistaire
+            {copy.eyebrow}
           </p>
           <h2
             id={`${page.slug}-seo-guide-title`}
             className="mt-4 font-display text-3xl font-normal leading-tight text-[#fffaf0] sm:text-4xl"
           >
-            Guide complet pour choisir une carte digitale premium
+            {copy.title}
           </h2>
           <p className="mt-5 text-sm leading-7 text-[#d8c9b2] sm:text-base">
-            Des repères visibles pour les restaurateurs, avec les réponses, les
-            sections de fond, les questions fréquentes et les guides reliés.
-            Vistaire parle ici aux restaurants haut de gamme de Montréal, du
-            Québec et du Canada qui veulent remplacer un PDF ou un QR basique
-            par une vraie expérience mobile.
+            {copy.intro}
           </p>
         </div>
 
@@ -38,7 +52,7 @@ export function VistaireSeoProductionSections({
             className="rounded-[8px] border border-[#f6e1b7]/12 bg-[#fff7ea]/[0.035] p-6 sm:p-7"
           >
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#e8cf9b]/70">
-              Reponse directe
+              {copy.direct}
             </p>
             <h2
               id={`${page.slug}-direct-answer-title`}
@@ -86,8 +100,8 @@ export function VistaireSeoProductionSections({
           </div>
         </div>
 
-        <SeoFaq faqs={page.faq} layout="stack" />
-        <InternalSeoLinks currentSlug={page.slug} />
+        <SeoFaq faqs={page.faq} layout="stack" locale={locale} />
+        <InternalSeoLinks currentSlug={page.slug} locale={locale} />
       </div>
     </section>
   );

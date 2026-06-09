@@ -8,6 +8,7 @@ import {
   getDishBySlug,
   getRestaurant
 } from "@/lib/demoMenuData";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
 type PageProps = {
@@ -42,9 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       absolute: pageTitle
     },
     description,
-    alternates: {
-      canonical: canonicalPath
-    },
+    alternates: buildPageAlternates(canonicalPath),
     robots: {
       index: false,
       follow: true
@@ -53,6 +52,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       url: absoluteUrl(canonicalPath),
       title: pageTitle,
       description,
+      locale: LOCALE_OPEN_GRAPH.fr,
       type: "website",
       images: imageUrl
         ? [

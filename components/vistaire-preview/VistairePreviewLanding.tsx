@@ -4,6 +4,7 @@ import restaurantBackground from "@/Framer/PhotoRestoComplet.png";
 import lobsterPlate from "@/Framer/PlatHomard.png";
 import restaurantTable from "@/Framer/Photo table.png";
 import restaurantGuest from "@/Framer/PhotoFemme.png";
+import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
@@ -58,11 +59,49 @@ function ArrowIcon() {
 }
 
 export function VistairePreviewLanding({
+  locale = "fr",
   routeMode = "preview"
 }: {
+  locale?: Locale;
   routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode);
+  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const copy =
+    locale === "en"
+      ? {
+          sectionLabel: "Vistaire landing page",
+          videoLabel: "Video demonstration of the Vistaire digital menu",
+          trackLabel: "English",
+          srTitle: ", premium digital menu for high-end restaurants",
+          heroSubline: "PREMIUM DIGITAL MENU",
+          menuTitle: "DIGITAL MENU",
+          explore: "Explore",
+          aboutTag: "About Vistaire",
+          aboutTitle: "A digital menu that makes dishes desirable",
+          aboutBody:
+            "Vistaire turns a restaurant QR code into a premium digital menu: clear navigation, visual dish pages and selective 3D/AR when it adds real value.",
+          aboutBodySecond:
+            "Based in Montreal, Vistaire helps restaurants in Quebec replace a PDF with a clear, citable mobile experience that stays faithful to the dining room.",
+          discoverTitle: "DISCOVER",
+          discoverButton: "Discover"
+        }
+      : {
+          sectionLabel: "Nouvelle landing Vistaire",
+          videoLabel: "Démonstration vidéo de la carte digitale Vistaire",
+          trackLabel: "Français",
+          srTitle: ", carte digitale premium pour restaurants haut de gamme",
+          heroSubline: "CARTE DIGITALE PREMIUM",
+          menuTitle: "CARTE DIGITALE",
+          explore: "Explorer",
+          aboutTag: "À propos de Vistaire",
+          aboutTitle: "Une carte digitale qui donne envie",
+          aboutBody:
+            "Vistaire transforme le QR code d'un restaurant en carte digitale premium : menu clair, fiches plats visuelles et 3D/AR quand elle apporte une vraie valeur",
+          aboutBodySecond:
+            "Basé à Montréal, Vistaire aide les restaurants du Québec à remplacer un PDF par une expérience mobile claire, citable et fidèle à la salle.",
+          discoverTitle: "DÉCOUVRIR",
+          discoverButton: "Découvrir"
+        };
 
   return (
     <main className={styles.page}>
@@ -86,14 +125,14 @@ export function VistairePreviewLanding({
       />
 
       <section
-        aria-label="Nouvelle landing Vistaire"
+        aria-label={copy.sectionLabel}
         className={styles.hero}
         id="accueil"
       >
         <div className={styles.previewFrame}>
           <article className={`${styles.card} ${styles.videoCard}`}>
             <video
-              aria-label="Démonstration vidéo de la carte digitale Vistaire"
+              aria-label={copy.videoLabel}
               autoPlay
               className={styles.heroVideo}
               controls={false}
@@ -107,9 +146,9 @@ export function VistairePreviewLanding({
               <track
                 default
                 kind="captions"
-                label="Français"
+                label={copy.trackLabel}
                 src={heroCaptionsSrc}
-                srcLang="fr"
+                srcLang={locale}
               />
             </video>
             <div aria-hidden="true" className={styles.videoShade} />
@@ -117,10 +156,10 @@ export function VistairePreviewLanding({
               <h1>
                 VISTAIRE
                 <span className={styles.srOnly}>
-                  , carte digitale premium pour restaurants haut de gamme
+                  {copy.srTitle}
                 </span>
               </h1>
-              <p>CARTE DIGITALE PREMIUM</p>
+              <p>{copy.heroSubline}</p>
             </div>
           </article>
 
@@ -135,9 +174,9 @@ export function VistairePreviewLanding({
               />
               <div aria-hidden="true" className={styles.menuShade} />
               <div className={styles.menuCopy}>
-                <h2>CARTE DIGITALE</h2>
+                <h2>{copy.menuTitle}</h2>
                 <a className={styles.darkButton} href={routes.menu}>
-                  Explorer
+                  {copy.explore}
                   <ArrowIcon />
                 </a>
               </div>
@@ -147,18 +186,10 @@ export function VistairePreviewLanding({
               <article className={`${styles.aboutCard}`} id="a-propos">
                 <div aria-hidden="true" className={styles.aboutShade} />
                 <div className={styles.aboutContent}>
-                  <p className={styles.aboutTag}>À propos de Vistaire</p>
-                  <h2>Une carte digitale qui donne envie</h2>
-                  <p>
-                    Vistaire transforme le QR code d’un restaurant en carte
-                    digitale premium : menu clair, fiches plats visuelles et
-                    3D/AR quand elle apporte une vraie valeur
-                  </p>
-                  <p>
-                    Basé à Montréal, Vistaire aide les restaurants du Québec à
-                    remplacer un PDF par une expérience mobile claire,
-                    citable et fidèle à la salle.
-                  </p>
+                  <p className={styles.aboutTag}>{copy.aboutTag}</p>
+                  <h2>{copy.aboutTitle}</h2>
+                  <p>{copy.aboutBody}</p>
+                  <p>{copy.aboutBodySecond}</p>
                 </div>
               </article>
 
@@ -188,11 +219,11 @@ export function VistairePreviewLanding({
                 <div aria-hidden="true" className={styles.discoveryShade} />
                 <div className={styles.discoveryCopy}>
                   <h2>
-                    DÉCOUVRIR
+                    {copy.discoverTitle}
                     <span>VISTAIRE</span>
                   </h2>
                   <a className={styles.lightButton} href={routes.about}>
-                    Découvrir
+                    {copy.discoverButton}
                     <ArrowIcon />
                   </a>
                   <div aria-hidden="true" className={styles.dots}>
@@ -205,10 +236,19 @@ export function VistairePreviewLanding({
           </div>
         </div>
 
-        <PreviewNav activeSection="home" routeMode={routeMode} />
+        <PreviewNav
+          activeSection="home"
+          currentPath={routes.home}
+          locale={locale}
+          routeMode={routeMode}
+        />
       </section>
 
-      <PreviewFooter routeMode={routeMode} />
+      <PreviewFooter
+        currentPath={routes.home}
+        locale={locale}
+        routeMode={routeMode}
+      />
     </main>
   );
 }

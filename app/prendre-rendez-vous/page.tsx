@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireRendezVousPreview } from "@/components/vistaire-preview/VistaireRendezVousPreview";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
   buildBreadcrumbJsonLd,
@@ -16,14 +17,13 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  alternates: {
-    canonical: canonicalPath
-  },
+  alternates: buildPageAlternates(canonicalPath),
   openGraph: {
     url: absoluteUrl(canonicalPath),
     title,
     description:
       "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website"
   },
   twitter: {
