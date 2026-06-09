@@ -9,6 +9,10 @@ import {
   CARTE_VISTAIRE_PATH,
   PRICING_PAGE
 } from "@/lib/pricingPage";
+import {
+  CONTACT_PHONE_DISPLAY,
+  CONTACT_PHONE_TEL
+} from "@/lib/seo";
 import chromeStyles from "@/components/vistaire-preview/VistairePreviewChrome.module.css";
 import styles from "@/components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.module.css";
 
@@ -57,11 +61,10 @@ const pdfRows = [
 
 const resourceLinks = [
   { label: "Tarifs", href: PRICING_PAGE.path },
-  { label: "Carte Vistaire", href: CARTE_VISTAIRE_PATH },
   { label: "Menu digital restaurant", href: "/menu-digital-restaurant" },
   { label: "Menu QR code restaurant", href: "/menu-qr-code-restaurant" },
   { label: "PDF vs menu digital", href: "/menu-pdf-vs-menu-digital" },
-  { label: "Plats 3D restaurant", href: "/menu-3d-ar-restaurant" }
+  { label: "Restaurants haut de gamme", href: "/a-propos" }
 ] as const;
 
 function ArrowIcon() {
@@ -159,9 +162,15 @@ function PricingFooter() {
         </nav>
       </section>
 
-      <section className={chromeStyles.footerColumn} aria-label="Ressources">
+      <section
+        className={`${chromeStyles.footerColumn} ${chromeStyles.footerColumnWide}`}
+        aria-label="Ressources"
+      >
         <h2>Ressources</h2>
-        <nav className={chromeStyles.footerLinkList} aria-label="Guides Vistaire">
+        <nav
+          className={`${chromeStyles.footerLinkList} ${chromeStyles.footerLinkListBalanced}`}
+          aria-label="Guides Vistaire"
+        >
           {resourceLinks.map((item) => (
             <Link href={item.href} key={item.href} prefetch={false}>
               {item.label}
@@ -175,6 +184,9 @@ function PricingFooter() {
         <p className={chromeStyles.footerPlace}>Montréal, Québec, Canada</p>
         <a className={chromeStyles.footerEmail} href="mailto:contact@vistaire.ca">
           contact@vistaire.ca
+        </a>
+        <a className={chromeStyles.footerEmail} href={`tel:${CONTACT_PHONE_TEL}`}>
+          {CONTACT_PHONE_DISPLAY}
         </a>
         <Link
           className={chromeStyles.footerCta}
