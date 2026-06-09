@@ -23,7 +23,6 @@ test("declares a complete bilingual FR/EN route map", async () => {
     BILINGUAL_ROUTE_PAIRS.map((route) => [route.fr, route.en]),
     [
       ["/", "/en"],
-      ["/carte-vistaire", "/en/vistaire-menu"],
       ["/demo", "/en/vistaire-menu"],
       ["/tarifs-menu-digital-restaurant", "/en/pricing-digital-restaurant-menu"],
       ["/menu-digital-restaurant", "/en/digital-restaurant-menu"],
@@ -37,8 +36,15 @@ test("declares a complete bilingual FR/EN route map", async () => {
     ]
   );
 
+  assert.equal(
+    new Set(BILINGUAL_ROUTE_PAIRS.map((route) => route.en)).size,
+    BILINGUAL_ROUTE_PAIRS.length,
+    "English hreflang targets must be unique"
+  );
   assert.equal(getLocaleFromPath("/en/contact"), "en");
   assert.equal(getLocaleFromPath("/contact"), "fr");
+  assert.equal(getLocalizedPath("/en/vistaire-menu", "fr"), "/demo");
+  assert.equal(getLocalizedPath("/demo", "en"), "/en/vistaire-menu");
   assert.equal(
     getLocalizedPath("/tarifs-menu-digital-restaurant", "en"),
     "/en/pricing-digital-restaurant-menu"
@@ -71,6 +77,19 @@ test("builds self-canonical hreflang metadata for both languages", async () => {
       "x-default": "/contact"
     }
   });
+
+  assert.deepEqual(buildPageAlternates("/en/vistaire-menu"), {
+    canonical: "/en/vistaire-menu",
+    languages: {
+      "fr-CA": "/demo",
+      "en-CA": "/en/vistaire-menu",
+      "x-default": "/demo"
+    }
+  });
+
+  assert.deepEqual(buildPageAlternates("/carte-vistaire"), {
+    canonical: "/carte-vistaire"
+  });
 });
 
 test("publishes bilingual sitemap entries with hreflang alternates", async () => {
@@ -101,6 +120,12 @@ test("publishes bilingual sitemap entries with hreflang alternates", async () =>
     "en-CA": "https://www.vistaire.ca/en/contact",
     "x-default": "https://www.vistaire.ca/contact"
   });
+  assert.deepEqual(byPath.get("/en/vistaire-menu")?.alternates?.languages, {
+    "fr-CA": "https://www.vistaire.ca/demo",
+    "en-CA": "https://www.vistaire.ca/en/vistaire-menu",
+    "x-default": "https://www.vistaire.ca/demo"
+  });
+  assert.equal(byPath.get("/carte-vistaire")?.alternates, undefined);
   assert.equal(byPath.has("/admin"), false);
   assert.equal(byPath.has("/owner"), false);
   assert.equal(byPath.has("/dev/meshy-dishes-review"), false);
@@ -121,6 +146,6 @@ test("keeps dev review routes out of robots crawl", async () => {
 
   for (const path of ["/dev", "/dev/", "/dev/*"]) {
     assert.equal(INTERNAL_ROBOTS_DISALLOW.includes(path), true);
-    assert.match(buildRobotsTxt(siteEnv), new RegExp(`Disallow: ${path.replace("*", "\\*")}`));
+    assert.match(buildRobotsTxt(siteEnv), new RegExp(`Disallow: ${path.replace(/\*/g, "\\*")}`));
   }
 });

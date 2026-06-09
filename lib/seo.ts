@@ -105,6 +105,14 @@ export const PUBLIC_PRODUCT_SITEMAP_ENTRIES = [
   }
 ] as const;
 
+const STANDALONE_SITEMAP_ENTRIES = [
+  {
+    path: "/carte-vistaire",
+    changeFrequency: "monthly",
+    priority: 0.8
+  }
+] as const;
+
 export type SitemapEntry = {
   url: string;
   lastModified: Date;
@@ -272,6 +280,23 @@ export function buildSitemapEntries(
   void dishes;
   const entries = new Map<string, SitemapEntry>();
   const toAbsolute = (path: string) => absoluteUrl(path, env);
+  const setEntry = (
+    path: string,
+    changeFrequency: SitemapEntry["changeFrequency"],
+    priority: number,
+    alternates?: SitemapEntry["alternates"]
+  ) => {
+    const url = toAbsolute(path);
+    const current = entries.get(url);
+
+    entries.set(url, {
+      url,
+      lastModified,
+      changeFrequency,
+      priority: Math.max(current?.priority ?? 0, priority),
+      ...(alternates ? { alternates } : {})
+    });
+  };
 
   for (const route of BILINGUAL_ROUTE_PAIRS) {
     const languageAlternates = buildAbsoluteLanguageAlternates(
@@ -280,18 +305,19 @@ export function buildSitemapEntries(
     );
 
     for (const path of [route.fr, route.en]) {
-      const url = toAbsolute(path);
-      const current = entries.get(url);
-
-      entries.set(url, {
-        url,
-        lastModified,
-        changeFrequency: route.changeFrequency,
-        priority: Math.max(current?.priority ?? 0, route.priority),
-        alternates: {
-          languages: languageAlternates
-        }
+      setEntry(path, route.changeFrequency, route.priority, {
+        languages: languageAlternates
       });
+    }
+
+    if (route.fr === "/") {
+      for (const standaloneRoute of STANDALONE_SITEMAP_ENTRIES) {
+        setEntry(
+          standaloneRoute.path,
+          standaloneRoute.changeFrequency,
+          standaloneRoute.priority
+        );
+      }
     }
   }
 

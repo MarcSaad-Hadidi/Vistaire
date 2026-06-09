@@ -28,12 +28,6 @@ export type BilingualRoutePair = {
 export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
   { fr: "/", en: "/en", changeFrequency: "monthly", priority: 1 },
   {
-    fr: "/carte-vistaire",
-    en: "/en/vistaire-menu",
-    changeFrequency: "monthly",
-    priority: 0.8
-  },
-  {
     fr: "/demo",
     en: "/en/vistaire-menu",
     changeFrequency: "weekly",
@@ -148,10 +142,16 @@ export function getLocalizedPath(pathname: string, locale: Locale): string {
 export function buildPageAlternates(pathname: string): Metadata["alternates"] {
   const normalized = normalizePathname(pathname);
   const pair = getBilingualRoutePair(normalized);
+  if (!pair) {
+    return {
+      canonical: normalized
+    };
+  }
+
   const locale = getLocaleFromPath(normalized);
-  const canonical = locale === "en" ? (pair?.en ?? normalized) : (pair?.fr ?? normalized);
-  const frenchPath = pair?.fr ?? "/";
-  const englishPath = pair?.en ?? "/en";
+  const canonical = locale === "en" ? pair.en : pair.fr;
+  const frenchPath = pair.fr;
+  const englishPath = pair.en;
 
   return {
     canonical,
