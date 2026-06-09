@@ -146,6 +146,6 @@ test("keeps dev review routes out of robots crawl", async () => {
 
   for (const path of ["/dev", "/dev/", "/dev/*"]) {
     assert.equal(INTERNAL_ROBOTS_DISALLOW.includes(path), true);
-    assert.match(buildRobotsTxt(siteEnv), new RegExp(`Disallow: ${path.replace(/\*/g, "\\*")}`));
+    assert.match(buildRobotsTxt(siteEnv), new RegExp(`Disallow: ${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   }
 });
