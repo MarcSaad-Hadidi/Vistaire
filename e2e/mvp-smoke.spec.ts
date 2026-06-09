@@ -248,6 +248,9 @@ test.describe("Vistaire MVP smoke", () => {
     await expect(
       page.getByRole("link", { name: "Prendre rendez-vous" }).first()
     ).toHaveAttribute("href", "/prendre-rendez-vous");
+    await expect(
+      page.getByRole("link", { name: "Tarifs", exact: true })
+    ).toHaveAttribute("href", "/tarifs-menu-digital-restaurant");
     await expectNoHorizontalOverflow(page);
     expect(modelRequests).toEqual([]);
     health.expectClean();
@@ -344,6 +347,9 @@ test.describe("Vistaire MVP smoke", () => {
       await expect(
         page.getByRole("link", { name: "Voir une carte Vistaire" }).first()
       ).toHaveAttribute("href", "/carte-vistaire");
+      await expect(
+        page.getByRole("link", { name: "514-715-2421" })
+      ).toHaveAttribute("href", "tel:+15147152421");
       expect(await collectStructuredDataTypes(page)).toEqual(
         expect.arrayContaining([
           "WebPage",

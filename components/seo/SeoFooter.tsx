@@ -4,11 +4,12 @@ import {
   CONTACT_PHONE_TEL,
   getVistaireSocialProfiles
 } from "@/lib/seo";
+import { PRICING_PAGE } from "@/lib/pricingPage";
 import { SEO_PAGES } from "@/lib/seoPages";
 
 const experienceLinks = [
-  { href: "/demo", label: "Menu client exemple" },
-  { href: "/demo/dishes/homard-bisque", label: "Fiche plat immersive" },
+  { href: "/carte-vistaire", label: "Carte Vistaire" },
+  { href: "/menu-3d-ar-restaurant", label: "Plats 3D inclus" },
   { href: "/apercu-restaurateur", label: "Aperçu restaurateur" }
 ] as const;
 
@@ -19,6 +20,14 @@ const whyLinks = [
     href: "/menu-digital-restaurant",
     label: "Valoriser les plats signatures"
   }
+] as const;
+
+const guideLinks = [
+  { href: PRICING_PAGE.path, label: "Tarifs" },
+  ...SEO_PAGES.map((page) => ({
+    href: page.path,
+    label: page.footerLabel ?? page.eyebrow
+  }))
 ] as const;
 
 type FooterGroupProps = {
@@ -79,13 +88,13 @@ export function SeoFooter({ compact = false }: SeoFooterProps) {
           </FooterGroup>
 
           <FooterGroup title="Guides">
-            {SEO_PAGES.map((page) => (
-              <li key={page.path}>
+            {guideLinks.map((link) => (
+              <li key={link.href}>
                 <Link
-                  href={page.path}
+                  href={link.href}
                   className="transition hover:text-cream focus:outline-none focus-visible:text-cream focus-visible:ring-2 focus-visible:ring-champagne"
                 >
-                  {page.footerLabel ?? page.eyebrow}
+                  {link.label}
                 </Link>
               </li>
             ))}

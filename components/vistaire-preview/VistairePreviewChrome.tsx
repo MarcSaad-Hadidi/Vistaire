@@ -4,6 +4,7 @@ import {
   CONTACT_PHONE_TEL,
   getVistaireSocialProfiles
 } from "@/lib/seo";
+import { PRICING_PAGE } from "@/lib/pricingPage";
 import styles from "./VistairePreviewChrome.module.css";
 
 type PreviewNavItem = {
@@ -27,6 +28,7 @@ type VistaireChromeRoutes = {
   menuDigital: string;
   menuQrCode: string;
   pdfVsDigital: string;
+  pricing: string;
   restaurateurDashboard: string;
 };
 
@@ -45,6 +47,7 @@ export function getVistaireChromeRoutes(
       menuDigital: "/menu-digital-restaurant",
       menuQrCode: "/menu-qr-code-restaurant",
       pdfVsDigital: "/menu-pdf-vs-menu-digital",
+      pricing: PRICING_PAGE.path,
       restaurateurDashboard: "/apercu-restaurateur"
     };
   }
@@ -60,6 +63,7 @@ export function getVistaireChromeRoutes(
     menuDigital: "/vistaire-preview/menu-digital-restaurant",
     menuQrCode: "/vistaire-preview/menu-qr-code-restaurant",
     pdfVsDigital: "/vistaire-preview/pdf-vs-menu-digital",
+    pricing: PRICING_PAGE.path,
     restaurateurDashboard: "/apercu-restaurateur"
   };
 }
@@ -196,6 +200,7 @@ export function PreviewFooter({
     routeMode === "preview"
       ? footerResources
       : [
+          { label: "Tarifs", href: routes.pricing },
           { label: "Menu digital restaurant", href: routes.menuDigital },
           { label: "Menu QR code restaurant", href: routes.menuQrCode },
           { label: "PDF vs menu digital", href: routes.pdfVsDigital },
@@ -232,9 +237,15 @@ export function PreviewFooter({
         </nav>
       </section>
 
-      <section className={styles.footerColumn} aria-label="Ressources">
+      <section
+        className={`${styles.footerColumn} ${styles.footerColumnWide}`}
+        aria-label="Ressources"
+      >
         <h2>Ressources</h2>
-        <nav className={styles.footerLinkList} aria-label="Guides Vistaire">
+        <nav
+          className={`${styles.footerLinkList} ${styles.footerLinkListBalanced}`}
+          aria-label="Guides Vistaire"
+        >
           {resourceLinks.map((item) => (
             <Link href={item.href} key={item.label} prefetch={false}>
               {item.label}
