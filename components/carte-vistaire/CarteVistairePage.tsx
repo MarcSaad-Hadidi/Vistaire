@@ -16,6 +16,11 @@ function dishCategoryLabel(category: string) {
   );
 }
 
+function getDishesForCategory(category: string) {
+  if (category === "all") return CARTE_VISTAIRE_DISHES;
+  return CARTE_VISTAIRE_DISHES.filter((dish) => dish.category === category);
+}
+
 function DishCard({
   dish,
   selected,
@@ -104,9 +109,23 @@ export function CarteVistairePage() {
   const [selectedDish, setSelectedDish] = useState(CARTE_VISTAIRE_DISHES[2]);
 
   const visibleDishes = useMemo(() => {
-    if (activeCategory === "all") return CARTE_VISTAIRE_DISHES;
-    return CARTE_VISTAIRE_DISHES.filter((dish) => dish.category === activeCategory);
+    return getDishesForCategory(activeCategory);
   }, [activeCategory]);
+
+  function handleCategoryChange(category: string) {
+    const nextDishes = getDishesForCategory(category);
+
+    setActiveCategory(category);
+    setSelectedDish((currentDish) => {
+      const currentDishStillVisible = nextDishes.some(
+        (dish) => dish.id === currentDish.id
+      );
+
+      return currentDishStillVisible
+        ? currentDish
+        : nextDishes[0] ?? CARTE_VISTAIRE_DISHES[0];
+    });
+  }
 
   return (
     <main className={styles.page}>
@@ -166,7 +185,7 @@ export function CarteVistairePage() {
                 type="button"
                 aria-pressed={active}
                 className={active ? styles.activeTab : undefined}
-                onClick={() => setActiveCategory(category.slug)}
+                onClick={() => handleCategoryChange(category.slug)}
               >
                 {category.label}
               </button>

@@ -376,6 +376,19 @@ test.describe("Vistaire MVP smoke", () => {
       await signaturesFilter.click();
       await expect(signaturesFilter).toHaveAttribute("aria-pressed", "true");
       await expect(page.getByText("plat 3D inclus").first()).toBeVisible();
+
+      const dessertsFilter = page.getByRole("button", {
+        name: "Desserts",
+        exact: true
+      });
+      await dessertsFilter.click();
+      await expect(dessertsFilter).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator("#carte-detail-heading")).toContainText("Souffl");
+      await expect(page.locator("#carte-detail-heading")).not.toContainText("Homard");
+      await expect(page.getByRole("button", { name: /Souffl/i }).first()).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
       await expect(
         page.getByRole("link", { name: "Parler de votre menu" }).first()
       ).toHaveAttribute("href", "/prendre-rendez-vous");
