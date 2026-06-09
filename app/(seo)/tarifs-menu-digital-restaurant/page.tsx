@@ -1,0 +1,52 @@
+import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
+import { TarifsMenuDigitalRestaurantPage } from "@/components/seo/pages/TarifsMenuDigitalRestaurantPage";
+import {
+  PRICING_PATH,
+  buildPricingPageJsonLd,
+  pricingMetadata
+} from "@/lib/pricingPage";
+import { absoluteUrl } from "@/lib/seo";
+
+const socialImage = "/frames/menualive/frame_0001.webp";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: pricingMetadata.title
+  },
+  description: pricingMetadata.description,
+  alternates: {
+    canonical: PRICING_PATH
+  },
+  robots: {
+    index: true,
+    follow: true
+  },
+  openGraph: {
+    title: pricingMetadata.title,
+    description: pricingMetadata.description,
+    url: absoluteUrl(PRICING_PATH),
+    type: "website",
+    images: [
+      {
+        url: absoluteUrl(socialImage),
+        alt: "Plat servi dans une ambiance de restaurant premium"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: pricingMetadata.title,
+    description: pricingMetadata.description,
+    images: [absoluteUrl(socialImage)]
+  }
+};
+
+export default function TarifsMenuDigitalRestaurantRoute() {
+  return (
+    <>
+      <JsonLd data={buildPricingPageJsonLd()} />
+      <TarifsMenuDigitalRestaurantPage />
+    </>
+  );
+}
