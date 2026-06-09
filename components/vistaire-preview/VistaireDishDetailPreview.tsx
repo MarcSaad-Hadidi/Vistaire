@@ -8,6 +8,7 @@ import restaurantBackground from "@/Framer/PhotoRestoComplet2.png";
 import type { Allergen, Dish, Restaurant } from "@/lib/demoMenuData";
 import { getDishDetailImageObjectPosition } from "@/lib/demoMenuData";
 import { formatPrice } from "@/lib/formatPrice";
+import type { Locale } from "@/lib/i18n";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import {
@@ -21,6 +22,7 @@ import styles from "./VistaireDishDetailPreview.module.css";
 type VistaireDishDetailPreviewProps = {
   categoryName: string;
   dish: Dish;
+  locale?: Locale;
   restaurant: Restaurant;
   routeMode?: VistaireRouteMode;
 };
@@ -58,18 +60,38 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   }
 );
 
-function getDishBadges(dish: Dish): DetailBadge[] {
+function getDishBadges(dish: Dish, locale: Locale): DetailBadge[] {
   const badges: DetailBadge[] = [];
 
   if (dish.isSignature) badges.push({ label: "Signature" });
-  if (dish.isRecommended) badges.push({ label: "Recommandé" });
+  if (dish.isRecommended) {
+    badges.push({ label: locale === "en" ? "Recommended" : "Recommandé" });
+  }
   if (dishHasImmersiveAsset(dish)) badges.push({ label: "3D" });
-  if (!dish.isAvailable) badges.push({ label: "Indisponible", tone: "alert" });
+  if (!dish.isAvailable) {
+    badges.push({
+      label: locale === "en" ? "Unavailable" : "Indisponible",
+      tone: "alert"
+    });
+  }
 
   return badges;
 }
 
-function getArAvailabilityCopy(dish: Dish): string {
+function getArAvailabilityCopy(dish: Dish, locale: Locale): string {
+  if (locale === "en") {
+    if (dish.arUsdzUrl?.trim()) {
+      return "On compatible iPhones, the AR option opens from the 3D view when the browser allows it.";
+    }
+    if (dish.arModel3dUrl?.trim()) {
+      return "The 3D view uses a model optimized for devices compatible with augmented reality.";
+    }
+    if (dishHasImmersiveAsset(dish)) {
+      return "The 3D view is available here. Augmented reality is enabled only for compatible dishes and devices.";
+    }
+    return "Vistaire can add 3D/AR selectively depending on the creation, without weighing down the whole menu.";
+  }
+
   if (dish.arUsdzUrl?.trim()) {
     return "Sur iPhone compatible, l'option AR s'ouvre depuis la vue 3D lorsque le navigateur le permet.";
   }
@@ -85,15 +107,80 @@ function getArAvailabilityCopy(dish: Dish): string {
 export function VistaireDishDetailPreview({
   categoryName,
   dish,
+  locale = "fr",
   restaurant,
   routeMode = "preview"
 }: VistaireDishDetailPreviewProps) {
-  const routes = getVistaireChromeRoutes(routeMode);
+  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const currentPath = `${routes.menu}/dishes/${dish.slug}`;
+  const ui =
+    locale === "en"
+      ? {
+          badge: "Vistaire menu experience",
+          visualLabel: "Visual presentation",
+          unavailable: "Temporarily unavailable",
+          contentLabel: "Dish page",
+          badgeListLabel: "Dish badges",
+          ingredients: "Main ingredients",
+          ingredientFallback: "Detailed composition to confirm with the team.",
+          allergens: "Allergens",
+          allergenFallback: "Allergen information to confirm with the restaurant.",
+          chefNote: "Chef note",
+          options: "Options",
+          sides: "Sides",
+          modelKicker: "Selective 3D / AR",
+          modelAvailable: "Immersive preview available",
+          modelUnavailable: "3D view coming soon for this dish",
+          modelButton: "View in 3D",
+          fallback3d: "3D preview is not available for this creation.",
+          back: "Back to menu",
+          explore: "Explore Vistaire",
+          note:
+            "This dish information is fictional and used to present the Vistaire experience."
+        }
+      : {
+          badge: "Démo interactive Vistaire",
+          visualLabel: "Présentation visuelle",
+          unavailable: "Momentanément indisponible",
+          contentLabel: "Fiche plat",
+          badgeListLabel: "Badges du plat",
+          ingredients: "Ingrédients principaux",
+          ingredientFallback:
+            "Composition détaillée à confirmer auprès de l'équipe.",
+          allergens: "Allergènes",
+          allergenFallback:
+            "Informations allergènes à confirmer auprès du restaurant.",
+          chefNote: "Note du chef",
+          options: "Options",
+          sides: "Accompagnements",
+          modelKicker: "3D / AR sélective",
+          modelAvailable: "Aperçu immersif disponible",
+          modelUnavailable: "Vue 3D bientôt disponible pour ce plat",
+          modelButton: "Voir en 3D",
+          fallback3d: "Aperçu 3D non disponible sur cette création.",
+          back: "Retour à la carte",
+          explore: "Explorer Vistaire",
+          note:
+            "Les informations de ce plat sont fictives et servent à présenter l'expérience Vistaire."
+        };
+  const localizedAllergenLabels: Record<Allergen, string> =
+    locale === "en"
+      ? {
+          gluten: "Gluten",
+          dairy: "Dairy",
+          nuts: "Nuts",
+          shellfish: "Shellfish",
+          eggs: "Eggs",
+          sesame: "Sesame",
+          soy: "Soy",
+          fish: "Fish"
+        }
+      : allergenLabels;
   const [activeModelPanel, setActiveModelPanel] =
     useState<ModelPanelVariant | null>(null);
   const has3d = dishHasImmersiveAsset(dish);
   const hasImmersiveAsset = has3d;
-  const badges = useMemo(() => getDishBadges(dish), [dish]);
+  const badges = useMemo(() => getDishBadges(dish, locale), [dish, locale]);
   const objectPosition = getDishDetailImageObjectPosition(dish);
   const primaryIngredients = dish.ingredients.slice(0, 6);
   const renderModelPanel = (
@@ -109,13 +196,11 @@ export function VistaireDishDetailPreview({
         aria-labelledby={`${panelId}-heading`}
       >
         <div className={styles.modelIntro}>
-          <p className={styles.kicker}>3D / AR sélective</p>
+          <p className={styles.kicker}>{ui.modelKicker}</p>
           <h2 id={`${panelId}-heading`}>
-            {has3d
-              ? "Aperçu immersif disponible"
-              : "Vue 3D bientôt disponible pour ce plat"}
+            {has3d ? ui.modelAvailable : ui.modelUnavailable}
           </h2>
-          <p>{getArAvailabilityCopy(dish)}</p>
+          <p>{getArAvailabilityCopy(dish, locale)}</p>
         </div>
 
         {has3d ? (
@@ -127,7 +212,7 @@ export function VistaireDishDetailPreview({
               onClick={() => setActiveModelPanel(panelVariant)}
               type="button"
             >
-              Voir en 3D
+              {ui.modelButton}
             </button>
             {isActivePanel ? (
               <div className={styles.modelViewer} id={`${panelId}-viewer`}>
@@ -150,7 +235,7 @@ export function VistaireDishDetailPreview({
         ) : (
           <div className={styles.fallback3d}>
             <span aria-hidden="true">{restaurant.logoMonogram}</span>
-            <p>Aperçu 3D non disponible sur cette création.</p>
+            <p>{ui.fallback3d}</p>
           </div>
         )}
       </section>
@@ -177,15 +262,15 @@ export function VistaireDishDetailPreview({
       >
         <article className={styles.previewFrame} id="carte">
           <div className={styles.topBar}>
-            <p className={styles.demoBadge}>Démo interactive Vistaire</p>
+            <p className={styles.demoBadge}>{ui.badge}</p>
           </div>
 
           <div className={styles.dishLayout}>
-            <section className={styles.visualColumn} aria-label="Présentation visuelle">
+            <section className={styles.visualColumn} aria-label={ui.visualLabel}>
               <div className={styles.heroImage}>
                 {dish.image ? (
                   <Image
-                    alt={`Photo du plat : ${dish.name}`}
+                    alt={`${locale === "en" ? "Dish photo:" : "Photo du plat :"} ${dish.name}`}
                     className={styles.dishImage}
                     fill
                     priority
@@ -202,7 +287,7 @@ export function VistaireDishDetailPreview({
                 )}
                 {!dish.isAvailable ? (
                   <p className={styles.unavailableOverlay}>
-                    Momentanément indisponible
+                    {ui.unavailable}
                   </p>
                 ) : null}
               </div>
@@ -213,13 +298,17 @@ export function VistaireDishDetailPreview({
               )}
             </section>
 
-            <section className={styles.contentColumn} aria-label="Fiche plat">
+            <section className={styles.contentColumn} aria-label={ui.contentLabel}>
               <div className={styles.headingBlock}>
                 <p className={styles.restaurantName}>{restaurant.name}</p>
                 <p className={styles.category}>{categoryName}</p>
                 <h1 id="dish-detail-preview-heading">{dish.name}</h1>
                 <p className={styles.price}>
-                  {formatPrice(dish.price, restaurant.currency)}
+                  {formatPrice(
+                    dish.price,
+                    restaurant.currency,
+                    locale === "en" ? "en-CA" : "fr-CA"
+                  )}
                 </p>
                 <p className={styles.shortDescription}>
                   {dish.shortDescription}
@@ -227,7 +316,7 @@ export function VistaireDishDetailPreview({
               </div>
 
               {badges.length > 0 ? (
-                <div className={styles.badgeList} aria-label="Badges du plat">
+                <div className={styles.badgeList} aria-label={ui.badgeListLabel}>
                   {badges.map((badge) => (
                     <span
                       className={
@@ -247,7 +336,7 @@ export function VistaireDishDetailPreview({
 
               <div className={styles.infoGrid}>
                 <section aria-labelledby="ingredients-heading">
-                  <h2 id="ingredients-heading">Ingrédients principaux</h2>
+                  <h2 id="ingredients-heading">{ui.ingredients}</h2>
                   {primaryIngredients.length > 0 ? (
                     <ul>
                       {primaryIngredients.map((ingredient) => (
@@ -255,26 +344,26 @@ export function VistaireDishDetailPreview({
                       ))}
                     </ul>
                   ) : (
-                    <p>Composition détaillée à confirmer auprès de l&apos;équipe.</p>
+                    <p>{ui.ingredientFallback}</p>
                   )}
                 </section>
 
                 <section aria-labelledby="allergens-heading">
-                  <h2 id="allergens-heading">Allergènes</h2>
+                  <h2 id="allergens-heading">{ui.allergens}</h2>
                   {dish.allergens.length > 0 ? (
                     <ul>
                       {dish.allergens.map((allergen) => (
-                        <li key={allergen}>{allergenLabels[allergen]}</li>
+                        <li key={allergen}>{localizedAllergenLabels[allergen]}</li>
                       ))}
                     </ul>
                   ) : (
-                    <p>Informations allergènes à confirmer auprès du restaurant.</p>
+                    <p>{ui.allergenFallback}</p>
                   )}
                 </section>
               </div>
 
               <section className={styles.chefNote} aria-labelledby="chef-heading">
-                <h2 id="chef-heading">Note du chef</h2>
+                <h2 id="chef-heading">{ui.chefNote}</h2>
                 <p>{dish.chefRecommendation}</p>
               </section>
 
@@ -282,7 +371,7 @@ export function VistaireDishDetailPreview({
                 <div className={styles.optionsGrid}>
                   {dish.options.length > 0 ? (
                     <section aria-labelledby="options-heading">
-                      <h2 id="options-heading">Options</h2>
+                      <h2 id="options-heading">{ui.options}</h2>
                       <ul>
                         {dish.options.map((option) => (
                           <li key={option}>{option}</li>
@@ -293,7 +382,7 @@ export function VistaireDishDetailPreview({
 
                   {dish.sides.length > 0 ? (
                     <section aria-labelledby="sides-heading">
-                      <h2 id="sides-heading">Accompagnements</h2>
+                      <h2 id="sides-heading">{ui.sides}</h2>
                       <ul>
                         {dish.sides.map((side) => (
                           <li key={side}>{side}</li>
@@ -316,30 +405,39 @@ export function VistaireDishDetailPreview({
                   href={routes.menu}
                   prefetch={false}
                 >
-                  Retour à la carte
+                  {ui.back}
                 </Link>
                 <Link
                   className={styles.secondaryLink}
                   href={routes.home}
                   prefetch={false}
                 >
-                  Explorer Vistaire
+                  {ui.explore}
                 </Link>
               </div>
 
               <p className={styles.demoNote}>
-                Les informations de ce plat sont fictives et servent à présenter
-                l&apos;expérience Vistaire.
+                {ui.note}
               </p>
             </section>
 
           </div>
         </article>
 
-        <PreviewNav activeSection="menu" routeMode={routeMode} />
+        <PreviewNav
+          activeSection="menu"
+          currentPath={currentPath}
+          locale={locale}
+          routeMode={routeMode}
+        />
       </section>
 
-      <PreviewFooter routeMode={routeMode} width="wide" />
+      <PreviewFooter
+        currentPath={currentPath}
+        locale={locale}
+        routeMode={routeMode}
+        width="wide"
+      />
     </main>
   );
 }

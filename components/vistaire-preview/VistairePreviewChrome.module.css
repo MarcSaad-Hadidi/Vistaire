@@ -4,7 +4,7 @@
   z-index: 1;
   display: grid;
   width: min(1120px, calc(100vw - 48px));
-  grid-template-columns: minmax(178px, 0.75fr) minmax(320px, 1fr) minmax(154px, auto);
+  grid-template-columns: minmax(178px, 0.75fr) minmax(320px, 1fr) minmax(86px, auto) minmax(154px, auto);
   gap: 14px;
   overflow: visible;
   margin-top: 10px;
@@ -32,7 +32,8 @@
 
 .navBrand,
 .navLink,
-.navCta {
+.navCta,
+.languageLink {
   position: relative;
   z-index: 1;
   display: flex;
@@ -164,6 +165,51 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 250, 240, 0.18),
     inset 0 -1px 0 rgba(255, 250, 240, 0.08);
+}
+
+.navCtaShort {
+  display: none;
+}
+
+.navCtaFull {
+  display: inline;
+}
+
+.languageSwitcher {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid rgba(255, 250, 240, 0.2);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.languageLink {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: rgba(255, 247, 234, 0.66);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.languageLink:hover,
+.languageLink:focus-visible,
+.languageLinkActive {
+  border-color: rgba(232, 207, 155, 0.34);
+  background: rgba(0, 0, 0, 0.14);
+  color: #fffaf0;
+}
+
+.languageLink:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.92);
+  outline-offset: 3px;
 }
 
 .navBrand:active,
@@ -413,6 +459,7 @@
   .navBrand,
   .navLink,
   .navCta,
+  .languageLink,
   .footerLinkList a,
   .footerEmail,
   .footerCta,
@@ -426,9 +473,9 @@
   .previewNav {
     width: min(680px, calc(100vw - 28px));
     grid-template-areas:
-      "brand cta"
-      "links links";
-    grid-template-columns: minmax(0, 1fr) minmax(142px, auto);
+      "brand language cta"
+      "links links links";
+    grid-template-columns: minmax(0, 1fr) minmax(76px, auto) minmax(142px, auto);
     gap: 8px;
     border-radius: 24px;
     padding: 7px;
@@ -440,6 +487,10 @@
 
   .navLinks {
     grid-area: links;
+  }
+
+  .languageSwitcher {
+    grid-area: language;
   }
 
   .navCta {
@@ -469,9 +520,9 @@
   .previewNav {
     width: calc(100vw - 20px);
     grid-template-areas:
-      "brand cta"
-      "links links";
-    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
+      "brand language cta"
+      "links links links";
+    grid-template-columns: minmax(0, 1fr) minmax(72px, auto) minmax(96px, auto);
     gap: 6px;
     margin-top: 8px;
     border-radius: 22px;
@@ -510,6 +561,26 @@
     padding: 0 10px;
     font-size: 10px;
     white-space: nowrap;
+  }
+
+  .languageSwitcher {
+    min-height: 38px;
+    border-radius: 16px;
+    padding: 2px;
+  }
+
+  .languageLink {
+    min-width: 30px;
+    min-height: 30px;
+    font-size: 10px;
+  }
+
+  .navCtaFull {
+    display: none;
+  }
+
+  .navCtaShort {
+    display: inline;
   }
 
   .previewFooter,

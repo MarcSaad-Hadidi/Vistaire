@@ -30,11 +30,11 @@ test("menu QR code restaurant preview has a distinct glass SEO page", async () =
   for (const requiredCopy of [
     "Vistaire preview | Menu QR code restaurant",
     "Menu QR code restaurant : le scan doit ouvrir une expérience",
-    "Le QR code n&apos;est qu&apos;une porte d&apos;entrée",
+    "Le QR code n'est qu'une porte d'entrée",
     "Du scan à la décision",
     "Le scan doit mener à quelque chose de désirable",
     "QR code seul ou QR code Vistaire",
-    "Votre QR code mérite mieux qu&apos;un PDF",
+    "Votre QR code mérite mieux qu'un PDF",
     "Voir la carte",
     "Prendre rendez-vous",
     "/vistaire-preview/demo",
@@ -49,8 +49,8 @@ test("menu QR code restaurant preview has a distinct glass SEO page", async () =
   assert.match(route, /index:\s*false/);
   assert.match(route, /follow:\s*false/);
   assert.match(route, /canonical:\s*"\/vistaire-preview\/menu-qr-code-restaurant"/);
-  assert.match(component, /PreviewNav activeSection="home"/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
   assert.match(component, /PhotoRestoComplet6\.png/);
   assert.match(component, /PhotoQRcode1\.png/);
   assert.match(component, /PhotoQRcode2\.png/);

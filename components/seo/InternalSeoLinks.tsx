@@ -1,22 +1,29 @@
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
 import { getRelatedSeoPages, type SeoPageSlug } from "@/lib/seoPages";
 
 type InternalSeoLinksProps = {
   currentSlug: SeoPageSlug;
   heading?: string;
+  locale?: Locale;
   variant?: "grid" | "inline";
 };
 
 export function InternalSeoLinks({
   currentSlug,
   heading = "Guides Vistaire",
+  locale = "fr",
   variant = "grid"
 }: InternalSeoLinksProps) {
-  const relatedPages = getRelatedSeoPages(currentSlug);
+  const relatedPages = getRelatedSeoPages(currentSlug, locale);
+  const resolvedHeading =
+    heading === "Guides Vistaire" && locale === "en"
+      ? "Vistaire guides"
+      : heading;
 
   if (variant === "inline") {
     return (
-      <nav aria-label={heading} className="flex flex-wrap gap-x-4 gap-y-2">
+      <nav aria-label={resolvedHeading} className="flex flex-wrap gap-x-4 gap-y-2">
         {relatedPages.map((page) => (
           <Link
             key={page.path}
@@ -36,7 +43,7 @@ export function InternalSeoLinks({
         id={`${currentSlug}-guides`}
         className="font-display text-3xl font-normal leading-tight text-cream sm:text-4xl"
       >
-        {heading}
+        {resolvedHeading}
       </h2>
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {relatedPages.map((page) => (

@@ -7,6 +7,7 @@ import pageContactImage from "@/Framer/PageContact.png";
 import lobsterPlate from "@/Framer/PlatHomard.png";
 import dessertImage from "@/Framer/Desert.png";
 import tableImage from "@/Framer/Photo table.png";
+import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
   getVistaireChromeRoutes,
@@ -65,11 +66,53 @@ function FramerImage({
 }
 
 export function VistaireContactPreview({
+  locale = "fr",
   routeMode = "preview"
 }: {
+  locale?: Locale;
   routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode);
+  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const copy =
+    locale === "en"
+      ? {
+          srTitle: "for your restaurant digital menu",
+          restaurantBadge: "For restaurants",
+          restaurantTitle: "For restaurants",
+          bodyA:
+            "Vistaire turns a restaurant QR code into a premium digital menu that opens on mobile, without an app.",
+          bodyB:
+            "We can discuss your menu, dish pages, brand identity, selective 3D/AR and adaptation to your guests.",
+          bodyC: "Available for restaurants in the Montreal area.",
+          ambienceLabel: "Vistaire atmosphere",
+          appointment: "Book a call",
+          contactTitle: "Vistaire contact",
+          contactBody:
+            "Tell us about your restaurant, your menu and the experience you want to offer.",
+          company: "Company",
+          region: "Region",
+          regionValue: "Montreal, Quebec, Canada",
+          phone: "Phone"
+        }
+      : {
+          srTitle: "pour votre carte digitale restaurant",
+          restaurantBadge: "POUR LES RESTAURANTS",
+          restaurantTitle: "Pour les restaurants",
+          bodyA:
+            "Vistaire transforme le QR code d'un restaurant en carte digitale premium consultable sur mobile, sans application.",
+          bodyB:
+            "Nous pouvons discuter de votre menu, de vos fiches plats, de votre image de marque, de la 3D/AR sélective et de l'adaptation à votre clientèle.",
+          bodyC: "Disponible pour les restaurants de la région de Montréal.",
+          ambienceLabel: "Ambiance Vistaire",
+          appointment: "Prendre rendez-vous",
+          contactTitle: "Contact Vistaire",
+          contactBody:
+            "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+          company: "Entreprise",
+          region: "Région",
+          regionValue: "Montréal, Québec, Canada",
+          phone: "Téléphone"
+        };
 
   return (
     <main className={styles.page}>
@@ -105,7 +148,7 @@ export function VistaireContactPreview({
                 CONTACT
                 <span>VISTAIRE</span>
                 <span className={styles.srOnly}>
-                  pour votre carte digitale restaurant
+                  {copy.srTitle}
                 </span>
               </h1>
             </div>
@@ -118,27 +161,17 @@ export function VistaireContactPreview({
             >
               <div aria-hidden="true" className={styles.restaurantShade} />
               <div className={styles.restaurantContent}>
-                <p className={styles.badge}>POUR LES RESTAURANTS</p>
+                <p className={styles.badge}>{copy.restaurantBadge}</p>
                 <h2 id="contact-restaurants-title" className={styles.srOnly}>
-                  Pour les restaurants
+                  {copy.restaurantTitle}
                 </h2>
-                <p>
-                  Vistaire transforme le QR code d&apos;un restaurant en carte
-                  digitale premium consultable sur mobile, sans application.
-                </p>
-                <p>
-                  Nous pouvons discuter de votre menu, de vos fiches plats, de
-                  votre image de marque, de la 3D/AR s&eacute;lective et de
-                  l&apos;adaptation &agrave; votre client&egrave;le.
-                </p>
-                <p>
-                  Disponible pour les restaurants de la r&eacute;gion de
-                  Montr&eacute;al.
-                </p>
+                <p>{copy.bodyA}</p>
+                <p>{copy.bodyB}</p>
+                <p>{copy.bodyC}</p>
               </div>
             </article>
 
-            <div className={styles.tileGrid} aria-label="Ambiance Vistaire">
+            <div className={styles.tileGrid} aria-label={copy.ambienceLabel}>
               {imageTiles.map((tile) => (
                 <article className={styles.tileCard} key={tile.alt}>
                   <FramerImage
@@ -173,23 +206,20 @@ export function VistaireContactPreview({
                   href={routes.appointment}
                   prefetch={false}
                 >
-                  Prendre rendez-vous
+                  {copy.appointment}
                 </Link>
                 <h2 id="contact-card-title" className={styles.srOnly}>
-                  Contact Vistaire
+                  {copy.contactTitle}
                 </h2>
-                <p>
-                  Parlez-nous de votre restaurant, de votre carte et de
-                  l&apos;exp&eacute;rience que vous souhaitez offrir.
-                </p>
+                <p>{copy.contactBody}</p>
                 <dl className={styles.contactMeta}>
                   <div>
-                    <dt>Entreprise</dt>
+                    <dt>{copy.company}</dt>
                     <dd>Vistaire</dd>
                   </div>
                   <div>
-                    <dt>R&eacute;gion</dt>
-                    <dd>Montr&eacute;al, Qu&eacute;bec, Canada</dd>
+                    <dt>{copy.region}</dt>
+                    <dd>{copy.regionValue}</dd>
                   </div>
                   <div>
                     <dt>Email</dt>
@@ -200,7 +230,7 @@ export function VistaireContactPreview({
                     </dd>
                   </div>
                   <div>
-                    <dt>T&eacute;l&eacute;phone</dt>
+                    <dt>{copy.phone}</dt>
                     <dd>
                       <a href={`tel:${CONTACT_PHONE_TEL}`}>
                         {CONTACT_PHONE_DISPLAY}
@@ -213,10 +243,19 @@ export function VistaireContactPreview({
           </div>
         </div>
 
-        <PreviewNav activeSection="contact" routeMode={routeMode} />
+        <PreviewNav
+          activeSection="contact"
+          currentPath={routes.contact}
+          locale={locale}
+          routeMode={routeMode}
+        />
       </section>
 
-      <PreviewFooter routeMode={routeMode} />
+      <PreviewFooter
+        currentPath={routes.contact}
+        locale={locale}
+        routeMode={routeMode}
+      />
     </main>
   );
 }

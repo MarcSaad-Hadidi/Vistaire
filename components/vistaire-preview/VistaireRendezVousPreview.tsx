@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import appointmentBackground from "@/Framer/PhotoRestoComplet.png";
 import tableImage from "@/Framer/Photo table.png";
+import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
   getVistaireChromeRoutes,
@@ -13,11 +14,42 @@ import { VistaireContactForm } from "./VistaireContactForm";
 import styles from "./VistaireRendezVousPreview.module.css";
 
 export function VistaireRendezVousPreview({
+  locale = "fr",
   routeMode = "preview"
 }: {
+  locale?: Locale;
   routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode);
+  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const copy =
+    locale === "en"
+      ? {
+          formLabel: "Book a call",
+          kicker: "Let's talk about Vistaire",
+          h1: "Book a call for a Vistaire digital menu",
+          intro:
+            "Tell us about your restaurant, your menu and the experience you want to offer.",
+          serviceLine: "High-end restaurants · Montreal, Quebec",
+          exchangeTitle: "During the call, we review your current menu.",
+          exchangeBody:
+            "Signature dishes, allergens, visuals, readable prices, PDF replacement and cases where 3D/AR brings real value.",
+          directContact: "Direct contact",
+          back: "Back to contact"
+        }
+      : {
+          formLabel: "Prendre rendez-vous",
+          kicker: "Parlons de Vistaire",
+          h1: "Prendre rendez-vous pour une carte digitale Vistaire",
+          intro:
+            "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+          serviceLine: "Restaurants haut de gamme · Montréal, Québec",
+          exchangeTitle:
+            "Pendant l'échange, nous regardons votre carte actuelle.",
+          exchangeBody:
+            "Plats signatures, allergènes, visuels, prix lisibles, remplacement PDF et cas où la 3D/AR apporte une vraie valeur.",
+          directContact: "Contact direct",
+          back: "Retour au contact"
+        };
 
   return (
     <main className={styles.page}>
@@ -52,37 +84,25 @@ export function VistaireRendezVousPreview({
             />
             <div aria-hidden="true" className={styles.imagePanelShade} />
           </article>
-          <section className={styles.formPanel} aria-label="Prendre rendez-vous">
+          <section className={styles.formPanel} aria-label={copy.formLabel}>
             <div aria-hidden="true" className={styles.formPanelShade} />
             <div className={styles.formContent}>
-              <p className={styles.kicker}>Parlons de Vistaire</p>
-              <h1 id="rendez-vous-preview-title">
-                Prendre rendez-vous pour une carte digitale Vistaire
-              </h1>
-              <p className={styles.introText}>
-                Parlez-nous de votre restaurant, de votre carte et de
-                l&apos;exp&eacute;rience que vous souhaitez offrir.
-              </p>
-              <p className={styles.serviceLine}>
-                Restaurants haut de gamme &middot; Montr&eacute;al, Qu&eacute;bec
-              </p>
+              <p className={styles.kicker}>{copy.kicker}</p>
+              <h1 id="rendez-vous-preview-title">{copy.h1}</h1>
+              <p className={styles.introText}>{copy.intro}</p>
+              <p className={styles.serviceLine}>{copy.serviceLine}</p>
               <section
                 aria-labelledby="rendez-vous-exchange-title"
                 className={styles.exchangeBlock}
               >
-                <h2 id="rendez-vous-exchange-title">
-                  Pendant l&apos;échange, nous regardons votre carte actuelle.
-                </h2>
-                <p>
-                  Plats signatures, allergènes, visuels, prix lisibles,
-                  remplacement PDF et cas où la 3D/AR apporte une vraie valeur.
-                </p>
+                <h2 id="rendez-vous-exchange-title">{copy.exchangeTitle}</h2>
+                <p>{copy.exchangeBody}</p>
               </section>
 
-              <VistaireContactForm />
+              <VistaireContactForm locale={locale} />
 
               <div className={styles.directContact} aria-label="Contact direct">
-                <span>Contact direct</span>
+                <span>{copy.directContact}</span>
                 <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
                 <a href={`tel:${CONTACT_PHONE_TEL}`}>{CONTACT_PHONE_DISPLAY}</a>
               </div>
@@ -91,7 +111,7 @@ export function VistaireRendezVousPreview({
                 href={routes.contact}
                 prefetch={false}
               >
-                Retour au contact
+                {copy.back}
               </Link>
             </div>
           </section>
@@ -100,11 +120,17 @@ export function VistaireRendezVousPreview({
         <PreviewNav
           activeSection="contact"
           contactHref={routes.contact}
+          currentPath={routes.appointment}
+          locale={locale}
           routeMode={routeMode}
         />
       </section>
 
-      <PreviewFooter routeMode={routeMode} />
+      <PreviewFooter
+        currentPath={routes.appointment}
+        locale={locale}
+        routeMode={routeMode}
+      />
     </main>
   );
 }

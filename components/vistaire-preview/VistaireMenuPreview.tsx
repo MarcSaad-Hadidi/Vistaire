@@ -7,6 +7,7 @@ import { useMemo, useRef, useState, type MouseEvent } from "react";
 import restaurantBackground from "@/Framer/PhotoRestoComplet2.png";
 import menuVisual from "@/Framer/pageCarte.png";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import type { Locale } from "@/lib/i18n";
 import type { Allergen, Dish } from "@/lib/demoMenuData";
 import {
   getAllDishes,
@@ -37,10 +38,6 @@ type ToggleFilterKey = keyof Pick<
   "signatureOnly" | "recommendedOnly" | "availableOnly" | "with3dOnly"
 >;
 
-const restaurant = getRestaurant();
-const categories = getCategories();
-const dishes = getAllDishes();
-
 const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   () =>
     import("@/components/dish/DishModelViewer").then(
@@ -55,15 +52,6 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
     )
   }
 );
-
-const categoryTabs = [
-  { label: "Tous", slug: MENU_ALL_CATEGORY_SLUG },
-  ...categories.map((category) => ({
-    label:
-      category.slug === "plats-signatures" ? "Signatures" : category.name,
-    slug: category.slug
-  }))
-] as const;
 
 const filterChips: { key: ToggleFilterKey; label: string }[] = [
   { key: "signatureOnly", label: "Signature" },
@@ -99,30 +87,173 @@ function formatPreviewPrice(price: number) {
   return `$${price}`;
 }
 
-function getDishBadges(dish: Dish) {
+function getDishBadges(dish: Dish, locale: Locale) {
   const badges: string[] = [];
 
   if (dish.isSignature) badges.push("Signature");
-  if (dish.isRecommended) badges.push("Recommandé");
+  if (dish.isRecommended) badges.push(locale === "en" ? "Recommended" : "Recommandé");
   if (dishHasImmersiveAsset(dish)) badges.push("3D");
-  if (!dish.isAvailable) badges.push("Indisponible");
+  if (!dish.isAvailable) badges.push(locale === "en" ? "Unavailable" : "Indisponible");
 
   return badges;
 }
 
-function getDishPreviewAriaLabel(dish: Dish, badges: string[]) {
+function getDishPreviewAriaLabel(
+  dish: Dish,
+  badges: string[],
+  locale: Locale
+) {
   const badgeText = badges.length > 0 ? ` · ${badges.join(", ")}` : "";
-  const availability = dish.isAvailable ? "disponible" : "indisponible";
+  const availability =
+    locale === "en"
+      ? dish.isAvailable
+        ? "available"
+        : "unavailable"
+      : dish.isAvailable
+        ? "disponible"
+        : "indisponible";
+  const detailCta =
+    locale === "en" ? "View the dish page." : "Voir la fiche plat.";
 
-  return `${dish.name}, ${formatPreviewPrice(dish.price)}, ${dish.shortDescription} · ${availability}${badgeText}. Voir la fiche plat.`;
+  return `${dish.name}, ${formatPreviewPrice(dish.price)}, ${dish.shortDescription} · ${availability}${badgeText}. ${detailCta}`;
 }
 
 export function VistaireMenuPreview({
+  locale = "fr",
   routeMode = "preview"
 }: {
+  locale?: Locale;
   routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode);
+  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const restaurant = getRestaurant(locale);
+  const categories = getCategories(locale);
+  const dishes = getAllDishes(locale);
+  const ui =
+    locale === "en"
+      ? {
+          sectionLabel: "Maison Élyse sample digital menu",
+          visualLabel: "Digital menu",
+          visualAlt: "Vistaire digital menu presented on a restaurant table",
+          visualTitleA: "DIGITAL",
+          visualTitleB: "MENU",
+          exitPhone: "Leave phone preview",
+          backToMenu: "Back to menu",
+          photoAltPrefix: "Dish photo:",
+          fallbackCategory: "Menu",
+          badgesLabel: "Dish badges",
+          ingredients: "Ingredients",
+          allergens: "Allergens",
+          allergenFallback: "Confirm with the restaurant team.",
+          chefNote: "Chef note",
+          modelKicker: "Selective 3D / AR",
+          modelAvailable: "Immersive preview available",
+          modelUnavailable: "3D view coming soon for this dish",
+          modelAvailableBody: "Open the 3D view directly inside this phone preview.",
+          modelUnavailableBody:
+            "This dish keeps its premium page here; 3D can be added only when a model is available.",
+          modelButton: "View in 3D",
+          modelFallback: "3D / AR coming soon for this dish.",
+          phoneToggle: "Show phone preview of the menu",
+          phoneToggleLabel: "Phone preview",
+          badge: "Vistaire menu experience",
+          fictive: "Fictional restaurant · Premium client menu",
+          all: "All",
+          signatures: "Signatures",
+          searchLabel: "Search the menu",
+          searchPlaceholder: "Search a dish, an ingredient...",
+          filtersLabel: "Quick filters",
+          allergenLabel: "Filter by dietary preference",
+          reset: "Reset",
+          empty: "No dish in this selection.",
+          emptyAction: "View the full menu",
+          footnote:
+            "Dishes, prices and information are fictional and used to present the Vistaire experience.",
+          resultSingle: "Maison Élyse selection · 1 creation shown",
+          resultPlural: (count: number) =>
+            `Maison Élyse selection · ${count} creations shown`,
+          filterChips: [
+            { key: "signatureOnly" as const, label: "Signature" },
+            { key: "recommendedOnly" as const, label: "Recommended" },
+            { key: "availableOnly" as const, label: "Available" },
+            { key: "with3dOnly" as const, label: "3D view" }
+          ],
+          allergenOptions: [
+            { value: "" as const, label: "All dishes" },
+            { value: "gluten" as const, label: "Gluten-free" },
+            { value: "dairy" as const, label: "Dairy-free" },
+            { value: "nuts" as const, label: "Nut-free" },
+            { value: "shellfish" as const, label: "Shellfish-free" },
+            { value: "eggs" as const, label: "Egg-free" },
+            { value: "sesame" as const, label: "Sesame-free" },
+            { value: "soy" as const, label: "Soy-free" },
+            { value: "fish" as const, label: "Fish-free" }
+          ],
+          allergenLabels: {
+            gluten: "Gluten",
+            dairy: "Dairy",
+            nuts: "Nuts",
+            shellfish: "Shellfish",
+            eggs: "Eggs",
+            sesame: "Sesame",
+            soy: "Soy",
+            fish: "Fish"
+          } satisfies Record<Allergen, string>
+        }
+      : {
+          sectionLabel: "Carte digitale preview Maison Élyse",
+          visualLabel: "Carte digitale",
+          visualAlt: "Carte digitale Vistaire présentée sur une table de restaurant",
+          visualTitleA: "CARTE",
+          visualTitleB: "DIGITALE",
+          exitPhone: "Quitter l'aperçu téléphone",
+          backToMenu: "Retour à la carte",
+          photoAltPrefix: "Photo du plat :",
+          fallbackCategory: "Carte",
+          badgesLabel: "Badges du plat",
+          ingredients: "Ingrédients",
+          allergens: "Allergènes",
+          allergenFallback: "À confirmer auprès du restaurant.",
+          chefNote: "Note du chef",
+          modelKicker: "3D / AR sélective",
+          modelAvailable: "Aperçu immersif disponible",
+          modelUnavailable: "Vue 3D bientôt disponible pour ce plat",
+          modelAvailableBody:
+            "Ouvrez la vue 3D directement dans cet aperçu téléphone.",
+          modelUnavailableBody:
+            "Ce plat garde sa fiche premium ici; la 3D peut être ajoutée seulement quand un modèle est disponible.",
+          modelButton: "Voir en 3D",
+          modelFallback: "3D / AR bientôt disponible pour ce plat.",
+          phoneToggle: "Afficher l'aperçu téléphone de la carte",
+          phoneToggleLabel: "Aperçu téléphone",
+          badge: "Démo interactive Vistaire",
+          fictive: "Restaurant fictif · Carte client premium",
+          all: "Tous",
+          signatures: "Signatures",
+          searchLabel: "Rechercher dans la carte",
+          searchPlaceholder: "Rechercher un plat, un ingrédient...",
+          filtersLabel: "Filtres rapides",
+          allergenLabel: "Filtrer par préférence alimentaire",
+          reset: "Réinitialiser",
+          empty: "Aucun plat dans cette sélection.",
+          emptyAction: "Voir toute la carte",
+          footnote:
+            "Les plats, prix et informations sont fictifs et servent à présenter l'expérience Vistaire.",
+          resultSingle: "Sélection Maison Élyse · 1 création affichée",
+          resultPlural: (count: number) =>
+            `Sélection Maison Élyse · ${count} créations affichées`,
+          filterChips,
+          allergenOptions,
+          allergenLabels
+        };
+  const localizedCategoryTabs = [
+    { label: ui.all, slug: MENU_ALL_CATEGORY_SLUG },
+    ...categories.map((category) => ({
+      label:
+        category.slug === "plats-signatures" ? ui.signatures : category.name,
+      slug: category.slug
+    }))
+  ];
   const phonePanelRef = useRef<HTMLElement | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>(
     MENU_ALL_CATEGORY_SLUG
@@ -146,11 +277,11 @@ export function VistaireMenuPreview({
     );
 
     return applyMenuFilters(searchedDishes, filters);
-  }, [activeCategory, filters, searchQuery]);
+  }, [activeCategory, dishes, filters, searchQuery]);
 
   const selectedPhoneDish = useMemo(
     () => dishes.find((dish) => dish.slug === phoneDishSlug) ?? null,
-    [phoneDishSlug]
+    [dishes, phoneDishSlug]
   );
 
   const resetFilters = () => {
@@ -179,8 +310,8 @@ export function VistaireMenuPreview({
 
   const resultLabel =
     visibleDishes.length === 1
-      ? "Sélection Maison Élyse · 1 création affichée"
-      : `Sélection Maison Élyse · ${visibleDishes.length} créations affichées`;
+      ? ui.resultSingle
+      : ui.resultPlural(visibleDishes.length);
 
   const openPhoneDish =
     (dish: Dish) => (event: MouseEvent<HTMLAnchorElement>) => {
@@ -223,7 +354,7 @@ export function VistaireMenuPreview({
       />
 
       <section
-        aria-label="Carte digitale preview Maison Élyse"
+        aria-label={ui.sectionLabel}
         className={styles.hero}
       >
         <div
@@ -232,9 +363,9 @@ export function VistaireMenuPreview({
           }`}
           id="carte"
         >
-          <article className={styles.visualPanel} aria-label="Carte digitale">
+          <article className={styles.visualPanel} aria-label={ui.visualLabel}>
             <Image
-              alt="Carte digitale Vistaire présentée sur une table de restaurant"
+              alt={ui.visualAlt}
               className={styles.visualImage}
               fill
               priority
@@ -246,8 +377,8 @@ export function VistaireMenuPreview({
             <div aria-hidden="true" className={styles.visualShade} />
             <div className={styles.visualCopy}>
               <h1>
-                <span>CARTE</span>
-                <span>DIGITALE</span>
+                <span>{ui.visualTitleA}</span>
+                <span>{ui.visualTitleB}</span>
               </h1>
             </div>
           </article>
@@ -259,13 +390,13 @@ export function VistaireMenuPreview({
           >
             {isPhonePreview ? (
               <button
-                aria-label="Quitter l'aperçu téléphone de la carte"
+                aria-label={ui.exitPhone}
                 aria-pressed={isPhonePreview}
                 className={styles.phoneExitToggle}
                 onClick={closePhonePreview}
                 type="button"
               >
-                Quitter l’aperçu téléphone
+                {ui.exitPhone}
               </button>
             ) : null}
 
@@ -287,13 +418,13 @@ export function VistaireMenuPreview({
                   onClick={closePhoneDish}
                   type="button"
                 >
-                  Retour à la carte
+                  {ui.backToMenu}
                 </button>
 
                 {selectedPhoneDish.image ? (
                   <div className={styles.phoneDetailImage}>
                     <Image
-                      alt={`Photo du plat : ${selectedPhoneDish.name}`}
+                      alt={`${ui.photoAltPrefix} ${selectedPhoneDish.name}`}
                       fill
                       priority
                       quality={100}
@@ -313,7 +444,7 @@ export function VistaireMenuPreview({
                     {categories.find(
                       (category) =>
                         category.slug === selectedPhoneDish.categorySlug
-                    )?.name ?? "Carte"}
+                    )?.name ?? ui.fallbackCategory}
                   </p>
                   <h2 id="phone-dish-detail-heading">
                     {selectedPhoneDish.name}
@@ -328,12 +459,12 @@ export function VistaireMenuPreview({
 
                 <div
                   className={styles.phoneDetailBadges}
-                  aria-label="Badges du plat"
+                  aria-label={ui.badgesLabel}
                 >
-                  {getDishBadges(selectedPhoneDish).map((badge) => (
+                  {getDishBadges(selectedPhoneDish, locale).map((badge) => (
                     <span
                       className={
-                        badge === "Indisponible"
+                        badge === "Indisponible" || badge === "Unavailable"
                           ? styles.dishUnavailable
                           : styles.dishBadge
                       }
@@ -350,7 +481,7 @@ export function VistaireMenuPreview({
 
                 <div className={styles.phoneDetailGrid}>
                   <section>
-                    <h3>Ingrédients</h3>
+                    <h3>{ui.ingredients}</h3>
                     <ul>
                       {selectedPhoneDish.ingredients.slice(0, 5).map((item) => (
                         <li key={item}>{item}</li>
@@ -359,21 +490,21 @@ export function VistaireMenuPreview({
                   </section>
 
                   <section>
-                    <h3>Allergènes</h3>
+                    <h3>{ui.allergens}</h3>
                     {selectedPhoneDish.allergens.length > 0 ? (
                       <ul>
                         {selectedPhoneDish.allergens.map((allergen) => (
-                          <li key={allergen}>{allergenLabels[allergen]}</li>
+                          <li key={allergen}>{ui.allergenLabels[allergen]}</li>
                         ))}
                       </ul>
                     ) : (
-                      <p>À confirmer auprès du restaurant.</p>
+                      <p>{ui.allergenFallback}</p>
                     )}
                   </section>
                 </div>
 
                 <section className={styles.phoneChefNote}>
-                  <h3>Note du chef</h3>
+                  <h3>{ui.chefNote}</h3>
                   <p>{selectedPhoneDish.chefRecommendation}</p>
                 </section>
 
@@ -383,17 +514,17 @@ export function VistaireMenuPreview({
                 >
                   <div className={styles.phoneModelIntro}>
                     <p className={styles.phoneDetailKicker}>
-                      3D / AR sélective
+                      {ui.modelKicker}
                     </p>
                     <h3 id="phone-dish-model-heading">
                       {dishHasImmersiveAsset(selectedPhoneDish)
-                        ? "Aperçu immersif disponible"
-                        : "Vue 3D bientôt disponible pour ce plat"}
+                        ? ui.modelAvailable
+                        : ui.modelUnavailable}
                     </h3>
                     <p>
                       {dishHasImmersiveAsset(selectedPhoneDish)
-                        ? "Ouvrez la vue 3D directement dans cet aperçu téléphone."
-                        : "Ce plat garde sa fiche premium ici; la 3D peut être ajoutée seulement quand un modèle est disponible."}
+                        ? ui.modelAvailableBody
+                        : ui.modelUnavailableBody}
                     </p>
                   </div>
 
@@ -406,7 +537,7 @@ export function VistaireMenuPreview({
                         onClick={() => setPhoneShowModel(true)}
                         type="button"
                       >
-                        Voir en 3D
+                        {ui.modelButton}
                       </button>
                       {phoneShowModel ? (
                         <div
@@ -431,7 +562,7 @@ export function VistaireMenuPreview({
                     </>
                   ) : (
                     <p className={styles.phoneDetailModel}>
-                      3D / AR bientôt disponible pour ce plat.
+                      {ui.modelFallback}
                     </p>
                   )}
                 </section>
@@ -449,29 +580,29 @@ export function VistaireMenuPreview({
                 <div className={styles.menuTitleActions}>
                   {!isPhonePreview ? (
                     <button
-                      aria-label="Afficher l'aperçu téléphone de la carte"
+                      aria-label={ui.phoneToggle}
                       aria-pressed={isPhonePreview}
                       className={styles.viewToggle}
                       onClick={() => setIsPhonePreview(true)}
                       type="button"
                     >
-                      Aperçu téléphone
+                      {ui.phoneToggleLabel}
                     </button>
                   ) : null}
-                  <p className={styles.demoBadge}>Démo interactive Vistaire</p>
+                  <p className={styles.demoBadge}>{ui.badge}</p>
                 </div>
               </div>
               <p className={styles.fictiveLine}>
-                Restaurant fictif · Carte client premium
+                {ui.fictive}
               </p>
             </div>
 
             <div
-              aria-label="Catégories de la carte"
+              aria-label={locale === "en" ? "Menu categories" : "Catégories de la carte"}
               className={styles.categoryTabs}
               role="group"
             >
-              {categoryTabs.map((category) => {
+              {localizedCategoryTabs.map((category) => {
                 const isActive = activeCategory === category.slug;
 
                 return (
@@ -490,21 +621,21 @@ export function VistaireMenuPreview({
 
             <div className={styles.menuTools}>
               <label className={styles.searchBox}>
-                <span className={styles.srOnly}>Rechercher dans la carte</span>
+                <span className={styles.srOnly}>{ui.searchLabel}</span>
                 <input
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Rechercher un plat, un ingrédient..."
+                  placeholder={ui.searchPlaceholder}
                   type="search"
                   value={searchQuery}
                 />
               </label>
 
               <div
-                aria-label="Filtres rapides"
+                aria-label={ui.filtersLabel}
                 className={styles.filterPills}
                 role="group"
               >
-                {filterChips.map((filter) => {
+                {ui.filterChips.map((filter) => {
                   const isActive = filters[filter.key];
 
                   return (
@@ -523,14 +654,14 @@ export function VistaireMenuPreview({
 
               <div className={styles.filterSelectRow}>
                 <label className={styles.srOnly} htmlFor="preview-allergen">
-                  Filtrer par préférence alimentaire
+                  {ui.allergenLabel}
                 </label>
                 <select
                   id="preview-allergen"
                   onChange={(event) => changeAllergen(event.target.value)}
                   value={filters.excludeAllergen ?? ""}
                 >
-                  {allergenOptions.map((option) => (
+                  {ui.allergenOptions.map((option) => (
                     <option key={option.value || "none"} value={option.value}>
                       {option.label}
                     </option>
@@ -547,7 +678,7 @@ export function VistaireMenuPreview({
                     onClick={resetFilters}
                     type="button"
                   >
-                    Réinitialiser
+                    {ui.reset}
                   </button>
                 ) : null}
               </div>
@@ -556,11 +687,11 @@ export function VistaireMenuPreview({
             <div className={styles.dishList} id="menu-preview-results">
               {visibleDishes.length > 0 ? (
                 visibleDishes.map((dish) => {
-                  const dishBadges = getDishBadges(dish);
+                  const dishBadges = getDishBadges(dish, locale);
 
                   return (
                     <Link
-                      aria-label={getDishPreviewAriaLabel(dish, dishBadges)}
+                      aria-label={getDishPreviewAriaLabel(dish, dishBadges, locale)}
                       className={styles.dishRow}
                       href={`${routes.menu}/dishes/${dish.slug}`}
                       key={dish.id}
@@ -600,7 +731,7 @@ export function VistaireMenuPreview({
                             {dishBadges.map((badge) => (
                               <span
                                 className={
-                                  badge === "Indisponible"
+                                  badge === "Indisponible" || badge === "Unavailable"
                                     ? styles.dishUnavailable
                                     : styles.dishBadge
                                 }
@@ -620,17 +751,16 @@ export function VistaireMenuPreview({
                 })
               ) : (
                 <div className={styles.emptyState} role="status">
-                  <p>Aucun plat dans cette sélection.</p>
+                  <p>{ui.empty}</p>
                   <button onClick={resetFilters} type="button">
-                    Voir toute la carte
+                    {ui.emptyAction}
                   </button>
                 </div>
               )}
             </div>
 
             <p className={styles.demoFootnote}>
-              Les plats, prix et informations sont fictifs et servent à
-              présenter l’expérience Vistaire.
+              {ui.footnote}
             </p>
               </>
             )}
@@ -638,10 +768,20 @@ export function VistaireMenuPreview({
           </div>
         </div>
 
-        <PreviewNav activeSection="menu" routeMode={routeMode} />
+        <PreviewNav
+          activeSection="menu"
+          currentPath={routes.menu}
+          locale={locale}
+          routeMode={routeMode}
+        />
       </section>
 
-      <PreviewFooter routeMode={routeMode} width="wide" />
+      <PreviewFooter
+        currentPath={routes.menu}
+        locale={locale}
+        routeMode={routeMode}
+        width="wide"
+      />
     </main>
   );
 }

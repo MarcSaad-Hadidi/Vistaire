@@ -141,12 +141,18 @@ test("pricing data answers the required commercial questions", async () => {
   assert.equal(JSON.stringify(jsonLd).includes("Review"), false);
 });
 
-test("public sitemap and AI guide include the new public pricing surfaces", () => {
-  const sitemapSource = readWorkspaceFile("app/sitemap.ts");
+test("public sitemap and AI guide include the new public pricing surfaces", async () => {
+  const { buildSitemapEntries } = await import("../lib/seo.ts");
   const llms = readWorkspaceFile("public/llms.txt");
+  const sitemapUrls = buildSitemapEntries(
+    [],
+    new Date("2026-01-01T00:00:00.000Z")
+  )
+    .map((entry) => entry.url)
+    .join("\n");
 
-  assert.match(sitemapSource, /\/tarifs-menu-digital-restaurant/);
-  assert.match(sitemapSource, /\/carte-vistaire/);
+  assert.match(sitemapUrls, /\/tarifs-menu-digital-restaurant/);
+  assert.match(sitemapUrls, /\/carte-vistaire/);
   assert.match(llms, /https:\/\/www\.vistaire\.ca\/tarifs-menu-digital-restaurant/);
   assert.match(llms, /https:\/\/www\.vistaire\.ca\/carte-vistaire/);
 });

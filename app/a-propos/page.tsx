@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireAboutPreview } from "@/components/vistaire-preview/VistaireAboutPreview";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 const canonicalPath = "/a-propos";
@@ -11,14 +12,13 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  alternates: {
-    canonical: canonicalPath
-  },
+  alternates: buildPageAlternates(canonicalPath),
   openGraph: {
     url: absoluteUrl(canonicalPath),
     title,
     description:
       "Une carte digitale premium qui prolonge l'expérience du restaurant sans remplacer le service.",
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website"
   },
   twitter: {

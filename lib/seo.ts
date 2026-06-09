@@ -1,3 +1,10 @@
+import {
+  BILINGUAL_ROUTE_PAIRS,
+  buildAbsoluteLanguageAlternates,
+  LOCALE_LANGUAGE_TAG,
+  type Locale
+} from "./i18n.ts";
+
 export const SITE_NAME = "Vistaire";
 export const SITE_URL_FALLBACK = "https://www.vistaire.ca";
 export const CONTACT_EMAIL = "contact@vistaire.ca";
@@ -32,6 +39,9 @@ export const INTERNAL_ROBOTS_DISALLOW = [
   "/todos",
   "/todos/",
   "/todos/*",
+  "/dev",
+  "/dev/",
+  "/dev/*",
   "/vistaire-preview",
   "/vistaire-preview/",
   "/vistaire-preview/*",
@@ -100,6 +110,9 @@ export type SitemapEntry = {
   lastModified: Date;
   changeFrequency: "weekly" | "monthly";
   priority: number;
+  alternates?: {
+    languages: Record<string, string>;
+  };
 };
 
 export type RobotsRule = {
@@ -257,36 +270,32 @@ export function buildSitemapEntries(
   env?: SiteUrlEnv
 ): SitemapEntry[] {
   void dishes;
+  const entries = new Map<string, SitemapEntry>();
+  const toAbsolute = (path: string) => absoluteUrl(path, env);
 
-  const seoPageEntries = PUBLIC_SEO_SITEMAP_ENTRIES.map((entry) => ({
-    url: absoluteUrl(entry.path, env),
-    lastModified,
-    changeFrequency: entry.changeFrequency,
-    priority: entry.priority
-  }));
-  const productPageEntries = PUBLIC_PRODUCT_SITEMAP_ENTRIES.map((entry) => ({
-    url: absoluteUrl(entry.path, env),
-    lastModified,
-    changeFrequency: entry.changeFrequency,
-    priority: entry.priority
-  }));
+  for (const route of BILINGUAL_ROUTE_PAIRS) {
+    const languageAlternates = buildAbsoluteLanguageAlternates(
+      route.fr,
+      toAbsolute
+    );
 
-  return [
-    {
-      url: absoluteUrl("/", env),
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 1
-    },
-    ...productPageEntries,
-    ...seoPageEntries,
-    {
-      url: absoluteUrl("/demo", env),
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.62
+    for (const path of [route.fr, route.en]) {
+      const url = toAbsolute(path);
+      const current = entries.get(url);
+
+      entries.set(url, {
+        url,
+        lastModified,
+        changeFrequency: route.changeFrequency,
+        priority: Math.max(current?.priority ?? 0, route.priority),
+        alternates: {
+          languages: languageAlternates
+        }
+      });
     }
-  ];
+  }
+
+  return [...entries.values()];
 }
 
 export function buildRobotsRules(): RobotsRule[] {
@@ -418,14 +427,17 @@ export function buildOrganizationJsonLd(env?: SiteUrlEnv): JsonLdObject {
   };
 }
 
-export function buildWebsiteJsonLd(env?: SiteUrlEnv): JsonLdObject {
+export function buildWebsiteJsonLd(
+  env?: SiteUrlEnv,
+  locale: Locale = "fr"
+): JsonLdObject {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${absoluteUrl("/", env)}#website`,
     name: SITE_NAME,
     url: absoluteUrl("/", env),
-    inLanguage: "fr-CA",
+    inLanguage: LOCALE_LANGUAGE_TAG[locale],
     publisher: {
       "@id": `${absoluteUrl("/", env)}#organization`
     }
@@ -500,6 +512,7 @@ export function buildWebPageJsonLd(
     name: string;
     description: string;
     dateModified?: Date | string;
+    locale?: Locale;
   },
   env?: SiteUrlEnv
 ): JsonLdObject {
@@ -515,7 +528,7 @@ export function buildWebPageJsonLd(
     url: absoluteUrl(page.path, env),
     name: page.name,
     description: page.description,
-    inLanguage: "fr-CA",
+    inLanguage: LOCALE_LANGUAGE_TAG[page.locale ?? "fr"],
     isPartOf: {
       "@id": `${absoluteUrl("/", env)}#website`
     },
@@ -561,6 +574,7 @@ export function buildContactPageJsonLd(
     path: string;
     name: string;
     description: string;
+    locale?: Locale;
   },
   env?: SiteUrlEnv
 ): JsonLdObject {
@@ -571,7 +585,7 @@ export function buildContactPageJsonLd(
     url: absoluteUrl(page.path, env),
     name: page.name,
     description: page.description,
-    inLanguage: "fr-CA",
+    inLanguage: LOCALE_LANGUAGE_TAG[page.locale ?? "fr"],
     isPartOf: {
       "@id": `${absoluteUrl("/", env)}#website`
     },

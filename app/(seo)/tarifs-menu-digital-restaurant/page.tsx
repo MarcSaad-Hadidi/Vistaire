@@ -6,6 +6,7 @@ import {
   buildPricingPageJsonLd,
   pricingMetadata
 } from "@/lib/pricingPage";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 
 const socialImage = "/frames/menualive/frame_0001.webp";
@@ -15,9 +16,7 @@ export const metadata: Metadata = {
     absolute: pricingMetadata.title
   },
   description: pricingMetadata.description,
-  alternates: {
-    canonical: PRICING_PATH
-  },
+  alternates: buildPageAlternates(PRICING_PATH),
   robots: {
     index: true,
     follow: true
@@ -26,6 +25,7 @@ export const metadata: Metadata = {
     title: pricingMetadata.title,
     description: pricingMetadata.description,
     url: absoluteUrl(PRICING_PATH),
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website",
     images: [
       {

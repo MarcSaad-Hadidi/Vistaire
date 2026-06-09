@@ -240,24 +240,24 @@ test("vistaire preview routes stay noindex while production pages reuse the vali
     menuQrCodePreviewRoute,
     /canonical:\s*"\/vistaire-preview\/menu-qr-code-restaurant"/
   );
-  assert.match(landingComponent, /const routes = getVistaireChromeRoutes\(routeMode\)/);
+  assert.match(landingComponent, /const routes = getVistaireChromeRoutes\(routeMode,\s*locale\)/);
   assert.match(landingComponent, /href=\{routes\.menu\}/);
   assert.match(landingComponent, /href=\{routes\.about\}/);
   assert.match(landingComponent, /id="accueil"/);
   assert.match(landingComponent, /id="carte"/);
   assert.match(landingComponent, /id="a-propos"/);
-  assert.match(menuComponent, /PreviewNav activeSection="menu" routeMode=\{routeMode\}/);
-  assert.match(dishDetailComponent, /PreviewNav activeSection="menu" routeMode=\{routeMode\}/);
-  assert.match(dishDetailComponent, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
-  assert.match(aboutComponent, /PreviewNav activeSection="about" routeMode=\{routeMode\}/);
-  assert.match(contactComponent, /PreviewNav activeSection="contact" routeMode=\{routeMode\}/);
-  assert.match(rendezVousComponent, /PreviewNav[\s\S]*activeSection="contact"/);
-  assert.match(pdfVsDigitalPreviewComponent, /PreviewNav activeSection="home" routeMode=\{routeMode\}/);
-  assert.match(pdfVsDigitalPreviewComponent, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
-  assert.match(menuDigitalPreviewComponent, /PreviewNav activeSection="home" routeMode=\{routeMode\}/);
-  assert.match(menuDigitalPreviewComponent, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
-  assert.match(menuQrCodePreviewComponent, /PreviewNav activeSection="home" routeMode=\{routeMode\}/);
-  assert.match(menuQrCodePreviewComponent, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
+  assert.match(menuComponent, /<PreviewNav[\s\S]*activeSection="menu"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(dishDetailComponent, /<PreviewNav[\s\S]*activeSection="menu"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(dishDetailComponent, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
+  assert.match(aboutComponent, /<PreviewNav[\s\S]*activeSection="about"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(contactComponent, /<PreviewNav[\s\S]*activeSection="contact"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(rendezVousComponent, /<PreviewNav[\s\S]*activeSection="contact"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(pdfVsDigitalPreviewComponent, /<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(pdfVsDigitalPreviewComponent, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
+  assert.match(menuDigitalPreviewComponent, /<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(menuDigitalPreviewComponent, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
+  assert.match(menuQrCodePreviewComponent, /<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(menuQrCodePreviewComponent, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
   assert.match(
     rendezVousComponent,
     /contactHref=\{routes\.contact\}/
@@ -347,7 +347,7 @@ test("vistaire PDF vs menu digital preview is premium, SEO-readable, and convers
   assert.match(component, /getAllDishes/);
   assert.match(component, /buildPdfComparePreviewData/);
   assert.match(component, /activeCategorySlug:\s*"tous"/);
-  assert.match(component, /vistaireDishSlugs:\s*getAllDishes\(\)\.map/);
+  assert.match(component, /vistaireDishSlugs:\s*getAllDishes\(locale\)\.map/);
   assert.match(component, /preview=\{comparePreview\}/);
   assert.match(component, /className=\{styles\.compareSlider\}/);
   assert.match(sliderComponent, /const activeTabs = preview\.categoryTabs/);
@@ -368,7 +368,7 @@ test("vistaire PDF vs menu digital preview is premium, SEO-readable, and convers
   assert.match(component, /aria-labelledby="pdf-vs-menu-digital-preview-title"/);
   assert.match(
     component,
-    /className=\{styles\.topNav\}[\s\S]*<PreviewNav activeSection="home" routeMode=\{routeMode\} \/>/
+    /className=\{styles\.topNav\}[\s\S]*<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/
   );
   assert.ok(
     component.indexOf("styles.topNav") < component.indexOf("styles.previewFrame"),
@@ -378,8 +378,8 @@ test("vistaire PDF vs menu digital preview is premium, SEO-readable, and convers
     component.indexOf("digital-premium-title") > component.indexOf("styles.previewFrame"),
     "SEO content should live inside the large preview frame"
   );
-  assert.match(component, /PreviewNav activeSection="home" routeMode=\{routeMode\}/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="home"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
   assert.doesNotMatch(component, /<footer/);
   assert.doesNotMatch(component, /className=\{styles\.contentBand\}/);
   assert.doesNotMatch(component, /className=\{styles\.comparisonBand\}/);
@@ -556,7 +556,7 @@ test("vistaire about preview matches the Framer bento story", async () => {
     "PREMIUM",
     "Pensée pour le service à table",
     "Notre Vision",
-    "Le digital doit prolonger l&apos;expérience du restaurant",
+    "Le digital doit prolonger l'expérience du restaurant",
     "Mobile-First",
     "3D Sélective",
     "Application",
@@ -577,8 +577,8 @@ test("vistaire about preview matches the Framer bento story", async () => {
     assert.match(component, literalPattern(assetName));
   }
 
-  assert.match(component, /PreviewNav activeSection="about" routeMode=\{routeMode\}/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} \/>/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="about"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*\/>/);
   assert.match(component, /href=\{routes\.appointment\}/);
   assert.doesNotMatch(component, /<footer/);
   assert.doesNotMatch(sharedSource, /Demander une d[ée]mo/);
@@ -606,10 +606,10 @@ test("vistaire contact preview stays a premium contact page", async () => {
     "CONTACT",
     "VISTAIRE",
     "POUR LES RESTAURANTS",
-    "Vistaire transforme le QR code d&apos;un restaurant en carte",
-    "3D/AR s&eacute;lective",
-    "r&eacute;gion de",
-    "Montr&eacute;al",
+    "Vistaire transforme le QR code d'un restaurant en carte",
+    "3D/AR sélective",
+    "région de",
+    "Montréal",
     "Parlez-nous de votre restaurant",
     "Prendre rendez-vous",
     "routes.appointment",
@@ -636,8 +636,8 @@ test("vistaire contact preview stays a premium contact page", async () => {
 
   assert.match(component, /href=\{routes\.appointment\}/);
   assert.match(component, /mailto:contact@vistaire\.ca/);
-  assert.match(component, /PreviewNav activeSection="contact" routeMode=\{routeMode\}/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} \/>/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="contact"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*\/>/);
   assert.doesNotMatch(component, /VistaireContactForm/);
   assert.doesNotMatch(component, /<form/);
   assert.doesNotMatch(component, /placeholder="Nom"/);
@@ -687,8 +687,8 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     "Votre demande est transmise directement",
     "contact@vistaire.ca",
     "CONTACT_PHONE_DISPLAY",
-    "Montr&eacute;al",
-    "Qu&eacute;bec"
+    "Montréal",
+    "Québec"
   ]) {
     assert.match(`${route}\n${sharedSource}`, literalPattern(requiredCopy));
   }
@@ -697,7 +697,7 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.match(component, /VistaireContactForm/);
   assert.match(
     component,
-    /<h1 id="rendez-vous-preview-title">[\s\S]*Prendre rendez-vous pour une carte digitale Vistaire[\s\S]*<\/h1>/
+    /h1:\s*"Prendre rendez-vous pour une carte digitale Vistaire"[\s\S]*<h1 id="rendez-vous-preview-title">\{copy\.h1\}<\/h1>/
   );
   assert.match(component, /href=\{routes\.contact\}/);
   assert.match(component, /PhotoRestoComplet\.png/);
@@ -707,9 +707,9 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
     component,
     /PhotoResto\.png|restaurantImage|formPanelImage/
   );
-  assert.match(component, /PreviewNav[\s\S]*activeSection="contact"/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="contact"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
   assert.match(component, /contactHref=\{routes\.contact\}/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} \/>/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*\/>/);
   assert.doesNotMatch(component, /<footer/);
   assert.match(formComponent, /validateContactForm/);
   assert.match(formComponent, /buildMailtoHref/);
@@ -720,10 +720,10 @@ test("vistaire rendez-vous preview owns the contact form", async () => {
   assert.match(formComponent, /submittedSignatureRef/);
   assert.match(formComponent, /successfulSubmissionSignature/);
   assert.match(formComponent, /buildSubmissionSignature/);
-  assert.match(formComponent, /Demande envoy\\u00e9e/);
+  assert.match(formComponent, /Demande envoy(?:ée|\\u00e9e)/);
   assert.match(formComponent, /mailto:\$\{contactEmail\}/);
-  assert.match(formComponent, /successMessage/);
-  assert.match(formComponent, /serverErrorMessage/);
+  assert.match(formComponent, /statusMessages/);
+  assert.match(formComponent, /statusMessage/);
   assert.match(formComponent, /aria-invalid/);
   assert.match(formComponent, /aria-describedby/);
   assert.match(formComponent, /autoComplete="name"/);
@@ -971,8 +971,8 @@ test("vistaire preview dish detail is universal, premium, and honest about 3D", 
     /canonical:\s*`\/vistaire-preview\/demo\/dishes\/\$\{dish\.slug\}`/
   );
   assert.match(component, /href=\{routes\.menu\}/);
-  assert.match(component, /PreviewNav activeSection="menu" routeMode=\{routeMode\}/);
-  assert.match(component, /<PreviewFooter routeMode=\{routeMode\} width="wide" \/>/);
+  assert.match(component, /<PreviewNav[\s\S]*activeSection="menu"[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}/);
+  assert.match(component, /<PreviewFooter[\s\S]*locale=\{locale\}[\s\S]*routeMode=\{routeMode\}[\s\S]*width="wide"[\s\S]*\/>/);
   assert.match(component, /type ModelPanelVariant = "desktop" \| "mobile"/);
   assert.match(component, /const \[activeModelPanel, setActiveModelPanel\]/);
   assert.match(component, /const isActivePanel = activeModelPanel === panelVariant/);

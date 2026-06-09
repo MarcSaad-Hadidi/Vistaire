@@ -1,3 +1,5 @@
+import type { Locale } from "./i18n.ts";
+
 export type CurrencyCode = "CAD" | "EUR" | "USD";
 
 export type Allergen =
@@ -537,30 +539,311 @@ const DISHES: Dish[] = [
   }
 ];
 
-export function getRestaurant(): Restaurant {
-  return RESTAURANT;
+const RESTAURANT_EN: Restaurant = {
+  ...RESTAURANT,
+  tagline: "Contemporary French cuisine in the heart of Old Montreal.",
+  description:
+    "A seasonal, precise menu shaped around local and international ingredients in an intimate Old Montreal dining room: a sample menu designed to show what a premium mobile restaurant menu can feel like.",
+  location: "Old Montreal, Montreal, Quebec",
+  cuisineType: "Contemporary Montreal French cuisine",
+  contextLine:
+    "Seasonality, market ingredients and house creations."
+};
+
+const CATEGORY_TRANSLATIONS_EN: Record<
+  string,
+  Pick<Category, "name" | "description">
+> = {
+  entrees: {
+    name: "Starters",
+    description: "Refined openings, contrast in texture and seasonal details."
+  },
+  "plats-signatures": {
+    name: "Signature dishes",
+    description: "Chef signatures designed to stay in memory."
+  },
+  desserts: {
+    name: "Desserts",
+    description: "Delicate finishes, grand cru chocolate and seasonal fruit."
+  },
+  cocktails: {
+    name: "Cocktails",
+    description: "House classics, infusions and exceptional spirits."
+  }
+};
+
+const DISH_TRANSLATIONS_EN: Record<
+  string,
+  Partial<
+    Pick<
+      Dish,
+      | "name"
+      | "shortDescription"
+      | "description"
+      | "ingredients"
+      | "options"
+      | "sides"
+      | "chefRecommendation"
+      | "preparationTime"
+    >
+  >
+> = {
+  "ravioles-romarin": {
+    name: "Fresh goat cheese ravioli & Monteregie honey",
+    shortDescription: "Brown butter, burned rosemary, fleur de sel.",
+    description:
+      "Fine ravioli filled with fresh goat cheese and Quebec honey, finished with whipped brown butter and a trace of burned rosemary. A controlled sweet-savoury balance.",
+    ingredients: [
+      "Farm fresh goat cheese",
+      "Monteregie honey",
+      "House ravioli dough",
+      "AOP butter",
+      "Rosemary",
+      "Guerande fleur de sel"
+    ],
+    options: ["Gluten-free adaptation possible on request, subject to availability."],
+    chefRecommendation:
+      "Pairs beautifully with a brut Quebec sparkling wine or a mineral white aged on lees."
+  },
+  "tartare-saumon": {
+    name: "Label Rouge salmon tartare",
+    shortDescription: "Candied citrus, green olive oil, buckwheat crisps.",
+    description:
+      "Responsibly sourced salmon, hand-cut to order, lifted with house candied citrus and fresh dill. Buckwheat crisps bring the final texture.",
+    ingredients: [
+      "Label Rouge salmon",
+      "Finger lime",
+      "Blood orange",
+      "Fresh dill",
+      "Green olive oil",
+      "Buckwheat"
+    ],
+    options: ["Prepared without citrus on request, with candied lemon instead."],
+    chefRecommendation:
+      "Served lightly chilled, ideal before a richer main course."
+  },
+  "homard-bisque": {
+    name: "Blue lobster, deep bisque & fennel",
+    shortDescription: "Slow reduction, young carrots, pastis finish.",
+    description:
+      "Pearled lobster served with a reduced shellfish bisque and glazed pantry vegetables. A final touch of pastis reveals the confit fennel without masking the sea.",
+    ingredients: [
+      "Island lobster",
+      "Young carrots",
+      "Confit fennel",
+      "House bisque",
+      "VSOP cognac",
+      "Artisanal pastis"
+    ],
+    options: ["Possible replacement: roasted monkfish, supplement based on market."],
+    sides: ["Toasted brioche with salted butter, 6 dollar supplement."],
+    chefRecommendation:
+      "Our marine signature, best with Meursault or a mineral white from the Rhone."
+  },
+  "canette-aux-figues": {
+    name: "Roasted duckling with figs & warm spices",
+    shortDescription: "Deep jus, creamy polenta, red Porto reduction.",
+    description:
+      "Whole roasted farm duckling with a concentrated fig jus and gentle spices. Creamy Parmesan polenta balances the bitterness of a red Porto reduction.",
+    ingredients: [
+      "Farm duckling",
+      "Provence figs",
+      "Fiorentina polenta",
+      "36-month Parmesan",
+      "Red Porto",
+      "House ras el hanout"
+    ],
+    options: ["Rosy cooking available with 48 hours notice."],
+    sides: ["Suggested for two guests, reserved format available."],
+    chefRecommendation:
+      "The house dish for dinner for two, generous enough to share and elegant solo."
+  },
+  "risotto-cepe": {
+    name: "Cep mushroom risotto & Reggiano Parmesan",
+    shortDescription: "Creamy rice, short veal jus, flat parsley oil.",
+    description:
+      "Creamy risotto with 36-month Reggiano Parmesan and seasonal cep mushrooms sauteed in clarified butter. Finished with short veal jus and flat parsley oil.",
+    ingredients: [
+      "Arborio rice",
+      "Cep mushrooms",
+      "Reggiano Parmesan",
+      "Short veal jus",
+      "Flat parsley",
+      "Clarified butter"
+    ],
+    options: ["Vegetarian version with dried mushroom jus."],
+    chefRecommendation:
+      "A comforting plate, ideal with Piedmont red wine or premier cru Chablis."
+  },
+  "bar-ligne": {
+    name: "Line-caught sea bass, artichoke, beldi lemon emulsion",
+    shortDescription: "Crisp skin, white-wine-braised artichoke.",
+    description:
+      "Pan-seared line-caught sea bass with crisp skin. Poivrade artichoke braised in white wine, beldi lemon emulsion and green garlic for freshness and precision.",
+    ingredients: [
+      "Line-caught sea bass",
+      "Poivrade artichoke",
+      "Beldi lemon",
+      "Dry white wine",
+      "Green garlic",
+      "Fruity olive oil"
+    ],
+    options: ["Artichoke can be replaced with fennel on request."],
+    chefRecommendation:
+      "Choose a Loire Sauvignon or a structured Bandol rose."
+  },
+  "pave-boeuf": {
+    name: "Aged beef pave, Ratte puree & Bordelaise jus",
+    shortDescription: "28-day ageing, silky puree, concentrated jus.",
+    description:
+      "Twenty-eight-day aged beef seared over embers, served with Ratte potato puree enriched with raw cream and Pinot Bordelaise jus.",
+    ingredients: [
+      "Aged beef pave",
+      "Ratte potatoes",
+      "Raw cream",
+      "Bordelaise jus",
+      "Pinot reduction",
+      "Lemon thyme"
+    ],
+    options: ["Cooking preference: rare, medium or well done."],
+    sides: ["House fries in clarified butter, 8 dollar supplement."],
+    chefRecommendation:
+      "Margaux or Saint-Emilion Grand Cru supports the depth of the ageing."
+  },
+  "souffle-chocolat": {
+    name: "Warm grand cru chocolate souffle",
+    shortDescription: "Soft centre, Tonka vanilla ice cream, cocoa powder.",
+    description:
+      "Souffle baked to order with Madagascar grand cru chocolate, Tonka vanilla ice cream and cocoa tuile. The timing balances oven warmth with a cool finish.",
+    ingredients: [
+      "70 percent grand cru chocolate",
+      "Farm eggs",
+      "AOP butter",
+      "Tonka vanilla",
+      "Cream",
+      "Cocoa powder"
+    ],
+    options: ["Lighter baking available on request."],
+    chefRecommendation:
+      "Iconic with red Banyuls or a short house espresso."
+  },
+  "tarte-citron-basilic": {
+    name: "Candied lemon tart & purple basil",
+    shortDescription: "Italian meringue, salted shortbread, lime infusion.",
+    description:
+      "House candied lemon, purple basil cream and light Italian meringue on salted butter shortbread. Precise acidity with an herbal finish.",
+    ingredients: [
+      "Organic lemon",
+      "Purple basil",
+      "Salted butter",
+      "Eggs",
+      "Cane sugar",
+      "Infused lime cream"
+    ],
+    chefRecommendation:
+      "Pair with artisanal limoncello or a glass of Clairette de Die."
+  },
+  "cocktail-maison-elyse": {
+    name: "Maison Elyse No. 1",
+    shortDescription: "Rose Champagne, verbena infusion, rose water.",
+    description:
+      "A house blend built on rose Champagne, fresh garden verbena infusion and a discreet touch of rose water. Fine bubbles and a floral bouquet.",
+    ingredients: [
+      "Rose Champagne",
+      "Fresh verbena",
+      "Food-grade rose water",
+      "Light cane sugar syrup"
+    ],
+    options: ["Alcohol-free version with sparkling water and house cordial."],
+    chefRecommendation:
+      "Perfect as an aperitif or to open dinner with fine bubbles."
+  },
+  "negroni-fut": {
+    name: "Barrel-aged Negroni",
+    shortDescription: "London dry gin, red vermouth, Campari, toasted wood.",
+    description:
+      "Negroni refined in a small oak barrel, with London dry gin, house red vermouth and Campari. Sculpted ice and burned orange zest.",
+    ingredients: [
+      "London dry gin",
+      "House red vermouth",
+      "Campari",
+      "Bitter orange",
+      "Sculpted ice"
+    ],
+    chefRecommendation:
+      "Best at the opening of the meal: bitter and sweet in balance."
+  },
+  "mocktail-bergamote": {
+    name: "Bergamot & Earl Grey elixir",
+    shortDescription: "Cold infusion, white grape juice, citrus foam.",
+    description:
+      "Premium alcohol-free mocktail with iced Earl Grey, pressed white grape juice, candied citrus zest and light bergamot foam.",
+    ingredients: [
+      "Earl Grey tea",
+      "Candied bergamot",
+      "White grape juice",
+      "Citrus foam",
+      "Orange blossom water"
+    ],
+    chefRecommendation:
+      "Refreshing and precise, ideal for a lighter dinner without alcohol."
+  }
+};
+
+function localizeCategory(category: Category, locale: Locale): Category {
+  if (locale !== "en") return category;
+  return {
+    ...category,
+    ...(CATEGORY_TRANSLATIONS_EN[category.slug] ?? {})
+  };
 }
 
-export function getCategories(): Category[] {
-  return [...CATEGORIES].sort((a, b) => a.order - b.order);
+function localizeDish(dish: Dish, locale: Locale): Dish {
+  if (locale !== "en") return dish;
+  return {
+    ...dish,
+    ...(DISH_TRANSLATIONS_EN[dish.slug] ?? {})
+  };
 }
 
-export function getAllDishes(): Dish[] {
-  return [...DISHES];
+export function getRestaurant(locale: Locale = "fr"): Restaurant {
+  return locale === "en" ? RESTAURANT_EN : RESTAURANT;
 }
 
-export function getDishBySlug(slug: string): Dish | undefined {
-  return DISHES.find((dish) => dish.slug === slug);
+export function getCategories(locale: Locale = "fr"): Category[] {
+  return [...CATEGORIES]
+    .sort((a, b) => a.order - b.order)
+    .map((category) => localizeCategory(category, locale));
 }
 
-export function getDishesByCategorySlug(categorySlug: string): Dish[] {
-  return DISHES.filter((dish) => dish.categorySlug === categorySlug);
+export function getAllDishes(locale: Locale = "fr"): Dish[] {
+  return DISHES.map((dish) => localizeDish(dish, locale));
 }
 
-export function getSignatureDishes(): Dish[] {
-  return DISHES.filter((dish) => dish.isSignature);
+export function getDishBySlug(slug: string, locale: Locale = "fr"): Dish | undefined {
+  const dish = DISHES.find((candidate) => candidate.slug === slug);
+  return dish ? localizeDish(dish, locale) : undefined;
 }
 
-export function getCategoryBySlug(slug: string): Category | undefined {
-  return CATEGORIES.find((category) => category.slug === slug);
+export function getDishesByCategorySlug(
+  categorySlug: string,
+  locale: Locale = "fr"
+): Dish[] {
+  return DISHES.filter((dish) => dish.categorySlug === categorySlug).map((dish) =>
+    localizeDish(dish, locale)
+  );
+}
+
+export function getSignatureDishes(locale: Locale = "fr"): Dish[] {
+  return DISHES.filter((dish) => dish.isSignature).map((dish) =>
+    localizeDish(dish, locale)
+  );
+}
+
+export function getCategoryBySlug(
+  slug: string,
+  locale: Locale = "fr"
+): Category | undefined {
+  const category = CATEGORIES.find((candidate) => candidate.slug === slug);
+  return category ? localizeCategory(category, locale) : undefined;
 }

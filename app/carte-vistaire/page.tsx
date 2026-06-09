@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { CarteVistairePage } from "@/components/carte-vistaire/CarteVistairePage";
 import { CARTE_VISTAIRE_PATH } from "@/lib/pricingPage";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
   buildBreadcrumbJsonLd,
@@ -16,9 +17,7 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  alternates: {
-    canonical: CARTE_VISTAIRE_PATH
-  },
+  alternates: buildPageAlternates(CARTE_VISTAIRE_PATH),
   robots: {
     index: true,
     follow: true
@@ -27,6 +26,7 @@ export const metadata: Metadata = {
     title,
     description,
     url: absoluteUrl(CARTE_VISTAIRE_PATH),
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website"
   },
   twitter: {

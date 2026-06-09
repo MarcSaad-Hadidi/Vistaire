@@ -49,15 +49,28 @@ test("builds a focused sitemap for public Vistaire surfaces", () => {
 
   assert.deepEqual(urls, [
     "https://www.vistaire.ca/",
-    "https://www.vistaire.ca/a-propos",
-    "https://www.vistaire.ca/contact",
-    "https://www.vistaire.ca/prendre-rendez-vous",
-    "https://www.vistaire.ca/apercu-restaurateur",
-    "https://www.vistaire.ca/menu-digital-restaurant",
-    "https://www.vistaire.ca/menu-qr-code-restaurant",
-    "https://www.vistaire.ca/menu-3d-ar-restaurant",
-    "https://www.vistaire.ca/menu-pdf-vs-menu-digital",
+    "https://www.vistaire.ca/en",
+    "https://www.vistaire.ca/carte-vistaire",
+    "https://www.vistaire.ca/en/vistaire-menu",
     "https://www.vistaire.ca/demo",
+    "https://www.vistaire.ca/tarifs-menu-digital-restaurant",
+    "https://www.vistaire.ca/en/pricing-digital-restaurant-menu",
+    "https://www.vistaire.ca/menu-digital-restaurant",
+    "https://www.vistaire.ca/en/digital-restaurant-menu",
+    "https://www.vistaire.ca/menu-qr-code-restaurant",
+    "https://www.vistaire.ca/en/qr-code-restaurant-menu",
+    "https://www.vistaire.ca/menu-3d-ar-restaurant",
+    "https://www.vistaire.ca/en/3d-ar-restaurant-menu",
+    "https://www.vistaire.ca/menu-pdf-vs-menu-digital",
+    "https://www.vistaire.ca/en/pdf-vs-digital-menu",
+    "https://www.vistaire.ca/a-propos",
+    "https://www.vistaire.ca/en/about",
+    "https://www.vistaire.ca/contact",
+    "https://www.vistaire.ca/en/contact",
+    "https://www.vistaire.ca/prendre-rendez-vous",
+    "https://www.vistaire.ca/en/book-a-call",
+    "https://www.vistaire.ca/apercu-restaurateur",
+    "https://www.vistaire.ca/en/restaurant-preview"
   ]);
   for (const internalPath of ["/admin", "/owner", "/sign-in", "/todos", "/api/"]) {
     assert.equal(urls.some((url) => url.includes(internalPath)), false);
@@ -125,7 +138,7 @@ test("declares an indexable public restaurateur dashboard page", () => {
     "utf8"
   );
 
-  assert.match(page, /canonical:\s*"\/apercu-restaurateur"/);
+  assert.match(page, /buildPageAlternates\(canonicalPath\)/);
   assert.match(page, /openGraph:/);
   assert.match(page, /twitter:/);
   assert.match(page, /buildWebPageJsonLd/);
@@ -213,6 +226,9 @@ test("allows useful crawlers while keeping internal surfaces out of robots crawl
     "/todos",
     "/todos/",
     "/todos/*",
+    "/dev",
+    "/dev/",
+    "/dev/*",
     "/vistaire-preview",
     "/vistaire-preview/",
     "/vistaire-preview/*",

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
+import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY } from "@/lib/seo";
 import styles from "./VistaireRendezVousPreview.module.css";
 
@@ -21,10 +22,68 @@ const initialValues: ContactFormValues = {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const contactEmail = "contact@vistaire.ca";
-const successMessage =
-  "Votre demande a bien \u00e9t\u00e9 envoy\u00e9e. Nous vous r\u00e9pondrons rapidement \u00e0 l'adresse indiqu\u00e9e.";
-const serverErrorMessage =
-  "L'envoi n'a pas fonctionn\u00e9 pour le moment. Vous pouvez \u00e9crire directement \u00e0 contact@vistaire.ca.";
+
+const contactCopy = {
+  fr: {
+    success:
+      "Votre demande a bien été envoyée. Nous vous répondrons rapidement à l'adresse indiquée.",
+    serverError:
+      "L'envoi n'a pas fonctionné pour le moment. Vous pouvez écrire directement à contact@vistaire.ca.",
+    statusError: "Veuillez corriger les champs indiqués.",
+    sending: "Envoi de votre demande...",
+    nameRequired: "Indiquez votre nom.",
+    emailRequired: "Indiquez votre courriel.",
+    emailInvalid: "Indiquez un courriel valide.",
+    restaurantRequired: "Indiquez le nom du restaurant.",
+    messageRequired: "Ajoutez un message.",
+    messageShort: "Ajoutez quelques détails sur votre projet.",
+    subject: "Rendez-vous Vistaire",
+    mailGreeting: "Bonjour Vistaire,",
+    mailIntro:
+      "Je souhaite planifier un rendez-vous pour discuter de Vistaire.",
+    name: "Nom",
+    email: "Courriel",
+    restaurant: "Restaurant",
+    region: "Région: Montréal / Québec",
+    phone: "Téléphone Vistaire",
+    message: "Message",
+    company: "Entreprise",
+    submit: "Envoyer la demande",
+    sendingButton: "Envoi en cours...",
+    sentButton: "Demande envoyée",
+    directContact: "Contact direct",
+    note: "Votre demande est transmise directement à l'équipe Vistaire."
+  },
+  en: {
+    success:
+      "Your request has been sent. We will reply quickly at the email address provided.",
+    serverError:
+      "The form is not sending right now. You can write directly to contact@vistaire.ca.",
+    statusError: "Please correct the highlighted fields.",
+    sending: "Sending your request...",
+    nameRequired: "Enter your name.",
+    emailRequired: "Enter your email.",
+    emailInvalid: "Enter a valid email.",
+    restaurantRequired: "Enter the restaurant name.",
+    messageRequired: "Add a message.",
+    messageShort: "Add a few details about your project.",
+    subject: "Vistaire call",
+    mailGreeting: "Hello Vistaire,",
+    mailIntro: "I would like to schedule a call to discuss Vistaire.",
+    name: "Name",
+    email: "Email",
+    restaurant: "Restaurant",
+    region: "Region: Montreal / Quebec",
+    phone: "Vistaire phone",
+    message: "Message",
+    company: "Company",
+    submit: "Send request",
+    sendingButton: "Sending...",
+    sentButton: "Request sent",
+    directContact: "Direct contact",
+    note: "Your request is sent directly to the Vistaire team."
+  }
+} as const satisfies Record<Locale, Record<string, string>>;
 
 function normalizeValues(values: ContactFormValues): ContactFormValues {
   return {
@@ -35,46 +94,51 @@ function normalizeValues(values: ContactFormValues): ContactFormValues {
   };
 }
 
-function validateContactForm(values: ContactFormValues): ContactFormErrors {
+function validateContactForm(
+  values: ContactFormValues,
+  locale: Locale
+): ContactFormErrors {
   const errors: ContactFormErrors = {};
+  const copy = contactCopy[locale];
 
   if (!values.name) {
-    errors.name = "Indiquez votre nom.";
+    errors.name = copy.nameRequired;
   }
 
   if (!values.email) {
-    errors.email = "Indiquez votre courriel.";
+    errors.email = copy.emailRequired;
   } else if (!emailPattern.test(values.email)) {
-    errors.email = "Indiquez un courriel valide.";
+    errors.email = copy.emailInvalid;
   }
 
   if (!values.restaurant) {
-    errors.restaurant = "Indiquez le nom du restaurant.";
+    errors.restaurant = copy.restaurantRequired;
   }
 
   if (!values.message) {
-    errors.message = "Ajoutez un message.";
+    errors.message = copy.messageRequired;
   } else if (values.message.length < 10) {
-    errors.message = "Ajoutez quelques détails sur votre projet.";
+    errors.message = copy.messageShort;
   }
 
   return errors;
 }
 
-function buildMailtoHref(values: ContactFormValues): string {
-  const subject = `Rendez-vous Vistaire - ${values.restaurant}`;
+function buildMailtoHref(values: ContactFormValues, locale: Locale): string {
+  const copy = contactCopy[locale];
+  const subject = `${copy.subject} - ${values.restaurant}`;
   const body = [
-    "Bonjour Vistaire,",
+    copy.mailGreeting,
     "",
-    "Je souhaite planifier un rendez-vous pour discuter de Vistaire.",
+    copy.mailIntro,
     "",
-    `Nom: ${values.name}`,
-    `Courriel: ${values.email}`,
-    `Restaurant: ${values.restaurant}`,
-    "Région: Montréal / Québec",
-    `Téléphone Vistaire: ${CONTACT_PHONE_DISPLAY}`,
+    `${copy.name}: ${values.name}`,
+    `${copy.email}: ${values.email}`,
+    `${copy.restaurant}: ${values.restaurant}`,
+    copy.region,
+    `${copy.phone}: ${CONTACT_PHONE_DISPLAY}`,
     "",
-    "Message:",
+    `${copy.message}:`,
     values.message
   ].join("\n");
 
@@ -101,7 +165,8 @@ function getFieldId(field: ContactField): string {
   return `contact-${field}`;
 }
 
-export function VistaireContactForm() {
+export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
+  const copy = contactCopy[locale];
   const [values, setValues] = useState<ContactFormValues>(initialValues);
   const [company, setCompany] = useState("");
   const [errors, setErrors] = useState<ContactFormErrors>({});
@@ -153,7 +218,7 @@ export function VistaireContactForm() {
       return;
     }
 
-    const nextErrors = validateContactForm(normalizedValues);
+    const nextErrors = validateContactForm(normalizedValues, locale);
     const firstInvalidField = Object.keys(nextErrors)[0] as
       | ContactField
       | undefined;
@@ -185,7 +250,8 @@ export function VistaireContactForm() {
         },
         body: JSON.stringify({
           ...normalizedValues,
-          company: trimmedCompany
+          company: trimmedCompany,
+          locale
         })
       });
       const result = (await response
@@ -208,13 +274,13 @@ export function VistaireContactForm() {
 
   const statusMessages: Record<SubmitState, string> = {
     idle: "",
-    error: "Veuillez corriger les champs indiqués.",
-    sending: "Envoi de votre demande...",
-    success: successMessage,
-    serverError: serverErrorMessage
+    error: copy.statusError,
+    sending: copy.sending,
+    success: copy.success,
+    serverError: copy.serverError
   };
   const statusMessage = statusMessages[submitState];
-  const fallbackHref = buildMailtoHref(normalizeValues(values));
+  const fallbackHref = buildMailtoHref(normalizeValues(values), locale);
   const isSending = submitState === "sending";
   const isSuccessLocked =
     submitState === "success" &&
@@ -230,7 +296,7 @@ export function VistaireContactForm() {
     >
       <div className={styles.formField}>
         <label className={styles.srOnly} htmlFor={getFieldId("name")}>
-          Nom
+          {copy.name}
         </label>
         <input
           aria-describedby={errors.name ? getErrorId("name") : undefined}
@@ -239,7 +305,7 @@ export function VistaireContactForm() {
           id={getFieldId("name")}
           name="name"
           onChange={updateField("name")}
-          placeholder="Nom"
+          placeholder={copy.name}
           required
           type="text"
           value={values.name}
@@ -253,7 +319,7 @@ export function VistaireContactForm() {
 
       <div className={styles.formField}>
         <label className={styles.srOnly} htmlFor={getFieldId("email")}>
-          Courriel
+          {copy.email}
         </label>
         <input
           aria-describedby={errors.email ? getErrorId("email") : undefined}
@@ -262,7 +328,7 @@ export function VistaireContactForm() {
           id={getFieldId("email")}
           name="email"
           onChange={updateField("email")}
-          placeholder="Courriel"
+          placeholder={copy.email}
           required
           type="email"
           value={values.email}
@@ -276,7 +342,7 @@ export function VistaireContactForm() {
 
       <div className={styles.formField}>
         <label className={styles.srOnly} htmlFor={getFieldId("restaurant")}>
-          Restaurant
+          {copy.restaurant}
         </label>
         <input
           aria-describedby={
@@ -287,7 +353,7 @@ export function VistaireContactForm() {
           id={getFieldId("restaurant")}
           name="restaurant"
           onChange={updateField("restaurant")}
-          placeholder="Restaurant"
+          placeholder={copy.restaurant}
           required
           type="text"
           value={values.restaurant}
@@ -301,7 +367,7 @@ export function VistaireContactForm() {
 
       <div className={styles.formField}>
         <label className={styles.srOnly} htmlFor={getFieldId("message")}>
-          Message
+          {copy.message}
         </label>
         <textarea
           aria-describedby={errors.message ? getErrorId("message") : undefined}
@@ -309,7 +375,7 @@ export function VistaireContactForm() {
           id={getFieldId("message")}
           name="message"
           onChange={updateField("message")}
-          placeholder="Message"
+          placeholder={copy.message}
           required
           rows={4}
           value={values.message}
@@ -322,7 +388,7 @@ export function VistaireContactForm() {
       </div>
 
       <div aria-hidden="true" className={styles.honeypot}>
-        <label htmlFor="contact-company">Entreprise</label>
+        <label htmlFor="contact-company">{copy.company}</label>
         <input
           autoComplete="off"
           id="contact-company"
@@ -347,10 +413,10 @@ export function VistaireContactForm() {
         type="submit"
       >
         {isSending
-          ? "Envoi en cours..."
+          ? copy.sendingButton
           : isSuccessLocked
-            ? "Demande envoy\u00e9e"
-            : "Envoyer la demande"}
+            ? copy.sentButton
+            : copy.submit}
       </button>
 
       <p
@@ -367,10 +433,10 @@ export function VistaireContactForm() {
       <p className={styles.formNote}>
         {submitState === "serverError" ? (
           <>
-            Contact direct : <a href={fallbackHref}>{contactEmail}</a>.
+            {copy.directContact} : <a href={fallbackHref}>{contactEmail}</a>.
           </>
         ) : (
-          "Votre demande est transmise directement \u00e0 l'\u00e9quipe Vistaire."
+          copy.note
         )}
       </p>
     </form>

@@ -7,17 +7,17 @@ import {
   buildVistaireServiceJsonLd,
   buildWebPageJsonLd
 } from "@/lib/seo";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "Menu digital QR premium pour restaurants haut de gamme",
   description: DEFAULT_SITE_DESCRIPTION,
-  alternates: {
-    canonical: "/"
-  },
+  alternates: buildPageAlternates("/"),
   openGraph: {
     url: absoluteUrl("/"),
     title: "Vistaire | Menu digital QR premium pour restaurants haut de gamme",
-    description: DEFAULT_SITE_DESCRIPTION
+    description: DEFAULT_SITE_DESCRIPTION,
+    locale: LOCALE_OPEN_GRAPH.fr
   },
   twitter: {
     card: "summary",
