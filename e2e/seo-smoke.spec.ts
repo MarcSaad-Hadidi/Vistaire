@@ -14,6 +14,11 @@ const publicProductPages = [
   "/apercu-restaurateur"
 ];
 
+const addedPublicPages = [
+  "/tarifs-menu-digital-restaurant",
+  "/carte-vistaire"
+];
+
 const forbiddenJsonLdTypes = [
   "Restaurant",
   "LocalBusiness",
@@ -136,7 +141,13 @@ test.describe("Vistaire SEO smoke", () => {
       )
     );
 
-    expect(sitemapUrls).toEqual(["/", ...publicProductPages, ...seoPages, "/demo"]);
+    expect(sitemapUrls).toEqual([
+      "/",
+      ...publicProductPages,
+      ...seoPages,
+      "/demo",
+      ...addedPublicPages
+    ]);
   });
 
   test("public pages have canonical metadata and safe early network behavior", async ({

@@ -119,6 +119,60 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
+async function expectNoForbiddenPublicText(page: Page) {
+  const inspectedText = await page.evaluate(() => {
+    const metadata = [
+      document.title,
+      document.querySelector('meta[name="description"]')?.getAttribute("content") ?? ""
+    ];
+    const structuredData = Array.from(
+      document.querySelectorAll('script[type="application/ld+json"]')
+    ).map((script) => script.textContent ?? "");
+
+    return [document.body.innerText, ...metadata, ...structuredData].join("\n");
+  });
+
+  for (const term of [
+    "demo",
+    "Demo",
+    "démo",
+    "Démo",
+    "démonstration",
+    "démonstratif",
+    "fictif",
+    "fictive"
+  ]) {
+    expect(inspectedText).not.toContain(term);
+  }
+}
+
+async function collectStructuredDataTypes(page: Page) {
+  return page.evaluate(() => {
+    function visit(value: unknown, types: string[]) {
+      if (!value || typeof value !== "object") return;
+      if (Array.isArray(value)) {
+        for (const item of value) visit(item, types);
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      const type = record["@type"];
+      if (typeof type === "string") types.push(type);
+      if (Array.isArray(type)) {
+        for (const item of type) {
+          if (typeof item === "string") types.push(item);
+        }
+      }
+      for (const child of Object.values(record)) visit(child, types);
+    }
+
+    const types: string[] = [];
+    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+      visit(JSON.parse(script.textContent || "null"), types);
+    }
+    return types;
+  });
+}
+
 async function expectPromotedLanding(page: Page) {
   const video = page.locator("main video").first();
 
@@ -251,6 +305,99 @@ test.describe("Vistaire MVP smoke", () => {
     await homardLink.click();
     await expect(page).toHaveURL(/\/demo\/dishes\/homard-bisque$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  });
+
+  test("pricing and card routes expose the clean public Vistaire offer", async ({
+    page
+  }) => {
+    const health = installPageHealth(page);
+    const modelRequests = collectModelAssetRequests(page);
+
+    await stubAnalytics(page);
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 430, height: 932 }
+    ]) {
+      await page.setViewportSize(viewport);
+      await expectHealthyResponse(
+        await page.goto("/tarifs-menu-digital-restaurant", {
+          waitUntil: "domcontentloaded"
+        })
+      );
+
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: "Tarifs Vistaire : menu digital premium avec plats 3D inclus"
+        })
+      ).toBeVisible();
+      for (const offer of ["Vistaire Base", "Vistaire Premium", "Vistaire Signature"]) {
+        await expect(page.getByRole("heading", { name: offer })).toBeVisible();
+      }
+      for (const count of ["5 plats 3D", "10 plats 3D", "20 plats 3D"]) {
+        await expect(page.getByText(count).first()).toBeVisible();
+      }
+      await expect(
+        page.getByRole("link", { name: "Parler de votre menu" }).first()
+      ).toHaveAttribute("href", "/prendre-rendez-vous");
+      await expect(
+        page.getByRole("link", { name: "Voir une carte Vistaire" }).first()
+      ).toHaveAttribute("href", "/carte-vistaire");
+      expect(await collectStructuredDataTypes(page)).toEqual(
+        expect.arrayContaining([
+          "WebPage",
+          "Service",
+          "OfferCatalog",
+          "FAQPage",
+          "BreadcrumbList"
+        ])
+      );
+      await expectNoForbiddenPublicText(page);
+      await expectNoHorizontalOverflow(page);
+
+      await expectHealthyResponse(
+        await page.goto("/carte-vistaire", {
+          waitUntil: "domcontentloaded"
+        })
+      );
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: "Carte Vistaire interactive"
+        })
+      ).toBeVisible();
+      const signaturesFilter = page.getByRole("button", {
+        name: "Signatures",
+        exact: true
+      });
+      await expect(signaturesFilter).toBeVisible();
+      await expect(signaturesFilter).toHaveAttribute("aria-pressed", "false");
+      await signaturesFilter.click();
+      await expect(signaturesFilter).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByText("plat 3D inclus").first()).toBeVisible();
+
+      const dessertsFilter = page.getByRole("button", {
+        name: "Desserts",
+        exact: true
+      });
+      await dessertsFilter.click();
+      await expect(dessertsFilter).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator("#carte-detail-heading")).toContainText("Souffl");
+      await expect(page.locator("#carte-detail-heading")).not.toContainText("Homard");
+      await expect(page.getByRole("button", { name: /Souffl/i }).first()).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+      await expect(
+        page.getByRole("link", { name: "Parler de votre menu" }).first()
+      ).toHaveAttribute("href", "/prendre-rendez-vous");
+      await expectNoForbiddenPublicText(page);
+      await expectNoHorizontalOverflow(page);
+    }
+
+    expect(modelRequests).toEqual([]);
+    health.expectClean();
   });
 
   test("homard dish loads 3D only after user intent", async ({ page }) => {

@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { SEO_PAGES } from "@/lib/seoPages";
 
+const pricingGuide = {
+  path: "/tarifs-menu-digital-restaurant",
+  eyebrow: "Tarifs",
+  title: "Tarifs menu digital restaurant avec plats 3D inclus",
+  description:
+    "Forfaits Base, Premium et Signature, packs 3D supplémentaires, QR code et service clé en main."
+} as const;
+
 export function GuidesVistaireSection() {
   return (
     <section
@@ -20,6 +28,20 @@ export function GuidesVistaireSection() {
         </p>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2">
+          <Link
+            href={pricingGuide.path}
+            className="group rounded-lg border border-champagne/30 bg-[#120d09] p-6 transition hover:border-champagne/45 hover:bg-[#17110c] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+          >
+            <p className="text-[10px] font-semibold uppercase text-champagne/70">
+              {pricingGuide.eyebrow}
+            </p>
+            <h3 className="mt-3 font-display text-2xl leading-tight text-cream group-hover:text-champagne">
+              {pricingGuide.title}
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-[#a99984]">
+              {pricingGuide.description}
+            </p>
+          </Link>
           {SEO_PAGES.map((page) => (
             <Link
               key={page.path}
