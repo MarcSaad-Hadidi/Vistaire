@@ -60,6 +60,52 @@ function detailStyleVars(config: MenuUiConfig | undefined): CSSProperties {
   } as CSSProperties;
 }
 
+function firstAssetUrl(...urls: string[]): string {
+  return urls.map((url) => url.trim()).find(Boolean) ?? "";
+}
+
+function resolvePublic3dHref(dish: PublicMenuDish): string {
+  return firstAssetUrl(dish.webModel3dUrl, dish.model3dUrl, dish.arModel3dUrl);
+}
+
+function resolvePublicArHref(dish: PublicMenuDish): string {
+  return firstAssetUrl(dish.arUsdzUrl, dish["usdzUrl"], dish.arModel3dUrl);
+}
+
+function isQuickLookHref(href: string): boolean {
+  return href.trim().toLowerCase().split(/[?#]/, 1)[0].endsWith("usdz");
+}
+
+function ModelActionLink({
+  children,
+  href
+}: {
+  children: string;
+  href: string;
+}) {
+  const quickLook = isQuickLookHref(href);
+
+  return (
+    <a
+      className={styles.modelActionLink}
+      href={href}
+      rel={quickLook ? "ar" : "noreferrer"}
+      target={quickLook ? undefined : "_blank"}
+    >
+      {quickLook ? (
+        // Safari Quick Look requires an image child inside rel=ar links.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt=""
+          aria-hidden="true"
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+        />
+      ) : null}
+      <span>{children}</span>
+    </a>
+  );
+}
+
 export function PublicDishDetailExperience({
   menu,
   dish,
@@ -75,6 +121,11 @@ export function PublicDishDetailExperience({
   const menuHref = buildPublicMenuPath(menu.slug, query);
   const dishHref = buildPublicDishPath(menu.slug, dish.slug, query);
   const badges = dishBadges(dish);
+  const public3dHref = mode === "public" ? resolvePublic3dHref(dish) : "";
+  const publicArHref = mode === "public" ? resolvePublicArHref(dish) : "";
+  const showPublicModelActions = Boolean(public3dHref || publicArHref);
+  const showBuilderModelStatus =
+    mode === "builder-preview" && (dish.has3d || dish.hasAr);
 
   async function copyDishLink() {
     try {
@@ -210,13 +261,34 @@ export function PublicDishDetailExperience({
               ) : null}
             </div>
 
-            {dish.has3d || dish.hasAr ? (
+            {showPublicModelActions || showBuilderModelStatus ? (
               <section className={styles.modelPanel}>
                 <h2>3D / AR</h2>
-                <p>Posters et CTA seulement. Chargement apres action explicite.</p>
+                <p>
+                  {mode === "public"
+                    ? "Ouverture des assets immersifs apres action explicite."
+                    : "Preview statut seulement dans le builder."}
+                </p>
                 <div>
-                  {dish.has3d ? <button type="button">Voir en 3D</button> : null}
-                  {dish.hasAr ? <button type="button">Voir en AR</button> : null}
+                  {mode === "public" ? (
+                    <>
+                      {public3dHref ? (
+                        <ModelActionLink href={public3dHref}>Voir en 3D</ModelActionLink>
+                      ) : null}
+                      {publicArHref ? (
+                        <ModelActionLink href={publicArHref}>Voir en AR</ModelActionLink>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      {dish.has3d ? (
+                        <span className={styles.modelStatusChip}>3D disponible</span>
+                      ) : null}
+                      {dish.hasAr ? (
+                        <span className={styles.modelStatusChip}>AR disponible</span>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               </section>
             ) : null}
