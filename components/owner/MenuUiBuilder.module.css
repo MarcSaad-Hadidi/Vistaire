@@ -2,7 +2,9 @@
   display: grid;
   grid-template-columns: minmax(340px, 470px) minmax(380px, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
+  height: calc(100svh - 156px);
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -16,7 +18,12 @@
 .controls {
   display: grid;
   gap: 14px;
+  align-content: start;
   min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .controlPanel,
@@ -429,6 +436,10 @@
 .previewPane {
   position: sticky;
   top: 18px;
+  align-self: start;
+  max-height: calc(100svh - 156px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
 }
 
@@ -489,9 +500,10 @@
 
 .phoneScreen {
   position: relative;
-  min-height: 800px;
-  max-height: 800px;
+  height: min(800px, calc(100svh - 292px));
+  min-height: 560px;
   overflow: auto;
+  overscroll-behavior: contain;
   border-radius: 34px;
   background: #fffdf6;
   color: #17324d;
@@ -1158,10 +1170,20 @@
 @media (max-width: 1180px) {
   .builderShell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .controls {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .previewPane {
     position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 
@@ -1182,8 +1204,8 @@
 
   .phoneScreen {
     border-radius: 26px;
-    min-height: 720px;
-    max-height: 720px;
+    height: min(720px, calc(100svh - 220px));
+    min-height: 540px;
   }
 
   .builderShell {
@@ -1206,8 +1228,8 @@
   }
 
   .phoneScreen {
-    min-height: 680px;
-    max-height: 680px;
+    height: min(680px, calc(100svh - 196px));
+    min-height: 520px;
   }
 
   .dishCard {

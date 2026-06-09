@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import {
   buildPublicDishPath,
   type PublicMenu,
@@ -18,6 +18,8 @@ type PublicDishDetailExperienceProps = {
   config?: MenuUiConfig;
   context?: string;
   query?: PublicMenuContextQuery;
+  mode?: "public" | "builder-preview";
+  onBack?: () => void;
 };
 
 function dishBadges(dish: PublicMenuDish): string[] {
@@ -45,12 +47,73 @@ function DetailList({ items }: { items: string[] }) {
   );
 }
 
+function detailStyleVars(config: MenuUiConfig | undefined): CSSProperties {
+  return {
+    "--detail-bg": config?.palette.background ?? "#FFFDF6",
+    "--detail-surface": config?.palette.surface ?? "#FFFFFF",
+    "--detail-text": config?.palette.text ?? "#17324D",
+    "--detail-muted": config?.palette.muted ?? "#5F6F7A",
+    "--detail-accent": config?.palette.accent ?? "#F6C453",
+    "--detail-accent-2": config?.palette.accent2 ?? "#E85D3F",
+    "--detail-border": config?.palette.border ?? "#DDEAF3",
+    "--detail-fresh": config?.palette.accent3 ?? "#2FA866"
+  } as CSSProperties;
+}
+
+function firstAssetUrl(...urls: string[]): string {
+  return urls.map((url) => url.trim()).find(Boolean) ?? "";
+}
+
+function resolvePublic3dHref(dish: PublicMenuDish): string {
+  return firstAssetUrl(dish.webModel3dUrl, dish.model3dUrl, dish.arModel3dUrl);
+}
+
+function resolvePublicArHref(dish: PublicMenuDish): string {
+  return firstAssetUrl(dish.arUsdzUrl, dish["usdzUrl"], dish.arModel3dUrl);
+}
+
+function isQuickLookHref(href: string): boolean {
+  return href.trim().toLowerCase().split(/[?#]/, 1)[0].endsWith("usdz");
+}
+
+function ModelActionLink({
+  children,
+  href
+}: {
+  children: string;
+  href: string;
+}) {
+  const quickLook = isQuickLookHref(href);
+
+  return (
+    <a
+      className={styles.modelActionLink}
+      href={href}
+      rel={quickLook ? "ar" : "noreferrer"}
+      target={quickLook ? undefined : "_blank"}
+    >
+      {quickLook ? (
+        // Safari Quick Look requires an image child inside rel=ar links.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt=""
+          aria-hidden="true"
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+        />
+      ) : null}
+      <span>{children}</span>
+    </a>
+  );
+}
+
 export function PublicDishDetailExperience({
   menu,
   dish,
   config,
   context = "",
-  query
+  query,
+  mode = "public",
+  onBack
 }: PublicDishDetailExperienceProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
     "idle"
@@ -58,6 +121,11 @@ export function PublicDishDetailExperience({
   const menuHref = buildPublicMenuPath(menu.slug, query);
   const dishHref = buildPublicDishPath(menu.slug, dish.slug, query);
   const badges = dishBadges(dish);
+  const public3dHref = mode === "public" ? resolvePublic3dHref(dish) : "";
+  const publicArHref = mode === "public" ? resolvePublicArHref(dish) : "";
+  const showPublicModelActions = Boolean(public3dHref || publicArHref);
+  const showBuilderModelStatus =
+    mode === "builder-preview" && (dish.has3d || dish.hasAr);
 
   async function copyDishLink() {
     try {
@@ -71,15 +139,24 @@ export function PublicDishDetailExperience({
 
   return (
     <main
-      className={styles.page}
+      className={`${styles.page} ${
+        mode === "builder-preview" ? styles.builderPreview : ""
+      }`}
       data-theme={config?.theme}
       data-blueprint={config?.experience.blueprint}
+      style={detailStyleVars(config)}
     >
       <div className={styles.shell}>
         <nav className={styles.topNav} aria-label="Navigation fiche plat">
-          <Link href={menuHref} prefetch={false}>
-            Retour au menu
-          </Link>
+          {onBack ? (
+            <button type="button" onClick={onBack}>
+              Retour au menu
+            </button>
+          ) : (
+            <Link href={menuHref} prefetch={false}>
+              Retour au menu
+            </Link>
+          )}
           <span>{menu.name}</span>
         </nav>
 
@@ -137,6 +214,23 @@ export function PublicDishDetailExperience({
               </div>
             </dl>
 
+            {mode === "builder-preview" ? (
+              <dl className={styles.factGrid} aria-label="Statut owner preview">
+                <div>
+                  <dt>Photo</dt>
+                  <dd>{dish.hasPhoto ? "Prete" : "A faire owner"}</dd>
+                </div>
+                <div>
+                  <dt>3D</dt>
+                  <dd>{dish.has3d ? "Disponible" : "Non disponible"}</dd>
+                </div>
+                <div>
+                  <dt>AR</dt>
+                  <dd>{dish.hasAr ? "Disponible" : "Non disponible"}</dd>
+                </div>
+              </dl>
+            ) : null}
+
             <div className={styles.detailSections}>
               {dish.ingredients.length > 0 ? (
                 <section>
@@ -167,10 +261,48 @@ export function PublicDishDetailExperience({
               ) : null}
             </div>
 
+            {showPublicModelActions || showBuilderModelStatus ? (
+              <section className={styles.modelPanel}>
+                <h2>3D / AR</h2>
+                <p>
+                  {mode === "public"
+                    ? "Ouverture des assets immersifs apres action explicite."
+                    : "Preview statut seulement dans le builder."}
+                </p>
+                <div>
+                  {mode === "public" ? (
+                    <>
+                      {public3dHref ? (
+                        <ModelActionLink href={public3dHref}>Voir en 3D</ModelActionLink>
+                      ) : null}
+                      {publicArHref ? (
+                        <ModelActionLink href={publicArHref}>Voir en AR</ModelActionLink>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      {dish.has3d ? (
+                        <span className={styles.modelStatusChip}>3D disponible</span>
+                      ) : null}
+                      {dish.hasAr ? (
+                        <span className={styles.modelStatusChip}>AR disponible</span>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </section>
+            ) : null}
+
             <div className={styles.actions}>
-              <Link className={styles.primaryLink} href={menuHref} prefetch={false}>
-                Retour au menu
-              </Link>
+              {onBack ? (
+                <button type="button" className={styles.primaryLink} onClick={onBack}>
+                  Retour au menu
+                </button>
+              ) : (
+                <Link className={styles.primaryLink} href={menuHref} prefetch={false}>
+                  Retour au menu
+                </Link>
+              )}
               <button type="button" onClick={copyDishLink}>
                 Copier le lien
               </button>

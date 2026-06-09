@@ -1,10 +1,15 @@
 .page {
   min-height: 100svh;
   overflow-x: clip;
-  background: linear-gradient(180deg, #FFFDF6 0%, #FFFDF6 58%, #EAF6FF 100%);
-  color: #17324D;
+  background: var(--detail-bg);
+  color: var(--detail-text);
   font-family: "Neue Montreal", system-ui, sans-serif;
   padding: 12px 14px 34px;
+}
+
+.builderPreview {
+  min-height: 100%;
+  padding: 0;
 }
 
 .shell {
@@ -24,11 +29,12 @@
   gap: 14px;
   min-height: 46px;
   padding: 7px 0;
-  background: rgba(255, 253, 246, 0.94);
+  background: color-mix(in srgb, var(--detail-bg) 94%, transparent);
   backdrop-filter: blur(10px);
 }
 
 .topNav a,
+.topNav button,
 .primaryLink,
 .actions button {
   display: inline-flex;
@@ -37,7 +43,7 @@
   min-height: 40px;
   padding: 10px 14px;
   border-radius: 999px;
-  color: #17324D;
+  color: var(--detail-text);
   font: inherit;
   font-size: 13px;
   font-weight: 900;
@@ -45,14 +51,16 @@
 }
 
 .topNav a,
+.topNav button,
 .actions button {
-  border: 1px solid #DDEAF3;
-  background: #FFFFFF;
+  border: 1px solid var(--detail-border);
+  background: var(--detail-surface);
+  cursor: pointer;
 }
 
 .topNav span {
   min-width: 0;
-  color: #5F6F7A;
+  color: var(--detail-muted);
   font-size: 12px;
   font-weight: 900;
   overflow: hidden;
@@ -70,9 +78,9 @@
   min-height: 220px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid #DDEAF3;
+  border: 1px solid var(--detail-border);
   border-radius: 8px;
-  background-color: #EAF8EF;
+  background-color: color-mix(in srgb, var(--detail-fresh) 12%, var(--detail-bg));
   background-position: center;
   background-size: cover;
   box-shadow: 0 12px 30px rgba(23, 50, 77, 0.08);
@@ -82,7 +90,7 @@
   display: grid;
   justify-items: center;
   gap: 8px;
-  color: #2FA866;
+  color: var(--detail-fresh);
   text-align: center;
 }
 
@@ -92,8 +100,8 @@
   aspect-ratio: 1;
   place-items: center;
   border-radius: 999px;
-  background: #FFFFFF;
-  color: #2FA866;
+  background: var(--detail-surface);
+  color: var(--detail-fresh);
   font-size: 28px;
   font-weight: 900;
   box-shadow: 0 10px 24px rgba(23, 50, 77, 0.08);
@@ -101,7 +109,7 @@
 
 .imageFallback p {
   margin: 0;
-  color: #5F6F7A;
+  color: var(--detail-muted);
   font-size: 13px;
   font-weight: 900;
 }
@@ -118,7 +126,7 @@
 
 .kicker {
   margin: 0;
-  color: #E85D3F;
+  color: var(--detail-accent-2);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -127,23 +135,28 @@
 
 .heading h1 {
   margin: 0;
-  color: #17324D;
+  color: var(--detail-text);
   font-size: 34px;
   line-height: 1.02;
   font-weight: 900;
-  overflow-wrap: anywhere;
+  max-width: 16ch;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+  word-break: normal;
 }
 
 .description {
   margin: 0;
-  color: #6B5A48;
+  color: var(--detail-muted);
   font-size: 16px;
   line-height: 1.48;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .context {
   width: fit-content;
-  color: #5F6F7A;
+  color: var(--detail-muted);
   font-size: 12px;
   font-weight: 900;
 }
@@ -157,8 +170,8 @@
 .badges span {
   padding: 5px 9px;
   border-radius: 999px;
-  background: rgba(47, 168, 102, 0.12);
-  color: #2FA866;
+  background: color-mix(in srgb, var(--detail-fresh) 14%, transparent);
+  color: var(--detail-fresh);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.03em;
@@ -176,16 +189,17 @@
 .detailSections section {
   min-width: 0;
   padding: 13px;
-  border: 1px solid #DDEAF3;
+  border: 1px solid var(--detail-border);
   border-radius: 8px;
-  background: #FFFFFF;
+  background: var(--detail-surface);
   box-shadow: 0 8px 22px rgba(23, 50, 77, 0.05);
 }
 
 .factGrid dt,
-.detailSections h2 {
+.detailSections h2,
+.modelPanel h2 {
   margin: 0 0 6px;
-  color: #5F6F7A;
+  color: var(--detail-muted);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.05em;
@@ -194,10 +208,11 @@
 
 .factGrid dd {
   margin: 0;
-  color: #17324D;
+  color: var(--detail-text);
   font-size: 15px;
   font-weight: 900;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .detailSections {
@@ -210,20 +225,72 @@
   gap: 5px;
   margin: 0;
   padding-left: 18px;
-  color: #17324D;
+  color: var(--detail-text);
   font-size: 14px;
   line-height: 1.42;
 }
 
 .detailSections p {
   margin: 0;
-  color: #6B5A48;
+  color: var(--detail-muted);
   font-size: 14px;
   line-height: 1.45;
 }
 
 .houseNote {
-  background: #FFF3C7;
+  background: color-mix(in srgb, var(--detail-accent) 24%, var(--detail-surface));
+}
+
+.modelPanel {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid var(--detail-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--detail-accent) 10%, var(--detail-surface));
+}
+
+.modelPanel p {
+  margin: 0;
+  color: var(--detail-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.modelPanel div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modelActionLink,
+.modelStatusChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--detail-text);
+  color: var(--detail-surface);
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.modelActionLink img {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modelStatusChip {
+  border: 1px solid var(--detail-border);
+  background: var(--detail-surface);
+  color: var(--detail-text);
 }
 
 .actions {
@@ -233,7 +300,8 @@
 }
 
 .primaryLink {
-  background: #F6C453;
+  border: 0;
+  background: var(--detail-accent);
   box-shadow: 0 10px 24px rgba(246, 196, 83, 0.26);
 }
 
@@ -244,13 +312,15 @@
 .copyState {
   min-height: 18px;
   margin: -6px 0 0;
-  color: #2FA866;
+  color: var(--detail-fresh);
   font-size: 13px;
   font-weight: 900;
 }
 
 .topNav a:focus-visible,
+.topNav button:focus-visible,
 .primaryLink:focus-visible,
+.modelActionLink:focus-visible,
 .actions button:focus-visible {
   outline: 3px solid rgba(232, 93, 63, 0.45);
   outline-offset: 3px;
@@ -275,6 +345,26 @@
 
   .heading h1 {
     font-size: 52px;
+  }
+
+  .builderPreview {
+    min-height: 100%;
+    padding: 0;
+  }
+
+  .builderPreview .card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .builderPreview .visual {
+    position: static;
+    top: auto;
+    min-height: 220px;
+  }
+
+  .builderPreview .heading h1 {
+    font-size: 34px;
   }
 }
 

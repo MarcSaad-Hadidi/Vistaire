@@ -13,6 +13,7 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
+import { PublicDishDetailExperience } from "./PublicDishDetailExperience";
 import styles from "./PublicMenuRenderer.module.css";
 
 type PublicMenuRendererProps = {
@@ -257,8 +258,7 @@ export function PublicMenuRenderer({
   });
   const welcomeTitle = config.welcomeTitle || `Bienvenue chez ${menu.name}`;
   const welcomeSubtitle = config.welcomeSubtitle || "Decouvrez notre carte";
-  const dishOpenMode =
-    mode === "builder-preview" ? "inline" : config.detail.dishOpenMode;
+  const dishOpenMode = config.detail.dishOpenMode;
   const heading =
     activeTab === HOME_TAB_ID
       ? "Categories"
@@ -819,25 +819,6 @@ export function PublicMenuRenderer({
     );
   }
 
-  function renderOwnerStatusFacts(dish: PublicMenuDish) {
-    return (
-      <dl className={styles.factGrid}>
-        <div>
-          <dt>Photo</dt>
-          <dd>{dish.hasPhoto ? "Prete" : "A faire owner"}</dd>
-        </div>
-        <div>
-          <dt>3D</dt>
-          <dd>{dish.has3d ? "Disponible" : "Non disponible"}</dd>
-        </div>
-        <div>
-          <dt>AR</dt>
-          <dd>{dish.hasAr ? "Disponible" : "Non disponible"}</dd>
-        </div>
-      </dl>
-    );
-  }
-
   function renderSelectedDish() {
     if (!selectedDish) return null;
     return (
@@ -877,8 +858,6 @@ export function PublicMenuRenderer({
             </div>
             {selectedDish.priceLabel ? <strong>{selectedDish.priceLabel}</strong> : null}
             {selectedDish.description ? <p>{selectedDish.description}</p> : null}
-
-            {mode === "builder-preview" ? renderOwnerStatusFacts(selectedDish) : null}
 
             {selectedDish.ingredients.length > 0 ? (
               <section className={styles.detailList}>
@@ -949,6 +928,19 @@ export function PublicMenuRenderer({
           </div>
         </article>
       </div>
+    );
+  }
+
+  if (mode === "builder-preview" && selectedDish) {
+    return (
+      <PublicDishDetailExperience
+        config={config}
+        dish={selectedDish}
+        menu={menu}
+        mode="builder-preview"
+        onBack={() => setSelectedDish(null)}
+        query={query}
+      />
     );
   }
 

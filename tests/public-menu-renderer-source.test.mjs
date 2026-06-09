@@ -82,14 +82,42 @@ test("tabbed compact blueprint lists honor the active category tab", async () =>
 
 test("public menu renderer keeps owner-only status copy out of public mode", async () => {
   const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
+  const detailSource = await readFile(
+    "components/menu/PublicDishDetailExperience.tsx",
+    "utf8"
+  );
 
   assert.match(
     source,
     /mode === "builder-preview" &&\s*config\.photos\.ownerMissingWarnings &&\s*!dish\.hasPhoto/
   );
-  assert.match(source, /mode === "builder-preview" \? renderOwnerStatusFacts/);
-  assert.doesNotMatch(source, /<dt>Photo<\/dt>[\s\S]*?<dd>\{selectedDish\.hasPhoto \? "Prete" : "A faire"\}<\/dd>/);
+  assert.match(detailSource, /mode === "builder-preview"[\s\S]*A faire owner/);
+  assert.doesNotMatch(source, /A faire owner/);
   assert.doesNotMatch(source, /mode === "public"[\s\S]{0,220}Photo a faire/);
+});
+
+test("builder preview opens dish details as a full detail experience, not a compressed overlay", async () => {
+  const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
+
+  assert.match(source, /import \{ PublicDishDetailExperience \}/);
+  assert.match(source, /mode === "builder-preview" && selectedDish/);
+  assert.match(source, /mode="builder-preview"/);
+  assert.match(source, /onBack=\{\(\) => setSelectedDish\(null\)\}/);
+});
+
+test("public menu CSS prevents letter-by-letter wrapping and fragile mobile grids", async () => {
+  const css = await readFile("components/menu/PublicMenuRenderer.module.css", "utf8");
+
+  assert.doesNotMatch(css, /word-break:\s*break-all/);
+  assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
+  assert.match(css, /\.dishName\s*\{[\s\S]*overflow-wrap:\s*break-word;[\s\S]*word-break:\s*normal;/);
+  assert.match(css, /\.categoryCard strong\s*\{[\s\S]*overflow-wrap:\s*break-word;[\s\S]*word-break:\s*normal;/);
+  assert.match(css, /\.tabs\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*white-space:\s*nowrap;/);
+  assert.match(css, /\.tabs button\s*\{[\s\S]*flex:\s*0 0 auto;[\s\S]*min-width:\s*max-content;/);
+  assert.match(
+    css,
+    /@media \(max-width: 430px\)[\s\S]*\.photoGridCards \.dishList,[\s\S]*\.photoGridCards \+ \.fullMenuList \.dishList[\s\S]*grid-template-columns:\s*1fr;/
+  );
 });
 
 test("public menu renderer links dish cards to shareable detail routes with QR context", async () => {

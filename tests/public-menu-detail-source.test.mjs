@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 const detailPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
 const detailComponentPath = "components/menu/PublicDishDetailExperience.tsx";
+const detailCssPath = "components/menu/PublicDishDetailExperience.module.css";
 
 test("public dish detail route scopes dishes to the requested public menu", async () => {
   const source = await readFile(detailPagePath, "utf8");
@@ -32,6 +33,42 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /dish\.options\.length/);
   assert.match(source, /dish\.houseNote/);
   assert.match(source, /config\?: MenuUiConfig/);
+  assert.match(source, /mode\?: "public" \| "builder-preview"/);
+  assert.match(source, /onBack\?: \(\) => void/);
   assert.match(source, /data-theme=\{config\?\.theme/);
   assert.match(source, /data-blueprint=\{config\?\.experience\.blueprint/);
+  assert.match(source, /mode === "builder-preview"/);
+  assert.match(source, /resolvePublic3dHref/);
+  assert.match(source, /resolvePublicArHref/);
+  assert.match(source, /href=\{href\}/);
+  assert.match(source, /Voir en 3D/);
+  assert.match(source, /Voir en AR/);
+  assert.match(source, /Preview statut seulement dans le builder/);
+  assert.doesNotMatch(source, /<button type="button">Voir en 3D<\/button>/);
+  assert.doesNotMatch(source, /<button type="button">Voir en AR<\/button>/);
+  assert.doesNotMatch(source, /model-viewer/);
+  assert.doesNotMatch(source, /@google\/model-viewer/);
+  assert.doesNotMatch(source, /\.glb/);
+  assert.doesNotMatch(source, /\.usdz/);
+});
+
+test("public dish detail CSS keeps builder preview inside the simulated phone on desktop", async () => {
+  const css = await readFile(detailCssPath, "utf8");
+
+  assert.match(
+    css,
+    /@media \(min-width: 760px\)[\s\S]*\.builderPreview\s*\{[\s\S]*padding:\s*0;/
+  );
+  assert.match(
+    css,
+    /@media \(min-width: 760px\)[\s\S]*\.builderPreview \.card\s*\{[\s\S]*grid-template-columns:\s*1fr;/
+  );
+  assert.match(
+    css,
+    /@media \(min-width: 760px\)[\s\S]*\.builderPreview \.visual\s*\{[\s\S]*position:\s*static;[\s\S]*min-height:\s*220px;/
+  );
+  assert.match(
+    css,
+    /@media \(min-width: 760px\)[\s\S]*\.builderPreview \.heading h1\s*\{[\s\S]*font-size:\s*34px;/
+  );
 });
