@@ -328,6 +328,7 @@
 }
 
 .modelActionButton,
+.modelActionButtonSecondary,
 .modelActionLink,
 .modelStatusChip {
   position: relative;
@@ -351,6 +352,12 @@
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+.modelActionButtonSecondary {
+  border: 1px solid var(--detail-border);
+  background: var(--detail-surface);
+  color: var(--detail-text);
 }
 
 .modelStatusChip {
@@ -416,6 +423,7 @@
 .topNav button:focus-visible,
 .primaryLink:focus-visible,
 .modelActionButton:focus-visible,
+.modelActionButtonSecondary:focus-visible,
 .modelActionLink:focus-visible,
 .actions button:focus-visible {
   outline: 3px solid rgba(232, 93, 63, 0.45);
@@ -620,6 +628,7 @@
 }
 
 .page[data-theme="premium-gastronomic"] .modelActionButton,
+.page[data-theme="premium-gastronomic"] .modelActionButtonSecondary,
 .page[data-theme="premium-gastronomic"] .modelActionLink,
 .page[data-theme="premium-gastronomic"] .modelStatusChip,
 .page[data-theme="premium-gastronomic"] .primaryLink {
@@ -635,6 +644,11 @@
 .page[data-theme="premium-gastronomic"] .modelStatusChip {
   background: rgba(255, 250, 240, 0.055);
   color: rgba(255, 250, 240, 0.9);
+}
+
+.page[data-theme="premium-gastronomic"] .modelActionButtonSecondary {
+  background: rgba(255, 250, 240, 0.055);
+  color: rgba(255, 250, 240, 0.92);
 }
 
 .page[data-theme="premium-gastronomic"] .inlineModelViewer,
@@ -681,6 +695,7 @@
 .page[data-theme="premium-gastronomic"] .topNav button:hover,
 .page[data-theme="premium-gastronomic"] .actions button:hover,
 .page[data-theme="premium-gastronomic"] .modelActionButton:hover,
+.page[data-theme="premium-gastronomic"] .modelActionButtonSecondary:hover,
 .page[data-theme="premium-gastronomic"] .modelActionLink:hover {
   border-color: rgba(255, 250, 240, 0.72);
 }
@@ -689,6 +704,7 @@
 .page[data-theme="premium-gastronomic"] .topNav button:focus-visible,
 .page[data-theme="premium-gastronomic"] .primaryLink:focus-visible,
 .page[data-theme="premium-gastronomic"] .modelActionButton:focus-visible,
+.page[data-theme="premium-gastronomic"] .modelActionButtonSecondary:focus-visible,
 .page[data-theme="premium-gastronomic"] .modelActionLink:focus-visible,
 .page[data-theme="premium-gastronomic"] .actions button:focus-visible {
   outline: 2px solid rgba(232, 207, 155, 0.9);
@@ -779,7 +795,8 @@
   }
 
   .modelActions,
-  .modelActionButton {
+  .modelActionButton,
+  .modelActionButtonSecondary {
     width: 100%;
   }
 

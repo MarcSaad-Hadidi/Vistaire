@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
@@ -42,6 +43,10 @@ export default async function PublicMenuPage({
     menu.restaurantId,
     fallbackConfig
   );
+
+  if (menu.slug === "maison-elyse") {
+    return <MaisonElyseQrMenu menu={menu} context={context} query={query} />;
+  }
 
   return (
     <PublicMenuRenderer

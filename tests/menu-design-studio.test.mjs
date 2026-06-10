@@ -308,16 +308,18 @@ test("dish detail route is shareable for any scoped public menu slug", async () 
   assert.match(source, /notFound\(\)/);
 });
 
-test("dish detail component preserves QR query context without heavy viewer imports", async () => {
+test("dish detail component preserves QR query context with intent-gated 3D", async () => {
   const source = await readFile("components/menu/PublicDishDetailExperience.tsx", "utf8");
 
   assert.match(source, /query\?: PublicMenuContextQuery/);
   assert.match(source, /buildPublicMenuPath\(menu\.slug, query\)/);
-  assert.match(source, /buildPublicDishPath\(menu\.slug, dish\.slug, query\)/);
-  assert.doesNotMatch(source, /DishModelViewer/);
-  assert.doesNotMatch(source, /model-viewer/);
-  assert.doesNotMatch(source, /\.glb/);
-  assert.doesNotMatch(source, /\.usdz/);
+  assert.match(source, /dynamic<DishModelViewerProps>/);
+  assert.match(source, /showModelViewer/);
+  assert.match(source, /Voir en 3D/);
+  assert.match(source, /Afficher devant moi/);
+  assert.doesNotMatch(source, /<model-viewer/);
+  assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
+  assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
 });
 
 test("builder exposes advanced studio controls without heavy model imports", async () => {

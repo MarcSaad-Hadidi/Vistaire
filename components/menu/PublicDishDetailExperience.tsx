@@ -50,6 +50,9 @@ function dishBadges(dish: PublicMenuDish): string[] {
   ) {
     badges.add("Maison");
   }
+  if (hasPublic3d(dish)) badges.add("3D");
+  if (hasPublicAr(dish)) badges.add("AR");
+  if (!dish.available) badges.add("Indisponible");
   return Array.from(badges).slice(0, 4);
 }
 
@@ -74,6 +77,14 @@ function detailStyleVars(config: MenuUiConfig | undefined): CSSProperties {
     "--detail-border": config?.palette.border ?? "#DDEAF3",
     "--detail-fresh": config?.palette.accent3 ?? "#2FA866"
   } as CSSProperties;
+}
+
+function hasPublic3d(dish: PublicMenuDish): boolean {
+  return Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl);
+}
+
+function hasPublicAr(dish: PublicMenuDish): boolean {
+  return Boolean(dish.arModel3dUrl || dish.arUsdzUrl || dish.usdzUrl);
 }
 
 function modelViewerDishFromPublicDish(
@@ -105,9 +116,11 @@ export function PublicDishDetailExperience({
   const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
   const badges = dishBadges(dish);
-  const showPublicModelActions = mode === "public" && (dish.has3d || dish.hasAr);
+  const has3d = hasPublic3d(dish);
+  const hasAr = hasPublicAr(dish);
+  const showPublicModelActions = mode === "public" && (has3d || hasAr);
   const showBuilderModelStatus =
-    mode === "builder-preview" && (dish.has3d || dish.hasAr);
+    mode === "builder-preview" && (has3d || hasAr);
 
   return (
     <main
@@ -194,11 +207,11 @@ export function PublicDishDetailExperience({
                 </div>
                 <div>
                   <dt>3D</dt>
-                  <dd>{dish.has3d ? "Disponible" : "Non disponible"}</dd>
+                  <dd>{has3d ? "Disponible" : "Non disponible"}</dd>
                 </div>
                 <div>
                   <dt>AR</dt>
-                  <dd>{dish.hasAr ? "Disponible" : "Non disponible"}</dd>
+                  <dd>{hasAr ? "Disponible" : "Non disponible"}</dd>
                 </div>
               </dl>
             ) : null}
@@ -241,11 +254,18 @@ export function PublicDishDetailExperience({
               >
                 <div className={styles.modelPanelHeader}>
                   <div className={styles.modelPanelCopy}>
-                    <h2>3D / AR sélective</h2>
+                    <h2>Aperçu 3D / AR</h2>
                     {mode === "public" ? (
                       <strong className={styles.modelPanelTitle}>
                         Aperçu immersif
                       </strong>
+                    ) : null}
+                    {mode === "public" ? (
+                      <p>
+                        {hasAr
+                          ? "La 3D se lance ici. L'option AR place le plat devant vous depuis un téléphone compatible."
+                          : "La vue 3D se lance ici après votre action."}
+                      </p>
                     ) : null}
                     {mode === "builder-preview" ? (
                       <p>Preview statut seulement dans le builder.</p>
@@ -253,25 +273,40 @@ export function PublicDishDetailExperience({
                   </div>
                   <div className={styles.modelActions}>
                     {mode === "public" ? (
-                      <button
-                        type="button"
-                        className={styles.modelActionButton}
-                        aria-controls="public-dish-model-viewer"
-                        aria-expanded={showModelViewer}
-                        onClick={() =>
-                          setShowModelViewer((isVisible) => !isVisible)
-                        }
-                      >
-                        {showModelViewer ? "Masquer la 3D" : "Voir en 3D"}
-                      </button>
+                      <>
+                        {has3d ? (
+                          <button
+                            type="button"
+                            className={styles.modelActionButton}
+                            aria-controls="public-dish-model-viewer"
+                            aria-expanded={showModelViewer}
+                            onClick={() =>
+                              setShowModelViewer((isVisible) => !isVisible)
+                            }
+                          >
+                            {showModelViewer ? "Masquer la 3D" : "Voir en 3D"}
+                          </button>
+                        ) : null}
+                        {hasAr ? (
+                          <button
+                            type="button"
+                            className={styles.modelActionButtonSecondary}
+                            aria-controls="public-dish-model-viewer"
+                            aria-expanded={showModelViewer}
+                            onClick={() => setShowModelViewer(true)}
+                          >
+                            Afficher devant moi
+                          </button>
+                        ) : null}
+                      </>
                     ) : (
                       <>
-                        {dish.has3d ? (
+                        {has3d ? (
                           <span className={styles.modelStatusChip}>
                             3D disponible
                           </span>
                         ) : null}
-                        {dish.hasAr ? (
+                        {hasAr ? (
                           <span className={styles.modelStatusChip}>
                             AR disponible
                           </span>

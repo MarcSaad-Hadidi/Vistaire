@@ -26,7 +26,6 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /Catégorie/);
   assert.match(source, /Disponibilité/);
   assert.match(source, /Image du plat à venir/);
-  assert.match(source, /Copier le lien/);
   assert.match(source, /Retour au menu/);
   assert.match(source, /dish\.ingredients\.length/);
   assert.match(source, /dish\.allergens\.length/);
@@ -38,18 +37,17 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /data-theme=\{config\?\.theme/);
   assert.match(source, /data-blueprint=\{config\?\.experience\.blueprint/);
   assert.match(source, /mode === "builder-preview"/);
-  assert.match(source, /resolvePublic3dHref/);
-  assert.match(source, /resolvePublicArHref/);
-  assert.match(source, /href=\{href\}/);
+  assert.match(source, /hasPublic3d/);
+  assert.match(source, /hasPublicAr/);
+  assert.match(source, /dynamic<DishModelViewerProps>/);
+  assert.match(source, /ssr:\s*false/);
+  assert.match(source, /LazyDishModelViewer/);
   assert.match(source, /Voir en 3D/);
-  assert.match(source, /Voir en AR/);
+  assert.match(source, /Afficher devant moi/);
   assert.match(source, /Preview statut seulement dans le builder/);
-  assert.doesNotMatch(source, /<button type="button">Voir en 3D<\/button>/);
-  assert.doesNotMatch(source, /<button type="button">Voir en AR<\/button>/);
-  assert.doesNotMatch(source, /model-viewer/);
-  assert.doesNotMatch(source, /@google\/model-viewer/);
-  assert.doesNotMatch(source, /\.glb/);
-  assert.doesNotMatch(source, /\.usdz/);
+  assert.doesNotMatch(source, /<model-viewer/);
+  assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
+  assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
 });
 
 test("public dish detail CSS keeps builder preview inside the simulated phone on desktop", async () => {
