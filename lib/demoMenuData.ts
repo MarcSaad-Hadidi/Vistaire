@@ -1,4 +1,5 @@
 import type { Locale } from "./i18n.ts";
+import type { GoogleReviewConfig } from "./menu/publicMenuCore.ts";
 
 export type CurrencyCode = "CAD" | "EUR" | "USD";
 
@@ -25,6 +26,7 @@ export type Restaurant = {
   currency: CurrencyCode;
   /** Court texte d’ambiance (sans promesse de service à table). */
   contextLine: string;
+  googleReview?: GoogleReviewConfig;
 };
 
 export type Category = {
@@ -76,6 +78,12 @@ const RESTAURANT: Restaurant = {
   coverImage: null,
   logoMonogram: "MÉ",
   currency: "CAD",
+  googleReview: {
+    enabled: false,
+    googleReviewUrl: "",
+    googleRating: 4.8,
+    googleReviewCount: 128
+  },
   contextLine:
     "Saisonnalité, produits du marché et créations de la maison."
 };

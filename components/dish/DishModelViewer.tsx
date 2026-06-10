@@ -60,6 +60,7 @@ export type DishModelViewerProps = {
   >;
   /** Chrome minimal : titres et aide fournis par le parent si besoin. */
   minimalChrome?: boolean;
+  quietChrome?: boolean;
   onReturnToDish?: () => void;
 };
 
@@ -331,7 +332,8 @@ function PremiumFailureState({
   onRetry,
   onReturnToDish,
   quickLookHref,
-  onQuickLookClick
+  onQuickLookClick,
+  quietChrome = false
 }: {
   dish: Pick<
     Dish,
@@ -341,6 +343,7 @@ function PremiumFailureState({
   onReturnToDish?: () => void;
   quickLookHref?: string;
   onQuickLookClick?: () => void;
+  quietChrome?: boolean;
 }) {
   const hasDirectAr = Boolean(quickLookHref && onQuickLookClick);
 
@@ -355,11 +358,13 @@ function PremiumFailureState({
         <p className="font-display text-lg leading-tight text-cream sm:text-xl">
           La vue 3D n’a pas pu être chargée pour le moment.
         </p>
-        <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
-          {hasDirectAr
-            ? "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari."
-            : "Vous pouvez réessayer maintenant ou revenir à la fiche du plat."}
-        </p>
+        {!quietChrome ? (
+          <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
+            {hasDirectAr
+              ? "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari."
+              : "Vous pouvez réessayer maintenant ou revenir à la fiche du plat."}
+          </p>
+        ) : null}
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           {hasDirectAr ? (
             <IosQuickLookArLink
@@ -384,7 +389,7 @@ function PremiumFailureState({
             className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             onClick={onReturnToDish}
           >
-            Revenir à la fiche du plat
+            {quietChrome ? "Fermer" : "Revenir à la fiche du plat"}
           </button>
         </div>
       </div>
@@ -395,6 +400,7 @@ function PremiumFailureState({
 export function DishModelViewer({
   dish,
   minimalChrome = false,
+  quietChrome = false,
   onReturnToDish
 }: DishModelViewerProps) {
   const titleId = useId();
@@ -693,10 +699,12 @@ export function DishModelViewer({
             >
               {slowNetworkMessage || "Réseau lent détecté : charger la vue 3D ?"}
             </p>
-            <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
-              La photo du plat reste disponible, et la vue 3D peut être lancée
-              quand vous le souhaitez.
-            </p>
+            {!quietChrome ? (
+              <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
+                La photo du plat reste disponible, et la vue 3D peut être lancée
+                quand vous le souhaitez.
+              </p>
+            ) : null}
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
@@ -711,7 +719,7 @@ export function DishModelViewer({
                   className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                   onClick={onReturnToDish}
                 >
-                  Revenir à la fiche du plat
+                  {quietChrome ? "Fermer" : "Revenir à la fiche du plat"}
                 </button>
               ) : null}
             </div>
@@ -737,8 +745,10 @@ export function DishModelViewer({
             className="max-w-md font-display text-base leading-relaxed text-[#d8caba] sm:text-lg"
           >
             {showIosQuickLookButton
-              ? "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari."
-              : showNoModelIosHandoff
+              ? quietChrome
+                ? "Vue 3D indisponible pour le moment."
+                : "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari."
+              : showNoModelIosHandoff && !quietChrome
                 ? "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari."
               : "Ce plat sera bientôt disponible en 3D."}
           </p>
@@ -749,7 +759,7 @@ export function DishModelViewer({
               className="relative mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-5 text-sm font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             />
           ) : null}
-          {showNoModelIosHandoff ? (
+          {showNoModelIosHandoff && !quietChrome ? (
             <div
               className="mt-5 w-full max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
               role="status"
@@ -814,6 +824,7 @@ export function DishModelViewer({
             onReturnToDish={onReturnToDish}
             quickLookHref={directIosQuickLookHref || undefined}
             onQuickLookClick={directIosQuickLookHref ? trackArIntent : undefined}
+            quietChrome={quietChrome}
           />
         ) : (
           <div className="relative">
@@ -826,7 +837,7 @@ export function DishModelViewer({
                   src={modelSrc}
                   {...(iosSrc ? { "ios-src": iosSrc } : {})}
                   alt={`Vue du plat : ${dish.name}`}
-                  aria-describedby={helpId}
+                  aria-describedby={quietChrome ? undefined : helpId}
                   camera-controls
                   {...(!prefersReducedMotion && !arSessionActive ? { "auto-rotate": true } : {})}
                   {...(androidNativeArEnabled ? { ar: true } : {})}
@@ -873,120 +884,74 @@ export function DishModelViewer({
               ) : null}
             </div>
 
-            <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-              <p id={helpId}>{AR_HELP_TEXT}</p>
-              {onReturnToDish ? (
-                <button
-                  type="button"
-                  className="mt-2 inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                  onClick={onReturnToDish}
-                >
-                  Revenir a la fiche du plat
-                </button>
-              ) : null}
-              {showHandoff ? (
-                <div
-                  className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="font-display text-base leading-tight text-cream">
-                    Réalité augmentée disponible dans Safari
-                  </p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
-                    {getArUnavailableMessage("iosHandoff")}
-                  </p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                      onClick={() => {
-                        void copyPageLink().then((ok) => {
-                          setCopyConfirmed(ok);
-                          if (ok) {
-                            window.setTimeout(() => setCopyConfirmed(false), 1800);
-                          }
-                        });
-                      }}
-                    >
-                      {copyConfirmed ? "Lien copié" : "Copier le lien"}
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                      onClick={() => {
-                        void sharePageLink(dish.name);
-                      }}
-                    >
-                      Partager
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                      onClick={() => {
-                        setHandoffDismissed(true);
-                      }}
-                    >
-                      Continuer en 3D
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {showAndroidFallback ? (
-                <div
-                  className="mx-auto mt-3 max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="font-display text-base leading-tight text-cream">
-                    Réalité augmentée indisponible ici
-                  </p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
-                    {getArUnavailableMessage("androidBrowser")}
-                  </p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                      onClick={() => setHandoffDismissed(true)}
-                    >
-                      Continuer en 3D
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                      onClick={() => {
-                        void copyPageLink().then((ok) => {
-                          setCopyConfirmed(ok);
-                          if (ok) {
-                            window.setTimeout(() => setCopyConfirmed(false), 1800);
-                          }
-                        });
-                      }}
-                    >
-                      {copyConfirmed ? "Lien copié" : "Copier le lien"}
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                      onClick={() => {
-                        void sharePageLink(dish.name);
-                      }}
-                    >
-                      Partager
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {showDesktopArHint ? (
-                <p className="text-[#8f806d]">
-                  La réalité augmentée se lance depuis un téléphone compatible.
+            {!quietChrome ? (
+              <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
+                <p id={helpId}>{AR_HELP_TEXT}</p>
+                {onReturnToDish ? (
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                    onClick={onReturnToDish}
+                  >
+                    Revenir a la fiche du plat
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {!quietChrome && showHandoff ? (
+              <div
+                className="mt-3 rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="font-display text-base leading-tight text-cream">
+                  Réalité augmentée disponible dans Safari
                 </p>
-              ) : null}
-              {showMissingIosAr ? (
-                <p className="text-[#c4a892]">{IOS_USDZ_MISSING_TEXT}</p>
-              ) : null}
-            </div>
+                <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
+                  {getArUnavailableMessage("iosHandoff")}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                    onClick={() => {
+                      void copyPageLink().then((ok) => {
+                        setCopyConfirmed(ok);
+                        if (ok) {
+                          window.setTimeout(() => setCopyConfirmed(false), 1800);
+                        }
+                      });
+                    }}
+                  >
+                    {copyConfirmed ? "Lien copié" : "Copier le lien"}
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                    onClick={() => {
+                      void sharePageLink(dish.name);
+                    }}
+                  >
+                    Partager
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {!quietChrome && showAndroidFallback ? (
+              <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
+                {getArUnavailableMessage("androidBrowser")}
+              </p>
+            ) : null}
+            {!quietChrome && showMissingIosAr ? (
+              <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
+                {IOS_USDZ_MISSING_TEXT}
+              </p>
+            ) : null}
+            {!quietChrome && showDesktopArHint ? (
+              <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
+                La réalité augmentée se lance depuis un téléphone compatible.
+              </p>
+            ) : null}
           </div>
         )}
       </div>

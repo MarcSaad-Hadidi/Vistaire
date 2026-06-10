@@ -13,6 +13,7 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
+import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PublicDishDetailExperience } from "./PublicDishDetailExperience";
 import styles from "./PublicMenuRenderer.module.css";
 
@@ -28,10 +29,76 @@ type PublicMenuRendererProps = {
 
 const ALL_TAB_ID = "all";
 const HOME_TAB_ID = "home";
+const MENU_FILTERS = [
+  { id: "all", label: "Tous les plats" },
+  { id: "recommended", label: "Recommandés" },
+  { id: "immersive", label: "Vue 3D / AR" },
+  { id: "available", label: "Disponibles" },
+  { id: "gluten-free", label: "Sans gluten" },
+  { id: "dairy-free", label: "Sans lactose / laitiers" },
+  { id: "nut-free", label: "Sans fruits à coque" },
+  { id: "shellfish-free", label: "Sans crustacés" },
+  { id: "egg-free", label: "Sans oeufs" },
+  { id: "sesame-free", label: "Sans sésame" },
+  { id: "soy-free", label: "Sans soja" },
+  { id: "fish-free", label: "Sans poisson" }
+] as const;
+type MenuFilterId = (typeof MENU_FILTERS)[number]["id"];
+type AllergenFilterId = Extract<
+  MenuFilterId,
+  | "gluten-free"
+  | "dairy-free"
+  | "nut-free"
+  | "shellfish-free"
+  | "egg-free"
+  | "sesame-free"
+  | "soy-free"
+  | "fish-free"
+>;
 const preferredCategoryLabels = ["Entrees", "Entrées", "Plats", "Desserts", "Boissons"];
 const preferredCategoryOrder = new Map(
   preferredCategoryLabels.map((label, index) => [label, index])
 );
+preferredCategoryOrder.set("Signatures", 2);
+preferredCategoryOrder.set("Cocktails", 4);
+
+const ALLERGEN_FILTER_TERMS: Record<AllergenFilterId, string[]> = {
+  "gluten-free": ["gluten", "wheat", "ble"],
+  "dairy-free": [
+    "dairy",
+    "lait",
+    "lactose",
+    "milk",
+    "cream",
+    "creme",
+    "cheese",
+    "fromage",
+    "beurre",
+    "butter"
+  ],
+  "nut-free": [
+    "nut",
+    "nuts",
+    "noix",
+    "amande",
+    "amandes",
+    "noisette",
+    "pistache",
+    "pecan"
+  ],
+  "shellfish-free": [
+    "shellfish",
+    "crustace",
+    "crustaces",
+    "homard",
+    "crevette",
+    "crabe"
+  ],
+  "egg-free": ["egg", "eggs", "oeuf", "oeufs"],
+  "sesame-free": ["sesame"],
+  "soy-free": ["soy", "soja"],
+  "fish-free": ["fish", "poisson"]
+};
 
 function themeClass(theme: MenuUiConfig["theme"]): string {
   if (theme === "bbq-smokehouse") return styles.themeBbq;
@@ -174,6 +241,49 @@ function dishBadges(dish: PublicMenuDish): string[] {
   return Array.from(badges).slice(0, 4);
 }
 
+function normalizeFilterText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function tokenizeFilterText(value: string): string[] {
+  return normalizeFilterText(value)
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function dishAllergenTokens(dish: PublicMenuDish): Set<string> {
+  return new Set(dish.allergens.flatMap(tokenizeFilterText));
+}
+
+function isAllergenFilter(filter: MenuFilterId): filter is AllergenFilterId {
+  return filter.endsWith("-free");
+}
+
+function dishMatchesQuickFilter(
+  dish: PublicMenuDish,
+  filter: MenuFilterId
+): boolean {
+  if (filter === "all") return true;
+  const badges = dishBadges(dish).map((badge) => normalizeFilterText(badge));
+  if (filter === "recommended") {
+    return badges.some(
+      (badge) => badge.includes("recommande") || badge.includes("recommended")
+    );
+  }
+  if (filter === "available") return dish.available;
+  if (filter === "immersive") return dish.hasImmersive || dish.has3d || dish.hasAr;
+  if (isAllergenFilter(filter)) {
+    const allergenTokens = dishAllergenTokens(dish);
+    return !ALLERGEN_FILTER_TERMS[filter].some((term) =>
+      allergenTokens.has(normalizeFilterText(term))
+    );
+  }
+  return true;
+}
+
 function DishVisual({
   dish,
   menu,
@@ -216,10 +326,7 @@ export function PublicMenuRenderer({
       : HOME_TAB_ID;
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
-  const groups = useMemo(
-    () => getPublicMenuCategoryGroups(menu.dishes),
-    [menu.dishes]
-  );
+  const [menuFilter, setMenuFilter] = useState<MenuFilterId>("all");
   const categories = useMemo(
     () =>
       getVisiblePublicMenuCategories(menu.dishes).sort(
@@ -229,22 +336,46 @@ export function PublicMenuRenderer({
       ),
     [menu.dishes]
   );
+  const filteredDishes = useMemo(
+    () => menu.dishes.filter((dish) => dishMatchesQuickFilter(dish, menuFilter)),
+    [menu.dishes, menuFilter]
+  );
+  const filteredCategories = useMemo(
+    () =>
+      getVisiblePublicMenuCategories(filteredDishes).sort(
+        (a, b) =>
+          (preferredCategoryOrder.get(a.label) ?? 99) -
+          (preferredCategoryOrder.get(b.label) ?? 99)
+      ),
+    [filteredDishes]
+  );
+  const groups = useMemo(
+    () => getPublicMenuCategoryGroups(filteredDishes),
+    [filteredDishes]
+  );
+  const hasMenuFilter = menuFilter !== "all";
   const tabs = [
-    { id: ALL_TAB_ID, label: "Tout", count: menu.dishes.length },
-    ...categories.map((category) => ({
+    { id: ALL_TAB_ID, label: "Tout", count: filteredDishes.length },
+    ...filteredCategories.map((category) => ({
       id: category.label,
       label: category.label,
       count: category.count
     }))
   ];
+  const resolvedActiveTab =
+    activeTab !== HOME_TAB_ID &&
+    activeTab !== ALL_TAB_ID &&
+    !filteredCategories.some((category) => category.label === activeTab)
+      ? ALL_TAB_ID
+      : activeTab;
   const selectedDishes =
-    activeTab !== HOME_TAB_ID && activeTab !== ALL_TAB_ID
-      ? groups.get(activeTab) ?? []
+    resolvedActiveTab !== HOME_TAB_ID && resolvedActiveTab !== ALL_TAB_ID
+      ? groups.get(resolvedActiveTab) ?? []
       : [];
   const activeCategoryList =
-    activeTab !== HOME_TAB_ID && activeTab !== ALL_TAB_ID
-      ? categories.filter((category) => category.label === activeTab)
-      : categories;
+    resolvedActiveTab !== HOME_TAB_ID && resolvedActiveTab !== ALL_TAB_ID
+      ? filteredCategories.filter((category) => category.label === resolvedActiveTab)
+      : filteredCategories;
   const featuredDishes = menu.dishes
     .filter((dish) => dish.tags.length > 0 || dish.category === "Plats")
     .slice(0, 4);
@@ -260,14 +391,14 @@ export function PublicMenuRenderer({
   const welcomeSubtitle = config.welcomeSubtitle || "Decouvrez notre carte";
   const dishOpenMode = config.detail.dishOpenMode;
   const heading =
-    activeTab === HOME_TAB_ID
+    resolvedActiveTab === HOME_TAB_ID
       ? "Categories"
-      : activeTab === ALL_TAB_ID
+      : resolvedActiveTab === ALL_TAB_ID
         ? "Tout le menu"
-        : activeTab;
+        : resolvedActiveTab;
   const showTabs = config.navigation.style !== "cards";
   const showCategoryCards =
-    config.navigation.style !== "tabs" || activeTab === HOME_TAB_ID;
+    config.navigation.style !== "tabs" || resolvedActiveTab === HOME_TAB_ID;
 
   function openDish(dish: PublicMenuDish) {
     setSelectedDish(dish);
@@ -461,7 +592,7 @@ export function PublicMenuRenderer({
     return (
       <div className={styles.tabs} role="tablist" aria-label="Categories du menu">
         {tabs.map((tab) => {
-          const active = activeTab === tab.id;
+          const active = resolvedActiveTab === tab.id;
           return (
             <button
               key={tab.id}
@@ -483,7 +614,47 @@ export function PublicMenuRenderer({
     );
   }
 
-  function renderCategoryCards(categoryList = categories) {
+  function renderMenuTools() {
+    if (mode !== "public" || menu.dishes.length === 0) return null;
+    return (
+      <div className={styles.menuTools}>
+        <div className={styles.filterSelectShell}>
+          <select
+            aria-label="Filtrer les plats"
+            className={styles.filterSelect}
+            value={menuFilter}
+            onChange={(event) => {
+              setMenuFilter(event.target.value as MenuFilterId);
+              setSelectedDish(null);
+            }}
+          >
+            {MENU_FILTERS.map((filter) => (
+              <option key={filter.id} value={filter.id}>
+                {filter.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className={styles.resultStatus} aria-live="polite">
+          {filteredDishes.length} creations affichees
+        </p>
+        {hasMenuFilter ? (
+          <button
+            type="button"
+            className={styles.resetFilters}
+            onClick={() => {
+              setMenuFilter("all");
+              setActiveTab(ALL_TAB_ID);
+            }}
+          >
+            Tout afficher
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderCategoryCards(categoryList = filteredCategories) {
     if (!showCategoryCards) return null;
     return (
       <div className={styles.categoryGrid}>
@@ -540,13 +711,14 @@ export function PublicMenuRenderer({
   }
 
   function renderFullMenuList(
-    categoryList = categories,
+    categoryList = filteredCategories,
     options: { className?: string; forceVisual?: boolean; priceBoard?: boolean } = {}
   ) {
     return (
       <div className={`${styles.fullMenuList} ${options.className ?? ""}`}>
         {categoryList.map((category, index) => {
           const dishes = groups.get(category.label) ?? [];
+          if (!dishes.length) return null;
           return (
             <section key={category.id} className={styles.fullMenuSection}>
               <div className={styles.sectionHeader}>
@@ -565,6 +737,15 @@ export function PublicMenuRenderer({
     );
   }
 
+  function renderNoResults() {
+    return (
+      <div className={styles.empty} role="status">
+        <p>Aucun plat dans cette selection.</p>
+        <span>Essayez une autre recherche ou retirez un filtre.</span>
+      </div>
+    );
+  }
+
   function renderEmptyState() {
     return (
       <div className={styles.empty} role="status">
@@ -576,7 +757,8 @@ export function PublicMenuRenderer({
 
   function renderClassicActiveView() {
     if (menu.dishes.length === 0) return renderEmptyState();
-    if (activeTab === HOME_TAB_ID) {
+    if (filteredDishes.length === 0) return renderNoResults();
+    if (resolvedActiveTab === HOME_TAB_ID) {
       return (
         <>
           {renderCategoryCards()}
@@ -584,11 +766,11 @@ export function PublicMenuRenderer({
         </>
       );
     }
-    if (activeTab === ALL_TAB_ID) return renderFullMenuList();
+    if (resolvedActiveTab === ALL_TAB_ID) return renderFullMenuList();
     return (
       <section className={styles.fullMenuSection}>
         <div className={styles.sectionHeader}>
-          <h3>{activeTab}</h3>
+          <h3>{resolvedActiveTab}</h3>
           <span>{selectedDishes.length} choix</span>
         </div>
         {renderDishList(selectedDishes)}
@@ -604,12 +786,13 @@ export function PublicMenuRenderer({
             <p className={styles.sectionLabel}>Menu public</p>
             <h2>{heading}</h2>
           </div>
-          {activeTab !== HOME_TAB_ID ? (
+          {resolvedActiveTab !== HOME_TAB_ID ? (
             <button type="button" onClick={showHome}>
               Retour aux categories
             </button>
           ) : null}
         </div>
+        {renderMenuTools()}
         {children}
       </section>
     );
@@ -999,6 +1182,14 @@ export function PublicMenuRenderer({
       style={menuStyleVars(config)}
     >
       {blueprintContent}
+      {mode === "public" ? (
+        <GoogleReviewCard
+          googleReview={menu.googleReview}
+          restaurantId={menu.restaurantId}
+          restaurantName={menu.name}
+          source={menu.source}
+        />
+      ) : null}
       {renderSelectedDish()}
     </main>
   );

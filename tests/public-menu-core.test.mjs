@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildPublicDishPath,
   buildSupabasePublicMenu,
+  getGoogleReviewCta,
   getPublicMenuDishBySlug,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
@@ -58,10 +59,94 @@ test("builds a Resto Marc public menu from Supabase-like rows", () => {
   assert.equal(menu.slug, "resto-marc");
   assert.equal(menu.name, "Resto Marc");
   assert.equal(menu.source, "supabase");
+  assert.deepEqual(menu.googleReview, {
+    enabled: false,
+    googleReviewUrl: ""
+  });
   assert.equal(menu.dishes.length, 2);
   assert.equal(menu.dishes[0].name, "Salade fraiche maison");
   assert.equal(menu.dishes[1].name, "Bol de riz au poulet et legumes");
   assert.equal(menu.dishes[1].priceLabel, "17,99\u00a0$");
+});
+
+test("maps Google Review config only when the restaurant has a Google review URL", () => {
+  const menu = buildSupabasePublicMenu(
+    "resto-marc",
+    {
+      ...restoMarc,
+      google_review_enabled: true,
+      google_review_url: "https://search.google.com/local/writereview?placeid=abc123",
+      google_rating: "4.8",
+      google_review_count: "128"
+    },
+    []
+  );
+
+  assert.deepEqual(menu.googleReview, {
+    enabled: true,
+    googleReviewUrl: "https://search.google.com/local/writereview?placeid=abc123",
+    googleRating: 4.8,
+    googleReviewCount: 128
+  });
+  assert.deepEqual(getGoogleReviewCta(menu.googleReview), {
+    href: "https://search.google.com/local/writereview?placeid=abc123",
+    googleRating: 4.8,
+    googleReviewCount: 128
+  });
+});
+
+test("Google Review CTA accepts Google short review links", () => {
+  assert.deepEqual(
+    getGoogleReviewCta({
+      enabled: true,
+      googleReviewUrl: "https://g.page/r/CYEXAMPLE/review"
+    }),
+    {
+      href: "https://g.page/r/CYEXAMPLE/review"
+    }
+  );
+});
+
+test("Google Review CTA is absent when disabled, missing, non-review, credentialed, or non-HTTPS", () => {
+  const validUrl = "https://search.google.com/local/writereview?placeid=abc123";
+
+  assert.equal(getGoogleReviewCta(undefined), null);
+  assert.equal(
+    getGoogleReviewCta({ enabled: false, googleReviewUrl: validUrl }),
+    null
+  );
+
+  for (const googleReviewUrl of [
+    "",
+    "/reviews",
+    "//search.google.com/local/writereview?placeid=abc123",
+    "http://search.google.com/local/writereview?placeid=abc123",
+    "javascript:alert(1)",
+    "https://user:pass@search.google.com/local/writereview?placeid=abc123",
+    "https://localhost/local/writereview",
+    "https://127.0.0.1/local/writereview",
+    "https://example.com/review",
+    "https://maps.google.com/?cid=123",
+    "https://search.google.com/",
+    "https://search.google.com/local/writereview",
+    "https://search.google.com/local/writereview?placeid="
+  ]) {
+    const menu = buildSupabasePublicMenu(
+      "resto-marc",
+      {
+        ...restoMarc,
+        google_review_enabled: true,
+        google_review_url: googleReviewUrl
+      },
+      []
+    );
+
+    assert.equal(
+      getGoogleReviewCta(menu.googleReview),
+      null,
+      `${googleReviewUrl} should not render`
+    );
+  }
 });
 
 test("keeps a real restaurant with no dishes as an empty public menu", () => {
