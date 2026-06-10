@@ -79,6 +79,21 @@ function detailStyleVars(config: MenuUiConfig | undefined): CSSProperties {
   } as CSSProperties;
 }
 
+function cleanDisplayText(value: string): string {
+  return value
+    .replaceAll("Ã‰", "É")
+    .replaceAll("Ã©", "é")
+    .replaceAll("Ã¨", "è")
+    .replaceAll("Ãª", "ê")
+    .replaceAll("Ã´", "ô")
+    .replaceAll("Ã¢", "â")
+    .replaceAll("Ã®", "î")
+    .replaceAll("Ã¯", "ï")
+    .replaceAll("Ã§", "ç")
+    .replaceAll("Â·", "·")
+    .trim();
+}
+
 function hasPublic3d(dish: PublicMenuDish): boolean {
   return Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl);
 }
@@ -115,6 +130,7 @@ export function PublicDishDetailExperience({
 }: PublicDishDetailExperienceProps) {
   const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
+  const restaurantDisplayName = cleanDisplayText(menu.name);
   const badges = dishBadges(dish);
   const has3d = hasPublic3d(dish);
   const hasAr = hasPublicAr(dish);
@@ -149,7 +165,7 @@ export function PublicDishDetailExperience({
               Retour au menu
             </Link>
           )}
-          <span className={styles.navRestaurantName}>{menu.name}</span>
+          <span className={styles.navRestaurantName}>{restaurantDisplayName}</span>
         </nav>
 
         <article className={styles.card}>
@@ -167,7 +183,7 @@ export function PublicDishDetailExperience({
           >
             {!dish.imageUrl ? (
               <div className={styles.imageFallback}>
-                <span>{menu.name.slice(0, 1)}</span>
+                <span>{restaurantDisplayName.slice(0, 1)}</span>
                 <p>Image du plat à venir</p>
               </div>
             ) : null}
@@ -175,7 +191,7 @@ export function PublicDishDetailExperience({
 
           <section className={styles.content} aria-label="Fiche plat">
             <div className={styles.heading}>
-              <p className={styles.kicker}>{menu.name}</p>
+              <p className={styles.kicker}>{restaurantDisplayName}</p>
               <h1>{dish.name}</h1>
               <p className={styles.description}>{dish.description}</p>
               {context ? <span className={styles.context}>{context}</span> : null}

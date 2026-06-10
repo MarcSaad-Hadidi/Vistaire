@@ -32,6 +32,8 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /dish\.options\.length/);
   assert.match(source, /dish\.houseNote/);
   assert.match(source, /config\?: MenuUiConfig/);
+  assert.match(source, /cleanDisplayText/);
+  assert.match(source, /restaurantDisplayName/);
   assert.match(source, /mode\?: "public" \| "builder-preview"/);
   assert.match(source, /onBack\?: \(\) => void/);
   assert.match(source, /data-theme=\{config\?\.theme/);
@@ -49,6 +51,16 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
   assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
+});
+
+test("public dish detail premium theme keeps Maison Elyse nav readable and glass gold", async () => {
+  const css = await readFile(detailCssPath, "utf8");
+
+  assert.match(css, /grid-template-columns:\s*auto minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.navRestaurantName[\s\S]*max-width:\s*min\(52vw,\s*220px\)/);
+  assert.match(css, /#f0d18a/);
+  assert.match(css, /rgba\(240,\s*209,\s*138,\s*0\.095\)/);
+  assert.match(css, /backdrop-filter:\s*blur\(18px\) saturate\(118%\)/);
 });
 
 test("public dish detail CSS keeps builder preview inside the simulated phone on desktop", async () => {

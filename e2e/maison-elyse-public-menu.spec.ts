@@ -178,6 +178,12 @@ test.describe("Maison Elyse public QR menu", () => {
     );
 
     await expect(page.getByRole("heading", { level: 1, name: /Homard bleu/i })).toBeVisible();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Navigation fiche plat" })
+        .getByText("Maison Élyse")
+    ).toBeVisible();
+    await expect(page.getByText(/Maison Ã/)).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Voir en 3D" })).toBeVisible();
     await expect(page.getByText("Afficher devant moi")).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
