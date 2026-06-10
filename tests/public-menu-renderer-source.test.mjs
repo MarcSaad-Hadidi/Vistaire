@@ -65,7 +65,7 @@ test("blueprint renderers expose genuinely different public structures", async (
 test("tabbed compact blueprint lists honor the active category tab", async () => {
   const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
 
-  assert.match(source, /const activeCategoryList =[\s\S]*categories\.filter/);
+  assert.match(source, /const activeCategoryList =[\s\S]*filteredCategories\.filter/);
   assert.match(
     source,
     /function renderFastBoard\(\)[\s\S]*renderFullMenuList\(activeCategoryList, \{ priceBoard: true \}\)/
@@ -77,6 +77,21 @@ test("tabbed compact blueprint lists honor the active category tab", async () =>
   assert.match(
     source,
     /function renderCompactQr\(\)[\s\S]*renderFullMenuList\(activeCategoryList, \{ className: styles\.compactList \}\)/
+  );
+});
+
+test("featured public menu previews honor quick filters", async () => {
+  const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
+
+  assert.match(source, /const featuredDishes = filteredDishes\s*\.filter/);
+  assert.match(source, /const immersiveDishes = filteredDishes\s*\.filter/);
+  assert.match(
+    source,
+    /dishes = featuredDishes\.length \? featuredDishes : filteredDishes\.slice\(0, 3\)/
+  );
+  assert.match(
+    source,
+    /renderFeaturedSection\("Photos a explorer", "A decouvrir", filteredDishes\.slice\(0, 8\)/
   );
 });
 

@@ -376,10 +376,10 @@ export function PublicMenuRenderer({
     resolvedActiveTab !== HOME_TAB_ID && resolvedActiveTab !== ALL_TAB_ID
       ? filteredCategories.filter((category) => category.label === resolvedActiveTab)
       : filteredCategories;
-  const featuredDishes = menu.dishes
+  const featuredDishes = filteredDishes
     .filter((dish) => dish.tags.length > 0 || dish.category === "Plats")
     .slice(0, 4);
-  const immersiveDishes = menu.dishes
+  const immersiveDishes = filteredDishes
     .filter((dish) => dish.has3d || dish.hasAr)
     .slice(0, 5);
   const drinksFirstCategories = [...categories].sort((a, b) => {
@@ -690,7 +690,7 @@ export function PublicMenuRenderer({
   function renderFeaturedSection(
     title: string,
     label: string,
-    dishes = featuredDishes.length ? featuredDishes : menu.dishes.slice(0, 3),
+    dishes = featuredDishes.length ? featuredDishes : filteredDishes.slice(0, 3),
     options: { className?: string; forceVisual?: boolean; priceBoard?: boolean } = {}
   ) {
     if (!dishes.length) return null;
@@ -837,7 +837,7 @@ export function PublicMenuRenderer({
         {renderMenuShell(
           <div className={styles.photoGridFlow}>
             {renderCategoryCards()}
-            {renderFeaturedSection("Photos a explorer", "A decouvrir", menu.dishes.slice(0, 8), {
+            {renderFeaturedSection("Photos a explorer", "A decouvrir", filteredDishes.slice(0, 8), {
               className: styles.photoGridCards,
               forceVisual: true
             })}
