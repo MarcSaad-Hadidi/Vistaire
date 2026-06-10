@@ -35,6 +35,11 @@ test("Maison Elyse QR menu starts with welcome and visual category navigation", 
 
   assert.match(component, /getVisiblePublicMenuCategories/);
   assert.match(component, /getPublicMenuCategoryGroups/);
+  assert.doesNotMatch(component, /heroDish/);
+  assert.doesNotMatch(component, /heroVisual/);
+  assert.match(component, /ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS/);
+  assert.match(component, /homard-bisque/);
+  assert.match(component, /canAppearInEntryPreview/);
   assert.match(css, /\.categoryGrid/);
   assert.match(css, /\.categoryCard/);
   assert.match(css, /@media \(max-width: 390px\)/);
@@ -59,7 +64,11 @@ test("Maison Elyse QR menu keeps premium filters and Google Reviews without 3D a
     assert.match(component, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
+  assert.match(component, /Filtres pr.cis/);
   assert.match(component, /GoogleReviewCard/);
+  assert.match(component, /MAIN_FILTERS/);
+  assert.match(component, /DETAIL_FILTERS/);
+  assert.match(component, /showDetailFilters/);
   assert.match(component, /googleReview=\{menu\.googleReview\}/);
   assert.match(component, /restaurantId=\{menu\.restaurantId\}/);
   assert.match(component, /restaurantName=\{menu\.name\}/);

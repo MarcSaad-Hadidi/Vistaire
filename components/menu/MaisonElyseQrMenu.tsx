@@ -38,12 +38,16 @@ type AllergenFilterId = Extract<
 >;
 
 const ALL_CATEGORY_ID = "all";
-const QUICK_FILTERS: Array<{ id: FilterId; label: string }> = [
+const ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS = new Set(["homard-bisque"]);
+const MAIN_FILTERS: Array<{ id: FilterId; label: string }> = [
   { id: "all", label: "Tous" },
   { id: "recommended", label: "Recommandés" },
   { id: "signature", label: "Signature" },
   { id: "immersive", label: "3D / AR" },
-  { id: "available", label: "Disponibles" },
+  { id: "available", label: "Disponibles" }
+];
+
+const DETAIL_FILTERS: Array<{ id: AllergenFilterId; label: string }> = [
   { id: "gluten-free", label: "Sans gluten" },
   { id: "dairy-free", label: "Sans lactose" },
   { id: "nut-free", label: "Sans fruits à coque" },
@@ -121,6 +125,10 @@ function isRecommendedDish(dish: PublicMenuDish): boolean {
     const normalized = normalizeText(tag);
     return normalized.includes("recommande") || normalized.includes("recommended");
   });
+}
+
+function canAppearInEntryPreview(dish: PublicMenuDish): boolean {
+  return !ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS.has(dish.slug);
 }
 
 function isAllergenFilter(filter: FilterId): filter is AllergenFilterId {
@@ -247,22 +255,17 @@ export function MaisonElyseQrMenu({
 }: MaisonElyseQrMenuProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
+  const [showDetailFilters, setShowDetailFilters] = useState(false);
   const menuRef = useRef<HTMLElement | null>(null);
   const groups = useMemo(() => getPublicMenuCategoryGroups(menu.dishes), [menu.dishes]);
   const categories = useMemo(
     () => getVisiblePublicMenuCategories(menu.dishes).sort(categorySort),
     [menu.dishes]
   );
-  const heroDish = useMemo(
-    () =>
-      menu.dishes.find((dish) => isSignatureDish(dish) && dish.imageUrl) ??
-      menu.dishes.find((dish) => dish.imageUrl) ??
-      null,
-    [menu.dishes]
-  );
   const featuredDishes = useMemo(
     () =>
       menu.dishes
+        .filter(canAppearInEntryPreview)
         .filter((dish) => isSignatureDish(dish) || isRecommendedDish(dish))
         .slice(0, 3),
     [menu.dishes]
@@ -283,6 +286,10 @@ export function MaisonElyseQrMenu({
         ? displayCategoryLabel(activeCategory)
         : "Sections";
   const hasActiveFilter = activeFilter !== "all";
+  const hasDetailFilterActive = DETAIL_FILTERS.some(
+    (filter) => filter.id === activeFilter
+  );
+  const shouldShowDetailFilters = showDetailFilters || hasDetailFilterActive;
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
@@ -298,6 +305,7 @@ export function MaisonElyseQrMenu({
   function selectCategory(categoryId: string | null) {
     setActiveCategory(categoryId);
     setActiveFilter("all");
+    setShowDetailFilters(false);
     scrollToMenu();
   }
 
@@ -306,12 +314,18 @@ export function MaisonElyseQrMenu({
   }
 
   const categoryImages = new Map(
-    categories.map((category) => [
-      category.label,
-      (groups.get(category.label) ?? []).find((dish) => dish.imageUrl)?.thumbnailUrl ||
-        (groups.get(category.label) ?? []).find((dish) => dish.imageUrl)?.imageUrl ||
-        ""
-    ])
+    categories.map((category) => {
+      const categoryDishes = groups.get(category.label) ?? [];
+      const previewDish =
+        categoryDishes.find(
+          (dish) => canAppearInEntryPreview(dish) && dish.imageUrl
+        ) ?? categoryDishes.find((dish) => dish.imageUrl);
+
+      return [
+        category.label,
+        previewDish?.thumbnailUrl || previewDish?.imageUrl || ""
+      ];
+    })
   );
 
   return (
@@ -334,14 +348,6 @@ export function MaisonElyseQrMenu({
             </button>
           </div>
         </div>
-
-        {heroDish ? (
-          <div className={styles.heroVisual} aria-hidden="true">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img loading="eager" src={heroDish.imageUrl} alt="" />
-            <span>{heroDish.priceLabel}</span>
-          </div>
-        ) : null}
       </section>
 
       <section className={styles.sections} ref={menuRef} aria-label="Sections de la carte">
@@ -430,18 +436,54 @@ export function MaisonElyseQrMenu({
               <span aria-live="polite">{formatDishCount(visibleDishes.length)}</span>
             </div>
 
-            <div className={styles.filters} aria-label="Filtres de la carte" role="group">
-              {QUICK_FILTERS.map((filter) => (
-                <button
-                  aria-pressed={activeFilter === filter.id}
-                  className={activeFilter === filter.id ? styles.isActive : undefined}
-                  key={filter.id}
-                  onClick={() => setActiveFilter(filter.id)}
-                  type="button"
+            <div
+              className={styles.filterShell}
+              aria-label="Filtres de la carte"
+            >
+              <div className={styles.filters} role="group" aria-label="Filtres principaux">
+                {MAIN_FILTERS.map((filter) => (
+                  <button
+                    aria-pressed={activeFilter === filter.id}
+                    className={activeFilter === filter.id ? styles.isActive : undefined}
+                    key={filter.id}
+                    onClick={() => setActiveFilter(filter.id)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                aria-expanded={shouldShowDetailFilters}
+                className={`${styles.moreFiltersButton} ${
+                  hasDetailFilterActive ? styles.isActive : ""
+                }`}
+                onClick={() => setShowDetailFilters((isVisible) => !isVisible)}
+                type="button"
+              >
+                Filtres précis
+              </button>
+
+              {shouldShowDetailFilters ? (
+                <div
+                  className={styles.detailFilters}
+                  role="group"
+                  aria-label="Filtres allergènes"
                 >
-                  {filter.label}
-                </button>
-              ))}
+                  {DETAIL_FILTERS.map((filter) => (
+                    <button
+                      aria-pressed={activeFilter === filter.id}
+                      className={activeFilter === filter.id ? styles.isActive : undefined}
+                      key={filter.id}
+                      onClick={() => setActiveFilter(filter.id)}
+                      type="button"
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {hasActiveFilter ? (

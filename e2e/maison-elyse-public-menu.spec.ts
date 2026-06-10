@@ -139,6 +139,10 @@ test.describe("Maison Elyse public QR menu", () => {
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Tous" })).toBeVisible();
     await expect(page.getByRole("button", { name: "3D / AR" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Disponibles" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Filtres précis" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sans gluten" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Filtres précis" }).click();
     await expect(page.getByRole("button", { name: "Sans gluten" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Homard bleu/i })).toBeVisible();
     expect(modelRequests).toEqual([]);

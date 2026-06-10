@@ -160,48 +160,6 @@
   color: #17100a;
 }
 
-.heroVisual {
-  position: relative;
-  min-height: 176px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 246, 225, 0.16);
-  border-radius: 22px;
-  background: rgba(255, 250, 240, 0.05);
-  box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 250, 240, 0.1);
-}
-
-.heroVisual img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 176px;
-  object-fit: cover;
-  object-position: center 42%;
-}
-
-.heroVisual::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 48%, rgba(8, 6, 5, 0.72));
-  content: "";
-}
-
-.heroVisual span {
-  position: absolute;
-  right: 13px;
-  bottom: 12px;
-  z-index: 1;
-  border: 1px solid rgba(232, 207, 155, 0.4);
-  border-radius: 999px;
-  background: rgba(8, 6, 5, 0.72);
-  color: rgba(232, 207, 155, 0.94);
-  font-family: "BT Suave", Georgia, serif;
-  font-size: 21px;
-  padding: 7px 12px;
-}
-
 .sections {
   display: grid;
   gap: 14px;
@@ -304,8 +262,14 @@
   list-style: none;
 }
 
+.filterShell {
+  display: grid;
+  gap: 8px;
+}
+
 .categoryPills,
-.filters {
+.filters,
+.detailFilters {
   display: flex;
   min-width: 0;
   gap: 7px;
@@ -318,12 +282,15 @@
 }
 
 .categoryPills::-webkit-scrollbar,
-.filters::-webkit-scrollbar {
+.filters::-webkit-scrollbar,
+.detailFilters::-webkit-scrollbar {
   display: none;
 }
 
 .categoryPills button,
-.filters button {
+.filters button,
+.detailFilters button,
+.moreFiltersButton {
   flex: 0 0 auto;
   min-height: 38px;
   border: 1px solid rgba(255, 246, 225, 0.22);
@@ -340,10 +307,33 @@
 }
 
 .categoryPills .isActive,
-.filters .isActive {
+.filters .isActive,
+.detailFilters .isActive,
+.moreFiltersButton.isActive {
   border-color: rgba(232, 207, 155, 0.74);
   background: rgba(232, 207, 155, 0.18);
   color: #fffaf0;
+}
+
+.moreFiltersButton {
+  justify-self: start;
+  min-height: 34px;
+  border-style: dashed;
+  color: rgba(232, 207, 155, 0.9);
+  padding-inline: 13px;
+}
+
+.detailFilters {
+  flex-wrap: wrap;
+  overflow: visible;
+  padding-top: 0;
+}
+
+.detailFilters button {
+  min-height: 30px;
+  padding: 0 10px;
+  color: rgba(238, 230, 215, 0.78);
+  font-size: 10.5px;
 }
 
 .activeHeader {
@@ -501,6 +491,8 @@
 .dishCard:hover,
 .categoryPills button:hover,
 .filters button:hover,
+.detailFilters button:hover,
+.moreFiltersButton:hover,
 .resetButton:hover,
 .empty button:hover {
   border-color: rgba(255, 250, 240, 0.72);
@@ -513,6 +505,8 @@
 .dishCard:focus-visible,
 .categoryPills button:focus-visible,
 .filters button:focus-visible,
+.detailFilters button:focus-visible,
+.moreFiltersButton:focus-visible,
 .resetButton:focus-visible,
 .empty button:focus-visible {
   outline: 2px solid rgba(232, 207, 155, 0.9);
@@ -543,14 +537,7 @@
   }
 
   .hero {
-    grid-template-columns: minmax(0, 0.92fr) minmax(270px, 0.56fr);
-    align-items: end;
-    min-height: 360px;
-  }
-
-  .heroVisual,
-  .heroVisual img {
-    min-height: 300px;
+    padding: 34px 0 22px;
   }
 
   .hero h1 {
@@ -598,9 +585,22 @@
     width: 100%;
   }
 
+  .categoryPills {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .categoryPills button {
+    min-width: 0;
+    width: 100%;
+    padding-inline: 7px;
+    white-space: normal;
+  }
+
   .filters {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: visible;
   }
 
@@ -608,6 +608,22 @@
     min-width: 0;
     width: 100%;
     padding-inline: 5px;
+    white-space: normal;
+  }
+
+  .moreFiltersButton {
+    width: 100%;
+  }
+
+  .detailFilters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detailFilters button {
+    min-width: 0;
+    width: 100%;
+    padding-inline: 6px;
     white-space: normal;
   }
 }
@@ -619,14 +635,6 @@
 
   .hero h1 {
     font-size: 40px;
-  }
-
-  .heroVisual {
-    min-height: 154px;
-  }
-
-  .heroVisual img {
-    min-height: 154px;
   }
 
   .dishCard {
