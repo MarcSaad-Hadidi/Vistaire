@@ -30,11 +30,22 @@ type FilterId =
   | "gluten-free"
   | "dairy-free"
   | "nut-free"
-  | "shellfish-free";
+  | "shellfish-free"
+  | "egg-free"
+  | "sesame-free"
+  | "soy-free"
+  | "fish-free";
 
-type AllergenFilterId = Extract<
+type DietaryFilterId = Extract<
   FilterId,
-  "gluten-free" | "dairy-free" | "nut-free" | "shellfish-free"
+  | "gluten-free"
+  | "dairy-free"
+  | "nut-free"
+  | "shellfish-free"
+  | "egg-free"
+  | "sesame-free"
+  | "soy-free"
+  | "fish-free"
 >;
 
 const ALL_CATEGORY_ID = "all";
@@ -47,11 +58,16 @@ const MAIN_FILTERS: Array<{ id: FilterId; label: string }> = [
   { id: "available", label: "Disponibles" }
 ];
 
-const DETAIL_FILTERS: Array<{ id: AllergenFilterId; label: string }> = [
+const DETAIL_FILTERS: Array<{ id: FilterId; label: string }> = [
+  { id: "all", label: "Tous les plats" },
   { id: "gluten-free", label: "Sans gluten" },
-  { id: "dairy-free", label: "Sans lactose" },
+  { id: "dairy-free", label: "Sans lactose / laitiers" },
   { id: "nut-free", label: "Sans fruits à coque" },
-  { id: "shellfish-free", label: "Sans crustacés" }
+  { id: "shellfish-free", label: "Sans crustacés" },
+  { id: "egg-free", label: "Sans œufs" },
+  { id: "sesame-free", label: "Sans sésame" },
+  { id: "soy-free", label: "Sans soja" },
+  { id: "fish-free", label: "Sans poisson" }
 ];
 
 const CATEGORY_ORDER = new Map([
@@ -64,7 +80,7 @@ const CATEGORY_ORDER = new Map([
   ["Boissons", 4]
 ]);
 
-const ALLERGEN_FILTER_TERMS: Record<AllergenFilterId, string[]> = {
+const ALLERGEN_FILTER_TERMS: Record<DietaryFilterId, string[]> = {
   "gluten-free": ["gluten", "wheat", "ble"],
   "dairy-free": [
     "dairy",
@@ -79,7 +95,11 @@ const ALLERGEN_FILTER_TERMS: Record<AllergenFilterId, string[]> = {
     "butter"
   ],
   "nut-free": ["nut", "nuts", "noix", "amande", "amandes", "noisette", "pistache"],
-  "shellfish-free": ["shellfish", "crustace", "crustaces", "homard", "crevette", "crabe"]
+  "shellfish-free": ["shellfish", "crustace", "crustaces", "homard", "crevette", "crabe"],
+  "egg-free": ["egg", "eggs", "oeuf", "oeufs"],
+  "sesame-free": ["sesame"],
+  "soy-free": ["soy", "soja"],
+  "fish-free": ["fish", "poisson", "thon", "saumon", "bar", "cabillaud"]
 };
 
 function normalizeText(value: string): string {
@@ -131,7 +151,7 @@ function canAppearInEntryPreview(dish: PublicMenuDish): boolean {
   return !ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS.has(dish.slug);
 }
 
-function isAllergenFilter(filter: FilterId): filter is AllergenFilterId {
+function isDietaryFilter(filter: FilterId): filter is DietaryFilterId {
   return filter.endsWith("-free");
 }
 
@@ -141,7 +161,7 @@ function dishMatchesFilter(dish: PublicMenuDish, filter: FilterId): boolean {
   if (filter === "signature") return isSignatureDish(dish);
   if (filter === "immersive") return hasReal3d(dish) || hasRealAr(dish);
   if (filter === "available") return dish.available;
-  if (isAllergenFilter(filter)) {
+  if (isDietaryFilter(filter)) {
     const allergenTokens = new Set(dish.allergens.flatMap(tokenize));
     return !ALLERGEN_FILTER_TERMS[filter].some((term) =>
       allergenTokens.has(normalizeText(term))
@@ -248,6 +268,34 @@ function DishCard({
   );
 }
 
+function DishSection({
+  dishes,
+  menu,
+  query,
+  title
+}: {
+  dishes: PublicMenuDish[];
+  menu: PublicMenu;
+  query?: PublicMenuContextQuery;
+  title: string;
+}) {
+  const sectionId = `section-${normalizeText(title)}`;
+
+  return (
+    <section className={styles.dishSection} aria-labelledby={sectionId}>
+      <div className={styles.dishSectionHeader}>
+        <h3 id={sectionId}>{displayCategoryLabel(title)}</h3>
+        <span>{formatDishCount(dishes.length)}</span>
+      </div>
+      <ul className={styles.dishList}>
+        {dishes.map((dish) => (
+          <DishCard dish={dish} key={dish.id} menu={menu} query={query} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function MaisonElyseQrMenu({
   menu,
   context = "",
@@ -279,6 +327,23 @@ export function MaisonElyseQrMenu({
     () => baseDishes.filter((dish) => dishMatchesFilter(dish, activeFilter)),
     [activeFilter, baseDishes]
   );
+  const visibleDishSections = useMemo(() => {
+    if (activeCategory !== ALL_CATEGORY_ID) return [];
+
+    return categories
+      .map((category) => {
+        const dishes = (groups.get(category.label) ?? []).filter((dish) =>
+          dishMatchesFilter(dish, activeFilter)
+        );
+
+        return {
+          id: category.id,
+          label: category.label,
+          dishes
+        };
+      })
+      .filter((section) => section.dishes.length > 0);
+  }, [activeCategory, activeFilter, categories, groups]);
   const activeCategoryLabel =
     activeCategory === ALL_CATEGORY_ID
       ? "Toute la carte"
@@ -287,7 +352,7 @@ export function MaisonElyseQrMenu({
         : "Sections";
   const hasActiveFilter = activeFilter !== "all";
   const hasDetailFilterActive = DETAIL_FILTERS.some(
-    (filter) => filter.id === activeFilter
+    (filter) => filter.id !== "all" && filter.id === activeFilter
   );
   const shouldShowDetailFilters = showDetailFilters || hasDetailFilterActive;
 
@@ -339,14 +404,6 @@ export function MaisonElyseQrMenu({
             maison, pensés pour être explorés directement à table.
           </p>
           {context ? <span className={styles.context}>{context}</span> : null}
-          <div className={styles.heroActions}>
-            <button type="button" onClick={showAll}>
-              Découvrir la carte
-            </button>
-            <button type="button" onClick={() => selectCategory(null)}>
-              Voir les sections
-            </button>
-          </div>
         </div>
       </section>
 
@@ -356,11 +413,6 @@ export function MaisonElyseQrMenu({
             <p className={styles.kicker}>Choisir une section</p>
             <h2>La carte Maison Élyse</h2>
           </div>
-          {activeCategory ? (
-            <button type="button" onClick={() => selectCategory(null)}>
-              Retour aux sections
-            </button>
-          ) : null}
         </div>
 
         {!activeCategory ? (
@@ -402,9 +454,6 @@ export function MaisonElyseQrMenu({
               role="group"
               aria-label="Navigation des sections"
             >
-              <button type="button" onClick={() => selectCategory(null)}>
-                Sections
-              </button>
               <button
                 aria-pressed={activeCategory === ALL_CATEGORY_ID}
                 className={activeCategory === ALL_CATEGORY_ID ? styles.isActive : undefined}
@@ -469,7 +518,7 @@ export function MaisonElyseQrMenu({
                 <div
                   className={styles.detailFilters}
                   role="group"
-                  aria-label="Filtres allergènes"
+                  aria-label="Filtres alimentaires"
                 >
                   {DETAIL_FILTERS.map((filter) => (
                     <button
@@ -497,11 +546,25 @@ export function MaisonElyseQrMenu({
             ) : null}
 
             {visibleDishes.length > 0 ? (
-              <ul className={styles.dishList}>
-                {visibleDishes.map((dish) => (
-                  <DishCard dish={dish} key={dish.id} menu={menu} query={query} />
-                ))}
-              </ul>
+              activeCategory === ALL_CATEGORY_ID ? (
+                <div className={styles.sectionedDishList}>
+                  {visibleDishSections.map((section) => (
+                    <DishSection
+                      dishes={section.dishes}
+                      key={section.id}
+                      menu={menu}
+                      query={query}
+                      title={section.label}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ul className={styles.dishList}>
+                  {visibleDishes.map((dish) => (
+                    <DishCard dish={dish} key={dish.id} menu={menu} query={query} />
+                  ))}
+                </ul>
+              )
             ) : (
               <div className={styles.empty} role="status">
                 <p>Aucun plat dans cette sélection</p>

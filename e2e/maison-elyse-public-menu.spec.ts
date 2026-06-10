@@ -122,6 +122,8 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: /D.couvrir la carte/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Voir les sections" })).toHaveCount(0);
     await expect(page.getByText(/Table 12/)).toBeVisible();
     await expect(page.getByText(/Zone terrasse/)).toBeVisible();
     await expect(page.getByRole("button", { name: /Entr/i })).toBeVisible();
@@ -140,11 +142,23 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(page.getByRole("button", { name: "Tous" })).toBeVisible();
     await expect(page.getByRole("button", { name: "3D / AR" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Disponibles" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Filtres précis" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retour aux sections" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Sections" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Filtres pr.cis/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sans gluten" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Filtres précis" }).click();
+    await page.getByRole("button", { name: /Filtres pr.cis/i }).click();
+    await expect(page.getByRole("button", { name: "Tous les plats" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sans gluten" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Sans .ufs/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sans poisson" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Homard bleu/i })).toBeVisible();
+
+    await page.getByRole("button", { name: "Toute la carte" }).click();
+    await expect(page.getByRole("heading", { name: "Toute la carte" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Entr/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Plats signatures" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Desserts" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cocktails" })).toBeVisible();
     expect(modelRequests).toEqual([]);
     health.expectClean();
   });
