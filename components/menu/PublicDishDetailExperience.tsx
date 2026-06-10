@@ -121,6 +121,13 @@ export function PublicDishDetailExperience({
   const showPublicModelActions = mode === "public" && (has3d || hasAr);
   const showBuilderModelStatus =
     mode === "builder-preview" && (has3d || hasAr);
+  const publicModelButtonLabel = showModelViewer
+    ? has3d
+      ? "Masquer la 3D"
+      : "Masquer l'aperçu"
+    : has3d
+      ? "Voir en 3D"
+      : "Ouvrir l'aperçu AR";
 
   return (
     <main
@@ -273,32 +280,17 @@ export function PublicDishDetailExperience({
                   </div>
                   <div className={styles.modelActions}>
                     {mode === "public" ? (
-                      <>
-                        {has3d ? (
-                          <button
-                            type="button"
-                            className={styles.modelActionButton}
-                            aria-controls="public-dish-model-viewer"
-                            aria-expanded={showModelViewer}
-                            onClick={() =>
-                              setShowModelViewer((isVisible) => !isVisible)
-                            }
-                          >
-                            {showModelViewer ? "Masquer la 3D" : "Voir en 3D"}
-                          </button>
-                        ) : null}
-                        {hasAr ? (
-                          <button
-                            type="button"
-                            className={styles.modelActionButtonSecondary}
-                            aria-controls="public-dish-model-viewer"
-                            aria-expanded={showModelViewer}
-                            onClick={() => setShowModelViewer(true)}
-                          >
-                            Afficher devant moi
-                          </button>
-                        ) : null}
-                      </>
+                      <button
+                        type="button"
+                        className={styles.modelActionButton}
+                        aria-controls="public-dish-model-viewer"
+                        aria-expanded={showModelViewer}
+                        onClick={() =>
+                          setShowModelViewer((isVisible) => !isVisible)
+                        }
+                      >
+                        {publicModelButtonLabel}
+                      </button>
                     ) : (
                       <>
                         {has3d ? (
@@ -334,7 +326,7 @@ export function PublicDishDetailExperience({
                       id="public-dish-model-viewer"
                       aria-hidden="true"
                     >
-                      <span>3D</span>
+                      <span>{has3d ? "3D" : "AR"}</span>
                     </div>
                   )
                 ) : null}

@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const MODEL_ASSET_RE = /\.(?:glb|usdz)(?:$|[?#])/i;
+const IOS_SAFARI_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
 type PageHealth = {
   expectClean: () => void;
@@ -81,6 +83,14 @@ function collectModelAssetRequests(page: Page) {
   return requests;
 }
 
+async function simulateIosSafari(page: Page) {
+  await page.addInitScript((ua) => {
+    Object.defineProperty(navigator, "userAgent", { get: () => ua });
+    Object.defineProperty(navigator, "platform", { get: () => "iPhone" });
+    Object.defineProperty(navigator, "maxTouchPoints", { get: () => 5 });
+  }, IOS_SAFARI_UA);
+}
+
 async function expectHealthyResponse(response: { status: () => number } | null) {
   expect(response, "route should return a response").not.toBeNull();
   expect(response?.status()).toBeLessThan(400);
@@ -141,6 +151,7 @@ test.describe("Maison Elyse public QR menu", () => {
     const health = installPageHealth(page);
     const modelRequests = collectModelAssetRequests(page);
 
+    await simulateIosSafari(page);
     await page.setViewportSize({ width: 430, height: 932 });
     await expectHealthyResponse(
       await page.goto("/menu/maison-elyse/dishes/homard-bisque", {
@@ -150,15 +161,17 @@ test.describe("Maison Elyse public QR menu", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: /Homard bleu/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Voir en 3D" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Afficher devant moi" })).toBeVisible();
+    await expect(page.getByText("Afficher devant moi")).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(modelRequests).toEqual([]);
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("button", { name: "Afficher devant moi" }).click();
+    await page.getByRole("button", { name: "Voir en 3D" }).click();
     await expect
       .poll(() => page.locator("model-viewer").count(), { timeout: 15_000 })
       .toBeGreaterThan(0);
+    await expect(page.getByRole("link", { name: "Afficher devant moi" })).toBeVisible();
+    await expect(page.locator('a[rel="ar"][href$=".usdz"]')).toBeVisible();
     await expect
       .poll(() => modelRequests.some((url) => new URL(url).pathname.endsWith(".glb")), {
         timeout: 15_000

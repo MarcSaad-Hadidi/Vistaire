@@ -43,7 +43,8 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /ssr:\s*false/);
   assert.match(source, /LazyDishModelViewer/);
   assert.match(source, /Voir en 3D/);
-  assert.match(source, /Afficher devant moi/);
+  assert.match(source, /Ouvrir l'aperçu AR/);
+  assert.doesNotMatch(source, /modelActionButtonSecondary/);
   assert.match(source, /Preview statut seulement dans le builder/);
   assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
