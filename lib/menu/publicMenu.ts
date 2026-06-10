@@ -5,11 +5,16 @@ import {
   readSupabaseRows
 } from "@/lib/analytics/serverRows";
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
-import { getAllDishes, getRestaurant } from "@/lib/demoMenuData";
+import {
+  getAllDishes,
+  getCategoryBySlug,
+  getRestaurant
+} from "@/lib/demoMenuData";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import {
   buildSupabasePublicMenu,
   getPublicMenuRowSlug,
+  normalizeGoogleReviewConfig,
   type PublicMenu
 } from "@/lib/menu/publicMenuCore";
 
@@ -24,14 +29,15 @@ function demoMenu(slug: string): PublicMenu {
     name: restaurant.name,
     location: restaurant.location,
     cuisineType: restaurant.cuisineType,
+    googleReview: normalizeGoogleReviewConfig(restaurant.googleReview),
     source: "demo",
     dishes: dishes.slice(0, 60).map((dish, index) => ({
       id: dish.slug || `demo-${index}`,
       slug: dish.slug || `demo-${index}`,
       name: dish.name,
       description: dish.description ?? "",
-      category: dish.categorySlug ?? "Carte",
-      priceLabel: dish.price ? String(dish.price) : "",
+      category: getCategoryBySlug(dish.categorySlug ?? "")?.name ?? "Carte",
+      priceLabel: dish.price ? `$${dish.price}` : "",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),

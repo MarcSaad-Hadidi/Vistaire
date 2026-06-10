@@ -1,13 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import {
-  buildPublicDishPath,
   type PublicMenu,
   type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import styles from "./PublicDishDetailExperience.module.css";
@@ -21,6 +22,21 @@ type PublicDishDetailExperienceProps = {
   mode?: "public" | "builder-preview";
   onBack?: () => void;
 };
+
+const LazyDishModelViewer = dynamic<DishModelViewerProps>(
+  () =>
+    import("@/components/dish/DishModelViewer").then(
+      (mod) => mod.DishModelViewer
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.modelLoading} role="status" aria-live="polite">
+        Préparation de la vue immersive...
+      </div>
+    )
+  }
+);
 
 function dishBadges(dish: PublicMenuDish): string[] {
   const badges = new Set<string>();
@@ -60,50 +76,21 @@ function detailStyleVars(config: MenuUiConfig | undefined): CSSProperties {
   } as CSSProperties;
 }
 
-function firstAssetUrl(...urls: string[]): string {
-  return urls.map((url) => url.trim()).find(Boolean) ?? "";
-}
-
-function resolvePublic3dHref(dish: PublicMenuDish): string {
-  return firstAssetUrl(dish.webModel3dUrl, dish.model3dUrl, dish.arModel3dUrl);
-}
-
-function resolvePublicArHref(dish: PublicMenuDish): string {
-  return firstAssetUrl(dish.arUsdzUrl, dish["usdzUrl"], dish.arModel3dUrl);
-}
-
-function isQuickLookHref(href: string): boolean {
-  return href.trim().toLowerCase().split(/[?#]/, 1)[0].endsWith("usdz");
-}
-
-function ModelActionLink({
-  children,
-  href
-}: {
-  children: string;
-  href: string;
-}) {
-  const quickLook = isQuickLookHref(href);
-
-  return (
-    <a
-      className={styles.modelActionLink}
-      href={href}
-      rel={quickLook ? "ar" : "noreferrer"}
-      target={quickLook ? undefined : "_blank"}
-    >
-      {quickLook ? (
-        // Safari Quick Look requires an image child inside rel=ar links.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt=""
-          aria-hidden="true"
-          src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-        />
-      ) : null}
-      <span>{children}</span>
-    </a>
-  );
+function modelViewerDishFromPublicDish(
+  dish: PublicMenuDish
+): DishModelViewerProps["dish"] {
+  return {
+    slug: dish.slug,
+    categorySlug: dish.category,
+    name: dish.name,
+    model3dUrl: dish.model3dUrl,
+    webModel3dUrl: dish.webModel3dUrl,
+    arModel3dUrl: dish.arModel3dUrl,
+    arUsdzUrl: dish.arUsdzUrl || dish.usdzUrl,
+    image: dish.imageUrl,
+    imageObjectPosition: "center",
+    imageObjectPositionDetail: "center"
+  };
 }
 
 export function PublicDishDetailExperience({
@@ -115,27 +102,12 @@ export function PublicDishDetailExperience({
   mode = "public",
   onBack
 }: PublicDishDetailExperienceProps) {
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
-    "idle"
-  );
+  const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
-  const dishHref = buildPublicDishPath(menu.slug, dish.slug, query);
   const badges = dishBadges(dish);
-  const public3dHref = mode === "public" ? resolvePublic3dHref(dish) : "";
-  const publicArHref = mode === "public" ? resolvePublicArHref(dish) : "";
-  const showPublicModelActions = Boolean(public3dHref || publicArHref);
+  const showPublicModelActions = mode === "public" && (dish.has3d || dish.hasAr);
   const showBuilderModelStatus =
     mode === "builder-preview" && (dish.has3d || dish.hasAr);
-
-  async function copyDishLink() {
-    try {
-      const url = new URL(dishHref, window.location.origin).toString();
-      await navigator.clipboard.writeText(url);
-      setCopyState("copied");
-    } catch {
-      setCopyState("error");
-    }
-  }
 
   return (
     <main
@@ -157,7 +129,7 @@ export function PublicDishDetailExperience({
               Retour au menu
             </Link>
           )}
-          <span>{menu.name}</span>
+          <span className={styles.navRestaurantName}>{menu.name}</span>
         </nav>
 
         <article className={styles.card}>
@@ -262,34 +234,75 @@ export function PublicDishDetailExperience({
             </div>
 
             {showPublicModelActions || showBuilderModelStatus ? (
-              <section className={styles.modelPanel}>
-                <h2>3D / AR</h2>
-                <p>
-                  {mode === "public"
-                    ? "Ouverture des assets immersifs apres action explicite."
-                    : "Preview statut seulement dans le builder."}
-                </p>
-                <div>
-                  {mode === "public" ? (
-                    <>
-                      {public3dHref ? (
-                        <ModelActionLink href={public3dHref}>Voir en 3D</ModelActionLink>
-                      ) : null}
-                      {publicArHref ? (
-                        <ModelActionLink href={publicArHref}>Voir en AR</ModelActionLink>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      {dish.has3d ? (
-                        <span className={styles.modelStatusChip}>3D disponible</span>
-                      ) : null}
-                      {dish.hasAr ? (
-                        <span className={styles.modelStatusChip}>AR disponible</span>
-                      ) : null}
-                    </>
-                  )}
+              <section
+                className={`${styles.modelPanel} ${
+                  showModelViewer ? styles.modelPanelOpen : ""
+                }`}
+              >
+                <div className={styles.modelPanelHeader}>
+                  <div className={styles.modelPanelCopy}>
+                    <h2>3D / AR sélective</h2>
+                    {mode === "public" ? (
+                      <strong className={styles.modelPanelTitle}>
+                        Aperçu immersif
+                      </strong>
+                    ) : null}
+                    {mode === "builder-preview" ? (
+                      <p>Preview statut seulement dans le builder.</p>
+                    ) : null}
+                  </div>
+                  <div className={styles.modelActions}>
+                    {mode === "public" ? (
+                      <button
+                        type="button"
+                        className={styles.modelActionButton}
+                        aria-controls="public-dish-model-viewer"
+                        aria-expanded={showModelViewer}
+                        onClick={() =>
+                          setShowModelViewer((isVisible) => !isVisible)
+                        }
+                      >
+                        {showModelViewer ? "Masquer la 3D" : "Voir en 3D"}
+                      </button>
+                    ) : (
+                      <>
+                        {dish.has3d ? (
+                          <span className={styles.modelStatusChip}>
+                            3D disponible
+                          </span>
+                        ) : null}
+                        {dish.hasAr ? (
+                          <span className={styles.modelStatusChip}>
+                            AR disponible
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
                 </div>
+                {mode === "public" ? (
+                  showModelViewer ? (
+                    <div
+                      className={styles.inlineModelViewer}
+                      id="public-dish-model-viewer"
+                    >
+                      <LazyDishModelViewer
+                        dish={modelViewerDishFromPublicDish(dish)}
+                        minimalChrome
+                        quietChrome
+                        onReturnToDish={() => setShowModelViewer(false)}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className={styles.modelPreview}
+                      id="public-dish-model-viewer"
+                      aria-hidden="true"
+                    >
+                      <span>3D</span>
+                    </div>
+                  )
+                ) : null}
               </section>
             ) : null}
 
@@ -303,18 +316,7 @@ export function PublicDishDetailExperience({
                   Retour au menu
                 </Link>
               )}
-              <button type="button" onClick={copyDishLink}>
-                Copier le lien
-              </button>
             </div>
-
-            <p className={styles.copyState} aria-live="polite">
-              {copyState === "copied"
-                ? "Lien copié."
-                : copyState === "error"
-                  ? "Copie indisponible sur ce navigateur."
-                  : ""}
-            </p>
           </section>
         </article>
       </div>

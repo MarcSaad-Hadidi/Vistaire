@@ -48,6 +48,10 @@ async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
     name: restaurant.name,
     location: restaurant.location,
     cuisineType: restaurant.cuisineType,
+    googleReview: {
+      enabled: false,
+      googleReviewUrl: ""
+    },
     source: "demo" as const,
     dishes: []
   };

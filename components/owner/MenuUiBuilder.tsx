@@ -214,6 +214,10 @@ function emptyMenu(restaurant: MenuBuilderRestaurant | undefined): PublicMenu {
     name: restaurant?.name ?? "Restaurant",
     location: "",
     cuisineType: "",
+    googleReview: {
+      enabled: false,
+      googleReviewUrl: ""
+    },
     source: "supabase",
     dishes: []
   };

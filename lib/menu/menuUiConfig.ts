@@ -471,13 +471,50 @@ export function menuUiConfigForRestaurant(args: {
   const slug = args.slug?.trim().toLowerCase() || "";
   const premium = slug === "maison-elyse" || name.toLowerCase().includes("elyse");
   const theme: MenuUiThemeId = premium ? "premium-gastronomic" : "fresh-homemade";
+  const baseConfig = buildConfigFromTheme(theme, { name, slug });
+
+  if (premium) {
+    return normalizeMenuUiConfig({
+      ...baseConfig,
+      global: {
+        ...baseConfig.global,
+        backgroundStyle: "dark",
+        density: "compact",
+        radius: "soft",
+        shadow: "medium"
+      },
+      navigation: {
+        ...baseConfig.navigation,
+        style: "tabs",
+        showAll: true,
+        showDishCounts: false
+      },
+      cards: {
+        ...baseConfig.cards,
+        variant: "photo-compact",
+        photoShape: "rounded",
+        descriptionLength: "short",
+        priceStyle: "right",
+        showTags: true
+      },
+      welcome: {
+        ...baseConfig.welcome,
+        layout: "compact",
+        backgroundShapes: "none"
+      },
+      detail: {
+        ...baseConfig.detail,
+        dishOpenMode: "route"
+      },
+      welcomeTitle: name,
+      welcomeSubtitle: "Carte gastronomique a explorer a table"
+    });
+  }
 
   return normalizeMenuUiConfig({
-    ...buildConfigFromTheme(theme, { name, slug }),
+    ...baseConfig,
     welcomeTitle: `Bienvenue chez ${name}`,
-    welcomeSubtitle: premium
-      ? "Une carte gastronomique a explorer a table"
-      : "Cuisine maison fraiche et genereuse"
+    welcomeSubtitle: "Cuisine maison fraiche et genereuse"
   });
 }
 

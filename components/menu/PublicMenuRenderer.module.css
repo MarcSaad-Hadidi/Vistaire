@@ -1,3 +1,35 @@
+@font-face {
+  font-family: "BT Suave";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "BT Suave";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
+}
+
 .page {
   --menu-bg: #FFFDF6;
   --menu-surface: #FFFFFF;
@@ -480,6 +512,123 @@
 .tabs .activeTab {
   background: var(--menu-accent);
   border-color: var(--menu-accent);
+}
+
+.menuTools {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.filterSelectShell {
+  position: relative;
+  width: min(100%, 260px);
+}
+
+.filterSelectShell::after {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--menu-text);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+}
+
+.filterSelect {
+  width: 100%;
+  min-height: 42px;
+  appearance: none;
+  border: 1px solid var(--menu-border);
+  border-radius: 999px;
+  background: var(--menu-surface);
+  color: var(--menu-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 42px 0 14px;
+}
+
+.filterSelect option {
+  background: #120806;
+  color: #fffaf0;
+}
+
+.searchBox {
+  display: grid;
+  gap: 6px;
+}
+
+.searchBox span {
+  color: var(--menu-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.searchBox input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--menu-border);
+  border-radius: 999px;
+  background: var(--menu-surface);
+  color: var(--menu-text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 14px;
+}
+
+.searchBox input::placeholder {
+  color: var(--menu-muted);
+}
+
+.filterPills {
+  display: flex;
+  min-width: 0;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.filterPills::-webkit-scrollbar {
+  display: none;
+}
+
+.filterPills button,
+.resetFilters {
+  min-height: 32px;
+  flex: 0 0 auto;
+  border: 1px solid var(--menu-border);
+  border-radius: 999px;
+  background: var(--menu-surface);
+  color: var(--menu-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 11px;
+}
+
+.filterPills .isActive {
+  border-color: var(--menu-accent);
+  background: var(--menu-accent);
+  color: #17100a;
+}
+
+.resultStatus {
+  margin: 0;
+  color: var(--menu-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.resetFilters {
+  justify-self: start;
 }
 
 .menuView,
@@ -1230,6 +1379,308 @@
   min-height: 66px;
 }
 
+.themePremium.public {
+  --menu-bg: #0d0805;
+  --menu-surface: rgba(255, 250, 240, 0.052);
+  --menu-text: #fffaf0;
+  --menu-muted: rgba(238, 230, 215, 0.75);
+  --menu-accent: #e8cf9b;
+  --menu-accent-2: #d2a45e;
+  --menu-fresh: #e8cf9b;
+  --menu-border: rgba(255, 246, 225, 0.22);
+  --menu-radius-card: 12px;
+  --menu-radius-visual: 11px;
+  --menu-shadow-card:
+    0 16px 42px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 250, 240, 0.08);
+  --menu-shadow-panel:
+    0 28px 70px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 250, 240, 0.12);
+  background:
+    linear-gradient(180deg, rgba(68, 43, 24, 0.78), rgba(13, 8, 5, 0.92) 34%, #080605),
+    #0d0805;
+  color: var(--menu-text);
+  font-family: "Neue Montreal", system-ui, sans-serif;
+  padding: 14px 14px 30px;
+}
+
+.themePremium.public .welcome,
+.themePremium.public .menuShell {
+  max-width: 760px;
+}
+
+.themePremium.public .welcome {
+  gap: 6px;
+  padding: 10px 0 12px;
+}
+
+.themePremium.public .welcome p,
+.themePremium.public .sectionLabel {
+  color: rgba(232, 207, 155, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.themePremium.public .welcome h1,
+.themePremium.public .menuIntro h2,
+.themePremium.public .sectionHeader h3,
+.themePremium.public .fullMenuSection h3 {
+  color: #fffaf0;
+  font-family: "BT Suave", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.themePremium.public .welcome h1 {
+  max-width: none;
+  font-size: clamp(38px, 10vw, 54px);
+  line-height: 0.95;
+}
+
+.themePremium.public .welcome span,
+.themePremium.public .welcome small {
+  max-width: 34rem;
+  color: rgba(232, 207, 155, 0.78);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.themePremium.public .welcomeActions {
+  display: none;
+}
+
+.themePremium.public .menuShell {
+  border: 1px solid rgba(255, 250, 240, 0.18);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.055), rgba(10, 7, 5, 0.34)),
+    rgba(10, 7, 5, 0.42);
+  padding: 12px;
+  box-shadow: var(--menu-shadow-panel);
+  -webkit-backdrop-filter: blur(8px) saturate(112%);
+  backdrop-filter: blur(8px) saturate(112%);
+}
+
+.themePremium.public .menuIntro {
+  display: none;
+}
+
+.themePremium.public .menuTools {
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.themePremium.public .filterSelectShell {
+  width: 100%;
+}
+
+.themePremium.public .filterSelectShell::after {
+  color: rgba(255, 250, 240, 0.92);
+}
+
+.themePremium.public .filterSelect {
+  min-height: 40px;
+  border-color: rgba(232, 207, 155, 0.72);
+  background: rgba(22, 13, 8, 0.74);
+  color: rgba(255, 250, 240, 0.96);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 240, 0.12),
+    0 10px 26px rgba(0, 0, 0, 0.16);
+}
+
+.themePremium.public .filterSelect:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.9);
+  outline-offset: 3px;
+}
+
+.themePremium.public .searchBox {
+  grid-column: 1 / -1;
+}
+
+.themePremium.public .searchBox span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.themePremium.public .searchBox input {
+  min-height: 43px;
+  border-color: rgba(255, 246, 225, 0.16);
+  background: rgba(22, 13, 8, 0.48);
+  color: rgba(255, 250, 240, 0.95);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.themePremium.public .filterPills {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.themePremium.public .filterPills button,
+.themePremium.public .resetFilters {
+  min-width: 0;
+  min-height: 34px;
+  border-color: rgba(255, 246, 225, 0.24);
+  background: rgba(255, 250, 240, 0.04);
+  color: rgba(255, 250, 240, 0.94);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 0 7px;
+}
+
+.themePremium.public .filterPills .isActive {
+  border-color: rgba(232, 207, 155, 0.72);
+  background: rgba(232, 207, 155, 0.18);
+  color: #fffaf0;
+}
+
+.themePremium.public .resultStatus {
+  color: rgba(232, 207, 155, 0.78);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.themePremium.public .resetFilters {
+  justify-self: end;
+}
+
+.themePremium.public .tabs {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0 0 12px;
+  padding: 0;
+  overflow: visible;
+  border-bottom: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.themePremium.public .tabs button {
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  border-color: rgba(255, 246, 225, 0.24);
+  background: rgba(255, 250, 240, 0.04);
+  color: rgba(255, 250, 240, 0.95);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
+.themePremium.public .tabs .activeTab {
+  border-color: rgba(232, 207, 155, 0.78);
+  background: rgba(232, 207, 155, 0.92);
+  color: #17100a;
+}
+
+.themePremium.public .fullMenuList {
+  gap: 14px;
+}
+
+.themePremium.public .fullMenuSection {
+  gap: 8px;
+}
+
+.themePremium.public .sectionHeader {
+  align-items: center;
+  margin: 4px 0 2px;
+}
+
+.themePremium.public .sectionHeader h3 {
+  font-size: 25px;
+}
+
+.themePremium.public .sectionHeader span {
+  color: rgba(232, 207, 155, 0.9);
+  font-size: 11px;
+}
+
+.themePremium.public .dishList {
+  gap: 8px;
+}
+
+.themePremium.public .dishCard {
+  grid-template-columns: 88px minmax(0, 1fr);
+  min-height: 104px;
+  gap: 9px;
+  border-color: rgba(255, 246, 225, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.055), rgba(255, 250, 240, 0.018)),
+    rgba(16, 9, 5, 0.5);
+  padding: 5px 8px 5px 5px;
+}
+
+.themePremium.public .dishCopy {
+  gap: 4px;
+}
+
+.themePremium.public .dishCard:hover,
+.themePremium.public .dishCard:focus-visible {
+  border-color: rgba(255, 250, 240, 0.62);
+  outline: none;
+}
+
+.themePremium.public .dishVisual {
+  width: 84px;
+  border: 1px solid rgba(255, 246, 225, 0.12);
+  background: rgba(255, 250, 240, 0.05);
+}
+
+.themePremium.public .dishTopline {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
+}
+
+.themePremium.public .dishName {
+  color: #fffaf0;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.themePremium.public .price {
+  color: rgba(232, 207, 155, 0.9);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.themePremium.public .dishDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(238, 230, 215, 0.76);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.themePremium.public .badge,
+.themePremium.public .modelBadge {
+  border: 1px solid rgba(232, 207, 155, 0.3);
+  background: rgba(232, 207, 155, 0.12);
+  color: rgba(255, 250, 240, 0.86);
+  font-size: 9px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 @keyframes welcomeRise {
   from {
     opacity: 0;
@@ -1308,6 +1759,22 @@
 }
 
 @media (max-width: 430px) {
+  .menuTools,
+  .themePremium.public .menuTools {
+    grid-template-columns: 1fr auto;
+  }
+
+  .filterSelectShell,
+  .themePremium.public .filterSelectShell {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .resetFilters,
+  .themePremium.public .resetFilters {
+    justify-self: end;
+  }
+
   .menuIntro {
     display: grid;
     align-items: start;

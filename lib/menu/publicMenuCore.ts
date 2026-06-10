@@ -29,12 +29,26 @@ export type PublicMenuDish = {
   tags: string[];
 };
 
+export type GoogleReviewConfig = {
+  enabled: boolean;
+  googleReviewUrl: string;
+  googleRating?: number;
+  googleReviewCount?: number;
+};
+
+export type GoogleReviewCta = {
+  href: string;
+  googleRating?: number;
+  googleReviewCount?: number;
+};
+
 export type PublicMenu = {
   restaurantId: string;
   slug: string;
   name: string;
   location: string;
   cuisineType: string;
+  googleReview: GoogleReviewConfig;
   source: "supabase" | "demo";
   dishes: PublicMenuDish[];
 };
@@ -68,10 +82,22 @@ const CATEGORY_DEFINITIONS = [
     tone: "green"
   },
   {
+    id: "plats-signatures",
+    label: "Signatures",
+    description: "Les plats de la maison",
+    tone: "green"
+  },
+  {
     id: "desserts",
     label: "Desserts",
     description: "Une touche sucrée",
     tone: "yellow"
+  },
+  {
+    id: "cocktails",
+    label: "Cocktails",
+    description: "Classiques et creations du bar",
+    tone: "red"
   },
   {
     id: "boissons",
@@ -144,6 +170,138 @@ function getBoolean(row: PublicMenuRow, candidates: string[]): boolean | null {
     }
   }
   return null;
+}
+
+function objectInput(input: unknown): PublicMenuRow {
+  return input && typeof input === "object" && !Array.isArray(input)
+    ? (input as PublicMenuRow)
+    : {};
+}
+
+function isAllowedGoogleReviewUrl(parsed: URL): boolean {
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === "search.google.com") {
+    return (
+      parsed.pathname === "/local/writereview" &&
+      Boolean(parsed.searchParams.get("placeid")?.trim())
+    );
+  }
+  if (hostname === "g.page") {
+    return parsed.pathname
+      .split("/")
+      .filter(Boolean)
+      .some((segment) => segment.toLowerCase() === "review");
+  }
+  return false;
+}
+
+function cleanGoogleReviewUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol === "https:" && !parsed.username && !parsed.password) {
+      return isAllowedGoogleReviewUrl(parsed) ? parsed.toString() : "";
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function cleanGoogleRating(value: unknown): number | undefined {
+  const rating =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(rating) || rating < 0 || rating > 5) return undefined;
+  return Math.round(rating * 10) / 10;
+}
+
+function cleanGoogleReviewCount(value: unknown): number | undefined {
+  const count =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(count) || count < 0) return undefined;
+  return Math.min(10_000_000, Math.floor(count));
+}
+
+export function normalizeGoogleReviewConfig(
+  input: unknown
+): GoogleReviewConfig {
+  const candidate = objectInput(input);
+  const googleReviewUrl = cleanGoogleReviewUrl(
+    getString(candidate, ["googleReviewUrl", "google_review_url", "url"], "")
+  );
+  const googleRating = cleanGoogleRating(
+    candidate.googleRating ?? candidate.google_rating
+  );
+  const googleReviewCount = cleanGoogleReviewCount(
+    candidate.googleReviewCount ?? candidate.google_review_count
+  );
+
+  return {
+    enabled: getBoolean(candidate, ["enabled"]) ?? false,
+    googleReviewUrl,
+    ...(googleRating === undefined ? {} : { googleRating }),
+    ...(googleReviewCount === undefined ? {} : { googleReviewCount })
+  };
+}
+
+export function getGoogleReviewCta(
+  config: GoogleReviewConfig | null | undefined
+): GoogleReviewCta | null {
+  const normalized = normalizeGoogleReviewConfig(config);
+  if (!normalized.enabled || !normalized.googleReviewUrl) return null;
+
+  return {
+    href: normalized.googleReviewUrl,
+    ...(normalized.googleRating === undefined
+      ? {}
+      : { googleRating: normalized.googleRating }),
+    ...(normalized.googleReviewCount === undefined
+      ? {}
+      : { googleReviewCount: normalized.googleReviewCount })
+  };
+}
+
+function googleReviewConfigFromRestaurantRow(
+  row: PublicMenuRow
+): GoogleReviewConfig {
+  const nested = objectInput(
+    row.googleReview ?? row.google_review ?? row.google_reviews
+  );
+
+  return normalizeGoogleReviewConfig({
+    enabled:
+      nested.enabled ??
+      row.google_review_enabled ??
+      row.googleReviewEnabled ??
+      row.google_reviews_enabled,
+    googleReviewUrl:
+      nested.googleReviewUrl ??
+      nested.google_review_url ??
+      nested.url ??
+      row.google_review_url ??
+      row.googleReviewUrl ??
+      row.google_reviews_url,
+    googleRating:
+      nested.googleRating ??
+      nested.google_rating ??
+      row.google_rating ??
+      row.googleRating,
+    googleReviewCount:
+      nested.googleReviewCount ??
+      nested.google_review_count ??
+      row.google_review_count ??
+      row.googleReviewCount
+  });
 }
 
 function getStringList(row: PublicMenuRow, candidates: string[]): string[] {
@@ -376,6 +534,7 @@ export function buildSupabasePublicMenu(
     name: getString(restaurantRow, ["name", "restaurant_name"], "Restaurant"),
     location: getString(restaurantRow, ["location", "city", "address"], ""),
     cuisineType: getString(restaurantRow, ["cuisine_type", "cuisineType"], ""),
+    googleReview: googleReviewConfigFromRestaurantRow(restaurantRow),
     source: "supabase",
     dishes
   };

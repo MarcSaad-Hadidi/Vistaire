@@ -1,3 +1,35 @@
+@font-face {
+  font-family: "BT Suave";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "BT Suave";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
+}
+
 .page {
   min-height: 100svh;
   overflow-x: clip;
@@ -66,6 +98,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.navRestaurantName {
+  max-width: 46vw;
+  color: var(--detail-text);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: right;
 }
 
 .card {
@@ -250,6 +292,27 @@
   background: color-mix(in srgb, var(--detail-accent) 10%, var(--detail-surface));
 }
 
+.modelPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modelPanelCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.modelPanelTitle {
+  color: var(--detail-text);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.05;
+}
+
 .modelPanel p {
   margin: 0;
   color: var(--detail-muted);
@@ -257,12 +320,14 @@
   line-height: 1.45;
 }
 
-.modelPanel div {
+.modelActions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
+.modelActionButton,
 .modelActionLink,
 .modelStatusChip {
   position: relative;
@@ -277,6 +342,7 @@
   font-size: 13px;
   font-weight: 900;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .modelActionLink img {
@@ -291,6 +357,43 @@
   border: 1px solid var(--detail-border);
   background: var(--detail-surface);
   color: var(--detail-text);
+}
+
+.inlineModelViewer,
+.modelLoading,
+.modelPreview {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--detail-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--detail-text) 6%, var(--detail-bg));
+}
+
+.modelPreview {
+  display: grid;
+  min-height: 138px;
+  place-items: center;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--detail-accent) 5%, var(--detail-bg));
+}
+
+.modelPreview span {
+  color: var(--detail-accent);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 42px;
+  font-weight: 500;
+}
+
+.modelLoading {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  color: var(--detail-muted);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 18px;
+  text-align: center;
 }
 
 .actions {
@@ -309,21 +412,290 @@
   cursor: pointer;
 }
 
-.copyState {
-  min-height: 18px;
-  margin: -6px 0 0;
-  color: var(--detail-fresh);
-  font-size: 13px;
-  font-weight: 900;
-}
-
 .topNav a:focus-visible,
 .topNav button:focus-visible,
 .primaryLink:focus-visible,
+.modelActionButton:focus-visible,
 .modelActionLink:focus-visible,
 .actions button:focus-visible {
   outline: 3px solid rgba(232, 93, 63, 0.45);
   outline-offset: 3px;
+}
+
+.page[data-theme="premium-gastronomic"] {
+  --detail-bg: #0d0805;
+  --detail-surface: rgba(255, 250, 240, 0.055);
+  --detail-text: #fffaf0;
+  --detail-muted: rgba(238, 230, 215, 0.76);
+  --detail-accent: #e8cf9b;
+  --detail-accent-2: #d2a45e;
+  --detail-border: rgba(255, 246, 225, 0.2);
+  --detail-fresh: #e8cf9b;
+  background:
+    radial-gradient(circle at 14% 6%, rgba(232, 207, 155, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(68, 43, 24, 0.72), rgba(13, 8, 5, 0.95) 35%, #080605),
+    #0d0805;
+  color: var(--detail-text);
+  font-family: "Neue Montreal", system-ui, sans-serif;
+  padding: 10px 14px 30px;
+}
+
+.page[data-theme="premium-gastronomic"] .shell {
+  max-width: 1120px;
+  gap: 10px;
+}
+
+.page[data-theme="premium-gastronomic"] .topNav {
+  top: 10px;
+  min-height: 56px;
+  border: 1px solid rgba(255, 250, 240, 0.25);
+  border-radius: 999px;
+  background: rgba(13, 8, 5, 0.18);
+  padding: 7px 9px;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 250, 240, 0.18),
+    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
+  -webkit-backdrop-filter: blur(5px) saturate(110%);
+  backdrop-filter: blur(5px) saturate(110%);
+}
+
+.page[data-theme="premium-gastronomic"] .topNav a,
+.page[data-theme="premium-gastronomic"] .topNav button,
+.page[data-theme="premium-gastronomic"] .actions button {
+  min-height: 36px;
+  border-color: rgba(255, 246, 225, 0.24);
+  background: rgba(255, 250, 240, 0.055);
+  color: rgba(255, 250, 240, 0.92);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.page[data-theme="premium-gastronomic"] .topNav span {
+  color: rgba(232, 207, 155, 0.78);
+  font-size: 11px;
+  font-weight: 700;
+  padding-right: 8px;
+}
+
+.page[data-theme="premium-gastronomic"] .navRestaurantName {
+  max-width: 44vw;
+  color: rgba(232, 207, 155, 0.92);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-shadow: 0 1px 12px rgba(232, 207, 155, 0.16);
+}
+
+.page[data-theme="premium-gastronomic"] .card {
+  gap: 12px;
+}
+
+.page[data-theme="premium-gastronomic"] .visual {
+  min-height: min(76svh, 470px);
+  border-color: rgba(255, 246, 225, 0.16);
+  border-radius: 24px;
+  background-color: rgba(255, 250, 240, 0.04);
+  background-position: center;
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 250, 240, 0.1);
+}
+
+.page[data-theme="premium-gastronomic"] .content {
+  gap: 14px;
+  margin-top: -78px;
+  border: 1px solid rgba(255, 246, 225, 0.18);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.08), rgba(10, 7, 5, 0.58)),
+    rgba(10, 7, 5, 0.76);
+  padding: 18px 14px 16px;
+  box-shadow:
+    0 30px 82px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 250, 240, 0.12);
+  -webkit-backdrop-filter: blur(14px) saturate(116%);
+  backdrop-filter: blur(14px) saturate(116%);
+}
+
+.page[data-theme="premium-gastronomic"] .kicker,
+.page[data-theme="premium-gastronomic"] .factGrid dt,
+.page[data-theme="premium-gastronomic"] .detailSections h2,
+.page[data-theme="premium-gastronomic"] .modelPanel h2 {
+  color: rgba(232, 207, 155, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.page[data-theme="premium-gastronomic"] .heading h1 {
+  max-width: 13ch;
+  color: #fffaf0;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(38px, 11vw, 58px);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.96;
+}
+
+.page[data-theme="premium-gastronomic"] .description {
+  color: rgba(238, 230, 215, 0.82);
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.48;
+}
+
+.page[data-theme="premium-gastronomic"] .context {
+  color: rgba(232, 207, 155, 0.8);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.page[data-theme="premium-gastronomic"] .badges span {
+  border: 1px solid rgba(232, 207, 155, 0.32);
+  background: rgba(232, 207, 155, 0.12);
+  color: rgba(255, 250, 240, 0.88);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.page[data-theme="premium-gastronomic"] .factGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.page[data-theme="premium-gastronomic"] .factGrid div,
+.page[data-theme="premium-gastronomic"] .detailSections section,
+.page[data-theme="premium-gastronomic"] .modelPanel {
+  border-color: rgba(255, 246, 225, 0.16);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.055), rgba(255, 250, 240, 0.018)),
+    rgba(16, 9, 5, 0.46);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.08);
+}
+
+.page[data-theme="premium-gastronomic"] .factGrid dd {
+  color: #fffaf0;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.page[data-theme="premium-gastronomic"] .detailSections {
+  gap: 9px;
+}
+
+.page[data-theme="premium-gastronomic"] .detailSections ul {
+  color: rgba(255, 250, 240, 0.88);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.page[data-theme="premium-gastronomic"] .detailSections p,
+.page[data-theme="premium-gastronomic"] .modelPanel p {
+  color: rgba(238, 230, 215, 0.78);
+  font-size: 13px;
+}
+
+.page[data-theme="premium-gastronomic"] .modelPanel {
+  gap: 10px;
+  padding: 11px 12px;
+}
+
+.page[data-theme="premium-gastronomic"] .modelPanelOpen {
+  padding-bottom: 12px;
+}
+
+.page[data-theme="premium-gastronomic"] .modelPanelHeader {
+  align-items: center;
+}
+
+.page[data-theme="premium-gastronomic"] .modelPanelTitle {
+  color: #fffaf0;
+  font-size: 23px;
+}
+
+.page[data-theme="premium-gastronomic"] .modelActionButton,
+.page[data-theme="premium-gastronomic"] .modelActionLink,
+.page[data-theme="premium-gastronomic"] .modelStatusChip,
+.page[data-theme="premium-gastronomic"] .primaryLink {
+  min-height: 40px;
+  border: 1px solid rgba(232, 207, 155, 0.72);
+  background: rgba(232, 207, 155, 0.92);
+  color: #17100a;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.page[data-theme="premium-gastronomic"] .modelStatusChip {
+  background: rgba(255, 250, 240, 0.055);
+  color: rgba(255, 250, 240, 0.9);
+}
+
+.page[data-theme="premium-gastronomic"] .inlineModelViewer,
+.page[data-theme="premium-gastronomic"] .modelLoading,
+.page[data-theme="premium-gastronomic"] .modelPreview {
+  border-color: rgba(255, 246, 225, 0.16);
+  background: rgba(8, 6, 5, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.08);
+}
+
+.page[data-theme="premium-gastronomic"] .modelPreview {
+  min-height: 138px;
+  border-color: rgba(232, 207, 155, 0.34);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(232, 207, 155, 0.08), transparent 42%),
+    rgba(8, 6, 5, 0.52);
+}
+
+.page[data-theme="premium-gastronomic"] .modelPreview span {
+  color: rgba(232, 207, 155, 0.88);
+  font-size: 42px;
+}
+
+.page[data-theme="premium-gastronomic"] .modelLoading {
+  color: rgba(232, 207, 155, 0.84);
+}
+
+.page[data-theme="premium-gastronomic"] .actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.page[data-theme="premium-gastronomic"] .actions button {
+  width: 100%;
+}
+
+.page[data-theme="premium-gastronomic"] .primaryLink {
+  width: 100%;
+  text-align: center;
+}
+
+.page[data-theme="premium-gastronomic"] .topNav a:hover,
+.page[data-theme="premium-gastronomic"] .topNav button:hover,
+.page[data-theme="premium-gastronomic"] .actions button:hover,
+.page[data-theme="premium-gastronomic"] .modelActionButton:hover,
+.page[data-theme="premium-gastronomic"] .modelActionLink:hover {
+  border-color: rgba(255, 250, 240, 0.72);
+}
+
+.page[data-theme="premium-gastronomic"] .topNav a:focus-visible,
+.page[data-theme="premium-gastronomic"] .topNav button:focus-visible,
+.page[data-theme="premium-gastronomic"] .primaryLink:focus-visible,
+.page[data-theme="premium-gastronomic"] .modelActionButton:focus-visible,
+.page[data-theme="premium-gastronomic"] .modelActionLink:focus-visible,
+.page[data-theme="premium-gastronomic"] .actions button:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.9);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 5px rgba(6, 3, 1, 0.72),
+    0 0 0 2px rgba(232, 207, 155, 0.34);
 }
 
 @media (min-width: 760px) {
@@ -366,6 +738,30 @@
   .builderPreview .heading h1 {
     font-size: 34px;
   }
+
+  .page[data-theme="premium-gastronomic"] {
+    padding: 18px 28px 52px;
+  }
+
+  .page[data-theme="premium-gastronomic"] .card {
+    grid-template-columns: minmax(360px, 0.92fr) minmax(0, 0.98fr);
+    gap: 22px;
+  }
+
+  .page[data-theme="premium-gastronomic"] .visual {
+    min-height: min(760px, calc(100svh - 112px));
+    border-radius: 28px;
+  }
+
+  .page[data-theme="premium-gastronomic"] .content {
+    margin-top: 0;
+    align-self: start;
+    padding: 22px;
+  }
+
+  .page[data-theme="premium-gastronomic"] .actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 430px) {
@@ -375,6 +771,24 @@
 
   .topNav {
     align-items: start;
+  }
+
+  .modelPanelHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modelActions,
+  .modelActionButton {
+    width: 100%;
+  }
+
+  .page[data-theme="premium-gastronomic"] .factGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .page[data-theme="premium-gastronomic"] .content {
+    margin-top: -58px;
   }
 }
 
