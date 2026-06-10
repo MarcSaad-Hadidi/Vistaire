@@ -41,6 +41,8 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /mode === "builder-preview"/);
   assert.match(source, /hasPublic3d/);
   assert.match(source, /hasPublicAr/);
+  assert.match(source, /builderStatusHas3d/);
+  assert.match(source, /builderStatusHasAr/);
   assert.match(source, /dynamic<DishModelViewerProps>/);
   assert.match(source, /ssr:\s*false/);
   assert.match(source, /LazyDishModelViewer/);
@@ -51,6 +53,31 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
   assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
+});
+
+test("builder preview uses simulated immersive status flags without public model URLs", async () => {
+  const source = await readFile(detailComponentPath, "utf8");
+
+  assert.match(source, /function builderStatusHas3d\(dish: PublicMenuDish\): boolean/);
+  assert.match(source, /return Boolean\(dish\.has3d \|\| hasPublic3d\(dish\)\)/);
+  assert.match(source, /function builderStatusHasAr\(dish: PublicMenuDish\): boolean/);
+  assert.match(source, /return Boolean\(dish\.hasAr \|\| hasPublicAr\(dish\)\)/);
+  assert.match(source, /const hasPublic3dAsset = hasPublic3d\(dish\)/);
+  assert.match(source, /const hasPublicArAsset = hasPublicAr\(dish\)/);
+  assert.match(
+    source,
+    /showPublicModelActions =\s*mode === "public" && \(hasPublic3dAsset \|\| hasPublicArAsset\)/
+  );
+  assert.match(
+    source,
+    /showBuilderModelStatus =\s*mode === "builder-preview" && \(hasBuilder3dStatus \|\| hasBuilderArStatus\)/
+  );
+  assert.match(
+    source,
+    /dishBadges\(dish,\s*\{[\s\S]*has3d: hasDisplay3d,[\s\S]*hasAr: hasDisplayAr/
+  );
+  assert.match(source, /hasBuilder3dStatus \? \(/);
+  assert.match(source, /hasBuilderArStatus \? \(/);
 });
 
 test("public dish detail premium theme keeps Maison Elyse nav readable and glass gold", async () => {

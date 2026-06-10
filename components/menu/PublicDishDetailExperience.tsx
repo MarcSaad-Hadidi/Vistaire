@@ -38,7 +38,10 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   }
 );
 
-function dishBadges(dish: PublicMenuDish): string[] {
+function dishBadges(
+  dish: PublicMenuDish,
+  immersiveStatus: { has3d: boolean; hasAr: boolean }
+): string[] {
   const badges = new Set<string>();
   for (const tag of dish.tags) {
     if (tag.trim()) badges.add(tag.trim());
@@ -50,8 +53,8 @@ function dishBadges(dish: PublicMenuDish): string[] {
   ) {
     badges.add("Maison");
   }
-  if (hasPublic3d(dish)) badges.add("3D");
-  if (hasPublicAr(dish)) badges.add("AR");
+  if (immersiveStatus.has3d) badges.add("3D");
+  if (immersiveStatus.hasAr) badges.add("AR");
   if (!dish.available) badges.add("Indisponible");
   return Array.from(badges).slice(0, 4);
 }
@@ -102,6 +105,14 @@ function hasPublicAr(dish: PublicMenuDish): boolean {
   return Boolean(dish.arModel3dUrl || dish.arUsdzUrl || dish.usdzUrl);
 }
 
+function builderStatusHas3d(dish: PublicMenuDish): boolean {
+  return Boolean(dish.has3d || hasPublic3d(dish));
+}
+
+function builderStatusHasAr(dish: PublicMenuDish): boolean {
+  return Boolean(dish.hasAr || hasPublicAr(dish));
+}
+
 function modelViewerDishFromPublicDish(
   dish: PublicMenuDish
 ): DishModelViewerProps["dish"] {
@@ -131,17 +142,27 @@ export function PublicDishDetailExperience({
   const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
   const restaurantDisplayName = cleanDisplayText(menu.name);
-  const badges = dishBadges(dish);
-  const has3d = hasPublic3d(dish);
-  const hasAr = hasPublicAr(dish);
-  const showPublicModelActions = mode === "public" && (has3d || hasAr);
+  const hasPublic3dAsset = hasPublic3d(dish);
+  const hasPublicArAsset = hasPublicAr(dish);
+  const hasBuilder3dStatus = builderStatusHas3d(dish);
+  const hasBuilderArStatus = builderStatusHasAr(dish);
+  const hasDisplay3d =
+    mode === "builder-preview" ? hasBuilder3dStatus : hasPublic3dAsset;
+  const hasDisplayAr =
+    mode === "builder-preview" ? hasBuilderArStatus : hasPublicArAsset;
+  const badges = dishBadges(dish, {
+    has3d: hasDisplay3d,
+    hasAr: hasDisplayAr
+  });
+  const showPublicModelActions =
+    mode === "public" && (hasPublic3dAsset || hasPublicArAsset);
   const showBuilderModelStatus =
-    mode === "builder-preview" && (has3d || hasAr);
+    mode === "builder-preview" && (hasBuilder3dStatus || hasBuilderArStatus);
   const publicModelButtonLabel = showModelViewer
-    ? has3d
+    ? hasPublic3dAsset
       ? "Masquer la 3D"
       : "Masquer l'aperçu"
-    : has3d
+    : hasPublic3dAsset
       ? "Voir en 3D"
       : "Ouvrir l'aperçu AR";
 
@@ -230,11 +251,11 @@ export function PublicDishDetailExperience({
                 </div>
                 <div>
                   <dt>3D</dt>
-                  <dd>{has3d ? "Disponible" : "Non disponible"}</dd>
+                  <dd>{hasDisplay3d ? "Disponible" : "Non disponible"}</dd>
                 </div>
                 <div>
                   <dt>AR</dt>
-                  <dd>{hasAr ? "Disponible" : "Non disponible"}</dd>
+                  <dd>{hasDisplayAr ? "Disponible" : "Non disponible"}</dd>
                 </div>
               </dl>
             ) : null}
@@ -285,7 +306,7 @@ export function PublicDishDetailExperience({
                     ) : null}
                     {mode === "public" ? (
                       <p>
-                        {hasAr
+                        {hasPublicArAsset
                           ? "La 3D se lance ici. L'option AR place le plat devant vous depuis un téléphone compatible."
                           : "La vue 3D se lance ici après votre action."}
                       </p>
@@ -309,12 +330,12 @@ export function PublicDishDetailExperience({
                       </button>
                     ) : (
                       <>
-                        {has3d ? (
+                        {hasBuilder3dStatus ? (
                           <span className={styles.modelStatusChip}>
                             3D disponible
                           </span>
                         ) : null}
-                        {hasAr ? (
+                        {hasBuilderArStatus ? (
                           <span className={styles.modelStatusChip}>
                             AR disponible
                           </span>
@@ -342,7 +363,7 @@ export function PublicDishDetailExperience({
                       id="public-dish-model-viewer"
                       aria-hidden="true"
                     >
-                      <span>{has3d ? "3D" : "AR"}</span>
+                      <span>{hasPublic3dAsset ? "3D" : "AR"}</span>
                     </div>
                   )
                 ) : null}
