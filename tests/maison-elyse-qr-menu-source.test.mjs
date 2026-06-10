@@ -36,23 +36,31 @@ test("Maison Elyse QR menu starts with welcome and visual category navigation", 
   assert.match(component, /getPublicMenuCategoryGroups/);
   assert.doesNotMatch(component, /heroDish/);
   assert.doesNotMatch(component, /heroVisual/);
-  assert.doesNotMatch(component, /D.couvrir la carte/);
+  assert.doesNotMatch(component, /Découvrir la carte/);
   assert.doesNotMatch(component, /Voir les sections/);
   assert.doesNotMatch(component, /Retour aux sections/);
+  assert.match(component, /← Sections/);
+  assert.match(component, /Toutes/);
   assert.match(component, /ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS/);
   assert.match(component, /homard-bisque/);
   assert.match(component, /canAppearInEntryPreview/);
   assert.match(component, /DishSection/);
   assert.match(component, /visibleDishSections/);
+  assert.match(component, /menuCompactHeader/);
+  assert.match(component, /quickFilterBar/);
+  assert.match(component, /preferencePanel/);
   assert.match(css, /\.sectionedDishList/);
   assert.match(css, /\.dishSectionHeader/);
+  assert.match(css, /\.menuCompactHeader/);
+  assert.match(css, /\.quickFilterBar/);
+  assert.match(css, /\.preferencePanel/);
   assert.match(css, /\.categoryGrid/);
   assert.match(css, /\.categoryCard/);
   assert.match(css, /@media \(max-width: 390px\)/);
   assert.match(css, /@media \(max-width: 430px\)/);
 });
 
-test("Maison Elyse QR menu keeps premium filters and Google Reviews without 3D autoload", async () => {
+test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D autoload", async () => {
   const component = await readFile(componentPath, "utf8");
 
   for (const text of [
@@ -60,26 +68,30 @@ test("Maison Elyse QR menu keeps premium filters and Google Reviews without 3D a
     "Signature",
     "3D / AR",
     "Disponibles",
+    "Disponibles uniquement",
     "Sans gluten",
     "Sans lactose",
     "Sans fruits à coque",
     "Sans crustacés",
     "Réinitialiser",
+    "Appliquer",
     "Aucun plat dans cette sélection"
   ]) {
     assert.match(component, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
-  assert.match(component, /Tous les plats/);
-  assert.match(component, /Sans lactose \/ laitiers/);
-  assert.match(component, /Sans .ufs/);
-  assert.match(component, /Sans s.same/);
+  assert.match(component, /Affiner/);
+  assert.match(component, /Préférences/);
+  assert.doesNotMatch(component, /Tous les plats/);
+  assert.doesNotMatch(component, /Sans lactose \/ laitiers/);
+  assert.doesNotMatch(component, /Filtres précis/);
+  assert.match(component, /Sans œufs/);
+  assert.match(component, /Sans sésame/);
   assert.match(component, /Sans soja/);
   assert.match(component, /Sans poisson/);
-  assert.match(component, /Filtres pr.cis/);
   assert.match(component, /GoogleReviewCard/);
-  assert.match(component, /MAIN_FILTERS/);
-  assert.match(component, /DETAIL_FILTERS/);
+  assert.match(component, /QUICK_FILTERS/);
+  assert.match(component, /PREFERENCE_FILTERS/);
   assert.match(component, /showDetailFilters/);
   assert.match(component, /googleReview=\{menu\.googleReview\}/);
   assert.match(component, /restaurantId=\{menu\.restaurantId\}/);

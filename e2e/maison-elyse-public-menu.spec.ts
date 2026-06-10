@@ -139,21 +139,28 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(
       page.getByRole("heading", { name: "Plats signatures" })
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Tous" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "← Sections" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Toutes" })).toBeVisible();
+    await expect(page.getByText(/Affiner/i)).toBeVisible();
+    await expect(
+      page.getByRole("button", { exact: true, name: "Signature" })
+    ).toHaveCount(0);
     await expect(page.getByRole("button", { name: "3D / AR" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Disponibles" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Retour aux sections" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Sections" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Filtres pr.cis/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Pr.f.rences/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sans gluten" })).toHaveCount(0);
-    await page.getByRole("button", { name: /Filtres pr.cis/i }).click();
-    await expect(page.getByRole("button", { name: "Tous les plats" })).toBeVisible();
+    await page.getByRole("button", { name: /Pr.f.rences/i }).click();
+    await expect(page.getByRole("heading", { name: /Pr.f.rences/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { exact: true, name: "Signature" })
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: "Sans gluten" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Sans .ufs/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sans poisson" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Homard bleu/i })).toBeVisible();
 
-    await page.getByRole("button", { name: "Toute la carte" }).click();
+    await page.getByRole("button", { name: "Toutes" }).click();
     await expect(page.getByRole("heading", { name: "Toute la carte" })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Entr/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Plats signatures" })).toBeVisible();

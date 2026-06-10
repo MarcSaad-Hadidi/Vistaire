@@ -86,7 +86,7 @@
 .hero h1,
 .sectionHeader h2,
 .featuredHeader h2,
-.activeHeader h2 {
+.menuCompactHeader h2 {
   margin: 0;
   color: #fffaf0;
   font-family: "BT Suave", Georgia, serif;
@@ -122,8 +122,7 @@
 }
 
 .featuredHeader,
-.sectionHeader,
-.activeHeader {
+.sectionHeader {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -132,7 +131,9 @@
 
 .featuredHeader button,
 .resetButton,
-.empty button {
+.empty button,
+.preferenceHeader button,
+.applyFiltersButton {
   min-height: 40px;
   border: 1px solid rgba(240, 209, 138, 0.34);
   border-radius: 999px;
@@ -164,7 +165,7 @@
 
 .sectionHeader h2,
 .featuredHeader h2,
-.activeHeader h2 {
+.menuCompactHeader h2 {
   font-size: 30px;
   line-height: 0.98;
 }
@@ -237,6 +238,10 @@
   gap: 12px;
 }
 
+.menuPanel {
+  padding-top: 2px;
+}
+
 .featured {
   padding-top: 6px;
 }
@@ -290,69 +295,164 @@
   text-align: right;
 }
 
+.menuCompactHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(240, 209, 138, 0.18);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(240, 209, 138, 0.07), rgba(240, 209, 138, 0.018)),
+    rgba(12, 8, 4, 0.36);
+  padding: 9px;
+  box-shadow: inset 0 1px 0 rgba(240, 209, 138, 0.1);
+  -webkit-backdrop-filter: blur(12px) saturate(112%);
+  backdrop-filter: blur(12px) saturate(112%);
+}
+
+.menuCompactHeader button {
+  min-height: 32px;
+  border: 1px solid rgba(240, 209, 138, 0.28);
+  border-radius: 999px;
+  background: rgba(240, 209, 138, 0.045);
+  color: rgba(255, 250, 240, 0.92);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.menuCompactHeader h2 {
+  font-size: 28px;
+}
+
+.menuCompactHeader span {
+  color: rgba(232, 207, 155, 0.82);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .filterShell {
   display: grid;
   gap: 8px;
 }
 
-.categoryPills,
-.filters {
+.categoryPills {
   display: flex;
   min-width: 0;
-  gap: 7px;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 2px 0 4px;
+  border-bottom: 1px solid rgba(240, 209, 138, 0.11);
+  padding: 1px 0 8px;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 
-.categoryPills::-webkit-scrollbar,
+.categoryPills::-webkit-scrollbar {
+  display: none;
+}
+
+.categoryPills button {
+  flex: 0 0 auto;
+  min-height: 31px;
+  border: 1px solid rgba(240, 209, 138, 0.24);
+  border-radius: 999px;
+  background: rgba(240, 209, 138, 0.045);
+  color: rgba(255, 250, 240, 0.9);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.categoryPills .isActive {
+  border-color: rgba(240, 209, 138, 0.78);
+  background: rgba(240, 209, 138, 0.13);
+  color: #fffaf0;
+}
+
+.quickFilterBar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.quickFilterBar > span {
+  flex: 0 0 auto;
+  color: rgba(232, 207, 155, 0.68);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.filters {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px 0;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
 .filters::-webkit-scrollbar {
   display: none;
 }
 
-.categoryPills button,
 .filters button,
 .moreFiltersButton {
   flex: 0 0 auto;
-  min-height: 38px;
-  border: 1px solid rgba(240, 209, 138, 0.3);
+  min-height: 28px;
+  border: 1px solid rgba(240, 209, 138, 0.18);
   border-radius: 999px;
-  background: rgba(240, 209, 138, 0.05);
-  color: rgba(255, 250, 240, 0.9);
+  background: rgba(240, 209, 138, 0.026);
+  color: rgba(255, 250, 240, 0.76);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 800;
   line-height: 1;
-  padding: 0 12px;
+  padding: 0 9px;
   white-space: nowrap;
 }
 
-.categoryPills .isActive,
 .filters .isActive,
 .moreFiltersButton.isActive {
-  border-color: rgba(240, 209, 138, 0.78);
-  background: rgba(240, 209, 138, 0.15);
-  color: #fffaf0;
+  border-color: rgba(240, 209, 138, 0.48);
+  background: rgba(240, 209, 138, 0.09);
+  color: rgba(255, 250, 240, 0.95);
 }
 
 .moreFiltersButton {
-  justify-self: start;
-  min-height: 34px;
-  border-style: dashed;
-  color: rgba(232, 207, 155, 0.9);
-  padding-inline: 13px;
+  color: rgba(232, 207, 155, 0.88);
 }
 
-.detailFilters {
+.preferencePanel {
   display: grid;
-  overflow: hidden;
+  gap: 10px;
   border: 1px solid rgba(240, 209, 138, 0.22);
-  border-radius: 14px;
-  background: rgba(10, 7, 3, 0.7);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(240, 209, 138, 0.055), rgba(240, 209, 138, 0.018)),
+    rgba(9, 6, 3, 0.74);
+  padding: 11px;
   box-shadow:
     0 18px 36px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(240, 209, 138, 0.1);
@@ -360,48 +460,70 @@
   backdrop-filter: blur(14px) saturate(112%);
 }
 
-.detailFilters button {
-  min-height: 32px;
-  border: 0;
-  border-bottom: 1px solid rgba(240, 209, 138, 0.1);
-  border-radius: 0;
-  background: transparent;
-  color: rgba(255, 250, 240, 0.9);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
-  padding: 0 12px;
-  text-align: left;
+.preferenceHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.detailFilters button:last-child {
-  border-bottom: 0;
+.preferenceHeader h3 {
+  margin: 2px 0 0;
+  color: #fffaf0;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 0.98;
+}
+
+.preferenceHeader button {
+  min-height: 28px;
+  background: rgba(240, 209, 138, 0.045);
+  color: rgba(232, 207, 155, 0.9);
+  font-size: 10.5px;
+  padding-inline: 10px;
+}
+
+.detailFilters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.detailFilters button {
+  min-height: 31px;
+  border: 1px solid rgba(240, 209, 138, 0.16);
+  border-radius: 999px;
+  background: rgba(240, 209, 138, 0.026);
+  color: rgba(255, 250, 240, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.1;
+  padding: 0 8px;
+  text-align: center;
 }
 
 .detailFilters .isActive {
-  background: rgba(240, 209, 138, 0.2);
+  border-color: rgba(240, 209, 138, 0.48);
+  background: rgba(240, 209, 138, 0.1);
   color: #fffaf0;
 }
 
-.activeHeader {
-  align-items: center;
-  margin-top: 2px;
-}
-
-.activeHeader span {
-  flex: 0 0 auto;
-  color: rgba(232, 207, 155, 0.82);
-  font-size: 11px;
-  font-weight: 800;
-  text-align: right;
+.applyFiltersButton {
+  min-height: 32px;
+  justify-self: stretch;
+  background: rgba(240, 209, 138, 0.085);
+  color: rgba(255, 250, 240, 0.94);
 }
 
 .resetButton {
   justify-self: start;
-  min-height: 34px;
+  min-height: 30px;
   color: rgba(232, 207, 155, 0.9);
+  font-size: 10.5px;
+  padding-inline: 11px;
 }
 
 .dishItem {
@@ -536,11 +658,14 @@
 }
 
 .featuredHeader button:hover,
+.menuCompactHeader button:hover,
 .categoryCard:hover,
 .dishCard:hover,
 .categoryPills button:hover,
 .filters button:hover,
 .detailFilters button:hover,
+.preferenceHeader button:hover,
+.applyFiltersButton:hover,
 .moreFiltersButton:hover,
 .resetButton:hover,
 .empty button:hover {
@@ -548,11 +673,14 @@
 }
 
 .featuredHeader button:focus-visible,
+.menuCompactHeader button:focus-visible,
 .categoryCard:focus-visible,
 .dishCard:focus-visible,
 .categoryPills button:focus-visible,
 .filters button:focus-visible,
 .detailFilters button:focus-visible,
+.preferenceHeader button:focus-visible,
+.applyFiltersButton:focus-visible,
 .moreFiltersButton:focus-visible,
 .resetButton:focus-visible,
 .empty button:focus-visible {
@@ -628,38 +756,32 @@
     width: 100%;
   }
 
-  .categoryPills {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
+  .menuCompactHeader {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
   }
 
-  .categoryPills button {
-    min-width: 0;
+  .menuCompactHeader span {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .menuCompactHeader h2 {
+    font-size: 27px;
+  }
+
+  .quickFilterBar {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+
+  .quickFilterBar > span {
     width: 100%;
-    padding-inline: 7px;
-    white-space: normal;
   }
 
   .filters {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
-  }
-
-  .filters button {
-    min-width: 0;
-    width: 100%;
-    padding-inline: 5px;
-    white-space: normal;
-  }
-
-  .moreFiltersButton {
-    width: 100%;
-  }
-
-  .detailFilters button {
-    width: 100%;
+    flex: 1 1 210px;
   }
 }
 
