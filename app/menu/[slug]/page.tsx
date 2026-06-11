@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 type MenuPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ table?: string; zone?: string }>;
+  searchParams: Promise<{ table?: string; view?: string; zone?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -42,6 +43,17 @@ export default async function PublicMenuPage({
     menu.restaurantId,
     fallbackConfig
   );
+
+  if (menu.slug === "maison-elyse") {
+    return (
+      <MaisonElyseQrMenu
+        menu={menu}
+        context={context}
+        query={query}
+        startFullMenu={query.view === "carte"}
+      />
+    );
+  }
 
   return (
     <PublicMenuRenderer

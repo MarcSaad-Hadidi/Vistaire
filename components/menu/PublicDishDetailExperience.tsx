@@ -38,7 +38,10 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   }
 );
 
-function dishBadges(dish: PublicMenuDish): string[] {
+function dishBadges(
+  dish: PublicMenuDish,
+  immersiveStatus: { has3d: boolean; hasAr: boolean }
+): string[] {
   const badges = new Set<string>();
   for (const tag of dish.tags) {
     if (tag.trim()) badges.add(tag.trim());
@@ -50,6 +53,9 @@ function dishBadges(dish: PublicMenuDish): string[] {
   ) {
     badges.add("Maison");
   }
+  if (immersiveStatus.has3d) badges.add("3D");
+  if (immersiveStatus.hasAr) badges.add("AR");
+  if (!dish.available) badges.add("Indisponible");
   return Array.from(badges).slice(0, 4);
 }
 
@@ -74,6 +80,37 @@ function detailStyleVars(config: MenuUiConfig | undefined): CSSProperties {
     "--detail-border": config?.palette.border ?? "#DDEAF3",
     "--detail-fresh": config?.palette.accent3 ?? "#2FA866"
   } as CSSProperties;
+}
+
+function cleanDisplayText(value: string): string {
+  return value
+    .replaceAll("Ã‰", "É")
+    .replaceAll("Ã©", "é")
+    .replaceAll("Ã¨", "è")
+    .replaceAll("Ãª", "ê")
+    .replaceAll("Ã´", "ô")
+    .replaceAll("Ã¢", "â")
+    .replaceAll("Ã®", "î")
+    .replaceAll("Ã¯", "ï")
+    .replaceAll("Ã§", "ç")
+    .replaceAll("Â·", "·")
+    .trim();
+}
+
+function hasPublic3d(dish: PublicMenuDish): boolean {
+  return Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl);
+}
+
+function hasPublicAr(dish: PublicMenuDish): boolean {
+  return Boolean(dish.arModel3dUrl || dish.arUsdzUrl || dish.usdzUrl);
+}
+
+function builderStatusHas3d(dish: PublicMenuDish): boolean {
+  return Boolean(dish.has3d || hasPublic3d(dish));
+}
+
+function builderStatusHasAr(dish: PublicMenuDish): boolean {
+  return Boolean(dish.hasAr || hasPublicAr(dish));
 }
 
 function modelViewerDishFromPublicDish(
@@ -104,10 +141,30 @@ export function PublicDishDetailExperience({
 }: PublicDishDetailExperienceProps) {
   const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
-  const badges = dishBadges(dish);
-  const showPublicModelActions = mode === "public" && (dish.has3d || dish.hasAr);
+  const restaurantDisplayName = cleanDisplayText(menu.name);
+  const hasPublic3dAsset = hasPublic3d(dish);
+  const hasPublicArAsset = hasPublicAr(dish);
+  const hasBuilder3dStatus = builderStatusHas3d(dish);
+  const hasBuilderArStatus = builderStatusHasAr(dish);
+  const hasDisplay3d =
+    mode === "builder-preview" ? hasBuilder3dStatus : hasPublic3dAsset;
+  const hasDisplayAr =
+    mode === "builder-preview" ? hasBuilderArStatus : hasPublicArAsset;
+  const badges = dishBadges(dish, {
+    has3d: hasDisplay3d,
+    hasAr: hasDisplayAr
+  });
+  const showPublicModelActions =
+    mode === "public" && (hasPublic3dAsset || hasPublicArAsset);
   const showBuilderModelStatus =
-    mode === "builder-preview" && (dish.has3d || dish.hasAr);
+    mode === "builder-preview" && (hasBuilder3dStatus || hasBuilderArStatus);
+  const publicModelButtonLabel = showModelViewer
+    ? hasPublic3dAsset
+      ? "Masquer la 3D"
+      : "Masquer l'aperçu"
+    : hasPublic3dAsset
+      ? "Voir en 3D"
+      : "Ouvrir l'aperçu AR";
 
   return (
     <main
@@ -129,7 +186,7 @@ export function PublicDishDetailExperience({
               Retour au menu
             </Link>
           )}
-          <span className={styles.navRestaurantName}>{menu.name}</span>
+          <span className={styles.navRestaurantName}>{restaurantDisplayName}</span>
         </nav>
 
         <article className={styles.card}>
@@ -147,7 +204,7 @@ export function PublicDishDetailExperience({
           >
             {!dish.imageUrl ? (
               <div className={styles.imageFallback}>
-                <span>{menu.name.slice(0, 1)}</span>
+                <span>{restaurantDisplayName.slice(0, 1)}</span>
                 <p>Image du plat à venir</p>
               </div>
             ) : null}
@@ -155,7 +212,7 @@ export function PublicDishDetailExperience({
 
           <section className={styles.content} aria-label="Fiche plat">
             <div className={styles.heading}>
-              <p className={styles.kicker}>{menu.name}</p>
+              <p className={styles.kicker}>{restaurantDisplayName}</p>
               <h1>{dish.name}</h1>
               <p className={styles.description}>{dish.description}</p>
               {context ? <span className={styles.context}>{context}</span> : null}
@@ -194,11 +251,11 @@ export function PublicDishDetailExperience({
                 </div>
                 <div>
                   <dt>3D</dt>
-                  <dd>{dish.has3d ? "Disponible" : "Non disponible"}</dd>
+                  <dd>{hasDisplay3d ? "Disponible" : "Non disponible"}</dd>
                 </div>
                 <div>
                   <dt>AR</dt>
-                  <dd>{dish.hasAr ? "Disponible" : "Non disponible"}</dd>
+                  <dd>{hasDisplayAr ? "Disponible" : "Non disponible"}</dd>
                 </div>
               </dl>
             ) : null}
@@ -241,11 +298,18 @@ export function PublicDishDetailExperience({
               >
                 <div className={styles.modelPanelHeader}>
                   <div className={styles.modelPanelCopy}>
-                    <h2>3D / AR sélective</h2>
+                    <h2>Aperçu 3D / AR</h2>
                     {mode === "public" ? (
                       <strong className={styles.modelPanelTitle}>
                         Aperçu immersif
                       </strong>
+                    ) : null}
+                    {mode === "public" ? (
+                      <p>
+                        {hasPublicArAsset
+                          ? "La 3D se lance ici. L'option AR place le plat devant vous depuis un téléphone compatible."
+                          : "La vue 3D se lance ici après votre action."}
+                      </p>
                     ) : null}
                     {mode === "builder-preview" ? (
                       <p>Preview statut seulement dans le builder.</p>
@@ -262,16 +326,16 @@ export function PublicDishDetailExperience({
                           setShowModelViewer((isVisible) => !isVisible)
                         }
                       >
-                        {showModelViewer ? "Masquer la 3D" : "Voir en 3D"}
+                        {publicModelButtonLabel}
                       </button>
                     ) : (
                       <>
-                        {dish.has3d ? (
+                        {hasBuilder3dStatus ? (
                           <span className={styles.modelStatusChip}>
                             3D disponible
                           </span>
                         ) : null}
-                        {dish.hasAr ? (
+                        {hasBuilderArStatus ? (
                           <span className={styles.modelStatusChip}>
                             AR disponible
                           </span>
@@ -299,7 +363,7 @@ export function PublicDishDetailExperience({
                       id="public-dish-model-viewer"
                       aria-hidden="true"
                     >
-                      <span>3D</span>
+                      <span>{hasPublic3dAsset ? "3D" : "AR"}</span>
                     </div>
                   )
                 ) : null}
