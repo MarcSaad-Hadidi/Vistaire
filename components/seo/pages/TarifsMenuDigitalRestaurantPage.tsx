@@ -13,6 +13,7 @@ import {
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL
 } from "@/lib/seo";
+import { getLocalizedPath, type Locale } from "@/lib/i18n";
 import chromeStyles from "@/components/vistaire-preview/VistairePreviewChrome.module.css";
 import styles from "@/components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.module.css";
 
@@ -86,6 +87,44 @@ function ArrowIcon() {
   );
 }
 
+function PricingLanguageSwitcher({
+  currentPath,
+  locale
+}: {
+  currentPath: string;
+  locale: Locale;
+}) {
+  const options = [
+    { locale: "fr" as const, label: "FR", href: getLocalizedPath(currentPath, "fr") },
+    { locale: "en" as const, label: "EN", href: getLocalizedPath(currentPath, "en") }
+  ];
+
+  return (
+    <div aria-label="Langue" className={chromeStyles.languageSwitcher}>
+      {options.map((option) => (
+        <Link
+          aria-current={option.locale === locale ? "true" : undefined}
+          aria-label={
+            option.locale === "en"
+              ? "View this page in English"
+              : "Voir cette page en français"
+          }
+          className={
+            option.locale === locale
+              ? `${chromeStyles.languageLink} ${chromeStyles.languageLinkActive}`
+              : chromeStyles.languageLink
+          }
+          href={option.href}
+          key={option.locale}
+          prefetch={false}
+        >
+          {option.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function PricingNav() {
   const navItems = [
     { label: "Accueil", href: "/" },
@@ -119,12 +158,15 @@ function PricingNav() {
         ))}
       </div>
 
+      <PricingLanguageSwitcher currentPath={PRICING_PAGE.path} locale="fr" />
+
       <Link
         className={chromeStyles.navCta}
         href="/prendre-rendez-vous"
         prefetch={false}
       >
-        Prendre rendez-vous
+        <span className={chromeStyles.navCtaFull}>Prendre rendez-vous</span>
+        <span className={chromeStyles.navCtaShort}>Rendez-vous</span>
       </Link>
     </nav>
   );
@@ -201,6 +243,7 @@ function PricingFooter() {
         <p className={chromeStyles.footerCopyright}>
           © 2026 Vistaire. Tous droits réservés.
         </p>
+        <PricingLanguageSwitcher currentPath={PRICING_PAGE.path} locale="fr" />
       </div>
     </footer>
   );

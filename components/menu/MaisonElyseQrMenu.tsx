@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
+import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -14,6 +15,11 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import styles from "./MaisonElyseQrMenu.module.css";
+
+const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+  .split(/[,\s]+/)
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 type MaisonElyseQrMenuProps = {
   menu: PublicMenu;
@@ -190,11 +196,25 @@ function categorySort(a: PublicMenuCategory, b: PublicMenuCategory): number {
 }
 
 function hasReal3d(dish: PublicMenuDish): boolean {
-  return Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl);
+  return (
+    isSafe3dAssetUrl(
+      dish.webModel3dUrl || dish.model3dUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "web"
+    ) ||
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
+  );
 }
 
 function hasRealAr(dish: PublicMenuDish): boolean {
-  return Boolean(dish.arModel3dUrl || dish.arUsdzUrl || dish.usdzUrl);
+  return (
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    isSafe3dAssetUrl(
+      dish.arUsdzUrl || dish.usdzUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "iosUsdz"
+    )
+  );
 }
 
 function isSignatureDish(dish: PublicMenuDish): boolean {
