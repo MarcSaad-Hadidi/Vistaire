@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 type MenuPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ table?: string; zone?: string }>;
+  searchParams: Promise<{ table?: string; view?: string; zone?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -45,7 +45,14 @@ export default async function PublicMenuPage({
   );
 
   if (menu.slug === "maison-elyse") {
-    return <MaisonElyseQrMenu menu={menu} context={context} query={query} />;
+    return (
+      <MaisonElyseQrMenu
+        menu={menu}
+        context={context}
+        query={query}
+        startFullMenu={query.view === "carte"}
+      />
+    );
   }
 
   return (

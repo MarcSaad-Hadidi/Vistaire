@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { MaisonElyseDishDetail } from "@/components/menu/MaisonElyseDishDetail";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
@@ -49,6 +50,10 @@ export default async function PublicDishPage({
   const dish = getPublicMenuDishBySlug(menu, dishSlug);
   if (!dish) {
     notFound();
+  }
+
+  if (menu.slug === "maison-elyse") {
+    return <MaisonElyseDishDetail dish={dish} menu={menu} query={query} />;
   }
 
   const context = [

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
 import {
   buildPublicDishPath,
@@ -19,6 +19,7 @@ type MaisonElyseQrMenuProps = {
   menu: PublicMenu;
   context?: string;
   query?: PublicMenuContextQuery;
+  startFullMenu?: boolean;
 };
 
 type FilterId =
@@ -48,19 +49,15 @@ type DietaryFilterId = Extract<
   | "fish-free"
 >;
 
+type SheetId = "menu" | "filter" | null;
+
 const ALL_CATEGORY_ID = "all";
 const ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS = new Set(["homard-bisque"]);
-const QUICK_FILTERS: Array<{ id: FilterId; label: string }> = [
-  { id: "recommended", label: "Recommandés" },
-  { id: "immersive", label: "3D / AR" },
-  { id: "available", label: "Disponibles" }
-];
-
-const PREFERENCE_FILTERS: Array<{ id: FilterId; label: string }> = [
+const FILTER_OPTIONS: Array<{ id: FilterId; label: string }> = [
   { id: "signature", label: "Signature" },
   { id: "recommended", label: "Recommandés" },
   { id: "immersive", label: "3D / AR" },
-  { id: "available", label: "Disponibles uniquement" },
+  { id: "available", label: "Disponibles" },
   { id: "gluten-free", label: "Sans gluten" },
   { id: "dairy-free", label: "Sans lactose" },
   { id: "nut-free", label: "Sans fruits à coque" },
@@ -118,6 +115,72 @@ function tokenize(value: string): string[] {
 
 function displayCategoryLabel(label: string): string {
   return normalizeText(label).includes("signature") ? "Plats signatures" : label;
+}
+
+function categoryAnchorId(label: string): string {
+  return tokenize(displayCategoryLabel(label)).join("-");
+}
+
+function sectionDomId(label: string): string {
+  return `section-${categoryAnchorId(label)}`;
+}
+
+function categoryEditorial(label: string): {
+  kicker: string;
+  title: string;
+  description: string;
+} {
+  const displayLabel = displayCategoryLabel(label);
+  const normalized = normalizeText(displayLabel);
+
+  if (normalized.includes("entree")) {
+    return {
+      kicker: "POUR COMMENCER",
+      title: "Entrées",
+      description: "Les premières assiettes de la maison, précises et généreuses."
+    };
+  }
+
+  if (normalized.includes("signature") || normalized.includes("plat")) {
+    return {
+      kicker: "LA SIGNATURE",
+      title: "Plats signatures",
+      description: "Les créations emblématiques de Maison Élyse."
+    };
+  }
+
+  if (normalized.includes("dessert")) {
+    return {
+      kicker: "LA DOUCEUR",
+      title: "Desserts",
+      description: "Une dernière note pâtissière, fraîche et élégante."
+    };
+  }
+
+  if (normalized.includes("cocktail") || normalized.includes("boisson")) {
+    return {
+      kicker: "LE BAR",
+      title: displayLabel,
+      description: "Cocktails et boissons pensés pour accompagner la carte."
+    };
+  }
+
+  return {
+    kicker: "Maison Élyse",
+    title: displayLabel,
+    description: "La sélection du moment."
+  };
+}
+
+function getFilterLabel(filter: FilterId): string {
+  if (filter === "all") return "Toute la carte";
+  return FILTER_OPTIONS.find((option) => option.id === filter)?.label ?? "Filtre";
+}
+
+function getScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
 }
 
 function categorySort(a: PublicMenuCategory, b: PublicMenuCategory): number {
@@ -187,10 +250,6 @@ function dishBadges(dish: PublicMenuDish): string[] {
   return badges.slice(0, 4);
 }
 
-function formatDishCount(count: number): string {
-  return `${count} ${count > 1 ? "plats disponibles" : "plat disponible"}`;
-}
-
 function CategoryCard({
   category,
   imageUrl,
@@ -205,6 +264,7 @@ function CategoryCard({
   return (
     <button
       className={styles.categoryCard}
+      data-testid={`maison-section-${categoryAnchorId(category.label)}`}
       onClick={onSelect}
       style={
         imageUrl
@@ -213,7 +273,6 @@ function CategoryCard({
       }
       type="button"
     >
-      <span className={styles.categoryCount}>{formatDishCount(category.count)}</span>
       <strong>{label}</strong>
       <small>{category.description}</small>
     </button>
@@ -249,10 +308,7 @@ function DishCard({
           )}
         </span>
         <span className={styles.dishCopy}>
-          <span className={styles.dishTopline}>
-            <span className={styles.dishName}>{dish.name}</span>
-            {dish.priceLabel ? <strong>{dish.priceLabel}</strong> : null}
-          </span>
+          <span className={styles.dishName}>{dish.name}</span>
           {dish.description ? (
             <span className={styles.dishDescription}>{shortDescription(dish)}</span>
           ) : null}
@@ -262,6 +318,9 @@ function DishCard({
                 <span key={badge}>{badge}</span>
               ))}
             </span>
+          ) : null}
+          {dish.priceLabel ? (
+            <strong className={styles.dishPrice}>{dish.priceLabel}</strong>
           ) : null}
         </span>
       </Link>
@@ -280,13 +339,22 @@ function DishSection({
   query?: PublicMenuContextQuery;
   title: string;
 }) {
-  const sectionId = `section-${normalizeText(title)}`;
+  const sectionId = sectionDomId(title);
+  const headingId = `${sectionId}-heading`;
+  const editorial = categoryEditorial(title);
 
   return (
-    <section className={styles.dishSection} aria-labelledby={sectionId}>
+    <section
+      className={styles.dishSection}
+      id={sectionId}
+      aria-labelledby={headingId}
+    >
       <div className={styles.dishSectionHeader}>
-        <h3 id={sectionId}>{displayCategoryLabel(title)}</h3>
-        <span>{formatDishCount(dishes.length)}</span>
+        <div>
+          <p className={styles.kicker}>{editorial.kicker}</p>
+          <h3 id={headingId}>{editorial.title}</h3>
+          <p>{editorial.description}</p>
+        </div>
       </div>
       <ul className={styles.dishList}>
         {dishes.map((dish) => (
@@ -299,12 +367,15 @@ function DishSection({
 
 export function MaisonElyseQrMenu({
   menu,
-  context = "",
-  query
+  query,
+  startFullMenu = false
 }: MaisonElyseQrMenuProps) {
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(() =>
+    startFullMenu ? ALL_CATEGORY_ID : null
+  );
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
-  const [showDetailFilters, setShowDetailFilters] = useState(false);
+  const [activeSheet, setActiveSheet] = useState<SheetId>(null);
+  const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLElement | null>(null);
   const groups = useMemo(() => getPublicMenuCategoryGroups(menu.dishes), [menu.dishes]);
   const categories = useMemo(
@@ -319,6 +390,13 @@ export function MaisonElyseQrMenu({
         .slice(0, 3),
     [menu.dishes]
   );
+  const menuHeroImage = useMemo(() => {
+    const coverDish =
+      menu.dishes.find((dish) => canAppearInEntryPreview(dish) && dish.imageUrl) ??
+      menu.dishes.find((dish) => dish.imageUrl);
+
+    return coverDish?.imageUrl || coverDish?.thumbnailUrl || "";
+  }, [menu.dishes]);
   const baseDishes = useMemo(() => {
     if (!activeCategory) return [];
     if (activeCategory === ALL_CATEGORY_ID) return menu.dishes;
@@ -352,19 +430,26 @@ export function MaisonElyseQrMenu({
         ? displayCategoryLabel(activeCategory)
         : "Sections";
   const hasActiveFilter = activeFilter !== "all";
-  const hasPreferenceFilterActive = PREFERENCE_FILTERS.some(
-    (filter) => filter.id !== "all" && filter.id === activeFilter
-  );
-  const shouldShowPreferenceFilters =
-    showDetailFilters || hasPreferenceFilterActive;
-  const currentDishCount = visibleDishes.length;
+
+  useEffect(() => {
+    if (activeCategory !== ALL_CATEGORY_ID || !pendingSectionLabel) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const sectionId = sectionDomId(pendingSectionLabel);
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: getScrollBehavior(),
+        block: "start"
+      });
+      setPendingSectionLabel(null);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeCategory, pendingSectionLabel]);
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
       menuRef.current?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
+        behavior: getScrollBehavior(),
         block: "start"
       });
     });
@@ -373,8 +458,16 @@ export function MaisonElyseQrMenu({
   function selectCategory(categoryId: string | null) {
     setActiveCategory(categoryId);
     setActiveFilter("all");
-    setShowDetailFilters(false);
+    setActiveSheet(null);
+    setPendingSectionLabel(null);
     scrollToMenu();
+  }
+
+  function openCategoryInFullMenu(categoryLabel: string) {
+    setPendingSectionLabel(categoryLabel);
+    setActiveCategory(ALL_CATEGORY_ID);
+    setActiveFilter("all");
+    setActiveSheet(null);
   }
 
   function showAll() {
@@ -385,7 +478,7 @@ export function MaisonElyseQrMenu({
     setActiveFilter("all");
   }
 
-  function toggleQuickFilter(filterId: FilterId) {
+  function toggleFilter(filterId: FilterId) {
     setActiveFilter((currentFilter) =>
       currentFilter === filterId ? "all" : filterId
     );
@@ -407,36 +500,30 @@ export function MaisonElyseQrMenu({
   );
 
   return (
-    <main className={styles.page}>
-      <section className={styles.hero} aria-labelledby="maison-elyse-heading">
-        <div className={styles.heroCopy}>
-          <p className={styles.kicker}>Carte à table</p>
-          <h1 id="maison-elyse-heading">Bienvenue chez Maison Élyse</h1>
-          <p>
-            Découvrez les entrées, plats signatures, desserts et cocktails de la
-            maison, pensés pour être explorés directement à table.
-          </p>
-          {context ? <span className={styles.context}>{context}</span> : null}
-        </div>
-      </section>
+    <main className={`${styles.page} ${activeCategory ? styles.isMenuMode : ""}`}>
+      {!activeCategory ? (
+        <section className={styles.hero} aria-labelledby="maison-elyse-heading">
+          <div className={styles.heroCopy}>
+            <p className={styles.kicker}>Carte à table</p>
+            <h1 id="maison-elyse-heading">Bienvenue chez Maison Élyse</h1>
+            <p>
+              Découvrez les entrées, plats signatures, desserts et cocktails de la
+              maison, pensés pour être explorés directement à table.
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.sections} ref={menuRef} aria-label="Sections de la carte">
         {!activeCategory ? (
           <>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.kicker}>Choisir une section</p>
-                <h2>La carte Maison Élyse</h2>
-              </div>
-            </div>
-
             <div className={styles.categoryGrid}>
               {categories.map((category) => (
                 <CategoryCard
                   category={category}
                   imageUrl={categoryImages.get(category.label) ?? ""}
                   key={category.id}
-                  onSelect={() => selectCategory(category.label)}
+                  onSelect={() => openCategoryInFullMenu(category.label)}
                 />
               ))}
             </div>
@@ -462,125 +549,43 @@ export function MaisonElyseQrMenu({
           </>
         ) : (
           <section className={styles.menuPanel} aria-labelledby="active-category-heading">
-            <div className={styles.menuCompactHeader}>
-              <button type="button" onClick={() => selectCategory(null)}>
-                ← Sections
-              </button>
-              <div>
-                <p className={styles.kicker}>Carte</p>
-                <h2 id="active-category-heading">{activeCategoryLabel}</h2>
-              </div>
-              <span aria-live="polite">{formatDishCount(currentDishCount)}</span>
-            </div>
-
             <div
-              className={styles.categoryPills}
-              role="group"
-              aria-label="Navigation des sections"
+              className={styles.menuCover}
+              style={
+                menuHeroImage
+                  ? ({ "--menu-hero-image": `url("${menuHeroImage}")` } as CSSProperties)
+                  : undefined
+              }
             >
-              <button
-                aria-pressed={activeCategory === ALL_CATEGORY_ID}
-                className={activeCategory === ALL_CATEGORY_ID ? styles.isActive : undefined}
-                type="button"
-                onClick={showAll}
-              >
-                Toutes
-              </button>
-              {categories.map((category) => (
+              <div className={styles.menuCoverTopbar}>
+                <span className={styles.menuRestaurantName}>Maison Élyse</span>
                 <button
-                  aria-pressed={activeCategory === category.label}
-                  className={
-                    activeCategory === category.label ? styles.isActive : undefined
-                  }
-                  key={category.id}
+                  aria-label="Ouvrir la navigation de la carte"
                   type="button"
-                  onClick={() => selectCategory(category.label)}
+                  onClick={() => setActiveSheet("menu")}
                 >
-                  {displayCategoryLabel(category.label)}
-                </button>
-              ))}
-            </div>
-
-            <div
-              className={styles.filterShell}
-              aria-label="Filtres de la carte"
-            >
-              <div className={styles.quickFilterBar}>
-                <span>Affiner</span>
-                <div className={styles.filters} role="group" aria-label="Filtres rapides">
-                  {QUICK_FILTERS.map((filter) => (
-                    <button
-                      aria-pressed={activeFilter === filter.id}
-                      className={activeFilter === filter.id ? styles.isActive : undefined}
-                      key={filter.id}
-                      onClick={() => toggleQuickFilter(filter.id)}
-                      type="button"
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  aria-expanded={shouldShowPreferenceFilters}
-                  className={`${styles.moreFiltersButton} ${
-                    hasPreferenceFilterActive ? styles.isActive : ""
-                  }`}
-                  onClick={() => setShowDetailFilters((isVisible) => !isVisible)}
-                  type="button"
-                >
-                  Préférences
+                  <span aria-hidden="true" />
+                  <span aria-hidden="true" />
                 </button>
               </div>
-
-              {shouldShowPreferenceFilters ? (
-                <div className={styles.preferencePanel}>
-                  <div className={styles.preferenceHeader}>
-                    <div>
-                      <p className={styles.kicker}>Filtres alimentaires</p>
-                      <h3>Préférences</h3>
-                    </div>
-                    {hasActiveFilter ? (
-                      <button type="button" onClick={resetFilters}>
-                        Réinitialiser
-                      </button>
-                    ) : null}
-                  </div>
-                  <div
-                    className={styles.detailFilters}
-                    role="group"
-                    aria-label="Filtres alimentaires"
-                  >
-                    {PREFERENCE_FILTERS.map((filter) => (
-                      <button
-                        aria-pressed={activeFilter === filter.id}
-                        className={activeFilter === filter.id ? styles.isActive : undefined}
-                        key={filter.id}
-                        onClick={() => setActiveFilter(filter.id)}
-                        type="button"
-                      >
-                        {filter.label}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    className={styles.applyFiltersButton}
-                    onClick={() => setShowDetailFilters(false)}
-                    type="button"
-                  >
-                    Appliquer
-                  </button>
-                </div>
-              ) : null}
+              <div className={styles.menuCoverCopy}>
+                <p className={styles.kicker}>LA COLLECTION</p>
+                <h2 id="active-category-heading">LA CARTE</h2>
+                <span aria-hidden="true" />
+                <p>
+                  Une sélection de créations servies par section, pensées pour être
+                  explorées directement à table.
+                </p>
+              </div>
             </div>
 
             {hasActiveFilter ? (
-              <button
-                className={styles.resetButton}
-                type="button"
-                onClick={resetFilters}
-              >
-                Réinitialiser
-              </button>
+              <div className={styles.activeFilterNotice} role="status">
+                <span>Filtre actif : {getFilterLabel(activeFilter)}</span>
+                <button type="button" onClick={resetFilters}>
+                  Réinitialiser
+                </button>
+              </div>
             ) : null}
 
             {visibleDishes.length > 0 ? (
@@ -597,11 +602,12 @@ export function MaisonElyseQrMenu({
                   ))}
                 </div>
               ) : (
-                <ul className={styles.dishList}>
-                  {visibleDishes.map((dish) => (
-                    <DishCard dish={dish} key={dish.id} menu={menu} query={query} />
-                  ))}
-                </ul>
+                <DishSection
+                  dishes={visibleDishes}
+                  menu={menu}
+                  query={query}
+                  title={activeCategoryLabel}
+                />
               )
             ) : (
               <div className={styles.empty} role="status">
@@ -611,6 +617,127 @@ export function MaisonElyseQrMenu({
                 </button>
               </div>
             )}
+
+            <nav className={styles.bottomBar} aria-label="Navigation carte et filtres">
+              <button
+                aria-expanded={activeSheet === "menu"}
+                type="button"
+                onClick={() =>
+                  setActiveSheet((currentSheet) =>
+                    currentSheet === "menu" ? null : "menu"
+                  )
+                }
+              >
+                La carte
+              </button>
+              <button
+                aria-expanded={activeSheet === "filter"}
+                type="button"
+                onClick={() =>
+                  setActiveSheet((currentSheet) =>
+                    currentSheet === "filter" ? null : "filter"
+                  )
+                }
+              >
+                Filtrer
+              </button>
+            </nav>
+
+            {activeSheet ? (
+              <div
+                className={styles.sheetBackdrop}
+                onClick={() => setActiveSheet(null)}
+              >
+                <section
+                  aria-label={
+                    activeSheet === "menu" ? "La carte" : "Filtrer la carte"
+                  }
+                  aria-modal="true"
+                  className={styles.bottomSheet}
+                  onClick={(event) => event.stopPropagation()}
+                  role="dialog"
+                >
+                  <div className={styles.sheetHandle} aria-hidden="true" />
+                  <div className={styles.sheetHeader}>
+                    <div>
+                      <p className={styles.kicker}>
+                        {activeSheet === "menu" ? "Navigation" : "Préférences"}
+                      </p>
+                      <h3>{activeSheet === "menu" ? "La carte" : "Filtrer la carte"}</h3>
+                    </div>
+                    <button type="button" onClick={() => setActiveSheet(null)}>
+                      Fermer
+                    </button>
+                  </div>
+
+                  {activeSheet === "menu" ? (
+                    <div className={styles.sheetList}>
+                      <button
+                        aria-pressed={activeCategory === ALL_CATEGORY_ID}
+                        className={
+                          activeCategory === ALL_CATEGORY_ID ? styles.isActive : undefined
+                        }
+                        type="button"
+                        onClick={showAll}
+                      >
+                        <span>Toute la carte</span>
+                      </button>
+                      {categories.map((category) => {
+                        return (
+                          <button
+                            aria-pressed={activeCategory === category.label}
+                            className={
+                              activeCategory === category.label
+                                ? styles.isActive
+                                : undefined
+                            }
+                            key={category.id}
+                            type="button"
+                            onClick={() => openCategoryInFullMenu(category.label)}
+                          >
+                            <span>{displayCategoryLabel(category.label)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <>
+                      {hasActiveFilter ? (
+                        <button
+                          className={styles.sheetReset}
+                          type="button"
+                          onClick={resetFilters}
+                        >
+                          Réinitialiser les filtres
+                        </button>
+                      ) : null}
+                      <div className={styles.filterGrid} role="group" aria-label="Filtres">
+                        {FILTER_OPTIONS.map((filter) => (
+                          <button
+                            aria-pressed={activeFilter === filter.id}
+                            className={
+                              activeFilter === filter.id ? styles.isActive : undefined
+                            }
+                            key={filter.id}
+                            onClick={() => toggleFilter(filter.id)}
+                            type="button"
+                          >
+                            {filter.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        className={styles.sheetApply}
+                        onClick={() => setActiveSheet(null)}
+                        type="button"
+                      >
+                        Appliquer
+                      </button>
+                    </>
+                  )}
+                </section>
+              </div>
+            ) : null}
           </section>
         )}
       </section>
