@@ -671,14 +671,14 @@ export function DishModelViewer({
     hasModel && !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
   const showLoader = isLoadingModel && loaderRevealed;
   const showArReady = modelLoaded && !showLoadFailure;
-  const showIosQuickLookButton =
-    showArReady && iosNativeArEnabled && Boolean(directIosQuickLookHref);
+  const canOpenDirectIosQuickLook =
+    iosNativeArEnabled && Boolean(directIosQuickLookHref);
+  const showIosQuickLookButton = showArReady && canOpenDirectIosQuickLook;
   const showAndroidSceneViewerButton = showArReady && androidNativeArEnabled;
   const shouldReserveArActionRail =
     hasModel &&
     !showLoadFailure &&
-    ((iosNativeArEnabled && Boolean(directIosQuickLookHref)) ||
-      androidNativeArEnabled);
+    (canOpenDirectIosQuickLook || androidNativeArEnabled);
   const showHandoff =
     showArReady && !handoffDismissed && needsIosHandoff && Boolean(iosSrc);
   const showAndroidFallback =
@@ -764,7 +764,7 @@ export function DishModelViewer({
             id={titleId}
             className="max-w-md font-display text-base leading-relaxed text-[#d8caba] sm:text-lg"
           >
-            {showIosQuickLookButton
+            {canOpenDirectIosQuickLook
               ? quietChrome
                 ? "Vue 3D indisponible pour le moment."
                 : "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari."
@@ -772,7 +772,7 @@ export function DishModelViewer({
                 ? "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari."
               : "Ce plat sera bientôt disponible en 3D."}
           </p>
-          {showIosQuickLookButton ? (
+          {canOpenDirectIosQuickLook ? (
             <IosQuickLookArLink
               href={directIosQuickLookHref}
               onClick={trackArIntent}
@@ -842,6 +842,12 @@ export function DishModelViewer({
             dish={dish}
             onRetry={handleRetry}
             onReturnToDish={onReturnToDish}
+            quickLookHref={
+              canOpenDirectIosQuickLook ? directIosQuickLookHref : undefined
+            }
+            onQuickLookClick={
+              canOpenDirectIosQuickLook ? trackArIntent : undefined
+            }
             quietChrome={quietChrome}
           />
         ) : (
