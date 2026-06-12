@@ -7,7 +7,8 @@ import {
   useId,
   useMemo,
   useRef,
-  useState
+  useState,
+  type CSSProperties
 } from "react";
 import { trackMenuEvent } from "@/lib/analytics/client";
 import {
@@ -38,6 +39,10 @@ const IOS_USDZ_MISSING_TEXT =
   "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.";
 const MODEL_FRAME_CLASS =
   "h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]";
+const MODEL_VIEWER_SHELL_CLASS =
+  "min-h-[350px] w-full overflow-hidden rounded-xl bg-[#10100e] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:min-h-[430px]";
+const MODEL_VIEWER_CANVAS_CLASS =
+  "h-[min(48vh,350px)] min-h-[250px] w-full bg-[#10100e] sm:h-[min(55vh,380px)] sm:min-h-[310px]";
 const MESHOPT_DECODER_URL = "/model-viewer/meshopt-decoder-74188840.js";
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
@@ -75,9 +80,11 @@ async function ensureModelViewerLoaded(): Promise<void> {
 
 type ModelViewerElement = HTMLElement & {
   loaded?: boolean;
+  canActivateAR?: boolean;
   cameraOrbit?: string;
   cameraTarget?: string;
   fieldOfView?: string;
+  activateAR?: () => Promise<void>;
   jumpCameraToGoal?: () => void;
 };
 
@@ -638,6 +645,14 @@ export function DishModelViewer({
     }, 0);
   }, [dish.categorySlug, dish.slug]);
 
+  const handleModelViewerArClick = useCallback(() => {
+    trackArIntent();
+    void loadWatchRef.current?.activateAR?.().catch(() => {
+      setRuntimeArFailed(true);
+      setArSessionActive(false);
+    });
+  }, [trackArIntent]);
+
   const handleRetry = useCallback(() => {
     setInitTimedOut(false);
     setModelLoadError(false);
@@ -656,9 +671,14 @@ export function DishModelViewer({
     hasModel && !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
   const showLoader = isLoadingModel && loaderRevealed;
   const showArReady = modelLoaded && !showLoadFailure;
-  const showIosQuickLookButton =
+  const canOpenDirectIosQuickLook =
     iosNativeArEnabled && Boolean(directIosQuickLookHref);
+  const showIosQuickLookButton = showArReady && canOpenDirectIosQuickLook;
   const showAndroidSceneViewerButton = showArReady && androidNativeArEnabled;
+  const shouldReserveArActionRail =
+    hasModel &&
+    !showLoadFailure &&
+    (canOpenDirectIosQuickLook || androidNativeArEnabled);
   const showHandoff =
     showArReady && !handoffDismissed && needsIosHandoff && Boolean(iosSrc);
   const showAndroidFallback =
@@ -744,7 +764,7 @@ export function DishModelViewer({
             id={titleId}
             className="max-w-md font-display text-base leading-relaxed text-[#d8caba] sm:text-lg"
           >
-            {showIosQuickLookButton
+            {canOpenDirectIosQuickLook
               ? quietChrome
                 ? "Vue 3D indisponible pour le moment."
                 : "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari."
@@ -752,7 +772,7 @@ export function DishModelViewer({
                 ? "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari."
               : "Ce plat sera bientôt disponible en 3D."}
           </p>
-          {showIosQuickLookButton ? (
+          {canOpenDirectIosQuickLook ? (
             <IosQuickLookArLink
               href={directIosQuickLookHref}
               onClick={trackArIntent}
@@ -822,13 +842,17 @@ export function DishModelViewer({
             dish={dish}
             onRetry={handleRetry}
             onReturnToDish={onReturnToDish}
-            quickLookHref={directIosQuickLookHref || undefined}
-            onQuickLookClick={directIosQuickLookHref ? trackArIntent : undefined}
+            quickLookHref={
+              canOpenDirectIosQuickLook ? directIosQuickLookHref : undefined
+            }
+            onQuickLookClick={
+              canOpenDirectIosQuickLook ? trackArIntent : undefined
+            }
             quietChrome={quietChrome}
           />
         ) : (
           <div className="relative">
-            <div className="relative touch-none overscroll-contain [contain:layout_paint]">
+            <div className={`relative flex ${MODEL_VIEWER_SHELL_CLASS} flex-col touch-none overscroll-contain [contain:layout_paint]`}>
               {mvReady ? (
                 /* GLB en mètres réalistes ; ar-scale fixed évite l’auto-scale agressif sur Android */
                 <model-viewer
@@ -856,28 +880,31 @@ export function DishModelViewer({
                   field-of-view="34deg"
                   min-camera-orbit="auto auto 65%"
                   max-camera-orbit="auto auto 175%"
-                  className={`mx-auto block touch-none ${MODEL_FRAME_CLASS}`}
-                >
+                  className={`mx-auto block touch-none ${MODEL_VIEWER_CANVAS_CLASS}`}
+                  style={{ "--ar-button-display": "none" } as CSSProperties}
+                />
+              ) : (
+                <div className={MODEL_VIEWER_CANVAS_CLASS} aria-hidden />
+              )}
+              {shouldReserveArActionRail ? (
+                <div className="relative z-30 flex min-h-[76px] items-center justify-center border-t border-white/10 bg-[#080706]/64 px-4 py-4">
                   {showAndroidSceneViewerButton ? (
                     <button
                       type="button"
-                      slot="ar-button"
-                      className="absolute bottom-4 left-1/2 inline-flex min-h-11 max-w-[calc(100%-2rem)] -translate-x-1/2 items-center justify-center whitespace-nowrap rounded-full border border-champagne/45 bg-[#080706]/92 px-6 text-center text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
-                      onClick={trackArIntent}
+                      className="inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border border-champagne/55 bg-champagne px-6 text-center text-sm font-semibold text-[#17100a] shadow-[0_14px_40px_rgba(0,0,0,0.34)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+                      onClick={handleModelViewerArClick}
                     >
                       Afficher devant moi
                     </button>
                   ) : null}
-                </model-viewer>
-              ) : (
-                <div className={MODEL_FRAME_CLASS} aria-hidden />
-              )}
-              {showIosQuickLookButton ? (
-                <IosQuickLookArLink
-                  href={directIosQuickLookHref}
-                  onClick={trackArIntent}
-                  className="absolute bottom-4 left-1/2 z-30 inline-flex min-h-11 max-w-[calc(100%-2rem)] -translate-x-1/2 items-center justify-center whitespace-nowrap rounded-full border border-champagne/45 bg-[#080706]/92 px-6 text-center text-sm font-semibold text-champagne shadow-[0_14px_40px_rgba(0,0,0,0.48)] backdrop-blur transition hover:border-champagne/70 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
-                />
+                  {showIosQuickLookButton ? (
+                    <IosQuickLookArLink
+                      href={directIosQuickLookHref}
+                      onClick={trackArIntent}
+                      className="relative inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border border-champagne/55 bg-champagne px-6 text-center text-sm font-semibold text-[#17100a] shadow-[0_14px_40px_rgba(0,0,0,0.34)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
+                    />
+                  ) : null}
+                </div>
               ) : null}
               {showLoader ? (
                 <PremiumLoadingState dish={dish} progress={modelProgress} />

@@ -93,7 +93,7 @@
     "intro mobile guest"
     "plate mobile vision";
   grid-template-columns: minmax(0, 0.94fr) minmax(334px, 1.08fr) minmax(0, 0.94fr);
-  grid-template-rows: 276px 250px;
+  grid-template-rows: 276px minmax(330px, auto);
   gap: 10px;
   border: 1px solid rgba(255, 250, 240, 0.26);
   border-radius: 22px;
@@ -345,46 +345,46 @@
   display: flex;
   height: 100%;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 26px 18px 22px;
-  text-align: center;
+  padding: 30px 22px 26px;
+  text-align: left;
 }
 
 .visionCopy h2 {
-  max-width: 292px;
+  max-width: 326px;
   margin: 18px 0 0;
   color: #fffaf0;
   font-family: var(--vistaire-font-display);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 500;
-  line-height: 1.12;
+  line-height: 1.16;
   letter-spacing: 0;
 }
 
 .visionCopy > p:not(.badge):not(.values) {
-  max-width: 292px;
+  max-width: 326px;
   margin: 14px 0 0;
   color: rgba(238, 230, 215, 0.78);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.38;
 }
 
 .values {
   display: flex;
   max-width: none;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 0 8px;
+  justify-content: flex-start;
+  gap: 6px 8px;
   margin: 24px 0 0;
   color: rgba(232, 207, 155, 0.92);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
   text-shadow: 0 8px 20px rgba(232, 207, 155, 0.16);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .values span {
@@ -405,6 +405,7 @@
   .previewFrame {
     width: min(1000px, calc(100vw - 40px));
     grid-template-columns: minmax(0, 0.95fr) minmax(318px, 1.05fr) minmax(0, 0.95fr);
+    grid-template-rows: 276px minmax(360px, auto);
   }
 
   .introCopy {

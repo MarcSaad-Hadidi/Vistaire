@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   type PublicMenu,
   type PublicMenuContextQuery,
@@ -13,6 +14,10 @@ import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import styles from "./MaisonElyseDishDetail.module.css";
 
 const MODEL_VIEWER_ID = "maison-elyse-dish-model-viewer";
+const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+  .split(/[,\s]+/)
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   () =>
@@ -91,11 +96,25 @@ function categoryLabel(category: string): string {
 }
 
 function hasReal3d(dish: PublicMenuDish): boolean {
-  return Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl);
+  return (
+    isSafe3dAssetUrl(
+      dish.webModel3dUrl || dish.model3dUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "web"
+    ) ||
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
+  );
 }
 
 function hasRealAr(dish: PublicMenuDish): boolean {
-  return Boolean(dish.arModel3dUrl || dish.arUsdzUrl || dish.usdzUrl);
+  return (
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    isSafe3dAssetUrl(
+      dish.arUsdzUrl || dish.usdzUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "iosUsdz"
+    )
+  );
 }
 
 function dishBadges(dish: PublicMenuDish): string[] {
@@ -275,7 +294,7 @@ export function MaisonElyseDishDetail({
                   </h2>
                   <p>
                     {hasAr
-                      ? "L'expérience 3D se lance ici. L'AR apparaît ensuite pour les téléphones compatibles."
+                      ? "Une fois le plat chargé, vous pouvez le placer devant vous sur un téléphone compatible."
                       : "La vue 3D se lance uniquement après votre action."}
                   </p>
                 </div>
@@ -303,7 +322,7 @@ export function MaisonElyseDishDetail({
                     <span>{has3d ? "3D" : "AR"}</span>
                     <small>
                       {hasAr
-                        ? "L'option AR s'ouvre après la vue immersive."
+                        ? "Le bouton AR apparaît après le chargement du plat."
                         : "Aperçu disponible sans chargement initial."}
                     </small>
                   </div>

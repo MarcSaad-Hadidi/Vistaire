@@ -47,7 +47,6 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /ssr:\s*false/);
   assert.match(source, /LazyDishModelViewer/);
   assert.match(source, /Voir en 3D/);
-  assert.match(source, /Ouvrir l'aperçu AR/);
   assert.doesNotMatch(source, /modelActionButtonSecondary/);
   assert.match(source, /Preview statut seulement dans le builder/);
   assert.doesNotMatch(source, /<model-viewer/);
@@ -66,7 +65,7 @@ test("builder preview uses simulated immersive status flags without public model
   assert.match(source, /const hasPublicArAsset = hasPublicAr\(dish\)/);
   assert.match(
     source,
-    /showPublicModelActions =\s*mode === "public" && \(hasPublic3dAsset \|\| hasPublicArAsset\)/
+    /showPublicModelActions =\s*mode === "public" && hasPublic3dAsset/
   );
   assert.match(
     source,

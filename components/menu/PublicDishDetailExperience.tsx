@@ -9,9 +9,15 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import styles from "./PublicDishDetailExperience.module.css";
+
+const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+  .split(/[,\s]+/)
+  .map((entry) => entry.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
 type PublicDishDetailExperienceProps = {
   menu: PublicMenu;
@@ -98,11 +104,25 @@ function cleanDisplayText(value: string): string {
 }
 
 function hasPublic3d(dish: PublicMenuDish): boolean {
-  return Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl);
+  return (
+    isSafe3dAssetUrl(
+      dish.webModel3dUrl || dish.model3dUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "web"
+    ) ||
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
+  );
 }
 
 function hasPublicAr(dish: PublicMenuDish): boolean {
-  return Boolean(dish.arModel3dUrl || dish.arUsdzUrl || dish.usdzUrl);
+  return (
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    isSafe3dAssetUrl(
+      dish.arUsdzUrl || dish.usdzUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "iosUsdz"
+    )
+  );
 }
 
 function builderStatusHas3d(dish: PublicMenuDish): boolean {
@@ -154,17 +174,10 @@ export function PublicDishDetailExperience({
     has3d: hasDisplay3d,
     hasAr: hasDisplayAr
   });
-  const showPublicModelActions =
-    mode === "public" && (hasPublic3dAsset || hasPublicArAsset);
+  const showPublicModelActions = mode === "public" && hasPublic3dAsset;
   const showBuilderModelStatus =
     mode === "builder-preview" && (hasBuilder3dStatus || hasBuilderArStatus);
-  const publicModelButtonLabel = showModelViewer
-    ? hasPublic3dAsset
-      ? "Masquer la 3D"
-      : "Masquer l'aperçu"
-    : hasPublic3dAsset
-      ? "Voir en 3D"
-      : "Ouvrir l'aperçu AR";
+  const publicModelButtonLabel = showModelViewer ? "Masquer la 3D" : "Voir en 3D";
 
   return (
     <main
@@ -307,7 +320,7 @@ export function PublicDishDetailExperience({
                     {mode === "public" ? (
                       <p>
                         {hasPublicArAsset
-                          ? "La 3D se lance ici. L'option AR place le plat devant vous depuis un téléphone compatible."
+                          ? "Une fois la 3D chargée, vous pouvez placer le plat devant vous sur un téléphone compatible."
                           : "La vue 3D se lance ici après votre action."}
                       </p>
                     ) : null}
@@ -363,7 +376,7 @@ export function PublicDishDetailExperience({
                       id="public-dish-model-viewer"
                       aria-hidden="true"
                     >
-                      <span>{hasPublic3dAsset ? "3D" : "AR"}</span>
+                      <span>{hasPublicArAsset ? "3D / AR" : "3D"}</span>
                     </div>
                   )
                 ) : null}
