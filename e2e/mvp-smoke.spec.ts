@@ -296,8 +296,12 @@ test.describe("Vistaire MVP smoke", () => {
     );
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    const homardLink = page.locator(
-      'a[class*="dishRow"][href="/demo/dishes/homard-bisque"]'
+    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
+    const homardLink = page.getByRole("link", { name: /Homard bleu/i });
+    await expect(homardLink).toHaveAttribute(
+      "href",
+      "/menu/maison-elyse/dishes/homard-bisque"
     );
     await expect(homardLink).toBeVisible();
 
@@ -306,7 +310,7 @@ test.describe("Vistaire MVP smoke", () => {
     health.expectClean();
 
     await homardLink.click();
-    await expect(page).toHaveURL(/\/demo\/dishes\/homard-bisque$/);
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\/homard-bisque$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 

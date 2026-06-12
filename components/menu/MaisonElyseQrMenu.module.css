@@ -54,9 +54,18 @@
   padding: 14px 12px calc(28px + env(safe-area-inset-bottom));
 }
 
+.phonePreview {
+  min-height: 100%;
+  padding: 0;
+}
+
 .isMenuMode {
   background: var(--elyse-bg);
   padding: 0 0 calc(28px + env(safe-area-inset-bottom));
+}
+
+.phonePreview.isMenuMode {
+  padding-bottom: 0;
 }
 
 .hero,
@@ -75,6 +84,13 @@
 
 .isMenuMode :global(.googleReviewCard) {
   width: min(calc(100% - 24px), 760px);
+}
+
+.phonePreview .sections,
+.phonePreview.isMenuMode .sections {
+  width: 100%;
+  max-width: none;
+  padding: 0;
 }
 
 .hero {
@@ -549,6 +565,14 @@
   backdrop-filter: blur(14px) saturate(112%);
 }
 
+.phonePreview .bottomBar {
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  left: max(10px, env(safe-area-inset-left));
+  width: auto;
+  max-width: none;
+}
+
 .bottomBar button {
   min-height: 38px;
   border: 1px solid rgba(232, 207, 155, 0.18);
@@ -578,6 +602,10 @@
   align-items: end;
   background: rgba(0, 0, 0, 0.34);
   padding: 12px;
+}
+
+.phonePreview .sheetBackdrop {
+  padding: 10px;
 }
 
 .bottomSheet {
@@ -817,6 +845,12 @@
     left: 50%;
     width: min(420px, calc(100% - 28px));
     transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 560px) {
+  .phonePreview {
+    min-height: 0;
   }
 }
 

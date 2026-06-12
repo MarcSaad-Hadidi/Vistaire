@@ -4,10 +4,14 @@ import assert from "node:assert/strict";
 
 const pagePath = "app/menu/[slug]/page.tsx";
 const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const demoPagePath = "app/demo/page.tsx";
 const componentPath = "components/menu/MaisonElyseQrMenu.tsx";
 const cssPath = "components/menu/MaisonElyseQrMenu.module.css";
 const dishDetailPath = "components/menu/MaisonElyseDishDetail.tsx";
 const dishDetailCssPath = "components/menu/MaisonElyseDishDetail.module.css";
+const demoShowcasePath = "components/vistaire-preview/DemoPhoneShowcase.tsx";
+const demoShowcaseCssPath =
+  "components/vistaire-preview/DemoPhoneShowcase.module.css";
 
 test("Maison Elyse public menu is the only dedicated QR table experience", async () => {
   const source = await readFile(pagePath, "utf8");
@@ -194,4 +198,43 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.doesNotMatch(component, /@google\/model-viewer/);
   assert.doesNotMatch(component, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
   assert.doesNotMatch(component, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
+});
+
+test("/demo uses the Maison Elyse phone showcase instead of the legacy preview UI", async () => {
+  const [demoPage, menuComponent, menuCss, showcase, showcaseCss] =
+    await Promise.all([
+      readFile(demoPagePath, "utf8"),
+      readFile(componentPath, "utf8"),
+      readFile(cssPath, "utf8"),
+      readFile(demoShowcasePath, "utf8"),
+      readFile(demoShowcaseCssPath, "utf8")
+    ]);
+
+  assert.match(demoPage, /DemoPhoneShowcase/);
+  assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse"\)/);
+  assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
+
+  assert.match(menuComponent, /displayMode\?: "public" \| "phone-preview"/);
+  assert.match(menuComponent, /showGoogleReview\?: boolean/);
+  assert.match(menuComponent, /styles\.phonePreview/);
+  assert.match(menuCss, /\.phonePreview/);
+
+  assert.match(showcase, /MaisonElyseQrMenu/);
+  assert.match(showcase, /displayMode="phone-preview"/);
+  assert.match(showcase, /showGoogleReview=\{false\}/);
+  assert.match(showcase, /startFullMenu/);
+  assert.match(showcase, /data-testid="demo-phone-mockup"/);
+  assert.match(showcase, /data-phone-mockup-scroll/);
+  assert.doesNotMatch(showcase, /VistaireMenuPreview/);
+  assert.doesNotMatch(showcase, /DishModelViewer/);
+  assert.doesNotMatch(showcase, /D.mo interactive Vistaire/);
+  assert.doesNotMatch(showcase, /Aper.u t.l.phone/);
+  assert.doesNotMatch(showcase, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
+  assert.doesNotMatch(showcase, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
+
+  assert.match(showcaseCss, /\.showcaseFrame[\s\S]*grid-template-columns/);
+  assert.match(showcaseCss, /\.phoneShell/);
+  assert.match(showcaseCss, /\.phoneViewport[\s\S]*overflow-y:\s*auto/);
+  assert.match(showcaseCss, /\.phoneViewport[\s\S]*transform:\s*translateZ\(0\)/);
+  assert.match(showcaseCss, /@media \(max-width: 560px\)/);
 });

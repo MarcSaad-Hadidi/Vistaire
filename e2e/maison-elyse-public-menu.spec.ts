@@ -278,7 +278,13 @@ test.describe("Maison Elyse public QR menu", () => {
     await expectHealthyResponse(
       await page.goto("/demo", { waitUntil: "domcontentloaded" })
     );
+    await expect(page.getByTestId("demo-phone-mockup")).toBeVisible();
+    await expect(page.getByTestId("demo-phone-viewport")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Aper.u t.l.phone/i })).toHaveCount(0);
+    await expect(page.locator('a[class*="dishRow"]')).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
     health.expectClean();
