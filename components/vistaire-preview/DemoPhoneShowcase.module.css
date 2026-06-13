@@ -43,6 +43,16 @@
   font-family: var(--vistaire-font-body), system-ui, sans-serif;
 }
 
+.desktopShowcase {
+  display: block;
+  position: relative;
+  min-height: 100svh;
+}
+
+.mobileMenu {
+  display: none;
+}
+
 .backgroundImage {
   position: fixed !important;
   z-index: 0;
@@ -305,6 +315,16 @@
 @media (max-width: 560px) {
   .page {
     background: #050403;
+  }
+
+  .desktopShowcase {
+    display: none;
+  }
+
+  .mobileMenu {
+    display: block;
+    min-height: 100svh;
+    background: #190b05;
   }
 
   .hero {

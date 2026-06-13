@@ -201,6 +201,45 @@ test.describe("Maison Elyse public QR menu", () => {
     health.expectClean();
   });
 
+  test("/demo mobile renders the same Maison Elyse menu surface", async ({
+    page
+  }) => {
+    const health = installPageHealth(page);
+    const modelRequests = collectModelAssetRequests(page);
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 430, height: 932 }
+    ]) {
+      await test.step(`${viewport.width}px`, async () => {
+        await page.setViewportSize(viewport);
+        await expectHealthyResponse(
+          await page.goto("/demo", { waitUntil: "domcontentloaded" })
+        );
+
+        const mobileMenu = page.getByTestId("demo-mobile-menu");
+        await expect(mobileMenu).toBeVisible();
+        await expect(page.getByTestId("demo-phone-mockup")).toBeHidden();
+        await expect(page.getByTestId("demo-phone-viewport")).toBeHidden();
+        await expect(
+          mobileMenu.getByRole("heading", {
+            level: 1,
+            name: /Bienvenue chez Maison/i
+          })
+        ).toBeVisible();
+        await expect(mobileMenu.getByRole("button", { name: /Entr/i })).toBeVisible();
+        await expect(
+          mobileMenu.getByRole("button", { name: "Voir toute la carte" })
+        ).toBeVisible();
+        await expect(page.locator("model-viewer")).toHaveCount(0);
+        await expectNoHorizontalOverflow(page);
+      });
+    }
+
+    expect(modelRequests).toEqual([]);
+    health.expectClean();
+  });
+
   test("public dish detail exposes 3D and AR only after user intent", async ({
     page
   }) => {
