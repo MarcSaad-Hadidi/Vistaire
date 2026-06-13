@@ -23,6 +23,14 @@ export type CompareCategoryTab = Pick<Category, "id" | "slug" | "name"> & {
   slug: string;
 };
 
+export type CompareCategoryPreview = Pick<Category, "id" | "slug" | "name"> & {
+  slug: string;
+  description: string;
+  image: string | null;
+  imageAlt: string;
+  imageObjectPosition: string;
+};
+
 export type CompareDishPreview = {
   slug: string;
   name: string;
@@ -48,8 +56,10 @@ export type PdfComparePreviewData = {
   };
   pdfSections: PdfMenuSection[];
   categoryTabs: CompareCategoryTab[];
+  categoryCards: CompareCategoryPreview[];
   activeCategorySlug: string;
   vistaireDishes: CompareDishPreview[];
+  featuredDish?: CompareDishPreview;
 };
 
 const PDF_SECTION_SLUGS = [
@@ -60,6 +70,14 @@ const PDF_SECTION_SLUGS = [
 ] as const;
 const VISTAIRE_PREVIEW_CATEGORY = "desserts";
 const VISTAIRE_PREVIEW_DISH_SLUGS = ["tarte-citron-basilic", "souffle-chocolat"] as const;
+type PdfSectionSlug = (typeof PDF_SECTION_SLUGS)[number];
+
+const CATEGORY_CARD_COPY: Record<PdfSectionSlug, string> = {
+  entrees: "Pour commencer doucement",
+  "plats-signatures": "La sélection du moment",
+  desserts: "Une touche sucrée",
+  cocktails: "Classiques et créations du bar"
+};
 
 export type PdfComparePreviewOptions = {
   activeCategorySlug?: string;
@@ -95,6 +113,32 @@ function toCompareDishPreview(dish: Dish, currency: string): CompareDishPreview 
 }
 
 /** Source de vérité partagée avec `/demo` pour le slider PDF vs Vistaire. */
+function isPreviewCategorySlug(slug: string): slug is PdfSectionSlug {
+  return PDF_SECTION_SLUGS.includes(slug as PdfSectionSlug);
+}
+
+function toCompareCategoryPreview(category: Category): CompareCategoryPreview {
+  const dishes = getDishesByCategorySlug(category.slug);
+  const heroDish =
+    dishes.find((dish) => dish.isRecommended && dish.image) ??
+    dishes.find((dish) => dish.isSignature && dish.image) ??
+    dishes.find((dish) => dish.image);
+
+  return {
+    id: category.id,
+    slug: category.slug,
+    name: category.name,
+    description: isPreviewCategorySlug(category.slug)
+      ? CATEGORY_CARD_COPY[category.slug]
+      : category.description,
+    image: heroDish?.image ?? null,
+    imageAlt: heroDish
+      ? `Photo de la catégorie ${category.name} : ${heroDish.name}`
+      : `Catégorie ${category.name}`,
+    imageObjectPosition: heroDish ? getDishCardImageObjectPosition(heroDish) : "center 50%"
+  };
+}
+
 export function buildPdfComparePreviewData(
   options: PdfComparePreviewOptions = {}
 ): PdfComparePreviewData {
@@ -121,6 +165,18 @@ export function buildPdfComparePreviewData(
     }))
   ];
 
+  const previewCategories = categories.filter((category) =>
+    isPreviewCategorySlug(category.slug)
+  );
+  const categoryCards = previewCategories.map(toCompareCategoryPreview);
+  const previewDishes = previewCategories.flatMap((category) =>
+    getDishesByCategorySlug(category.slug)
+  );
+  const featuredDishSource =
+    previewDishes.find((dish) => dish.isSignature && dish.isRecommended) ??
+    previewDishes.find((dish) => dish.isRecommended) ??
+    previewDishes[0];
+
   const vistaireDishes = vistaireDishSlugs.map((slug) => {
     const dish = getDishBySlug(slug);
     if (!dish) {
@@ -139,7 +195,11 @@ export function buildPdfComparePreviewData(
     },
     pdfSections,
     categoryTabs,
+    categoryCards,
     activeCategorySlug,
-    vistaireDishes
+    vistaireDishes,
+    featuredDish: featuredDishSource
+      ? toCompareDishPreview(featuredDishSource, restaurant.currency)
+      : undefined
   };
 }

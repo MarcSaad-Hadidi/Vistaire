@@ -2,6 +2,7 @@ import Image from "next/image";
 import restaurantBackground from "@/Framer/PhotoRestoComplet2.png";
 import menuVisual from "@/Framer/pageCarte.png";
 import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
+import type { Locale } from "@/lib/i18n";
 import type { PublicMenu } from "@/lib/menu/publicMenu";
 import {
   PreviewFooter,
@@ -10,10 +11,19 @@ import {
 import styles from "./DemoPhoneShowcase.module.css";
 
 type DemoPhoneShowcaseProps = {
+  currentPath?: string;
+  locale?: Locale;
   menu: PublicMenu;
 };
 
-export function DemoPhoneShowcase({ menu }: DemoPhoneShowcaseProps) {
+export function DemoPhoneShowcase({
+  currentPath,
+  locale = "fr",
+  menu
+}: DemoPhoneShowcaseProps) {
+  const isEnglish = locale === "en";
+  const resolvedPath = currentPath ?? (isEnglish ? "/en/vistaire-menu" : "/demo");
+
   return (
     <main className={styles.page}>
       <Image
@@ -45,13 +55,15 @@ export function DemoPhoneShowcase({ menu }: DemoPhoneShowcaseProps) {
             />
             <div className={styles.visualGradient} aria-hidden="true" />
             <div className={styles.visualCopy}>
-              <p>Carte client premium</p>
+              <p>{isEnglish ? "Premium client menu" : "Carte client premium"}</p>
               <h1>
-                <span>CARTE</span>
-                <span>DIGITALE</span>
+                <span>{isEnglish ? "DIGITAL" : "CARTE"}</span>
+                <span>{isEnglish ? "MENU" : "DIGITALE"}</span>
               </h1>
               <small>
-                {"Une exp\u00e9rience mobile food-first, pens\u00e9e pour pr\u00e9senter la carte \u00e0 table."}
+                {isEnglish
+                  ? "A food-first mobile experience designed to present the menu at the table."
+                  : "Une exp\u00e9rience mobile food-first, pens\u00e9e pour pr\u00e9senter la carte \u00e0 table."}
               </small>
             </div>
           </article>
@@ -83,22 +95,24 @@ export function DemoPhoneShowcase({ menu }: DemoPhoneShowcaseProps) {
             </div>
 
             <p className={styles.phoneFootnote}>
-              {"Restaurant exemple utilis\u00e9 pour pr\u00e9senter l'exp\u00e9rience client Vistaire."}
+              {isEnglish
+                ? "Sample restaurant used to present the Vistaire guest experience."
+                : "Restaurant exemple utilis\u00e9 pour pr\u00e9senter l'exp\u00e9rience client Vistaire."}
             </p>
           </aside>
         </div>
 
         <PreviewNav
           activeSection="menu"
-          currentPath="/demo"
-          locale="fr"
+          currentPath={resolvedPath}
+          locale={locale}
           routeMode="production"
         />
       </section>
 
       <PreviewFooter
-        currentPath="/demo"
-        locale="fr"
+        currentPath={resolvedPath}
+        locale={locale}
         routeMode="production"
         width="wide"
       />

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 const pagePath = "app/menu/[slug]/page.tsx";
 const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
 const demoPagePath = "app/demo/page.tsx";
+const englishDemoPagePath = "app/en/vistaire-menu/page.tsx";
 const componentPath = "components/menu/MaisonElyseQrMenu.tsx";
 const cssPath = "components/menu/MaisonElyseQrMenu.module.css";
 const dishDetailPath = "components/menu/MaisonElyseDishDetail.tsx";
@@ -200,10 +201,11 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.doesNotMatch(component, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
 });
 
-test("/demo uses the Maison Elyse phone showcase instead of the legacy preview UI", async () => {
-  const [demoPage, menuComponent, menuCss, showcase, showcaseCss] =
+test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of the legacy preview UI", async () => {
+  const [demoPage, englishDemoPage, menuComponent, menuCss, showcase, showcaseCss] =
     await Promise.all([
       readFile(demoPagePath, "utf8"),
+      readFile(englishDemoPagePath, "utf8"),
       readFile(componentPath, "utf8"),
       readFile(cssPath, "utf8"),
       readFile(demoShowcasePath, "utf8"),
@@ -213,6 +215,9 @@ test("/demo uses the Maison Elyse phone showcase instead of the legacy preview U
   assert.match(demoPage, /DemoPhoneShowcase/);
   assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse"\)/);
   assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
+  assert.match(englishDemoPage, /DemoPhoneShowcase/);
+  assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse"\)/);
+  assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
   assert.match(menuComponent, /displayMode\?: "public" \| "phone-preview"/);
   assert.match(menuComponent, /showGoogleReview\?: boolean/);
