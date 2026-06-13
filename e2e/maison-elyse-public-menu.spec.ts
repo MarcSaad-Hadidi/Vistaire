@@ -280,8 +280,18 @@ test.describe("Maison Elyse public QR menu", () => {
     );
     await expect(page.getByTestId("demo-phone-mockup")).toBeVisible();
     await expect(page.getByTestId("demo-phone-viewport")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    const phoneViewport = page.getByTestId("demo-phone-viewport");
+    await expect(
+      phoneViewport.getByRole("heading", {
+        level: 1,
+        name: /Bienvenue chez Maison/i
+      })
+    ).toBeVisible();
+    await expect(phoneViewport.getByText("LA COLLECTION")).toHaveCount(0);
+    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toHaveCount(0);
+    await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+    await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
+    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Aper.u t.l.phone/i })).toHaveCount(0);
     await expect(page.locator('a[class*="dishRow"]')).toHaveCount(0);

@@ -295,8 +295,16 @@ test.describe("Vistaire MVP smoke", () => {
       await page.goto("/demo", { waitUntil: "domcontentloaded" })
     );
 
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    const phoneViewport = page.getByTestId("demo-phone-viewport");
+    await expect(
+      phoneViewport.getByRole("heading", {
+        level: 1,
+        name: /Bienvenue chez Maison/i
+      })
+    ).toBeVisible();
+    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toHaveCount(0);
+    await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
     const homardLink = page.getByRole("link", { name: /Homard bleu/i });
     await expect(homardLink).toHaveAttribute(

@@ -222,7 +222,7 @@ test("/demo uses the Maison Elyse phone showcase instead of the legacy preview U
   assert.match(showcase, /MaisonElyseQrMenu/);
   assert.match(showcase, /displayMode="phone-preview"/);
   assert.match(showcase, /showGoogleReview=\{false\}/);
-  assert.match(showcase, /startFullMenu/);
+  assert.doesNotMatch(showcase, /startFullMenu/);
   assert.match(showcase, /data-testid="demo-phone-mockup"/);
   assert.match(showcase, /data-phone-mockup-scroll/);
   assert.doesNotMatch(showcase, /VistaireMenuPreview/);

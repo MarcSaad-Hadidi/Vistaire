@@ -401,6 +401,7 @@ export function MaisonElyseQrMenu({
   const [activeSheet, setActiveSheet] = useState<SheetId>(null);
   const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLElement | null>(null);
+  const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const groups = useMemo(() => getPublicMenuCategoryGroups(menu.dishes), [menu.dishes]);
   const categories = useMemo(
     () => getVisiblePublicMenuCategories(menu.dishes).sort(categorySort),
@@ -469,6 +470,36 @@ export function MaisonElyseQrMenu({
 
     return () => window.cancelAnimationFrame(frameId);
   }, [activeCategory, pendingSectionLabel]);
+
+  useEffect(() => {
+    if (displayMode !== "phone-preview" || !activeCategory) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const scrollArea = menuScrollAreaRef.current;
+      if (!scrollArea) return;
+
+      scrollArea.scrollTop = 0;
+
+      const firstDish = scrollArea.querySelector<HTMLElement>('a[href*="/dishes/"]');
+      if (!firstDish) return;
+
+      const scrollAreaRect = scrollArea.getBoundingClientRect();
+      const firstDishRect = firstDish.getBoundingClientRect();
+      const firstDishOverflow = firstDishRect.bottom - scrollAreaRect.bottom;
+      if (firstDishOverflow <= 0) return;
+
+      const collectionLabel = Array.from(scrollArea.querySelectorAll<HTMLElement>("p")).find(
+        (element) => element.textContent?.trim() === "LA COLLECTION"
+      );
+      const maxScrollKeepingCollection = collectionLabel
+        ? Math.max(0, collectionLabel.getBoundingClientRect().top - scrollAreaRect.top)
+        : Number.POSITIVE_INFINITY;
+
+      scrollArea.scrollTop = Math.min(Math.ceil(firstDishOverflow + 2), maxScrollKeepingCollection);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeCategory, displayMode, visibleDishes.length]);
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
@@ -578,74 +609,76 @@ export function MaisonElyseQrMenu({
           </>
         ) : (
           <section className={styles.menuPanel} aria-labelledby="active-category-heading">
-            <div
-              className={styles.menuCover}
-              style={
-                menuHeroImage
-                  ? ({ "--menu-hero-image": `url("${menuHeroImage}")` } as CSSProperties)
-                  : undefined
-              }
-            >
-              <div className={styles.menuCoverTopbar}>
-                <span className={styles.menuRestaurantName}>Maison Élyse</span>
-                <button
-                  aria-label="Ouvrir la navigation de la carte"
-                  type="button"
-                  onClick={() => setActiveSheet("menu")}
-                >
-                  <span aria-hidden="true" />
-                  <span aria-hidden="true" />
-                </button>
-              </div>
-              <div className={styles.menuCoverCopy}>
-                <p className={styles.kicker}>LA COLLECTION</p>
-                <h2 id="active-category-heading">LA CARTE</h2>
-                <span aria-hidden="true" />
-                <p>
-                  Une sélection de créations servies par section, pensées pour être
-                  explorées directement à table.
-                </p>
-              </div>
-            </div>
-
-            {hasActiveFilter ? (
-              <div className={styles.activeFilterNotice} role="status">
-                <span>Filtre actif : {getFilterLabel(activeFilter)}</span>
-                <button type="button" onClick={resetFilters}>
-                  Réinitialiser
-                </button>
-              </div>
-            ) : null}
-
-            {visibleDishes.length > 0 ? (
-              activeCategory === ALL_CATEGORY_ID ? (
-                <div className={styles.sectionedDishList}>
-                  {visibleDishSections.map((section) => (
-                    <DishSection
-                      dishes={section.dishes}
-                      key={section.id}
-                      menu={menu}
-                      query={query}
-                      title={section.label}
-                    />
-                  ))}
+            <div className={styles.menuScrollArea} ref={menuScrollAreaRef}>
+              <div
+                className={styles.menuCover}
+                style={
+                  menuHeroImage
+                    ? ({ "--menu-hero-image": `url("${menuHeroImage}")` } as CSSProperties)
+                    : undefined
+                }
+              >
+                <div className={styles.menuCoverTopbar}>
+                  <span className={styles.menuRestaurantName}>Maison Élyse</span>
+                  <button
+                    aria-label="Ouvrir la navigation de la carte"
+                    type="button"
+                    onClick={() => setActiveSheet("menu")}
+                  >
+                    <span aria-hidden="true" />
+                    <span aria-hidden="true" />
+                  </button>
                 </div>
-              ) : (
-                <DishSection
-                  dishes={visibleDishes}
-                  menu={menu}
-                  query={query}
-                  title={activeCategoryLabel}
-                />
-              )
-            ) : (
-              <div className={styles.empty} role="status">
-                <p>Aucun plat dans cette sélection</p>
-                <button type="button" onClick={showAll}>
-                  Voir toute la carte
-                </button>
+                <div className={styles.menuCoverCopy}>
+                  <p className={styles.kicker}>LA COLLECTION</p>
+                  <h2 id="active-category-heading">LA CARTE</h2>
+                  <span aria-hidden="true" />
+                  <p>
+                    Une sélection de créations servies par section, pensées pour être
+                    explorées directement à table.
+                  </p>
+                </div>
               </div>
-            )}
+
+              {hasActiveFilter ? (
+                <div className={styles.activeFilterNotice} role="status">
+                  <span>Filtre actif : {getFilterLabel(activeFilter)}</span>
+                  <button type="button" onClick={resetFilters}>
+                    Réinitialiser
+                  </button>
+                </div>
+              ) : null}
+
+              {visibleDishes.length > 0 ? (
+                activeCategory === ALL_CATEGORY_ID ? (
+                  <div className={styles.sectionedDishList}>
+                    {visibleDishSections.map((section) => (
+                      <DishSection
+                        dishes={section.dishes}
+                        key={section.id}
+                        menu={menu}
+                        query={query}
+                        title={section.label}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <DishSection
+                    dishes={visibleDishes}
+                    menu={menu}
+                    query={query}
+                    title={activeCategoryLabel}
+                  />
+                )
+              ) : (
+                <div className={styles.empty} role="status">
+                  <p>Aucun plat dans cette sélection</p>
+                  <button type="button" onClick={showAll}>
+                    Voir toute la carte
+                  </button>
+                </div>
+              )}
+            </div>
 
             <nav className={styles.bottomBar} aria-label="Navigation carte et filtres">
               <button
