@@ -366,6 +366,7 @@ function DishCard({
         <button
           aria-label={ariaLabel}
           className={styles.dishCard}
+          data-dish-card="true"
           onClick={() => onSelectDish(dish)}
           type="button"
         >
@@ -375,6 +376,7 @@ function DishCard({
         <Link
           aria-label={ariaLabel}
           className={styles.dishCard}
+          data-dish-card="true"
           href={href}
           prefetch={false}
         >
@@ -548,7 +550,7 @@ export function MaisonElyseQrMenu({
 
       scrollArea.scrollTop = 0;
 
-      const firstDish = scrollArea.querySelector<HTMLElement>('a[href*="/dishes/"]');
+      const firstDish = scrollArea.querySelector<HTMLElement>('[data-dish-card="true"]');
       if (!firstDish) return;
 
       const scrollAreaRect = scrollArea.getBoundingClientRect();
