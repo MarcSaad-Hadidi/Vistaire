@@ -25,6 +25,8 @@ type MaisonElyseQrMenuProps = {
   menu: PublicMenu;
   context?: string;
   query?: PublicMenuContextQuery;
+  displayMode?: "public" | "phone-preview";
+  showGoogleReview?: boolean;
   startFullMenu?: boolean;
 };
 
@@ -386,8 +388,10 @@ function DishSection({
 }
 
 export function MaisonElyseQrMenu({
+  displayMode = "public",
   menu,
   query,
+  showGoogleReview = true,
   startFullMenu = false
 }: MaisonElyseQrMenuProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(() =>
@@ -520,7 +524,12 @@ export function MaisonElyseQrMenu({
   );
 
   return (
-    <main className={`${styles.page} ${activeCategory ? styles.isMenuMode : ""}`}>
+    <main
+      className={`${styles.page} ${activeCategory ? styles.isMenuMode : ""} ${
+        displayMode === "phone-preview" ? styles.phonePreview : ""
+      }`}
+      data-display-mode={displayMode}
+    >
       {!activeCategory ? (
         <section className={styles.hero} aria-labelledby="maison-elyse-heading">
           <div className={styles.heroCopy}>
@@ -762,12 +771,14 @@ export function MaisonElyseQrMenu({
         )}
       </section>
 
-      <GoogleReviewCard
-        googleReview={menu.googleReview}
-        restaurantId={menu.restaurantId}
-        restaurantName={menu.name}
-        source={menu.source}
-      />
+      {showGoogleReview ? (
+        <GoogleReviewCard
+          googleReview={menu.googleReview}
+          restaurantId={menu.restaurantId}
+          restaurantName={menu.name}
+          source={menu.source}
+        />
+      ) : null}
     </main>
   );
 }

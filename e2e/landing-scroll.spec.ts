@@ -155,14 +155,14 @@ test.describe("Menu and dish regression", () => {
     await expectNoHorizontalOverflow(page);
     expect(modelAssetRequests).toEqual([]);
 
-    await page.locator('a[class*="dishRow"][href="/demo/dishes/homard-bisque"]').click();
-    await expect(page).toHaveURL(/\/demo\/dishes\/homard-bisque$/);
+    await page.getByRole("link", { name: /Homard bleu/i }).click();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\/homard-bisque$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Homard/i);
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(modelAssetRequests).toEqual([]);
 
-    await page.getByRole("link", { name: "Retour à la carte" }).click();
-    await expect(page).toHaveURL(/\/demo$/);
+    await page.getByRole("link", { name: /Retour . la carte/i }).click();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\?view=carte$/);
   });
 
   test("/admin still loads as the public noindex restaurant preview", async ({
