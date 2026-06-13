@@ -909,7 +909,20 @@
 
 @media (max-width: 560px) {
   .phonePreview {
+    height: auto;
     min-height: 0;
+    padding: 14px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .phonePreview .hero,
+  .phonePreview .sections {
+    width: min(100%, 760px);
+    margin-inline: auto;
+  }
+
+  .phonePreview .sections {
+    max-width: 760px;
+    padding-top: 4px;
   }
 
   .phonePreview.isMenuMode {

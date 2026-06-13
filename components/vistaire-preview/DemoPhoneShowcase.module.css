@@ -308,12 +308,12 @@
   }
 
   .hero {
-    padding: 0;
+    padding: 12px 0 0;
   }
 
   .showcaseFrame {
     width: 100%;
-    gap: 0;
+    gap: 14px;
     border: 0;
     border-radius: 0;
     padding: 0;
@@ -323,7 +323,25 @@
   }
 
   .visualPanel {
-    display: none;
+    width: calc(100% - 20px);
+    height: 136px;
+    margin-inline: auto;
+    border: 1px solid rgba(255, 250, 240, 0.16);
+    border-radius: 18px;
+  }
+
+  .visualCopy {
+    left: 20px;
+    bottom: 22px;
+  }
+
+  .visualCopy p {
+    padding: 7px 10px;
+    font-size: 9.5px;
+  }
+
+  .visualCopy h1 {
+    font-size: 31px;
   }
 
   .phoneLabel,
