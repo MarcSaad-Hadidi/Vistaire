@@ -402,6 +402,7 @@ export function MaisonElyseQrMenu({
   const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLElement | null>(null);
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const skipNextPhonePreviewAutoScrollRef = useRef(false);
   const groups = useMemo(() => getPublicMenuCategoryGroups(menu.dishes), [menu.dishes]);
   const categories = useMemo(
     () => getVisiblePublicMenuCategories(menu.dishes).sort(categorySort),
@@ -461,18 +462,40 @@ export function MaisonElyseQrMenu({
 
     const frameId = window.requestAnimationFrame(() => {
       const sectionId = sectionDomId(pendingSectionLabel);
-      document.getElementById(sectionId)?.scrollIntoView({
-        behavior: getScrollBehavior(),
-        block: "start"
-      });
+      const section = document.getElementById(sectionId);
+      const scrollArea = menuScrollAreaRef.current;
+
+      if (displayMode === "phone-preview" && section && scrollArea?.contains(section)) {
+        const scrollAreaRect = scrollArea.getBoundingClientRect();
+        const sectionRect = section.getBoundingClientRect();
+        scrollArea.scrollTo({
+          behavior: getScrollBehavior(),
+          top: Math.max(
+            0,
+            sectionRect.top - scrollAreaRect.top + scrollArea.scrollTop
+          )
+        });
+      } else {
+        section?.scrollIntoView({
+          behavior: getScrollBehavior(),
+          block: "start"
+        });
+      }
       setPendingSectionLabel(null);
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, pendingSectionLabel]);
+  }, [activeCategory, displayMode, pendingSectionLabel]);
 
   useEffect(() => {
-    if (displayMode !== "phone-preview" || !activeCategory) return;
+    if (displayMode !== "phone-preview" || !activeCategory || pendingSectionLabel) {
+      return;
+    }
+
+    if (skipNextPhonePreviewAutoScrollRef.current) {
+      skipNextPhonePreviewAutoScrollRef.current = false;
+      return;
+    }
 
     const frameId = window.requestAnimationFrame(() => {
       const scrollArea = menuScrollAreaRef.current;
@@ -499,7 +522,7 @@ export function MaisonElyseQrMenu({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, displayMode, visibleDishes.length]);
+  }, [activeCategory, displayMode, pendingSectionLabel, visibleDishes.length]);
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
@@ -511,6 +534,7 @@ export function MaisonElyseQrMenu({
   }
 
   function selectCategory(categoryId: string | null) {
+    skipNextPhonePreviewAutoScrollRef.current = false;
     setActiveCategory(categoryId);
     setActiveFilter("all");
     setActiveSheet(null);
@@ -519,6 +543,7 @@ export function MaisonElyseQrMenu({
   }
 
   function openCategoryInFullMenu(categoryLabel: string) {
+    skipNextPhonePreviewAutoScrollRef.current = displayMode === "phone-preview";
     setPendingSectionLabel(categoryLabel);
     setActiveCategory(ALL_CATEGORY_ID);
     setActiveFilter("all");

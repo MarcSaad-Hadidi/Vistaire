@@ -297,6 +297,42 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(page.locator('a[class*="dishRow"]')).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
+
+    await expectHealthyResponse(
+      await page.goto("/demo", { waitUntil: "domcontentloaded" })
+    );
+    const targetedPhoneViewport = page.getByTestId("demo-phone-viewport");
+    await targetedPhoneViewport.getByRole("button", { name: /Desserts/i }).click();
+    await expect(targetedPhoneViewport.getByText("LA COLLECTION")).toBeVisible();
+    const dessertHeading = targetedPhoneViewport.getByRole("heading", {
+      name: /^Desserts$/
+    });
+    await expect(dessertHeading).toBeVisible();
+    const phoneMenuScrollArea = targetedPhoneViewport
+      .locator('[class*="menuScrollArea"]')
+      .first();
+    await expect
+      .poll(
+        async () => {
+          const [dessertBox, scrollAreaBox] = await Promise.all([
+            dessertHeading.boundingBox(),
+            phoneMenuScrollArea.boundingBox()
+          ]);
+
+          if (!dessertBox || !scrollAreaBox) return false;
+
+          const scrollAreaTop = scrollAreaBox.y;
+          const scrollAreaBottom = scrollAreaBox.y + scrollAreaBox.height;
+
+          return (
+            dessertBox.y >= scrollAreaTop - 1 &&
+            dessertBox.y < scrollAreaBottom - 24
+          );
+        },
+        { message: "selected section should remain in the phone viewport" }
+      )
+      .toBe(true);
+    await expectNoHorizontalOverflow(page);
     health.expectClean();
   });
 });
