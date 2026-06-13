@@ -242,6 +242,18 @@
   line-height: 1.32;
 }
 
+.phonePreview .categoryGrid {
+  grid-template-columns: 1fr;
+}
+
+.phonePreview .categoryCard {
+  min-height: 138px;
+}
+
+.phonePreview .categoryCard strong {
+  font-size: 30px;
+}
+
 .featured,
 .menuPanel {
   display: grid;
