@@ -306,20 +306,19 @@ test.describe("Vistaire MVP smoke", () => {
     await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
     await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
-    const homardLink = page.getByRole("link", { name: /Homard bleu/i });
-    await expect(homardLink).toHaveAttribute(
-      "href",
-      "/menu/maison-elyse/dishes/homard-bisque"
-    );
-    await expect(homardLink).toBeVisible();
+    const visibleDishButton = phoneViewport.getByRole("button", { name: /Ravioles/i });
+    await expect(visibleDishButton).toBeVisible();
 
     expect(modelRequests).toEqual([]);
     await expectNoHorizontalOverflow(page);
     health.expectClean();
 
-    await homardLink.click();
-    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\/homard-bisque$/);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await visibleDishButton.click();
+    await expect(page).toHaveURL(/\/demo$/);
+    await expect(
+      phoneViewport.getByRole("heading", { level: 1, name: /Ravioles/i })
+    ).toBeVisible();
+    await expect(phoneViewport.getByRole("button", { name: /Retour . la carte/i })).toBeVisible();
   });
 
   test("pricing and card routes expose the clean public Vistaire offer", async ({
