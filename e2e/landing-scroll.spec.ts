@@ -151,18 +151,42 @@ test.describe("Menu and dish regression", () => {
     const modelAssetRequests = collectModelAssetRequests(page);
 
     await page.goto("/demo", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(
+      page
+        .getByTestId("demo-phone-viewport")
+        .getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
     expect(modelAssetRequests).toEqual([]);
 
-    await page.getByRole("link", { name: /Homard bleu/i }).click();
-    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\/homard-bisque$/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Homard/i);
+    await page
+      .getByTestId("demo-phone-viewport")
+      .getByRole("button", { name: "Voir toute la carte" })
+      .click();
+    await expect(
+      page.getByTestId("demo-phone-viewport").getByRole("heading", { name: "LA CARTE" })
+    ).toBeVisible();
+
+    await page
+      .getByTestId("demo-phone-viewport")
+      .getByRole("button", { name: /Ravioles/i })
+      .click();
+    await expect(page).toHaveURL(/\/demo$/);
+    await expect(
+      page
+        .getByTestId("demo-phone-viewport")
+        .getByRole("heading", { level: 1, name: /Ravioles/i })
+    ).toBeVisible();
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(modelAssetRequests).toEqual([]);
 
-    await page.getByRole("link", { name: /Retour . la carte/i }).click();
-    await expect(page).toHaveURL(/\/menu\/maison-elyse\?view=carte$/);
+    await page
+      .getByTestId("demo-phone-viewport")
+      .getByRole("button", { name: /Retour . la carte/i })
+      .click();
+    await expect(
+      page.getByTestId("demo-phone-viewport").getByRole("heading", { name: "LA CARTE" })
+    ).toBeVisible();
   });
 
   test("/admin still loads as the public noindex restaurant preview", async ({

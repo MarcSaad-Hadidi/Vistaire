@@ -78,7 +78,6 @@ export function DemoPhoneShowcase({ menu }: DemoPhoneShowcaseProps) {
                   displayMode="phone-preview"
                   menu={menu}
                   showGoogleReview={false}
-                  startFullMenu
                 />
               </div>
             </div>

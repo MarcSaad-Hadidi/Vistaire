@@ -38,6 +38,8 @@ type MaisonElyseDishDetailProps = {
   menu: PublicMenu;
   dish: PublicMenuDish;
   query?: PublicMenuContextQuery;
+  displayMode?: "public" | "phone-preview";
+  onBackToMenu?: () => void;
 };
 
 const ALLERGEN_LABELS: Record<string, string> = {
@@ -199,7 +201,9 @@ function DetailList({ items }: { items: string[] }) {
 export function MaisonElyseDishDetail({
   menu,
   dish,
-  query
+  query,
+  displayMode = "public",
+  onBackToMenu
 }: MaisonElyseDishDetailProps) {
   const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildFullMenuHref(menu, query);
@@ -232,11 +236,21 @@ export function MaisonElyseDishDetail({
   }
 
   return (
-    <main className={styles.page}>
+    <main
+      className={`${styles.page} ${
+        displayMode === "phone-preview" ? styles.phonePreview : ""
+      }`}
+    >
       <nav className={styles.topNav} aria-label="Navigation fiche plat">
-        <Link href={menuHref} prefetch={false}>
-          Retour à la carte
-        </Link>
+        {onBackToMenu ? (
+          <button type="button" onClick={onBackToMenu}>
+            Retour à la carte
+          </button>
+        ) : (
+          <Link href={menuHref} prefetch={false}>
+            Retour à la carte
+          </Link>
+        )}
         <span>{restaurantName}</span>
       </nav>
 

@@ -280,12 +280,66 @@ test.describe("Maison Elyse public QR menu", () => {
     );
     await expect(page.getByTestId("demo-phone-mockup")).toBeVisible();
     await expect(page.getByTestId("demo-phone-viewport")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    const phoneViewport = page.getByTestId("demo-phone-viewport");
+    await expect(
+      phoneViewport.getByRole("heading", {
+        level: 1,
+        name: /Bienvenue chez Maison/i
+      })
+    ).toBeVisible();
+    await expect(phoneViewport.getByText("LA COLLECTION")).toHaveCount(0);
+    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toHaveCount(0);
+    await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+    await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
+    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    await phoneViewport.getByRole("button", { name: /Ravioles/i }).click();
+    await expect(page).toHaveURL(/\/demo$/);
+    await expect(
+      phoneViewport.getByRole("heading", { level: 1, name: /Ravioles/i })
+    ).toBeVisible();
+    await expect(phoneViewport.getByRole("button", { name: /Retour . la carte/i })).toBeVisible();
+    await phoneViewport.getByRole("button", { name: /Retour . la carte/i }).click();
+    await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
     await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Aper.u t.l.phone/i })).toHaveCount(0);
     await expect(page.locator('a[class*="dishRow"]')).toHaveCount(0);
     await expect(page.locator("model-viewer")).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+
+    await expectHealthyResponse(
+      await page.goto("/demo", { waitUntil: "domcontentloaded" })
+    );
+    const targetedPhoneViewport = page.getByTestId("demo-phone-viewport");
+    await targetedPhoneViewport.getByRole("button", { name: /Desserts/i }).click();
+    await expect(targetedPhoneViewport.getByText("LA COLLECTION")).toBeVisible();
+    const dessertHeading = targetedPhoneViewport.getByRole("heading", {
+      name: /^Desserts$/
+    });
+    await expect(dessertHeading).toBeVisible();
+    const phoneMenuScrollArea = targetedPhoneViewport
+      .locator('[class*="menuScrollArea"]')
+      .first();
+    await expect
+      .poll(
+        async () => {
+          const [dessertBox, scrollAreaBox] = await Promise.all([
+            dessertHeading.boundingBox(),
+            phoneMenuScrollArea.boundingBox()
+          ]);
+
+          if (!dessertBox || !scrollAreaBox) return false;
+
+          const scrollAreaTop = scrollAreaBox.y;
+          const scrollAreaBottom = scrollAreaBox.y + scrollAreaBox.height;
+
+          return (
+            dessertBox.y >= scrollAreaTop - 1 &&
+            dessertBox.y < scrollAreaBottom - 24
+          );
+        },
+        { message: "selected section should remain in the phone viewport" }
+      )
+      .toBe(true);
     await expectNoHorizontalOverflow(page);
     health.expectClean();
   });

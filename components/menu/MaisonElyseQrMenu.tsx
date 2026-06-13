@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +16,21 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import styles from "./MaisonElyseQrMenu.module.css";
+
+const PhonePreviewDishDetail = dynamic(
+  () =>
+    import("@/components/menu/MaisonElyseDishDetail").then(
+      (mod) => mod.MaisonElyseDishDetail
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.detailLoading} role="status" aria-live="polite">
+        Chargement de la fiche...
+      </div>
+    )
+  }
+);
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
@@ -304,48 +320,69 @@ function CategoryCard({
 function DishCard({
   dish,
   menu,
+  onSelectDish,
   query
 }: {
   dish: PublicMenuDish;
   menu: PublicMenu;
+  onSelectDish?: (dish: PublicMenuDish) => void;
   query?: PublicMenuContextQuery;
 }) {
   const badges = dishBadges(dish);
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
+  const ariaLabel = `${dish.name}. ${dish.priceLabel || ""} Voir la fiche plat.`;
+  const content = (
+    <>
+      <span className={styles.dishImage} aria-hidden="true">
+        {dish.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img loading="lazy" src={dish.thumbnailUrl || dish.imageUrl} alt="" />
+        ) : (
+          <span>{menu.name.slice(0, 1)}</span>
+        )}
+      </span>
+      <span className={styles.dishCopy}>
+        <span className={styles.dishName}>{dish.name}</span>
+        {dish.description ? (
+          <span className={styles.dishDescription}>{shortDescription(dish)}</span>
+        ) : null}
+        {badges.length > 0 ? (
+          <span className={styles.badges} aria-label={`Badges: ${badges.join(", ")}`}>
+            {badges.map((badge) => (
+              <span key={badge}>{badge}</span>
+            ))}
+          </span>
+        ) : null}
+        {dish.priceLabel ? (
+          <strong className={styles.dishPrice}>{dish.priceLabel}</strong>
+        ) : null}
+      </span>
+    </>
+  );
 
   return (
     <li className={styles.dishItem}>
-      <Link
-        aria-label={`${dish.name}. ${dish.priceLabel || ""} Voir la fiche plat.`}
-        className={styles.dishCard}
-        href={href}
-        prefetch={false}
-      >
-        <span className={styles.dishImage} aria-hidden="true">
-          {dish.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img loading="lazy" src={dish.thumbnailUrl || dish.imageUrl} alt="" />
-          ) : (
-            <span>{menu.name.slice(0, 1)}</span>
-          )}
-        </span>
-        <span className={styles.dishCopy}>
-          <span className={styles.dishName}>{dish.name}</span>
-          {dish.description ? (
-            <span className={styles.dishDescription}>{shortDescription(dish)}</span>
-          ) : null}
-          {badges.length > 0 ? (
-            <span className={styles.badges} aria-label={`Badges: ${badges.join(", ")}`}>
-              {badges.map((badge) => (
-                <span key={badge}>{badge}</span>
-              ))}
-            </span>
-          ) : null}
-          {dish.priceLabel ? (
-            <strong className={styles.dishPrice}>{dish.priceLabel}</strong>
-          ) : null}
-        </span>
-      </Link>
+      {onSelectDish ? (
+        <button
+          aria-label={ariaLabel}
+          className={styles.dishCard}
+          data-dish-card="true"
+          onClick={() => onSelectDish(dish)}
+          type="button"
+        >
+          {content}
+        </button>
+      ) : (
+        <Link
+          aria-label={ariaLabel}
+          className={styles.dishCard}
+          data-dish-card="true"
+          href={href}
+          prefetch={false}
+        >
+          {content}
+        </Link>
+      )}
     </li>
   );
 }
@@ -353,11 +390,13 @@ function DishCard({
 function DishSection({
   dishes,
   menu,
+  onSelectDish,
   query,
   title
 }: {
   dishes: PublicMenuDish[];
   menu: PublicMenu;
+  onSelectDish?: (dish: PublicMenuDish) => void;
   query?: PublicMenuContextQuery;
   title: string;
 }) {
@@ -380,7 +419,13 @@ function DishSection({
       </div>
       <ul className={styles.dishList}>
         {dishes.map((dish) => (
-          <DishCard dish={dish} key={dish.id} menu={menu} query={query} />
+          <DishCard
+            dish={dish}
+            key={dish.id}
+            menu={menu}
+            onSelectDish={onSelectDish}
+            query={query}
+          />
         ))}
       </ul>
     </section>
@@ -399,8 +444,12 @@ export function MaisonElyseQrMenu({
   );
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [activeSheet, setActiveSheet] = useState<SheetId>(null);
+  const [activeDish, setActiveDish] = useState<PublicMenuDish | null>(null);
   const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLElement | null>(null);
+  const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const phonePreviewScrollParentRef = useRef<HTMLElement | null>(null);
+  const skipNextPhonePreviewAutoScrollRef = useRef(false);
   const groups = useMemo(() => getPublicMenuCategoryGroups(menu.dishes), [menu.dishes]);
   const categories = useMemo(
     () => getVisiblePublicMenuCategories(menu.dishes).sort(categorySort),
@@ -460,15 +509,67 @@ export function MaisonElyseQrMenu({
 
     const frameId = window.requestAnimationFrame(() => {
       const sectionId = sectionDomId(pendingSectionLabel);
-      document.getElementById(sectionId)?.scrollIntoView({
-        behavior: getScrollBehavior(),
-        block: "start"
-      });
+      const section = document.getElementById(sectionId);
+      const scrollArea = menuScrollAreaRef.current;
+
+      if (displayMode === "phone-preview" && section && scrollArea?.contains(section)) {
+        const scrollAreaRect = scrollArea.getBoundingClientRect();
+        const sectionRect = section.getBoundingClientRect();
+        scrollArea.scrollTo({
+          behavior: getScrollBehavior(),
+          top: Math.max(
+            0,
+            sectionRect.top - scrollAreaRect.top + scrollArea.scrollTop
+          )
+        });
+      } else {
+        section?.scrollIntoView({
+          behavior: getScrollBehavior(),
+          block: "start"
+        });
+      }
       setPendingSectionLabel(null);
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, pendingSectionLabel]);
+  }, [activeCategory, displayMode, pendingSectionLabel]);
+
+  useEffect(() => {
+    if (displayMode !== "phone-preview" || !activeCategory || pendingSectionLabel) {
+      return;
+    }
+
+    if (skipNextPhonePreviewAutoScrollRef.current) {
+      skipNextPhonePreviewAutoScrollRef.current = false;
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const scrollArea = menuScrollAreaRef.current;
+      if (!scrollArea) return;
+
+      scrollArea.scrollTop = 0;
+
+      const firstDish = scrollArea.querySelector<HTMLElement>('[data-dish-card="true"]');
+      if (!firstDish) return;
+
+      const scrollAreaRect = scrollArea.getBoundingClientRect();
+      const firstDishRect = firstDish.getBoundingClientRect();
+      const firstDishOverflow = firstDishRect.bottom - scrollAreaRect.bottom;
+      if (firstDishOverflow <= 0) return;
+
+      const collectionLabel = Array.from(scrollArea.querySelectorAll<HTMLElement>("p")).find(
+        (element) => element.textContent?.trim() === "LA COLLECTION"
+      );
+      const maxScrollKeepingCollection = collectionLabel
+        ? Math.max(0, collectionLabel.getBoundingClientRect().top - scrollAreaRect.top)
+        : Number.POSITIVE_INFINITY;
+
+      scrollArea.scrollTop = Math.min(Math.ceil(firstDishOverflow + 2), maxScrollKeepingCollection);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeCategory, displayMode, pendingSectionLabel, visibleDishes.length]);
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
@@ -480,6 +581,7 @@ export function MaisonElyseQrMenu({
   }
 
   function selectCategory(categoryId: string | null) {
+    skipNextPhonePreviewAutoScrollRef.current = false;
     setActiveCategory(categoryId);
     setActiveFilter("all");
     setActiveSheet(null);
@@ -488,6 +590,7 @@ export function MaisonElyseQrMenu({
   }
 
   function openCategoryInFullMenu(categoryLabel: string) {
+    skipNextPhonePreviewAutoScrollRef.current = displayMode === "phone-preview";
     setPendingSectionLabel(categoryLabel);
     setActiveCategory(ALL_CATEGORY_ID);
     setActiveFilter("all");
@@ -508,6 +611,35 @@ export function MaisonElyseQrMenu({
     );
   }
 
+  function scrollPhonePreviewToTop() {
+    const scrollParent = phonePreviewScrollParentRef.current;
+    if (!scrollParent) return;
+
+    requestAnimationFrame(() => {
+      scrollParent.scrollTo({
+        top: 0,
+        behavior: "auto"
+      });
+    });
+  }
+
+  function openDishInPhonePreview(dish: PublicMenuDish) {
+    if (displayMode !== "phone-preview") return;
+
+    phonePreviewScrollParentRef.current =
+      menuScrollAreaRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
+      menuRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
+      null;
+    setActiveSheet(null);
+    setActiveDish(dish);
+    scrollPhonePreviewToTop();
+  }
+
+  function closeDishInPhonePreview() {
+    setActiveDish(null);
+    scrollPhonePreviewToTop();
+  }
+
   const categoryImages = new Map(
     categories.map((category) => {
       const categoryDishes = groups.get(category.label) ?? [];
@@ -522,6 +654,20 @@ export function MaisonElyseQrMenu({
       ];
     })
   );
+  const phonePreviewDishSelect =
+    displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
+
+  if (displayMode === "phone-preview" && activeDish) {
+    return (
+      <PhonePreviewDishDetail
+        dish={activeDish}
+        displayMode="phone-preview"
+        menu={menu}
+        onBackToMenu={closeDishInPhonePreview}
+        query={query}
+      />
+    );
+  }
 
   return (
     <main
@@ -570,7 +716,13 @@ export function MaisonElyseQrMenu({
                 </div>
                 <ul className={styles.previewList}>
                   {featuredDishes.map((dish) => (
-                    <DishCard dish={dish} key={dish.id} menu={menu} query={query} />
+                    <DishCard
+                      dish={dish}
+                      key={dish.id}
+                      menu={menu}
+                      onSelectDish={phonePreviewDishSelect}
+                      query={query}
+                    />
                   ))}
                 </ul>
               </section>
@@ -578,74 +730,78 @@ export function MaisonElyseQrMenu({
           </>
         ) : (
           <section className={styles.menuPanel} aria-labelledby="active-category-heading">
-            <div
-              className={styles.menuCover}
-              style={
-                menuHeroImage
-                  ? ({ "--menu-hero-image": `url("${menuHeroImage}")` } as CSSProperties)
-                  : undefined
-              }
-            >
-              <div className={styles.menuCoverTopbar}>
-                <span className={styles.menuRestaurantName}>Maison Élyse</span>
-                <button
-                  aria-label="Ouvrir la navigation de la carte"
-                  type="button"
-                  onClick={() => setActiveSheet("menu")}
-                >
-                  <span aria-hidden="true" />
-                  <span aria-hidden="true" />
-                </button>
-              </div>
-              <div className={styles.menuCoverCopy}>
-                <p className={styles.kicker}>LA COLLECTION</p>
-                <h2 id="active-category-heading">LA CARTE</h2>
-                <span aria-hidden="true" />
-                <p>
-                  Une sélection de créations servies par section, pensées pour être
-                  explorées directement à table.
-                </p>
-              </div>
-            </div>
-
-            {hasActiveFilter ? (
-              <div className={styles.activeFilterNotice} role="status">
-                <span>Filtre actif : {getFilterLabel(activeFilter)}</span>
-                <button type="button" onClick={resetFilters}>
-                  Réinitialiser
-                </button>
-              </div>
-            ) : null}
-
-            {visibleDishes.length > 0 ? (
-              activeCategory === ALL_CATEGORY_ID ? (
-                <div className={styles.sectionedDishList}>
-                  {visibleDishSections.map((section) => (
-                    <DishSection
-                      dishes={section.dishes}
-                      key={section.id}
-                      menu={menu}
-                      query={query}
-                      title={section.label}
-                    />
-                  ))}
+            <div className={styles.menuScrollArea} ref={menuScrollAreaRef}>
+              <div
+                className={styles.menuCover}
+                style={
+                  menuHeroImage
+                    ? ({ "--menu-hero-image": `url("${menuHeroImage}")` } as CSSProperties)
+                    : undefined
+                }
+              >
+                <div className={styles.menuCoverTopbar}>
+                  <span className={styles.menuRestaurantName}>Maison Élyse</span>
+                  <button
+                    aria-label="Ouvrir la navigation de la carte"
+                    type="button"
+                    onClick={() => setActiveSheet("menu")}
+                  >
+                    <span aria-hidden="true" />
+                    <span aria-hidden="true" />
+                  </button>
                 </div>
-              ) : (
-                <DishSection
-                  dishes={visibleDishes}
-                  menu={menu}
-                  query={query}
-                  title={activeCategoryLabel}
-                />
-              )
-            ) : (
-              <div className={styles.empty} role="status">
-                <p>Aucun plat dans cette sélection</p>
-                <button type="button" onClick={showAll}>
-                  Voir toute la carte
-                </button>
+                <div className={styles.menuCoverCopy}>
+                  <p className={styles.kicker}>LA COLLECTION</p>
+                  <h2 id="active-category-heading">LA CARTE</h2>
+                  <span aria-hidden="true" />
+                  <p>
+                    Une sélection de créations servies par section, pensées pour être
+                    explorées directement à table.
+                  </p>
+                </div>
               </div>
-            )}
+
+              {hasActiveFilter ? (
+                <div className={styles.activeFilterNotice} role="status">
+                  <span>Filtre actif : {getFilterLabel(activeFilter)}</span>
+                  <button type="button" onClick={resetFilters}>
+                    Réinitialiser
+                  </button>
+                </div>
+              ) : null}
+
+              {visibleDishes.length > 0 ? (
+                activeCategory === ALL_CATEGORY_ID ? (
+                  <div className={styles.sectionedDishList}>
+                    {visibleDishSections.map((section) => (
+                      <DishSection
+                        dishes={section.dishes}
+                        key={section.id}
+                        menu={menu}
+                        onSelectDish={phonePreviewDishSelect}
+                        query={query}
+                        title={section.label}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <DishSection
+                    dishes={visibleDishes}
+                    menu={menu}
+                    onSelectDish={phonePreviewDishSelect}
+                    query={query}
+                    title={activeCategoryLabel}
+                  />
+                )
+              ) : (
+                <div className={styles.empty} role="status">
+                  <p>Aucun plat dans cette sélection</p>
+                  <button type="button" onClick={showAll}>
+                    Voir toute la carte
+                  </button>
+                </div>
+              )}
+            </div>
 
             <nav className={styles.bottomBar} aria-label="Navigation carte et filtres">
               <button

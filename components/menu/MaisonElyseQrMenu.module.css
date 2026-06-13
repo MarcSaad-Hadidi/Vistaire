@@ -55,6 +55,7 @@
 }
 
 .phonePreview {
+  height: 100%;
   min-height: 100%;
   padding: 0;
 }
@@ -65,6 +66,9 @@
 }
 
 .phonePreview.isMenuMode {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding-bottom: 0;
 }
 
@@ -91,6 +95,11 @@
   width: 100%;
   max-width: none;
   padding: 0;
+}
+
+.phonePreview.isMenuMode .sections {
+  height: 100%;
+  min-height: 0;
 }
 
 .hero {
@@ -233,6 +242,18 @@
   line-height: 1.32;
 }
 
+.phonePreview .categoryGrid {
+  grid-template-columns: 1fr;
+}
+
+.phonePreview .categoryCard {
+  min-height: 138px;
+}
+
+.phonePreview .categoryCard strong {
+  font-size: 30px;
+}
+
 .featured,
 .menuPanel {
   display: grid;
@@ -245,6 +266,33 @@
 
 .menuPanel {
   padding: 0 0 calc(92px + env(safe-area-inset-bottom));
+}
+
+.menuScrollArea {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.phonePreview .menuPanel {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.phonePreview .menuScrollArea {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 18px;
+  scrollbar-color: rgba(232, 207, 155, 0.22) transparent;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .menuCover {
@@ -434,12 +482,18 @@
 
 .dishCard {
   display: grid;
+  width: 100%;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) 82px;
   gap: 16px;
   align-items: start;
+  border: 0;
+  background: transparent;
   color: inherit;
+  cursor: pointer;
+  font: inherit;
   padding: 24px 0 26px;
+  text-align: left;
   text-decoration: none;
 }
 
@@ -543,6 +597,17 @@
   font-weight: 800;
 }
 
+.detailLoading {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  background: var(--elyse-bg);
+  color: var(--elyse-champagne);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .bottomBar {
   position: fixed;
   z-index: 40;
@@ -566,11 +631,16 @@
 }
 
 .phonePreview .bottomBar {
-  right: max(10px, env(safe-area-inset-right));
-  bottom: calc(10px + env(safe-area-inset-bottom));
-  left: max(10px, env(safe-area-inset-left));
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
   width: auto;
   max-width: none;
+  margin: 0 max(10px, env(safe-area-inset-right))
+    calc(10px + env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
+  transform: none;
 }
 
 .bottomBar button {
@@ -605,6 +675,7 @@
 }
 
 .phonePreview .sheetBackdrop {
+  position: absolute;
   padding: 10px;
 }
 
@@ -846,11 +917,53 @@
     width: min(420px, calc(100% - 28px));
     transform: translateX(-50%);
   }
+
+  .phonePreview .bottomBar {
+    width: auto;
+    transform: none;
+  }
 }
 
 @media (max-width: 560px) {
   .phonePreview {
+    height: auto;
     min-height: 0;
+    padding: 14px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .phonePreview .hero,
+  .phonePreview .sections {
+    width: min(100%, 760px);
+    margin-inline: auto;
+  }
+
+  .phonePreview .sections {
+    max-width: 760px;
+    padding-top: 4px;
+  }
+
+  .phonePreview.isMenuMode {
+    height: calc(100svh - 154px);
+    min-height: 520px;
+    max-height: 780px;
+    overflow: hidden;
+  }
+
+  .phonePreview.isMenuMode .sections,
+  .phonePreview.isMenuMode .menuPanel {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .phonePreview .menuScrollArea {
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-bottom: 18px;
+  }
+
+  .phonePreview .sheetBackdrop {
+    position: fixed;
   }
 }
 
