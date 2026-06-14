@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 };
 
 export default async function VistaireMenuPageEn() {
-  const menu = await getPublicMenuBySlug("maison-elyse");
+  const menu = await getPublicMenuBySlug("maison-elyse", "en");
 
   if (!menu) {
     notFound();

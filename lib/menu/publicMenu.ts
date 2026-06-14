@@ -10,6 +10,7 @@ import {
   getCategoryBySlug,
   getRestaurant
 } from "@/lib/demoMenuData";
+import type { Locale } from "@/lib/i18n";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import {
   buildSupabasePublicMenu,
@@ -20,9 +21,12 @@ import {
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
-function demoMenu(slug: string): PublicMenu {
-  const restaurant = getRestaurant();
-  const dishes = getAllDishes();
+function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
+  const restaurant = getRestaurant(locale);
+  const dishes = getAllDishes(locale);
+  const recommendedTag = locale === "en" ? "Recommended" : "Recommandé";
+  const unavailableTag = locale === "en" ? "Unavailable" : "Indisponible";
+
   return {
     restaurantId: getDemoRestaurantId(),
     slug,
@@ -36,7 +40,9 @@ function demoMenu(slug: string): PublicMenu {
       slug: dish.slug || `demo-${index}`,
       name: dish.name,
       description: dish.description ?? "",
-      category: getCategoryBySlug(dish.categorySlug ?? "")?.name ?? "Carte",
+      category:
+        getCategoryBySlug(dish.categorySlug ?? "", locale)?.name ??
+        (locale === "en" ? "Menu" : "Carte"),
       priceLabel: dish.price ? `$${dish.price}` : "",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
@@ -76,21 +82,22 @@ function demoMenu(slug: string): PublicMenu {
       houseNote: dish.chefRecommendation,
       tags: [
         dish.isSignature ? "Signature" : "",
-        dish.isRecommended ? "Recommandé" : "",
-        dish.isAvailable ? "" : "Indisponible"
+        dish.isRecommended ? recommendedTag : "",
+        dish.isAvailable ? "" : unavailableTag
       ].filter(Boolean)
     }))
   };
 }
 
 export async function getPublicMenuBySlug(
-  rawSlug: string
+  rawSlug: string,
+  locale: Locale = "fr"
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
   if (!slug) return null;
 
   if (slug === "maison-elyse") {
-    return demoMenu(slug);
+    return demoMenu(slug, locale);
   }
 
   const restaurantsResult = await readSupabaseRows("restaurants", 200);
@@ -103,7 +110,7 @@ export async function getPublicMenuBySlug(
 
   const restaurantId = getString(match, ["id", "restaurant_id"], "");
   if (restaurantId === getDemoRestaurantId()) {
-    return demoMenu(slug);
+    return demoMenu(slug, locale);
   }
 
   const dishesResult = await readSupabaseRows("menu_dishes", 1_000);

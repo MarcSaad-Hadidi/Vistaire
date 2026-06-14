@@ -13,6 +13,7 @@ const dishDetailCssPath = "components/menu/MaisonElyseDishDetail.module.css";
 const demoShowcasePath = "components/vistaire-preview/DemoPhoneShowcase.tsx";
 const demoShowcaseCssPath =
   "components/vistaire-preview/DemoPhoneShowcase.module.css";
+const publicMenuPath = "lib/menu/publicMenu.ts";
 
 test("Maison Elyse public menu is the only dedicated QR table experience", async () => {
   const source = await readFile(pagePath, "utf8");
@@ -22,6 +23,19 @@ test("Maison Elyse public menu is the only dedicated QR table experience", async
   assert.match(source, /startFullMenu=\{query\.view === "carte"\}/);
   assert.match(source, /PublicMenuRenderer/);
   assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
+});
+
+test("Maison Elyse demo public menu can be built with localized sample data", async () => {
+  const source = await readFile(publicMenuPath, "utf8");
+
+  assert.match(source, /function demoMenu\(slug: string, locale: Locale = "fr"\)/);
+  assert.match(source, /getRestaurant\(locale\)/);
+  assert.match(source, /getAllDishes\(locale\)/);
+  assert.match(source, /getCategoryBySlug\(dish\.categorySlug \?\? "", locale\)/);
+  assert.match(source, /recommendedTag/);
+  assert.match(source, /unavailableTag/);
+  assert.match(source, /getPublicMenuBySlug\([\s\S]*locale: Locale = "fr"/);
+  assert.match(source, /return demoMenu\(slug, locale\)/);
 });
 
 test("Maison Elyse dish detail is dedicated while generic public details remain intact", async () => {
@@ -102,6 +116,14 @@ test("Maison Elyse QR menu starts with welcome and visual category navigation", 
 
   assert.match(component, /getVisiblePublicMenuCategories/);
   assert.match(component, /getPublicMenuCategoryGroups/);
+  assert.match(component, /locale\?: Locale/);
+  assert.match(component, /Welcome to Maison/);
+  assert.match(component, /Table menu/);
+  assert.match(component, /Starters/);
+  assert.match(component, /Signature dishes/);
+  assert.match(component, /View the full menu/);
+  assert.match(component, /THE COLLECTION/);
+  assert.match(component, /THE MENU/);
   assert.doesNotMatch(component, /heroDish/);
   assert.doesNotMatch(component, /heroVisual/);
   assert.doesNotMatch(component, /Découvrir la carte/);
@@ -117,7 +139,7 @@ test("Maison Elyse QR menu starts with welcome and visual category navigation", 
   assert.match(component, /visibleDishSections/);
   assert.match(component, /categoryAnchorId/);
   assert.match(component, /sectionDomId/);
-  assert.match(component, /data-testid=\{`maison-section-\$\{categoryAnchorId\(category\.label\)\}`\}/);
+  assert.match(component, /data-testid=\{`maison-section-\$\{categoryAnchorId\(category\.label, locale\)\}`\}/);
   assert.match(component, /id=\{sectionId\}/);
   assert.match(component, /headingId/);
   assert.match(component, /menuCover/);
@@ -174,6 +196,12 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.match(component, /Filtrer la carte/);
   assert.match(component, /La carte/);
   assert.match(component, /Filtre actif/);
+  assert.match(component, /Recommended/);
+  assert.match(component, /Available/);
+  assert.match(component, /Gluten-free/);
+  assert.match(component, /Dairy-free/);
+  assert.match(component, /Filter the menu/);
+  assert.match(component, /Active filter/);
   assert.doesNotMatch(component, /Tous les plats/);
   assert.doesNotMatch(component, /Les créations Maison Élyse/);
   assert.doesNotMatch(component, /plats disponibles/);
@@ -216,7 +244,7 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
   assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse"\)/);
   assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
   assert.match(englishDemoPage, /DemoPhoneShowcase/);
-  assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse"\)/);
+  assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse",\s*"en"\)/);
   assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
   assert.match(menuComponent, /displayMode\?: "public" \| "phone-preview"/);
@@ -226,6 +254,7 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
 
   assert.match(showcase, /MaisonElyseQrMenu/);
   assert.match(showcase, /displayMode="phone-preview"/);
+  assert.match(showcase, /locale=\{locale\}/);
   assert.match(showcase, /showGoogleReview=\{false\}/);
   assert.doesNotMatch(showcase, /startFullMenu/);
   assert.match(showcase, /data-testid="demo-phone-mockup"/);
@@ -242,4 +271,18 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
   assert.match(showcaseCss, /\.phoneViewport[\s\S]*overflow-y:\s*auto/);
   assert.match(showcaseCss, /\.phoneViewport[\s\S]*transform:\s*translateZ\(0\)/);
   assert.match(showcaseCss, /@media \(max-width: 560px\)/);
+});
+
+test("Maison Elyse phone detail can render localized English copy", async () => {
+  const component = await readFile(dishDetailPath, "utf8");
+
+  assert.match(component, /locale\?: Locale/);
+  assert.match(component, /Back to menu/);
+  assert.match(component, /Dish details/);
+  assert.match(component, /View in 3D/);
+  assert.match(component, /Augmented reality/);
+  assert.match(component, /Allergens/);
+  assert.match(component, /Chef's note/);
+  assert.match(component, /Recommended/);
+  assert.match(component, /Unavailable/);
 });

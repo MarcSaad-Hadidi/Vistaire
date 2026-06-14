@@ -88,6 +88,7 @@ export function DemoPhoneShowcase({
               >
                 <MaisonElyseQrMenu
                   displayMode="phone-preview"
+                  locale={locale}
                   menu={menu}
                   showGoogleReview={false}
                 />
