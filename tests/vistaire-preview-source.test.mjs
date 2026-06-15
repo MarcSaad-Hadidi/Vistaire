@@ -350,14 +350,20 @@ test("vistaire PDF vs menu digital preview is premium, SEO-readable, and convers
   assert.match(component, /vistaireDishSlugs:\s*getAllDishes\(locale\)\.map/);
   assert.match(component, /preview=\{comparePreview\}/);
   assert.match(component, /className=\{styles\.compareSlider\}/);
-  assert.match(sliderComponent, /const activeTabs = preview\.categoryTabs/);
+  assert.match(
+    sliderComponent,
+    /const featuredDish = preview\.featuredDish \?\? preview\.vistaireDishes\[0\]/
+  );
   assert.doesNotMatch(sliderComponent, /slice\(0,\s*4\)/);
   assert.match(sliderComponent, /requestAnimationFrame/);
-  assert.match(sliderCss, /\.dishList[\s\S]*overflow-y: auto/);
+  assert.match(sliderCss, /\.categoryGrid[\s\S]*overflow-y: auto/);
   assert.match(sliderCss, /will-change:\s*clip-path/);
-  assert.match(sliderComponent, /Maison ?lyse|restaurant\.name/);
-  assert.match(sliderComponent, /D?mo interactive Vistaire|Démo interactive Vistaire/);
-  assert.match(sliderComponent, /Aper?u t?l?phone|Aperçu téléphone/);
+  assert.match(sliderComponent, /Bienvenue chez Maison/);
+  assert.match(sliderComponent, /Suggestion du chef/);
+  assert.match(sliderComponent, /Voir toute la carte/);
+  assert.doesNotMatch(sliderComponent, /D?mo interactive Vistaire|Démo interactive Vistaire/);
+  assert.doesNotMatch(sliderComponent, /Rechercher un plat/);
+  assert.doesNotMatch(sliderComponent, /Aper?u t?l?phone|Aperçu téléphone/);
   assert.doesNotMatch(component, /pageCarte\.png/);
   assert.doesNotMatch(component, /PlatHomard\.png/);
   assert.doesNotMatch(component, /plateCard/);

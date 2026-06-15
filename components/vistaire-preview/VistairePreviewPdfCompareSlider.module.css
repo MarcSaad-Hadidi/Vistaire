@@ -160,256 +160,207 @@
 .previewMenu {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 9px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 0%, rgba(232, 207, 155, 0.12), transparent 34%),
-    linear-gradient(180deg, #100a06, #070504 48%, #050403);
+    radial-gradient(circle at 50% 0%, rgba(232, 207, 155, 0.12), transparent 36%),
+    linear-gradient(180deg, #170b05 0%, #100704 22%, #070504 68%, #050403 100%);
   color: #fff7ea;
   font-family: var(--vistaire-font-body);
+  padding: 29px 12px 12px;
 }
 
 .previewHeader {
-  padding: 28px 14px 10px;
-  border-bottom: 1px solid rgba(255, 246, 225, 0.08);
-  text-align: center;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
-.previewBrandRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.previewEyebrow,
-.phoneBadge,
-.statusText {
+.previewEyebrow {
   margin: 0;
-  color: rgba(232, 207, 155, 0.82);
+  color: #e8cf9b;
   font-size: 8.5px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
-.previewBrandRow span {
-  flex: 0 0 auto;
-  border: 1px solid rgba(232, 207, 155, 0.42);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.05);
-  padding: 4px 8px;
-  color: rgba(232, 207, 155, 0.96);
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 .previewHeader h3 {
-  margin: 8px 0 0;
+  max-width: 250px;
+  margin: 0;
   color: #fffaf0;
   font-family: var(--vistaire-font-display);
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 400;
-  line-height: 1;
+  line-height: 0.94;
 }
 
 .previewTagline {
-  max-width: 250px;
-  margin: 5px auto 0;
-  color: rgba(244, 229, 205, 0.72);
-  font-size: 9.5px;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
-.phoneBadge {
-  width: max-content;
-  margin: 8px auto 0;
-  border: 1px solid rgba(232, 207, 155, 0.44);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.055);
-  padding: 5px 9px;
-  color: rgba(255, 247, 234, 0.82);
-}
-
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 5px;
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 246, 225, 0.08);
-}
-
-.tab {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 22px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 246, 225, 0.13);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.045);
-  padding: 0 4px;
-  color: rgba(244, 229, 205, 0.78);
-  font-size: 7.8px;
+  max-width: 270px;
+  margin: 0;
+  color: rgba(244, 235, 221, 0.86);
+  font-size: 10.5px;
   font-weight: 700;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
+  line-height: 1.38;
 }
 
-.tabActive {
-  border-color: rgba(232, 207, 155, 0.56);
-  background: rgba(232, 207, 155, 0.12);
-  color: #fff7ea;
-}
-
-.menuTools {
+.categoryGrid {
   display: grid;
-  gap: 6px;
-  padding: 8px 10px 7px;
-}
-
-.searchMock {
-  height: 29px;
-  border: 1px solid rgba(255, 250, 240, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.055);
-  color: rgba(244, 229, 205, 0.62);
-  font-size: 9px;
-  font-weight: 500;
-  line-height: 29px;
-  padding: 0 11px;
-}
-
-.filterRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.filterPill {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 22px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.25);
-  border-radius: 999px;
-  background: rgba(232, 207, 155, 0.045);
-  padding: 0 5px;
-  color: rgba(232, 207, 155, 0.78);
-  font-size: 7.8px;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.statusText {
-  display: block;
-  overflow: hidden;
-  color: rgba(244, 229, 205, 0.72);
-  font-size: 8px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.dishList {
-  display: grid;
-  gap: 7px;
+  align-content: start;
+  gap: 9px;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 10px 12px;
+  padding-right: 1px;
   scrollbar-color: rgba(232, 207, 155, 0.45) transparent;
   scrollbar-width: thin;
 }
 
-.dishList::-webkit-scrollbar {
+.categoryGrid::-webkit-scrollbar {
   width: 5px;
 }
 
-.dishList::-webkit-scrollbar-thumb {
+.categoryGrid::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(232, 207, 155, 0.42);
 }
 
-.dishRow {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  border: 1px solid rgba(255, 246, 225, 0.1);
-  border-radius: 13px;
-  background: rgba(20, 12, 6, 0.62);
-  padding: 6px;
-}
-
-.dishImage {
+.categoryCard {
   position: relative;
-  width: 48px;
-  height: 48px;
+  display: grid;
+  min-height: 88px;
   overflow: hidden;
-  border-radius: 10px;
-  background: rgba(255, 250, 240, 0.055);
+  border: 1px solid rgba(232, 207, 155, 0.2);
+  border-radius: 16px;
+  background: #070504;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.dishImage img {
+.categoryImage {
+  position: absolute;
+  inset: 0;
+  background: rgba(232, 207, 155, 0.07);
+}
+
+.categoryImage img,
+.featuredImage img {
   object-fit: cover;
 }
 
-.dishCopy {
-  min-width: 0;
+.categoryShade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.66), rgba(0, 0, 0, 0.18) 56%, rgba(0, 0, 0, 0.45)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.58));
 }
 
-.dishName {
-  display: block;
+.categoryCopy {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  display: grid;
+  gap: 3px;
+  padding: 0 13px 11px;
+}
+
+.categoryCopy strong,
+.featuredSection h4 {
+  margin: 0;
   color: #fffaf0;
   font-family: var(--vistaire-font-display);
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 0.98;
+}
+
+.categoryCopy small {
+  color: rgba(244, 235, 221, 0.86);
+  font-size: 8.5px;
+  font-weight: 800;
   line-height: 1.15;
 }
 
-.dishDescription {
-  display: -webkit-box;
-  margin-top: 3px;
-  overflow: hidden;
-  color: rgba(244, 229, 205, 0.68);
+.featuredSection {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid rgba(232, 207, 155, 0.14);
+  padding-top: 9px;
+}
+
+.featuredKicker {
+  margin: 0;
+  color: #e8cf9b;
   font-size: 8px;
-  font-weight: 500;
-  line-height: 1.25;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.dishBadges {
-  display: flex;
-  gap: 4px;
-  margin-top: 5px;
-}
-
-.dishBadges span {
-  border: 1px solid rgba(232, 207, 155, 0.32);
-  border-radius: 999px;
-  padding: 3px 5px;
-  color: rgba(232, 207, 155, 0.86);
-  font-size: 6.5px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
 }
 
-.dishPrice {
-  color: rgba(232, 207, 155, 0.92);
-  font-family: var(--vistaire-font-display);
-  font-size: 12.5px;
+.featuredDish {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  background: rgba(232, 207, 155, 0.045);
+  padding: 6px;
+}
+
+.featuredImage {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  background: rgba(255, 250, 240, 0.055);
+}
+
+.featuredCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.featuredCopy strong {
+  overflow: hidden;
+  color: #fffaf0;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.featuredCopy small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(244, 235, 221, 0.68);
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1.22;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.featuredPrice {
+  color: #e8cf9b;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.previewCta {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(232, 207, 155, 0.24);
+  background: rgba(232, 207, 155, 0.08);
+  color: #e8cf9b;
+  font-size: 9px;
+  font-weight: 800;
   line-height: 1;
 }
 

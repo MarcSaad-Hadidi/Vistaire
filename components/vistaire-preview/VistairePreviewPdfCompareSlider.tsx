@@ -10,6 +10,7 @@ import {
   type PointerEvent
 } from "react";
 import type {
+  CompareCategoryPreview,
   CompareDishPreview,
   PdfComparePreviewData,
   PdfMenuSection
@@ -64,15 +65,46 @@ export function VistairePreviewPdfLayer({
   );
 }
 
-function DishRow({ dish, priority }: { dish: CompareDishPreview; priority: boolean }) {
+function CategoryPreviewCard({
+  category,
+  priority
+}: {
+  category: CompareCategoryPreview;
+  priority: boolean;
+}) {
   return (
-    <article className={styles.dishRow}>
-      <span className={styles.dishImage}>
-        {dish.image ? (
+    <article className={styles.categoryCard}>
+      <span className={styles.categoryImage} aria-hidden="true">
+        {category.image ? (
           <Image
-            alt={dish.imageAlt}
+            alt=""
             fill
             priority={priority}
+            quality={90}
+            sizes="(max-width: 520px) 260px, 330px"
+            src={category.image}
+            style={{ objectPosition: category.imageObjectPosition }}
+            unoptimized
+          />
+        ) : null}
+      </span>
+      <span className={styles.categoryShade} aria-hidden="true" />
+      <span className={styles.categoryCopy}>
+        <strong>{category.name}</strong>
+        <small>{category.description}</small>
+      </span>
+    </article>
+  );
+}
+
+function FeaturedDishPreview({ dish }: { dish: CompareDishPreview }) {
+  return (
+    <article className={styles.featuredDish}>
+      <span className={styles.featuredImage} aria-hidden="true">
+        {dish.image ? (
+          <Image
+            alt=""
+            fill
             quality={90}
             sizes="72px"
             src={dish.image}
@@ -81,16 +113,11 @@ function DishRow({ dish, priority }: { dish: CompareDishPreview; priority: boole
           />
         ) : null}
       </span>
-      <span className={styles.dishCopy}>
-        <span className={styles.dishName}>{dish.name}</span>
-        <span className={styles.dishDescription}>{dish.shortDescription}</span>
-        <span className={styles.dishBadges} aria-hidden="true">
-          {dish.isSignature ? <span>Signature</span> : null}
-          {dish.isRecommended ? <span>Recommandé</span> : null}
-          {dish.has3d ? <span>3D</span> : null}
-        </span>
+      <span className={styles.featuredCopy}>
+        <strong>{dish.name}</strong>
+        <small>{dish.shortDescription}</small>
       </span>
-      <span className={styles.dishPrice}>{dish.price}</span>
+      <span className={styles.featuredPrice}>{dish.price}</span>
     </article>
   );
 }
@@ -100,52 +127,37 @@ export function VistairePreviewMenuLayer({
 }: {
   preview: PdfComparePreviewData;
 }) {
-  const activeTabs = preview.categoryTabs;
+  const featuredDish = preview.featuredDish ?? preview.vistaireDishes[0];
 
   return (
     <div className={styles.previewMenu}>
       <header className={styles.previewHeader}>
-        <div className={styles.previewBrandRow}>
-          <p className={styles.previewEyebrow}>Carte client</p>
-          <span>Vistaire</span>
-        </div>
-        <h3>{preview.restaurant.name}</h3>
-        <p className={styles.previewTagline}>{preview.restaurant.tagline}</p>
-        <p className={styles.phoneBadge}>Aperçu téléphone</p>
+        <p className={styles.previewEyebrow}>Carte à table</p>
+        <h3>Bienvenue chez Maison Élyse</h3>
+        <p className={styles.previewTagline}>
+          Découvrez les entrées, plats signatures, desserts et cocktails de la
+          maison, pensés pour être explorés directement à table.
+        </p>
       </header>
 
-      <nav className={styles.tabs} aria-hidden="true">
-        {activeTabs.map((tab) => (
-          <span
-            className={
-              tab.slug === preview.activeCategorySlug
-                ? `${styles.tab} ${styles.tabActive}`
-                : styles.tab
-            }
-            key={tab.id}
-          >
-            {tab.slug === "plats-signatures" ? "Signatures" : tab.name}
-          </span>
-        ))}
-      </nav>
-
-      <div className={styles.menuTools}>
-        <span className={styles.searchMock}>Rechercher un plat...</span>
-        <span className={styles.filterRow}>
-          <span className={styles.filterPill}>Signature</span>
-          <span className={styles.filterPill}>Recommandé</span>
-          <span className={styles.filterPill}>Vue 3D</span>
-        </span>
-        <p className={styles.statusText}>
-          Démo interactive Vistaire · Maison Élyse
-        </p>
-      </div>
-
-      <div className={styles.dishList}>
-        {preview.vistaireDishes.map((dish, index) => (
-          <DishRow dish={dish} key={dish.slug} priority={index === 0} />
+      <div className={styles.categoryGrid}>
+        {preview.categoryCards.map((category, index) => (
+          <CategoryPreviewCard
+            category={category}
+            key={category.id}
+            priority={index === 0}
+          />
         ))}
       </div>
+
+      {featuredDish ? (
+        <section className={styles.featuredSection}>
+          <p className={styles.featuredKicker}>Suggestion du chef</p>
+          <h4>À découvrir ce soir</h4>
+          <FeaturedDishPreview dish={featuredDish} />
+          <span className={styles.previewCta}>Voir toute la carte</span>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -314,7 +326,8 @@ export function VistairePreviewPdfCompareSlider({
       </div>
       <figcaption className={styles.srOnly}>
         Comparaison dans le même téléphone : menu PDF dense et carte digitale
-        Vistaire preview avec catégories, recherche, filtres et fiches plats.
+        Vistaire preview avec accueil Maison Élyse, catégories visuelles et
+        suggestion du chef.
       </figcaption>
     </figure>
   );

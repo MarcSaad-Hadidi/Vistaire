@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
-import { VistaireMenuPreview } from "@/components/vistaire-preview/VistaireMenuPreview";
+import { DemoPhoneShowcase } from "@/components/vistaire-preview/DemoPhoneShowcase";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
+import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 const canonicalPath = "/en/vistaire-menu";
@@ -27,7 +29,13 @@ export const metadata: Metadata = {
   }
 };
 
-export default function VistaireMenuPageEn() {
+export default async function VistaireMenuPageEn() {
+  const menu = await getPublicMenuBySlug("maison-elyse", "en");
+
+  if (!menu) {
+    notFound();
+  }
+
   return (
     <>
       <JsonLd
@@ -44,7 +52,11 @@ export default function VistaireMenuPageEn() {
           ])
         ]}
       />
-      <VistaireMenuPreview locale="en" routeMode="production" />
+      <DemoPhoneShowcase
+        currentPath={canonicalPath}
+        locale="en"
+        menu={menu}
+      />
     </>
   );
 }

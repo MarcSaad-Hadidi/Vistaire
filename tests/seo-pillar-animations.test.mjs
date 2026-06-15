@@ -72,8 +72,23 @@ test("Comparison slider stays aligned with demo menu data helpers", () => {
   );
   assert.match(
     sceneFile,
-    /CompareDishCardPreview/,
-    "shared Vistaire scene must render demo-aligned dish card previews"
+    /SceneCategoryCard/,
+    "shared Vistaire scene must render Maison Élyse category cards"
+  );
+  assert.match(
+    sceneFile,
+    /Bienvenue chez Maison/,
+    "shared Vistaire scene must open on the Maison Élyse welcome screen"
+  );
+  assert.match(
+    sceneFile,
+    /Voir toute la carte/,
+    "shared Vistaire scene must include the full-menu call to action"
+  );
+  assert.doesNotMatch(
+    sceneFile,
+    /Menu client|CompareDishCardPreview|CompareCategoryChip/,
+    "shared Vistaire scene must not keep the old tabbed demo menu"
   );
   assert.match(
     sliderFile,

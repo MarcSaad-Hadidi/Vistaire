@@ -1,7 +1,6 @@
 import Image from "next/image";
-import { AllergenBadge } from "@/components/dish/AllergenBadge";
 import type {
-  CompareCategoryTab,
+  CompareCategoryPreview,
   CompareDishPreview,
   PdfComparePreviewData
 } from "@/lib/pdfComparePreviewData";
@@ -15,122 +14,96 @@ export type VistaireDigitalMenuSceneProps = {
   className?: string;
 };
 
-function CompareCategoryChip({
-  tab,
-  selected
-}: {
-  tab: CompareCategoryTab;
-  selected: boolean;
-}) {
-  return (
-    <span
-      className={`inline-flex min-h-[28px] max-w-full items-center justify-center whitespace-nowrap rounded-full border px-2 pb-[5px] pt-[3px] text-[clamp(0.48rem,2.2vw,0.62rem)] font-medium leading-[1.2] tracking-wide ${
-        selected
-          ? "border-champagne/55 bg-champagne/[0.15] text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-champagne/25"
-          : "border-white/[0.12] bg-[#1a1008]/55 text-[#d1c2aa]"
-      }`}
-    >
-      {tab.name}
-    </span>
-  );
-}
-
-function CompareDishCardPreview({
-  dish,
-  priorityImage,
+function SceneCategoryCard({
   bloomLayers,
-  dishDelay
+  cardDelay,
+  category,
+  priorityImage
 }: {
-  dish: CompareDishPreview;
-  priorityImage?: boolean;
   bloomLayers?: boolean;
-  dishDelay?: string;
+  cardDelay?: string;
+  category: CompareCategoryPreview;
+  priorityImage?: boolean;
 }) {
   return (
     <article
       aria-hidden
-      className={`overflow-hidden rounded-xl bg-gradient-to-b from-[#15110e]/98 to-[#080706] shadow-[0_0_0_1px_rgba(255,255,255,0.055),0_8px_32px_rgba(0,0,0,0.38)] ${
+      className={`relative min-h-[70px] overflow-hidden rounded-[1rem] border border-champagne/20 bg-[#070504] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
         bloomLayers ? "cmb-dish" : ""
       }`}
-      style={bloomLayers && dishDelay ? { ["--cmb-delay" as string]: dishDelay } : undefined}
+      style={
+        bloomLayers && cardDelay ? { ["--cmb-delay" as string]: cardDelay } : undefined
+      }
     >
-      <div className="relative aspect-[4/3] min-h-[88px] w-full shrink-0 overflow-hidden bg-[#12100e]">
+      {category.image ? (
+        <Image
+          src={category.image}
+          alt=""
+          fill
+          priority={priorityImage}
+          sizes="(max-width: 640px) 92vw, 380px"
+          className="object-cover"
+          style={{ objectPosition: category.imageObjectPosition }}
+          quality={90}
+          draggable={false}
+        />
+      ) : null}
+      <span
+        aria-hidden
+        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.68),rgba(0,0,0,0.2)_56%,rgba(0,0,0,0.46)),linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.6))]"
+      />
+      <span className="relative z-10 flex h-full flex-col justify-end gap-0.5 p-3">
+        <strong className="font-display text-[clamp(1rem,4vw,1.28rem)] font-normal leading-none text-cream">
+          {category.name}
+        </strong>
+        <small className="text-[clamp(0.48rem,2vw,0.62rem)] font-extrabold leading-tight text-[#f4ebdd]/90">
+          {category.description}
+        </small>
+      </span>
+    </article>
+  );
+}
+
+function FeaturedDishCardPreview({
+  bloomLayers,
+  dish
+}: {
+  bloomLayers?: boolean;
+  dish: CompareDishPreview;
+}) {
+  return (
+    <article
+      aria-hidden
+      className={`grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-2 border border-champagne/20 bg-champagne/[0.055] p-1.5 ${
+        bloomLayers ? "cmb-dish" : ""
+      }`}
+      style={bloomLayers ? { ["--cmb-delay" as string]: "1940ms" } : undefined}
+    >
+      <span className="relative h-12 w-12 overflow-hidden bg-cream/[0.055]">
         {dish.image ? (
-          <>
-            <Image
-              src={dish.image}
-              alt={dish.imageAlt}
-              fill
-              priority={priorityImage}
-              sizes="(max-width: 640px) 92vw, 380px"
-              className="object-cover"
-              style={{ objectPosition: dish.imageObjectPosition }}
-              quality={90}
-              draggable={false}
-            />
-          </>
+          <Image
+            src={dish.image}
+            alt=""
+            fill
+            sizes="64px"
+            className="object-cover"
+            style={{ objectPosition: dish.imageObjectPosition }}
+            quality={90}
+            draggable={false}
+          />
         ) : null}
-      </div>
-
-      <div className="flex flex-col gap-1.5 p-2.5 pt-2">
-        <div className="flex flex-wrap gap-1">
-          {dish.isSignature ? (
-            <span className="rounded border border-champagne/35 bg-champagne/[0.08] px-1.5 py-0.5 text-[7px] font-semibold uppercase tracking-[0.16em] text-champagne">
-              Signature
-            </span>
-          ) : null}
-          {dish.isRecommended ? (
-            <span className="rounded border border-white/14 bg-white/[0.05] px-1.5 py-0.5 text-[7px] font-semibold uppercase tracking-[0.16em] text-cream/95">
-              Recommandé
-            </span>
-          ) : null}
-          {dish.has3d ? (
-            <span
-              className={`rounded border border-champagne/30 bg-[#1a1008]/55 px-1.5 py-0.5 text-[7px] font-semibold uppercase tracking-[0.16em] text-champagne/95 ${
-                bloomLayers ? "cmb-badge" : ""
-              }`}
-              style={
-                bloomLayers
-                  ? { ["--cmb-delay" as string]: "2280ms" }
-                  : undefined
-              }
-            >
-              3D
-            </span>
-          ) : null}
-        </div>
-
-        <h4 className="font-display text-[clamp(0.62rem,2.8vw,0.82rem)] font-normal leading-[1.3] text-cream [overflow-wrap:anywhere]">
-          <span className="line-clamp-2">{dish.name}</span>
-        </h4>
-
-        <p className="font-display text-[clamp(0.68rem,3vw,0.82rem)] tabular-nums leading-none text-champagne">
-          {dish.price}
-        </p>
-
-        <p className="line-clamp-2 text-[clamp(0.44rem,2vw,0.58rem)] leading-[1.42] text-[#b0a08c]">
+      </span>
+      <span className="min-w-0">
+        <strong className="block truncate text-[clamp(0.52rem,2.2vw,0.68rem)] font-extrabold leading-tight text-cream">
+          {dish.name}
+        </strong>
+        <small className="line-clamp-2 text-[clamp(0.44rem,1.9vw,0.56rem)] font-semibold leading-snug text-[#f4ebdd]/68">
           {dish.shortDescription}
-        </p>
-
-        {dish.allergens.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {dish.allergens.map((allergen) => (
-              <AllergenBadge key={allergen} allergen={allergen} compact />
-            ))}
-          </div>
-        ) : null}
-
-        <span
-          className={`inline-flex min-h-8 w-full items-center justify-center rounded-lg bg-champagne/[0.12] text-[clamp(0.44rem,2vw,0.58rem)] font-semibold text-cream ring-1 ring-inset ring-champagne/35 ${
-            bloomLayers ? "cmb-cta" : ""
-          }`}
-          style={
-            bloomLayers ? { ["--cmb-delay" as string]: "2480ms" } : undefined
-          }
-        >
-          Voir le plat
-        </span>
-      </div>
+        </small>
+      </span>
+      <span className="font-display text-[clamp(0.58rem,2.4vw,0.72rem)] leading-none text-champagne">
+        {dish.price}
+      </span>
     </article>
   );
 }
@@ -154,68 +127,67 @@ export function VistaireDigitalMenuScene({
   bloomLayers = false,
   className = ""
 }: VistaireDigitalMenuSceneProps) {
-  const { restaurant, categoryTabs, activeCategorySlug, vistaireDishes } =
-    preview;
+  const { categoryCards, featuredDish, vistaireDishes } = preview;
+  const suggestedDish = featuredDish ?? vistaireDishes[0];
 
   return (
     <div
-      className={`absolute inset-0 flex flex-col overflow-hidden bg-[#080605] text-cream ${className}`}
+      className={`absolute inset-0 grid grid-rows-[auto_1fr_auto] gap-2 overflow-hidden bg-[#080605] px-2.5 pb-2.5 pt-7 text-cream ${className}`}
     >
       <header
-        className={`relative shrink-0 border-b border-white/[0.06] bg-gradient-to-b from-[#0c0a08] via-[#080706] to-[#080706] px-[4%] pb-[3%] pt-[5%] ${
-          bloomLayers ? "cmb-layer" : ""
-        }`}
-        style={
-          bloomLayers ? { ["--cmb-delay" as string]: "780ms" } : undefined
-        }
+        className={`${bloomLayers ? "cmb-layer" : ""}`}
+        style={bloomLayers ? { ["--cmb-delay" as string]: "780ms" } : undefined}
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(217,184,121,0.085),transparent_55%)]" />
-        <div className="relative text-center">
-          <p className="text-[clamp(0.38rem,1.8vw,0.48rem)] font-semibold uppercase tracking-[0.24em] text-champagne/80">
-            Menu client
-          </p>
-          <p className="mt-1.5 font-display text-[clamp(0.72rem,3.4vw,0.92rem)] font-normal leading-[1.12] tracking-tight text-cream">
-            {restaurant.name}
-          </p>
-          <p className="mx-auto mt-1 line-clamp-2 max-w-[92%] text-[clamp(0.44rem,2vw,0.58rem)] leading-relaxed text-[#cfc1ab]">
-            {restaurant.tagline}
-          </p>
-        </div>
+        <p className="text-[clamp(0.42rem,1.8vw,0.54rem)] font-extrabold uppercase text-champagne">
+          Carte à table
+        </p>
+        <h3 className="mt-1 max-w-[86%] font-display text-[clamp(1.45rem,6.4vw,2rem)] font-normal leading-[0.94] text-cream">
+          Bienvenue chez Maison Élyse
+        </h3>
+        <p className="mt-2 line-clamp-3 max-w-[92%] text-[clamp(0.48rem,2.1vw,0.64rem)] font-bold leading-relaxed text-[#f4ebdd]/82">
+          Découvrez les entrées, plats signatures, desserts et cocktails de la
+          maison, pensés pour être explorés directement à table.
+        </p>
       </header>
 
-      <nav
-        aria-hidden
-        className={`relative shrink-0 border-b border-white/[0.08] bg-[#080706] px-2 py-2 ${
-          bloomLayers ? "cmb-layer" : ""
-        }`}
-        style={
-          bloomLayers ? { ["--cmb-delay" as string]: "920ms" } : undefined
-        }
-      >
-        <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-1.5">
-          {categoryTabs.map((tab) => (
-            <CompareCategoryChip
-              key={tab.id}
-              tab={tab}
-              selected={tab.slug === activeCategorySlug}
-            />
-          ))}
-        </div>
-      </nav>
-
-      <div className="min-h-0 flex-1 overflow-hidden bg-[#070504] px-2.5 pb-2 pt-2">
-        <div className="flex flex-col gap-2.5">
-          {vistaireDishes.map((dish, index) => (
-            <CompareDishCardPreview
-              key={dish.slug}
-              dish={dish}
+      <div className="min-h-0 overflow-hidden">
+        <div className="grid gap-2">
+          {categoryCards.map((category, index) => (
+            <SceneCategoryCard
+              key={category.id}
+              category={category}
               priorityImage={index === 0}
               bloomLayers={bloomLayers}
-              dishDelay={bloomLayers ? `${1080 + index * 180}ms` : undefined}
+              cardDelay={bloomLayers ? `${1040 + index * 140}ms` : undefined}
             />
           ))}
         </div>
       </div>
+
+      {suggestedDish ? (
+        <section
+          className={`grid gap-1.5 border-t border-champagne/15 pt-2 ${
+            bloomLayers ? "cmb-layer" : ""
+          }`}
+          style={bloomLayers ? { ["--cmb-delay" as string]: "1780ms" } : undefined}
+        >
+          <p className="text-[clamp(0.42rem,1.8vw,0.5rem)] font-extrabold uppercase leading-none text-champagne">
+            Suggestion du chef
+          </p>
+          <h4 className="font-display text-[clamp(1.08rem,4.6vw,1.5rem)] font-normal leading-none text-cream">
+            À découvrir ce soir
+          </h4>
+          <FeaturedDishCardPreview dish={suggestedDish} bloomLayers={bloomLayers} />
+          <span
+            className={`inline-flex min-h-7 items-center justify-center border border-champagne/25 bg-champagne/[0.09] px-3 text-[clamp(0.48rem,2vw,0.6rem)] font-extrabold leading-none text-champagne ${
+              bloomLayers ? "cmb-cta" : ""
+            }`}
+            style={bloomLayers ? { ["--cmb-delay" as string]: "2260ms" } : undefined}
+          >
+            Voir toute la carte
+          </span>
+        </section>
+      ) : null}
 
       {showLayerLabel ? <VistaireLayerLabel label={layerLabel} /> : null}
     </div>

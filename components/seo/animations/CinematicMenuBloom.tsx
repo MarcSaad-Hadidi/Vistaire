@@ -385,8 +385,8 @@ export function CinematicMenuBloom({
       </p>
       <p id={liveId} className="sr-only">
         Lecture cinématique liée au défilement : papier, balayage de lumière,
-        écran, en-tête restaurant, catégories, plat signature, informations
-        utiles et badge immersion sélective.
+        écran, accueil Maison Élyse, catégories visuelles, suggestion du chef
+        et appel vers toute la carte.
       </p>
 
       <div

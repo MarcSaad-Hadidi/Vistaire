@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import type { Locale } from "@/lib/i18n";
 import {
   type PublicMenu,
   type PublicMenuContextQuery,
@@ -39,18 +40,116 @@ type MaisonElyseDishDetailProps = {
   dish: PublicMenuDish;
   query?: PublicMenuContextQuery;
   displayMode?: "public" | "phone-preview";
+  locale?: Locale;
   onBackToMenu?: () => void;
 };
 
-const ALLERGEN_LABELS: Record<string, string> = {
-  dairy: "Lait",
-  eggs: "Oeufs",
-  fish: "Poisson",
-  gluten: "Gluten",
-  nuts: "Fruits à coque",
-  sesame: "Sésame",
-  shellfish: "Crustacés",
-  soy: "Soja"
+const DETAIL_COPY: Record<
+  Locale,
+  {
+    allergens: string;
+    ariaDetail: string;
+    backToMenu: string;
+    dishImageAlt: (dishName: string) => string;
+    fallbackImage: string;
+    fallbackList: string;
+    hide3d: string;
+    hidePreview: string;
+    immersiveBody3d: string;
+    immersiveBodyAr: string;
+    immersiveKicker: string;
+    immersivePreview3d: string;
+    immersivePreviewAr: string;
+    ingredients: string;
+    noCategory: string;
+    note: string;
+    options: string;
+    openAr: string;
+    show3d: string;
+    title3d: string;
+    titleAr: string;
+    topNavAria: string;
+    unavailableBadge: string;
+    recommendedBadge: string;
+  }
+> = {
+  fr: {
+    allergens: "Allergènes",
+    ariaDetail: "Détail du plat",
+    backToMenu: "Retour à la carte",
+    dishImageAlt: (dishName) => `Image du plat ${dishName}`,
+    fallbackImage: "Image du plat à venir",
+    fallbackList: "À préciser avec l'équipe en salle.",
+    hide3d: "Masquer la 3D",
+    hidePreview: "Masquer l'aperçu",
+    immersiveBody3d: "La vue 3D se lance uniquement après votre action.",
+    immersiveBodyAr:
+      "Une fois le plat chargé, vous pouvez le placer devant vous sur un téléphone compatible.",
+    immersiveKicker: "Aperçu immersif",
+    immersivePreview3d: "Aperçu disponible sans chargement initial.",
+    immersivePreviewAr: "Le bouton AR apparaît après le chargement du plat.",
+    ingredients: "Ingrédients",
+    noCategory: "La carte",
+    note: "Note du chef",
+    options: "Options",
+    openAr: "Ouvrir l'aperçu AR",
+    show3d: "Voir en 3D",
+    title3d: "Voir le plat en 3D",
+    titleAr: "Réalité augmentée",
+    topNavAria: "Navigation fiche plat",
+    unavailableBadge: "Indisponible",
+    recommendedBadge: "Recommandé"
+  },
+  en: {
+    allergens: "Allergens",
+    ariaDetail: "Dish details",
+    backToMenu: "Back to menu",
+    dishImageAlt: (dishName) => `Dish image: ${dishName}`,
+    fallbackImage: "Dish image coming soon",
+    fallbackList: "Ask the dining room team for details.",
+    hide3d: "Hide 3D",
+    hidePreview: "Hide preview",
+    immersiveBody3d: "The 3D view only loads after your action.",
+    immersiveBodyAr:
+      "Once the dish has loaded, you can place it in front of you on a compatible phone.",
+    immersiveKicker: "Immersive preview",
+    immersivePreview3d: "Preview available without initial loading.",
+    immersivePreviewAr: "The AR button appears after the dish loads.",
+    ingredients: "Ingredients",
+    noCategory: "Menu",
+    note: "Chef's note",
+    options: "Options",
+    openAr: "Open AR preview",
+    show3d: "View in 3D",
+    title3d: "View the dish in 3D",
+    titleAr: "Augmented reality",
+    topNavAria: "Dish navigation",
+    unavailableBadge: "Unavailable",
+    recommendedBadge: "Recommended"
+  }
+};
+
+const ALLERGEN_LABELS: Record<Locale, Record<string, string>> = {
+  fr: {
+    dairy: "Lait",
+    eggs: "Oeufs",
+    fish: "Poisson",
+    gluten: "Gluten",
+    nuts: "Fruits à coque",
+    sesame: "Sésame",
+    shellfish: "Crustacés",
+    soy: "Soja"
+  },
+  en: {
+    dairy: "Dairy",
+    eggs: "Eggs",
+    fish: "Fish",
+    gluten: "Gluten",
+    nuts: "Tree nuts",
+    sesame: "Sesame",
+    shellfish: "Shellfish",
+    soy: "Soy"
+  }
 };
 
 function cleanDisplayText(value: string): string {
@@ -84,17 +183,25 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-function categoryLabel(category: string): string {
+function categoryLabel(category: string, locale: Locale): string {
   const cleaned = cleanDisplayText(category);
   const normalized = normalizeText(cleaned);
 
-  if (normalized.includes("signature")) return "Plats signatures";
-  if (normalized.includes("entree")) return "Entrées";
+  if (normalized.includes("signature")) {
+    return locale === "en" ? "Signature dishes" : "Plats signatures";
+  }
+  if (normalized.includes("entree") || normalized.includes("starter")) {
+    return locale === "en" ? "Starters" : "Entrées";
+  }
   if (normalized.includes("dessert")) return "Desserts";
-  if (normalized.includes("cocktail") || normalized.includes("boisson")) {
+  if (
+    normalized.includes("cocktail") ||
+    normalized.includes("boisson") ||
+    normalized.includes("drink")
+  ) {
     return "Cocktails";
   }
-  return cleaned || "La carte";
+  return cleaned || DETAIL_COPY[locale].noCategory;
 }
 
 function hasReal3d(dish: PublicMenuDish): boolean {
@@ -119,25 +226,32 @@ function hasRealAr(dish: PublicMenuDish): boolean {
   );
 }
 
-function dishBadges(dish: PublicMenuDish): string[] {
+function dishBadges(dish: PublicMenuDish, locale: Locale): string[] {
+  const copy = DETAIL_COPY[locale];
   const badges: string[] = [];
   const tagText = normalizeText(dish.tags.join(" "));
 
   if (tagText.includes("signature")) badges.push("Signature");
-  if (tagText.includes("recommande")) badges.push("Recommandé");
+  if (tagText.includes("recommande") || tagText.includes("recommended")) {
+    badges.push(copy.recommendedBadge);
+  }
   if (hasReal3d(dish)) badges.push("3D");
   if (hasRealAr(dish)) badges.push("AR");
-  if (!dish.available) badges.push("Indisponible");
+  if (!dish.available) badges.push(copy.unavailableBadge);
 
   return Array.from(new Set(badges)).slice(0, 5);
 }
 
-function displayList(items: string[], type?: "allergens"): string[] {
+function displayList(
+  items: string[],
+  locale: Locale,
+  type?: "allergens"
+): string[] {
   return items
     .map((item) => {
       const cleaned = cleanDisplayText(item);
       if (type === "allergens") {
-        return ALLERGEN_LABELS[normalizeText(cleaned)] ?? cleaned;
+        return ALLERGEN_LABELS[locale][normalizeText(cleaned)] ?? cleaned;
       }
       return cleaned;
     })
@@ -186,8 +300,8 @@ function scrollToModelViewer(): void {
   });
 }
 
-function DetailList({ items }: { items: string[] }) {
-  if (!items.length) return <p>À préciser avec l&apos;équipe en salle.</p>;
+function DetailList({ emptyText, items }: { emptyText: string; items: string[] }) {
+  if (!items.length) return <p>{emptyText}</p>;
 
   return (
     <ul>
@@ -203,29 +317,31 @@ export function MaisonElyseDishDetail({
   dish,
   query,
   displayMode = "public",
+  locale = "fr",
   onBackToMenu
 }: MaisonElyseDishDetailProps) {
+  const copy = DETAIL_COPY[locale];
   const [showModelViewer, setShowModelViewer] = useState(false);
   const menuHref = buildFullMenuHref(menu, query);
   const restaurantName = cleanDisplayText(menu.name) || "Maison Élyse";
   const dishName = cleanDisplayText(dish.name);
   const dishDescription = cleanDisplayText(dish.description);
-  const displayCategory = categoryLabel(dish.category);
+  const displayCategory = categoryLabel(dish.category, locale);
   const has3d = hasReal3d(dish);
   const hasAr = hasRealAr(dish);
   const canOpenImmersive = has3d || hasAr;
-  const badges = dishBadges(dish);
-  const ingredients = displayList(dish.ingredients);
-  const allergens = displayList(dish.allergens, "allergens");
-  const options = displayList(dish.options);
+  const badges = dishBadges(dish, locale);
+  const ingredients = displayList(dish.ingredients, locale);
+  const allergens = displayList(dish.allergens, locale, "allergens");
+  const options = displayList(dish.options, locale);
   const houseNote = cleanDisplayText(dish.houseNote);
   const actionLabel = showModelViewer
     ? has3d
-      ? "Masquer la 3D"
-      : "Masquer l'aperçu"
+      ? copy.hide3d
+      : copy.hidePreview
     : has3d
-      ? "Voir en 3D"
-      : "Ouvrir l'aperçu AR";
+      ? copy.show3d
+      : copy.openAr;
 
   function toggleModelViewer() {
     setShowModelViewer((isVisible) => {
@@ -241,14 +357,14 @@ export function MaisonElyseDishDetail({
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
     >
-      <nav className={styles.topNav} aria-label="Navigation fiche plat">
+      <nav className={styles.topNav} aria-label={copy.topNavAria}>
         {onBackToMenu ? (
           <button type="button" onClick={onBackToMenu}>
-            Retour à la carte
+            {copy.backToMenu}
           </button>
         ) : (
           <Link href={menuHref} prefetch={false}>
-            Retour à la carte
+            {copy.backToMenu}
           </Link>
         )}
         <span>{restaurantName}</span>
@@ -256,7 +372,7 @@ export function MaisonElyseDishDetail({
 
       <article className={styles.article}>
         <div
-          aria-label={dish.imageUrl ? `Image du plat ${dishName}` : undefined}
+          aria-label={dish.imageUrl ? copy.dishImageAlt(dishName) : undefined}
           className={styles.hero}
           role={dish.imageUrl ? "img" : undefined}
           style={
@@ -268,12 +384,12 @@ export function MaisonElyseDishDetail({
           {!dish.imageUrl ? (
             <div className={styles.imageFallback}>
               <span>{restaurantName.slice(0, 1)}</span>
-              <p>Image du plat à venir</p>
+              <p>{copy.fallbackImage}</p>
             </div>
           ) : null}
         </div>
 
-        <section className={styles.content} aria-label="Détail du plat">
+        <section className={styles.content} aria-label={copy.ariaDetail}>
           <header className={styles.heading}>
             <p className={styles.kicker}>{displayCategory}</p>
             <h1>{dishName}</h1>
@@ -302,14 +418,12 @@ export function MaisonElyseDishDetail({
             >
               <div className={styles.modelPanelHeader}>
                 <div>
-                  <p className={styles.kicker}>Aperçu immersif</p>
+                  <p className={styles.kicker}>{copy.immersiveKicker}</p>
                   <h2 id="maison-elyse-immersive-heading">
-                    {has3d ? "Voir le plat en 3D" : "Réalité augmentée"}
+                    {has3d ? copy.title3d : copy.titleAr}
                   </h2>
                   <p>
-                    {hasAr
-                      ? "Une fois le plat chargé, vous pouvez le placer devant vous sur un téléphone compatible."
-                      : "La vue 3D se lance uniquement après votre action."}
+                    {hasAr ? copy.immersiveBodyAr : copy.immersiveBody3d}
                   </p>
                 </div>
                 <button
@@ -335,9 +449,7 @@ export function MaisonElyseDishDetail({
                   <div className={styles.modelPreview} aria-hidden="true">
                     <span>{has3d ? "3D" : "AR"}</span>
                     <small>
-                      {hasAr
-                        ? "Le bouton AR apparaît après le chargement du plat."
-                        : "Aperçu disponible sans chargement initial."}
+                      {hasAr ? copy.immersivePreviewAr : copy.immersivePreview3d}
                     </small>
                   </div>
                 )}
@@ -347,23 +459,23 @@ export function MaisonElyseDishDetail({
 
           <div className={styles.detailSections}>
             <section>
-              <h2>Ingrédients</h2>
-              <DetailList items={ingredients} />
+              <h2>{copy.ingredients}</h2>
+              <DetailList emptyText={copy.fallbackList} items={ingredients} />
             </section>
 
             <section>
-              <h2>Allergènes</h2>
-              <DetailList items={allergens} />
+              <h2>{copy.allergens}</h2>
+              <DetailList emptyText={copy.fallbackList} items={allergens} />
             </section>
 
             <section>
-              <h2>Options</h2>
-              <DetailList items={options} />
+              <h2>{copy.options}</h2>
+              <DetailList emptyText={copy.fallbackList} items={options} />
             </section>
 
             {houseNote ? (
               <section className={styles.houseNote}>
-                <h2>Note du chef</h2>
+                <h2>{copy.note}</h2>
                 <p>{houseNote}</p>
               </section>
             ) : null}
