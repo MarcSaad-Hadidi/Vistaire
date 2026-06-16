@@ -38,7 +38,7 @@ export function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string
   const safeId = restaurantIdOrSlug.trim();
   if (!safeId) return "/owner";
 
-  return `/owner/restaurants?restaurantId=${encodeURIComponent(safeId)}`;
+  return `/owner/restaurants/${encodeURIComponent(safeId)}`;
 }
 
 /**

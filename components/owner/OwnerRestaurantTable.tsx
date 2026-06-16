@@ -217,16 +217,26 @@ export function OwnerRestaurantTable({ restaurants }: OwnerRestaurantTableProps)
                     <td>{restaurant.immersiveDishCount}</td>
                     <td className={styles.cellSub}>{restaurant.lastActivity}</td>
                     <td>
-                      <button
-                        type="button"
-                        className={styles.btnSmall + " " + styles.btn}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedId(restaurant.id);
-                        }}
-                      >
-                        Détail
-                      </button>
+                      <div className={styles.tableActions}>
+                        <Link
+                          className={styles.btnSmall + " " + styles.btn}
+                          href={restaurant.dashboardHref}
+                          prefetch={false}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Ouvrir dashboard
+                        </Link>
+                        <button
+                          type="button"
+                          className={styles.btnSmall + " " + styles.btn}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedId(restaurant.id);
+                          }}
+                        >
+                          Détail
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -237,12 +247,9 @@ export function OwnerRestaurantTable({ restaurants }: OwnerRestaurantTableProps)
           {/* Mobile cards */}
           <div className={`${styles.cardGrid} ${styles.showMobile}`}>
             {filtered.map((restaurant) => (
-              <button
+              <article
                 key={restaurant.id}
-                type="button"
                 className={styles.moduleCard}
-                style={{ textAlign: "left", cursor: "pointer" }}
-                onClick={() => setSelectedId(restaurant.id)}
               >
                 <p className={styles.moduleCardTitle}>{restaurant.name}</p>
                 <span className={styles.moduleCardMeta}>
@@ -257,7 +264,23 @@ export function OwnerRestaurantTable({ restaurants }: OwnerRestaurantTableProps)
                   </span>
                   <span className={styles.badge}>{restaurant.readinessScore}%</span>
                 </div>
-              </button>
+                <div className={styles.tableActions}>
+                  <Link
+                    className={styles.btnSmall + " " + styles.btn}
+                    href={restaurant.dashboardHref}
+                    prefetch={false}
+                  >
+                    Ouvrir dashboard
+                  </Link>
+                  <button
+                    type="button"
+                    className={styles.btnSmall + " " + styles.btn}
+                    onClick={() => setSelectedId(restaurant.id)}
+                  >
+                    Détail
+                  </button>
+                </div>
+              </article>
             ))}
           </div>
         </>
@@ -305,6 +328,9 @@ export function OwnerRestaurantTable({ restaurants }: OwnerRestaurantTableProps)
             <div className={styles.drawerSection}>
               <p className={styles.drawerSectionTitle}>Liens</p>
               <div className={styles.pillRow}>
+                <Link className={styles.btnPrimary + " " + styles.btn} href={selected.dashboardHref} prefetch={false}>
+                  Ouvrir dashboard
+                </Link>
                 <Link className={styles.btn} href={selected.clientMenuHref} prefetch={false}>
                   Preview client
                 </Link>

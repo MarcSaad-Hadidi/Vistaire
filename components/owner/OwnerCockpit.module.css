@@ -1513,6 +1513,694 @@
   color: var(--owner-soft);
 }
 
+/* Restaurant command center */
+.ownerPortfolioLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ownerRestaurantGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+
+.ownerRestaurantCard {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(232, 207, 155, 0.07), rgba(10, 7, 5, 0.18)),
+    var(--surface-1);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.ownerRestaurantCard:hover {
+  border-color: rgba(232, 207, 155, 0.34);
+  background:
+    linear-gradient(180deg, rgba(232, 207, 155, 0.1), rgba(10, 7, 5, 0.2)),
+    var(--surface-2);
+  transform: translateY(-1px);
+}
+
+.ownerRestaurantCardTop {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.ownerRestaurantCardTop h3 {
+  margin: 6px 0 0;
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.ownerRestaurantCardTop p {
+  margin: 8px 0 0;
+  color: var(--owner-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.ownerScore {
+  flex: 0 0 auto;
+  min-width: 72px;
+  border: 1px solid rgba(232, 207, 155, 0.2);
+  border-radius: 12px;
+  background: rgba(13, 8, 5, 0.42);
+  padding: 10px;
+  text-align: right;
+}
+
+.ownerScore strong {
+  display: block;
+  font-family: var(--owner-display);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.ownerScore span {
+  color: var(--owner-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ownerProgress,
+.wizardProgress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.1);
+}
+
+.ownerProgress span,
+.wizardProgress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9f7851, var(--owner-champagne));
+}
+
+.ownerMiniMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ownerMiniMetrics span,
+.commandKpiGrid article {
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.34);
+  padding: 10px;
+}
+
+.ownerMiniMetrics small,
+.commandKpiGrid span {
+  display: block;
+  color: var(--owner-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ownerMiniMetrics strong,
+.commandKpiGrid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.commandKpiGrid small {
+  display: block;
+  margin-top: 6px;
+  color: var(--owner-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ownerNextAction {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid rgba(232, 207, 155, 0.12);
+  padding-top: 12px;
+}
+
+.ownerNextAction span {
+  color: var(--owner-soft);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ownerNextAction strong {
+  color: var(--owner-cream);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.ownerCardCta {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(232, 207, 155, 0.22);
+  border-radius: 999px;
+  background: rgba(232, 207, 155, 0.08);
+  color: var(--owner-champagne);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.priorityList {
+  display: grid;
+  gap: 10px;
+}
+
+.priorityItem {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.32);
+  color: inherit;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.priorityItem:hover {
+  border-color: rgba(232, 207, 155, 0.3);
+}
+
+.priorityItem strong,
+.priorityItem small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.priorityItem small {
+  margin: 5px 0 8px;
+  color: var(--owner-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.priorityIndex {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 999px;
+  color: var(--owner-champagne);
+  font-size: 13px;
+}
+
+.workflowStrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workflowStrip span {
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.14);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.34);
+  padding: 12px;
+  color: var(--owner-cream);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ownerPicker {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ownerPickerToolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(130px, 0.22fr) minmax(130px, 0.22fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.advancedTableDisclosure {
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.28);
+  padding: 10px 12px;
+}
+
+.advancedTableDisclosure summary {
+  cursor: pointer;
+  color: var(--owner-champagne);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.advancedTableBody {
+  margin-top: 12px;
+}
+
+.tableActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.restaurantDashboard,
+.createWizard,
+.creationStage {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.restaurantCommandHeader {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.2);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(232, 207, 155, 0.09), rgba(9, 6, 4, 0.24)),
+    var(--surface-1);
+  padding: clamp(16px, 3vw, 22px);
+}
+
+.restaurantCommandHeader h2 {
+  margin: 8px 0 0;
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 400;
+  line-height: 0.98;
+}
+
+.restaurantCommandHeader p {
+  margin: 9px 0 12px;
+  color: var(--owner-muted);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.backLink {
+  color: var(--owner-champagne);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.restaurantHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.restaurantTabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.restaurantTabs button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  border: 1px solid rgba(232, 207, 155, 0.14);
+  border-radius: 999px;
+  background: rgba(8, 6, 4, 0.34);
+  color: var(--owner-muted);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.restaurantTabs .restaurantTabActive {
+  border-color: rgba(232, 207, 155, 0.5);
+  background: rgba(232, 207, 155, 0.13);
+  color: var(--owner-cream);
+}
+
+.restaurantTabPanel {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.restaurantOverviewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.nextActionPanel,
+.clientPreviewPanel {
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.16);
+  border-radius: 16px;
+  background: var(--surface-1);
+  padding: 16px;
+}
+
+.nextActionPanel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.nextActionPanel strong {
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.nextActionPanel p {
+  margin: 0;
+  color: var(--owner-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.checklist {
+  display: grid;
+  gap: 10px;
+}
+
+.checkItem {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.11);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.3);
+  padding: 11px 12px;
+}
+
+.checkItem span {
+  min-width: 0;
+}
+
+.checkItem strong,
+.checkItem small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.checkItem small {
+  margin-top: 3px;
+  color: var(--owner-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.commandKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.clientPreviewPanel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.clientPreviewPhone {
+  width: min(100%, 260px);
+  margin: 0 auto;
+  border: 1px solid rgba(232, 207, 155, 0.24);
+  border-radius: 26px;
+  background: #0a0705;
+  padding: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 240, 0.05);
+}
+
+.clientPreviewScreen {
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 250, 240, 0.08);
+  background: #15100c;
+}
+
+.clientPreviewHero {
+  display: grid;
+  gap: 5px;
+  min-height: 150px;
+  align-content: end;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(232, 207, 155, 0.08), rgba(8, 6, 4, 0.86)),
+    #24170f;
+}
+
+.clientPreviewHero span,
+.clientPreviewHero small {
+  color: var(--owner-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.clientPreviewHero strong {
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 0.98;
+}
+
+.clientPreviewList {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.clientPreviewList p {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  border-bottom: 1px solid rgba(232, 207, 155, 0.1);
+  padding-bottom: 8px;
+  color: var(--owner-muted);
+  font-size: 12px;
+}
+
+.clientPreviewList p:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.createWizard {
+  grid-template-columns: minmax(180px, 0.26fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.stepRail {
+  position: sticky;
+  top: 86px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stepCard {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.32);
+  color: var(--owner-muted);
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stepCardActive {
+  border-color: rgba(232, 207, 155, 0.52);
+  background: rgba(232, 207, 155, 0.1);
+  color: var(--owner-cream);
+}
+
+.stepCardDone {
+  color: var(--ready);
+}
+
+.stepNumber {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.stepCard strong,
+.stepCard small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.stepCard small {
+  margin-top: 3px;
+  color: var(--owner-soft);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.highlightPanel {
+  background:
+    linear-gradient(180deg, rgba(232, 207, 155, 0.08), rgba(8, 6, 4, 0.16)),
+    var(--surface-1);
+}
+
+.creationFooter {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 14px;
+  background: rgba(8, 6, 4, 0.28);
+  padding: 12px;
+}
+
+.creationFooterActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inlineDraftList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.draftChip {
+  display: grid;
+  gap: 4px;
+  min-width: min(100%, 190px);
+  border: 1px solid rgba(232, 207, 155, 0.14);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.34);
+  padding: 10px;
+}
+
+.draftChip small {
+  color: var(--owner-muted);
+  line-height: 1.35;
+}
+
+.draftChip button {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toggleCardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.toggleCard {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.14);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.32);
+  color: var(--owner-muted);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggleCardActive {
+  border-color: rgba(143, 214, 166, 0.44);
+  background: rgba(143, 214, 166, 0.08);
+  color: var(--owner-cream);
+}
+
+.toggleCard strong {
+  color: var(--owner-cream);
+}
+
+.toggleCard span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.qrPreviewGrid {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.qrDraftControls {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
 /* Drawer (restaurant detail) */
 .drawer {
   position: fixed;
@@ -3114,6 +3802,33 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .ownerPortfolioLayout,
+  .restaurantOverviewGrid,
+  .createWizard,
+  .qrPreviewGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ownerPickerToolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .restaurantCommandHeader,
+  .creationFooter {
+    flex-direction: column;
+  }
+
+  .restaurantHeaderActions,
+  .creationFooterActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .stepRail {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
@@ -3197,6 +3912,38 @@
 
   .showMobile {
     display: block;
+  }
+
+  .cardGrid.showMobile {
+    display: grid;
+  }
+
+  .workflowStrip,
+  .ownerMiniMetrics,
+  .toggleCardGrid,
+  .ownerPickerToolbar,
+  .stepRail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ownerRestaurantCardTop,
+  .checkItem {
+    align-items: flex-start;
+  }
+
+  .ownerRestaurantCardTop,
+  .checkItem,
+  .restaurantHeaderActions,
+  .creationFooterActions,
+  .tableActions {
+    flex-direction: column;
+  }
+
+  .restaurantHeaderActions .btn,
+  .creationFooterActions .btn,
+  .ownerPickerToolbar .btn,
+  .tableActions .btn {
+    width: 100%;
   }
 
   .pipelineMobileList.showMobile {

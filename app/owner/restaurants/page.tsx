@@ -1,32 +1,84 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
-import { OwnerRestaurantTable } from "@/components/owner/OwnerRestaurantTable";
-import { RestaurantCreateForm } from "@/components/owner/RestaurantCreateForm";
+import { OwnerRestaurantPicker } from "@/components/owner/OwnerRestaurantPicker";
+import { OwnerRestaurantPortfolio } from "@/components/owner/OwnerRestaurantPortfolio";
 import { ModuleHeader, Panel } from "@/components/owner/OwnerUi";
 import { getOwnerRestaurantsData } from "@/lib/owner/data";
-import { getSiteUrl } from "@/lib/seo";
+import { buildRestaurantDashboardPath } from "@/lib/owner/menuUrls";
 
 export const dynamic = "force-dynamic";
 
-export default async function OwnerRestaurantsPage() {
+export default async function OwnerRestaurantsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ restaurantId?: string }>;
+}) {
+  const params = await searchParams;
+  if (params?.restaurantId) {
+    redirect(buildRestaurantDashboardPath(params.restaurantId));
+  }
+
   const data = await getOwnerRestaurantsData();
-  const siteOrigin = getSiteUrl().origin;
+  const needsAttention = data.restaurants
+    .filter(
+      (restaurant) =>
+        restaurant.readinessScore < 80 ||
+        restaurant.qrStatus !== "ready" ||
+        restaurant.incompleteDishCount > 0
+    )
+    .sort((a, b) => a.readinessScore - b.readinessScore)
+    .slice(0, 3);
 
   return (
     <>
       <ModuleHeader
         title="Restaurants"
-        description="Comptes, readiness, menu, QR, photos et 3D/AR — table dense et fiche détail."
+        description="Selectionnez un restaurant pour ouvrir son dashboard dedie : menu, plats, medias, QR, 3D/AR, signaux et settings."
+        actions={
+          <>
+            <Link
+              className={`${styles.btnPrimary} ${styles.btn}`}
+              href="/owner/restaurants/create"
+              prefetch={false}
+            >
+              Creer restaurant
+            </Link>
+            <Link className={styles.btn} href="/owner" prefetch={false}>
+              Vue portefeuille
+            </Link>
+          </>
+        }
       />
 
-      <Panel title={`${data.restaurants.length} restaurant(s)`} action={<span className={styles.sourceTag}>{data.source === "fallback" ? "Données demo" : "Supabase"}</span>}>
-        <OwnerRestaurantTable restaurants={data.restaurants} />
+      {needsAttention.length > 0 ? (
+        <Panel
+          title="A traiter en premier"
+          action={
+            <span className={styles.sourceTag}>
+              {data.source === "fallback" ? "Donnees demo" : "Supabase"}
+            </span>
+          }
+        >
+          <OwnerRestaurantPortfolio restaurants={needsAttention} />
+        </Panel>
+      ) : null}
+
+      <Panel
+        title={`${data.restaurants.length} restaurant(s)`}
+        action={
+          <span className={styles.sourceTag}>
+            {data.source === "fallback" ? "Donnees demo" : "Supabase"}
+          </span>
+        }
+      >
+        <OwnerRestaurantPicker restaurants={data.restaurants} />
       </Panel>
 
-      <section id="create">
-        <Panel title="Créer un restaurant">
-          <RestaurantCreateForm siteOrigin={siteOrigin} />
-        </Panel>
-      </section>
+      <p className={styles.sourceTag}>
+        La table dense reste disponible dans le picker avance. Le chemin
+        principal est maintenant restaurant par restaurant.
+      </p>
     </>
   );
 }

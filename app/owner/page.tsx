@@ -1,107 +1,136 @@
 import Link from "next/link";
 import styles from "@/components/owner/OwnerCockpit.module.css";
-import { OwnerAiPanel } from "@/components/owner/OwnerAiPanel";
-import { ModuleHeader, StatGroup, StatTile } from "@/components/owner/OwnerUi";
+import { OwnerRestaurantPortfolio } from "@/components/owner/OwnerRestaurantPortfolio";
+import { Badge, EmptyState, ModuleHeader, Panel, StatGroup, StatTile } from "@/components/owner/OwnerUi";
 import { getOwnerDashboard } from "@/lib/owner/dashboard";
-import { buildOwnerAiPriorities } from "@/lib/owner/ai/rules";
+import type { OwnerAction } from "@/lib/owner/types";
 
 export const dynamic = "force-dynamic";
 
+const PRIORITY_TONE: Record<OwnerAction["priority"], "danger" | "warn" | "muted"> = {
+  high: "danger",
+  medium: "warn",
+  low: "muted"
+};
+
+const PRIORITY_LABEL: Record<OwnerAction["priority"], string> = {
+  high: "Haute",
+  medium: "Moyenne",
+  low: "Basse"
+};
+
 export default async function OwnerOverviewPage() {
   const data = await getOwnerDashboard();
-  const operational = data.restaurants.filter((restaurant) => !restaurant.isDemo);
-
-  const today = {
-    toComplete: operational.filter((r) => r.status === "setup_needed").length,
-    qrToDo: operational.filter((r) => r.qrStatus !== "ready").length,
-    photosMissing: operational.reduce((sum, r) => sum + r.incompleteDishCount, 0),
-    readyToPublish: operational.filter(
-      (r) =>
-        r.status === "setup_needed" &&
-        r.dishCount > 0 &&
-        r.qrStatus === "ready" &&
-        r.incompleteDishCount === 0
-    ).length,
-    immersiveGaps: operational.filter(
-      (r) => r.dishCount > 0 && r.immersiveDishCount === 0
-    ).length
-  };
-
-  const priorities = buildOwnerAiPriorities(data.restaurants);
+  const restaurantsToTreat = data.restaurants
+    .filter(
+      (restaurant) =>
+        restaurant.readinessScore < 80 ||
+        restaurant.qrStatus !== "ready" ||
+        restaurant.incompleteDishCount > 0
+    )
+    .sort((a, b) => a.readinessScore - b.readinessScore);
+  const missingPhotos = data.restaurants.reduce(
+    (sum, restaurant) => sum + restaurant.incompleteDishCount,
+    0
+  );
+  const qrReady = data.restaurants.filter((restaurant) => restaurant.qrStatus === "ready").length;
+  const menuReady = data.restaurants.filter((restaurant) => restaurant.dishCount > 0).length;
+  const topPriorities = data.actions.slice(0, 5);
 
   return (
     <>
       <ModuleHeader
-        title="Vistaire Owner"
-        description="Gestion restaurants, menus, QR et qualité produit."
+        title="Vue portefeuille"
+        description="Choisir un restaurant, puis gerer son dashboard dedie. Le global ne garde que les priorites owner et les comptes a traiter."
         actions={
           <>
-            <Link className={styles.btnPrimary + " " + styles.btn} href="/owner/restaurants#create" prefetch={false}>
-              Créer restaurant
-            </Link>
-            <Link className={styles.btn} href="/owner/qr-codes" prefetch={false}>
-              Générer QR
+            <Link
+              className={`${styles.btnPrimary} ${styles.btn}`}
+              href="/owner/restaurants/create"
+              prefetch={false}
+            >
+              Creer restaurant
             </Link>
             <Link className={styles.btn} href="/owner/restaurants" prefetch={false}>
               Voir restaurants
+            </Link>
+            <Link className={styles.btn} href="/owner/qr-codes" prefetch={false}>
+              Generer QR
             </Link>
           </>
         }
       />
 
-      <section className={styles.todayBanner} aria-label="À traiter aujourd'hui">
-        <Link className={styles.todayItem} href="/owner/restaurants" prefetch={false}>
-          <span className={styles.todayCount}>{today.toComplete}</span>
-          <span className={styles.todayLabel}>Restaurants à compléter</span>
-        </Link>
-        <Link className={styles.todayItem} href="/owner/qr-codes" prefetch={false}>
-          <span className={styles.todayCount}>{today.qrToDo}</span>
-          <span className={styles.todayLabel}>QR à générer / tester</span>
-        </Link>
-        <Link className={styles.todayItem} href="/owner/medias" prefetch={false}>
-          <span className={styles.todayCount}>{today.photosMissing}</span>
-          <span className={styles.todayLabel}>Plats sans photo</span>
-        </Link>
-        <Link className={styles.todayItem} href="/owner/menus" prefetch={false}>
-          <span className={styles.todayCount}>{today.readyToPublish}</span>
-          <span className={styles.todayLabel}>Menus prêts à publier</span>
-        </Link>
-        <Link className={styles.todayItem} href="/owner/3d-ar" prefetch={false}>
-          <span className={styles.todayCount}>{today.immersiveGaps}</span>
-          <span className={styles.todayLabel}>Manques 3D / AR</span>
-        </Link>
+      <StatGroup title="Portefeuille">
+        <StatTile label="Restaurants" value={data.stats.totalRestaurants} primary hint="Actifs, setup et demo." />
+        <StatTile label="Actions a traiter" value={data.stats.actionsToTreat} hint="Maximum 5 priorites affichees." />
+        <StatTile label="QR prets" value={`${qrReady}/${data.restaurants.length}`} hint="Menus testables par QR." />
+        <StatTile label="Photos manquantes" value={missingPhotos} hint="Plats sans photo detectee." />
+        <StatTile label="Menus prets" value={`${menuReady}/${data.restaurants.length}`} hint="Restaurants avec plats." />
+      </StatGroup>
+
+      <section className={styles.ownerPortfolioLayout}>
+        <Panel
+          title="Restaurants a traiter"
+          action={
+            <span className={styles.sourceTag}>
+              {data.source === "fallback" ? "Donnees demo" : "Supabase"}
+            </span>
+          }
+        >
+          <OwnerRestaurantPortfolio
+            restaurants={restaurantsToTreat.length ? restaurantsToTreat : data.restaurants}
+            actions={data.actions}
+            limit={6}
+          />
+        </Panel>
+
+        <Panel title="Priorites owner">
+          {topPriorities.length === 0 ? (
+            <EmptyState>Aucune priorite urgente dans les donnees disponibles.</EmptyState>
+          ) : (
+            <div className={styles.priorityList}>
+              {topPriorities.map((priority, index) => {
+                const restaurant = data.restaurants.find(
+                  (item) => item.id === priority.restaurantId
+                );
+                return (
+                  <Link
+                    key={priority.id}
+                    className={styles.priorityItem}
+                    href={restaurant?.dashboardHref ?? priority.href}
+                    prefetch={false}
+                  >
+                    <span className={styles.priorityIndex}>{index + 1}</span>
+                    <span>
+                      <strong>
+                        {priority.restaurantName} - {priority.title}
+                      </strong>
+                      <small>{priority.body}</small>
+                      <Badge tone={PRIORITY_TONE[priority.priority]}>
+                        {PRIORITY_LABEL[priority.priority]}
+                      </Badge>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
       </section>
 
-      <StatGroup title="Business">
-        <StatTile label="Restaurants total" value={data.stats.totalRestaurants} primary />
-        <StatTile label="Actifs" value={data.stats.activeRestaurants} />
-        <StatTile label="En setup" value={data.stats.setupNeededRestaurants} />
-        <StatTile label="Actions critiques" value={data.stats.actionsToTreat} />
-      </StatGroup>
-
-      <StatGroup title="Produit">
-        <StatTile label="Menus prêts" value={data.stats.menuReadyRestaurants} />
-        <StatTile label="QR prêts" value={data.stats.qrReadyRestaurants} />
-        <StatTile label="Plats total" value={data.stats.totalDishes} />
-        <StatTile label="Plats avec photos" value={data.stats.dishesWithPhotos} />
-      </StatGroup>
-
-      <StatGroup title="Expérience">
-        <StatTile label="Plats 3D / AR" value={data.stats.dishesWithImmersive} />
-        <StatTile label="Ouvertures menu" value={data.stats.menuOpensToday} />
-        <StatTile label="Plats consultés" value={data.stats.dishViewsToday} />
-        <StatTile label="Plus actif" value={data.stats.mostActiveRestaurant} />
-      </StatGroup>
-
-      <OwnerAiPanel
-        initialPriorities={priorities}
-        recommendations={data.recommendations}
-        note={
-          data.source === "fallback"
-            ? "Données de présentation (Supabase non connecté)."
-            : data.note
-        }
-      />
+      <Panel title="Chemin principal">
+        <div className={styles.workflowStrip}>
+          <span>1. Vue portefeuille</span>
+          <span>2. Creation guidee</span>
+          <span>3. Selection restaurant</span>
+          <span>4. Dashboard dedie</span>
+        </div>
+        <p className={styles.sourceNote}>
+          Les routes globales QR, menus, plats, medias et 3D/AR restent
+          accessibles. Le chemin principal passe maintenant par le restaurant.
+        </p>
+      </Panel>
     </>
   );
 }

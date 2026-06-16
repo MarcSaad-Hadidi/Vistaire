@@ -68,6 +68,40 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
   const health = installPageHealth(page);
+  await page.route("**/api/owner/qr-codes", async (route) => {
+    const body = route.request().postDataJSON() as {
+      targetKind?: string;
+      targetPath?: string;
+      label?: string;
+      restaurantId?: string;
+    };
+    const targetKind = body.targetKind === "admin" ? "admin" : "menu";
+    const targetPath =
+      typeof body.targetPath === "string" && body.targetPath
+        ? body.targetPath
+        : "/menu/maison-elyse";
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        token: `e2e-${targetKind}-token`,
+        redirectUrl: `/q/e2e-${targetKind}-token`,
+        targetPath,
+        targetKind,
+        persisted: false,
+        record: {
+          id: `e2e-${targetKind}`,
+          restaurantId: body.restaurantId ?? "e2e-restaurant",
+          label: body.label ?? "QR e2e",
+          targetKind,
+          targetPath,
+          redirectUrl: `/q/e2e-${targetKind}-token`
+        }
+      })
+    });
+  });
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/owner/qr-codes", { waitUntil: "networkidle" });
@@ -91,7 +125,7 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
 
   await page.getByRole("button", { name: /QR admin owner/i }).click();
   await expect(page.getByText("Interne owner - protege").first()).toBeVisible();
-  await expect(page.getByText("/owner/restaurants?restaurantId=").first()).toBeVisible();
+  await expect(page.getByText("/owner/restaurants/").first()).toBeVisible();
   await page.locator("select").nth(1).selectOption("none");
   await page.getByRole("button", { name: /Sauvegarder \/ Generer QR/i }).click();
   await expect(page.getByRole("status")).toContainText(
