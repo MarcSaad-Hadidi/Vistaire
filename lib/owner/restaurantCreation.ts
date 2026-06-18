@@ -91,7 +91,7 @@ function buildPublicMenuPath(slugOrName: string): string {
 function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string {
   const safeId = restaurantIdOrSlug.trim();
   return safeId
-    ? `/owner/restaurants?restaurantId=${encodeURIComponent(safeId)}`
+    ? `/owner/restaurants/${encodeURIComponent(safeId)}`
     : "/owner";
 }
 

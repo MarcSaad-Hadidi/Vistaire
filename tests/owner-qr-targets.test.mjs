@@ -46,7 +46,7 @@ test("builds an internal protected owner QR target with a clear label", () => {
   });
 
   assert.equal(target.targetKind, "admin");
-  assert.equal(target.targetPath, "/owner/restaurants?restaurantId=rest_123");
+  assert.equal(target.targetPath, "/owner/restaurants/rest_123");
   assert.equal(target.label, "QR admin - Maison Elyse");
   assert.equal(target.badgeLabel, "Interne owner - protege");
   assert.doesNotMatch(target.targetPath, /secret|token|key|service_role/i);
@@ -57,6 +57,10 @@ test("sanitizes QR target paths without allowing open redirects", () => {
   assert.equal(
     sanitizeOwnerQrTargetPath("/owner/restaurants?restaurantId=rest_123"),
     "/owner/restaurants?restaurantId=rest_123"
+  );
+  assert.equal(
+    sanitizeOwnerQrTargetPath("/owner/restaurants/rest_123"),
+    "/owner/restaurants/rest_123"
   );
   assert.equal(sanitizeOwnerQrTargetPath("https://evil.example/menu"), null);
   assert.equal(sanitizeOwnerQrTargetPath("http://evil.example/menu"), null);
@@ -72,6 +76,10 @@ test("enforces allowed target paths by QR type", () => {
     isOwnerQrTargetPathAllowed("admin", "/owner/restaurants?restaurantId=rest_123"),
     true
   );
+  assert.equal(
+    isOwnerQrTargetPathAllowed("admin", "/owner/restaurants/rest_123"),
+    true
+  );
   assert.equal(isOwnerQrTargetPathAllowed("admin", "/admin?restaurantId=rest_123"), false);
   assert.equal(isOwnerQrTargetPathAllowed("admin", "/menu/maison-elyse"), false);
 });
@@ -79,6 +87,7 @@ test("enforces allowed target paths by QR type", () => {
 test("infers QR target kind from persisted target paths", () => {
   assert.equal(inferOwnerQrTargetKind("/menu/maison-elyse"), "menu");
   assert.equal(inferOwnerQrTargetKind("/owner/restaurants?restaurantId=rest_123"), "admin");
+  assert.equal(inferOwnerQrTargetKind("/owner/restaurants/rest_123"), "admin");
 });
 
 test("keeps logo QR styles scannable with high error correction", () => {
@@ -107,4 +116,17 @@ test("signed QR fallback is dev-gated and menu-target validated", async () => {
   assert.match(tokenSource, /process\.env\.NODE_ENV !== "production"/);
   assert.match(storeSource, /canUseSignedQrFallback/);
   assert.match(storeSource, /isOwnerQrTargetPathAllowed\("menu", targetPath\)/);
+});
+
+test("restaurant dashboard copies the configured menu URL used by QR", async () => {
+  const source = await readFile(
+    "components/owner/OwnerRestaurantDashboard.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /navigator\.clipboard\.writeText\(restaurant\.menuUrl\)/);
+  assert.doesNotMatch(
+    source,
+    /navigator\.clipboard\.writeText\(restaurant\.publicMenuUrl\)/
+  );
 });

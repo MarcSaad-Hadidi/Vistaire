@@ -30,7 +30,9 @@ test("owner command center uses the cockpit shell (sidebar + topbar, no public c
   // Overview: operator cockpit, not a vitrine — no dominant hero photo.
   assert.match(overview, /ModuleHeader/);
   assert.match(overview, /StatGroup/);
-  assert.match(overview, /todayBanner/);
+  assert.match(overview, /OwnerRestaurantPortfolio/);
+  assert.match(overview, /ownerPortfolioLayout/);
+  assert.match(overview, /workflowStrip/);
   assert.doesNotMatch(overview, /PhotoRestoComplet5/);
   assert.doesNotMatch(overview, /heroPanel/);
 

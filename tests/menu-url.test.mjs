@@ -31,10 +31,10 @@ test("builds absolute menu URLs from configured site origin only", () => {
   );
 });
 
-test("builds restaurant dashboard preview paths separately from owner cockpit", () => {
+test("builds dedicated owner restaurant dashboard paths", () => {
   assert.equal(
     buildRestaurantDashboardPath("restaurant-id"),
-    "/owner/restaurants?restaurantId=restaurant-id"
+    "/owner/restaurants/restaurant-id"
   );
   assert.equal(buildRestaurantDashboardPath(""), "/owner");
 });

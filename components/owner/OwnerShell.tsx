@@ -16,10 +16,17 @@ export function OwnerShell({
   const pathname = usePathname() ?? "/owner";
   const [mobileOpen, setMobileOpen] = useState(false);
   const { label, hint } = ownerNavTitle(pathname);
+  const activeHref =
+    [...OWNER_NAV_ITEMS]
+      .filter((item) =>
+        item.href === "/owner"
+          ? pathname === "/owner"
+          : pathname === item.href || pathname.startsWith(`${item.href}/`)
+      )
+      .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? "/owner";
 
   function isActive(href: string) {
-    if (href === "/owner") return pathname === "/owner";
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return href === activeHref;
   }
 
   return (

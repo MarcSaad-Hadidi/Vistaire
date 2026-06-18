@@ -171,7 +171,7 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
   assert.match(result.restaurant.menuUrl, /\/menu\/le-comptoir-d-ete$/);
   assert.equal(
     result.restaurant.dashboardHref,
-    `/owner/restaurants?restaurantId=${persistedId}`
+    `/owner/restaurants/${persistedId}`
   );
   assert.equal(result.restaurant.qrStatus, "generable");
   assert.equal(insertedRow.slug, "le-comptoir-d-ete");

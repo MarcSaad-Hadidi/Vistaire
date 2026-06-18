@@ -438,7 +438,7 @@ function mapRestaurantRow(args: {
         : "derived_preview",
     publicMenuPath,
     publicMenuUrl,
-    dashboardHref: isDemo ? "/admin" : buildRestaurantDashboardPath(id || slug),
+    dashboardHref: buildRestaurantDashboardPath(id || slug),
     qrTargetUrl: menuUrl,
     qrCodeUrl: qr.qrCodeUrl,
     qrStatus: qr.qrStatus,
@@ -660,6 +660,18 @@ type OwnerRestaurantsData = {
   note: string;
 };
 
+export type OwnerRestaurantDashboardData = OwnerRestaurantsData & {
+  restaurant: OwnerRestaurant | null;
+};
+
+function decodeRestaurantLookup(value: string): string {
+  try {
+    return decodeURIComponent(value).trim().toLowerCase();
+  } catch {
+    return value.trim().toLowerCase();
+  }
+}
+
 const skippedRowsResult = {
   ok: false as const,
   error: "not requested",
@@ -746,6 +758,27 @@ export async function getOwnerRestaurantsData(): Promise<OwnerRestaurantsData> {
     includeDishes: true,
     includeQr: true
   });
+}
+
+export async function getOwnerRestaurantDashboardData(
+  restaurantIdOrSlug: string
+): Promise<OwnerRestaurantDashboardData> {
+  const data = await getOwnerRestaurantRowsData({
+    includeDishes: true,
+    includeActivity: true,
+    includeQr: true
+  });
+  const lookup = decodeRestaurantLookup(restaurantIdOrSlug);
+  const restaurant =
+    data.restaurants.find(
+      (item) =>
+        item.id.toLowerCase() === lookup || item.slug.toLowerCase() === lookup
+    ) ?? null;
+
+  return {
+    ...data,
+    restaurant
+  };
 }
 
 export async function getOwnerMenuStatusData(): Promise<OwnerRestaurantsData> {
