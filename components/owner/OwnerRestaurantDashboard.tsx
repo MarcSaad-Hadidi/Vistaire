@@ -81,7 +81,7 @@ export function OwnerRestaurantDashboard({
 
   async function copyMenuUrl() {
     try {
-      await navigator.clipboard.writeText(restaurant.publicMenuUrl);
+      await navigator.clipboard.writeText(restaurant.menuUrl);
       setCopyStatus("URL menu copiee.");
     } catch {
       setCopyStatus("Copie indisponible dans ce navigateur.");

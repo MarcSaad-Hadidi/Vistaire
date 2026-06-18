@@ -117,3 +117,16 @@ test("signed QR fallback is dev-gated and menu-target validated", async () => {
   assert.match(storeSource, /canUseSignedQrFallback/);
   assert.match(storeSource, /isOwnerQrTargetPathAllowed\("menu", targetPath\)/);
 });
+
+test("restaurant dashboard copies the configured menu URL used by QR", async () => {
+  const source = await readFile(
+    "components/owner/OwnerRestaurantDashboard.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /navigator\.clipboard\.writeText\(restaurant\.menuUrl\)/);
+  assert.doesNotMatch(
+    source,
+    /navigator\.clipboard\.writeText\(restaurant\.publicMenuUrl\)/
+  );
+});
