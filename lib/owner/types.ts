@@ -41,6 +41,7 @@ export type OwnerRestaurant = {
   menuUrlSource: "column" | "derived_preview" | "demo";
   publicMenuPath: string;
   publicMenuUrl: string;
+  mediaBasePath?: string;
   dashboardHref: string;
   qrTargetUrl: string;
   qrCodeUrl: string | null;
@@ -166,6 +167,31 @@ export type OwnerDashboardData = {
   note: string;
 };
 
+export type CreateRestaurantMenuLanguage = "fr" | "en";
+
+export type CreateRestaurantDishPhotoStatus = "ready" | "planned" | "missing";
+
+export type CreateRestaurantSectionInput = {
+  name: string;
+  description?: string;
+  order?: number;
+};
+
+export type CreateRestaurantDishInput = {
+  name: string;
+  section: string;
+  price: number;
+  description: string;
+  imageUrl?: string;
+  ingredients?: string[];
+  allergens?: string[];
+  tags?: string[];
+  options?: string[];
+  chefNote?: string;
+  available?: boolean;
+  photoStatus?: CreateRestaurantDishPhotoStatus;
+};
+
 export type CreateRestaurantInput = {
   name: string;
   slug: string;
@@ -177,4 +203,7 @@ export type CreateRestaurantInput = {
   contactPhone?: string;
   googleReviewUrl?: string;
   notes?: string;
+  menuLanguages?: CreateRestaurantMenuLanguage[];
+  sections?: CreateRestaurantSectionInput[];
+  dishes?: CreateRestaurantDishInput[];
 };

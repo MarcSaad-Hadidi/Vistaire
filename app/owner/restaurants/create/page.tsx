@@ -13,7 +13,7 @@ export default async function OwnerRestaurantCreatePage() {
     <>
       <ModuleHeader
         title="Creer restaurant"
-        description="Profil, menu, plats, medias, QR et revue finale. Le profil restaurant est persiste via Supabase quand l'environnement le permet; les autres etapes restent un brouillon d'onboarding."
+        description="Profil, menu, plats et revue finale. Supabase confirme apres sauvegarde ce qui a ete persiste."
         actions={
           <Link className={styles.btn} href="/owner/restaurants" prefetch={false}>
             Retour restaurants
@@ -23,7 +23,11 @@ export default async function OwnerRestaurantCreatePage() {
 
       <Panel
         title="Creation guidee"
-        action={<span className={styles.sourceTag}>Profil persistant · setup draft</span>}
+        action={
+          <span className={styles.sourceTag}>
+            Creation Supabase avec rapport de persistance
+          </span>
+        }
       >
         <RestaurantCreateForm siteOrigin={siteOrigin} />
       </Panel>

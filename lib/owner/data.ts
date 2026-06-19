@@ -59,6 +59,15 @@ const STATUS_VALUES = new Set<OwnerRestaurantStatus>([
   "archived"
 ]);
 
+const MEDIA_BASE_PATH_COLUMNS = [
+  "media_base_path",
+  "mediaBasePath",
+  "asset_folder",
+  "assetFolder",
+  "storage_path",
+  "storagePath"
+];
+
 type DishMetrics = {
   dishCount: number;
   photoDishCount: number;
@@ -99,6 +108,10 @@ function normalizeMenuUrl(href: string, fallbackPath: string): string {
   }
 
   return absoluteUrl(target.startsWith("/") ? target : `/${target}`);
+}
+
+function buildMediaBasePath(restaurantId: string): string {
+  return restaurantId ? `restaurants/${restaurantId}/photos/` : "";
 }
 
 function getQrStatus(args: {
@@ -438,6 +451,8 @@ function mapRestaurantRow(args: {
         : "derived_preview",
     publicMenuPath,
     publicMenuUrl,
+    mediaBasePath:
+      getString(args.row, MEDIA_BASE_PATH_COLUMNS, "") || buildMediaBasePath(id),
     dashboardHref: buildRestaurantDashboardPath(id || slug),
     qrTargetUrl: menuUrl,
     qrCodeUrl: qr.qrCodeUrl,
@@ -607,7 +622,7 @@ function buildOwnerActions(restaurants: OwnerRestaurant[]): OwnerAction[] {
         restaurantName: restaurant.name,
         title: "Photos a completer",
         body: `${restaurant.incompleteDishCount} plats restent sans photo detectee.`,
-        href: "/owner/medias",
+        href: `/owner/medias?restaurantId=${encodeURIComponent(restaurant.id)}`,
         priority: "medium"
       });
     }

@@ -1,20 +1,21 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { MenuQrCode } from "@/components/owner/MenuQrCode";
+import { useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import {
-  buildOwnerQrTarget,
   buildPublicMenuPath,
-  slugifyRestaurantSlug,
-  type OwnerQrTargetKind
+  slugifyRestaurantSlug
 } from "@/lib/owner/menuUrlCore";
-import type { Locale } from "@/lib/i18n";
-import type { OwnerRestaurant, OwnerRestaurantStatus } from "@/lib/owner/types";
+import type {
+  CreateRestaurantDishPhotoStatus,
+  CreateRestaurantMenuLanguage,
+  OwnerRestaurant,
+  OwnerRestaurantStatus
+} from "@/lib/owner/types";
 
-type StepId = "profile" | "menu" | "dishes" | "media" | "qr" | "review";
+type StepId = "profile" | "menu" | "dishes" | "review";
 
 type DraftSection = {
   id: string;
@@ -27,17 +28,18 @@ type DraftDish = {
   name: string;
   section: string;
   price: number;
-  photoReady: boolean;
-  immersiveCandidate: boolean;
+  description: string;
+  imageUrl: string;
+  ingredients: string[];
+  allergens: string[];
+  tags: string[];
+  options: string[];
+  chefNote: string;
+  available: boolean;
+  photoStatus: CreateRestaurantDishPhotoStatus;
 };
 
-type MenuLanguage = Locale;
-
-type MediaQuality = {
-  photos: boolean;
-  copy: boolean;
-  immersiveBrief: boolean;
-};
+type MenuLanguage = CreateRestaurantMenuLanguage;
 
 type SubmitState =
   | { status: "idle"; message: "" }
@@ -49,6 +51,14 @@ type SubmitState =
       restaurant: OwnerRestaurant;
       persisted: true;
       dataSource: "supabase";
+      restaurantPersisted: true;
+      sectionsPersisted: boolean;
+      dishesPersisted: boolean;
+      persistedDishCount: number;
+      mediaBasePath: string;
+      mediaBasePathPersisted: boolean;
+      qrCodesHref: string;
+      warnings: string[];
     }
   | { status: "fallback"; message: string }
   | { status: "error"; message: string };
@@ -61,32 +71,22 @@ const steps: Array<{ id: StepId; title: string; sub: string }> = [
   {
     id: "profile",
     title: "Profil",
-    sub: "Identite, slug, contact et notes."
+    sub: "Identite, slug, contact."
   },
   {
     id: "menu",
     title: "Menu",
-    sub: "Sections principales de la carte."
+    sub: "Langues et sections de la carte."
   },
   {
     id: "dishes",
     title: "Plats",
-    sub: "Premiers plats, prix, photo et 3D."
-  },
-  {
-    id: "media",
-    title: "Medias / qualite",
-    sub: "Photos, copy premium et candidats 3D."
-  },
-  {
-    id: "qr",
-    title: "QR",
-    sub: "Cible, preview et test mobile."
+    sub: "Descriptions, prix, photos."
   },
   {
     id: "review",
     title: "Revue finale",
-    sub: "Readiness et creation du profil."
+    sub: "Persistance et actions."
   }
 ];
 
@@ -104,13 +104,43 @@ const menuLanguageOptions: Array<{
   {
     value: "fr",
     label: "Francais",
-    detail: "Langue principale du menu public."
+    detail: "Base de la carte client."
   },
   {
     value: "en",
     label: "English",
-    detail: "Version anglaise pour clients internationaux."
+    detail: "Version bilingue."
   }
+];
+
+const allergenOptions = [
+  "Gluten",
+  "Produits laitiers",
+  "Oeufs",
+  "Poisson",
+  "Crustaces",
+  "Fruits a coque",
+  "Soya",
+  "Aucun connu"
+];
+
+const badgeOptions = [
+  "Maison",
+  "Signature",
+  "Populaire",
+  "Recommande",
+  "Nouveau",
+  "Vegetarien",
+  "Sans gluten"
+];
+
+const photoStatusOptions: Array<{
+  value: CreateRestaurantDishPhotoStatus;
+  label: string;
+}> = [
+  { value: "ready", label: "Photo prete" },
+  { value: "planned", label: "A ajouter dans medias" },
+  { value: "missing", label: "Sans photo" }
 ];
 
 function absoluteUrl(siteOrigin: string, path: string): string {
@@ -129,8 +159,28 @@ function formatPrice(value: number): string {
   return new Intl.NumberFormat("fr-CA", {
     style: "currency",
     currency: "CAD",
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(value);
+}
+
+function splitList(value: string): string[] {
+  const seen = new Set<string>();
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => {
+      if (!item) return false;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 16);
+}
+
+function formatList(items: string[]): string {
+  return items.length > 0 ? items.join(", ") : "A completer";
 }
 
 function formatMenuLanguages(languages: MenuLanguage[]): string {
@@ -138,6 +188,10 @@ function formatMenuLanguages(languages: MenuLanguage[]): string {
     .filter((option) => languages.includes(option.value))
     .map((option) => option.label)
     .join(", ");
+}
+
+function formatPhotoStatus(status: CreateRestaurantDishPhotoStatus): string {
+  return photoStatusOptions.find((option) => option.value === status)?.label ?? "A ajouter";
 }
 
 function isValidGoogleReviewUrl(value: string): boolean {
@@ -167,9 +221,59 @@ function isValidGoogleReviewUrl(value: string): boolean {
   return false;
 }
 
+function isValidMediaUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  if (trimmed.includes("\\")) return false;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.includes("\\")) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "https:" && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function getSectionsWithoutDish(sections: DraftSection[], dishes: DraftDish[]): string[] {
+  const dishSections = new Set(
+    dishes.map((dish) => dish.section.trim().toLowerCase()).filter(Boolean)
+  );
+
+  return sections
+    .filter((section) => !dishSections.has(section.name.trim().toLowerCase()))
+    .map((section) => section.name);
+}
+
+function calculateReadiness({
+  name,
+  slug,
+  sections,
+  dishes
+}: {
+  name: string;
+  slug: string;
+  sections: DraftSection[];
+  dishes: DraftDish[];
+}): number {
+  const checks = [
+    Boolean(name.trim()),
+    Boolean(slug.trim()),
+    sections.length > 0,
+    dishes.length > 0,
+    sections.length > 0 && getSectionsWithoutDish(sections, dishes).length === 0,
+    dishes.every((dish) => dish.description.trim() && dish.price > 0),
+    dishes.some((dish) => dish.photoStatus === "ready" || dish.imageUrl.trim())
+  ];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
 export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
+  const [maxUnlockedStep, setMaxUnlockedStep] = useState(0);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -186,17 +290,20 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [sectionDescription, setSectionDescription] = useState("");
   const [menuLanguages, setMenuLanguages] = useState<MenuLanguage[]>(["fr"]);
   const [dishes, setDishes] = useState<DraftDish[]>([]);
+  const [editingDishId, setEditingDishId] = useState("");
   const [dishName, setDishName] = useState("");
   const [dishSection, setDishSection] = useState("");
-  const [dishPrice, setDishPrice] = useState("42");
-  const [mediaQuality, setMediaQuality] = useState<MediaQuality>({
-    photos: false,
-    copy: false,
-    immersiveBrief: false
-  });
-  const [qrTargetKind, setQrTargetKind] = useState<OwnerQrTargetKind>("menu");
-  const [qrGenerated, setQrGenerated] = useState(false);
-  const [qrTested, setQrTested] = useState(false);
+  const [dishPrice, setDishPrice] = useState("28");
+  const [dishDescription, setDishDescription] = useState("");
+  const [dishImageUrl, setDishImageUrl] = useState("");
+  const [dishIngredients, setDishIngredients] = useState("");
+  const [dishOptions, setDishOptions] = useState("");
+  const [dishAllergens, setDishAllergens] = useState<string[]>([]);
+  const [dishTags, setDishTags] = useState<string[]>([]);
+  const [dishChefNote, setDishChefNote] = useState("");
+  const [dishAvailable, setDishAvailable] = useState(true);
+  const [dishPhotoStatus, setDishPhotoStatus] =
+    useState<CreateRestaurantDishPhotoStatus>("planned");
   const [state, setState] = useState<SubmitState>({
     status: "idle",
     message: ""
@@ -206,31 +313,17 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const effectiveSlug = slug || slugifyRestaurantSlug(name);
   const menuPath = buildPublicMenuPath(effectiveSlug || name);
   const menuUrl = useMemo(() => absoluteUrl(siteOrigin, menuPath), [menuPath, siteOrigin]);
-  const qrTarget = useMemo(
-    () =>
-      buildOwnerQrTarget({
-        targetKind: qrTargetKind,
-        restaurantId: effectiveSlug || "nouveau-restaurant",
-        restaurantName: name || "Nouveau restaurant",
-        restaurantSlug: effectiveSlug || "nouveau-restaurant"
-      }),
-    [effectiveSlug, name, qrTargetKind]
-  );
-  const qrUrl = useMemo(
-    () => absoluteUrl(siteOrigin, qrTarget.targetPath),
-    [qrTarget.targetPath, siteOrigin]
-  );
   const currentStep = steps[stepIndex];
   const readiness = calculateReadiness({
     name,
     slug: effectiveSlug,
     sections,
-    dishes,
-    qrGenerated,
-    qrTested
+    dishes
   });
-  const photoCount = dishes.filter((dish) => dish.photoReady).length;
-  const immersiveCount = dishes.filter((dish) => dish.immersiveCandidate).length;
+  const photoReadyCount = dishes.filter(
+    (dish) => dish.photoStatus === "ready" || dish.imageUrl.trim()
+  ).length;
+  const mediaBasePathPreview = "restaurants/{id-supabase}/photos/";
 
   function updateName(value: string) {
     setName(value);
@@ -302,68 +395,116 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     });
   }
 
+  function toggleAllergen(value: string) {
+    setDishAllergens((current) => {
+      if (value === "Aucun connu") return current.includes(value) ? [] : [value];
+      if (current.includes(value)) return current.filter((item) => item !== value);
+      return [...current.filter((item) => item !== "Aucun connu"), value];
+    });
+  }
+
+  function toggleTag(value: string) {
+    setDishTags((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]
+    );
+  }
+
+  function resetDishDraft() {
+    setEditingDishId("");
+    setDishName("");
+    setDishSection(sections[0]?.name ?? "");
+    setDishPrice("28");
+    setDishDescription("");
+    setDishImageUrl("");
+    setDishIngredients("");
+    setDishOptions("");
+    setDishAllergens([]);
+    setDishTags([]);
+    setDishChefNote("");
+    setDishAvailable(true);
+    setDishPhotoStatus("planned");
+  }
+
+  function startEditDish(dish: DraftDish) {
+    setEditingDishId(dish.id);
+    setDishName(dish.name);
+    setDishSection(dish.section);
+    setDishPrice(String(dish.price));
+    setDishDescription(dish.description);
+    setDishImageUrl(dish.imageUrl);
+    setDishIngredients(dish.ingredients.join(", "));
+    setDishOptions(dish.options.join(", "));
+    setDishAllergens(dish.allergens);
+    setDishTags(dish.tags);
+    setDishChefNote(dish.chefNote);
+    setDishAvailable(dish.available);
+    setDishPhotoStatus(dish.photoStatus);
+    setError("");
+  }
+
   function addDish() {
     const normalizedName = dishName.trim();
+    const selectedSection = dishSection || sections[0]?.name || "";
+    const price = Number(dishPrice);
+    const description = dishDescription.trim();
+    const imageUrl = dishImageUrl.trim();
+
     if (!normalizedName) {
       setError("Ajoutez un nom de plat.");
       return;
     }
-    const selectedSection = dishSection || sections[0]?.name || "";
     if (!selectedSection) {
       setError("Ajoutez une section avant les plats.");
       return;
     }
+    if (!Number.isFinite(price) || price <= 0) {
+      setError("Chaque plat doit avoir un prix superieur a 0.");
+      return;
+    }
+    if (!description) {
+      setError("Description courte requise pour chaque plat.");
+      return;
+    }
+    if (!isValidMediaUrl(imageUrl)) {
+      setError("URL photo invalide. Utilisez une URL https ou un chemin interne.");
+      return;
+    }
 
-    setDishes((items) => [
-      ...items,
-      {
-        id: draftId("dish"),
-        name: normalizedName,
-        section: selectedSection,
-        price: Number(dishPrice) || 0,
-        photoReady: false,
-        immersiveCandidate: false
-      }
-    ]);
-    setDishName("");
-    setDishPrice("42");
+    const nextDish: DraftDish = {
+      id: editingDishId || draftId("dish"),
+      name: normalizedName,
+      section: selectedSection,
+      price: Math.round(price * 100) / 100,
+      description,
+      imageUrl,
+      ingredients: splitList(dishIngredients),
+      allergens: dishAllergens,
+      tags: dishTags,
+      options: splitList(dishOptions),
+      chefNote: dishChefNote.trim(),
+      available: dishAvailable,
+      photoStatus: imageUrl && dishPhotoStatus === "planned" ? "ready" : dishPhotoStatus
+    };
+
+    setDishes((items) =>
+      editingDishId
+        ? items.map((dish) => (dish.id === editingDishId ? nextDish : dish))
+        : [...items, nextDish]
+    );
+    resetDishDraft();
     setError("");
   }
 
   function removeDish(id: string) {
     setDishes((items) => items.filter((dish) => dish.id !== id));
+    if (editingDishId === id) resetDishDraft();
   }
 
-  function toggleDish(id: string, key: "photoReady" | "immersiveCandidate") {
-    setDishes((items) =>
-      items.map((dish) => (dish.id === id ? { ...dish, [key]: !dish[key] } : dish))
-    );
-  }
-
-  function applyMediaShortcut(key: keyof MediaQuality) {
-    setMediaQuality((current) => ({ ...current, [key]: !current[key] }));
-
-    if (key === "photos") {
-      setDishes((items) =>
-        items.map((dish, index) =>
-          index < Math.max(1, Math.ceil(items.length * 0.75))
-            ? { ...dish, photoReady: true }
-            : dish
-        )
-      );
-    }
-    if (key === "immersiveBrief") {
-      setDishes((items) =>
-        items.map((dish, index) =>
-          index === 0 ? { ...dish, immersiveCandidate: true } : dish
-        )
-      );
-    }
-  }
-
-  function validateCurrentStep() {
+  function validateStep(stepId: StepId) {
     setError("");
-    if (currentStep.id === "profile") {
+    if (stepId === "profile") {
       if (!name.trim()) {
         setError("Le nom restaurant est requis.");
         return false;
@@ -381,29 +522,48 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         return false;
       }
     }
-    if (currentStep.id === "menu" && sections.length === 0) {
-      setError("Ajoutez au moins une section de menu.");
-      return false;
+    if (stepId === "menu") {
+      if (menuLanguages.length === 0) {
+        setError("Choisissez au moins une langue de menu.");
+        return false;
+      }
+      if (sections.length === 0) {
+        setError("Ajoutez au moins une section de menu.");
+        return false;
+      }
     }
-    if (currentStep.id === "menu" && menuLanguages.length === 0) {
-      setError("Choisissez au moins une langue de menu.");
-      return false;
-    }
-    if (currentStep.id === "dishes" && dishes.length === 0) {
-      setError("Ajoutez au moins un plat.");
-      return false;
+    if (stepId === "dishes") {
+      if (dishes.length === 0) {
+        setError("Ajoutez au moins un plat.");
+        return false;
+      }
+      if (dishes.some((dish) => !dish.description.trim() || dish.price <= 0 || !dish.section)) {
+        setError("Chaque plat doit garder une section, un prix et une description courte.");
+        return false;
+      }
     }
     return true;
   }
 
   function goNext() {
-    if (!validateCurrentStep()) return;
-    setStepIndex((index) => Math.min(index + 1, steps.length - 1));
+    if (!validateStep(currentStep.id)) return;
+    const nextIndex = Math.min(stepIndex + 1, steps.length - 1);
+    setMaxUnlockedStep((index) => Math.max(index, nextIndex));
+    setStepIndex(nextIndex);
   }
 
   function goPrevious() {
     setError("");
     setStepIndex((index) => Math.max(index - 1, 0));
+  }
+
+  function goToStep(index: number) {
+    if (index <= maxUnlockedStep) {
+      setError("");
+      setStepIndex(index);
+      return;
+    }
+    setError("Validez l'etape active avant de continuer.");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -413,10 +573,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       return;
     }
 
+    for (const step of steps) {
+      if (!validateStep(step.id)) return;
+    }
+
     setError("");
     setState({
       status: "validating",
-      message: "Validation du profil restaurant..."
+      message: "Validation du restaurant..."
     });
 
     const normalizedSlug = slugifyRestaurantSlug(effectiveSlug || name);
@@ -430,7 +594,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
 
     setState({
       status: "creating",
-      message: "Creation du restaurant dans Supabase..."
+      message: "Creation dans Supabase..."
     });
 
     try {
@@ -447,7 +611,27 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           contactEmail,
           contactPhone,
           googleReviewUrl,
-          notes
+          notes,
+          menuLanguages,
+          sections: sections.map((section, index) => ({
+            name: section.name,
+            description: section.description,
+            order: index + 1
+          })),
+          dishes: dishes.map((dish) => ({
+            name: dish.name,
+            section: dish.section,
+            price: dish.price,
+            description: dish.description,
+            imageUrl: dish.imageUrl,
+            ingredients: dish.ingredients,
+            allergens: dish.allergens,
+            tags: dish.tags,
+            options: dish.options,
+            chefNote: dish.chefNote,
+            available: dish.available,
+            photoStatus: dish.photoStatus
+          }))
         })
       });
       const result = (await response.json()) as {
@@ -455,6 +639,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         error?: string;
         persisted?: boolean;
         dataSource?: "supabase";
+        restaurantPersisted?: boolean;
+        sectionsPersisted?: boolean;
+        dishesPersisted?: boolean;
+        persistedDishCount?: number;
+        mediaBasePath?: string;
+        mediaBasePathPersisted?: boolean;
+        qrCodesHref?: string;
+        warnings?: string[];
         restaurant?: OwnerRestaurant;
       };
 
@@ -462,7 +654,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         throw new Error(result.error ?? "Creation impossible.");
       }
 
-      if (!result.persisted || result.dataSource !== "supabase") {
+      if (!result.persisted || result.dataSource !== "supabase" || !result.restaurantPersisted) {
         setState({
           status: "fallback",
           message:
@@ -473,13 +665,21 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
 
       setState({
         status: "success",
-        message: "Restaurant persiste. Ouverture du dashboard dedie...",
+        message: "Restaurant cree dans Supabase.",
         restaurant: result.restaurant,
         persisted: true,
-        dataSource: "supabase"
+        dataSource: "supabase",
+        restaurantPersisted: true,
+        sectionsPersisted: Boolean(result.sectionsPersisted),
+        dishesPersisted: Boolean(result.dishesPersisted),
+        persistedDishCount: result.persistedDishCount ?? 0,
+        mediaBasePath: result.mediaBasePath ?? `restaurants/${result.restaurant.id}/photos/`,
+        mediaBasePathPersisted: Boolean(result.mediaBasePathPersisted),
+        qrCodesHref:
+          result.qrCodesHref ?? `/owner/qr-codes?restaurantId=${result.restaurant.id}&target=menu`,
+        warnings: result.warnings ?? []
       });
       router.refresh();
-      router.push(result.restaurant.dashboardHref);
     } catch (submissionError) {
       setState({
         status: "error",
@@ -489,6 +689,15 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             : "Le restaurant n'a pas pu etre cree."
       });
     }
+  }
+
+  if (state.status === "success") {
+    return (
+      <CreationSuccess
+        state={state}
+        menuUrl={state.restaurant.publicMenuUrl || menuUrl}
+      />
+    );
   }
 
   return (
@@ -503,7 +712,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
               className={`${styles.stepCard} ${
                 index === stepIndex ? styles.stepCardActive : ""
               } ${done ? styles.stepCardDone : ""}`}
-              onClick={() => setStepIndex(index)}
+              disabled={index > maxUnlockedStep}
+              onClick={() => goToStep(index)}
             >
               <span className={styles.stepNumber}>{done ? "OK" : index + 1}</span>
               <span>
@@ -522,8 +732,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
               <h3 className={styles.panelTitle}>{currentStep.title}</h3>
               <p className={styles.cellSub}>{currentStep.sub}</p>
             </div>
-            <span className={`${styles.badge} ${styles.badgeWarn}`}>
-              Etape {stepIndex + 1}/{steps.length}
+            <span className={`${styles.badge} ${readiness >= 80 ? styles.badgeReady : styles.badgeWarn}`}>
+              {readiness}% pret
             </span>
           </div>
           <div className={styles.panelBody}>
@@ -577,42 +787,35 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           <DishesStep
             sections={sections}
             dishes={dishes}
+            editingDishId={editingDishId}
             dishName={dishName}
             dishSection={dishSection || sections[0]?.name || ""}
             dishPrice={dishPrice}
+            dishDescription={dishDescription}
+            dishImageUrl={dishImageUrl}
+            dishIngredients={dishIngredients}
+            dishOptions={dishOptions}
+            dishAllergens={dishAllergens}
+            dishTags={dishTags}
+            dishChefNote={dishChefNote}
+            dishAvailable={dishAvailable}
+            dishPhotoStatus={dishPhotoStatus}
             onDishNameChange={setDishName}
             onDishSectionChange={setDishSection}
             onDishPriceChange={setDishPrice}
+            onDishDescriptionChange={setDishDescription}
+            onDishImageUrlChange={setDishImageUrl}
+            onDishIngredientsChange={setDishIngredients}
+            onDishOptionsChange={setDishOptions}
+            onToggleAllergen={toggleAllergen}
+            onToggleTag={toggleTag}
+            onDishChefNoteChange={setDishChefNote}
+            onDishAvailableChange={setDishAvailable}
+            onDishPhotoStatusChange={setDishPhotoStatus}
             onAddDish={addDish}
+            onCancelEdit={resetDishDraft}
             onRemoveDish={removeDish}
-            onToggleDish={toggleDish}
-          />
-        ) : null}
-
-        {currentStep.id === "media" ? (
-          <MediaStep
-            dishCount={dishes.length}
-            photoCount={photoCount}
-            immersiveCount={immersiveCount}
-            readiness={readiness}
-            mediaQuality={mediaQuality}
-            onToggle={applyMediaShortcut}
-          />
-        ) : null}
-
-        {currentStep.id === "qr" ? (
-          <QrStep
-            name={name || "Nouveau restaurant"}
-            qrTargetKind={qrTargetKind}
-            qrUrl={qrUrl}
-            qrGenerated={qrGenerated}
-            qrTested={qrTested}
-            onTargetChange={setQrTargetKind}
-            onGenerate={() => setQrGenerated(true)}
-            onTest={() => {
-              setQrGenerated(true);
-              setQrTested(true);
-            }}
+            onEditDish={startEditDish}
           />
         ) : null}
 
@@ -626,87 +829,50 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             menuLanguages={menuLanguages}
             sections={sections}
             dishes={dishes}
-            photoCount={photoCount}
-            immersiveCount={immersiveCount}
-            qrGenerated={qrGenerated}
-            qrTested={qrTested}
+            photoReadyCount={photoReadyCount}
             menuUrl={menuUrl}
+            mediaBasePathPreview={mediaBasePathPreview}
           />
         ) : null}
 
         <div className={styles.creationFooter}>
           <div>
             <p className={styles.sourceNote}>
-              Profil restaurant persistant si Supabase confirme son identifiant.
-              Menu, plats, medias et QR ci-dessus sont un brouillon local de setup.
+              Le restaurant, les sections et les plats sont envoyes a Supabase.
+              Le resultat final confirme ce qui a ete persiste.
             </p>
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {state.status === "error" || state.status === "fallback" ? (
               <p className={styles.errorText} role="status">
                 {state.message}
               </p>
-            ) : state.status === "validating" || state.status === "creating" || state.status === "success" ? (
+            ) : state.status === "validating" || state.status === "creating" ? (
               <p className={styles.sourceNote} role="status">
                 {state.message}
               </p>
             ) : null}
           </div>
           <div className={styles.creationFooterActions}>
-            <Link className={styles.btn} href="/owner/restaurants" prefetch={false}>
-              Annuler
-            </Link>
             <button
               type="button"
               className={styles.btn}
-              disabled={stepIndex === 0}
               onClick={goPrevious}
+              disabled={stepIndex === 0 || state.status === "creating"}
             >
               Retour
             </button>
-            {currentStep.id === "review" ? (
-              <button
-                type="submit"
-                className={`${styles.btnPrimary} ${styles.btn}`}
-                disabled={state.status === "creating" || state.status === "validating"}
-              >
-                Creer restaurant
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={`${styles.btnPrimary} ${styles.btn}`}
-                onClick={goNext}
-              >
-                Continuer
-              </button>
-            )}
+            <button
+              type="submit"
+              className={`${styles.btnPrimary} ${styles.btn}`}
+              disabled={state.status === "creating" || state.status === "validating"}
+            >
+              {currentStep.id === "review" ? "Creer restaurant" : "Continuer"}
+            </button>
           </div>
         </div>
       </section>
     </form>
   );
-}
-
-function calculateReadiness(args: {
-  name: string;
-  slug: string;
-  sections: DraftSection[];
-  dishes: DraftDish[];
-  qrGenerated: boolean;
-  qrTested: boolean;
-}) {
-  const dishCount = args.dishes.length;
-  const photoCount = args.dishes.filter((dish) => dish.photoReady).length;
-  const immersiveCount = args.dishes.filter((dish) => dish.immersiveCandidate).length;
-  let score = 0;
-  score += args.name.trim() && args.slug ? 15 : 0;
-  score += args.sections.length > 0 ? 15 : 0;
-  score += dishCount > 0 ? 25 : 0;
-  score += dishCount > 0 ? Math.round((photoCount / dishCount) * 20) : 0;
-  score += args.qrGenerated ? 15 : 0;
-  score += args.qrTested ? 5 : 0;
-  score += immersiveCount > 0 ? 5 : 0;
-  return Math.min(100, score);
 }
 
 function ProfileStep({
@@ -747,7 +913,7 @@ function ProfileStep({
   onSlugChange: (value: string) => void;
   onLocationChange: (value: string) => void;
   onCuisineTypeChange: (value: string) => void;
-  onStatusChange: (value: OwnerRestaurantStatus) => void;
+  onStatusChange: (status: OwnerRestaurantStatus) => void;
   onContactNameChange: (value: string) => void;
   onContactEmailChange: (value: string) => void;
   onContactPhoneChange: (value: string) => void;
@@ -760,16 +926,16 @@ function ProfileStep({
         <div>
           <h3 className={styles.panelTitle}>1. Profil restaurant</h3>
           <p className={styles.cellSub}>
-            Cette etape est la seule persistee a la creation du restaurant.
+            L&apos;identite qui alimente le menu public, le dashboard owner et les actions QR.
           </p>
         </div>
       </div>
       <div className={styles.panelBody}>
         <div className={styles.formGrid}>
-          <Field label="Nom restaurant" required value={name} onChange={onNameChange} />
-          <Field label="Slug public" required value={slug} onChange={onSlugChange} hint="Utilise pour /menu/[restaurant]." />
-          <Field label="Ville / emplacement" value={location} onChange={onLocationChange} />
-          <Field label="Cuisine" value={cuisineType} onChange={onCuisineTypeChange} />
+          <Field label="Nom restaurant" required value={name} onChange={onNameChange} placeholder="Le Comptoir d'ete" />
+          <Field label="Slug public" required value={slug} onChange={onSlugChange} placeholder="le-comptoir-d-ete" />
+          <Field label="Adresse ou ville" value={location} onChange={onLocationChange} placeholder="Montreal" />
+          <Field label="Type de cuisine" value={cuisineType} onChange={onCuisineTypeChange} placeholder="Cuisine de saison" />
           <label className={styles.formField}>
             <span className={styles.filterLabel}>Statut initial</span>
             <select
@@ -792,8 +958,8 @@ function ProfileStep({
             type="url"
             value={googleReviewUrl}
             onChange={onGoogleReviewUrlChange}
-            placeholder="https://g.page/r/..."
-            hint="Optionnel. Utilisez un lien g.page/.../review ou search.google.com/local/writereview."
+            placeholder="https://g.page/r/.../review"
+            hint="Optionnel. g.page/.../review ou search.google.com/local/writereview."
           />
         </div>
 
@@ -803,7 +969,7 @@ function ProfileStep({
             className={styles.textarea}
             value={notes}
             onChange={(event) => onNotesChange(event.target.value)}
-            placeholder="Priorite : menu clair, photos fortes, QR pret pour test en salle."
+            placeholder="Priorite service, contexte salle, ouverture, ton de la carte."
           />
         </label>
 
@@ -843,8 +1009,7 @@ function MenuStep({
         <div>
           <h3 className={styles.panelTitle}>2. Structure menu</h3>
           <p className={styles.cellSub}>
-            Sections locales pour preparer le setup. Elles ne sont pas
-            sauvegardees comme menu persistant.
+            Les sections deviennent les categories des plats persistants.
           </p>
         </div>
       </div>
@@ -852,10 +1017,7 @@ function MenuStep({
         <section className={styles.menuLanguagePanel} aria-labelledby="menu-language-title">
           <div>
             <h4 id="menu-language-title">Langues du menu</h4>
-            <p>
-              Choisissez les langues a preparer pour la carte client. Le francais reste la
-              base par defaut; l&apos;anglais ajoute une version bilingue au setup.
-            </p>
+            <p>{formatMenuLanguages(menuLanguages)}</p>
           </div>
           <div className={styles.menuLanguageGrid}>
             {menuLanguageOptions.map((option) => {
@@ -874,9 +1036,6 @@ function MenuStep({
               );
             })}
           </div>
-          <p className={styles.sourceNote}>
-            Langues selectionnees : {formatMenuLanguages(menuLanguages)}.
-          </p>
         </section>
 
         <div className={styles.formGrid}>
@@ -912,27 +1071,67 @@ function MenuStep({
 function DishesStep({
   sections,
   dishes,
+  editingDishId,
   dishName,
   dishSection,
   dishPrice,
+  dishDescription,
+  dishImageUrl,
+  dishIngredients,
+  dishOptions,
+  dishAllergens,
+  dishTags,
+  dishChefNote,
+  dishAvailable,
+  dishPhotoStatus,
   onDishNameChange,
   onDishSectionChange,
   onDishPriceChange,
+  onDishDescriptionChange,
+  onDishImageUrlChange,
+  onDishIngredientsChange,
+  onDishOptionsChange,
+  onToggleAllergen,
+  onToggleTag,
+  onDishChefNoteChange,
+  onDishAvailableChange,
+  onDishPhotoStatusChange,
   onAddDish,
+  onCancelEdit,
   onRemoveDish,
-  onToggleDish
+  onEditDish
 }: {
   sections: DraftSection[];
   dishes: DraftDish[];
+  editingDishId: string;
   dishName: string;
   dishSection: string;
   dishPrice: string;
+  dishDescription: string;
+  dishImageUrl: string;
+  dishIngredients: string;
+  dishOptions: string;
+  dishAllergens: string[];
+  dishTags: string[];
+  dishChefNote: string;
+  dishAvailable: boolean;
+  dishPhotoStatus: CreateRestaurantDishPhotoStatus;
   onDishNameChange: (value: string) => void;
   onDishSectionChange: (value: string) => void;
   onDishPriceChange: (value: string) => void;
+  onDishDescriptionChange: (value: string) => void;
+  onDishImageUrlChange: (value: string) => void;
+  onDishIngredientsChange: (value: string) => void;
+  onDishOptionsChange: (value: string) => void;
+  onToggleAllergen: (value: string) => void;
+  onToggleTag: (value: string) => void;
+  onDishChefNoteChange: (value: string) => void;
+  onDishAvailableChange: (value: boolean) => void;
+  onDishPhotoStatusChange: (value: CreateRestaurantDishPhotoStatus) => void;
   onAddDish: () => void;
+  onCancelEdit: () => void;
   onRemoveDish: (id: string) => void;
-  onToggleDish: (id: string, key: "photoReady" | "immersiveCandidate") => void;
+  onEditDish: (dish: DraftDish) => void;
 }) {
   return (
     <article className={styles.panel}>
@@ -940,8 +1139,7 @@ function DishesStep({
         <div>
           <h3 className={styles.panelTitle}>3. Plats</h3>
           <p className={styles.cellSub}>
-            Ces plats alimentent la review locale. Aucune ligne menu_dishes
-            ne se cree ici.
+            Les champs ci-dessous correspondent aux colonnes utiles du menu public.
           </p>
         </div>
       </div>
@@ -963,11 +1161,93 @@ function DishesStep({
             </select>
           </label>
           <Field label="Prix" type="number" value={dishPrice} onChange={onDishPriceChange} />
+          <Field
+            label="URL photo"
+            type="text"
+            value={dishImageUrl}
+            onChange={onDishImageUrlChange}
+            placeholder="/restaurants/.../photos/plat.jpg"
+          />
         </div>
+
+        <label className={styles.formField}>
+          <span className={styles.filterLabel}>Description courte</span>
+          <textarea
+            className={styles.textarea}
+            value={dishDescription}
+            onChange={(event) => onDishDescriptionChange(event.target.value)}
+            placeholder="Fenouil confit, beurre blanc citronne, herbes fraiches."
+          />
+        </label>
+
+        <div className={styles.formGrid}>
+          <Field
+            label="Ingredients principaux"
+            value={dishIngredients}
+            onChange={onDishIngredientsChange}
+            placeholder="bar, fenouil, citron"
+          />
+          <Field
+            label="Options"
+            value={dishOptions}
+            onChange={onDishOptionsChange}
+            placeholder="Sans lactose sur demande"
+          />
+          <Field
+            label="Note du chef"
+            value={dishChefNote}
+            onChange={onDishChefNoteChange}
+            placeholder="Servir bien chaud."
+          />
+          <label className={styles.formField}>
+            <span className={styles.filterLabel}>Statut photo</span>
+            <select
+              className={styles.control}
+              value={dishPhotoStatus}
+              onChange={(event) =>
+                onDishPhotoStatusChange(event.target.value as CreateRestaurantDishPhotoStatus)
+              }
+            >
+              {photoStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <ChoiceGroup
+          title="Allergenes"
+          options={allergenOptions}
+          selected={dishAllergens}
+          onToggle={onToggleAllergen}
+        />
+        <ChoiceGroup
+          title="Badges"
+          options={badgeOptions}
+          selected={dishTags}
+          onToggle={onToggleTag}
+        />
+
+        <label className={styles.toggleLine}>
+          <input
+            type="checkbox"
+            checked={dishAvailable}
+            onChange={(event) => onDishAvailableChange(event.target.checked)}
+          />
+          <span>Disponibilite</span>
+        </label>
+
         <div className={styles.submitRow}>
           <button type="button" className={`${styles.btnPrimary} ${styles.btn}`} onClick={onAddDish}>
-            Ajouter plat
+            {editingDishId ? "Mettre a jour le plat" : "Ajouter plat"}
           </button>
+          {editingDishId ? (
+            <button type="button" className={styles.btn} onClick={onCancelEdit}>
+              Annuler
+            </button>
+          ) : null}
         </div>
 
         <div className={styles.tableWrap}>
@@ -978,8 +1258,8 @@ function DishesStep({
                 <th>Section</th>
                 <th>Prix</th>
                 <th>Photo</th>
-                <th>3D</th>
-                <th aria-label="Retirer" />
+                <th>Details</th>
+                <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
@@ -992,190 +1272,43 @@ function DishesStep({
               ) : (
                 dishes.map((dish) => (
                   <tr key={dish.id}>
-                    <td className={styles.cellMain}>{dish.name}</td>
+                    <td>
+                      <strong className={styles.cellMain}>{dish.name}</strong>
+                      <small className={styles.cellSub}>{dish.description}</small>
+                    </td>
                     <td className={styles.cellSub}>{dish.section}</td>
                     <td>{formatPrice(dish.price)}</td>
                     <td>
-                      <button
-                        type="button"
-                        className={`${styles.badge} ${dish.photoReady ? styles.badgeReady : styles.badgeWarn}`}
-                        onClick={() => onToggleDish(dish.id, "photoReady")}
-                      >
-                        {dish.photoReady ? "Prete" : "Manquante"}
-                      </button>
+                      <span className={`${styles.badge} ${dish.photoStatus === "ready" || dish.imageUrl ? styles.badgeReady : styles.badgeWarn}`}>
+                        {formatPhotoStatus(dish.photoStatus)}
+                      </span>
+                    </td>
+                    <td className={styles.cellSub}>
+                      {formatList([...dish.tags, ...dish.allergens].slice(0, 4))}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className={`${styles.badge} ${dish.immersiveCandidate ? styles.badgeReady : styles.badgeWarn}`}
-                        onClick={() => onToggleDish(dish.id, "immersiveCandidate")}
-                      >
-                        {dish.immersiveCandidate ? "Oui" : "Non"}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className={`${styles.btnDanger} ${styles.btnSmall} ${styles.btn}`}
-                        onClick={() => onRemoveDish(dish.id)}
-                      >
-                        Retirer
-                      </button>
+                      <div className={styles.tableActions}>
+                        <button
+                          type="button"
+                          className={`${styles.btnSmall} ${styles.btn}`}
+                          onClick={() => onEditDish(dish)}
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.btnDanger} ${styles.btnSmall} ${styles.btn}`}
+                          onClick={() => onRemoveDish(dish.id)}
+                        >
+                          Retirer
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function MediaStep({
-  dishCount,
-  photoCount,
-  immersiveCount,
-  readiness,
-  mediaQuality,
-  onToggle
-}: {
-  dishCount: number;
-  photoCount: number;
-  immersiveCount: number;
-  readiness: number;
-  mediaQuality: MediaQuality;
-  onToggle: (key: keyof MediaQuality) => void;
-}) {
-  return (
-    <article className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <h3 className={styles.panelTitle}>4. Medias / qualite</h3>
-          <p className={styles.cellSub}>
-            Controle local pour savoir les elements a completer dans les
-            modules persistants.
-          </p>
-        </div>
-      </div>
-      <div className={styles.panelBody}>
-        <div className={styles.commandKpiGrid}>
-          <article>
-            <span>Photos</span>
-            <strong>
-              {photoCount}/{dishCount}
-            </strong>
-            <small>Base visuelle de la carte.</small>
-          </article>
-          <article>
-            <span>Descriptions</span>
-            <strong>{mediaQuality.copy ? "OK" : "A faire"}</strong>
-            <small>Copy premium et allergenes.</small>
-          </article>
-          <article>
-            <span>3D candidats</span>
-            <strong>{immersiveCount}</strong>
-            <small>Selectif, pas decoratif.</small>
-          </article>
-          <article>
-            <span>Readiness</span>
-            <strong>{readiness}%</strong>
-            <small>Estimation avant creation.</small>
-          </article>
-        </div>
-
-        <div className={styles.toggleCardGrid}>
-          <ToggleCard
-            active={mediaQuality.photos}
-            title="Photos menu"
-            body="Marquer une premiere couverture photo comme prete."
-            onClick={() => onToggle("photos")}
-          />
-          <ToggleCard
-            active={mediaQuality.copy}
-            title="Copy premium"
-            body="Descriptions, allergenes et notes de service a revoir."
-            onClick={() => onToggle("copy")}
-          />
-          <ToggleCard
-            active={mediaQuality.immersiveBrief}
-            title="Candidats 3D"
-            body="Choisir seulement les plats signatures."
-            onClick={() => onToggle("immersiveBrief")}
-          />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function QrStep({
-  name,
-  qrTargetKind,
-  qrUrl,
-  qrGenerated,
-  qrTested,
-  onTargetChange,
-  onGenerate,
-  onTest
-}: {
-  name: string;
-  qrTargetKind: OwnerQrTargetKind;
-  qrUrl: string;
-  qrGenerated: boolean;
-  qrTested: boolean;
-  onTargetChange: (kind: OwnerQrTargetKind) => void;
-  onGenerate: () => void;
-  onTest: () => void;
-}) {
-  return (
-    <article className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <h3 className={styles.panelTitle}>5. QR</h3>
-          <p className={styles.cellSub}>
-            QR preview local. Le QR securise persistant se genere dans le module QR apres creation.
-          </p>
-        </div>
-      </div>
-      <div className={styles.panelBody}>
-        <div className={styles.qrPreviewGrid}>
-          {qrGenerated ? (
-            <MenuQrCode menuUrl={qrUrl} restaurantName={name} />
-          ) : (
-            <div className={styles.emptyState}>Cliquez sur Generer QR preview pour afficher le QR local.</div>
-          )}
-
-          <div className={styles.qrDraftControls}>
-            <label className={styles.formField}>
-              <span className={styles.filterLabel}>Cible QR</span>
-              <select
-                className={styles.control}
-                value={qrTargetKind}
-                onChange={(event) => onTargetChange(event.target.value as OwnerQrTargetKind)}
-              >
-                <option value="menu">Menu client public</option>
-                <option value="admin">Dashboard owner protege</option>
-              </select>
-            </label>
-            <div className={styles.urlPreview}>
-              <p className={styles.metricLabel}>URL cible</p>
-              <p className={`${styles.bodyText} ${styles.breakText}`}>{qrUrl}</p>
-            </div>
-            <div className={styles.submitRow}>
-              <button type="button" className={`${styles.btnPrimary} ${styles.btn}`} onClick={onGenerate}>
-                Generer QR preview
-              </button>
-              <button type="button" className={styles.btn} onClick={onTest}>
-                Marquer teste mobile
-              </button>
-            </div>
-            <p className={styles.sourceNote}>
-              Etat : {qrGenerated ? "QR preview genere" : "QR preview non genere"} -{" "}
-              {qrTested ? "test mobile marque OK" : "test mobile a faire"}.
-            </p>
-          </div>
         </div>
       </div>
     </article>
@@ -1191,11 +1324,9 @@ function ReviewStep({
   menuLanguages,
   sections,
   dishes,
-  photoCount,
-  immersiveCount,
-  qrGenerated,
-  qrTested,
-  menuUrl
+  photoReadyCount,
+  menuUrl,
+  mediaBasePathPreview
 }: {
   readiness: number;
   name: string;
@@ -1205,42 +1336,43 @@ function ReviewStep({
   menuLanguages: MenuLanguage[];
   sections: DraftSection[];
   dishes: DraftDish[];
-  photoCount: number;
-  immersiveCount: number;
-  qrGenerated: boolean;
-  qrTested: boolean;
+  photoReadyCount: number;
   menuUrl: string;
+  mediaBasePathPreview: string;
 }) {
-  const summary =
-    readiness >= 80
-      ? "Le restaurant peut etre cree comme compte presque pret."
-      : readiness >= 60
-        ? "Le restaurant peut etre cree, mais il restera des actions de setup."
-        : "Le restaurant sera cree en setup. Les actions prioritaires seront visibles dans son dashboard.";
+  const sectionsWithoutDish = getSectionsWithoutDish(sections, dishes);
   const checks = [
     ["Profil", Boolean(name), `${name || "Nom a completer"} - ${location || "Lieu a preciser"}`],
+    ["Langues", menuLanguages.length > 0, formatMenuLanguages(menuLanguages)],
+    [
+      "Sections",
+      sections.length > 0 && sectionsWithoutDish.length === 0,
+      sectionsWithoutDish.length > 0
+        ? `Sans plat : ${sectionsWithoutDish.join(", ")}`
+        : `${sections.length} section(s)`
+    ],
+    ["Plats", dishes.length > 0, `${dishes.length} plat(s)`],
+    ["Photos", photoReadyCount > 0, `${photoReadyCount}/${dishes.length} prete(s) ou liee(s)`],
     [
       "Avis Google",
       true,
       googleReviewUrl.trim() ? "Lien Google Reviews pret" : "Aucun lien Google Reviews"
-    ],
-    ["Langues", menuLanguages.length > 0, formatMenuLanguages(menuLanguages)],
-    ["Sections", sections.length > 0, `${sections.length} section(s)`],
-    ["Plats", dishes.length > 0, `${dishes.length} plat(s)`],
-    ["Photos", photoCount > 0, `${photoCount}/${dishes.length} prete(s)`],
-    ["QR", qrGenerated, qrTested ? "QR genere et teste" : "QR genere, test mobile a faire"],
-    ["3D/AR", immersiveCount > 0, `${immersiveCount} candidat(s)`]
+    ]
   ] as const;
 
   return (
     <article className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>6. Revue finale</h3>
-          <p className={styles.cellSub}>{summary}</p>
+          <h3 className={styles.panelTitle}>4. Revue finale</h3>
+          <p className={styles.cellSub}>
+            {readiness >= 80
+              ? "La base menu est solide pour creation."
+              : "La creation reste possible, avec quelques actions apres persistance."}
+          </p>
         </div>
         <span className={`${styles.badge} ${readiness >= 80 ? styles.badgeReady : styles.badgeWarn}`}>
-          {readiness}% readiness
+          {readiness}% pret
         </span>
       </div>
       <div className={styles.panelBody}>
@@ -1253,25 +1385,21 @@ function ReviewStep({
             </small>
           </article>
           <article>
-            <span>Menu draft</span>
+            <span>Menu</span>
             <strong>{dishes.length}</strong>
             <small>
               {sections.length} section(s) - {formatMenuLanguages(menuLanguages)}
             </small>
           </article>
           <article>
-            <span>QR</span>
-            <strong>{qrGenerated ? "Pret" : "Non"}</strong>
-            <small>{qrTested ? "Test mobile OK" : "Test mobile a faire"}</small>
+            <span>Photos</span>
+            <strong>{photoReadyCount}</strong>
+            <small>Dossier media prevu : {mediaBasePathPreview}</small>
           </article>
           <article>
             <span>Avis Google</span>
             <strong>{googleReviewUrl.trim() ? "Pret" : "Optionnel"}</strong>
-            <small>
-              {googleReviewUrl.trim()
-                ? "Lien client ajoute au profil"
-                : "Aucun lien ajoute"}
-            </small>
+            <small>{googleReviewUrl.trim() ? "Lien client ajoute au profil" : "Aucun lien ajoute"}</small>
           </article>
         </div>
 
@@ -1293,13 +1421,125 @@ function ReviewStep({
           <p className={styles.metricLabel}>Menu public apres creation</p>
           <p className={`${styles.bodyText} ${styles.breakText}`}>{menuUrl}</p>
           <p className={styles.sourceNote}>
-            En cliquant sur Creer restaurant, seul le profil restaurant est
-            envoye vers API existante. Les plats et medias restent a creer dans
-            les modules de production quand leurs APIs seront disponibles.
+            Apres creation, utilisez le module QR pour generer le QR menu public.
           </p>
         </div>
       </div>
     </article>
+  );
+}
+
+function CreationSuccess({
+  state,
+  menuUrl
+}: {
+  state: Extract<SubmitState, { status: "success" }>;
+  menuUrl: string;
+}) {
+  return (
+    <section className={styles.creationStage}>
+      <article className={`${styles.panel} ${styles.highlightPanel}`}>
+        <div className={styles.panelHeader}>
+          <div>
+            <span className={`${styles.badge} ${styles.badgeReady}`}>Restaurant cree</span>
+            <h3 className={styles.panelTitle}>{state.restaurant.name}</h3>
+            <p className={styles.cellSub}>{state.message}</p>
+          </div>
+        </div>
+        <div className={styles.panelBody}>
+          <div className={styles.commandKpiGrid}>
+            <article>
+              <span>Restaurant</span>
+              <strong>{state.restaurantPersisted ? "Persiste" : "A verifier"}</strong>
+              <small>{state.restaurant.id}</small>
+            </article>
+            <article>
+              <span>Sections</span>
+              <strong>{state.sectionsPersisted ? "Sections confirmees" : "Sections non confirmees"}</strong>
+              <small>Categories du menu</small>
+            </article>
+            <article>
+              <span>Plats</span>
+              <strong>{state.dishesPersisted ? "Plats sauvegardes" : "Plats non sauvegardes"}</strong>
+              <small>{state.persistedDishCount} ligne(s) menu_dishes</small>
+            </article>
+            <article>
+              <span>Medias</span>
+              <strong>{state.mediaBasePathPersisted ? "Chemin media reference" : "Chemin media prevu"}</strong>
+              <small>{state.mediaBasePath}</small>
+            </article>
+          </div>
+
+          {state.warnings.length > 0 ? (
+            <div className={styles.checklist}>
+              {state.warnings.map((warning) => (
+                <div key={warning} className={styles.checkItem}>
+                  <span>
+                    <strong>A verifier</strong>
+                    <small>{warning}</small>
+                  </span>
+                  <span className={`${styles.badge} ${styles.badgeWarn}`}>Note</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className={styles.urlPreview}>
+            <p className={styles.metricLabel}>Menu public</p>
+            <p className={`${styles.bodyText} ${styles.breakText}`}>{menuUrl}</p>
+          </div>
+
+          <div className={styles.creationFooterActions}>
+            <Link className={`${styles.btnPrimary} ${styles.btn}`} href={state.qrCodesHref}>
+              Generer le QR menu
+            </Link>
+            <Link className={styles.btn} href={state.restaurant.dashboardHref}>
+              Ouvrir le dashboard
+            </Link>
+            <Link
+              className={styles.btn}
+              href={`/owner/medias?restaurantId=${encodeURIComponent(state.restaurant.id)}&restaurantSlug=${encodeURIComponent(state.restaurant.slug)}`}
+            >
+              Voir les photos a ajouter
+            </Link>
+          </div>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+function ChoiceGroup({
+  title,
+  options,
+  selected,
+  onToggle
+}: {
+  title: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <fieldset className={styles.choiceGroup}>
+      <legend>{title}</legend>
+      <div className={styles.choiceRow}>
+        {options.map((option) => {
+          const active = selected.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              className={`${styles.choiceButton} ${active ? styles.choiceButtonActive : ""}`}
+              aria-pressed={active}
+              onClick={() => onToggle(option)}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 
@@ -1333,29 +1573,5 @@ function Field({
       />
       {hint ? <span className={styles.sourceNote}>{hint}</span> : null}
     </label>
-  );
-}
-
-function ToggleCard({
-  active,
-  title,
-  body,
-  onClick
-}: {
-  active: boolean;
-  title: string;
-  body: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`${styles.toggleCard} ${active ? styles.toggleCardActive : ""}`}
-      onClick={onClick}
-      aria-pressed={active}
-    >
-      <strong>{title}</strong>
-      <span>{body}</span>
-    </button>
   );
 }
