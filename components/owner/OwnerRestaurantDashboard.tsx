@@ -168,6 +168,8 @@ export function OwnerRestaurantDashboard({
   const [copyStatus, setCopyStatus] = useState("");
   const [statusPending, setStatusPending] = useState<RestaurantStatusAction | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<RestaurantStatusFeedback | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletePending, setDeletePending] = useState(false);
   const primaryActionTab = useMemo(() => nextActionTab(restaurant), [restaurant]);
   const checklist = useMemo(() => checklistForRestaurant(restaurant), [restaurant]);
 
@@ -213,6 +215,44 @@ export function OwnerRestaurantDashboard({
       });
     } finally {
       setStatusPending(null);
+    }
+  }
+
+  async function deleteRestaurant() {
+    const confirmName = deleteConfirmation.trim();
+    if (confirmName !== restaurant.name.trim()) {
+      setStatusFeedback({
+        tone: "error",
+        message: "Tapez le nom exact du restaurant pour confirmer la suppression."
+      });
+      return;
+    }
+
+    setDeletePending(true);
+    setStatusFeedback(null);
+
+    try {
+      const response = await fetch(`/api/restaurants/${encodeURIComponent(restaurant.id)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmed: true, confirmName })
+      });
+      const result = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error ?? "Le restaurant n'a pas pu etre supprime.");
+      }
+
+      router.push("/owner");
+      router.refresh();
+    } catch (error) {
+      setStatusFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Suppression restaurant indisponible."
+      });
+      setDeletePending(false);
     }
   }
 
@@ -384,7 +424,11 @@ export function OwnerRestaurantDashboard({
           restaurant={restaurant}
           statusPending={statusPending}
           statusFeedback={statusFeedback}
+          deleteConfirmation={deleteConfirmation}
+          deletePending={deletePending}
           onStatusAction={updateRestaurantStatus}
+          onDeleteConfirmationChange={setDeleteConfirmation}
+          onDeleteRestaurant={deleteRestaurant}
         />
       </TabPanel>
     </div>
@@ -566,17 +610,26 @@ function SettingsPanel({
   restaurant,
   statusPending,
   statusFeedback,
-  onStatusAction
+  deleteConfirmation,
+  deletePending,
+  onStatusAction,
+  onDeleteConfirmationChange,
+  onDeleteRestaurant
 }: {
   restaurant: OwnerRestaurant;
   statusPending: RestaurantStatusAction | null;
   statusFeedback: RestaurantStatusFeedback | null;
+  deleteConfirmation: string;
+  deletePending: boolean;
   onStatusAction: (action: RestaurantStatusAction) => void;
+  onDeleteConfirmationChange: (value: string) => void;
+  onDeleteRestaurant: () => void;
 }) {
   const isArchived = restaurant.status === "archived";
   const nextAction: RestaurantStatusAction = isArchived ? "restore" : "archive";
   const actionLabel = isArchived ? "Restaurer le restaurant" : "Archiver le restaurant";
-  const isDisabled = restaurant.isDemo || statusPending !== null;
+  const deleteConfirmed = deleteConfirmation.trim() === restaurant.name.trim();
+  const isDisabled = restaurant.isDemo || statusPending !== null || deletePending;
   return (
     <article className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -650,9 +703,48 @@ function SettingsPanel({
             ) : null}
 
             <p className={styles.sourceNote}>
-              La suppression definitive n&apos;est pas exposee ici: elle doit d&apos;abord definir quoi faire
-              des plats, medias, QR, analytics et liens publics rattaches au restaurant.
+              L&apos;archivage est reversible et conserve les donnees rattachees.
             </p>
+
+            <div className={styles.restaurantDeleteBlock}>
+              <div>
+                <h5>Suppression definitive</h5>
+                <p>
+                  Supprime le profil restaurant dans Supabase et nettoie ses QR, plats et
+                  configurations menu rattaches. Les fichiers Storage/CDN ne sont pas effaces
+                  automatiquement.
+                </p>
+              </div>
+
+              <label className={styles.formField}>
+                <span className={styles.filterLabel}>
+                  Tapez {restaurant.name} pour confirmer
+                </span>
+                <input
+                  className={styles.control}
+                  value={deleteConfirmation}
+                  onChange={(event) => onDeleteConfirmationChange(event.target.value)}
+                  placeholder={restaurant.name}
+                  disabled={restaurant.isDemo || deletePending}
+                />
+              </label>
+
+              <div className={styles.restaurantLifecycleActions}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnDanger}`}
+                  disabled={restaurant.isDemo || deletePending || !deleteConfirmed}
+                  onClick={onDeleteRestaurant}
+                >
+                  {deletePending ? "Suppression..." : "Supprimer definitivement"}
+                </button>
+                {restaurant.isDemo ? (
+                  <span className={styles.sourceNote}>
+                    Restaurant de demonstration protege contre la suppression.
+                  </span>
+                ) : null}
+              </div>
+            </div>
           </section>
         </div>
       </div>
