@@ -11,11 +11,44 @@ import type { OwnerRestaurant } from "@/lib/owner/types";
 
 type OwnerQrManagerProps = {
   restaurants: OwnerRestaurant[];
+  initialRestaurantId?: string;
+  initialRestaurantSlug?: string;
+  initialTargetKind?: OwnerQrTargetKind;
 };
 
-export function OwnerQrManager({ restaurants }: OwnerQrManagerProps) {
-  const [selectedId, setSelectedId] = useState(restaurants[0]?.id ?? "");
-  const [targetKind, setTargetKind] = useState<OwnerQrTargetKind>("menu");
+function getInitialRestaurantId({
+  restaurants,
+  initialRestaurantId,
+  initialRestaurantSlug
+}: OwnerQrManagerProps): string {
+  return (
+    restaurants.find((restaurant) => restaurant.id === initialRestaurantId)?.id ??
+    restaurants.find((restaurant) => restaurant.slug === initialRestaurantSlug)?.id ??
+    restaurants[0]?.id ??
+    ""
+  );
+}
+
+function normalizeTargetKind(value?: OwnerQrTargetKind): OwnerQrTargetKind {
+  return value === "admin" ? "admin" : "menu";
+}
+
+export function OwnerQrManager({
+  restaurants,
+  initialRestaurantId,
+  initialRestaurantSlug,
+  initialTargetKind
+}: OwnerQrManagerProps) {
+  const [selectedId, setSelectedId] = useState(() =>
+    getInitialRestaurantId({
+      restaurants,
+      initialRestaurantId,
+      initialRestaurantSlug
+    })
+  );
+  const [targetKind, setTargetKind] = useState<OwnerQrTargetKind>(() =>
+    normalizeTargetKind(initialTargetKind)
+  );
   const selected =
     restaurants.find((restaurant) => restaurant.id === selectedId) ?? restaurants[0];
   const selectedTarget = useMemo(

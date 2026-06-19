@@ -64,6 +64,13 @@ export async function POST(request: NextRequest) {
       ok: true,
       persisted: created.persisted,
       dataSource: created.dataSource,
+      restaurantPersisted: created.restaurantPersisted,
+      sectionsPersisted: created.sectionsPersisted,
+      dishesPersisted: created.dishesPersisted,
+      persistedDishCount: created.persistedDishCount,
+      mediaBasePath: created.mediaBasePath,
+      qrCodesHref: created.qrCodesHref,
+      warnings: created.warnings,
       restaurant: created.restaurant
     },
     { status: 201 }

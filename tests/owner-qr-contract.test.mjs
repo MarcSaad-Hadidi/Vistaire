@@ -29,6 +29,26 @@ test("owner QR manager exposes restaurant, QR type, destination, and safety badg
   assert.match(customizer, /Logo image/);
 });
 
+test("owner QR page can be preselected from restaurant creation success", async () => {
+  const page = await readFile("app/owner/qr-codes/page.tsx", "utf8");
+  const manager = await readFile("components/owner/OwnerQrManager.tsx", "utf8");
+  const createForm = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
+
+  assert.match(page, /searchParams/);
+  assert.match(page, /restaurantId/);
+  assert.match(page, /restaurantSlug/);
+  assert.match(page, /target/);
+  assert.match(page, /initialRestaurantId=/);
+  assert.match(page, /initialRestaurantSlug=/);
+  assert.match(page, /initialTargetKind=/);
+  assert.match(manager, /initialRestaurantId/);
+  assert.match(manager, /initialRestaurantSlug/);
+  assert.match(manager, /initialTargetKind/);
+  assert.match(manager, /restaurant\.slug === initialRestaurantSlug/);
+  assert.match(createForm, /qrCodesHref/);
+  assert.match(createForm, /target=menu/);
+});
+
 test("owner QR customizer saves target kind and displays persistence details", async () => {
   const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
 

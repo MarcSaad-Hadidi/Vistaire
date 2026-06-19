@@ -44,6 +44,47 @@ function insertClient({ data = null, error = null, onInsert = () => {} } = {}) {
   };
 }
 
+function creationClient({
+  restaurantData,
+  restaurantError = null,
+  dishError = null,
+  onRestaurantInsert = () => {},
+  onDishInsert = () => {}
+} = {}) {
+  return {
+    from(table) {
+      if (table === "restaurants") {
+        return {
+          insert(row) {
+            onRestaurantInsert(row);
+            return {
+              select(columns) {
+                assert.equal(columns, "*");
+                return {
+                  async single() {
+                    return { data: restaurantData, error: restaurantError };
+                  }
+                };
+              }
+            };
+          }
+        };
+      }
+
+      if (table === "menu_dishes") {
+        return {
+          async insert(rows) {
+            onDishInsert(rows);
+            return { data: null, error: dishError };
+          }
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    }
+  };
+}
+
 test("validates restaurant creation input with normalized slug and setup fallback", () => {
   const result = validateCreateRestaurantInput({
     ...validInput,
@@ -205,6 +246,171 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
     insertedRow.google_review_url,
     "https://search.google.com/local/writereview?placeid=abc123"
   );
+  assert.equal(result.restaurantPersisted, true);
+  assert.equal(result.sectionsPersisted, true);
+  assert.equal(result.dishesPersisted, true);
+  assert.equal(result.persistedDishCount, 0);
+  assert.equal(result.mediaBasePath, `restaurants/${persistedId}/photos/`);
+  assert.equal(
+    result.qrCodesHref,
+    `/owner/qr-codes?restaurantId=${persistedId}&target=menu`
+  );
+  assert.deepEqual(result.warnings, []);
+});
+
+test("restaurant creation persists menu dishes without creation-only 3D or AR fields", async () => {
+  let insertedDishes = [];
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      menuLanguages: ["fr", "en"],
+      sections: [
+        { name: "Entrees", description: "Ouvertures de saison", order: 1 },
+        { name: "Plats", description: "Assiettes signatures", order: 2 }
+      ],
+      dishes: [
+        {
+          name: "Bar de ligne",
+          section: "Plats",
+          price: 34,
+          description: "Fenouil confit, beurre blanc citronne.",
+          imageUrl: "/restaurants/le-comptoir/photos/bar.jpg",
+          ingredients: ["bar", "fenouil", "citron"],
+          allergens: ["poisson", "lait"],
+          tags: ["Signature"],
+          options: ["Sans lactose sur demande"],
+          chefNote: "Servir bien chaud.",
+          available: true,
+          photoStatus: "ready"
+        }
+      ]
+    },
+    {
+      admin: {
+        ok: true,
+        client: creationClient({
+          onDishInsert(rows) {
+            insertedDishes = rows;
+          },
+          restaurantData: {
+            id: persistedId,
+            name: "Le Comptoir d'ete",
+            slug: "le-comptoir-d-ete",
+            location: "Montreal",
+            cuisine_type: "Cuisine de saison",
+            status: "setup_needed",
+            contact_name: "Camille",
+            contact_email: "camille@example.com",
+            contact_phone: "+1 514 555 0123"
+          }
+        })
+      },
+      getColumns: async (table) =>
+        table === "menu_dishes"
+          ? new Set([
+              "restaurant_id",
+              "restaurant_slug",
+              "name",
+              "description",
+              "category_name",
+              "price",
+              "available",
+              "sort_order",
+              "image_url",
+              "ingredients",
+              "allergens",
+              "options",
+              "house_note",
+              "tags",
+              "photo_status"
+            ])
+          : new Set([
+              "name",
+              "slug",
+              "location",
+              "cuisine_type",
+              "status",
+              "contact_name",
+              "contact_email",
+              "contact_phone"
+            ])
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.restaurantPersisted, true);
+  assert.equal(result.sectionsPersisted, true);
+  assert.equal(result.dishesPersisted, true);
+  assert.equal(result.persistedDishCount, 1);
+  assert.equal(result.mediaBasePath, `restaurants/${persistedId}/photos/`);
+  assert.equal(
+    result.qrCodesHref,
+    `/owner/qr-codes?restaurantId=${persistedId}&target=menu`
+  );
+  assert.deepEqual(result.warnings, [
+    "Les sections sont persistees comme categories de plats; leurs descriptions restent dans le draft owner."
+  ]);
+  assert.equal(insertedDishes.length, 1);
+  assert.equal(insertedDishes[0].restaurant_id, persistedId);
+  assert.equal(insertedDishes[0].restaurant_slug, "le-comptoir-d-ete");
+  assert.equal(insertedDishes[0].category_name, "Plats");
+  assert.equal(insertedDishes[0].image_url, "/restaurants/le-comptoir/photos/bar.jpg");
+  assert.deepEqual(insertedDishes[0].ingredients, ["bar", "fenouil", "citron"]);
+  assert.deepEqual(insertedDishes[0].tags, ["Signature"]);
+  assert.equal(insertedDishes[0].house_note, "Servir bien chaud.");
+  for (const dish of insertedDishes) {
+    for (const key of Object.keys(dish)) {
+      assert.doesNotMatch(key, /3d|immersive|model|usdz|glb|ar_url|has_ar/i);
+    }
+  }
+});
+
+test("restaurant creation reports menu dish persistence warnings without faking dish success", async () => {
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      sections: [{ name: "Entrees", description: "", order: 1 }],
+      dishes: [
+        {
+          name: "Betteraves roties",
+          section: "Entrees",
+          price: 18,
+          description: "Creme crue, vinaigrette aux agrumes.",
+          ingredients: ["betterave"],
+          allergens: ["lait"],
+          tags: ["Maison"],
+          options: [],
+          available: true,
+          photoStatus: "planned"
+        }
+      ]
+    },
+    {
+      admin: {
+        ok: true,
+        client: creationClient({
+          restaurantData: {
+            id: persistedId,
+            name: "Le Comptoir d'ete",
+            slug: "le-comptoir-d-ete",
+            status: "setup_needed",
+            contact_email: "camille@example.com"
+          },
+          dishError: {
+            message: "relation menu_dishes does not exist"
+          }
+        })
+      },
+      getColumns: async () => new Set()
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.restaurantPersisted, true);
+  assert.equal(result.sectionsPersisted, false);
+  assert.equal(result.dishesPersisted, false);
+  assert.equal(result.persistedDishCount, 0);
+  assert.match(result.warnings.join("\n"), /plats n'ont pas pu etre persistes/i);
 });
 
 test("restaurant POST route is guarded and exposes persistence metadata", async () => {
@@ -214,6 +420,13 @@ test("restaurant POST route is guarded and exposes persistence metadata", async 
   assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
   assert.match(source, /persisted: created\.persisted/);
   assert.match(source, /dataSource: created\.dataSource/);
+  assert.match(source, /restaurantPersisted: created\.restaurantPersisted/);
+  assert.match(source, /sectionsPersisted: created\.sectionsPersisted/);
+  assert.match(source, /dishesPersisted: created\.dishesPersisted/);
+  assert.match(source, /persistedDishCount: created\.persistedDishCount/);
+  assert.match(source, /mediaBasePath: created\.mediaBasePath/);
+  assert.match(source, /qrCodesHref: created\.qrCodesHref/);
+  assert.match(source, /warnings: created\.warnings/);
   assert.match(source, /status: created\.status/);
 });
 
@@ -227,6 +440,36 @@ test("restaurant creation wizard lets owners choose menu languages locally", asy
   assert.match(source, /Lien Google Reviews/);
   assert.match(source, /googleReviewUrl/);
   assert.match(source, /Lien Google Reviews invalide\./);
+});
+
+test("restaurant creation wizard is a four-step menu persistence workflow", async () => {
+  const source = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
+
+  assert.match(source, /type StepId = "profile" \| "menu" \| "dishes" \| "review"/);
+  assert.match(source, /id: "profile"/);
+  assert.match(source, /id: "menu"/);
+  assert.match(source, /id: "dishes"/);
+  assert.match(source, /id: "review"/);
+  assert.doesNotMatch(source, /id: "media"/);
+  assert.doesNotMatch(source, /id: "qr"/);
+  assert.doesNotMatch(source, /MediaStep/);
+  assert.doesNotMatch(source, /QrStep/);
+  assert.doesNotMatch(source, /mediaQuality/);
+  assert.doesNotMatch(source, /qrGenerated|qrTested/);
+  assert.doesNotMatch(source, /immersiveCandidate|3D|AR/);
+  assert.match(source, /Description courte/);
+  assert.match(source, /Ingredients principaux/);
+  assert.match(source, /Allergenes/);
+  assert.match(source, /Badges/);
+  assert.match(source, /Options/);
+  assert.match(source, /Note du chef/);
+  assert.match(source, /Disponibilite/);
+  assert.match(source, /Statut photo/);
+  assert.match(source, /Dossier media prevu/);
+  assert.match(source, /sections:/);
+  assert.match(source, /dishes:/);
+  assert.match(source, /menuLanguages:/);
+  assert.match(source, /qrCodesHref/);
 });
 
 test("owner e2e bypass can cover restaurant API during browser QA", async () => {
