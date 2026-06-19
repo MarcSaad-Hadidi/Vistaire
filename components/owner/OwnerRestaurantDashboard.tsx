@@ -242,7 +242,7 @@ export function OwnerRestaurantDashboard({
         <div className={styles.restaurantHeaderActions}>
           <a
             className={`${styles.btnPrimary} ${styles.btn}`}
-            href={restaurant.publicMenuUrl}
+            href={restaurant.menuUrl}
             target="_blank"
             rel="noreferrer"
           >
@@ -415,7 +415,11 @@ function MenuPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
           <article>
             <span>Menu public</span>
             <strong>{restaurant.menuUrlSource === "column" ? "Configuré" : "Preview"}</strong>
-            <small className={styles.breakText}>{restaurant.publicMenuPath}</small>
+            <small className={styles.breakText}>
+              {restaurant.menuUrlSource === "column"
+                ? restaurant.clientMenuHref
+                : restaurant.publicMenuPath}
+            </small>
           </article>
         </div>
       </div>
