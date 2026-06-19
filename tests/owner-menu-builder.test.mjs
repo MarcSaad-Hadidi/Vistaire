@@ -2,11 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("owner nav exposes the Menu Builder section", async () => {
+test("owner nav keeps Menu Builder contextual instead of a primary sidebar item", async () => {
   const source = await readFile("lib/owner/nav.ts", "utf8");
 
   assert.match(source, /\/owner\/menu-builder/);
-  assert.match(source, /Menu Builder/);
+  assert.match(source, /Atelier carte/);
+  const primaryNav = source.slice(
+    source.indexOf("export const OWNER_NAV_ITEMS"),
+    source.indexOf("const OWNER_CONTEXT_ROUTES")
+  );
+  assert.doesNotMatch(primaryNav, /\/owner\/menu-builder/);
 });
 
 test("owner menu builder route renders the builder component", async () => {

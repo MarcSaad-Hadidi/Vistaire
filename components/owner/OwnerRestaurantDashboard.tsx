@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MenuQrCode } from "@/components/owner/MenuQrCode";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, type BadgeTone } from "@/components/owner/OwnerUi";
@@ -18,18 +19,23 @@ type TabId =
   | "media"
   | "qr"
   | "immersive"
-  | "signals"
   | "settings";
 
+type RestaurantStatusAction = "archive" | "restore";
+
+type RestaurantStatusFeedback = {
+  tone: "success" | "error";
+  message: string;
+};
+
 const TABS: Array<{ id: TabId; label: string }> = [
-  { id: "overview", label: "Vue d'ensemble" },
+  { id: "overview", label: "Vue d’ensemble" },
   { id: "menu", label: "Menu" },
   { id: "dishes", label: "Plats" },
-  { id: "media", label: "Medias" },
+  { id: "media", label: "Médias" },
   { id: "qr", label: "QR" },
   { id: "immersive", label: "3D / AR" },
-  { id: "signals", label: "Signaux" },
-  { id: "settings", label: "Settings" }
+  { id: "settings", label: "Paramètres" }
 ];
 
 function readinessTone(item: OwnerReadinessItem): BadgeTone {
@@ -51,40 +57,162 @@ function statusTone(restaurant: OwnerRestaurant): BadgeTone {
 }
 
 function nextActionTab(restaurant: OwnerRestaurant): TabId {
+  if (restaurant.qrStatus !== "ready") return "qr";
   if (restaurant.dishCount === 0) return "dishes";
   if (restaurant.incompleteDishCount > 0) return "media";
-  if (restaurant.qrStatus !== "ready") return "qr";
   if (restaurant.immersiveDishCount === 0) return "immersive";
   return "overview";
 }
 
 function readinessSummary(restaurant: OwnerRestaurant): string {
   if (restaurant.readinessScore >= 80) {
-    return "Le restaurant est proche d'une mise en service propre. Gardez les tests QR et la preview client dans la boucle.";
+    return "La carte est proche d’une mise en ligne propre. Vérifiez le QR et ouvrez le menu public avant présentation.";
   }
-  if (restaurant.readinessScore >= 50) {
-    return "Le compte est utilisable en setup, mais les modules ci-dessous indiquent encore les actions prioritaires.";
+  if (restaurant.dishCount === 0) {
+    return "Commencez par les plats: sans carte détectée, le restaurant ne peut pas être présenté correctement.";
   }
-  return "Le restaurant doit rester en onboarding. Commencez par le menu, les plats et les photos avant de publier.";
+  if (restaurant.qrStatus !== "ready") {
+    return "Le contenu existe, mais le QR de table doit être préparé avant les tests en salle.";
+  }
+  return "Le restaurant est en préparation. Terminez les éléments incomplets avant de le considérer prêt.";
 }
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat("fr-CA").format(value);
 }
 
+function checklistForRestaurant(restaurant: OwnerRestaurant) {
+  const profile = restaurant.readinessItems.find((item) => item.id === "profile");
+  const menu = restaurant.readinessItems.find((item) => item.id === "menu");
+  const photos = restaurant.readinessItems.find((item) => item.id === "photos");
+  const qr = restaurant.readinessItems.find((item) => item.id === "qr");
+  const immersive = restaurant.readinessItems.find((item) => item.id === "immersive");
+
+  return [
+    {
+      id: "profile",
+      label: "Profil restaurant",
+      detail: profile?.detail ?? "Nom, lieu et cuisine à préciser.",
+      tone: profile ? readinessTone(profile) : ("warn" as BadgeTone),
+      status: profile?.status === "ready" || profile?.status === "demo" ? "OK" : "À préparer"
+    },
+    {
+      id: "menu",
+      label: "Menu",
+      detail: menu?.detail ?? "Structure de carte à confirmer.",
+      tone: menu ? readinessTone(menu) : ("warn" as BadgeTone),
+      status: restaurant.dishCount > 0 ? "OK" : "À créer"
+    },
+    {
+      id: "dishes",
+      label: "Plats",
+      detail:
+        restaurant.dishCount > 0
+          ? `${restaurant.dishCount} plat(s) détecté(s).`
+          : "Aucun plat détecté.",
+      tone: restaurant.dishCount > 0 ? ("ready" as BadgeTone) : ("danger" as BadgeTone),
+      status: restaurant.dishCount > 0 ? "OK" : "À ajouter"
+    },
+    {
+      id: "photos",
+      label: "Photos",
+      detail: photos?.detail ?? `${restaurant.photoDishCount}/${restaurant.dishCount || 0} photos prêtes.`,
+      tone: photos ? readinessTone(photos) : ("warn" as BadgeTone),
+      status: restaurant.incompleteDishCount === 0 && restaurant.dishCount > 0 ? "OK" : "À compléter"
+    },
+    {
+      id: "qr",
+      label: "QR",
+      detail: qr?.detail ?? restaurant.qrStatusLabel,
+      tone: qr ? readinessTone(qr) : qrTone(restaurant.qrStatus),
+      status: restaurant.qrStatus === "ready" ? "OK" : "À générer"
+    },
+    {
+      id: "immersive",
+      label: "3D / AR",
+      detail: immersive?.detail ?? `${restaurant.immersiveDishCount} plat(s) immersif(s).`,
+      tone: immersive ? readinessTone(immersive) : ("warn" as BadgeTone),
+      status: restaurant.immersiveDishCount > 0 ? "OK" : "Optionnel"
+    }
+  ];
+}
+
+function TabPanel({
+  id,
+  activeTab,
+  children
+}: {
+  id: TabId;
+  activeTab: TabId;
+  children: React.ReactNode;
+}) {
+  if (activeTab !== id) return null;
+
+  return (
+    <section
+      id={`restaurant-panel-${id}`}
+      role="tabpanel"
+      aria-labelledby={`restaurant-tab-${id}`}
+      className={styles.restaurantTabPanel}
+    >
+      {children}
+    </section>
+  );
+}
+
 export function OwnerRestaurantDashboard({
   restaurant
 }: OwnerRestaurantDashboardProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [copyStatus, setCopyStatus] = useState("");
+  const [statusPending, setStatusPending] = useState<RestaurantStatusAction | null>(null);
+  const [statusFeedback, setStatusFeedback] = useState<RestaurantStatusFeedback | null>(null);
   const primaryActionTab = useMemo(() => nextActionTab(restaurant), [restaurant]);
+  const checklist = useMemo(() => checklistForRestaurant(restaurant), [restaurant]);
 
   async function copyMenuUrl() {
     try {
       await navigator.clipboard.writeText(restaurant.menuUrl);
-      setCopyStatus("URL menu copiee.");
+      setCopyStatus("Lien de la carte copié.");
     } catch {
       setCopyStatus("Copie indisponible dans ce navigateur.");
+    }
+  }
+
+  async function updateRestaurantStatus(action: RestaurantStatusAction) {
+    setStatusPending(action);
+    setStatusFeedback(null);
+
+    try {
+      const response = await fetch(`/api/restaurants/${encodeURIComponent(restaurant.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      const result = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error ?? "Le statut du restaurant n'a pas pu etre mis a jour.");
+      }
+
+      setStatusFeedback({
+        tone: "success",
+        message:
+          action === "archive"
+            ? "Restaurant archive. Ses plats, QR et medias restent conserves."
+            : "Restaurant restaure. Il revient dans le portefeuille actif."
+      });
+      router.refresh();
+    } catch (error) {
+      setStatusFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Action restaurant indisponible."
+      });
+    } finally {
+      setStatusPending(null);
     }
   }
 
@@ -96,34 +224,37 @@ export function OwnerRestaurantDashboard({
     <div className={styles.restaurantDashboard}>
       <article className={styles.restaurantCommandHeader}>
         <div>
-          <Link className={styles.backLink} href="/owner/restaurants" prefetch={false}>
-            Tous les restaurants
+          <Link className={styles.backLink} href="/owner" prefetch={false}>
+            Retour portefeuille
           </Link>
           <h2>{restaurant.name}</h2>
           <p>
-            {restaurant.location} · {restaurant.cuisineType} · {restaurant.slug}
+            {restaurant.location} · {restaurant.cuisineType}
           </p>
           <div className={styles.pillRow}>
             <Badge tone={statusTone(restaurant)}>{restaurant.statusLabel}</Badge>
             <Badge tone={restaurant.readinessScore >= 80 ? "ready" : "warn"}>
-              Readiness {restaurant.readinessScore}%
+              Préparation {restaurant.readinessScore}%
             </Badge>
             <Badge tone={qrTone(restaurant.qrStatus)}>{restaurant.qrStatusLabel}</Badge>
           </div>
         </div>
         <div className={styles.restaurantHeaderActions}>
-          <a className={`${styles.btnPrimary} ${styles.btn}`} href={restaurant.clientMenuHref}>
-            Preview client
-          </a>
-          <button type="button" className={styles.btn} onClick={copyMenuUrl}>
-            Copier URL menu
-          </button>
-          <button
-            type="button"
-            className={styles.btn}
-            onClick={() => setActiveTab("qr")}
+          <a
+            className={`${styles.btnPrimary} ${styles.btn}`}
+            href={restaurant.publicMenuUrl}
+            target="_blank"
+            rel="noreferrer"
           >
-            Tester / generer QR
+            Voir menu public
+          </a>
+          {restaurant.qrStatus !== "ready" ? (
+            <Link className={styles.btn} href="/owner/qr-codes" prefetch={false}>
+              Générer QR
+            </Link>
+          ) : null}
+          <button type="button" className={styles.btn} onClick={copyMenuUrl}>
+            Copier le lien
           </button>
         </div>
       </article>
@@ -134,12 +265,15 @@ export function OwnerRestaurantDashboard({
         </p>
       ) : null}
 
-      <nav className={styles.restaurantTabs} aria-label="Modules restaurant">
+      <nav className={styles.restaurantTabs} aria-label="Navigation restaurant" role="tablist">
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            id={`restaurant-tab-${tab.id}`}
             type="button"
-            aria-pressed={activeTab === tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`restaurant-panel-${tab.id}`}
             className={activeTab === tab.id ? styles.restaurantTabActive : ""}
             onClick={() => setActiveTab(tab.id)}
           >
@@ -148,497 +282,376 @@ export function OwnerRestaurantDashboard({
         ))}
       </nav>
 
-      {activeTab === "overview" ? (
-        <section className={styles.restaurantTabPanel}>
-          <div className={styles.restaurantOverviewGrid}>
-            <article className={styles.nextActionPanel}>
-              <span className={styles.metricLabel}>Prochaine action</span>
-              <strong>{restaurant.nextAction}</strong>
-              <p>{readinessSummary(restaurant)}</p>
-              <button
-                type="button"
-                className={`${styles.btnPrimary} ${styles.btn}`}
-                onClick={() => setActiveTab(primaryActionTab)}
-              >
-                Ouvrir le module
-              </button>
-            </article>
+      <TabPanel id="overview" activeTab={activeTab}>
+        <div className={styles.restaurantOverviewGrid}>
+          <article className={styles.nextActionPanel}>
+            <span className={styles.metricLabel}>Prochaine action</span>
+            <strong>{restaurant.nextAction}</strong>
+            <div className={styles.ownerProgress} aria-hidden="true">
+              <span style={{ width: `${restaurant.readinessScore}%` }} />
+            </div>
+            <p>{readinessSummary(restaurant)}</p>
+            <button
+              type="button"
+              className={`${styles.btnPrimary} ${styles.btn}`}
+              onClick={() => setActiveTab(primaryActionTab)}
+            >
+              Ouvrir l’action
+            </button>
+          </article>
 
-            <article className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <h3 className={styles.panelTitle}>Readiness restaurant</h3>
+          <article className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <h3 className={styles.panelTitle}>Checklist de mise en ligne</h3>
+            </div>
+            <div className={styles.panelBody}>
+              <div className={styles.checklist}>
+                {checklist.map((item) => (
+                  <div key={item.id} className={styles.checkItem}>
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{item.detail}</small>
+                    </span>
+                    <Badge tone={item.tone}>{item.status}</Badge>
+                  </div>
+                ))}
               </div>
-              <div className={styles.panelBody}>
-                <div className={styles.checklist}>
-                  {restaurant.readinessItems.map((item) => (
-                    <div key={item.id} className={styles.checkItem}>
-                      <span>
-                        <strong>{item.label}</strong>
-                        <small>{item.detail}</small>
-                      </span>
-                      <Badge tone={readinessTone(item)}>
-                        {item.status === "ready" || item.status === "demo"
-                          ? "OK"
-                          : "A traiter"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </article>
-          </div>
+            </div>
+          </article>
+        </div>
 
-          <section className={styles.commandKpiGrid} aria-label="KPI restaurant">
-            <article>
-              <span>Plats</span>
-              <strong>{formatCount(restaurant.dishCount)}</strong>
-              <small>{menuReady ? "Menu detecte" : "Aucun plat detecte"}</small>
-            </article>
-            <article>
-              <span>Photos</span>
-              <strong>
-                {restaurant.photoDishCount}/{restaurant.dishCount || 0}
-              </strong>
-              <small>{photosReady ? "Couverture complete" : "Photos a completer"}</small>
-            </article>
-            <article>
-              <span>QR</span>
-              <strong>{restaurant.qrStatus === "ready" ? "Pret" : "Action"}</strong>
-              <small>{restaurant.qrStatusLabel}</small>
-            </article>
-            <article>
-              <span>3D / AR</span>
-              <strong>{formatCount(restaurant.immersiveDishCount)}</strong>
-              <small>{hasImmersive ? "Assets detectes" : "Plat signature a choisir"}</small>
-            </article>
-            <article>
-              <span>Ouvertures</span>
-              <strong>{formatCount(restaurant.openingsToday)}</strong>
-              <small>Ce jour si disponible</small>
-            </article>
-            <article>
-              <span>Interactions</span>
-              <strong>{formatCount(restaurant.interactionsToday)}</strong>
-              <small>Plats, 3D, CTA</small>
-            </article>
-          </section>
-
-          <div className={styles.restaurantOverviewGrid}>
-            <ActionTable restaurant={restaurant} setActiveTab={setActiveTab} />
-            <ClientPreview restaurant={restaurant} />
-          </div>
+        <section className={styles.commandKpiGrid} aria-label="Résumé restaurant">
+          <article>
+            <span>Plats</span>
+            <strong>{formatCount(restaurant.dishCount)}</strong>
+            <small>{menuReady ? "Carte détectée" : "À ajouter"}</small>
+          </article>
+          <article>
+            <span>Photos</span>
+            <strong>
+              {restaurant.photoDishCount}/{restaurant.dishCount || 0}
+            </strong>
+            <small>{photosReady ? "Couverture prête" : "À compléter"}</small>
+          </article>
+          <article>
+            <span>QR</span>
+            <strong>{restaurant.qrStatus === "ready" ? "Prêt" : "À générer"}</strong>
+            <small>{restaurant.qrStatusLabel}</small>
+          </article>
+          <article>
+            <span>3D / AR</span>
+            <strong>{formatCount(restaurant.immersiveDishCount)}</strong>
+            <small>{hasImmersive ? "Plat immersif prêt" : "Plat signature à choisir"}</small>
+          </article>
         </section>
-      ) : null}
 
-      {activeTab === "menu" ? <MenuPanel restaurant={restaurant} /> : null}
-      {activeTab === "dishes" ? <DishesPanel restaurant={restaurant} /> : null}
-      {activeTab === "media" ? <MediaPanel restaurant={restaurant} /> : null}
-      {activeTab === "qr" ? <QrPanel restaurant={restaurant} /> : null}
-      {activeTab === "immersive" ? <ImmersivePanel restaurant={restaurant} /> : null}
-      {activeTab === "signals" ? <SignalsPanel restaurant={restaurant} /> : null}
-      {activeTab === "settings" ? <SettingsPanel restaurant={restaurant} /> : null}
+        <section className={styles.restaurantActionGrid} aria-label="Actions rapides">
+          <button type="button" className={styles.btn} onClick={() => setActiveTab("menu")}>
+            Gérer le menu
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setActiveTab("dishes")}>
+            Ajouter des plats
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setActiveTab("media")}>
+            Ajouter médias
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setActiveTab("qr")}>
+            Générer QR
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setActiveTab("immersive")}>
+            Configurer 3D/AR
+          </button>
+        </section>
+      </TabPanel>
+
+      <TabPanel id="menu" activeTab={activeTab}>
+        <MenuPanel restaurant={restaurant} />
+      </TabPanel>
+      <TabPanel id="dishes" activeTab={activeTab}>
+        <DishesPanel restaurant={restaurant} />
+      </TabPanel>
+      <TabPanel id="media" activeTab={activeTab}>
+        <MediaPanel restaurant={restaurant} />
+      </TabPanel>
+      <TabPanel id="qr" activeTab={activeTab}>
+        <QrPanel restaurant={restaurant} />
+      </TabPanel>
+      <TabPanel id="immersive" activeTab={activeTab}>
+        <ImmersivePanel restaurant={restaurant} />
+      </TabPanel>
+      <TabPanel id="settings" activeTab={activeTab}>
+        <SettingsPanel
+          restaurant={restaurant}
+          statusPending={statusPending}
+          statusFeedback={statusFeedback}
+          onStatusAction={updateRestaurantStatus}
+        />
+      </TabPanel>
     </div>
-  );
-}
-
-function ActionTable({
-  restaurant,
-  setActiveTab
-}: {
-  restaurant: OwnerRestaurant;
-  setActiveTab: (tab: TabId) => void;
-}) {
-  const actions: Array<{ title: string; impact: string; tab: TabId; tone: BadgeTone }> = [];
-
-  if (restaurant.dishCount === 0) {
-    actions.push({
-      title: "Ajouter les plats du menu",
-      impact: "Base produit",
-      tab: "dishes",
-      tone: "danger"
-    });
-  }
-  if (restaurant.incompleteDishCount > 0) {
-    actions.push({
-      title: `Ajouter ${restaurant.incompleteDishCount} photo(s) manquante(s)`,
-      impact: "Perception premium",
-      tab: "media",
-      tone: "danger"
-    });
-  }
-  if (restaurant.qrStatus !== "ready") {
-    actions.push({
-      title: restaurant.qrStatus === "generable" ? "Generer QR menu" : "Preparer lien menu",
-      impact: "Mise en test table",
-      tab: "qr",
-      tone: "warn"
-    });
-  }
-  if (restaurant.immersiveDishCount === 0 && restaurant.dishCount > 0) {
-    actions.push({
-      title: "Choisir un plat signature 3D",
-      impact: "Differenciation premium",
-      tab: "immersive",
-      tone: "warn"
-    });
-  }
-  if (actions.length === 0) {
-    actions.push({
-      title: "Ouvrir preview client",
-      impact: "Validation commerciale",
-      tab: "overview",
-      tone: "ready"
-    });
-  }
-
-  return (
-    <article className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <h3 className={styles.panelTitle}>Actions propres a ce restaurant</h3>
-      </div>
-      <div className={styles.panelBody}>
-        <div className={styles.tableWrap}>
-          <table className={styles.dataTable}>
-            <thead>
-              <tr>
-                <th>Action</th>
-                <th>Impact</th>
-                <th>Priorite</th>
-                <th aria-label="Ouvrir" />
-              </tr>
-            </thead>
-            <tbody>
-              {actions.map((action) => (
-                <tr key={action.title}>
-                  <td className={styles.cellMain}>{action.title}</td>
-                  <td className={styles.cellSub}>{action.impact}</td>
-                  <td>
-                    <Badge tone={action.tone}>
-                      {action.tone === "danger" ? "Haute" : action.tone === "warn" ? "Moyenne" : "OK"}
-                    </Badge>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className={styles.btnSmall + " " + styles.btn}
-                      onClick={() => setActiveTab(action.tab)}
-                    >
-                      Ouvrir
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ClientPreview({ restaurant }: { restaurant: OwnerRestaurant }) {
-  return (
-    <article className={styles.clientPreviewPanel}>
-      <div className={styles.clientPreviewPhone}>
-        <div className={styles.clientPreviewScreen}>
-          <div className={styles.clientPreviewHero}>
-            <span>Vistaire menu</span>
-            <strong>{restaurant.name}</strong>
-            <small>{restaurant.cuisineType}</small>
-          </div>
-          <div className={styles.clientPreviewList}>
-            <p>
-              <strong>Carte</strong>
-              <span>{restaurant.dishCount || "Aucun"} plat(s) detecte(s)</span>
-            </p>
-            <p>
-              <strong>Photos</strong>
-              <span>
-                {restaurant.photoDishCount}/{restaurant.dishCount || 0} pretes
-              </span>
-            </p>
-            <p>
-              <strong>Experience</strong>
-              <span>{restaurant.immersiveDishCount} plat(s) 3D / AR</span>
-            </p>
-          </div>
-        </div>
-      </div>
-      <p className={styles.sourceNote}>
-        Preview legere sans chargement media lourd. Ouvrez la preview client pour
-        voir le rendu complet.
-      </p>
-    </article>
   );
 }
 
 function MenuPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
   return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <div>
-            <h3 className={styles.panelTitle}>Menu</h3>
-            <p className={styles.cellSub}>
-              Statut derive des plats relies au restaurant. Aucune table menus
-              dediee ne reste exposee dans ce cockpit.
-            </p>
-          </div>
-          <Link className={styles.btn} href="/owner/menus" prefetch={false}>
-            Vue globale menus
-          </Link>
-        </div>
-        <div className={styles.panelBody}>
-          <div className={styles.commandKpiGrid}>
-            <article>
-              <span>Structure</span>
-              <strong>{restaurant.dishCount > 0 ? "Detectee" : "Vide"}</strong>
-              <small>{restaurant.dishCount} plat(s)</small>
-            </article>
-            <article>
-              <span>Menu public</span>
-              <strong>{restaurant.menuUrlSource === "column" ? "Configure" : "Preview"}</strong>
-              <small className={styles.breakText}>{restaurant.publicMenuPath}</small>
-            </article>
-          </div>
-          <p className={styles.sourceNote}>
-            Pour cette phase, le dashboard contextualise les donnees existantes.
-            Ajout/edition persistante des sections menu non disponible ici.
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>Menu</h3>
+          <p className={styles.cellSub}>
+            Structure de carte lue depuis les données restaurant et plats disponibles.
           </p>
         </div>
-      </article>
-    </section>
+        <Link className={styles.btn} href="/owner/menus" prefetch={false}>
+          Voir tous les menus
+        </Link>
+      </div>
+      <div className={styles.panelBody}>
+        <div className={styles.commandKpiGrid}>
+          <article>
+            <span>Structure</span>
+            <strong>{restaurant.dishCount > 0 ? "Détectée" : "Vide"}</strong>
+            <small>{restaurant.dishCount} plat(s)</small>
+          </article>
+          <article>
+            <span>Menu public</span>
+            <strong>{restaurant.menuUrlSource === "column" ? "Configuré" : "Preview"}</strong>
+            <small className={styles.breakText}>{restaurant.publicMenuPath}</small>
+          </article>
+        </div>
+      </div>
+    </article>
   );
 }
 
 function DishesPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
   return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <div>
-            <h3 className={styles.panelTitle}>Plats</h3>
-            <p className={styles.cellSub}>
-              Controle qualite par restaurant. Les plats sont lus depuis
-              menu_dishes quand disponible.
-            </p>
-          </div>
-          <Link className={styles.btn} href="/owner/plats" prefetch={false}>
-            Vue globale plats
-          </Link>
-        </div>
-        <div className={styles.panelBody}>
-          <div className={styles.checklist}>
-            <div className={styles.checkItem}>
-              <span>
-                <strong>Premiers plats</strong>
-                <small>{restaurant.dishCount} plat(s) detecte(s).</small>
-              </span>
-              <Badge tone={restaurant.dishCount > 0 ? "ready" : "danger"}>
-                {restaurant.dishCount > 0 ? "OK" : "A ajouter"}
-              </Badge>
-            </div>
-            <div className={styles.checkItem}>
-              <span>
-                <strong>Photos</strong>
-                <small>
-                  {restaurant.photoDishCount}/{restaurant.dishCount || 0} plats avec photo.
-                </small>
-              </span>
-              <Badge tone={restaurant.incompleteDishCount === 0 && restaurant.dishCount > 0 ? "ready" : "warn"}>
-                {restaurant.incompleteDishCount} manquante(s)
-              </Badge>
-            </div>
-          </div>
-          <p className={styles.sourceNote}>
-            Edition persistante des plats non exposee par API owner dans cette
-            version. Utilisez ce module comme lecture de readiness.
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>Plats du menu</h3>
+          <p className={styles.cellSub}>
+            Contrôle qualité des plats rattachés à ce restaurant.
           </p>
         </div>
-      </article>
-    </section>
+        <Link className={styles.btn} href="/owner/plats" prefetch={false}>
+          Voir tous les plats
+        </Link>
+      </div>
+      <div className={styles.panelBody}>
+        <div className={styles.checklist}>
+          <div className={styles.checkItem}>
+            <span>
+              <strong>Premiers plats</strong>
+              <small>{restaurant.dishCount} plat(s) détecté(s).</small>
+            </span>
+            <Badge tone={restaurant.dishCount > 0 ? "ready" : "danger"}>
+              {restaurant.dishCount > 0 ? "OK" : "À ajouter"}
+            </Badge>
+          </div>
+          <div className={styles.checkItem}>
+            <span>
+              <strong>Photos associées</strong>
+              <small>
+                {restaurant.photoDishCount}/{restaurant.dishCount || 0} plats avec photo.
+              </small>
+            </span>
+            <Badge tone={restaurant.incompleteDishCount === 0 && restaurant.dishCount > 0 ? "ready" : "warn"}>
+              {restaurant.incompleteDishCount} manquante(s)
+            </Badge>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 
 function MediaPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
   return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <div>
-            <h3 className={styles.panelTitle}>Medias / qualite</h3>
-            <p className={styles.cellSub}>
-              Diagnostic photos et copy premium. Aucun upload public ne part de
-              ce dashboard.
-            </p>
-          </div>
-          <Link className={styles.btn} href="/owner/medias" prefetch={false}>
-            Vue globale medias
-          </Link>
-        </div>
-        <div className={styles.panelBody}>
-          <div className={styles.commandKpiGrid}>
-            <article>
-              <span>Photos</span>
-              <strong>
-                {restaurant.photoDishCount}/{restaurant.dishCount || 0}
-              </strong>
-              <small>Couverture menu</small>
-            </article>
-            <article>
-              <span>Manques</span>
-              <strong>{restaurant.incompleteDishCount}</strong>
-              <small>Plats a completer</small>
-            </article>
-            <article>
-              <span>Copy</span>
-              <strong>Revue</strong>
-              <small>Descriptions et notes internes</small>
-            </article>
-          </div>
-          <p className={styles.sourceNote}>
-            Diagnostic en lecture seule. Les uploads et sources medias restent
-            geres par les workflows existants.
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>Médias</h3>
+          <p className={styles.cellSub}>
+            Suivi des photos prêtes et des manques visibles dans la carte.
           </p>
         </div>
-      </article>
-    </section>
+        <Link className={styles.btn} href="/owner/medias" prefetch={false}>
+          Voir tous les médias
+        </Link>
+      </div>
+      <div className={styles.panelBody}>
+        <div className={styles.commandKpiGrid}>
+          <article>
+            <span>Photos prêtes</span>
+            <strong>
+              {restaurant.photoDishCount}/{restaurant.dishCount || 0}
+            </strong>
+            <small>Couverture de la carte</small>
+          </article>
+          <article>
+            <span>À compléter</span>
+            <strong>{restaurant.incompleteDishCount}</strong>
+            <small>Plats sans photo détectée</small>
+          </article>
+        </div>
+      </div>
+    </article>
   );
 }
 
 function QrPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
   return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <div>
-            <h3 className={styles.panelTitle}>QR restaurant</h3>
-            <p className={styles.cellSub}>
-              Preview du menu public. Pour creer un QR securise persiste, ouvrez
-              le module QR.
-            </p>
-          </div>
-          <Link className={styles.btnPrimary + " " + styles.btn} href="/owner/qr-codes" prefetch={false}>
-            Generer QR persiste
-          </Link>
-        </div>
-        <div className={styles.panelBody}>
-          <MenuQrCode
-            menuUrl={restaurant.qrTargetUrl}
-            restaurantName={restaurant.name}
-          />
-          <p className={styles.sourceNote}>
-            Statut actuel : {restaurant.qrStatusLabel}. Sans table qr_codes
-            configuree, les QR de test peuvent rester non persistants.
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>QR de table</h3>
+          <p className={styles.cellSub}>
+            Statut réel du QR et aperçu de test depuis le menu public.
           </p>
         </div>
-      </article>
-    </section>
+        <Link className={`${styles.btnPrimary} ${styles.btn}`} href="/owner/qr-codes" prefetch={false}>
+          Générer QR persistant
+        </Link>
+      </div>
+      <div className={styles.panelBody}>
+        <MenuQrCode
+          menuUrl={restaurant.qrTargetUrl}
+          restaurantName={restaurant.name}
+        />
+        <p className={styles.sourceNote}>
+          Statut actuel : {restaurant.qrStatusLabel}. Un QR persistant se crée dans le module QR Codes.
+        </p>
+      </div>
+    </article>
   );
 }
 
 function ImmersivePanel({ restaurant }: { restaurant: OwnerRestaurant }) {
   return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <div>
-            <h3 className={styles.panelTitle}>3D / AR</h3>
-            <p className={styles.cellSub}>
-              Choisir les plats signatures et suivre le pipeline. Ce module ne
-              charge aucun GLB/USDZ.
-            </p>
-          </div>
-          <Link className={styles.btn} href="/owner/3d-ar" prefetch={false}>
-            Pipeline 3D / AR
-          </Link>
-        </div>
-        <div className={styles.panelBody}>
-          <div className={styles.commandKpiGrid}>
-            <article>
-              <span>Assets detectes</span>
-              <strong>{restaurant.immersiveDishCount}</strong>
-              <small>{restaurant.dishCount} plat(s) dans le menu</small>
-            </article>
-            <article>
-              <span>Etat</span>
-              <strong>{restaurant.immersiveDishCount > 0 ? "En place" : "A choisir"}</strong>
-              <small>3D selective, pas decorative</small>
-            </article>
-          </div>
-        </div>
-      </article>
-    </section>
-  );
-}
-
-function SignalsPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
-  return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <h3 className={styles.panelTitle}>Signaux</h3>
-        </div>
-        <div className={styles.panelBody}>
-          <div className={styles.commandKpiGrid}>
-            <article>
-              <span>Ouvertures menu</span>
-              <strong>{formatCount(restaurant.openingsToday)}</strong>
-              <small>Ce jour si analytics disponibles</small>
-            </article>
-            <article>
-              <span>Interactions</span>
-              <strong>{formatCount(restaurant.interactionsToday)}</strong>
-              <small>Plats, CTA, 3D/AR</small>
-            </article>
-          </div>
-          <p className={styles.sourceNote}>
-            Les signaux restent anonymes et dependent des tables analytics
-            disponibles. Zero signal ne veut pas dire zero client si le tracking
-            reste non configure.
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>3D / AR</h3>
+          <p className={styles.cellSub}>
+            Choisir les plats signatures et suivre le pipeline sans charger d’asset lourd ici.
           </p>
         </div>
-      </article>
-    </section>
+        <Link className={styles.btn} href="/owner/3d-ar" prefetch={false}>
+          Ouvrir le pipeline
+        </Link>
+      </div>
+      <div className={styles.panelBody}>
+        <div className={styles.commandKpiGrid}>
+          <article>
+            <span>Assets détectés</span>
+            <strong>{restaurant.immersiveDishCount}</strong>
+            <small>{restaurant.dishCount} plat(s) dans le menu</small>
+          </article>
+          <article>
+            <span>État</span>
+            <strong>{restaurant.immersiveDishCount > 0 ? "En place" : "À choisir"}</strong>
+            <small>3D sélective, pas décorative</small>
+          </article>
+        </div>
+      </div>
+    </article>
   );
 }
 
-function SettingsPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
+function SettingsPanel({
+  restaurant,
+  statusPending,
+  statusFeedback,
+  onStatusAction
+}: {
+  restaurant: OwnerRestaurant;
+  statusPending: RestaurantStatusAction | null;
+  statusFeedback: RestaurantStatusFeedback | null;
+  onStatusAction: (action: RestaurantStatusAction) => void;
+}) {
+  const isArchived = restaurant.status === "archived";
+  const nextAction: RestaurantStatusAction = isArchived ? "restore" : "archive";
+  const actionLabel = isArchived ? "Restaurer le restaurant" : "Archiver le restaurant";
+  const isDisabled = restaurant.isDemo || statusPending !== null;
   return (
-    <section className={styles.restaurantTabPanel}>
-      <article className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <h3 className={styles.panelTitle}>Settings restaurant</h3>
-        </div>
-        <div className={styles.panelBody}>
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <h3 className={styles.panelTitle}>Paramètres du restaurant</h3>
+      </div>
+      <div className={styles.panelBody}>
+        <div className={styles.restaurantSettingsStack}>
           <dl className={styles.definitionList}>
-            <div>
-              <dt>ID</dt>
-              <dd>{restaurant.id}</dd>
-            </div>
-            <div>
-              <dt>Slug</dt>
-              <dd>{restaurant.slug}</dd>
-            </div>
-            <div>
-              <dt>Contact</dt>
-              <dd>{restaurant.contactName || "A preciser"}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{restaurant.contactEmail || "A preciser"}</dd>
-            </div>
-            <div>
-              <dt>Notes</dt>
-              <dd>{restaurant.notes || "Aucune note interne."}</dd>
-            </div>
+          <div>
+            <dt>ID</dt>
+            <dd>{restaurant.id}</dd>
+          </div>
+          <div>
+            <dt>Slug</dt>
+            <dd>{restaurant.slug}</dd>
+          </div>
+          <div>
+            <dt>Contact</dt>
+            <dd>{restaurant.contactName || "À préciser"}</dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>{restaurant.contactEmail || "À préciser"}</dd>
+          </div>
+          <div>
+            <dt>Notes</dt>
+            <dd>{restaurant.notes || "Aucune note interne."}</dd>
+          </div>
           </dl>
-          <p className={styles.sourceNote}>
-            Edition de profil non exposee dans cette phase. La creation du
-            restaurant est persistante quand Supabase confirme son identifiant.
-          </p>
+
+          <section
+            className={styles.restaurantLifecycleControl}
+            aria-labelledby="restaurant-lifecycle-title"
+          >
+            <div className={styles.restaurantLifecycleHeader}>
+              <div>
+                <h4 id="restaurant-lifecycle-title">Zone restaurant</h4>
+                <p>
+                  Archivez un restaurant pour le retirer du workflow actif sans supprimer ses plats,
+                  ses QR, ses medias ou ses URLs publiques.
+                </p>
+              </div>
+              <Badge tone={isArchived ? "muted" : "ready"}>
+                {isArchived ? "Archive" : "Actif"}
+              </Badge>
+            </div>
+
+            <div className={styles.restaurantLifecycleActions}>
+              <button
+                type="button"
+                className={`${styles.btn} ${isArchived ? "" : styles.btnDanger}`}
+                disabled={isDisabled}
+                onClick={() => onStatusAction(nextAction)}
+              >
+                {statusPending === nextAction ? "Mise a jour..." : actionLabel}
+              </button>
+              {restaurant.isDemo ? (
+                <span className={styles.sourceNote}>
+                  Restaurant de demonstration protege contre l&apos;archivage.
+                </span>
+              ) : null}
+            </div>
+
+            {statusFeedback ? (
+              <p
+                className={statusFeedback.tone === "error" ? styles.errorText : styles.qrStatus}
+                role="status"
+              >
+                {statusFeedback.message}
+              </p>
+            ) : null}
+
+            <p className={styles.sourceNote}>
+              La suppression definitive n&apos;est pas exposee ici: elle doit d&apos;abord definir quoi faire
+              des plats, medias, QR, analytics et liens publics rattaches au restaurant.
+            </p>
+          </section>
         </div>
-      </article>
-    </section>
+      </div>
+    </article>
   );
 }

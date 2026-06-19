@@ -49,16 +49,18 @@ test("validates restaurant creation input with normalized slug and setup fallbac
     ...validInput,
     slug: "",
     status: "unexpected",
+    googleReviewUrl: "https://g.page/r/CYEXAMPLE/review",
     notes: "x".repeat(900)
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.value.slug, "le-comptoir-d-ete");
   assert.equal(result.value.status, "setup_needed");
+  assert.equal(result.value.googleReviewUrl, "https://g.page/r/CYEXAMPLE/review");
   assert.equal(result.value.notes.length, 800);
 });
 
-test("rejects missing restaurant name and invalid contact email", () => {
+test("rejects missing restaurant name, invalid contact email, and invalid Google Reviews links", () => {
   assert.deepEqual(validateCreateRestaurantInput({ ...validInput, name: " " }), {
     ok: false,
     error: "Nom du restaurant requis."
@@ -68,6 +70,16 @@ test("rejects missing restaurant name and invalid contact email", () => {
     {
       ok: false,
       error: "Email contact invalide."
+    }
+  );
+  assert.deepEqual(
+    validateCreateRestaurantInput({
+      ...validInput,
+      googleReviewUrl: "https://example.com/review"
+    }),
+    {
+      ok: false,
+      error: "Lien Google Reviews invalide."
     }
   );
 });
@@ -127,7 +139,13 @@ test("restaurant creation treats a successful insert without UUID id as invalid"
 
 test("restaurant creation returns persisted Supabase restaurant links", async () => {
   let insertedRow;
-  const result = await createRestaurantRecord(validInput, {
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      googleReviewUrl:
+        "https://search.google.com/local/writereview?placeid=abc123"
+    },
+    {
     admin: {
       ok: true,
       client: insertClient({
@@ -144,6 +162,9 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
           contact_name: "Camille",
           contact_email: "camille@example.com",
           contact_phone: "+1 514 555 0123",
+          google_review_enabled: true,
+          google_review_url:
+            "https://search.google.com/local/writereview?placeid=abc123",
           notes: "Ouverture terrasse",
           created_at: "2026-06-05T12:00:00.000Z"
         }
@@ -159,9 +180,12 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
         "contact_name",
         "contact_email",
         "contact_phone",
+        "google_review_enabled",
+        "google_review_url",
         "notes"
       ])
-  });
+    }
+  );
 
   assert.equal(result.ok, true);
   assert.equal(result.persisted, true);
@@ -176,6 +200,11 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
   assert.equal(result.restaurant.qrStatus, "generable");
   assert.equal(insertedRow.slug, "le-comptoir-d-ete");
   assert.equal(insertedRow.contact_email, "camille@example.com");
+  assert.equal(insertedRow.google_review_enabled, true);
+  assert.equal(
+    insertedRow.google_review_url,
+    "https://search.google.com/local/writereview?placeid=abc123"
+  );
 });
 
 test("restaurant POST route is guarded and exposes persistence metadata", async () => {
@@ -186,6 +215,18 @@ test("restaurant POST route is guarded and exposes persistence metadata", async 
   assert.match(source, /persisted: created\.persisted/);
   assert.match(source, /dataSource: created\.dataSource/);
   assert.match(source, /status: created\.status/);
+});
+
+test("restaurant creation wizard lets owners choose menu languages locally", async () => {
+  const source = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
+
+  assert.match(source, /menuLanguageOptions/);
+  assert.match(source, /Langues du menu/);
+  assert.match(source, /formatMenuLanguages\(menuLanguages\)/);
+  assert.match(source, /Gardez au moins une langue pour le menu\./);
+  assert.match(source, /Lien Google Reviews/);
+  assert.match(source, /googleReviewUrl/);
+  assert.match(source, /Lien Google Reviews invalide\./);
 });
 
 test("owner e2e bypass can cover restaurant API during browser QA", async () => {
@@ -204,4 +245,14 @@ test("restaurants migration guarantees UUID id, unique slug, and RLS", async () 
   assert.match(sql, /on public\.restaurants \(slug\)/i);
   assert.match(sql, /alter table public\.restaurants enable row level security/i);
   assert.match(sql, /revoke all on table public\.restaurants from anon, authenticated/i);
+});
+
+test("restaurants migration supports optional Google Reviews links", async () => {
+  const sql = await readFile(
+    "supabase/migrations/0009_restaurant_google_reviews.sql",
+    "utf8"
+  );
+
+  assert.match(sql, /add column if not exists google_review_enabled boolean/i);
+  assert.match(sql, /add column if not exists google_review_url text/i);
 });

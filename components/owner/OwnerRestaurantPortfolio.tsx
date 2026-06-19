@@ -1,3 +1,4 @@
+import Link from "next/link";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, type BadgeTone } from "@/components/owner/OwnerUi";
 import type { OwnerAction, OwnerRestaurant } from "@/lib/owner/types";
@@ -14,17 +15,28 @@ function qrTone(status: OwnerRestaurant["qrStatus"]): BadgeTone {
   return "danger";
 }
 
-function readinessTone(score: number): BadgeTone {
-  if (score >= 80) return "ready";
-  if (score >= 50) return "warn";
+function statusTone(restaurant: OwnerRestaurant): BadgeTone {
+  if (restaurant.status === "paused" || restaurant.status === "archived") return "muted";
+  if (restaurant.readinessScore >= 80 && restaurant.qrStatus === "ready") return "ready";
+  if (restaurant.readinessScore >= 50 || restaurant.qrStatus === "generable") return "warn";
   return "danger";
 }
 
-function restaurantActions(
+function portfolioStatus(restaurant: OwnerRestaurant): string {
+  if (restaurant.status === "paused") return "En pause";
+  if (restaurant.status === "archived") return "Archivé";
+  if (restaurant.readinessScore >= 80 && restaurant.qrStatus === "ready") return "Prêt";
+  if (restaurant.qrStatus !== "ready" || restaurant.dishCount === 0) {
+    return "Attention requise";
+  }
+  return "À configurer";
+}
+
+function restaurantPrimaryAction(
   restaurant: OwnerRestaurant,
-  actions: OwnerAction[] = []
-): OwnerAction[] {
-  return actions.filter((action) => action.restaurantId === restaurant.id);
+  actions: OwnerAction[]
+): string {
+  return actions.find((action) => action.restaurantId === restaurant.id)?.title ?? restaurant.nextAction;
 }
 
 export function OwnerRestaurantPortfolio({
@@ -37,7 +49,7 @@ export function OwnerRestaurantPortfolio({
   if (visibleRestaurants.length === 0) {
     return (
       <div className={styles.emptyState}>
-        Aucun restaurant disponible. Creez un restaurant pour lancer le portefeuille.
+        Aucun restaurant disponible. Créez un restaurant pour lancer le portefeuille.
       </div>
     );
   }
@@ -45,18 +57,10 @@ export function OwnerRestaurantPortfolio({
   return (
     <div className={styles.ownerRestaurantGrid}>
       {visibleRestaurants.map((restaurant) => {
-        const scopedActions = restaurantActions(restaurant, actions);
-        const primaryAction = scopedActions[0]?.title ?? restaurant.nextAction;
-        const menuReady = restaurant.dishCount > 0;
-        const photosReady =
-          restaurant.dishCount > 0 && restaurant.incompleteDishCount === 0;
+        const primaryAction = restaurantPrimaryAction(restaurant, actions);
 
         return (
-          <a
-            key={restaurant.id}
-            className={styles.ownerRestaurantCard}
-            href={restaurant.dashboardHref}
-          >
+          <article key={restaurant.id} className={styles.ownerRestaurantCard}>
             <div className={styles.ownerRestaurantCardTop}>
               <div>
                 <span className={styles.restaurantSlug}>{restaurant.slug}</span>
@@ -65,9 +69,9 @@ export function OwnerRestaurantPortfolio({
                   {restaurant.location} · {restaurant.cuisineType}
                 </p>
               </div>
-              <div className={styles.ownerScore}>
+              <div className={styles.ownerScore} aria-label={`${restaurant.readinessScore}% de mise en ligne`}>
                 <strong>{restaurant.readinessScore}%</strong>
-                <span>Ready</span>
+                <span>Mise en ligne</span>
               </div>
             </div>
 
@@ -76,35 +80,8 @@ export function OwnerRestaurantPortfolio({
             </div>
 
             <div className={styles.pillRow}>
-              <Badge tone={readinessTone(restaurant.readinessScore)}>
-                {restaurant.statusLabel}
-              </Badge>
+              <Badge tone={statusTone(restaurant)}>{portfolioStatus(restaurant)}</Badge>
               <Badge tone={qrTone(restaurant.qrStatus)}>{restaurant.qrStatusLabel}</Badge>
-              <Badge tone={menuReady ? "ready" : "danger"}>
-                {menuReady ? "Menu actif" : "Menu vide"}
-              </Badge>
-              <Badge tone={photosReady ? "ready" : "warn"}>
-                {restaurant.photoDishCount}/{restaurant.dishCount || 0} photos
-              </Badge>
-            </div>
-
-            <div className={styles.ownerMiniMetrics}>
-              <span>
-                <small>Plats</small>
-                <strong>{restaurant.dishCount}</strong>
-              </span>
-              <span>
-                <small>QR</small>
-                <strong>{restaurant.qrStatus === "ready" ? "Pret" : "Action"}</strong>
-              </span>
-              <span>
-                <small>3D/AR</small>
-                <strong>{restaurant.immersiveDishCount}</strong>
-              </span>
-              <span>
-                <small>Signaux</small>
-                <strong>{restaurant.openingsToday}</strong>
-              </span>
             </div>
 
             <div className={styles.ownerNextAction}>
@@ -112,8 +89,24 @@ export function OwnerRestaurantPortfolio({
               <strong>{primaryAction}</strong>
             </div>
 
-            <span className={styles.ownerCardCta}>Ouvrir dashboard</span>
-          </a>
+            <div className={styles.restaurantEssentials} aria-label="Indicateurs essentiels">
+              <span>{restaurant.dishCount} plats</span>
+              <span>
+                Photos {restaurant.photoDishCount}/{restaurant.dishCount || 0}
+              </span>
+              <span>QR {restaurant.qrStatus === "ready" ? "prêt" : "à faire"}</span>
+              <span>3D/AR {restaurant.immersiveDishCount}</span>
+            </div>
+
+            <Link
+              className={styles.ownerOpenLink}
+              href={restaurant.dashboardHref}
+              prefetch={false}
+              aria-label={`Ouvrir ${restaurant.name}`}
+            >
+              Ouvrir
+            </Link>
+          </article>
         );
       })}
     </div>

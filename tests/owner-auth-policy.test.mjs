@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   isOwnerIdentityAllowed,
@@ -122,6 +123,15 @@ test("owner e2e bypass requires explicit token and localhost host", () => {
     ),
     true
   );
+});
+
+test("owner e2e query bypass persists a localhost cookie for navigation", async () => {
+  const proxySource = await readFile("proxy.ts", "utf8");
+
+  assert.match(proxySource, /DEV_OWNER_BYPASS_COOKIE/);
+  assert.match(proxySource, /response\.cookies\.set\(DEV_OWNER_BYPASS_COOKIE/);
+  assert.match(proxySource, /sameSite:\s*"lax"/);
+  assert.match(proxySource, /maxAge:\s*60 \* 60 \* 8/);
 });
 
 test("owner 3D restaurant access fails closed unless slugs are configured", () => {

@@ -175,5 +175,6 @@ export type CreateRestaurantInput = {
   contactName: string;
   contactEmail: string;
   contactPhone?: string;
+  googleReviewUrl?: string;
   notes?: string;
 };

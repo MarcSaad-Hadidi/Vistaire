@@ -60,6 +60,8 @@ test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile wi
   context,
   page
 }, testInfo) => {
+  test.setTimeout(60_000);
+
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
   const health = installPageHealth(page);
@@ -67,46 +69,50 @@ test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile wi
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/owner", { waitUntil: "networkidle" });
 
-  await expect(page.getByRole("heading", { name: "Vue portefeuille" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Restaurants a traiter" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Priorites owner" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Restaurants" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Quel restaurant ouvrir maintenant ?" })
+  ).toBeVisible();
+  await expect(page.getByText("Priorites owner")).toHaveCount(0);
 
-  const firstRestaurantCard = page
-    .locator('a[href^="/owner/restaurants/"]')
-    .filter({ hasText: /Maison/i })
-    .first();
-  await expect(firstRestaurantCard).toBeVisible();
-  const dashboardHref = await firstRestaurantCard.getAttribute("href");
+  const firstRestaurantLink = page.getByRole("link", { name: /Ouvrir Maison/i }).first();
+  await expect(firstRestaurantLink).toBeVisible();
+  const dashboardHref = await firstRestaurantLink.getAttribute("href");
   expect(dashboardHref).toMatch(/^\/owner\/restaurants\/[^?]+$/);
   await page.goto(dashboardHref!, { waitUntil: "domcontentloaded" });
 
   await expect(page).toHaveURL(/\/owner\/restaurants\/[^/?#]+$/);
   await expect(page.getByRole("heading", { level: 2, name: /Maison/i })).toBeVisible();
-  await expect(page.getByText(/Readiness \d+%/)).toBeVisible();
-  const restaurantTabs = page.getByRole("navigation", { name: "Modules restaurant" });
+  await expect(page.getByText(/Préparation \d+%/)).toBeVisible();
+  const restaurantTabs = page.getByRole("tablist", { name: "Navigation restaurant" });
   for (const tab of [
-    "Vue d'ensemble",
+    "Vue d’ensemble",
     "Menu",
     "Plats",
-    "Medias",
+    "Médias",
     "QR",
     "3D / AR",
-    "Signaux",
-    "Settings"
+    "Paramètres"
   ]) {
-    await expect(restaurantTabs.getByRole("button", { name: tab, exact: true })).toBeVisible();
+    await expect(restaurantTabs.getByRole("tab", { name: tab, exact: true })).toBeVisible();
   }
-  await restaurantTabs.getByRole("button", { name: "QR", exact: true }).click();
-  await expect(page.getByText("QR restaurant")).toBeVisible();
-  await restaurantTabs.getByRole("button", { name: "Plats", exact: true }).click();
-  await expect(page.getByText("Controle qualite par restaurant")).toBeVisible();
+  await restaurantTabs.getByRole("tab", { name: "QR", exact: true }).click();
+  await expect(page.getByText("QR de table")).toBeVisible();
+  await restaurantTabs.getByRole("tab", { name: "Plats", exact: true }).click();
+  await expect(page.getByText("Contrôle qualité des plats")).toBeVisible();
+
+  await restaurantTabs.getByRole("tab", { name: /Param/ }).click();
+  await expect(
+    page.getByRole("button", { name: /Archiver le restaurant|Restaurer le restaurant/ })
+  ).toBeVisible();
+  await expect(page.getByText(/suppression definitive/i)).toBeVisible();
 
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: 860 });
     await expect(
       page
-        .getByRole("navigation", { name: "Modules restaurant" })
-        .getByRole("button", { name: "QR", exact: true })
+        .getByRole("tablist", { name: "Navigation restaurant" })
+        .getByRole("tab", { name: "QR", exact: true })
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
@@ -114,7 +120,7 @@ test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile wi
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: 860 });
     await page.goto("/owner", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Vue portefeuille" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Restaurants" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
 
@@ -135,14 +141,14 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
   await expect(page.getByRole("heading", { level: 2, name: "Restaurants" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Creer restaurant" }).first()).toBeVisible();
   await expect(page.getByText("Table dense avancee")).toBeVisible();
-  await expect(page.getByText("Ouvrir dashboard").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Ouvrir/i }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.goto("/owner/restaurants?restaurantId=11111111-1111-1111-1111-111111111111", {
     waitUntil: "networkidle"
   });
   await expect(page).toHaveURL(/\/owner\/restaurants\/11111111-1111-1111-1111-111111111111$/);
-  await expect(page.getByRole("button", { name: "Vue d'ensemble" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Vue d’ensemble" })).toBeVisible();
 
   await page.goto("/owner/restaurants/create", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { level: 2, name: "Creer restaurant" })).toBeVisible();
@@ -152,8 +158,15 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
 
   await page.getByLabel("Nom restaurant").fill("Le Jardin Test");
   await page.getByLabel("Email contact").fill("owner@example.com");
+  await expect(page.getByLabel("Lien Google Reviews")).toBeVisible();
+  await page
+    .getByLabel("Lien Google Reviews")
+    .fill("https://g.page/r/CYEXAMPLE/review");
   await page.getByRole("button", { name: "Continuer" }).click();
   await expect(page.getByText("2. Structure menu")).toBeVisible();
+  await expect(page.getByText("Langues du menu")).toBeVisible();
+  await page.getByRole("button", { name: /English/ }).click();
+  await expect(page.getByText(/Langues selectionnees : Francais, English\./)).toBeVisible();
   await expect(page.getByText("brouillon local de setup")).toBeVisible();
   await expectNoHorizontalOverflow(page);
 

@@ -152,6 +152,43 @@ function assignInsertValue(
   if (column) row[column] = value;
 }
 
+function isAllowedGoogleReviewUrl(parsed: URL): boolean {
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === "search.google.com") {
+    return (
+      parsed.pathname === "/local/writereview" &&
+      Boolean(parsed.searchParams.get("placeid")?.trim())
+    );
+  }
+  if (hostname === "g.page") {
+    return parsed.pathname
+      .split("/")
+      .filter(Boolean)
+      .some((segment) => segment.toLowerCase() === "review");
+  }
+  return false;
+}
+
+function normalizeGoogleReviewUrl(value: string): string {
+  if (!value.trim()) return "";
+
+  try {
+    const parsed = new URL(value.trim());
+    if (
+      parsed.protocol === "https:" &&
+      !parsed.username &&
+      !parsed.password &&
+      isAllowedGoogleReviewUrl(parsed)
+    ) {
+      return parsed.toString().slice(0, 500);
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
 function isDuplicateSlugError(error: SupabaseInsertError): boolean {
   const message = error.message ?? "";
   return (
@@ -256,6 +293,12 @@ export function validateCreateRestaurantInput(
   const contactName = getString(candidate, ["contactName", "contact_name"], "").slice(0, 120);
   const contactEmail = getString(candidate, ["contactEmail", "contact_email"], "").slice(0, 160);
   const contactPhone = getString(candidate, ["contactPhone", "contact_phone"], "").slice(0, 60);
+  const rawGoogleReviewUrl = getString(
+    candidate,
+    ["googleReviewUrl", "google_review_url", "google_reviews_url"],
+    ""
+  ).slice(0, 500);
+  const googleReviewUrl = normalizeGoogleReviewUrl(rawGoogleReviewUrl);
   const notes = getString(candidate, ["notes"], "").slice(0, 800);
 
   if (!name || name.length < 2) {
@@ -264,6 +307,9 @@ export function validateCreateRestaurantInput(
   if (!slug || slug.length < 2) return { ok: false, error: "Slug invalide." };
   if (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
     return { ok: false, error: "Email contact invalide." };
+  }
+  if (rawGoogleReviewUrl && !googleReviewUrl) {
+    return { ok: false, error: "Lien Google Reviews invalide." };
   }
 
   return {
@@ -277,6 +323,7 @@ export function validateCreateRestaurantInput(
       contactName,
       contactEmail,
       ...(contactPhone ? { contactPhone } : {}),
+      ...(googleReviewUrl ? { googleReviewUrl } : {}),
       ...(notes ? { notes } : {})
     }
   };
@@ -307,6 +354,18 @@ export async function createRestaurantRecord(
   assignInsertValue(row, columns, ["contact_name", "contactName"], input.contactName);
   assignInsertValue(row, columns, ["contact_email", "contactEmail"], input.contactEmail);
   assignInsertValue(row, columns, ["contact_phone", "contactPhone", "phone"], input.contactPhone);
+  assignInsertValue(
+    row,
+    columns,
+    ["google_review_url", "googleReviewUrl", "google_reviews_url"],
+    input.googleReviewUrl
+  );
+  assignInsertValue(
+    row,
+    columns,
+    ["google_review_enabled", "googleReviewEnabled", "google_reviews_enabled"],
+    input.googleReviewUrl ? true : undefined
+  );
   assignInsertValue(row, columns, ["notes", "internal_notes"], input.notes);
 
   const { data, error } = await dependencies.admin.client
