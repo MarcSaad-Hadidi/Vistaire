@@ -41,6 +41,7 @@ export type OwnerRestaurant = {
   menuUrlSource: "column" | "derived_preview" | "demo";
   publicMenuPath: string;
   publicMenuUrl: string;
+  mediaBasePath?: string;
   dashboardHref: string;
   qrTargetUrl: string;
   qrCodeUrl: string | null;

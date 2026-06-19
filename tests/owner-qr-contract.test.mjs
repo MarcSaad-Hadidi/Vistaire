@@ -44,6 +44,8 @@ test("owner QR page can be preselected from restaurant creation success", async 
   assert.match(manager, /initialRestaurantId/);
   assert.match(manager, /initialRestaurantSlug/);
   assert.match(manager, /initialTargetKind/);
+  assert.match(page, /return value === "admin" \? "admin" : "menu"/);
+  assert.match(manager, /return value === "admin" \? "admin" : "menu"/);
   assert.match(manager, /restaurant\.slug === initialRestaurantSlug/);
   assert.match(createForm, /qrCodesHref/);
   assert.match(createForm, /target=menu/);

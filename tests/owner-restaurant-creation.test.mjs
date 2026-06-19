@@ -21,7 +21,13 @@ const validInput = {
 
 const persistedId = "11111111-2222-4333-8444-555555555555";
 
-function insertClient({ data = null, error = null, onInsert = () => {} } = {}) {
+function insertClient({
+  data = null,
+  error = null,
+  updateError = null,
+  onInsert = () => {},
+  onUpdate = () => {}
+} = {}) {
   return {
     from(table) {
       assert.equal(table, "restaurants");
@@ -38,6 +44,14 @@ function insertClient({ data = null, error = null, onInsert = () => {} } = {}) {
               };
             }
           };
+        },
+        update(row) {
+          return {
+            async eq(column, value) {
+              onUpdate({ row, column, value });
+              return { data: null, error: updateError };
+            }
+          };
         }
       };
     }
@@ -47,8 +61,10 @@ function insertClient({ data = null, error = null, onInsert = () => {} } = {}) {
 function creationClient({
   restaurantData,
   restaurantError = null,
+  restaurantUpdateError = null,
   dishError = null,
   onRestaurantInsert = () => {},
+  onRestaurantUpdate = () => {},
   onDishInsert = () => {}
 } = {}) {
   return {
@@ -65,6 +81,14 @@ function creationClient({
                     return { data: restaurantData, error: restaurantError };
                   }
                 };
+              }
+            };
+          },
+          update(row) {
+            return {
+              async eq(column, value) {
+                onRestaurantUpdate({ row, column, value });
+                return { data: null, error: restaurantUpdateError };
               }
             };
           }
@@ -125,6 +149,60 @@ test("rejects missing restaurant name, invalid contact email, and invalid Google
   );
 });
 
+test("restaurant creation validates dish photo URLs before persistence", () => {
+  const baseWorkflowInput = {
+    ...validInput,
+    sections: [{ name: "Plats", description: "", order: 1 }],
+    dishes: [
+      {
+        name: "Bar de ligne",
+        section: "Plats",
+        price: 14.99,
+        description: "Fenouil confit, beurre blanc citronne.",
+        available: true,
+        photoStatus: "planned"
+      }
+    ]
+  };
+
+  for (const imageUrl of [
+    "javascript:alert(1)",
+    "data:image/png;base64,AAAA",
+    "http://cdn.example.com/photo.jpg",
+    "//evil.com/photo.jpg",
+    "/restaurants\\photo.jpg",
+    "https://cdn.example.com\\photo.jpg",
+    "https://user:pass@cdn.example.com/photo.jpg"
+  ]) {
+    const result = validateCreateRestaurantInput({
+      ...baseWorkflowInput,
+      dishes: [{ ...baseWorkflowInput.dishes[0], imageUrl }]
+    });
+
+    assert.deepEqual(
+      result,
+      {
+        ok: false,
+        error: "URL photo invalide. Utilisez une URL https ou un chemin interne."
+      },
+      imageUrl
+    );
+  }
+
+  for (const imageUrl of [
+    "https://cdn.example.com/photo.jpg",
+    "/restaurants/demo/photos/photo.jpg"
+  ]) {
+    const result = validateCreateRestaurantInput({
+      ...baseWorkflowInput,
+      dishes: [{ ...baseWorkflowInput.dishes[0], imageUrl }]
+    });
+
+    assert.equal(result.ok, true, imageUrl);
+    assert.equal(result.value.dishes[0].imageUrl, imageUrl);
+  }
+});
+
 test("restaurant creation refuses to fake production success without Supabase", async () => {
   const result = await createRestaurantRecord(validInput, {
     admin: {
@@ -180,6 +258,7 @@ test("restaurant creation treats a successful insert without UUID id as invalid"
 
 test("restaurant creation returns persisted Supabase restaurant links", async () => {
   let insertedRow;
+  let mediaUpdate;
   const result = await createRestaurantRecord(
     {
       ...validInput,
@@ -192,6 +271,9 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
       client: insertClient({
         onInsert(row) {
           insertedRow = row;
+        },
+        onUpdate(update) {
+          mediaUpdate = update;
         },
         data: {
           id: persistedId,
@@ -223,7 +305,8 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
         "contact_phone",
         "google_review_enabled",
         "google_review_url",
-        "notes"
+        "notes",
+        "media_base_path"
       ])
     }
   );
@@ -251,6 +334,12 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
   assert.equal(result.dishesPersisted, true);
   assert.equal(result.persistedDishCount, 0);
   assert.equal(result.mediaBasePath, `restaurants/${persistedId}/photos/`);
+  assert.equal(result.mediaBasePathPersisted, true);
+  assert.equal(mediaUpdate.column, "id");
+  assert.equal(mediaUpdate.value, persistedId);
+  assert.deepEqual(mediaUpdate.row, {
+    media_base_path: `restaurants/${persistedId}/photos/`
+  });
   assert.equal(
     result.qrCodesHref,
     `/owner/qr-codes?restaurantId=${persistedId}&target=menu`
@@ -345,7 +434,8 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
               "status",
               "contact_name",
               "contact_email",
-              "contact_phone"
+              "contact_phone",
+              "media_base_path"
             ])
     }
   );
@@ -356,6 +446,7 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
   assert.equal(result.dishesPersisted, true);
   assert.equal(result.persistedDishCount, 2);
   assert.equal(result.mediaBasePath, `restaurants/${persistedId}/photos/`);
+  assert.equal(result.mediaBasePathPersisted, true);
   assert.equal(
     result.qrCodesHref,
     `/owner/qr-codes?restaurantId=${persistedId}&target=menu`
@@ -377,6 +468,103 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
       assert.doesNotMatch(key, /3d|immersive|model|usdz|glb|ar_url|has_ar/i);
     }
   }
+});
+
+test("restaurant creation keeps rich menu dish fallback columns when column discovery is empty", async () => {
+  let insertedDishes = [];
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      sections: [{ name: "Plats", description: "", order: 1 }],
+      dishes: [
+        {
+          name: "Bar de ligne",
+          section: "Plats",
+          price: 14.99,
+          description: "Fenouil confit, beurre blanc citronne.",
+          imageUrl: "https://cdn.example.com/bar.jpg",
+          ingredients: ["bar", "fenouil", "citron"],
+          allergens: ["poisson", "lait"],
+          tags: ["Signature"],
+          options: ["Sans lactose sur demande"],
+          chefNote: "Servir bien chaud.",
+          available: true,
+          photoStatus: "ready"
+        }
+      ]
+    },
+    {
+      admin: {
+        ok: true,
+        client: creationClient({
+          onDishInsert(rows) {
+            insertedDishes = rows;
+          },
+          restaurantData: {
+            id: persistedId,
+            name: "Le Comptoir d'ete",
+            slug: "le-comptoir-d-ete",
+            status: "setup_needed",
+            contact_email: "camille@example.com"
+          }
+        })
+      },
+      getColumns: async (table) =>
+        table === "menu_dishes" ? new Set() : new Set(["media_base_path"])
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.dishesPersisted, true);
+  assert.equal(result.mediaBasePathPersisted, true);
+  assert.equal(insertedDishes.length, 1);
+  assert.deepEqual(insertedDishes[0], {
+    restaurant_id: persistedId,
+    restaurant_slug: "le-comptoir-d-ete",
+    name: "Bar de ligne",
+    description: "Fenouil confit, beurre blanc citronne.",
+    category_name: "Plats",
+    price: 14.99,
+    available: true,
+    sort_order: 1,
+    image_url: "https://cdn.example.com/bar.jpg",
+    thumbnail_url: "https://cdn.example.com/bar.jpg",
+    ingredients: ["bar", "fenouil", "citron"],
+    allergens: ["poisson", "lait"],
+    options: ["Sans lactose sur demande"],
+    house_note: "Servir bien chaud.",
+    tags: ["Signature"],
+    photo_status: "ready"
+  });
+  for (const key of Object.keys(insertedDishes[0])) {
+    assert.doesNotMatch(key, /3d|immersive|model|usdz|glb|ar_url|has_ar/i);
+  }
+});
+
+test("restaurant creation warns when media base path has no compatible restaurants column", async () => {
+  const result = await createRestaurantRecord(validInput, {
+    admin: {
+      ok: true,
+      client: insertClient({
+        data: {
+          id: persistedId,
+          name: "Le Comptoir d'ete",
+          slug: "le-comptoir-d-ete",
+          status: "setup_needed",
+          contact_email: "camille@example.com"
+        }
+      })
+    },
+    getColumns: async () => new Set(["name", "slug", "contact_email"])
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mediaBasePath, `restaurants/${persistedId}/photos/`);
+  assert.equal(result.mediaBasePathPersisted, false);
+  assert.match(
+    result.warnings.join("\n"),
+    /Chemin media calcule mais non sauvegarde dans restaurants/
+  );
 });
 
 test("restaurant creation warns when sections have no persisted dish row", async () => {
@@ -500,6 +688,7 @@ test("restaurant POST route is guarded and exposes persistence metadata", async 
   assert.match(source, /dishesPersisted: created\.dishesPersisted/);
   assert.match(source, /persistedDishCount: created\.persistedDishCount/);
   assert.match(source, /mediaBasePath: created\.mediaBasePath/);
+  assert.match(source, /mediaBasePathPersisted: created\.mediaBasePathPersisted/);
   assert.match(source, /qrCodesHref: created\.qrCodesHref/);
   assert.match(source, /warnings: created\.warnings/);
   assert.match(source, /status: created\.status/);
@@ -547,6 +736,33 @@ test("restaurant creation wizard is a four-step menu persistence workflow", asyn
   assert.match(source, /dishes:/);
   assert.match(source, /menuLanguages:/);
   assert.match(source, /qrCodesHref/);
+});
+
+test("restaurant creation wizard keeps price decimals and targeted post-create links", async () => {
+  const form = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
+  const page = await readFile("app/owner/restaurants/create/page.tsx", "utf8");
+  const formatted = new Intl.NumberFormat("fr-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(14.99);
+
+  assert.match(form, /minimumFractionDigits:\s*2/);
+  assert.match(form, /maximumFractionDigits:\s*2/);
+  assert.doesNotMatch(form, /maximumFractionDigits:\s*0/);
+  assert.match(formatted, /14[,.]99/);
+  assert.doesNotMatch(formatted, /^15/);
+  assert.match(form, /Le resultat final confirme ce qui a ete persiste\./);
+  assert.match(form, /Plats sauvegardes/);
+  assert.match(form, /Plats non sauvegardes/);
+  assert.match(form, /Sections non confirmees/);
+  assert.match(form, /Chemin media prevu/);
+  assert.match(form, /Chemin media reference/);
+  assert.match(form, /\/owner\/medias\?restaurantId=/);
+  assert.match(form, /Voir les photos a ajouter/);
+  assert.match(page, /Creation Supabase avec rapport de persistance/);
+  assert.doesNotMatch(page, /Profil \+ menu persistants/);
 });
 
 test("owner e2e bypass can cover restaurant API during browser QA", async () => {

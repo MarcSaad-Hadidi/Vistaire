@@ -342,6 +342,7 @@ function getStringList(row: PublicMenuRow, candidates: string[]): string[] {
 
 function isSafePublicMediaUrl(url: string): boolean {
   if (!url) return false;
+  if (url.includes("\\")) return false;
   if (url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) {
     return true;
   }

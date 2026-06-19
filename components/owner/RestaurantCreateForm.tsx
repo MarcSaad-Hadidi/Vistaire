@@ -56,6 +56,7 @@ type SubmitState =
       dishesPersisted: boolean;
       persistedDishCount: number;
       mediaBasePath: string;
+      mediaBasePathPersisted: boolean;
       qrCodesHref: string;
       warnings: string[];
     }
@@ -158,7 +159,8 @@ function formatPrice(value: number): string {
   return new Intl.NumberFormat("fr-CA", {
     style: "currency",
     currency: "CAD",
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(value);
 }
 
@@ -222,6 +224,7 @@ function isValidGoogleReviewUrl(value: string): boolean {
 function isValidMediaUrl(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return true;
+  if (trimmed.includes("\\")) return false;
   if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.includes("\\")) {
     return true;
   }
@@ -320,7 +323,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const photoReadyCount = dishes.filter(
     (dish) => dish.photoStatus === "ready" || dish.imageUrl.trim()
   ).length;
-  const mediaBasePathPreview = `restaurants/${effectiveSlug || "nouveau-restaurant"}/photos/`;
+  const mediaBasePathPreview = "restaurants/{id-supabase}/photos/";
 
   function updateName(value: string) {
     setName(value);
@@ -641,6 +644,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         dishesPersisted?: boolean;
         persistedDishCount?: number;
         mediaBasePath?: string;
+        mediaBasePathPersisted?: boolean;
         qrCodesHref?: string;
         warnings?: string[];
         restaurant?: OwnerRestaurant;
@@ -670,6 +674,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         dishesPersisted: Boolean(result.dishesPersisted),
         persistedDishCount: result.persistedDishCount ?? 0,
         mediaBasePath: result.mediaBasePath ?? `restaurants/${result.restaurant.id}/photos/`,
+        mediaBasePathPersisted: Boolean(result.mediaBasePathPersisted),
         qrCodesHref:
           result.qrCodesHref ?? `/owner/qr-codes?restaurantId=${result.restaurant.id}&target=menu`,
         warnings: result.warnings ?? []
@@ -834,7 +839,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           <div>
             <p className={styles.sourceNote}>
               Le restaurant, les sections et les plats sont envoyes a Supabase.
-              Les photos restent des URL ou un dossier media logique.
+              Le resultat final confirme ce qui a ete persiste.
             </p>
             {error ? <p className={styles.errorText}>{error}</p> : null}
             {state.status === "error" || state.status === "fallback" ? (
@@ -1450,17 +1455,17 @@ function CreationSuccess({
             </article>
             <article>
               <span>Sections</span>
-              <strong>{state.sectionsPersisted ? "OK" : "A verifier"}</strong>
+              <strong>{state.sectionsPersisted ? "Sections confirmees" : "Sections non confirmees"}</strong>
               <small>Categories du menu</small>
             </article>
             <article>
               <span>Plats</span>
-              <strong>{state.persistedDishCount}</strong>
-              <small>{state.dishesPersisted ? "Lignes menu_dishes" : "Non persistees"}</small>
+              <strong>{state.dishesPersisted ? "Plats sauvegardes" : "Plats non sauvegardes"}</strong>
+              <small>{state.persistedDishCount} ligne(s) menu_dishes</small>
             </article>
             <article>
               <span>Medias</span>
-              <strong>Chemin pret</strong>
+              <strong>{state.mediaBasePathPersisted ? "Chemin media reference" : "Chemin media prevu"}</strong>
               <small>{state.mediaBasePath}</small>
             </article>
           </div>
@@ -1491,8 +1496,11 @@ function CreationSuccess({
             <Link className={styles.btn} href={state.restaurant.dashboardHref}>
               Ouvrir le dashboard
             </Link>
-            <Link className={styles.btn} href="/owner/medias">
-              Ajouter les photos
+            <Link
+              className={styles.btn}
+              href={`/owner/medias?restaurantId=${encodeURIComponent(state.restaurant.id)}&restaurantSlug=${encodeURIComponent(state.restaurant.slug)}`}
+            >
+              Voir les photos a ajouter
             </Link>
           </div>
         </div>

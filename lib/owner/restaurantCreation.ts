@@ -28,6 +28,15 @@ type SupabaseRestaurantClient = {
       data: Record<string, unknown>[] | null;
       error: SupabaseInsertError | null;
     }>;
+    update(row: Record<string, unknown>): {
+      eq(
+        column: string,
+        value: unknown
+      ): PromiseLike<{
+        data: Record<string, unknown>[] | null;
+        error: SupabaseInsertError | null;
+      }>;
+    };
   };
 };
 
@@ -46,6 +55,7 @@ export type CreateRestaurantRecordResult =
       dishesPersisted: boolean;
       persistedDishCount: number;
       mediaBasePath: string;
+      mediaBasePathPersisted: boolean;
       qrCodesHref: string;
       warnings: string[];
     }
@@ -104,13 +114,33 @@ const DEFAULT_MENU_DISH_COLUMNS = new Set([
   "category_name",
   "price",
   "available",
-  "sort_order"
+  "sort_order",
+  "image_url",
+  "thumbnail_url",
+  "ingredients",
+  "allergens",
+  "options",
+  "house_note",
+  "tags",
+  "photo_status"
 ]);
 
 const SECTION_DESCRIPTION_WARNING =
   "Les sections sont persistees comme categories de plats; leurs descriptions restent dans le draft owner.";
 const SECTION_WITHOUT_DISH_WARNING_PREFIX =
   "Les sections sans plat n'ont pas de ligne persistante dans menu_dishes et ne s'afficheront pas dans le menu public : ";
+const RESTAURANT_MEDIA_BASE_PATH_COLUMNS = [
+  "media_base_path",
+  "mediaBasePath",
+  "asset_folder",
+  "assetFolder",
+  "storage_path",
+  "storagePath"
+];
+const MEDIA_BASE_PATH_UNSAVED_WARNING =
+  "Chemin media calcule mais non sauvegarde dans restaurants : aucune colonne compatible detectee.";
+const MEDIA_BASE_PATH_UPDATE_WARNING =
+  "Chemin media calcule mais non sauvegarde dans restaurants : erreur Supabase pendant la mise a jour.";
 
 function slugifyRestaurantSlug(value: string): string {
   return value
@@ -272,6 +302,7 @@ function getBoolean(
 function normalizeImageUrl(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
+  if (trimmed.includes("\\")) return "";
   if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.includes("\\")) {
     return trimmed.slice(0, 500);
   }
@@ -364,7 +395,12 @@ function normalizeDishes(
     const section = getString(dish, ["section", "category", "categoryName"], "").slice(0, 80);
     const price = getNumber(dish, ["price", "amount"], 0);
     const description = getString(dish, ["description", "summary"], "").slice(0, 360);
-    const imageUrl = normalizeImageUrl(getString(dish, ["imageUrl", "image_url", "photoUrl", "photo_url"], ""));
+    const rawImageUrl = getString(
+      dish,
+      ["imageUrl", "image_url", "photoUrl", "photo_url"],
+      ""
+    ).slice(0, 500);
+    const imageUrl = normalizeImageUrl(rawImageUrl);
     const photoStatus = normalizePhotoStatus(
       getString(dish, ["photoStatus", "photo_status"], ""),
       imageUrl
@@ -379,6 +415,12 @@ function normalizeDishes(
     }
     if (!description) {
       return { ok: false, error: "Description courte requise pour chaque plat." };
+    }
+    if (rawImageUrl && !imageUrl) {
+      return {
+        ok: false,
+        error: "URL photo invalide. Utilisez une URL https ou un chemin interne."
+      };
     }
 
     dishes.push({
@@ -466,6 +508,12 @@ function buildMenuDishInsertRows(args: {
       row,
       args.columns,
       ["image_url", "imageUrl", "photo_url", "photoUrl", "image"],
+      dish.imageUrl
+    );
+    assignMenuDishValue(
+      row,
+      args.columns,
+      ["thumbnail_url", "thumbnailUrl"],
       dish.imageUrl
     );
     assignMenuDishValue(
@@ -597,6 +645,11 @@ function mapCreatedRestaurant(row: Record<string, unknown>, env?: Record<string,
   const publicMenuPath = buildPublicMenuPath(slug);
   const publicMenuUrl = buildPublicMenuUrl(slug, env);
   const readinessItems = createdReadinessItems();
+  const mediaBasePath = getString(
+    row,
+    RESTAURANT_MEDIA_BASE_PATH_COLUMNS,
+    id ? buildMediaBasePath(id) : ""
+  );
 
   return {
     id,
@@ -619,6 +672,7 @@ function mapCreatedRestaurant(row: Record<string, unknown>, env?: Record<string,
     menuUrlSource: "derived_preview",
     publicMenuPath,
     publicMenuUrl,
+    mediaBasePath,
     dashboardHref: buildRestaurantDashboardPath(id),
     qrTargetUrl: publicMenuUrl,
     qrCodeUrl: null,
@@ -776,11 +830,34 @@ export async function createRestaurantRecord(
   const restaurantId = restaurant.id;
   const restaurantSlug = restaurant.slug;
   const warnings: string[] = [];
+  const mediaBasePath = buildMediaBasePath(restaurantId);
+  let mediaBasePathPersisted = false;
   const inputDishes = input.dishes ?? [];
   const inputSections = input.sections ?? [];
   let persistedDishCount = 0;
   let dishesPersisted = true;
   let sectionsPersisted = true;
+
+  const mediaBasePathColumn = pickColumn(columns, RESTAURANT_MEDIA_BASE_PATH_COLUMNS);
+  if (mediaBasePathColumn) {
+    const { error: mediaBasePathError } = await dependencies.admin.client
+      .from("restaurants")
+      .update({ [mediaBasePathColumn]: mediaBasePath })
+      .eq("id", restaurantId);
+
+    if (mediaBasePathError) {
+      warnings.push(MEDIA_BASE_PATH_UPDATE_WARNING);
+    } else {
+      mediaBasePathPersisted = true;
+    }
+  } else {
+    warnings.push(MEDIA_BASE_PATH_UNSAVED_WARNING);
+  }
+
+  restaurant = {
+    ...restaurant,
+    mediaBasePath
+  };
 
   if (inputDishes.length > 0) {
     let menuDishColumns = new Set<string>();
@@ -843,7 +920,8 @@ export async function createRestaurantRecord(
     sectionsPersisted,
     dishesPersisted,
     persistedDishCount,
-    mediaBasePath: buildMediaBasePath(restaurantId),
+    mediaBasePath,
+    mediaBasePathPersisted,
     qrCodesHref: buildOwnerQrCodesHref(restaurantId),
     warnings
   };

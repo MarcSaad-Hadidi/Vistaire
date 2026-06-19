@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       dishesPersisted: created.dishesPersisted,
       persistedDishCount: created.persistedDishCount,
       mediaBasePath: created.mediaBasePath,
+      mediaBasePathPersisted: created.mediaBasePathPersisted,
       qrCodesHref: created.qrCodesHref,
       warnings: created.warnings,
       restaurant: created.restaurant
