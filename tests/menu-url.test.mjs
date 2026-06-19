@@ -45,4 +45,12 @@ test("builds Resto Marc public menu paths from restaurant names", () => {
     buildPublicMenuPath("Resto Marc", { table: "12", zone: "terrasse" }),
     "/menu/resto-marc?table=12&zone=terrasse"
   );
+  assert.equal(
+    buildPublicMenuPath("Resto Marc", { lang: "en", table: "12" }),
+    "/menu/resto-marc?lang=en&table=12"
+  );
+  assert.equal(
+    buildPublicMenuPath("Resto Marc", { lang: "xx" }),
+    "/menu/resto-marc?lang=fr"
+  );
 });

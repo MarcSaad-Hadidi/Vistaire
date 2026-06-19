@@ -2,11 +2,12 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
-import type { Locale } from "@/lib/i18n";
+import { normalizeLocale, type Locale } from "@/lib/i18n";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -44,6 +45,7 @@ type MaisonElyseQrMenuProps = {
   query?: PublicMenuContextQuery;
   displayMode?: "public" | "phone-preview";
   locale?: Locale;
+  localizedMenus?: Partial<Record<Locale, PublicMenu>>;
   showGoogleReview?: boolean;
   startFullMenu?: boolean;
 };
@@ -75,10 +77,15 @@ type DietaryFilterId = Extract<
   | "fish-free"
 >;
 
-type SheetId = "menu" | "filter" | null;
+type SheetId = "menu" | "filter" | "language" | null;
 
 const ALL_CATEGORY_ID = "all";
 const ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS = new Set(["homard-bisque"]);
+const MENU_LOCALE_STORAGE_KEY = "vistaire:maison-elyse-menu-locale";
+const LANGUAGE_OPTIONS: Array<{ id: Locale; label: string; shortLabel: string }> = [
+  { id: "fr", label: "Français", shortLabel: "FR" },
+  { id: "en", label: "English", shortLabel: "EN" }
+];
 const FILTER_OPTIONS: Array<{ id: FilterId; labels: Record<Locale, string> }> = [
   { id: "signature", labels: { fr: "Signature", en: "Signature" } },
   { id: "recommended", labels: { fr: "Recommandés", en: "Recommended" } },
@@ -115,6 +122,8 @@ const MENU_COPY: Record<
     heroBody: string;
     heroKicker: string;
     heroTitle: string;
+    languageDialogLabel: string;
+    languageToggleAria: string;
     menuDialogLabel: string;
     menuToggleAria: string;
     navAria: string;
@@ -150,6 +159,8 @@ const MENU_COPY: Record<
       "Découvrez les entrées, plats signatures, desserts et cocktails de la maison, pensés pour être explorés directement à table.",
     heroKicker: "Carte à table",
     heroTitle: "Bienvenue chez Maison Élyse",
+    languageDialogLabel: "Langue du menu",
+    languageToggleAria: "Choisir la langue du menu",
     menuDialogLabel: "La carte",
     menuToggleAria: "Ouvrir la navigation de la carte",
     navAria: "Navigation carte et filtres",
@@ -184,6 +195,8 @@ const MENU_COPY: Record<
       "Explore the house starters, signature dishes, desserts and cocktails directly at the table.",
     heroKicker: "Table menu",
     heroTitle: "Welcome to Maison Élyse",
+    languageDialogLabel: "Menu language",
+    languageToggleAria: "Choose menu language",
     menuDialogLabel: "Menu",
     menuToggleAria: "Open menu navigation",
     navAria: "Menu and filter navigation",
@@ -347,6 +360,17 @@ function getScrollBehavior(): ScrollBehavior {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ? "auto"
     : "smooth";
+}
+
+function getStoredMenuLocale(): Locale | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const storedLocale = window.localStorage.getItem(MENU_LOCALE_STORAGE_KEY);
+    return storedLocale ? normalizeLocale(storedLocale) : null;
+  } catch {
+    return null;
+  }
 }
 
 function categoryRank(label: string): number {
@@ -607,19 +631,42 @@ function DishSection({
 export function MaisonElyseQrMenu({
   displayMode = "public",
   locale = "fr",
+  localizedMenus,
   menu,
   query,
   showGoogleReview = true,
   startFullMenu = false
 }: MaisonElyseQrMenuProps) {
-  const copy = MENU_COPY[locale];
+  const router = useRouter();
+  const propLocale = normalizeLocale(locale);
+  const queryLocale = query?.lang?.toString().trim()
+    ? normalizeLocale(query.lang)
+    : null;
+  const [selectedLocale, setSelectedLocale] = useState<Locale>(
+    () => queryLocale ?? propLocale
+  );
+  const [shouldPersistLocaleInLinks, setShouldPersistLocaleInLinks] = useState(
+    () => Boolean(queryLocale)
+  );
+  const activeMenu = localizedMenus?.[selectedLocale] ?? menu;
+  const copy = MENU_COPY[selectedLocale];
+  const activeQuery = useMemo(
+    () =>
+      shouldPersistLocaleInLinks
+        ? {
+            ...(query ?? {}),
+            lang: selectedLocale
+          }
+        : query,
+    [query, selectedLocale, shouldPersistLocaleInLinks]
+  );
   const filterOptions = useMemo(
     () =>
       FILTER_OPTIONS.map((option) => ({
         id: option.id,
-        label: option.labels[locale]
+        label: option.labels[selectedLocale]
       })),
-    [locale]
+    [selectedLocale]
   );
   const [activeCategory, setActiveCategory] = useState<string | null>(() =>
     startFullMenu ? ALL_CATEGORY_ID : null
@@ -632,31 +679,36 @@ export function MaisonElyseQrMenu({
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const phonePreviewScrollParentRef = useRef<HTMLElement | null>(null);
   const skipNextPhonePreviewAutoScrollRef = useRef(false);
-  const groups = useMemo(() => getPublicMenuCategoryGroups(menu.dishes), [menu.dishes]);
+  const manualLocaleRef = useRef<Locale | null>(null);
+  const lastSeenQueryLocaleRef = useRef<Locale | null>(queryLocale);
+  const groups = useMemo(
+    () => getPublicMenuCategoryGroups(activeMenu.dishes),
+    [activeMenu.dishes]
+  );
   const categories = useMemo(
-    () => getVisiblePublicMenuCategories(menu.dishes).sort(categorySort),
-    [menu.dishes]
+    () => getVisiblePublicMenuCategories(activeMenu.dishes).sort(categorySort),
+    [activeMenu.dishes]
   );
   const featuredDishes = useMemo(
     () =>
-      menu.dishes
+      activeMenu.dishes
         .filter(canAppearInEntryPreview)
         .filter((dish) => isSignatureDish(dish) || isRecommendedDish(dish))
         .slice(0, 3),
-    [menu.dishes]
+    [activeMenu.dishes]
   );
   const menuHeroImage = useMemo(() => {
     const coverDish =
-      menu.dishes.find((dish) => canAppearInEntryPreview(dish) && dish.imageUrl) ??
-      menu.dishes.find((dish) => dish.imageUrl);
+      activeMenu.dishes.find((dish) => canAppearInEntryPreview(dish) && dish.imageUrl) ??
+      activeMenu.dishes.find((dish) => dish.imageUrl);
 
     return coverDish?.imageUrl || coverDish?.thumbnailUrl || "";
-  }, [menu.dishes]);
+  }, [activeMenu.dishes]);
   const baseDishes = useMemo(() => {
     if (!activeCategory) return [];
-    if (activeCategory === ALL_CATEGORY_ID) return menu.dishes;
+    if (activeCategory === ALL_CATEGORY_ID) return activeMenu.dishes;
     return groups.get(activeCategory) ?? [];
-  }, [activeCategory, groups, menu.dishes]);
+  }, [activeCategory, activeMenu.dishes, groups]);
   const visibleDishes = useMemo(
     () => baseDishes.filter((dish) => dishMatchesFilter(dish, activeFilter)),
     [activeFilter, baseDishes]
@@ -682,15 +734,78 @@ export function MaisonElyseQrMenu({
     activeCategory === ALL_CATEGORY_ID
       ? copy.allMenu
       : activeCategory
-        ? displayCategoryLabel(activeCategory, locale)
+        ? displayCategoryLabel(activeCategory, selectedLocale)
         : copy.sections;
   const hasActiveFilter = activeFilter !== "all";
+
+  const resetLocaleDependentUi = useCallback(() => {
+    setActiveSheet(null);
+    setActiveFilter("all");
+    setPendingSectionLabel(null);
+    setActiveDish(null);
+    setActiveCategory((currentCategory) =>
+      currentCategory && currentCategory !== ALL_CATEGORY_ID
+        ? ALL_CATEGORY_ID
+        : currentCategory
+    );
+  }, []);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      const manualLocale = manualLocaleRef.current;
+      if (manualLocale && queryLocale !== manualLocale) return;
+      if (manualLocale && queryLocale === manualLocale) {
+        manualLocaleRef.current = null;
+      }
+
+      if (queryLocale) {
+        try {
+          window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, queryLocale);
+        } catch {
+          // Storage can be unavailable in private browsing; the URL still carries the choice.
+        }
+
+        setShouldPersistLocaleInLinks(true);
+
+        if (lastSeenQueryLocaleRef.current !== queryLocale) {
+          lastSeenQueryLocaleRef.current = queryLocale;
+          setSelectedLocale(queryLocale);
+          resetLocaleDependentUi();
+        }
+        return;
+      }
+
+      lastSeenQueryLocaleRef.current = null;
+      const storedLocale = getStoredMenuLocale();
+      if (!storedLocale || storedLocale === propLocale) return;
+      setSelectedLocale(storedLocale);
+      setShouldPersistLocaleInLinks(true);
+      resetLocaleDependentUi();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [propLocale, queryLocale, resetLocaleDependentUi]);
+
+  useEffect(() => {
+    if (queryLocale) return;
+    if (selectedLocale === propLocale) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      try {
+        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, selectedLocale);
+      } catch {
+        // The in-memory selection is enough for this session.
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [propLocale, queryLocale, selectedLocale]);
 
   useEffect(() => {
     if (activeCategory !== ALL_CATEGORY_ID || !pendingSectionLabel) return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const sectionId = sectionDomId(pendingSectionLabel, locale);
+      const sectionId = sectionDomId(pendingSectionLabel, selectedLocale);
       const section = document.getElementById(sectionId);
       const scrollArea = menuScrollAreaRef.current;
 
@@ -714,7 +829,7 @@ export function MaisonElyseQrMenu({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, displayMode, locale, pendingSectionLabel]);
+  }, [activeCategory, displayMode, pendingSectionLabel, selectedLocale]);
 
   useEffect(() => {
     if (displayMode !== "phone-preview" || !activeCategory || pendingSectionLabel) {
@@ -799,6 +914,36 @@ export function MaisonElyseQrMenu({
     );
   }
 
+  function writeLocaleToUrl(nextLocale: Locale) {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set("lang", nextLocale);
+    router.replace(
+      `${currentUrl.pathname}?${currentUrl.searchParams.toString()}${currentUrl.hash}`,
+      { scroll: false }
+    );
+  }
+
+  function selectLanguage(nextLocale: Locale) {
+    manualLocaleRef.current = nextLocale;
+    setSelectedLocale(nextLocale);
+    setShouldPersistLocaleInLinks(true);
+    resetLocaleDependentUi();
+
+    try {
+      window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, nextLocale);
+    } catch {
+      // The in-memory selection is enough for this session.
+    }
+
+    writeLocaleToUrl(nextLocale);
+  }
+
+  function toggleLanguageSheet() {
+    setActiveSheet((currentSheet) =>
+      currentSheet === "language" ? null : "language"
+    );
+  }
+
   function scrollPhonePreviewToTop() {
     const scrollParent = phonePreviewScrollParentRef.current;
     if (!scrollParent) return;
@@ -844,16 +989,172 @@ export function MaisonElyseQrMenu({
   );
   const phonePreviewDishSelect =
     displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
+  const currentLanguage =
+    LANGUAGE_OPTIONS.find((option) => option.id === selectedLocale) ??
+    LANGUAGE_OPTIONS[0];
+  const activeSheetLabel =
+    activeSheet === "language"
+      ? copy.languageDialogLabel
+      : activeSheet === "menu"
+        ? copy.menuDialogLabel
+        : copy.filterDialogLabel;
+  const activeSheetKicker =
+    activeSheet === "menu" ? copy.sheetNavigation : copy.preferences;
+
+  function renderLanguageToggle(className = "") {
+    return (
+      <button
+        aria-expanded={activeSheet === "language"}
+        aria-label={`${copy.languageToggleAria} (${currentLanguage.label})`}
+        className={`${styles.languageToggle} ${className}`}
+        onClick={toggleLanguageSheet}
+        type="button"
+      >
+        {currentLanguage.shortLabel}
+      </button>
+    );
+  }
+
+  function renderGoogleReviewCard() {
+    if (!showGoogleReview) return null;
+
+    return (
+      <GoogleReviewCard
+        googleReview={activeMenu.googleReview}
+        locale={selectedLocale}
+        restaurantId={activeMenu.restaurantId}
+        restaurantName={activeMenu.name}
+        source={activeMenu.source}
+      />
+    );
+  }
+
+  function renderBottomSheet() {
+    if (!activeSheet) return null;
+
+    return (
+      <div
+        className={styles.sheetBackdrop}
+        onClick={() => setActiveSheet(null)}
+      >
+        <section
+          aria-label={activeSheetLabel}
+          aria-modal="true"
+          className={styles.bottomSheet}
+          onClick={(event) => event.stopPropagation()}
+          role="dialog"
+        >
+          <div className={styles.sheetHandle} aria-hidden="true" />
+          <div className={styles.sheetHeader}>
+            <div>
+              <p className={styles.kicker}>{activeSheetKicker}</p>
+              <h3>{activeSheetLabel}</h3>
+            </div>
+            <button type="button" onClick={() => setActiveSheet(null)}>
+              {copy.close}
+            </button>
+          </div>
+
+          {activeSheet === "menu" ? (
+            <div className={styles.sheetList}>
+              <button
+                aria-pressed={activeCategory === ALL_CATEGORY_ID}
+                className={
+                  activeCategory === ALL_CATEGORY_ID ? styles.isActive : undefined
+                }
+                type="button"
+                onClick={showAll}
+              >
+                <span>{copy.allMenu}</span>
+              </button>
+              {categories.map((category) => {
+                return (
+                  <button
+                    aria-pressed={activeCategory === category.label}
+                    className={
+                      activeCategory === category.label
+                        ? styles.isActive
+                        : undefined
+                    }
+                    key={category.id}
+                    type="button"
+                    onClick={() => openCategoryInFullMenu(category.label)}
+                  >
+                    <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : activeSheet === "language" ? (
+            <div className={styles.sheetList}>
+              {LANGUAGE_OPTIONS.map((option) => (
+                <button
+                  aria-pressed={selectedLocale === option.id}
+                  className={
+                    selectedLocale === option.id ? styles.isActive : undefined
+                  }
+                  key={option.id}
+                  onClick={() => selectLanguage(option.id)}
+                  type="button"
+                >
+                  <span>{option.label}</span>
+                  <small>{option.shortLabel}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              {hasActiveFilter ? (
+                <button
+                  className={styles.sheetReset}
+                  type="button"
+                  onClick={resetFilters}
+                >
+                  {copy.resetFilters}
+                </button>
+              ) : null}
+              <div
+                className={styles.filterGrid}
+                role="group"
+                aria-label={copy.filterGroupLabel}
+              >
+                {filterOptions.map((filter) => (
+                  <button
+                    aria-pressed={activeFilter === filter.id}
+                    className={
+                      activeFilter === filter.id ? styles.isActive : undefined
+                    }
+                    key={filter.id}
+                    onClick={() => toggleFilter(filter.id)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                className={styles.sheetApply}
+                onClick={() => setActiveSheet(null)}
+                type="button"
+              >
+                {copy.apply}
+              </button>
+            </>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   if (displayMode === "phone-preview" && activeDish) {
     return (
       <PhonePreviewDishDetail
         dish={activeDish}
         displayMode="phone-preview"
-        locale={locale}
-        menu={menu}
+        locale={selectedLocale}
+        menu={activeMenu}
         onBackToMenu={closeDishInPhonePreview}
-        query={query}
+        query={activeQuery}
       />
     );
   }
@@ -866,13 +1167,19 @@ export function MaisonElyseQrMenu({
       data-display-mode={displayMode}
     >
       {!activeCategory ? (
-        <section className={styles.hero} aria-labelledby="maison-elyse-heading">
-          <div className={styles.heroCopy}>
-            <p className={styles.kicker}>{copy.heroKicker}</p>
-            <h1 id="maison-elyse-heading">{copy.heroTitle}</h1>
-            <p>{copy.heroBody}</p>
+        <>
+          <div className={styles.guestToolbar}>
+            <span className={styles.guestToolbarName}>Maison Élyse</span>
+            {renderLanguageToggle()}
           </div>
-        </section>
+          <section className={styles.hero} aria-labelledby="maison-elyse-heading">
+            <div className={styles.heroCopy}>
+              <p className={styles.kicker}>{copy.heroKicker}</p>
+              <h1 id="maison-elyse-heading">{copy.heroTitle}</h1>
+              <p>{copy.heroBody}</p>
+            </div>
+          </section>
+        </>
       ) : null}
 
       <section className={styles.sections} ref={menuRef} aria-label={copy.sections}>
@@ -884,7 +1191,7 @@ export function MaisonElyseQrMenu({
                   category={category}
                   imageUrl={categoryImages.get(category.label) ?? ""}
                   key={category.id}
-                  locale={locale}
+                  locale={selectedLocale}
                   onSelect={() => openCategoryInFullMenu(category.label)}
                 />
               ))}
@@ -906,15 +1213,16 @@ export function MaisonElyseQrMenu({
                     <DishCard
                       dish={dish}
                       key={dish.id}
-                      locale={locale}
-                      menu={menu}
+                      locale={selectedLocale}
+                      menu={activeMenu}
                       onSelectDish={phonePreviewDishSelect}
-                      query={query}
+                      query={activeQuery}
                     />
                   ))}
                 </ul>
               </section>
             ) : null}
+            {renderGoogleReviewCard()}
           </>
         ) : (
           <section className={styles.menuPanel} aria-labelledby="active-category-heading">
@@ -929,14 +1237,18 @@ export function MaisonElyseQrMenu({
               >
                 <div className={styles.menuCoverTopbar}>
                   <span className={styles.menuRestaurantName}>Maison Élyse</span>
-                  <button
-                    aria-label={copy.menuToggleAria}
-                    type="button"
-                    onClick={() => setActiveSheet("menu")}
-                  >
-                    <span aria-hidden="true" />
-                    <span aria-hidden="true" />
-                  </button>
+                  <div className={styles.menuTopbarActions}>
+                    {renderLanguageToggle()}
+                    <button
+                      aria-label={copy.menuToggleAria}
+                      className={styles.menuButton}
+                      type="button"
+                      onClick={() => setActiveSheet("menu")}
+                    >
+                      <span aria-hidden="true" />
+                      <span aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
                 <div className={styles.menuCoverCopy}>
                   <p className={styles.kicker}>{copy.collectionKicker}</p>
@@ -949,7 +1261,7 @@ export function MaisonElyseQrMenu({
               {hasActiveFilter ? (
                 <div className={styles.activeFilterNotice} role="status">
                   <span>
-                    {copy.activeFilterPrefix} : {getFilterLabel(activeFilter, locale)}
+                    {copy.activeFilterPrefix} : {getFilterLabel(activeFilter, selectedLocale)}
                   </span>
                   <button type="button" onClick={resetFilters}>
                     {copy.reset}
@@ -964,10 +1276,10 @@ export function MaisonElyseQrMenu({
                       <DishSection
                         dishes={section.dishes}
                         key={section.id}
-                        locale={locale}
-                        menu={menu}
+                        locale={selectedLocale}
+                        menu={activeMenu}
                         onSelectDish={phonePreviewDishSelect}
-                        query={query}
+                        query={activeQuery}
                         title={section.label}
                       />
                     ))}
@@ -975,10 +1287,10 @@ export function MaisonElyseQrMenu({
                 ) : (
                   <DishSection
                     dishes={visibleDishes}
-                    locale={locale}
-                    menu={menu}
+                    locale={selectedLocale}
+                    menu={activeMenu}
                     onSelectDish={phonePreviewDishSelect}
-                    query={query}
+                    query={activeQuery}
                     title={activeCategoryLabel}
                   />
                 )
@@ -990,6 +1302,7 @@ export function MaisonElyseQrMenu({
                   </button>
                 </div>
               )}
+              {renderGoogleReviewCard()}
             </div>
 
             <nav className={styles.bottomBar} aria-label={copy.navAria}>
@@ -1017,119 +1330,10 @@ export function MaisonElyseQrMenu({
               </button>
             </nav>
 
-            {activeSheet ? (
-              <div
-                className={styles.sheetBackdrop}
-                onClick={() => setActiveSheet(null)}
-              >
-                <section
-                  aria-label={
-                    activeSheet === "menu" ? copy.menuDialogLabel : copy.filterDialogLabel
-                  }
-                  aria-modal="true"
-                  className={styles.bottomSheet}
-                  onClick={(event) => event.stopPropagation()}
-                  role="dialog"
-                >
-                  <div className={styles.sheetHandle} aria-hidden="true" />
-                  <div className={styles.sheetHeader}>
-                    <div>
-                      <p className={styles.kicker}>
-                        {activeSheet === "menu" ? copy.sheetNavigation : copy.preferences}
-                      </p>
-                      <h3>
-                        {activeSheet === "menu" ? copy.menuDialogLabel : copy.filterDialogLabel}
-                      </h3>
-                    </div>
-                    <button type="button" onClick={() => setActiveSheet(null)}>
-                      {copy.close}
-                    </button>
-                  </div>
-
-                  {activeSheet === "menu" ? (
-                    <div className={styles.sheetList}>
-                      <button
-                        aria-pressed={activeCategory === ALL_CATEGORY_ID}
-                        className={
-                          activeCategory === ALL_CATEGORY_ID ? styles.isActive : undefined
-                        }
-                        type="button"
-                        onClick={showAll}
-                      >
-                        <span>{copy.allMenu}</span>
-                      </button>
-                      {categories.map((category) => {
-                        return (
-                          <button
-                            aria-pressed={activeCategory === category.label}
-                            className={
-                              activeCategory === category.label
-                                ? styles.isActive
-                                : undefined
-                            }
-                            key={category.id}
-                            type="button"
-                            onClick={() => openCategoryInFullMenu(category.label)}
-                          >
-                            <span>{displayCategoryLabel(category.label, locale)}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <>
-                      {hasActiveFilter ? (
-                        <button
-                          className={styles.sheetReset}
-                          type="button"
-                          onClick={resetFilters}
-                        >
-                          {copy.resetFilters}
-                        </button>
-                      ) : null}
-                      <div
-                        className={styles.filterGrid}
-                        role="group"
-                        aria-label={copy.filterGroupLabel}
-                      >
-                        {filterOptions.map((filter) => (
-                          <button
-                            aria-pressed={activeFilter === filter.id}
-                            className={
-                              activeFilter === filter.id ? styles.isActive : undefined
-                            }
-                            key={filter.id}
-                            onClick={() => toggleFilter(filter.id)}
-                            type="button"
-                          >
-                            {filter.label}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        className={styles.sheetApply}
-                        onClick={() => setActiveSheet(null)}
-                        type="button"
-                      >
-                        {copy.apply}
-                      </button>
-                    </>
-                  )}
-                </section>
-              </div>
-            ) : null}
           </section>
         )}
       </section>
-
-      {showGoogleReview ? (
-        <GoogleReviewCard
-          googleReview={menu.googleReview}
-          restaurantId={menu.restaurantId}
-          restaurantName={menu.name}
-          source={menu.source}
-        />
-      ) : null}
+      {renderBottomSheet()}
     </main>
   );
 }

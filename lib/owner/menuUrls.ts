@@ -1,4 +1,5 @@
 import { absoluteUrl } from "@/lib/seo";
+import type { Locale } from "@/lib/i18n";
 import {
   buildPublicMenuPath,
   buildQrRedirectPath,
@@ -26,7 +27,7 @@ export function buildRestaurantMenuUrl(
 
 export function buildPublicMenuUrl(
   slugOrName: string,
-  params?: { table?: string; zone?: string },
+  params?: { lang?: Locale | string; table?: string; zone?: string },
   env?: SiteUrlEnv
 ): string {
   return absoluteUrl(buildPublicMenuPath(slugOrName, params), env);

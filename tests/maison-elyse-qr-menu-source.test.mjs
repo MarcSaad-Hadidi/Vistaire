@@ -34,8 +34,9 @@ test("Maison Elyse demo public menu can be built with localized sample data", as
   assert.match(source, /getCategoryBySlug\(dish\.categorySlug \?\? "", locale\)/);
   assert.match(source, /recommendedTag/);
   assert.match(source, /unavailableTag/);
-  assert.match(source, /getPublicMenuBySlug\([\s\S]*locale: Locale = "fr"/);
-  assert.match(source, /return demoMenu\(slug, locale\)/);
+  assert.match(source, /getPublicMenuBySlug\([\s\S]*locale: Locale \| string = DEFAULT_LOCALE/);
+  assert.match(source, /const resolvedLocale = normalizeLocale\(locale\)/);
+  assert.match(source, /return demoMenu\(slug, resolvedLocale\)/);
 });
 
 test("Maison Elyse dish detail is dedicated while generic public details remain intact", async () => {
@@ -117,6 +118,13 @@ test("Maison Elyse QR menu starts with welcome and visual category navigation", 
   assert.match(component, /getVisiblePublicMenuCategories/);
   assert.match(component, /getPublicMenuCategoryGroups/);
   assert.match(component, /locale\?: Locale/);
+  assert.match(component, /localizedMenus\?: Partial<Record<Locale, PublicMenu>>/);
+  assert.match(component, /MENU_LOCALE_STORAGE_KEY/);
+  assert.match(component, /Langue du menu/);
+  assert.match(component, /Menu language/);
+  assert.match(component, /Français/);
+  assert.match(component, /English/);
+  assert.match(component, /normalizeLocale/);
   assert.match(component, /Welcome to Maison/);
   assert.match(component, /Table menu/);
   assert.match(component, /Starters/);
@@ -218,10 +226,10 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.doesNotMatch(component, /QUICK_FILTERS/);
   assert.doesNotMatch(component, /PREFERENCE_FILTERS/);
   assert.doesNotMatch(component, /showDetailFilters/);
-  assert.match(component, /googleReview=\{menu\.googleReview\}/);
-  assert.match(component, /restaurantId=\{menu\.restaurantId\}/);
-  assert.match(component, /restaurantName=\{menu\.name\}/);
-  assert.match(component, /source=\{menu\.source\}/);
+  assert.match(component, /googleReview=\{activeMenu\.googleReview\}/);
+  assert.match(component, /restaurantId=\{activeMenu\.restaurantId\}/);
+  assert.match(component, /restaurantName=\{activeMenu\.name\}/);
+  assert.match(component, /source=\{activeMenu\.source\}/);
   assert.doesNotMatch(component, /DishModelViewer/);
   assert.doesNotMatch(component, /<model-viewer/);
   assert.doesNotMatch(component, /@google\/model-viewer/);
@@ -241,10 +249,14 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
     ]);
 
   assert.match(demoPage, /DemoPhoneShowcase/);
-  assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse"\)/);
+  assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse",\s*"fr"\)/);
+  assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse",\s*"en"\)/);
+  assert.match(demoPage, /menuLocale=\{menuLocale\}/);
   assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
   assert.match(englishDemoPage, /DemoPhoneShowcase/);
   assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse",\s*"en"\)/);
+  assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse",\s*"fr"\)/);
+  assert.match(englishDemoPage, /menuLocale=\{menuLocale\}/);
   assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
   assert.match(menuComponent, /displayMode\?: "public" \| "phone-preview"/);
@@ -254,8 +266,9 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
 
   assert.match(showcase, /MaisonElyseQrMenu/);
   assert.match(showcase, /displayMode="phone-preview"/);
-  assert.match(showcase, /locale=\{locale\}/);
-  assert.match(showcase, /showGoogleReview=\{false\}/);
+  assert.match(showcase, /locale=\{resolvedMenuLocale\}/);
+  assert.match(showcase, /localizedMenus=\{localizedMenus\}/);
+  assert.doesNotMatch(showcase, /showGoogleReview=\{false\}/);
   assert.doesNotMatch(showcase, /startFullMenu/);
   assert.match(showcase, /data-testid="demo-phone-mockup"/);
   assert.match(showcase, /data-phone-mockup-scroll/);

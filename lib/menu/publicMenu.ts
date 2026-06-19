@@ -10,7 +10,7 @@ import {
   getCategoryBySlug,
   getRestaurant
 } from "@/lib/demoMenuData";
-import type { Locale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "@/lib/i18n";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import {
   buildSupabasePublicMenu,
@@ -91,13 +91,14 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
 
 export async function getPublicMenuBySlug(
   rawSlug: string,
-  locale: Locale = "fr"
+  locale: Locale | string = DEFAULT_LOCALE
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
+  const resolvedLocale = normalizeLocale(locale);
   if (!slug) return null;
 
   if (slug === "maison-elyse") {
-    return demoMenu(slug, locale);
+    return demoMenu(slug, resolvedLocale);
   }
 
   const restaurantsResult = await readSupabaseRows("restaurants", 200);
@@ -110,7 +111,7 @@ export async function getPublicMenuBySlug(
 
   const restaurantId = getString(match, ["id", "restaurant_id"], "");
   if (restaurantId === getDemoRestaurantId()) {
-    return demoMenu(slug, locale);
+    return demoMenu(slug, resolvedLocale);
   }
 
   const dishesResult = await readSupabaseRows("menu_dishes", 1_000);

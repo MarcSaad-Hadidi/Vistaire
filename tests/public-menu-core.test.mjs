@@ -373,4 +373,17 @@ test("builds public dish links without dropping QR table context", () => {
     }),
     "/menu/resto-marc/dishes/bol-de-riz"
   );
+  assert.equal(
+    buildPublicDishPath("resto-marc", "bol-de-riz", {
+      lang: "en",
+      table: "12"
+    }),
+    "/menu/resto-marc/dishes/bol-de-riz?lang=en&table=12"
+  );
+  assert.equal(
+    buildPublicDishPath("resto-marc", "bol-de-riz", {
+      lang: "de"
+    }),
+    "/menu/resto-marc/dishes/bol-de-riz?lang=fr"
+  );
 });

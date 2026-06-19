@@ -11,8 +11,8 @@ test("Google Review card uses neutral approved wording and no incentive or gatin
 
   for (const text of [
     "Votre expérience compte",
-    "Si vous avez apprécié votre moment chez",
-    "votre avis Google aide l’équipe à se faire découvrir.",
+    "Partagez votre expérience chez",
+    "Votre avis Google aide l’équipe à mieux comprendre chaque visite",
     "Laisser un avis Google",
     "Aucun avantage n’est offert en échange d’un avis.",
     "Votre avis doit refléter votre expérience réelle."
@@ -23,8 +23,11 @@ test("Google Review card uses neutral approved wording and no incentive or gatin
   for (const forbidden of [
     "Laissez 5 étoiles",
     "Avis positif",
+    "Si vous avez apprécié",
     "Si vous êtes satisfait",
     "Si vous n’êtes pas satisfait",
+    "Vistaire presentation",
+    "Présentation Vistaire",
     "contactez-nous",
     "rabais",
     "cadeau"

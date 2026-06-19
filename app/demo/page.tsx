@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { DemoPhoneShowcase } from "@/components/vistaire-preview/DemoPhoneShowcase";
-import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { absoluteUrl } from "@/lib/seo";
 import { buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
@@ -30,12 +30,24 @@ export const metadata: Metadata = {
   }
 };
 
-export default async function DemoPage() {
-  const menu = await getPublicMenuBySlug("maison-elyse");
+type DemoPageProps = {
+  searchParams: Promise<{ lang?: string }>;
+};
 
-  if (!menu) {
+export default async function DemoPage({ searchParams }: DemoPageProps) {
+  const query = await searchParams;
+  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
+  const menuLocale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const [frenchMenu, englishMenu] = await Promise.all([
+    getPublicMenuBySlug("maison-elyse", "fr"),
+    getPublicMenuBySlug("maison-elyse", "en")
+  ]);
+
+  if (!frenchMenu || !englishMenu) {
     notFound();
   }
+
+  const menu = menuLocale === "en" ? englishMenu : frenchMenu;
 
   return (
     <>
@@ -52,7 +64,12 @@ export default async function DemoPage() {
           ])
         ]}
       />
-      <DemoPhoneShowcase menu={menu} />
+      <DemoPhoneShowcase
+        localizedMenus={{ fr: frenchMenu, en: englishMenu }}
+        menu={menu}
+        menuLocale={menuLocale}
+        menuQuery={hasLangParam ? { lang: menuLocale } : undefined}
+      />
     </>
   );
 }
