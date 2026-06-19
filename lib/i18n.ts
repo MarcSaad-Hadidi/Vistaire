@@ -6,6 +6,10 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "fr";
 
+export function normalizeLocale(value: unknown): Locale {
+  return value === "en" ? "en" : DEFAULT_LOCALE;
+}
+
 export const LOCALE_LANGUAGE_TAG: Record<Locale, "fr-CA" | "en-CA"> = {
   fr: "fr-CA",
   en: "en-CA"
@@ -178,5 +182,5 @@ export function buildAbsoluteLanguageAlternates(
 }
 
 export function localeFromHeaderValue(value: string | null | undefined): Locale {
-  return value === "en" ? "en" : "fr";
+  return normalizeLocale(value);
 }

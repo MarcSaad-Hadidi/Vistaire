@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MaisonElyseDishDetail } from "@/components/menu/MaisonElyseDishDetail";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
+import { normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
@@ -11,14 +12,18 @@ export const dynamic = "force-dynamic";
 
 type PublicDishPageProps = {
   params: Promise<{ slug: string; dishSlug: string }>;
-  searchParams: Promise<{ table?: string; zone?: string }>;
+  searchParams: Promise<{ lang?: string; table?: string; zone?: string }>;
 };
 
 export async function generateMetadata({
-  params
+  params,
+  searchParams
 }: PublicDishPageProps): Promise<Metadata> {
   const { slug, dishSlug } = await params;
-  const menu = await getPublicMenuBySlug(slug);
+  const query = await searchParams;
+  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
+  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const menu = await getPublicMenuBySlug(slug, locale);
   const dish = menu ? getPublicMenuDishBySlug(menu, dishSlug) : null;
 
   if (!menu || !dish) {
@@ -41,7 +46,14 @@ export default async function PublicDishPage({
 }: PublicDishPageProps) {
   const { slug, dishSlug } = await params;
   const query = await searchParams;
-  const menu = await getPublicMenuBySlug(slug);
+  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
+  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const menuQuery = {
+    ...(hasLangParam ? { lang: locale } : {}),
+    table: query.table,
+    zone: query.zone
+  };
+  const menu = await getPublicMenuBySlug(slug, locale);
 
   if (!menu) {
     notFound();
@@ -53,7 +65,14 @@ export default async function PublicDishPage({
   }
 
   if (menu.slug === "maison-elyse") {
-    return <MaisonElyseDishDetail dish={dish} menu={menu} query={query} />;
+    return (
+      <MaisonElyseDishDetail
+        dish={dish}
+        locale={locale}
+        menu={menu}
+        query={menuQuery}
+      />
+    );
   }
 
   const context = [
@@ -77,7 +96,7 @@ export default async function PublicDishPage({
       context={context}
       dish={dish}
       menu={menu}
-      query={query}
+      query={menuQuery}
     />
   );
 }

@@ -44,6 +44,7 @@
   --elyse-border: rgba(232, 207, 155, 0.2);
   --elyse-border-strong: rgba(232, 207, 155, 0.42);
   --elyse-overlay: rgba(5, 4, 3, 0.62);
+  position: relative;
   min-height: 100svh;
   overflow-x: clip;
   background:
@@ -73,8 +74,9 @@
 }
 
 .hero,
+.guestToolbar,
 .sections,
-.page :global(.googleReviewCard) {
+.page [data-google-review-card="true"] {
   width: min(100%, 760px);
   margin-inline: auto;
 }
@@ -86,7 +88,7 @@
   padding-top: 0;
 }
 
-.isMenuMode :global(.googleReviewCard) {
+.isMenuMode [data-google-review-card="true"] {
   width: min(calc(100% - 24px), 760px);
 }
 
@@ -106,6 +108,26 @@
   display: grid;
   gap: 16px;
   padding: 8px 0 14px;
+}
+
+.guestToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 10px;
+}
+
+.guestToolbarName {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 247, 234, 0.82);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .heroCopy {
@@ -334,15 +356,48 @@
 }
 
 .menuRestaurantName {
+  min-width: 0;
+  overflow: hidden;
   color: var(--elyse-cream);
   font-family: "BT Suave", Georgia, serif;
   font-size: 29px;
   font-weight: 500;
   line-height: 1;
+  text-overflow: ellipsis;
   text-shadow: 0 1px 18px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
-.menuCoverTopbar button {
+.menuTopbarActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.languageToggle {
+  display: inline-flex;
+  width: 46px;
+  min-width: 46px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(232, 207, 155, 0.26);
+  border-radius: 999px;
+  background: rgba(5, 4, 3, 0.3);
+  color: var(--elyse-champagne);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0;
+  text-transform: uppercase;
+  -webkit-backdrop-filter: blur(10px) saturate(112%);
+  backdrop-filter: blur(10px) saturate(112%);
+}
+
+.menuButton {
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -357,14 +412,14 @@
   padding: 0;
 }
 
-.menuCoverTopbar button span {
+.menuButton span {
   display: block;
   width: 20px;
   height: 1px;
   background: currentColor;
 }
 
-.menuCoverTopbar button span + span {
+.menuButton span + span {
   margin-top: 0;
 }
 
@@ -757,6 +812,14 @@
   line-height: 1;
 }
 
+.sheetList small {
+  color: rgba(232, 207, 155, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .filterGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -806,6 +869,8 @@
 .featuredHeader button:hover,
 .categoryCard:hover,
 .dishCard:hover,
+.languageToggle:hover,
+.menuButton:hover,
 .bottomBar button:hover,
 .sheetHeader button:hover,
 .sheetList button:hover,
@@ -820,6 +885,8 @@
 .featuredHeader button:focus-visible,
 .categoryCard:focus-visible,
 .dishCard:focus-visible,
+.languageToggle:focus-visible,
+.menuButton:focus-visible,
 .bottomBar button:focus-visible,
 .sheetHeader button:focus-visible,
 .sheetList button:focus-visible,
@@ -835,13 +902,24 @@
     0 0 0 2px rgba(232, 207, 155, 0.34);
 }
 
-.page :global(.googleReviewCard) {
+.page [data-google-review-card="true"] {
+  --menu-accent: var(--elyse-champagne);
+  --menu-accent-2: var(--elyse-gold);
+  --menu-border: var(--elyse-border);
+  --menu-muted: var(--elyse-muted);
+  --menu-radius-card: 14px;
+  --menu-surface: var(--elyse-surface);
+  --menu-text: var(--elyse-text);
   border-color: rgba(232, 207, 155, 0.2);
   background:
     linear-gradient(180deg, rgba(232, 207, 155, 0.055), rgba(232, 207, 155, 0.018)),
     rgba(12, 8, 4, 0.42);
   color: var(--elyse-text);
   margin-top: 22px;
+}
+
+.page [data-google-review-action="true"] {
+  color: #090604;
 }
 
 @media (min-width: 560px) {

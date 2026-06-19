@@ -1,3 +1,5 @@
+import { normalizeLocale, type Locale } from "../i18n.ts";
+
 export type OwnerQrTargetKind = "menu" | "admin";
 
 export type OwnerQrTarget = {
@@ -48,14 +50,16 @@ export function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string
  */
 export function buildPublicMenuPath(
   slugOrName: string,
-  params?: { table?: string; zone?: string }
+  params?: { lang?: Locale | string; table?: string; zone?: string }
 ): string {
   const slug = slugifyRestaurantSlug(slugOrName);
   if (!slug) return "/demo";
 
   const query = new URLSearchParams();
+  const lang = params?.lang?.toString().trim();
   const table = params?.table?.toString().trim();
   const zone = params?.zone?.toString().trim();
+  if (lang) query.set("lang", normalizeLocale(lang));
   if (table) query.set("table", table.slice(0, 24));
   if (zone) query.set("zone", zone.slice(0, 24));
 

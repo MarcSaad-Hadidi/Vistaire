@@ -48,13 +48,20 @@
   justify-content: center;
   justify-self: start;
   min-height: 40px;
+  border: 0;
   border-radius: 999px;
   background: var(--menu-accent);
   color: var(--menu-text);
+  cursor: pointer;
   padding: 10px 14px;
   text-decoration: none;
   font-size: 13px;
   font-weight: 900;
+}
+
+.googleReviewAction:disabled {
+  cursor: default;
+  opacity: 0.78;
 }
 
 .googleReviewNote {

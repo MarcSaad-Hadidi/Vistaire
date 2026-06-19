@@ -1,3 +1,5 @@
+import { normalizeLocale, type Locale } from "../i18n.ts";
+
 export type PublicMenuDish = {
   id: string;
   slug: string;
@@ -34,6 +36,7 @@ export type GoogleReviewConfig = {
   googleReviewUrl: string;
   googleRating?: number;
   googleReviewCount?: number;
+  presentationOnly?: boolean;
 };
 
 export type GoogleReviewCta = {
@@ -54,6 +57,7 @@ export type PublicMenu = {
 };
 
 export type PublicMenuContextQuery = {
+  lang?: Locale | string;
   table?: string;
   zone?: string;
 };
@@ -245,12 +249,15 @@ export function normalizeGoogleReviewConfig(
   const googleReviewCount = cleanGoogleReviewCount(
     candidate.googleReviewCount ?? candidate.google_review_count
   );
+  const presentationOnly =
+    getBoolean(candidate, ["presentationOnly", "presentation_only"]) ?? false;
 
   return {
     enabled: getBoolean(candidate, ["enabled"]) ?? false,
     googleReviewUrl,
     ...(googleRating === undefined ? {} : { googleRating }),
-    ...(googleReviewCount === undefined ? {} : { googleReviewCount })
+    ...(googleReviewCount === undefined ? {} : { googleReviewCount }),
+    ...(presentationOnly ? { presentationOnly } : {})
   };
 }
 
@@ -611,6 +618,8 @@ export function buildPublicDishPath(
   const params = new URLSearchParams();
   const table = query?.table?.toString().trim();
   const zone = query?.zone?.toString().trim();
+  const rawLang = query?.lang?.toString().trim();
+  if (rawLang) params.set("lang", normalizeLocale(rawLang));
   if (table) params.set("table", table.slice(0, 24));
   if (zone) params.set("zone", zone.slice(0, 24));
 

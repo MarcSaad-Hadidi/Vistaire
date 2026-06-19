@@ -4,6 +4,7 @@ import menuVisual from "@/Framer/pageCarte.png";
 import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import type { Locale } from "@/lib/i18n";
 import type { PublicMenu } from "@/lib/menu/publicMenu";
+import type { PublicMenuContextQuery } from "@/lib/menu/publicMenuCore";
 import {
   PreviewFooter,
   PreviewNav
@@ -14,14 +15,21 @@ type DemoPhoneShowcaseProps = {
   currentPath?: string;
   locale?: Locale;
   menu: PublicMenu;
+  menuLocale?: Locale;
+  menuQuery?: PublicMenuContextQuery;
+  localizedMenus?: Partial<Record<Locale, PublicMenu>>;
 };
 
 export function DemoPhoneShowcase({
   currentPath,
   locale = "fr",
-  menu
+  localizedMenus,
+  menu,
+  menuLocale,
+  menuQuery
 }: DemoPhoneShowcaseProps) {
   const isEnglish = locale === "en";
+  const resolvedMenuLocale = menuLocale ?? locale;
   const resolvedPath = currentPath ?? (isEnglish ? "/en/vistaire-menu" : "/demo");
 
   return (
@@ -88,9 +96,10 @@ export function DemoPhoneShowcase({
               >
                 <MaisonElyseQrMenu
                   displayMode="phone-preview"
-                  locale={locale}
+                  locale={resolvedMenuLocale}
+                  localizedMenus={localizedMenus}
                   menu={menu}
-                  showGoogleReview={false}
+                  query={menuQuery}
                 />
               </div>
             </div>
