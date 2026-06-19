@@ -125,8 +125,10 @@ test("restaurant dashboard copies the configured menu URL used by QR", async () 
   );
 
   assert.match(source, /navigator\.clipboard\.writeText\(restaurant\.menuUrl\)/);
+  assert.match(source, /href=\{restaurant\.menuUrl\}/);
   assert.doesNotMatch(
     source,
     /navigator\.clipboard\.writeText\(restaurant\.publicMenuUrl\)/
   );
+  assert.doesNotMatch(source, /href=\{restaurant\.publicMenuUrl\}/);
 });

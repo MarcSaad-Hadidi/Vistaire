@@ -11,6 +11,7 @@ import {
   slugifyRestaurantSlug,
   type OwnerQrTargetKind
 } from "@/lib/owner/menuUrlCore";
+import type { Locale } from "@/lib/i18n";
 import type { OwnerRestaurant, OwnerRestaurantStatus } from "@/lib/owner/types";
 
 type StepId = "profile" | "menu" | "dishes" | "media" | "qr" | "review";
@@ -29,6 +30,8 @@ type DraftDish = {
   photoReady: boolean;
   immersiveCandidate: boolean;
 };
+
+type MenuLanguage = Locale;
 
 type MediaQuality = {
   photos: boolean;
@@ -93,6 +96,23 @@ const statusOptions: Array<{ value: OwnerRestaurantStatus; label: string }> = [
   { value: "demo", label: "Presentation" }
 ];
 
+const menuLanguageOptions: Array<{
+  value: MenuLanguage;
+  label: string;
+  detail: string;
+}> = [
+  {
+    value: "fr",
+    label: "Francais",
+    detail: "Langue principale du menu public."
+  },
+  {
+    value: "en",
+    label: "English",
+    detail: "Version anglaise pour clients internationaux."
+  }
+];
+
 function absoluteUrl(siteOrigin: string, path: string): string {
   try {
     return new URL(path, siteOrigin).toString();
@@ -113,6 +133,40 @@ function formatPrice(value: number): string {
   }).format(value);
 }
 
+function formatMenuLanguages(languages: MenuLanguage[]): string {
+  return menuLanguageOptions
+    .filter((option) => languages.includes(option.value))
+    .map((option) => option.label)
+    .join(", ");
+}
+
+function isValidGoogleReviewUrl(value: string): boolean {
+  if (!value.trim()) return true;
+
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+      return false;
+    }
+    if (parsed.hostname.toLowerCase() === "search.google.com") {
+      return (
+        parsed.pathname === "/local/writereview" &&
+        Boolean(parsed.searchParams.get("placeid")?.trim())
+      );
+    }
+    if (parsed.hostname.toLowerCase() === "g.page") {
+      return parsed.pathname
+        .split("/")
+        .filter(Boolean)
+        .some((segment) => segment.toLowerCase() === "review");
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
 export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
@@ -125,10 +179,12 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [sections, setSections] = useState<DraftSection[]>([]);
   const [sectionName, setSectionName] = useState("");
   const [sectionDescription, setSectionDescription] = useState("");
+  const [menuLanguages, setMenuLanguages] = useState<MenuLanguage[]>(["fr"]);
   const [dishes, setDishes] = useState<DraftDish[]>([]);
   const [dishName, setDishName] = useState("");
   const [dishSection, setDishSection] = useState("");
@@ -226,6 +282,26 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     }
   }
 
+  function toggleMenuLanguage(language: MenuLanguage) {
+    setMenuLanguages((current) => {
+      if (current.includes(language)) {
+        if (current.length === 1) {
+          setError("Gardez au moins une langue pour le menu.");
+          return current;
+        }
+        setError("");
+        return current.filter((item) => item !== language);
+      }
+
+      setError("");
+      return [...current, language].sort((a, b) => {
+        const aIndex = menuLanguageOptions.findIndex((option) => option.value === a);
+        const bIndex = menuLanguageOptions.findIndex((option) => option.value === b);
+        return aIndex - bIndex;
+      });
+    });
+  }
+
   function addDish() {
     const normalizedName = dishName.trim();
     if (!normalizedName) {
@@ -300,9 +376,17 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         setError("Email contact invalide.");
         return false;
       }
+      if (!isValidGoogleReviewUrl(googleReviewUrl)) {
+        setError("Lien Google Reviews invalide.");
+        return false;
+      }
     }
     if (currentStep.id === "menu" && sections.length === 0) {
       setError("Ajoutez au moins une section de menu.");
+      return false;
+    }
+    if (currentStep.id === "menu" && menuLanguages.length === 0) {
+      setError("Choisissez au moins une langue de menu.");
       return false;
     }
     if (currentStep.id === "dishes" && dishes.length === 0) {
@@ -362,6 +446,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           contactName,
           contactEmail,
           contactPhone,
+          googleReviewUrl,
           notes
         })
       });
@@ -458,6 +543,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             contactName={contactName}
             contactEmail={contactEmail}
             contactPhone={contactPhone}
+            googleReviewUrl={googleReviewUrl}
             notes={notes}
             menuUrl={menuUrl}
             onNameChange={updateName}
@@ -468,15 +554,18 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onContactNameChange={setContactName}
             onContactEmailChange={setContactEmail}
             onContactPhoneChange={setContactPhone}
+            onGoogleReviewUrlChange={setGoogleReviewUrl}
             onNotesChange={setNotes}
           />
         ) : null}
 
         {currentStep.id === "menu" ? (
           <MenuStep
+            menuLanguages={menuLanguages}
             sections={sections}
             sectionName={sectionName}
             sectionDescription={sectionDescription}
+            onToggleLanguage={toggleMenuLanguage}
             onSectionNameChange={setSectionName}
             onSectionDescriptionChange={setSectionDescription}
             onAddSection={addSection}
@@ -533,6 +622,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             name={name}
             location={location}
             cuisineType={cuisineType}
+            googleReviewUrl={googleReviewUrl}
+            menuLanguages={menuLanguages}
             sections={sections}
             dishes={dishes}
             photoCount={photoCount}
@@ -627,6 +718,7 @@ function ProfileStep({
   contactName,
   contactEmail,
   contactPhone,
+  googleReviewUrl,
   notes,
   menuUrl,
   onNameChange,
@@ -637,6 +729,7 @@ function ProfileStep({
   onContactNameChange,
   onContactEmailChange,
   onContactPhoneChange,
+  onGoogleReviewUrlChange,
   onNotesChange
 }: {
   name: string;
@@ -647,6 +740,7 @@ function ProfileStep({
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  googleReviewUrl: string;
   notes: string;
   menuUrl: string;
   onNameChange: (value: string) => void;
@@ -657,6 +751,7 @@ function ProfileStep({
   onContactNameChange: (value: string) => void;
   onContactEmailChange: (value: string) => void;
   onContactPhoneChange: (value: string) => void;
+  onGoogleReviewUrlChange: (value: string) => void;
   onNotesChange: (value: string) => void;
 }) {
   return (
@@ -692,6 +787,14 @@ function ProfileStep({
           <Field label="Contact principal" value={contactName} onChange={onContactNameChange} />
           <Field label="Email contact" required type="email" value={contactEmail} onChange={onContactEmailChange} />
           <Field label="Telephone optionnel" type="tel" value={contactPhone} onChange={onContactPhoneChange} />
+          <Field
+            label="Lien Google Reviews"
+            type="url"
+            value={googleReviewUrl}
+            onChange={onGoogleReviewUrlChange}
+            placeholder="https://g.page/r/..."
+            hint="Optionnel. Utilisez un lien g.page/.../review ou search.google.com/local/writereview."
+          />
         </div>
 
         <label className={styles.formField}>
@@ -714,17 +817,21 @@ function ProfileStep({
 }
 
 function MenuStep({
+  menuLanguages,
   sections,
   sectionName,
   sectionDescription,
+  onToggleLanguage,
   onSectionNameChange,
   onSectionDescriptionChange,
   onAddSection,
   onRemoveSection
 }: {
+  menuLanguages: MenuLanguage[];
   sections: DraftSection[];
   sectionName: string;
   sectionDescription: string;
+  onToggleLanguage: (language: MenuLanguage) => void;
   onSectionNameChange: (value: string) => void;
   onSectionDescriptionChange: (value: string) => void;
   onAddSection: () => void;
@@ -742,6 +849,36 @@ function MenuStep({
         </div>
       </div>
       <div className={styles.panelBody}>
+        <section className={styles.menuLanguagePanel} aria-labelledby="menu-language-title">
+          <div>
+            <h4 id="menu-language-title">Langues du menu</h4>
+            <p>
+              Choisissez les langues a preparer pour la carte client. Le francais reste la
+              base par defaut; l&apos;anglais ajoute une version bilingue au setup.
+            </p>
+          </div>
+          <div className={styles.menuLanguageGrid}>
+            {menuLanguageOptions.map((option) => {
+              const active = menuLanguages.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`${styles.toggleCard} ${active ? styles.toggleCardActive : ""}`}
+                  aria-pressed={active}
+                  onClick={() => onToggleLanguage(option.value)}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.detail}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className={styles.sourceNote}>
+            Langues selectionnees : {formatMenuLanguages(menuLanguages)}.
+          </p>
+        </section>
+
         <div className={styles.formGrid}>
           <Field label="Nom section" value={sectionName} onChange={onSectionNameChange} placeholder="Entrees" />
           <Field label="Description" value={sectionDescription} onChange={onSectionDescriptionChange} placeholder="Ouvertures de saison" />
@@ -1050,6 +1187,8 @@ function ReviewStep({
   name,
   location,
   cuisineType,
+  googleReviewUrl,
+  menuLanguages,
   sections,
   dishes,
   photoCount,
@@ -1062,6 +1201,8 @@ function ReviewStep({
   name: string;
   location: string;
   cuisineType: string;
+  googleReviewUrl: string;
+  menuLanguages: MenuLanguage[];
   sections: DraftSection[];
   dishes: DraftDish[];
   photoCount: number;
@@ -1078,6 +1219,12 @@ function ReviewStep({
         : "Le restaurant sera cree en setup. Les actions prioritaires seront visibles dans son dashboard.";
   const checks = [
     ["Profil", Boolean(name), `${name || "Nom a completer"} - ${location || "Lieu a preciser"}`],
+    [
+      "Avis Google",
+      true,
+      googleReviewUrl.trim() ? "Lien Google Reviews pret" : "Aucun lien Google Reviews"
+    ],
+    ["Langues", menuLanguages.length > 0, formatMenuLanguages(menuLanguages)],
     ["Sections", sections.length > 0, `${sections.length} section(s)`],
     ["Plats", dishes.length > 0, `${dishes.length} plat(s)`],
     ["Photos", photoCount > 0, `${photoCount}/${dishes.length} prete(s)`],
@@ -1108,12 +1255,23 @@ function ReviewStep({
           <article>
             <span>Menu draft</span>
             <strong>{dishes.length}</strong>
-            <small>{sections.length} section(s)</small>
+            <small>
+              {sections.length} section(s) - {formatMenuLanguages(menuLanguages)}
+            </small>
           </article>
           <article>
             <span>QR</span>
             <strong>{qrGenerated ? "Pret" : "Non"}</strong>
             <small>{qrTested ? "Test mobile OK" : "Test mobile a faire"}</small>
+          </article>
+          <article>
+            <span>Avis Google</span>
+            <strong>{googleReviewUrl.trim() ? "Pret" : "Optionnel"}</strong>
+            <small>
+              {googleReviewUrl.trim()
+                ? "Lien client ajoute au profil"
+                : "Aucun lien ajoute"}
+            </small>
           </article>
         </div>
 

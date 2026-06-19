@@ -7,7 +7,7 @@ function readRepoFile(...segments) {
   return readFileSync(join(process.cwd(), ...segments), "utf8");
 }
 
-test("owner command center uses the cockpit shell (sidebar + topbar, no public chrome)", () => {
+test("owner area uses the studio shell and a simple restaurant portfolio", () => {
   const layout = readRepoFile("app", "owner", "layout.tsx");
   const overview = readRepoFile("app", "owner", "page.tsx");
   const shell = readRepoFile("components", "owner", "OwnerShell.tsx");
@@ -20,27 +20,33 @@ test("owner command center uses the cockpit shell (sidebar + topbar, no public c
   assert.doesNotMatch(layout, /Header/);
   assert.match(layout, /index:\s*false/);
 
-  // Shell: route-based sidebar navigation.
+  // Shell: reduced route-based sidebar with mobile hidden-state semantics.
   assert.match(shell, /"use client"/);
   assert.match(shell, /usePathname/);
   assert.match(shell, /OWNER_NAV_ITEMS/);
   assert.match(shell, /styles\.console/);
   assert.match(shell, /styles\.sidebar/);
+  assert.match(shell, /aria-hidden=\{sidebarHidden/);
+  assert.match(shell, /tabIndex=\{navTabIndex\}/);
 
-  // Overview: operator cockpit, not a vitrine — no dominant hero photo.
+  // Overview: restaurant portfolio, not a dense global command center.
   assert.match(overview, /ModuleHeader/);
   assert.match(overview, /StatGroup/);
   assert.match(overview, /OwnerRestaurantPortfolio/);
-  assert.match(overview, /ownerPortfolioLayout/);
-  assert.match(overview, /workflowStrip/);
+  assert.match(overview, /Quel restaurant ouvrir maintenant/);
+  assert.doesNotMatch(overview, /Priorites owner/);
+  assert.doesNotMatch(overview, /workflowStrip/);
   assert.doesNotMatch(overview, /PhotoRestoComplet5/);
   assert.doesNotMatch(overview, /heroPanel/);
 
-  // CSS design system primitives for the cockpit.
+  // CSS design system primitives for the studio.
   assert.match(css, /\.ownerTheme[\s\S]*--owner-cream/);
   assert.match(css, /\.console/);
   assert.match(css, /\.sidebar/);
   assert.match(css, /\.navItem/);
+  assert.match(css, /\.navItem:focus-visible/);
+  assert.match(css, /\.ownerOpenLink/);
+  assert.match(css, /\.restaurantTabs button:focus-visible/);
   assert.match(css, /\.statGroup/);
   assert.match(css, /\.dataTable/);
   assert.match(css, /\.qrCustomizer/);

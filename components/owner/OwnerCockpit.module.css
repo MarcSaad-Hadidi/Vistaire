@@ -711,6 +711,51 @@
   overflow-wrap: anywhere;
 }
 
+.restaurantSettingsStack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.restaurantLifecycleControl {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(230, 160, 122, 0.22);
+  border-radius: 14px;
+  background: rgba(18, 11, 7, 0.62);
+}
+
+.restaurantLifecycleHeader {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.restaurantLifecycleHeader h4 {
+  margin: 0;
+  color: var(--owner-cream);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.restaurantLifecycleHeader p {
+  max-width: 62ch;
+  margin: 6px 0 0;
+  color: var(--owner-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.restaurantLifecycleActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .successQr {
   margin-top: 18px;
 }
@@ -1095,8 +1140,9 @@
   display: none;
   align-items: center;
   justify-content: center;
-  width: 44px;
+  min-width: 44px;
   height: 44px;
+  padding: 0 10px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface-2);
@@ -1170,6 +1216,12 @@
 }
 
 .btn:focus-visible,
+.navItem:focus-visible,
+.sidebarBrand:focus-visible,
+.backLink:focus-visible,
+.ownerOpenLink:focus-visible,
+.restaurantTabs button:focus-visible,
+.drawerClose:focus-visible,
 .input:focus-visible,
 .select:focus-visible,
 .textarea:focus-visible,
@@ -1550,6 +1602,10 @@
   transform: translateY(-1px);
 }
 
+.ownerRestaurantCard:focus-within {
+  border-color: rgba(232, 207, 155, 0.46);
+}
+
 .ownerRestaurantCardTop {
   display: flex;
   gap: 12px;
@@ -1695,6 +1751,37 @@
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.restaurantEssentials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--owner-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.restaurantEssentials span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ownerOpenLink {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--owner-champagne);
+  border-radius: 999px;
+  background: var(--owner-champagne);
+  color: #1b1206;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .priorityList {
@@ -1962,6 +2049,13 @@
   min-width: 0;
 }
 
+.restaurantActionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
 .clientPreviewPanel {
   display: grid;
   gap: 12px;
@@ -2125,6 +2219,38 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+
+.menuLanguagePanel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid rgba(232, 207, 155, 0.13);
+  border-radius: 14px;
+  background: rgba(8, 6, 4, 0.28);
+}
+
+.menuLanguagePanel h4 {
+  margin: 0;
+  color: var(--owner-cream);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.menuLanguagePanel p {
+  max-width: 70ch;
+  margin: 6px 0 0;
+  color: var(--owner-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.menuLanguageGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .draftChip {
@@ -3921,6 +4047,7 @@
   .workflowStrip,
   .ownerMiniMetrics,
   .toggleCardGrid,
+  .menuLanguageGrid,
   .ownerPickerToolbar,
   .stepRail {
     grid-template-columns: minmax(0, 1fr);
@@ -3933,6 +4060,8 @@
 
   .ownerRestaurantCardTop,
   .checkItem,
+  .restaurantLifecycleHeader,
+  .restaurantLifecycleActions,
   .restaurantHeaderActions,
   .creationFooterActions,
   .tableActions {
@@ -3940,6 +4069,7 @@
   }
 
   .restaurantHeaderActions .btn,
+  .restaurantLifecycleActions .btn,
   .creationFooterActions .btn,
   .ownerPickerToolbar .btn,
   .tableActions .btn {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
@@ -15,6 +15,7 @@ export function OwnerShell({
 }) {
   const pathname = usePathname() ?? "/owner";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobileNav, setIsMobileNav] = useState(false);
   const { label, hint } = ownerNavTitle(pathname);
   const activeHref =
     [...OWNER_NAV_ITEMS]
@@ -28,6 +29,32 @@ export function OwnerShell({
   function isActive(href: string) {
     return href === activeHref;
   }
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 960px)");
+    const sync = () => {
+      setIsMobileNav(media.matches);
+      if (!media.matches) setMobileOpen(false);
+    };
+
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMobileOpen(false);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
+
+  const sidebarHidden = isMobileNav && !mobileOpen;
+  const navTabIndex = sidebarHidden ? -1 : undefined;
 
   return (
     <div className={styles.console}>
@@ -43,10 +70,16 @@ export function OwnerShell({
       <aside
         className={`${styles.sidebar} ${mobileOpen ? styles.sidebarMobileOpen : ""}`}
         aria-label="Navigation Vistaire Owner"
+        aria-hidden={sidebarHidden ? "true" : undefined}
       >
-        <Link className={styles.sidebarBrand} href="/owner" prefetch={false}>
+        <Link
+          className={styles.sidebarBrand}
+          href="/owner"
+          prefetch={false}
+          tabIndex={navTabIndex}
+        >
           <span className={styles.sidebarBrandName}>Vistaire</span>
-          <span className={styles.sidebarBrandMeta}>Owner Command Center</span>
+          <span className={styles.sidebarBrandMeta}>Studio Vistaire</span>
         </Link>
         <nav className={styles.sidebarNav}>
           {OWNER_NAV_ITEMS.map((item) => (
@@ -56,6 +89,7 @@ export function OwnerShell({
               prefetch={false}
               onClick={() => setMobileOpen(false)}
               aria-current={isActive(item.href) ? "page" : undefined}
+              tabIndex={navTabIndex}
               className={`${styles.navItem} ${
                 isActive(item.href) ? styles.navItemActive : ""
               }`}
@@ -66,7 +100,7 @@ export function OwnerShell({
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
-          Cockpit interne · accès owner-only
+          Studio interne - accès owner-only
         </div>
       </aside>
 
@@ -79,7 +113,7 @@ export function OwnerShell({
             aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((open) => !open)}
           >
-            ☰
+            Menu
           </button>
           <div className={styles.topbarTitleWrap}>
             <h1 className={styles.topbarTitle}>{label}</h1>

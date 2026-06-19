@@ -5,6 +5,7 @@ import {
   type NextRequest
 } from "next/server";
 import {
+  DEV_OWNER_BYPASS_COOKIE,
   DEV_OWNER_BYPASS_QUERY,
   DEV_OWNER_BYPASS_TRUSTED_HEADER,
   shouldApplyDevOwnerBypass,
@@ -50,19 +51,29 @@ function devOwnerBypassResponse(request: NextRequest): NextResponse | null {
   if (!isOwnerDevBypassRoute(request)) return null;
 
   const token = request.nextUrl.searchParams.get(DEV_OWNER_BYPASS_QUERY);
-  if (
-    !shouldApplyDevOwnerBypass(request.headers) &&
-    !shouldApplyDevOwnerBypassToken(request.headers, token)
-  ) {
+  const hasCookieOrHeaderBypass = shouldApplyDevOwnerBypass(request.headers);
+  const hasQueryBypass = shouldApplyDevOwnerBypassToken(request.headers, token);
+  if (!hasCookieOrHeaderBypass && !hasQueryBypass) {
     return null;
   }
 
   requestHeaders.set(DEV_OWNER_BYPASS_TRUSTED_HEADER, "1");
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+
+  if (hasQueryBypass && token) {
+    response.cookies.set(DEV_OWNER_BYPASS_COOKIE, token, {
+      path: "/",
+      maxAge: 60 * 60 * 8,
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:"
+    });
+  }
+
+  return response;
 }
 
 const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
