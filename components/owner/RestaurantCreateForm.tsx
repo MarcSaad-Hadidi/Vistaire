@@ -234,6 +234,16 @@ function isValidMediaUrl(value: string): boolean {
   }
 }
 
+function getSectionsWithoutDish(sections: DraftSection[], dishes: DraftDish[]): string[] {
+  const dishSections = new Set(
+    dishes.map((dish) => dish.section.trim().toLowerCase()).filter(Boolean)
+  );
+
+  return sections
+    .filter((section) => !dishSections.has(section.name.trim().toLowerCase()))
+    .map((section) => section.name);
+}
+
 function calculateReadiness({
   name,
   slug,
@@ -250,6 +260,7 @@ function calculateReadiness({
     Boolean(slug.trim()),
     sections.length > 0,
     dishes.length > 0,
+    sections.length > 0 && getSectionsWithoutDish(sections, dishes).length === 0,
     dishes.every((dish) => dish.description.trim() && dish.price > 0),
     dishes.some((dish) => dish.photoStatus === "ready" || dish.imageUrl.trim())
   ];
@@ -1324,10 +1335,17 @@ function ReviewStep({
   menuUrl: string;
   mediaBasePathPreview: string;
 }) {
+  const sectionsWithoutDish = getSectionsWithoutDish(sections, dishes);
   const checks = [
     ["Profil", Boolean(name), `${name || "Nom a completer"} - ${location || "Lieu a preciser"}`],
     ["Langues", menuLanguages.length > 0, formatMenuLanguages(menuLanguages)],
-    ["Sections", sections.length > 0, `${sections.length} section(s)`],
+    [
+      "Sections",
+      sections.length > 0 && sectionsWithoutDish.length === 0,
+      sectionsWithoutDish.length > 0
+        ? `Sans plat : ${sectionsWithoutDish.join(", ")}`
+        : `${sections.length} section(s)`
+    ],
     ["Plats", dishes.length > 0, `${dishes.length} plat(s)`],
     ["Photos", photoReadyCount > 0, `${photoReadyCount}/${dishes.length} prete(s) ou liee(s)`],
     [

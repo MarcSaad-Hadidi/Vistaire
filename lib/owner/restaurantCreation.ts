@@ -109,6 +109,8 @@ const DEFAULT_MENU_DISH_COLUMNS = new Set([
 
 const SECTION_DESCRIPTION_WARNING =
   "Les sections sont persistees comme categories de plats; leurs descriptions restent dans le draft owner.";
+const SECTION_WITHOUT_DISH_WARNING_PREFIX =
+  "Les sections sans plat n'ont pas de ligne persistante dans menu_dishes et ne s'afficheront pas dans le menu public : ";
 
 function slugifyRestaurantSlug(value: string): string {
   return value
@@ -413,6 +415,19 @@ function buildMediaBasePath(restaurantId: string): string {
 
 function buildOwnerQrCodesHref(restaurantId: string): string {
   return `/owner/qr-codes?restaurantId=${encodeURIComponent(restaurantId)}&target=menu`;
+}
+
+function getSectionsWithoutDish(
+  sections: CreateRestaurantSectionInput[],
+  dishes: CreateRestaurantDishInput[]
+): string[] {
+  const persistedSectionNames = new Set(
+    dishes.map((dish) => dish.section.trim().toLowerCase()).filter(Boolean)
+  );
+
+  return sections
+    .filter((section) => !persistedSectionNames.has(section.name.trim().toLowerCase()))
+    .map((section) => section.name);
 }
 
 function buildMenuDishInsertRows(args: {
@@ -794,6 +809,13 @@ export async function createRestaurantRecord(
       );
     } else {
       persistedDishCount = dishRows.length;
+      const sectionsWithoutDish = getSectionsWithoutDish(inputSections, inputDishes);
+      if (sectionsWithoutDish.length > 0) {
+        sectionsPersisted = false;
+        warnings.push(
+          `${SECTION_WITHOUT_DISH_WARNING_PREFIX}${sectionsWithoutDish.join(", ")}.`
+        );
+      }
       const photoDishCount = inputDishes.filter((dish) => dish.photoStatus === "ready").length;
       restaurant = {
         ...restaurant,

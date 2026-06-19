@@ -270,6 +270,19 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
       ],
       dishes: [
         {
+          name: "Betteraves roties",
+          section: "Entrees",
+          price: 18,
+          description: "Creme crue, vinaigrette aux agrumes.",
+          ingredients: ["betterave"],
+          allergens: ["lait"],
+          tags: ["Maison"],
+          options: [],
+          chefNote: "",
+          available: true,
+          photoStatus: "planned"
+        },
+        {
           name: "Bar de ligne",
           section: "Plats",
           price: 34,
@@ -341,7 +354,7 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
   assert.equal(result.restaurantPersisted, true);
   assert.equal(result.sectionsPersisted, true);
   assert.equal(result.dishesPersisted, true);
-  assert.equal(result.persistedDishCount, 1);
+  assert.equal(result.persistedDishCount, 2);
   assert.equal(result.mediaBasePath, `restaurants/${persistedId}/photos/`);
   assert.equal(
     result.qrCodesHref,
@@ -350,19 +363,81 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
   assert.deepEqual(result.warnings, [
     "Les sections sont persistees comme categories de plats; leurs descriptions restent dans le draft owner."
   ]);
-  assert.equal(insertedDishes.length, 1);
+  assert.equal(insertedDishes.length, 2);
   assert.equal(insertedDishes[0].restaurant_id, persistedId);
   assert.equal(insertedDishes[0].restaurant_slug, "le-comptoir-d-ete");
-  assert.equal(insertedDishes[0].category_name, "Plats");
-  assert.equal(insertedDishes[0].image_url, "/restaurants/le-comptoir/photos/bar.jpg");
-  assert.deepEqual(insertedDishes[0].ingredients, ["bar", "fenouil", "citron"]);
-  assert.deepEqual(insertedDishes[0].tags, ["Signature"]);
-  assert.equal(insertedDishes[0].house_note, "Servir bien chaud.");
+  assert.equal(insertedDishes[0].category_name, "Entrees");
+  assert.equal(insertedDishes[1].category_name, "Plats");
+  assert.equal(insertedDishes[1].image_url, "/restaurants/le-comptoir/photos/bar.jpg");
+  assert.deepEqual(insertedDishes[1].ingredients, ["bar", "fenouil", "citron"]);
+  assert.deepEqual(insertedDishes[1].tags, ["Signature"]);
+  assert.equal(insertedDishes[1].house_note, "Servir bien chaud.");
   for (const dish of insertedDishes) {
     for (const key of Object.keys(dish)) {
       assert.doesNotMatch(key, /3d|immersive|model|usdz|glb|ar_url|has_ar/i);
     }
   }
+});
+
+test("restaurant creation warns when sections have no persisted dish row", async () => {
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      sections: [
+        { name: "Entrees", description: "Ouvertures de saison", order: 1 },
+        { name: "Plats", description: "Assiettes signatures", order: 2 }
+      ],
+      dishes: [
+        {
+          name: "Bar de ligne",
+          section: "Plats",
+          price: 34,
+          description: "Fenouil confit, beurre blanc citronne.",
+          ingredients: ["bar", "fenouil", "citron"],
+          allergens: ["poisson", "lait"],
+          tags: ["Signature"],
+          options: [],
+          available: true,
+          photoStatus: "planned"
+        }
+      ]
+    },
+    {
+      admin: {
+        ok: true,
+        client: creationClient({
+          restaurantData: {
+            id: persistedId,
+            name: "Le Comptoir d'ete",
+            slug: "le-comptoir-d-ete",
+            status: "setup_needed",
+            contact_email: "camille@example.com"
+          }
+        })
+      },
+      getColumns: async (table) =>
+        table === "menu_dishes"
+          ? new Set([
+              "restaurant_id",
+              "restaurant_slug",
+              "name",
+              "description",
+              "category_name",
+              "price",
+              "available",
+              "sort_order"
+            ])
+          : new Set()
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.restaurantPersisted, true);
+  assert.equal(result.dishesPersisted, true);
+  assert.equal(result.sectionsPersisted, false);
+  assert.equal(result.persistedDishCount, 1);
+  assert.match(result.warnings.join("\n"), /sections sans plat n'ont pas de ligne persistante/i);
+  assert.match(result.warnings.join("\n"), /Entrees/);
 });
 
 test("restaurant creation reports menu dish persistence warnings without faking dish success", async () => {
@@ -466,6 +541,8 @@ test("restaurant creation wizard is a four-step menu persistence workflow", asyn
   assert.match(source, /Disponibilite/);
   assert.match(source, /Statut photo/);
   assert.match(source, /Dossier media prevu/);
+  assert.match(source, /sectionsWithoutDish/);
+  assert.match(source, /Sans plat/);
   assert.match(source, /sections:/);
   assert.match(source, /dishes:/);
   assert.match(source, /menuLanguages:/);
