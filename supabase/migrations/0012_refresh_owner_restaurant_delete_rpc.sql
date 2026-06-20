@@ -1,8 +1,6 @@
--- Vistaire owner restaurant hard delete
--- Transactional DB cleanup for owner-only destructive restaurant deletion.
---
--- Storage objects are not deleted here; the Next.js owner API handles optional
--- Storage cleanup after the DB deletion has been confirmed.
+-- Vistaire owner restaurant hard-delete repair
+-- Reinstalls the transactional RPC for databases that already applied an older
+-- 0010 migration, then reloads the PostgREST schema cache used by supabase-js.
 
 create or replace function public.delete_owner_restaurant_cascade(
   p_restaurant_id uuid,
@@ -266,3 +264,5 @@ revoke execute on function public.delete_owner_restaurant_cascade(uuid, text)
   from public, anon, authenticated;
 grant execute on function public.delete_owner_restaurant_cascade(uuid, text)
   to service_role;
+
+notify pgrst, 'reload schema';

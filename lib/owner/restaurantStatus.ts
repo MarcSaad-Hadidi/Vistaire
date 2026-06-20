@@ -108,7 +108,7 @@ export type RestaurantDeleteDetails = {
 export type RestaurantDeleteSkip = {
   table: string;
   column: string;
-  reason: "missing_table" | "missing_column" | "empty_value";
+  reason: "missing_table" | "missing_column" | "empty_value" | "non_table_relation";
   message: string;
 };
 
@@ -516,7 +516,8 @@ function normalizedSkipped(value: unknown): RestaurantDeleteSkip[] {
       const reason: RestaurantDeleteSkip["reason"] =
         entry.reason === "missing_table" ||
         entry.reason === "missing_column" ||
-        entry.reason === "empty_value"
+        entry.reason === "empty_value" ||
+        entry.reason === "non_table_relation"
           ? entry.reason
           : "missing_table";
 
