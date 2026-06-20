@@ -82,6 +82,7 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   );
   const dish3dManifest = await readFile("lib/dish3dManifest.ts", "utf8");
   const packageJson = await readFile("package.json", "utf8");
+  const nextConfig = await readFile("next.config.ts", "utf8");
 
   for (const source of [uploadRoute, publishRoute]) {
     assert.match(source, /runtime = "nodejs"/);
@@ -124,6 +125,10 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   assert.match(publicGlbRoute, /arModel3dStoragePath/);
   assert.match(dish3dManifest, /PUBLIC_MODEL_ROUTE_PATTERN/);
   assert.match(dish3dManifest, /\?variant=ar-lite/);
+  assert.match(nextConfig, /OWNER_MODEL_PIPELINE_TRACE_EXCLUDES/);
+  assert.match(nextConfig, /\/api\/owner\/restaurants\/\*\/dishes\/\*\/model\/glb/);
+  assert.match(nextConfig, /\/api\/owner\/restaurants\/\*\/dishes\/\*\/model\/publish/);
+  assert.match(nextConfig, /public\/\*\*\//);
   assert.doesNotMatch(migration, /glb-shrink/i);
   assert.doesNotMatch(packageJson, /glb-shrink/i);
 });

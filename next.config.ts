@@ -20,10 +20,23 @@ const GLB_MODEL_HEADERS = [
   ...STATIC_ASSET_HEADERS,
 ] as const;
 
+const OWNER_MODEL_PIPELINE_ROUTES = [
+  "/api/owner/restaurants/*/dishes/*/model/glb",
+  "/api/owner/restaurants/*/dishes/*/model/publish",
+] as const;
+
+const OWNER_MODEL_PIPELINE_TRACE_EXCLUDES = OWNER_MODEL_PIPELINE_ROUTES.reduce<
+  NonNullable<NextConfig["outputFileTracingExcludes"]>
+>((routes, route) => {
+  routes[route] = ["public/**/*"];
+  return routes;
+}, {});
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
   outputFileTracingRoot: PROJECT_ROOT,
+  outputFileTracingExcludes: OWNER_MODEL_PIPELINE_TRACE_EXCLUDES,
   turbopack: {
     root: PROJECT_ROOT,
   },
