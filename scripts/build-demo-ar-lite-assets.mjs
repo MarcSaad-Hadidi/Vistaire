@@ -144,6 +144,28 @@ const PROFILES = [
   }
 ];
 
+function createOwnerProfile(slug) {
+  return {
+    slug,
+    source: `${slug}-meshy.glb`,
+    output: `${slug}-ar-lite-meshy.glb`,
+    simplifyRatio: 0.58,
+    simplifyError: 0.0009,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.45,
+    balancedSimplifyError: 0.0007,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.2,
+    note: "Owner AR-lite profile from uploaded Meshy-compatible GLB."
+  };
+}
+
+function selectProfiles() {
+  if (!ONLY_PROFILE) return PROFILES;
+  const profile = PROFILES.find((item) => item.slug === ONLY_PROFILE);
+  return [profile ?? createOwnerProfile(ONLY_PROFILE)];
+}
+
 function gltfTransformBin() {
   return join(ROOT, "node_modules", "@gltf-transform", "cli", "bin", "cli.js");
 }
@@ -287,12 +309,7 @@ async function main() {
   mkdirSync(WORK_DIR, { recursive: true });
 
   try {
-    const profiles = ONLY_PROFILE
-      ? PROFILES.filter((profile) => profile.slug === ONLY_PROFILE)
-      : PROFILES;
-    if (ONLY_PROFILE && profiles.length === 0) {
-      throw new Error(`Unknown Meshy profile slug: ${ONLY_PROFILE}`);
-    }
+    const profiles = selectProfiles();
 
     for (const profile of profiles) {
       const sourcePath = join(DEMO_DIR, profile.source);

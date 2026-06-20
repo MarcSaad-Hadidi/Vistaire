@@ -5,6 +5,11 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, join, relative } from "node:path";
 import { spawn } from "node:child_process";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  buildPreparedModelPublicArLiteGlbPath,
+  buildPreparedModelPublicGlbPath,
+  buildPreparedModelPublicUsdzPath
+} from "@/lib/owner/preparedModelWorkflow";
 import { sha256Hex } from "@/lib/owner/threeDSourceUploadModel";
 
 const PROJECT_ROOT = /* turbopackIgnore: true */ process.cwd();
@@ -12,6 +17,7 @@ const TEMP_UPLOAD_ROOT = join(PROJECT_ROOT, "tmp_owner_3d_uploads");
 const PIPELINE_SCRIPT_RELATIVE_PATH = "scripts/owner/build-restaurant-meshy-dish.mjs";
 const PIPELINE_SCRIPT_PATH = join(PROJECT_ROOT, PIPELINE_SCRIPT_RELATIVE_PATH);
 const PIPELINE_TIMEOUT_MS = 10 * 60 * 1000;
+const MODEL_BUCKET = "vistaire-3d";
 
 type OwnerIdentity = {
   userId: string;
@@ -59,6 +65,26 @@ type PipelineRunResult = {
   manifest: MeshyManifest;
   manifestPath: string;
   manifestUrl: string;
+  model3dUrl: string;
+  webModel3dUrl: string;
+  arModel3dUrl: string;
+  arUsdzUrl: string;
+};
+
+type LocalMeshyAssets = {
+  model3dUrl: string;
+  webModel3dUrl: string;
+  arModel3dUrl: string;
+  arUsdzUrl: string;
+};
+
+type DurableMeshyAssets = {
+  bucket: string;
+  sourceStoragePath: string;
+  webStoragePath: string;
+  arLiteStoragePath: string;
+  usdzStoragePath: string;
+  manifestStoragePath: string;
   model3dUrl: string;
   webModel3dUrl: string;
   arModel3dUrl: string;
@@ -147,7 +173,7 @@ function readManifest(manifestPath: string): MeshyManifest {
   return JSON.parse(readFileSync(manifestPath, "utf8")) as MeshyManifest;
 }
 
-function cleanManifestAssets(manifest: MeshyManifest) {
+function cleanManifestAssets(manifest: MeshyManifest): LocalMeshyAssets {
   const model3dUrl = manifest.assets?.model3dUrl?.trim() ?? "";
   const webModel3dUrl = manifest.assets?.webModel3dUrl?.trim() ?? "";
   const arModel3dUrl = manifest.assets?.arModel3dUrl?.trim() ?? "";
@@ -161,6 +187,105 @@ function cleanManifestAssets(manifest: MeshyManifest) {
     throw new Error("Manifest Meshy incomplet: GLB web ou USDZ manquant.");
   }
   return { model3dUrl, webModel3dUrl, arModel3dUrl, arUsdzUrl };
+}
+
+function publicUrlToLocalPath(url: string): string {
+  if (
+    !url.startsWith("/models/restaurants/") ||
+    url.includes("..") ||
+    url.includes("\\")
+  ) {
+    throw new Error("URL locale Meshy invalide.");
+  }
+  return join(PROJECT_ROOT, "public", ...url.split("/").filter(Boolean));
+}
+
+async function uploadDurableMeshyAsset(args: {
+  adminClient: SupabaseClient;
+  storagePath: string;
+  localPath: string;
+  contentType: string;
+  cacheControl?: string;
+}): Promise<void> {
+  if (!existsSync(args.localPath)) {
+    throw new Error(`Asset Meshy introuvable avant upload Storage: ${args.localPath}`);
+  }
+  const uploaded = await args.adminClient.storage
+    .from(MODEL_BUCKET)
+    .upload(args.storagePath, readFileSync(args.localPath), {
+      contentType: args.contentType,
+      cacheControl: args.cacheControl ?? "31536000",
+      upsert: true
+    });
+  if (uploaded.error) {
+    throw new Error(`Upload Storage impossible pour ${args.storagePath}.`);
+  }
+}
+
+async function publishMeshyAssetsToStorage(args: {
+  adminClient: SupabaseClient;
+  restaurantId: string;
+  dishId: string;
+  dishSlug: string;
+  versionTag: string;
+  manifestPath: string;
+  assets: LocalMeshyAssets;
+}): Promise<DurableMeshyAssets> {
+  const basePath = `restaurants/${args.restaurantId}/models`;
+  const sourceStoragePath = `${basePath}/source/${args.dishSlug}.glb`;
+  const webStoragePath = `${basePath}/web/${args.dishSlug}.glb`;
+  const arLiteStoragePath = `${basePath}/ar-lite/${args.dishSlug}.glb`;
+  const usdzStoragePath = `${basePath}/ar-ios/${args.dishSlug}.usdz`;
+  const manifestStoragePath = `${basePath}/manifests/${args.dishSlug}-${args.versionTag}.json`;
+
+  await uploadDurableMeshyAsset({
+    adminClient: args.adminClient,
+    storagePath: sourceStoragePath,
+    localPath: publicUrlToLocalPath(args.assets.model3dUrl || args.assets.webModel3dUrl),
+    contentType: "model/gltf-binary"
+  });
+  await uploadDurableMeshyAsset({
+    adminClient: args.adminClient,
+    storagePath: webStoragePath,
+    localPath: publicUrlToLocalPath(args.assets.webModel3dUrl),
+    contentType: "model/gltf-binary"
+  });
+  await uploadDurableMeshyAsset({
+    adminClient: args.adminClient,
+    storagePath: arLiteStoragePath,
+    localPath: publicUrlToLocalPath(args.assets.arModel3dUrl),
+    contentType: "model/gltf-binary"
+  });
+  await uploadDurableMeshyAsset({
+    adminClient: args.adminClient,
+    storagePath: usdzStoragePath,
+    localPath: publicUrlToLocalPath(args.assets.arUsdzUrl),
+    contentType: "model/vnd.usdz+zip"
+  });
+  await uploadDurableMeshyAsset({
+    adminClient: args.adminClient,
+    storagePath: manifestStoragePath,
+    localPath: args.manifestPath,
+    contentType: "application/json",
+    cacheControl: "3600"
+  });
+
+  const webModel3dUrl = buildPreparedModelPublicGlbPath(args.dishId);
+  const arModel3dUrl = buildPreparedModelPublicArLiteGlbPath(args.dishId);
+  const arUsdzUrl = buildPreparedModelPublicUsdzPath(args.dishId);
+
+  return {
+    bucket: MODEL_BUCKET,
+    sourceStoragePath,
+    webStoragePath,
+    arLiteStoragePath,
+    usdzStoragePath,
+    manifestStoragePath,
+    model3dUrl: webModel3dUrl,
+    webModel3dUrl,
+    arModel3dUrl,
+    arUsdzUrl
+  };
 }
 
 export async function runRestaurantMeshyDishPipeline(
@@ -196,17 +321,37 @@ export async function runRestaurantMeshyDishPipeline(
     const manifestPath = manifestPathFor({ restaurantSlug, menuSlug, dishSlug, versionTag });
     const manifest = readManifest(manifestPath);
     const assets = cleanManifestAssets(manifest);
+    const durableAssets = await publishMeshyAssetsToStorage({
+      adminClient: args.adminClient,
+      restaurantId: args.restaurantId,
+      dishId: args.dishId,
+      dishSlug,
+      versionTag,
+      manifestPath,
+      assets
+    });
     const manifestRelativePath = relativeForScript(manifestPath);
     const nextMetadata = {
       ...getMetadata(args.existingMetadata),
-      model3dUrl: assets.model3dUrl || assets.webModel3dUrl,
-      webModel3dUrl: assets.webModel3dUrl,
-      arModel3dUrl: assets.arModel3dUrl,
-      arUsdzUrl: assets.arUsdzUrl,
+      model3dUrl: durableAssets.model3dUrl,
+      webModel3dUrl: durableAssets.webModel3dUrl,
+      arModel3dUrl: durableAssets.arModel3dUrl,
+      arUsdzUrl: durableAssets.arUsdzUrl,
       usdzUrl: "",
       modelStatus: "ready",
       meshyManifestVersion: manifest.version ?? `meshy-${versionTag}`,
-      meshyManifestPath: manifestRelativePath,
+      meshyManifestPath: durableAssets.manifestStoragePath,
+      meshyLocalManifestPath: manifestRelativePath,
+      meshyManifestStorageBucket: durableAssets.bucket,
+      meshyManifestStoragePath: durableAssets.manifestStoragePath,
+      sourceModel3dStorageBucket: durableAssets.bucket,
+      sourceModel3dStoragePath: durableAssets.sourceStoragePath,
+      webModel3dStorageBucket: durableAssets.bucket,
+      webModel3dStoragePath: durableAssets.webStoragePath,
+      arModel3dStorageBucket: durableAssets.bucket,
+      arModel3dStoragePath: durableAssets.arLiteStoragePath,
+      arUsdzStorageBucket: durableAssets.bucket,
+      arUsdzStoragePath: durableAssets.usdzStoragePath,
       preparedGlbBytes: args.sourceBytes.byteLength,
       preparedGlbSha256: sourceSha256,
       preparedGlbOriginalName: args.originalName ?? "",
@@ -253,7 +398,8 @@ export async function runRestaurantMeshyDishPipeline(
       logs: [
         "Owner GLB uploaded.",
         "Meshy restaurant pipeline generated web GLB, AR-lite GLB, and iOS USDZ.",
-        "menu_dishes metadata was updated with final public asset URLs."
+        "Generated assets were uploaded to Supabase Storage.",
+        "menu_dishes metadata was updated with durable public proxy URLs."
       ],
       step_logs: [],
       artifacts: [
@@ -261,34 +407,39 @@ export async function runRestaurantMeshyDishPipeline(
           id: `${jobId}_source_glb`,
           type: "source_glb",
           label: "Owner source GLB",
-          path: assets.model3dUrl || assets.webModel3dUrl,
+          path: durableAssets.sourceStoragePath,
+          publicUrl: assets.model3dUrl || assets.webModel3dUrl,
           sha256: sourceSha256
         },
         {
           id: `${jobId}_web_glb`,
           type: "web_glb",
           label: "Meshopt web GLB",
-          path: assets.webModel3dUrl,
+          path: durableAssets.webStoragePath,
+          publicUrl: durableAssets.webModel3dUrl,
           sha256: manifest.sha256?.meshopt ?? ""
         },
         {
           id: `${jobId}_ar_lite_glb`,
           type: "ar_lite_glb",
           label: "Android AR-lite GLB",
-          path: assets.arModel3dUrl,
+          path: durableAssets.arLiteStoragePath,
+          publicUrl: durableAssets.arModel3dUrl,
           sha256: manifest.sha256?.arLite ?? ""
         },
         {
           id: `${jobId}_ios_usdz`,
           type: "ios_usdz",
           label: "iOS Quick Look USDZ",
-          path: assets.arUsdzUrl,
+          path: durableAssets.usdzStoragePath,
+          publicUrl: durableAssets.arUsdzUrl,
           sha256: manifest.sha256?.arUsdz ?? ""
         }
       ],
       metrics: {
         sourceSizeBytes: args.sourceBytes.byteLength,
         sourceSha256,
+        storageBucket: durableAssets.bucket,
         conversionMethod: "owner-meshy-pipeline"
       },
       quality_status: "published",
@@ -304,7 +455,9 @@ export async function runRestaurantMeshyDishPipeline(
       metadata: {
         restaurantId: args.restaurantId,
         dishId: args.dishId,
-        manifestPath: manifestRelativePath,
+        manifestPath: durableAssets.manifestStoragePath,
+        localManifestPath: manifestRelativePath,
+        manifestStoragePath: durableAssets.manifestStoragePath,
         originalName: args.originalName ?? ""
       }
     });
@@ -317,12 +470,12 @@ export async function runRestaurantMeshyDishPipeline(
       status: "ready",
       jobId,
       manifest,
-      manifestPath: manifestRelativePath,
-      manifestUrl: `/${manifestRelativePath.replace(/^public\//, "")}`,
-      model3dUrl: assets.model3dUrl || assets.webModel3dUrl,
-      webModel3dUrl: assets.webModel3dUrl,
-      arModel3dUrl: assets.arModel3dUrl,
-      arUsdzUrl: assets.arUsdzUrl
+      manifestPath: durableAssets.manifestStoragePath,
+      manifestUrl: "",
+      model3dUrl: durableAssets.model3dUrl,
+      webModel3dUrl: durableAssets.webModel3dUrl,
+      arModel3dUrl: durableAssets.arModel3dUrl,
+      arUsdzUrl: durableAssets.arUsdzUrl
     };
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

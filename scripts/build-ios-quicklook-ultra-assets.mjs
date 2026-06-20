@@ -230,6 +230,20 @@ const DISHES = new Map([
   ]
 ]);
 
+function createOwnerDish(slug) {
+  return {
+    sourceGlb: `${slug}-meshy.glb`,
+    quickLookSourceGlb: `ar-lite/${slug}-ar-lite-meshy.glb`,
+    targetMaxDimMeters: 0.2,
+    productionOutputs: {
+      ultra: `${slug}-ios-quicklook-meshy.usdz`,
+      extreme: `${slug}-ios-quicklook-extreme.usdz`
+    },
+    visualPriorities:
+      "Preserve the uploaded restaurant dish shape, plate grounding, food color, and premium table-ready scale."
+  };
+}
+
 const LEVELS = [
   {
     key: "conservative",
@@ -1131,10 +1145,7 @@ function promoteCandidate({ dish, levelKey, candidate, qualityApproved }) {
 
 async function main() {
   const { slug, options } = parseArgs(process.argv.slice(2));
-  const dish = DISHES.get(slug);
-  if (!dish) {
-    throw new Error(`Unknown dish slug: ${slug}. Known slugs: ${[...DISHES.keys()].join(", ")}`);
-  }
+  const dish = DISHES.get(slug) ?? createOwnerDish(slug);
   if (!existsSync(GLTF_TRANSFORM_CLI)) {
     throw new Error(`Missing glTF Transform CLI: ${GLTF_TRANSFORM_CLI}`);
   }

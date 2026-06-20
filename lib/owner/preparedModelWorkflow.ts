@@ -79,6 +79,11 @@ export function buildPreparedModelPublicGlbPath(dishId: string): string {
   return `/api/public/menu-dishes/${dishId}/model/glb`;
 }
 
+export function buildPreparedModelPublicArLiteGlbPath(dishId: string): string {
+  if (!UUID_PATTERN.test(dishId)) throw new Error("Identifiant plat invalide.");
+  return `/api/public/menu-dishes/${dishId}/model/glb?variant=ar-lite`;
+}
+
 export function buildPreparedModelPublicUsdzPath(dishId: string): string {
   if (!UUID_PATTERN.test(dishId)) throw new Error("Identifiant plat invalide.");
   return `/api/public/menu-dishes/${dishId}/model/usdz`;

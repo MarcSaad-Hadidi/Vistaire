@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildPreparedModelPublicGlbPath } from "@/lib/owner/preparedModelWorkflow";
+import {
+  buildPreparedModelPublicArLiteGlbPath,
+  buildPreparedModelPublicGlbPath
+} from "@/lib/owner/preparedModelWorkflow";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -19,14 +22,22 @@ function getString(row: Record<string, unknown>, key: string): string {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ dishId: string }> }
 ) {
   const { dishId } = await params;
+  const variant = request.nextUrl.searchParams.get("variant");
   try {
-    buildPreparedModelPublicGlbPath(dishId);
+    if (variant === "ar-lite") {
+      buildPreparedModelPublicArLiteGlbPath(dishId);
+    } else {
+      buildPreparedModelPublicGlbPath(dishId);
+    }
   } catch {
     return NextResponse.json({ ok: false, error: "Modele introuvable." }, { status: 404 });
+  }
+  if (variant && variant !== "ar-lite") {
+    return NextResponse.json({ ok: false, error: "Variante modele introuvable." }, { status: 404 });
   }
 
   const admin = getSupabaseAdminClient();
@@ -44,8 +55,13 @@ export async function GET(
   }
 
   const metadata = getMetadata(dish.metadata);
-  const bucket = getString(metadata, "webModel3dStorageBucket") || MODEL_BUCKET;
-  const storagePath = getString(metadata, "webModel3dStoragePath");
+  const bucket =
+    getString(metadata, variant === "ar-lite" ? "arModel3dStorageBucket" : "webModel3dStorageBucket") ||
+    MODEL_BUCKET;
+  const storagePath = getString(
+    metadata,
+    variant === "ar-lite" ? "arModel3dStoragePath" : "webModel3dStoragePath"
+  );
   if (
     !storagePath ||
     storagePath.includes("..") ||
