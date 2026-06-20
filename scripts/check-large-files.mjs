@@ -515,6 +515,50 @@ const ALLOWLIST = new Map(
       }
     ],
     [
+      "public/models/restaurants/trouvable/principal/dejeuner-classique-maison/meshy-20260620/dejeuner-classique-maison-meshy.glb",
+      {
+        maxBytes: 382344,
+        sha256: [
+          "681a6d8dfc5d308ecf9329e1c6e899b12acfae6c4b8d74d2793322fa9fa31b07"
+        ],
+        reason: "Trouvable restaurant Meshy runtime asset.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/restaurants/trouvable/principal/dejeuner-classique-maison/meshy-20260620/dejeuner-classique-maison-meshopt-576a9e99.glb",
+      {
+        maxBytes: 531236,
+        sha256: [
+          "576a9e99c73126a65a4e79219fc72957e9a96151f9846e8dd4c2de5705864b46"
+        ],
+        reason: "Trouvable restaurant Meshopt web GLB.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/restaurants/trouvable/principal/dejeuner-classique-maison/meshy-20260620/ar-lite/dejeuner-classique-maison-ar-lite-meshy.glb",
+      {
+        maxBytes: 1635104,
+        sha256: [
+          "0415eb535c9b3497f2ae1caa590371223ea88d3f7152a934bc8f4e79c9430c3a"
+        ],
+        reason: "Trouvable restaurant AR-lite GLB.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/models/restaurants/trouvable/principal/dejeuner-classique-maison/meshy-20260620/ar-lite/dejeuner-classique-maison-ios-quicklook-meshy.usdz",
+      {
+        maxBytes: 652076,
+        sha256: [
+          "ea2853d987902eba2eaa012a5d24e1ec4796c1bb7acf76db32d5651a3bdd4c72"
+        ],
+        reason: "Trouvable restaurant iOS Quick Look USDZ.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
       "public/videos/menualive-full.mp4",
       {
         maxBytes: 6615443,

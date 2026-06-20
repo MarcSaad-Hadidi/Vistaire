@@ -25,7 +25,10 @@ globalThis.fflate = fflate;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const PUBLIC_DIR = join(ROOT, "public");
-const DEMO_DIR = join(PUBLIC_DIR, "models", "demo");
+const ASSET_ROOT = process.env.VISTAIRE_MESHY_ASSET_ROOT
+  ? join(ROOT, process.env.VISTAIRE_MESHY_ASSET_ROOT)
+  : join(PUBLIC_DIR, "models", "demo");
+const DEMO_DIR = ASSET_ROOT;
 const AR_LITE_DIR = join(DEMO_DIR, "ar-lite");
 const CANDIDATE_ROOT = join(ROOT, "asset-review", "3d-candidates", "ios-quicklook-ultra");
 const WORK_ROOT = join(ROOT, "asset-review", "3d-candidates", ".ios-quicklook-work");
@@ -210,8 +213,36 @@ const DISHES = new Map([
       visualPriorities:
         "Preserve tart shell, lemon curd gloss, meringue height, and dessert plating scale."
     }
+  ],
+  [
+    "dejeuner-classique-maison",
+    {
+      sourceGlb: "dejeuner-classique-maison-meshy.glb",
+      quickLookSourceGlb: "ar-lite/dejeuner-classique-maison-ar-lite-meshy.glb",
+      targetMaxDimMeters: 0.2,
+      productionOutputs: {
+        ultra: "dejeuner-classique-maison-ios-quicklook-meshy.usdz",
+        extreme: "dejeuner-classique-maison-ios-quicklook-extreme.usdz"
+      },
+      visualPriorities:
+        "Preserve brunch plate composition, egg and garnish read, and warm breakfast color."
+    }
   ]
 ]);
+
+function createOwnerDish(slug) {
+  return {
+    sourceGlb: `${slug}-meshy.glb`,
+    quickLookSourceGlb: `ar-lite/${slug}-ar-lite-meshy.glb`,
+    targetMaxDimMeters: 0.2,
+    productionOutputs: {
+      ultra: `${slug}-ios-quicklook-meshy.usdz`,
+      extreme: `${slug}-ios-quicklook-extreme.usdz`
+    },
+    visualPriorities:
+      "Preserve the uploaded restaurant dish shape, plate grounding, food color, and premium table-ready scale."
+  };
+}
 
 const LEVELS = [
   {
@@ -1114,10 +1145,7 @@ function promoteCandidate({ dish, levelKey, candidate, qualityApproved }) {
 
 async function main() {
   const { slug, options } = parseArgs(process.argv.slice(2));
-  const dish = DISHES.get(slug);
-  if (!dish) {
-    throw new Error(`Unknown dish slug: ${slug}. Known slugs: ${[...DISHES.keys()].join(", ")}`);
-  }
+  const dish = DISHES.get(slug) ?? createOwnerDish(slug);
   if (!existsSync(GLTF_TRANSFORM_CLI)) {
     throw new Error(`Missing glTF Transform CLI: ${GLTF_TRANSFORM_CLI}`);
   }

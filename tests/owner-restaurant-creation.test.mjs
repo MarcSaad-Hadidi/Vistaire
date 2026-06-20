@@ -748,9 +748,11 @@ test("restaurant creation wizard keeps price decimals and targeted post-create l
     maximumFractionDigits: 2
   }).format(14.99);
 
-  assert.match(form, /minimumFractionDigits:\s*2/);
-  assert.match(form, /maximumFractionDigits:\s*2/);
-  assert.doesNotMatch(form, /maximumFractionDigits:\s*0/);
+  assert.match(form, /parsePriceToCents/);
+  assert.match(form, /formatPriceCentsForMenu/);
+  assert.match(form, /displayPriceMode/);
+  assert.match(form, /inputMode="decimal"/);
+  assert.match(form, /Affichage prix/);
   assert.match(formatted, /14[,.]99/);
   assert.doesNotMatch(formatted, /^15/);
   assert.match(form, /Le resultat final confirme ce qui a ete persiste\./);

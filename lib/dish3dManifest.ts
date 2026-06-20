@@ -94,11 +94,27 @@ const DEMO_ACTIVE_VERSION = "legacy-demo";
 
 type VariantKey = "poster" | "web" | "mobile" | "arLite" | "iosUsdz";
 
+const PUBLIC_MODEL_ROUTE_PATTERN =
+  /^\/api\/public\/menu-dishes\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/model\/(glb|usdz)(?:\?variant=ar-lite)?$/i;
+
 function cleanUrl(value: string | null | undefined): string {
   return value?.trim() ?? "";
 }
 
+function hasSafeLocalPublicModelRoute(url: string, role: VariantKey | "asset"): boolean {
+  const match = PUBLIC_MODEL_ROUTE_PATTERN.exec(url);
+  if (!match || url.includes("\\") || url.includes("..") || url.includes("#")) return false;
+  const format = match[1];
+  const isArLite = url.endsWith("?variant=ar-lite");
+  if (role === "iosUsdz") return format === "usdz" && !isArLite;
+  if (role === "arLite") return format === "glb" && isArLite;
+  if (role === "web" || role === "mobile") return format === "glb" && !isArLite;
+  return true;
+}
+
 function hasSafeLocalAssetUrl(url: string, role: VariantKey | "asset"): boolean {
+  if (hasSafeLocalPublicModelRoute(url, role)) return true;
+
   if (
     !(
       url.startsWith("/") &&

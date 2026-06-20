@@ -1,0 +1,150 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+import {
+  buildDishPhotoPublicPath,
+  buildDishPhotoStoragePath,
+  mergeDishPhotoMetadata,
+  validateDishPhotoFile
+} from "../lib/owner/dishPhotoUpload.ts";
+
+const restaurantId = "11111111-2222-4333-8444-555555555555";
+const dishId = "22222222-3333-4444-8555-666666666666";
+
+const tinyPng = Buffer.from(
+  "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489",
+  "hex"
+);
+
+test("dish photo upload accepts image bytes and rejects non-images", () => {
+  const valid = validateDishPhotoFile(
+    {
+      name: "betteraves.png",
+      type: "image/png",
+      size: tinyPng.byteLength,
+      bytes: tinyPng
+    },
+    5 * 1024 * 1024
+  );
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.extension, "png");
+  assert.equal(valid.contentType, "image/png");
+
+  assert.deepEqual(
+    validateDishPhotoFile(
+      {
+        name: "model.glb",
+        type: "model/gltf-binary",
+        size: 4,
+        bytes: Buffer.from("glTF")
+      },
+      5 * 1024 * 1024
+    ),
+    {
+      ok: false,
+      status: 400,
+      error: "Seules les images JPEG, PNG ou WebP sont acceptees."
+    }
+  );
+});
+
+test("dish photo upload rejects oversized files and path filenames", () => {
+  assert.equal(
+    validateDishPhotoFile(
+      {
+        name: "../photo.png",
+        type: "image/png",
+        size: tinyPng.byteLength,
+        bytes: tinyPng
+      },
+      5 * 1024 * 1024
+    ).ok,
+    false
+  );
+  assert.deepEqual(
+    validateDishPhotoFile(
+      {
+        name: "photo.png",
+        type: "image/png",
+        size: 6 * 1024 * 1024,
+        bytes: Buffer.alloc(6 * 1024 * 1024)
+      },
+      5 * 1024 * 1024
+    ),
+    {
+      ok: false,
+      status: 413,
+      error: "Photo trop volumineuse."
+    }
+  );
+});
+
+test("dish photo storage path and public path are generated from trusted ids", () => {
+  const storagePath = buildDishPhotoStoragePath({
+    restaurantId,
+    dishId,
+    dishSlug: "Betteraves roties",
+    extension: "png",
+    sha256: "a".repeat(64)
+  });
+
+  assert.match(
+    storagePath,
+    /^restaurants\/11111111-2222-4333-8444-555555555555\/photos\/originals\/betteraves-roties-[a-f0-9]{12}\.png$/
+  );
+  assert.doesNotMatch(storagePath, /\.\.|\\|public\/|3D Plat|3D photo/);
+  assert.equal(
+    buildDishPhotoPublicPath(dishId),
+    `/api/public/menu-dishes/${dishId}/photo`
+  );
+});
+
+test("dish photo metadata merge keeps existing fields and marks photo ready", () => {
+  assert.deepEqual(
+    mergeDishPhotoMetadata(
+      { ingredients: ["betterave"], modelStatus: "missing" },
+      {
+        storageBucket: "vistaire-media",
+        storagePath: "restaurants/x/photos/originals/dish.png",
+        sha256: "b".repeat(64),
+        contentType: "image/png",
+        bytes: 123
+      }
+    ),
+    {
+      ingredients: ["betterave"],
+      modelStatus: "missing",
+      photoStatus: "ready",
+      photoStorageBucket: "vistaire-media",
+      photoStoragePath: "restaurants/x/photos/originals/dish.png",
+      photoSha256: "b".repeat(64),
+      photoContentType: "image/png",
+      photoBytes: 123
+    }
+  );
+});
+
+test("dish photo upload API and public proxy use guarded server-side storage", async () => {
+  const uploadRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
+    "utf8"
+  );
+  const publicRoute = await readFile(
+    "app/api/public/menu-dishes/[dishId]/photo/route.ts",
+    "utf8"
+  );
+
+  assert.match(uploadRoute, /runtime = "nodejs"/);
+  assert.match(uploadRoute, /requireVistaireOwnerApi\(\)/);
+  assert.match(uploadRoute, /requireSameOriginOwnerMutation\(request\)/);
+  assert.match(uploadRoute, /\.eq\("id", dishId\)/);
+  assert.match(uploadRoute, /\.eq\("restaurant_id", restaurantId\)/);
+  assert.match(uploadRoute, /validateDishPhotoFile/);
+  assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.upload/);
+  assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.remove/);
+  assert.doesNotMatch(uploadRoute, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(publicRoute, /storage\.from\(bucket\)\.download/);
+  assert.match(publicRoute, /photoStoragePath/);
+});

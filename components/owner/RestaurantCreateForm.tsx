@@ -8,6 +8,12 @@ import {
   buildPublicMenuPath,
   slugifyRestaurantSlug
 } from "@/lib/owner/menuUrlCore";
+import {
+  formatPriceCentsForMenu,
+  normalizeDisplayPriceMode,
+  parsePriceToCents,
+  type DisplayPriceMode
+} from "@/lib/owner/price";
 import type {
   CreateRestaurantDishPhotoStatus,
   CreateRestaurantMenuLanguage,
@@ -27,7 +33,8 @@ type DraftDish = {
   id: string;
   name: string;
   section: string;
-  price: number;
+  price: string;
+  displayPriceMode: DisplayPriceMode;
   description: string;
   imageUrl: string;
   ingredients: string[];
@@ -155,13 +162,10 @@ function draftId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function formatPrice(value: number): string {
-  return new Intl.NumberFormat("fr-CA", {
-    style: "currency",
-    currency: "CAD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);
+function formatPrice(value: string, displayPriceMode: DisplayPriceMode): string {
+  const parsed = parsePriceToCents(value);
+  if (!parsed.ok) return value;
+  return formatPriceCentsForMenu(parsed.cents, "CAD", { displayPriceMode });
 }
 
 function splitList(value: string): string[] {
@@ -264,7 +268,7 @@ function calculateReadiness({
     sections.length > 0,
     dishes.length > 0,
     sections.length > 0 && getSectionsWithoutDish(sections, dishes).length === 0,
-    dishes.every((dish) => dish.description.trim() && dish.price > 0),
+    dishes.every((dish) => dish.description.trim() && parsePriceToCents(dish.price).ok),
     dishes.some((dish) => dish.photoStatus === "ready" || dish.imageUrl.trim())
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
@@ -294,6 +298,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [dishName, setDishName] = useState("");
   const [dishSection, setDishSection] = useState("");
   const [dishPrice, setDishPrice] = useState("28");
+  const [dishDisplayPriceMode, setDishDisplayPriceMode] =
+    useState<DisplayPriceMode>("auto");
   const [dishDescription, setDishDescription] = useState("");
   const [dishImageUrl, setDishImageUrl] = useState("");
   const [dishIngredients, setDishIngredients] = useState("");
@@ -416,6 +422,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDishName("");
     setDishSection(sections[0]?.name ?? "");
     setDishPrice("28");
+    setDishDisplayPriceMode("auto");
     setDishDescription("");
     setDishImageUrl("");
     setDishIngredients("");
@@ -431,7 +438,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setEditingDishId(dish.id);
     setDishName(dish.name);
     setDishSection(dish.section);
-    setDishPrice(String(dish.price));
+    setDishPrice(dish.price);
+    setDishDisplayPriceMode(dish.displayPriceMode);
     setDishDescription(dish.description);
     setDishImageUrl(dish.imageUrl);
     setDishIngredients(dish.ingredients.join(", "));
@@ -447,7 +455,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   function addDish() {
     const normalizedName = dishName.trim();
     const selectedSection = dishSection || sections[0]?.name || "";
-    const price = Number(dishPrice);
+    const price = parsePriceToCents(dishPrice);
     const description = dishDescription.trim();
     const imageUrl = dishImageUrl.trim();
 
@@ -459,8 +467,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       setError("Ajoutez une section avant les plats.");
       return;
     }
-    if (!Number.isFinite(price) || price <= 0) {
-      setError("Chaque plat doit avoir un prix superieur a 0.");
+    if (!price.ok) {
+      setError(price.error);
       return;
     }
     if (!description) {
@@ -476,7 +484,11 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       id: editingDishId || draftId("dish"),
       name: normalizedName,
       section: selectedSection,
-      price: Math.round(price * 100) / 100,
+      price: price.originalInput,
+      displayPriceMode: normalizeDisplayPriceMode(
+        dishDisplayPriceMode,
+        price.originalInput
+      ),
       description,
       imageUrl,
       ingredients: splitList(dishIngredients),
@@ -537,7 +549,12 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         setError("Ajoutez au moins un plat.");
         return false;
       }
-      if (dishes.some((dish) => !dish.description.trim() || dish.price <= 0 || !dish.section)) {
+      if (
+        dishes.some(
+          (dish) =>
+            !dish.description.trim() || !parsePriceToCents(dish.price).ok || !dish.section
+        )
+      ) {
         setError("Chaque plat doit garder une section, un prix et une description courte.");
         return false;
       }
@@ -622,6 +639,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             name: dish.name,
             section: dish.section,
             price: dish.price,
+            displayPriceMode: dish.displayPriceMode,
             description: dish.description,
             imageUrl: dish.imageUrl,
             ingredients: dish.ingredients,
@@ -791,6 +809,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             dishName={dishName}
             dishSection={dishSection || sections[0]?.name || ""}
             dishPrice={dishPrice}
+            dishDisplayPriceMode={dishDisplayPriceMode}
             dishDescription={dishDescription}
             dishImageUrl={dishImageUrl}
             dishIngredients={dishIngredients}
@@ -803,6 +822,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onDishNameChange={setDishName}
             onDishSectionChange={setDishSection}
             onDishPriceChange={setDishPrice}
+            onDishDisplayPriceModeChange={setDishDisplayPriceMode}
             onDishDescriptionChange={setDishDescription}
             onDishImageUrlChange={setDishImageUrl}
             onDishIngredientsChange={setDishIngredients}
@@ -1079,6 +1099,7 @@ function DishesStep({
   dishName,
   dishSection,
   dishPrice,
+  dishDisplayPriceMode,
   dishDescription,
   dishImageUrl,
   dishIngredients,
@@ -1091,6 +1112,7 @@ function DishesStep({
   onDishNameChange,
   onDishSectionChange,
   onDishPriceChange,
+  onDishDisplayPriceModeChange,
   onDishDescriptionChange,
   onDishImageUrlChange,
   onDishIngredientsChange,
@@ -1111,6 +1133,7 @@ function DishesStep({
   dishName: string;
   dishSection: string;
   dishPrice: string;
+  dishDisplayPriceMode: DisplayPriceMode;
   dishDescription: string;
   dishImageUrl: string;
   dishIngredients: string;
@@ -1123,6 +1146,7 @@ function DishesStep({
   onDishNameChange: (value: string) => void;
   onDishSectionChange: (value: string) => void;
   onDishPriceChange: (value: string) => void;
+  onDishDisplayPriceModeChange: (value: DisplayPriceMode) => void;
   onDishDescriptionChange: (value: string) => void;
   onDishImageUrlChange: (value: string) => void;
   onDishIngredientsChange: (value: string) => void;
@@ -1164,7 +1188,28 @@ function DishesStep({
               ))}
             </select>
           </label>
-          <Field label="Prix" type="number" value={dishPrice} onChange={onDishPriceChange} />
+          <Field
+            label="Prix"
+            type="text"
+            inputMode="decimal"
+            value={dishPrice}
+            onChange={onDishPriceChange}
+            placeholder="14,99"
+          />
+          <label className={styles.formField}>
+            <span className={styles.filterLabel}>Affichage prix</span>
+            <select
+              className={styles.control}
+              value={dishDisplayPriceMode}
+              onChange={(event) =>
+                onDishDisplayPriceModeChange(event.target.value as DisplayPriceMode)
+              }
+            >
+              <option value="auto">Auto</option>
+              <option value="integer">Sans cents</option>
+              <option value="decimal">Avec cents</option>
+            </select>
+          </label>
           <Field
             label="URL photo"
             type="text"
@@ -1281,7 +1326,7 @@ function DishesStep({
                       <small className={styles.cellSub}>{dish.description}</small>
                     </td>
                     <td className={styles.cellSub}>{dish.section}</td>
-                    <td>{formatPrice(dish.price)}</td>
+                    <td>{formatPrice(dish.price, dish.displayPriceMode)}</td>
                     <td>
                       <span className={`${styles.badge} ${dish.photoStatus === "ready" || dish.imageUrl ? styles.badgeReady : styles.badgeWarn}`}>
                         {formatPhotoStatus(dish.photoStatus)}
@@ -1552,6 +1597,7 @@ function Field({
   value,
   onChange,
   type = "text",
+  inputMode,
   required = false,
   hint,
   placeholder
@@ -1560,6 +1606,7 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  inputMode?: "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url";
   required?: boolean;
   hint?: string;
   placeholder?: string;
@@ -1570,6 +1617,7 @@ function Field({
       <input
         className={styles.control}
         type={type}
+        inputMode={inputMode}
         required={required}
         value={value}
         placeholder={placeholder}

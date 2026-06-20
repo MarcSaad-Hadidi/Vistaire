@@ -172,15 +172,18 @@ export type CreateRestaurantMenuLanguage = "fr" | "en";
 export type CreateRestaurantDishPhotoStatus = "ready" | "planned" | "missing";
 
 export type CreateRestaurantSectionInput = {
+  id?: string;
   name: string;
   description?: string;
   order?: number;
+  slug?: string;
 };
 
 export type CreateRestaurantDishInput = {
   name: string;
   section: string;
-  price: number;
+  price: string;
+  displayPriceMode?: "integer" | "decimal" | "auto";
   description: string;
   imageUrl?: string;
   ingredients?: string[];
