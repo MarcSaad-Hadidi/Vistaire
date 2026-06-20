@@ -60,7 +60,7 @@ test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile wi
   context,
   page
 }, testInfo) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
 
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
@@ -98,6 +98,20 @@ test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile wi
   }
   await restaurantTabs.getByRole("tab", { name: "QR", exact: true }).click();
   await expect(page.getByText("QR de table")).toBeVisible();
+  const restaurantId = dashboardHref!.split("/").pop() ?? "";
+  await page.goto(`/owner/medias?restaurantId=${encodeURIComponent(restaurantId)}`, {
+    waitUntil: "domcontentloaded"
+  });
+  await expect(page.getByRole("heading", { level: 2, name: "Medias" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Photos/ }).first()).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto(`${dashboardHref}/3d`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
+  await expect(page.getByText("Plats du restaurant")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto(dashboardHref!, { waitUntil: "domcontentloaded" });
   await restaurantTabs.getByRole("tab", { name: "Plats", exact: true }).click();
   await expect(page.getByText("Contrôle qualité des plats")).toBeVisible();
 

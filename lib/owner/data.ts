@@ -297,8 +297,30 @@ function dishRowsForRestaurant(
   );
 }
 
+function getObject(row: AnyRow, candidates: string[]): AnyRow {
+  for (const key of candidates) {
+    const value = row[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as AnyRow;
+    }
+    if (typeof value === "string" && value.trim()) {
+      try {
+        const parsed: unknown = JSON.parse(value);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as AnyRow;
+        }
+      } catch {
+        // Ignore non-JSON metadata.
+      }
+    }
+  }
+  return {};
+}
+
 function rowHasPhoto(row: AnyRow): boolean {
+  const metadata = getObject(row, ["metadata", "meta"]);
   return (
+    getString(metadata, ["photoStatus", "photo_status"], "") === "ready" ||
     getBoolean(row, ["has_photo", "hasPhoto", "photo_ready"], false) ||
     Boolean(
       getString(row, [
@@ -314,7 +336,12 @@ function rowHasPhoto(row: AnyRow): boolean {
 }
 
 function rowHasImmersiveAsset(row: AnyRow): boolean {
+  const metadata = getObject(row, ["metadata", "meta"]);
   return (
+    getBoolean(row, ["has_immersive_view", "hasImmersiveView"], false) ||
+    getString(metadata, ["modelStatus", "model_status"], "") === "ready" ||
+    getString(metadata, ["modelStatus", "model_status"], "") ===
+      "web_ready_usdz_pending" ||
     getBoolean(row, ["has_3d", "has3d", "has_ar", "hasAr"], false) ||
     Boolean(
       getString(row, [
@@ -326,6 +353,20 @@ function rowHasImmersiveAsset(row: AnyRow): boolean {
         "arModel3dUrl",
         "usdz_url",
         "usdzUrl"
+      ])
+    ) ||
+    Boolean(
+      getString(metadata, [
+        "model3dUrl",
+        "model3d_url",
+        "webModel3dUrl",
+        "web_model_3d_url",
+        "arModel3dUrl",
+        "ar_model_3d_url",
+        "arUsdzUrl",
+        "ar_usdz_url",
+        "usdzUrl",
+        "usdz_url"
       ])
     )
   );

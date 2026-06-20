@@ -1,4 +1,8 @@
 import { normalizeLocale, type Locale } from "../i18n.ts";
+import {
+  formatPriceCentsForMenu,
+  type DisplayPriceMode
+} from "../owner/price.ts";
 
 export type PublicMenuDish = {
   id: string;
@@ -6,11 +10,12 @@ export type PublicMenuDish = {
   name: string;
   description: string;
   category: string;
+  categoryDescription?: string;
   priceLabel: string;
   imageUrl: string;
   thumbnailUrl: string;
   hasPhoto: boolean;
-  photoStatus: "ready" | "missing" | "draft" | "unknown";
+  photoStatus: "ready" | "missing" | "planned" | "draft" | "unknown";
   hasImmersive: boolean;
   has3d: boolean;
   hasAr: boolean;
@@ -22,7 +27,16 @@ export type PublicMenuDish = {
   usdzUrl: string;
   arUsdzUrl: string;
   posterUrl: string;
-  modelStatus: "ready" | "missing" | "draft" | "unknown";
+  preparedGlbJobId?: string;
+  preparedGlbStoragePath?: string;
+  modelStatus:
+    | "ready"
+    | "missing"
+    | "draft"
+    | "unknown"
+    | "web_ready_usdz_pending"
+    | "pending_manual_usdz"
+    | "usdz_conversion_failed";
   available: boolean;
   ingredients: string[];
   allergens: string[];
@@ -180,6 +194,26 @@ function objectInput(input: unknown): PublicMenuRow {
   return input && typeof input === "object" && !Array.isArray(input)
     ? (input as PublicMenuRow)
     : {};
+}
+
+function getObject(row: PublicMenuRow, candidates: string[]): PublicMenuRow {
+  for (const key of candidates) {
+    const value = row[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as PublicMenuRow;
+    }
+    if (typeof value === "string" && value.trim()) {
+      try {
+        const parsed: unknown = JSON.parse(value);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as PublicMenuRow;
+        }
+      } catch {
+        // Non-JSON metadata is ignored.
+      }
+    }
+  }
+  return {};
 }
 
 function isAllowedGoogleReviewUrl(parsed: URL): boolean {
@@ -340,6 +374,30 @@ function getStringList(row: PublicMenuRow, candidates: string[]): string[] {
   return [];
 }
 
+function getStringListFromSources(
+  row: PublicMenuRow,
+  metadata: PublicMenuRow,
+  candidates: string[]
+): string[] {
+  const metadataList = getStringList(metadata, candidates);
+  return metadataList.length > 0 ? metadataList : getStringList(row, candidates);
+}
+
+function mergeStringLists(...lists: string[][]): string[] {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const list of lists) {
+    for (const item of list) {
+      const value = String(item ?? "").trim();
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) continue;
+      seen.add(key);
+      values.push(value);
+    }
+  }
+  return values;
+}
+
 function isSafePublicMediaUrl(url: string): boolean {
   if (!url) return false;
   if (url.includes("\\")) return false;
@@ -359,7 +417,34 @@ function getSafeString(row: PublicMenuRow, candidates: string[]): string {
   return isSafePublicMediaUrl(url) ? url : "";
 }
 
+function getSafeStringFromSources(
+  row: PublicMenuRow,
+  metadata: PublicMenuRow,
+  candidates: string[]
+): string {
+  return getSafeString(row, candidates) || getSafeString(metadata, candidates);
+}
+
+function displayPriceMode(value: unknown): DisplayPriceMode {
+  return value === "integer" || value === "decimal" || value === "auto"
+    ? value
+    : "auto";
+}
+
 function formatPrice(row: PublicMenuRow): string {
+  const metadata = getObject(row, ["metadata", "meta"]);
+  const priceCents = getNumber(row, ["price_cents", "priceCents"], 0);
+  if (priceCents > 0) {
+    return formatPriceCentsForMenu(priceCents, getString(row, ["currency"], "CAD"), {
+      displayPriceMode: displayPriceMode(
+        metadata.displayPriceMode ??
+          metadata.display_price_mode ??
+          row.displayPriceMode ??
+          row.display_price_mode
+      )
+    });
+  }
+
   const value = getNumber(row, ["price", "amount", "price_cad"], 0);
   if (!value) return "";
   return new Intl.NumberFormat("fr-CA", {
@@ -412,8 +497,9 @@ function rowRestaurantId(row: PublicMenuRow): string {
 }
 
 function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
+  const metadata = getObject(row, ["metadata", "meta"]);
   const name = getString(row, ["name", "dish_name", "title"], "Plat");
-  const imageUrl = getSafeString(row, [
+  const imageUrl = getSafeStringFromSources(row, metadata, [
     "image",
     "image_url",
     "imageUrl",
@@ -421,32 +507,39 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
     "photoUrl"
   ]);
   const thumbnailUrl =
-    getSafeString(row, [
+    getSafeStringFromSources(row, metadata, [
       "thumbnail_url",
       "thumbnailUrl"
     ]) || imageUrl;
-  const model3dUrl = getSafeString(row, ["model3d_url", "model3dUrl"]);
+  const model3dUrl = getSafeStringFromSources(row, metadata, ["model3d_url", "model3dUrl"]);
   const webModel3dUrl =
-    getSafeString(row, ["web_model_3d_url", "webModel3dUrl"]) || model3dUrl;
-  const arModel3dUrl = getSafeString(row, [
+    getSafeStringFromSources(row, metadata, ["web_model_3d_url", "webModel3dUrl"]) ||
+    model3dUrl;
+  const arModel3dUrl = getSafeStringFromSources(row, metadata, [
     "ar_model_3d_url",
     "arModel3dUrl"
   ]);
-  const usdzUrl = getSafeString(row, ["usdz_url", "usdzUrl"]);
+  const usdzUrl = getSafeStringFromSources(row, metadata, ["usdz_url", "usdzUrl"]);
   const arUsdzUrl =
-    getSafeString(row, [
+    getSafeStringFromSources(row, metadata, [
       "ar_usdz_url",
       "arUsdzUrl",
       "ios_usdz_url",
       "iosUsdzUrl"
     ]) || usdzUrl;
-  const posterUrl = getSafeString(row, [
+  const posterUrl = getSafeStringFromSources(row, metadata, [
     "poster_url",
     "posterUrl",
     "model_poster_url",
     "modelPosterUrl"
   ]);
-  const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl);
+  const preparedGlbJobId = getString(metadata, ["preparedGlbJobId", "prepared_glb_job_id"], "");
+  const preparedGlbStoragePath = getString(metadata, [
+    "preparedGlbStoragePath",
+    "prepared_glb_storage_path"
+  ]);
+  const hasImmersiveFlag = getBoolean(row, ["has_immersive_view", "hasImmersiveView"]);
+  const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl || hasImmersiveFlag);
   const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
   const hasAndroidAr = Boolean(arModel3dUrl);
   const hasAr = hasIosAr || hasAndroidAr;
@@ -458,19 +551,26 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
     id: getString(row, ["id", "dish_id", "slug", "dish_slug"], `dish-${index}`),
     slug: slug || `dish-${index}`,
     name,
-    description: getString(row, ["description", "desc", "summary"], ""),
-    category: normalizeCategory(
+    description: getString(row, ["short_description", "shortDescription", "description", "desc", "summary"], ""),
+    category:
       getString(
         row,
         ["category_name", "categoryName", "category", "category_slug"],
         DEFAULT_CATEGORY.label
-      )
-    ),
+      ) || DEFAULT_CATEGORY.label,
+    categoryDescription: getString(row, ["category_description", "categoryDescription"], ""),
     priceLabel: formatPrice(row),
     imageUrl,
     thumbnailUrl,
     hasPhoto: Boolean(imageUrl),
-    photoStatus: imageUrl ? "ready" : "missing",
+    photoStatus:
+      getString(metadata, ["photoStatus", "photo_status"], "") === "ready" || imageUrl
+        ? "ready"
+        : getString(metadata, ["photoStatus", "photo_status"], "") === "planned"
+          ? "planned"
+          : getString(row, ["photo_status", "photoStatus"], "") === "draft"
+            ? "draft"
+            : "missing",
     hasImmersive: has3d || hasAr,
     has3d,
     hasAr,
@@ -482,20 +582,48 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
     usdzUrl,
     arUsdzUrl,
     posterUrl,
-    modelStatus: has3d || hasAr ? "ready" : "missing",
+    preparedGlbJobId,
+    preparedGlbStoragePath,
+    modelStatus:
+      getString(metadata, ["modelStatus", "model_status"], "") === "ready"
+        ? "ready"
+        : getString(metadata, ["modelStatus", "model_status"], "") === "web_ready_usdz_pending"
+          ? "web_ready_usdz_pending"
+          : getString(metadata, ["modelStatus", "model_status"], "") === "pending_manual_usdz"
+            ? "pending_manual_usdz"
+            : getString(metadata, ["modelStatus", "model_status"], "") === "usdz_conversion_failed"
+              ? "usdz_conversion_failed"
+              : has3d || hasAr
+                ? "ready"
+                : "missing",
     available: isDishAvailable(row),
-    ingredients: getStringList(row, ["ingredients", "ingredient_list"]),
-    allergens: getStringList(row, ["allergens", "allergenes", "allergen_list"]),
-    options: getStringList(row, ["options", "option_list"]),
-    houseNote: getString(row, [
-      "house_note",
-      "houseNote",
-      "chef_note",
-      "chefNote",
-      "note"
-    ]),
-    tags: getStringList(row, ["tags", "badges", "labels"])
+    ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
+    allergens: getStringListFromSources(row, metadata, ["allergens", "allergenes", "allergen_list"]),
+    options: getStringListFromSources(row, metadata, ["options", "option_list"]),
+    houseNote:
+      getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"], "") ||
+      getString(row, [
+        "house_note",
+        "houseNote",
+        "chef_note",
+        "chefNote",
+        "note"
+      ]),
+    tags: mergeStringLists(
+      getStringListFromSources(row, metadata, ["tags", "labels"]),
+      getStringList(metadata, ["badges"]),
+      getBoolean(row, ["is_signature", "isSignature"]) ? ["Signature"] : [],
+      getBoolean(row, ["is_recommended", "isRecommended"]) ? ["Recommande"] : []
+    )
   };
+}
+
+function rowMatchesMenu(row: PublicMenuRow, menuId: string): boolean {
+  return !menuId || getString(row, ["menu_id", "menuId"], "") === menuId;
+}
+
+function rowMatchesRestaurant(row: PublicMenuRow, restaurantId: string): boolean {
+  return !restaurantId || getString(row, RESTAURANT_ID_KEYS, "") === restaurantId;
 }
 
 export function getPublicMenuRowSlug(row: PublicMenuRow): string {
@@ -548,16 +676,82 @@ export function buildSupabasePublicMenu(
   };
 }
 
+export function buildRelationalSupabasePublicMenu(args: {
+  slug: string;
+  restaurantRow: PublicMenuRow;
+  menuRow?: PublicMenuRow | null;
+  categoryRows?: PublicMenuRow[];
+  dishRows?: PublicMenuRow[];
+}): PublicMenu {
+  const slug = getPublicMenuRowSlug(args.restaurantRow) || slugify(args.slug);
+  const restaurantId = getString(args.restaurantRow, ["id", "restaurant_id"], "");
+  const menuId = getString(args.menuRow ?? {}, ["id", "menu_id"], "");
+  const categoryRows = (args.categoryRows ?? [])
+    .filter((row) => rowMatchesRestaurant(row, restaurantId))
+    .filter((row) => rowMatchesMenu(row, menuId))
+    .map((row, index) => ({
+      row,
+      id: getString(row, ["id", "category_id"], ""),
+      order: getNumber(row, ["display_order", "displayOrder", "sort_order", "position"], index + 1)
+    }))
+    .sort((a, b) => a.order - b.order);
+  const categoryById = new Map(categoryRows.map((entry) => [entry.id, entry]));
+  const categoryOrderById = new Map(categoryRows.map((entry, index) => [entry.id, index + 1]));
+
+  const dishes = (args.dishRows ?? [])
+    .filter((row) => rowMatchesRestaurant(row, restaurantId))
+    .filter((row) => rowMatchesMenu(row, menuId))
+    .filter(isDishAvailable)
+    .map((row, index) => {
+      const categoryId = getString(row, ["category_id", "categoryId"], "");
+      const category = categoryById.get(categoryId);
+      const categoryRow = category?.row ?? {};
+      return {
+        row: {
+          ...row,
+          category_name:
+            getString(categoryRow, ["name", "label"], "") ||
+            getString(row, ["category_name", "categoryName", "category"], DEFAULT_CATEGORY.label),
+          category_description: getString(categoryRow, ["description"], ""),
+          category_slug: getString(categoryRow, ["slug"], "")
+        },
+        index,
+        order:
+          (categoryOrderById.get(categoryId) ?? 1000) * 10_000 +
+          dishSortOrder(row, index)
+      };
+    })
+    .sort((a, b) => a.order - b.order || a.index - b.index)
+    .slice(0, 200)
+    .map(({ row, index }) => mapDishRow(row, index));
+
+  return {
+    restaurantId,
+    slug,
+    name: getString(args.restaurantRow, ["name", "restaurant_name"], "Restaurant"),
+    location: getString(args.restaurantRow, ["location", "city", "address"], ""),
+    cuisineType: getString(args.restaurantRow, ["cuisine_type", "cuisineType"], ""),
+    googleReview: googleReviewConfigFromRestaurantRow(args.restaurantRow),
+    source: "supabase",
+    dishes
+  };
+}
+
 export function getPublicMenuCategoryGroups(
   dishes: PublicMenuDish[]
 ): Map<string, PublicMenuDish[]> {
   const insertionGroups = new Map<string, PublicMenuDish[]>();
+  const hasRelationalDescriptions = dishes.some((dish) => dish.categoryDescription);
   for (const dish of dishes) {
-    const category = normalizeCategory(dish.category || DEFAULT_CATEGORY.label);
+    const category = dish.categoryDescription
+      ? dish.category || DEFAULT_CATEGORY.label
+      : normalizeCategory(dish.category || DEFAULT_CATEGORY.label);
     const list = insertionGroups.get(category) ?? [];
     list.push(dish);
     insertionGroups.set(category, list);
   }
+
+  if (hasRelationalDescriptions) return insertionGroups;
 
   const orderedGroups = new Map<string, PublicMenuDish[]>();
   for (const definition of CATEGORY_DEFINITIONS) {
@@ -583,7 +777,10 @@ export function getVisiblePublicMenuCategories(
     return {
       id: definition?.id ?? slugify(label) ?? DEFAULT_CATEGORY.id,
       label,
-      description: definition?.description ?? DEFAULT_CATEGORY.description,
+      description:
+        categoryDishes.find((dish) => dish.categoryDescription)?.categoryDescription ??
+        definition?.description ??
+        DEFAULT_CATEGORY.description,
       tone: definition?.tone ?? DEFAULT_CATEGORY.tone,
       count: categoryDishes.length
     };

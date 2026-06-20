@@ -8,6 +8,10 @@ import type {
   OwnerRestaurant,
   OwnerRestaurantStatus
 } from "@/lib/owner/types";
+import {
+  normalizeDisplayPriceMode,
+  parsePriceToCents
+} from "./price.ts";
 
 type SupabaseInsertError = {
   code?: string;
@@ -15,6 +19,13 @@ type SupabaseInsertError = {
 };
 
 type SupabaseRestaurantClient = {
+  rpc?: (
+    functionName: string,
+    params: Record<string, unknown>
+  ) => PromiseLike<{
+    data: unknown;
+    error: SupabaseInsertError | null;
+  }>;
   from(table: string): {
     insert(row: Record<string, unknown>): {
       select(columns: string): {
@@ -51,9 +62,13 @@ export type CreateRestaurantRecordResult =
       dataSource: "supabase";
       restaurant: OwnerRestaurant;
       restaurantPersisted: true;
+      menuPersisted: boolean;
+      categoriesPersisted: boolean;
       sectionsPersisted: boolean;
       dishesPersisted: boolean;
+      persistedCategoryCount: number;
       persistedDishCount: number;
+      menu?: Record<string, unknown>;
       mediaBasePath: string;
       mediaBasePathPersisted: boolean;
       qrCodesHref: string;
@@ -393,7 +408,8 @@ function normalizeDishes(
     const dish = rawDish as Record<string, unknown>;
     const name = getString(dish, ["name", "title", "dishName"], "").slice(0, 120);
     const section = getString(dish, ["section", "category", "categoryName"], "").slice(0, 80);
-    const price = getNumber(dish, ["price", "amount"], 0);
+    const rawPrice = getString(dish, ["price", "amount"], "");
+    const parsedPrice = parsePriceToCents(rawPrice);
     const description = getString(dish, ["description", "summary"], "").slice(0, 360);
     const rawImageUrl = getString(
       dish,
@@ -410,8 +426,8 @@ function normalizeDishes(
     if (!section || !sectionNames.has(section.toLowerCase())) {
       return { ok: false, error: "Chaque plat doit etre relie a une section existante." };
     }
-    if (!Number.isFinite(price) || price <= 0) {
-      return { ok: false, error: "Chaque plat doit avoir un prix superieur a 0." };
+    if (!parsedPrice.ok) {
+      return { ok: false, error: parsedPrice.error };
     }
     if (!description) {
       return { ok: false, error: "Description courte requise pour chaque plat." };
@@ -426,7 +442,11 @@ function normalizeDishes(
     dishes.push({
       name,
       section,
-      price: Math.round(price * 100) / 100,
+      price: parsedPrice.originalInput,
+      displayPriceMode: normalizeDisplayPriceMode(
+        getString(dish, ["displayPriceMode", "display_price_mode"], ""),
+        parsedPrice.originalInput
+      ),
       description,
       ...(imageUrl ? { imageUrl } : {}),
       ingredients: getStringArray(dish, ["ingredients", "ingredient_list"], 16),
@@ -459,6 +479,239 @@ function buildOwnerQrCodesHref(restaurantId: string): string {
   return `/owner/qr-codes?restaurantId=${encodeURIComponent(restaurantId)}&target=menu`;
 }
 
+function normalizeLabel(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function uniqueSlug(baseValue: string, used: Set<string>): string {
+  const base = slugifyRestaurantSlug(baseValue) || "item";
+  let slug = base;
+  let suffix = 2;
+  while (used.has(slug)) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  used.add(slug);
+  return slug;
+}
+
+function buildTransactionalCreationPayload(
+  input: CreateRestaurantInput,
+  env?: Record<string, string | undefined>
+) {
+  const normalizedSlug = slugifyRestaurantSlug(input.slug || input.name);
+  const publicMenuUrl = buildPublicMenuUrl(normalizedSlug, env);
+  const menuLanguages = input.menuLanguages?.length ? input.menuLanguages : ["fr"];
+  const categorySlugs = new Set<string>();
+  const categories = (input.sections ?? []).map((section, index) => ({
+    client_id: section.id || `section-${index + 1}`,
+    name: section.name,
+    slug: uniqueSlug(section.slug || section.name, categorySlugs),
+    description: section.description ?? "",
+    display_order: section.order ?? index + 1
+  }));
+  const categorySlugByName = new Map(
+    categories.map((category, index) => [
+      (input.sections?.[index]?.name ?? category.name).trim().toLowerCase(),
+      category.slug
+    ])
+  );
+  const dishSlugs = new Set<string>();
+  const dishes = (input.dishes ?? []).map((dish, index) => {
+    const parsedPrice = parsePriceToCents(dish.price);
+    if (!parsedPrice.ok) {
+      throw new Error(parsedPrice.error);
+    }
+    const badges = dish.tags ?? [];
+    const normalizedBadges = badges.map(normalizeLabel);
+    const displayPriceMode = normalizeDisplayPriceMode(
+      dish.displayPriceMode,
+      parsedPrice.originalInput
+    );
+    const imageUrl = dish.imageUrl ?? "";
+    const photoStatus = imageUrl ? "ready" : dish.photoStatus ?? "planned";
+
+    return {
+      name: dish.name,
+      slug: uniqueSlug(dish.name, dishSlugs),
+      category_slug:
+        categorySlugByName.get(dish.section.trim().toLowerCase()) ?? categories[0]?.slug ?? "",
+      short_description: dish.description,
+      description: dish.description,
+      price_cents: parsedPrice.cents,
+      currency: "CAD",
+      image_url: imageUrl,
+      is_available: dish.available ?? true,
+      is_signature: normalizedBadges.includes("signature"),
+      is_recommended:
+        normalizedBadges.includes("recommande") || normalizedBadges.includes("recommended"),
+      has_immersive_view: false,
+      allergens: dish.allergens ?? [],
+      display_order: index + 1,
+      metadata: {
+        ingredients: dish.ingredients ?? [],
+        options: dish.options ?? [],
+        tags: dish.tags ?? [],
+        badges,
+        chefNote: dish.chefNote ?? "",
+        houseNote: dish.chefNote ?? "",
+        photoStatus,
+        menuLanguages,
+        originalPriceInput: parsedPrice.originalInput,
+        displayPriceMode,
+        createdFromOwnerWizard: true
+      }
+    };
+  });
+
+  return {
+    restaurant: {
+      name: input.name,
+      slug: normalizedSlug,
+      location: input.location,
+      city: input.location,
+      cuisine_type: input.cuisineType,
+      status: input.status,
+      contact_name: input.contactName,
+      contact_email: input.contactEmail,
+      contact_phone: input.contactPhone ?? "",
+      google_review_url: input.googleReviewUrl ?? "",
+      google_review_enabled: Boolean(input.googleReviewUrl),
+      notes: input.notes ?? "",
+      public_menu_url: publicMenuUrl
+    },
+    menu: {
+      name: "Menu principal",
+      slug: "principal",
+      status: "published",
+      is_primary: true
+    },
+    categories,
+    dishes,
+    ui_config: {
+      theme: "fresh-homemade",
+      status: "draft",
+      config_json: {
+        createdFromOwnerWizard: true,
+        menuLanguages
+      }
+    }
+  };
+}
+
+function getResponseObject(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+async function createRestaurantRecordWithRpc(
+  input: CreateRestaurantInput,
+  dependencies: CreateRestaurantRecordDependencies,
+  rpc: NonNullable<SupabaseRestaurantClient["rpc"]>
+): Promise<CreateRestaurantRecordResult> {
+  let payload: ReturnType<typeof buildTransactionalCreationPayload>;
+  try {
+    payload = buildTransactionalCreationPayload(input, dependencies.env);
+  } catch (error) {
+    return {
+      ok: false,
+      status: 400,
+      error: error instanceof Error ? error.message : "Formulaire invalide."
+    };
+  }
+
+  const { data, error } = await rpc("create_owner_restaurant_with_menu", {
+    p_payload: payload
+  });
+
+  if (error) {
+    if (isDuplicateSlugError(error)) {
+      return {
+        ok: false,
+        status: 409,
+        error: "Ce slug public existe deja. Choisissez un slug unique."
+      };
+    }
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "La creation transactionnelle du restaurant a echoue dans Supabase. Aucune creation partielle n'est confirmee."
+    };
+  }
+
+  const response = getResponseObject(data);
+  if (!response || response.ok !== true) {
+    return {
+      ok: false,
+      status: 502,
+      error:
+        "Creation invalide : Supabase n'a pas retourne de confirmation transactionnelle."
+    };
+  }
+
+  const restaurantRow = getResponseObject(response.restaurant);
+  if (!restaurantRow || !UUID_PATTERN.test(getString(restaurantRow, ["id"], ""))) {
+    return {
+      ok: false,
+      status: 502,
+      error:
+        "Creation invalide : Supabase n'a pas retourne d'identifiant Supabase UUID."
+    };
+  }
+
+  const restaurant = mapCreatedRestaurant(restaurantRow, dependencies.env);
+  const mediaBasePath =
+    getString(response, ["mediaBasePath", "media_base_path"], "") ||
+    buildMediaBasePath(restaurant.id);
+  const persistedDishCount = getNumber(response, ["persistedDishCount", "persisted_dish_count"], 0);
+  const persistedCategoryCount = getNumber(
+    response,
+    ["persistedCategoryCount", "persisted_category_count"],
+    0
+  );
+  const photoDishCount = (input.dishes ?? []).filter(
+    (dish) => dish.photoStatus === "ready" || Boolean(dish.imageUrl)
+  ).length;
+  const warnings = Array.isArray(response.warnings)
+    ? response.warnings.filter((item): item is string => typeof item === "string")
+    : [];
+
+  return {
+    ok: true,
+    persisted: true,
+    dataSource: "supabase",
+    restaurant: {
+      ...restaurant,
+      mediaBasePath,
+      dishCount: persistedDishCount,
+      photoDishCount,
+      incompleteDishCount: Math.max(persistedDishCount - photoDishCount, 0),
+      nextAction: "Generer le QR menu"
+    },
+    restaurantPersisted: true,
+    menuPersisted: response.menuPersisted !== false,
+    categoriesPersisted: response.categoriesPersisted !== false,
+    sectionsPersisted: response.categoriesPersisted !== false,
+    dishesPersisted: response.dishesPersisted !== false,
+    persistedCategoryCount,
+    persistedDishCount,
+    menu: getResponseObject(response.menu) ?? undefined,
+    mediaBasePath,
+    mediaBasePathPersisted: response.mediaBasePathPersisted === true,
+    qrCodesHref:
+      getString(response, ["qrCodesHref", "qr_codes_href"], "") ||
+      buildOwnerQrCodesHref(restaurant.id),
+    warnings
+  };
+}
+
 function getSectionsWithoutDish(
   sections: CreateRestaurantSectionInput[],
   dishes: CreateRestaurantDishInput[]
@@ -480,6 +733,8 @@ function buildMenuDishInsertRows(args: {
 }): Record<string, unknown>[] {
   return args.dishes.map((dish, index) => {
     const row: Record<string, unknown> = {};
+    const parsedPrice = parsePriceToCents(dish.price);
+    const legacyPrice = parsedPrice.ok ? parsedPrice.cents / 100 : dish.price;
 
     assignMenuDishValue(row, args.columns, ["restaurant_id", "restaurantId"], args.restaurantId);
     assignMenuDishValue(
@@ -501,7 +756,7 @@ function buildMenuDishInsertRows(args: {
       ["category_name", "categoryName", "category"],
       dish.section
     );
-    assignMenuDishValue(row, args.columns, ["price", "amount", "price_cad"], dish.price);
+    assignMenuDishValue(row, args.columns, ["price", "amount", "price_cad"], legacyPrice);
     assignMenuDishValue(row, args.columns, ["available", "isAvailable"], dish.available ?? true);
     assignMenuDishValue(row, args.columns, ["sort_order", "sortOrder", "position"], index + 1);
     assignMenuDishValue(
@@ -768,6 +1023,14 @@ export async function createRestaurantRecord(
     };
   }
 
+  if (typeof dependencies.admin.client.rpc === "function") {
+    return createRestaurantRecordWithRpc(
+      input,
+      dependencies,
+      dependencies.admin.client.rpc.bind(dependencies.admin.client)
+    );
+  }
+
   const columns = await dependencies.getColumns("restaurants");
   const row: Record<string, unknown> = {};
   const normalizedSlug = slugifyRestaurantSlug(input.slug || input.name);
@@ -917,9 +1180,13 @@ export async function createRestaurantRecord(
     dataSource: "supabase",
     restaurant,
     restaurantPersisted: true,
+    menuPersisted: false,
+    categoriesPersisted: sectionsPersisted,
     sectionsPersisted,
     dishesPersisted,
+    persistedCategoryCount: sectionsPersisted ? inputSections.length : 0,
     persistedDishCount,
+    menu: undefined,
     mediaBasePath,
     mediaBasePathPersisted,
     qrCodesHref: buildOwnerQrCodesHref(restaurantId),

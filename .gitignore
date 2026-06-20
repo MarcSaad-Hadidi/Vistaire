@@ -74,6 +74,7 @@ assets/3d/reports/**
 # production restaurant model binaries must be reviewed before allowlisting
 public/models/restaurants/**/*.glb
 public/models/restaurants/**/*.usdz
+public/models/restaurants/**/manifest.json
 
 # local env files
 .env*.local

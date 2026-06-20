@@ -1,0 +1,93 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+import {
+  buildPreparedModelMetadata,
+  buildPreparedModelStoragePath,
+  buildPreparedModelUsdzStoragePath,
+  buildPreparedModelWebStoragePath,
+  isPreparedGlbPipelineStep
+} from "../lib/owner/preparedModelWorkflow.ts";
+
+const restaurantId = "11111111-2222-4333-8444-555555555555";
+
+test("prepared GLB workflow uses explicit storage paths and metadata without optimization", () => {
+  const storagePath = buildPreparedModelStoragePath({
+    restaurantId,
+    jobId: "job_prepared_12345678",
+    sha256: "a".repeat(64)
+  });
+
+  assert.equal(
+    storagePath,
+    `restaurants/${restaurantId}/models/staging/job_prepared_12345678/source.glb`
+  );
+  assert.doesNotMatch(storagePath, /\.\.|\\|public\/models|assets\/3d\/source/);
+  assert.equal(
+    buildPreparedModelWebStoragePath({ restaurantId, dishSlug: "dejeuner-classique-maison" }),
+    `restaurants/${restaurantId}/models/web/dejeuner-classique-maison.glb`
+  );
+  assert.equal(
+    buildPreparedModelUsdzStoragePath({ restaurantId, dishSlug: "dejeuner-classique-maison" }),
+    `restaurants/${restaurantId}/models/ar-ios/dejeuner-classique-maison.usdz`
+  );
+
+  assert.deepEqual(
+    buildPreparedModelMetadata({
+      webModel3dUrl: "https://cdn.example.test/dish.glb",
+      arUsdzUrl: "",
+      sourceJobId: "job_prepared_12345678"
+    }),
+    {
+      webModel3dUrl: "https://cdn.example.test/dish.glb",
+      model3dUrl: "https://cdn.example.test/dish.glb",
+      arUsdzUrl: "",
+      modelStatus: "web_ready_usdz_pending",
+      preparedGlbJobId: "job_prepared_12345678"
+    }
+  );
+  assert.equal(isPreparedGlbPipelineStep("prepared_usdz"), true);
+  assert.equal(isPreparedGlbPipelineStep("optimize"), false);
+});
+
+test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", async () => {
+  const uploadRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/glb/route.ts",
+    "utf8"
+  );
+  const publishRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/publish/route.ts",
+    "utf8"
+  );
+  const migration = await readFile(
+    "supabase/migrations/0014_owner_prepared_glb_pipeline.sql",
+    "utf8"
+  );
+  const meshyPipeline = await readFile("lib/owner/restaurantMeshyPipeline.ts", "utf8");
+  const packageJson = await readFile("package.json", "utf8");
+
+  for (const source of [uploadRoute, publishRoute]) {
+    assert.match(source, /runtime = "nodejs"/);
+    assert.match(source, /requireVistaireOwnerApi\(\)/);
+    assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
+    assert.match(source, /\.eq\("id", dishId\)/);
+    assert.match(source, /\.eq\("restaurant_id", restaurantId\)/);
+    assert.match(source, /runRestaurantMeshyDishPipeline/);
+    assert.doesNotMatch(source, /glb-shrink/i);
+  }
+
+  assert.match(meshyPipeline, /scripts\/owner\/build-restaurant-meshy-dish\.mjs/);
+  assert.match(meshyPipeline, /tmp_owner_3d_uploads/);
+  assert.match(meshyPipeline, /\/models\/restaurants\//);
+  assert.match(meshyPipeline, /owner-meshy-pipeline/);
+  assert.match(meshyPipeline, /manual_runner_command/);
+  assert.match(meshyPipeline, /worker_kind: "external_worker"/);
+  assert.match(meshyPipeline, /insertedJob\.error/);
+  assert.doesNotMatch(meshyPipeline, /glb-shrink/i);
+  assert.doesNotMatch(meshyPipeline, /3d:optimize|optimize-heavy|optimize-dish/);
+  assert.match(migration, /prepared_usdz/);
+  assert.match(migration, /pending_manual_usdz/);
+  assert.doesNotMatch(migration, /glb-shrink/i);
+  assert.doesNotMatch(packageJson, /glb-shrink/i);
+});

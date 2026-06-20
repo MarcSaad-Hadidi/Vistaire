@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  getBoolean,
   getString,
   readSupabaseRows
 } from "@/lib/analytics/serverRows";
@@ -13,10 +14,12 @@ import {
 import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "@/lib/i18n";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import {
+  buildRelationalSupabasePublicMenu,
   buildSupabasePublicMenu,
   getPublicMenuRowSlug,
   normalizeGoogleReviewConfig,
-  type PublicMenu
+  type PublicMenu,
+  type PublicMenuRow
 } from "@/lib/menu/publicMenuCore";
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
@@ -89,6 +92,21 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
   };
 }
 
+function findPrimaryMenu(
+  rows: PublicMenuRow[],
+  restaurantId: string
+): PublicMenuRow | null {
+  const scoped = rows.filter((row) => getString(row, ["restaurant_id", "restaurantId"], "") === restaurantId);
+  const published = scoped.filter((row) => getString(row, ["status"], "") !== "archived");
+  return (
+    published.find((row) => getBoolean(row, ["is_primary", "isPrimary"], false) && getString(row, ["status"], "") === "published") ??
+    published.find((row) => getBoolean(row, ["is_primary", "isPrimary"], false)) ??
+    published.find((row) => getString(row, ["slug"], "") === "principal") ??
+    published[0] ??
+    null
+  );
+}
+
 export async function getPublicMenuBySlug(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE
@@ -114,7 +132,23 @@ export async function getPublicMenuBySlug(
     return demoMenu(slug, resolvedLocale);
   }
 
-  const dishesResult = await readSupabaseRows("menu_dishes", 1_000);
+  const [menusResult, categoriesResult, dishesResult] = await Promise.all([
+    readSupabaseRows<PublicMenuRow>("menus", 500),
+    readSupabaseRows<PublicMenuRow>("menu_categories", 1_000),
+    readSupabaseRows<PublicMenuRow>("menu_dishes", 1_000)
+  ]);
+  const primaryMenu = menusResult.ok ? findPrimaryMenu(menusResult.rows, restaurantId) : null;
+
+  if (primaryMenu) {
+    return buildRelationalSupabasePublicMenu({
+      slug,
+      restaurantRow: match,
+      menuRow: primaryMenu,
+      categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
+      dishRows: dishesResult.ok ? dishesResult.rows : []
+    });
+  }
+
   return buildSupabasePublicMenu(
     slug,
     match,

@@ -3,6 +3,7 @@ import "server-only";
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
 import { getRestaurant } from "@/lib/demoMenuData";
 import {
+  buildRelationalSupabasePublicMenu,
   buildSupabasePublicMenu,
   getPublicMenuRowSlug,
   getVisiblePublicMenuCategories,
@@ -11,7 +12,7 @@ import {
   type PublicMenuRow
 } from "@/lib/menu/publicMenuCore";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
-import { getString, readSupabaseRows } from "@/lib/analytics/serverRows";
+import { getBoolean, getString, readSupabaseRows } from "@/lib/analytics/serverRows";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 
 type OwnerMenuDataSuccess = {
@@ -37,6 +38,21 @@ type OwnerMenuDataFailure = {
 
 function publicMenuPath(slug: string): string {
   return slug ? `/menu/${encodeURIComponent(slug)}` : "/demo";
+}
+
+function findPrimaryMenu(
+  rows: PublicMenuRow[],
+  restaurantId: string
+): PublicMenuRow | null {
+  const scoped = rows.filter((row) => getString(row, ["restaurant_id", "restaurantId"], "") === restaurantId);
+  const published = scoped.filter((row) => getString(row, ["status"], "") !== "archived");
+  return (
+    published.find((row) => getBoolean(row, ["is_primary", "isPrimary"], false) && getString(row, ["status"], "") === "published") ??
+    published.find((row) => getBoolean(row, ["is_primary", "isPrimary"], false)) ??
+    published.find((row) => getString(row, ["slug"], "") === "principal") ??
+    published[0] ??
+    null
+  );
 }
 
 async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
@@ -79,8 +95,10 @@ export async function getOwnerMenuData(
     return { ok: false, status: 400, error: "restaurantId requis." };
   }
 
-  const [restaurantsResult, dishesResult] = await Promise.all([
+  const [restaurantsResult, menusResult, categoriesResult, dishesResult] = await Promise.all([
     readSupabaseRows<PublicMenuRow>("restaurants", 300),
+    readSupabaseRows<PublicMenuRow>("menus", 500),
+    readSupabaseRows<PublicMenuRow>("menu_categories", 1_000),
     readSupabaseRows<PublicMenuRow>("menu_dishes", 1_000)
   ]);
 
@@ -100,11 +118,20 @@ export async function getOwnerMenuData(
   const slug =
     getPublicMenuRowSlug(restaurantRow) ||
     slugifyRestaurantSlug(getString(restaurantRow, ["name", "restaurant_name"]));
-  const menu = buildSupabasePublicMenu(
-    slug,
-    restaurantRow,
-    dishesResult.ok ? dishesResult.rows : []
-  );
+  const primaryMenu = menusResult.ok ? findPrimaryMenu(menusResult.rows, restaurantId) : null;
+  const menu = primaryMenu
+    ? buildRelationalSupabasePublicMenu({
+        slug,
+        restaurantRow,
+        menuRow: primaryMenu,
+        categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
+        dishRows: dishesResult.ok ? dishesResult.rows : []
+      })
+    : buildSupabasePublicMenu(
+        slug,
+        restaurantRow,
+        dishesResult.ok ? dishesResult.rows : []
+      );
 
   return {
     ok: true,

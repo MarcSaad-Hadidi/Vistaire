@@ -23,8 +23,10 @@ test("owner medias page shows targeted media path and dishes without photos", as
   assert.match(source, /missingPhotoCount/);
   assert.match(source, /coverageLabel\(photoCount, dishCount\)/);
   assert.match(source, /Chemin Storage\/CDN reference/);
-  assert.match(source, /Photos a ajouter/);
-  assert.match(source, /Les uploads ne sont pas geres dans ce module/);
+  assert.match(source, /Photos des plats/);
+  assert.match(source, /OwnerDishPhotoUploader/);
+  assert.match(source, /Supabase Storage/);
+  assert.doesNotMatch(source, /Les uploads ne sont pas geres dans ce module/);
 });
 
 test("owner medias global rows link to the targeted restaurant view", async () => {

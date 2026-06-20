@@ -270,6 +270,12 @@ export default function MeshyDishesReviewPage() {
           >
             Revue homard
           </Link>
+          <Link
+            href="/dev/trouvable-dejeuner-review"
+            className="rounded-full border border-white/15 px-4 py-2 text-[#d8caba] transition hover:bg-white/5"
+          >
+            Revue Trouvable déjeuner
+          </Link>
         </div>
         <div className="mt-6 flex flex-wrap gap-2">
           {DISHES.map((entry) => (

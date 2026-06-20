@@ -553,7 +553,11 @@ function MediaPanel({ restaurant }: { restaurant: OwnerRestaurant }) {
             Suivi des photos prêtes et des manques visibles dans la carte.
           </p>
         </div>
-        <Link className={styles.btn} href="/owner/medias" prefetch={false}>
+        <Link
+          className={styles.btn}
+          href={`/owner/medias?restaurantId=${encodeURIComponent(restaurant.id)}`}
+          prefetch={false}
+        >
           Voir tous les médias
         </Link>
       </div>
@@ -614,8 +618,12 @@ function ImmersivePanel({ restaurant }: { restaurant: OwnerRestaurant }) {
             Choisir les plats signatures et suivre le pipeline sans charger d’asset lourd ici.
           </p>
         </div>
-        <Link className={styles.btn} href="/owner/3d-ar" prefetch={false}>
-          Ouvrir le pipeline
+        <Link
+          className={styles.btn}
+          href={`/owner/restaurants/${encodeURIComponent(restaurant.id)}/3d`}
+          prefetch={false}
+        >
+          Ajouter un GLB
         </Link>
       </div>
       <div className={styles.panelBody}>

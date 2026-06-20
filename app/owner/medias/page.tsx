@@ -13,6 +13,7 @@ import {
   getOwnerRestaurantDashboardData
 } from "@/lib/owner/data";
 import { getOwnerMenuData } from "@/lib/owner/menuData";
+import { OwnerDishPhotoUploader } from "@/components/owner/OwnerDishPhotoUploader";
 import type { OwnerRestaurant } from "@/lib/owner/types";
 
 export const dynamic = "force-dynamic";
@@ -149,17 +150,17 @@ async function TargetedMediaView({ restaurant }: { restaurant: OwnerRestaurant }
           <p className={styles.metricLabel}>Chemin Storage/CDN reference</p>
           <p className={`${styles.bodyText} ${styles.breakText}`}>{mediaBasePath}</p>
           <p className={styles.sourceNote}>
-            Les uploads ne sont pas geres dans ce module. Ajoutez les fichiers dans
-            le stockage media, puis renseignez les URL photo des plats.
+            Les photos envoyees depuis Vistaire restent dans Supabase Storage; le menu
+            public lit ensuite l&apos;URL proxy du plat.
           </p>
         </div>
       </Panel>
 
-      <Panel title="Photos a ajouter">
+      <Panel title="Photos des plats">
         {!menuData.ok ? (
           <EmptyState>{menuData.error}</EmptyState>
-        ) : dishesWithoutPhoto.length === 0 ? (
-          <EmptyState>Tous les plats charges pour ce restaurant ont une photo detectee.</EmptyState>
+        ) : dishes.length === 0 ? (
+          <EmptyState>Aucun plat charge pour ce restaurant.</EmptyState>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.dataTable}>
@@ -168,22 +169,28 @@ async function TargetedMediaView({ restaurant }: { restaurant: OwnerRestaurant }
                   <th>Plat</th>
                   <th>Section</th>
                   <th>Statut photo</th>
-                  <th>Chemin conseille</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {dishesWithoutPhoto.map((dish) => (
+                {dishes.map((dish) => (
                   <tr key={dish.id}>
                     <td>
                       <strong className={styles.cellMain}>{dish.name}</strong>
                     </td>
                     <td className={styles.cellSub}>{dish.category}</td>
                     <td>
-                      <Badge tone="warn">{dish.photoStatus}</Badge>
+                      <Badge tone={dish.hasPhoto ? "ready" : "warn"}>
+                        {dish.hasPhoto ? "Photo prete" : dish.photoStatus}
+                      </Badge>
                     </td>
-                    <td className={styles.cellSub}>
-                      {mediaBasePath}
-                      {dish.slug}.jpg
+                    <td>
+                      <OwnerDishPhotoUploader
+                        restaurantId={restaurant.id}
+                        dishId={dish.id}
+                        dishName={dish.name}
+                        initialImageUrl={dish.imageUrl}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -214,7 +221,7 @@ export default async function OwnerMediasPage({
     <>
       <ModuleHeader
         title="Medias"
-        description="Suivre les photos de plats et les chemins media sans ecrire d'assets dans le depot."
+        description="Suivre et ajouter les photos de plats depuis Supabase Storage, sans ecrire d'assets dans le depot."
       />
 
       {targetedRestaurant ? (
@@ -224,9 +231,9 @@ export default async function OwnerMediasPage({
       )}
 
       <p className={styles.sourceTag}>
-        Note storage/CDN : les uploads d&apos;assets ne sont pas geres depuis ce
-        module. Le pipeline media reste gere hors cockpit; aucun dossier public,
-        fichier modele ou video n&apos;est cree ici.
+        Note storage/CDN : les photos originales sont envoyees dans le bucket
+        prive vistaire-media. Aucun dossier public, fichier modele ou video
+        n&apos;est cree ici.
       </p>
     </>
   );

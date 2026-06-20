@@ -10,9 +10,13 @@ import { GLTF2Export } from "@babylonjs/serializers/glTF/2.0/glTFSerializer.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const DEMO_DIR = join(ROOT, "public", "models", "demo");
+const ASSET_ROOT = process.env.VISTAIRE_MESHY_ASSET_ROOT
+  ? join(ROOT, process.env.VISTAIRE_MESHY_ASSET_ROOT)
+  : join(ROOT, "public", "models", "demo");
+const DEMO_DIR = ASSET_ROOT;
 const AR_LITE_DIR = join(DEMO_DIR, "ar-lite");
 const WORK_DIR = join(AR_LITE_DIR, ".tmp-build");
+const ONLY_PROFILE = process.env.VISTAIRE_MESHY_ONLY?.trim() || "";
 
 const GLB_IDEAL_BYTES = 8 * 1024 * 1024;
 const GLB_GOOD_BYTES = 12 * 1024 * 1024;
@@ -124,6 +128,19 @@ const PROFILES = [
     finalJpegQuality: 78,
     targetMaxDimMeters: 0.18,
     note: "Tarte citron AR-lite from Meshy compressed source."
+  },
+  {
+    slug: "dejeuner-classique-maison",
+    source: "dejeuner-classique-maison-meshy.glb",
+    output: "dejeuner-classique-maison-ar-lite-meshy.glb",
+    simplifyRatio: 0.58,
+    simplifyError: 0.0009,
+    jpegQuality: 82,
+    balancedSimplifyRatio: 0.45,
+    balancedSimplifyError: 0.0007,
+    finalJpegQuality: 78,
+    targetMaxDimMeters: 0.2,
+    note: "Dejeuner classique AR-lite from Meshy compressed source (Trouvable)."
   }
 ];
 
@@ -270,7 +287,14 @@ async function main() {
   mkdirSync(WORK_DIR, { recursive: true });
 
   try {
-    for (const profile of PROFILES) {
+    const profiles = ONLY_PROFILE
+      ? PROFILES.filter((profile) => profile.slug === ONLY_PROFILE)
+      : PROFILES;
+    if (ONLY_PROFILE && profiles.length === 0) {
+      throw new Error(`Unknown Meshy profile slug: ${ONLY_PROFILE}`);
+    }
+
+    for (const profile of profiles) {
       const sourcePath = join(DEMO_DIR, profile.source);
       const preJpegPath = join(WORK_DIR, `${profile.slug}-prejpeg.glb`);
       const jpegPath = join(WORK_DIR, `${profile.slug}-jpeg.glb`);
