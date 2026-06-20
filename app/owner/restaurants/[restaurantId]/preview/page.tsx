@@ -32,7 +32,10 @@ export default async function OwnerRestaurantPreviewPage({
   const menuData = await getOwnerMenuData(restaurant.id);
   const dishes = menuData.ok ? menuData.dishes : [];
   const preparation = buildOwnerRestaurantPreparation(restaurant, dishes);
-  const previewPath = restaurant.publicMenuPath || restaurant.clientMenuHref;
+  const previewPath =
+    restaurant.menuUrlSource === "column"
+      ? restaurant.menuUrl
+      : restaurant.publicMenuPath || restaurant.clientMenuHref || restaurant.menuUrl;
   const photosVisible = preparation.summary.photoDishCount;
   const pricesReady =
     preparation.summary.dishCount > 0 &&

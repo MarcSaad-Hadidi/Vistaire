@@ -132,3 +132,18 @@ test("restaurant dashboard copies the configured menu URL used by QR", async () 
   );
   assert.doesNotMatch(source, /href=\{restaurant\.publicMenuUrl\}/);
 });
+
+test("restaurant preview iframe uses configured client URL before derived slug path", async () => {
+  const source = await readFile(
+    "app/owner/restaurants/[restaurantId]/preview/page.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /restaurant\.menuUrlSource === "column"/);
+  assert.match(source, /\? restaurant\.menuUrl/);
+  assert.match(source, /: restaurant\.publicMenuPath \|\| restaurant\.clientMenuHref \|\| restaurant\.menuUrl/);
+  assert.doesNotMatch(
+    source,
+    /const previewPath = restaurant\.publicMenuPath \|\| restaurant\.clientMenuHref/
+  );
+});
