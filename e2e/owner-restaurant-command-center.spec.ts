@@ -166,8 +166,8 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
   await expect(page.getByText("2. Structure menu")).toBeVisible();
   await expect(page.getByText("Langues du menu")).toBeVisible();
   await page.getByRole("button", { name: /English/ }).click();
-  await expect(page.getByText(/Langues selectionnees : Francais, English\./)).toBeVisible();
-  await expect(page.getByText("brouillon local de setup")).toBeVisible();
+  await expect(page.getByText("Francais, English")).toBeVisible();
+  await expect(page.getByText("Aucune section ajoutee.")).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   health.expectClean();

@@ -701,7 +701,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   }
 
   return (
-    <form className={styles.createWizard} onSubmit={handleSubmit}>
+    <form className={styles.createWizard} onSubmit={handleSubmit} noValidate>
       <aside className={styles.stepRail} aria-label="Etapes creation restaurant">
         {steps.map((step, index) => {
           const done = index < stepIndex;
@@ -841,7 +841,11 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
               Le restaurant, les sections et les plats sont envoyes a Supabase.
               Le resultat final confirme ce qui a ete persiste.
             </p>
-            {error ? <p className={styles.errorText}>{error}</p> : null}
+            {error ? (
+              <p className={styles.errorText} role="alert">
+                {error}
+              </p>
+            ) : null}
             {state.status === "error" || state.status === "fallback" ? (
               <p className={styles.errorText} role="status">
                 {state.message}

@@ -163,68 +163,122 @@ begin
   end if;
 end $$;
 
-create index if not exists analytics_events_dish_id_idx
-  on public.analytics_events (dish_id);
+do $$
+declare
+  v_spec record;
+begin
+  if to_regclass('public.analytics_events') is not null
+    and exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'analytics_events'
+        and column_name = 'dish_id'
+    )
+  then
+    execute 'create index if not exists analytics_events_dish_id_idx on public.analytics_events (dish_id)';
+  end if;
 
-create index if not exists owner_3d_asset_sources_source_upload_id_idx
-  on public.owner_3d_asset_sources (source_upload_id)
-  where source_upload_id is not null;
-
-create index if not exists owner_3d_asset_versions_source_id_idx
-  on public.owner_3d_asset_versions (source_id)
-  where source_id is not null;
-
-create index if not exists owner_3d_asset_versions_previous_version_id_idx
-  on public.owner_3d_asset_versions (previous_version_id)
-  where previous_version_id is not null;
-
-create index if not exists owner_3d_device_qa_evidence_artifact_id_idx
-  on public.owner_3d_device_qa (evidence_artifact_id)
-  where evidence_artifact_id is not null;
-
-create index if not exists owner_3d_candidate_sets_web_candidate_id_idx
-  on public.owner_3d_optimizeglb_candidate_sets (web_candidate_id)
-  where web_candidate_id is not null;
-
-create index if not exists owner_3d_candidate_sets_mobile_candidate_id_idx
-  on public.owner_3d_optimizeglb_candidate_sets (mobile_candidate_id)
-  where mobile_candidate_id is not null;
-
-create index if not exists owner_3d_candidate_sets_ar_lite_candidate_id_idx
-  on public.owner_3d_optimizeglb_candidate_sets (ar_lite_candidate_id)
-  where ar_lite_candidate_id is not null;
-
-create index if not exists owner_3d_candidate_sets_ios_source_candidate_id_idx
-  on public.owner_3d_optimizeglb_candidate_sets (ios_source_candidate_id)
-  where ios_source_candidate_id is not null;
-
-create index if not exists owner_3d_candidate_sets_poster_source_candidate_id_idx
-  on public.owner_3d_optimizeglb_candidate_sets (poster_source_candidate_id)
-  where poster_source_candidate_id is not null;
-
-create index if not exists owner_3d_pipeline_jobs_source_id_idx
-  on public.owner_3d_pipeline_jobs (source_id)
-  where source_id is not null;
-
-create index if not exists owner_3d_pipeline_jobs_asset_version_id_idx
-  on public.owner_3d_pipeline_jobs (asset_version_id)
-  where asset_version_id is not null;
-
-create index if not exists owner_3d_pipeline_jobs_retry_of_job_id_idx
-  on public.owner_3d_pipeline_jobs (retry_of_job_id)
-  where retry_of_job_id is not null;
-
-create index if not exists owner_3d_publish_events_job_id_idx
-  on public.owner_3d_publish_events (job_id)
-  where job_id is not null;
-
-create index if not exists owner_3d_publish_events_previous_version_id_idx
-  on public.owner_3d_publish_events (previous_version_id)
-  where previous_version_id is not null;
-
-create index if not exists owner_3d_visual_reviews_visual_report_artifact_id_idx
-  on public.owner_3d_visual_reviews (visual_report_artifact_id)
-  where visual_report_artifact_id is not null;
+  for v_spec in
+    select *
+    from (
+      values
+        (
+          'owner_3d_asset_sources_source_upload_id_idx',
+          'owner_3d_asset_sources',
+          'source_upload_id'
+        ),
+        (
+          'owner_3d_asset_versions_source_id_idx',
+          'owner_3d_asset_versions',
+          'source_id'
+        ),
+        (
+          'owner_3d_asset_versions_previous_version_id_idx',
+          'owner_3d_asset_versions',
+          'previous_version_id'
+        ),
+        (
+          'owner_3d_device_qa_evidence_artifact_id_idx',
+          'owner_3d_device_qa',
+          'evidence_artifact_id'
+        ),
+        (
+          'owner_3d_candidate_sets_web_candidate_id_idx',
+          'owner_3d_optimizeglb_candidate_sets',
+          'web_candidate_id'
+        ),
+        (
+          'owner_3d_candidate_sets_mobile_candidate_id_idx',
+          'owner_3d_optimizeglb_candidate_sets',
+          'mobile_candidate_id'
+        ),
+        (
+          'owner_3d_candidate_sets_ar_lite_candidate_id_idx',
+          'owner_3d_optimizeglb_candidate_sets',
+          'ar_lite_candidate_id'
+        ),
+        (
+          'owner_3d_candidate_sets_ios_source_candidate_id_idx',
+          'owner_3d_optimizeglb_candidate_sets',
+          'ios_source_candidate_id'
+        ),
+        (
+          'owner_3d_candidate_sets_poster_source_candidate_id_idx',
+          'owner_3d_optimizeglb_candidate_sets',
+          'poster_source_candidate_id'
+        ),
+        (
+          'owner_3d_pipeline_jobs_source_id_idx',
+          'owner_3d_pipeline_jobs',
+          'source_id'
+        ),
+        (
+          'owner_3d_pipeline_jobs_asset_version_id_idx',
+          'owner_3d_pipeline_jobs',
+          'asset_version_id'
+        ),
+        (
+          'owner_3d_pipeline_jobs_retry_of_job_id_idx',
+          'owner_3d_pipeline_jobs',
+          'retry_of_job_id'
+        ),
+        (
+          'owner_3d_publish_events_job_id_idx',
+          'owner_3d_publish_events',
+          'job_id'
+        ),
+        (
+          'owner_3d_publish_events_previous_version_id_idx',
+          'owner_3d_publish_events',
+          'previous_version_id'
+        ),
+        (
+          'owner_3d_visual_reviews_visual_report_artifact_id_idx',
+          'owner_3d_visual_reviews',
+          'visual_report_artifact_id'
+        )
+    ) as spec(index_name, table_name, column_name)
+  loop
+    if to_regclass(format('public.%I', v_spec.table_name)) is not null
+      and exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = v_spec.table_name
+          and column_name = v_spec.column_name
+      )
+    then
+      execute format(
+        'create index if not exists %I on public.%I (%I) where %I is not null',
+        v_spec.index_name,
+        v_spec.table_name,
+        v_spec.column_name,
+        v_spec.column_name
+      );
+    end if;
+  end loop;
+end $$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values

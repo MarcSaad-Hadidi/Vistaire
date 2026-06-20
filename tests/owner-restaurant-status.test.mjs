@@ -693,12 +693,36 @@ test("runtime hardening migration locks Data API and private Storage buckets", a
   assert.match(source, /resolve_qr_code_scan\(text\)/);
   assert.match(source, /owner_3d_claim_pipeline_job/);
   assert.match(source, /analytics_events_dish_id_idx/);
+  assert.match(source, /to_regclass\('public\.analytics_events'\)/);
+  assert.match(source, /column_name = 'dish_id'/);
+  assert.doesNotMatch(
+    source,
+    /\ncreate index if not exists analytics_events_dish_id_idx\s+on public\.analytics_events \(dish_id\);/i
+  );
   assert.match(source, /owner_3d_pipeline_jobs_asset_version_id_idx/);
   assert.match(source, /'vistaire-3d-sources'/);
   assert.match(source, /'vistaire-3d-qa'/);
   assert.match(source, /'vistaire-media'/);
   assert.match(source, /'vistaire-3d'/);
   assert.doesNotMatch(source, /public,\s*true/);
+});
+
+test("forward repair migration refreshes deployed restaurant delete RPC", async () => {
+  const source = await readFile(
+    "supabase/migrations/0012_refresh_owner_restaurant_delete_rpc.sql",
+    "utf8"
+  );
+
+  assert.match(source, /create or replace function public\.delete_owner_restaurant_cascade/);
+  assert.match(source, /notify pgrst, 'reload schema'/);
+  assert.doesNotMatch(source, /"table":"restaurant_daily_analytics"/);
+  assert.doesNotMatch(source, /"table":"restaurant_dish_analytics"/);
+  assert.doesNotMatch(source, /"table":"restaurant_search_analytics"/);
+  assert.doesNotMatch(source, /"table":"restaurant_category_analytics"/);
+  assert.match(source, /non_table_relation/);
+  assert.match(source, /owner_3d_publish_events/);
+  assert.match(source, /asset_version_id/);
+  assert.match(source, /job_id/);
 });
 
 test("owner portfolio keeps archived restaurants out of urgent counters", async () => {
