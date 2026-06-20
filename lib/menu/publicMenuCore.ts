@@ -3,6 +3,7 @@ import {
   formatPriceCentsForMenu,
   type DisplayPriceMode
 } from "../owner/price.ts";
+import { normalizeModelAssetBytes } from "../owner/modelAssetSize.ts";
 
 export type PublicMenuDish = {
   id: string;
@@ -23,9 +24,12 @@ export type PublicMenuDish = {
   hasAndroidAr: boolean;
   model3dUrl: string;
   webModel3dUrl: string;
+  webModel3dBytes: number;
   arModel3dUrl: string;
+  arModel3dBytes: number;
   usdzUrl: string;
   arUsdzUrl: string;
+  arUsdzBytes: number;
   posterUrl: string;
   preparedGlbJobId?: string;
   preparedGlbStoragePath?: string;
@@ -425,6 +429,14 @@ function getSafeStringFromSources(
   return getSafeString(row, candidates) || getSafeString(metadata, candidates);
 }
 
+function getNumberFromSources(
+  row: PublicMenuRow,
+  metadata: PublicMenuRow,
+  candidates: string[]
+): number {
+  return getNumber(row, candidates, 0) || getNumber(metadata, candidates, 0);
+}
+
 function displayPriceMode(value: unknown): DisplayPriceMode {
   return value === "integer" || value === "decimal" || value === "auto"
     ? value
@@ -527,6 +539,36 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
       "ios_usdz_url",
       "iosUsdzUrl"
     ]) || usdzUrl;
+  const webModel3dBytes = normalizeModelAssetBytes(
+    getNumberFromSources(row, metadata, [
+      "web_model_3d_bytes",
+      "webModel3dBytes",
+      "web_glb_bytes",
+      "webGlbBytes",
+      "meshopt_bytes",
+      "meshoptBytes"
+    ])
+  );
+  const arModel3dBytes = normalizeModelAssetBytes(
+    getNumberFromSources(row, metadata, [
+      "ar_model_3d_bytes",
+      "arModel3dBytes",
+      "ar_lite_glb_bytes",
+      "arLiteGlbBytes",
+      "ar_lite_bytes",
+      "arLiteBytes"
+    ])
+  );
+  const arUsdzBytes = normalizeModelAssetBytes(
+    getNumberFromSources(row, metadata, [
+      "ar_usdz_bytes",
+      "arUsdzBytes",
+      "ios_usdz_bytes",
+      "iosUsdzBytes",
+      "usdz_bytes",
+      "usdzBytes"
+    ])
+  );
   const posterUrl = getSafeStringFromSources(row, metadata, [
     "poster_url",
     "posterUrl",
@@ -578,9 +620,12 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
     hasAndroidAr,
     model3dUrl,
     webModel3dUrl,
+    webModel3dBytes,
     arModel3dUrl,
+    arModel3dBytes,
     usdzUrl,
     arUsdzUrl,
+    arUsdzBytes,
     posterUrl,
     preparedGlbJobId,
     preparedGlbStoragePath,

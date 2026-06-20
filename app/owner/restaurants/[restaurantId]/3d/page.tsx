@@ -87,7 +87,9 @@ export default async function OwnerRestaurant3dPage({
                         dishId={dish.id}
                         initialStatus={dish.modelStatus}
                         initialWebModel3dUrl={dish.webModel3dUrl}
+                        initialWebModel3dBytes={dish.webModel3dBytes}
                         initialArUsdzUrl={dish.arUsdzUrl}
+                        initialArUsdzBytes={dish.arUsdzBytes}
                         initialPreparedGlbJobId={dish.preparedGlbJobId}
                         initialPreparedGlbStoragePath={dish.preparedGlbStoragePath}
                       />
@@ -103,8 +105,10 @@ export default async function OwnerRestaurant3dPage({
                     key={dish.id}
                     dishName={dish.name}
                     webModel3dUrl={dish.webModel3dUrl}
+                    webModel3dBytes={dish.webModel3dBytes}
                     arPreviewModelUrl={dish.arModel3dUrl || dish.webModel3dUrl}
                     arUsdzUrl={dish.arUsdzUrl}
+                    arUsdzBytes={dish.arUsdzBytes}
                   />
                 ))}
               </div>

@@ -69,6 +69,9 @@ type PipelineRunResult = {
   webModel3dUrl: string;
   arModel3dUrl: string;
   arUsdzUrl: string;
+  webModel3dBytes: number;
+  arModel3dBytes: number;
+  arUsdzBytes: number;
 };
 
 type LocalMeshyAssets = {
@@ -89,6 +92,9 @@ type DurableMeshyAssets = {
   webModel3dUrl: string;
   arModel3dUrl: string;
   arUsdzUrl: string;
+  webModel3dBytes: number;
+  arModel3dBytes: number;
+  arUsdzBytes: number;
 };
 
 function getMetadata(value: unknown): Record<string, unknown> {
@@ -206,13 +212,14 @@ async function uploadDurableMeshyAsset(args: {
   localPath: string;
   contentType: string;
   cacheControl?: string;
-}): Promise<void> {
+}): Promise<number> {
   if (!existsSync(args.localPath)) {
     throw new Error(`Asset Meshy introuvable avant upload Storage: ${args.localPath}`);
   }
+  const bytes = readFileSync(args.localPath);
   const uploaded = await args.adminClient.storage
     .from(MODEL_BUCKET)
-    .upload(args.storagePath, readFileSync(args.localPath), {
+    .upload(args.storagePath, bytes, {
       contentType: args.contentType,
       cacheControl: args.cacheControl ?? "31536000",
       upsert: true
@@ -220,6 +227,7 @@ async function uploadDurableMeshyAsset(args: {
   if (uploaded.error) {
     throw new Error(`Upload Storage impossible pour ${args.storagePath}.`);
   }
+  return bytes.byteLength;
 }
 
 async function publishMeshyAssetsToStorage(args: {
@@ -244,19 +252,19 @@ async function publishMeshyAssetsToStorage(args: {
     localPath: publicUrlToLocalPath(args.assets.model3dUrl || args.assets.webModel3dUrl),
     contentType: "model/gltf-binary"
   });
-  await uploadDurableMeshyAsset({
+  const webModel3dBytes = await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: webStoragePath,
     localPath: publicUrlToLocalPath(args.assets.webModel3dUrl),
     contentType: "model/gltf-binary"
   });
-  await uploadDurableMeshyAsset({
+  const arModel3dBytes = await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: arLiteStoragePath,
     localPath: publicUrlToLocalPath(args.assets.arModel3dUrl),
     contentType: "model/gltf-binary"
   });
-  await uploadDurableMeshyAsset({
+  const arUsdzBytes = await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: usdzStoragePath,
     localPath: publicUrlToLocalPath(args.assets.arUsdzUrl),
@@ -284,7 +292,10 @@ async function publishMeshyAssetsToStorage(args: {
     model3dUrl: webModel3dUrl,
     webModel3dUrl,
     arModel3dUrl,
-    arUsdzUrl
+    arUsdzUrl,
+    webModel3dBytes,
+    arModel3dBytes,
+    arUsdzBytes
   };
 }
 
@@ -353,6 +364,9 @@ export async function runRestaurantMeshyDishPipeline(
       arUsdzStorageBucket: durableAssets.bucket,
       arUsdzStoragePath: durableAssets.usdzStoragePath,
       preparedGlbBytes: args.sourceBytes.byteLength,
+      webModel3dBytes: durableAssets.webModel3dBytes,
+      arModel3dBytes: durableAssets.arModel3dBytes,
+      arUsdzBytes: durableAssets.arUsdzBytes,
       preparedGlbSha256: sourceSha256,
       preparedGlbOriginalName: args.originalName ?? "",
       ownerMeshyPipeline: true
@@ -417,7 +431,8 @@ export async function runRestaurantMeshyDishPipeline(
           label: "Meshopt web GLB",
           path: durableAssets.webStoragePath,
           publicUrl: durableAssets.webModel3dUrl,
-          sha256: manifest.sha256?.meshopt ?? ""
+          sha256: manifest.sha256?.meshopt ?? "",
+          bytes: durableAssets.webModel3dBytes
         },
         {
           id: `${jobId}_ar_lite_glb`,
@@ -425,7 +440,8 @@ export async function runRestaurantMeshyDishPipeline(
           label: "Android AR-lite GLB",
           path: durableAssets.arLiteStoragePath,
           publicUrl: durableAssets.arModel3dUrl,
-          sha256: manifest.sha256?.arLite ?? ""
+          sha256: manifest.sha256?.arLite ?? "",
+          bytes: durableAssets.arModel3dBytes
         },
         {
           id: `${jobId}_ios_usdz`,
@@ -433,7 +449,8 @@ export async function runRestaurantMeshyDishPipeline(
           label: "iOS Quick Look USDZ",
           path: durableAssets.usdzStoragePath,
           publicUrl: durableAssets.arUsdzUrl,
-          sha256: manifest.sha256?.arUsdz ?? ""
+          sha256: manifest.sha256?.arUsdz ?? "",
+          bytes: durableAssets.arUsdzBytes
         }
       ],
       metrics: {
@@ -475,7 +492,10 @@ export async function runRestaurantMeshyDishPipeline(
       model3dUrl: durableAssets.model3dUrl,
       webModel3dUrl: durableAssets.webModel3dUrl,
       arModel3dUrl: durableAssets.arModel3dUrl,
-      arUsdzUrl: durableAssets.arUsdzUrl
+      arUsdzUrl: durableAssets.arUsdzUrl,
+      webModel3dBytes: durableAssets.webModel3dBytes,
+      arModel3dBytes: durableAssets.arModel3dBytes,
+      arUsdzBytes: durableAssets.arUsdzBytes
     };
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

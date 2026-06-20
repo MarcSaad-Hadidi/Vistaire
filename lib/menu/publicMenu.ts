@@ -59,9 +59,12 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       hasAndroidAr: Boolean(dish.arModel3dUrl),
       model3dUrl: dish.model3dUrl ?? "",
       webModel3dUrl: dish.webModel3dUrl ?? dish.model3dUrl ?? "",
+      webModel3dBytes: 0,
       arModel3dUrl: dish.arModel3dUrl ?? "",
+      arModel3dBytes: 0,
       usdzUrl: dish.usdzUrl ?? "",
       arUsdzUrl: dish.arUsdzUrl ?? dish.usdzUrl ?? "",
+      arUsdzBytes: 0,
       posterUrl: dish.image ?? "",
       modelStatus:
         dish.model3dUrl ||

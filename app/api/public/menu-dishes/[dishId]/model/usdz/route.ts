@@ -60,9 +60,11 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "USDZ introuvable." }, { status: 404 });
   }
 
-  return new NextResponse(await downloaded.data.arrayBuffer(), {
+  const bytes = await downloaded.data.arrayBuffer();
+  return new NextResponse(bytes, {
     headers: {
       "Content-Type": "model/vnd.usdz+zip",
+      "Content-Length": String(bytes.byteLength),
       "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"
     }
   });

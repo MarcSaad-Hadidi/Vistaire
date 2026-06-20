@@ -321,8 +321,11 @@ test("maps real photo and 3D/AR fields without inventing missing assets", () => 
       photo_url: "https://cdn.example.test/bol.jpg",
       thumbnail_url: "/images/resto-marc/bol-thumb.jpg",
       web_model_3d_url: "/models/restaurants/resto-marc/bol/v1/web/bol.glb",
+      web_model_3d_bytes: 1_572_864,
       ar_model_3d_url: "/models/restaurants/resto-marc/bol/v1/ar-lite/bol.glb",
-      ar_usdz_url: "/models/restaurants/resto-marc/bol/v1/ios/bol.usdz"
+      ar_model_3d_bytes: 983_040,
+      ar_usdz_url: "/models/restaurants/resto-marc/bol/v1/ios/bol.usdz",
+      ar_usdz_bytes: 2_621_440
     },
     {
       id: "soupe-id",
@@ -346,8 +349,11 @@ test("maps real photo and 3D/AR fields without inventing missing assets", () => 
   assert.equal(bol.hasIosAr, true);
   assert.equal(bol.hasAndroidAr, true);
   assert.equal(bol.webModel3dUrl, "/models/restaurants/resto-marc/bol/v1/web/bol.glb");
+  assert.equal(bol.webModel3dBytes, 1_572_864);
   assert.equal(bol.arModel3dUrl, "/models/restaurants/resto-marc/bol/v1/ar-lite/bol.glb");
+  assert.equal(bol.arModel3dBytes, 983_040);
   assert.equal(bol.arUsdzUrl, "/models/restaurants/resto-marc/bol/v1/ios/bol.usdz");
+  assert.equal(bol.arUsdzBytes, 2_621_440);
   assert.equal(bol.modelStatus, "ready");
 
   assert.equal(soupe.hasPhoto, false);

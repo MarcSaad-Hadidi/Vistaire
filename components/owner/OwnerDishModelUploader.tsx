@@ -3,13 +3,16 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
+import { formatModelAssetBytes } from "@/lib/owner/modelAssetSize";
 
 type OwnerDishModelUploaderProps = {
   restaurantId: string;
   dishId: string;
   initialStatus?: string;
   initialWebModel3dUrl?: string;
+  initialWebModel3dBytes?: number;
   initialArUsdzUrl?: string;
+  initialArUsdzBytes?: number;
   initialPreparedGlbJobId?: string;
   initialPreparedGlbStoragePath?: string;
 };
@@ -24,6 +27,9 @@ type UploadPayload = {
   webModel3dUrl?: string;
   arModel3dUrl?: string;
   arUsdzUrl?: string;
+  webModel3dBytes?: number;
+  arModel3dBytes?: number;
+  arUsdzBytes?: number;
   job?: { id?: string };
 };
 
@@ -36,6 +42,9 @@ type PublishPayload = {
   webModel3dUrl?: string;
   arModel3dUrl?: string;
   arUsdzUrl?: string;
+  webModel3dBytes?: number;
+  arModel3dBytes?: number;
+  arUsdzBytes?: number;
 };
 
 export function OwnerDishModelUploader({
@@ -43,7 +52,9 @@ export function OwnerDishModelUploader({
   dishId,
   initialStatus = "missing",
   initialWebModel3dUrl = "",
+  initialWebModel3dBytes = 0,
   initialArUsdzUrl = "",
+  initialArUsdzBytes = 0,
   initialPreparedGlbJobId = "",
   initialPreparedGlbStoragePath = ""
 }: OwnerDishModelUploaderProps) {
@@ -55,7 +66,9 @@ export function OwnerDishModelUploader({
   const [storagePath, setStoragePath] = useState(initialPreparedGlbStoragePath);
   const [jobId, setJobId] = useState(initialPreparedGlbJobId);
   const [webModel3dUrl, setWebModel3dUrl] = useState(initialWebModel3dUrl);
+  const [webModel3dBytes, setWebModel3dBytes] = useState(initialWebModel3dBytes);
   const [arUsdzUrl, setArUsdzUrl] = useState(initialArUsdzUrl);
+  const [arUsdzBytes, setArUsdzBytes] = useState(initialArUsdzBytes);
   const [isUploading, setIsUploading] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState("");
@@ -85,7 +98,9 @@ export function OwnerDishModelUploader({
       setJobId(payload.job?.id ?? "");
       setStatus(payload.status || "ready");
       setWebModel3dUrl(payload.webModel3dUrl ?? "");
+      setWebModel3dBytes(payload.webModel3dBytes ?? 0);
       setArUsdzUrl(payload.arUsdzUrl ?? "");
+      setArUsdzBytes(payload.arUsdzBytes ?? 0);
       router.refresh();
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Pipeline GLB vers USDZ impossible.");
@@ -116,7 +131,9 @@ export function OwnerDishModelUploader({
 
       setStoragePath(payload.storagePath ?? payload.manifestPath ?? "");
       setWebModel3dUrl(payload.webModel3dUrl);
+      setWebModel3dBytes(payload.webModel3dBytes ?? 0);
       setArUsdzUrl(payload.arUsdzUrl ?? "");
+      setArUsdzBytes(payload.arUsdzBytes ?? 0);
       setStatus(payload.status || "ready");
       router.refresh();
     } catch (publishError) {
@@ -159,12 +176,12 @@ export function OwnerDishModelUploader({
       <span className={styles.cellSub}>{status}</span>
       {webModel3dUrl ? (
         <a className={styles.cellSub} href={webModel3dUrl} target="_blank" rel="noreferrer">
-          GLB public
+          GLB public · {formatModelAssetBytes(webModel3dBytes)}
         </a>
       ) : null}
       {arUsdzUrl ? (
         <a className={styles.cellSub} href={arUsdzUrl} target="_blank" rel="noreferrer">
-          USDZ public
+          USDZ public · {formatModelAssetBytes(arUsdzBytes)}
         </a>
       ) : null}
       {error ? <span className={styles.errorText}>{error}</span> : null}
