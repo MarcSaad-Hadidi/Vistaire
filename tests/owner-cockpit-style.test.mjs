@@ -23,7 +23,8 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   // Shell: reduced route-based sidebar with mobile hidden-state semantics.
   assert.match(shell, /"use client"/);
   assert.match(shell, /usePathname/);
-  assert.match(shell, /OWNER_NAV_ITEMS/);
+  assert.match(shell, /OWNER_PORTFOLIO_NAV_ITEMS/);
+  assert.match(shell, /ownerRestaurantNavItems/);
   assert.match(shell, /styles\.console/);
   assert.match(shell, /styles\.sidebar/);
   assert.match(shell, /aria-hidden=\{sidebarHidden/);
@@ -33,7 +34,7 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   assert.match(overview, /ModuleHeader/);
   assert.match(overview, /StatGroup/);
   assert.match(overview, /OwnerRestaurantPortfolio/);
-  assert.match(overview, /Quel restaurant ouvrir maintenant/);
+  assert.match(overview, /Restaurants à ouvrir/);
   assert.doesNotMatch(overview, /Priorites owner/);
   assert.doesNotMatch(overview, /workflowStrip/);
   assert.doesNotMatch(overview, /PhotoRestoComplet5/);
@@ -45,8 +46,9 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   assert.match(css, /\.sidebar/);
   assert.match(css, /\.navItem/);
   assert.match(css, /\.navItem:focus-visible/);
+  assert.match(css, /\.sidebarRestaurant/);
   assert.match(css, /\.ownerOpenLink/);
-  assert.match(css, /\.restaurantTabs button:focus-visible/);
+  assert.match(css, /\.moduleCardGrid/);
   assert.match(css, /\.statGroup/);
   assert.match(css, /\.dataTable/);
   assert.match(css, /\.qrCustomizer/);

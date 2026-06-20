@@ -476,7 +476,7 @@ function buildMediaBasePath(restaurantId: string): string {
 }
 
 function buildOwnerQrCodesHref(restaurantId: string): string {
-  return `/owner/qr-codes?restaurantId=${encodeURIComponent(restaurantId)}&target=menu`;
+  return `${buildRestaurantDashboardPath(restaurantId)}/qr`;
 }
 
 function normalizeLabel(value: string): string {
@@ -879,8 +879,8 @@ function createdReadinessItems(): OwnerReadinessItem[] {
     },
     {
       id: "immersive",
-      label: "3D / AR",
-      detail: "Aucun asset 3D / AR detecte.",
+      label: "Medias",
+      detail: "Aucun modele 3D/AR detecte.",
       status: "needs_setup"
     },
     {

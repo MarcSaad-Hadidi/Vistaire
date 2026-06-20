@@ -694,7 +694,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         mediaBasePath: result.mediaBasePath ?? `restaurants/${result.restaurant.id}/photos/`,
         mediaBasePathPersisted: Boolean(result.mediaBasePathPersisted),
         qrCodesHref:
-          result.qrCodesHref ?? `/owner/qr-codes?restaurantId=${result.restaurant.id}&target=menu`,
+          result.qrCodesHref ?? `${result.restaurant.dashboardHref}/qr`,
         warnings: result.warnings ?? []
       });
       router.refresh();

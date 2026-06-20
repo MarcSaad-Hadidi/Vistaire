@@ -1096,6 +1096,72 @@
   gap: 2px;
 }
 
+.sidebarSectionLabel {
+  display: block;
+  margin: 14px 10px 5px;
+  color: var(--owner-soft);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sidebarBackLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 4px 8px 10px;
+  color: var(--owner-champagne);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.sidebarRestaurant {
+  display: grid;
+  gap: 6px;
+  margin: 0 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.28);
+  padding: 12px 10px;
+}
+
+.sidebarRestaurant .sidebarSectionLabel {
+  margin: 0;
+}
+
+.sidebarRestaurant strong {
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.sidebarRestaurant small {
+  color: var(--owner-muted);
+  font-size: 12px;
+}
+
+.sidebarSwitch {
+  display: grid;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.sidebarSwitch select {
+  min-height: 38px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--owner-cream);
+  padding: 0 9px;
+  font: inherit;
+  font-size: 12px;
+}
+
 .navItem {
   display: flex;
   flex-direction: column;
@@ -1270,6 +1336,8 @@
 .btn:focus-visible,
 .navItem:focus-visible,
 .sidebarBrand:focus-visible,
+.sidebarBackLink:focus-visible,
+.sidebarSwitch select:focus-visible,
 .backLink:focus-visible,
 .ownerOpenLink:focus-visible,
 .restaurantTabs button:focus-visible,
@@ -1297,6 +1365,13 @@
 .btnDanger {
   border-color: rgba(230, 160, 122, 0.5);
   color: var(--danger);
+}
+
+.copyLinkControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .btnSmall {
@@ -2108,6 +2183,72 @@
   min-width: 0;
 }
 
+.moduleCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.moduleCard {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  min-height: 190px;
+  align-content: space-between;
+  border: 1px solid rgba(232, 207, 155, 0.14);
+  border-radius: 14px;
+  background: rgba(17, 16, 14, 0.92);
+  padding: 15px;
+}
+
+.moduleCard h3 {
+  margin: 0;
+  color: var(--owner-cream);
+  font-family: var(--owner-display);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.moduleCard p {
+  margin: 8px 0 0;
+  color: var(--owner-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.moduleCard > span {
+  color: var(--owner-soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.issueList {
+  display: grid;
+  gap: 10px;
+}
+
+.issueRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.3fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.11);
+  border-radius: 12px;
+  background: rgba(8, 6, 4, 0.26);
+  padding: 10px;
+}
+
+.issueRow p {
+  margin: 0;
+  color: var(--owner-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .clientPreviewPanel {
   display: grid;
   gap: 12px;
@@ -2178,6 +2319,26 @@
 .clientPreviewList p:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+.menuPreviewPhone {
+  width: min(100%, 390px);
+  min-height: 680px;
+  margin: 0 auto;
+  border: 1px solid rgba(232, 207, 155, 0.24);
+  border-radius: 30px;
+  background: #0a0705;
+  padding: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 240, 0.05);
+}
+
+.menuPreviewFrame {
+  display: block;
+  width: 100%;
+  height: 660px;
+  border: 0;
+  border-radius: 22px;
+  background: #15100c;
 }
 
 .createWizard {
@@ -4240,6 +4401,7 @@
   .ownerMiniMetrics,
   .toggleCardGrid,
   .menuLanguageGrid,
+  .issueRow,
   .ownerPickerToolbar,
   .stepRail {
     grid-template-columns: minmax(0, 1fr);
@@ -4252,6 +4414,7 @@
 
   .ownerRestaurantCardTop,
   .checkItem,
+  .copyLinkControl,
   .restaurantLifecycleHeader,
   .restaurantLifecycleActions,
   .restaurantHeaderActions,
@@ -4261,6 +4424,8 @@
   }
 
   .restaurantHeaderActions .btn,
+  .copyLinkControl,
+  .copyLinkControl .btn,
   .restaurantLifecycleActions .btn,
   .creationFooterActions .btn,
   .ownerPickerToolbar .btn,

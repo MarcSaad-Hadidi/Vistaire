@@ -1,6 +1,12 @@
 import Link from "next/link";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, type BadgeTone } from "@/components/owner/OwnerUi";
+import {
+  ownerRestaurantRoute,
+  qrTone,
+  restaurantStatusLabel,
+  statusTone
+} from "@/lib/owner/restaurantPreparation";
 import type { OwnerAction, OwnerRestaurant } from "@/lib/owner/types";
 
 type OwnerRestaurantPortfolioProps = {
@@ -9,27 +15,11 @@ type OwnerRestaurantPortfolioProps = {
   limit?: number;
 };
 
-function qrTone(status: OwnerRestaurant["qrStatus"]): BadgeTone {
-  if (status === "ready") return "ready";
-  if (status === "generable") return "warn";
-  return "danger";
-}
-
-function statusTone(restaurant: OwnerRestaurant): BadgeTone {
+function portfolioTone(restaurant: OwnerRestaurant): BadgeTone {
   if (restaurant.status === "paused" || restaurant.status === "archived") return "muted";
   if (restaurant.readinessScore >= 80 && restaurant.qrStatus === "ready") return "ready";
   if (restaurant.readinessScore >= 50 || restaurant.qrStatus === "generable") return "warn";
   return "danger";
-}
-
-function portfolioStatus(restaurant: OwnerRestaurant): string {
-  if (restaurant.status === "paused") return "En pause";
-  if (restaurant.status === "archived") return "Archivé";
-  if (restaurant.readinessScore >= 80 && restaurant.qrStatus === "ready") return "Prêt";
-  if (restaurant.qrStatus !== "ready" || restaurant.dishCount === 0) {
-    return "Attention requise";
-  }
-  return "À configurer";
 }
 
 function restaurantPrimaryAction(
@@ -58,6 +48,7 @@ export function OwnerRestaurantPortfolio({
     <div className={styles.ownerRestaurantGrid}>
       {visibleRestaurants.map((restaurant) => {
         const primaryAction = restaurantPrimaryAction(restaurant, actions);
+        const mediasReady = restaurant.photoDishCount + restaurant.immersiveDishCount;
 
         return (
           <article key={restaurant.id} className={styles.ownerRestaurantCard}>
@@ -69,9 +60,9 @@ export function OwnerRestaurantPortfolio({
                   {restaurant.location} · {restaurant.cuisineType}
                 </p>
               </div>
-              <div className={styles.ownerScore} aria-label={`${restaurant.readinessScore}% de mise en ligne`}>
+              <div className={styles.ownerScore} aria-label={`${restaurant.readinessScore}% prêt`}>
                 <strong>{restaurant.readinessScore}%</strong>
-                <span>Mise en ligne</span>
+                <span>Prêt</span>
               </div>
             </div>
 
@@ -80,7 +71,10 @@ export function OwnerRestaurantPortfolio({
             </div>
 
             <div className={styles.pillRow}>
-              <Badge tone={statusTone(restaurant)}>{portfolioStatus(restaurant)}</Badge>
+              <Badge tone={portfolioTone(restaurant)}>
+                {restaurantStatusLabel(restaurant)}
+              </Badge>
+              <Badge tone={statusTone(restaurant)}>{restaurant.statusLabel}</Badge>
               <Badge tone={qrTone(restaurant.qrStatus)}>{restaurant.qrStatusLabel}</Badge>
             </div>
 
@@ -89,18 +83,18 @@ export function OwnerRestaurantPortfolio({
               <strong>{primaryAction}</strong>
             </div>
 
-            <div className={styles.restaurantEssentials} aria-label="Indicateurs essentiels">
+            <div className={styles.restaurantEssentials} aria-label="Résumé restaurant">
               <span>{restaurant.dishCount} plats</span>
               <span>
                 Photos {restaurant.photoDishCount}/{restaurant.dishCount || 0}
               </span>
-              <span>QR {restaurant.qrStatus === "ready" ? "prêt" : "à faire"}</span>
-              <span>3D/AR {restaurant.immersiveDishCount}</span>
+              <span>QR {restaurant.qrStatus === "ready" ? "prêt" : "à préparer"}</span>
+              <span>Médias {mediasReady}</span>
             </div>
 
             <Link
               className={styles.ownerOpenLink}
-              href={restaurant.dashboardHref}
+              href={ownerRestaurantRoute(restaurant)}
               prefetch={false}
               aria-label={`Ouvrir ${restaurant.name}`}
             >

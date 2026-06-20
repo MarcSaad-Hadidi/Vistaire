@@ -56,7 +56,7 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
-test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile widths clean", async ({
+test("owner portfolio opens restaurant overview and contextual routes stay clean", async ({
   context,
   page
 }, testInfo) => {
@@ -70,64 +70,77 @@ test("owner portfolio opens a dedicated restaurant dashboard and keeps mobile wi
   await page.goto("/owner", { waitUntil: "networkidle" });
 
   await expect(page.getByRole("heading", { level: 2, name: "Restaurants" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Quel restaurant ouvrir maintenant ?" })
-  ).toBeVisible();
-  await expect(page.getByText("Priorites owner")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Restaurants à ouvrir" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Leads" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "3D / AR" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "QR Codes" })).toHaveCount(0);
 
   const firstRestaurantLink = page.getByRole("link", { name: /Ouvrir Maison/i }).first();
   await expect(firstRestaurantLink).toBeVisible();
   const dashboardHref = await firstRestaurantLink.getAttribute("href");
   expect(dashboardHref).toMatch(/^\/owner\/restaurants\/[^?]+$/);
-  await page.goto(dashboardHref!, { waitUntil: "domcontentloaded" });
 
+  await page.goto(dashboardHref!, { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/owner\/restaurants\/[^/?#]+$/);
   await expect(page.getByRole("heading", { level: 2, name: /Maison/i })).toBeVisible();
   await expect(page.getByText(/Préparation \d+%/)).toBeVisible();
-  const restaurantTabs = page.getByRole("tablist", { name: "Navigation restaurant" });
-  for (const tab of [
-    "Vue d’ensemble",
-    "Menu",
-    "Plats",
+  await expect(page.getByText("Prochaine action")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Checklist de préparation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Problèmes à corriger" })).toBeVisible();
+
+  for (const moduleName of [
+    "Carte & plats",
     "Médias",
-    "QR",
-    "3D / AR",
+    "Aperçu du menu",
+    "QR & publication",
     "Paramètres"
   ]) {
-    await expect(restaurantTabs.getByRole("tab", { name: tab, exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: moduleName })).toBeVisible();
   }
-  await restaurantTabs.getByRole("tab", { name: "QR", exact: true }).click();
-  await expect(page.getByText("QR de table")).toBeVisible();
-  const restaurantId = dashboardHref!.split("/").pop() ?? "";
-  await page.goto(`/owner/medias?restaurantId=${encodeURIComponent(restaurantId)}`, {
-    waitUntil: "domcontentloaded"
-  });
-  await expect(page.getByRole("heading", { level: 2, name: "Medias" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Photos/ }).first()).toBeVisible();
+
+  await expect(
+    page
+      .getByRole("navigation", { name: "Navigation restaurant" })
+      .getByRole("link", { name: /Médias/ })
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "← Portefeuille" })).toBeVisible();
+
+  await page.goto(`${dashboardHref}/menu`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /Carte & plats/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plats", exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  await page.goto(`${dashboardHref}/3d`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
-  await expect(page.getByText("Plats du restaurant")).toBeVisible();
+  await page.goto(`${dashboardHref}/medias`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /Médias/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Photos manquantes" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  await page.goto(dashboardHref!, { waitUntil: "domcontentloaded" });
-  await restaurantTabs.getByRole("tab", { name: "Plats", exact: true }).click();
-  await expect(page.getByText("Contrôle qualité des plats")).toBeVisible();
+  await page.goto(`${dashboardHref}/preview`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /Aperçu du menu/ })).toBeVisible();
+  await expect(page.getByTitle(/Aperçu client/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 
-  await restaurantTabs.getByRole("tab", { name: /Param/ }).click();
+  await page.goto(`${dashboardHref}/qr`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /QR & publication/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "QR du restaurant" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto(`${dashboardHref}/settings`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /Paramètres/ })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Archiver le restaurant|Restaurer le restaurant/ })
   ).toBeVisible();
-  await expect(page.getByText(/suppression definitive/i)).toBeVisible();
+  await expect(page.getByText(/suppression définitive/i)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: 860 });
-    await expect(
-      page
-        .getByRole("tablist", { name: "Navigation restaurant" })
-        .getByRole("tab", { name: "QR", exact: true })
-    ).toBeVisible();
+    await page.goto(dashboardHref!, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 2, name: /Maison/i })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page.goto(`${dashboardHref}/medias`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 2, name: /Médias/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
 
@@ -153,8 +166,8 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
   await page.goto("/owner/restaurants", { waitUntil: "networkidle" });
 
   await expect(page.getByRole("heading", { level: 2, name: "Restaurants" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Creer restaurant" }).first()).toBeVisible();
-  await expect(page.getByText("Table dense avancee")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Cr(é|e)er restaurant/ }).first()).toBeVisible();
+  await expect(page.getByText(/Table dense avanc/)).toBeVisible();
   await expect(page.getByRole("link", { name: /Ouvrir/i }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
@@ -162,10 +175,10 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
     waitUntil: "networkidle"
   });
   await expect(page).toHaveURL(/\/owner\/restaurants\/11111111-1111-1111-1111-111111111111$/);
-  await expect(page.getByRole("tab", { name: "Vue d’ensemble" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Checklist de préparation" })).toBeVisible();
 
   await page.goto("/owner/restaurants/create", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { level: 2, name: "Creer restaurant" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: /Cr(é|e)er restaurant/ })).toBeVisible();
   await expect(page.getByText("1. Profil restaurant")).toBeVisible();
   await page.getByRole("button", { name: "Continuer" }).click();
   await expect(page.getByText("Le nom restaurant est requis.")).toBeVisible();
@@ -187,7 +200,7 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
   health.expectClean();
 });
 
-test("owner regression routes keep 3D/AR light and missing restaurants clean", async ({
+test("owner regression routes keep legacy 3D/AR light and missing restaurants clean", async ({
   context,
   page
 }, testInfo) => {
@@ -197,13 +210,13 @@ test("owner regression routes keep 3D/AR light and missing restaurants clean", a
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/owner/3d-ar", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { level: 2, name: "3D / AR" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: 860 });
     await page.goto("/owner/3d-ar", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 2, name: "3D / AR" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
 

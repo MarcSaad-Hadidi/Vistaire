@@ -32,7 +32,7 @@ test("owner medias page shows targeted media path and dishes without photos", as
 test("owner medias global rows link to the targeted restaurant view", async () => {
   const source = await readFile("app/owner/medias/page.tsx", "utf8");
 
-  assert.match(source, /href=\{`\/owner\/medias\?restaurantId=/);
+  assert.match(source, /href=\{`\/owner\/restaurants\/\$\{encodeURIComponent\(restaurant\.id\)\}\/medias`\}/);
   assert.match(source, /encodeURIComponent\(restaurant\.id\)/);
   assert.match(source, /Photos manquantes par restaurant/);
 });

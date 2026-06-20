@@ -601,25 +601,25 @@ test("owner restaurant routes are owner-only and same-origin", async () => {
 });
 
 test("restaurant dashboard exposes archive controls and confirmed hard delete", async () => {
-  const source = await readFile("components/owner/OwnerRestaurantDashboard.tsx", "utf8");
+  const source = await readFile("components/owner/OwnerRestaurantSettings.tsx", "utf8");
 
   assert.match(source, /Archiver le restaurant/);
   assert.match(source, /Restaurer le restaurant/);
-  assert.match(source, /onStatusAction\(nextAction\)/);
-  assert.match(source, /Suppression definitive/);
+  assert.match(source, /updateRestaurantStatus\(nextAction\)/);
+  assert.match(source, /Suppression définitive/);
   assert.match(source, /confirmation/);
   assert.match(source, /deleteStorage/);
   assert.match(source, /Storage\/CDN/);
   assert.match(source, /method:\s*["']DELETE["']/);
-  assert.match(source, /Supprimer definitivement/);
-  assert.match(source, /Restaurant supprime definitivement/);
+  assert.match(source, /Supprimer définitivement/);
+  assert.match(source, /Restaurant supprimé définitivement/);
 });
 
 test("owner restaurants page can display delete success after redirect", async () => {
   const source = await readFile("app/owner/restaurants/page.tsx", "utf8");
 
   assert.match(source, /deleted.*"1"/);
-  assert.match(source, /Restaurant supprime definitivement/);
+  assert.match(source, /Restaurant supprim/);
 });
 
 test("restaurant deletion migration adds transactional RPC", async () => {
