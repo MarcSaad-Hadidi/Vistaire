@@ -756,6 +756,29 @@
   align-items: center;
 }
 
+.restaurantDeleteBlock {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border-top: 1px solid rgba(230, 160, 122, 0.18);
+  padding-top: 14px;
+}
+
+.restaurantDeleteBlock h5 {
+  margin: 0;
+  color: var(--owner-cream);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.restaurantDeleteBlock p {
+  max-width: 70ch;
+  margin: 6px 0 0;
+  color: var(--owner-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .successQr {
   margin-top: 18px;
 }
