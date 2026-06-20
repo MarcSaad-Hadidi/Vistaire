@@ -484,6 +484,12 @@ test("missing optional tables and missing columns continue with RPC warnings", a
                 column: "restaurant_slug",
                 reason: "missing_column",
                 message: "menu_dishes.restaurant_slug absent dans Supabase."
+              },
+              {
+                table: "restaurant_daily_analytics",
+                column: "restaurant_id",
+                reason: "non_table_relation",
+                message: "restaurant_daily_analytics est une vue ou une relation non supprimable."
               }
             ],
             warnings: [
@@ -502,6 +508,14 @@ test("missing optional tables and missing columns continue with RPC warnings", a
   assert.equal(result.deleted.restaurants, 1);
   assert.equal(result.skipped.some((entry) => entry.table === "analytics_events"), true);
   assert.equal(result.skipped.some((entry) => entry.table === "menu_dishes"), true);
+  assert.equal(
+    result.skipped.some(
+      (entry) =>
+        entry.table === "restaurant_daily_analytics" &&
+        entry.reason === "non_table_relation"
+    ),
+    true
+  );
 });
 
 test("storage cleanup can be attempted without blocking a confirmed DB deletion", async () => {
@@ -620,6 +634,11 @@ test("restaurant deletion migration adds transactional RPC", async () => {
   assert.match(source, /grant execute .*service_role/is);
   assert.match(source, /missing_table/);
   assert.match(source, /missing_column/);
+  assert.match(source, /non_table_relation/);
+  assert.doesNotMatch(source, /"table":"restaurant_daily_analytics"/);
+  assert.doesNotMatch(source, /"table":"restaurant_dish_analytics"/);
+  assert.doesNotMatch(source, /"table":"restaurant_search_analytics"/);
+  assert.doesNotMatch(source, /"table":"restaurant_category_analytics"/);
   assert.doesNotMatch(
     source,
     /"table":"owner_3d_publish_events","column":"restaurant_slug"/
@@ -659,6 +678,27 @@ test("restaurant delete source refuses non-transactional fallback deletes", asyn
   assert.doesNotMatch(source, /deleteRestaurantParent/);
   assert.doesNotMatch(source, /\.delete\(\{ count: "exact" \}\)/);
   assert.match(source, /delete_owner_restaurant_cascade/);
+});
+
+test("runtime hardening migration locks Data API and private Storage buckets", async () => {
+  const source = await readFile(
+    "supabase/migrations/0011_security_storage_runtime_hardening.sql",
+    "utf8"
+  );
+
+  assert.match(source, /vistaire_no_direct_public_access/);
+  assert.match(source, /revoke all on table public\.%I from anon, authenticated/);
+  assert.match(source, /grant select, insert, update, delete on table public\.%I to service_role/);
+  assert.match(source, /security_invoker/);
+  assert.match(source, /resolve_qr_code_scan\(text\)/);
+  assert.match(source, /owner_3d_claim_pipeline_job/);
+  assert.match(source, /analytics_events_dish_id_idx/);
+  assert.match(source, /owner_3d_pipeline_jobs_asset_version_id_idx/);
+  assert.match(source, /'vistaire-3d-sources'/);
+  assert.match(source, /'vistaire-3d-qa'/);
+  assert.match(source, /'vistaire-media'/);
+  assert.match(source, /'vistaire-3d'/);
+  assert.doesNotMatch(source, /public,\s*true/);
 });
 
 test("owner portfolio keeps archived restaurants out of urgent counters", async () => {

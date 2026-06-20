@@ -35,10 +35,6 @@ declare
     {"table":"owner_3d_asset_sources","column":"restaurant_slug","kind":"slug"},
     {"table":"owner_3d_ar_source_uploads","column":"restaurant_slug","kind":"slug"},
     {"table":"analytics_events","column":"restaurant_id","kind":"id"},
-    {"table":"restaurant_daily_analytics","column":"restaurant_id","kind":"id"},
-    {"table":"restaurant_dish_analytics","column":"restaurant_id","kind":"id"},
-    {"table":"restaurant_search_analytics","column":"restaurant_id","kind":"id"},
-    {"table":"restaurant_category_analytics","column":"restaurant_id","kind":"id"},
     {"table":"owner_ai_recommendations","column":"restaurant_id","kind":"id"},
     {"table":"owner_ai_recommendations","column":"restaurant_name","kind":"name"},
     {"table":"owner_actions","column":"restaurant_id","kind":"id"},
@@ -56,6 +52,7 @@ declare
   v_kind text;
   v_value text;
   v_related_table text;
+  v_relkind text;
   v_count integer;
   v_deleted jsonb := '{}'::jsonb;
   v_skipped jsonb := '[]'::jsonb;
@@ -107,7 +104,14 @@ begin
       continue;
     end if;
 
-    if to_regclass(format('public.%I', v_table)) is null then
+    select c.relkind::text
+      into v_relkind
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = v_table;
+
+    if v_relkind is null then
       v_skipped := v_skipped || jsonb_build_array(jsonb_build_object(
         'table', v_table,
         'column', v_column,
@@ -115,6 +119,16 @@ begin
         'message', v_table || ' absent dans Supabase.'
       ));
       v_warnings := v_warnings || jsonb_build_array(v_table || ' absent: nettoyage ignore.');
+      continue;
+    end if;
+
+    if v_relkind not in ('r', 'p') then
+      v_skipped := v_skipped || jsonb_build_array(jsonb_build_object(
+        'table', v_table,
+        'column', v_column,
+        'reason', 'non_table_relation',
+        'message', v_table || ' est une vue ou une relation non supprimable.'
+      ));
       continue;
     end if;
 
