@@ -779,6 +779,35 @@
   line-height: 1.45;
 }
 
+.restaurantDeleteList {
+  display: grid;
+  gap: 6px;
+  max-width: 72ch;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: rgba(255, 250, 240, 0.62);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.restaurantStorageToggle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 72ch;
+  color: rgba(255, 250, 240, 0.64);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.restaurantStorageToggle input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--owner-champagne);
+  flex: 0 0 auto;
+}
+
 .successQr {
   margin-top: 18px;
 }

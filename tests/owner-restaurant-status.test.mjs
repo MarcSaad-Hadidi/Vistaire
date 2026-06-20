@@ -8,11 +8,38 @@ import {
   validateRestaurantStatusAction
 } from "../lib/owner/restaurantStatus.ts";
 
-function updateClient({ data = null, error = null, onUpdate = () => {}, onEq = () => {} } = {}) {
+const RESTAURANT_ID = "22222222-2222-4222-8222-222222222222";
+
+function updateClient({
+  restaurant = {
+    id: RESTAURANT_ID,
+    name: "Bistro Test",
+    slug: "bistro-test",
+    status: "active"
+  },
+  lookupError = null,
+  data = null,
+  error = null,
+  onUpdate = () => {},
+  onEq = () => {}
+} = {}) {
   return {
     from(table) {
       assert.equal(table, "restaurants");
       return {
+        select(columns) {
+          assert.equal(columns, "id,name,slug,status");
+          return {
+            eq(column, value) {
+              onEq(column, value);
+              return {
+                async single() {
+                  return { data: restaurant, error: lookupError };
+                }
+              };
+            }
+          };
+        },
         update(row) {
           onUpdate(row);
           return {
@@ -37,34 +64,72 @@ function updateClient({ data = null, error = null, onUpdate = () => {}, onEq = (
 }
 
 function deleteClient({
-  restaurant = null,
+  restaurant = {
+    id: RESTAURANT_ID,
+    name: "Bistro Test",
+    slug: "bistro-test",
+    status: "active"
+  },
   lookupError = null,
-  deleteErrors = {},
-  onDelete = () => {}
+  rpcData = {
+    ok: true,
+    restaurantId: RESTAURANT_ID,
+    restaurantDeleted: true,
+    deleted: {
+      qr_codes: 0,
+      menu_dishes: 0,
+      restaurants: 1
+    },
+    skipped: [],
+    warnings: []
+  },
+  rpcError = null,
+  rpcUnavailable = false,
+  onRpc = () => {},
+  deleteResults = {},
+  verifyRestaurantDeleted = true,
+  verifyError = null,
+  onDelete = () => {},
+  storage = undefined
 } = {}) {
-  return {
+  const client = {
+    storage,
     from(table) {
       if (table === "restaurants") {
         return {
           select(columns) {
-            assert.equal(columns, "id,name,slug,status");
             return {
               eq(column, value) {
-                assert.equal(column, "id");
-                assert.equal(typeof value, "string");
                 return {
                   async single() {
+                    assert.equal(columns, "id,name,slug,status");
+                    assert.equal(column === "id" || column === "slug", true);
+                    assert.equal(typeof value, "string");
                     return { data: restaurant, error: lookupError };
+                  },
+                  async maybeSingle() {
+                    assert.equal(columns, "id");
+                    assert.equal(column, "id");
+                    return {
+                      data: verifyRestaurantDeleted ? null : { id: value },
+                      error: verifyError
+                    };
                   }
                 };
               }
             };
           },
-          delete() {
+          delete(options) {
+            assert.deepEqual(options, { count: "exact" });
             return {
               async eq(column, value) {
                 onDelete({ table, column, value });
-                return { data: null, error: deleteErrors[`${table}.${column}`] ?? null };
+                const result = deleteResults[`${table}.${column}`] ?? { count: 1 };
+                return {
+                  data: null,
+                  error: result.error ?? null,
+                  count: result.count ?? null
+                };
               }
             };
           }
@@ -72,17 +137,32 @@ function deleteClient({
       }
 
       return {
-        delete() {
+        delete(options) {
+          assert.deepEqual(options, { count: "exact" });
           return {
             async eq(column, value) {
               onDelete({ table, column, value });
-              return { data: null, error: deleteErrors[`${table}.${column}`] ?? null };
+              const result = deleteResults[`${table}.${column}`] ?? { count: 0 };
+              return {
+                data: null,
+                error: result.error ?? null,
+                count: result.count ?? null
+              };
             }
           };
         }
       };
     }
   };
+
+  if (!rpcUnavailable) {
+    client.rpc = async (fn, args) => {
+      onRpc({ fn, args });
+      return { data: rpcData, error: rpcError };
+    };
+  }
+
+  return client;
 }
 
 test("validates owner restaurant status actions", () => {
@@ -104,8 +184,8 @@ test("validates owner restaurant status actions", () => {
 
 test("archives a restaurant through the Supabase service role", async () => {
   let updatedRow;
-  let eqCall;
-  const result = await updateRestaurantStatusRecord("rest_123", "archive", {
+  const eqCalls = [];
+  const result = await updateRestaurantStatusRecord(RESTAURANT_ID, "archive", {
     admin: {
       ok: true,
       client: updateClient({
@@ -113,59 +193,253 @@ test("archives a restaurant through the Supabase service role", async () => {
           updatedRow = row;
         },
         onEq(column, value) {
-          eqCall = { column, value };
+          eqCalls.push({ column, value });
         },
-        data: { id: "rest_123", status: "archived" }
+        data: { id: RESTAURANT_ID, status: "archived" }
       })
     }
   });
 
   assert.deepEqual(result, {
     ok: true,
-    restaurantId: "rest_123",
+    restaurantId: RESTAURANT_ID,
     status: "archived"
   });
   assert.deepEqual(updatedRow, { status: "archived" });
-  assert.deepEqual(eqCall, { column: "id", value: "rest_123" });
+  assert.deepEqual(eqCalls.at(-1), { column: "id", value: RESTAURANT_ID });
+});
+
+test("archive refuses a missing restaurant", async () => {
+  const result = await updateRestaurantStatusRecord(RESTAURANT_ID, "archive", {
+    admin: {
+      ok: true,
+      client: updateClient({
+        restaurant: null,
+        lookupError: { code: "PGRST116", message: "not found" }
+      })
+    }
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 404,
+    error: "Restaurant introuvable."
+  });
 });
 
 test("restores an archived restaurant to setup_needed", async () => {
   let updatedRow;
-  const result = await updateRestaurantStatusRecord("rest_123", "restore", {
+  const result = await updateRestaurantStatusRecord(RESTAURANT_ID, "restore", {
     admin: {
       ok: true,
       client: updateClient({
+        restaurant: {
+          id: RESTAURANT_ID,
+          name: "Bistro Test",
+          slug: "bistro-test",
+          status: "archived"
+        },
         onUpdate(row) {
           updatedRow = row;
         },
-        data: { id: "rest_123", status: "setup_needed" }
+        data: { id: RESTAURANT_ID, status: "setup_needed" }
       })
     }
   });
 
   assert.deepEqual(result, {
     ok: true,
-    restaurantId: "rest_123",
+    restaurantId: RESTAURANT_ID,
     status: "setup_needed"
   });
   assert.deepEqual(updatedRow, { status: "setup_needed" });
 });
 
-test("deletes a confirmed restaurant and cleans linked owner rows", async () => {
-  const deleteCalls = [];
+test("deletes a confirmed restaurant and reports linked Supabase cleanup counts", async () => {
+  const rpcCalls = [];
   const result = await deleteRestaurantRecord(
-    "rest_123",
-    { confirmed: true, confirmName: "Bistro Test" },
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: false },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          rpcData: {
+            ok: true,
+            restaurantId: RESTAURANT_ID,
+            restaurantDeleted: true,
+            deleted: {
+              qr_codes: 2,
+              menu_dishes: 12,
+              menu_ui_configs: 1,
+              analytics_events: 3,
+              restaurants: 1
+            },
+            skipped: [],
+            warnings: []
+          },
+          onRpc(call) {
+            rpcCalls.push(call);
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.restaurantDeleted, true);
+  assert.equal(result.deleted.menu_dishes, 12);
+  assert.equal(result.deleted.qr_codes, 2);
+  assert.equal(result.deleted.menu_ui_configs, 1);
+  assert.equal(result.deleted.analytics_events, 3);
+  assert.equal(result.deleted.restaurants, 1);
+  assert.equal(result.storage.attempted, false);
+  assert.deepEqual(rpcCalls, [
+    {
+      fn: "delete_owner_restaurant_cascade",
+      args: {
+        p_restaurant_id: RESTAURANT_ID,
+        p_confirmation: "Bistro Test"
+      }
+    }
+  ]);
+});
+
+test("restaurant delete requires exact confirmation and protects demo rows", async () => {
+  const admin = {
+    ok: true,
+    client: deleteClient()
+  };
+
+  assert.deepEqual(
+    await deleteRestaurantRecord(RESTAURANT_ID, { confirmation: "Wrong name" }, { admin }),
+    {
+      ok: false,
+      status: 400,
+      error: "La confirmation ne correspond pas au restaurant.",
+      restaurantDeleted: false,
+      deleted: {},
+      storage: {
+        attempted: false,
+        buckets: [],
+        deletedFiles: 0,
+        prefixes: [],
+        warnings: []
+      },
+      warnings: []
+    }
+  );
+
+  const demoResult = await deleteRestaurantRecord(
+    "11111111-1111-1111-1111-111111111111",
+    { confirmation: "Maison Elyse" },
     {
       admin: {
         ok: true,
         client: deleteClient({
           restaurant: {
-            id: "rest_123",
-            name: "Bistro Test",
-            slug: "bistro-test",
+            id: "11111111-1111-1111-1111-111111111111",
+            name: "Maison Elyse",
+            slug: "maison-elyse",
             status: "active"
-          },
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(demoResult.ok, false);
+  assert.equal(demoResult.status, 403);
+  assert.equal(demoResult.restaurantDeleted, false);
+});
+
+test("restaurant delete refuses invalid ids before touching Supabase", async () => {
+  const result = await deleteRestaurantRecord(
+    "../wrong",
+    { confirmation: "Bistro Test" },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient()
+      }
+    }
+  );
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 400,
+    error: "Identifiant restaurant invalide.",
+    restaurantDeleted: false,
+    deleted: {},
+      storage: {
+        attempted: false,
+        buckets: [],
+        deletedFiles: 0,
+        prefixes: [],
+        warnings: []
+      },
+    warnings: []
+  });
+});
+
+test("menu_dishes failure blocks parent restaurant deletion", async () => {
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "bistro-test" },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          rpcError: {
+            code: "P0001",
+            message:
+              "Impossible de supprimer les donnees liees dans menu_dishes. permission denied"
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.restaurantDeleted, false);
+  assert.equal(result.details.table, "menu_dishes");
+  assert.match(result.details.supabaseMessage, /menu_dishes/);
+});
+
+test("qr_codes failure blocks parent restaurant deletion", async () => {
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test" },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          rpcError: {
+            code: "P0001",
+            message:
+              "Impossible de supprimer les donnees liees dans qr_codes. foreign key constraint still blocks qr"
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.restaurantDeleted, false);
+  assert.equal(result.details.table, "qr_codes");
+  assert.match(result.details.supabaseMessage, /qr_codes/);
+});
+
+test("missing transactional RPC refuses delete without fallback row deletes", async () => {
+  const deleteCalls = [];
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test" },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          rpcUnavailable: true,
           onDelete(call) {
             deleteCalls.push(call);
           }
@@ -174,81 +448,142 @@ test("deletes a confirmed restaurant and cleans linked owner rows", async () => 
     }
   );
 
-  assert.deepEqual(result, {
-    ok: true,
-    restaurantId: "rest_123",
-    deleted: true
-  });
-  assert.deepEqual(deleteCalls, [
-    { table: "qr_codes", column: "restaurant_id", value: "rest_123" },
-    { table: "menu_dishes", column: "restaurant_id", value: "rest_123" },
-    { table: "menu_dishes", column: "restaurant_slug", value: "bistro-test" },
-    { table: "menu_ui_configs", column: "restaurant_id", value: "rest_123" },
-    { table: "restaurants", column: "id", value: "rest_123" }
-  ]);
+  assert.equal(result.ok, false);
+  assert.equal(result.restaurantDeleted, false);
+  assert.equal(result.details.table, "delete_owner_restaurant_cascade");
+  assert.match(result.error, /fonction transactionnelle Supabase/);
+  assert.deepEqual(result.deleted, {});
+  assert.deepEqual(deleteCalls, []);
 });
 
-test("restaurant delete requires exact name confirmation and protects demo rows", async () => {
-  const admin = {
-    ok: true,
-    client: deleteClient({
-      restaurant: {
-        id: "rest_123",
-        name: "Bistro Test",
-        slug: "bistro-test",
-        status: "active"
+test("missing optional tables and missing columns continue with RPC warnings", async () => {
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test" },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          rpcData: {
+            ok: true,
+            restaurantId: RESTAURANT_ID,
+            restaurantDeleted: true,
+            deleted: {
+              menu_dishes: 2,
+              restaurants: 1
+            },
+            skipped: [
+              {
+                table: "analytics_events",
+                column: "restaurant_id",
+                reason: "missing_table",
+                message: "analytics_events absent dans Supabase."
+              },
+              {
+                table: "menu_dishes",
+                column: "restaurant_slug",
+                reason: "missing_column",
+                message: "menu_dishes.restaurant_slug absent dans Supabase."
+              }
+            ],
+            warnings: [
+              "analytics_events absent: nettoyage ignore.",
+              "menu_dishes.restaurant_slug absent: nettoyage ignore pour cette colonne."
+            ]
+          }
+        })
       }
-    })
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.restaurantDeleted, true);
+  assert.equal(result.deleted.menu_dishes, 2);
+  assert.equal(result.deleted.restaurants, 1);
+  assert.equal(result.skipped.some((entry) => entry.table === "analytics_events"), true);
+  assert.equal(result.skipped.some((entry) => entry.table === "menu_dishes"), true);
+});
+
+test("storage cleanup can be attempted without blocking a confirmed DB deletion", async () => {
+  const storageCalls = [];
+  const storage = {
+    from(bucket) {
+      return {
+        async list(prefix) {
+          storageCalls.push({ action: "list", bucket, prefix });
+          if (bucket === "vistaire-media" && prefix === `restaurants/${RESTAURANT_ID}`) {
+            return {
+              data: [{ name: "hero.jpg", id: "file-1" }],
+              error: null
+            };
+          }
+          if (bucket === "vistaire-3d") {
+            return {
+              data: null,
+              error: { message: "bucket not found" }
+            };
+          }
+          return { data: [], error: null };
+        },
+        async remove(paths) {
+          storageCalls.push({ action: "remove", bucket, paths });
+          return { data: paths.map((name) => ({ name })), error: null };
+        }
+      };
+    }
   };
 
-  assert.deepEqual(
-    await deleteRestaurantRecord(
-      "rest_123",
-      { confirmed: true, confirmName: "Wrong name" },
-      { admin }
-    ),
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: true },
     {
-      ok: false,
-      status: 400,
-      error: "Le nom de confirmation ne correspond pas au restaurant."
+      env: {
+        VISTAIRE_MEDIA_BUCKET: "vistaire-media",
+        VISTAIRE_3D_CDN_BUCKET: "vistaire-3d"
+      },
+      admin: {
+        ok: true,
+        client: deleteClient({
+          storage,
+          rpcData: {
+            ok: true,
+            restaurantId: RESTAURANT_ID,
+            restaurantDeleted: true,
+            deleted: {
+              restaurants: 1
+            },
+            skipped: [],
+            warnings: []
+          }
+        })
+      }
     }
   );
 
-  assert.deepEqual(
-    await deleteRestaurantRecord(
-      "11111111-1111-1111-1111-111111111111",
-      { confirmed: true, confirmName: "Maison Elyse" },
-      {
-        admin: {
-          ok: true,
-          client: deleteClient({
-            restaurant: {
-              id: "11111111-1111-1111-1111-111111111111",
-              name: "Maison Elyse",
-              slug: "maison-elyse",
-              status: "active"
-            }
-          })
-        }
-      }
-    ),
-    {
-      ok: false,
-      status: 403,
-      error: "Restaurant de demonstration protege contre la suppression."
-    }
-  );
+  assert.equal(result.ok, true);
+  assert.equal(result.storage.attempted, true);
+  assert.equal(result.storage.deletedFiles, 1);
+  assert.equal(result.storage.warnings.length > 0, true);
+  assert.equal(storageCalls.some((call) => call.action === "remove"), true);
 });
 
-test("restaurant archive route is owner-only and same-origin", async () => {
-  const source = await readFile("app/api/restaurants/[restaurantId]/route.ts", "utf8");
+test("owner restaurant routes are owner-only and same-origin", async () => {
+  const legacyRoute = await readFile("app/api/restaurants/[restaurantId]/route.ts", "utf8");
+  const ownerDeleteRoute = await readFile("app/api/owner/restaurants/[restaurantId]/route.ts", "utf8");
+  const ownerArchiveRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/archive/route.ts",
+    "utf8"
+  );
 
-  assert.match(source, /PATCH/);
-  assert.match(source, /DELETE/);
-  assert.match(source, /requireVistaireOwnerApi/);
-  assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
-  assert.match(source, /updateRestaurantStatus/);
-  assert.match(source, /deleteRestaurantRecord/);
+  for (const source of [legacyRoute, ownerDeleteRoute, ownerArchiveRoute]) {
+    assert.match(source, /requireVistaireOwnerApi/);
+    assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
+  }
+
+  assert.match(ownerArchiveRoute, /PATCH/);
+  assert.match(ownerDeleteRoute, /DELETE/);
+  assert.match(ownerDeleteRoute, /deleteRestaurantRecord/);
+  assert.match(ownerArchiveRoute, /updateRestaurantStatusRecord/);
 });
 
 test("restaurant dashboard exposes archive controls and confirmed hard delete", async () => {
@@ -258,10 +593,72 @@ test("restaurant dashboard exposes archive controls and confirmed hard delete", 
   assert.match(source, /Restaurer le restaurant/);
   assert.match(source, /onStatusAction\(nextAction\)/);
   assert.match(source, /Suppression definitive/);
-  assert.match(source, /Tapez .* pour confirmer/);
+  assert.match(source, /confirmation/);
+  assert.match(source, /deleteStorage/);
+  assert.match(source, /Storage\/CDN/);
   assert.match(source, /method:\s*["']DELETE["']/);
-  assert.match(source, /confirmName/);
   assert.match(source, /Supprimer definitivement/);
+  assert.match(source, /Restaurant supprime definitivement/);
+});
+
+test("owner restaurants page can display delete success after redirect", async () => {
+  const source = await readFile("app/owner/restaurants/page.tsx", "utf8");
+
+  assert.match(source, /deleted.*"1"/);
+  assert.match(source, /Restaurant supprime definitivement/);
+});
+
+test("restaurant deletion migration adds transactional RPC", async () => {
+  const source = await readFile(
+    "supabase/migrations/0010_delete_owner_restaurant_cascade.sql",
+    "utf8"
+  );
+
+  assert.match(source, /delete_owner_restaurant_cascade/);
+  assert.match(source, /for update/i);
+  assert.match(source, /delete from public\.restaurants/i);
+  assert.match(source, /grant execute .*service_role/is);
+  assert.match(source, /missing_table/);
+  assert.match(source, /missing_column/);
+  assert.doesNotMatch(
+    source,
+    /"table":"owner_3d_publish_events","column":"restaurant_slug"/
+  );
+  assert.doesNotMatch(
+    source,
+    /"table":"owner_3d_pipeline_artifacts","column":"restaurant_slug"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_publish_events","column":"asset_version_id","kind":"asset_version_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_publish_events","column":"previous_version_id","kind":"asset_version_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_publish_events","column":"job_id","kind":"job_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_pipeline_artifacts","column":"asset_version_id","kind":"asset_version_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_pipeline_artifacts","column":"job_id","kind":"job_id"/
+  );
+  assert.match(source, /using public\.owner_3d_asset_versions as versions/i);
+  assert.match(source, /using public\.owner_3d_pipeline_jobs as jobs/i);
+});
+
+test("restaurant delete source refuses non-transactional fallback deletes", async () => {
+  const source = await readFile("lib/owner/restaurantStatus.ts", "utf8");
+
+  assert.doesNotMatch(source, /deleteScopedRows/);
+  assert.doesNotMatch(source, /deleteRestaurantParent/);
+  assert.doesNotMatch(source, /\.delete\(\{ count: "exact" \}\)/);
+  assert.match(source, /delete_owner_restaurant_cascade/);
 });
 
 test("owner portfolio keeps archived restaurants out of urgent counters", async () => {

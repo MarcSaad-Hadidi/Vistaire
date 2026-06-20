@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function OwnerRestaurantsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ restaurantId?: string }>;
+  searchParams?: Promise<{ deleted?: string; restaurantId?: string }>;
 }) {
   const params = await searchParams;
   if (params?.restaurantId) {
@@ -50,6 +50,12 @@ export default async function OwnerRestaurantsPage({
           </>
         }
       />
+
+      {params?.deleted === "1" ? (
+        <p className={styles.qrStatus} role="status">
+          Restaurant supprime definitivement.
+        </p>
+      ) : null}
 
       {needsAttention.length > 0 ? (
         <Panel

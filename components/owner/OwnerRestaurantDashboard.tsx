@@ -28,6 +28,19 @@ type RestaurantStatusFeedback = {
   message: string;
 };
 
+type DeleteRestaurantResponse = {
+  ok?: boolean;
+  error?: string;
+  restaurantDeleted?: boolean;
+  details?: {
+    table?: string;
+    supabaseMessage?: string;
+  };
+  storage?: {
+    warnings?: string[];
+  };
+};
+
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "overview", label: "Vue d’ensemble" },
   { id: "menu", label: "Menu" },
@@ -169,6 +182,7 @@ export function OwnerRestaurantDashboard({
   const [statusPending, setStatusPending] = useState<RestaurantStatusAction | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<RestaurantStatusFeedback | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteStorage, setDeleteStorage] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
   const primaryActionTab = useMemo(() => nextActionTab(restaurant), [restaurant]);
   const checklist = useMemo(() => checklistForRestaurant(restaurant), [restaurant]);
@@ -187,7 +201,7 @@ export function OwnerRestaurantDashboard({
     setStatusFeedback(null);
 
     try {
-      const response = await fetch(`/api/restaurants/${encodeURIComponent(restaurant.id)}`, {
+      const response = await fetch(`/api/owner/restaurants/${encodeURIComponent(restaurant.id)}/archive`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action })
@@ -219,11 +233,12 @@ export function OwnerRestaurantDashboard({
   }
 
   async function deleteRestaurant() {
-    const confirmName = deleteConfirmation.trim();
-    if (confirmName !== restaurant.name.trim()) {
+    const confirmation = deleteConfirmation.trim();
+    const confirmationTarget = restaurant.slug || restaurant.name.trim();
+    if (confirmation !== confirmationTarget) {
       setStatusFeedback({
         tone: "error",
-        message: "Tapez le nom exact du restaurant pour confirmer la suppression."
+        message: "Tapez le slug exact du restaurant pour confirmer la suppression."
       });
       return;
     }
@@ -232,20 +247,33 @@ export function OwnerRestaurantDashboard({
     setStatusFeedback(null);
 
     try {
-      const response = await fetch(`/api/restaurants/${encodeURIComponent(restaurant.id)}`, {
+      const response = await fetch(`/api/owner/restaurants/${encodeURIComponent(restaurant.id)}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmed: true, confirmName })
+        body: JSON.stringify({ confirmation, deleteStorage })
       });
       const result = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string }
+        | DeleteRestaurantResponse
         | null;
 
-      if (!response.ok || !result?.ok) {
-        throw new Error(result?.error ?? "Le restaurant n'a pas pu etre supprime.");
+      if (!response.ok || !result?.ok || result.restaurantDeleted !== true) {
+        const table = result?.details?.table;
+        const storageWarning = result?.storage?.warnings?.[0];
+        const detail = table
+          ? ` Table bloquante: ${table}.`
+          : storageWarning
+            ? ` Note Storage: ${storageWarning}`
+            : "";
+        throw new Error(
+          `${result?.error ?? "Le restaurant n'a pas pu etre supprime."}${detail}`
+        );
       }
 
-      router.push("/owner");
+      setStatusFeedback({
+        tone: "success",
+        message: "Restaurant supprime definitivement."
+      });
+      router.push("/owner/restaurants?deleted=1");
       router.refresh();
     } catch (error) {
       setStatusFeedback({
@@ -425,9 +453,11 @@ export function OwnerRestaurantDashboard({
           statusPending={statusPending}
           statusFeedback={statusFeedback}
           deleteConfirmation={deleteConfirmation}
+          deleteStorage={deleteStorage}
           deletePending={deletePending}
           onStatusAction={updateRestaurantStatus}
           onDeleteConfirmationChange={setDeleteConfirmation}
+          onDeleteStorageChange={setDeleteStorage}
           onDeleteRestaurant={deleteRestaurant}
         />
       </TabPanel>
@@ -611,24 +641,29 @@ function SettingsPanel({
   statusPending,
   statusFeedback,
   deleteConfirmation,
+  deleteStorage,
   deletePending,
   onStatusAction,
   onDeleteConfirmationChange,
+  onDeleteStorageChange,
   onDeleteRestaurant
 }: {
   restaurant: OwnerRestaurant;
   statusPending: RestaurantStatusAction | null;
   statusFeedback: RestaurantStatusFeedback | null;
   deleteConfirmation: string;
+  deleteStorage: boolean;
   deletePending: boolean;
   onStatusAction: (action: RestaurantStatusAction) => void;
   onDeleteConfirmationChange: (value: string) => void;
+  onDeleteStorageChange: (value: boolean) => void;
   onDeleteRestaurant: () => void;
 }) {
   const isArchived = restaurant.status === "archived";
   const nextAction: RestaurantStatusAction = isArchived ? "restore" : "archive";
   const actionLabel = isArchived ? "Restaurer le restaurant" : "Archiver le restaurant";
-  const deleteConfirmed = deleteConfirmation.trim() === restaurant.name.trim();
+  const deleteConfirmationTarget = restaurant.slug || restaurant.name.trim();
+  const deleteConfirmed = deleteConfirmation.trim() === deleteConfirmationTarget;
   const isDisabled = restaurant.isDemo || statusPending !== null || deletePending;
   return (
     <article className={styles.panel}>
@@ -710,30 +745,50 @@ function SettingsPanel({
               <div>
                 <h5>Suppression definitive</h5>
                 <p>
-                  Supprime le profil restaurant dans Supabase et nettoie ses QR, plats et
-                  configurations menu rattaches. Les fichiers Storage/CDN ne sont pas effaces
-                  automatiquement.
+                  Supprime le profil restaurant dans Supabase seulement apres nettoyage confirme
+                  des donnees critiques. En cas d&apos;erreur, la table bloquante reste affichee et
+                  le restaurant n&apos;est pas marque supprime.
                 </p>
+                <ul className={styles.restaurantDeleteList}>
+                  <li>Restaurant, liens publics et statut dashboard</li>
+                  <li>Plats menu_dishes, QR et configurations menu</li>
+                  <li>Donnees owner, analytics et metadonnees 3D si les tables existent</li>
+                  <li>Fichiers Storage/CDN seulement si la tentative ci-dessous est cochee</li>
+                </ul>
               </div>
 
               <label className={styles.formField}>
                 <span className={styles.filterLabel}>
-                  Tapez {restaurant.name} pour confirmer
+                  Tapez {deleteConfirmationTarget} pour confirmer
                 </span>
                 <input
                   className={styles.control}
                   value={deleteConfirmation}
                   onChange={(event) => onDeleteConfirmationChange(event.target.value)}
-                  placeholder={restaurant.name}
+                  placeholder={deleteConfirmationTarget}
                   disabled={restaurant.isDemo || deletePending}
                 />
+              </label>
+
+              <label className={styles.restaurantStorageToggle}>
+                <input
+                  type="checkbox"
+                  checked={deleteStorage}
+                  onChange={(event) => onDeleteStorageChange(event.target.checked)}
+                  disabled={restaurant.isDemo || deletePending}
+                />
+                <span>
+                  Tenter aussi de supprimer les fichiers Storage/CDN sous les chemins du
+                  restaurant. Si Storage echoue, la suppression DB reste conservee et un warning
+                  est retourne.
+                </span>
               </label>
 
               <div className={styles.restaurantLifecycleActions}>
                 <button
                   type="button"
                   className={`${styles.btn} ${styles.btnDanger}`}
-                  disabled={restaurant.isDemo || deletePending || !deleteConfirmed}
+                  disabled={isDisabled || !deleteConfirmed}
                   onClick={onDeleteRestaurant}
                 >
                   {deletePending ? "Suppression..." : "Supprimer definitivement"}
