@@ -63,20 +63,6 @@ function updateClient({
   };
 }
 
-function missingTable(table) {
-  return {
-    code: "42P01",
-    message: `relation "public.${table}" does not exist`
-  };
-}
-
-function missingColumn(column) {
-  return {
-    code: "42703",
-    message: `column "${column}" does not exist`
-  };
-}
-
 function deleteClient({
   restaurant = {
     id: RESTAURANT_ID,
@@ -85,13 +71,28 @@ function deleteClient({
     status: "active"
   },
   lookupError = null,
+  rpcData = {
+    ok: true,
+    restaurantId: RESTAURANT_ID,
+    restaurantDeleted: true,
+    deleted: {
+      qr_codes: 0,
+      menu_dishes: 0,
+      restaurants: 1
+    },
+    skipped: [],
+    warnings: []
+  },
+  rpcError = null,
+  rpcUnavailable = false,
+  onRpc = () => {},
   deleteResults = {},
   verifyRestaurantDeleted = true,
   verifyError = null,
   onDelete = () => {},
   storage = undefined
 } = {}) {
-  return {
+  const client = {
     storage,
     from(table) {
       if (table === "restaurants") {
@@ -153,6 +154,15 @@ function deleteClient({
       };
     }
   };
+
+  if (!rpcUnavailable) {
+    client.rpc = async (fn, args) => {
+      onRpc({ fn, args });
+      return { data: rpcData, error: rpcError };
+    };
+  }
+
+  return client;
 }
 
 test("validates owner restaurant status actions", () => {
@@ -246,7 +256,7 @@ test("restores an archived restaurant to setup_needed", async () => {
 });
 
 test("deletes a confirmed restaurant and reports linked Supabase cleanup counts", async () => {
-  const deleteCalls = [];
+  const rpcCalls = [];
   const result = await deleteRestaurantRecord(
     RESTAURANT_ID,
     { confirmation: "Bistro Test", deleteStorage: false },
@@ -254,16 +264,22 @@ test("deletes a confirmed restaurant and reports linked Supabase cleanup counts"
       admin: {
         ok: true,
         client: deleteClient({
-          deleteResults: {
-            "qr_codes.restaurant_id": { count: 2 },
-            "menu_dishes.restaurant_id": { count: 12 },
-            "menu_dishes.restaurant_slug": { count: 0 },
-            "menu_ui_configs.restaurant_id": { count: 1 },
-            "analytics_events.restaurant_id": { count: 3 },
-            "restaurants.id": { count: 1 }
+          rpcData: {
+            ok: true,
+            restaurantId: RESTAURANT_ID,
+            restaurantDeleted: true,
+            deleted: {
+              qr_codes: 2,
+              menu_dishes: 12,
+              menu_ui_configs: 1,
+              analytics_events: 3,
+              restaurants: 1
+            },
+            skipped: [],
+            warnings: []
           },
-          onDelete(call) {
-            deleteCalls.push(call);
+          onRpc(call) {
+            rpcCalls.push(call);
           }
         })
       }
@@ -278,12 +294,14 @@ test("deletes a confirmed restaurant and reports linked Supabase cleanup counts"
   assert.equal(result.deleted.analytics_events, 3);
   assert.equal(result.deleted.restaurants, 1);
   assert.equal(result.storage.attempted, false);
-  assert.equal(deleteCalls.at(-1).table, "restaurants");
-  assert.deepEqual(deleteCalls.slice(0, 4), [
-    { table: "qr_codes", column: "restaurant_id", value: RESTAURANT_ID },
-    { table: "menu_dishes", column: "restaurant_id", value: RESTAURANT_ID },
-    { table: "menu_dishes", column: "restaurant_slug", value: "bistro-test" },
-    { table: "menu_ui_configs", column: "restaurant_id", value: RESTAURANT_ID }
+  assert.deepEqual(rpcCalls, [
+    {
+      fn: "delete_owner_restaurant_cascade",
+      args: {
+        p_restaurant_id: RESTAURANT_ID,
+        p_confirmation: "Bistro Test"
+      }
+    }
   ]);
 });
 
@@ -365,7 +383,6 @@ test("restaurant delete refuses invalid ids before touching Supabase", async () 
 });
 
 test("menu_dishes failure blocks parent restaurant deletion", async () => {
-  const deleteCalls = [];
   const result = await deleteRestaurantRecord(
     RESTAURANT_ID,
     { confirmation: "bistro-test" },
@@ -373,14 +390,10 @@ test("menu_dishes failure blocks parent restaurant deletion", async () => {
       admin: {
         ok: true,
         client: deleteClient({
-          deleteResults: {
-            "qr_codes.restaurant_id": { count: 1 },
-            "menu_dishes.restaurant_id": {
-              error: { code: "42501", message: "permission denied for table menu_dishes" }
-            }
-          },
-          onDelete(call) {
-            deleteCalls.push(call);
+          rpcError: {
+            code: "P0001",
+            message:
+              "Impossible de supprimer les donnees liees dans menu_dishes. permission denied"
           }
         })
       }
@@ -390,11 +403,34 @@ test("menu_dishes failure blocks parent restaurant deletion", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.restaurantDeleted, false);
   assert.equal(result.details.table, "menu_dishes");
-  assert.match(result.error, /menu_dishes/);
-  assert.equal(deleteCalls.some((call) => call.table === "restaurants"), false);
+  assert.match(result.details.supabaseMessage, /menu_dishes/);
 });
 
 test("qr_codes failure blocks parent restaurant deletion", async () => {
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test" },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          rpcError: {
+            code: "P0001",
+            message:
+              "Impossible de supprimer les donnees liees dans qr_codes. foreign key constraint still blocks qr"
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.restaurantDeleted, false);
+  assert.equal(result.details.table, "qr_codes");
+  assert.match(result.details.supabaseMessage, /qr_codes/);
+});
+
+test("missing transactional RPC refuses delete without fallback row deletes", async () => {
   const deleteCalls = [];
   const result = await deleteRestaurantRecord(
     RESTAURANT_ID,
@@ -403,11 +439,7 @@ test("qr_codes failure blocks parent restaurant deletion", async () => {
       admin: {
         ok: true,
         client: deleteClient({
-          deleteResults: {
-            "qr_codes.restaurant_id": {
-              error: { code: "23503", message: "foreign key constraint still blocks qr" }
-            }
-          },
+          rpcUnavailable: true,
           onDelete(call) {
             deleteCalls.push(call);
           }
@@ -418,11 +450,13 @@ test("qr_codes failure blocks parent restaurant deletion", async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.restaurantDeleted, false);
-  assert.equal(result.details.table, "qr_codes");
-  assert.equal(deleteCalls.some((call) => call.table === "restaurants"), false);
+  assert.equal(result.details.table, "delete_owner_restaurant_cascade");
+  assert.match(result.error, /fonction transactionnelle Supabase/);
+  assert.deepEqual(result.deleted, {});
+  assert.deepEqual(deleteCalls, []);
 });
 
-test("missing optional tables and missing fallback columns continue with warnings", async () => {
+test("missing optional tables and missing columns continue with RPC warnings", async () => {
   const result = await deleteRestaurantRecord(
     RESTAURANT_ID,
     { confirmation: "Bistro Test" },
@@ -430,13 +464,32 @@ test("missing optional tables and missing fallback columns continue with warning
       admin: {
         ok: true,
         client: deleteClient({
-          deleteResults: {
-            "qr_codes.restaurant_id": { count: 0 },
-            "menu_dishes.restaurant_id": { count: 2 },
-            "menu_dishes.restaurant_slug": { error: missingColumn("restaurant_slug") },
-            "menu_ui_configs.restaurant_id": { count: 0 },
-            "analytics_events.restaurant_id": { error: missingTable("analytics_events") },
-            "restaurants.id": { count: 1 }
+          rpcData: {
+            ok: true,
+            restaurantId: RESTAURANT_ID,
+            restaurantDeleted: true,
+            deleted: {
+              menu_dishes: 2,
+              restaurants: 1
+            },
+            skipped: [
+              {
+                table: "analytics_events",
+                column: "restaurant_id",
+                reason: "missing_table",
+                message: "analytics_events absent dans Supabase."
+              },
+              {
+                table: "menu_dishes",
+                column: "restaurant_slug",
+                reason: "missing_column",
+                message: "menu_dishes.restaurant_slug absent dans Supabase."
+              }
+            ],
+            warnings: [
+              "analytics_events absent: nettoyage ignore.",
+              "menu_dishes.restaurant_slug absent: nettoyage ignore pour cette colonne."
+            ]
           }
         })
       }
@@ -492,11 +545,15 @@ test("storage cleanup can be attempted without blocking a confirmed DB deletion"
         ok: true,
         client: deleteClient({
           storage,
-          deleteResults: {
-            "qr_codes.restaurant_id": { count: 0 },
-            "menu_dishes.restaurant_id": { count: 0 },
-            "menu_ui_configs.restaurant_id": { count: 0 },
-            "restaurants.id": { count: 1 }
+          rpcData: {
+            ok: true,
+            restaurantId: RESTAURANT_ID,
+            restaurantDeleted: true,
+            deleted: {
+              restaurants: 1
+            },
+            skipped: [],
+            warnings: []
           }
         })
       }
@@ -563,6 +620,45 @@ test("restaurant deletion migration adds transactional RPC", async () => {
   assert.match(source, /grant execute .*service_role/is);
   assert.match(source, /missing_table/);
   assert.match(source, /missing_column/);
+  assert.doesNotMatch(
+    source,
+    /"table":"owner_3d_publish_events","column":"restaurant_slug"/
+  );
+  assert.doesNotMatch(
+    source,
+    /"table":"owner_3d_pipeline_artifacts","column":"restaurant_slug"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_publish_events","column":"asset_version_id","kind":"asset_version_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_publish_events","column":"previous_version_id","kind":"asset_version_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_publish_events","column":"job_id","kind":"job_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_pipeline_artifacts","column":"asset_version_id","kind":"asset_version_id"/
+  );
+  assert.match(
+    source,
+    /"table":"owner_3d_pipeline_artifacts","column":"job_id","kind":"job_id"/
+  );
+  assert.match(source, /using public\.owner_3d_asset_versions as versions/i);
+  assert.match(source, /using public\.owner_3d_pipeline_jobs as jobs/i);
+});
+
+test("restaurant delete source refuses non-transactional fallback deletes", async () => {
+  const source = await readFile("lib/owner/restaurantStatus.ts", "utf8");
+
+  assert.doesNotMatch(source, /deleteScopedRows/);
+  assert.doesNotMatch(source, /deleteRestaurantParent/);
+  assert.doesNotMatch(source, /\.delete\(\{ count: "exact" \}\)/);
+  assert.match(source, /delete_owner_restaurant_cascade/);
 });
 
 test("owner portfolio keeps archived restaurants out of urgent counters", async () => {

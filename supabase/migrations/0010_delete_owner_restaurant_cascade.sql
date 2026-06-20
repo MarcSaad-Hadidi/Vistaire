@@ -25,8 +25,11 @@ declare
     {"table":"owner_3d_optimizeglb_candidates","column":"restaurant_slug","kind":"slug"},
     {"table":"owner_3d_visual_reviews","column":"restaurant_slug","kind":"slug"},
     {"table":"owner_3d_device_qa","column":"restaurant_slug","kind":"slug"},
-    {"table":"owner_3d_publish_events","column":"restaurant_slug","kind":"slug"},
-    {"table":"owner_3d_pipeline_artifacts","column":"restaurant_slug","kind":"slug"},
+    {"table":"owner_3d_publish_events","column":"asset_version_id","kind":"asset_version_id"},
+    {"table":"owner_3d_publish_events","column":"previous_version_id","kind":"asset_version_id"},
+    {"table":"owner_3d_publish_events","column":"job_id","kind":"job_id"},
+    {"table":"owner_3d_pipeline_artifacts","column":"asset_version_id","kind":"asset_version_id"},
+    {"table":"owner_3d_pipeline_artifacts","column":"job_id","kind":"job_id"},
     {"table":"owner_3d_pipeline_jobs","column":"restaurant_slug","kind":"slug"},
     {"table":"owner_3d_asset_versions","column":"restaurant_slug","kind":"slug"},
     {"table":"owner_3d_asset_sources","column":"restaurant_slug","kind":"slug"},
@@ -52,6 +55,7 @@ declare
   v_column text;
   v_kind text;
   v_value text;
+  v_related_table text;
   v_count integer;
   v_deleted jsonb := '{}'::jsonb;
   v_skipped jsonb := '[]'::jsonb;
@@ -88,6 +92,8 @@ begin
       when 'id' then p_restaurant_id::text
       when 'slug' then v_restaurant.slug
       when 'name' then v_restaurant.name
+      when 'asset_version_id' then v_restaurant.slug
+      when 'job_id' then v_restaurant.slug
       else null
     end;
 
@@ -131,9 +137,74 @@ begin
       continue;
     end if;
 
+    v_related_table := case v_kind
+      when 'asset_version_id' then 'owner_3d_asset_versions'
+      when 'job_id' then 'owner_3d_pipeline_jobs'
+      else null
+    end;
+
+    if v_related_table is not null then
+      if to_regclass(format('public.%I', v_related_table)) is null then
+        v_skipped := v_skipped || jsonb_build_array(jsonb_build_object(
+          'table', v_related_table,
+          'column', 'id',
+          'reason', 'missing_table',
+          'message', v_related_table || ' absent dans Supabase.'
+        ));
+        v_warnings := v_warnings || jsonb_build_array(
+          v_related_table || ' absent: nettoyage relationnel ignore pour ' ||
+          v_table || '.' || v_column || '.'
+        );
+        continue;
+      end if;
+
+      if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = v_related_table
+          and column_name = 'id'
+      ) or not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = v_related_table
+          and column_name = 'restaurant_slug'
+      ) then
+        v_skipped := v_skipped || jsonb_build_array(jsonb_build_object(
+          'table', v_related_table,
+          'column', 'id,restaurant_slug',
+          'reason', 'missing_column',
+          'message', v_related_table || '.id ou .restaurant_slug absent dans Supabase.'
+        ));
+        v_warnings := v_warnings || jsonb_build_array(
+          v_related_table ||
+          '.id ou .restaurant_slug absent: nettoyage relationnel ignore pour ' ||
+          v_table || '.' || v_column || '.'
+        );
+        continue;
+      end if;
+    end if;
+
     begin
-      execute format('delete from public.%I where %I::text = $1', v_table, v_column)
-        using v_value;
+      if v_kind = 'asset_version_id' then
+        execute format(
+          'delete from public.%I as target using public.owner_3d_asset_versions as versions where target.%I = versions.id and versions.restaurant_slug = $1',
+          v_table,
+          v_column
+        )
+          using v_value;
+      elsif v_kind = 'job_id' then
+        execute format(
+          'delete from public.%I as target using public.owner_3d_pipeline_jobs as jobs where target.%I = jobs.id and jobs.restaurant_slug = $1',
+          v_table,
+          v_column
+        )
+          using v_value;
+      else
+        execute format('delete from public.%I where %I::text = $1', v_table, v_column)
+          using v_value;
+      end if;
       get diagnostics v_count = row_count;
     exception
       when others then

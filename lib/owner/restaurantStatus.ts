@@ -7,12 +7,6 @@ type SupabaseUpdateError = {
   hint?: string;
 };
 
-type SupabaseDeleteResult = {
-  data: Record<string, unknown>[] | null;
-  error: SupabaseUpdateError | null;
-  count?: number | null;
-};
-
 type SupabaseStorageObject = {
   name: string;
   id?: string | null;
@@ -68,9 +62,6 @@ type SupabaseRestaurantStatusClient = {
           }>;
         };
       };
-    };
-    delete(options?: { count?: "exact" | "planned" | "estimated" }): {
-      eq(column: string, value: string): PromiseLike<SupabaseDeleteResult>;
     };
   };
 };
@@ -162,161 +153,6 @@ type DeleteRestaurantConfirmation = {
   deleteStorage?: boolean;
 };
 
-type DeleteValueKind = "id" | "slug" | "name";
-
-type DeleteSpec = {
-  table: string;
-  column: string;
-  value: DeleteValueKind;
-  label: string;
-};
-
-const BASE_DELETE_SPECS: DeleteSpec[] = [
-  { table: "qr_codes", column: "restaurant_id", value: "id", label: "QR" },
-  { table: "menu_dishes", column: "restaurant_id", value: "id", label: "plats" },
-  { table: "menu_dishes", column: "restaurant_slug", value: "slug", label: "plats" },
-  {
-    table: "menu_ui_configs",
-    column: "restaurant_id",
-    value: "id",
-    label: "configurations menu"
-  }
-];
-
-const EXTENDED_DELETE_SPECS: DeleteSpec[] = [
-  {
-    table: "owner_3d_source_download_events",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "audit 3D"
-  },
-  {
-    table: "owner_3d_optimizeglb_candidate_sets",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "sets OptimizeGLB"
-  },
-  {
-    table: "owner_3d_optimizeglb_candidates",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "candidats OptimizeGLB"
-  },
-  {
-    table: "owner_3d_visual_reviews",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "revues 3D"
-  },
-  {
-    table: "owner_3d_device_qa",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "QA device 3D"
-  },
-  {
-    table: "owner_3d_publish_events",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "publication 3D"
-  },
-  {
-    table: "owner_3d_pipeline_artifacts",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "artifacts pipeline 3D"
-  },
-  {
-    table: "owner_3d_pipeline_jobs",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "jobs pipeline 3D"
-  },
-  {
-    table: "owner_3d_asset_versions",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "versions assets 3D"
-  },
-  {
-    table: "owner_3d_asset_sources",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "sources assets 3D"
-  },
-  {
-    table: "owner_3d_ar_source_uploads",
-    column: "restaurant_slug",
-    value: "slug",
-    label: "sources 3D"
-  },
-  {
-    table: "analytics_events",
-    column: "restaurant_id",
-    value: "id",
-    label: "analytics"
-  },
-  {
-    table: "restaurant_daily_analytics",
-    column: "restaurant_id",
-    value: "id",
-    label: "analytics quotidiennes"
-  },
-  {
-    table: "restaurant_dish_analytics",
-    column: "restaurant_id",
-    value: "id",
-    label: "analytics plats"
-  },
-  {
-    table: "restaurant_search_analytics",
-    column: "restaurant_id",
-    value: "id",
-    label: "analytics recherche"
-  },
-  {
-    table: "restaurant_category_analytics",
-    column: "restaurant_id",
-    value: "id",
-    label: "analytics categories"
-  },
-  {
-    table: "owner_ai_recommendations",
-    column: "restaurant_id",
-    value: "id",
-    label: "recommandations owner"
-  },
-  {
-    table: "owner_ai_recommendations",
-    column: "restaurant_name",
-    value: "name",
-    label: "recommandations owner"
-  },
-  { table: "owner_actions", column: "restaurant_id", value: "id", label: "actions owner" },
-  { table: "owner_actions", column: "restaurant_slug", value: "slug", label: "actions owner" },
-  {
-    table: "restaurant_menu_sections",
-    column: "restaurant_id",
-    value: "id",
-    label: "sections menu"
-  },
-  { table: "menu_sections", column: "restaurant_id", value: "id", label: "sections menu" },
-  {
-    table: "menu_categories",
-    column: "restaurant_id",
-    value: "id",
-    label: "categories menu"
-  },
-  {
-    table: "restaurant_assets",
-    column: "restaurant_id",
-    value: "id",
-    label: "assets restaurant"
-  },
-  { table: "media_assets", column: "restaurant_id", value: "id", label: "assets media" },
-  { table: "dish_assets", column: "restaurant_id", value: "id", label: "assets plats" }
-];
-
 function emptyStorageReport(): RestaurantStorageCleanupReport {
   return {
     attempted: false,
@@ -396,27 +232,6 @@ function isNotFoundError(error: SupabaseUpdateError): boolean {
 
 function errorMessage(error: SupabaseUpdateError): string {
   return error.message || error.details || error.hint || "Erreur Supabase inconnue.";
-}
-
-function isMissingTableError(error: SupabaseUpdateError): boolean {
-  const message = errorMessage(error).toLowerCase();
-  return (
-    error.code === "42P01" ||
-    error.code === "PGRST205" ||
-    /relation .* does not exist/.test(message) ||
-    /table .* does not exist/.test(message) ||
-    /could not find the table/.test(message)
-  );
-}
-
-function isMissingColumnError(error: SupabaseUpdateError): boolean {
-  const message = errorMessage(error).toLowerCase();
-  return (
-    error.code === "42703" ||
-    error.code === "PGRST204" ||
-    /column .* does not exist/.test(message) ||
-    /could not find .* column/.test(message)
-  );
 }
 
 function isMissingRpcError(error: SupabaseUpdateError): boolean {
@@ -541,160 +356,6 @@ function confirmationMatchesRestaurant(
   const name = getString(restaurant, "name");
   const slug = getString(restaurant, "slug");
   return Boolean(confirmation && (confirmation === name || confirmation === slug));
-}
-
-function valueForSpec(spec: DeleteSpec, restaurant: Record<string, unknown>): string {
-  if (spec.value === "id") return getString(restaurant, "id");
-  if (spec.value === "slug") return getString(restaurant, "slug");
-  return getString(restaurant, "name");
-}
-
-function addDeletedCount(
-  deleted: Record<string, number>,
-  table: string,
-  count: number | null | undefined
-) {
-  deleted[table] = (deleted[table] ?? 0) + Math.max(0, count ?? 0);
-}
-
-async function deleteScopedRows(args: {
-  client: SupabaseRestaurantStatusClient;
-  spec: DeleteSpec;
-  restaurant: Record<string, unknown>;
-  deleted: Record<string, number>;
-  skipped: RestaurantDeleteSkip[];
-  warnings: string[];
-  missingTables: Set<string>;
-}): Promise<{ ok: true } | { ok: false; error: string; details: RestaurantDeleteDetails }> {
-  if (args.missingTables.has(args.spec.table)) return { ok: true };
-
-  const value = valueForSpec(args.spec, args.restaurant);
-  if (!value) {
-    args.skipped.push({
-      table: args.spec.table,
-      column: args.spec.column,
-      reason: "empty_value",
-      message: `Aucune valeur restaurant disponible pour ${args.spec.table}.${args.spec.column}.`
-    });
-    return { ok: true };
-  }
-
-  const { error, count } = await args.client
-    .from(args.spec.table)
-    .delete({ count: "exact" })
-    .eq(args.spec.column, value);
-
-  if (!error) {
-    addDeletedCount(args.deleted, args.spec.table, count);
-    return { ok: true };
-  }
-
-  const message = errorMessage(error);
-  if (isMissingTableError(error)) {
-    args.missingTables.add(args.spec.table);
-    args.skipped.push({
-      table: args.spec.table,
-      column: args.spec.column,
-      reason: "missing_table",
-      message: `${args.spec.table} absent dans Supabase.`
-    });
-    args.warnings.push(`${args.spec.table} absent: nettoyage ignore.`);
-    return { ok: true };
-  }
-
-  if (isMissingColumnError(error)) {
-    args.skipped.push({
-      table: args.spec.table,
-      column: args.spec.column,
-      reason: "missing_column",
-      message: `${args.spec.table}.${args.spec.column} absent dans Supabase.`
-    });
-    args.warnings.push(
-      `${args.spec.table}.${args.spec.column} absent: nettoyage ignore pour cette colonne.`
-    );
-    return { ok: true };
-  }
-
-  return {
-    ok: false,
-    error: `Impossible de supprimer les donnees liees dans ${args.spec.table}.`,
-    details: {
-      table: args.spec.table,
-      column: args.spec.column,
-      supabaseCode: error.code,
-      supabaseMessage: message
-    }
-  };
-}
-
-async function deleteRestaurantParent(args: {
-  client: SupabaseRestaurantStatusClient;
-  restaurantId: string;
-  deleted: Record<string, number>;
-}): Promise<{ ok: true } | { ok: false; error: string; details: RestaurantDeleteDetails }> {
-  const { error, count } = await args.client
-    .from("restaurants")
-    .delete({ count: "exact" })
-    .eq("id", args.restaurantId);
-
-  if (error) {
-    return {
-      ok: false,
-      error: "Le restaurant n'a pas pu etre supprime dans Supabase.",
-      details: {
-        table: "restaurants",
-        column: "id",
-        supabaseCode: error.code,
-        supabaseMessage: errorMessage(error)
-      }
-    };
-  }
-
-  addDeletedCount(args.deleted, "restaurants", count);
-  if (count !== 1) {
-    return {
-      ok: false,
-      error: "Supabase n'a pas confirme la suppression du restaurant.",
-      details: {
-        table: "restaurants",
-        column: "id",
-        supabaseMessage: `Nombre de lignes supprimees: ${count ?? "inconnu"}.`
-      }
-    };
-  }
-
-  const verification = await args.client
-    .from("restaurants")
-    .select("id")
-    .eq("id", args.restaurantId)
-    .maybeSingle();
-
-  if (verification.error) {
-    return {
-      ok: false,
-      error: "La suppression du restaurant n'a pas pu etre verifiee dans Supabase.",
-      details: {
-        table: "restaurants",
-        column: "id",
-        supabaseCode: verification.error.code,
-        supabaseMessage: errorMessage(verification.error)
-      }
-    };
-  }
-
-  if (verification.data) {
-    return {
-      ok: false,
-      error: "Supabase indique que le restaurant existe encore apres suppression.",
-      details: {
-        table: "restaurants",
-        column: "id",
-        supabaseMessage: "La verification post-suppression a retrouve la ligne restaurant."
-      }
-    };
-  }
-
-  return { ok: true };
 }
 
 function uniqueValues(values: string[]): string[] {
@@ -889,7 +550,19 @@ async function deleteRestaurantWithRpc(args: {
     }
   | { kind: "failed"; error: string; details: RestaurantDeleteDetails }
 > {
-  if (!args.client.rpc || !UUID_PATTERN.test(args.restaurantId)) {
+  if (!UUID_PATTERN.test(args.restaurantId)) {
+    return {
+      kind: "failed",
+      error: "Identifiant restaurant Supabase invalide pour suppression transactionnelle.",
+      details: {
+        table: "restaurants",
+        column: "id",
+        supabaseMessage: "La RPC delete_owner_restaurant_cascade exige un UUID restaurant."
+      }
+    };
+  }
+
+  if (!args.client.rpc) {
     return { kind: "missing" };
   }
 
@@ -1030,63 +703,14 @@ export async function deleteRestaurantRecord(
     };
   }
 
-  const deleted: Record<string, number> = {};
-  const skipped: RestaurantDeleteSkip[] = [];
-  const warnings: string[] = [];
-  const missingTables = new Set<string>();
-
-  for (const spec of [...BASE_DELETE_SPECS, ...EXTENDED_DELETE_SPECS]) {
-    const result = await deleteScopedRows({
-      client: dependencies.admin.client,
-      spec,
-      restaurant,
-      deleted,
-      skipped,
-      warnings,
-      missingTables
-    });
-
-    if (!result.ok) {
-      return failureResult({
-        status: 503,
-        error: result.error,
-        deleted,
-        warnings,
-        details: result.details
-      });
+  return failureResult({
+    status: 503,
+    error:
+      "Suppression impossible : la fonction transactionnelle Supabase delete_owner_restaurant_cascade n'est pas disponible.",
+    details: {
+      table: "delete_owner_restaurant_cascade",
+      supabaseMessage:
+        "Appliquez la migration Supabase avant d'autoriser une suppression definitive."
     }
-  }
-
-  const parentDelete = await deleteRestaurantParent({
-    client: dependencies.admin.client,
-    restaurantId: restaurantIdValue,
-    deleted
   });
-
-  if (!parentDelete.ok) {
-    return failureResult({
-      status: 503,
-      error: parentDelete.error,
-      deleted,
-      warnings,
-      details: parentDelete.details
-    });
-  }
-
-  const storage = await cleanupRestaurantStorage({
-    client: dependencies.admin.client,
-    restaurant,
-    env: dependencies.env ?? process.env,
-    shouldAttempt: confirmation.deleteStorage === true
-  });
-
-  return {
-    ok: true,
-    restaurantId: restaurantIdValue,
-    restaurantDeleted: true,
-    deleted,
-    skipped,
-    storage,
-    warnings
-  };
 }
