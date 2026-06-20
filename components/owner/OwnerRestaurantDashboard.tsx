@@ -223,6 +223,13 @@ export function OwnerRestaurantDashboard({
           action="Ouvrir Médias"
         />
         <ModuleCard
+          title="3D / AR"
+          body="Upload GLB par plat, conversion USDZ Quick Look et comparaison visuelle."
+          meta={`${summary.webModelCount} GLB · ${summary.arModelCount} USDZ`}
+          href={ownerRestaurantRoute(restaurant, "3d")}
+          action="Ouvrir workflow"
+        />
+        <ModuleCard
           title="Aperçu du menu"
           body="Rendu mobile réel du menu public que le client voit après scan QR."
           meta={previewAvailabilityLabel(restaurant)}

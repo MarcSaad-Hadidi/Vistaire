@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
+import { OwnerDishModelVisualCompare } from "@/components/owner/OwnerDishModelVisualCompare";
 import { OwnerDishModelUploader } from "@/components/owner/OwnerDishModelUploader";
 import { OwnerDishPhotoUploader } from "@/components/owner/OwnerDishPhotoUploader";
 import {
@@ -89,6 +90,7 @@ export default async function OwnerRestaurantMediasPage({
   const menuData = await getOwnerMenuData(restaurant.id);
   const dishes = menuData.ok ? menuData.dishes : [];
   const visibleDishes = filterDishes(dishes, activeFilter);
+  const visualDishes = dishes.filter((dish) => dish.webModel3dUrl && dish.arUsdzUrl);
   const summary = buildOwnerPreparationSummary(restaurant, dishes);
 
   return (
@@ -100,6 +102,13 @@ export default async function OwnerRestaurantMediasPage({
           <>
             <Link className={styles.btn} href={ownerRestaurantRoute(restaurant)} prefetch={false}>
               Vue d’ensemble
+            </Link>
+            <Link
+              className={styles.btn}
+              href={ownerRestaurantRoute(restaurant, "3d")}
+              prefetch={false}
+            >
+              Workflow 3D / AR
             </Link>
             <Link
               className={styles.btn}
@@ -131,6 +140,27 @@ export default async function OwnerRestaurantMediasPage({
           <p className={styles.sourceNote}>
             Les photos et modèles restent dans Supabase Storage ou le CDN. Aucun
             fichier GLB/USDZ/vidéo n’est ajouté au dépôt par cette route.
+          </p>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Pipeline GLB -> USDZ"
+        action={
+          <Link
+            className={`${styles.btnPrimary} ${styles.btn}`}
+            href={ownerRestaurantRoute(restaurant, "3d")}
+            prefetch={false}
+          >
+            Ouvrir 3D / AR
+          </Link>
+        }
+      >
+        <div className={styles.urlPreview}>
+          <p className={styles.metricLabel}>Conversion & comparaison</p>
+          <p className={styles.bodyText}>
+            Upload GLB par plat, génération USDZ Quick Look, liens publics GLB/USDZ
+            et comparaison visuelle sans chargement 3D avant clic.
           </p>
         </div>
       </Panel>
@@ -226,6 +256,22 @@ export default async function OwnerRestaurantMediasPage({
           </div>
         )}
       </Panel>
+
+      {visualDishes.length > 0 ? (
+        <Panel title="Comparaison visuelle GLB / USDZ">
+          <div className={styles.modelCompareStack}>
+            {visualDishes.map((dish) => (
+              <OwnerDishModelVisualCompare
+                key={dish.id}
+                dishName={dish.name}
+                webModel3dUrl={dish.webModel3dUrl}
+                arPreviewModelUrl={dish.arModel3dUrl || dish.webModel3dUrl}
+                arUsdzUrl={dish.arUsdzUrl}
+              />
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
     </>
   );

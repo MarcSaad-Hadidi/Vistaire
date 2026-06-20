@@ -7,6 +7,7 @@ export type OwnerRestaurantRouteId =
   | "overview"
   | "menu"
   | "medias"
+  | "3d"
   | "preview"
   | "qr"
   | "settings";
@@ -168,6 +169,7 @@ export function buildOwnerRestaurantPreparation(
     !isMissingProfileValue(restaurant.cuisineType);
   const menuHref = ownerRestaurantRoute(restaurant, "menu");
   const mediasHref = ownerRestaurantRoute(restaurant, "medias");
+  const modelsHref = ownerRestaurantRoute(restaurant, "3d");
   const previewHref = ownerRestaurantRoute(restaurant, "preview");
   const qrHref = ownerRestaurantRoute(restaurant, "qr");
   const settingsHref = ownerRestaurantRoute(restaurant, "settings");
@@ -242,7 +244,7 @@ export function buildOwnerRestaurantPreparation(
           : "Aucun modèle 3D/AR requis détecté.",
       status: summary.immersiveDishCount > 0 ? "OK" : "Optionnel",
       tone: summary.immersiveDishCount > 0 ? "ready" : "muted",
-      href: mediasHref
+      href: modelsHref
     },
     {
       id: "qr",

@@ -40,6 +40,7 @@ export function ownerRestaurantNavItems(restaurantId: string): OwnerNavItem[] {
     { href: base, label: "Vue d’ensemble", hint: "Priorité & readiness" },
     { href: `${base}/menu`, label: "Carte & plats", hint: "Prix, descriptions" },
     { href: `${base}/medias`, label: "Médias", hint: "Photos & modèles" },
+    { href: `${base}/3d`, label: "3D / AR", hint: "GLB -> USDZ" },
     { href: `${base}/preview`, label: "Aperçu du menu", hint: "Vue client QR" },
     { href: `${base}/qr`, label: "QR & publication", hint: "Lien public" },
     { href: `${base}/settings`, label: "Paramètres", hint: "Restaurant" }
@@ -91,8 +92,8 @@ const OWNER_RESTAURANT_ROUTE_TITLES: Array<{
   },
   {
     pattern: /^\/owner\/restaurants\/[^/]+\/3d\/?$/,
-    label: "Workflow 3D",
-    hint: "Route legacy accessible par URL directe"
+    label: "3D / AR",
+    hint: "GLB, USDZ et comparaison visuelle"
   }
 ];
 

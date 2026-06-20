@@ -91,6 +91,7 @@ test("owner portfolio opens restaurant overview and contextual routes stay clean
   for (const moduleName of [
     "Carte & plats",
     "Médias",
+    "3D / AR",
     "Aperçu du menu",
     "QR & publication",
     "Paramètres"
@@ -112,7 +113,14 @@ test("owner portfolio opens restaurant overview and contextual routes stay clean
 
   await page.goto(`${dashboardHref}/medias`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 2, name: /Médias/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pipeline GLB -> USDZ" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ouvrir 3D / AR" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Photos manquantes" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto(`${dashboardHref}/3d`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ajouter GLB" }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.goto(`${dashboardHref}/preview`, { waitUntil: "domcontentloaded" });
@@ -141,6 +149,10 @@ test("owner portfolio opens restaurant overview and contextual routes stay clean
 
     await page.goto(`${dashboardHref}/medias`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 2, name: /Médias/ })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await page.goto(`${dashboardHref}/3d`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
 
