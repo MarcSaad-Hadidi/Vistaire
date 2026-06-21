@@ -152,3 +152,17 @@ test("public sitemap and AI guide include pricing but not the removed card route
   assert.match(llms, /https:\/\/www\.vistaire\.ca\/tarifs-menu-digital-restaurant/);
   assert.doesNotMatch(llms, /https:\/\/www\.vistaire\.ca\/carte-vistaire/);
 });
+
+test("removed public card route permanently redirects to the sample menu", async () => {
+  const { default: nextConfig } = await import("../next.config.ts");
+  const redirects = await nextConfig.redirects?.();
+
+  assert.deepEqual(
+    redirects?.find((redirect) => redirect.source === "/carte-vistaire"),
+    {
+      source: "/carte-vistaire",
+      destination: "/demo",
+      permanent: true
+    }
+  );
+});

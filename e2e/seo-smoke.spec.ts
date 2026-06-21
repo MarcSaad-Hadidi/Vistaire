@@ -174,6 +174,15 @@ test.describe("Vistaire SEO smoke", () => {
     }
     expect(robotsText).not.toContain("Disallow: /demo");
 
+    const removedCardRoute = await request.get("/carte-vistaire", {
+      maxRedirects: 0
+    });
+    expect(removedCardRoute.status()).toBe(308);
+    expect(
+      new URL(removedCardRoute.headers()["location"] ?? "", "https://www.vistaire.ca")
+        .pathname
+    ).toBe("/demo");
+
     const llms = await request.get("/llms.txt");
     expect(llms.status()).toBe(200);
     expect(llms.headers()["content-type"]).toContain("text/plain");
