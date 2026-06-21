@@ -6,15 +6,15 @@ import { getOwnerDashboard } from "@/lib/owner/dashboard";
 
 export const dynamic = "force-dynamic";
 
-function isActivePortfolioRestaurant(
-  restaurant: Awaited<ReturnType<typeof getOwnerDashboard>>["restaurants"][number]
-) {
+type OwnerDashboardRestaurant = Awaited<
+  ReturnType<typeof getOwnerDashboard>
+>["restaurants"][number];
+
+function isActivePortfolioRestaurant(restaurant: OwnerDashboardRestaurant) {
   return restaurant.status !== "archived" && restaurant.status !== "paused";
 }
 
-function restaurantNeedsAction(
-  restaurant: Awaited<ReturnType<typeof getOwnerDashboard>>["restaurants"][number]
-) {
+function restaurantNeedsAction(restaurant: OwnerDashboardRestaurant) {
   return (
     isActivePortfolioRestaurant(restaurant) &&
     (restaurant.readinessScore < 80 ||
@@ -23,9 +23,7 @@ function restaurantNeedsAction(
   );
 }
 
-function statusSortWeight(
-  restaurant: Awaited<ReturnType<typeof getOwnerDashboard>>["restaurants"][number]
-) {
+function statusSortWeight(restaurant: OwnerDashboardRestaurant) {
   if (restaurant.status === "archived") return 2;
   if (restaurant.status === "paused") return 1;
   return 0;
@@ -55,34 +53,27 @@ export default async function OwnerOverviewPage() {
     <>
       <ModuleHeader
         title="Restaurants"
-        description="Choisissez le restaurant à ouvrir pour gérer sa carte, son QR et sa mise en ligne."
+        description="Choisissez un restaurant pour préparer sa carte, ses médias, son aperçu client et son QR."
         actions={
-          <>
-            <Link
-              className={`${styles.btnPrimary} ${styles.btn}`}
-              href="/owner/restaurants/create"
-              prefetch={false}
-            >
-              Créer un restaurant
-            </Link>
-            {qrToPrepare > 0 ? (
-              <Link className={styles.btn} href="/owner/qr-codes" prefetch={false}>
-                Préparer QR
-              </Link>
-            ) : null}
-          </>
+          <Link
+            className={`${styles.btnPrimary} ${styles.btn}`}
+            href="/owner/restaurants/create"
+            prefetch={false}
+          >
+            Créer un restaurant
+          </Link>
         }
       />
 
       <StatGroup title="Portefeuille">
         <StatTile label="Restaurants" value={data.stats.totalRestaurants} primary />
         <StatTile label="À traiter" value={restaurantsToTreat.length} />
-        <StatTile label="QR manquants" value={qrToPrepare} />
+        <StatTile label="QR à préparer" value={qrToPrepare} />
         <StatTile label="Menus incomplets" value={incompleteMenus} />
       </StatGroup>
 
       <Panel
-        title="Quel restaurant ouvrir maintenant ?"
+        title="Restaurants à ouvrir"
         action={
           <span className={styles.sourceTag}>
             {data.source === "fallback" ? "Données de démonstration" : "Portefeuille connecté"}

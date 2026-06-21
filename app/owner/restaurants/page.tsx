@@ -34,7 +34,7 @@ export default async function OwnerRestaurantsPage({
     <>
       <ModuleHeader
         title="Restaurants"
-        description="Selectionnez un restaurant pour ouvrir son dashboard dedie : menu, plats, medias, QR, 3D/AR, signaux et settings."
+        description="Sélection avancée du portefeuille. Le chemin principal reste l’ouverture d’un restaurant, puis ses sections Carte, Médias, Aperçu, QR et Paramètres."
         actions={
           <>
             <Link
@@ -42,7 +42,7 @@ export default async function OwnerRestaurantsPage({
               href="/owner/restaurants/create"
               prefetch={false}
             >
-              Creer restaurant
+              Créer restaurant
             </Link>
             <Link className={styles.btn} href="/owner" prefetch={false}>
               Vue portefeuille
@@ -53,16 +53,16 @@ export default async function OwnerRestaurantsPage({
 
       {params?.deleted === "1" ? (
         <p className={styles.qrStatus} role="status">
-          Restaurant supprime definitivement.
+          Restaurant supprimé définitivement.
         </p>
       ) : null}
 
       {needsAttention.length > 0 ? (
         <Panel
-          title="A traiter en premier"
+          title="À traiter en premier"
           action={
             <span className={styles.sourceTag}>
-              {data.source === "fallback" ? "Donnees demo" : "Supabase"}
+              {data.source === "fallback" ? "Données démo" : "Supabase"}
             </span>
           }
         >
@@ -74,7 +74,7 @@ export default async function OwnerRestaurantsPage({
         title={`${data.restaurants.length} restaurant(s)`}
         action={
           <span className={styles.sourceTag}>
-            {data.source === "fallback" ? "Donnees demo" : "Supabase"}
+            {data.source === "fallback" ? "Données démo" : "Supabase"}
           </span>
         }
       >
@@ -82,8 +82,8 @@ export default async function OwnerRestaurantsPage({
       </Panel>
 
       <p className={styles.sourceTag}>
-        La table dense reste disponible dans le picker avance. Le chemin
-        principal est maintenant restaurant par restaurant.
+        La table dense reste disponible dans le picker avancé. Les anciennes
+        routes globales restent accessibles par URL directe.
       </p>
     </>
   );

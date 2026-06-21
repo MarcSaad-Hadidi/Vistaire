@@ -342,7 +342,7 @@ test("restaurant creation returns persisted Supabase restaurant links", async ()
   });
   assert.equal(
     result.qrCodesHref,
-    `/owner/qr-codes?restaurantId=${persistedId}&target=menu`
+    `/owner/restaurants/${persistedId}/qr`
   );
   assert.deepEqual(result.warnings, []);
 });
@@ -449,7 +449,7 @@ test("restaurant creation persists menu dishes without creation-only 3D or AR fi
   assert.equal(result.mediaBasePathPersisted, true);
   assert.equal(
     result.qrCodesHref,
-    `/owner/qr-codes?restaurantId=${persistedId}&target=menu`
+    `/owner/restaurants/${persistedId}/qr`
   );
   assert.deepEqual(result.warnings, [
     "Les sections sont persistees comme categories de plats; leurs descriptions restent dans le draft owner."

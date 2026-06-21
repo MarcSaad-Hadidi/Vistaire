@@ -1,34 +1,103 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
-import { OWNER_NAV_ITEMS, ownerNavTitle } from "@/lib/owner/nav";
+import {
+  OWNER_ACCOUNT_NAV_ITEMS,
+  OWNER_PORTFOLIO_NAV_ITEMS,
+  ownerNavTitle,
+  ownerRestaurantNavItems,
+  type OwnerNavItem,
+  type OwnerShellRestaurant
+} from "@/lib/owner/nav";
+
+function restaurantLookupFromPathname(pathname: string): string {
+  const match = pathname.match(/^\/owner\/restaurants\/([^/]+)/);
+  const lookup = match?.[1] ?? "";
+  if (!lookup || lookup === "create") return "";
+
+  try {
+    return decodeURIComponent(lookup);
+  } catch {
+    return lookup;
+  }
+}
+
+function isActiveHref(pathname: string, href: string): boolean {
+  return href === "/owner"
+    ? pathname === "/owner"
+    : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SidebarNavItems({
+  items,
+  pathname,
+  navTabIndex,
+  onNavigate
+}: {
+  items: OwnerNavItem[];
+  pathname: string;
+  navTabIndex?: number;
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      {items.map((item) => {
+        const isActive = isActiveHref(pathname, item.href);
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            prefetch={false}
+            onClick={onNavigate}
+            aria-current={isActive ? "page" : undefined}
+            tabIndex={navTabIndex}
+            className={`${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
+          >
+            <span className={styles.navItemLabel}>{item.label}</span>
+            <span className={styles.navItemHint}>{item.hint}</span>
+          </Link>
+        );
+      })}
+    </>
+  );
+}
 
 export function OwnerShell({
   children,
-  accountControl = null
+  accountControl = null,
+  restaurants = []
 }: {
   children: React.ReactNode;
   accountControl?: React.ReactNode;
+  restaurants?: OwnerShellRestaurant[];
 }) {
   const pathname = usePathname() ?? "/owner";
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobileNav, setIsMobileNav] = useState(false);
   const { label, hint } = ownerNavTitle(pathname);
-  const activeHref =
-    [...OWNER_NAV_ITEMS]
-      .filter((item) =>
-        item.href === "/owner"
-          ? pathname === "/owner"
-          : pathname === item.href || pathname.startsWith(`${item.href}/`)
-      )
-      .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? "/owner";
+  const restaurantLookup = restaurantLookupFromPathname(pathname);
+  const selectedRestaurant = useMemo(() => {
+    const normalized = restaurantLookup.toLowerCase();
+    if (!normalized) return null;
 
-  function isActive(href: string) {
-    return href === activeHref;
-  }
+    return (
+      restaurants.find(
+        (restaurant) =>
+          restaurant.id.toLowerCase() === normalized ||
+          restaurant.slug.toLowerCase() === normalized
+      ) ?? null
+    );
+  }, [restaurantLookup, restaurants]);
+  const restaurantNavLookup = selectedRestaurant?.id ?? restaurantLookup;
+  const restaurantMode = Boolean(restaurantNavLookup);
+  const restaurantNavItems = restaurantMode
+    ? ownerRestaurantNavItems(restaurantNavLookup)
+    : [];
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 960px)");
@@ -55,6 +124,11 @@ export function OwnerShell({
 
   const sidebarHidden = isMobileNav && !mobileOpen;
   const navTabIndex = sidebarHidden ? -1 : undefined;
+  const selectedName =
+    selectedRestaurant?.name ?? restaurantLookup.replace(/-/g, " ") ?? "Restaurant";
+  const selectedMeta = selectedRestaurant
+    ? `${selectedRestaurant.readinessScore}% prêt · ${selectedRestaurant.statusLabel}`
+    : "Restaurant sélectionné";
 
   return (
     <div className={styles.console}>
@@ -81,27 +155,80 @@ export function OwnerShell({
           <span className={styles.sidebarBrandName}>Vistaire</span>
           <span className={styles.sidebarBrandMeta}>Studio Vistaire</span>
         </Link>
-        <nav className={styles.sidebarNav}>
-          {OWNER_NAV_ITEMS.map((item) => (
+
+        {restaurantMode ? (
+          <>
             <Link
-              key={item.href}
-              href={item.href}
+              href="/owner"
               prefetch={false}
-              onClick={() => setMobileOpen(false)}
-              aria-current={isActive(item.href) ? "page" : undefined}
               tabIndex={navTabIndex}
-              className={`${styles.navItem} ${
-                isActive(item.href) ? styles.navItemActive : ""
-              }`}
+              className={styles.sidebarBackLink}
+              onClick={() => setMobileOpen(false)}
             >
-              <span className={styles.navItemLabel}>{item.label}</span>
-              <span className={styles.navItemHint}>{item.hint}</span>
+              ← Portefeuille
             </Link>
-          ))}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          Studio interne - accès owner-only
-        </div>
+            <section className={styles.sidebarRestaurant} aria-label="Restaurant sélectionné">
+              <span className={styles.sidebarSectionLabel}>Restaurant sélectionné</span>
+              <strong>{selectedName}</strong>
+              <small>{selectedMeta}</small>
+              {restaurants.length > 1 && selectedRestaurant ? (
+                <label className={styles.sidebarSwitch}>
+                  <span className={styles.sidebarSectionLabel}>Switch rapide</span>
+                  <select
+                    value={selectedRestaurant.id}
+                    tabIndex={navTabIndex}
+                    onChange={(event) => {
+                      const next = restaurants.find(
+                        (restaurant) => restaurant.id === event.target.value
+                      );
+                      if (next) {
+                        setMobileOpen(false);
+                        router.push(next.dashboardHref);
+                      }
+                    }}
+                  >
+                    {restaurants.map((restaurant) => (
+                      <option key={restaurant.id} value={restaurant.id}>
+                        {restaurant.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </section>
+            <nav className={styles.sidebarNav} aria-label="Navigation restaurant">
+              <SidebarNavItems
+                items={restaurantNavItems}
+                pathname={pathname}
+                navTabIndex={navTabIndex}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            </nav>
+          </>
+        ) : (
+          <>
+            <span className={styles.sidebarSectionLabel}>Navigation</span>
+            <nav className={styles.sidebarNav} aria-label="Navigation portefeuille">
+              <SidebarNavItems
+                items={OWNER_PORTFOLIO_NAV_ITEMS}
+                pathname={pathname}
+                navTabIndex={navTabIndex}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            </nav>
+            <span className={styles.sidebarSectionLabel}>Compte</span>
+            <nav className={styles.sidebarNav} aria-label="Compte">
+              <SidebarNavItems
+                items={OWNER_ACCOUNT_NAV_ITEMS}
+                pathname={pathname}
+                navTabIndex={navTabIndex}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            </nav>
+          </>
+        )}
+
+        <div className={styles.sidebarFooter}>Studio interne · accès owner-only</div>
       </aside>
 
       <div className={styles.consoleMain}>

@@ -168,6 +168,9 @@ export async function POST(
       webModel3dUrl: result.webModel3dUrl,
       arModel3dUrl: result.arModel3dUrl,
       arUsdzUrl: result.arUsdzUrl,
+      webModel3dBytes: result.webModel3dBytes,
+      arModel3dBytes: result.arModel3dBytes,
+      arUsdzBytes: result.arUsdzBytes,
       job: { id: result.jobId },
       dishUpdated: true
     });

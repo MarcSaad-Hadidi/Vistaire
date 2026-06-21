@@ -109,7 +109,7 @@ test("restaurant creation calls transactional RPC with normalized menu graph", a
           persistedCategoryCount: 2,
           persistedDishCount: 2,
           mediaBasePath: `restaurants/${restaurantId}/photos/`,
-          qrCodesHref: `/owner/qr-codes?restaurantId=${restaurantId}&target=menu`,
+          qrCodesHref: `/owner/restaurants/${restaurantId}/qr`,
           warnings: [],
           restaurant: {
             id: restaurantId,

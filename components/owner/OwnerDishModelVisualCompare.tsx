@@ -3,12 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { configureModelViewerAssetDecoders } from "@/components/dish/DishModelViewer";
 import styles from "@/components/owner/OwnerCockpit.module.css";
+import {
+  formatModelAssetBytes,
+  normalizeModelAssetBytes
+} from "@/lib/owner/modelAssetSize";
 
 type OwnerDishModelVisualCompareProps = {
   dishName: string;
   webModel3dUrl: string;
+  webModel3dBytes?: number;
   arPreviewModelUrl?: string;
   arUsdzUrl: string;
+  arUsdzBytes?: number;
 };
 
 type ModelViewerDomElement = HTMLElement & {
@@ -22,6 +28,18 @@ type CompareModelViewerProps = {
   ar?: boolean;
   orbit: string;
 };
+
+function sizeLabel(bytes: number): string {
+  if (bytes > 0) return formatModelAssetBytes(bytes);
+  return "Poids inconnu";
+}
+
+async function resolveAssetBytes(url: string): Promise<number> {
+  if (!url) return 0;
+  const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+  if (!response.ok) return 0;
+  return normalizeModelAssetBytes(response.headers.get("content-length"));
+}
 
 function CompareModelViewer({
   src,
@@ -68,11 +86,37 @@ function CompareModelViewer({
 export function OwnerDishModelVisualCompare({
   dishName,
   webModel3dUrl,
+  webModel3dBytes = 0,
   arPreviewModelUrl = webModel3dUrl,
-  arUsdzUrl
+  arUsdzUrl,
+  arUsdzBytes = 0
 }: OwnerDishModelVisualCompareProps) {
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [webBytes, setWebBytes] = useState(webModel3dBytes);
+  const [usdzBytes, setUsdzBytes] = useState(arUsdzBytes);
+
+  useEffect(() => {
+    if (!loaded || (webBytes > 0 && usdzBytes > 0)) return;
+
+    let active = true;
+    Promise.all([
+      webBytes > 0 ? Promise.resolve(webBytes) : resolveAssetBytes(webModel3dUrl),
+      usdzBytes > 0 ? Promise.resolve(usdzBytes) : resolveAssetBytes(arUsdzUrl)
+    ])
+      .then(([nextWebBytes, nextUsdzBytes]) => {
+        if (!active) return;
+        if (nextWebBytes > 0) setWebBytes(nextWebBytes);
+        if (nextUsdzBytes > 0) setUsdzBytes(nextUsdzBytes);
+      })
+      .catch(() => {
+        // Keep the explicit "Poids inconnu" label when a CDN does not expose Content-Length.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [arUsdzUrl, loaded, usdzBytes, webBytes, webModel3dUrl]);
 
   async function loadViewer() {
     setLoading(true);
@@ -111,7 +155,7 @@ export function OwnerDishModelVisualCompare({
             <div className={styles.modelCompareHeader}>
               <span>GLB web</span>
               <a href={webModel3dUrl} target="_blank" rel="noreferrer">
-                Ouvrir GLB
+                Ouvrir GLB · {sizeLabel(webBytes)}
               </a>
             </div>
             <CompareModelViewer
@@ -124,7 +168,7 @@ export function OwnerDishModelVisualCompare({
             <div className={styles.modelCompareHeader}>
               <span>USDZ AR</span>
               <a href={arUsdzUrl} target="_blank" rel="noreferrer">
-                Ouvrir USDZ
+                Ouvrir USDZ · {sizeLabel(usdzBytes)}
               </a>
             </div>
             <CompareModelViewer

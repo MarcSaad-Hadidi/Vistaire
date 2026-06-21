@@ -185,8 +185,8 @@ function buildReadinessItems(args: {
       },
       {
         id: "immersive",
-        label: "3D / AR",
-        detail: "Plats signatures avec assets immersifs de demo.",
+        label: "Medias",
+        detail: "Plats signatures avec medias immersifs de demo.",
         status: "demo"
       },
       {
@@ -232,11 +232,11 @@ function buildReadinessItems(args: {
     },
     {
       id: "immersive",
-      label: "3D / AR",
+      label: "Medias",
       detail:
         args.immersiveDishCount > 0
           ? `${args.immersiveDishCount} plats avec media immersif.`
-          : "Aucun asset 3D / AR detecte.",
+          : "Aucun modele 3D/AR detecte.",
       status: args.immersiveDishCount > 0 ? "ready" : "needs_setup"
     },
     {
@@ -276,7 +276,7 @@ function getNextAction(restaurant: {
   if (restaurant.dishCount === 0) return "Ajouter les plats du menu";
   if (restaurant.incompleteDishCount > 0) return "Completer les photos des plats";
   if (restaurant.immersiveDishCount === 0) {
-    return "Choisir un plat signature pour la 3D / AR";
+    return "Verifier les medias 3D/AR";
   }
   if (restaurant.status === "setup_needed") return "Valider la mise en ligne";
   return "Pret pour demonstration";
@@ -639,7 +639,7 @@ function buildOwnerActions(restaurants: OwnerRestaurant[]): OwnerAction[] {
         restaurantName: restaurant.name,
         title: "QR menu a generer",
         body: `${restaurant.name} a un lien menu, mais aucun QR marque comme pret.`,
-        href: "/owner/qr-codes",
+        href: `${restaurant.dashboardHref}/qr`,
         priority: "high"
       });
     }
@@ -651,7 +651,7 @@ function buildOwnerActions(restaurants: OwnerRestaurant[]): OwnerAction[] {
         restaurantName: restaurant.name,
         title: "Menu incomplet",
         body: "Aucun plat relie a ce restaurant dans les donnees disponibles.",
-        href: "/owner/menus",
+        href: `${restaurant.dashboardHref}/menu`,
         priority: "high"
       });
     }
@@ -663,7 +663,7 @@ function buildOwnerActions(restaurants: OwnerRestaurant[]): OwnerAction[] {
         restaurantName: restaurant.name,
         title: "Photos a completer",
         body: `${restaurant.incompleteDishCount} plats restent sans photo detectee.`,
-        href: `/owner/medias?restaurantId=${encodeURIComponent(restaurant.id)}`,
+        href: `${restaurant.dashboardHref}/medias`,
         priority: "medium"
       });
     }
@@ -673,9 +673,9 @@ function buildOwnerActions(restaurants: OwnerRestaurant[]): OwnerAction[] {
         id: `${restaurant.id}-immersive`,
         restaurantId: restaurant.id,
         restaurantName: restaurant.name,
-        title: "Plat signature sans 3D / AR",
-        body: "Aucun asset immersif n'est detecte pour ce menu.",
-        href: "/owner/3d-ar",
+        title: "Medias 3D/AR a verifier",
+        body: "Aucun modele immersif n'est detecte pour ce menu.",
+        href: `${restaurant.dashboardHref}/medias`,
         priority: "low"
       });
     }

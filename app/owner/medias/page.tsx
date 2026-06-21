@@ -99,7 +99,7 @@ function GlobalMediaView({
                     <td>
                       <Link
                         className={styles.cellMain}
-                        href={`/owner/medias?restaurantId=${encodeURIComponent(restaurant.id)}`}
+                        href={`/owner/restaurants/${encodeURIComponent(restaurant.id)}/medias`}
                       >
                         {restaurant.name}
                       </Link>
@@ -220,8 +220,8 @@ export default async function OwnerMediasPage({
   return (
     <>
       <ModuleHeader
-        title="Medias"
-        description="Suivre et ajouter les photos de plats depuis Supabase Storage, sans ecrire d'assets dans le depot."
+        title="Médias"
+        description="Route de compatibilité pour suivre et ajouter les photos depuis Supabase Storage. Les vues principales sont maintenant liées à chaque restaurant."
       />
 
       {targetedRestaurant ? (

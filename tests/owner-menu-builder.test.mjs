@@ -8,8 +8,8 @@ test("owner nav keeps Menu Builder contextual instead of a primary sidebar item"
   assert.match(source, /\/owner\/menu-builder/);
   assert.match(source, /Atelier carte/);
   const primaryNav = source.slice(
-    source.indexOf("export const OWNER_NAV_ITEMS"),
-    source.indexOf("const OWNER_CONTEXT_ROUTES")
+    source.indexOf("export const OWNER_PORTFOLIO_NAV_ITEMS"),
+    source.indexOf("export const OWNER_ACCOUNT_NAV_ITEMS")
   );
   assert.doesNotMatch(primaryNav, /\/owner\/menu-builder/);
 });

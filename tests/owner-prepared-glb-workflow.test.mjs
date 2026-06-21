@@ -103,6 +103,9 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   assert.match(meshyPipeline, /webModel3dStoragePath/);
   assert.match(meshyPipeline, /arModel3dStoragePath/);
   assert.match(meshyPipeline, /arUsdzStoragePath/);
+  assert.match(meshyPipeline, /webModel3dBytes/);
+  assert.match(meshyPipeline, /arModel3dBytes/);
+  assert.match(meshyPipeline, /arUsdzBytes/);
   assert.match(meshyPipeline, /buildPreparedModelPublicGlbPath/);
   assert.match(meshyPipeline, /buildPreparedModelPublicArLiteGlbPath/);
   assert.match(meshyPipeline, /buildPreparedModelPublicUsdzPath/);
