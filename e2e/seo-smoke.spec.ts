@@ -7,6 +7,45 @@ const seoPages = [
   "/menu-pdf-vs-menu-digital"
 ];
 
+const seoGeoPages = [
+  "/menu-qr-sans-pdf",
+  "/menu-digital-sans-application",
+  "/remplacer-menu-pdf-restaurant",
+  "/alternative-menu-pdf-restaurant",
+  "/fiche-plat-digitale-restaurant",
+  "/menu-restaurant-photos",
+  "/menu-restaurant-allergenes",
+  "/menu-digital-restaurant-montreal",
+  "/menu-digital-restaurant-laval",
+  "/menu-digital-restaurant-brossard",
+  "/menu-digital-restaurant-haut-de-gamme",
+  "/menu-digital-restaurant-gastronomique"
+];
+
+const englishSeoGeoPages = [
+  "/en/qr-menu-without-pdf",
+  "/en/digital-menu-without-app",
+  "/en/replace-restaurant-pdf-menu",
+  "/en/restaurant-pdf-menu-alternative",
+  "/en/digital-dish-page-restaurant",
+  "/en/restaurant-menu-photos",
+  "/en/restaurant-menu-allergens",
+  "/en/digital-restaurant-menu-montreal",
+  "/en/digital-restaurant-menu-laval",
+  "/en/digital-restaurant-menu-brossard",
+  "/en/high-end-restaurant-digital-menu",
+  "/en/fine-dining-restaurant-digital-menu"
+];
+
+const seoGeoSmokePages = [
+  "/menu-qr-sans-pdf",
+  "/menu-digital-restaurant-montreal",
+  "/menu-digital-restaurant-haut-de-gamme",
+  "/en/qr-menu-without-pdf",
+  "/en/digital-restaurant-menu-montreal",
+  "/en/high-end-restaurant-digital-menu"
+];
+
 const englishSeoPages = [
   "/en/digital-restaurant-menu",
   "/en/qr-code-restaurant-menu",
@@ -156,7 +195,6 @@ test.describe("Vistaire SEO smoke", () => {
     expect(sitemapUrls).toEqual([
       "/",
       "/en",
-      "/carte-vistaire",
       "/demo",
       "/en/vistaire-menu",
       "/tarifs-menu-digital-restaurant",
@@ -165,7 +203,8 @@ test.describe("Vistaire SEO smoke", () => {
       ...publicProductPages.flatMap((path, index) => [
         path,
         englishProductPages[index]
-      ])
+      ]),
+      ...seoGeoPages.flatMap((path, index) => [path, englishSeoGeoPages[index]])
     ]);
   });
 
@@ -200,7 +239,7 @@ test.describe("Vistaire SEO smoke", () => {
 
     for (const width of [390, 430]) {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto("/", { waitUntil: "networkidle" });
+      await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveTitle(/Menu digital QR premium/);
       await expectCanonicalPath(page, "/");
       await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
@@ -217,7 +256,7 @@ test.describe("Vistaire SEO smoke", () => {
       expect(videoSource).toBe("/videos/Vistaire2.mp4");
     }
 
-    for (const path of ["/demo", ...seoPages]) {
+    for (const path of ["/demo", ...seoPages, ...seoGeoSmokePages]) {
       for (const width of [390, 430]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(path, { waitUntil: "domcontentloaded" });
@@ -226,7 +265,7 @@ test.describe("Vistaire SEO smoke", () => {
           "content",
           ""
         );
-        if (seoPages.includes(path)) {
+        if (seoPages.includes(path) || seoGeoSmokePages.includes(path)) {
           await expect(page).toHaveTitle(/Vistaire/);
           await expect(page.locator("h1")).toHaveCount(1);
           await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
@@ -239,7 +278,12 @@ test.describe("Vistaire SEO smoke", () => {
           }
           const visibleFaqCount = await page.locator("article h3").count();
           expect(visibleFaqCount).toBeGreaterThanOrEqual(5);
-          await expect(page.getByRole("link", { name: "Menu digital restaurant", exact: true }).first()).toBeVisible();
+          const expectedGuideLink = path.startsWith("/en/")
+            ? "Digital restaurant menu"
+            : "Menu digital restaurant";
+          await expect(
+            page.getByRole("link", { name: expectedGuideLink, exact: true }).first()
+          ).toBeVisible();
           await expect(page.getByRole("link", { name: "Accès interne" })).toHaveCount(0);
         }
         await expectNoHorizontalOverflow(page);

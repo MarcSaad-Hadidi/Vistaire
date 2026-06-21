@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoPages.ts";
 
 export const SUPPORTED_LOCALES = ["fr", "en"] as const;
 
@@ -90,7 +91,13 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     en: "/en/restaurant-preview",
     changeFrequency: "monthly",
     priority: 0.76
-  }
+  },
+  ...SEO_GEO_ROUTE_PAIRS.map((route) => ({
+    fr: route.fr,
+    en: route.en,
+    changeFrequency: "monthly" as const,
+    priority: route.priority
+  }))
 ];
 
 export function normalizePathname(pathname: string): string {

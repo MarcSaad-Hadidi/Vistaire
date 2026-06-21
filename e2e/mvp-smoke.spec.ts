@@ -356,8 +356,8 @@ test.describe("Vistaire MVP smoke", () => {
         page.getByRole("link", { name: "Parler de votre menu" }).first()
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expect(
-        page.getByRole("link", { name: "Voir une carte Vistaire" }).first()
-      ).toHaveAttribute("href", "/carte-vistaire");
+        page.getByRole("link", { name: "Voir le menu exemple" }).first()
+      ).toHaveAttribute("href", "/demo");
       await expect(
         page.getByRole("link", { name: "514-715-2421" })
       ).toHaveAttribute("href", "tel:+15147152421");
@@ -370,45 +370,6 @@ test.describe("Vistaire MVP smoke", () => {
           "BreadcrumbList"
         ])
       );
-      await expectNoForbiddenPublicText(page);
-      await expectNoHorizontalOverflow(page);
-
-      await expectHealthyResponse(
-        await page.goto("/carte-vistaire", {
-          waitUntil: "domcontentloaded"
-        })
-      );
-      await expect(
-        page.getByRole("heading", {
-          level: 1,
-          name: "Carte Vistaire interactive"
-        })
-      ).toBeVisible();
-      const signaturesFilter = page.getByRole("button", {
-        name: "Signatures",
-        exact: true
-      });
-      await expect(signaturesFilter).toBeVisible();
-      await expect(signaturesFilter).toHaveAttribute("aria-pressed", "false");
-      await signaturesFilter.click();
-      await expect(signaturesFilter).toHaveAttribute("aria-pressed", "true");
-      await expect(page.getByText("plat 3D inclus").first()).toBeVisible();
-
-      const dessertsFilter = page.getByRole("button", {
-        name: "Desserts",
-        exact: true
-      });
-      await dessertsFilter.click();
-      await expect(dessertsFilter).toHaveAttribute("aria-pressed", "true");
-      await expect(page.locator("#carte-detail-heading")).toContainText("Souffl");
-      await expect(page.locator("#carte-detail-heading")).not.toContainText("Homard");
-      await expect(page.getByRole("button", { name: /Souffl/i }).first()).toHaveAttribute(
-        "aria-pressed",
-        "true"
-      );
-      await expect(
-        page.getByRole("link", { name: "Parler de votre menu" }).first()
-      ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoForbiddenPublicText(page);
       await expectNoHorizontalOverflow(page);
     }

@@ -5,10 +5,7 @@ import pageDigitalPhoto from "@/Framer/PageDigital.png";
 import photoDigital2 from "@/Framer/PhotoDigital2.png";
 import photoDigital3 from "@/Framer/PhotoDigital3.png";
 import { SeoFaq } from "@/components/seo/SeoFaq";
-import {
-  CARTE_VISTAIRE_PATH,
-  PRICING_PAGE
-} from "@/lib/pricingPage";
+import { PRICING_PAGE, SAMPLE_MENU_PATH } from "@/lib/pricingPage";
 import {
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL
@@ -128,7 +125,7 @@ function PricingLanguageSwitcher({
 function PricingNav() {
   const navItems = [
     { label: "Accueil", href: "/" },
-    { label: "Carte", href: CARTE_VISTAIRE_PATH },
+    { label: "Carte", href: SAMPLE_MENU_PATH },
     { label: "À propos", href: "/a-propos" },
     { label: "Contact", href: "/contact" }
   ] as const;
@@ -192,8 +189,8 @@ function PricingFooter() {
       <section className={chromeStyles.footerColumn} aria-label="Produit">
         <h2>Produit</h2>
         <nav className={chromeStyles.footerLinkList} aria-label="Produit Vistaire">
-          <Link href={CARTE_VISTAIRE_PATH} prefetch={false}>
-            Carte Vistaire
+          <Link href={SAMPLE_MENU_PATH} prefetch={false}>
+            Menu exemple
           </Link>
           <Link href="/menu-3d-ar-restaurant" prefetch={false}>
             Plats 3D inclus
@@ -506,7 +503,7 @@ export function TarifsMenuDigitalRestaurantPage() {
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt="Client consultant une carte Vistaire sur téléphone à table"
+                alt="Client consultant un menu digital Vistaire sur téléphone à table"
                 className={styles.visualImage}
                 fill
                 quality={100}
@@ -595,7 +592,7 @@ export function TarifsMenuDigitalRestaurantPage() {
               <div className={styles.sectionIntro}>
                 <p className={styles.badge}>Création</p>
                 <h2 id="creation-title">
-                  Comment se passe la création de votre carte Vistaire ?
+                  Comment se passe la création de votre menu digital Vistaire ?
                 </h2>
                 <p>
                   Le parcours reste accompagné, de votre menu actuel jusqu&apos;à
@@ -743,10 +740,10 @@ export function TarifsMenuDigitalRestaurantPage() {
               </Link>
               <Link
                 className={styles.secondaryButton}
-                href={CARTE_VISTAIRE_PATH}
+                href={PRICING_PAGE.secondaryCta.href}
                 prefetch={false}
               >
-                Voir une carte Vistaire
+                {PRICING_PAGE.secondaryCta.label}
               </Link>
             </div>
             <nav className={styles.internalLinks} aria-label="Liens internes Vistaire">
