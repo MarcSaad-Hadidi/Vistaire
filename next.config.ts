@@ -43,6 +43,15 @@ const nextConfig: NextConfig = {
   images: {
     qualities: [75, 90, 92, 100],
   },
+  async redirects() {
+    return [
+      {
+        source: "/carte-vistaire",
+        destination: "/demo",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

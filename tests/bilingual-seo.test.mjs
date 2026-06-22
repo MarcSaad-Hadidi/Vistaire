@@ -32,7 +32,25 @@ test("declares a complete bilingual FR/EN route map", async () => {
       ["/a-propos", "/en/about"],
       ["/contact", "/en/contact"],
       ["/prendre-rendez-vous", "/en/book-a-call"],
-      ["/apercu-restaurateur", "/en/restaurant-preview"]
+      ["/apercu-restaurateur", "/en/restaurant-preview"],
+      ["/menu-qr-sans-pdf", "/en/qr-menu-without-pdf"],
+      ["/menu-digital-sans-application", "/en/digital-menu-without-app"],
+      ["/remplacer-menu-pdf-restaurant", "/en/replace-restaurant-pdf-menu"],
+      ["/alternative-menu-pdf-restaurant", "/en/restaurant-pdf-menu-alternative"],
+      ["/fiche-plat-digitale-restaurant", "/en/digital-dish-page-restaurant"],
+      ["/menu-restaurant-photos", "/en/restaurant-menu-photos"],
+      ["/menu-restaurant-allergenes", "/en/restaurant-menu-allergens"],
+      ["/menu-digital-restaurant-montreal", "/en/digital-restaurant-menu-montreal"],
+      ["/menu-digital-restaurant-laval", "/en/digital-restaurant-menu-laval"],
+      ["/menu-digital-restaurant-brossard", "/en/digital-restaurant-menu-brossard"],
+      [
+        "/menu-digital-restaurant-haut-de-gamme",
+        "/en/high-end-restaurant-digital-menu"
+      ],
+      [
+        "/menu-digital-restaurant-gastronomique",
+        "/en/fine-dining-restaurant-digital-menu"
+      ]
     ]
   );
 
@@ -45,6 +63,14 @@ test("declares a complete bilingual FR/EN route map", async () => {
   assert.equal(getLocaleFromPath("/contact"), "fr");
   assert.equal(getLocalizedPath("/en/vistaire-menu", "fr"), "/demo");
   assert.equal(getLocalizedPath("/demo", "en"), "/en/vistaire-menu");
+  assert.equal(
+    getLocalizedPath("/menu-qr-sans-pdf", "en"),
+    "/en/qr-menu-without-pdf"
+  );
+  assert.equal(
+    getLocalizedPath("/en/qr-menu-without-pdf", "fr"),
+    "/menu-qr-sans-pdf"
+  );
   assert.equal(
     getLocalizedPath("/tarifs-menu-digital-restaurant", "en"),
     "/en/pricing-digital-restaurant-menu"
@@ -87,9 +113,24 @@ test("builds self-canonical hreflang metadata for both languages", async () => {
     }
   });
 
-  assert.deepEqual(buildPageAlternates("/carte-vistaire"), {
-    canonical: "/carte-vistaire"
+  assert.deepEqual(buildPageAlternates("/menu-qr-sans-pdf"), {
+    canonical: "/menu-qr-sans-pdf",
+    languages: {
+      "fr-CA": "/menu-qr-sans-pdf",
+      "en-CA": "/en/qr-menu-without-pdf",
+      "x-default": "/menu-qr-sans-pdf"
+    }
   });
+
+  assert.deepEqual(buildPageAlternates("/en/qr-menu-without-pdf"), {
+    canonical: "/en/qr-menu-without-pdf",
+    languages: {
+      "fr-CA": "/menu-qr-sans-pdf",
+      "en-CA": "/en/qr-menu-without-pdf",
+      "x-default": "/menu-qr-sans-pdf"
+    }
+  });
+
 });
 
 test("publishes bilingual sitemap entries with hreflang alternates", async () => {
@@ -109,6 +150,8 @@ test("publishes bilingual sitemap entries with hreflang alternates", async () =>
     "/en/book-a-call",
     "/tarifs-menu-digital-restaurant",
     "/en/pricing-digital-restaurant-menu",
+    "/menu-qr-sans-pdf",
+    "/en/qr-menu-without-pdf",
     "/menu-3d-ar-restaurant",
     "/en/3d-ar-restaurant-menu"
   ]) {
@@ -125,7 +168,7 @@ test("publishes bilingual sitemap entries with hreflang alternates", async () =>
     "en-CA": "https://www.vistaire.ca/en/vistaire-menu",
     "x-default": "https://www.vistaire.ca/demo"
   });
-  assert.equal(byPath.get("/carte-vistaire")?.alternates, undefined);
+  assert.equal(byPath.has("/carte-vistaire"), false);
   assert.equal(byPath.has("/admin"), false);
   assert.equal(byPath.has("/owner"), false);
   assert.equal(byPath.has("/dev/meshy-dishes-review"), false);

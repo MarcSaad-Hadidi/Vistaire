@@ -6,6 +6,7 @@ import {
   CONTACT_PHONE_TEL,
   getVistaireSocialProfiles
 } from "@/lib/seo";
+import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } from "@/lib/seoGeoPages";
 import styles from "./VistairePreviewChrome.module.css";
 
 type PreviewNavItem = {
@@ -122,6 +123,57 @@ const footerResources = [
   { label: "PDF vs menu digital", href: "/vistaire-preview/pdf-vs-menu-digital" },
   { label: "Restaurants haut de gamme", href: "/vistaire-preview/a-propos" }
 ] as const;
+
+const useCaseGeoSlugs = [
+  "menu-qr-sans-pdf",
+  "menu-digital-sans-application",
+  "remplacer-menu-pdf-restaurant",
+  "alternative-menu-pdf-restaurant",
+  "fiche-plat-digitale-restaurant",
+  "menu-restaurant-photos",
+  "menu-restaurant-allergenes"
+] as const;
+
+const marketGeoSlugs = [
+  "menu-digital-restaurant-montreal",
+  "menu-digital-restaurant-laval",
+  "menu-digital-restaurant-brossard",
+  "menu-digital-restaurant-haut-de-gamme",
+  "menu-digital-restaurant-gastronomique"
+] as const;
+
+const useCaseGeoSlugsEn = [
+  "qr-menu-without-pdf",
+  "digital-menu-without-app",
+  "replace-restaurant-pdf-menu",
+  "restaurant-pdf-menu-alternative",
+  "digital-dish-page-restaurant",
+  "restaurant-menu-photos",
+  "restaurant-menu-allergens"
+] as const;
+
+const marketGeoSlugsEn = [
+  "digital-restaurant-menu-montreal",
+  "digital-restaurant-menu-laval",
+  "digital-restaurant-menu-brossard",
+  "high-end-restaurant-digital-menu",
+  "fine-dining-restaurant-digital-menu"
+] as const;
+
+function getGeoFooterLinks(
+  slugs: readonly string[],
+  locale: Locale = "fr"
+) {
+  const pages = locale === "en" ? SEO_GEO_PAGES_EN : SEO_GEO_PAGES;
+
+  return slugs
+    .map((slug) => pages.find((page) => page.slug === slug))
+    .filter((page): page is (typeof pages)[number] => Boolean(page))
+    .map((page) => ({
+      label: page.eyebrow,
+      href: page.path
+    }));
+}
 
 function getPreviewNav(
   routes: VistaireChromeRoutes,
@@ -302,6 +354,7 @@ export function PreviewFooter({
             { label: "Pricing", href: routes.pricing },
             { label: "Digital restaurant menu", href: routes.menuDigital },
             { label: "QR code restaurant menu", href: routes.menuQrCode },
+            { label: "3D / AR restaurant menu", href: routes.menu3dAr },
             { label: "PDF vs digital menu", href: routes.pdfVsDigital },
             { label: "High-end restaurants", href: routes.about }
           ]
@@ -309,9 +362,24 @@ export function PreviewFooter({
             { label: "Tarifs", href: routes.pricing },
             { label: "Menu digital restaurant", href: routes.menuDigital },
             { label: "Menu QR code restaurant", href: routes.menuQrCode },
+            { label: "Menu 3D / AR restaurant", href: routes.menu3dAr },
             { label: "PDF vs menu digital", href: routes.pdfVsDigital },
-            { label: "Restaurants haut de gamme", href: routes.about }
+            { label: "À propos", href: routes.about }
           ];
+  const useCaseLinks =
+    routeMode === "production"
+      ? getGeoFooterLinks(
+          locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
+          locale
+        )
+      : [];
+  const marketLinks =
+    routeMode === "production"
+      ? getGeoFooterLinks(
+          locale === "en" ? marketGeoSlugsEn : marketGeoSlugs,
+          locale
+        )
+      : [];
   const socialProfiles = getVistaireSocialProfiles();
 
   return (
@@ -356,7 +424,7 @@ export function PreviewFooter({
         className={`${styles.footerColumn} ${styles.footerColumnWide}`}
         aria-label={locale === "en" ? "Resources" : "Ressources"}
       >
-        <h2>{locale === "en" ? "Resources" : "Ressources"}</h2>
+        <h2>{locale === "en" ? "Guides" : "Guides"}</h2>
         <nav
           className={`${styles.footerLinkList} ${styles.footerLinkListBalanced}`}
           aria-label={locale === "en" ? "Vistaire guides" : "Guides Vistaire"}
@@ -368,6 +436,56 @@ export function PreviewFooter({
           ))}
         </nav>
       </section>
+
+      {useCaseLinks.length > 0 ? (
+        <section
+          className={styles.footerColumn}
+          aria-label={locale === "en" ? "Restaurant needs" : "Besoins restaurants"}
+        >
+          <h2>{locale === "en" ? "Needs" : "Besoins"}</h2>
+          <nav
+            className={styles.footerLinkList}
+            aria-label={
+              locale === "en"
+                ? "Guides by restaurant need"
+                : "Guides par besoin restaurant"
+            }
+          >
+            {useCaseLinks.map((item) => (
+              <Link href={item.href} key={item.href} prefetch={false}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </section>
+      ) : null}
+
+      {marketLinks.length > 0 ? (
+        <section
+          className={styles.footerColumn}
+          aria-label={
+            locale === "en"
+              ? "Local and restaurant types"
+              : "Local et types de restaurants"
+          }
+        >
+          <h2>{locale === "en" ? "Local" : "Local"}</h2>
+          <nav
+            className={styles.footerLinkList}
+            aria-label={
+              locale === "en"
+                ? "Local and restaurant guides"
+                : "Guides locaux et restaurants"
+            }
+          >
+            {marketLinks.map((item) => (
+              <Link href={item.href} key={item.href} prefetch={false}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </section>
+      ) : null}
 
       <section className={styles.footerColumn} aria-label="Contact">
         <h2>Contact</h2>

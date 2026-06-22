@@ -5,10 +5,11 @@ import {
   getVistaireSocialProfiles
 } from "@/lib/seo";
 import { PRICING_PAGE } from "@/lib/pricingPage";
+import { SEO_GEO_PAGES } from "@/lib/seoGeoPages";
 import { SEO_PAGES } from "@/lib/seoPages";
 
 const experienceLinks = [
-  { href: "/carte-vistaire", label: "Carte Vistaire" },
+  { href: "/demo", label: "Menu exemple" },
   { href: "/menu-3d-ar-restaurant", label: "Plats 3D inclus" },
   { href: "/apercu-restaurateur", label: "Aperçu restaurateur" }
 ] as const;
@@ -22,13 +23,44 @@ const whyLinks = [
   }
 ] as const;
 
+const useCaseGeoSlugs = [
+  "menu-qr-sans-pdf",
+  "menu-digital-sans-application",
+  "remplacer-menu-pdf-restaurant",
+  "alternative-menu-pdf-restaurant",
+  "fiche-plat-digitale-restaurant",
+  "menu-restaurant-photos",
+  "menu-restaurant-allergenes"
+] as const;
+
+const marketGeoSlugs = [
+  "menu-digital-restaurant-montreal",
+  "menu-digital-restaurant-laval",
+  "menu-digital-restaurant-brossard",
+  "menu-digital-restaurant-haut-de-gamme",
+  "menu-digital-restaurant-gastronomique"
+] as const;
+
+function getGeoFooterLinks(slugs: readonly string[]) {
+  return slugs
+    .map((slug) => SEO_GEO_PAGES.find((page) => page.slug === slug))
+    .filter((page): page is (typeof SEO_GEO_PAGES)[number] => Boolean(page))
+    .map((page) => ({
+      href: page.path,
+      label: page.eyebrow
+    }));
+}
+
 const guideLinks = [
   { href: PRICING_PAGE.path, label: "Tarifs" },
   ...SEO_PAGES.map((page) => ({
     href: page.path,
     label: page.footerLabel ?? page.eyebrow
   }))
-] as const;
+];
+
+const useCaseLinks = getGeoFooterLinks(useCaseGeoSlugs);
+const marketLinks = getGeoFooterLinks(marketGeoSlugs);
 
 type FooterGroupProps = {
   title: string;
@@ -60,7 +92,7 @@ export function SeoFooter({ compact = false }: SeoFooterProps) {
       }`}
     >
       <div className="mx-auto max-w-7xl">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_repeat(4,minmax(0,1fr))] lg:gap-8">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_repeat(5,minmax(0,1fr))] lg:gap-8">
           <div className="sm:col-span-2 lg:col-span-1">
             <Link
               href="/"
@@ -100,8 +132,21 @@ export function SeoFooter({ compact = false }: SeoFooterProps) {
             ))}
           </FooterGroup>
 
-          <FooterGroup title="Pourquoi Vistaire">
-            {whyLinks.map((link) => (
+          <FooterGroup title="Besoins">
+            {[...whyLinks, ...useCaseLinks].map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="transition hover:text-cream focus:outline-none focus-visible:text-cream focus-visible:ring-2 focus-visible:ring-champagne"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </FooterGroup>
+
+          <FooterGroup title="Local">
+            {marketLinks.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}

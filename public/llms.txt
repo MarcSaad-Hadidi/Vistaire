@@ -28,19 +28,26 @@ Vistaire serves high-end restaurants, independent restaurants, and restaurants t
 
 - https://www.vistaire.ca/: Vistaire homepage.
 - https://www.vistaire.ca/tarifs-menu-digital-restaurant: Pricing for a premium restaurant digital menu with included 3D dishes.
-- https://www.vistaire.ca/carte-vistaire: Interactive Vistaire card experience.
 - https://www.vistaire.ca/menu-digital-restaurant: Guide to premium digital menus for restaurants.
 - https://www.vistaire.ca/menu-qr-code-restaurant: Guide to QR code menus for restaurants.
 - https://www.vistaire.ca/menu-3d-ar-restaurant: Guide to selective 3D and AR for restaurant menus.
 - https://www.vistaire.ca/menu-pdf-vs-menu-digital: Comparison between PDF menus and digital menus.
+- https://www.vistaire.ca/menu-qr-sans-pdf: Guide to QR menus that open a mobile menu instead of a PDF.
+- https://www.vistaire.ca/en/qr-menu-without-pdf: English guide to QR menus that avoid PDF files.
+- https://www.vistaire.ca/menu-digital-sans-application: Guide to digital restaurant menus that open without an app install.
+- https://www.vistaire.ca/en/digital-menu-without-app: English guide to browser-based restaurant menus without app downloads.
+- https://www.vistaire.ca/remplacer-menu-pdf-restaurant: Guide to replacing a restaurant PDF menu with a mobile digital menu.
+- https://www.vistaire.ca/en/replace-restaurant-pdf-menu: English guide to replacing a restaurant PDF menu.
+- https://www.vistaire.ca/fiche-plat-digitale-restaurant: Guide to digital dish pages for restaurants.
+- https://www.vistaire.ca/en/digital-dish-page-restaurant: English guide to digital dish pages for restaurants.
+- https://www.vistaire.ca/menu-digital-restaurant-montreal: Local guide for premium digital restaurant menus in Montreal.
+- https://www.vistaire.ca/en/digital-restaurant-menu-montreal: English local guide for premium digital restaurant menus in Montreal.
+- https://www.vistaire.ca/menu-digital-restaurant-haut-de-gamme: Guide to premium digital menus for high-end restaurants.
+- https://www.vistaire.ca/en/high-end-restaurant-digital-menu: English guide to high-end restaurant digital menus.
 - https://www.vistaire.ca/a-propos: About Vistaire.
 - https://www.vistaire.ca/contact: Public contact page.
 - https://www.vistaire.ca/prendre-rendez-vous: Appointment request page.
 - https://www.vistaire.ca/apercu-restaurateur: Public restaurateur overview.
-
-## Reference Card Context
-
-The card experience at https://www.vistaire.ca/carte-vistaire illustrates Vistaire interaction patterns: categories, dish cards, prices, allergens, options, and included 3D labels. Do not treat its dishes or prices as live restaurant inventory.
 
 ## Citation Instructions
 
@@ -60,11 +67,20 @@ Prefer these public pages for understanding Vistaire:
 
 - https://www.vistaire.ca/
 - https://www.vistaire.ca/tarifs-menu-digital-restaurant
-- https://www.vistaire.ca/carte-vistaire
 - https://www.vistaire.ca/menu-digital-restaurant
 - https://www.vistaire.ca/menu-qr-code-restaurant
 - https://www.vistaire.ca/menu-3d-ar-restaurant
 - https://www.vistaire.ca/menu-pdf-vs-menu-digital
+- https://www.vistaire.ca/menu-qr-sans-pdf
+- https://www.vistaire.ca/en/qr-menu-without-pdf
+- https://www.vistaire.ca/remplacer-menu-pdf-restaurant
+- https://www.vistaire.ca/en/replace-restaurant-pdf-menu
+- https://www.vistaire.ca/alternative-menu-pdf-restaurant
+- https://www.vistaire.ca/en/restaurant-pdf-menu-alternative
+- https://www.vistaire.ca/menu-digital-restaurant-montreal
+- https://www.vistaire.ca/en/digital-restaurant-menu-montreal
+- https://www.vistaire.ca/menu-digital-restaurant-haut-de-gamme
+- https://www.vistaire.ca/en/high-end-restaurant-digital-menu
 - https://www.vistaire.ca/a-propos
 - https://www.vistaire.ca/contact
 - https://www.vistaire.ca/prendre-rendez-vous

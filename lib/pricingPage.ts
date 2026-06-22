@@ -8,9 +8,9 @@ import {
 import type { Locale } from "./i18n.ts";
 
 export const PRICING_PATH = "/tarifs-menu-digital-restaurant";
-export const CARTE_VISTAIRE_PATH = "/carte-vistaire";
+export const SAMPLE_MENU_PATH = "/demo";
 export const PRICING_PATH_EN = "/en/pricing-digital-restaurant-menu";
-export const CARTE_VISTAIRE_PATH_EN = "/en/vistaire-menu";
+export const SAMPLE_MENU_PATH_EN = "/en/vistaire-menu";
 
 export const pricingMetadata = {
   title: "Tarifs menu digital restaurant avec plats 3D | Vistaire",
@@ -60,8 +60,8 @@ export const PRICING_PAGE = {
     href: "/prendre-rendez-vous"
   },
   secondaryCta: {
-    label: "Voir une carte Vistaire",
-    href: CARTE_VISTAIRE_PATH
+    label: "Voir le menu exemple",
+    href: SAMPLE_MENU_PATH
   },
   plans: [
     {
@@ -268,7 +268,7 @@ export const PRICING_PAGE_EN = {
   },
   secondaryCta: {
     label: "View a Vistaire menu",
-    href: CARTE_VISTAIRE_PATH_EN
+    href: SAMPLE_MENU_PATH_EN
   },
   plans: [
     {

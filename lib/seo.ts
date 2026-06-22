@@ -4,6 +4,7 @@ import {
   LOCALE_LANGUAGE_TAG,
   type Locale
 } from "./i18n.ts";
+import { SEO_GEO_PAGES } from "./seoGeoPages.ts";
 
 export const SITE_NAME = "Vistaire";
 export const SITE_URL_FALLBACK = "https://www.vistaire.ca";
@@ -102,14 +103,6 @@ export const PUBLIC_PRODUCT_SITEMAP_ENTRIES = [
     path: "/apercu-restaurateur",
     changeFrequency: "monthly",
     priority: 0.76
-  }
-] as const;
-
-const STANDALONE_SITEMAP_ENTRIES = [
-  {
-    path: "/carte-vistaire",
-    changeFrequency: "monthly",
-    priority: 0.8
   }
 ] as const;
 
@@ -294,7 +287,9 @@ export function buildSitemapEntries(
       lastModified,
       changeFrequency,
       priority: Math.max(current?.priority ?? 0, priority),
-      ...(alternates ? { alternates } : {})
+      ...(alternates ?? current?.alternates
+        ? { alternates: alternates ?? current?.alternates }
+        : {})
     });
   };
 
@@ -310,15 +305,10 @@ export function buildSitemapEntries(
       });
     }
 
-    if (route.fr === "/") {
-      for (const standaloneRoute of STANDALONE_SITEMAP_ENTRIES) {
-        setEntry(
-          standaloneRoute.path,
-          standaloneRoute.changeFrequency,
-          standaloneRoute.priority
-        );
-      }
-    }
+  }
+
+  for (const page of SEO_GEO_PAGES) {
+    setEntry(page.path, "monthly", page.sitemapPriority);
   }
 
   return [...entries.values()];
