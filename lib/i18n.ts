@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoPages.ts";
+import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoRoutes.ts";
 
 export const SUPPORTED_LOCALES = ["fr", "en"] as const;
 
@@ -23,80 +23,100 @@ export const LOCALE_OPEN_GRAPH: Record<Locale, "fr_CA" | "en_CA"> = {
 
 export const VISTAIRE_LOCALE_HEADER = "x-vistaire-locale";
 
+export const PUBLIC_ROUTE_UPDATED_AT = "2026-06-22T21:26:34.000Z";
+
 export type BilingualRoutePair = {
   fr: string;
   en: string;
   changeFrequency: "weekly" | "monthly";
   priority: number;
+  updatedAt: string;
 };
 
 export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
-  { fr: "/", en: "/en", changeFrequency: "monthly", priority: 1 },
+  {
+    fr: "/",
+    en: "/en",
+    changeFrequency: "monthly",
+    priority: 1,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
+  },
   {
     fr: "/demo",
     en: "/en/vistaire-menu",
     changeFrequency: "weekly",
-    priority: 0.62
+    priority: 0.62,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/tarifs-menu-digital-restaurant",
     en: "/en/pricing-digital-restaurant-menu",
     changeFrequency: "monthly",
-    priority: 0.9
+    priority: 0.9,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/menu-digital-restaurant",
     en: "/en/digital-restaurant-menu",
     changeFrequency: "monthly",
-    priority: 0.88
+    priority: 0.88,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/menu-qr-code-restaurant",
     en: "/en/qr-code-restaurant-menu",
     changeFrequency: "monthly",
-    priority: 0.82
+    priority: 0.82,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/menu-3d-ar-restaurant",
     en: "/en/3d-ar-restaurant-menu",
     changeFrequency: "monthly",
-    priority: 0.78
+    priority: 0.78,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/menu-pdf-vs-menu-digital",
     en: "/en/pdf-vs-digital-menu",
     changeFrequency: "monthly",
-    priority: 0.84
+    priority: 0.84,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/a-propos",
     en: "/en/about",
     changeFrequency: "monthly",
-    priority: 0.72
+    priority: 0.72,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/contact",
     en: "/en/contact",
     changeFrequency: "monthly",
-    priority: 0.7
+    priority: 0.7,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/prendre-rendez-vous",
     en: "/en/book-a-call",
     changeFrequency: "monthly",
-    priority: 0.74
+    priority: 0.74,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   {
     fr: "/apercu-restaurateur",
     en: "/en/restaurant-preview",
     changeFrequency: "monthly",
-    priority: 0.76
+    priority: 0.76,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
   ...SEO_GEO_ROUTE_PAIRS.map((route) => ({
     fr: route.fr,
     en: route.en,
     changeFrequency: "monthly" as const,
-    priority: route.priority
+    priority: route.priority,
+    updatedAt: route.updatedAt
   }))
 ];
 

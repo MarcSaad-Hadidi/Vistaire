@@ -4,7 +4,6 @@ import {
   LOCALE_LANGUAGE_TAG,
   type Locale
 } from "./i18n.ts";
-import { SEO_GEO_PAGES } from "./seoGeoPages.ts";
 
 export const SITE_NAME = "Vistaire";
 export const SITE_URL_FALLBACK = "https://www.vistaire.ca";
@@ -15,6 +14,8 @@ export const CONTACT_LOCATION_LABEL = "Montréal, Québec, Canada";
 export const CONTACT_REGION_LABEL = "Montréal, Québec";
 export const DEFAULT_SITE_DESCRIPTION =
   "Vistaire transforme le QR code restaurant en carte digitale immersive pour restaurants haut de gamme : fiches plats, visuels, allergènes, 3D/AR sélective et aperçu restaurateur.";
+
+export const PUBLIC_SITEMAP_UPDATED_AT = "2026-06-22T21:26:34.000Z";
 
 const SITE_URL_ENV_KEYS = [
   "NEXT_PUBLIC_SITE_URL",
@@ -59,52 +60,6 @@ type SitemapDish = {
   slug: string;
   isAvailable?: boolean;
 };
-
-export const PUBLIC_SEO_SITEMAP_ENTRIES = [
-  {
-    path: "/menu-digital-restaurant",
-    changeFrequency: "monthly",
-    priority: 0.88
-  },
-  {
-    path: "/menu-qr-code-restaurant",
-    changeFrequency: "monthly",
-    priority: 0.82
-  },
-  {
-    path: "/menu-3d-ar-restaurant",
-    changeFrequency: "monthly",
-    priority: 0.78
-  },
-  {
-    path: "/menu-pdf-vs-menu-digital",
-    changeFrequency: "monthly",
-    priority: 0.84
-  }
-] as const;
-
-export const PUBLIC_PRODUCT_SITEMAP_ENTRIES = [
-  {
-    path: "/a-propos",
-    changeFrequency: "monthly",
-    priority: 0.72
-  },
-  {
-    path: "/contact",
-    changeFrequency: "monthly",
-    priority: 0.7
-  },
-  {
-    path: "/prendre-rendez-vous",
-    changeFrequency: "monthly",
-    priority: 0.74
-  },
-  {
-    path: "/apercu-restaurateur",
-    changeFrequency: "monthly",
-    priority: 0.76
-  }
-] as const;
 
 export type SitemapEntry = {
   url: string;
@@ -265,18 +220,25 @@ export function absoluteUrl(path = "/", env?: SiteUrlEnv): string {
   return new URL(normalizedPath, getSiteUrl(env)).toString();
 }
 
+function sitemapDate(value: string): Date {
+  return new Date(value);
+}
+
 export function buildSitemapEntries(
   dishes: SitemapDish[] = [],
-  lastModified = new Date(),
+  lastModified?: Date,
   env?: SiteUrlEnv
 ): SitemapEntry[] {
   void dishes;
   const entries = new Map<string, SitemapEntry>();
   const toAbsolute = (path: string) => absoluteUrl(path, env);
+  const resolveLastModified = (updatedAt = PUBLIC_SITEMAP_UPDATED_AT) =>
+    lastModified ?? sitemapDate(updatedAt);
   const setEntry = (
     path: string,
     changeFrequency: SitemapEntry["changeFrequency"],
     priority: number,
+    entryLastModified: Date,
     alternates?: SitemapEntry["alternates"]
   ) => {
     const url = toAbsolute(path);
@@ -284,7 +246,7 @@ export function buildSitemapEntries(
 
     entries.set(url, {
       url,
-      lastModified,
+      lastModified: entryLastModified,
       changeFrequency,
       priority: Math.max(current?.priority ?? 0, priority),
       ...(alternates ?? current?.alternates
@@ -300,15 +262,16 @@ export function buildSitemapEntries(
     );
 
     for (const path of [route.fr, route.en]) {
-      setEntry(path, route.changeFrequency, route.priority, {
-        languages: languageAlternates
-      });
+      setEntry(
+        path,
+        route.changeFrequency,
+        route.priority,
+        resolveLastModified(route.updatedAt),
+        {
+          languages: languageAlternates
+        }
+      );
     }
-
-  }
-
-  for (const page of SEO_GEO_PAGES) {
-    setEntry(page.path, "monthly", page.sitemapPriority);
   }
 
   return [...entries.values()];

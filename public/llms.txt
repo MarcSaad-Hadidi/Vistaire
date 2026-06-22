@@ -15,6 +15,10 @@ Vistaire transforms a restaurant QR code or PDF menu into a premium mobile menu 
 
 Vistaire serves high-end restaurants, independent restaurants, and restaurants that currently rely on QR menus or PDF menus. The public positioning is Montréal, Québec, Canada.
 
+## Search Intent Evidence
+
+Vistaire SEO/GEO query lists and intent clusters are editorial hypotheses based on public product positioning and page intent. They are not validated search-volume, ranking, keyword-difficulty, client-performance, or conversion proof.
+
 ## Services
 
 - Premium QR digital menu for restaurants.
