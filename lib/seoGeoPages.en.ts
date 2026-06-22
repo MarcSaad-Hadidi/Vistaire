@@ -67,7 +67,7 @@ function faqEn(
     {
       question: "Does Vistaire load 3D or AR immediately?",
       answer:
-        "No. 3D and AR stay selective and open only after the guest shows intent on a compatible dish page."
+        "No. 3D and AR stay selective and open only after the guest actively opens a compatible dish page."
     },
     {
       question: "Can the restaurant keep a printed menu?",

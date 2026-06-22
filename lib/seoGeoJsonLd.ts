@@ -6,6 +6,10 @@ import {
   type JsonLdObject
 } from "./seo.ts";
 import type { SeoGeoPageData } from "./seoGeoTypes.ts";
+import {
+  buildSeoGeoPublicFaq,
+  seoGeoPublicText
+} from "./seoGeoPublicText.ts";
 
 function normalizePlaceName(name: string): string {
   return name
@@ -56,9 +60,9 @@ export function buildSeoGeoAeoJsonLd(page: SeoGeoPageData) {
     }),
     buildBreadcrumbJsonLd([
       { name: locale === "en" ? "Home" : "Accueil", path: locale === "en" ? "/en" : "/" },
-      { name: page.h1, path: page.path }
+      { name: seoGeoPublicText(page.h1, locale), path: page.path }
     ]),
     service,
-    buildFaqPageJsonLd(page.faq, page.path)
+    buildFaqPageJsonLd(buildSeoGeoPublicFaq(page), page.path)
   ];
 }

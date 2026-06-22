@@ -237,23 +237,30 @@ test("search intent matrix records evidence status for published and planned que
 
 test("SEO/GEO/AEO JSON-LD is honest and mirrors visible FAQ data", async () => {
   const { buildSeoGeoAeoJsonLd } = await import("../lib/seoGeoJsonLd.ts");
+  const { buildSeoGeoPublicFaq } = await import("../lib/seoGeoPublicText.ts");
   const { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } = await import("../lib/seoGeoPages.ts");
 
   for (const page of [...SEO_GEO_PAGES, ...SEO_GEO_PAGES_EN]) {
     const jsonLd = buildSeoGeoAeoJsonLd(page);
     const serialized = JSON.stringify(jsonLd);
     const types = jsonLd.map((item) => item["@type"]);
+    const publicFaq = buildSeoGeoPublicFaq(page);
 
     assert.deepEqual(types, ["WebPage", "BreadcrumbList", "Service", "FAQPage"]);
     assert.equal(jsonLd[0].url, `https://www.vistaire.ca${page.path}`);
-    assert.equal(jsonLd[3].mainEntity.length, page.faq.length);
+    assert.equal(jsonLd[3].mainEntity.length, publicFaq.length);
     assert.deepEqual(
       jsonLd[3].mainEntity.map((item) => item.name),
-      page.faq.map((item) => item.question)
+      publicFaq.map((item) => item.question)
+    );
+    assert.deepEqual(
+      jsonLd[3].mainEntity.map((item) => item.acceptedAnswer.text),
+      publicFaq.map((item) => item.answer)
     );
     assert.equal(serialized.includes('"@type":"Restaurant"'), false);
     assert.equal(serialized.includes("AggregateRating"), false);
     assert.equal(serialized.includes("Review"), false);
+    assert.doesNotMatch(serialized, /guest shows intent|intention du client|hreflang cassé/i);
 
     if (page.type === "local") {
       assert.equal(Array.isArray(jsonLd[2].areaServed), true, page.path);

@@ -25,6 +25,10 @@ import type {
   SeoGeoPageData,
   SeoGeoPageType
 } from "@/lib/seoGeoPages";
+import {
+  buildSeoGeoPublicFaq,
+  seoGeoPublicText as publicText
+} from "@/lib/seoGeoPublicText";
 
 type PageVisual = {
   alt: string;
@@ -281,53 +285,6 @@ const heroImageSizes: Record<SeoGeoPageType, string> = {
     "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 64vw, 780px"
 };
 
-const publicTextReplacements = {
-  fr: [
-    [
-      /Vistaire regroupe les intentions Vieux-Montréal, Griffintown, Plateau, Outremont, Westmount et Saint-Laurent dans une page forte tant que des pages de quartier vraiment uniques ne sont pas justifiées\./g,
-      "Vistaire rassemble les besoins des restaurants de Vieux-Montréal, Griffintown, Plateau, Outremont, Westmount et Saint-Laurent dans un guide commun tant qu'un contenu de quartier vraiment utile n'est pas justifié."
-    ],
-    [/après intention du client/gi, "après action du client"],
-    [/intention du client/gi, "action du client"],
-    [/\bintentions?\b/gi, "besoin"],
-    [/moteurs de recherche/gi, "visiteurs"],
-    [/assistants IA/gi, "équipes en salle"],
-    [new RegExp("cul-de-sac " + "SEO", "gi"), "rupture dans le parcours"],
-    [/FAQ SEO\/GEO/gi, "Questions fréquentes"],
-    [/SEO\/GEO/gi, "restaurant"],
-    [/\b(?:SEO|GEO|AEO)\b/g, "restaurant"],
-    [new RegExp("nouvelles " + "pages", "gi"), "nouveaux guides"],
-    [/pages nouvelles/gi, "nouveaux guides"]
-  ],
-  en: [
-    [/guest shows intent/gi, "guest actively opens it"],
-    [/after intent/gi, "after a guest action"],
-    [/\bintentional\b/gi, "deliberate"],
-    [/\bintentionally\b/gi, "deliberately"],
-    [/\bintent\b/gi, "need"],
-    [/search engines/gi, "restaurant visitors"],
-    [/AI assistants/gi, "service teams"],
-    [new RegExp("SEO " + "dead end", "gi"), "drop-off in the guest journey"],
-    [/SEO\/GEO FAQ/gi, "Common restaurant questions"],
-    [/SEO\/GEO/gi, "restaurant"],
-    [/\b(?:SEO|GEO|AEO)\b/g, "restaurant"],
-    [new RegExp("new " + "pages", "gi"), "new guides"]
-  ]
-} satisfies Record<
-  NonNullable<SeoGeoPageData["locale"]>,
-  Array<[RegExp, string]>
->;
-
-function publicText(
-  text: string,
-  locale: NonNullable<SeoGeoPageData["locale"]>
-) {
-  return publicTextReplacements[locale].reduce(
-    (value, [pattern, replacement]) => value.replace(pattern, replacement),
-    text
-  );
-}
-
 function ArrowIcon() {
   return (
     <svg
@@ -372,10 +329,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
     page.primaryCta,
     page.secondaryCta
   ]);
-  const displayFaq = page.faq.map((item) => ({
-    question: publicText(item.question, locale),
-    answer: publicText(item.answer, locale)
-  }));
+  const displayFaq = buildSeoGeoPublicFaq(page);
 
   return (
     <main className={styles.page}>

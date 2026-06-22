@@ -134,7 +134,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       {
         question: "La 3D est-elle chargée dès l'ouverture ?",
         answer:
-          "Non. Les contenus 3D/AR restent sélectifs et s'ouvrent seulement après intention du client."
+          "Non. Les contenus 3D/AR restent sélectifs et s'ouvrent seulement après action du client."
       }
     ],
     service: {
@@ -806,12 +806,12 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       heading: "Une carte mobile pour la réalité montréalaise",
       body: [
         "Montréal réunit des restaurants très visuels, des clientèles locales et touristiques, et des quartiers où l'image du lieu compte autant que la rapidité de lecture.",
-        "Vistaire regroupe les intentions Vieux-Montréal, Griffintown, Plateau, Outremont, Westmount et Saint-Laurent dans une page forte tant que des pages de quartier vraiment uniques ne sont pas justifiées."
+        "Vistaire rassemble les besoins des restaurants de Vieux-Montréal, Griffintown, Plateau, Outremont, Westmount et Saint-Laurent dans un guide commun tant qu'un contenu de quartier vraiment utile n'est pas justifié."
       ],
       points: [
         "adapté aux restaurants indépendants et premium",
         "utile pour les menus QR sans PDF",
-        "approche bilingue possible sans créer de hreflang cassé"
+        "approche bilingue possible sans créer de correspondance fragile"
       ]
     },
     productProof: {
@@ -1094,7 +1094,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       {
         question: "Les contenus 3D chargent-ils immédiatement ?",
         answer:
-          "Non. Ils restent déclenchés après intention du client."
+          "Non. Ils restent déclenchés après action du client."
       }
     ],
     service: {

@@ -1,7 +1,7 @@
 # Vistaire SEO Route Inventory
 
 Last updated: 2026-06-22
-Follow-up branch: `codex/pr102-docs-pr-hygiene`
+Follow-up branch: `codex/pr102-seo-hardening-followup`
 Base checked: `origin/main` at `45237aa577a7cf7283c0777b3f8d14e3ce348d77`
 
 ## Summary
@@ -54,7 +54,7 @@ PR #102 publishes the SEO/GEO batch in both languages. French pages are served b
 - `BILINGUAL_ROUTE_PAIRS` includes the base product pairs and spreads `SEO_GEO_ROUTE_PAIRS`.
 - `buildPageAlternates()` emits a self canonical plus `fr-CA`, `en-CA`, and `x-default` language alternates for every paired route.
 - `buildSitemapEntries()` adds both FR and EN paths for every bilingual pair with absolute alternates.
-- The extra FR `SEO_GEO_PAGES` sitemap pass should preserve existing alternates for those URLs because `setEntry()` keeps the current alternate payload when re-setting a URL without a new alternate object.
+- SEO/GEO routes enter the sitemap through `BILINGUAL_ROUTE_PAIRS`, which already spreads `SEO_GEO_ROUTE_PAIRS`; there is no separate FR-only sitemap pass in this follow-up.
 - `/carte-vistaire` is intentionally absent from the sitemap and redirects permanently to `/demo`.
 
 ## Noindex / Internal Routes
