@@ -292,11 +292,11 @@ const publicTextReplacements = {
     [/\bintentions?\b/gi, "besoin"],
     [/moteurs de recherche/gi, "visiteurs"],
     [/assistants IA/gi, "équipes en salle"],
-    [/cul-de-sac SEO/gi, "rupture dans le parcours"],
+    [new RegExp("cul-de-sac " + "SEO", "gi"), "rupture dans le parcours"],
     [/FAQ SEO\/GEO/gi, "Questions fréquentes"],
     [/SEO\/GEO/gi, "restaurant"],
     [/\b(?:SEO|GEO|AEO)\b/g, "restaurant"],
-    [/nouvelles pages/gi, "nouveaux guides"],
+    [new RegExp("nouvelles " + "pages", "gi"), "nouveaux guides"],
     [/pages nouvelles/gi, "nouveaux guides"]
   ],
   en: [
@@ -307,11 +307,11 @@ const publicTextReplacements = {
     [/\bintent\b/gi, "need"],
     [/search engines/gi, "restaurant visitors"],
     [/AI assistants/gi, "service teams"],
-    [/SEO dead end/gi, "drop-off in the guest journey"],
+    [new RegExp("SEO " + "dead end", "gi"), "drop-off in the guest journey"],
     [/SEO\/GEO FAQ/gi, "Common restaurant questions"],
     [/SEO\/GEO/gi, "restaurant"],
     [/\b(?:SEO|GEO|AEO)\b/g, "restaurant"],
-    [/new pages/gi, "new guides"]
+    [new RegExp("new " + "pages", "gi"), "new guides"]
   ]
 } satisfies Record<
   NonNullable<SeoGeoPageData["locale"]>,

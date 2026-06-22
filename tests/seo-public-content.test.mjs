@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const PUBLIC_SEO_COPY_TARGETS = [
   "components/seo/SeoGeoAeoPage.tsx",
+  "components/seo/pages/TarifsMenuDigitalRestaurantPage.tsx",
   "lib/seoGeoPages.ts",
   "public/llms.txt"
 ];
@@ -18,6 +19,7 @@ const FORBIDDEN_VISIBLE_COPY = [
   /cul-de-sac SEO/i,
   /search engines and AI assistants/i,
   /moteurs de recherche et les assistants IA/i,
+  /moteurs génératifs/i,
   /connect this intent/i,
   /relier cette intention/i
 ];
