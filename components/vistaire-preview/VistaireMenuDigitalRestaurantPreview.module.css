@@ -2,7 +2,7 @@
   font-family: "BT Suave";
   font-style: normal;
   font-weight: 400;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
 }
 
@@ -10,7 +10,7 @@
   font-family: "BT Suave";
   font-style: normal;
   font-weight: 500;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
 }
 
@@ -18,7 +18,7 @@
   font-family: "Neue Montreal";
   font-style: normal;
   font-weight: 400;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
 }
 
@@ -26,7 +26,7 @@
   font-family: "Neue Montreal";
   font-style: normal;
   font-weight: 500;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/vistaire-preview/NeueMontreal-Medium.otf") format("opentype");
 }
 
@@ -34,7 +34,7 @@
   font-family: "Neue Montreal";
   font-style: normal;
   font-weight: 700;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
 }
 
@@ -135,6 +135,83 @@
 .heroLead,
 .heroActions {
   grid-column: 2;
+}
+
+.layoutAeo {
+  --layout-rail: rgba(232, 207, 155, 0.76);
+}
+
+.layoutLocal .heroCopy {
+  grid-template-columns: minmax(0, 0.58fr) minmax(320px, 0.42fr);
+}
+
+.layoutLocal .heroCopy > .badge,
+.layoutLocal .heroCopy h1,
+.layoutLocal .heroLead,
+.layoutLocal .heroActions {
+  grid-column: 1;
+}
+
+.layoutLocal .heroVisual {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+}
+
+.layoutLocal .problemCard {
+  display: grid;
+  grid-template-columns: minmax(0, 0.62fr) minmax(260px, 0.38fr);
+  gap: clamp(18px, 3vw, 34px);
+  align-items: start;
+}
+
+.layoutLocal .problemCard > .badge,
+.layoutLocal .problemCard h2,
+.layoutLocal .problemCard > p {
+  grid-column: 1;
+}
+
+.layoutLocal .problemCard .problemList {
+  grid-column: 2;
+  grid-row: 1 / span 5;
+  grid-template-columns: 1fr;
+  margin-top: 0;
+}
+
+.layoutVertical .heroCopy {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.layoutVertical .heroCopy > .badge,
+.layoutVertical .heroCopy h1,
+.layoutVertical .heroLead,
+.layoutVertical .heroActions,
+.layoutVertical .heroVisual {
+  grid-column: 1;
+}
+
+.layoutVertical .heroCopy h1,
+.layoutVertical .heroLead {
+  max-width: 860px;
+}
+
+.layoutVertical .heroVisual {
+  grid-row: auto;
+  width: min(100%, 860px);
+  aspect-ratio: 16 / 9;
+}
+
+.layoutVertical .mobileProofCard {
+  grid-template-columns: minmax(280px, 0.38fr) minmax(0, 0.62fr);
+}
+
+.layoutVertical .mobileProofCard .visualFigure {
+  grid-column: 2;
+}
+
+.layoutVertical .mobileProofCard .visualCopy {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .revealCard {
@@ -312,6 +389,34 @@
   font-size: 15px;
   font-weight: 500;
   line-height: 1.58;
+}
+
+.proofPoints {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proofPoints li {
+  position: relative;
+  padding-left: 18px;
+  color: rgba(244, 229, 205, 0.76);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.48;
+}
+
+.proofPoints li::before {
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(232, 207, 155, 0.72);
+  content: "";
 }
 
 .finalCta {
@@ -911,6 +1016,41 @@
   .heroActions,
   .heroVisual {
     grid-column: 1;
+  }
+
+  .layoutLocal .heroCopy,
+  .layoutLocal .problemCard,
+  .layoutVertical .heroCopy,
+  .layoutVertical .mobileProofCard {
+    grid-template-columns: 1fr;
+  }
+
+  .layoutLocal .heroCopy > .badge,
+  .layoutLocal .heroCopy h1,
+  .layoutLocal .heroLead,
+  .layoutLocal .heroActions,
+  .layoutLocal .heroVisual,
+  .layoutLocal .problemCard > .badge,
+  .layoutLocal .problemCard h2,
+  .layoutLocal .problemCard > p,
+  .layoutLocal .problemCard .problemList,
+  .layoutVertical .heroCopy > .badge,
+  .layoutVertical .heroCopy h1,
+  .layoutVertical .heroLead,
+  .layoutVertical .heroActions,
+  .layoutVertical .heroVisual,
+  .layoutVertical .mobileProofCard .visualFigure,
+  .layoutVertical .mobileProofCard .visualCopy {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .layoutLocal .problemCard .problemList {
+    margin-top: 24px;
+  }
+
+  .layoutVertical .heroVisual {
+    width: 100%;
   }
 
   .heroVisual {
