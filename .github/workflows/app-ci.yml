@@ -52,7 +52,7 @@ jobs:
         run: npm run build
 
       - name: Install Playwright Chromium
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: npx playwright install chromium
 
       - name: SEO smoke e2e
