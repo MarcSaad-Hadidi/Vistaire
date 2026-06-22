@@ -53,7 +53,7 @@ jobs:
 
       - name: Install Playwright Chromium
         timeout-minutes: 15
-        run: npx playwright install chromium
+        run: npx playwright install --only-shell chromium
 
       - name: SEO smoke e2e
         timeout-minutes: 5
