@@ -4,6 +4,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
+const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 const ownerE2eToken =
   process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
   "vistaire-owner-e2e-local-token";
@@ -21,7 +22,15 @@ export default defineConfig({
     trace: "on-first-retry",
     video: "off"
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(browserChannel ? { channel: browserChannel } : {})
+      }
+    }
+  ],
   ...(shouldStartWebServer
     ? {
         webServer: {
