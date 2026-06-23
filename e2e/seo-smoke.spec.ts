@@ -156,7 +156,7 @@ function attachPageGuards(page: Page) {
   page.on("response", (response) => {
     const status = response.status();
     const url = response.url();
-    if ((status === 404 || status >= 500) && !url.includes("/__nextjs")) {
+    if (status >= 400 && !url.includes("/__nextjs")) {
       badResponses.push(`${status} ${url}`);
     }
   });
