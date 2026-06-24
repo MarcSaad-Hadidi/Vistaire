@@ -1,6 +1,7 @@
 /**
  * Build Meshy restaurant dish assets (Draco GLB, Meshopt web, AR-lite, iOS USDZ)
- * under public/models/restaurants/{restaurant}/{menu}/{dish}/meshy-{date}/
+ * under public/models/restaurants/{restaurant}/{menu}/{dish}/meshy-{date}/,
+ * or under a temporary output root when --output-root / VISTAIRE_MESHY_OUTPUT_ROOT is provided.
  *
  * Usage:
  *   node scripts/owner/build-restaurant-meshy-dish.mjs \
@@ -11,7 +12,7 @@
  */
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
@@ -32,6 +33,7 @@ function parseArgs(argv) {
     menu: "principal",
     dish: "",
     source: "",
+    outputRoot: process.env.VISTAIRE_MESHY_OUTPUT_ROOT?.trim() || "",
     dateTag: new Date().toISOString().slice(0, 10).replace(/-/g, "")
   };
 
@@ -45,6 +47,8 @@ function parseArgs(argv) {
     else if (arg.startsWith("--dish=")) options.dish = arg.split("=")[1] ?? "";
     else if (arg === "--source") options.source = argv[++index] ?? "";
     else if (arg.startsWith("--source=")) options.source = arg.split("=")[1] ?? "";
+    else if (arg === "--output-root") options.outputRoot = argv[++index] ?? "";
+    else if (arg.startsWith("--output-root=")) options.outputRoot = arg.split("=")[1] ?? "";
     else if (arg === "--date") options.dateTag = argv[++index] ?? options.dateTag;
     else if (arg.startsWith("--date=")) options.dateTag = arg.split("=")[1] ?? options.dateTag;
     else if (arg === "--help" || arg === "-h") {
@@ -54,7 +58,11 @@ function parseArgs(argv) {
           "  node scripts/owner/build-restaurant-meshy-dish.mjs \\",
           '    --restaurant trouvable --menu principal \\',
           "    --dish dejeuner-classique-maison \\",
-          '    --source "3D Plat/DejeunerMeshyCompresser.glb"'
+          '    --source "3D Plat/DejeunerMeshyCompresser.glb"',
+          "",
+          "Owner runtime:",
+          "  --output-root /tmp/vistaire-owner-meshy-output",
+          "  or VISTAIRE_MESHY_OUTPUT_ROOT=/tmp/vistaire-owner-meshy-output"
         ].join("\n")
       );
       process.exit(0);
@@ -89,9 +97,23 @@ function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+function resolveInputPath(path) {
+  return isAbsolute(path) ? path : join(ROOT, path);
+}
+
+function resolveOutputRoot(path) {
+  const root = path?.trim();
+  if (!root) return "";
+  return isAbsolute(root) ? root : join(ROOT, root);
+}
+
+function slashPath(path) {
+  return path.replace(/\\/g, "/");
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const sourcePath = join(ROOT, options.source);
+  const sourcePath = resolveInputPath(options.source);
   if (!existsSync(sourcePath)) {
     throw new Error(`Source introuvable: ${sourcePath}`);
   }
@@ -99,8 +121,7 @@ function main() {
     throw new Error(`Missing glTF Transform CLI: ${GLTF_TRANSFORM_CLI}`);
   }
 
-  const assetRootRelative = join(
-    "public",
+  const publicAssetRootRelative = join(
     "models",
     "restaurants",
     options.restaurant,
@@ -108,7 +129,13 @@ function main() {
     options.dish,
     `meshy-${options.dateTag}`
   );
-  const assetRoot = join(ROOT, assetRootRelative);
+  const outputRoot = resolveOutputRoot(options.outputRoot);
+  const assetRoot = outputRoot
+    ? join(outputRoot, publicAssetRootRelative)
+    : join(ROOT, "public", publicAssetRootRelative);
+  const childAssetRoot = outputRoot
+    ? assetRoot
+    : join("public", publicAssetRootRelative);
   const arLiteDir = join(assetRoot, "ar-lite");
   const meshyFile = `${options.dish}-meshy.glb`;
   const meshyPath = join(assetRoot, meshyFile);
@@ -144,25 +171,26 @@ function main() {
   console.log(`Meshopt web -> ${meshoptPath}`);
 
   runNode("scripts/build-demo-ar-lite-assets.mjs", {
-    VISTAIRE_MESHY_ASSET_ROOT: assetRootRelative.replace(/\\/g, "/"),
+    VISTAIRE_MESHY_ASSET_ROOT: slashPath(childAssetRoot),
     VISTAIRE_MESHY_ONLY: options.dish
   });
 
+  const iosEnv = {
+    VISTAIRE_MESHY_ASSET_ROOT: slashPath(childAssetRoot)
+  };
+  if (outputRoot) {
+    iosEnv.VISTAIRE_MESHY_CANDIDATE_ROOT = slashPath(join(assetRoot, ".ios-candidates"));
+    iosEnv.VISTAIRE_MESHY_WORK_ROOT = slashPath(join(assetRoot, ".ios-work"));
+  }
   runNode(
     "scripts/build-ios-quicklook-ultra-assets.mjs",
-    {
-      VISTAIRE_MESHY_ASSET_ROOT: assetRootRelative.replace(/\\/g, "/")
-    },
+    iosEnv,
     [options.dish, "--promote", "ultra", "--quality-approved"]
   );
 
   const arLiteGlb = join(arLiteDir, `${options.dish}-ar-lite-meshy.glb`);
   const arUsdz = join(arLiteDir, `${options.dish}-ios-quicklook-meshy.usdz`);
-  const publicRoot = join(ROOT, "public");
-  const publicAssetRoot = assetRoot.startsWith(publicRoot)
-    ? assetRoot.slice(publicRoot.length).replace(/\\/g, "/")
-    : `/${assetRootRelative.replace(/\\/g, "/")}`;
-  const urlPrefix = publicAssetRoot.startsWith("/") ? publicAssetRoot : `/${publicAssetRoot}`;
+  const urlPrefix = `/${slashPath(publicAssetRootRelative)}`;
 
   const manifest = {
     kind: "vistaire.restaurant-meshy-dish",
@@ -170,12 +198,18 @@ function main() {
     menuSlug: options.menu,
     dishSlug: options.dish,
     version: `meshy-${options.dateTag}`,
-    sourceFile: options.source,
+    sourceFile: outputRoot ? basename(sourcePath) : options.source,
     assets: {
       model3dUrl: `${urlPrefix}/${meshyFile}`,
       webModel3dUrl: `${urlPrefix}/${options.dish}-meshopt-${meshoptHash}.glb`,
       arModel3dUrl: `${urlPrefix}/ar-lite/${options.dish}-ar-lite-meshy.glb`,
       arUsdzUrl: `${urlPrefix}/ar-lite/${options.dish}-ios-quicklook-meshy.usdz`
+    },
+    localPaths: {
+      model3d: meshyFile,
+      webModel3d: `${options.dish}-meshopt-${meshoptHash}.glb`,
+      arModel3d: `ar-lite/${options.dish}-ar-lite-meshy.glb`,
+      arUsdz: `ar-lite/${options.dish}-ios-quicklook-meshy.usdz`
     },
     sha256: {
       meshy: sha256File(meshyPath),
