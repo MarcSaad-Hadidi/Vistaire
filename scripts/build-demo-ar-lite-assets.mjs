@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
@@ -10,9 +10,17 @@ import { GLTF2Export } from "@babylonjs/serializers/glTF/2.0/glTFSerializer.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const ASSET_ROOT = process.env.VISTAIRE_MESHY_ASSET_ROOT
-  ? join(ROOT, process.env.VISTAIRE_MESHY_ASSET_ROOT)
-  : join(ROOT, "public", "models", "demo");
+
+function resolveWorkspaceRoot(value, fallback) {
+  const root = value?.trim();
+  if (!root) return fallback;
+  return isAbsolute(root) ? root : join(ROOT, root);
+}
+
+const ASSET_ROOT = resolveWorkspaceRoot(
+  process.env.VISTAIRE_MESHY_ASSET_ROOT,
+  join(ROOT, "public", "models", "demo")
+);
 const DEMO_DIR = ASSET_ROOT;
 const AR_LITE_DIR = join(DEMO_DIR, "ar-lite");
 const WORK_DIR = join(AR_LITE_DIR, ".tmp-build");

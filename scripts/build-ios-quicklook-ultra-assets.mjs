@@ -8,7 +8,7 @@ import {
   writeFileSync
 } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
@@ -25,13 +25,27 @@ globalThis.fflate = fflate;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const PUBLIC_DIR = join(ROOT, "public");
-const ASSET_ROOT = process.env.VISTAIRE_MESHY_ASSET_ROOT
-  ? join(ROOT, process.env.VISTAIRE_MESHY_ASSET_ROOT)
-  : join(PUBLIC_DIR, "models", "demo");
+
+function resolveWorkspaceRoot(value, fallback) {
+  const root = value?.trim();
+  if (!root) return fallback;
+  return isAbsolute(root) ? root : join(ROOT, root);
+}
+
+const ASSET_ROOT = resolveWorkspaceRoot(
+  process.env.VISTAIRE_MESHY_ASSET_ROOT,
+  join(PUBLIC_DIR, "models", "demo")
+);
 const DEMO_DIR = ASSET_ROOT;
 const AR_LITE_DIR = join(DEMO_DIR, "ar-lite");
-const CANDIDATE_ROOT = join(ROOT, "asset-review", "3d-candidates", "ios-quicklook-ultra");
-const WORK_ROOT = join(ROOT, "asset-review", "3d-candidates", ".ios-quicklook-work");
+const CANDIDATE_ROOT = resolveWorkspaceRoot(
+  process.env.VISTAIRE_MESHY_CANDIDATE_ROOT,
+  join(ROOT, "asset-review", "3d-candidates", "ios-quicklook-ultra")
+);
+const WORK_ROOT = resolveWorkspaceRoot(
+  process.env.VISTAIRE_MESHY_WORK_ROOT,
+  join(ROOT, "asset-review", "3d-candidates", ".ios-quicklook-work")
+);
 const GLTF_TRANSFORM_CLI = join(
   ROOT,
   "node_modules",

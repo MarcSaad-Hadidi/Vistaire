@@ -1,10 +1,14 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { spawn } from "node:child_process";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  createOwnerMeshyRuntimeWorkspace,
+  resolveOwnerMeshyAssetPath
+} from "@/lib/owner/meshyRuntimeWorkspace";
 import {
   buildPreparedModelPublicArLiteGlbPath,
   buildPreparedModelPublicGlbPath,
@@ -13,7 +17,6 @@ import {
 import { sha256Hex } from "@/lib/owner/threeDSourceUploadModel";
 
 const PROJECT_ROOT = /* turbopackIgnore: true */ process.cwd();
-const TEMP_UPLOAD_ROOT = join(PROJECT_ROOT, "tmp_owner_3d_uploads");
 const PIPELINE_SCRIPT_RELATIVE_PATH = "scripts/owner/build-restaurant-meshy-dish.mjs";
 const PIPELINE_SCRIPT_PATH = join(PROJECT_ROOT, PIPELINE_SCRIPT_RELATIVE_PATH);
 const PIPELINE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -50,6 +53,12 @@ type MeshyManifest = {
     arModel3dUrl?: string;
     arUsdzUrl?: string;
   };
+  localPaths?: {
+    model3d?: string;
+    webModel3d?: string;
+    arModel3d?: string;
+    arUsdz?: string;
+  };
   sha256?: {
     meshy?: string;
     meshopt?: string;
@@ -79,6 +88,10 @@ type LocalMeshyAssets = {
   webModel3dUrl: string;
   arModel3dUrl: string;
   arUsdzUrl: string;
+  model3dPath: string;
+  webModel3dPath: string;
+  arModel3dPath: string;
+  arUsdzPath: string;
 };
 
 type DurableMeshyAssets = {
@@ -111,12 +124,19 @@ function assertSafeSlug(value: string, label: string): string {
   return slug;
 }
 
-function relativeForScript(path: string): string {
-  return relative(PROJECT_ROOT, path).replaceAll("\\", "/");
-}
-
 function dateTag(): string {
   return new Date().toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+function normalizeMeshyPipelineError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (
+    /\b(?:ENOENT|EACCES|EPERM|EROFS)\b/i.test(message) &&
+    /(?:mkdir|output-root|\/var\/task|\\var\\task|\/tmp|\\Temp)/i.test(message)
+  ) {
+    return new Error("Workspace temporaire 3D indisponible.");
+  }
+  return error instanceof Error ? error : new Error(message);
 }
 
 async function runNodeScript(args: string[]): Promise<void> {
@@ -154,21 +174,33 @@ async function runNodeScript(args: string[]): Promise<void> {
 }
 
 function manifestPathFor(args: {
+  outputRoot: string;
   restaurantSlug: string;
   menuSlug: string;
   dishSlug: string;
   versionTag: string;
 }): string {
   return join(
-    PROJECT_ROOT,
-    "public",
+    manifestAssetRootFor(args),
+    "manifest.json"
+  );
+}
+
+function manifestAssetRootFor(args: {
+  outputRoot: string;
+  restaurantSlug: string;
+  menuSlug: string;
+  dishSlug: string;
+  versionTag: string;
+}): string {
+  return join(
+    args.outputRoot,
     "models",
     "restaurants",
     args.restaurantSlug,
     args.menuSlug,
     args.dishSlug,
-    `meshy-${args.versionTag}`,
-    "manifest.json"
+    `meshy-${args.versionTag}`
   );
 }
 
@@ -179,7 +211,12 @@ function readManifest(manifestPath: string): MeshyManifest {
   return JSON.parse(readFileSync(manifestPath, "utf8")) as MeshyManifest;
 }
 
-function cleanManifestAssets(manifest: MeshyManifest): LocalMeshyAssets {
+function cleanManifestAssets(args: {
+  manifest: MeshyManifest;
+  outputRoot: string;
+  assetRoot: string;
+}): LocalMeshyAssets {
+  const { manifest } = args;
   const model3dUrl = manifest.assets?.model3dUrl?.trim() ?? "";
   const webModel3dUrl = manifest.assets?.webModel3dUrl?.trim() ?? "";
   const arModel3dUrl = manifest.assets?.arModel3dUrl?.trim() ?? "";
@@ -192,18 +229,36 @@ function cleanManifestAssets(manifest: MeshyManifest): LocalMeshyAssets {
   if (!webModel3dUrl || !arUsdzUrl) {
     throw new Error("Manifest Meshy incomplet: GLB web ou USDZ manquant.");
   }
-  return { model3dUrl, webModel3dUrl, arModel3dUrl, arUsdzUrl };
-}
-
-function publicUrlToLocalPath(url: string): string {
-  if (
-    !url.startsWith("/models/restaurants/") ||
-    url.includes("..") ||
-    url.includes("\\")
-  ) {
-    throw new Error("URL locale Meshy invalide.");
-  }
-  return join(PROJECT_ROOT, "public", ...url.split("/").filter(Boolean));
+  return {
+    model3dUrl,
+    webModel3dUrl,
+    arModel3dUrl,
+    arUsdzUrl,
+    model3dPath: resolveOwnerMeshyAssetPath({
+      outputRoot: args.outputRoot,
+      assetRoot: args.assetRoot,
+      assetUrl: model3dUrl || webModel3dUrl,
+      localPath: manifest.localPaths?.model3d || manifest.localPaths?.webModel3d
+    }),
+    webModel3dPath: resolveOwnerMeshyAssetPath({
+      outputRoot: args.outputRoot,
+      assetRoot: args.assetRoot,
+      assetUrl: webModel3dUrl,
+      localPath: manifest.localPaths?.webModel3d
+    }),
+    arModel3dPath: resolveOwnerMeshyAssetPath({
+      outputRoot: args.outputRoot,
+      assetRoot: args.assetRoot,
+      assetUrl: arModel3dUrl,
+      localPath: manifest.localPaths?.arModel3d
+    }),
+    arUsdzPath: resolveOwnerMeshyAssetPath({
+      outputRoot: args.outputRoot,
+      assetRoot: args.assetRoot,
+      assetUrl: arUsdzUrl,
+      localPath: manifest.localPaths?.arUsdz
+    })
+  };
 }
 
 async function uploadDurableMeshyAsset(args: {
@@ -214,7 +269,7 @@ async function uploadDurableMeshyAsset(args: {
   cacheControl?: string;
 }): Promise<number> {
   if (!existsSync(args.localPath)) {
-    throw new Error(`Asset Meshy introuvable avant upload Storage: ${args.localPath}`);
+    throw new Error("Asset Meshy introuvable avant upload Storage.");
   }
   const bytes = readFileSync(args.localPath);
   const uploaded = await args.adminClient.storage
@@ -249,25 +304,25 @@ async function publishMeshyAssetsToStorage(args: {
   await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: sourceStoragePath,
-    localPath: publicUrlToLocalPath(args.assets.model3dUrl || args.assets.webModel3dUrl),
+    localPath: args.assets.model3dPath || args.assets.webModel3dPath,
     contentType: "model/gltf-binary"
   });
   const webModel3dBytes = await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: webStoragePath,
-    localPath: publicUrlToLocalPath(args.assets.webModel3dUrl),
+    localPath: args.assets.webModel3dPath,
     contentType: "model/gltf-binary"
   });
   const arModel3dBytes = await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: arLiteStoragePath,
-    localPath: publicUrlToLocalPath(args.assets.arModel3dUrl),
+    localPath: args.assets.arModel3dPath,
     contentType: "model/gltf-binary"
   });
   const arUsdzBytes = await uploadDurableMeshyAsset({
     adminClient: args.adminClient,
     storagePath: usdzStoragePath,
-    localPath: publicUrlToLocalPath(args.assets.arUsdzUrl),
+    localPath: args.assets.arUsdzPath,
     contentType: "model/vnd.usdz+zip"
   });
   await uploadDurableMeshyAsset({
@@ -307,31 +362,62 @@ export async function runRestaurantMeshyDishPipeline(
   const dishSlug = assertSafeSlug(args.dishSlug, "Slug plat");
   const versionTag = dateTag();
   const jobId = `job_meshy_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
-  const tempDir = join(TEMP_UPLOAD_ROOT, restaurantSlug, dishSlug, jobId);
-  const tempSourcePath = join(tempDir, `${dishSlug}-source.glb`);
+  let workspace: ReturnType<typeof createOwnerMeshyRuntimeWorkspace>;
+  try {
+    workspace = createOwnerMeshyRuntimeWorkspace({ restaurantSlug, dishSlug, jobId });
+  } catch {
+    throw new Error("Workspace temporaire 3D indisponible.");
+  }
   const sourceSha256 = sha256Hex(args.sourceBytes);
   const startedAt = new Date();
 
-  mkdirSync(tempDir, { recursive: true });
-  writeFileSync(tempSourcePath, args.sourceBytes);
+  try {
+    writeFileSync(workspace.tempSourcePath, args.sourceBytes);
+  } catch {
+    workspace.cleanup();
+    throw new Error("Workspace temporaire 3D indisponible.");
+  }
 
   try {
-    await runNodeScript([
-      "--restaurant",
-      restaurantSlug,
-      "--menu",
-      menuSlug,
-      "--dish",
-      dishSlug,
-      "--source",
-      relativeForScript(tempSourcePath),
-      "--date",
-      versionTag
-    ]);
+    try {
+      await runNodeScript([
+        "--restaurant",
+        restaurantSlug,
+        "--menu",
+        menuSlug,
+        "--dish",
+        dishSlug,
+        "--source",
+        workspace.tempSourcePath,
+        "--output-root",
+        workspace.outputRoot,
+        "--date",
+        versionTag
+      ]);
+    } catch (pipelineError) {
+      throw normalizeMeshyPipelineError(pipelineError);
+    }
 
-    const manifestPath = manifestPathFor({ restaurantSlug, menuSlug, dishSlug, versionTag });
+    const manifestPath = manifestPathFor({
+      outputRoot: workspace.outputRoot,
+      restaurantSlug,
+      menuSlug,
+      dishSlug,
+      versionTag
+    });
+    const assetRoot = manifestAssetRootFor({
+      outputRoot: workspace.outputRoot,
+      restaurantSlug,
+      menuSlug,
+      dishSlug,
+      versionTag
+    });
     const manifest = readManifest(manifestPath);
-    const assets = cleanManifestAssets(manifest);
+    const assets = cleanManifestAssets({
+      manifest,
+      outputRoot: workspace.outputRoot,
+      assetRoot
+    });
     const durableAssets = await publishMeshyAssetsToStorage({
       adminClient: args.adminClient,
       restaurantId: args.restaurantId,
@@ -341,7 +427,15 @@ export async function runRestaurantMeshyDishPipeline(
       manifestPath,
       assets
     });
-    const manifestRelativePath = relativeForScript(manifestPath);
+    const manifestVirtualPath = [
+      "models",
+      "restaurants",
+      restaurantSlug,
+      menuSlug,
+      dishSlug,
+      `meshy-${versionTag}`,
+      "manifest.json"
+    ].join("/");
     const nextMetadata = {
       ...getMetadata(args.existingMetadata),
       model3dUrl: durableAssets.model3dUrl,
@@ -352,7 +446,7 @@ export async function runRestaurantMeshyDishPipeline(
       modelStatus: "ready",
       meshyManifestVersion: manifest.version ?? `meshy-${versionTag}`,
       meshyManifestPath: durableAssets.manifestStoragePath,
-      meshyLocalManifestPath: manifestRelativePath,
+      meshyLocalManifestPath: manifestVirtualPath,
       meshyManifestStorageBucket: durableAssets.bucket,
       meshyManifestStoragePath: durableAssets.manifestStoragePath,
       sourceModel3dStorageBucket: durableAssets.bucket,
@@ -397,7 +491,9 @@ export async function runRestaurantMeshyDishPipeline(
       "--dish",
       dishSlug,
       "--source",
-      relativeForScript(tempSourcePath),
+      "<runtime-upload.glb>",
+      "--output-root",
+      "<runtime-temp>",
       "--date",
       versionTag
     ].join(" ");
@@ -473,7 +569,7 @@ export async function runRestaurantMeshyDishPipeline(
         restaurantId: args.restaurantId,
         dishId: args.dishId,
         manifestPath: durableAssets.manifestStoragePath,
-        localManifestPath: manifestRelativePath,
+        localManifestPath: manifestVirtualPath,
         manifestStoragePath: durableAssets.manifestStoragePath,
         originalName: args.originalName ?? ""
       }
@@ -498,12 +594,6 @@ export async function runRestaurantMeshyDishPipeline(
       arUsdzBytes: durableAssets.arUsdzBytes
     };
   } finally {
-    rmSync(tempDir, { recursive: true, force: true });
-    const parent = dirname(tempDir);
-    try {
-      rmSync(parent, { recursive: false, force: true });
-    } catch {
-      // Parent still has another upload; leave it.
-    }
+    workspace.cleanup();
   }
 }
