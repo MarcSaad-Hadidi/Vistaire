@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  requireOwner3dRestaurantAccess,
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
@@ -26,18 +25,8 @@ type DishRow = {
   has_immersive_view?: boolean | null;
 };
 
-type RestaurantRow = {
-  id: string;
-  slug: string | null;
-  name: string | null;
-};
-
 function validUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
-}
-
-function restaurantAccessSlug(row: RestaurantRow, fallback: string): string {
-  return typeof row.slug === "string" && row.slug.trim() ? row.slug.trim() : fallback;
 }
 
 export async function DELETE(
@@ -82,31 +71,6 @@ export async function DELETE(
       { status: 404 }
     );
   }
-
-  const { data: restaurant, error: restaurantError } = await admin.client
-    .from("restaurants")
-    .select("id,slug,name")
-    .eq("id", restaurantId)
-    .maybeSingle<RestaurantRow>();
-
-  if (restaurantError) {
-    return NextResponse.json(
-      { ok: false, error: "Restaurant impossible a verifier." },
-      { status: 503 }
-    );
-  }
-  if (!restaurant) {
-    return NextResponse.json(
-      { ok: false, error: "Restaurant introuvable." },
-      { status: 404 }
-    );
-  }
-
-  const accessError = requireOwner3dRestaurantAccess(
-    owner,
-    restaurantAccessSlug(restaurant, restaurantId)
-  );
-  if (accessError) return accessError;
 
   const collected = collectDishModelStorageTargets(dish.metadata, restaurantId);
   const modelDeleted =

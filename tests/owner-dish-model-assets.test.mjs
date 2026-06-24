@@ -138,11 +138,21 @@ test("dish model DELETE route is guarded, scoped, and cleans only server-side mo
     "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/route.ts",
     "utf8"
   );
+  const uploadRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/glb/route.ts",
+    "utf8"
+  );
+  const publishRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/publish/route.ts",
+    "utf8"
+  );
 
   assert.match(route, /runtime = "nodejs"/);
   assert.match(route, /requireVistaireOwnerApi\(\)/);
   assert.match(route, /requireSameOriginOwnerMutation\(request\)/);
-  assert.match(route, /requireOwner3dRestaurantAccess/);
+  assert.doesNotMatch(route, /requireOwner3dRestaurantAccess/);
+  assert.doesNotMatch(uploadRoute, /requireOwner3dRestaurantAccess/);
+  assert.doesNotMatch(publishRoute, /requireOwner3dRestaurantAccess/);
   assert.match(route, /\.eq\("id", dishId\)/);
   assert.match(route, /\.eq\("restaurant_id", restaurantId\)/);
   assert.match(route, /collectDishModelStorageTargets\(dish\.metadata, restaurantId\)/);
