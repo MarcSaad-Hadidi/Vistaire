@@ -26,8 +26,17 @@ type OwnerMeshyRuntimeWorkspace = {
 
 function assertSafePathSegment(value: string, label: string): string {
   const segment = value.trim();
-  if (!/^[a-z0-9_-]+(?:-[a-z0-9_-]+)*$/i.test(segment)) {
+  if (!segment) {
     throw new Error(`${label} invalide pour le workspace temporaire 3D.`);
+  }
+  for (const char of segment) {
+    const code = char.charCodeAt(0);
+    const isDigit = code >= 48 && code <= 57;
+    const isUppercaseLetter = code >= 65 && code <= 90;
+    const isLowercaseLetter = code >= 97 && code <= 122;
+    if (!isDigit && !isUppercaseLetter && !isLowercaseLetter && char !== "_" && char !== "-") {
+      throw new Error(`${label} invalide pour le workspace temporaire 3D.`);
+    }
   }
   return segment;
 }
@@ -69,13 +78,13 @@ function cleanRelativeAssetPath(path: string): string[] {
 export function createOwnerMeshyRuntimeWorkspace(
   args: CreateOwnerMeshyRuntimeWorkspaceArgs
 ): OwnerMeshyRuntimeWorkspace {
+  const restaurantSlug = assertSafePathSegment(args.restaurantSlug, "Slug restaurant");
+  const dishSlug = assertSafePathSegment(args.dishSlug, "Slug plat");
+  const jobId = assertSafePathSegment(args.jobId, "Job");
   const tempRoot = resolve(args.tempRoot || tmpdir());
   mkdirSync(tempRoot, { recursive: true });
 
   const rootDir = mkdtempSync(join(tempRoot, "vistaire-owner-meshy-"));
-  const restaurantSlug = assertSafePathSegment(args.restaurantSlug, "Slug restaurant");
-  const dishSlug = assertSafePathSegment(args.dishSlug, "Slug plat");
-  const jobId = assertSafePathSegment(args.jobId, "Job");
   const outputRoot = join(rootDir, "output");
   const sourceDir = join(rootDir, "uploads", restaurantSlug, dishSlug, jobId);
   const tempSourcePath = join(sourceDir, `${dishSlug}-source.glb`);

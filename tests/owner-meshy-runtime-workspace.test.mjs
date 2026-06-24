@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -31,6 +31,39 @@ test("owner Meshy runtime workspace is unique, temporary, and cleaned up", async
   }
 
   assert.equal(existsSync(workspace.rootDir), false);
+});
+
+test("owner Meshy runtime workspace rejects unsafe segments before creating job dirs", async () => {
+  const tempParent = await mkdtemp(join(tmpdir(), "vistaire-workspace-segment-test-"));
+  const pathologicalSegment = `${"-".repeat(20000)}!`;
+
+  try {
+    assert.throws(
+      () =>
+        createOwnerMeshyRuntimeWorkspace({
+          tempRoot: tempParent,
+          restaurantSlug: pathologicalSegment,
+          dishSlug: "dejeuner-classique-maison",
+          jobId: "job_meshy_test"
+        }),
+      /Slug restaurant invalide/
+    );
+    assert.deepEqual(readdirSync(tempParent), []);
+
+    assert.throws(
+      () =>
+        createOwnerMeshyRuntimeWorkspace({
+          tempRoot: tempParent,
+          restaurantSlug: "trouvable",
+          dishSlug: "dejeuner/classique",
+          jobId: "job_meshy_test"
+        }),
+      /Slug plat invalide/
+    );
+    assert.deepEqual(readdirSync(tempParent), []);
+  } finally {
+    rmSync(tempParent, { recursive: true, force: true });
+  }
 });
 
 test("owner Meshy asset paths resolve from output root instead of public URLs", async () => {
