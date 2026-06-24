@@ -241,6 +241,7 @@ export default async function OwnerRestaurantMediasPage({
                         <OwnerDishModelUploader
                           restaurantId={restaurant.id}
                           dishId={dish.id}
+                          dishName={dish.name}
                           initialStatus={dish.modelStatus}
                           initialWebModel3dUrl={dish.webModel3dUrl}
                           initialWebModel3dBytes={dish.webModel3dBytes}

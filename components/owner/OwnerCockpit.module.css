@@ -2013,6 +2013,26 @@
   gap: 8px;
 }
 
+.modelDeleteConfirm {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
+  min-width: min(100%, 260px);
+  max-width: 520px;
+  padding: 12px;
+  border: 1px solid rgba(230, 160, 122, 0.3);
+  border-radius: 8px;
+  background: rgba(16, 10, 6, 0.72);
+  color: var(--owner-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.modelDeleteConfirm strong {
+  color: var(--owner-cream);
+  font-size: 13px;
+}
+
 .restaurantDashboard,
 .createWizard,
 .creationStage {
