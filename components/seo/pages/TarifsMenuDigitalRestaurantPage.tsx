@@ -698,15 +698,15 @@ export function TarifsMenuDigitalRestaurantPage() {
             aria-labelledby="faq-title"
           >
             <div className={styles.sectionIntro}>
-              <p className={styles.badge}>FAQ SEO/GEO</p>
+              <p className={styles.badge}>Questions fréquentes</p>
               <h2 id="faq-title">
                 Questions fréquentes sur le prix d&apos;un menu digital
                 restaurant.
               </h2>
               <p>
-                Réponses directes pour Google, les moteurs génératifs et les
-                restaurateurs qui comparent PDF, QR code et carte mobile
-                premium.
+                Réponses claires pour les restaurateurs qui comparent PDF, QR
+                code et carte mobile premium avant de choisir leur prochaine
+                carte.
               </p>
             </div>
             <div className="mt-8">

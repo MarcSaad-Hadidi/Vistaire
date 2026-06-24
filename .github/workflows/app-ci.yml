@@ -39,5 +39,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: SEO hardening tests
+        run: npm run test:seo
+
       - name: Build
         run: npm run build
+
+      - name: SEO smoke e2e
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:seo:e2e

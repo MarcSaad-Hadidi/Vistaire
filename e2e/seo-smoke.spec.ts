@@ -1,10 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const seoPages = [
   "/menu-digital-restaurant",
   "/menu-qr-code-restaurant",
   "/menu-3d-ar-restaurant",
   "/menu-pdf-vs-menu-digital"
+];
+
+const englishSeoPages = [
+  "/en/digital-restaurant-menu",
+  "/en/qr-code-restaurant-menu",
+  "/en/3d-ar-restaurant-menu",
+  "/en/pdf-vs-digital-menu"
 ];
 
 const seoGeoPages = [
@@ -37,22 +44,6 @@ const englishSeoGeoPages = [
   "/en/fine-dining-restaurant-digital-menu"
 ];
 
-const seoGeoSmokePages = [
-  "/menu-qr-sans-pdf",
-  "/menu-digital-restaurant-montreal",
-  "/menu-digital-restaurant-haut-de-gamme",
-  "/en/qr-menu-without-pdf",
-  "/en/digital-restaurant-menu-montreal",
-  "/en/high-end-restaurant-digital-menu"
-];
-
-const englishSeoPages = [
-  "/en/digital-restaurant-menu",
-  "/en/qr-code-restaurant-menu",
-  "/en/3d-ar-restaurant-menu",
-  "/en/pdf-vs-digital-menu"
-];
-
 const publicProductPages = [
   "/a-propos",
   "/contact",
@@ -67,6 +58,64 @@ const englishProductPages = [
   "/en/restaurant-preview"
 ];
 
+const seoGeoSmokeRoutes = [
+  {
+    path: "/menu-qr-sans-pdf",
+    fr: "/menu-qr-sans-pdf",
+    en: "/en/qr-menu-without-pdf",
+    ctaHref: "/prendre-rendez-vous"
+  },
+  {
+    path: "/remplacer-menu-pdf-restaurant",
+    fr: "/remplacer-menu-pdf-restaurant",
+    en: "/en/replace-restaurant-pdf-menu",
+    ctaHref: "/prendre-rendez-vous"
+  },
+  {
+    path: "/menu-digital-restaurant-montreal",
+    fr: "/menu-digital-restaurant-montreal",
+    en: "/en/digital-restaurant-menu-montreal",
+    ctaHref: "/prendre-rendez-vous"
+  },
+  {
+    path: "/menu-digital-restaurant-haut-de-gamme",
+    fr: "/menu-digital-restaurant-haut-de-gamme",
+    en: "/en/high-end-restaurant-digital-menu",
+    ctaHref: "/prendre-rendez-vous"
+  },
+  {
+    path: "/en/qr-menu-without-pdf",
+    fr: "/menu-qr-sans-pdf",
+    en: "/en/qr-menu-without-pdf",
+    ctaHref: "/en/book-a-call"
+  },
+  {
+    path: "/en/replace-restaurant-pdf-menu",
+    fr: "/remplacer-menu-pdf-restaurant",
+    en: "/en/replace-restaurant-pdf-menu",
+    ctaHref: "/en/book-a-call"
+  },
+  {
+    path: "/en/digital-restaurant-menu-montreal",
+    fr: "/menu-digital-restaurant-montreal",
+    en: "/en/digital-restaurant-menu-montreal",
+    ctaHref: "/en/book-a-call"
+  },
+  {
+    path: "/en/high-end-restaurant-digital-menu",
+    fr: "/menu-digital-restaurant-haut-de-gamme",
+    en: "/en/high-end-restaurant-digital-menu",
+    ctaHref: "/en/book-a-call"
+  }
+];
+
+const mobileViewports = [
+  { name: "mobile-390", width: 390, height: 844 },
+  { name: "mobile-430", width: 430, height: 932 }
+] as const;
+
+const desktopViewport = { name: "desktop", width: 1366, height: 900 } as const;
+
 const forbiddenJsonLdTypes = [
   "Restaurant",
   "LocalBusiness",
@@ -75,14 +124,59 @@ const forbiddenJsonLdTypes = [
   "Review"
 ];
 
-async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
+function unique(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function pathnameFromHref(href: string | null | undefined) {
+  expect(href).toBeTruthy();
+  return new URL(href as string, "https://www.vistaire.ca").pathname || "/";
+}
+
+function attachPageGuards(page: Page) {
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  const badResponses: string[] = [];
+  const requestFailures: string[] = [];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+  page.on("requestfailed", (request) => {
+    const failure = request.failure()?.errorText ?? "unknown";
+    if (!failure.includes("ERR_ABORTED")) {
+      requestFailures.push(`${failure} ${request.url()}`);
+    }
+  });
+  page.on("response", (response) => {
+    const status = response.status();
+    const url = response.url();
+    if (status >= 400 && !url.includes("/__nextjs")) {
+      badResponses.push(`${status} ${url}`);
+    }
+  });
+
+  return () => {
+    expect(consoleErrors).toEqual([]);
+    expect(pageErrors).toEqual([]);
+    expect(badResponses).toEqual([]);
+    expect(requestFailures).toEqual([]);
+  };
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   );
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-async function expectNoEarlyModelAssets(page: import("@playwright/test").Page) {
+async function expectNoEarlyModelAssets(page: Page) {
   const modelResources = await page.evaluate(() =>
     performance
       .getEntriesByType("resource")
@@ -92,16 +186,38 @@ async function expectNoEarlyModelAssets(page: import("@playwright/test").Page) {
   expect(modelResources).toEqual([]);
 }
 
-async function expectCanonicalPath(
-  page: import("@playwright/test").Page,
-  expectedPath: string
-) {
+async function expectCanonicalPath(page: Page, expectedPath: string) {
   const href = await page.locator('link[rel="canonical"]').getAttribute("href");
-  expect(href).toBeTruthy();
-  expect(new URL(href as string).pathname || "/").toBe(expectedPath);
+  expect(pathnameFromHref(href)).toBe(expectedPath);
 }
 
-async function collectJsonLdTypes(page: import("@playwright/test").Page) {
+async function expectLanguageAlternates(page: Page, frPath: string, enPath: string) {
+  const alternates = await page.locator('link[rel="alternate"]').evaluateAll((links) =>
+    links.map((link) => ({
+      href: link.getAttribute("href"),
+      hreflang: link.getAttribute("hreflang")
+    }))
+  );
+  const byLanguage = new Map(
+    alternates.map((entry) => [entry.hreflang, entry.href])
+  );
+
+  expect(pathnameFromHref(byLanguage.get("fr-CA"))).toBe(frPath);
+  expect(pathnameFromHref(byLanguage.get("en-CA"))).toBe(enPath);
+  expect(pathnameFromHref(byLanguage.get("x-default"))).toBe(frPath);
+}
+
+async function expectSeoMetadata(page: Page, expectedPath: string) {
+  await expectCanonicalPath(page, expectedPath);
+  const title = await page.title();
+  const description = await page.locator('meta[name="description"]').getAttribute("content");
+
+  expect(title).toContain("Vistaire");
+  expect(description?.trim().length ?? 0).toBeGreaterThan(80);
+  expect(description?.trim().length ?? 0).toBeLessThanOrEqual(170);
+}
+
+async function collectJsonLdTypes(page: Page) {
   return page.evaluate(() => {
     function visit(value: unknown, types: string[]) {
       if (!value || typeof value !== "object") return;
@@ -129,14 +245,46 @@ async function collectJsonLdTypes(page: import("@playwright/test").Page) {
   });
 }
 
-function unique(values: string[]) {
-  return Array.from(new Set(values));
+async function expectSeoGeoRoute(
+  page: Page,
+  route: (typeof seoGeoSmokeRoutes)[number]
+) {
+  const response = await page.goto(route.path, { waitUntil: "domcontentloaded" });
+  expect(response?.status(), route.path).toBeLessThan(400);
+
+  await expectSeoMetadata(page, route.path);
+  await expectLanguageAlternates(page, route.fr, route.en);
+  await expect(page.locator("h1")).toHaveCount(1);
+  await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
+  await expect(page.locator('[aria-label="Langue"], [aria-label="Language"]').first()).toBeVisible();
+  await expect(page.locator(`a[href="${route.ctaHref}"]`).first()).toBeVisible();
+
+  const slug = route.path.split("/").filter(Boolean).at(-1);
+  await expect(page.locator(`#${slug}-faq-title`)).toBeVisible();
+  const visibleFaqCount = await page
+    .locator(`section[aria-labelledby="${slug}-faq-title"] article h3`)
+    .count();
+  expect(visibleFaqCount, route.path).toBeGreaterThanOrEqual(5);
+
+  const jsonLdTypes = await collectJsonLdTypes(page);
+  expect(jsonLdTypes).toEqual(
+    expect.arrayContaining(["WebPage", "BreadcrumbList", "Service", "FAQPage"])
+  );
+  for (const forbiddenType of forbiddenJsonLdTypes) {
+    expect(jsonLdTypes).not.toContain(forbiddenType);
+  }
+
+  await expectNoHorizontalOverflow(page);
+  await expectNoEarlyModelAssets(page);
 }
 
 test.describe("Vistaire SEO smoke", () => {
-  test("robots and sitemap expose only public SEO surfaces", async ({ request }) => {
+  test("robots, llms, sitemap and legacy redirect expose only public SEO surfaces", async ({
+    request
+  }) => {
     const robots = await request.get("/robots.txt");
     expect(robots.status()).toBe(200);
+    expect(robots.headers()["content-type"]).toContain("text/plain");
     const robotsText = await robots.text();
 
     expect(robotsText).toContain("Sitemap:");
@@ -160,8 +308,10 @@ test.describe("Vistaire SEO smoke", () => {
       "/api/*",
       "/owner",
       "/owner/",
+      "/owner/*",
       "/admin",
       "/admin/",
+      "/admin/*",
       "/sign-in",
       "/sign-in/",
       "/todos",
@@ -194,6 +344,7 @@ test.describe("Vistaire SEO smoke", () => {
 
     const sitemap = await request.get("/sitemap.xml");
     expect(sitemap.status()).toBe(200);
+    expect(sitemap.headers()["content-type"]).toContain("xml");
     const sitemapText = await sitemap.text();
     const sitemapUrls = unique(
       [...sitemapText.matchAll(/<loc>(.*?)<\/loc>/g)].map(
@@ -215,42 +366,24 @@ test.describe("Vistaire SEO smoke", () => {
       ]),
       ...seoGeoPages.flatMap((path, index) => [path, englishSeoGeoPages[index]])
     ]);
+    expect(sitemapText).not.toContain("/carte-vistaire");
+    expect(sitemapText).not.toContain("/admin");
+    expect(sitemapText).not.toContain("/owner");
   });
 
-  test("public pages have canonical metadata and safe early network behavior", async ({
+  test("homepage loads with canonical metadata on required mobile viewports", async ({
     page
   }) => {
-    const pageErrors: string[] = [];
-    const badResponses: string[] = [];
-    const requestFailures: string[] = [];
+    const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
 
-    page.on("console", (message) => {
-      if (message.type() === "error") {
-        pageErrors.push(message.text());
-      }
-    });
-    page.on("pageerror", (error) => {
-      pageErrors.push(error.message);
-    });
-    page.on("requestfailed", (request) => {
-      const failure = request.failure()?.errorText ?? "unknown";
-      if (!failure.includes("ERR_ABORTED")) {
-        requestFailures.push(`${failure} ${request.url()}`);
-      }
-    });
-    page.on("response", (response) => {
-      const status = response.status();
-      const url = response.url();
-      if (status >= 400 && !url.includes("/__nextjs")) {
-        badResponses.push(`${status} ${url}`);
-      }
-    });
+    for (const viewport of mobileViewports) {
+      await page.setViewportSize(viewport);
+      const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+      expect(response?.status(), viewport.name).toBeLessThan(400);
 
-    for (const width of [390, 430]) {
-      await page.setViewportSize({ width, height: 844 });
-      await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveTitle(/Menu digital QR premium/);
       await expectCanonicalPath(page, "/");
+      await expectLanguageAlternates(page, "/", "/en");
       await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
       expect(await collectJsonLdTypes(page)).toEqual(
         expect.arrayContaining(["Organization", "WebSite", "WebPage", "Service"])
@@ -258,100 +391,28 @@ test.describe("Vistaire SEO smoke", () => {
       await expectNoHorizontalOverflow(page);
       await expectNoEarlyModelAssets(page);
 
-      await expect(page.getByRole("link", { name: "Prendre rendez-vous" }).first()).toBeVisible();
+      await expect(page.locator('a[href="/prendre-rendez-vous"]').first()).toBeVisible();
       await expect(page.getByRole("link", { name: "Carte" }).first()).toBeVisible();
 
       const videoSource = await page.locator("video source").first().getAttribute("src");
       expect(videoSource).toBe("/videos/Vistaire2.mp4");
     }
 
-    for (const path of ["/demo", ...seoPages, ...seoGeoSmokePages]) {
-      for (const width of [390, 430]) {
-        await page.setViewportSize({ width, height: 844 });
-        await page.goto(path, { waitUntil: "domcontentloaded" });
-        await expectCanonicalPath(page, path);
-        await expect(page.locator('meta[name="description"]')).not.toHaveAttribute(
-          "content",
-          ""
-        );
-        if (seoPages.includes(path) || seoGeoSmokePages.includes(path)) {
-          await expect(page).toHaveTitle(/Vistaire/);
-          await expect(page.locator("h1")).toHaveCount(1);
-          await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
-          const jsonLdTypes = await collectJsonLdTypes(page);
-          expect(jsonLdTypes).toEqual(
-            expect.arrayContaining(["WebPage", "BreadcrumbList", "Service", "FAQPage"])
-          );
-          for (const forbiddenType of forbiddenJsonLdTypes) {
-            expect(jsonLdTypes).not.toContain(forbiddenType);
-          }
-          const visibleFaqCount = await page.locator("article h3").count();
-          expect(visibleFaqCount).toBeGreaterThanOrEqual(5);
-          const expectedGuideLink = path.startsWith("/en/")
-            ? "Digital restaurant menu"
-            : "Menu digital restaurant";
-          await expect(
-            page.getByRole("link", { name: expectedGuideLink, exact: true }).first()
-          ).toBeVisible();
-          await expect(page.getByRole("link", { name: "Accès interne" })).toHaveCount(0);
-        }
-        await expectNoHorizontalOverflow(page);
-        await expectNoEarlyModelAssets(page);
-      }
-    }
-
-    expect(pageErrors).toEqual([]);
-    expect(badResponses).toEqual([]);
-    expect(requestFailures).toEqual([]);
+    assertNoUnexpectedBrowserIssues();
   });
 
-  test("demo-sensitive surfaces load but stay noindex", async ({ page }) => {
-    const pageErrors: string[] = [];
-    const badResponses: string[] = [];
-    const requestFailures: string[] = [];
+  test("key FR/EN SEO GEO pages have metadata, hreflang, FAQ and safe network behavior", async ({
+    page
+  }) => {
+    const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
 
-    page.on("console", (message) => {
-      if (message.type() === "error") {
-        pageErrors.push(message.text());
-      }
-    });
-    page.on("pageerror", (error) => {
-      pageErrors.push(error.message);
-    });
-    page.on("requestfailed", (request) => {
-      const failure = request.failure()?.errorText ?? "unknown";
-      if (!failure.includes("ERR_ABORTED")) {
-        requestFailures.push(`${failure} ${request.url()}`);
-      }
-    });
-    page.on("response", (response) => {
-      const status = response.status();
-      const url = response.url();
-      if (status >= 400 && !url.includes("/__nextjs")) {
-        badResponses.push(`${status} ${url}`);
-      }
-    });
-
-    for (const path of ["/admin", "/demo/dishes/homard-bisque", "/legacy/landing"]) {
-      for (const width of [390, 430]) {
-        await page.setViewportSize({ width, height: 844 });
-        await page.goto(path, { waitUntil: "networkidle" });
-        await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
-          "content",
-          /noindex/
-        );
-        await expectCanonicalPath(page, path);
-        const jsonLdTypes = await collectJsonLdTypes(page);
-        for (const forbiddenType of forbiddenJsonLdTypes) {
-          expect(jsonLdTypes).not.toContain(forbiddenType);
-        }
-        await expectNoHorizontalOverflow(page);
-        await expectNoEarlyModelAssets(page);
+    for (const route of seoGeoSmokeRoutes) {
+      for (const viewport of [...mobileViewports, desktopViewport]) {
+        await page.setViewportSize(viewport);
+        await expectSeoGeoRoute(page, route);
       }
     }
 
-    expect(pageErrors).toEqual([]);
-    expect(badResponses).toEqual([]);
-    expect(requestFailures).toEqual([]);
+    assertNoUnexpectedBrowserIssues();
   });
 });

@@ -20,7 +20,15 @@ import {
   PreviewNav
 } from "@/components/vistaire-preview/VistairePreviewChrome";
 import styles from "@/components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.module.css";
-import type { SeoGeoInternalLink, SeoGeoPageData } from "@/lib/seoGeoPages";
+import type {
+  SeoGeoInternalLink,
+  SeoGeoPageData,
+  SeoGeoPageType
+} from "@/lib/seoGeoPages";
+import {
+  buildSeoGeoPublicFaq,
+  seoGeoPublicText as publicText
+} from "@/lib/seoGeoPublicText";
 
 type PageVisual = {
   alt: string;
@@ -221,47 +229,61 @@ const localizedCopy = {
     context: "Contexte",
     proof: "Vistaire",
     includedEyebrow: "Inclus",
-    includedTitle: "Ce que Vistaire inclut",
+    includedTitle: "Ce que le menu Vistaire inclut",
     includedBody:
-      "Les nouvelles pages gardent la même direction que les pages Vistaire existantes : mobile-first, food-first, sobre et utile pendant le service.",
+      "La présentation garde la même direction que les expériences Vistaire existantes : mobile-first, food-first, sobre et utile pendant le service.",
     comparison: "Comparaison",
     criterion: "Critère",
     comparisonBody:
       "La différence doit rester concrète : lisibilité, image, informations utiles et performance mobile.",
-    faqEyebrow: "FAQ SEO/GEO",
+    faqEyebrow: "Questions fréquentes",
     faqTitle: "Questions fréquentes des restaurateurs",
     faqBody:
-      "Des réponses courtes pour les visiteurs, les moteurs de recherche et les assistants IA, sans inventer de promesses.",
+      "Des réponses courtes pour préparer la carte, rassurer l'équipe et clarifier l'expérience à table.",
     finalEyebrow: "Prochaine étape",
-    finalTitle: "Relier cette intention à une expérience Vistaire cohérente.",
+    finalTitle: "Préparer une expérience Vistaire cohérente.",
     finalBody:
-      "Chaque page renvoie vers les guides utiles, le menu exemple ou la prise de rendez-vous, sans créer de cul-de-sac SEO.",
-    internalLinks: "Liens internes Vistaire"
+      "Le parcours renvoie vers les guides utiles, le menu exemple et la prise de rendez-vous pour aider le restaurateur à avancer clairement.",
+    internalLinks: "Guides Vistaire"
   },
   en: {
     actions: "Primary actions",
-    direct: "Direct answer",
-    context: "Context",
-    proof: "Vistaire",
+    direct: "Short answer",
+    context: "Restaurant context",
+    proof: "With Vistaire",
     includedEyebrow: "Included",
-    includedTitle: "What Vistaire includes",
+    includedTitle: "What a Vistaire menu includes",
     includedBody:
-      "These pages follow the same Vistaire direction: mobile-first, food-first, restrained and useful during service.",
+      "The presentation keeps the same Vistaire direction: mobile-first, food-first, restrained and useful during service.",
     comparison: "Comparison",
     criterion: "Criterion",
     comparisonBody:
       "The difference should stay concrete: readability, image, useful information and mobile performance.",
-    faqEyebrow: "SEO/GEO FAQ",
+    faqEyebrow: "Questions",
     faqTitle: "Common restaurant questions",
     faqBody:
-      "Short answers for visitors, search engines and AI assistants, without inventing promises.",
+      "Short answers to help prepare the menu, align the team and clarify the table experience.",
     finalEyebrow: "Next step",
-    finalTitle: "Connect this intent to a coherent Vistaire experience.",
+    finalTitle: "Prepare a coherent Vistaire experience.",
     finalBody:
-      "Each page links to useful guides, the sample menu or booking flow, without creating an SEO dead end.",
-    internalLinks: "Vistaire internal links"
+      "The path points to useful guides, the sample menu and booking flow so restaurants can keep moving clearly.",
+    internalLinks: "Vistaire guides"
   }
 } as const;
+
+const layoutClasses: Record<SeoGeoPageType, string> = {
+  aeo: styles.layoutAeo,
+  local: styles.layoutLocal,
+  vertical: styles.layoutVertical
+};
+
+const heroImageSizes: Record<SeoGeoPageType, string> = {
+  aeo: "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 32vw, 460px",
+  local:
+    "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 38vw, 520px",
+  vertical:
+    "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 64vw, 780px"
+};
 
 function ArrowIcon() {
   return (
@@ -307,6 +329,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
     page.primaryCta,
     page.secondaryCta
   ]);
+  const displayFaq = buildSeoGeoPublicFaq(page);
 
   return (
     <main className={styles.page}>
@@ -315,11 +338,9 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
         aria-hidden="true"
         className={styles.backgroundImage}
         fill
-        priority
-        quality={100}
+        quality={72}
         sizes="100vw"
         src={restaurantBackground}
-        unoptimized
       />
 
       <div className={styles.topNav}>
@@ -335,18 +356,20 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
         className={styles.hero}
         id="accueil"
       >
-        <div className={styles.previewFrame}>
+        <div className={`${styles.previewFrame} ${layoutClasses[page.type]}`}>
           <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>{page.eyebrow}</p>
-            <h1 id={`${page.slug}-title`}>{page.h1}</h1>
-            <p className={styles.heroLead}>{page.directAnswer}</p>
+            <p className={styles.badge}>{publicText(page.eyebrow, locale)}</p>
+            <h1 id={`${page.slug}-title`}>{publicText(page.h1, locale)}</h1>
+            <p className={styles.heroLead}>
+              {publicText(page.directAnswer, locale)}
+            </p>
             <div className={styles.heroActions} aria-label={copy.actions}>
               <Link
                 className={styles.primaryButton}
                 href={page.primaryCta.href}
                 prefetch={false}
               >
-                {page.primaryCta.label}
+                {publicText(page.primaryCta.label, locale)}
                 <ArrowIcon />
               </Link>
               <Link
@@ -354,17 +377,17 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.secondaryCta.href}
                 prefetch={false}
               >
-                {page.secondaryCta.label}
+                {publicText(page.secondaryCta.label, locale)}
               </Link>
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt={visuals[0].alt}
+                alt={publicText(visuals[0].alt, locale)}
                 className={styles.visualImage}
                 fill
                 priority
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 20vw"
+                quality={84}
+                sizes={heroImageSizes[page.type]}
                 src={visuals[0].src}
               />
             </figure>
@@ -372,37 +395,20 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
 
           <section
             className={`${styles.card} ${styles.problemCard}`}
-            aria-labelledby={`${page.slug}-direct-answer`}
-          >
-            <p className={styles.badge}>{copy.direct}</p>
-            <h2 id={`${page.slug}-direct-answer`}>{page.productProof.heading}</h2>
-            <p>{page.productProof.body}</p>
-            <div className={styles.problemList}>
-              {page.included.slice(0, 4).map((item) => (
-                <section key={item.title}>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </section>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.comparisonCard}`}
             aria-labelledby={`${page.slug}-context-title`}
           >
-            <div className={styles.sectionIntro}>
-              <p className={styles.badge}>{copy.context}</p>
-              <h2 id={`${page.slug}-context-title`}>{page.context.heading}</h2>
-              {page.context.body.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
+            <p className={styles.badge}>{copy.context}</p>
+            <h2 id={`${page.slug}-context-title`}>
+              {publicText(page.context.heading, locale)}
+            </h2>
+            {page.context.body.map((paragraph) => (
+              <p key={paragraph}>{publicText(paragraph, locale)}</p>
+            ))}
             {page.context.points ? (
               <div className={styles.problemList}>
                 {page.context.points.map((point) => (
                   <section key={point}>
-                    <h3>{point}</h3>
+                    <h3>{publicText(point, locale)}</h3>
                   </section>
                 ))}
               </div>
@@ -415,18 +421,27 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt={visuals[1].alt}
+                alt={publicText(visuals[1].alt, locale)}
                 className={styles.visualImage}
                 fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 58vw"
+                quality={80}
+                sizes="(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 58vw, 880px"
                 src={visuals[1].src}
               />
             </figure>
             <div className={styles.visualCopy}>
               <p className={styles.badge}>{copy.proof}</p>
-              <h2 id={`${page.slug}-proof-title`}>{page.productProof.heading}</h2>
-              <p>{page.productProof.body}</p>
+              <h2 id={`${page.slug}-proof-title`}>
+                {publicText(page.productProof.heading, locale)}
+              </h2>
+              <p>{publicText(page.productProof.body, locale)}</p>
+              {page.productProof.points.length > 0 ? (
+                <ul className={styles.proofPoints}>
+                  {page.productProof.points.map((point) => (
+                    <li key={point}>{publicText(point, locale)}</li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </section>
 
@@ -445,9 +460,9 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               <div className={styles.benefitGrid}>
                 {page.included.slice(0, 6).map((item) => (
                   <article className={styles.benefitItem} key={item.title}>
-                    <h3>{item.title}</h3>
+                    <h3>{publicText(item.title, locale)}</h3>
                     <p className="mt-3 text-[13px] font-medium leading-[1.45] text-[#f4e5cd]/72">
-                      {item.text}
+                      {publicText(item.text, locale)}
                     </p>
                   </article>
                 ))}
@@ -455,11 +470,11 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             </div>
             <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
               <Image
-                alt={visuals[2].alt}
+                alt={publicText(visuals[2].alt, locale)}
                 className={styles.visualImage}
                 fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 24vw"
+                quality={80}
+                sizes="(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 34vw, 500px"
                 src={visuals[2].src}
               />
             </figure>
@@ -472,7 +487,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             <div className={styles.sectionIntro}>
               <p className={styles.badge}>{copy.comparison}</p>
               <h2 id={`${page.slug}-comparison-title`}>
-                {page.comparison.heading}
+                {publicText(page.comparison.heading, locale)}
               </h2>
               <p>
                 {copy.comparisonBody}
@@ -482,17 +497,33 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               <thead>
                 <tr>
                   <th scope="col">{copy.criterion}</th>
-                  <th scope="col">{page.comparison.basicLabel}</th>
-                  <th scope="col">{page.comparison.vistaireLabel}</th>
+                  <th scope="col">
+                    {publicText(page.comparison.basicLabel, locale)}
+                  </th>
+                  <th scope="col">
+                    {publicText(page.comparison.vistaireLabel, locale)}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {page.comparison.rows.map((row) => (
                   <tr key={row.label}>
-                    <th scope="row">{row.label}</th>
-                    <td data-label={page.comparison.basicLabel}>{row.basic}</td>
-                    <td data-label={page.comparison.vistaireLabel}>
-                      {row.vistaire}
+                    <th scope="row">{publicText(row.label, locale)}</th>
+                    <td
+                      data-label={publicText(
+                        page.comparison.basicLabel,
+                        locale
+                      )}
+                    >
+                      {publicText(row.basic, locale)}
+                    </td>
+                    <td
+                      data-label={publicText(
+                        page.comparison.vistaireLabel,
+                        locale
+                      )}
+                    >
+                      {publicText(row.vistaire, locale)}
                     </td>
                   </tr>
                 ))}
@@ -512,7 +543,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               <p>{copy.faqBody}</p>
             </div>
             <div className="mt-8">
-              <SeoFaq faqs={page.faq} layout="stack" locale={locale} />
+              <SeoFaq faqs={displayFaq} layout="stack" locale={locale} />
             </div>
           </section>
 
@@ -533,7 +564,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.primaryCta.href}
                 prefetch={false}
               >
-                {page.primaryCta.label}
+                {publicText(page.primaryCta.label, locale)}
                 <ArrowIcon />
               </Link>
               <Link
@@ -541,13 +572,13 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.secondaryCta.href}
                 prefetch={false}
               >
-                {page.secondaryCta.label}
+                {publicText(page.secondaryCta.label, locale)}
               </Link>
             </div>
             <nav className={styles.internalLinks} aria-label={copy.internalLinks}>
               {finalLinks.map((link) => (
                 <Link href={link.href} key={`${link.href}-${link.label}`} prefetch={false}>
-                  {link.label}
+                  {publicText(link.label, locale)}
                 </Link>
               ))}
             </nav>

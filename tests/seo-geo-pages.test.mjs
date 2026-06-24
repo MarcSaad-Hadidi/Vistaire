@@ -154,25 +154,113 @@ test("new SEO/GEO/AEO pages are bilingual, canonical and sitemap-visible", async
   }
 });
 
+test("SEO/GEO sitemap dates stay caller-controlled and stable", async () => {
+  const { buildSitemapEntries } = await import("../lib/seo.ts");
+  const { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } = await import("../lib/seoGeoPages.ts");
+
+  const lastModified = new Date("2026-06-21T00:00:00.000Z");
+  const entries = buildSitemapEntries([], lastModified, siteEnv);
+  const byPath = new Map(
+    entries.map((entry) => [new URL(entry.url).pathname || "/", entry])
+  );
+
+  for (const page of [...SEO_GEO_PAGES, ...SEO_GEO_PAGES_EN]) {
+    const entry = byPath.get(page.path);
+    assert.ok(entry, `${page.path} should be in sitemap`);
+    assert.equal(entry.lastModified, lastModified, page.path);
+    assert.equal(entry.lastModified.toISOString(), "2026-06-21T00:00:00.000Z");
+  }
+});
+
+test("/carte-vistaire stays a permanent redirect to the demo menu", async () => {
+  const { default: nextConfig } = await import("../next.config.ts");
+  const redirects = await nextConfig.redirects?.();
+  const redirect = redirects?.find((entry) => entry.source === "/carte-vistaire");
+
+  assert.ok(redirect, "/carte-vistaire redirect should be configured");
+  assert.equal(redirect.destination, "/demo");
+  assert.equal(redirect.permanent, true, "Next serves permanent redirects as 308");
+});
+
+test("search intent matrix records evidence status for published and planned queries", async () => {
+  const {
+    PLANNED_SEO_GEO_PAGES,
+    SEO_GEO_PAGES,
+    SEARCH_INTENT_MATRIX
+  } = await import("../lib/seoGeoPages.ts");
+
+  const publishedPaths = new Set(SEO_GEO_PAGES.map((page) => page.path));
+  const plannedPaths = new Set(PLANNED_SEO_GEO_PAGES.map((page) => page.path));
+  const matrixQueries = new Set();
+
+  for (const entry of SEARCH_INTENT_MATRIX) {
+    assert.equal(entry.cluster.length > 0, true);
+    assert.equal(entry.naturalQueries.length >= 2, true, entry.cluster);
+    assert.match(entry.target, /\S/, entry.cluster);
+    assert.match(entry.contentAngle, /\S/, entry.cluster);
+    assert.ok(["published", "planned", "existing-pillar"].includes(entry.pageType));
+    assert.ok(["low", "medium", "high"].includes(entry.duplicationRisk));
+    assert.ok(["P0", "P1", "P2"].includes(entry.priority));
+    assert.ok(["medium", "high", "very-high"].includes(entry.commercialIntent));
+
+    for (const query of entry.naturalQueries) {
+      assert.equal(query.trim(), query, `${entry.cluster} query should be trimmed`);
+      assert.equal(query.length >= 8, true, query);
+      matrixQueries.add(query.toLowerCase());
+    }
+
+    if (entry.pageType === "published") {
+      for (const target of entry.target.split("+").map((value) => value.trim())) {
+        assert.equal(
+          publishedPaths.has(target),
+          true,
+          `${entry.cluster} should point to a published SEO/GEO page`
+        );
+      }
+    }
+
+    if (entry.pageType === "planned") {
+      assert.equal(entry.target, "planned registry");
+      assert.equal(entry.duplicationRisk, "high");
+      assert.equal(plannedPaths.size > 0, true);
+    }
+  }
+
+  for (const page of SEO_GEO_PAGES) {
+    assert.equal(
+      page.queries.some((query) => matrixQueries.has(query.toLowerCase())),
+      true,
+      `${page.path} should have at least one query represented in the search intent matrix`
+    );
+  }
+});
+
 test("SEO/GEO/AEO JSON-LD is honest and mirrors visible FAQ data", async () => {
   const { buildSeoGeoAeoJsonLd } = await import("../lib/seoGeoJsonLd.ts");
+  const { buildSeoGeoPublicFaq } = await import("../lib/seoGeoPublicText.ts");
   const { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } = await import("../lib/seoGeoPages.ts");
 
   for (const page of [...SEO_GEO_PAGES, ...SEO_GEO_PAGES_EN]) {
     const jsonLd = buildSeoGeoAeoJsonLd(page);
     const serialized = JSON.stringify(jsonLd);
     const types = jsonLd.map((item) => item["@type"]);
+    const publicFaq = buildSeoGeoPublicFaq(page);
 
     assert.deepEqual(types, ["WebPage", "BreadcrumbList", "Service", "FAQPage"]);
     assert.equal(jsonLd[0].url, `https://www.vistaire.ca${page.path}`);
-    assert.equal(jsonLd[3].mainEntity.length, page.faq.length);
+    assert.equal(jsonLd[3].mainEntity.length, publicFaq.length);
     assert.deepEqual(
       jsonLd[3].mainEntity.map((item) => item.name),
-      page.faq.map((item) => item.question)
+      publicFaq.map((item) => item.question)
+    );
+    assert.deepEqual(
+      jsonLd[3].mainEntity.map((item) => item.acceptedAnswer.text),
+      publicFaq.map((item) => item.answer)
     );
     assert.equal(serialized.includes('"@type":"Restaurant"'), false);
     assert.equal(serialized.includes("AggregateRating"), false);
     assert.equal(serialized.includes("Review"), false);
+    assert.doesNotMatch(serialized, /guest shows intent|intention du client|hreflang cassé/i);
 
     if (page.type === "local") {
       assert.equal(Array.isArray(jsonLd[2].areaServed), true, page.path);
