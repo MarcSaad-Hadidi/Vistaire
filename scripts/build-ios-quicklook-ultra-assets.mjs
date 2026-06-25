@@ -19,6 +19,7 @@ import { USDZExportAsync } from "@babylonjs/serializers";
 import { Accessor, NodeIO } from "@gltf-transform/core";
 import { dedup, prune, weld } from "@gltf-transform/functions";
 import * as fflate from "fflate";
+import { resolveGltfTransformCliPath } from "./shared/gltf-transform-cli.mjs";
 
 globalThis.fflate = fflate;
 
@@ -45,14 +46,6 @@ const CANDIDATE_ROOT = resolveWorkspaceRoot(
 const WORK_ROOT = resolveWorkspaceRoot(
   process.env.VISTAIRE_MESHY_WORK_ROOT,
   join(ROOT, "asset-review", "3d-candidates", ".ios-quicklook-work")
-);
-const GLTF_TRANSFORM_CLI = join(
-  ROOT,
-  "node_modules",
-  "@gltf-transform",
-  "cli",
-  "bin",
-  "cli.js"
 );
 const OPTIMIZER = join(__dirname, "optimize-usdz-binary-layers.py");
 
@@ -406,6 +399,13 @@ function canImportOpenUsd(command) {
 }
 
 function findOpenUsdPython() {
+  if (process.env.VISTAIRE_MESHY_SKIP_OPENUSD_OPTIMIZER === "1") {
+    console.warn(
+      "OpenUSD optimizer skipped for owner runtime; using raw USDZ fallback."
+    );
+    return null;
+  }
+
   const candidates = [
     process.env.USDZ_OPTIMIZER_PYTHON,
     "E:\\5.1\\python\\bin\\python.exe",
@@ -417,9 +417,10 @@ function findOpenUsdPython() {
     if (canImportOpenUsd(candidate)) return candidate;
   }
 
-  throw new Error(
-    "Missing Pixar OpenUSD Python bindings. Set USDZ_OPTIMIZER_PYTHON to a Python that can import pxr."
+  console.warn(
+    "OpenUSD unavailable; using raw USDZ fallback without binary layer optimization."
   );
+  return null;
 }
 
 function assertSourceGlb(sourcePath) {
@@ -984,6 +985,7 @@ async function buildCandidate({
   manifestSourcePath,
   candidateDir,
   workDir,
+  gltfTransformCli,
   optimizerPython
 }) {
   const levelWork = join(workDir, level.key);
@@ -1002,7 +1004,7 @@ async function buildCandidate({
 
   console.log(`\n${level.label}: generating GLB candidate`);
   run(process.execPath, [
-    GLTF_TRANSFORM_CLI,
+    gltfTransformCli,
     "optimize",
     levelSourcePath,
     geometryGlb,
@@ -1023,7 +1025,7 @@ async function buildCandidate({
   ]);
 
   run(process.execPath, [
-    GLTF_TRANSFORM_CLI,
+    gltfTransformCli,
     "resize",
     geometryGlb,
     resizedGlb,
@@ -1034,7 +1036,7 @@ async function buildCandidate({
   ]);
 
   run(process.execPath, [
-    GLTF_TRANSFORM_CLI,
+    gltfTransformCli,
     "jpeg",
     resizedGlb,
     preJpegGlb,
@@ -1047,7 +1049,7 @@ async function buildCandidate({
   await normalizeGlbForAr(preJpegGlb, normalizedGlb, dish.targetMaxDimMeters);
 
   run(process.execPath, [
-    GLTF_TRANSFORM_CLI,
+    gltfTransformCli,
     "optimize",
     normalizedGlb,
     compatibleGlb,
@@ -1062,7 +1064,7 @@ async function buildCandidate({
   ]);
 
   run(process.execPath, [
-    GLTF_TRANSFORM_CLI,
+    gltfTransformCli,
     "jpeg",
     compatibleGlb,
     finalGlb,
@@ -1074,12 +1076,20 @@ async function buildCandidate({
 
   console.log(`${level.label}: converting GLB to USDZ`);
   await convertGlbToUsdz(finalGlb, rawUsdz, `${slug}-${level.key}.usda`);
-  run(optimizerPython, [OPTIMIZER, rawUsdz, optimizedUsdz]);
+  if (optimizerPython) {
+    run(optimizerPython, [OPTIMIZER, rawUsdz, optimizedUsdz]);
+  } else {
+    console.warn(`${level.label}: OpenUSD unavailable; promoting raw USDZ fallback.`);
+    copyFileSync(rawUsdz, optimizedUsdz);
+  }
 
   const glbInfo = inspectGlb(finalGlb);
   const bounds = await measureSceneBounds(finalGlb);
   const usdzInfo = inspectUsdz(optimizedUsdz);
   const risks = candidateRisk(level, glbInfo, usdzInfo, bounds);
+  if (!optimizerPython) {
+    risks.push("OpenUSD unavailable; raw USDZ fallback used without binary layer optimization.");
+  }
   const candidate = {
     level: level.key,
     label: level.label,
@@ -1160,9 +1170,7 @@ function promoteCandidate({ dish, levelKey, candidate, qualityApproved }) {
 async function main() {
   const { slug, options } = parseArgs(process.argv.slice(2));
   const dish = DISHES.get(slug) ?? createOwnerDish(slug);
-  if (!existsSync(GLTF_TRANSFORM_CLI)) {
-    throw new Error(`Missing glTF Transform CLI: ${GLTF_TRANSFORM_CLI}`);
-  }
+  const gltfTransformCli = resolveGltfTransformCliPath();
 
   const originalSourcePath = join(DEMO_DIR, dish.quickLookSourceGlb ?? dish.sourceGlb);
   let sourcePath = originalSourcePath;
@@ -1181,7 +1189,7 @@ async function main() {
   if (dish.quickLookSourceGlb) {
     console.log(`Original source kept untouched: ${join(DEMO_DIR, dish.sourceGlb)}`);
   }
-  console.log(`OpenUSD Python: ${optimizerPython}`);
+  console.log(`OpenUSD Python: ${optimizerPython ?? "unavailable; raw USDZ fallback"}`);
   console.log(`Candidate directory: ${candidateDir}`);
   console.log(`Visual priorities: ${dish.visualPriorities}`);
 
@@ -1205,6 +1213,7 @@ async function main() {
             manifestSourcePath: originalSourcePath,
             candidateDir,
             workDir,
+            gltfTransformCli,
             optimizerPython
           })
         );

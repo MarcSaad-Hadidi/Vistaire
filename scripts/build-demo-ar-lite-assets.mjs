@@ -7,6 +7,7 @@ import { NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { AppendSceneAsync } from "@babylonjs/core/Loading/sceneLoader.js";
 import "@babylonjs/loaders/glTF/index.js";
 import { GLTF2Export } from "@babylonjs/serializers/glTF/2.0/glTFSerializer.js";
+import { resolveGltfTransformCliPath } from "./shared/gltf-transform-cli.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -175,7 +176,7 @@ function selectProfiles() {
 }
 
 function gltfTransformBin() {
-  return join(ROOT, "node_modules", "@gltf-transform", "cli", "bin", "cli.js");
+  return resolveGltfTransformCliPath();
 }
 
 function run(command, args) {

@@ -15,17 +15,10 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFil
 import { basename, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { resolveGltfTransformCliPath } from "../shared/gltf-transform-cli.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
-const GLTF_TRANSFORM_CLI = join(
-  ROOT,
-  "node_modules",
-  "@gltf-transform",
-  "cli",
-  "bin",
-  "cli.js"
-);
 
 function parseArgs(argv) {
   const options = {
@@ -117,9 +110,7 @@ function main() {
   if (!existsSync(sourcePath)) {
     throw new Error(`Source introuvable: ${sourcePath}`);
   }
-  if (!existsSync(GLTF_TRANSFORM_CLI)) {
-    throw new Error(`Missing glTF Transform CLI: ${GLTF_TRANSFORM_CLI}`);
-  }
+  const gltfTransformCli = resolveGltfTransformCliPath();
 
   const publicAssetRootRelative = join(
     "models",
@@ -148,7 +139,7 @@ function main() {
   const meshoptResult = spawnSync(
     process.execPath,
     [
-      GLTF_TRANSFORM_CLI,
+      gltfTransformCli,
       "optimize",
       meshyPath,
       meshoptTmp,
@@ -181,6 +172,7 @@ function main() {
   if (outputRoot) {
     iosEnv.VISTAIRE_MESHY_CANDIDATE_ROOT = slashPath(join(assetRoot, ".ios-candidates"));
     iosEnv.VISTAIRE_MESHY_WORK_ROOT = slashPath(join(assetRoot, ".ios-work"));
+    iosEnv.VISTAIRE_MESHY_SKIP_OPENUSD_OPTIMIZER = "1";
   }
   runNode(
     "scripts/build-ios-quicklook-ultra-assets.mjs",
