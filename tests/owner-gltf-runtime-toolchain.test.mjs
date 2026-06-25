@@ -22,16 +22,65 @@ const TRACE_INCLUDES = [
   "scripts/owner/build-restaurant-meshy-dish.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",
   "scripts/build-ios-quicklook-ultra-assets.mjs",
-  "scripts/optimize-usdz-binary-layers.py",
-  "node_modules/@gltf-transform/cli/**/*",
-  "node_modules/@gltf-transform/core/**/*",
-  "node_modules/@gltf-transform/extensions/**/*",
-  "node_modules/@gltf-transform/functions/**/*",
-  "node_modules/@babylonjs/core/**/*",
-  "node_modules/@babylonjs/loaders/**/*",
-  "node_modules/@babylonjs/serializers/**/*",
-  "node_modules/fflate/**/*"
+  "scripts/optimize-usdz-binary-layers.py"
 ];
+
+const RUNTIME_TRACE_ROOT_PACKAGES = [
+  "@babylonjs/core",
+  "@babylonjs/loaders",
+  "@babylonjs/serializers",
+  "@gltf-transform/cli",
+  "@gltf-transform/core",
+  "@gltf-transform/extensions",
+  "@gltf-transform/functions",
+  "fflate"
+];
+
+function packagePathForName(name) {
+  return `node_modules/${name}`;
+}
+
+function dependencyPathForPackage(packages, packagePath, dependencyName) {
+  const nestedPath = `${packagePath}/node_modules/${dependencyName}`;
+  return packages[nestedPath] ? nestedPath : packagePathForName(dependencyName);
+}
+
+function collectRuntimePackageClosure(packageLock) {
+  const packages = packageLock.packages ?? {};
+  const seen = new Set();
+  const stack = RUNTIME_TRACE_ROOT_PACKAGES.map(packagePathForName);
+
+  while (stack.length > 0) {
+    const packagePath = stack.pop();
+    if (!packagePath || seen.has(packagePath)) continue;
+
+    const packageEntry = packages[packagePath];
+    assert.ok(packageEntry, `${packagePath} must exist in package-lock.json`);
+    seen.add(packagePath);
+
+    const dependencies = {
+      ...(packageEntry.dependencies ?? {}),
+      ...(packageEntry.optionalDependencies ?? {}),
+      ...(packageEntry.peerDependencies ?? {})
+    };
+    for (const dependencyName of Object.keys(dependencies)) {
+      stack.push(dependencyPathForPackage(packages, packagePath, dependencyName));
+    }
+  }
+
+  return [...seen].sort();
+}
+
+function extractPackageTraceIncludes(nextConfigSource) {
+  return [...nextConfigSource.matchAll(/"(node_modules\/[^"]+\/\*\*\/\*)"/g)].map(
+    (match) => match[1]
+  );
+}
+
+function traceIncludeCoversPackagePath(traceInclude, packagePath) {
+  const prefix = traceInclude.replace(/\/\*\*\/\*$/, "");
+  return packagePath === prefix || packagePath.startsWith(`${prefix}/`);
+}
 
 test("owner runtime GLB conversion packages are production dependencies", async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
@@ -63,6 +112,32 @@ test("owner runtime child-process scripts and toolchain are explicitly traced", 
       `${include} must be traced into the owner model runtime function`
     );
   }
+});
+
+test("owner runtime trace includes the package-lock dependency closure", async () => {
+  const nextConfig = await readFile("next.config.ts", "utf8");
+  const packageLock = JSON.parse(await readFile("package-lock.json", "utf8"));
+  const packageTraceIncludes = extractPackageTraceIncludes(nextConfig);
+  const runtimePackagePaths = collectRuntimePackageClosure(packageLock);
+
+  for (const reviewedPackagePath of [
+    "node_modules/property-graph",
+    "node_modules/ndarray",
+    "node_modules/ndarray-pixels"
+  ]) {
+    assert.ok(
+      runtimePackagePaths.includes(reviewedPackagePath),
+      `${reviewedPackagePath} must be part of the checked runtime closure`
+    );
+  }
+
+  const missingPackagePaths = runtimePackagePaths.filter(
+    (packagePath) =>
+      !packageTraceIncludes.some((traceInclude) =>
+        traceIncludeCoversPackagePath(traceInclude, packagePath)
+      )
+  );
+  assert.deepEqual(missingPackagePaths, []);
 });
 
 test("owner runtime scripts resolve glTF Transform CLI through Node resolution", async () => {
