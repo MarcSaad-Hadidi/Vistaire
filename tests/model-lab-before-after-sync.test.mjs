@@ -114,6 +114,8 @@ test("model lab optimizer runs in a killable worker with output caps", () => {
   assert.match(optimizer, /MODEL_LAB_OPTIMIZE_TIMEOUT_MS/);
   assert.match(optimizer, /MODEL_LAB_OPTIMIZED_MAX_BYTES/);
   assert.match(worker, /await document\.transform/);
+  assert.match(worker, /reorder\(\{ encoder: MeshoptEncoder \}\)/);
+  assert.doesNotMatch(worker, /meshopt\(/);
   assert.match(worker, /stdout\.write/);
   assert.match(nextConfig, /\/api\/owner\/model-lab\/optimize/);
   assert.match(nextConfig, /lib\/owner\/modelLab\/optimizeWorker\.mjs/);
@@ -134,11 +136,23 @@ test("model lab before-after viewer synchronizes camera safely without AR", () =
   assert.match(beforeAfter, /Aligner/);
   assert.match(viewer, /camera-change/);
   assert.match(viewer, /removeEventListener\("camera-change"/);
+  assert.match(viewer, /addEventListener\("error"/);
+  assert.match(viewer, /removeEventListener\("error"/);
+  assert.match(viewer, /Affichage 3D impossible pour ce GLB/);
   assert.match(viewer, /cameraOrbit/);
   assert.match(viewer, /cameraTarget/);
   assert.match(viewer, /fieldOfView/);
   assert.doesNotMatch(viewer, /"ios-src"|ar-modes|quick-look|scene-viewer|activateAR/);
   assert.doesNotMatch(beforeAfter, /Promise\.all/);
+});
+
+test("model lab compact stats do not split short GLB values mid-token", () => {
+  const styles = read("components/owner/OwnerCockpit.module.css");
+
+  assert.match(styles, /\.sourceUploadRecord \{\s*display: grid;[\s\S]*minmax\(58px, 1fr\)/);
+  assert.match(styles, /\.modelLabViewerStats \{\s*display: grid;[\s\S]*minmax\(62px, 1fr\)/);
+  assert.match(styles, /\.sourceUploadRecord dd \{[\s\S]*white-space: nowrap/);
+  assert.match(styles, /\.modelLabViewerStats dd \{[\s\S]*white-space: nowrap/);
 });
 
 test("model lab frontend uses sequential binary generation and cleans Blob URLs", () => {

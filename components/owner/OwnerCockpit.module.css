@@ -3070,7 +3070,7 @@
 
 .sourceUploadRecord {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(58px, 1fr));
   gap: 10px;
   margin: 0;
   padding-top: 4px;
@@ -3078,6 +3078,7 @@
 
 .sourceUploadRecord div {
   min-width: 0;
+  overflow: hidden;
   padding: 10px;
   border: 1px solid rgba(232, 207, 155, 0.12);
   border-radius: 10px;
@@ -3095,7 +3096,9 @@
   margin: 4px 0 0;
   color: var(--owner-cream);
   font-size: 13px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: normal;
 }
 
 .pipelineJobsPanel {
@@ -3919,13 +3922,14 @@
 
 .modelLabViewerStats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(62px, 1fr));
   gap: 8px;
   margin: 0;
 }
 
 .modelLabViewerStats div {
   min-width: 0;
+  overflow: hidden;
   border: 1px solid rgba(232, 207, 155, 0.1);
   border-radius: 10px;
   background: rgba(255, 250, 240, 0.035);
@@ -3943,7 +3947,9 @@
   margin: 4px 0 0;
   color: var(--owner-cream);
   font-size: 12px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: normal;
 }
 
 .modelLabCompareSummary {

@@ -144,9 +144,26 @@ export function ModelLabViewer({
     if (!node) return;
 
     const handleCameraChange = () => onCameraChange(pane);
+    const handleLoad = () => {
+      const source = node.getAttribute("src");
+      setError((current) =>
+        current.url === source ? { url: source, message: "" } : current
+      );
+    };
+    const handleError = () => {
+      setError({
+        url: node.getAttribute("src"),
+        message:
+          "Affichage 3D impossible pour ce GLB. Le fichier reste local; regenerez un candidat ou verifiez les extensions requises."
+      });
+    };
     node.addEventListener("camera-change", handleCameraChange);
+    node.addEventListener("load", handleLoad);
+    node.addEventListener("error", handleError);
     cleanupRef.current = () => {
       node.removeEventListener("camera-change", handleCameraChange);
+      node.removeEventListener("load", handleLoad);
+      node.removeEventListener("error", handleError);
     };
 
     queueMicrotask(() => {
@@ -197,6 +214,7 @@ export function ModelLabViewer({
             "camera-target": MODEL_LAB_DEFAULT_CAMERA.target,
             "field-of-view": MODEL_LAB_DEFAULT_CAMERA.fieldOfView
           })}
+          {visibleError ? <p className={styles.qrWarning}>{visibleError}</p> : null}
         </div>
       ) : (
         <div className={styles.reviewModelPlaceholder}>
