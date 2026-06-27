@@ -498,7 +498,7 @@ function CandidateCard({
       : preset.targetLabel;
 
   return (
-    <article className={styles.moduleCard}>
+    <article className={`${styles.moduleCard} ${styles.modelLabPresetCard}`}>
       <div className={styles.pipelineSectionTitleRow}>
         <h3>{preset.label}</h3>
         <Badge tone={preset.isRisky ? "warn" : candidateTone(candidate?.status ?? "idle")}>
@@ -507,7 +507,7 @@ function CandidateCard({
       </div>
       <p>{preset.summary}</p>
       <span>{preset.details}</span>
-      <dl className={styles.sourceUploadRecord}>
+      <dl className={`${styles.sourceUploadRecord} ${styles.modelLabPresetStats}`}>
         <SmallStat label="Texture" value={preset.textureMax ? `${preset.textureMax}px` : "source"} />
         <SmallStat label="Target" value={targetLabel} />
         <SmallStat label="Geom" value={geometryLabel} />

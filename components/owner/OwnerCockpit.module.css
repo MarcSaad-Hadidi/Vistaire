@@ -3101,6 +3101,30 @@
   word-break: normal;
 }
 
+.modelLabPresetCard {
+  align-content: start;
+}
+
+.modelLabPresetStats {
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 8px;
+}
+
+.modelLabPresetStats div {
+  overflow: visible;
+  padding: 9px;
+}
+
+.modelLabPresetStats dt {
+  letter-spacing: 0.04em;
+}
+
+.modelLabPresetStats dd {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
 .pipelineJobsPanel {
   display: grid;
   gap: 14px;
