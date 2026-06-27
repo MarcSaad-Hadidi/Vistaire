@@ -9,10 +9,12 @@ import {
   withModelLabNoStore
 } from "@/lib/owner/modelLab/modelLabHeaders";
 import {
-  parseModelLabMaxBytes,
+  MODEL_LAB_MULTIPART_OVERHEAD_BYTES,
+  parseModelLabOptimizationMaxBytes,
   validateModelLabContentLength,
   validateModelLabOptimizationBudget
 } from "@/lib/owner/modelLab/modelLabLimits";
+import { readModelLabMultipartRequest } from "@/lib/owner/modelLab/modelLabMultipart";
 import {
   parseModelLabMode,
   validateModelLabGlbFile
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
   const originError = requireSameOriginOwnerMutation(request);
   if (originError) return withModelLabNoStore(originError);
 
-  const limit = parseModelLabMaxBytes(process.env);
+  const limit = parseModelLabOptimizationMaxBytes(process.env);
   if (!limit.ok) return jsonError(limit.error, 503);
 
   const contentLength = validateModelLabContentLength(
@@ -51,22 +53,21 @@ export async function POST(request: NextRequest) {
   );
   if (!contentLength.ok) return jsonError(contentLength.error, contentLength.status);
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return jsonError("Formulaire Model Lab invalide.", 400);
-  }
+  const formData = await readModelLabMultipartRequest(
+    request,
+    limit.maxBytes + MODEL_LAB_MULTIPART_OVERHEAD_BYTES
+  );
+  if (!formData.ok) return jsonError(formData.error, formData.status);
 
-  const mode = parseModelLabMode(formData.get("mode"));
+  const mode = parseModelLabMode(formData.form.fields.get("mode") ?? null);
   if (!mode.ok) return jsonError(mode.error, 400);
 
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
+  const file = formData.form.file;
+  if (!file) {
     return jsonError("GLB requis.", 400);
   }
   if (file.size > limit.maxBytes) {
-    return jsonError("GLB is larger than the Model Lab upload cap.", 413);
+    return jsonError("GLB is larger than the Model Lab serverless optimization cap.", 413);
   }
 
   const validated = validateModelLabGlbFile(
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
       name: file.name,
       type: file.type,
       size: file.size,
-      bytes: Buffer.from(await file.arrayBuffer())
+      bytes: file.bytes
     },
     limit.maxBytes
   );

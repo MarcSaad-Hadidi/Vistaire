@@ -1,25 +1,26 @@
 import type { ModelLabInspectionReport } from "@/lib/owner/modelLab/inspectGlb";
 import type { ModelLabPresetId } from "@/lib/owner/modelLab/modelLabPresets";
 
-export const DEFAULT_MODEL_LAB_MAX_BYTES = 25 * 1024 * 1024;
-export const HARD_MODEL_LAB_MAX_BYTES = 50 * 1024 * 1024;
+export const DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES = 100 * 1024 * 1024;
+export const DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES = 75 * 1024 * 1024;
+export const HARD_MODEL_LAB_MAX_BYTES = 250 * 1024 * 1024;
 export const MODEL_LAB_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 export const MODEL_LAB_OPTIMIZE_TIMEOUT_MS = 45_000;
 export const MODEL_LAB_OPTIMIZED_MAX_BYTES = HARD_MODEL_LAB_MAX_BYTES;
 
 export const MODEL_LAB_COMPLEXITY_LIMITS = {
-  triangles: 500_000,
-  vertices: 1_000_000,
-  accessors: 5_000,
-  accessorElements: 3_000_000,
-  meshCount: 1_000,
-  primitives: 2_000,
-  images: 48,
-  maxTexturePixels: 67_108_864,
-  totalTexturePixels: 100_000_000,
-  animations: 8,
-  animationChannels: 512,
-  animationSamplers: 512
+  triangles: 2_000_000,
+  vertices: 3_000_000,
+  accessors: 20_000,
+  accessorElements: 12_000_000,
+  meshCount: 2_500,
+  primitives: 5_000,
+  images: 128,
+  maxTexturePixels: 134_217_728,
+  totalTexturePixels: 300_000_000,
+  animations: 16,
+  animationChannels: 2_000,
+  animationSamplers: 2_000
 } as const;
 
 const REJECTED_REQUIRED_SOURCE_EXTENSIONS = new Set([
@@ -29,22 +30,58 @@ const REJECTED_REQUIRED_SOURCE_EXTENSIONS = new Set([
 
 type EnvLike = Record<string, string | undefined>;
 
-export function parseModelLabMaxBytes(
-  env: EnvLike
-): { ok: true; maxBytes: number } | { ok: false; error: string } {
-  const raw = env.VISTAIRE_MODEL_LAB_MAX_BYTES;
-  if (!raw) return { ok: true, maxBytes: DEFAULT_MODEL_LAB_MAX_BYTES };
+function parseByteLimit(args: {
+  raw: string | undefined;
+  defaultBytes: number;
+  hardBytes: number;
+  error: string;
+}): { ok: true; maxBytes: number } | { ok: false; error: string } {
+  if (!args.raw) return { ok: true, maxBytes: args.defaultBytes };
 
-  const parsed = Number(raw);
-  if (
-    !Number.isInteger(parsed) ||
-    parsed <= 0 ||
-    parsed > HARD_MODEL_LAB_MAX_BYTES
-  ) {
-    return { ok: false, error: "Model Lab upload size cap is invalid." };
+  const parsed = Number(args.raw);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > args.hardBytes) {
+    return { ok: false, error: args.error };
   }
 
   return { ok: true, maxBytes: parsed };
+}
+
+export function parseModelLabInspectionMaxBytes(
+  env: EnvLike
+): { ok: true; maxBytes: number } | { ok: false; error: string } {
+  return parseByteLimit({
+    raw: env.VISTAIRE_MODEL_LAB_INSPECT_MAX_BYTES ?? env.VISTAIRE_MODEL_LAB_MAX_BYTES,
+    defaultBytes: DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES,
+    hardBytes: HARD_MODEL_LAB_MAX_BYTES,
+    error: "Model Lab inspection size cap is invalid."
+  });
+}
+
+export function parseModelLabOptimizationMaxBytes(
+  env: EnvLike
+): { ok: true; maxBytes: number } | { ok: false; error: string } {
+  return parseByteLimit({
+    raw: env.VISTAIRE_MODEL_LAB_OPTIMIZE_MAX_BYTES,
+    defaultBytes: DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES,
+    hardBytes: HARD_MODEL_LAB_MAX_BYTES,
+    error: "Model Lab optimization size cap is invalid."
+  });
+}
+
+export function modelLabConfigResponse(args: {
+  inspectionMaxBytes: number;
+  optimizationMaxBytes: number;
+}) {
+  return {
+    inspectionMaxBytes: args.inspectionMaxBytes,
+    optimizationMaxBytes: args.optimizationMaxBytes,
+    hardMaxBytes: HARD_MODEL_LAB_MAX_BYTES,
+    multipartOverheadBytes: MODEL_LAB_MULTIPART_OVERHEAD_BYTES,
+    notes: [
+      "No storage: files stay in request memory or local Blob URLs; no Supabase, CDN, DB, or public/models writes.",
+      "Large models: inspection is broader; serverless optimization remains capped and local-heavy mode is planned."
+    ]
+  };
 }
 
 export function validateModelLabContentLength(

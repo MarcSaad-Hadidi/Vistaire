@@ -11,12 +11,21 @@ function read(relativePath) {
 
 test("model lab optimize route is owner-only, no-store, and returns binary GLB", () => {
   const route = read("app/api/owner/model-lab/optimize/route.ts");
+  const configRoute = read("app/api/owner/model-lab/config/route.ts");
   const headers = read("lib/owner/modelLab/modelLabHeaders.ts");
+  const multipart = read("lib/owner/modelLab/modelLabMultipart.ts");
 
   assert.match(route, /export const runtime = "nodejs"/);
   assert.match(route, /export const dynamic = "force-dynamic"/);
+  assert.match(configRoute, /export const runtime = "nodejs"/);
+  assert.match(configRoute, /export const dynamic = "force-dynamic"/);
+  assert.match(configRoute, /requireVistaireOwnerApi/);
+  assert.match(configRoute, /modelLabConfigResponse/);
   assert.match(route, /requireVistaireOwnerApi/);
   assert.match(route, /requireSameOriginOwnerMutation/);
+  assert.match(route, /readModelLabMultipartRequest/);
+  assert.match(multipart, /request\.arrayBuffer\(\)/);
+  assert.match(multipart, /MODEL_LAB multipart|multipart/i);
   assert.match(route, /validateModelLabContentLength/);
   assert.match(route, /validateModelLabOptimizationBudget/);
   assert.match(route, /request\.headers\.get\("content-length"\)/);
@@ -28,11 +37,26 @@ test("model lab optimize route is owner-only, no-store, and returns binary GLB",
   assert.doesNotMatch(route, /Promise\.race/);
 });
 
+test("same-origin owner mutation guard accepts forwarded public origins only", () => {
+  const ownerApi = read("lib/auth/ownerApi.ts");
+
+  assert.match(ownerApi, /allowedOwnerMutationOrigins/);
+  assert.match(ownerApi, /x-forwarded-proto/);
+  assert.match(ownerApi, /x-forwarded-host/);
+  assert.match(ownerApi, /request\.headers\.get\("host"\)/);
+  assert.match(ownerApi, /VISTAIRE_OWNER_ALLOWED_ORIGINS/);
+  assert.match(ownerApi, /allowedOwnerMutationOrigins\(request\)\.has\(origin\)/);
+  assert.match(ownerApi, /fetchSite !== "same-origin" && fetchSite !== "none"/);
+  assert.match(ownerApi, /Owner mutation must come from the Vistaire owner app/);
+});
+
 test("model lab code does not write or store GLB assets", () => {
   const files = [
+    "app/api/owner/model-lab/config/route.ts",
     "app/api/owner/model-lab/inspect/route.ts",
     "app/api/owner/model-lab/optimize/route.ts",
     "lib/owner/modelLab/inspectGlb.ts",
+    "lib/owner/modelLab/modelLabMultipart.ts",
     "lib/owner/modelLab/optimizeGlb.ts",
     "lib/owner/modelLab/optimizeWorker.mjs",
     "components/owner/model-lab/ModelLabClient.tsx",
@@ -43,8 +67,41 @@ test("model lab code does not write or store GLB assets", () => {
 
   assert.doesNotMatch(combined, /writeFile|writeFileSync|createWriteStream|mkdir|rmSync/);
   assert.doesNotMatch(combined, /getSupabase|@supabase|storage\.from|\.insert\(/);
-  assert.doesNotMatch(combined, /public\/models|public\\models|assets\/3d\/work|assets\\3d\\work/);
   assert.doesNotMatch(combined, /public\/videos|public\\videos|public\/frames|public\\frames/);
+  assert.doesNotMatch(
+    combined,
+    /(writeFile|writeFileSync|createWriteStream|mkdir|rmSync)[\s\S]{0,160}(public\/models|public\\models|assets\/3d\/work|assets\\3d\\work)/
+  );
+});
+
+test("model lab limits are exposed by config and the client does not hardcode 25 MB", () => {
+  const client = read("components/owner/model-lab/ModelLabClient.tsx");
+  const limits = read("lib/owner/modelLab/modelLabLimits.ts");
+  const inspectRoute = read("app/api/owner/model-lab/inspect/route.ts");
+  const optimizeRoute = read("app/api/owner/model-lab/optimize/route.ts");
+  const nextConfig = read("next.config.ts");
+
+  assert.match(client, /\/api\/owner\/model-lab\/config/);
+  assert.match(client, /inspectionMaxBytes/);
+  assert.match(client, /optimizationMaxBytes/);
+  assert.doesNotMatch(client, /DEFAULT_MODEL_LAB_MAX_BYTES|25 MB|25 \* 1024/);
+  assert.match(limits, /DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES = 100 \* 1024 \* 1024/);
+  assert.match(limits, /DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES = 75 \* 1024 \* 1024/);
+  assert.match(limits, /HARD_MODEL_LAB_MAX_BYTES = 250 \* 1024 \* 1024/);
+  assert.match(inspectRoute, /parseModelLabInspectionMaxBytes/);
+  assert.match(optimizeRoute, /parseModelLabOptimizationMaxBytes/);
+  assert.match(nextConfig, /proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE/);
+  assert.match(nextConfig, /parseModelLabInspectionMaxBytes\(process\.env\)/);
+});
+
+test("model lab is visible in the rendered owner portfolio navigation and dashboard", () => {
+  const nav = read("lib/owner/nav.ts");
+  const shell = read("components/owner/OwnerShell.tsx");
+  const ownerPage = read("app/owner/page.tsx");
+
+  assert.match(nav, /OWNER_PORTFOLIO_NAV_ITEMS[\s\S]*\/owner\/model-lab/);
+  assert.match(shell, /items=\{OWNER_PORTFOLIO_NAV_ITEMS\}/);
+  assert.match(ownerPage, /href="\/owner\/model-lab"/);
 });
 
 test("model lab optimizer runs in a killable worker with output caps", () => {
@@ -94,8 +151,18 @@ test("model lab frontend uses sequential binary generation and cleans Blob URLs"
   assert.match(client, /for \(const preset of MODEL_LAB_PRESETS\)/);
   assert.match(client, /fileToken/);
   assert.match(client, /externalUris\.length > 0/);
+  assert.match(client, /rapport candidat relit temporairement le Blob optimise via \/inspect/);
   assert.match(beforeAfter, /blockedReason/);
   assert.doesNotMatch(client, /Promise\.all/);
+});
+
+test("model lab presets do not promise finished USDZ or real-device AR validation", () => {
+  const presets = read("lib/owner/modelLab/modelLabPresets.ts");
+
+  assert.match(presets, /AR Lite experimental/);
+  assert.match(presets, /Scale, origin et grounding restent a valider/);
+  assert.match(presets, /aucun USDZ ni Quick Look n'est genere/);
+  assert.doesNotMatch(presets, /Preserve scale\/origin/);
 });
 
 test("model lab inspect reports external URIs and bounds without storage", () => {

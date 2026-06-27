@@ -153,7 +153,7 @@ export function validateModelLabGlbFile(
     return { ok: false, error: "GLB file is empty.", status: 400 };
   }
   if (declaredSize > maxBytes) {
-    return { ok: false, error: "GLB is larger than the Model Lab upload cap.", status: 413 };
+    return { ok: false, error: "GLB is larger than the configured Model Lab cap.", status: 413 };
   }
 
   const bytes = normalizeModelLabBytes(file.bytes);

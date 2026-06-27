@@ -6,7 +6,6 @@ import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
 import { ModelLabBeforeAfter } from "@/components/owner/model-lab/ModelLabBeforeAfter";
 import { ModelLabDropzone } from "@/components/owner/model-lab/ModelLabDropzone";
 import { ModelLabStatsPanel } from "@/components/owner/model-lab/ModelLabStatsPanel";
-import { DEFAULT_MODEL_LAB_MAX_BYTES } from "@/lib/owner/modelLab/modelLabLimits";
 import {
   MODEL_LAB_PRESETS,
   type ModelLabPreset,
@@ -23,6 +22,17 @@ type ApiPayload =
       externalUris?: string[];
       errors?: string[];
     };
+
+type ModelLabConfig = {
+  inspectionMaxBytes: number;
+  optimizationMaxBytes: number;
+  hardMaxBytes: number;
+  notes: string[];
+};
+
+type ConfigPayload =
+  | { ok: true; config: ModelLabConfig }
+  | { ok: false; error?: string };
 
 type CandidateStatus = "idle" | "running" | "ready" | "error";
 
@@ -56,8 +66,47 @@ export function ModelLabClient() {
   const [selectedMode, setSelectedMode] = useState<ModelLabPresetId | null>(null);
   const [message, setMessage] = useState("Ajoutez un GLB pour lancer l'inspection locale.");
   const [error, setError] = useState("");
+  const [config, setConfig] = useState<ModelLabConfig | null>(null);
+  const [configError, setConfigError] = useState("");
   const [busy, setBusy] = useState(false);
   const [runningMode, setRunningMode] = useState<ModelLabPresetId | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadConfig() {
+      try {
+        const response = await fetch("/api/owner/model-lab/config", {
+          cache: "no-store",
+          credentials: "same-origin"
+        });
+        const payload = (await response.json()) as ConfigPayload;
+        if (!active) return;
+        if (!response.ok || !payload.ok) {
+          throw new Error(
+            payload.ok
+              ? "Configuration Model Lab indisponible."
+              : payload.error || "Configuration Model Lab indisponible."
+          );
+        }
+        setConfig(payload.config);
+        setConfigError("");
+      } catch (configLoadError) {
+        if (!active) return;
+        setConfig(null);
+        setConfigError(
+          configLoadError instanceof Error
+            ? configLoadError.message
+            : "Configuration Model Lab indisponible."
+        );
+      }
+    }
+
+    void loadConfig();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const urls = managedUrls.current;
@@ -130,9 +179,17 @@ export function ModelLabClient() {
       setMessage("Fichier refuse.");
       return;
     }
-    if (nextFile.size <= 0 || nextFile.size > DEFAULT_MODEL_LAB_MAX_BYTES) {
+    if (nextFile.size <= 0) {
       setFile(null);
-      setError("Le GLB doit etre non vide et rester sous 25 MB.");
+      setError("Le GLB doit etre non vide.");
+      setMessage("Fichier refuse.");
+      return;
+    }
+    if (config && nextFile.size > config.inspectionMaxBytes) {
+      setFile(null);
+      setError(
+        `Taille refusee: ${formatBytes(nextFile.size)} depasse la limite d'inspection configuree (${formatBytes(config.inspectionMaxBytes)}).`
+      );
       setMessage("Fichier refuse.");
       return;
     }
@@ -295,6 +352,19 @@ export function ModelLabClient() {
           </button>
         </div>
 
+        <div className={styles.modelLabNoticeGrid} aria-label="Garanties Model Lab">
+          <p>No storage: fichiers en memoire/Blob, aucun Supabase/CDN/DB/public/models.</p>
+          <p>Gros modeles: inspection possible; optimisation serverless limitee; mode local-heavy a venir.</p>
+          <p>
+            Limites actives:{" "}
+            {config
+              ? `inspection ${formatBytes(config.inspectionMaxBytes)}, optimisation ${formatBytes(config.optimizationMaxBytes)}.`
+              : "chargement de la configuration owner."}
+          </p>
+          <p>Note: le rapport candidat relit temporairement le Blob optimise via /inspect, sans stockage.</p>
+        </div>
+        {configError ? <p className={styles.qrWarning}>{configError}</p> : null}
+
         <p className={styles.qrStatusLine} aria-live="polite" data-testid="model-lab-status">
           {message}
         </p>
@@ -454,6 +524,13 @@ function presetLabel(mode: ModelLabPresetId): string {
 
 function stripGlb(name: string): string {
   return name.replace(/\.glb$/i, "") || "model";
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function fileNameFromDisposition(header: string | null, fallback: string): string {

@@ -39,9 +39,9 @@ export const MODEL_LAB_PRESETS = [
   },
   {
     id: "ar-lite",
-    label: "AR Lite",
-    summary: "GLB leger sans extension de compression ajoutee.",
-    details: "Preserve scale/origin, texture max 1024, pas de Meshopt ni Draco requis ajoute.",
+    label: "AR Lite experimental",
+    summary: "Candidat leger a verifier avant tout usage AR.",
+    details: "Texture max 1024, pas de Meshopt ni Draco requis ajoute. Scale, origin et grounding restent a valider en revue visuelle; aucun USDZ ni Quick Look n'est genere.",
     textureMax: 1024,
     textureQuality: 90,
     simplifyRatio: 0.72,
