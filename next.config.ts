@@ -23,9 +23,11 @@ const GLB_MODEL_HEADERS = [
 const OWNER_MODEL_PIPELINE_ROUTES = [
   "/api/owner/restaurants/*/dishes/*/model/glb",
   "/api/owner/restaurants/*/dishes/*/model/publish",
+  "/api/owner/model-lab/optimize",
 ] as const;
 
 const OWNER_MODEL_PIPELINE_SCRIPT_TRACE_INCLUDES = [
+  "lib/owner/modelLab/optimizeWorker.mjs",
   "scripts/shared/gltf-transform-cli.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",

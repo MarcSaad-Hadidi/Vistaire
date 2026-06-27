@@ -3895,6 +3895,49 @@
   background: transparent;
 }
 
+.modelLabMobileTabs {
+  display: none;
+}
+
+.modelLabViewerStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.modelLabViewerStats div {
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 250, 240, 0.035);
+  padding: 8px;
+}
+
+.modelLabViewerStats dt {
+  color: var(--owner-soft);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modelLabViewerStats dd {
+  margin: 4px 0 0;
+  color: var(--owner-cream);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.modelLabCompareSummary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(10, 7, 5, 0.34);
+  padding: 12px;
+}
+
 .modelCompareStack {
   display: grid;
   gap: 14px;
@@ -4505,6 +4548,22 @@
     justify-content: stretch;
   }
 
+  .modelLabMobileTabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .modelLabMobileTabs .btn {
+    width: 100%;
+  }
+
+  .modelLabMobileTabs .btn[aria-selected="true"] {
+    border-color: rgba(232, 207, 155, 0.64);
+    background: rgba(232, 207, 155, 0.13);
+    color: var(--owner-cream);
+  }
+
   .reviewAngleGrid,
   .reviewImageTriplet,
   .reviewSplitStage,
@@ -4557,7 +4616,8 @@
   }
 
   .sourceUploadIdentityGrid,
-  .sourceUploadRecord {
+  .sourceUploadRecord,
+  .modelLabViewerStats {
     grid-template-columns: minmax(0, 1fr);
   }
 
