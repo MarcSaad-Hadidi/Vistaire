@@ -12,6 +12,7 @@ import {
   type ModelLabPresetId
 } from "@/lib/owner/modelLab/modelLabPresets";
 import type { ModelLabInspectionReport } from "@/lib/owner/modelLab/inspectGlb";
+import { assessModelLabCandidate } from "@/lib/owner/modelLab/modelLabRiskScore";
 
 type ApiPayload =
   | { ok: true; report: ModelLabInspectionReport }
@@ -374,6 +375,7 @@ export function ModelLabClient() {
         <div className={styles.modelLabNoticeGrid} aria-label="Garanties Model Lab">
           <p>No storage: fichiers en memoire/Blob, aucun Supabase/CDN/DB/public/models.</p>
           <p>Gros modeles: inspection possible; optimisation serverless limitee; mode local-heavy a venir.</p>
+          <p>Model Lab optimise uniquement des GLB. USDZ / Quick Look reste dans le pipeline 3D / AR existant.</p>
           <p>
             Limites actives:{" "}
             {config
@@ -440,6 +442,8 @@ export function ModelLabClient() {
           title={`Stats candidat - ${presetLabel(selectedCandidate.mode)}`}
           report={selectedCandidate.report}
           compareTo={sourceReport}
+          sourceReport={sourceReport}
+          preset={presetForMode(selectedCandidate.mode)}
         />
       ) : (
         <section className={styles.moduleCard}>
@@ -475,6 +479,23 @@ function CandidateCard({
     sourceReport && report
       ? Math.round((1 - report.bytes / Math.max(sourceReport.bytes, 1)) * 1000) / 10
       : null;
+  const assessment = assessModelLabCandidate({
+    source: sourceReport,
+    candidate: report,
+    preset
+  });
+  const geometryLabel =
+    preset.geometryCompression === "meshopt"
+      ? "Meshopt"
+      : preset.geometryCompression === "reorder"
+        ? "AR-safe"
+        : "Clean";
+  const targetLabel =
+    report && assessment.targetPass !== null
+      ? assessment.targetPass
+        ? "ok"
+        : "haut"
+      : preset.targetLabel;
 
   return (
     <article className={styles.moduleCard}>
@@ -488,10 +509,20 @@ function CandidateCard({
       <span>{preset.details}</span>
       <dl className={styles.sourceUploadRecord}>
         <SmallStat label="Texture" value={preset.textureMax ? `${preset.textureMax}px` : "source"} />
-        <SmallStat label="Ratio" value={preset.simplifyRatio ? String(preset.simplifyRatio) : "off"} />
-        <SmallStat label="Meshopt" value={preset.useMeshopt ? "yes" : "no"} />
+        <SmallStat label="Target" value={targetLabel} />
+        <SmallStat label="Geom" value={geometryLabel} />
         <SmallStat label="Gain" value={gain !== null ? `${gain}%` : "-"} />
+        <SmallStat label="Risque" value={`${assessment.score}/5`} />
       </dl>
+      {report ? (
+        <p className={styles.cellSub}>
+          {assessment.targetPass === null
+            ? "Reference sans cible."
+            : assessment.targetPass
+              ? `Cible ${preset.targetLabel} atteinte.`
+              : `Cible ${preset.targetLabel} non atteinte: ${formatBytes(report.bytes)}.`}
+        </p>
+      ) : null}
       {candidate?.error ? <p className={styles.qrWarning}>{candidate.error}</p> : null}
       <div className={styles.moduleActions}>
         <button
@@ -547,6 +578,10 @@ function statusLabel(status: CandidateStatus) {
 
 function presetLabel(mode: ModelLabPresetId): string {
   return MODEL_LAB_PRESETS.find((preset) => preset.id === mode)?.label ?? mode;
+}
+
+function presetForMode(mode: ModelLabPresetId): ModelLabPreset {
+  return MODEL_LAB_PRESETS.find((preset) => preset.id === mode) ?? MODEL_LAB_PRESETS[0];
 }
 
 function stripGlb(name: string): string {

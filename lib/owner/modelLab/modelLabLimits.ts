@@ -27,6 +27,7 @@ const REJECTED_REQUIRED_SOURCE_EXTENSIONS = new Set([
   "KHR_draco_mesh_compression",
   "KHR_texture_basisu"
 ]);
+const REQUIRED_EXTENSION_FREE_PRESETS = new Set<ModelLabPresetId>(["ar-bridge"]);
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -61,7 +62,7 @@ export function parseModelLabOptimizationMaxBytes(
   env: EnvLike
 ): { ok: true; maxBytes: number } | { ok: false; error: string } {
   return parseByteLimit({
-    raw: env.VISTAIRE_MODEL_LAB_OPTIMIZE_MAX_BYTES,
+    raw: env.VISTAIRE_MODEL_LAB_OPTIMIZE_MAX_BYTES ?? env.VISTAIRE_MODEL_LAB_MAX_BYTES,
     defaultBytes: DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES,
     hardBytes: HARD_MODEL_LAB_MAX_BYTES,
     error: "Model Lab optimization size cap is invalid."
@@ -158,8 +159,8 @@ export function validateModelLabOptimizationBudget(
   if (rejectedExtensions.length > 0) {
     errors.push(`Required extension is not supported by the in-route Model Lab optimizer (${rejectedExtensions.join(", ")}).`);
   }
-  if (mode === "ar-lite" && report.extensionsRequired.length > 0) {
-    errors.push(`AR Lite starts only from GLBs without required extensions (${report.extensionsRequired.join(", ")}).`);
+  if (REQUIRED_EXTENSION_FREE_PRESETS.has(mode) && report.extensionsRequired.length > 0) {
+    errors.push(`AR Bridge starts only from GLBs without required extensions (${report.extensionsRequired.join(", ")}).`);
   }
 
   return errors.length > 0 ? { ok: false, status: 422, errors } : { ok: true };

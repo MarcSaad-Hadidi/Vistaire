@@ -3962,6 +3962,23 @@
   padding: 12px;
 }
 
+.modelLabRiskBox {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(13, 8, 5, 0.42);
+}
+
+.modelLabRiskBox ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
 .modelCompareStack {
   display: grid;
   gap: 14px;

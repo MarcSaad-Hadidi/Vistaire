@@ -59,13 +59,23 @@ test("model lab code does not write or store GLB assets", () => {
     "lib/owner/modelLab/modelLabMultipart.ts",
     "lib/owner/modelLab/optimizeGlb.ts",
     "lib/owner/modelLab/optimizeWorker.mjs",
+    "lib/owner/modelLab/modelLabRiskScore.ts",
+    "lib/modelViewerAssetDecoders.ts",
     "components/owner/model-lab/ModelLabClient.tsx",
     "components/owner/model-lab/ModelLabBeforeAfter.tsx",
     "components/owner/model-lab/ModelLabViewer.tsx"
   ];
   const combined = files.map(read).join("\n");
+  const nonOptimizerCombined = files
+    .filter((file) => file !== "lib/owner/modelLab/optimizeGlb.ts")
+    .map(read)
+    .join("\n");
+  const optimizer = read("lib/owner/modelLab/optimizeGlb.ts");
 
-  assert.doesNotMatch(combined, /writeFile|writeFileSync|createWriteStream|mkdir|rmSync/);
+  assert.doesNotMatch(nonOptimizerCombined, /writeFile|writeFileSync|createWriteStream|mkdir|rmSync/);
+  assert.match(optimizer, /mkdtemp\(join\(tmpdir\(\), "vistaire-model-lab-"\)/);
+  assert.match(optimizer, /await rm\(tempRoot, \{ recursive: true, force: true \}\)/);
+  assert.doesNotMatch(optimizer, /public\/models|public\\models|assets\/3d\/work|assets\\3d\\work/);
   assert.doesNotMatch(combined, /getSupabase|@supabase|storage\.from|\.insert\(/);
   assert.doesNotMatch(combined, /public\/videos|public\\videos|public\/frames|public\\frames/);
   assert.doesNotMatch(
@@ -86,14 +96,19 @@ test("model lab limits are exposed by config and the client does not hardcode 25
   assert.match(client, /optimizationMaxBytes/);
   assert.match(client, /optimizationLimitError/);
   assert.match(client, /config\.optimizationMaxBytes/);
+  assert.match(client, /config\.inspectionMaxBytes/);
+  assert.match(client, /Cible \$\{preset\.targetLabel\}/);
   assert.doesNotMatch(client, /DEFAULT_MODEL_LAB_MAX_BYTES|25 MB|25 \* 1024/);
   assert.match(limits, /DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES = 100 \* 1024 \* 1024/);
   assert.match(limits, /DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES = 75 \* 1024 \* 1024/);
   assert.match(limits, /HARD_MODEL_LAB_MAX_BYTES = 250 \* 1024 \* 1024/);
+  assert.match(limits, /VISTAIRE_MODEL_LAB_OPTIMIZE_MAX_BYTES \?\? env\.VISTAIRE_MODEL_LAB_MAX_BYTES/);
   assert.match(inspectRoute, /parseModelLabInspectionMaxBytes/);
   assert.match(optimizeRoute, /parseModelLabOptimizationMaxBytes/);
   assert.match(nextConfig, /proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE/);
   assert.match(nextConfig, /parseModelLabInspectionMaxBytes\(process\.env\)/);
+  assert.match(nextConfig, /parseModelLabOptimizationMaxBytes\(process\.env\)/);
+  assert.match(nextConfig, /Math\.max\(/);
   assert.match(nextConfig, /modelLabLimits\.ts/);
 });
 
@@ -117,11 +132,19 @@ test("model lab optimizer runs in a killable worker with output caps", () => {
   assert.match(optimizer, /child\.stdin\.on\("error"/);
   assert.match(optimizer, /stdinError/);
   assert.match(optimizer, /child\.stdin\.end\(args\.bytes\)/);
+  assert.match(optimizer, /gltfpack/);
+  assert.match(optimizer, /"-cc"/);
+  assert.match(optimizer, /tryGltfpackCc/);
+  assert.match(optimizer, /compressionPath/);
+  assert.match(optimizer, /3_000/);
   assert.match(optimizer, /MODEL_LAB_OPTIMIZE_TIMEOUT_MS/);
   assert.match(optimizer, /MODEL_LAB_OPTIMIZED_MAX_BYTES/);
   assert.match(worker, /await document\.transform/);
-  assert.match(worker, /reorder\(\{ encoder: MeshoptEncoder \}\)/);
-  assert.doesNotMatch(worker, /meshopt\(/);
+  assert.match(worker, /targetFormat: preset\.textureFormat/);
+  assert.match(worker, /textureEffort/);
+  assert.match(worker, /meshopt\(\{/);
+  assert.match(worker, /geometryCompression === "meshopt"/);
+  assert.match(worker, /geometryCompression === "reorder"/);
   assert.match(worker, /stdout\.write/);
   assert.match(nextConfig, /\/api\/owner\/model-lab\/optimize/);
   assert.match(nextConfig, /lib\/owner\/modelLab\/optimizeWorker\.mjs/);
@@ -145,6 +168,8 @@ test("model lab before-after viewer synchronizes camera safely without AR", () =
   assert.match(viewer, /addEventListener\("error"/);
   assert.match(viewer, /removeEventListener\("error"/);
   assert.match(viewer, /Affichage 3D impossible pour ce GLB/);
+  assert.match(viewer, /configureModelViewerAssetDecoders/);
+  assert.match(read("lib/modelViewerAssetDecoders.ts"), /meshoptDecoderLocation/);
   assert.match(viewer, /cameraOrbit/);
   assert.match(viewer, /cameraTarget/);
   assert.match(viewer, /fieldOfView/);
@@ -179,10 +204,32 @@ test("model lab frontend uses sequential binary generation and cleans Blob URLs"
 test("model lab presets do not promise finished USDZ or real-device AR validation", () => {
   const presets = read("lib/owner/modelLab/modelLabPresets.ts");
 
-  assert.match(presets, /AR Lite experimental/);
-  assert.match(presets, /Scale, origin et grounding restent a valider/);
-  assert.match(presets, /aucun USDZ ni Quick Look n'est genere/);
+  assert.match(presets, /id: "safe"/);
+  assert.match(presets, /id: "balanced"/);
+  assert.match(presets, /id: "target-5mb"/);
+  assert.match(presets, /id: "ultra"/);
+  assert.match(presets, /id: "ar-bridge"/);
+  assert.match(presets, /textureFormat: "webp"/);
+  assert.match(presets, /geometryCompression: "meshopt"/);
+  assert.match(presets, /requiresNoRequiredExtensions: true/);
+  assert.match(presets, /USDZ \/ Quick Look, utilisez le pipeline 3D \/ AR/);
   assert.doesNotMatch(presets, /Preserve scale\/origin/);
+  assert.doesNotMatch(presets, /0\.004|0\.008|0\.035|textureMax: 256|textureMax: 384/);
+});
+
+test("model lab risk scoring is transparent and target based", () => {
+  const risk = read("lib/owner/modelLab/modelLabRiskScore.ts");
+  const stats = read("components/owner/model-lab/ModelLabStatsPanel.tsx");
+
+  assert.match(risk, /targetPass/);
+  assert.match(risk, /reductionPercent/);
+  assert.match(risk, /triangleReductionPercent/);
+  assert.match(risk, /maxTextureSize/);
+  assert.match(risk, /extensionsRequired/);
+  assert.match(risk, /source\.externalUris/);
+  assert.match(risk, /source\.triangles > 1_000_000/);
+  assert.match(stats, /assessModelLabCandidate/);
+  assert.match(stats, /risque/);
 });
 
 test("model lab inspect reports external URIs and bounds without storage", () => {

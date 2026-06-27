@@ -103,7 +103,7 @@ export function ModelLabBeforeAfter({
       const nextLoaded = Boolean(node);
       return current[pane] === nextLoaded ? current : { ...current, [pane]: nextLoaded };
     });
-    if (node) {
+    if (node && !readModelLabCameraState(node)) {
       applyCameraToPane(pane, node, MODEL_LAB_DEFAULT_CAMERA);
     }
   }, []);

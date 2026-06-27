@@ -15,6 +15,7 @@ import {
   validateModelLabOptimizationBudget
 } from "@/lib/owner/modelLab/modelLabLimits";
 import { readModelLabMultipartRequest } from "@/lib/owner/modelLab/modelLabMultipart";
+import { getModelLabPreset } from "@/lib/owner/modelLab/modelLabPresets";
 import {
   parseModelLabMode,
   validateModelLabGlbFile
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
 
   const mode = parseModelLabMode(formData.form.fields.get("mode") ?? null);
   if (!mode.ok) return jsonError(mode.error, 400);
+  const preset = getModelLabPreset(mode.mode);
 
   const file = formData.form.file;
   if (!file) {
@@ -132,9 +134,9 @@ export async function POST(request: NextRequest) {
       { externalUris: optimizedReport.externalUris }
     );
   }
-  if (mode.mode === "ar-lite" && optimizedReport.extensionsRequired.length > 0) {
+  if (preset.requiresNoRequiredExtensions && optimizedReport.extensionsRequired.length > 0) {
     return jsonError(
-      "Candidat AR Lite refuse: la sortie optimisee requiert des extensions glTF.",
+      "Candidat AR Bridge refuse: la sortie optimisee requiert des extensions glTF.",
       422,
       { extensionsRequired: optimizedReport.extensionsRequired }
     );
@@ -145,6 +147,7 @@ export async function POST(request: NextRequest) {
     headers: {
       ...modelLabBinaryHeaders(optimized.fileName, optimized.bytes.byteLength),
       "X-Vistaire-Model-Lab-Mode": optimized.mode,
+      "X-Vistaire-Model-Lab-Compression": optimized.compressionPath,
       "X-Vistaire-Model-Lab-Elapsed-Ms": String(optimized.elapsedMs)
     }
   });

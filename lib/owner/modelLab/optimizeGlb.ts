@@ -1,6 +1,8 @@
 import "server-only";
 
 import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   MODEL_LAB_OPTIMIZED_MAX_BYTES,
@@ -13,7 +15,10 @@ export type OptimizeGlbCandidateResult = {
   fileName: string;
   mode: ModelLabPresetId;
   elapsedMs: number;
+  compressionPath: "gltf-transform" | "gltfpack-cc";
 };
+
+type WorkerPreset = ReturnType<typeof getModelLabPreset>;
 
 function baseNameWithoutGlb(value: string): string {
   const base = value
@@ -36,24 +41,39 @@ export async function optimizeGlbCandidate(args: {
 }): Promise<OptimizeGlbCandidateResult> {
   const preset = getModelLabPreset(args.mode);
   const startedAt = Date.now();
-  const output = await runOptimizeWorker({
+  let output = await runOptimizeWorker({
     bytes: args.bytes,
     preset,
     timeoutMs: MODEL_LAB_OPTIMIZE_TIMEOUT_MS,
     maxOutputBytes: MODEL_LAB_OPTIMIZED_MAX_BYTES
   });
+  let compressionPath: OptimizeGlbCandidateResult["compressionPath"] = "gltf-transform";
+
+  if (preset.useGltfpack) {
+    const packed = await tryGltfpackCc({
+      bytes: output,
+      timeoutMs: MODEL_LAB_OPTIMIZE_TIMEOUT_MS,
+      maxOutputBytes: MODEL_LAB_OPTIMIZED_MAX_BYTES
+    });
+    if (packed && packed.byteLength < output.byteLength) {
+      output = packed;
+      compressionPath = "gltfpack-cc";
+    }
+  }
+
   const stem = baseNameWithoutGlb(args.originalName);
   return {
     bytes: output,
     fileName: `${stem}-${preset.id}.glb`,
     mode: args.mode,
-    elapsedMs: Date.now() - startedAt
+    elapsedMs: Date.now() - startedAt,
+    compressionPath
   };
 }
 
 function runOptimizeWorker(args: {
   bytes: Buffer;
-  preset: ReturnType<typeof getModelLabPreset>;
+  preset: WorkerPreset;
   timeoutMs: number;
   maxOutputBytes: number;
 }): Promise<Buffer> {
@@ -152,4 +172,118 @@ function runOptimizeWorker(args: {
       child.kill("SIGKILL");
     }
   });
+}
+
+function gltfpackCommand(): string {
+  return process.env.VISTAIRE_MODEL_LAB_GLTFPACK_PATH?.trim() || "gltfpack";
+}
+
+function canRunGltfpack(command: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(command, ["-h"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill("SIGKILL");
+      resolve(false);
+    }, 3_000);
+    const settle = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(ok);
+    };
+    child.once("error", () => settle(false));
+    child.once("close", (code) => settle(code === 0 || code === 1));
+  });
+}
+
+function runGltfpackCommand(args: {
+  command: string;
+  inputPath: string;
+  outputPath: string;
+  timeoutMs: number;
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(args.command, ["-i", args.inputPath, "-o", args.outputPath, "-cc"], {
+      stdio: ["ignore", "ignore", "pipe"],
+      windowsHide: true
+    });
+    const stderr: Buffer[] = [];
+    let settled = false;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, args.timeoutMs);
+
+    child.stderr.on("data", (chunk: Buffer) => {
+      if (stderr.reduce((sum, part) => sum + part.byteLength, 0) < 16_384) {
+        stderr.push(Buffer.from(chunk));
+      }
+    });
+
+    child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    child.once("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (timedOut) {
+        reject(new Error("gltfpack timed out."));
+        return;
+      }
+      if (code !== 0) {
+        const detail = Buffer.concat(stderr).toString("utf8").trim();
+        reject(new Error(detail || "gltfpack failed."));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function tryGltfpackCc(args: {
+  bytes: Buffer;
+  timeoutMs: number;
+  maxOutputBytes: number;
+}): Promise<Buffer | null> {
+  const command = gltfpackCommand();
+  if (!(await canRunGltfpack(command))) {
+    console.warn("Vistaire Model Lab: gltfpack unavailable; using glTF-Transform fallback.");
+    return null;
+  }
+
+  const tempRoot = await mkdtemp(join(tmpdir(), "vistaire-model-lab-"));
+  try {
+    const inputPath = join(tempRoot, "input.glb");
+    const outputPath = join(tempRoot, "output.glb");
+    await writeFile(inputPath, args.bytes);
+    await runGltfpackCommand({
+      command,
+      inputPath,
+      outputPath,
+      timeoutMs: args.timeoutMs
+    });
+    const output = await readFile(outputPath);
+    if (output.byteLength <= 0 || output.byteLength > args.maxOutputBytes) {
+      throw new Error("gltfpack output exceeded the Model Lab output cap.");
+    }
+    return Buffer.from(output);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "gltfpack failed.";
+    console.warn(`Vistaire Model Lab: gltfpack fallback skipped (${message}).`);
+    return null;
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 }

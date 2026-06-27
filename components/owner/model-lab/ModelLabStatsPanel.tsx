@@ -1,15 +1,21 @@
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, EmptyState } from "@/components/owner/OwnerUi";
 import type { ModelLabInspectionReport } from "@/lib/owner/modelLab/inspectGlb";
+import type { ModelLabPreset } from "@/lib/owner/modelLab/modelLabPresets";
+import { assessModelLabCandidate } from "@/lib/owner/modelLab/modelLabRiskScore";
 
 export function ModelLabStatsPanel({
   title,
   report,
-  compareTo
+  compareTo,
+  sourceReport,
+  preset
 }: {
   title: string;
   report: ModelLabInspectionReport | null;
   compareTo?: ModelLabInspectionReport | null;
+  sourceReport?: ModelLabInspectionReport | null;
+  preset?: ModelLabPreset;
 }) {
   if (!report) {
     return (
@@ -23,6 +29,14 @@ export function ModelLabStatsPanel({
   const gain = compareTo
     ? Math.round((1 - report.bytes / Math.max(compareTo.bytes, 1)) * 1000) / 10
     : null;
+  const assessment =
+    preset
+      ? assessModelLabCandidate({
+          source: sourceReport ?? compareTo ?? null,
+          candidate: report,
+          preset
+        })
+      : null;
 
   return (
     <section className={styles.moduleCard} aria-label={title}>
@@ -44,6 +58,21 @@ export function ModelLabStatsPanel({
         <Stat label="Accessors" value={formatNumber(report.accessors)} />
         <Stat label="Textures" value={formatNumber(report.textures)} />
         <Stat label="Images" value={formatNumber(report.images)} />
+        {assessment ? (
+          <>
+            <Stat
+              label="Target"
+              value={
+                assessment.targetPass === null
+                  ? "ref"
+                  : assessment.targetPass
+                    ? "ok"
+                    : "haut"
+              }
+            />
+            <Stat label="Risque" value={`${assessment.score}/5`} />
+          </>
+        ) : null}
         <Stat
           label="Max texture"
           value={report.maxTextureSize ? `${formatNumber(report.maxTextureSize)} px` : "-"}
@@ -67,6 +96,27 @@ export function ModelLabStatsPanel({
           </tbody>
         </table>
       </div>
+      {assessment ? (
+        <div className={styles.modelLabRiskBox}>
+          <div className={styles.pipelineSectionTitleRow}>
+            <p className={styles.moduleCardTitle}>
+              Cible {assessment.targetLabel} - risque {assessment.score}/5
+            </p>
+            <Badge tone={assessment.targetPass === false ? "warn" : "ready"}>
+              {assessment.targetPass === null
+                ? "reference"
+                : assessment.targetPass
+                  ? "target ok"
+                  : "target haut"}
+            </Badge>
+          </div>
+          <ul className={styles.cellSub}>
+            {assessment.reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {report.warnings.length > 0 ? (
         <ul className={styles.cellSub}>
           {report.warnings.map((warning) => (

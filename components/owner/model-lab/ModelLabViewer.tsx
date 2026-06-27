@@ -3,6 +3,7 @@
 import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import type { ModelLabInspectionReport } from "@/lib/owner/modelLab/inspectGlb";
+import { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 
 export type ModelLabComparePane = "source" | "candidate";
 
@@ -30,10 +31,12 @@ let modelViewerReadyPromise: Promise<void> | null = null;
 
 async function ensureModelViewerLoaded(): Promise<void> {
   if (!modelViewerReadyPromise) {
+    configureModelViewerAssetDecoders();
     modelViewerReadyPromise = import("@google/model-viewer").then(async () => {
       if (!customElements.get("model-viewer")) {
         await customElements.whenDefined("model-viewer");
       }
+      configureModelViewerAssetDecoders();
     });
   }
   await modelViewerReadyPromise;
@@ -165,10 +168,6 @@ export function ModelLabViewer({
       node.removeEventListener("load", handleLoad);
       node.removeEventListener("error", handleError);
     };
-
-    queueMicrotask(() => {
-      applyModelLabCameraState(node, MODEL_LAB_DEFAULT_CAMERA);
-    });
   }, [onCameraChange, onViewerReady, pane]);
 
   return (

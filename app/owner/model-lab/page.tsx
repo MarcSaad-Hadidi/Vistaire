@@ -19,7 +19,7 @@ export default function OwnerModelLabPage() {
     <>
       <ModuleHeader
         title="Model Lab"
-        description="Inspectez un GLB localement, generez un candidat optimise, puis comparez source et sortie sans stockage Vistaire."
+        description="Optimisez un GLB localement, comparez le rendu avant/apres sans stockage Vistaire, puis utilisez le pipeline 3D / AR existant pour USDZ ou Quick Look."
       />
       <ModelLabClient />
     </>
