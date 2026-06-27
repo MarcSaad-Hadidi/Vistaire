@@ -84,6 +84,8 @@ test("model lab limits are exposed by config and the client does not hardcode 25
   assert.match(client, /\/api\/owner\/model-lab\/config/);
   assert.match(client, /inspectionMaxBytes/);
   assert.match(client, /optimizationMaxBytes/);
+  assert.match(client, /optimizationLimitError/);
+  assert.match(client, /config\.optimizationMaxBytes/);
   assert.doesNotMatch(client, /DEFAULT_MODEL_LAB_MAX_BYTES|25 MB|25 \* 1024/);
   assert.match(limits, /DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES = 100 \* 1024 \* 1024/);
   assert.match(limits, /DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES = 75 \* 1024 \* 1024/);
@@ -92,6 +94,7 @@ test("model lab limits are exposed by config and the client does not hardcode 25
   assert.match(optimizeRoute, /parseModelLabOptimizationMaxBytes/);
   assert.match(nextConfig, /proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE/);
   assert.match(nextConfig, /parseModelLabInspectionMaxBytes\(process\.env\)/);
+  assert.match(nextConfig, /modelLabLimits\.ts/);
 });
 
 test("model lab is visible in the rendered owner portfolio navigation and dashboard", () => {
@@ -111,6 +114,9 @@ test("model lab optimizer runs in a killable worker with output caps", () => {
 
   assert.match(optimizer, /spawn\(process\.execPath/);
   assert.match(optimizer, /child\.kill\("SIGKILL"\)/);
+  assert.match(optimizer, /child\.stdin\.on\("error"/);
+  assert.match(optimizer, /stdinError/);
+  assert.match(optimizer, /child\.stdin\.end\(args\.bytes\)/);
   assert.match(optimizer, /MODEL_LAB_OPTIMIZE_TIMEOUT_MS/);
   assert.match(optimizer, /MODEL_LAB_OPTIMIZED_MAX_BYTES/);
   assert.match(worker, /await document\.transform/);

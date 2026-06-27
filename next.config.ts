@@ -5,7 +5,7 @@ import {
   DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES,
   MODEL_LAB_MULTIPART_OVERHEAD_BYTES,
   parseModelLabInspectionMaxBytes
-} from "./lib/owner/modelLab/modelLabLimits";
+} from "./lib/owner/modelLab/modelLabLimits.ts";
 
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url));
 const MODEL_LAB_INSPECTION_LIMIT_FOR_PROXY = parseModelLabInspectionMaxBytes(process.env);

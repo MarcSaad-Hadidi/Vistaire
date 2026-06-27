@@ -75,6 +75,7 @@ function runOptimizeWorker(args: {
     let settled = false;
     let timedOut = false;
     let outputTooLarge = false;
+    let stdinError: Error | null = null;
 
     const timeout = setTimeout(() => {
       timedOut = true;
@@ -95,6 +96,10 @@ function runOptimizeWorker(args: {
       if (stderr.reduce((sum, part) => sum + part.byteLength, 0) < 32_768) {
         stderr.push(Buffer.from(chunk));
       }
+    });
+
+    child.stdin.on("error", (error: Error) => {
+      stdinError = error;
     });
 
     child.on("error", (error) => {
@@ -118,12 +123,33 @@ function runOptimizeWorker(args: {
       }
       if (code !== 0) {
         const detail = Buffer.concat(stderr).toString("utf8").trim();
-        reject(new Error(detail || "Model Lab optimizer worker failed."));
+        reject(
+          new Error(
+            detail ||
+              (stdinError
+                ? `Model Lab optimizer worker closed before reading input: ${stdinError.message}`
+                : "Model Lab optimizer worker failed.")
+          )
+        );
+        return;
+      }
+      if (stdinError) {
+        reject(
+          new Error(`Model Lab optimizer input stream failed: ${stdinError.message}`)
+        );
         return;
       }
       resolve(Buffer.concat(stdout));
     });
 
-    child.stdin.end(args.bytes);
+    try {
+      child.stdin.end(args.bytes);
+    } catch (error) {
+      stdinError =
+        error instanceof Error
+          ? error
+          : new Error("Model Lab optimizer input stream failed.");
+      child.kill("SIGKILL");
+    }
   });
 }

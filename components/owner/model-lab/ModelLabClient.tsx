@@ -221,6 +221,11 @@ export function ModelLabClient() {
     );
   }
 
+  function optimizationLimitError(targetFile: File): string {
+    if (!config || targetFile.size <= config.optimizationMaxBytes) return "";
+    return `Optimisation refusee: ${formatBytes(targetFile.size)} depasse la limite configuree (${formatBytes(config.optimizationMaxBytes)}).`;
+  }
+
   async function generateCandidate(mode: ModelLabPresetId, allowWhileBusy = false) {
     if (!file || !sourceReport) {
       setError("Ajoutez et inspectez un GLB avant optimisation.");
@@ -230,6 +235,12 @@ export function ModelLabClient() {
 
     const token = fileToken.current;
     const sourceFile = file;
+    const limitError = optimizationLimitError(sourceFile);
+    if (limitError) {
+      setError(limitError);
+      setMessage("Optimisation refusee.");
+      return;
+    }
     const current = candidates.find((candidate) => candidate.mode === mode);
     revokeManagedUrl(current?.blobUrl ?? null);
     updateCandidate(mode, {
@@ -309,6 +320,12 @@ export function ModelLabClient() {
 
   async function generateAllSequentially() {
     if (!file || !sourceReport || busy || runningMode) return;
+    const limitError = optimizationLimitError(file);
+    if (limitError) {
+      setError(limitError);
+      setMessage("Optimisation refusee.");
+      return;
+    }
     setBusy(true);
     try {
       for (const preset of MODEL_LAB_PRESETS) {
@@ -328,6 +345,8 @@ export function ModelLabClient() {
     sourceReport && sourceReport.externalUris.length > 0
       ? "Source non chargee dans le viewer: ce GLB reference des ressources externes. Emballez textures et buffers dans le GLB pour rester local."
       : "";
+  const optimizationBlockedReason =
+    file && config ? optimizationLimitError(file) : "";
 
   return (
     <div className={styles.restaurantTabPanel}>
@@ -346,7 +365,7 @@ export function ModelLabClient() {
             type="button"
             className={`${styles.btn} ${styles.btnPrimary}`}
             onClick={() => void generateAllSequentially()}
-            disabled={!sourceReport || busy || Boolean(runningMode)}
+            disabled={!sourceReport || busy || Boolean(runningMode) || Boolean(optimizationBlockedReason)}
           >
             Generer la serie
           </button>
@@ -364,6 +383,9 @@ export function ModelLabClient() {
           <p>Note: le rapport candidat relit temporairement le Blob optimise via /inspect, sans stockage.</p>
         </div>
         {configError ? <p className={styles.qrWarning}>{configError}</p> : null}
+        {optimizationBlockedReason ? (
+          <p className={styles.qrWarning}>{optimizationBlockedReason}</p>
+        ) : null}
 
         <p className={styles.qrStatusLine} aria-live="polite" data-testid="model-lab-status">
           {message}
@@ -385,7 +407,12 @@ export function ModelLabClient() {
                 candidate={candidate}
                 selected={selectedCandidate?.mode === preset.id}
                 sourceReport={sourceReport}
-                disabled={!sourceReport || busy || Boolean(runningMode)}
+                disabled={
+                  !sourceReport ||
+                  busy ||
+                  Boolean(runningMode) ||
+                  Boolean(optimizationBlockedReason)
+                }
                 running={runningMode === preset.id}
                 onGenerate={() => void generateCandidate(preset.id)}
                 onSelect={() => setSelectedMode(preset.id)}
