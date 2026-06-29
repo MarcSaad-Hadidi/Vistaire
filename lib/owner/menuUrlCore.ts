@@ -50,7 +50,7 @@ export function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string
  */
 export function buildPublicMenuPath(
   slugOrName: string,
-  params?: { lang?: Locale | string; table?: string; zone?: string }
+  params?: { lang?: Locale | string; table?: string; zone?: string; view?: string }
 ): string {
   const slug = slugifyRestaurantSlug(slugOrName);
   if (!slug) return "/demo";
@@ -59,9 +59,11 @@ export function buildPublicMenuPath(
   const lang = params?.lang?.toString().trim();
   const table = params?.table?.toString().trim();
   const zone = params?.zone?.toString().trim();
+  const view = params?.view?.toString().trim();
   if (lang) query.set("lang", normalizeLocale(lang));
   if (table) query.set("table", table.slice(0, 24));
   if (zone) query.set("zone", zone.slice(0, 24));
+  if (view) query.set("view", view.slice(0, 24));
 
   const suffix = query.toString();
   return suffix

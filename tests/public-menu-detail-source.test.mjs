@@ -12,11 +12,12 @@ test("public dish detail route scopes dishes to the requested public menu", asyn
   assert.match(source, /getPublicMenuBySlug/);
   assert.match(source, /getPublicMenuDishBySlug/);
   assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
-  assert.match(source, /config=\{configRecord\.config\}/);
+  assert.match(source, /resolvePublicMenuUiConfig/);
+  assert.match(source, /config=\{resolvedConfig\}/);
   assert.doesNotMatch(source, /isFreshHomemadeMenu/);
   assert.match(source, /notFound\(\)/);
   assert.match(source, /PublicDishDetailExperience/);
-  assert.match(source, /query=\{query\}/);
+  assert.match(source, /query=\{menuQuery\}/);
 });
 
 test("public dish detail component renders the required Resto Marc detail affordances", async () => {
@@ -43,10 +44,13 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /hasPublicAr/);
   assert.match(source, /builderStatusHas3d/);
   assert.match(source, /builderStatusHasAr/);
-  assert.match(source, /dynamic<DishModelViewerProps>/);
-  assert.match(source, /ssr:\s*false/);
-  assert.match(source, /LazyDishModelViewer/);
+  assert.match(source, /type DishModelViewerComponent = ComponentType<DishModelViewerProps>/);
+  assert.match(source, /setModelViewerComponent/);
+  assert.match(source, /if \(!showModelViewer \|\| ModelViewerComponent \|\| modelViewerLoadFailed\) return/);
+  assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
   assert.match(source, /Voir en 3D/);
+  assert.doesNotMatch(source, /dynamic<DishModelViewerProps>/);
+  assert.doesNotMatch(source, /LazyDishModelViewer/);
   assert.doesNotMatch(source, /modelActionButtonSecondary/);
   assert.match(source, /Preview statut seulement dans le builder/);
   assert.doesNotMatch(source, /<model-viewer/);

@@ -313,10 +313,13 @@ test("dish detail component preserves QR query context with intent-gated 3D", as
 
   assert.match(source, /query\?: PublicMenuContextQuery/);
   assert.match(source, /buildPublicMenuPath\(menu\.slug, query\)/);
-  assert.match(source, /dynamic<DishModelViewerProps>/);
+  assert.match(source, /type DishModelViewerComponent = ComponentType<DishModelViewerProps>/);
+  assert.match(source, /setModelViewerComponent/);
+  assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
+  assert.doesNotMatch(source, /dynamic<DishModelViewerProps>/);
   assert.match(source, /showModelViewer/);
   assert.match(source, /Voir en 3D/);
-  assert.match(source, /Ouvrir l'aperçu AR/);
+  assert.match(source, /hasPublicArAsset \? "3D \/ AR" : "3D"/);
   assert.doesNotMatch(source, /modelActionButtonSecondary/);
   assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`](?:https?:\/\/|\/)[^"'`]*\.glb/);
