@@ -1,8 +1,26 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+import {
+  DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES,
+  DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES,
+  MODEL_LAB_MULTIPART_OVERHEAD_BYTES,
+  parseModelLabInspectionMaxBytes,
+  parseModelLabOptimizationMaxBytes
+} from "./lib/owner/modelLab/modelLabLimits.ts";
 
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url));
+const MODEL_LAB_INSPECTION_LIMIT_FOR_PROXY = parseModelLabInspectionMaxBytes(process.env);
+const MODEL_LAB_OPTIMIZATION_LIMIT_FOR_PROXY = parseModelLabOptimizationMaxBytes(process.env);
+const MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE =
+  Math.max(
+    MODEL_LAB_INSPECTION_LIMIT_FOR_PROXY.ok
+      ? MODEL_LAB_INSPECTION_LIMIT_FOR_PROXY.maxBytes
+      : DEFAULT_MODEL_LAB_INSPECTION_MAX_BYTES,
+    MODEL_LAB_OPTIMIZATION_LIMIT_FOR_PROXY.ok
+      ? MODEL_LAB_OPTIMIZATION_LIMIT_FOR_PROXY.maxBytes
+      : DEFAULT_MODEL_LAB_OPTIMIZATION_MAX_BYTES
+  ) + MODEL_LAB_MULTIPART_OVERHEAD_BYTES;
 
 /** Quick Look iOS attend souvent ce MIME pour les USDZ servis en HTTPS. */
 const USDZ_MODEL_HEADERS = [
@@ -23,9 +41,11 @@ const GLB_MODEL_HEADERS = [
 const OWNER_MODEL_PIPELINE_ROUTES = [
   "/api/owner/restaurants/*/dishes/*/model/glb",
   "/api/owner/restaurants/*/dishes/*/model/publish",
+  "/api/owner/model-lab/optimize",
 ] as const;
 
 const OWNER_MODEL_PIPELINE_SCRIPT_TRACE_INCLUDES = [
+  "lib/owner/modelLab/optimizeWorker.mjs",
   "scripts/shared/gltf-transform-cli.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",
@@ -210,6 +230,9 @@ const OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE = OWNER_MODEL_PIPELINE_ROUTES
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
+  experimental: {
+    proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE,
+  },
   outputFileTracingRoot: PROJECT_ROOT,
   outputFileTracingIncludes: OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE,
   outputFileTracingExcludes: OWNER_MODEL_PIPELINE_TRACE_EXCLUDES,

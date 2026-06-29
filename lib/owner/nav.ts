@@ -15,6 +15,7 @@ export type OwnerShellRestaurant = {
 
 export const OWNER_PORTFOLIO_NAV_ITEMS: OwnerNavItem[] = [
   { href: "/owner", label: "Restaurants", hint: "Portefeuille & actions" },
+  { href: "/owner/model-lab", label: "Model Lab", hint: "GLB local" },
   {
     href: "/owner/restaurants/create",
     label: "Créer restaurant",

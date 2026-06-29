@@ -1,0 +1,140 @@
+export type ModelLabGeometryCompression = "none" | "reorder" | "meshopt";
+export type ModelLabTextureFormat = "webp" | "jpeg" | null;
+
+export const MODEL_LAB_PRESETS = [
+  {
+    id: "source-clean",
+    label: "Source Clean",
+    summary: "Nettoyage prudent, textures intactes.",
+    details: "Prune, dedup et weld. Aucun redimensionnement texture, aucune simplification, aucune extension requise ajoutee.",
+    targetBytes: null,
+    targetLabel: "reference",
+    textureMax: null,
+    textureFormat: null,
+    textureQuality: null,
+    textureEffort: null,
+    simplifyRatio: null,
+    simplifyError: null,
+    lockBorder: true,
+    geometryCompression: "none",
+    meshoptLevel: null,
+    useGltfpack: false,
+    requiresNoRequiredExtensions: false,
+    visualRisk: 1,
+    isRisky: false
+  },
+  {
+    id: "safe",
+    label: "Safe",
+    summary: "Premier candidat premium, fidele au plat source.",
+    details: "Objectif 15-25 MB, textures WebP 2048, qualite 94, simplification tres prudente, Meshopt web.",
+    targetBytes: 25 * 1024 * 1024,
+    targetLabel: "15-25 MB",
+    textureMax: 2048,
+    textureFormat: "webp",
+    textureQuality: 94,
+    textureEffort: 5,
+    simplifyRatio: 0.93,
+    simplifyError: 0.00022,
+    lockBorder: true,
+    geometryCompression: "meshopt",
+    meshoptLevel: "medium",
+    useGltfpack: false,
+    requiresNoRequiredExtensions: false,
+    visualRisk: 2,
+    isRisky: false
+  },
+  {
+    id: "balanced",
+    label: "Balanced",
+    summary: "Equilibre mobile premium pour service a table.",
+    details: "Objectif 8-12 MB, textures WebP 1536, qualite 89, simplification moderee avec bordures verrouillees.",
+    targetBytes: 12 * 1024 * 1024,
+    targetLabel: "8-12 MB",
+    textureMax: 1536,
+    textureFormat: "webp",
+    textureQuality: 89,
+    textureEffort: 5,
+    simplifyRatio: 0.78,
+    simplifyError: 0.00045,
+    lockBorder: true,
+    geometryCompression: "meshopt",
+    meshoptLevel: "medium",
+    useGltfpack: false,
+    requiresNoRequiredExtensions: false,
+    visualRisk: 3,
+    isRisky: false
+  },
+  {
+    id: "target-5mb",
+    label: "Target 5 MB",
+    summary: "Tentative forte pour mobile contraint.",
+    details: "Objectif 5-8 MB, textures WebP 1024, qualite 82, simplification forte mais non extreme, Meshopt et gltfpack optionnel.",
+    targetBytes: 8 * 1024 * 1024,
+    targetLabel: "5-8 MB",
+    textureMax: 1024,
+    textureFormat: "webp",
+    textureQuality: 82,
+    textureEffort: 6,
+    simplifyRatio: 0.58,
+    simplifyError: 0.0008,
+    lockBorder: true,
+    geometryCompression: "meshopt",
+    meshoptLevel: "high",
+    useGltfpack: true,
+    requiresNoRequiredExtensions: false,
+    visualRisk: 4,
+    isRisky: true
+  },
+  {
+    id: "ultra",
+    label: "Ultra",
+    summary: "Dernier recours, revue visuelle obligatoire.",
+    details: "Objectif 2-5 MB, textures WebP 768, qualite 74, simplification agressive mais au-dessus des ratios destructifs glb-shrink.",
+    targetBytes: 5 * 1024 * 1024,
+    targetLabel: "2-5 MB",
+    textureMax: 768,
+    textureFormat: "webp",
+    textureQuality: 74,
+    textureEffort: 6,
+    simplifyRatio: 0.38,
+    simplifyError: 0.0014,
+    lockBorder: true,
+    geometryCompression: "meshopt",
+    meshoptLevel: "high",
+    useGltfpack: true,
+    requiresNoRequiredExtensions: false,
+    visualRisk: 5,
+    isRisky: true
+  },
+  {
+    id: "ar-bridge",
+    label: "AR Bridge",
+    summary: "GLB compatible avec le pipeline 3D / AR existant.",
+    details: "JPEG/PNG compatible, aucune extension requise ajoutee. Pour USDZ / Quick Look, utilisez le pipeline 3D / AR apres validation du GLB choisi.",
+    targetBytes: 15 * 1024 * 1024,
+    targetLabel: "compatibilite AR",
+    textureMax: 1536,
+    textureFormat: "jpeg",
+    textureQuality: 90,
+    textureEffort: 4,
+    simplifyRatio: 0.8,
+    simplifyError: 0.00055,
+    lockBorder: true,
+    geometryCompression: "reorder",
+    meshoptLevel: null,
+    useGltfpack: false,
+    requiresNoRequiredExtensions: true,
+    visualRisk: 3,
+    isRisky: false
+  }
+] as const;
+
+export type ModelLabPreset = (typeof MODEL_LAB_PRESETS)[number];
+export type ModelLabPresetId = ModelLabPreset["id"];
+
+export function getModelLabPreset(id: ModelLabPresetId): ModelLabPreset {
+  const preset = MODEL_LAB_PRESETS.find((candidate) => candidate.id === id);
+  if (!preset) throw new Error("Unknown Model Lab preset.");
+  return preset;
+}

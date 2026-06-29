@@ -25,7 +25,10 @@ import {
   isIosDevice,
   shouldShowArBrowserHandoff
 } from "@/lib/arEnvironment";
+import { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
+
+export { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 
 const MV_INIT_TIMEOUT_MS = 12_000;
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
@@ -43,7 +46,6 @@ const MODEL_VIEWER_SHELL_CLASS =
   "min-h-[350px] w-full overflow-hidden rounded-xl bg-[#10100e] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:min-h-[430px]";
 const MODEL_VIEWER_CANVAS_CLASS =
   "h-[min(48vh,350px)] min-h-[250px] w-full bg-[#10100e] sm:h-[min(55vh,380px)] sm:min-h-[310px]";
-const MESHOPT_DECODER_URL = "/model-viewer/meshopt-decoder-74188840.js";
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
   .map((entry) => entry.trim().replace(/\/+$/, ""))
@@ -97,10 +99,6 @@ function prepareModelViewerForAr(node: ModelViewerElement | null): void {
   node.jumpCameraToGoal?.();
 }
 
-type ModelViewerStaticConfig = CustomElementConstructor & {
-  meshoptDecoderLocation?: string;
-};
-
 type ModelViewerProgressEvent = Event & {
   detail?: {
     totalProgress?: number;
@@ -123,25 +121,6 @@ type ClientConnection = {
   effectiveType?: string;
   saveData?: boolean;
 };
-
-export function configureModelViewerAssetDecoders(): void {
-  if (typeof window === "undefined") return;
-
-  const modelViewerGlobal = window as Window & {
-    ModelViewerElement?: { meshoptDecoderLocation?: string };
-  };
-  modelViewerGlobal.ModelViewerElement = {
-    ...(modelViewerGlobal.ModelViewerElement ?? {}),
-    meshoptDecoderLocation: MESHOPT_DECODER_URL
-  };
-
-  const ModelViewerElement = customElements.get("model-viewer") as
-    | ModelViewerStaticConfig
-    | undefined;
-  if (ModelViewerElement) {
-    ModelViewerElement.meshoptDecoderLocation = MESHOPT_DECODER_URL;
-  }
-}
 
 function readArClientEnvironment(iosSrc: string): ArClientEnvironment {
   const isIos = isIosDevice();

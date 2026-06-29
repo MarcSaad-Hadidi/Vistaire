@@ -55,6 +55,10 @@ export default async function OwnerOverviewPage() {
         title="Restaurants"
         description="Choisissez un restaurant pour préparer sa carte, ses médias, son aperçu client et son QR."
         actions={
+          <>
+            <Link className={styles.btn} href="/owner/model-lab" prefetch={false}>
+              Model Lab
+            </Link>
           <Link
             className={`${styles.btnPrimary} ${styles.btn}`}
             href="/owner/restaurants/create"
@@ -62,6 +66,7 @@ export default async function OwnerOverviewPage() {
           >
             Créer un restaurant
           </Link>
+          </>
         }
       />
 

@@ -3028,6 +3028,24 @@
   align-items: end;
 }
 
+.modelLabNoticeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.modelLabNoticeGrid p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 10px;
+  background: rgba(13, 8, 5, 0.42);
+  color: var(--owner-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .sourceUploadDrop {
   display: grid;
   gap: 7px;
@@ -3052,7 +3070,7 @@
 
 .sourceUploadRecord {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(58px, 1fr));
   gap: 10px;
   margin: 0;
   padding-top: 4px;
@@ -3060,6 +3078,7 @@
 
 .sourceUploadRecord div {
   min-width: 0;
+  overflow: hidden;
   padding: 10px;
   border: 1px solid rgba(232, 207, 155, 0.12);
   border-radius: 10px;
@@ -3077,7 +3096,33 @@
   margin: 4px 0 0;
   color: var(--owner-cream);
   font-size: 13px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.modelLabPresetCard {
+  align-content: start;
+}
+
+.modelLabPresetStats {
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 8px;
+}
+
+.modelLabPresetStats div {
+  overflow: visible;
+  padding: 9px;
+}
+
+.modelLabPresetStats dt {
+  letter-spacing: 0.04em;
+}
+
+.modelLabPresetStats dd {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .pipelineJobsPanel {
@@ -3895,6 +3940,69 @@
   background: transparent;
 }
 
+.modelLabMobileTabs {
+  display: none;
+}
+
+.modelLabViewerStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(62px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.modelLabViewerStats div {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(232, 207, 155, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 250, 240, 0.035);
+  padding: 8px;
+}
+
+.modelLabViewerStats dt {
+  color: var(--owner-soft);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modelLabViewerStats dd {
+  margin: 4px 0 0;
+  color: var(--owner-cream);
+  font-size: 12px;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.modelLabCompareSummary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(10, 7, 5, 0.34);
+  padding: 12px;
+}
+
+.modelLabRiskBox {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(232, 207, 155, 0.12);
+  border-radius: 12px;
+  background: rgba(13, 8, 5, 0.42);
+}
+
+.modelLabRiskBox ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
 .modelCompareStack {
   display: grid;
   gap: 14px;
@@ -4505,6 +4613,22 @@
     justify-content: stretch;
   }
 
+  .modelLabMobileTabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .modelLabMobileTabs .btn {
+    width: 100%;
+  }
+
+  .modelLabMobileTabs .btn[aria-selected="true"] {
+    border-color: rgba(232, 207, 155, 0.64);
+    background: rgba(232, 207, 155, 0.13);
+    color: var(--owner-cream);
+  }
+
   .reviewAngleGrid,
   .reviewImageTriplet,
   .reviewSplitStage,
@@ -4557,7 +4681,9 @@
   }
 
   .sourceUploadIdentityGrid,
-  .sourceUploadRecord {
+  .modelLabNoticeGrid,
+  .sourceUploadRecord,
+  .modelLabViewerStats {
     grid-template-columns: minmax(0, 1fr);
   }
 
