@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   buildPublicDishPath,
+  getGoogleReviewCta,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -37,7 +38,7 @@ type QuickFilterId =
   | "recommended";
 type ViewMode = "list" | "grid";
 type WaiterTopic = "allergen" | "recommendation" | "selection";
-type ActiveSheet = "dish" | "selection" | "waiter" | null;
+type ActiveSheet = "dish" | "selection" | "waiter" | "review" | null;
 type CategoryIconKind = "pizza" | "leaf" | "cake" | "burger" | "fish" | "spark";
 type SwipeStart = {
   x: number;
@@ -454,6 +455,8 @@ export function TrouvablePremiumMenuExperience({
   const hasPricedSelection =
     selectionItems.length > 0 &&
     selectionItems.every((item) => parseDishPrice(item.dish) !== null);
+  const googleReviewCta = getGoogleReviewCta(menu.googleReview);
+  const reviewRestaurantName = menu.name.trim() || "Trouvable";
   const currentLang = query?.lang === "en" ? "en" : "fr";
   const nextLang = currentLang === "en" ? "fr" : "en";
   const viewLabel = viewMode === "grid" ? "grille" : "liste";
@@ -562,6 +565,11 @@ export function TrouvablePremiumMenuExperience({
     setWaiterMessage("");
     setLocalMessage("");
     openSheet("waiter");
+  }
+
+  function openReviewSheet() {
+    setLocalMessage("");
+    openSheet("review");
   }
 
   function prepareWaiterRequest() {
@@ -860,6 +868,69 @@ export function TrouvablePremiumMenuExperience({
     );
   }
 
+  function renderReviewSheet() {
+    if (activeSheet !== "review" || !selectedDish) return null;
+
+    return (
+      <div
+        className={`${styles.overlay} ${styles.reviewOverlay}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trouvable-review-title"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeActiveSheet();
+        }}
+      >
+        <section ref={sheetRef} className={styles.reviewSheet} tabIndex={-1}>
+          <button
+            type="button"
+            className={styles.reviewClose}
+            aria-label="Fermer l'avis"
+            onClick={closeActiveSheet}
+          >
+            x
+          </button>
+          <div className={styles.reviewDishGhost} aria-hidden="true">
+            {selectedDish.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img alt="" src={selectedDish.imageUrl} />
+            ) : null}
+          </div>
+          <div className={styles.reviewPanel}>
+            <h2 id="trouvable-review-title">Votre expérience compte</h2>
+            <p className={styles.reviewIntro}>
+              Partagez votre expérience chez {reviewRestaurantName}. Votre avis Google
+              aide l&apos;équipe à mieux comprendre chaque visite et à se faire découvrir.
+            </p>
+            {googleReviewCta ? (
+              <a
+                className={styles.reviewPostButton}
+                data-google-review-action="true"
+                href={googleReviewCta.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  setLocalMessage("Google Review ouvert dans un nouvel onglet.");
+                }}
+              >
+                Laisser un avis Google
+              </a>
+            ) : (
+              <button className={styles.reviewPostButton} type="button" disabled>
+                Laisser un avis Google
+              </button>
+            )}
+            <p className={styles.reviewNote}>
+              {googleReviewCta
+                ? "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle."
+                : "Lien Google Review non configuré pour ce restaurant."}
+            </p>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   function renderDishDetailSheet() {
     if (activeSheet !== "dish" || !selectedDish) return null;
 
@@ -943,6 +1014,10 @@ export function TrouvablePremiumMenuExperience({
             {selectedDish.priceLabel ? (
               <strong className={styles.detailPrice}>{selectedDish.priceLabel}</strong>
             ) : null}
+            <button type="button" className={styles.moreDetailsButton}>
+              <span aria-hidden="true">i</span>
+              More details
+            </button>
             {selectedDish.description ? <p>{selectedDish.description}</p> : null}
             {badges.length > 0 ? (
               <div className={styles.badges}>
@@ -1010,6 +1085,15 @@ export function TrouvablePremiumMenuExperience({
                 </Link>
               ) : null}
             </div>
+            <button
+              type="button"
+              className={styles.reviewTrigger}
+              aria-haspopup="dialog"
+              onClick={openReviewSheet}
+            >
+              <span aria-hidden="true">★</span>
+              TAP TO REVIEW
+            </button>
           </div>
         </article>
       </div>
@@ -1218,6 +1302,7 @@ export function TrouvablePremiumMenuExperience({
       {renderDishDetailSheet()}
       {renderSelectionSheet()}
       {renderWaiterSheet()}
+      {renderReviewSheet()}
     </main>
   );
 }

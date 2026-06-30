@@ -13,7 +13,10 @@ import type {
   PublicMenuContextQuery,
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
-import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
+import {
+  buildPublicDishPath,
+  getGoogleReviewCta
+} from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
@@ -79,6 +82,7 @@ export function TrouvableDishDetailExperience({
   const [activeDish, setActiveDish] = useState(dish);
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
+  const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
@@ -92,6 +96,8 @@ export function TrouvableDishDetailExperience({
   );
   const hasModel = hasPublic3d(activeDish);
   const tags = detailTags(activeDish);
+  const googleReviewCta = getGoogleReviewCta(menu.googleReview);
+  const reviewRestaurantName = menu.name.trim() || "Trouvable";
 
   useEffect(() => {
     if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
@@ -122,6 +128,7 @@ export function TrouvableDishDetailExperience({
     if (nextDish) {
       setActiveDish(nextDish);
       setShowModelViewer(false);
+      setShowReviewSheet(false);
       window.history.replaceState(
         null,
         "",
@@ -194,6 +201,10 @@ export function TrouvableDishDetailExperience({
           {activeDish.priceLabel ? (
             <strong className={styles.detailPrice}>{activeDish.priceLabel}</strong>
           ) : null}
+          <button type="button" className={styles.moreDetailsButton}>
+            <span aria-hidden="true">i</span>
+            More details
+          </button>
           {activeDish.description ? <p>{activeDish.description}</p> : null}
 
           {tags.length > 0 ? (
@@ -238,8 +249,74 @@ export function TrouvableDishDetailExperience({
               )}
             </div>
           ) : null}
+
+          <button
+            type="button"
+            className={styles.reviewTrigger}
+            aria-haspopup="dialog"
+            onClick={() => setShowReviewSheet(true)}
+          >
+            <span aria-hidden="true">★</span>
+            TAP TO REVIEW
+          </button>
         </section>
       </article>
+
+      {showReviewSheet ? (
+        <div
+          className={`${styles.overlay} ${styles.reviewOverlay}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="trouvable-route-review-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowReviewSheet(false);
+          }}
+        >
+          <section className={styles.reviewSheet} tabIndex={-1}>
+            <button
+              type="button"
+              className={styles.reviewClose}
+              aria-label="Fermer l'avis"
+              onClick={() => setShowReviewSheet(false)}
+            >
+              x
+            </button>
+            <div className={styles.reviewDishGhost} aria-hidden="true">
+              {activeDish.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt="" src={activeDish.imageUrl} />
+              ) : null}
+            </div>
+            <div className={styles.reviewPanel}>
+              <h2 id="trouvable-route-review-title">Votre expérience compte</h2>
+              <p className={styles.reviewIntro}>
+                Partagez votre expérience chez {reviewRestaurantName}. Votre avis Google
+                aide l&apos;équipe à mieux comprendre chaque visite et à se faire découvrir.
+              </p>
+              {googleReviewCta ? (
+                <a
+                  className={styles.reviewPostButton}
+                  data-google-review-action="true"
+                  href={googleReviewCta.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Laisser un avis Google
+                </a>
+              ) : (
+                <button className={styles.reviewPostButton} type="button" disabled>
+                  Laisser un avis Google
+                </button>
+              )}
+              <p className={styles.reviewNote}>
+                {googleReviewCta
+                  ? "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle."
+                  : "Lien Google Review non configuré pour ce restaurant."}
+              </p>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
