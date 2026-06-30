@@ -1869,3 +1869,307 @@
     max-width: 72vw;
   }
 }
+
+/* Mobile density pass: the reference is a high-DPR mockup, so CSS pixels must stay compact. */
+@media (max-width: 520px) {
+  .topBar {
+    padding: 16px 16px 12px;
+  }
+
+  .brandBlock strong {
+    font-size: clamp(38px, 11.4vw, 48px);
+  }
+
+  .topActions {
+    gap: 8px;
+  }
+
+  .topActions a,
+  .topActions button {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    font-size: 14px;
+  }
+
+  .hero {
+    padding: 26px 14px 28px;
+  }
+
+  .hero::before,
+  .hero::after {
+    width: 124px;
+    height: 74px;
+    opacity: 0.55;
+  }
+
+  .hero p {
+    font-size: 18px;
+  }
+
+  .hero h1 {
+    font-size: clamp(48px, 14vw, 60px);
+  }
+
+  .categoryHeader {
+    padding: 0 16px 12px;
+  }
+
+  .categoryHeader span:first-child {
+    font-size: 12px;
+    letter-spacing: 0.24em;
+  }
+
+  .categoryHeader span:last-child {
+    font-size: 14px;
+  }
+
+  .categoryRail {
+    gap: 12px;
+    padding-bottom: 30px;
+    scroll-padding-inline: 16px;
+  }
+
+  .categoryRail button {
+    min-width: 122px;
+    min-height: 122px;
+    border-radius: 22px;
+    gap: 9px;
+    padding: 14px 12px;
+  }
+
+  .categoryRail button:first-of-type {
+    margin-left: 16px;
+  }
+
+  .categoryRail button:last-of-type {
+    margin-right: 16px;
+  }
+
+  .categoryRail svg {
+    width: 30px;
+    height: 30px;
+    stroke-width: 3;
+  }
+
+  .categoryRail span {
+    font-size: 14px;
+  }
+
+  .sectionTitle {
+    margin: 0 16px 18px;
+    font-size: 31px;
+  }
+
+  .tools {
+    grid-template-columns: minmax(104px, 1fr) auto auto;
+    gap: 8px;
+    margin: 0 16px 18px;
+    padding: 0;
+  }
+
+  .searchField {
+    grid-column: auto;
+  }
+
+  .searchField input {
+    min-height: 46px;
+    border-radius: 18px;
+    font-size: 14px;
+    padding-right: 12px;
+    padding-left: 42px;
+  }
+
+  .searchField::before {
+    left: 17px;
+    bottom: 11px;
+    font-size: 20px;
+  }
+
+  .searchField button {
+    right: 3px;
+    bottom: 5px;
+    min-height: 36px;
+    font-size: 10px;
+    padding-inline: 8px;
+  }
+
+  .quickFilters {
+    gap: 7px;
+    max-width: 150px;
+  }
+
+  .quickFilters button {
+    min-height: 40px;
+    font-size: 13px;
+    padding-inline: 12px;
+  }
+
+  .viewToggle {
+    width: 82px;
+    min-height: 44px;
+    border-radius: 24px;
+    padding: 4px;
+  }
+
+  .viewToggle button {
+    width: 36px;
+    min-height: 36px;
+    font-size: 19px;
+  }
+
+  .resultStatus {
+    display: none;
+  }
+
+  .dishList {
+    gap: 12px;
+    padding-inline: 16px;
+  }
+
+  .dishCard {
+    min-height: 124px;
+    border-radius: 22px;
+    padding: 10px;
+  }
+
+  .dishSummary {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 14px;
+    min-height: 102px;
+  }
+
+  .dishVisual {
+    min-width: 0;
+    height: 102px;
+    border-radius: 18px;
+  }
+
+  .dishTopline strong {
+    font-size: 18px;
+  }
+
+  .dishCopy {
+    gap: 7px;
+  }
+
+  .dishCopy small {
+    font-size: 14px;
+  }
+
+  .dishPrice {
+    font-size: 22px;
+  }
+
+  .dishCard .badges {
+    display: none;
+  }
+
+  .spicyMark {
+    width: 21px;
+    height: 21px;
+  }
+
+  .dishGrid {
+    gap: 10px;
+  }
+
+  .dishGrid .dishCard {
+    min-height: 0;
+    border-radius: 20px;
+    padding: 10px;
+  }
+
+  .dishGrid .dishSummary {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    min-height: 0;
+  }
+
+  .dishGrid .dishVisual {
+    height: auto;
+    aspect-ratio: 1.12;
+  }
+
+  .dishGrid .dishTopline {
+    min-height: 0;
+  }
+
+  .dishGrid .dishTopline strong {
+    font-size: 15px;
+  }
+
+  .dishGrid .dishCopy small {
+    font-size: 12px;
+  }
+
+  .dishGrid .dishPrice {
+    font-size: 19px;
+  }
+
+  .detailNav {
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
+    min-height: 82px;
+  }
+
+  .detailNav span {
+    font-size: 16px;
+  }
+
+  .detailBack {
+    width: 52px;
+    height: 52px;
+    font-size: 28px;
+  }
+
+  .detailSheet .detailVisual,
+  .standaloneDetailCard .detailVisual {
+    min-height: clamp(220px, 38svh, 340px);
+  }
+
+  .detailBody h1,
+  .detailBody .sheetHeader h2 {
+    font-size: clamp(36px, 10vw, 48px);
+  }
+
+  .detailList li,
+  .detailTagCloud li {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .detailSheet .detailActions a,
+  .modelCta {
+    min-height: 62px;
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  .categoryRail button {
+    min-width: 112px;
+    min-height: 112px;
+  }
+
+  .tools {
+    grid-template-columns: minmax(96px, 1fr) auto auto;
+  }
+
+  .quickFilters {
+    max-width: 136px;
+  }
+
+  .quickFilters button {
+    padding-inline: 10px;
+  }
+
+  .dishSummary {
+    grid-template-columns: 102px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .dishVisual {
+    height: 96px;
+  }
+}
