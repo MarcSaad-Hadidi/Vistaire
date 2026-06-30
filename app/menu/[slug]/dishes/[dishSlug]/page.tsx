@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MaisonElyseDishDetail } from "@/components/menu/MaisonElyseDishDetail";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
+import { TrouvableDishDetailExperience } from "@/components/menu/TrouvableDishDetailExperience";
 import { normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
-import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
+import {
+  isTrouvablePublicMenu,
+  resolvePublicMenuUiConfig
+} from "@/lib/menu/trouvableMenuExperience";
 import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +87,17 @@ export default async function PublicDishPage({
   ]
     .filter(Boolean)
     .join(" · ");
+  if (isTrouvablePublicMenu(menu)) {
+    return (
+      <TrouvableDishDetailExperience
+        context={context}
+        dish={dish}
+        menu={menu}
+        query={menuQuery}
+      />
+    );
+  }
+
   const fallbackConfig = menuUiConfigForRestaurant({
     name: menu.name,
     slug: menu.slug

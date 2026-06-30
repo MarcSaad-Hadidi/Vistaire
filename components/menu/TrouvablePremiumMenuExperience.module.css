@@ -1022,3 +1022,850 @@
 .emptyState button:focus-visible {
   outline-color: rgba(255, 255, 255, 0.92);
 }
+
+/* Reference-match Trouvable skin. Keep all surfaces black; use champagne only as a premium accent. */
+.page {
+  --trouvable-black: #000;
+  --trouvable-ink: #050505;
+  --trouvable-line: rgba(255, 255, 255, 0.16);
+  --trouvable-muted: rgba(255, 255, 255, 0.66);
+  --trouvable-soft: rgba(255, 255, 255, 0.08);
+  --trouvable-gold: #dec24b;
+  --trouvable-gold-2: #f3dc75;
+  --trouvable-blue: #74ddf2;
+  min-height: 100svh;
+  background: var(--trouvable-black);
+  color: #fff;
+  padding: 0 0 30px;
+}
+
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0;
+  background: #000;
+  padding: 28px 28px 22px;
+}
+
+.brandBlock {
+  gap: 0;
+}
+
+.brandBlock strong {
+  color: #d9c891;
+  font-size: clamp(50px, 15vw, 74px);
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.brandBlock small,
+.tableChip,
+.topActions button[aria-haspopup="dialog"] {
+  display: none;
+}
+
+.topActions {
+  flex-wrap: nowrap;
+  gap: 18px;
+}
+
+.topActions a,
+.topActions button {
+  width: 58px;
+  min-width: 58px;
+  height: 58px;
+  min-height: 58px;
+  border-radius: 999px;
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 500;
+  padding: 0;
+}
+
+.hero {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  padding: 52px 24px 44px;
+  text-align: center;
+}
+
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  width: min(38vw, 210px);
+  height: 130px;
+  border: 1px solid rgba(222, 194, 75, 0.7);
+  border-right: 0;
+  border-bottom: 0;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.hero::before {
+  left: -24px;
+  border-radius: 90% 0 0;
+  transform: rotate(-12deg);
+}
+
+.hero::after {
+  right: -24px;
+  border-radius: 0 90% 0 0;
+  transform: scaleX(-1) rotate(-12deg);
+}
+
+.hero p {
+  color: #f1d91c;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 24px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.hero h1 {
+  margin-top: 8px;
+  color: #f4f4f4;
+  font-size: clamp(64px, 18vw, 92px);
+  line-height: 0.92;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.22);
+}
+
+.hero span,
+.hero button {
+  display: none;
+}
+
+.menuPanel {
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  padding: 0 0 30px;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 28px 18px;
+}
+
+.categoryHeader span:first-child {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+}
+
+.categoryHeader span:last-child {
+  color: #f1d91c;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.categoryRail {
+  position: static;
+  gap: 18px;
+  margin: 0;
+  border: 0;
+  background: #000;
+  padding: 0 0 58px 0;
+  scroll-padding-inline: 28px;
+  scroll-snap-type: x mandatory;
+}
+
+.categoryRail > button:first-child {
+  display: none;
+}
+
+.categoryRail button {
+  display: grid;
+  min-width: 178px;
+  min-height: 166px;
+  place-items: center;
+  gap: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 30px;
+  background: #050505;
+  color: rgba(255, 255, 255, 0.74);
+  padding: 22px 18px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.categoryRail button:first-of-type {
+  margin-left: 28px;
+}
+
+.categoryRail button:last-of-type {
+  margin-right: 28px;
+}
+
+.categoryRail svg {
+  width: 40px;
+  height: 40px;
+  color: #d7bd43;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.2;
+}
+
+.categoryRail span {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.categoryRail small {
+  display: none;
+}
+
+.categoryRail button[aria-current="true"] {
+  border-color: rgba(222, 194, 75, 0.92);
+  background: linear-gradient(145deg, #e1c84f, #b6911d);
+  color: #050505;
+}
+
+.categoryRail button[aria-current="true"] svg {
+  color: #050505;
+}
+
+.sectionTitle {
+  margin: 0 28px 28px;
+  color: #fff;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(38px, 10vw, 54px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.tools {
+  grid-template-columns: minmax(120px, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  margin: 0 28px 28px;
+}
+
+.searchField {
+  min-width: 0;
+}
+
+.searchField span {
+  display: none;
+}
+
+.searchField input {
+  min-height: 72px;
+  border-radius: 24px;
+  background: #030303;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 16px;
+  padding: 0 74px 0 22px;
+}
+
+.searchField::before {
+  content: "⌕";
+  position: absolute;
+  left: 24px;
+  bottom: 21px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 27px;
+  pointer-events: none;
+}
+
+.searchField input {
+  padding-left: 58px;
+}
+
+.searchField button {
+  bottom: 14px;
+  min-height: 44px;
+  background: #0d0d0d;
+}
+
+.quickFilters {
+  gap: 12px;
+}
+
+.quickFilters button {
+  min-height: 54px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 18px;
+  padding: 0 20px;
+}
+
+.quickFilters button[aria-pressed="true"] {
+  background: #0b0b0b;
+  border: 2px solid #f1d91c;
+  color: #fff;
+}
+
+.viewToggle {
+  display: flex;
+  width: 132px;
+  min-height: 68px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 34px;
+  background: #050505;
+  padding: 6px;
+}
+
+.viewToggle button {
+  width: 56px;
+  min-height: 56px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 28px;
+  padding: 0;
+}
+
+.viewToggle button[aria-pressed="true"] {
+  background: #111;
+  border: 0;
+  color: #f1d91c;
+}
+
+.resultStatus {
+  grid-column: 1 / -1;
+  min-height: 18px;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.dishList {
+  gap: 24px;
+  padding: 0 28px;
+}
+
+.dishGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dishCard {
+  position: relative;
+  min-height: 176px;
+  border-radius: 30px;
+  background: #030303;
+  border-color: rgba(255, 255, 255, 0.15);
+  padding: 18px;
+}
+
+.dishCardFeatured {
+  border-color: rgba(116, 221, 242, 0.64);
+  box-shadow: 0 0 0 1px rgba(116, 221, 242, 0.28);
+}
+
+.dishSummary {
+  grid-template-columns: minmax(120px, 42%) minmax(0, 1fr);
+  gap: 22px;
+  min-height: 136px;
+}
+
+.dishVisual {
+  width: 100%;
+  min-width: 118px;
+  height: 136px;
+  border: 0;
+  border-radius: 22px;
+  background: #000;
+}
+
+.dishVisual img {
+  object-fit: contain;
+}
+
+.dishCopy {
+  align-content: center;
+  gap: 12px;
+}
+
+.dishTopline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dishTopline strong {
+  color: #fff;
+  font-family: "Neue Montreal", system-ui, sans-serif;
+  font-size: clamp(21px, 5.4vw, 28px);
+  font-weight: 800;
+  line-height: 1.08;
+}
+
+.dishCopy small {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 20px;
+  line-height: 1.2;
+  -webkit-line-clamp: 1;
+}
+
+.dishPrice,
+.detailPrice {
+  color: #f3f3f3;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(25px, 7vw, 34px);
+  font-weight: 500;
+}
+
+.spicyMark {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+}
+
+.spicyMark::before,
+.spicyMark::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px 999px 999px 0;
+  background: #ff5454;
+}
+
+.spicyMark::before {
+  width: 20px;
+  height: 13px;
+  right: 1px;
+  top: 5px;
+  transform: rotate(-28deg);
+}
+
+.spicyMark::after {
+  width: 14px;
+  height: 10px;
+  left: 2px;
+  bottom: 2px;
+  transform: rotate(138deg);
+}
+
+.badges {
+  position: static;
+}
+
+.badges span {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badges span:last-child {
+  border-color: rgba(116, 221, 242, 0.36);
+  background: rgba(116, 221, 242, 0.14);
+  color: #a9ecf7;
+}
+
+.cardActions {
+  display: none;
+}
+
+.dishGrid .dishCard {
+  min-height: 0;
+  padding: 12px;
+}
+
+.dishGrid .dishSummary {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.dishGrid .dishVisual {
+  height: auto;
+  aspect-ratio: 1.08;
+}
+
+.dishGrid .dishTopline {
+  min-height: 56px;
+}
+
+.dishGrid .dishCopy small {
+  font-size: 15px;
+}
+
+.dishOverlay {
+  align-items: stretch;
+  padding: 0;
+  background: #000;
+}
+
+.detailSheet,
+.standaloneDetailPage {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  min-height: 100svh;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  padding: 0 28px 46px;
+}
+
+.detailNav {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 12px;
+  min-height: 132px;
+  color: var(--trouvable-gold);
+}
+
+.detailNav span {
+  grid-column: 2;
+  justify-self: center;
+  color: var(--trouvable-gold);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.38em;
+}
+
+.detailBack,
+.dishArrow {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: #050505;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.detailBack {
+  width: 72px;
+  height: 72px;
+  font-size: 38px;
+}
+
+.dishArrow {
+  position: fixed;
+  top: 48svh;
+  z-index: 45;
+  width: 58px;
+  height: 58px;
+  color: var(--trouvable-gold);
+  font-size: 46px;
+}
+
+.dishArrowLeft {
+  left: 24px;
+}
+
+.dishArrowRight {
+  right: 24px;
+}
+
+.detailSheet .detailVisual,
+.standaloneDetailCard .detailVisual {
+  min-height: clamp(300px, 47svh, 520px);
+  border: 0;
+  background: #000;
+}
+
+.detailSheet .detailVisual img,
+.standaloneDetailCard .detailVisual img {
+  object-fit: contain;
+}
+
+.detailBody {
+  justify-items: center;
+  text-align: center;
+}
+
+.detailBody .sheetHeader {
+  justify-content: center;
+  margin: 0;
+}
+
+.detailBody .sheetHeader p,
+.detailBody .iconButton {
+  display: none;
+}
+
+.detailBody h1,
+.detailBody .sheetHeader h2 {
+  margin: 0;
+  color: #fff;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(48px, 12vw, 70px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.detailBody > p {
+  max-width: 34rem;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 18px;
+}
+
+.detailList,
+.houseNote {
+  width: 100%;
+  max-width: 760px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.detailList h3,
+.houseNote h3 {
+  display: none;
+}
+
+.detailList ul {
+  justify-content: center;
+  gap: 14px;
+}
+
+.detailList li,
+.detailTagCloud li {
+  border: 2px solid rgba(243, 220, 117, 0.78);
+  border-radius: 999px;
+  background: #000;
+  color: #fff2a1;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  max-width: 44vw;
+  overflow: hidden;
+  padding: 11px 18px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.detailActions {
+  width: min(100%, 760px);
+}
+
+.detailSheet .detailActions button,
+.detailSheet .detailActions a:not(:first-of-type) {
+  display: none;
+}
+
+.detailSheet .detailActions a,
+.modelCta {
+  min-height: 88px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #efd55f, #c6a12a);
+  color: #040404;
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  box-shadow: 0 16px 42px rgba(222, 194, 75, 0.18);
+}
+
+.standaloneDetailPage {
+  padding-top: 0;
+}
+
+.standaloneDetailCard {
+  display: grid;
+  gap: 18px;
+}
+
+.detailRestaurantName {
+  margin: 0;
+  color: var(--trouvable-gold);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+.detailTagCloud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.modelCta {
+  width: min(100%, 760px);
+  cursor: pointer;
+}
+
+.modelUnavailable {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 800;
+}
+
+.inlineModelViewer {
+  width: min(100%, 860px);
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 28px;
+}
+
+.modelLoading {
+  display: grid;
+  min-height: 300px;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+@media (max-width: 430px) {
+  .topBar {
+    padding: 24px 18px 18px;
+  }
+
+  .topActions {
+    gap: 10px;
+  }
+
+  .topActions a,
+  .topActions button {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .hero {
+    padding: 48px 14px 40px;
+  }
+
+  .categoryHeader,
+  .sectionTitle,
+  .tools {
+    margin-inline: 0;
+    padding-inline: 18px;
+  }
+
+  .categoryHeader {
+    padding-bottom: 16px;
+  }
+
+  .categoryHeader span:first-child {
+    font-size: 15px;
+  }
+
+  .categoryHeader span:last-child {
+    font-size: 17px;
+  }
+
+  .categoryRail button:first-of-type {
+    margin-left: 18px;
+  }
+
+  .categoryRail button:last-of-type {
+    margin-right: 18px;
+  }
+
+  .tools {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+  }
+
+  .searchField {
+    grid-column: 1 / -1;
+  }
+
+  .quickFilters {
+    min-width: 0;
+  }
+
+  .quickFilters button {
+    min-height: 48px;
+    font-size: 15px;
+    padding-inline: 15px;
+  }
+
+  .viewToggle {
+    width: 116px;
+    min-height: 58px;
+  }
+
+  .viewToggle button {
+    width: 48px;
+    min-height: 48px;
+    font-size: 24px;
+  }
+
+  .dishList {
+    padding-inline: 18px;
+  }
+
+  .dishSummary {
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .dishVisual {
+    height: 122px;
+    min-width: 112px;
+  }
+
+  .detailSheet,
+  .standaloneDetailPage {
+    padding-inline: 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  .brandBlock strong {
+    font-size: 46px;
+  }
+
+  .categoryRail button {
+    min-width: 154px;
+    min-height: 152px;
+  }
+
+  .dishSummary {
+    grid-template-columns: 118px minmax(0, 1fr);
+  }
+
+  .dishVisual {
+    height: 112px;
+  }
+
+  .dishGrid .dishTopline strong {
+    font-size: 18px;
+  }
+
+  .detailList li,
+  .detailTagCloud li {
+    max-width: 72vw;
+  }
+}

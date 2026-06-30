@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent
+} from "react";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -31,6 +38,12 @@ type QuickFilterId =
 type ViewMode = "list" | "grid";
 type WaiterTopic = "allergen" | "recommendation" | "selection";
 type ActiveSheet = "dish" | "selection" | "waiter" | null;
+type CategoryIconKind = "pizza" | "leaf" | "cake" | "burger" | "fish" | "spark";
+type SwipeStart = {
+  x: number;
+  y: number;
+  pointerId: number;
+} | null;
 type SelectionItem = {
   dish: PublicMenuDish;
   quantity: number;
@@ -67,6 +80,17 @@ const VEG_TERMS = [
   "vegetarian",
   "vegetarien"
 ];
+const SPICY_TERMS = [
+  "chili",
+  "epice",
+  "epicee",
+  "epices",
+  "jalapeno",
+  "piment",
+  "piquant",
+  "spicy",
+  "sriracha"
+];
 
 function normalizeText(value: string): string {
   return value
@@ -81,6 +105,92 @@ function formatBadgeLabel(value: string): string {
   if (normalized === "recommande" || normalized === "recommended") return "Recommandé";
   if (normalized === "popular") return "Populaire";
   return label;
+}
+
+function categoryIconKind(label: string): CategoryIconKind {
+  const normalized = normalizeText(label);
+  if (normalized.includes("pizza")) return "pizza";
+  if (
+    normalized.includes("salad") ||
+    normalized.includes("salade") ||
+    normalized.includes("veg")
+  ) {
+    return "leaf";
+  }
+  if (
+    normalized.includes("cake") ||
+    normalized.includes("dessert") ||
+    normalized.includes("gateau")
+  ) {
+    return "cake";
+  }
+  if (normalized.includes("burger")) return "burger";
+  if (
+    normalized.includes("fish") ||
+    normalized.includes("poisson") ||
+    normalized.includes("sea") ||
+    normalized.includes("mer")
+  ) {
+    return "fish";
+  }
+  return "spark";
+}
+
+function displayCategoryLabel(label: string): string {
+  return label.length > 12 ? `${label.slice(0, 10).trim()}...` : label;
+}
+
+function CategoryIcon({ kind }: { kind: CategoryIconKind }) {
+  if (kind === "pizza") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M9 39 39 9c-9-4-24 2-30 30Z" />
+        <path d="M18 30a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm8-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "leaf") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M38 10C24 10 12 19 10 34c15 2 25-8 28-24Z" />
+        <path d="M12 34c8-9 14-13 26-24" />
+      </svg>
+    );
+  }
+
+  if (kind === "cake") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M10 22h28v16H10z" />
+        <path d="M14 16h20v6H14zM16 16c0-5 6-5 6 0m4 0c0-5 6-5 6 0" />
+      </svg>
+    );
+  }
+
+  if (kind === "burger") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M10 21c2-7 8-10 14-10s12 3 14 10H10Zm0 6h28M12 34h24" />
+        <path d="M15 21h2m7 0h2m7 0h2" />
+      </svg>
+    );
+  }
+
+  if (kind === "fish") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M8 24c9-10 22-10 30 0-8 10-21 10-30 0Z" />
+        <path d="M38 24 44 14v20l-6-10ZM16 24h.1" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <path d="M24 8v32M8 24h32M14 14l20 20M34 14 14 34" />
+    </svg>
+  );
 }
 
 function searchableDishText(dish: PublicMenuDish): string {
@@ -111,6 +221,21 @@ function isNonVegDish(dish: PublicMenuDish): boolean {
   return dishHasAnyTerm(dish, MEAT_TERMS);
 }
 
+function isSpicyDish(dish: PublicMenuDish): boolean {
+  return dishHasAnyTerm(dish, SPICY_TERMS);
+}
+
+function dishMetaLine(dish: PublicMenuDish): string {
+  const calorieTag = dish.tags.find((tag) =>
+    /\b\d{2,4}\s*(cal|calorie|calories|kcal)\b/i.test(tag)
+  );
+  if (calorieTag) return calorieTag;
+  if (dish.ingredients.length > 0) {
+    return `${dish.ingredients.length} ingrédients`;
+  }
+  return dish.available ? dish.category : "Indisponible";
+}
+
 function dishBadges(dish: PublicMenuDish): string[] {
   const badges = new Set<string>();
   for (const tag of dish.tags) {
@@ -124,7 +249,7 @@ function dishBadges(dish: PublicMenuDish): string[] {
     badges.add("Maison");
   }
   if (!dish.available) badges.add("Indisponible");
-  if (dish.has3d) badges.add("3D");
+  if (dish.has3d) badges.add("4D");
   if (dish.hasAr) badges.add("AR");
   return Array.from(badges).slice(0, 5);
 }
@@ -233,6 +358,8 @@ export function TrouvablePremiumMenuExperience({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const categorySwipeRef = useRef<SwipeStart>(null);
+  const dishSwipeRef = useRef<SwipeStart>(null);
 
   const categories = useMemo(
     () => getVisiblePublicMenuCategories(menu.dishes),
@@ -284,12 +411,33 @@ export function TrouvablePremiumMenuExperience({
     () => getVisiblePublicMenuCategories(filteredDishes),
     [filteredDishes]
   );
+  const categoryOptions = useMemo(
+    () =>
+      categories.length > 0
+        ? categories
+        : [
+            {
+              id: ALL_CATEGORY_ID,
+              label: "Tout",
+              description: "Toute la carte",
+              tone: "yellow" as const,
+              count: filteredDishes.length
+            }
+          ],
+    [categories, filteredDishes.length]
+  );
+  const defaultCategory = categories[0]?.label ?? ALL_CATEGORY_ID;
   const activeCategoryIsAvailable =
     activeCategory === ALL_CATEGORY_ID ||
     filteredCategories.some((category) => category.label === activeCategory);
-  const resolvedActiveCategory = activeCategoryIsAvailable
-    ? activeCategory
-    : ALL_CATEGORY_ID;
+  const resolvedActiveCategory =
+    activeCategory === ALL_CATEGORY_ID && defaultCategory !== ALL_CATEGORY_ID
+      ? defaultCategory
+      : activeCategoryIsAvailable
+        ? activeCategory
+        : defaultCategory;
+  const activeCategoryTitle =
+    resolvedActiveCategory === ALL_CATEGORY_ID ? "La carte" : resolvedActiveCategory;
   const visibleDishes =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? filteredDishes
@@ -426,32 +574,100 @@ export function TrouvablePremiumMenuExperience({
   function clearFilters() {
     setQuickFilter("all");
     setSearch("");
-    setActiveCategory(ALL_CATEGORY_ID);
+    setActiveCategory(categories[0]?.label ?? ALL_CATEGORY_ID);
   }
 
-  function renderDishCard(dish: PublicMenuDish) {
+  function selectAdjacentCategory(direction: 1 | -1) {
+    if (categoryOptions.length === 0) return;
+    const currentIndex = Math.max(
+      0,
+      categoryOptions.findIndex((category) => category.label === resolvedActiveCategory)
+    );
+    const nextIndex =
+      (currentIndex + direction + categoryOptions.length) % categoryOptions.length;
+    setActiveCategory(categoryOptions[nextIndex]?.label ?? ALL_CATEGORY_ID);
+  }
+
+  function handleCategoryPointerDown(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType === "mouse") return;
+    categorySwipeRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerId: event.pointerId
+    };
+  }
+
+  function handleCategoryPointerUp(event: PointerEvent<HTMLElement>) {
+    const start = categorySwipeRef.current;
+    categorySwipeRef.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+    selectAdjacentCategory(deltaX < 0 ? 1 : -1);
+  }
+
+  function openDishDetail(dish: PublicMenuDish) {
+    setSelectedDish(dish);
+    openSheet("dish");
+  }
+
+  function selectAdjacentDish(direction: 1 | -1) {
+    if (!selectedDish || visibleDishes.length < 2) return;
+    const currentIndex = visibleDishes.findIndex((dish) => dish.id === selectedDish.id);
+    const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = (safeIndex + direction + visibleDishes.length) % visibleDishes.length;
+    setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
+  }
+
+  function handleDishPointerDown(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType === "mouse") return;
+    dishSwipeRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerId: event.pointerId
+    };
+  }
+
+  function handleDishPointerUp(event: PointerEvent<HTMLElement>) {
+    const start = dishSwipeRef.current;
+    dishSwipeRef.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+    selectAdjacentDish(deltaX < 0 ? 1 : -1);
+  }
+
+  function renderDishCard(dish: PublicMenuDish, index: number) {
     const href = buildPublicDishPath(menu.slug, dish.slug, query);
     const badges = dishBadges(dish);
+    const isFeatured = index === 0;
+    const isSpicy = isSpicyDish(dish);
 
     return (
       <li key={dish.id} className={styles.dishItem}>
-        <article className={styles.dishCard}>
+        <article
+          className={`${styles.dishCard} ${isFeatured ? styles.dishCardFeatured : ""}`}
+        >
           <button
             type="button"
             className={styles.dishSummary}
             aria-haspopup="dialog"
-            onClick={() => {
-              setSelectedDish(dish);
-              openSheet("dish");
-            }}
+            onClick={() => openDishDetail(dish)}
           >
             <DishVisual dish={dish} menu={menu} />
             <span className={styles.dishCopy}>
               <span className={styles.dishTopline}>
                 <strong>{dish.name}</strong>
-                {dish.priceLabel ? <span>{dish.priceLabel}</span> : null}
+                {isSpicy ? (
+                  <span className={styles.spicyMark} aria-label="Plat épicé" />
+                ) : null}
               </span>
-              {dish.description ? <small>{dish.description}</small> : null}
+              <small>{dishMetaLine(dish)}</small>
+              {dish.priceLabel ? (
+                <span className={styles.dishPrice}>{dish.priceLabel}</span>
+              ) : null}
               <span className={styles.badges}>
                 {badges.map((badge) => (
                   <span key={badge}>{badge}</span>
@@ -652,7 +868,7 @@ export function TrouvablePremiumMenuExperience({
 
     return (
       <div
-        className={styles.overlay}
+        className={`${styles.overlay} ${styles.dishOverlay}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-dish-title"
@@ -660,7 +876,47 @@ export function TrouvablePremiumMenuExperience({
           if (event.target === event.currentTarget) closeActiveSheet();
         }}
       >
-        <article ref={sheetRef} className={styles.sheet} tabIndex={-1}>
+        <article
+          ref={sheetRef}
+          className={`${styles.sheet} ${styles.detailSheet}`}
+          tabIndex={-1}
+          onPointerDown={handleDishPointerDown}
+          onPointerUp={handleDishPointerUp}
+          onPointerCancel={() => {
+            dishSwipeRef.current = null;
+          }}
+        >
+          <nav className={styles.detailNav} aria-label="Navigation du plat">
+            <button
+              type="button"
+              className={styles.detailBack}
+              aria-label="Retour au menu"
+              onClick={closeActiveSheet}
+            >
+              ←
+            </button>
+            <span>TROUVABLE</span>
+          </nav>
+          {visibleDishes.length > 1 ? (
+            <>
+              <button
+                type="button"
+                className={`${styles.dishArrow} ${styles.dishArrowLeft}`}
+                aria-label="Plat précédent"
+                onClick={() => selectAdjacentDish(-1)}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                className={`${styles.dishArrow} ${styles.dishArrowRight}`}
+                aria-label="Plat suivant"
+                onClick={() => selectAdjacentDish(1)}
+              >
+                ›
+              </button>
+            </>
+          ) : null}
           <div className={styles.detailVisual}>
             {selectedDish.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -745,7 +1001,7 @@ export function TrouvablePremiumMenuExperience({
               </button>
               {selectedDish.has3d ? (
                 <Link href={href} prefetch={false}>
-                  Voir en 3D
+                  VOIR EN 3D
                 </Link>
               ) : null}
               {selectedDish.hasAr ? (
@@ -768,15 +1024,20 @@ export function TrouvablePremiumMenuExperience({
     >
       <header className={styles.topBar}>
         <div className={styles.brandBlock}>
-          <span>Vistaire</span>
-          <strong>{menu.name}</strong>
+          <strong>Vistaire</strong>
           <small>{context || "Menu à table"}</small>
         </div>
         <div className={styles.topActions}>
+          <button type="button" aria-label="Devise du menu, dollars canadiens">
+            $
+          </button>
           {query?.table ? <span className={styles.tableChip}>Table {query.table}</span> : null}
           <Link href={buildMenuHref(menu, query, nextLang)} prefetch={false}>
-            {nextLang.toUpperCase()}
+            {currentLang.toUpperCase()}
           </Link>
+          <button type="button" aria-label="Mode sombre actif" aria-pressed="true">
+            ◐
+          </button>
           <button
             ref={selectionButtonRef}
             type="button"
@@ -800,7 +1061,7 @@ export function TrouvablePremiumMenuExperience({
 
       <section className={styles.hero} aria-label={`Menu ${menu.name}`}>
         <div>
-          <p>Menu premium</p>
+          <p>Good Afternoon</p>
           <h1>{menu.name}</h1>
           <span>Cuisine maison, accents chaleureux et service à table.</span>
         </div>
@@ -809,28 +1070,44 @@ export function TrouvablePremiumMenuExperience({
         </button>
       </section>
 
-      <section className={styles.menuPanel} aria-label="Carte Trouvable">
+      <section
+        className={styles.menuPanel}
+        aria-label="Carte Trouvable"
+        onPointerDown={handleCategoryPointerDown}
+        onPointerUp={handleCategoryPointerUp}
+        onPointerCancel={() => {
+          categorySwipeRef.current = null;
+        }}
+      >
+        <div className={styles.categoryHeader}>
+          <span>CATEGORIES</span>
+          <span>Swipe List ↔</span>
+        </div>
         <nav className={styles.categoryRail} aria-label="Categories">
           <button
             type="button"
             aria-current={resolvedActiveCategory === ALL_CATEGORY_ID}
             onClick={() => setActiveCategory(ALL_CATEGORY_ID)}
           >
+            <CategoryIcon kind="spark" />
             <span>Tout</span>
             <small>{filteredDishes.length}</small>
           </button>
-          {categories.map((category) => (
+          {categoryOptions.map((category) => (
             <button
               key={category.id}
               type="button"
               aria-current={resolvedActiveCategory === category.label}
               onClick={() => setActiveCategory(category.label)}
             >
-              <span>{category.label}</span>
+              <CategoryIcon kind={categoryIconKind(category.label)} />
+              <span>{displayCategoryLabel(category.label)}</span>
               <small>{category.count}</small>
             </button>
           ))}
         </nav>
+
+        <h2 className={styles.sectionTitle}>{activeCategoryTitle}</h2>
 
         <div className={styles.tools}>
           <label className={styles.searchField}>
@@ -886,16 +1163,18 @@ export function TrouvablePremiumMenuExperience({
             <button
               type="button"
               aria-pressed={viewMode === "list"}
+              aria-label="Afficher en liste"
               onClick={() => setViewMode("list")}
             >
-              Liste
+              ☷
             </button>
             <button
               type="button"
               aria-pressed={viewMode === "grid"}
+              aria-label="Afficher en grille"
               onClick={() => setViewMode("grid")}
             >
-              Grille
+              ▦
             </button>
           </div>
           <p className={styles.resultStatus} aria-live="polite">
@@ -920,7 +1199,7 @@ export function TrouvablePremiumMenuExperience({
               viewMode === "grid" ? styles.dishGrid : ""
             }`}
           >
-            {visibleDishes.map((dish) => renderDishCard(dish))}
+            {visibleDishes.map((dish, index) => renderDishCard(dish, index))}
           </ul>
         )}
       </section>
