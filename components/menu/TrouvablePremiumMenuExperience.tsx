@@ -354,6 +354,8 @@ export function TrouvablePremiumMenuExperience({
   const [tableNumber, setTableNumber] = useState(query?.table?.slice(0, 24) ?? "");
   const [localMessage, setLocalMessage] = useState("");
   const [waiterMessage, setWaiterMessage] = useState("");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
   const sheetRef = useRef<HTMLElement | null>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -456,7 +458,6 @@ export function TrouvablePremiumMenuExperience({
     selectionItems.length > 0 &&
     selectionItems.every((item) => parseDishPrice(item.dish) !== null);
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
-  const reviewRestaurantName = menu.name.trim() || "Trouvable";
   const currentLang = query?.lang === "en" ? "en" : "fr";
   const nextLang = currentLang === "en" ? "fr" : "en";
   const viewLabel = viewMode === "grid" ? "grille" : "liste";
@@ -568,6 +569,8 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function openReviewSheet() {
+    setReviewRating(0);
+    setReviewText("");
     setLocalMessage("");
     openSheet("review");
   }
@@ -894,14 +897,34 @@ export function TrouvablePremiumMenuExperience({
             {selectedDish.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img alt="" src={selectedDish.imageUrl} />
-            ) : null}
+            ) : (
+              <span>{selectedDish.name.slice(0, 1)}</span>
+            )}
           </div>
           <div className={styles.reviewPanel}>
-            <h2 id="trouvable-review-title">Votre expérience compte</h2>
-            <p className={styles.reviewIntro}>
-              Partagez votre expérience chez {reviewRestaurantName}. Votre avis Google
-              aide l&apos;équipe à mieux comprendre chaque visite et à se faire découvrir.
-            </p>
+            <h2 id="trouvable-review-title">Rate this Dish</h2>
+            <div className={styles.reviewStars} aria-label="Note du plat">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  key={rating}
+                  type="button"
+                  aria-label={`${rating} étoile${rating > 1 ? "s" : ""}`}
+                  aria-pressed={reviewRating >= rating}
+                  onClick={() => setReviewRating(rating)}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <label className={styles.reviewTextarea}>
+              <span>Votre commentaire</span>
+              <textarea
+                maxLength={300}
+                placeholder="How was the taste?"
+                value={reviewText}
+                onChange={(event) => setReviewText(event.target.value)}
+              />
+            </label>
             {googleReviewCta ? (
               <a
                 className={styles.reviewPostButton}
@@ -913,11 +936,11 @@ export function TrouvablePremiumMenuExperience({
                   setLocalMessage("Google Review ouvert dans un nouvel onglet.");
                 }}
               >
-                Laisser un avis Google
+                POST REVIEW
               </a>
             ) : (
               <button className={styles.reviewPostButton} type="button" disabled>
-                Laisser un avis Google
+                POST REVIEW
               </button>
             )}
             {!googleReviewCta ? (

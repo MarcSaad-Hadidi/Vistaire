@@ -83,6 +83,8 @@ export function TrouvableDishDetailExperience({
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
@@ -97,7 +99,6 @@ export function TrouvableDishDetailExperience({
   const hasModel = hasPublic3d(activeDish);
   const tags = detailTags(activeDish);
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
-  const reviewRestaurantName = menu.name.trim() || "Trouvable";
 
   useEffect(() => {
     if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
@@ -129,6 +130,8 @@ export function TrouvableDishDetailExperience({
       setActiveDish(nextDish);
       setShowModelViewer(false);
       setShowReviewSheet(false);
+      setReviewRating(0);
+      setReviewText("");
       window.history.replaceState(
         null,
         "",
@@ -254,7 +257,11 @@ export function TrouvableDishDetailExperience({
             type="button"
             className={styles.reviewTrigger}
             aria-haspopup="dialog"
-            onClick={() => setShowReviewSheet(true)}
+            onClick={() => {
+              setReviewRating(0);
+              setReviewText("");
+              setShowReviewSheet(true);
+            }}
           >
             <span aria-hidden="true">★</span>
             TAP TO REVIEW
@@ -285,14 +292,34 @@ export function TrouvableDishDetailExperience({
               {activeDish.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img alt="" src={activeDish.imageUrl} />
-              ) : null}
+              ) : (
+                <span>{activeDish.name.slice(0, 1)}</span>
+              )}
             </div>
             <div className={styles.reviewPanel}>
-              <h2 id="trouvable-route-review-title">Votre expérience compte</h2>
-              <p className={styles.reviewIntro}>
-                Partagez votre expérience chez {reviewRestaurantName}. Votre avis Google
-                aide l&apos;équipe à mieux comprendre chaque visite et à se faire découvrir.
-              </p>
+              <h2 id="trouvable-route-review-title">Rate this Dish</h2>
+              <div className={styles.reviewStars} aria-label="Note du plat">
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    aria-label={`${rating} étoile${rating > 1 ? "s" : ""}`}
+                    aria-pressed={reviewRating >= rating}
+                    onClick={() => setReviewRating(rating)}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <label className={styles.reviewTextarea}>
+                <span>Votre commentaire</span>
+                <textarea
+                  maxLength={300}
+                  placeholder="How was the taste?"
+                  value={reviewText}
+                  onChange={(event) => setReviewText(event.target.value)}
+                />
+              </label>
               {googleReviewCta ? (
                 <a
                   className={styles.reviewPostButton}
@@ -301,11 +328,11 @@ export function TrouvableDishDetailExperience({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Laisser un avis Google
+                  POST REVIEW
                 </a>
               ) : (
                 <button className={styles.reviewPostButton} type="button" disabled>
-                  Laisser un avis Google
+                  POST REVIEW
                 </button>
               )}
               {!googleReviewCta ? (

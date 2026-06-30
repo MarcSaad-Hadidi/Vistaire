@@ -2230,7 +2230,7 @@
 .reviewOverlay {
   align-items: stretch;
   overflow: auto;
-  background: rgba(0, 0, 0, 0.92);
+  background: #000;
   padding: 0;
 }
 
@@ -2245,7 +2245,7 @@
   overflow: hidden;
   background: #000;
   color: #fff;
-  padding: 24px 22px 42px;
+  padding: 24px 22px 34px;
 }
 
 .reviewClose {
@@ -2269,67 +2269,129 @@
 
 .reviewDishGhost {
   position: absolute;
-  inset: 0 0 44%;
+  inset: 8% 0 38%;
   display: grid;
   place-items: center;
-  opacity: 0.42;
+  opacity: 0.28;
   pointer-events: none;
-  filter: blur(10px);
+  filter: blur(9px);
 }
 
 .reviewDishGhost img {
-  width: min(82vw, 520px);
-  max-height: 52svh;
+  width: min(92vw, 560px);
+  max-height: 48svh;
   object-fit: contain;
+}
+
+.reviewDishGhost span {
+  display: grid;
+  width: min(62vw, 330px);
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(222, 194, 75, 0.34),
+    rgba(128, 92, 43, 0.18) 44%,
+    transparent 72%
+  );
+  color: rgba(222, 194, 75, 0.5);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: min(34vw, 160px);
+  filter: blur(8px);
 }
 
 .reviewPanel {
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 14px;
-  border: 1px solid rgba(222, 194, 75, 0.34);
-  border-radius: 24px;
-  background: #050505;
-  padding: 24px;
-  text-align: left;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  gap: 30px;
+  border-top: 2px solid rgba(222, 194, 75, 0.74);
+  border-radius: 34px 34px 0 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.94), #000 28%);
+  padding: 58px 44px 0;
+  text-align: center;
 }
 
 .reviewPanel h2 {
   margin: 0;
   color: #fff;
-  font-family: inherit;
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1.12;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(42px, 11vw, 60px);
+  font-weight: 500;
+  line-height: 1;
 }
 
-.reviewIntro {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
+.reviewStars {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.reviewStars button {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  font-size: 48px;
+  line-height: 1;
+  padding: 0;
+}
+
+.reviewStars button[aria-pressed="true"] {
+  color: #e4c842;
+  filter: drop-shadow(0 0 12px rgba(228, 200, 66, 0.28));
+}
+
+.reviewTextarea {
+  display: grid;
+  text-align: left;
+}
+
+.reviewTextarea span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.reviewTextarea textarea {
+  min-height: 152px;
+  resize: vertical;
+  border: 0;
+  border-radius: 24px;
+  background: #121212;
+  color: #fff;
+  font: inherit;
+  font-size: 22px;
+  padding: 30px;
+}
+
+.reviewTextarea textarea::placeholder {
+  color: rgba(255, 255, 255, 0.54);
 }
 
 .reviewPostButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: start;
-  min-height: 42px;
+  justify-self: stretch;
+  min-height: 74px;
+  width: 100%;
   border: 0;
   border-radius: 999px;
-  background: #e1c743;
+  background: linear-gradient(145deg, #f0d94f, #caa52c);
   color: #050505;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 900;
-  letter-spacing: 0;
-  padding: 10px 16px;
+  letter-spacing: 0.18em;
+  padding: 0 24px;
   text-decoration: none;
+  box-shadow: 0 22px 50px rgba(202, 165, 44, 0.18);
 }
 
 .reviewPostButton:disabled {
@@ -2363,14 +2425,28 @@
   }
 
   .reviewPanel {
+    gap: 24px;
+    border-radius: 30px 30px 0 0;
+    padding: 48px 22px 0;
+  }
+
+  .reviewStars {
     gap: 12px;
+  }
+
+  .reviewStars button {
+    font-size: 38px;
+  }
+
+  .reviewTextarea textarea {
+    min-height: 132px;
     border-radius: 20px;
-    padding: 18px;
+    font-size: 18px;
+    padding: 24px;
   }
 
   .reviewPostButton {
-    width: 100%;
-    min-height: 42px;
-    font-size: 13px;
+    min-height: 64px;
+    font-size: 17px;
   }
 }
