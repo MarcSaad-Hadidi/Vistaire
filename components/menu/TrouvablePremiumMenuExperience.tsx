@@ -20,6 +20,27 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { GoogleReviewCard } from "./GoogleReviewCard";
+import {
+  TROUVABLE_CURRENCY_OPTIONS,
+  TROUVABLE_CURRENCY_STORAGE_KEY,
+  TROUVABLE_LOCALE_STORAGE_KEY,
+  TROUVABLE_THEME_STORAGE_KEY,
+  formatTrouvableAmount,
+  formatTrouvablePriceLabel,
+  getTrouvableCopy,
+  getTrouvableCurrencyOption,
+  getTrouvableGreeting,
+  getTrouvableGreetingPeriod,
+  normalizeTrouvableCurrency,
+  normalizeTrouvableLocale,
+  normalizeTrouvableTheme,
+  parseTrouvablePriceLabel,
+  translateTrouvableCategoryLabel,
+  type TrouvableCurrency,
+  type TrouvableGreetingPeriod,
+  type TrouvableLocale,
+  type TrouvableTheme
+} from "./trouvableMenuControls";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
 type TrouvablePremiumMenuExperienceProps = {
@@ -38,7 +59,15 @@ type QuickFilterId =
   | "recommended";
 type ViewMode = "list" | "grid";
 type WaiterTopic = "allergen" | "recommendation" | "selection";
-type ActiveSheet = "dish" | "selection" | "waiter" | "review" | null;
+type ActiveSheet =
+  | "currency"
+  | "language"
+  | "experienceReview"
+  | "dish"
+  | "selection"
+  | "waiter"
+  | "review"
+  | null;
 type CategoryIconKind = "pizza" | "leaf" | "cake" | "burger" | "fish" | "spark";
 type SwipeStart = {
   x: number;
@@ -100,11 +129,14 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-function formatBadgeLabel(value: string): string {
+function formatBadgeLabel(value: string, locale: TrouvableLocale): string {
+  const copy = getTrouvableCopy(locale);
   const label = value.trim();
   const normalized = normalizeText(label);
-  if (normalized === "recommande" || normalized === "recommended") return "Recommandé";
-  if (normalized === "popular") return "Populaire";
+  if (normalized === "recommande" || normalized === "recommended") {
+    return copy.recommendation;
+  }
+  if (normalized === "popular" || normalized === "populaire") return copy.popular;
   return label;
 }
 
@@ -137,8 +169,9 @@ function categoryIconKind(label: string): CategoryIconKind {
   return "spark";
 }
 
-function displayCategoryLabel(label: string): string {
-  return label.length > 12 ? `${label.slice(0, 10).trim()}...` : label;
+function displayCategoryLabel(label: string, locale: TrouvableLocale): string {
+  const translated = translateTrouvableCategoryLabel(label, locale);
+  return translated.length > 12 ? `${translated.slice(0, 10).trim()}...` : translated;
 }
 
 function CategoryIcon({ kind }: { kind: CategoryIconKind }) {
@@ -226,21 +259,25 @@ function isSpicyDish(dish: PublicMenuDish): boolean {
   return dishHasAnyTerm(dish, SPICY_TERMS);
 }
 
-function dishMetaLine(dish: PublicMenuDish): string {
+function dishMetaLine(dish: PublicMenuDish, locale: TrouvableLocale): string {
+  const copy = getTrouvableCopy(locale);
   const calorieTag = dish.tags.find((tag) =>
     /\b\d{2,4}\s*(cal|calorie|calories|kcal)\b/i.test(tag)
   );
   if (calorieTag) return calorieTag;
   if (dish.ingredients.length > 0) {
-    return `${dish.ingredients.length} ingrédients`;
+    return copy.ingredientsCount(dish.ingredients.length);
   }
-  return dish.available ? dish.category : "Indisponible";
+  return dish.available
+    ? translateTrouvableCategoryLabel(dish.category, locale)
+    : copy.soldOut;
 }
 
-function dishBadges(dish: PublicMenuDish): string[] {
+function dishBadges(dish: PublicMenuDish, locale: TrouvableLocale): string[] {
+  const copy = getTrouvableCopy(locale);
   const badges = new Set<string>();
   for (const tag of dish.tags) {
-    if (tag.trim()) badges.add(formatBadgeLabel(tag));
+    if (tag.trim()) badges.add(formatBadgeLabel(tag, locale));
   }
   if (
     normalizeText(`${dish.name} ${dish.description} ${dish.houseNote}`).includes(
@@ -249,7 +286,7 @@ function dishBadges(dish: PublicMenuDish): string[] {
   ) {
     badges.add("Maison");
   }
-  if (!dish.available) badges.add("Indisponible");
+  if (!dish.available) badges.add(copy.soldOut);
   if (dish.has3d) badges.add("4D");
   if (dish.hasAr) badges.add("AR");
   return Array.from(badges).slice(0, 5);
@@ -262,22 +299,6 @@ function isRecommendedDish(dish: PublicMenuDish): boolean {
   );
 }
 
-function parseDishPrice(dish: PublicMenuDish): number | null {
-  const normalized = dish.priceLabel
-    .replace(/\s/g, "")
-    .replace(/[^\d,.-]/g, "")
-    .replace(",", ".");
-  const value = Number(normalized);
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("fr-CA", {
-    style: "currency",
-    currency: "CAD"
-  }).format(value);
-}
-
 function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
   if (!container) return [];
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
@@ -286,22 +307,6 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
       element.getAttribute("aria-hidden") !== "true" &&
       element.getClientRects().length > 0
   );
-}
-
-function buildMenuHref(
-  menu: PublicMenu,
-  query: PublicMenuContextQuery | undefined,
-  lang: "fr" | "en"
-): string {
-  const params = new URLSearchParams();
-  params.set("lang", lang);
-  const table = query?.table?.toString().trim();
-  const zone = query?.zone?.toString().trim();
-  const view = query?.view?.toString().trim();
-  if (table) params.set("table", table.slice(0, 24));
-  if (zone) params.set("zone", zone.slice(0, 24));
-  if (view) params.set("view", view.slice(0, 24));
-  return `/menu/${encodeURIComponent(menu.slug)}?${params.toString()}`;
 }
 
 function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolean {
@@ -335,6 +340,94 @@ function DishVisual({ dish, menu }: { dish: PublicMenuDish; menu: PublicMenu }) 
   );
 }
 
+function HeroBotanicalOrnament() {
+  return (
+    <svg
+      className={styles.heroBotanical}
+      viewBox="0 0 390 190"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g className={styles.botanicalVineLeft}>
+        <path
+          className={styles.botanicalStem}
+          pathLength={1}
+          d="M-18 137 C 34 80 78 139 128 112 C 156 97 179 104 205 121"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay1}`}
+          pathLength={1}
+          d="M35 102 C 10 82 -7 82 -24 94 C -3 108 14 114 35 102 Z M16 99 L-14 95"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay2}`}
+          pathLength={1}
+          d="M70 118 C 42 106 26 115 15 137 C 43 140 61 136 70 118 Z M48 125 L22 136"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay3}`}
+          pathLength={1}
+          d="M102 109 C 82 84 63 80 44 91 C 60 111 79 121 102 109 Z M76 101 L50 93"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay4}`}
+          pathLength={1}
+          d="M135 109 C 112 127 105 145 116 166 C 139 151 148 132 135 109 Z M126 135 L117 160"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay5}`}
+          pathLength={1}
+          d="M166 111 C 147 89 130 87 114 98 C 131 116 148 123 166 111 Z M142 104 L120 99"
+        />
+      </g>
+      <g className={styles.botanicalVineRight}>
+        <path
+          className={styles.botanicalStem}
+          pathLength={1}
+          d="M214 51 C 246 23 282 56 311 35 C 344 11 375 25 412 -4"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay2}`}
+          pathLength={1}
+          d="M248 41 C 230 21 211 18 195 29 C 210 48 228 55 248 41 Z M225 36 L200 30"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay3}`}
+          pathLength={1}
+          d="M281 48 C 264 69 263 88 278 104 C 298 84 301 65 281 48 Z M282 75 L279 99"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay4}`}
+          pathLength={1}
+          d="M315 35 C 293 18 273 19 257 35 C 279 49 298 51 315 35 Z M289 35 L263 35"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay5}`}
+          pathLength={1}
+          d="M354 24 C 337 0 317 -5 297 7 C 314 31 334 39 354 24 Z M329 16 L303 8"
+        />
+        <path
+          className={`${styles.botanicalLeaf} ${styles.leafDelay6}`}
+          pathLength={1}
+          d="M383 12 C 366 34 366 55 383 70 C 402 48 402 28 383 12 Z M384 40 L383 65"
+        />
+      </g>
+    </svg>
+  );
+}
+
+function VistaireWord() {
+  return (
+    <strong className={styles.vistaireWord} aria-label="Vistaire">
+      <span aria-hidden="true">Vista</span>
+      <span className={styles.vistaireLeafI} aria-hidden="true">
+        ı
+      </span>
+      <span aria-hidden="true">re</span>
+    </strong>
+  );
+}
+
 export function TrouvablePremiumMenuExperience({
   menu,
   config,
@@ -346,6 +439,7 @@ export function TrouvablePremiumMenuExperience({
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
+  const [dishDetailsExpanded, setDishDetailsExpanded] = useState(false);
   const [selection, setSelection] = useState<Map<string, SelectionItem>>(
     () => new Map()
   );
@@ -356,6 +450,15 @@ export function TrouvablePremiumMenuExperience({
   const [waiterMessage, setWaiterMessage] = useState("");
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
+  const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
+    normalizeTrouvableLocale(query?.lang)
+  );
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<TrouvableCurrency>("CAD");
+  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>("dark");
+  const [greetingPeriod, setGreetingPeriod] =
+    useState<TrouvableGreetingPeriod>("afternoon");
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const sheetRef = useRef<HTMLElement | null>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -363,6 +466,15 @@ export function TrouvablePremiumMenuExperience({
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
   const categorySwipeRef = useRef<SwipeStart>(null);
   const dishSwipeRef = useRef<SwipeStart>(null);
+  const copy = getTrouvableCopy(selectedLocale);
+  const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
+  const localizedQuery = useMemo<PublicMenuContextQuery>(
+    () => ({
+      ...(query ?? {}),
+      lang: selectedLocale
+    }),
+    [query, selectedLocale]
+  );
 
   const categories = useMemo(
     () => getVisiblePublicMenuCategories(menu.dishes),
@@ -384,18 +496,18 @@ export function TrouvablePremiumMenuExperience({
   const quickFilters = useMemo(
     () =>
       [
-        { id: "all" as const, label: "Tout", visible: true },
-        { id: "veg" as const, label: "Veg", visible: hasVegData },
-        { id: "nonVeg" as const, label: "Non", visible: hasNonVegData },
-        { id: "available" as const, label: "Dispo", visible: true },
+        { id: "all" as const, label: copy.all, visible: true },
+        { id: "veg" as const, label: copy.veg, visible: hasVegData },
+        { id: "nonVeg" as const, label: copy.nonVeg, visible: hasNonVegData },
+        { id: "available" as const, label: copy.available, visible: true },
         { id: "immersive" as const, label: "3D / AR", visible: hasImmersiveData },
         {
           id: "recommended" as const,
-          label: "Signature",
+          label: copy.signature,
           visible: hasRecommendedData
         }
       ].filter((filter) => filter.visible),
-    [hasImmersiveData, hasNonVegData, hasRecommendedData, hasVegData]
+    [copy, hasImmersiveData, hasNonVegData, hasRecommendedData, hasVegData]
   );
 
   const filteredDishes = useMemo(() => {
@@ -421,13 +533,13 @@ export function TrouvablePremiumMenuExperience({
         : [
             {
               id: ALL_CATEGORY_ID,
-              label: "Tout",
-              description: "Toute la carte",
+              label: copy.all,
+              description: copy.activeCategoryAll,
               tone: "yellow" as const,
               count: filteredDishes.length
             }
           ],
-    [categories, filteredDishes.length]
+    [categories, copy, filteredDishes.length]
   );
   const defaultCategory = categories[0]?.label ?? ALL_CATEGORY_ID;
   const activeCategoryIsAvailable =
@@ -440,7 +552,9 @@ export function TrouvablePremiumMenuExperience({
         ? activeCategory
         : defaultCategory;
   const activeCategoryTitle =
-    resolvedActiveCategory === ALL_CATEGORY_ID ? "La carte" : resolvedActiveCategory;
+    resolvedActiveCategory === ALL_CATEGORY_ID
+      ? copy.activeCategoryAll
+      : translateTrouvableCategoryLabel(resolvedActiveCategory, selectedLocale);
   const visibleDishes =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? filteredDishes
@@ -451,16 +565,17 @@ export function TrouvablePremiumMenuExperience({
     0
   );
   const selectionTotal = selectionItems.reduce((total, item) => {
-    const price = parseDishPrice(item.dish);
+    const price = parseTrouvablePriceLabel(item.dish.priceLabel);
     return price === null ? total : total + price * item.quantity;
   }, 0);
   const hasPricedSelection =
     selectionItems.length > 0 &&
-    selectionItems.every((item) => parseDishPrice(item.dish) !== null);
+    selectionItems.every(
+      (item) => parseTrouvablePriceLabel(item.dish.priceLabel) !== null
+    );
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
-  const currentLang = query?.lang === "en" ? "en" : "fr";
-  const nextLang = currentLang === "en" ? "fr" : "en";
-  const viewLabel = viewMode === "grid" ? "grille" : "liste";
+  const greeting = getTrouvableGreeting(selectedLocale, greetingPeriod);
+  const viewLabel = viewMode === "grid" ? copy.viewGrid : copy.viewList;
 
   const restoreFocus = useCallback(() => {
     window.setTimeout(() => {
@@ -487,8 +602,51 @@ export function TrouvablePremiumMenuExperience({
   const closeActiveSheet = useCallback(() => {
     setActiveSheet(null);
     setSelectedDish(null);
+    setDishDetailsExpanded(false);
     restoreFocus();
   }, [restoreFocus]);
+
+  useEffect(() => {
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const queryLocale = query?.lang?.toString().trim()
+        ? normalizeTrouvableLocale(query.lang)
+        : null;
+      const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
+      const storedCurrency = window.localStorage.getItem(
+        TROUVABLE_CURRENCY_STORAGE_KEY
+      );
+      const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
+
+      setSelectedLocale(
+        queryLocale ?? (storedLocale ? normalizeTrouvableLocale(storedLocale) : "fr")
+      );
+      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency));
+      setSelectedTheme(normalizeTrouvableTheme(storedTheme));
+      if (queryLocale) {
+        window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, queryLocale);
+      }
+      setPreferencesLoaded(true);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [query?.lang]);
+
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, selectedLocale);
+    window.localStorage.setItem(TROUVABLE_CURRENCY_STORAGE_KEY, selectedCurrency);
+    window.localStorage.setItem(TROUVABLE_THEME_STORAGE_KEY, selectedTheme);
+  }, [preferencesLoaded, selectedCurrency, selectedLocale, selectedTheme]);
+
+  useEffect(() => {
+    function syncGreeting() {
+      setGreetingPeriod(getTrouvableGreetingPeriod(new Date()));
+    }
+
+    syncGreeting();
+    const intervalId = window.setInterval(syncGreeting, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (!activeSheet) return;
@@ -543,7 +701,7 @@ export function TrouvablePremiumMenuExperience({
       });
       return next;
     });
-    setLocalMessage(`${dish.name} ajouté à votre sélection.`);
+    setLocalMessage(`${dish.name} · ${copy.selection}`);
   }
 
   function updateQuantity(dishId: string, delta: number) {
@@ -575,9 +733,48 @@ export function TrouvablePremiumMenuExperience({
     openSheet("review");
   }
 
+  function openRestaurantReviewSheet() {
+    setSelectedDish(null);
+    setReviewRating(0);
+    setReviewText("");
+    setLocalMessage("");
+    openSheet("experienceReview");
+  }
+
+  function updateBrowserLocale(nextLocale: TrouvableLocale) {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set("lang", nextLocale);
+    window.history.replaceState(
+      null,
+      "",
+      `${currentUrl.pathname}?${currentUrl.searchParams.toString()}${currentUrl.hash}`
+    );
+  }
+
+  function selectCurrency(nextCurrency: TrouvableCurrency) {
+    setSelectedCurrency(nextCurrency);
+    setLocalMessage("");
+    closeActiveSheet();
+  }
+
+  function selectLocale(nextLocale: TrouvableLocale) {
+    setSelectedLocale(nextLocale);
+    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, nextLocale);
+    updateBrowserLocale(nextLocale);
+    setLocalMessage("");
+    closeActiveSheet();
+  }
+
+  function toggleTheme() {
+    setSelectedTheme((current) => (current === "dark" ? "light" : "dark"));
+    setLocalMessage("");
+  }
+
   function prepareWaiterRequest() {
-    const tableCopy = tableNumber.trim() ? `Table ${tableNumber.trim()}` : "Table à confirmer";
-    const message = `${tableCopy} - demande prête localement.`;
+    const tableCopy = tableNumber.trim()
+      ? `Table ${tableNumber.trim()}`
+      : copy.tableToConfirm;
+    const message = copy.waiterReady(tableCopy);
     setWaiterMessage(message);
     setLocalMessage(message);
   }
@@ -619,6 +816,7 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function openDishDetail(dish: PublicMenuDish) {
+    setDishDetailsExpanded(false);
     setSelectedDish(dish);
     openSheet("dish");
   }
@@ -628,6 +826,7 @@ export function TrouvablePremiumMenuExperience({
     const currentIndex = visibleDishes.findIndex((dish) => dish.id === selectedDish.id);
     const safeIndex = currentIndex >= 0 ? currentIndex : 0;
     const nextIndex = (safeIndex + direction + visibleDishes.length) % visibleDishes.length;
+    setDishDetailsExpanded(false);
     setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
   }
 
@@ -651,10 +850,13 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderDishCard(dish: PublicMenuDish, index: number) {
-    const href = buildPublicDishPath(menu.slug, dish.slug, query);
-    const badges = dishBadges(dish);
+    const href = buildPublicDishPath(menu.slug, dish.slug, localizedQuery);
+    const badges = dishBadges(dish, selectedLocale);
     const isFeatured = index === 0;
     const isSpicy = isSpicyDish(dish);
+    const priceLabel = dish.priceLabel
+      ? formatTrouvablePriceLabel(dish.priceLabel, selectedCurrency, selectedLocale)
+      : "";
 
     return (
       <li key={dish.id} className={styles.dishItem}>
@@ -672,12 +874,12 @@ export function TrouvablePremiumMenuExperience({
               <span className={styles.dishTopline}>
                 <strong>{dish.name}</strong>
                 {isSpicy ? (
-                  <span className={styles.spicyMark} aria-label="Plat épicé" />
+                  <span className={styles.spicyMark} aria-label={copy.spicy} />
                 ) : null}
               </span>
-              <small>{dishMetaLine(dish)}</small>
-              {dish.priceLabel ? (
-                <span className={styles.dishPrice}>{dish.priceLabel}</span>
+              <small>{dishMetaLine(dish, selectedLocale)}</small>
+              {priceLabel ? (
+                <span className={styles.dishPrice}>{priceLabel}</span>
               ) : null}
               <span className={styles.badges}>
                 {badges.map((badge) => (
@@ -688,14 +890,14 @@ export function TrouvablePremiumMenuExperience({
           </button>
           <div className={styles.cardActions}>
             <Link href={href} prefetch={false}>
-              Détails
+              {copy.details}
             </Link>
             <button
               type="button"
               disabled={!dish.available}
               onClick={() => addDish(dish)}
             >
-              {dish.available ? "Ajouter" : "Indispo"}
+              {dish.available ? copy.add : copy.soldOut}
             </button>
           </div>
         </article>
@@ -719,13 +921,13 @@ export function TrouvablePremiumMenuExperience({
         <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
           <header className={styles.sheetHeader}>
             <div>
-              <p>Sélection locale</p>
-              <h2 id="trouvable-selection-title">Votre sélection</h2>
+              <p>{copy.selectionKicker}</p>
+              <h2 id="trouvable-selection-title">{copy.selectionTitle}</h2>
             </div>
             <button
               type="button"
               className={styles.iconButton}
-              aria-label="Fermer la sélection"
+              aria-label={copy.closeSelection}
               onClick={closeActiveSheet}
             >
               x
@@ -734,8 +936,8 @@ export function TrouvablePremiumMenuExperience({
 
           {selectionItems.length === 0 ? (
             <div className={styles.emptyState} role="status">
-              <p>Votre sélection est vide.</p>
-              <span>Ajoutez un plat pour préparer une demande au serveur.</span>
+              <p>{copy.emptySelectionTitle}</p>
+              <span>{copy.emptySelectionBody}</span>
             </div>
           ) : (
             <>
@@ -744,25 +946,33 @@ export function TrouvablePremiumMenuExperience({
                   <li key={item.dish.id}>
                     <div>
                       <strong>{item.dish.name}</strong>
-                      <span>{item.dish.priceLabel || "Prix à confirmer"}</span>
+                      <span>
+                        {item.dish.priceLabel
+                          ? formatTrouvablePriceLabel(
+                              item.dish.priceLabel,
+                              selectedCurrency,
+                              selectedLocale
+                            )
+                          : copy.priceToConfirm}
+                      </span>
                     </div>
                     <div className={styles.quantityControls}>
                       <button
                         type="button"
-                        aria-label={`Diminuer la quantité de ${item.dish.name}`}
+                        aria-label={copy.quantityDecrease(item.dish.name)}
                         onClick={() => updateQuantity(item.dish.id, -1)}
                       >
                         -
                       </button>
                       <output
-                        aria-label={`Quantité de ${item.dish.name}`}
+                        aria-label={copy.quantityLabel(item.dish.name)}
                         aria-live="polite"
                       >
                         {item.quantity}
                       </output>
                       <button
                         type="button"
-                        aria-label={`Augmenter la quantité de ${item.dish.name}`}
+                        aria-label={copy.quantityIncrease(item.dish.name)}
                         onClick={() => updateQuantity(item.dish.id, 1)}
                       >
                         +
@@ -772,9 +982,15 @@ export function TrouvablePremiumMenuExperience({
                 ))}
               </ul>
               <div className={styles.totalRow}>
-                <span>Total estimé</span>
+                <span>{copy.estimatedTotal}</span>
                 <strong>
-                  {hasPricedSelection ? formatCurrency(selectionTotal) : "À confirmer"}
+                  {hasPricedSelection
+                    ? formatTrouvableAmount(
+                        selectionTotal,
+                        selectedCurrency,
+                        selectedLocale
+                      )
+                    : copy.toConfirm}
                 </strong>
               </div>
               <button
@@ -782,7 +998,7 @@ export function TrouvablePremiumMenuExperience({
                 className={styles.primaryAction}
                 onClick={() => openWaiter("selection")}
               >
-                Demander au serveur
+                {copy.askWaiter}
               </button>
             </>
           )}
@@ -807,13 +1023,13 @@ export function TrouvablePremiumMenuExperience({
         <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
           <header className={styles.sheetHeader}>
             <div>
-              <p>Service à table</p>
-              <h2 id="trouvable-waiter-title">Demander au serveur</h2>
+              <p>{copy.waiterKicker}</p>
+              <h2 id="trouvable-waiter-title">{copy.waiterTitle}</h2>
             </div>
             <button
               type="button"
               className={styles.iconButton}
-              aria-label="Fermer la demande serveur"
+              aria-label={copy.closeWaiter}
               onClick={closeActiveSheet}
             >
               x
@@ -832,11 +1048,11 @@ export function TrouvablePremiumMenuExperience({
             />
           </label>
           <fieldset className={styles.topicGroup}>
-            <legend>Objet de la demande</legend>
+            <legend>{copy.waiterTopic}</legend>
             {[
-              ["allergen", "Question allergène"],
-              ["recommendation", "Demander une recommandation"],
-              ["selection", "Demander ma sélection"]
+              ["allergen", copy.waiterTopics.allergen],
+              ["recommendation", copy.waiterTopics.recommendation],
+              ["selection", copy.waiterTopics.selection]
             ].map(([id, label]) => (
               <label key={id}>
                 <input
@@ -855,7 +1071,7 @@ export function TrouvablePremiumMenuExperience({
             className={styles.primaryAction}
             onClick={prepareWaiterRequest}
           >
-            Préparer la demande
+            {copy.prepareRequest}
           </button>
           {waiterMessage ? (
             <p className={styles.sheetStatus} role="status" aria-atomic="true">
@@ -863,16 +1079,130 @@ export function TrouvablePremiumMenuExperience({
             </p>
           ) : null}
           <p className={styles.localHint}>
-            Aucune commande n&apos;est envoyée automatiquement. Montrez cette demande à
-            l&apos;équipe.
+            {copy.localOrderHint}
           </p>
         </section>
       </div>
     );
   }
 
+  function renderCurrencySheet() {
+    if (activeSheet !== "currency") return null;
+
+    return (
+      <div
+        className={styles.overlay}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trouvable-currency-title"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeActiveSheet();
+        }}
+      >
+        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
+          <header className={styles.sheetHeader}>
+            <div>
+              <p>{copy.currencyKicker}</p>
+              <h2 id="trouvable-currency-title">{copy.currencyTitle}</h2>
+            </div>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={copy.close}
+              onClick={closeActiveSheet}
+            >
+              x
+            </button>
+          </header>
+          <div className={styles.choiceList}>
+            {TROUVABLE_CURRENCY_OPTIONS.map((option) => (
+              <button
+                key={option.code}
+                type="button"
+                className={styles.choiceButton}
+                aria-pressed={selectedCurrency === option.code}
+                onClick={() => selectCurrency(option.code)}
+              >
+                <span>{option.code}</span>
+                <small>
+                  {option.symbol} · {option.label[selectedLocale]}
+                </small>
+              </button>
+            ))}
+          </div>
+          <p className={styles.localHint}>{copy.currencyCopy}</p>
+        </section>
+      </div>
+    );
+  }
+
+  function renderLanguageSheet() {
+    if (activeSheet !== "language") return null;
+
+    const languageOptions: Array<{ locale: TrouvableLocale; label: string }> = [
+      { locale: "fr", label: "Français" },
+      { locale: "en", label: "English" }
+    ];
+
+    return (
+      <div
+        className={styles.overlay}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trouvable-language-title"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeActiveSheet();
+        }}
+      >
+        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
+          <header className={styles.sheetHeader}>
+            <div>
+              <p>{copy.languageKicker}</p>
+              <h2 id="trouvable-language-title">{copy.languageTitle}</h2>
+            </div>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={copy.closeLanguage}
+              onClick={closeActiveSheet}
+            >
+              x
+            </button>
+          </header>
+          <div className={styles.choiceList}>
+            {languageOptions.map((option) => (
+              <button
+                key={option.locale}
+                type="button"
+                className={styles.choiceButton}
+                aria-pressed={selectedLocale === option.locale}
+                onClick={() => selectLocale(option.locale)}
+              >
+                <span>{option.locale.toUpperCase()}</span>
+                <small>{option.label}</small>
+              </button>
+            ))}
+          </div>
+          <p className={styles.localHint}>{copy.languageCopy}</p>
+        </section>
+      </div>
+    );
+  }
+
   function renderReviewSheet() {
-    if (activeSheet !== "review" || !selectedDish) return null;
+    if (activeSheet !== "review" && activeSheet !== "experienceReview") return null;
+
+    const isExperienceReview = activeSheet === "experienceReview";
+    const reviewDish = isExperienceReview ? null : selectedDish;
+    const reviewTitle = isExperienceReview
+      ? copy.reviewExperienceTitle
+      : copy.reviewTitle;
+    const reviewPlaceholder = isExperienceReview
+      ? copy.reviewExperiencePlaceholder
+      : copy.reviewPlaceholder;
+    const reviewStarsLabel = isExperienceReview
+      ? copy.reviewExperienceStars
+      : copy.reviewStars;
 
     return (
       <div
@@ -888,27 +1218,29 @@ export function TrouvablePremiumMenuExperience({
           <button
             type="button"
             className={styles.reviewClose}
-            aria-label="Fermer l'avis"
+            aria-label={copy.reviewClose}
             onClick={closeActiveSheet}
           >
             x
           </button>
           <div className={styles.reviewDishGhost} aria-hidden="true">
-            {selectedDish.imageUrl ? (
+            {reviewDish?.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" src={selectedDish.imageUrl} />
+              <img alt="" src={reviewDish.imageUrl} />
+            ) : reviewDish ? (
+              <span>{reviewDish.name.slice(0, 1)}</span>
             ) : (
-              <span>{selectedDish.name.slice(0, 1)}</span>
+              <span>{menu.name.slice(0, 1)}</span>
             )}
           </div>
           <div className={styles.reviewPanel}>
-            <h2 id="trouvable-review-title">Rate this Dish</h2>
-            <div className={styles.reviewStars} aria-label="Note du plat">
+            <h2 id="trouvable-review-title">{reviewTitle}</h2>
+            <div className={styles.reviewStars} aria-label={reviewStarsLabel}>
               {[1, 2, 3, 4, 5].map((rating) => (
                 <button
                   key={rating}
                   type="button"
-                  aria-label={`${rating} étoile${rating > 1 ? "s" : ""}`}
+                  aria-label={`${rating} ${reviewStarsLabel}`}
                   aria-pressed={reviewRating >= rating}
                   onClick={() => setReviewRating(rating)}
                 >
@@ -917,10 +1249,10 @@ export function TrouvablePremiumMenuExperience({
               ))}
             </div>
             <label className={styles.reviewTextarea}>
-              <span>Votre commentaire</span>
+              <span>{copy.reviewComment}</span>
               <textarea
                 maxLength={300}
-                placeholder="How was the taste?"
+                placeholder={reviewPlaceholder}
                 value={reviewText}
                 onChange={(event) => setReviewText(event.target.value)}
               />
@@ -933,19 +1265,19 @@ export function TrouvablePremiumMenuExperience({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => {
-                  setLocalMessage("Google Review ouvert dans un nouvel onglet.");
+                  setLocalMessage(copy.reviewOpened);
                 }}
               >
-                POST REVIEW
+                {copy.reviewPost}
               </a>
             ) : (
               <button className={styles.reviewPostButton} type="button" disabled>
-                POST REVIEW
+                {copy.reviewPost}
               </button>
             )}
             {!googleReviewCta ? (
               <p className={styles.reviewNote}>
-                Lien Google Review non configuré pour ce restaurant.
+                {copy.reviewMissing}
               </p>
             ) : null}
           </div>
@@ -957,8 +1289,16 @@ export function TrouvablePremiumMenuExperience({
   function renderDishDetailSheet() {
     if (activeSheet !== "dish" || !selectedDish) return null;
 
-    const href = buildPublicDishPath(menu.slug, selectedDish.slug, query);
-    const badges = dishBadges(selectedDish);
+    const href = buildPublicDishPath(menu.slug, selectedDish.slug, localizedQuery);
+    const badges = dishBadges(selectedDish, selectedLocale);
+    const detailPrice = selectedDish.priceLabel
+      ? formatTrouvablePriceLabel(
+          selectedDish.priceLabel,
+          selectedCurrency,
+          selectedLocale
+        )
+      : "";
+    const moreDetailsId = `trouvable-dish-more-details-${selectedDish.slug}`;
 
     return (
       <div
@@ -980,11 +1320,11 @@ export function TrouvablePremiumMenuExperience({
             dishSwipeRef.current = null;
           }}
         >
-          <nav className={styles.detailNav} aria-label="Navigation du plat">
+          <nav className={styles.detailNav} aria-label={copy.backToMenu}>
             <button
               type="button"
               className={styles.detailBack}
-              aria-label="Retour au menu"
+              aria-label={copy.backToMenu}
               onClick={closeActiveSheet}
             >
               ←
@@ -996,7 +1336,7 @@ export function TrouvablePremiumMenuExperience({
               <button
                 type="button"
                 className={`${styles.dishArrow} ${styles.dishArrowLeft}`}
-                aria-label="Plat précédent"
+                aria-label={copy.previousDish}
                 onClick={() => selectAdjacentDish(-1)}
               >
                 ‹
@@ -1004,7 +1344,7 @@ export function TrouvablePremiumMenuExperience({
               <button
                 type="button"
                 className={`${styles.dishArrow} ${styles.dishArrowRight}`}
-                aria-label="Plat suivant"
+                aria-label={copy.nextDish}
                 onClick={() => selectAdjacentDish(1)}
               >
                 ›
@@ -1028,20 +1368,30 @@ export function TrouvablePremiumMenuExperience({
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label="Fermer le détail"
+                aria-label={copy.closeDetail}
                 onClick={closeActiveSheet}
               >
                 x
               </button>
             </header>
-            {selectedDish.priceLabel ? (
-              <strong className={styles.detailPrice}>{selectedDish.priceLabel}</strong>
+            {detailPrice ? (
+              <strong className={styles.detailPrice}>{detailPrice}</strong>
             ) : null}
-            <button type="button" className={styles.moreDetailsButton}>
+            <button
+              type="button"
+              className={styles.moreDetailsButton}
+              aria-expanded={dishDetailsExpanded}
+              aria-controls={selectedDish.description ? moreDetailsId : undefined}
+              onClick={() => setDishDetailsExpanded((isExpanded) => !isExpanded)}
+            >
               <span aria-hidden="true">i</span>
-              More details
+              {copy.moreDetails}
             </button>
-            {selectedDish.description ? <p>{selectedDish.description}</p> : null}
+            {selectedDish.description && dishDetailsExpanded ? (
+              <p id={moreDetailsId} className={styles.moreDetailsText}>
+                {selectedDish.description}
+              </p>
+            ) : null}
             {badges.length > 0 ? (
               <div className={styles.badges}>
                 {badges.map((badge) => (
@@ -1051,7 +1401,7 @@ export function TrouvablePremiumMenuExperience({
             ) : null}
             {selectedDish.ingredients.length > 0 ? (
               <section className={styles.detailList}>
-                <h3>Ingrédients</h3>
+                <h3>{copy.ingredients}</h3>
                 <ul>
                   {selectedDish.ingredients.map((item) => (
                     <li key={item}>{item}</li>
@@ -1061,7 +1411,7 @@ export function TrouvablePremiumMenuExperience({
             ) : null}
             {selectedDish.allergens.length > 0 ? (
               <section className={styles.detailList}>
-                <h3>Allergènes</h3>
+                <h3>{copy.allergens}</h3>
                 <ul>
                   {selectedDish.allergens.map((item) => (
                     <li key={item}>{item}</li>
@@ -1071,7 +1421,7 @@ export function TrouvablePremiumMenuExperience({
             ) : null}
             {selectedDish.options.length > 0 ? (
               <section className={styles.detailList}>
-                <h3>Options</h3>
+                <h3>{copy.options}</h3>
                 <ul>
                   {selectedDish.options.map((item) => (
                     <li key={item}>{item}</li>
@@ -1081,7 +1431,7 @@ export function TrouvablePremiumMenuExperience({
             ) : null}
             {selectedDish.houseNote ? (
               <section className={styles.houseNote}>
-                <h3>Note maison</h3>
+                <h3>{copy.houseNote}</h3>
                 <p>{selectedDish.houseNote}</p>
               </section>
             ) : null}
@@ -1092,19 +1442,19 @@ export function TrouvablePremiumMenuExperience({
                 disabled={!selectedDish.available}
                 onClick={() => addDish(selectedDish)}
               >
-                Ajouter à ma sélection
+                {copy.addToSelection}
               </button>
               <button type="button" onClick={() => openWaiter("recommendation")}>
-                Demander au serveur
+                {copy.askWaiter}
               </button>
               {selectedDish.has3d ? (
                 <Link href={href} prefetch={false}>
-                  VOIR EN 3D
+                  {copy.threeD}
                 </Link>
               ) : null}
               {selectedDish.hasAr ? (
                 <Link href={href} prefetch={false}>
-                  Voir devant moi
+                  {copy.viewAr}
                 </Link>
               ) : null}
             </div>
@@ -1115,7 +1465,7 @@ export function TrouvablePremiumMenuExperience({
               onClick={openReviewSheet}
             >
               <span aria-hidden="true">★</span>
-              TAP TO REVIEW
+              {copy.review}
             </button>
           </div>
         </article>
@@ -1128,22 +1478,44 @@ export function TrouvablePremiumMenuExperience({
       className={styles.page}
       data-blueprint={config.experience.blueprint}
       data-theme={config.theme}
+      data-user-theme={selectedTheme}
     >
       <header className={styles.topBar}>
         <div className={styles.brandBlock}>
-          <strong>Vistaire</strong>
-          <small>{context || "Menu à table"}</small>
+          <VistaireWord />
+          <small>{context || copy.menuContextFallback}</small>
         </div>
         <div className={styles.topActions}>
-          <button type="button" aria-label="Devise du menu, dollars canadiens">
-            $
+          <button
+            type="button"
+            className={styles.headerControl}
+            aria-haspopup="dialog"
+            aria-expanded={activeSheet === "currency"}
+            aria-label={`${copy.currencyAria}: ${selectedCurrency}`}
+            onClick={() => openSheet("currency")}
+          >
+            {currencyOption.code}
           </button>
           {query?.table ? <span className={styles.tableChip}>Table {query.table}</span> : null}
-          <Link href={buildMenuHref(menu, query, nextLang)} prefetch={false}>
-            {currentLang.toUpperCase()}
-          </Link>
-          <button type="button" aria-label="Mode sombre actif" aria-pressed="true">
-            ◐
+          <button
+            type="button"
+            className={styles.headerControl}
+            aria-haspopup="dialog"
+            aria-expanded={activeSheet === "language"}
+            aria-label={`${copy.languageAria}: ${selectedLocale.toUpperCase()}`}
+            onClick={() => openSheet("language")}
+          >
+            {selectedLocale.toUpperCase()}
+          </button>
+          <button
+            type="button"
+            aria-label={
+              selectedTheme === "dark" ? copy.themeLightAria : copy.themeDarkAria
+            }
+            aria-pressed={selectedTheme === "dark"}
+            onClick={toggleTheme}
+          >
+            {selectedTheme === "dark" ? "◐" : "☀"}
           </button>
           <button
             ref={selectionButtonRef}
@@ -1152,7 +1524,7 @@ export function TrouvablePremiumMenuExperience({
             aria-expanded={activeSheet === "selection"}
             onClick={() => openSheet("selection")}
           >
-            Sélection {selectionCount > 0 ? selectionCount : ""}
+            {copy.selection} {selectionCount > 0 ? selectionCount : ""}
           </button>
           <button
             ref={waiterButtonRef}
@@ -1161,25 +1533,26 @@ export function TrouvablePremiumMenuExperience({
             aria-expanded={activeSheet === "waiter"}
             onClick={() => openWaiter("recommendation")}
           >
-            Serveur
+            {copy.server}
           </button>
         </div>
       </header>
 
       <section className={styles.hero} aria-label={`Menu ${menu.name}`}>
-        <div>
-          <p>Good Afternoon</p>
+        <HeroBotanicalOrnament />
+        <div className={styles.heroText}>
+          <p>{greeting}</p>
           <h1>{menu.name}</h1>
-          <span>Cuisine maison, accents chaleureux et service à table.</span>
+          <span>{copy.heroBlurb}</span>
         </div>
         <button type="button" onClick={() => setActiveCategory(ALL_CATEGORY_ID)}>
-          Voir la carte
+          {copy.heroAction}
         </button>
       </section>
 
       <section
         className={styles.menuPanel}
-        aria-label="Carte Trouvable"
+        aria-label={copy.menuAria}
         onPointerDown={handleCategoryPointerDown}
         onPointerUp={handleCategoryPointerUp}
         onPointerCancel={() => {
@@ -1187,17 +1560,17 @@ export function TrouvablePremiumMenuExperience({
         }}
       >
         <div className={styles.categoryHeader}>
-          <span>CATEGORIES</span>
-          <span>Swipe List ↔</span>
+          <span>{copy.categories}</span>
+          <span className={styles.swipeHint}>{copy.swipeList}</span>
         </div>
-        <nav className={styles.categoryRail} aria-label="Categories">
+        <nav className={styles.categoryRail} aria-label={copy.categoryAria}>
           <button
             type="button"
             aria-current={resolvedActiveCategory === ALL_CATEGORY_ID}
             onClick={() => setActiveCategory(ALL_CATEGORY_ID)}
           >
             <CategoryIcon kind="spark" />
-            <span>Tout</span>
+            <span>{copy.all}</span>
             <small>{filteredDishes.length}</small>
           </button>
           {categoryOptions.map((category) => (
@@ -1208,7 +1581,7 @@ export function TrouvablePremiumMenuExperience({
               onClick={() => setActiveCategory(category.label)}
             >
               <CategoryIcon kind={categoryIconKind(category.label)} />
-              <span>{displayCategoryLabel(category.label)}</span>
+              <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
               <small>{category.count}</small>
             </button>
           ))}
@@ -1218,14 +1591,14 @@ export function TrouvablePremiumMenuExperience({
 
         <div className={styles.tools}>
           <label className={styles.searchField}>
-            <span>Recherche</span>
+            <span>{copy.searchLabel}</span>
             <input
               ref={searchInputRef}
               id="trouvable-menu-search"
               type="search"
               autoComplete="off"
               aria-controls="trouvable-dish-results"
-              placeholder="Rechercher un plat, ingrédient, tag..."
+              placeholder={copy.searchPlaceholder}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -1237,11 +1610,11 @@ export function TrouvablePremiumMenuExperience({
                   searchInputRef.current?.focus();
                 }}
               >
-                Effacer
+                {copy.clearSearch}
               </button>
             ) : null}
           </label>
-          <div className={styles.quickFilters} aria-label="Filtres rapides">
+          <div className={styles.quickFilters} aria-label={copy.filtersAria}>
             {quickFilters.map((filter) => (
               <button
                 key={filter.id}
@@ -1249,16 +1622,16 @@ export function TrouvablePremiumMenuExperience({
                 aria-pressed={quickFilter === filter.id}
                 aria-label={
                   filter.id === "all"
-                    ? "Afficher tous les plats"
+                    ? copy.filterAllAria
                     : filter.id === "veg"
-                      ? "Filtrer les plats végétariens détectés"
+                      ? copy.filterVegAria
                       : filter.id === "nonVeg"
-                        ? "Filtrer les plats non végétariens détectés"
+                        ? copy.filterNonVegAria
                         : filter.id === "available"
-                          ? "Filtrer les plats disponibles"
+                          ? copy.filterAvailableAria
                           : filter.id === "immersive"
-                            ? "Filtrer les plats avec expérience 3D ou AR"
-                            : "Filtrer les plats signatures ou recommandés"
+                            ? copy.filterImmersiveAria
+                            : copy.filterRecommendedAria
                 }
                 onClick={() => setQuickFilter(filter.id)}
               >
@@ -1266,11 +1639,11 @@ export function TrouvablePremiumMenuExperience({
               </button>
             ))}
           </div>
-          <div className={styles.viewToggle} aria-label="Mode d'affichage">
+          <div className={styles.viewToggle} aria-label={copy.viewModeAria}>
             <button
               type="button"
               aria-pressed={viewMode === "list"}
-              aria-label="Afficher en liste"
+              aria-label={copy.listAria}
               onClick={() => setViewMode("list")}
             >
               ☷
@@ -1278,25 +1651,23 @@ export function TrouvablePremiumMenuExperience({
             <button
               type="button"
               aria-pressed={viewMode === "grid"}
-              aria-label="Afficher en grille"
+              aria-label={copy.gridAria}
               onClick={() => setViewMode("grid")}
             >
               ▦
             </button>
           </div>
           <p className={styles.resultStatus} aria-live="polite">
-            Vue {viewLabel}, {visibleDishes.length} plat
-            {visibleDishes.length > 1 ? "s" : ""} affiché
-            {visibleDishes.length > 1 ? "s" : ""}
+            {copy.resultStatus(viewLabel, visibleDishes.length)}
           </p>
         </div>
 
         {visibleDishes.length === 0 ? (
           <div className={styles.emptyState} role="status">
-            <p>Aucun plat ne correspond.</p>
-            <span>Essayez une autre recherche ou retirez un filtre.</span>
+            <p>{copy.noResultsTitle}</p>
+            <span>{copy.noResultsBody}</span>
             <button type="button" onClick={clearFilters}>
-              Reinitialiser
+              {copy.reset}
             </button>
           </div>
         ) : (
@@ -1317,6 +1688,8 @@ export function TrouvablePremiumMenuExperience({
 
       <GoogleReviewCard
         googleReview={menu.googleReview}
+        locale={selectedLocale}
+        onReviewRequest={openRestaurantReviewSheet}
         restaurantId={menu.restaurantId}
         restaurantName={menu.name}
         showNote={false}
@@ -1326,6 +1699,8 @@ export function TrouvablePremiumMenuExperience({
       {renderDishDetailSheet()}
       {renderSelectionSheet()}
       {renderWaiterSheet()}
+      {renderCurrencySheet()}
+      {renderLanguageSheet()}
       {renderReviewSheet()}
     </main>
   );

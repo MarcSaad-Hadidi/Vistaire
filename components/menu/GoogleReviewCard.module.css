@@ -81,6 +81,26 @@
   outline-offset: 3px;
 }
 
+:global([data-user-theme="light"]) .googleReviewCard {
+  border-color: rgba(143, 109, 20, 0.34);
+  background: #fff9ef;
+  color: #17120b;
+  box-shadow: 0 18px 42px rgba(35, 26, 13, 0.12);
+}
+
+:global([data-user-theme="light"]) .googleReviewCopy h2 {
+  color: #17120b;
+}
+
+:global([data-user-theme="light"]) .googleReviewCopy p,
+:global([data-user-theme="light"]) .googleReviewNote {
+  color: rgba(35, 26, 13, 0.72);
+}
+
+:global([data-user-theme="light"]) .googleReviewMeta {
+  color: #8f6d14;
+}
+
 @media (max-width: 430px) {
   .googleReviewCard {
     margin-top: 18px;

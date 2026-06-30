@@ -20,6 +20,19 @@ import {
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import {
+  TROUVABLE_CURRENCY_STORAGE_KEY,
+  TROUVABLE_LOCALE_STORAGE_KEY,
+  TROUVABLE_THEME_STORAGE_KEY,
+  formatTrouvablePriceLabel,
+  getTrouvableCopy,
+  normalizeTrouvableCurrency,
+  normalizeTrouvableLocale,
+  normalizeTrouvableTheme,
+  type TrouvableCurrency,
+  type TrouvableLocale,
+  type TrouvableTheme
+} from "./trouvableMenuControls";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -83,12 +96,28 @@ export function TrouvableDishDetailExperience({
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
+  const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
+    normalizeTrouvableLocale(query?.lang)
+  );
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<TrouvableCurrency>("CAD");
+  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>("dark");
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
-  const menuHref = buildPublicMenuPath(menu.slug, query);
+  const copy = getTrouvableCopy(selectedLocale);
+  const localizedQuery = useMemo<PublicMenuContextQuery>(
+    () => ({
+      ...(query ?? {}),
+      lang: selectedLocale
+    }),
+    [query, selectedLocale]
+  );
+  const menuHref = buildPublicMenuPath(menu.slug, localizedQuery);
   const sectionDishes = useMemo(
     () => menu.dishes.filter((candidate) => candidate.category === activeDish.category),
     [activeDish.category, menu.dishes]
@@ -98,7 +127,60 @@ export function TrouvableDishDetailExperience({
   );
   const hasModel = hasPublic3d(activeDish);
   const tags = detailTags(activeDish);
+  const activePrice = activeDish.priceLabel
+    ? formatTrouvablePriceLabel(
+        activeDish.priceLabel,
+        selectedCurrency,
+        selectedLocale
+      )
+    : "";
+  const moreDetailsId = `trouvable-dish-more-details-${activeDish.slug}`;
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
+
+  useEffect(() => {
+    const animationFrameId = window.requestAnimationFrame(() => {
+      setActiveDish(dish);
+      setShowModelViewer(false);
+      setShowReviewSheet(false);
+      setShowMoreDetails(false);
+      setReviewRating(0);
+      setReviewText("");
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [dish]);
+
+  useEffect(() => {
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const queryLocale = query?.lang?.toString().trim()
+        ? normalizeTrouvableLocale(query.lang)
+        : null;
+      const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
+      const storedCurrency = window.localStorage.getItem(
+        TROUVABLE_CURRENCY_STORAGE_KEY
+      );
+      const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
+
+      setSelectedLocale(
+        queryLocale ?? (storedLocale ? normalizeTrouvableLocale(storedLocale) : "fr")
+      );
+      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency));
+      setSelectedTheme(normalizeTrouvableTheme(storedTheme));
+      if (queryLocale) {
+        window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, queryLocale);
+      }
+      setPreferencesLoaded(true);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [query?.lang]);
+
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, selectedLocale);
+    window.localStorage.setItem(TROUVABLE_CURRENCY_STORAGE_KEY, selectedCurrency);
+    window.localStorage.setItem(TROUVABLE_THEME_STORAGE_KEY, selectedTheme);
+  }, [preferencesLoaded, selectedCurrency, selectedLocale, selectedTheme]);
 
   useEffect(() => {
     if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
@@ -130,12 +212,13 @@ export function TrouvableDishDetailExperience({
       setActiveDish(nextDish);
       setShowModelViewer(false);
       setShowReviewSheet(false);
+      setShowMoreDetails(false);
       setReviewRating(0);
       setReviewText("");
       window.history.replaceState(
         null,
         "",
-        buildPublicDishPath(menu.slug, nextDish.slug, query)
+        buildPublicDishPath(menu.slug, nextDish.slug, localizedQuery)
       );
     }
   }
@@ -152,6 +235,7 @@ export function TrouvableDishDetailExperience({
   return (
     <main
       className={`${styles.page} ${styles.standaloneDetailPage}`}
+      data-user-theme={selectedTheme}
       onPointerDown={(event) => {
         if (event.pointerType !== "mouse") {
           setSwipeStart({ x: event.clientX, y: event.clientY });
@@ -160,8 +244,13 @@ export function TrouvableDishDetailExperience({
       onPointerUp={handlePointerUp}
       onPointerCancel={() => setSwipeStart(null)}
     >
-      <nav className={styles.detailNav} aria-label="Navigation fiche plat">
-        <Link className={styles.detailBack} href={menuHref} prefetch={false}>
+      <nav className={styles.detailNav} aria-label={copy.backToMenu}>
+        <Link
+          className={styles.detailBack}
+          href={menuHref}
+          prefetch={false}
+          aria-label={copy.backToMenu}
+        >
           ←
         </Link>
         <span>TROUVABLE</span>
@@ -172,7 +261,7 @@ export function TrouvableDishDetailExperience({
           <button
             type="button"
             className={`${styles.dishArrow} ${styles.dishArrowLeft}`}
-            aria-label="Plat précédent"
+            aria-label={copy.previousDish}
             onClick={() => selectAdjacentDish(-1)}
           >
             ‹
@@ -180,7 +269,7 @@ export function TrouvableDishDetailExperience({
           <button
             type="button"
             className={`${styles.dishArrow} ${styles.dishArrowRight}`}
-            aria-label="Plat suivant"
+            aria-label={copy.nextDish}
             onClick={() => selectAdjacentDish(1)}
           >
             ›
@@ -198,20 +287,30 @@ export function TrouvableDishDetailExperience({
           )}
         </div>
 
-        <section className={styles.detailBody} aria-label="Fiche plat">
+        <section className={styles.detailBody} aria-label={copy.moreDetails}>
           <p className={styles.detailRestaurantName}>{context || menu.name}</p>
           <h1 id="trouvable-dish-title">{activeDish.name}</h1>
-          {activeDish.priceLabel ? (
-            <strong className={styles.detailPrice}>{activeDish.priceLabel}</strong>
+          {activePrice ? (
+            <strong className={styles.detailPrice}>{activePrice}</strong>
           ) : null}
-          <button type="button" className={styles.moreDetailsButton}>
+          <button
+            type="button"
+            className={styles.moreDetailsButton}
+            aria-expanded={showMoreDetails}
+            aria-controls={activeDish.description ? moreDetailsId : undefined}
+            onClick={() => setShowMoreDetails((isExpanded) => !isExpanded)}
+          >
             <span aria-hidden="true">i</span>
-            More details
+            {copy.moreDetails}
           </button>
-          {activeDish.description ? <p>{activeDish.description}</p> : null}
+          {activeDish.description && showMoreDetails ? (
+            <p id={moreDetailsId} className={styles.moreDetailsText}>
+              {activeDish.description}
+            </p>
+          ) : null}
 
           {tags.length > 0 ? (
-            <ul className={styles.detailTagCloud} aria-label="Ingrédients">
+            <ul className={styles.detailTagCloud} aria-label={copy.ingredients}>
               {tags.map((tag) => (
                 <li key={tag}>{tag}</li>
               ))}
@@ -226,10 +325,10 @@ export function TrouvableDishDetailExperience({
               aria-expanded={showModelViewer}
               onClick={() => setShowModelViewer((isVisible) => !isVisible)}
             >
-              VOIR EN 3D
+              {copy.threeD}
             </button>
           ) : (
-            <p className={styles.modelUnavailable}>Vue 3D non disponible pour ce plat.</p>
+            <p className={styles.modelUnavailable}>{copy.immersiveUnavailable}</p>
           )}
 
           {showModelViewer ? (
@@ -243,11 +342,11 @@ export function TrouvableDishDetailExperience({
                 />
               ) : modelViewerLoadFailed ? (
                 <div className={styles.modelLoading} role="status">
-                  Vue 3D temporairement indisponible.
+                  {copy.modelUnavailable}
                 </div>
               ) : (
                 <div className={styles.modelLoading} role="status">
-                  Préparation de la vue immersive...
+                  {copy.modelPreparing}
                 </div>
               )}
             </div>
@@ -264,7 +363,7 @@ export function TrouvableDishDetailExperience({
             }}
           >
             <span aria-hidden="true">★</span>
-            TAP TO REVIEW
+            {copy.review}
           </button>
         </section>
       </article>
@@ -283,7 +382,7 @@ export function TrouvableDishDetailExperience({
             <button
               type="button"
               className={styles.reviewClose}
-              aria-label="Fermer l'avis"
+              aria-label={copy.reviewClose}
               onClick={() => setShowReviewSheet(false)}
             >
               x
@@ -297,13 +396,13 @@ export function TrouvableDishDetailExperience({
               )}
             </div>
             <div className={styles.reviewPanel}>
-              <h2 id="trouvable-route-review-title">Rate this Dish</h2>
-              <div className={styles.reviewStars} aria-label="Note du plat">
+              <h2 id="trouvable-route-review-title">{copy.reviewTitle}</h2>
+              <div className={styles.reviewStars} aria-label={copy.reviewStars}>
                 {[1, 2, 3, 4, 5].map((rating) => (
                   <button
                     key={rating}
                     type="button"
-                    aria-label={`${rating} étoile${rating > 1 ? "s" : ""}`}
+                    aria-label={`${rating} ${copy.reviewStars}`}
                     aria-pressed={reviewRating >= rating}
                     onClick={() => setReviewRating(rating)}
                   >
@@ -312,10 +411,10 @@ export function TrouvableDishDetailExperience({
                 ))}
               </div>
               <label className={styles.reviewTextarea}>
-                <span>Votre commentaire</span>
+                <span>{copy.reviewComment}</span>
                 <textarea
                   maxLength={300}
-                  placeholder="How was the taste?"
+                  placeholder={copy.reviewPlaceholder}
                   value={reviewText}
                   onChange={(event) => setReviewText(event.target.value)}
                 />
@@ -328,18 +427,16 @@ export function TrouvableDishDetailExperience({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  POST REVIEW
+                  {copy.reviewPost}
                 </a>
-              ) : (
-                <button className={styles.reviewPostButton} type="button" disabled>
-                  POST REVIEW
-                </button>
-              )}
-              {!googleReviewCta ? (
-                <p className={styles.reviewNote}>
-                  Lien Google Review non configuré pour ce restaurant.
-                </p>
-              ) : null}
+            ) : (
+              <button className={styles.reviewPostButton} type="button" disabled>
+                {copy.reviewPost}
+              </button>
+            )}
+            {!googleReviewCta ? (
+              <p className={styles.reviewNote}>{copy.reviewMissing}</p>
+            ) : null}
             </div>
           </section>
         </div>

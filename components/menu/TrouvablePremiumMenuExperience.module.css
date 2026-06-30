@@ -1,35 +1,3 @@
-@font-face {
-  font-family: "BT Suave";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "BT Suave";
-  font-style: normal;
-  font-weight: 500;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
-}
-
 .page {
   min-height: 100svh;
   overflow-x: clip;
@@ -37,7 +5,7 @@
     linear-gradient(180deg, rgba(54, 31, 16, 0.78), rgba(10, 7, 5, 0.98) 36%),
     #080604;
   color: #fffaf0;
-  font-family: "Neue Montreal", system-ui, sans-serif;
+  font-family: Inter, sans-serif;
   padding: 10px 12px 30px;
 }
 
@@ -83,7 +51,7 @@
 .hero h1,
 .sheetHeader h2 {
   color: #fffaf0;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -397,7 +365,7 @@
     linear-gradient(135deg, rgba(232, 207, 155, 0.18), rgba(255, 250, 240, 0.04)),
     #140d08;
   color: rgba(232, 207, 155, 0.86);
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: 31px;
   font-weight: 500;
 }
@@ -429,7 +397,7 @@
 .dishTopline strong {
   min-width: 0;
   color: #fffaf0;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: 18px;
   font-weight: 500;
   line-height: 1.05;
@@ -440,7 +408,7 @@
 .dishTopline span,
 .detailPrice {
   color: rgba(232, 207, 155, 0.94);
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: 18px;
   font-weight: 500;
   white-space: nowrap;
@@ -663,7 +631,7 @@
 
 .totalRow strong {
   color: rgba(232, 207, 155, 0.95);
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: 23px;
   font-weight: 500;
 }
@@ -715,7 +683,7 @@
     linear-gradient(135deg, rgba(232, 207, 155, 0.18), rgba(255, 250, 240, 0.04)),
     #140d08;
   color: rgba(232, 207, 155, 0.86);
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: 48px;
 }
 
@@ -1066,10 +1034,49 @@
   letter-spacing: 0;
 }
 
+.vistaireWord {
+  display: inline-flex;
+  align-items: baseline;
+  width: max-content;
+}
+
+.vistaireWord span {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: none;
+}
+
+.vistaireLeafI {
+  position: relative;
+  display: inline-block;
+}
+
+.vistaireLeafI::after {
+  content: "";
+  position: absolute;
+  left: 55%;
+  top: -0.12em;
+  width: 0.15em;
+  height: 0.23em;
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(145deg, #f5e38f, #b99124);
+  box-shadow: 0 0 12px rgba(222, 194, 75, 0.24);
+  transform: translateX(-50%) rotate(-42deg) scale(0.72);
+  transform-origin: 65% 88%;
+  animation: vistaireLeafBloom 1180ms 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .brandBlock small,
 .tableChip,
 .topActions button[aria-haspopup="dialog"] {
   display: none;
+}
+
+.topActions button.headerControl {
+  display: grid;
 }
 
 .topActions {
@@ -1096,6 +1103,8 @@
   position: relative;
   display: grid;
   justify-items: center;
+  overflow: clip;
+  isolation: isolate;
   max-width: none;
   margin: 0;
   border: 0;
@@ -1107,33 +1116,173 @@
 
 .hero::before,
 .hero::after {
-  content: "";
+  display: none;
+}
+
+.heroText {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+}
+
+.heroBotanical {
   position: absolute;
-  top: 4px;
-  width: min(38vw, 210px);
-  height: 130px;
-  border: 1px solid rgba(222, 194, 75, 0.7);
-  border-right: 0;
-  border-bottom: 0;
-  opacity: 0.85;
+  left: 50%;
+  top: 0;
+  z-index: 1;
+  width: min(680px, 112vw);
+  height: 178px;
+  color: var(--trouvable-gold);
+  filter: drop-shadow(0 0 12px rgba(222, 194, 75, 0.26));
+  opacity: 0.96;
   pointer-events: none;
+  transform: translateX(-50%);
 }
 
-.hero::before {
-  left: -24px;
-  border-radius: 90% 0 0;
-  transform: rotate(-12deg);
+.botanicalStem,
+.botanicalLeaf {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
-.hero::after {
-  right: -24px;
-  border-radius: 0 90% 0 0;
-  transform: scaleX(-1) rotate(-12deg);
+.botanicalStem {
+  stroke-width: 1.75;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: botanicalDraw 1700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.botanicalVineRight .botanicalStem {
+  animation-delay: 220ms;
+}
+
+.botanicalLeaf {
+  stroke-width: 1.45;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transform: scale(0.76);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: botanicalBloom 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leafDelay1 {
+  animation-delay: 480ms;
+}
+
+.leafDelay2 {
+  animation-delay: 680ms;
+}
+
+.leafDelay3 {
+  animation-delay: 880ms;
+}
+
+.leafDelay4 {
+  animation-delay: 1080ms;
+}
+
+.leafDelay5 {
+  animation-delay: 1280ms;
+}
+
+.leafDelay6 {
+  animation-delay: 1480ms;
+}
+
+@keyframes botanicalDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes botanicalBloom {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1;
+    transform: scale(0.72) rotate(-5deg);
+  }
+  68% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+    transform: scale(1.06) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes vistaireLeafBloom {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) rotate(-56deg) scale(0.42);
+  }
+  62% {
+    opacity: 1;
+    transform: translateX(-50%) rotate(-34deg) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) rotate(-42deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page .botanicalStem {
+    animation: botanicalDraw 1700ms cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  }
+
+  .page .botanicalVineRight .botanicalStem {
+    animation-delay: 220ms !important;
+  }
+
+  .page .botanicalLeaf {
+    animation: botanicalBloom 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  }
+
+  .page .vistaireLeafI::after {
+    animation: vistaireLeafBloom 1180ms 520ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+
+  .page .swipeHint {
+    animation: swipeHintBounce 1650ms cubic-bezier(0.3, 1.35, 0.52, 1) infinite !important;
+  }
+
+  .page .leafDelay1 {
+    animation-delay: 480ms !important;
+  }
+
+  .page .leafDelay2 {
+    animation-delay: 680ms !important;
+  }
+
+  .page .leafDelay3 {
+    animation-delay: 880ms !important;
+  }
+
+  .page .leafDelay4 {
+    animation-delay: 1080ms !important;
+  }
+
+  .page .leafDelay5 {
+    animation-delay: 1280ms !important;
+  }
+
+  .page .leafDelay6 {
+    animation-delay: 1480ms !important;
+  }
 }
 
 .hero p {
   color: #f1d91c;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: 24px;
   font-style: italic;
   font-weight: 400;
@@ -1146,7 +1295,9 @@
   color: #f4f4f4;
   font-size: clamp(64px, 18vw, 92px);
   line-height: 0.92;
-  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.22);
+  text-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.22),
+    0 0 18px rgba(0, 0, 0, 0.84);
 }
 
 .hero span,
@@ -1182,6 +1333,39 @@
   color: #f1d91c;
   font-size: 20px;
   font-weight: 500;
+}
+
+.swipeHint {
+  display: inline-flex;
+  align-items: center;
+  min-width: max-content;
+  text-shadow: 0 0 12px rgba(241, 217, 28, 0.24);
+  transform: translateX(0);
+  animation: swipeHintBounce 1650ms cubic-bezier(0.3, 1.35, 0.52, 1) infinite;
+  will-change: transform;
+}
+
+@keyframes swipeHintBounce {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  36% {
+    transform: translateX(8px);
+  }
+
+  48% {
+    transform: translateX(4px);
+  }
+
+  62% {
+    transform: translateX(8px);
+  }
+
+  82% {
+    transform: translateX(0);
+  }
 }
 
 .categoryRail {
@@ -1256,7 +1440,7 @@
 .sectionTitle {
   margin: 0 28px 28px;
   color: #fff;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: clamp(38px, 10vw, 54px);
   font-weight: 500;
   line-height: 1;
@@ -1415,7 +1599,7 @@
 
 .dishTopline strong {
   color: #fff;
-  font-family: "Neue Montreal", system-ui, sans-serif;
+  font-family: Inter, sans-serif;
   font-size: clamp(21px, 5.4vw, 28px);
   font-weight: 800;
   line-height: 1.08;
@@ -1431,7 +1615,7 @@
 .dishPrice,
 .detailPrice {
   color: #f3f3f3;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: clamp(25px, 7vw, 34px);
   font-weight: 500;
 }
@@ -1618,7 +1802,7 @@
 .detailBody .sheetHeader h2 {
   margin: 0;
   color: #fff;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: clamp(48px, 12vw, 70px);
   font-weight: 500;
   line-height: 1;
@@ -1895,6 +2079,13 @@
 
   .hero {
     padding: 26px 14px 28px;
+  }
+
+  .heroBotanical {
+    top: -4px;
+    width: 124vw;
+    height: 132px;
+    opacity: 0.9;
   }
 
   .hero::before,
@@ -2296,7 +2487,7 @@
     transparent 72%
   );
   color: rgba(222, 194, 75, 0.5);
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: min(34vw, 160px);
   filter: blur(8px);
 }
@@ -2316,7 +2507,7 @@
 .reviewPanel h2 {
   margin: 0;
   color: #fff;
-  font-family: "BT Suave", Georgia, serif;
+  font-family: Inter, sans-serif;
   font-size: clamp(42px, 11vw, 60px);
   font-weight: 500;
   line-height: 1;
@@ -2449,4 +2640,219 @@
     min-height: 64px;
     font-size: 17px;
   }
+}
+
+.choiceList {
+  display: grid;
+  gap: 12px;
+}
+
+.choiceButton {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-height: 66px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: #080808;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.choiceButton span {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.choiceButton small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choiceButton[aria-pressed="true"] {
+  border-color: rgba(222, 194, 75, 0.92);
+  background: linear-gradient(145deg, #e7cc50, #b99624);
+  color: #050505;
+}
+
+.choiceButton[aria-pressed="true"] small {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.page[data-user-theme="light"] {
+  --trouvable-black: #f5efe4;
+  --trouvable-ink: #fffaf1;
+  --trouvable-line: rgba(35, 26, 13, 0.18);
+  --trouvable-muted: rgba(35, 26, 13, 0.66);
+  --trouvable-soft: rgba(35, 26, 13, 0.07);
+  --trouvable-gold: #8f6d14;
+  --trouvable-gold-2: #b99124;
+  background: #f5efe4;
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .topBar,
+.page[data-user-theme="light"] .hero,
+.page[data-user-theme="light"] .menuPanel,
+.page[data-user-theme="light"] .categoryRail,
+.page[data-user-theme="light"] .dishOverlay,
+.page[data-user-theme="light"] .detailSheet,
+.page[data-user-theme="light"].standaloneDetailPage,
+.page[data-user-theme="light"] .reviewOverlay,
+.page[data-user-theme="light"] .reviewSheet {
+  background: #f5efe4;
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .topBar {
+  border-bottom-color: rgba(35, 26, 13, 0.18);
+}
+
+.page[data-user-theme="light"] .brandBlock strong,
+.page[data-user-theme="light"] .hero p,
+.page[data-user-theme="light"] .categoryHeader span:last-child,
+.page[data-user-theme="light"] .detailRestaurantName,
+.page[data-user-theme="light"] .detailNav span,
+.page[data-user-theme="light"] .dishArrow {
+  color: #8f6d14;
+}
+
+.page[data-user-theme="light"] .heroBotanical {
+  color: #9d7618;
+  filter: drop-shadow(0 0 10px rgba(157, 118, 24, 0.12));
+  opacity: 0.72;
+}
+
+.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .sectionTitle,
+.page[data-user-theme="light"] .dishTopline strong,
+.page[data-user-theme="light"] .detailBody h1,
+.page[data-user-theme="light"] .detailBody .sheetHeader h2,
+.page[data-user-theme="light"] .sheetHeader h2,
+.page[data-user-theme="light"] .reviewPanel h2 {
+  color: #17120b;
+  text-shadow: none;
+}
+
+.page[data-user-theme="light"] .categoryHeader span:first-child,
+.page[data-user-theme="light"] .sheetHeader p,
+.page[data-user-theme="light"] .fieldLabel,
+.page[data-user-theme="light"] .topicGroup legend,
+.page[data-user-theme="light"] .dishCopy small,
+.page[data-user-theme="light"] .detailBody > p,
+.page[data-user-theme="light"] .localHint,
+.page[data-user-theme="light"] .emptyState span,
+.page[data-user-theme="light"] .selectionList span,
+.page[data-user-theme="light"] .resultStatus,
+.page[data-user-theme="light"] .modelUnavailable,
+.page[data-user-theme="light"] .reviewNote {
+  color: rgba(35, 26, 13, 0.66);
+}
+
+.page[data-user-theme="light"] .topActions a,
+.page[data-user-theme="light"] .topActions button,
+.page[data-user-theme="light"] .categoryRail button,
+.page[data-user-theme="light"] .searchField input,
+.page[data-user-theme="light"] .viewToggle,
+.page[data-user-theme="light"] .dishCard,
+.page[data-user-theme="light"] .dishVisual,
+.page[data-user-theme="light"] .sheet,
+.page[data-user-theme="light"] .selectionList li,
+.page[data-user-theme="light"] .fieldLabel input,
+.page[data-user-theme="light"] .topicGroup label,
+.page[data-user-theme="light"] .choiceButton,
+.page[data-user-theme="light"] .detailBack,
+.page[data-user-theme="light"] .dishArrow,
+.page[data-user-theme="light"] .reviewClose,
+.page[data-user-theme="light"] .reviewTextarea textarea {
+  border-color: rgba(35, 26, 13, 0.18);
+  background: #fff9ef;
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .choiceButton small,
+.page[data-user-theme="light"] .searchField input::placeholder,
+.page[data-user-theme="light"] .searchField::before,
+.page[data-user-theme="light"] .viewToggle button,
+.page[data-user-theme="light"] .searchField button {
+  color: rgba(35, 26, 13, 0.62);
+}
+
+.page[data-user-theme="light"] .searchField button {
+  background: rgba(35, 26, 13, 0.08);
+}
+
+.page[data-user-theme="light"] .dishVisual,
+.page[data-user-theme="light"] .detailSheet .detailVisual,
+.page[data-user-theme="light"] .standaloneDetailCard .detailVisual {
+  background: #f1e6d4;
+}
+
+.page[data-user-theme="light"] .quickFilters button {
+  background: rgba(35, 26, 13, 0.08);
+  color: rgba(35, 26, 13, 0.68);
+}
+
+.page[data-user-theme="light"] .quickFilters button[aria-pressed="true"],
+.page[data-user-theme="light"] .viewToggle button[aria-pressed="true"] {
+  border-color: #9d7a19;
+  background: #fff4cf;
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .dishPrice,
+.page[data-user-theme="light"] .detailPrice {
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .badges span,
+.page[data-user-theme="light"] .detailList li,
+.page[data-user-theme="light"] .detailTagCloud li {
+  border-color: rgba(143, 109, 20, 0.52);
+  background: #fff9ef;
+  color: #6f530e;
+}
+
+.page[data-user-theme="light"] .moreDetailsButton {
+  border-bottom-color: rgba(35, 26, 13, 0.48);
+  color: rgba(35, 26, 13, 0.72);
+}
+
+.page[data-user-theme="light"] .moreDetailsButton span {
+  background: rgba(35, 26, 13, 0.18);
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .reviewPanel {
+  background: linear-gradient(180deg, rgba(255, 249, 239, 0.96), #fff9ef 28%);
+}
+
+.page[data-user-theme="light"] .reviewTrigger {
+  border-color: rgba(35, 26, 13, 0.22);
+  background: rgba(255, 249, 239, 0.88);
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .reviewTrigger span {
+  color: #8f6d14;
+}
+
+.page[data-user-theme="light"] .reviewStars button {
+  color: rgba(35, 26, 13, 0.22);
+}
+
+.page[data-user-theme="light"] .reviewTextarea textarea::placeholder {
+  color: rgba(35, 26, 13, 0.5);
+}
+
+.page[data-user-theme="light"] .inlineModelViewer,
+.page[data-user-theme="light"] .modelLoading {
+  border-color: rgba(35, 26, 13, 0.16);
+  background: #fff9ef;
+  color: rgba(35, 26, 13, 0.7);
 }

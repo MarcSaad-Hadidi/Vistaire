@@ -13,6 +13,7 @@ import styles from "./GoogleReviewCard.module.css";
 type GoogleReviewCardProps = {
   googleReview: GoogleReviewConfig;
   locale?: Locale;
+  onReviewRequest?: () => void;
   restaurantId: string;
   restaurantName: string;
   showNote?: boolean;
@@ -76,6 +77,7 @@ function formatReviewCount(count: number, locale: Locale): string {
 export function GoogleReviewCard({
   googleReview,
   locale = "fr",
+  onReviewRequest,
   restaurantId,
   restaurantName,
   showNote = true,
@@ -139,7 +141,16 @@ export function GoogleReviewCard({
         </div>
       ) : null}
 
-      {cta ? (
+      {cta && onReviewRequest ? (
+        <button
+          className={styles.googleReviewAction}
+          data-google-review-trigger="true"
+          type="button"
+          onClick={onReviewRequest}
+        >
+          {copy.action}
+        </button>
+      ) : cta ? (
         <a
           className={styles.googleReviewAction}
           data-google-review-action="true"
