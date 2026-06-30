@@ -308,11 +308,11 @@ export function TrouvableDishDetailExperience({
                   Laisser un avis Google
                 </button>
               )}
-              <p className={styles.reviewNote}>
-                {googleReviewCta
-                  ? "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle."
-                  : "Lien Google Review non configuré pour ce restaurant."}
-              </p>
+              {!googleReviewCta ? (
+                <p className={styles.reviewNote}>
+                  Lien Google Review non configuré pour ce restaurant.
+                </p>
+              ) : null}
             </div>
           </section>
         </div>

@@ -15,6 +15,7 @@ type GoogleReviewCardProps = {
   locale?: Locale;
   restaurantId: string;
   restaurantName: string;
+  showNote?: boolean;
   source: PublicMenu["source"];
 };
 
@@ -77,6 +78,7 @@ export function GoogleReviewCard({
   locale = "fr",
   restaurantId,
   restaurantName,
+  showNote = true,
   source
 }: GoogleReviewCardProps) {
   const resolvedLocale = normalizeLocale(locale);
@@ -159,7 +161,7 @@ export function GoogleReviewCard({
         </button>
       )}
 
-      {cta ? <p className={styles.googleReviewNote}>{copy.note}</p> : null}
+      {cta && showNote ? <p className={styles.googleReviewNote}>{copy.note}</p> : null}
     </aside>
   );
 }

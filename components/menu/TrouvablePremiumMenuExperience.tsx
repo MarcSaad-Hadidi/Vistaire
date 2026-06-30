@@ -920,11 +920,11 @@ export function TrouvablePremiumMenuExperience({
                 Laisser un avis Google
               </button>
             )}
-            <p className={styles.reviewNote}>
-              {googleReviewCta
-                ? "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle."
-                : "Lien Google Review non configuré pour ce restaurant."}
-            </p>
+            {!googleReviewCta ? (
+              <p className={styles.reviewNote}>
+                Lien Google Review non configuré pour ce restaurant.
+              </p>
+            ) : null}
           </div>
         </section>
       </div>
@@ -1296,6 +1296,7 @@ export function TrouvablePremiumMenuExperience({
         googleReview={menu.googleReview}
         restaurantId={menu.restaurantId}
         restaurantName={menu.name}
+        showNote={false}
         source={menu.source}
       />
 
