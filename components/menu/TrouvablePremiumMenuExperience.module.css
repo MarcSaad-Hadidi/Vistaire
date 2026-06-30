@@ -1,11 +1,13 @@
 .page {
+  --trouvable-font-ui: Inter, sans-serif;
+  --trouvable-font-display: "Noto Serif Display", Georgia, serif;
   min-height: 100svh;
   overflow-x: clip;
   background:
     linear-gradient(180deg, rgba(54, 31, 16, 0.78), rgba(10, 7, 5, 0.98) 36%),
     #080604;
   color: #fffaf0;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-ui);
   padding: 10px 12px 30px;
 }
 
@@ -51,8 +53,8 @@
 .hero h1,
 .sheetHeader h2 {
   color: #fffaf0;
-  font-family: Inter, sans-serif;
-  font-weight: 500;
+  font-family: var(--trouvable-font-display);
+  font-weight: 600;
   letter-spacing: 0;
 }
 
@@ -79,6 +81,7 @@
 .cardActions a,
 .cardActions button,
 .viewToggle button,
+.filterTrigger,
 .quickFilters button,
 .primaryAction,
 .detailActions a,
@@ -289,6 +292,74 @@
   color: #17100a;
 }
 
+.filterTrigger {
+  gap: 8px;
+  min-width: 0;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.filterTrigger > span:not(.filterGlyph) {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filterTrigger small {
+  display: inline-flex;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(232, 207, 155, 0.9);
+  color: #17100a;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.filterGlyph {
+  position: relative;
+  display: inline-grid;
+  width: 16px;
+  height: 14px;
+  place-items: center;
+}
+
+.filterGlyph::before,
+.filterGlyph::after,
+.filterGlyph span {
+  display: block;
+  width: 16px;
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+  content: "";
+}
+
+.filterGlyph::before {
+  transform: translateY(-5px);
+}
+
+.filterGlyph::after {
+  transform: translateY(5px);
+}
+
+.topActions button[aria-pressed] {
+  font-size: 0;
+}
+
+.topActions button[aria-pressed]::before {
+  content: "\263e";
+  font-size: 22px;
+  line-height: 1;
+}
+
+.topActions button[aria-pressed="false"]::before {
+  content: "\2600";
+}
+
 .viewToggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -365,7 +436,7 @@
     linear-gradient(135deg, rgba(232, 207, 155, 0.18), rgba(255, 250, 240, 0.04)),
     #140d08;
   color: rgba(232, 207, 155, 0.86);
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: 31px;
   font-weight: 500;
 }
@@ -397,9 +468,9 @@
 .dishTopline strong {
   min-width: 0;
   color: #fffaf0;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.05;
   overflow-wrap: break-word;
   word-break: normal;
@@ -408,7 +479,7 @@
 .dishTopline span,
 .detailPrice {
   color: rgba(232, 207, 155, 0.94);
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: 18px;
   font-weight: 500;
   white-space: nowrap;
@@ -631,7 +702,7 @@
 
 .totalRow strong {
   color: rgba(232, 207, 155, 0.95);
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: 23px;
   font-weight: 500;
 }
@@ -683,7 +754,7 @@
     linear-gradient(135deg, rgba(232, 207, 155, 0.18), rgba(255, 250, 240, 0.04)),
     #140d08;
   color: rgba(232, 207, 155, 0.86);
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: 48px;
 }
 
@@ -743,6 +814,7 @@
 .categoryRail button:focus-visible,
 .searchField input:focus-visible,
 .searchField button:focus-visible,
+.filterTrigger:focus-visible,
 .quickFilters button:focus-visible,
 .viewToggle button:focus-visible,
 .dishSummary:focus-visible,
@@ -925,6 +997,7 @@
 .cardActions a,
 .cardActions button,
 .viewToggle button,
+.filterTrigger,
 .quickFilters button,
 .primaryAction,
 .detailActions a,
@@ -947,6 +1020,7 @@
 
 .hero button,
 .primaryAction,
+.filterTrigger,
 .quickFilters button[aria-pressed="true"],
 .viewToggle button[aria-pressed="true"],
 .categoryRail button[aria-current="true"] {
@@ -976,6 +1050,7 @@
 .categoryRail button:focus-visible,
 .searchField input:focus-visible,
 .searchField button:focus-visible,
+.filterTrigger:focus-visible,
 .quickFilters button:focus-visible,
 .viewToggle button:focus-visible,
 .dishSummary:focus-visible,
@@ -1028,8 +1103,8 @@
 }
 
 .brandBlock strong {
-  color: #d9c891;
-  font-size: clamp(50px, 15vw, 74px);
+  color: rgba(217, 200, 145, 0.58);
+  font-size: clamp(14px, 3.8vw, 20px);
   line-height: 0.9;
   letter-spacing: 0;
 }
@@ -1282,10 +1357,10 @@
 
 .hero p {
   color: #f1d91c;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: 24px;
   font-style: italic;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -1294,6 +1369,8 @@
   margin-top: 8px;
   color: #f4f4f4;
   font-size: clamp(64px, 18vw, 92px);
+  font-style: italic;
+  font-weight: 600;
   line-height: 0.92;
   text-shadow:
     0 2px 0 rgba(255, 255, 255, 0.22),
@@ -1440,9 +1517,9 @@
 .sectionTitle {
   margin: 0 28px 28px;
   color: #fff;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: clamp(38px, 10vw, 54px);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -1508,6 +1585,15 @@
   background: #0b0b0b;
   border: 2px solid #f1d91c;
   color: #fff;
+}
+
+.filterTrigger {
+  min-height: 54px;
+  border: 1px solid rgba(241, 217, 28, 0.45);
+  background: #050505;
+  color: #fff;
+  font-size: 16px;
+  padding: 0 16px;
 }
 
 .viewToggle {
@@ -1599,9 +1685,9 @@
 
 .dishTopline strong {
   color: #fff;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: clamp(21px, 5.4vw, 28px);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.08;
 }
 
@@ -1615,9 +1701,9 @@
 .dishPrice,
 .detailPrice {
   color: #f3f3f3;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: clamp(25px, 7vw, 34px);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .spicyMark {
@@ -1802,9 +1888,9 @@
 .detailBody .sheetHeader h2 {
   margin: 0;
   color: #fff;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: clamp(48px, 12vw, 70px);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -1989,6 +2075,13 @@
     min-width: 0;
   }
 
+  .filterTrigger {
+    min-width: 118px;
+    min-height: 48px;
+    font-size: 15px;
+    padding-inline: 14px;
+  }
+
   .quickFilters button {
     min-height: 48px;
     font-size: 15px;
@@ -2028,7 +2121,7 @@
 
 @media (max-width: 390px) {
   .brandBlock strong {
-    font-size: 46px;
+    font-size: 16px;
   }
 
   .categoryRail button {
@@ -2061,7 +2154,7 @@
   }
 
   .brandBlock strong {
-    font-size: clamp(38px, 11.4vw, 48px);
+    font-size: clamp(13px, 3.5vw, 18px);
   }
 
   .topActions {
@@ -2189,6 +2282,36 @@
   .quickFilters {
     gap: 7px;
     max-width: 150px;
+  }
+
+  .filterTrigger {
+    min-width: 104px;
+    min-height: 40px;
+    gap: 6px;
+    font-size: 13px;
+    padding-inline: 10px;
+  }
+
+  .filterTrigger > span:not(.filterGlyph) {
+    max-width: 64px;
+  }
+
+  .filterGlyph {
+    width: 14px;
+    height: 12px;
+  }
+
+  .filterGlyph::before,
+  .filterGlyph::after,
+  .filterGlyph span {
+    width: 14px;
+  }
+
+  .filterTrigger small {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
   }
 
   .quickFilters button {
@@ -2351,6 +2474,11 @@
     max-width: 136px;
   }
 
+  .filterTrigger {
+    min-width: 96px;
+    padding-inline: 9px;
+  }
+
   .quickFilters button {
     padding-inline: 10px;
   }
@@ -2487,7 +2615,7 @@
     transparent 72%
   );
   color: rgba(222, 194, 75, 0.5);
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: min(34vw, 160px);
   filter: blur(8px);
 }
@@ -2507,9 +2635,9 @@
 .reviewPanel h2 {
   margin: 0;
   color: #fff;
-  font-family: Inter, sans-serif;
+  font-family: var(--trouvable-font-display);
   font-size: clamp(42px, 11vw, 60px);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -2758,6 +2886,7 @@
 .page[data-user-theme="light"] .topActions button,
 .page[data-user-theme="light"] .categoryRail button,
 .page[data-user-theme="light"] .searchField input,
+.page[data-user-theme="light"] .filterTrigger,
 .page[data-user-theme="light"] .viewToggle,
 .page[data-user-theme="light"] .dishCard,
 .page[data-user-theme="light"] .dishVisual,
@@ -2778,6 +2907,7 @@
 .page[data-user-theme="light"] .choiceButton small,
 .page[data-user-theme="light"] .searchField input::placeholder,
 .page[data-user-theme="light"] .searchField::before,
+.page[data-user-theme="light"] .filterTrigger,
 .page[data-user-theme="light"] .viewToggle button,
 .page[data-user-theme="light"] .searchField button {
   color: rgba(35, 26, 13, 0.62);
@@ -2796,6 +2926,17 @@
 .page[data-user-theme="light"] .quickFilters button {
   background: rgba(35, 26, 13, 0.08);
   color: rgba(35, 26, 13, 0.68);
+}
+
+.page[data-user-theme="light"] .filterTrigger {
+  border-color: rgba(143, 109, 20, 0.42);
+  background: rgba(255, 250, 241, 0.78);
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .filterTrigger small {
+  background: #b99124;
+  color: #fffaf1;
 }
 
 .page[data-user-theme="light"] .quickFilters button[aria-pressed="true"],

@@ -48,6 +48,7 @@ type TrouvablePremiumMenuExperienceProps = {
   config: MenuUiConfig;
   context?: string;
   query?: PublicMenuContextQuery;
+  typographyClassName?: string;
 };
 
 type QuickFilterId =
@@ -61,6 +62,7 @@ type ViewMode = "list" | "grid";
 type WaiterTopic = "allergen" | "recommendation" | "selection";
 type ActiveSheet =
   | "currency"
+  | "filters"
   | "language"
   | "experienceReview"
   | "dish"
@@ -432,10 +434,11 @@ export function TrouvablePremiumMenuExperience({
   menu,
   config,
   context = "",
-  query
+  query,
+  typographyClassName = ""
 }: TrouvablePremiumMenuExperienceProps) {
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY_ID);
-  const [quickFilter, setQuickFilter] = useState<QuickFilterId>("all");
+  const [activeFilters, setActiveFilters] = useState<QuickFilterId[]>([]);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
@@ -509,15 +512,35 @@ export function TrouvablePremiumMenuExperience({
       ].filter((filter) => filter.visible),
     [copy, hasImmersiveData, hasNonVegData, hasRecommendedData, hasVegData]
   );
+  const activeFilterLabels = useMemo(
+    () =>
+      quickFilters
+        .filter(
+          (filter) => filter.id !== "all" && activeFilters.includes(filter.id)
+        )
+        .map((filter) => filter.label),
+    [activeFilters, quickFilters]
+  );
+  const filterButtonLabel =
+    activeFilterLabels.length === 0
+      ? copy.filterButton
+      : activeFilterLabels.length === 1
+        ? activeFilterLabels[0]
+        : copy.activeFilters(activeFilterLabels.length);
 
   const filteredDishes = useMemo(() => {
     const searchQuery = normalizeText(search.trim());
     return menu.dishes.filter((dish) => {
-      if (!quickFilterMatches(dish, quickFilter)) return false;
+      if (
+        activeFilters.length > 0 &&
+        !activeFilters.every((filter) => quickFilterMatches(dish, filter))
+      ) {
+        return false;
+      }
       if (!searchQuery) return true;
       return searchableDishText(dish).includes(searchQuery);
     });
-  }, [menu.dishes, quickFilter, search]);
+  }, [activeFilters, menu.dishes, search]);
   const filteredGroups = useMemo(
     () => getPublicMenuCategoryGroups(filteredDishes),
     [filteredDishes]
@@ -780,9 +803,45 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function clearFilters() {
-    setQuickFilter("all");
+    setActiveFilters([]);
     setSearch("");
     setActiveCategory(categories[0]?.label ?? ALL_CATEGORY_ID);
+  }
+
+  function isQuickFilterActive(filterId: QuickFilterId) {
+    return filterId === "all"
+      ? activeFilters.length === 0
+      : activeFilters.includes(filterId);
+  }
+
+  function quickFilterDescription(filterId: QuickFilterId) {
+    if (filterId === "all") return copy.filterAllAria;
+    if (filterId === "veg") return copy.filterVegAria;
+    if (filterId === "nonVeg") return copy.filterNonVegAria;
+    if (filterId === "available") return copy.filterAvailableAria;
+    if (filterId === "immersive") return copy.filterImmersiveAria;
+    return copy.filterRecommendedAria;
+  }
+
+  function toggleQuickFilter(filterId: QuickFilterId) {
+    if (filterId === "all") {
+      setActiveFilters([]);
+      return;
+    }
+
+    setActiveFilters((current) => {
+      if (current.includes(filterId)) {
+        return current.filter((id) => id !== filterId);
+      }
+
+      const compatibleFilters = current.filter((id) => {
+        if (filterId === "veg") return id !== "nonVeg";
+        if (filterId === "nonVeg") return id !== "veg";
+        return true;
+      });
+
+      return [...compatibleFilters, filterId];
+    });
   }
 
   function selectAdjacentCategory(direction: 1 | -1) {
@@ -1136,6 +1195,60 @@ export function TrouvablePremiumMenuExperience({
     );
   }
 
+  function renderFiltersSheet() {
+    if (activeSheet !== "filters") return null;
+
+    return (
+      <div
+        className={styles.overlay}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trouvable-filters-title"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeActiveSheet();
+        }}
+      >
+        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
+          <header className={styles.sheetHeader}>
+            <div>
+              <p>{copy.filterKicker}</p>
+              <h2 id="trouvable-filters-title">{copy.filterTitle}</h2>
+            </div>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={copy.closeFilters}
+              onClick={closeActiveSheet}
+            >
+              x
+            </button>
+          </header>
+          <div className={styles.choiceList}>
+            {quickFilters.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                className={styles.choiceButton}
+                aria-pressed={isQuickFilterActive(filter.id)}
+                onClick={() => toggleQuickFilter(filter.id)}
+              >
+                <span>{filter.label}</span>
+                <small>{quickFilterDescription(filter.id)}</small>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className={styles.primaryAction}
+            onClick={closeActiveSheet}
+          >
+            {copy.filterApply}
+          </button>
+        </section>
+      </div>
+    );
+  }
+
   function renderLanguageSheet() {
     if (activeSheet !== "language") return null;
 
@@ -1475,7 +1588,7 @@ export function TrouvablePremiumMenuExperience({
 
   return (
     <main
-      className={styles.page}
+      className={`${styles.page} ${typographyClassName}`.trim()}
       data-blueprint={config.experience.blueprint}
       data-theme={config.theme}
       data-user-theme={selectedTheme}
@@ -1614,31 +1727,22 @@ export function TrouvablePremiumMenuExperience({
               </button>
             ) : null}
           </label>
-          <div className={styles.quickFilters} aria-label={copy.filtersAria}>
-            {quickFilters.map((filter) => (
-              <button
-                key={filter.id}
-                type="button"
-                aria-pressed={quickFilter === filter.id}
-                aria-label={
-                  filter.id === "all"
-                    ? copy.filterAllAria
-                    : filter.id === "veg"
-                      ? copy.filterVegAria
-                      : filter.id === "nonVeg"
-                        ? copy.filterNonVegAria
-                        : filter.id === "available"
-                          ? copy.filterAvailableAria
-                          : filter.id === "immersive"
-                            ? copy.filterImmersiveAria
-                            : copy.filterRecommendedAria
-                }
-                onClick={() => setQuickFilter(filter.id)}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            className={styles.filterTrigger}
+            aria-haspopup="dialog"
+            aria-expanded={activeSheet === "filters"}
+            aria-label={`${copy.filtersAria}: ${filterButtonLabel}`}
+            onClick={() => openSheet("filters")}
+          >
+            <span className={styles.filterGlyph} aria-hidden="true">
+              <span />
+            </span>
+            <span>{filterButtonLabel}</span>
+            {activeFilterLabels.length > 0 ? (
+              <small aria-hidden="true">{activeFilterLabels.length}</small>
+            ) : null}
+          </button>
           <div className={styles.viewToggle} aria-label={copy.viewModeAria}>
             <button
               type="button"
@@ -1700,6 +1804,7 @@ export function TrouvablePremiumMenuExperience({
       {renderSelectionSheet()}
       {renderWaiterSheet()}
       {renderCurrencySheet()}
+      {renderFiltersSheet()}
       {renderLanguageSheet()}
       {renderReviewSheet()}
     </main>

@@ -45,6 +45,7 @@ type TrouvableDishDetailExperienceProps = {
   dish: PublicMenuDish;
   context?: string;
   query?: PublicMenuContextQuery;
+  typographyClassName?: string;
 };
 
 type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
@@ -90,7 +91,8 @@ export function TrouvableDishDetailExperience({
   menu,
   dish,
   context = "",
-  query
+  query,
+  typographyClassName = ""
 }: TrouvableDishDetailExperienceProps) {
   const [activeDish, setActiveDish] = useState(dish);
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
@@ -234,7 +236,7 @@ export function TrouvableDishDetailExperience({
 
   return (
     <main
-      className={`${styles.page} ${styles.standaloneDetailPage}`}
+      className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
       data-user-theme={selectedTheme}
       onPointerDown={(event) => {
         if (event.pointerType !== "mouse") {

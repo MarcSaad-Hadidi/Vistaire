@@ -3,6 +3,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const pagePath = "app/menu/[slug]/page.tsx";
+const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const typographyPath = "app/menu/[slug]/trouvableTypography.ts";
 const componentPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const dishDetailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const cssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
@@ -59,7 +61,11 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /getTrouvableGreeting/);
   assert.match(source, /data-user-theme=\{selectedTheme\}/);
   assert.match(source, /activeSheet === "currency"/);
+  assert.match(source, /activeSheet === "filters"/);
   assert.match(source, /activeSheet === "language"/);
+  assert.match(source, /activeFilters/);
+  assert.match(source, /className=\{styles\.filterTrigger\}/);
+  assert.match(source, /toggleQuickFilter/);
   assert.match(source, /openRestaurantReviewSheet/);
   assert.match(source, /openSheet\("experienceReview"\)/);
   assert.match(source, /copy\.reviewExperienceTitle/);
@@ -112,13 +118,39 @@ test("Trouvable category swipe hint keeps a looping edge-bounce animation", asyn
 test("Trouvable premium menu styles are mobile-first and overflow-safe", async () => {
   const css = await readFile(cssPath, "utf8");
 
-  assert.match(css, /font-family:\s*Inter,\s*sans-serif/);
+  assert.match(css, /--trouvable-font-ui:\s*Inter,\s*sans-serif/);
+  assert.match(css, /--trouvable-font-display:\s*"Noto Serif Display"/);
+  assert.match(css, /font-family:\s*var\(--trouvable-font-ui\)/);
+  assert.match(css, /font-family:\s*var\(--trouvable-font-display\)/);
+  assert.match(css, /\.filterTrigger/);
+  assert.match(css, /content:\s*"\\263e"/);
+  assert.match(css, /content:\s*"\\2600"/);
+  assert.match(css, /\.hero h1[\s\S]*font-style:\s*italic/);
+  assert.match(css, /\.brandBlock strong[\s\S]*font-size:\s*clamp\(14px,\s*3\.8vw,\s*20px\)/);
   assert.doesNotMatch(css, /BT Suave/);
   assert.doesNotMatch(css, /Neue Montreal/);
-  assert.doesNotMatch(css, /Georgia/);
   assert.match(css, /overflow-x:\s*clip/);
   assert.match(css, /\.categoryRail[\s\S]*overflow-x:\s*auto/);
   assert.match(css, /@media \(max-width: 390px\)/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
+});
+
+test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
+  const page = await readFile(pagePath, "utf8");
+  const dishPage = await readFile(dishPagePath, "utf8");
+  const source = await readFile(componentPath, "utf8");
+  const detailSource = await readFile(dishDetailPath, "utf8");
+  const typography = await readFile(typographyPath, "utf8");
+
+  assert.match(typography, /from "next\/font\/google"/);
+  assert.match(typography, /Inter\(/);
+  assert.match(typography, /Noto_Serif_Display\(/);
+  assert.match(typography, /variable:\s*"--trouvable-font-ui"/);
+  assert.match(typography, /variable:\s*"--trouvable-font-display"/);
+  assert.match(typography, /style:\s*\["normal", "italic"\]/);
+  assert.match(page, /typographyClassName=\{trouvableTypographyClassName\}/);
+  assert.match(dishPage, /typographyClassName=\{trouvableTypographyClassName\}/);
+  assert.match(source, /typographyClassName/);
+  assert.match(detailSource, /typographyClassName/);
 });

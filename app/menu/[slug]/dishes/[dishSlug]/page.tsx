@@ -12,6 +12,7 @@ import {
   resolvePublicMenuUiConfig
 } from "@/lib/menu/trouvableMenuExperience";
 import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
+import { trouvableTypographyClassName } from "../../trouvableTypography";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,7 @@ export default async function PublicDishPage({
         dish={dish}
         menu={menu}
         query={menuQuery}
+        typographyClassName={trouvableTypographyClassName}
       />
     );
   }
