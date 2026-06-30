@@ -875,3 +875,150 @@
     animation: none !important;
   }
 }
+
+/* Trouvable production skin: full black, no brown/gold gradient surfaces. */
+.page {
+  background: #000;
+  color: #f7f7f7;
+}
+
+.topBar,
+.hero,
+.menuPanel,
+.categoryRail,
+.dishCard,
+.dishVisual,
+.emptyState,
+.sheet,
+.selectionList li,
+.sheetStatus,
+.fieldLabel input,
+.topicGroup label,
+.detailVisual,
+.detailList,
+.houseNote {
+  background: #000;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+.topBar,
+.categoryRail,
+.sheet {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.brandBlock span,
+.hero p,
+.sheetHeader p,
+.detailList h3,
+.houseNote h3,
+.fieldLabel,
+.topicGroup legend,
+.tableChip,
+.categoryRail small,
+.searchField span,
+.resultStatus,
+.statusRegion,
+.detailPrice,
+.dishTopline span,
+.totalRow strong {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.brandBlock strong,
+.hero h1,
+.sheetHeader h2,
+.dishTopline strong,
+.emptyState p,
+.selectionList strong,
+.quantityControls output {
+  color: #fff;
+}
+
+.brandBlock small,
+.hero span,
+.dishCopy small,
+.detailBody > p,
+.localHint,
+.sheetStatus,
+.emptyState span,
+.selectionList span,
+.totalRow,
+.houseNote p {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.topActions a,
+.topActions button,
+.tableChip,
+.hero button,
+.cardActions a,
+.cardActions button,
+.viewToggle button,
+.quickFilters button,
+.primaryAction,
+.detailActions a,
+.detailActions button,
+.emptyState button,
+.iconButton,
+.searchField button,
+.quantityControls button {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.categoryRail button,
+.searchField input {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.hero button,
+.primaryAction,
+.quickFilters button[aria-pressed="true"],
+.viewToggle button[aria-pressed="true"],
+.categoryRail button[aria-current="true"] {
+  background: #111;
+  border-color: rgba(255, 255, 255, 0.72);
+  color: #fff;
+}
+
+.searchField input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.badges span,
+.detailList li {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.overlay {
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.topActions a:focus-visible,
+.topActions button:focus-visible,
+.hero button:focus-visible,
+.categoryRail button:focus-visible,
+.searchField input:focus-visible,
+.searchField button:focus-visible,
+.quickFilters button:focus-visible,
+.viewToggle button:focus-visible,
+.dishSummary:focus-visible,
+.cardActions a:focus-visible,
+.cardActions button:focus-visible,
+.iconButton:focus-visible,
+.primaryAction:focus-visible,
+.detailActions a:focus-visible,
+.detailActions button:focus-visible,
+.fieldLabel input:focus-visible,
+.quantityControls button:focus-visible,
+.emptyState button:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.92);
+}
