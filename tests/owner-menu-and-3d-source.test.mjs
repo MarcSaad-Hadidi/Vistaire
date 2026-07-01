@@ -42,3 +42,22 @@ test("owner menu mutation routes require owner auth and same-origin", async () =
     assert.match(route, /getSupabaseAdminClient/);
   }
 });
+
+test("owner menu mutations tolerate the production menu schema", async () => {
+  const mutations = await source("lib/owner/menuMutations.ts");
+  const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
+  const styles = await source("components/owner/OwnerCockpit.module.css");
+  const categoryInsertBlock =
+    mutations.match(
+      /\.from\("menu_categories"\)[\s\S]*?\.select\("id,name,slug,description,display_order"\)/
+    )?.[0] ?? "";
+
+  assert.match(mutations, /isMissingColumnError/);
+  assert.match(mutations, /\.select\("id,slug,status,is_primary"\)/);
+  assert.match(mutations, /\.select\("id"\)/);
+  assert.doesNotMatch(categoryInsertBlock, /metadata:/);
+  assert.match(manager, /dishTitleCell/);
+  assert.match(manager, /Section :/);
+  assert.match(styles, /\.dishTitleCell/);
+  assert.match(styles, /\.dishSectionLabel/);
+});

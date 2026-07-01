@@ -5,11 +5,14 @@ import { readFile } from "node:fs/promises";
 import {
   buildPreparedModelMetadata,
   buildPreparedModelPublicArLiteGlbPath,
+  buildPreparedModelPublicGlbPath,
+  buildPreparedModelPublicUsdzPath,
   buildPreparedModelStoragePath,
   buildPreparedModelUsdzStoragePath,
   buildPreparedModelWebStoragePath,
   isPreparedGlbPipelineStep
 } from "../lib/owner/preparedModelWorkflow.ts";
+import { isSafe3dAssetUrl } from "../lib/dish3dManifest.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 
@@ -54,6 +57,65 @@ test("prepared GLB workflow uses explicit storage paths and metadata without opt
   );
   assert.equal(isPreparedGlbPipelineStep("prepared_usdz"), true);
   assert.equal(isPreparedGlbPipelineStep("optimize"), false);
+});
+
+test("prepared GLB workflow versions published storage paths and public URLs", () => {
+  const dishId = restaurantId;
+  const assetVersion = "meshy-20260701-abc123def456";
+
+  assert.equal(
+    buildPreparedModelWebStoragePath({
+      restaurantId,
+      dishSlug: "dejeuner-classique-maison",
+      assetVersion
+    }),
+    `restaurants/${restaurantId}/models/web/dejeuner-classique-maison-${assetVersion}.glb`
+  );
+  assert.equal(
+    buildPreparedModelUsdzStoragePath({
+      restaurantId,
+      dishSlug: "dejeuner-classique-maison",
+      assetVersion
+    }),
+    `restaurants/${restaurantId}/models/ar-ios/dejeuner-classique-maison-${assetVersion}.usdz`
+  );
+  assert.equal(
+    buildPreparedModelPublicGlbPath(dishId, { assetVersion }),
+    `/api/public/menu-dishes/${dishId}/model/glb?v=${assetVersion}`
+  );
+  assert.equal(
+    buildPreparedModelPublicArLiteGlbPath(dishId, { assetVersion }),
+    `/api/public/menu-dishes/${dishId}/model/glb?variant=ar-lite&v=${assetVersion}`
+  );
+  assert.equal(
+    buildPreparedModelPublicUsdzPath(dishId, { assetVersion }),
+    `/api/public/menu-dishes/${dishId}/model/usdz?v=${assetVersion}`
+  );
+  assert.equal(
+    isSafe3dAssetUrl(`/api/public/menu-dishes/${dishId}/model/glb?v=${assetVersion}`, [], "web"),
+    true
+  );
+  assert.equal(
+    isSafe3dAssetUrl(
+      `/api/public/menu-dishes/${dishId}/model/glb?variant=ar-lite&v=${assetVersion}`,
+      [],
+      "arLite"
+    ),
+    true
+  );
+  assert.equal(
+    isSafe3dAssetUrl(`/api/public/menu-dishes/${dishId}/model/glb?v=../stale`, [], "web"),
+    false
+  );
+  assert.throws(
+    () =>
+      buildPreparedModelWebStoragePath({
+        restaurantId,
+        dishSlug: "dejeuner-classique-maison",
+        assetVersion: "../stale"
+      }),
+    /Identifiants modele invalides/
+  );
 });
 
 test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", async () => {
@@ -113,6 +175,9 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   assert.match(meshyPipeline, /buildPreparedModelPublicGlbPath/);
   assert.match(meshyPipeline, /buildPreparedModelPublicArLiteGlbPath/);
   assert.match(meshyPipeline, /buildPreparedModelPublicUsdzPath/);
+  assert.match(meshyPipeline, /cleanDishModelMetadata/);
+  assert.match(meshyPipeline, /modelAssetVersion/);
+  assert.match(meshyPipeline, /modelAssetSha256/);
   assert.match(meshyPipeline, /manual_runner_command/);
   assert.match(meshyPipeline, /worker_kind: "external_worker"/);
   assert.match(meshyPipeline, /insertedJob\.error/);
@@ -131,7 +196,7 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   assert.match(publicGlbRoute, /variant === "ar-lite"/);
   assert.match(publicGlbRoute, /arModel3dStoragePath/);
   assert.match(dish3dManifest, /PUBLIC_MODEL_ROUTE_PATTERN/);
-  assert.match(dish3dManifest, /\?variant=ar-lite/);
+  assert.match(dish3dManifest, /variant=ar-lite/);
   assert.match(nextConfig, /OWNER_MODEL_PIPELINE_TRACE_EXCLUDES/);
   assert.match(nextConfig, /\/api\/owner\/restaurants\/\*\/dishes\/\*\/model\/glb/);
   assert.match(nextConfig, /\/api\/owner\/restaurants\/\*\/dishes\/\*\/model\/publish/);

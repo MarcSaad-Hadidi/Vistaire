@@ -47,6 +47,9 @@ export type PublicMenuDish = {
   arUsdzUrl: string;
   arUsdzBytes: number;
   posterUrl: string;
+  modelAssetVersion?: string;
+  modelAssetSha256?: string;
+  modelUpdatedAt?: string;
   preparedGlbJobId?: string;
   preparedGlbStoragePath?: string;
   modelStatus:
@@ -595,50 +598,50 @@ function mapDishRow(
       "thumbnail_url",
       "thumbnailUrl"
     ]) || imageUrl;
-  const model3dUrl = getSafeStringFromSources(row, metadata, ["model3d_url", "model3dUrl"]);
+  const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
   const webModel3dUrl =
-    getSafeStringFromSources(row, metadata, ["web_model_3d_url", "webModel3dUrl"]) ||
+    getSafeStringFromSources(row, metadata, ["webModel3dUrl", "web_model_3d_url"]) ||
     model3dUrl;
   const arModel3dUrl = getSafeStringFromSources(row, metadata, [
-    "ar_model_3d_url",
-    "arModel3dUrl"
+    "arModel3dUrl",
+    "ar_model_3d_url"
   ]);
-  const usdzUrl = getSafeStringFromSources(row, metadata, ["usdz_url", "usdzUrl"]);
+  const usdzUrl = getSafeStringFromSources(row, metadata, ["usdzUrl", "usdz_url"]);
   const arUsdzUrl =
     getSafeStringFromSources(row, metadata, [
-      "ar_usdz_url",
       "arUsdzUrl",
-      "ios_usdz_url",
-      "iosUsdzUrl"
+      "ar_usdz_url",
+      "iosUsdzUrl",
+      "ios_usdz_url"
     ]) || usdzUrl;
   const webModel3dBytes = normalizeModelAssetBytes(
     getNumberFromSources(row, metadata, [
-      "web_model_3d_bytes",
       "webModel3dBytes",
-      "web_glb_bytes",
+      "web_model_3d_bytes",
       "webGlbBytes",
-      "meshopt_bytes",
-      "meshoptBytes"
+      "web_glb_bytes",
+      "meshoptBytes",
+      "meshopt_bytes"
     ])
   );
   const arModel3dBytes = normalizeModelAssetBytes(
     getNumberFromSources(row, metadata, [
-      "ar_model_3d_bytes",
       "arModel3dBytes",
-      "ar_lite_glb_bytes",
+      "ar_model_3d_bytes",
       "arLiteGlbBytes",
-      "ar_lite_bytes",
-      "arLiteBytes"
+      "ar_lite_glb_bytes",
+      "arLiteBytes",
+      "ar_lite_bytes"
     ])
   );
   const arUsdzBytes = normalizeModelAssetBytes(
     getNumberFromSources(row, metadata, [
-      "ar_usdz_bytes",
       "arUsdzBytes",
-      "ios_usdz_bytes",
+      "ar_usdz_bytes",
       "iosUsdzBytes",
-      "usdz_bytes",
-      "usdzBytes"
+      "ios_usdz_bytes",
+      "usdzBytes",
+      "usdz_bytes"
     ])
   );
   const posterUrl = getSafeStringFromSources(row, metadata, [
@@ -652,6 +655,9 @@ function mapDishRow(
     "preparedGlbStoragePath",
     "prepared_glb_storage_path"
   ]);
+  const modelAssetVersion = getString(metadata, ["modelAssetVersion", "model_asset_version"], "");
+  const modelAssetSha256 = getString(metadata, ["modelAssetSha256", "model_asset_sha256"], "");
+  const modelUpdatedAt = getString(metadata, ["modelUpdatedAt", "model_updated_at"], "");
   const hasImmersiveFlag = getBoolean(row, ["has_immersive_view", "hasImmersiveView"]);
   const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl || hasImmersiveFlag);
   const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
@@ -708,6 +714,9 @@ function mapDishRow(
     arUsdzUrl,
     arUsdzBytes,
     posterUrl,
+    ...(modelAssetVersion ? { modelAssetVersion } : {}),
+    ...(modelAssetSha256 ? { modelAssetSha256 } : {}),
+    ...(modelUpdatedAt ? { modelUpdatedAt } : {}),
     preparedGlbJobId,
     preparedGlbStoragePath,
     modelStatus:

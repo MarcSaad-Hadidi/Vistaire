@@ -1626,6 +1626,33 @@
   color: var(--owner-soft);
 }
 
+.dishTitleCell {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dishTitleCell .cellMain,
+.dishSectionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dishSectionLabel {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid rgba(232, 207, 155, 0.16);
+  border-radius: 999px;
+  color: var(--owner-soft);
+  background: rgba(255, 247, 224, 0.04);
+  font-size: 12px;
+}
+
 /* Badges */
 .badge {
   display: inline-flex;

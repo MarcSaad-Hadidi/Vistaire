@@ -18,13 +18,18 @@ function getString(row: Record<string, unknown>, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function modelCacheControl(assetVersion: string): string {
+  return assetVersion ? "public, max-age=31536000, immutable" : "no-store";
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ dishId: string }> }
 ) {
   const { dishId } = await params;
+  const assetVersion = request.nextUrl.searchParams.get("v")?.trim() ?? "";
   try {
-    buildPreparedModelPublicUsdzPath(dishId);
+    buildPreparedModelPublicUsdzPath(dishId, { assetVersion: assetVersion || undefined });
   } catch {
     return NextResponse.json({ ok: false, error: "USDZ introuvable." }, { status: 404 });
   }
@@ -44,6 +49,10 @@ export async function GET(
   }
 
   const metadata = getMetadata(dish.metadata);
+  const activeAssetVersion = getString(metadata, "modelAssetVersion");
+  if (assetVersion && activeAssetVersion && assetVersion !== activeAssetVersion) {
+    return NextResponse.json({ ok: false, error: "USDZ introuvable." }, { status: 404 });
+  }
   const bucket = getString(metadata, "arUsdzStorageBucket") || MODEL_BUCKET;
   const storagePath = getString(metadata, "arUsdzStoragePath");
   if (
@@ -65,7 +74,7 @@ export async function GET(
     headers: {
       "Content-Type": "model/vnd.usdz+zip",
       "Content-Length": String(bytes.byteLength),
-      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"
+      "Cache-Control": modelCacheControl(assetVersion)
     }
   });
 }

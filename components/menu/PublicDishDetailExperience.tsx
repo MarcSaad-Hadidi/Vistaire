@@ -380,6 +380,15 @@ export function PublicDishDetailExperience({
                     >
                       {ModelViewerComponent ? (
                         <ModelViewerComponent
+                          key={[
+                            dish.id,
+                            dish.modelAssetVersion ?? "",
+                            dish.modelUpdatedAt ?? "",
+                            dish.webModel3dUrl,
+                            dish.arModel3dUrl,
+                            dish.arUsdzUrl || dish.usdzUrl,
+                            dish.modelStatus
+                          ].join(":")}
                           dish={modelViewerDishFromPublicDish(dish)}
                           minimalChrome
                           quietChrome

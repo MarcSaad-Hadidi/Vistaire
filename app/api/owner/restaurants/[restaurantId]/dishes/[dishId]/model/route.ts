@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
@@ -10,6 +11,7 @@ import {
   groupTargetsByBucket,
   hasDishModelMetadata
 } from "@/lib/owner/deleteDishModelAssets";
+import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -21,12 +23,25 @@ const UUID_PATTERN =
 type DishRow = {
   id: string;
   restaurant_id: string;
+  slug?: string | null;
+  name?: string | null;
   metadata: unknown;
   has_immersive_view?: boolean | null;
 };
 
 function validUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
+}
+
+function getString(row: Record<string, unknown> | null | undefined, key: string): string {
+  const value = row?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
+  if (!restaurantSlug) return;
+  revalidatePath(`/menu/${restaurantSlug}`);
+  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
 
 export async function DELETE(
@@ -54,7 +69,7 @@ export async function DELETE(
 
   const { data: dish, error: dishError } = await admin.client
     .from("menu_dishes")
-    .select("id,restaurant_id,metadata,has_immersive_view")
+    .select("id,restaurant_id,slug,name,metadata,has_immersive_view")
     .eq("id", dishId)
     .eq("restaurant_id", restaurantId)
     .maybeSingle<DishRow>();
@@ -71,6 +86,14 @@ export async function DELETE(
       { status: 404 }
     );
   }
+
+  const restaurant = await admin.client
+    .from("restaurants")
+    .select("slug")
+    .eq("id", restaurantId)
+    .maybeSingle();
+  const restaurantSlug = slugifyRestaurantSlug(getString(restaurant.data, "slug") || restaurantId);
+  const dishSlug = slugifyRestaurantSlug(dish.slug || dish.name || dishId);
 
   const collected = collectDishModelStorageTargets(dish.metadata, restaurantId);
   const modelDeleted =
@@ -118,6 +141,8 @@ export async function DELETE(
       { status: 503 }
     );
   }
+
+  revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
 
   return NextResponse.json({
     ok: true,

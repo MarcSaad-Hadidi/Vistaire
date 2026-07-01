@@ -70,6 +70,7 @@ function CompareModelViewer({
 
   return (
     <model-viewer
+      key={`${src}:${iosSrc}:${ar ? "ar" : "web"}`}
       ref={ref}
       data-model-src={src}
       className={styles.modelCompareViewer}
