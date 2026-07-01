@@ -78,6 +78,7 @@ export type PublicMenuContextQuery = {
   lang?: Locale | string;
   table?: string;
   zone?: string;
+  view?: string;
 };
 
 export type PublicMenuCategory = {
@@ -861,10 +862,12 @@ export function buildPublicDishPath(
   const params = new URLSearchParams();
   const table = query?.table?.toString().trim();
   const zone = query?.zone?.toString().trim();
+  const view = query?.view?.toString().trim();
   const rawLang = query?.lang?.toString().trim();
   if (rawLang) params.set("lang", normalizeLocale(rawLang));
   if (table) params.set("table", table.slice(0, 24));
   if (zone) params.set("zone", zone.slice(0, 24));
+  if (view) params.set("view", view.slice(0, 24));
 
   const suffix = params.toString();
   const path = `/menu/${encodeURIComponent(menuSlug)}/dishes/${encodeURIComponent(dishSlug)}`;

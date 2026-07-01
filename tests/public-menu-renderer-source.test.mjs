@@ -142,7 +142,7 @@ test("public menu renderer links dish cards to shareable detail routes with QR c
     "utf8"
   );
 
-  assert.match(pageSource, /query=\{query\}/);
+  assert.match(pageSource, /query=\{menuQuery\}/);
   assert.match(rendererSource, /import Link from "next\/link"/);
   assert.match(rendererSource, /buildPublicDishPath/);
   assert.match(rendererSource, /query\?: PublicMenuContextQuery/);

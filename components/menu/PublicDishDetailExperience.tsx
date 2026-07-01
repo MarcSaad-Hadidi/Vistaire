@@ -1,8 +1,12 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentType,
+  type CSSProperties
+} from "react";
 import {
   type PublicMenu,
   type PublicMenuContextQuery,
@@ -29,20 +33,7 @@ type PublicDishDetailExperienceProps = {
   onBack?: () => void;
 };
 
-const LazyDishModelViewer = dynamic<DishModelViewerProps>(
-  () =>
-    import("@/components/dish/DishModelViewer").then(
-      (mod) => mod.DishModelViewer
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className={styles.modelLoading} role="status" aria-live="polite">
-        Préparation de la vue immersive...
-      </div>
-    )
-  }
-);
+type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
 
 function dishBadges(
   dish: PublicMenuDish,
@@ -160,6 +151,9 @@ export function PublicDishDetailExperience({
   onBack
 }: PublicDishDetailExperienceProps) {
   const [showModelViewer, setShowModelViewer] = useState(false);
+  const [ModelViewerComponent, setModelViewerComponent] =
+    useState<DishModelViewerComponent | null>(null);
+  const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
   const restaurantDisplayName = cleanDisplayText(menu.name);
   const hasPublic3dAsset = hasPublic3d(dish);
@@ -178,6 +172,27 @@ export function PublicDishDetailExperience({
   const showBuilderModelStatus =
     mode === "builder-preview" && (hasBuilder3dStatus || hasBuilderArStatus);
   const publicModelButtonLabel = showModelViewer ? "Masquer la 3D" : "Voir en 3D";
+
+  useEffect(() => {
+    if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
+
+    let cancelled = false;
+    import("@/components/dish/DishModelViewer")
+      .then((mod) => {
+        if (!cancelled) {
+          setModelViewerComponent(() => mod.DishModelViewer);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setModelViewerLoadFailed(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ModelViewerComponent, modelViewerLoadFailed, showModelViewer]);
 
   return (
     <main
@@ -363,12 +378,30 @@ export function PublicDishDetailExperience({
                       className={styles.inlineModelViewer}
                       id="public-dish-model-viewer"
                     >
-                      <LazyDishModelViewer
-                        dish={modelViewerDishFromPublicDish(dish)}
-                        minimalChrome
-                        quietChrome
-                        onReturnToDish={() => setShowModelViewer(false)}
-                      />
+                      {ModelViewerComponent ? (
+                        <ModelViewerComponent
+                          dish={modelViewerDishFromPublicDish(dish)}
+                          minimalChrome
+                          quietChrome
+                          onReturnToDish={() => setShowModelViewer(false)}
+                        />
+                      ) : modelViewerLoadFailed ? (
+                        <div
+                          className={styles.modelLoading}
+                          role="status"
+                          aria-live="polite"
+                        >
+                          Vue 3D temporairement indisponible.
+                        </div>
+                      ) : (
+                        <div
+                          className={styles.modelLoading}
+                          role="status"
+                          aria-live="polite"
+                        >
+                          Preparation de la vue immersive...
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div

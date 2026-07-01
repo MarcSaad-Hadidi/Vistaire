@@ -2,10 +2,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
+import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
 import { normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
+import {
+  isTrouvablePublicMenu,
+  resolvePublicMenuUiConfig
+} from "@/lib/menu/trouvableMenuExperience";
 import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
+import { trouvableTypographyClassName } from "./trouvableTypography";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +35,8 @@ export default async function PublicMenuPage({
   const menuQuery = {
     ...(hasLangParam ? { lang: locale } : {}),
     table: query.table,
-    zone: query.zone
+    zone: query.zone,
+    view: query.view
   };
   const menu = await getPublicMenuBySlug(slug, locale);
 
@@ -51,6 +58,7 @@ export default async function PublicMenuPage({
     menu.restaurantId,
     fallbackConfig
   );
+  const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
 
   if (menu.slug === "maison-elyse") {
     const [frenchMenu, englishMenu] = await Promise.all([
@@ -73,10 +81,22 @@ export default async function PublicMenuPage({
     );
   }
 
+  if (isTrouvablePublicMenu(menu)) {
+    return (
+      <TrouvablePremiumMenuExperience
+        menu={menu}
+        config={resolvedConfig}
+        context={context}
+        query={menuQuery}
+        typographyClassName={trouvableTypographyClassName}
+      />
+    );
+  }
+
   return (
     <PublicMenuRenderer
       menu={menu}
-      config={configRecord.config}
+      config={resolvedConfig}
       context={context}
       query={menuQuery}
       mode="public"

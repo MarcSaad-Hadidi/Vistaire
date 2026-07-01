@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const componentPath = "components/menu/GoogleReviewCard.tsx";
+const trackingPath = "components/menu/googleReviewTracking.ts";
 const rendererPath = "components/menu/PublicMenuRenderer.tsx";
 const corePath = "lib/menu/publicMenuCore.ts";
 
@@ -37,13 +38,17 @@ test("Google Review card uses neutral approved wording and no incentive or gatin
 });
 
 test("Google Review card links out safely and tracks only the outbound click", async () => {
-  const source = await readFile(componentPath, "utf8");
+  const [source, tracking] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(trackingPath, "utf8")
+  ]);
 
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noopener noreferrer"/);
-  assert.match(source, /trackMenuEvent/);
-  assert.match(source, /eventName:\s*"cta_clicked"/);
-  assert.match(source, /ctaName:\s*"google_review"/);
+  assert.match(source, /trackGoogleReviewClick/);
+  assert.match(tracking, /trackMenuEvent/);
+  assert.match(tracking, /eventName:\s*"cta_clicked"/);
+  assert.match(tracking, /ctaName:\s*"google_review"/);
   assert.doesNotMatch(source, /posted|published|reviewed|avis publie/i);
 });
 
