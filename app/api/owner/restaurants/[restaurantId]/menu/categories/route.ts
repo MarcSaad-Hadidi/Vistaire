@@ -5,8 +5,10 @@ import {
 } from "@/lib/auth/ownerApi";
 import {
   createOwnerMenuCategory,
+  deleteOwnerMenuCategory,
   updateOwnerMenuCategory
 } from "@/lib/owner/menuMutations";
+import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -63,6 +65,58 @@ export async function POST(
     );
   }
 
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId
+  });
+
+  return NextResponse.json({ ok: true, category: result.record });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ restaurantId: string }> }
+) {
+  const auth = await requireVistaireOwnerApi();
+  if (!auth.ok) return auth.response;
+
+  const originError = requireSameOriginOwnerMutation(request);
+  if (originError) return originError;
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Supabase admin indisponible." },
+      { status: 503 }
+    );
+  }
+
+  const restaurantId = restaurantIdFromParams(await params);
+  if (!restaurantId) {
+    return NextResponse.json(
+      { ok: false, error: "Restaurant requis." },
+      { status: 400 }
+    );
+  }
+
+  const result = await deleteOwnerMenuCategory({
+    client: admin.client,
+    restaurantId,
+    input: await readJsonBody(request)
+  });
+
+  if (!result.ok) {
+    return NextResponse.json(
+      { ok: false, error: result.error },
+      { status: result.status }
+    );
+  }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId
+  });
+
   return NextResponse.json({ ok: true, category: result.record });
 }
 
@@ -104,6 +158,11 @@ export async function PATCH(
       { status: result.status }
     );
   }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId
+  });
 
   return NextResponse.json({ ok: true, category: result.record });
 }

@@ -9,6 +9,7 @@ import {
   mergeDishPhotoMetadata,
   validateDishPhotoFile
 } from "@/lib/owner/dishPhotoUpload";
+import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -164,6 +165,12 @@ export async function POST(
       { status: 503 }
     );
   }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId,
+    dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
+  });
 
   return NextResponse.json({
     ok: true,

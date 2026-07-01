@@ -14,7 +14,11 @@ test("owner Carte & plats page uses the interactive menu manager", async () => {
   assert.doesNotMatch(page, /Ajouter plat .*brancher/i);
   assert.match(manager, /Ajouter section/);
   assert.match(manager, /Ajouter plat/);
+  assert.match(manager, /Supprimer/);
+  assert.match(manager, /Confirmer/);
   assert.match(manager, /submitJson/);
+  assert.match(manager, /dishSectionFilter/);
+  assert.match(manager, /filteredDishes/);
 });
 
 test("owner 3D page renders one selected comparison instead of a cascade", async () => {
@@ -40,6 +44,8 @@ test("owner menu mutation routes require owner auth and same-origin", async () =
     assert.match(route, /requireVistaireOwnerApi/);
     assert.match(route, /requireSameOriginOwnerMutation/);
     assert.match(route, /getSupabaseAdminClient/);
+    assert.match(route, /export async function DELETE/);
+    assert.match(route, /revalidateOwnerMenuMutationPaths/);
   }
 });
 
@@ -60,4 +66,45 @@ test("owner menu mutations tolerate the production menu schema", async () => {
   assert.match(manager, /Section :/);
   assert.match(styles, /\.dishTitleCell/);
   assert.match(styles, /\.dishSectionLabel/);
+});
+
+test("owner menu deletes dishes and only deletes empty sections", async () => {
+  const mutations = await source("lib/owner/menuMutations.ts");
+  const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
+  const revalidation = await source("lib/owner/menuMutationRevalidation.ts");
+
+  assert.match(mutations, /deleteOwnerMenuDish/);
+  assert.match(mutations, /\.from\("menu_dishes"\)[\s\S]*?\.delete\(\)/);
+  assert.match(mutations, /deleteOwnerMenuCategory/);
+  assert.match(mutations, /count: "exact", head: true/);
+  assert.match(mutations, /Impossible de supprimer cette section/);
+  assert.match(manager, /requestDeleteDish/);
+  assert.match(manager, /requestDeleteCategory/);
+  assert.match(manager, /method: "POST" \| "PATCH" \| "DELETE"/);
+  assert.match(manager, /role="alertdialog"/);
+  assert.match(revalidation, /revalidatePath\(`\/menu\/\$\{restaurantSlug\}`\)/);
+  assert.match(revalidation, /\/dishes\/\$\{dishSlug\}/);
+});
+
+test("owner dish creation can attach photo and GLB and filter dishes by section", async () => {
+  const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
+  const photoRoute = await source(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts"
+  );
+  const dishesRoute = await source(
+    "app/api/owner/restaurants/[restaurantId]/menu/dishes/route.ts"
+  );
+
+  assert.match(manager, /DishAssetDraft/);
+  assert.match(manager, /photoFile/);
+  assert.match(manager, /glbFile/);
+  assert.match(manager, /uploadDishAsset/);
+  assert.match(manager, /model\/glb/);
+  assert.match(manager, /accept="image\/jpeg,image\/png,image\/webp"/);
+  assert.match(manager, /accept="\.glb,model\/gltf-binary"/);
+  assert.match(manager, /Toutes les sections/);
+  assert.match(manager, /filteredDishes\.map/);
+  assert.match(manager, /Aucun plat dans cette section/);
+  assert.match(photoRoute, /revalidateOwnerMenuMutationPaths/);
+  assert.match(dishesRoute, /dishSlug: typeof result\.record\.slug/);
 });

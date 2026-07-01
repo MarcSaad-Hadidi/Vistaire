@@ -8,6 +8,11 @@ import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
 import type { PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
 type EditorMode = "category" | "dish" | null;
+type DeleteTarget = {
+  type: "category" | "dish";
+  id: string;
+  label: string;
+} | null;
 
 type OwnerRestaurantMenuManagerProps = {
   restaurantId: string;
@@ -33,6 +38,18 @@ type DishDraft = {
   available: boolean;
 };
 
+type DishAssetDraft = {
+  photoFile: File | null;
+  glbFile: File | null;
+};
+
+type MenuMutationPayload = {
+  ok?: boolean;
+  error?: string;
+  category?: Record<string, unknown>;
+  dish?: Record<string, unknown>;
+};
+
 const EMPTY_CATEGORY_DRAFT: CategoryDraft = {
   id: "",
   name: "",
@@ -47,6 +64,21 @@ const EMPTY_DISH_DRAFT: DishDraft = {
   description: "",
   available: true
 };
+
+const EMPTY_DISH_ASSET_DRAFT: DishAssetDraft = {
+  photoFile: null,
+  glbFile: null
+};
+
+function stringOutput(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function fileLabel(file: File | null, fallback: string): string {
+  if (!file) return fallback;
+  const sizeMb = file.size > 0 ? ` · ${(file.size / (1024 * 1024)).toFixed(1)} MB` : "";
+  return `${file.name}${sizeMb}`;
+}
 
 function priceDraftFromDish(dish: PublicMenuDish): string {
   if (!Number.isFinite(dish.priceCents) || dish.priceCents <= 0) return "";
@@ -65,20 +97,55 @@ function categoryIdForDish(
 
 async function submitJson(
   url: string,
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   body: Record<string, unknown>
-) {
+): Promise<MenuMutationPayload> {
   const response = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
+  const payload = (await response.json().catch(() => null)) as MenuMutationPayload | null;
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.error || "Modification impossible.");
+  }
+  return payload ?? {};
+}
+
+async function uploadDishAsset(args: {
+  restaurantId: string;
+  dishId: string;
+  file: File;
+  type: "photo" | "glb";
+}) {
+  const formData = new FormData();
+  formData.set("file", args.file);
+  const suffix = args.type === "photo" ? "photo" : "model/glb";
+  const response = await fetch(
+    `/api/owner/restaurants/${encodeURIComponent(args.restaurantId)}/dishes/${encodeURIComponent(args.dishId)}/${suffix}`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
   const payload = (await response.json().catch(() => null)) as {
     ok?: boolean;
     error?: string;
+    imageUrl?: string;
+    webModel3dUrl?: string;
+    arUsdzUrl?: string;
   } | null;
-  if (!response.ok || payload?.ok === false) {
-    throw new Error(payload?.error || "Modification impossible.");
+
+  if (
+    !response.ok ||
+    !payload?.ok ||
+    (args.type === "photo" && !payload.imageUrl) ||
+    (args.type === "glb" && (!payload.webModel3dUrl || !payload.arUsdzUrl))
+  ) {
+    throw new Error(
+      payload?.error ||
+        (args.type === "photo" ? "Upload photo impossible." : "Pipeline GLB vers USDZ impossible.")
+    );
   }
 }
 
@@ -96,6 +163,13 @@ export function OwnerRestaurantMenuManager({
     EMPTY_CATEGORY_DRAFT
   );
   const [dishDraft, setDishDraft] = useState<DishDraft>(EMPTY_DISH_DRAFT);
+  const [dishAssetDraft, setDishAssetDraft] = useState<DishAssetDraft>(
+    EMPTY_DISH_ASSET_DRAFT
+  );
+  const [dishSectionFilter, setDishSectionFilter] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [deletingKey, setDeletingKey] = useState("");
+  const [isSavingDish, setIsSavingDish] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -112,6 +186,20 @@ export function OwnerRestaurantMenuManager({
     () => categories.filter((category) => category.id && category.label),
     [categories]
   );
+  const filteredDishes = useMemo(() => {
+    if (dishSectionFilter === "all") return dishes;
+    const selectedCategory = sortedCategories.find(
+      (category) => category.id === dishSectionFilter
+    );
+    if (!selectedCategory) return dishes;
+
+    return dishes.filter(
+      (dish) =>
+        dish.categoryId === selectedCategory.id ||
+        dish.category === selectedCategory.label
+    );
+  }, [dishSectionFilter, dishes, sortedCategories]);
+  const isMutating = isPending || isSavingDish || Boolean(deletingKey);
 
   function resetMessages() {
     setStatusMessage("");
@@ -120,12 +208,15 @@ export function OwnerRestaurantMenuManager({
 
   function startNewCategory() {
     resetMessages();
+    setDeleteTarget(null);
+    setDishAssetDraft(EMPTY_DISH_ASSET_DRAFT);
     setCategoryDraft(EMPTY_CATEGORY_DRAFT);
     setActiveEditor("category");
   }
 
   function startEditCategory(category: PublicMenuCategory) {
     resetMessages();
+    setDeleteTarget(null);
     setCategoryDraft({
       id: category.id,
       name: category.label,
@@ -136,6 +227,8 @@ export function OwnerRestaurantMenuManager({
 
   function startNewDish() {
     resetMessages();
+    setDeleteTarget(null);
+    setDishAssetDraft(EMPTY_DISH_ASSET_DRAFT);
     setDishDraft({
       ...EMPTY_DISH_DRAFT,
       categoryId: sortedCategories[0]?.id ?? ""
@@ -145,6 +238,8 @@ export function OwnerRestaurantMenuManager({
 
   function startEditDish(dish: PublicMenuDish) {
     resetMessages();
+    setDeleteTarget(null);
+    setDishAssetDraft(EMPTY_DISH_ASSET_DRAFT);
     setDishDraft({
       id: dish.id,
       name: dish.name,
@@ -158,17 +253,79 @@ export function OwnerRestaurantMenuManager({
 
   function closeEditor() {
     setActiveEditor(null);
+    setDeleteTarget(null);
     setCategoryDraft(EMPTY_CATEGORY_DRAFT);
     setDishDraft(EMPTY_DISH_DRAFT);
+    setDishAssetDraft(EMPTY_DISH_ASSET_DRAFT);
   }
 
   function refreshAfterSave(message: string) {
+    refreshAfterMutation(message, "");
+  }
+
+  function refreshAfterMutation(message: string, error = "") {
     setStatusMessage(message);
-    setErrorMessage("");
+    setErrorMessage(error);
+    setDeleteTarget(null);
     closeEditor();
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  function requestDeleteCategory(category: PublicMenuCategory) {
+    resetMessages();
+    setActiveEditor(null);
+    if (category.count > 0) {
+      setErrorMessage(
+        "Impossible de supprimer cette section : supprimez ou deplacez ses plats avant."
+      );
+      setDeleteTarget(null);
+      return;
+    }
+    setDeleteTarget({
+      type: "category",
+      id: category.id,
+      label: category.label
+    });
+  }
+
+  function requestDeleteDish(dish: PublicMenuDish) {
+    resetMessages();
+    setActiveEditor(null);
+    setDeleteTarget({
+      type: "dish",
+      id: dish.id,
+      label: dish.name
+    });
+  }
+
+  async function deleteCategory(category: PublicMenuCategory) {
+    const key = `category:${category.id}`;
+    setDeletingKey(key);
+    resetMessages();
+    try {
+      await submitJson(categoryEndpoint, "DELETE", { id: category.id });
+      refreshAfterSave(`Section "${category.label}" supprimee.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Section impossible a supprimer.");
+    } finally {
+      setDeletingKey("");
+    }
+  }
+
+  async function deleteDish(dish: PublicMenuDish) {
+    const key = `dish:${dish.id}`;
+    setDeletingKey(key);
+    resetMessages();
+    try {
+      await submitJson(dishEndpoint, "DELETE", { id: dish.id });
+      refreshAfterSave(`Plat "${dish.name}" supprime.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Plat impossible a supprimer.");
+    } finally {
+      setDeletingKey("");
+    }
   }
 
   async function submitCategory(event: React.FormEvent<HTMLFormElement>) {
@@ -191,8 +348,10 @@ export function OwnerRestaurantMenuManager({
   async function submitDish(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     resetMessages();
+    setIsSavingDish(true);
     try {
-      await submitJson(dishEndpoint, dishDraft.id ? "PATCH" : "POST", {
+      const isNewDish = !dishDraft.id;
+      const payload = await submitJson(dishEndpoint, dishDraft.id ? "PATCH" : "POST", {
         id: dishDraft.id || undefined,
         name: dishDraft.name,
         categoryId: dishDraft.categoryId,
@@ -200,9 +359,62 @@ export function OwnerRestaurantMenuManager({
         description: dishDraft.description,
         available: dishDraft.available
       });
-      refreshAfterSave(dishDraft.id ? "Plat modifie." : "Plat ajoute.");
+
+      if (!isNewDish) {
+        refreshAfterSave("Plat modifie.");
+        return;
+      }
+
+      const dishId = stringOutput(payload.dish?.id);
+      const mediaSuccess: string[] = [];
+      const mediaErrors: string[] = [];
+      if (!dishId && (dishAssetDraft.photoFile || dishAssetDraft.glbFile)) {
+        mediaErrors.push("medias non envoyes : identifiant du plat introuvable.");
+      }
+
+      if (dishId && dishAssetDraft.photoFile) {
+        try {
+          await uploadDishAsset({
+            restaurantId,
+            dishId,
+            file: dishAssetDraft.photoFile,
+            type: "photo"
+          });
+          mediaSuccess.push("photo ajoutee");
+        } catch (uploadError) {
+          mediaErrors.push(
+            uploadError instanceof Error ? uploadError.message : "Upload photo impossible."
+          );
+        }
+      }
+
+      if (dishId && dishAssetDraft.glbFile) {
+        try {
+          await uploadDishAsset({
+            restaurantId,
+            dishId,
+            file: dishAssetDraft.glbFile,
+            type: "glb"
+          });
+          mediaSuccess.push("GLB envoye");
+        } catch (uploadError) {
+          mediaErrors.push(
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Pipeline GLB vers USDZ impossible."
+          );
+        }
+      }
+
+      const mediaSuffix = mediaSuccess.length ? ` ${mediaSuccess.join(", ")}.` : "";
+      refreshAfterMutation(
+        `Plat ajoute.${mediaSuffix}`,
+        mediaErrors.length ? `Plat cree, mais ${mediaErrors.join(" ")}` : ""
+      );
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Plat impossible a enregistrer.");
+    } finally {
+      setIsSavingDish(false);
     }
   }
 
@@ -216,7 +428,7 @@ export function OwnerRestaurantMenuManager({
           <button
             className={styles.btn}
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isMutating}
             onClick={startNewCategory}
           >
             Ajouter section
@@ -224,7 +436,7 @@ export function OwnerRestaurantMenuManager({
           <button
             className={styles.btn}
             type="button"
-            disabled={!canEdit || sortedCategories.length === 0}
+            disabled={!canEdit || isMutating || sortedCategories.length === 0}
             onClick={startNewDish}
           >
             Ajouter plat
@@ -283,7 +495,7 @@ export function OwnerRestaurantMenuManager({
               />
             </label>
             <div className={styles.submitRow}>
-              <button className={styles.btnPrimary} type="submit" disabled={isPending}>
+              <button className={styles.btnPrimary} type="submit" disabled={isMutating}>
                 {categoryDraft.id ? "Mettre a jour" : "Creer section"}
               </button>
               <button className={styles.btn} type="button" onClick={closeEditor}>
@@ -380,11 +592,68 @@ export function OwnerRestaurantMenuManager({
                 maxLength={800}
               />
             </label>
+            {!dishDraft.id ? (
+              <div className={styles.formGrid}>
+                <label className={styles.formField}>
+                  <span>Photo</span>
+                  <input
+                    className={styles.control}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={isSavingDish}
+                    onChange={(event) =>
+                      setDishAssetDraft((draft) => ({
+                        ...draft,
+                        photoFile: event.target.files?.[0] ?? null
+                      }))
+                    }
+                  />
+                  <span className={styles.cellSub}>
+                    {fileLabel(dishAssetDraft.photoFile, "Aucune photo selectionnee")}
+                  </span>
+                </label>
+                <label className={styles.formField}>
+                  <span>GLB</span>
+                  <input
+                    className={styles.control}
+                    type="file"
+                    accept=".glb,model/gltf-binary"
+                    disabled={isSavingDish}
+                    onChange={(event) =>
+                      setDishAssetDraft((draft) => ({
+                        ...draft,
+                        glbFile: event.target.files?.[0] ?? null
+                      }))
+                    }
+                  />
+                  <span className={styles.cellSub}>
+                    {fileLabel(dishAssetDraft.glbFile, "Aucun GLB selectionne")}
+                  </span>
+                </label>
+              </div>
+            ) : null}
             <div className={styles.submitRow}>
-              <button className={styles.btnPrimary} type="submit" disabled={isPending}>
-                {dishDraft.id ? "Mettre a jour" : "Creer plat"}
+              <button
+                className={styles.btnPrimary}
+                type="submit"
+                disabled={isPending || isSavingDish}
+              >
+                {isSavingDish
+                  ? dishDraft.id
+                    ? "Mise a jour..."
+                    : dishAssetDraft.glbFile
+                      ? "Creation + pipeline..."
+                      : "Creation..."
+                  : dishDraft.id
+                    ? "Mettre a jour"
+                    : "Creer plat"}
               </button>
-              <button className={styles.btn} type="button" onClick={closeEditor}>
+              <button
+                className={styles.btn}
+                type="button"
+                disabled={isSavingDish}
+                onClick={closeEditor}
+              >
                 Annuler
               </button>
             </div>
@@ -409,34 +678,107 @@ export function OwnerRestaurantMenuManager({
                 </tr>
               </thead>
               <tbody>
-                {categories.map((category) => (
-                  <tr key={category.id}>
-                    <td className={styles.cellMain}>{category.label}</td>
-                    <td className={styles.cellSub}>{category.description}</td>
-                    <td>{category.count}</td>
-                    <td>
-                      <button
-                        className={`${styles.btn} ${styles.btnSmall}`}
-                        type="button"
-                        disabled={!canEdit}
-                        onClick={() => startEditCategory(category)}
-                      >
-                        Modifier
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {categories.map((category) => {
+                  const deleteKey = `category:${category.id}`;
+                  const isConfirmingDelete =
+                    deleteTarget?.type === "category" && deleteTarget.id === category.id;
+
+                  return (
+                    <tr key={category.id}>
+                      <td className={styles.cellMain}>{category.label}</td>
+                      <td className={styles.cellSub}>{category.description}</td>
+                      <td>{category.count}</td>
+                      <td>
+                        <div className={styles.tableActions}>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall}`}
+                            type="button"
+                            disabled={!canEdit || isMutating}
+                            onClick={() => startEditCategory(category)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                            type="button"
+                            disabled={!canEdit || isMutating}
+                            aria-label={`Supprimer la section ${category.label}`}
+                            title={
+                              category.count > 0
+                                ? "Supprimez ou deplacez les plats avant de supprimer cette section."
+                                : undefined
+                            }
+                            onClick={() => requestDeleteCategory(category)}
+                          >
+                            Supprimer
+                          </button>
+                          {isConfirmingDelete ? (
+                            <div
+                              className={styles.modelDeleteConfirm}
+                              role="alertdialog"
+                              aria-label={`Confirmer la suppression de la section ${category.label}`}
+                            >
+                              <strong>Supprimer la section {category.label} ?</strong>
+                              <span>Cette section vide sera retiree de la carte.</span>
+                              <div className={styles.tableActions}>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => setDeleteTarget(null)}
+                                >
+                                  Annuler
+                                </button>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => void deleteCategory(category)}
+                                >
+                                  {deletingKey === deleteKey ? "Suppression..." : "Confirmer"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </Panel>
 
-      <Panel title="Plats">
+      <Panel
+        title="Plats"
+        action={
+          sortedCategories.length > 0 ? (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Section</span>
+              <select
+                className={styles.control}
+                value={dishSectionFilter}
+                onChange={(event) => setDishSectionFilter(event.target.value)}
+              >
+                <option value="all">Toutes les sections</option>
+                {sortedCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null
+        }
+      >
         {menuError ? (
           <EmptyState>{menuError}</EmptyState>
         ) : dishes.length === 0 ? (
           <EmptyState>Aucun plat charge pour ce restaurant.</EmptyState>
+        ) : filteredDishes.length === 0 ? (
+          <EmptyState>Aucun plat dans cette section.</EmptyState>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.dataTable}>
@@ -452,58 +794,104 @@ export function OwnerRestaurantMenuManager({
                 </tr>
               </thead>
               <tbody>
-                {dishes.map((dish) => (
-                  <tr key={dish.id}>
-                    <td>
-                      <div className={styles.dishTitleCell}>
-                        <strong className={styles.cellMain}>{dish.name}</strong>
-                        <span className={styles.dishSectionLabel}>
-                          Section : {dish.category}
-                        </span>
-                      </div>
-                    </td>
-                    <td>{dish.priceLabel || <Badge tone="warn">Prix manquant</Badge>}</td>
-                    <td>
-                      <Badge tone={dish.available ? "ready" : "muted"}>
-                        {dish.available ? "Disponible" : "Indisponible"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={dish.description ? "ready" : "warn"}>
-                        {dish.description ? "Prete" : "A completer"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={dish.hasPhoto ? "ready" : "warn"}>
-                        {dish.hasPhoto ? "Photo prete" : dish.photoStatus}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={dish.hasImmersive ? "ready" : "muted"}>
-                        {dish.hasImmersive ? "Modele pret" : "Aucun modele"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <div className={styles.tableActions}>
-                        <button
-                          className={`${styles.btn} ${styles.btnSmall}`}
-                          type="button"
-                          disabled={!canEdit}
-                          onClick={() => startEditDish(dish)}
-                        >
-                          Modifier
-                        </button>
-                        <Link
-                          className={`${styles.btn} ${styles.btnSmall}`}
-                          href={mediasHref}
-                          prefetch={false}
-                        >
-                          Medias
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredDishes.map((dish) => {
+                  const deleteKey = `dish:${dish.id}`;
+                  const isConfirmingDelete =
+                    deleteTarget?.type === "dish" && deleteTarget.id === dish.id;
+
+                  return (
+                    <tr key={dish.id}>
+                      <td>
+                        <div className={styles.dishTitleCell}>
+                          <strong className={styles.cellMain}>{dish.name}</strong>
+                          <span className={styles.dishSectionLabel}>
+                            Section : {dish.category}
+                          </span>
+                        </div>
+                      </td>
+                      <td>{dish.priceLabel || <Badge tone="warn">Prix manquant</Badge>}</td>
+                      <td>
+                        <Badge tone={dish.available ? "ready" : "muted"}>
+                          {dish.available ? "Disponible" : "Indisponible"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge tone={dish.description ? "ready" : "warn"}>
+                          {dish.description ? "Prete" : "A completer"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge tone={dish.hasPhoto ? "ready" : "warn"}>
+                          {dish.hasPhoto ? "Photo prete" : dish.photoStatus}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge tone={dish.hasImmersive ? "ready" : "muted"}>
+                          {dish.hasImmersive ? "Modele pret" : "Aucun modele"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className={styles.tableActions}>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall}`}
+                            type="button"
+                            disabled={!canEdit || isMutating}
+                            onClick={() => startEditDish(dish)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                            type="button"
+                            disabled={!canEdit || isMutating}
+                            aria-label={`Supprimer le plat ${dish.name}`}
+                            onClick={() => requestDeleteDish(dish)}
+                          >
+                            Supprimer
+                          </button>
+                          <Link
+                            className={`${styles.btn} ${styles.btnSmall}`}
+                            href={mediasHref}
+                            prefetch={false}
+                          >
+                            Medias
+                          </Link>
+                          {isConfirmingDelete ? (
+                            <div
+                              className={styles.modelDeleteConfirm}
+                              role="alertdialog"
+                              aria-label={`Confirmer la suppression du plat ${dish.name}`}
+                            >
+                              <strong>Supprimer le plat {dish.name} ?</strong>
+                              <span>
+                                Le plat ne sera plus affiche dans le dashboard ni dans le
+                                menu public.
+                              </span>
+                              <div className={styles.tableActions}>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => setDeleteTarget(null)}
+                                >
+                                  Annuler
+                                </button>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => void deleteDish(dish)}
+                                >
+                                  {deletingKey === deleteKey ? "Suppression..." : "Confirmer"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
