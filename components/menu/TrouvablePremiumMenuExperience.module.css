@@ -1962,6 +1962,17 @@
   box-shadow: 0 16px 42px rgba(222, 194, 75, 0.18);
 }
 
+.detailSheet .detailActions .modelCta {
+  min-height: 88px;
+  border: 0;
+  background: linear-gradient(145deg, #efd55f, #c6a12a);
+  color: #040404;
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  box-shadow: 0 16px 42px rgba(222, 194, 75, 0.18);
+}
+
 .standaloneDetailPage {
   padding-top: 0;
 }
@@ -2523,6 +2534,11 @@
 
   .detailSheet .detailActions a,
   .modelCta {
+    min-height: 58px;
+    font-size: 16px;
+  }
+
+  .detailSheet .detailActions .modelCta {
     min-height: 58px;
     font-size: 16px;
   }
