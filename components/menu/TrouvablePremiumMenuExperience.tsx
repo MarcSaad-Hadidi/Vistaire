@@ -329,7 +329,7 @@ function dishBadges(dish: PublicMenuDish, locale: TrouvableLocale): string[] {
     badges.add("Maison");
   }
   if (!dish.available) badges.add(copy.soldOut);
-  if (dish.has3d) badges.add("4D");
+  if (dish.has3d) badges.add("3D");
   if (dish.hasAr) badges.add("AR");
   return Array.from(badges).slice(0, 5);
 }

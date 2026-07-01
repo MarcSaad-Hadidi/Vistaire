@@ -79,6 +79,8 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /copy\.reviewExperienceTitle/);
   assert.match(source, /copy\.reviewExperiencePlaceholder/);
   assert.match(source, /onReviewRequest=\{openRestaurantReviewSheet\}/);
+  assert.match(source, /badges\.add\("3D"\)/);
+  assert.doesNotMatch(source, /badges\.add\("4D"\)/);
   assert.match(controls, /TROUVABLE_STATIC_CAD_RATES/);
   assert.match(controls, /CAD/);
   assert.match(controls, /USD/);
