@@ -176,6 +176,10 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /Supprimer mod/);
   assert.match(uploader, /GLB web/);
   assert.match(uploader, /USDZ iPhone/);
+  assert.match(uploader, /Telecharger USDZ/);
+  assert.match(uploader, /download=\{usdzDownloadFileName\}/);
+  assert.match(uploader, /buildUsdzDownloadFileName/);
+  assert.match(uploader, /\.usdz`/);
   assert.match(uploader, /setWebModel3dUrl\(""\)/);
   assert.match(uploader, /setArUsdzUrl\(""\)/);
   assert.match(uploader, /setStoragePath\(""\)/);
