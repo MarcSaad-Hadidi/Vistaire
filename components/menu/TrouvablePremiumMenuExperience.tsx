@@ -7,8 +7,11 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentType,
   type PointerEvent
 } from "react";
+import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   buildPublicDishPath,
   getGoogleReviewCta,
@@ -20,6 +23,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { GoogleReviewCard } from "./GoogleReviewCard";
+import { trackGoogleReviewClick } from "./googleReviewTracking";
 import {
   TROUVABLE_CURRENCY_OPTIONS,
   TROUVABLE_CURRENCY_STORAGE_KEY,
@@ -88,8 +92,13 @@ type SelectionItem = {
   dish: PublicMenuDish;
   quantity: number;
 };
+type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
 
 const ALL_CATEGORY_ID = "all";
+const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+  .split(/[,\s]+/)
+  .map((entry) => entry.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const MEAT_TERMS = [
@@ -369,6 +378,34 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   return true;
 }
 
+function hasPublic3d(dish: PublicMenuDish): boolean {
+  return (
+    isSafe3dAssetUrl(
+      dish.webModel3dUrl || dish.model3dUrl,
+      ALLOWED_3D_CDN_ORIGINS,
+      "web"
+    ) ||
+    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
+  );
+}
+
+function modelViewerDishFromPublicDish(
+  dish: PublicMenuDish
+): DishModelViewerProps["dish"] {
+  return {
+    slug: dish.slug,
+    categorySlug: dish.category,
+    name: dish.name,
+    model3dUrl: dish.model3dUrl,
+    webModel3dUrl: dish.webModel3dUrl,
+    arModel3dUrl: dish.arModel3dUrl,
+    arUsdzUrl: dish.arUsdzUrl || dish.usdzUrl,
+    image: dish.imageUrl,
+    imageObjectPosition: "center",
+    imageObjectPositionDetail: "center"
+  };
+}
+
 function DishVisual({ dish, menu }: { dish: PublicMenuDish; menu: PublicMenu }) {
   if (dish.imageUrl) {
     return (
@@ -491,6 +528,7 @@ export function TrouvablePremiumMenuExperience({
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
   const [dishDetailsExpanded, setDishDetailsExpanded] = useState(false);
+  const [showDetailModelViewer, setShowDetailModelViewer] = useState(false);
   const [selection, setSelection] = useState<Map<string, SelectionItem>>(
     () => new Map()
   );
@@ -510,6 +548,9 @@ export function TrouvablePremiumMenuExperience({
   const [greetingPeriod, setGreetingPeriod] =
     useState<TrouvableGreetingPeriod>("afternoon");
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [ModelViewerComponent, setModelViewerComponent] =
+    useState<DishModelViewerComponent | null>(null);
+  const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const sheetRef = useRef<HTMLElement | null>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -636,16 +677,16 @@ export function TrouvablePremiumMenuExperience({
           ],
     [categories, copy, filteredDishes.length]
   );
-  const defaultCategory = categories[0]?.label ?? ALL_CATEGORY_ID;
+  const fallbackCategory = filteredCategories[0]?.label ?? ALL_CATEGORY_ID;
   const activeCategoryIsAvailable =
     activeCategory === ALL_CATEGORY_ID ||
     filteredCategories.some((category) => category.label === activeCategory);
   const resolvedActiveCategory =
-    activeCategory === ALL_CATEGORY_ID && defaultCategory !== ALL_CATEGORY_ID
-      ? defaultCategory
+    activeCategory === ALL_CATEGORY_ID
+      ? ALL_CATEGORY_ID
       : activeCategoryIsAvailable
         ? activeCategory
-        : defaultCategory;
+        : fallbackCategory;
   const activeCategoryTitle =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? copy.activeCategoryAll
@@ -698,6 +739,7 @@ export function TrouvablePremiumMenuExperience({
     setActiveSheet(null);
     setSelectedDish(null);
     setDishDetailsExpanded(false);
+    setShowDetailModelViewer(false);
     restoreFocus();
   }, [restoreFocus]);
 
@@ -784,6 +826,33 @@ export function TrouvablePremiumMenuExperience({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [activeSheet, closeActiveSheet]);
+
+  useEffect(() => {
+    if (
+      !showDetailModelViewer ||
+      ModelViewerComponent ||
+      modelViewerLoadFailed
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    import("@/components/dish/DishModelViewer")
+      .then((mod) => {
+        if (!cancelled) {
+          setModelViewerComponent(() => mod.DishModelViewer);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setModelViewerLoadFailed(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ModelViewerComponent, modelViewerLoadFailed, showDetailModelViewer]);
 
   function addDish(dish: PublicMenuDish) {
     if (!dish.available) return;
@@ -877,7 +946,7 @@ export function TrouvablePremiumMenuExperience({
   function clearFilters() {
     setActiveFilters([]);
     setSearch("");
-    setActiveCategory(categories[0]?.label ?? ALL_CATEGORY_ID);
+    setActiveCategory(ALL_CATEGORY_ID);
   }
 
   function isQuickFilterActive(filterId: QuickFilterId) {
@@ -956,6 +1025,7 @@ export function TrouvablePremiumMenuExperience({
 
   function openDishDetail(dish: PublicMenuDish) {
     setDishDetailsExpanded(false);
+    setShowDetailModelViewer(false);
     setSelectedDish(dish);
     openSheet("dish");
   }
@@ -966,6 +1036,7 @@ export function TrouvablePremiumMenuExperience({
     const safeIndex = currentIndex >= 0 ? currentIndex : 0;
     const nextIndex = (safeIndex + direction + visibleDishes.length) % visibleDishes.length;
     setDishDetailsExpanded(false);
+    setShowDetailModelViewer(false);
     setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
   }
 
@@ -1475,6 +1546,11 @@ export function TrouvablePremiumMenuExperience({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => {
+                  trackGoogleReviewClick({
+                    dishSlug: reviewDish?.slug,
+                    restaurantId: menu.restaurantId,
+                    source: menu.source
+                  });
                   setLocalMessage(copy.reviewOpened);
                 }}
               >
@@ -1499,8 +1575,8 @@ export function TrouvablePremiumMenuExperience({
   function renderDishDetailSheet() {
     if (activeSheet !== "dish" || !selectedDish) return null;
 
-    const href = buildPublicDishPath(menu.slug, selectedDish.slug, localizedQuery);
     const badges = dishBadges(selectedDish, selectedLocale);
+    const hasModel = hasPublic3d(selectedDish);
     const detailPrice = selectedDish.priceLabel
       ? formatTrouvablePriceLabel(
           selectedDish.priceLabel,
@@ -1657,17 +1733,40 @@ export function TrouvablePremiumMenuExperience({
               <button type="button" onClick={() => openWaiter("recommendation")}>
                 {copy.askWaiter}
               </button>
-              {selectedDish.has3d ? (
-                <Link href={href} prefetch={false}>
+              {hasModel ? (
+                <button
+                  type="button"
+                  className={styles.modelCta}
+                  aria-controls="trouvable-sheet-model"
+                  aria-expanded={showDetailModelViewer}
+                  onClick={() =>
+                    setShowDetailModelViewer((isVisible) => !isVisible)
+                  }
+                >
                   {copy.threeD}
-                </Link>
-              ) : null}
-              {selectedDish.hasAr ? (
-                <Link href={href} prefetch={false}>
-                  {copy.viewAr}
-                </Link>
+                </button>
               ) : null}
             </div>
+            {showDetailModelViewer ? (
+              <div className={styles.inlineModelViewer} id="trouvable-sheet-model">
+                {ModelViewerComponent ? (
+                  <ModelViewerComponent
+                    dish={modelViewerDishFromPublicDish(selectedDish)}
+                    minimalChrome
+                    quietChrome
+                    onReturnToDish={() => setShowDetailModelViewer(false)}
+                  />
+                ) : modelViewerLoadFailed ? (
+                  <div className={styles.modelLoading} role="status">
+                    {copy.modelUnavailable}
+                  </div>
+                ) : (
+                  <div className={styles.modelLoading} role="status">
+                    {copy.modelPreparing}
+                  </div>
+                )}
+              </div>
+            ) : null}
             <button
               type="button"
               className={styles.reviewTrigger}
@@ -1788,7 +1887,11 @@ export function TrouvablePremiumMenuExperience({
               key={category.id}
               type="button"
               aria-current={resolvedActiveCategory === category.label}
-              onClick={() => setActiveCategory(category.label)}
+              onClick={() =>
+                setActiveCategory((current) =>
+                  current === category.label ? ALL_CATEGORY_ID : category.label
+                )
+              }
             >
               <CategoryIcon kind={categoryIconKind(category.label)} />
               <span>{displayCategoryLabel(category.label, selectedLocale)}</span>

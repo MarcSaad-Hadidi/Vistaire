@@ -8,6 +8,7 @@ const typographyPath = "app/menu/[slug]/trouvableTypography.ts";
 const componentPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const dishDetailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const cssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
+const googleReviewTrackingPath = "components/menu/googleReviewTracking.ts";
 const helperPath = "lib/menu/trouvableMenuExperience.ts";
 const controlsPath = "components/menu/trouvableMenuControls.ts";
 
@@ -23,14 +24,16 @@ test("public Trouvable menu is centralized in a targeted premium experience", as
   assert.match(helper, /autoLoad:\s*false/);
 });
 
-test("Trouvable premium menu keeps 3D assets behind dish detail intent", async () => {
+test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
   const source = await readFile(componentPath, "utf8");
 
-  assert.doesNotMatch(source, /DishModelViewer/);
   assert.doesNotMatch(source, /model-viewer/);
-  assert.doesNotMatch(source, /@google\/model-viewer/);
-  assert.doesNotMatch(source, /\.glb/);
-  assert.doesNotMatch(source, /\.usdz/);
+  assert.doesNotMatch(source, /["'`][^"'`\n]*\.glb/);
+  assert.doesNotMatch(source, /["'`][^"'`\n]*\.usdz/);
+  assert.match(source, /showDetailModelViewer/);
+  assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
+  assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => !isVisible\)/);
+  assert.match(source, /hasPublic3d\(selectedDish\)/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /prefetch=\{false\}/);
 });
@@ -97,6 +100,38 @@ test("Trouvable dish details are revealed only after tapping more details", asyn
   assert.match(detailSource, /showMoreDetails/);
   assert.match(detailSource, /aria-expanded=\{showMoreDetails\}/);
   assert.match(detailSource, /activeDish\.description && showMoreDetails/);
+});
+
+test("Trouvable all category stays global while filters and searches resolve dishes", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /activeCategory === ALL_CATEGORY_ID\s*\?\s*ALL_CATEGORY_ID/);
+  assert.match(source, /current === category\.label \? ALL_CATEGORY_ID : category\.label/);
+  assert.match(source, /setActiveCategory\(ALL_CATEGORY_ID\)/);
+  assert.match(
+    source,
+    /resolvedActiveCategory === ALL_CATEGORY_ID\s*\?\s*filteredDishes/
+  );
+  assert.doesNotMatch(
+    source,
+    /activeCategory === ALL_CATEGORY_ID && [\s\S]{0,80}\? [a-zA-Z]+Category/
+  );
+});
+
+test("Trouvable review sheets track Google review outbound clicks", async () => {
+  const [source, detailSource, tracking] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(dishDetailPath, "utf8"),
+    readFile(googleReviewTrackingPath, "utf8")
+  ]);
+
+  assert.match(source, /trackGoogleReviewClick/);
+  assert.match(source, /dishSlug:\s*reviewDish\?\.slug/);
+  assert.match(detailSource, /trackGoogleReviewClick/);
+  assert.match(detailSource, /dishSlug:\s*activeDish\.slug/);
+  assert.match(tracking, /trackMenuEvent/);
+  assert.match(tracking, /ctaName:\s*"google_review"/);
+  assert.match(tracking, /destination:\s*"google_review"/);
 });
 
 test("Trouvable hero includes animated botanical ornamentation", async () => {

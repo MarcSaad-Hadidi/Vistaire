@@ -1,6 +1,5 @@
 "use client";
 
-import { trackMenuEvent } from "@/lib/analytics/client";
 import { LOCALE_LANGUAGE_TAG, normalizeLocale, type Locale } from "@/lib/i18n";
 import {
   getGoogleReviewCta,
@@ -8,6 +7,7 @@ import {
   type GoogleReviewConfig,
   type PublicMenu
 } from "@/lib/menu/publicMenuCore";
+import { trackGoogleReviewClick } from "./googleReviewTracking";
 import styles from "./GoogleReviewCard.module.css";
 
 type GoogleReviewCardProps = {
@@ -19,9 +19,6 @@ type GoogleReviewCardProps = {
   showNote?: boolean;
   source: PublicMenu["source"];
 };
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const GOOGLE_REVIEW_COPY: Record<
   Locale,
@@ -110,15 +107,9 @@ export function GoogleReviewCard({
   ].filter(Boolean);
 
   function trackOutboundClick() {
-    if (!UUID_PATTERN.test(restaurantId)) return;
-    trackMenuEvent({
-      eventName: "cta_clicked",
+    trackGoogleReviewClick({
       restaurantId,
-      source: source === "supabase" ? "production" : "demo",
-      ctaName: "google_review",
-      metadata: {
-        destination: "google_review"
-      }
+      source
     });
   }
 

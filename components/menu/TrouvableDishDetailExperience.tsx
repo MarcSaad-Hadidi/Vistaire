@@ -33,6 +33,7 @@ import {
   type TrouvableLocale,
   type TrouvableTheme
 } from "./trouvableMenuControls";
+import { trackGoogleReviewClick } from "./googleReviewTracking";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -428,6 +429,13 @@ export function TrouvableDishDetailExperience({
                   href={googleReviewCta.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() =>
+                    trackGoogleReviewClick({
+                      dishSlug: activeDish.slug,
+                      restaurantId: menu.restaurantId,
+                      source: menu.source
+                    })
+                  }
                 >
                   {copy.reviewPost}
                 </a>
