@@ -69,6 +69,8 @@ export type DishModelViewerProps = {
   minimalChrome?: boolean;
   quietChrome?: boolean;
   onReturnToDish?: () => void;
+  onArFallbackNeeded?: (reason: string) => void;
+  onArFallbackCleared?: () => void;
 };
 
 async function ensureModelViewerLoaded(): Promise<void> {
@@ -387,7 +389,9 @@ export function DishModelViewer({
   dish,
   minimalChrome = false,
   quietChrome = false,
-  onReturnToDish
+  onReturnToDish,
+  onArFallbackNeeded,
+  onArFallbackCleared
 }: DishModelViewerProps) {
   const titleId = useId();
   const helpId = useId();
@@ -513,17 +517,20 @@ export function DishModelViewer({
         if (status === "failed") {
           setRuntimeArFailed(true);
           setArSessionActive(false);
+          onArFallbackNeeded?.("ar-status-failed");
           return;
         }
         if (status === "session-started" || status === "object-placed") {
           setRuntimeArFailed(false);
           setArSessionActive(true);
+          onArFallbackCleared?.();
           prepareModelViewerForAr(node);
           return;
         }
         if (status === "not-presenting") {
           setRuntimeArFailed(false);
           setArSessionActive(false);
+          onArFallbackCleared?.();
         }
       };
 
@@ -544,7 +551,7 @@ export function DishModelViewer({
         if (node.loaded === true) onLoad();
       });
     },
-    [markModelLoaded]
+    [markModelLoaded, onArFallbackCleared, onArFallbackNeeded]
   );
 
   useEffect(
@@ -629,8 +636,9 @@ export function DishModelViewer({
     void loadWatchRef.current?.activateAR?.().catch(() => {
       setRuntimeArFailed(true);
       setArSessionActive(false);
+      onArFallbackNeeded?.("activate-ar-failed");
     });
-  }, [trackArIntent]);
+  }, [onArFallbackNeeded, trackArIntent]);
 
   const handleRetry = useCallback(() => {
     setInitTimedOut(false);
@@ -669,6 +677,17 @@ export function DishModelViewer({
   const arModes = isAndroid
     ? "scene-viewer webxr quick-look"
     : "webxr scene-viewer quick-look";
+
+  useEffect(() => {
+    if (showHandoff) onArFallbackNeeded?.("ios-handoff");
+    if (showAndroidFallback) onArFallbackNeeded?.("android-fallback");
+    if (showMissingIosAr) onArFallbackNeeded?.("missing-ios-usdz");
+  }, [
+    onArFallbackNeeded,
+    showAndroidFallback,
+    showHandoff,
+    showMissingIosAr
+  ]);
 
   useEffect(() => {
     if (!isLoadingModel) return undefined;

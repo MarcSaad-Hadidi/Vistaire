@@ -1,9 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { formatModelAssetBytes } from "@/lib/owner/modelAssetSize";
+import {
+  createOwnerDishModelUploadQueue,
+  type OwnerDishModelUploadQueueState
+} from "@/lib/owner/ownerDishModelUploadQueue";
 
 type OwnerDishModelUploaderProps = {
   restaurantId: string;
@@ -63,6 +75,87 @@ const DELETABLE_MODEL_STATUSES = new Set([
   "usdz_conversion_failed"
 ]);
 
+type QueueUploadArgs = {
+  dishId: string;
+  run: () => Promise<void>;
+  onQueued?: () => void;
+  onStart?: () => void;
+  onSuccess?: () => void;
+  onError?: (error: unknown) => void;
+  onSettled?: () => void;
+};
+
+type OwnerDishModelUploadQueueContextValue = {
+  states: Record<string, OwnerDishModelUploadQueueState>;
+  enqueueUpload: (args: QueueUploadArgs) => Promise<void>;
+};
+
+const OwnerDishModelUploadQueueContext =
+  createContext<OwnerDishModelUploadQueueContextValue | null>(null);
+
+export function OwnerDishModelUploadQueueProvider({
+  children
+}: {
+  children: ReactNode;
+}) {
+  const [queue] = useState(() => createOwnerDishModelUploadQueue());
+  const [states, setStates] = useState<Record<string, OwnerDishModelUploadQueueState>>(
+    {}
+  );
+
+  const setDishState = useCallback(
+    (dishId: string, state: OwnerDishModelUploadQueueState) => {
+      setStates((current) => ({ ...current, [dishId]: state }));
+    },
+    []
+  );
+
+  const enqueueUpload = useCallback(
+    ({
+      dishId,
+      run,
+      onQueued,
+      onStart,
+      onSuccess,
+      onError,
+      onSettled
+    }: QueueUploadArgs) =>
+      queue.enqueue({
+        dishId,
+        run,
+        onQueued: () => {
+          setDishState(dishId, "queued");
+          onQueued?.();
+        },
+        onStart: () => {
+          setDishState(dishId, "running");
+          onStart?.();
+        },
+        onSuccess: () => {
+          setDishState(dishId, "success");
+          onSuccess?.();
+        },
+        onError: (error) => {
+          setDishState(dishId, "error");
+          onError?.(error);
+        },
+        onSettled
+      }),
+    [queue, setDishState]
+  );
+
+  const value = useMemo(
+    () => ({ states, enqueueUpload }),
+    [enqueueUpload, states]
+  );
+
+  return (
+    <OwnerDishModelUploadQueueContext.Provider value={value}>
+      {children}
+    </OwnerDishModelUploadQueueContext.Provider>
+  );
+}
+
 function buildUsdzDownloadFileName(dishName?: string): string {
   const normalized = (dishName?.trim() || "vistaire-usdz")
     .normalize("NFD")
@@ -89,6 +182,7 @@ export function OwnerDishModelUploader({
   initialPreparedGlbStoragePath = ""
 }: OwnerDishModelUploaderProps) {
   const router = useRouter();
+  const uploadQueue = useContext(OwnerDishModelUploadQueueContext);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [status, setStatus] = useState(
     initialWebModel3dUrl && initialArUsdzUrl ? "ready" : initialWebModel3dUrl ? "web_ready" : initialStatus
@@ -99,7 +193,8 @@ export function OwnerDishModelUploader({
   const [webModel3dBytes, setWebModel3dBytes] = useState(initialWebModel3dBytes);
   const [arUsdzUrl, setArUsdzUrl] = useState(initialArUsdzUrl);
   const [arUsdzBytes, setArUsdzBytes] = useState(initialArUsdzBytes);
-  const [isUploading, setIsUploading] = useState(false);
+  const [localQueueState, setLocalQueueState] =
+    useState<OwnerDishModelUploadQueueState>("idle");
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -112,13 +207,22 @@ export function OwnerDishModelUploader({
       jobId ||
       DELETABLE_MODEL_STATUSES.has(status)
   );
-  const isBusy = isUploading || isPublishing || isDeleting;
+  const queueState = uploadQueue?.states[dishId] ?? localQueueState;
+  const isUploading = queueState === "running";
+  const isUploadQueued = queueState === "queued";
+  const isUploadBusy = isUploading || isUploadQueued;
+  const isBusy = isUploadBusy || isPublishing || isDeleting;
   const dishLabel = dishName?.trim() || "ce plat";
   const usdzDownloadFileName = buildUsdzDownloadFileName(dishName);
-  const statusLabel = message || (status === "missing" ? "Aucun modèle" : status);
+  const uploadStatusLabel = isUploadQueued
+    ? "En file..."
+    : isUploading
+      ? "Pipeline..."
+      : "";
+  const statusLabel =
+    uploadStatusLabel || message || (status === "missing" ? "Aucun modèle" : status);
 
-  async function upload(file: File) {
-    setIsUploading(true);
+  async function runUpload(file: File) {
     setError("");
     setMessage("");
     setStatus("pipeline_meshy");
@@ -126,33 +230,69 @@ export function OwnerDishModelUploader({
     const formData = new FormData();
     formData.set("file", file);
 
-    try {
-      const response = await fetch(
-        `/api/owner/restaurants/${encodeURIComponent(restaurantId)}/dishes/${encodeURIComponent(dishId)}/model/glb`,
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-      const payload = (await response.json().catch(() => ({}))) as UploadPayload;
-      if (!response.ok || !payload.ok || !payload.webModel3dUrl || !payload.arUsdzUrl) {
-        throw new Error(payload.error || "Pipeline GLB vers USDZ impossible.");
+    const response = await fetch(
+      `/api/owner/restaurants/${encodeURIComponent(restaurantId)}/dishes/${encodeURIComponent(dishId)}/model/glb`,
+      {
+        method: "POST",
+        body: formData
       }
+    );
+    const payload = (await response.json().catch(() => ({}))) as UploadPayload;
+    if (!response.ok || !payload.ok || !payload.webModel3dUrl || !payload.arUsdzUrl) {
+      throw new Error(payload.error || "Pipeline GLB vers USDZ impossible.");
+    }
 
-      setStoragePath(payload.storagePath ?? payload.manifestPath ?? "");
-      setJobId(payload.job?.id ?? "");
-      setStatus(payload.status || "ready");
-      setWebModel3dUrl(payload.webModel3dUrl ?? "");
-      setWebModel3dBytes(payload.webModel3dBytes ?? 0);
-      setArUsdzUrl(payload.arUsdzUrl ?? "");
-      setArUsdzBytes(payload.arUsdzBytes ?? 0);
-      setShowDeleteConfirm(false);
-      router.refresh();
+    setStoragePath(payload.storagePath ?? payload.manifestPath ?? "");
+    setJobId(payload.job?.id ?? "");
+    setStatus(payload.status || "ready");
+    setWebModel3dUrl(payload.webModel3dUrl ?? "");
+    setWebModel3dBytes(payload.webModel3dBytes ?? 0);
+    setArUsdzUrl(payload.arUsdzUrl ?? "");
+    setArUsdzBytes(payload.arUsdzBytes ?? 0);
+    setShowDeleteConfirm(false);
+    router.refresh();
+  }
+
+  function handleUploadError(uploadError: unknown) {
+    setError(uploadError instanceof Error ? uploadError.message : "Pipeline GLB vers USDZ impossible.");
+    setStatus(initialStatus);
+  }
+
+  async function upload(file: File) {
+    if (uploadQueue) {
+      setLocalQueueState("queued");
+      void uploadQueue
+        .enqueueUpload({
+          dishId,
+          run: () => runUpload(file),
+          onQueued: () => {
+            setError("");
+            setMessage("En file...");
+          },
+          onStart: () => {
+            setMessage("");
+          },
+          onSuccess: () => {
+            setMessage("Pipeline termine.");
+          },
+          onError: handleUploadError,
+          onSettled: () => {
+            if (inputRef.current) inputRef.current.value = "";
+          }
+        })
+        .catch(() => undefined);
+      return;
+    }
+
+    setLocalQueueState("running");
+    try {
+      await runUpload(file);
+      setLocalQueueState("success");
+      setMessage("Pipeline termine.");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Pipeline GLB vers USDZ impossible.");
-      setStatus(initialStatus);
+      setLocalQueueState("error");
+      handleUploadError(uploadError);
     } finally {
-      setIsUploading(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -247,7 +387,7 @@ export function OwnerDishModelUploader({
         disabled={isBusy}
         onClick={() => inputRef.current?.click()}
       >
-        {isUploading ? "Pipeline..." : "Ajouter GLB"}
+        {isUploadQueued ? "En file..." : isUploading ? "Pipeline..." : "Ajouter GLB"}
       </button>
       {storagePath && status !== "ready" ? (
         <button

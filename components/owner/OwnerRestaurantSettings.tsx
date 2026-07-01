@@ -384,7 +384,7 @@ export function OwnerRestaurantSettings({
           <div>
             <h4 id="restaurant-menu-settings-title">Settings du menu public</h4>
             <p>
-              Ces settings sont sauvegardes dans menus.settings_json et pilotent
+              Ces settings sont sauvegardes sur le menu principal et pilotent
               les langues, devises, timezone et toggles client du menu publie.
             </p>
           </div>

@@ -43,6 +43,39 @@ function stringInput(value: unknown, maxLength = 240): string {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
+function stringListInput(value: unknown, maxItems = 24, maxLength = 120): string[] {
+  const rawItems = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,;\n]+/)
+      : [];
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const rawItem of rawItems) {
+    const item = String(rawItem ?? "").trim().slice(0, maxLength);
+    const key = item.toLowerCase();
+    if (!item || seen.has(key)) continue;
+    seen.add(key);
+    items.push(item);
+    if (items.length >= maxItems) break;
+  }
+  return items;
+}
+
+function mergeStringListInput(...values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const value of values) {
+    for (const item of stringListInput(value)) {
+      const key = item.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(item);
+    }
+  }
+  return items;
+}
+
 function booleanInput(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -436,12 +469,50 @@ async function categoryForDish(args: {
     .maybeSingle();
 }
 
-function dishMetadata(existing: unknown, parsedPrice: ReturnType<typeof parsePriceToCents>) {
-  return {
+function dishMetadata(
+  existing: unknown,
+  parsedPrice: ReturnType<typeof parsePriceToCents>,
+  candidate: Record<string, unknown> = {}
+) {
+  const metadata: Record<string, unknown> = {
     ...jsonObject(existing),
     displayPriceMode: parsedPrice.ok ? parsedPrice.displayPriceMode : "auto",
     originalPriceInput: parsedPrice.ok ? parsedPrice.originalInput : ""
   };
+  const ingredients = stringListInput(candidate.ingredients);
+  const allergens = stringListInput(candidate.allergens);
+  const tags = mergeStringListInput(candidate.tags, candidate.badges);
+  const options = mergeStringListInput(
+    candidate.options,
+    candidate.extras,
+    candidate.accompaniments
+  );
+  const chefNote = stringInput(candidate.chefNote ?? candidate.chef_note, 500);
+
+  if ("ingredients" in candidate) metadata.ingredients = ingredients;
+  if ("allergens" in candidate) metadata.allergens = allergens;
+  if ("tags" in candidate || "badges" in candidate) {
+    metadata.tags = tags;
+    metadata.badges = tags;
+  }
+  if (
+    "options" in candidate ||
+    "extras" in candidate ||
+    "accompaniments" in candidate
+  ) {
+    metadata.options = options;
+  }
+  if ("chefNote" in candidate || "chef_note" in candidate) {
+    if (chefNote) {
+      metadata.chefNote = chefNote;
+      metadata.houseNote = chefNote;
+    } else {
+      delete metadata.chefNote;
+      delete metadata.houseNote;
+    }
+  }
+
+  return metadata;
 }
 
 export async function createOwnerMenuDish(args: {
@@ -455,6 +526,7 @@ export async function createOwnerMenuDish(args: {
   const categoryId = stringInput(candidate.categoryId ?? candidate.category_id, 80);
   const parsedPrice = parsePriceToCents(priceInput(candidate.price));
   const available = booleanInput(candidate.available, true);
+  const allergens = stringListInput(candidate.allergens);
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
   if (!parsedPrice.ok) return { ok: false, status: 400, error: parsedPrice.error };
@@ -496,8 +568,8 @@ export async function createOwnerMenuDish(args: {
       currency: settings.baseCurrency,
       is_available: available,
       has_immersive_view: false,
-      allergens: [],
-      metadata: dishMetadata({ photoStatus: "planned" }, parsedPrice)
+      allergens,
+      metadata: dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate)
     })
     .select("id,name,slug,category_id,price_cents,currency")
     .single();
@@ -542,6 +614,7 @@ export async function updateOwnerMenuDish(args: {
   const categoryId = stringInput(candidate.categoryId ?? candidate.category_id, 80);
   const parsedPrice = parsePriceToCents(priceInput(candidate.price));
   const available = booleanInput(candidate.available, true);
+  const allergens = stringListInput(candidate.allergens);
   if (!id) return { ok: false, status: 400, error: "Plat requis." };
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
@@ -595,7 +668,8 @@ export async function updateOwnerMenuDish(args: {
       price_cents: parsedPrice.cents,
       currency: settings.baseCurrency,
       is_available: available,
-      metadata: dishMetadata(existing.data.metadata, parsedPrice),
+      allergens,
+      metadata: dishMetadata(existing.data.metadata, parsedPrice, candidate),
       updated_at: new Date().toISOString()
     })
     .eq("id", id)

@@ -20,6 +20,11 @@ import { Accessor, NodeIO } from "@gltf-transform/core";
 import { dedup, prune, weld } from "@gltf-transform/functions";
 import * as fflate from "fflate";
 import { resolveGltfTransformCliPath } from "./shared/gltf-transform-cli.mjs";
+import {
+  MAX_PRODUCTION_IOS_USDZ_BYTES,
+  getProductionPromotionRejectionReasons,
+  selectProductionPromotionCandidate
+} from "./shared/ios-quicklook-promotion.mjs";
 
 globalThis.fflate = fflate;
 
@@ -49,7 +54,6 @@ const WORK_ROOT = resolveWorkspaceRoot(
 );
 const OPTIMIZER = join(__dirname, "optimize-usdz-binary-layers.py");
 
-const MAX_PRODUCTION_IOS_USDZ_BYTES = 5 * 1024 * 1024;
 const IDEAL_IOS_USDZ_BYTES = 3 * 1024 * 1024;
 
 const DISHES = new Map([
@@ -312,11 +316,12 @@ function levelsForDish(dish) {
 function usage() {
   return [
     "Usage:",
-    "  npm run demo:build-ios-ultra -- <dish-slug> [--promote ultra|extreme] [--quality-approved]",
+    "  npm run demo:build-ios-ultra -- <dish-slug> [--promote auto|conservative|balanced|ultra|extreme] [--production-output file.usdz] [--quality-approved]",
     "",
     "Examples:",
     "  npm run demo:build-ios-ultra -- homard-bisque",
     "  npm run demo:build-ios-ultra -- homard-bisque --promote ultra --quality-approved",
+    "  npm run demo:build-ios-ultra -- homard-bisque --promote auto --production-output homard-bisque-ios-quicklook-meshy.usdz --quality-approved",
     "",
     "The script builds candidates under asset-review/3d-candidates/ios-quicklook-ultra.",
     "It promotes a public production USDZ only when --promote and --quality-approved are both present."
@@ -327,6 +332,7 @@ function parseArgs(argv) {
   const positional = [];
   const options = {
     promote: null,
+    productionOutput: "",
     qualityApproved: false,
     keepWork: false
   };
@@ -338,6 +344,11 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg.startsWith("--promote=")) {
       options.promote = arg.split("=")[1] ?? "";
+    } else if (arg === "--production-output") {
+      options.productionOutput = argv[index + 1] ?? "";
+      index += 1;
+    } else if (arg.startsWith("--production-output=")) {
+      options.productionOutput = arg.split("=")[1] ?? "";
     } else if (arg === "--quality-approved") {
       options.qualityApproved = true;
     } else if (arg === "--keep-work") {
@@ -359,6 +370,21 @@ function parseArgs(argv) {
   }
 
   return { slug: positional[0], options };
+}
+
+function normalizeProductionOutputName(value) {
+  const output = String(value || "").trim();
+  if (!output) return "";
+  if (
+    basename(output) !== output ||
+    output.includes("..") ||
+    output.includes("/") ||
+    output.includes("\\") ||
+    !output.toLowerCase().endsWith(".usdz")
+  ) {
+    throw new Error("--production-output must be a safe USDZ filename, not a path.");
+  }
+  return output;
 }
 
 function formatSize(bytes) {
@@ -969,12 +995,12 @@ function candidateRisk(level, glbInfo, usdzInfo, bounds) {
   return risks;
 }
 
-function promotionOutputName(dish, levelKey) {
+function promotionOutputName(dish, slug, levelKey, productionOutput = "") {
+  const outputOverride = normalizeProductionOutputName(productionOutput);
+  if (outputOverride) return outputOverride;
   const output = dish.productionOutputs[levelKey];
-  if (!output) {
-    throw new Error(`No production output name configured for level: ${levelKey}`);
-  }
-  return output;
+  if (output) return output;
+  return `${slug}-ios-quicklook-${levelKey}.usdz`;
 }
 
 async function buildCandidate({
@@ -1133,7 +1159,29 @@ function writeManifest(candidateDir, slug, sourcePath, candidates) {
   return manifestPath;
 }
 
-function promoteCandidate({ dish, levelKey, candidate, qualityApproved }) {
+function writePromotionManifest({ slug, selection, productionPath }) {
+  const productionBytes = statSync(productionPath).size;
+  const manifestPath = join(AR_LITE_DIR, `${slug}-ios-quicklook-promotion.json`);
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    slug,
+    requestedLevel: selection.requestedLevel,
+    selectedLevel: selection.selectedLevel,
+    productionFile: basename(productionPath),
+    sourceCandidateFile: basename(selection.selectedCandidate.usdzPath),
+    productionBytes,
+    summary: selection.summary,
+    rejected: selection.rejected.map((entry) => ({
+      level: entry.candidate.level,
+      label: entry.candidate.label,
+      reasons: entry.reasons
+    }))
+  };
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifestPath;
+}
+
+function promoteCandidate({ dish, slug, levelKey, candidate, qualityApproved, productionOutput }) {
   if (candidate.failed) {
     throw new Error(
       `Refusing production promotion: ${candidate.label} candidate failed to build.`
@@ -1144,21 +1192,12 @@ function promoteCandidate({ dish, levelKey, candidate, qualityApproved }) {
       "Refusing production promotion without --quality-approved. Manual visual review must reject cheap/cartoon/placeholder-looking candidates."
     );
   }
-  if (!candidate.productionBudgetPass) {
-    throw new Error(
-      `Refusing production promotion: ${basename(candidate.usdzPath)} is ${formatSize(
-        candidate.usdz.bytes
-      )}, above ${formatSize(MAX_PRODUCTION_IOS_USDZ_BYTES)}.`
-    );
-  }
-  if (!candidate.usdz.valid) {
-    throw new Error("Refusing production promotion: USDZ validation failed.");
-  }
-  if (!candidate.bounds?.grounded || !candidate.bounds?.centeredXZ) {
-    throw new Error("Refusing production promotion: candidate is not centered and grounded.");
+  const rejectionReasons = getProductionPromotionRejectionReasons(candidate);
+  if (rejectionReasons.length > 0) {
+    throw new Error(`Refusing production promotion: ${rejectionReasons.join("; ")}.`);
   }
 
-  const outputName = promotionOutputName(dish, levelKey);
+  const outputName = promotionOutputName(dish, slug, levelKey, productionOutput);
   const productionPath = join(AR_LITE_DIR, outputName);
   mkdirSync(AR_LITE_DIR, { recursive: true });
   copyFileSync(candidate.usdzPath, productionPath);
@@ -1262,20 +1301,26 @@ async function main() {
     }
 
     if (options.promote) {
-      const candidate = candidates.find((item) => item.level === options.promote);
-      if (!candidate) {
-        throw new Error(
-          `Cannot promote unknown candidate level: ${options.promote}. Known levels: ${levels.map(
-            (level) => level.key
-          ).join(", ")}`
-        );
-      }
-      promoteCandidate({
-        dish,
-        levelKey: options.promote,
-        candidate,
-        qualityApproved: options.qualityApproved
+      const selection = selectProductionPromotionCandidate({
+        requestedLevel: options.promote,
+        candidates,
+        productionBudgetBytes: MAX_PRODUCTION_IOS_USDZ_BYTES
       });
+      console.log(`\nPromotion selection: ${selection.summary}`);
+      const productionPath = promoteCandidate({
+        dish,
+        slug,
+        levelKey: selection.selectedLevel,
+        candidate: selection.selectedCandidate,
+        qualityApproved: options.qualityApproved,
+        productionOutput: options.productionOutput
+      });
+      const promotionManifestPath = writePromotionManifest({
+        slug,
+        selection,
+        productionPath
+      });
+      console.log(`Promotion manifest: ${promotionManifestPath}`);
     } else {
       console.log("\nNo production file was promoted. Review candidates before using --promote.");
     }

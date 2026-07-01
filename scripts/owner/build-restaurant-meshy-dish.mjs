@@ -177,11 +177,22 @@ function main() {
   runNode(
     "scripts/build-ios-quicklook-ultra-assets.mjs",
     iosEnv,
-    [options.dish, "--promote", "ultra", "--quality-approved"]
+    [
+      options.dish,
+      "--promote",
+      "auto",
+      "--production-output",
+      `${options.dish}-ios-quicklook-meshy.usdz`,
+      "--quality-approved"
+    ]
   );
 
   const arLiteGlb = join(arLiteDir, `${options.dish}-ar-lite-meshy.glb`);
   const arUsdz = join(arLiteDir, `${options.dish}-ios-quicklook-meshy.usdz`);
+  const iosPromotionManifest = join(arLiteDir, `${options.dish}-ios-quicklook-promotion.json`);
+  const iosQuickLookPromotion = existsSync(iosPromotionManifest)
+    ? JSON.parse(readFileSync(iosPromotionManifest, "utf8"))
+    : null;
   const urlPrefix = `/${slashPath(publicAssetRootRelative)}`;
 
   const manifest = {
@@ -208,7 +219,8 @@ function main() {
       meshopt: sha256File(meshoptPath),
       arLite: existsSync(arLiteGlb) ? sha256File(arLiteGlb) : "",
       arUsdz: existsSync(arUsdz) ? sha256File(arUsdz) : ""
-    }
+    },
+    iosQuickLookPromotion
   };
 
   const manifestPath = join(assetRoot, "manifest.json");

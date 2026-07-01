@@ -14,6 +14,10 @@ import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
+  getTrouvableCategoryIconKind,
+  type TrouvableCategoryIconKind
+} from "@/lib/menu/trouvableCategoryIcons";
+import {
   buildPublicDishPath,
   getGoogleReviewCta,
   getPublicMenuCategoryGroups,
@@ -84,7 +88,6 @@ type ActiveSheet =
   | "waiter"
   | "review"
   | null;
-type CategoryIconKind = "pizza" | "leaf" | "cake" | "burger" | "fish" | "spark";
 type SwipeStart = {
   x: number;
   y: number;
@@ -188,51 +191,84 @@ function formatBadgeLabel(value: string, locale: TrouvableLocale): string {
   return label;
 }
 
-function categoryIconKind(label: string): CategoryIconKind {
-  const normalized = normalizeText(label);
-  if (normalized.includes("pizza")) return "pizza";
-  if (
-    normalized.includes("salad") ||
-    normalized.includes("salade") ||
-    normalized.includes("veg")
-  ) {
-    return "leaf";
-  }
-  if (
-    normalized.includes("cake") ||
-    normalized.includes("dessert") ||
-    normalized.includes("gateau")
-  ) {
-    return "cake";
-  }
-  if (normalized.includes("burger")) return "burger";
-  if (
-    normalized.includes("fish") ||
-    normalized.includes("poisson") ||
-    normalized.includes("sea") ||
-    normalized.includes("mer")
-  ) {
-    return "fish";
-  }
-  return "spark";
-}
-
 function displayCategoryLabel(label: string, locale: TrouvableLocale): string {
   const translated = translateTrouvableCategoryLabel(label, locale);
   return translated.length > 12 ? `${translated.slice(0, 10).trim()}...` : translated;
 }
 
-function CategoryIcon({ kind }: { kind: CategoryIconKind }) {
-  if (kind === "pizza") {
+function CategoryIcon({ kind }: { kind: TrouvableCategoryIconKind }) {
+  if (kind === "all") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M9 39 39 9c-9-4-24 2-30 30Z" />
-        <path d="M18 30a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm8-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+        <path d="M12 12h10v10H12zm14 0h10v10H26zM12 26h10v10H12zm14 0h10v10H26z" />
       </svg>
     );
   }
 
-  if (kind === "leaf") {
+  if (kind === "classic") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M13 18c6-7 16-8 22-2 5 5 5 13 0 18-6 6-16 5-22-2" />
+        <path d="M18 22h12M18 28h14" />
+      </svg>
+    );
+  }
+
+  if (kind === "starter") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M11 30c4-9 22-9 26 0H11Z" />
+        <path d="M14 25c3-5 17-5 20 0M24 14v7M18 17l3 4M30 17l-3 4" />
+      </svg>
+    );
+  }
+
+  if (kind === "flame") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M24 39c-7 0-12-5-12-12 0-6 4-10 8-14 0 5 4 7 4 11 3-4 4-8 3-14 6 5 9 10 9 17 0 7-5 12-12 12Z" />
+        <path d="M24 34c-3 0-5-2-5-5 0-2 1-4 4-7 1 3 4 4 4 7 0 3-1 5-3 5Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "travel") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M24 39c7-7 11-13 11-19a11 11 0 0 0-22 0c0 6 4 12 11 19Z" />
+        <path d="M24 24a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "pasta") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M13 34c4-7 18-7 22 0H13Z" />
+        <path d="M17 27c2-4 4-4 6 0s4 4 6 0 4-4 6 0M17 14v13M23 14v13M29 14v13M35 14v13" />
+      </svg>
+    );
+  }
+
+  if (kind === "morning") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M13 29a11 11 0 0 1 22 0" />
+        <path d="M24 10v6M12 18l4 4M36 18l-4 4M9 34h30" />
+      </svg>
+    );
+  }
+
+  if (kind === "dessert") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M11 24h26l-4 14H15l-4-14Z" />
+        <path d="M15 24c1-6 6-9 9-9s8 3 9 9M20 15l4-5 4 5" />
+      </svg>
+    );
+  }
+
+  if (kind === "fresh") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
         <path d="M38 10C24 10 12 19 10 34c15 2 25-8 28-24Z" />
@@ -241,36 +277,54 @@ function CategoryIcon({ kind }: { kind: CategoryIconKind }) {
     );
   }
 
-  if (kind === "cake") {
+  if (kind === "drinks") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M10 22h28v16H10z" />
-        <path d="M14 16h20v6H14zM16 16c0-5 6-5 6 0m4 0c0-5 6-5 6 0" />
+        <path d="M16 10h16l-3 14a5 5 0 0 1-10 0L16 10Z" />
+        <path d="M24 29v9M18 38h12M18 17h12" />
       </svg>
     );
   }
 
-  if (kind === "burger") {
+  if (kind === "chef") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M10 21c2-7 8-10 14-10s12 3 14 10H10Zm0 6h28M12 34h24" />
-        <path d="M15 21h2m7 0h2m7 0h2" />
+        <path d="M15 21c-3-5 2-10 7-7 3-5 10-3 10 3 5-1 8 5 4 9H15Z" />
+        <path d="M16 26h20v10H16zM20 31h8" />
       </svg>
     );
   }
 
-  if (kind === "fish") {
+  if (kind === "cloche") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M8 24c9-10 22-10 30 0-8 10-21 10-30 0Z" />
-        <path d="M38 24 44 14v20l-6-10ZM16 24h.1" />
+        <path d="M11 32c2-10 8-16 13-16s11 6 13 16H11Z" />
+        <path d="M9 36h30M24 12v4" />
+      </svg>
+    );
+  }
+
+  if (kind === "garden") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M24 38V18" />
+        <path d="M24 26c-8 0-12-5-12-11 8 0 12 5 12 11Zm0 4c8 0 12-5 12-11-8 0-12 5-12 11Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "cellar") {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M18 12h12l-2 8v15a6 6 0 0 1-12 0V20l2-8Z" />
+        <path d="M17 25h12M20 17h8" />
       </svg>
     );
   }
 
   return (
     <svg viewBox="0 0 48 48" aria-hidden="true">
-      <path d="M24 8v32M8 24h32M14 14l20 20M34 14 14 34" />
+      <path d="M12 28c5-8 19-8 24 0M14 35h20M24 13v8" />
     </svg>
   );
 }
@@ -532,6 +586,7 @@ export function TrouvablePremiumMenuExperience({
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
   const [dishDetailsExpanded, setDishDetailsExpanded] = useState(false);
   const [showDetailModelViewer, setShowDetailModelViewer] = useState(false);
+  const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
   const [selection, setSelection] = useState<Map<string, SelectionItem>>(
     () => new Map()
   );
@@ -767,6 +822,7 @@ export function TrouvablePremiumMenuExperience({
     setSelectedDish(null);
     setDishDetailsExpanded(false);
     setShowDetailModelViewer(false);
+    setShowArBrowserHelp(false);
     restoreFocus();
   }, [restoreFocus]);
 
@@ -882,6 +938,7 @@ export function TrouvablePremiumMenuExperience({
       .catch(() => {
         if (!cancelled) {
           setModelViewerLoadFailed(true);
+          setShowArBrowserHelp(true);
         }
       });
 
@@ -1065,6 +1122,7 @@ export function TrouvablePremiumMenuExperience({
   function openDishDetail(dish: PublicMenuDish) {
     setDishDetailsExpanded(false);
     setShowDetailModelViewer(false);
+    setShowArBrowserHelp(false);
     setSelectedDish(dish);
     openSheet("dish");
   }
@@ -1076,6 +1134,7 @@ export function TrouvablePremiumMenuExperience({
     const nextIndex = (safeIndex + direction + visibleDishes.length) % visibleDishes.length;
     setDishDetailsExpanded(false);
     setShowDetailModelViewer(false);
+    setShowArBrowserHelp(false);
     setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
   }
 
@@ -1784,9 +1843,10 @@ export function TrouvablePremiumMenuExperience({
                   className={styles.modelCta}
                   aria-controls="trouvable-sheet-model"
                   aria-expanded={showDetailModelViewer}
-                  onClick={() =>
-                    setShowDetailModelViewer((isVisible) => !isVisible)
-                  }
+                  onClick={() => {
+                    setShowArBrowserHelp(false);
+                    setShowDetailModelViewer((isVisible) => !isVisible);
+                  }}
                 >
                   {copy.threeD}
                 </button>
@@ -1800,7 +1860,12 @@ export function TrouvablePremiumMenuExperience({
                       dish={modelViewerDishFromPublicDish(selectedDish)}
                       minimalChrome
                       quietChrome
-                      onReturnToDish={() => setShowDetailModelViewer(false)}
+                      onReturnToDish={() => {
+                        setShowDetailModelViewer(false);
+                        setShowArBrowserHelp(false);
+                      }}
+                      onArFallbackNeeded={() => setShowArBrowserHelp(true)}
+                      onArFallbackCleared={() => setShowArBrowserHelp(false)}
                     />
                   ) : modelViewerLoadFailed ? (
                     <div className={styles.modelLoading} role="status">
@@ -1812,12 +1877,14 @@ export function TrouvablePremiumMenuExperience({
                     </div>
                   )}
                 </div>
-                <p className={styles.arBrowserHelp}>
-                  {copy.arBrowserHelp}{" "}
-                  <Link href={browserDishHref} target="_blank" rel="noopener noreferrer">
-                    {copy.arBrowserLink}
-                  </Link>
-                </p>
+                {showArBrowserHelp || modelViewerLoadFailed ? (
+                  <p className={styles.arBrowserHelp}>
+                    {copy.arBrowserHelp}{" "}
+                    <Link href={browserDishHref} target="_blank" rel="noopener noreferrer">
+                      {copy.arBrowserLink}
+                    </Link>
+                  </p>
+                ) : null}
               </>
             ) : null}
             <button
@@ -1938,7 +2005,7 @@ export function TrouvablePremiumMenuExperience({
             aria-current={resolvedActiveCategory === ALL_CATEGORY_ID}
             onClick={() => setActiveCategory(ALL_CATEGORY_ID)}
           >
-            <CategoryIcon kind="spark" />
+            <CategoryIcon kind="all" />
             <span>{copy.all}</span>
             <small>{filteredDishes.length}</small>
           </button>
@@ -1953,7 +2020,7 @@ export function TrouvablePremiumMenuExperience({
                 )
               }
             >
-              <CategoryIcon kind={categoryIconKind(category.label)} />
+              <CategoryIcon kind={getTrouvableCategoryIconKind(category.label)} />
               <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
               <small>{category.count}</small>
             </button>

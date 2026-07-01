@@ -44,34 +44,19 @@ export const PUBLIC_MENU_LOCALES = PUBLIC_MENU_LOCALE_OPTIONS.map(
 );
 export type PublicMenuLocale = string;
 
-function getRuntimeCurrencies(): string[] {
-  const fallback = [
-    "CAD",
-    "USD",
-    "EUR",
-    "GBP",
-    "AUD",
-    "JPY",
-    "CHF",
-    "CNY",
-    "MXN",
-    "BRL"
-  ];
-  try {
-    const supportedValues = (
-      Intl as typeof Intl & {
-        supportedValuesOf?: (key: "currency") => string[];
-      }
-    ).supportedValuesOf?.("currency");
-    return supportedValues && supportedValues.length > 0
-      ? supportedValues
-      : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export const PUBLIC_MENU_CURRENCIES = getRuntimeCurrencies();
+// Keep the picker SSR-safe: Node and browsers expose different Intl currency catalogs.
+export const PUBLIC_MENU_CURRENCIES = [
+  "CAD",
+  "USD",
+  "EUR",
+  "GBP",
+  "AUD",
+  "JPY",
+  "CHF",
+  "CNY",
+  "MXN",
+  "BRL"
+];
 export type PublicMenuCurrency = string;
 
 export const PUBLIC_MENU_THEME_MODES = ["dark", "light"] as const;

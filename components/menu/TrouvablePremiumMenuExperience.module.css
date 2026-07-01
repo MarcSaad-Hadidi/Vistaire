@@ -1667,12 +1667,20 @@
   height: 136px;
   border: 0;
   border-radius: 22px;
-  background: #000;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(232, 207, 155, 0.18), transparent 58%),
+    linear-gradient(145deg, #1a120b, #050403 82%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 225, 0.06),
+    0 18px 44px rgba(0, 0, 0, 0.28);
+  --dishPhotoHalo: 0 18px 36px rgba(0, 0, 0, 0.26);
 }
 
 .dishVisual img {
   position: absolute;
   inset: 0;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -1680,6 +1688,7 @@
   max-height: 100%;
   object-fit: contain;
   object-position: center;
+  filter: drop-shadow(var(--dishPhotoHalo));
   transform: none;
 }
 
@@ -1877,13 +1886,21 @@
   min-height: clamp(360px, 54svh, 620px);
   aspect-ratio: 4 / 5;
   border: 0;
-  background: #000;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(232, 207, 155, 0.16), transparent 58%),
+    linear-gradient(160deg, #160f09, #040302 82%);
+  --dishPhotoHalo: 0 28px 54px rgba(0, 0, 0, 0.34);
 }
 
 .detailSheet .detailVisual img,
 .standaloneDetailCard .detailVisual img {
+  position: relative;
+  z-index: 1;
   object-fit: cover;
   object-position: center 68%;
+  filter: drop-shadow(var(--dishPhotoHalo));
 }
 
 .detailBody {
@@ -3165,7 +3182,19 @@
 .page[data-user-theme="light"] .dishVisual,
 .page[data-user-theme="light"] .detailSheet .detailVisual,
 .page[data-user-theme="light"] .standaloneDetailCard .detailVisual {
-  background: #f1e6d4;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 252, 241, 0.98), rgba(238, 214, 164, 0.46) 50%, rgba(218, 188, 130, 0.16) 78%),
+    linear-gradient(145deg, #fff8ea, #eadabc);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 18px 42px rgba(103, 76, 30, 0.16);
+  --dishPhotoHalo: 0 22px 36px rgba(86, 61, 23, 0.2);
+}
+
+.page[data-user-theme="light"] .dishVisual img,
+.page[data-user-theme="light"] .detailSheet .detailVisual img,
+.page[data-user-theme="light"] .standaloneDetailCard .detailVisual img {
+  filter: drop-shadow(var(--dishPhotoHalo));
 }
 
 .page[data-user-theme="light"] .quickFilters button {

@@ -147,3 +147,48 @@ test("buildRelationalSupabasePublicMenu maps categories, dishes, metadata, and p
     ]
   );
 });
+
+test("buildRelationalSupabasePublicMenu reads settings from menu metadata fallback", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true,
+      metadata: {
+        publicMenuSettings: {
+          defaultLocale: "en-CA",
+          supportedLocales: ["fr-CA", "en-CA"],
+          baseCurrency: "CAD",
+          defaultCurrency: "USD",
+          supportedCurrencies: ["CAD", "USD"],
+          publicMenuStyle: "maison-elyse",
+          timezone: "America/Toronto",
+          defaultThemeMode: "dark",
+          allowThemeToggle: true,
+          allowCurrencySelector: true,
+          allowLanguageSelector: true,
+          taxIncluded: true,
+          priceDisplayMode: "auto"
+        }
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.equal(menu.settings.defaultLocale, "en-CA");
+  assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD"]);
+  assert.equal(menu.settings.defaultCurrency, "USD");
+  assert.equal(menu.settings.publicMenuStyle, "maison-elyse");
+  assert.equal(menu.publicMenuStyleExplicit, true);
+});

@@ -514,6 +514,39 @@
   padding: 0 12px;
 }
 
+.control:is(select),
+.select,
+.pipelineSelectField select {
+  color-scheme: dark;
+  background-color: var(--surface-0);
+  color: var(--owner-cream);
+}
+
+.control:is(select) option,
+.select option,
+.pipelineSelectField select option {
+  background-color: #15100b;
+  color: #fff7e8;
+}
+
+.control:is(select):focus-visible,
+.select:focus-visible,
+.pipelineSelectField select:focus-visible {
+  border-color: rgba(232, 207, 155, 0.72);
+  box-shadow: 0 0 0 3px rgba(232, 207, 155, 0.18);
+  outline: none;
+}
+
+.control:is(select):disabled,
+.select:disabled,
+.pipelineSelectField select:disabled {
+  border-color: rgba(255, 250, 240, 0.1);
+  background-color: rgba(255, 250, 240, 0.06);
+  color: rgba(255, 250, 240, 0.46);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .textarea {
   min-height: 110px;
   resize: vertical;

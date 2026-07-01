@@ -188,3 +188,17 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(mediaManager, /dishName=\{dish\.name\}/);
   assert.match(modelsManager, /dishName=\{dish\.name\}/);
 });
+
+test("owner model uploader is coordinated by a shared FIFO queue in table parents", async () => {
+  const uploader = await readFile("components/owner/OwnerDishModelUploader.tsx", "utf8");
+  const mediaManager = await readFile("components/owner/OwnerRestaurantMediaManager.tsx", "utf8");
+  const modelsManager = await readFile("components/owner/OwnerRestaurant3dManager.tsx", "utf8");
+
+  assert.match(uploader, /createOwnerDishModelUploadQueue/);
+  assert.match(uploader, /OwnerDishModelUploadQueueProvider/);
+  assert.match(uploader, /queueState === "queued"/);
+  assert.match(uploader, /En file\.\.\./);
+  assert.match(uploader, /Pipeline\.\.\./);
+  assert.match(mediaManager, /OwnerDishModelUploadQueueProvider/);
+  assert.match(modelsManager, /OwnerDishModelUploadQueueProvider/);
+});

@@ -7,32 +7,14 @@ import {
   serializePublicMenuSettings,
   validatePublicMenuSettingsInput
 } from "@/lib/menu/publicMenuSettings";
+import {
+  updateOwnerMenuSettings,
+  type SupabaseMenuSettingsClient
+} from "@/lib/owner/menuSettingsMutation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type SupabaseMenuSettingsError = {
-  code?: string;
-  message?: string;
-};
-
-type SupabaseMenuSettingsClient = {
-  from(table: "menus"): {
-    update(row: Record<string, unknown>): {
-      eq(column: string, value: unknown): {
-        eq(column: string, value: unknown): {
-          select(columns: string): {
-            single(): PromiseLike<{
-              data: Record<string, unknown> | null;
-              error: SupabaseMenuSettingsError | null;
-            }>;
-          };
-        };
-      };
-    };
-  };
-};
 
 function settingsInputFromBody(body: unknown): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) return body;
@@ -76,32 +58,24 @@ export async function PATCH(
     );
   }
 
-  const admin = adminResult.client as unknown as SupabaseMenuSettingsClient;
-  const { data, error } = await admin
-    .from("menus")
-    .update({ settings_json: settings })
-    .eq("restaurant_id", restaurantId)
-    .eq("is_primary", true)
-    .select("id,settings_json")
-    .single();
+  const result = await updateOwnerMenuSettings({
+    client: adminResult.client as unknown as SupabaseMenuSettingsClient,
+    restaurantId,
+    settings
+  });
 
-  if (error || !data) {
-    const missingColumn = error?.code === "42703" || /settings_json/i.test(error?.message ?? "");
+  if (!result.ok) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: missingColumn
-          ? "La colonne menus.settings_json n'est pas disponible."
-          : "Menu principal introuvable pour ce restaurant."
-      },
-      { status: missingColumn ? 503 : 404 }
+      { ok: false, error: result.error },
+      { status: result.status }
     );
   }
 
   return NextResponse.json({
     ok: true,
-    restaurantId,
-    menuId: data.id,
-    settings
+    restaurantId: result.restaurantId,
+    menuId: result.menuId,
+    settings: result.settings,
+    storage: result.storage
   });
 }

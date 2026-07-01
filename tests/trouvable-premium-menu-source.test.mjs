@@ -19,7 +19,7 @@ test("public Trouvable menu is centralized in a targeted premium experience", as
   assert.match(page, /TrouvablePremiumMenuExperience/);
   assert.match(page, /isTrouvablePublicMenu\(menu\)/);
   assert.match(page, /resolvePublicMenuUiConfig\(menu, configRecord\.config\)/);
-  assert.match(helper, /slug === "trouvable"/);
+  assert.match(helper, /matchesMenuIdentity\(menu,\s*"trouvable"\)/);
   assert.match(helper, /theme:\s*"premium-gastronomic"/);
   assert.match(helper, /autoLoad:\s*false/);
 });
@@ -36,6 +36,33 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /hasPublic3d\(selectedDish\)/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /prefetch=\{false\}/);
+});
+
+test("Trouvable AR browser help is hidden until a real fallback condition appears", async () => {
+  const source = await readFile(componentPath, "utf8");
+  const viewer = await readFile("components/dish/DishModelViewer.tsx", "utf8");
+
+  assert.match(source, /showArBrowserHelp/);
+  assert.match(source, /onArFallbackNeeded/);
+  assert.match(source, /setShowArBrowserHelp\(false\)/);
+  assert.doesNotMatch(
+    source,
+    /showDetailModelViewer \? \([\s\S]{0,500}<p className=\{styles\.arBrowserHelp\}>/
+  );
+  assert.match(viewer, /onArFallbackNeeded/);
+  assert.match(viewer, /runtimeArFailed/);
+});
+
+test("Trouvable light theme integrates cutout PNG dishes without black visual blocks", async () => {
+  const css = await readFile(cssPath, "utf8");
+
+  assert.match(css, /dishPhotoHalo/);
+  assert.match(css, /\.page\[data-user-theme="light"\][\s\S]*dishVisual[\s\S]*radial-gradient/);
+  assert.match(css, /\.page\[data-user-theme="light"\][\s\S]*detailVisual[\s\S]*drop-shadow/);
+  assert.doesNotMatch(
+    css,
+    /\.page\[data-user-theme="light"\][\s\S]{0,220}\.dishVisual[\s\S]{0,120}background:\s*#000/
+  );
 });
 
 test("Trouvable premium menu includes local selection and waiter-only flows", async () => {
@@ -60,7 +87,8 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /TROUVABLE_CURRENCY_STORAGE_KEY/);
   assert.match(source, /TROUVABLE_LOCALE_STORAGE_KEY/);
   assert.match(source, /TROUVABLE_THEME_STORAGE_KEY/);
-  assert.match(source, /formatTrouvablePriceLabel/);
+  assert.match(source, /formatTrouvableDishPrice/);
+  assert.match(source, /formatTrouvablePriceCents/);
   assert.match(source, /getTrouvableGreeting/);
   assert.match(source, /data-user-theme=\{selectedTheme\}/);
   assert.match(source, /activeSheet === "currency"/);

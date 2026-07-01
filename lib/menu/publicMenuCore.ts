@@ -112,6 +112,13 @@ export type PublicMenuCategory = {
 
 export type PublicMenuRow = Record<string, unknown>;
 
+const PUBLIC_MENU_OPTION_FIELD_KEYS = [
+  "options",
+  "option_list",
+  "extras",
+  "accompaniments"
+];
+
 const CATEGORY_DEFINITIONS = [
   {
     id: "entrees",
@@ -734,7 +741,12 @@ function mapDishRow(
     available: isDishAvailable(row),
     ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
     allergens: getStringListFromSources(row, metadata, ["allergens", "allergenes", "allergen_list"]),
-    options: getStringListFromSources(row, metadata, ["options", "option_list"]),
+    options: mergeStringLists(
+      getStringList(row, ["options", "option_list"]),
+      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
+    ),
     houseNote:
       getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"], "") ||
       getString(row, [
@@ -765,7 +777,16 @@ function menuSettingsFromRows(args: {
   menuRow?: PublicMenuRow | null;
   legacyMenuLanguages?: unknown;
 }): PublicMenuSettings {
-  const rawSettings = getObject(args.menuRow ?? {}, ["settings_json", "settingsJson"]);
+  const menuRow = args.menuRow ?? {};
+  const nativeSettings = getObject(menuRow, ["settings_json", "settingsJson"]);
+  const metadata = getObject(menuRow, ["metadata", "meta"]);
+  const metadataSettings = getObject(metadata, [
+    "publicMenuSettings",
+    "public_menu_settings",
+    "settings"
+  ]);
+  const rawSettings =
+    Object.keys(nativeSettings).length > 0 ? nativeSettings : metadataSettings;
   const isEmptySettings = Object.keys(rawSettings).length === 0;
   return normalizePublicMenuSettings(rawSettings, {
     legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
@@ -773,7 +794,16 @@ function menuSettingsFromRows(args: {
 }
 
 function menuRowHasPublicMenuStyle(menuRow?: PublicMenuRow | null): boolean {
-  const rawSettings = getObject(menuRow ?? {}, ["settings_json", "settingsJson"]);
+  const row = menuRow ?? {};
+  const nativeSettings = getObject(row, ["settings_json", "settingsJson"]);
+  const metadata = getObject(row, ["metadata", "meta"]);
+  const metadataSettings = getObject(metadata, [
+    "publicMenuSettings",
+    "public_menu_settings",
+    "settings"
+  ]);
+  const rawSettings =
+    Object.keys(nativeSettings).length > 0 ? nativeSettings : metadataSettings;
   return (
     Object.prototype.hasOwnProperty.call(rawSettings, "publicMenuStyle") ||
     Object.prototype.hasOwnProperty.call(rawSettings, "public_menu_style") ||

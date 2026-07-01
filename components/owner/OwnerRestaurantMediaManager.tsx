@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import styles from "@/components/owner/OwnerCockpit.module.css";
-import { OwnerDishModelUploader } from "@/components/owner/OwnerDishModelUploader";
+import {
+  OwnerDishModelUploader,
+  OwnerDishModelUploadQueueProvider
+} from "@/components/owner/OwnerDishModelUploader";
 import { OwnerDishModelVisualCompare } from "@/components/owner/OwnerDishModelVisualCompare";
 import { OwnerDishPhotoUploader } from "@/components/owner/OwnerDishPhotoUploader";
 import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
@@ -23,6 +26,8 @@ export const OWNER_MEDIA_FILTERS: Array<{ id: OwnerMediaFilter; label: string }>
   { id: "models-ready", label: "Medias 3D prets" },
   { id: "review", label: "A verifier" }
 ];
+
+const ALL_SECTION_FILTER = "all";
 
 type OwnerRestaurantMediaManagerProps = {
   restaurantId: string;
@@ -72,9 +77,29 @@ export function OwnerRestaurantMediaManager({
 }: OwnerRestaurantMediaManagerProps) {
   const [selectedDishId, setSelectedDishId] = useState<string>("");
   const [selectionMessage, setSelectionMessage] = useState("");
-  const visibleDishes = useMemo(
+  const [sectionFilter, setSectionFilter] = useState(ALL_SECTION_FILTER);
+  const comparisonRef = useRef<HTMLDivElement | null>(null);
+  const mediaFilteredDishes = useMemo(
     () => filterDishes(dishes, activeFilter),
     [activeFilter, dishes]
+  );
+  const sectionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          mediaFilteredDishes
+            .map((dish) => dish.category.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, "fr")),
+    [mediaFilteredDishes]
+  );
+  const visibleDishes = useMemo(
+    () =>
+      sectionFilter === ALL_SECTION_FILTER
+        ? mediaFilteredDishes
+        : mediaFilteredDishes.filter((dish) => dish.category === sectionFilter),
+    [mediaFilteredDishes, sectionFilter]
   );
   const selectedDish =
     visibleDishes.find((dish) => dish.id === selectedDishId) ?? null;
@@ -106,10 +131,17 @@ export function OwnerRestaurantMediaManager({
     if (!status.ready) return;
     setSelectedDishId(dish.id);
     setSelectionMessage(`${dish.name} selectionne pour comparaison.`);
+    window.requestAnimationFrame(() => {
+      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      comparisonRef.current?.scrollIntoView({
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "start"
+      });
+    });
   }
 
   return (
-    <>
+    <OwnerDishModelUploadQueueProvider>
       <Panel
         title="Plats et medias"
         action={
@@ -126,6 +158,23 @@ export function OwnerRestaurantMediaManager({
                 {filter.label}
               </Link>
             ))}
+            {sectionOptions.length > 1 ? (
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Section</span>
+                <select
+                  className={styles.select}
+                  value={sectionFilter}
+                  onChange={(event) => setSectionFilter(event.target.value)}
+                >
+                  <option value={ALL_SECTION_FILTER}>Toutes les sections</option>
+                  {sectionOptions.map((section) => (
+                    <option key={section} value={section}>
+                      {section}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
         }
       >
@@ -232,27 +281,29 @@ export function OwnerRestaurantMediaManager({
         ) : null}
       </Panel>
 
-      <Panel title="Comparaison visuelle GLB / USDZ">
-        {!selectedComparisonDish ? (
-          <EmptyState>
-            Selectionnez un plat pour comparer son GLB et son USDZ.
-          </EmptyState>
-        ) : (
-          <div className={styles.modelCompareStack}>
-            <OwnerDishModelVisualCompare
-              key={comparisonKey}
-              dishName={selectedComparisonDish.name}
-              webModel3dUrl={selectedComparisonDish.webModel3dUrl}
-              webModel3dBytes={selectedComparisonDish.webModel3dBytes}
-              arPreviewModelUrl={
-                selectedComparisonDish.arModel3dUrl || selectedComparisonDish.webModel3dUrl
-              }
-              arUsdzUrl={selectedComparisonDish.arUsdzUrl}
-              arUsdzBytes={selectedComparisonDish.arUsdzBytes}
-            />
-          </div>
-        )}
-      </Panel>
-    </>
+      <div ref={comparisonRef}>
+        <Panel title="Comparaison visuelle GLB / USDZ">
+          {!selectedComparisonDish ? (
+            <EmptyState>
+              Selectionnez un plat pour comparer son GLB et son USDZ.
+            </EmptyState>
+          ) : (
+            <div className={styles.modelCompareStack}>
+              <OwnerDishModelVisualCompare
+                key={comparisonKey}
+                dishName={selectedComparisonDish.name}
+                webModel3dUrl={selectedComparisonDish.webModel3dUrl}
+                webModel3dBytes={selectedComparisonDish.webModel3dBytes}
+                arPreviewModelUrl={
+                  selectedComparisonDish.arModel3dUrl || selectedComparisonDish.webModel3dUrl
+                }
+                arUsdzUrl={selectedComparisonDish.arUsdzUrl}
+                arUsdzBytes={selectedComparisonDish.arUsdzBytes}
+              />
+            </div>
+          )}
+        </Panel>
+      </div>
+    </OwnerDishModelUploadQueueProvider>
   );
 }

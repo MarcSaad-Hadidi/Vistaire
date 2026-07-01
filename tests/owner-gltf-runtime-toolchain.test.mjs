@@ -19,6 +19,7 @@ const RUNTIME_DEPENDENCIES = [
 
 const TRACE_INCLUDES = [
   "scripts/shared/gltf-transform-cli.mjs",
+  "scripts/shared/ios-quicklook-promotion.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",
   "scripts/build-ios-quicklook-ultra-assets.mjs",
