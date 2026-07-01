@@ -83,6 +83,21 @@ test("explicit ultra promotion remains strict even when another candidate is val
   );
 });
 
+test("promotion rejects candidates without a measured USDZ size", () => {
+  assert.throws(
+    () =>
+      selectProductionPromotionCandidate({
+        requestedLevel: "auto",
+        candidates: [
+          candidate("conservative", { bytes: null }),
+          candidate("balanced", { bytes: Number.NaN }),
+          candidate("ultra", { bytes: 0 })
+        ]
+      }),
+    /No production-safe USDZ candidate.*unknown USDZ size/is
+  );
+});
+
 test("auto promotion fails clearly when no candidate is production safe", () => {
   assert.throws(
     () =>

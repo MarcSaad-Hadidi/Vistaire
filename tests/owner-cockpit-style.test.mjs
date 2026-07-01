@@ -12,6 +12,7 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   const overview = readRepoFile("app", "owner", "page.tsx");
   const restaurantDashboard = readRepoFile("components", "owner", "OwnerRestaurantDashboard.tsx");
   const restaurantMedias = readRepoFile("app", "owner", "restaurants", "[restaurantId]", "medias", "page.tsx");
+  const mediaManager = readRepoFile("components", "owner", "OwnerRestaurantMediaManager.tsx");
   const nav = readRepoFile("lib", "owner", "nav.ts");
   const shell = readRepoFile("components", "owner", "OwnerShell.tsx");
   const css = readRepoFile("components", "owner", "OwnerCockpit.module.css");
@@ -49,7 +50,8 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   assert.match(restaurantDashboard, /title="3D \/ AR"/);
   assert.match(restaurantDashboard, /ownerRestaurantRoute\(restaurant, "3d"\)/);
   assert.match(restaurantMedias, /Pipeline GLB -> USDZ/);
-  assert.match(restaurantMedias, /OwnerDishModelVisualCompare/);
+  assert.match(restaurantMedias, /OwnerRestaurantMediaManager/);
+  assert.match(mediaManager, /OwnerDishModelVisualCompare/);
 
   // CSS design system primitives for the studio.
   assert.match(css, /\.ownerTheme[\s\S]*--owner-cream/);
@@ -63,4 +65,6 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   assert.match(css, /\.statGroup/);
   assert.match(css, /\.dataTable/);
   assert.match(css, /\.qrCustomizer/);
+  assert.match(css, /\.input:is\(select\)/);
+  assert.match(css, /\.sidebarSwitch select option/);
 });

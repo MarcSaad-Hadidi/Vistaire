@@ -11,6 +11,7 @@ const cssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
 const googleReviewTrackingPath = "components/menu/googleReviewTracking.ts";
 const helperPath = "lib/menu/trouvableMenuExperience.ts";
 const controlsPath = "components/menu/trouvableMenuControls.ts";
+const publicMenuPath = "lib/menu/publicMenu.ts";
 
 test("public Trouvable menu is centralized in a targeted premium experience", async () => {
   const page = await readFile(pagePath, "utf8");
@@ -22,6 +23,16 @@ test("public Trouvable menu is centralized in a targeted premium experience", as
   assert.match(helper, /matchesMenuIdentity\(menu,\s*"trouvable"\)/);
   assert.match(helper, /theme:\s*"premium-gastronomic"/);
   assert.match(helper, /autoLoad:\s*false/);
+});
+
+test("public /menu/trouvable resolves to the local Trouvable demo menu", async () => {
+  const source = await readFile(publicMenuPath, "utf8");
+
+  assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
+  assert.match(source, /slug === "trouvable"/);
+  assert.match(source, /trouvableDemoMenu\(slug, resolvedLocale\)/);
+  assert.match(source, /dejeuner-classique-maison/);
+  assert.match(source, /publicMenuStyle:\s*"trouvable"/);
 });
 
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {

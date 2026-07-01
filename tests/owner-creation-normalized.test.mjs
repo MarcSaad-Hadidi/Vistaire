@@ -247,3 +247,17 @@ test("menu settings migration adds settings_json and persists it in RPC", async 
   assert.match(sql, /v_menu -> 'settings_json'/i);
   assert.match(sql, /notify pgrst, 'reload schema'/i);
 });
+
+test("menu settings catch-up migration repairs older live menu schemas", async () => {
+  const sql = await readFile(
+    "supabase/migrations/20260701230000_menu_settings_schema_catchup.sql",
+    "utf8"
+  );
+
+  assert.match(sql, /add column if not exists metadata jsonb/i);
+  assert.match(sql, /add column if not exists settings_json jsonb/i);
+  assert.match(sql, /menus_metadata_is_object/i);
+  assert.match(sql, /menus_settings_json_is_object/i);
+  assert.match(sql, /menu_dishes_currency_check/i);
+  assert.match(sql, /notify pgrst, 'reload schema'/i);
+});

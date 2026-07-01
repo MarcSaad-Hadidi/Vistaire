@@ -190,9 +190,17 @@ function main() {
   const arLiteGlb = join(arLiteDir, `${options.dish}-ar-lite-meshy.glb`);
   const arUsdz = join(arLiteDir, `${options.dish}-ios-quicklook-meshy.usdz`);
   const iosPromotionManifest = join(arLiteDir, `${options.dish}-ios-quicklook-promotion.json`);
-  const iosQuickLookPromotion = existsSync(iosPromotionManifest)
-    ? JSON.parse(readFileSync(iosPromotionManifest, "utf8"))
-    : null;
+  if (!existsSync(iosPromotionManifest)) {
+    throw new Error(`Manifest promotion iOS Quick Look introuvable: ${iosPromotionManifest}`);
+  }
+  const iosQuickLookPromotion = JSON.parse(readFileSync(iosPromotionManifest, "utf8"));
+  if (
+    !iosQuickLookPromotion ||
+    typeof iosQuickLookPromotion !== "object" ||
+    !iosQuickLookPromotion.selectedLevel
+  ) {
+    throw new Error(`Manifest promotion iOS Quick Look invalide: ${iosPromotionManifest}`);
+  }
   const urlPrefix = `/${slashPath(publicAssetRootRelative)}`;
 
   const manifest = {

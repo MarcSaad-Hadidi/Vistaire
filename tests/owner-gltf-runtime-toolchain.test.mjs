@@ -175,3 +175,15 @@ test("owner runtime temp output skips the asset-review-only OpenUSD optimizer", 
   assert.match(iosBuilder, /VISTAIRE_MESHY_SKIP_OPENUSD_OPTIMIZER/);
   assert.match(iosBuilder, /OpenUSD optimizer skipped[\s\S]*raw USDZ/);
 });
+
+test("owner Meshy builder requires a Quick Look promotion manifest", async () => {
+  const ownerBuilder = await readFile("scripts/owner/build-restaurant-meshy-dish.mjs", "utf8");
+
+  assert.match(ownerBuilder, /iosPromotionManifest/);
+  assert.match(ownerBuilder, /Manifest promotion iOS Quick Look introuvable/);
+  assert.match(ownerBuilder, /iosQuickLookPromotion\.selectedLevel/);
+  assert.doesNotMatch(
+    ownerBuilder,
+    /iosQuickLookPromotion\s*=\s*existsSync[\s\S]*:\s*null/
+  );
+});

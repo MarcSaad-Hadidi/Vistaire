@@ -19,7 +19,7 @@ function candidateName(candidate) {
 
 function candidateBytes(candidate) {
   const bytes = candidate?.usdz?.bytes;
-  return Number.isFinite(bytes) ? bytes : 0;
+  return Number.isFinite(bytes) ? bytes : NaN;
 }
 
 export function getProductionPromotionRejectionReasons(
@@ -39,6 +39,9 @@ export function getProductionPromotionRejectionReasons(
   }
 
   const bytes = candidateBytes(candidate);
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    reasons.push(`${name} has an unknown USDZ size`);
+  }
   if (candidate.productionBudgetPass === false || bytes > productionBudgetBytes) {
     reasons.push(
       `${name} is ${formatPromotionSize(bytes)}, above ${formatPromotionSize(

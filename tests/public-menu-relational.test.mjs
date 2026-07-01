@@ -192,3 +192,46 @@ test("buildRelationalSupabasePublicMenu reads settings from menu metadata fallba
   assert.equal(menu.settings.publicMenuStyle, "maison-elyse");
   assert.equal(menu.publicMenuStyleExplicit, true);
 });
+
+test("buildRelationalSupabasePublicMenu reads settings from menu_ui_configs fallback", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true
+    },
+    legacyPublicMenuSettings: {
+      defaultLocale: "en-CA",
+      supportedLocales: ["fr-CA", "en-CA"],
+      baseCurrency: "USD",
+      defaultCurrency: "USD",
+      supportedCurrencies: ["USD", "CAD"],
+      publicMenuStyle: "trouvable",
+      timezone: "America/Toronto",
+      defaultThemeMode: "light",
+      allowThemeToggle: true,
+      allowCurrencySelector: true,
+      allowLanguageSelector: true,
+      taxIncluded: false,
+      priceDisplayMode: "decimal"
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.equal(menu.settings.defaultLocale, "en-CA");
+  assert.equal(menu.settings.baseCurrency, "USD");
+  assert.equal(menu.settings.defaultCurrency, "USD");
+  assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD"]);
+  assert.equal(menu.settings.publicMenuStyle, "trouvable");
+});

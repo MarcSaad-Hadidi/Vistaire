@@ -742,7 +742,9 @@ function mapDishRow(
     ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
     allergens: getStringListFromSources(row, metadata, ["allergens", "allergenes", "allergen_list"]),
     options: mergeStringLists(
-      getStringList(row, ["options", "option_list"]),
+      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
       getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
       getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
       getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
@@ -775,6 +777,7 @@ function rowMatchesRestaurant(row: PublicMenuRow, restaurantId: string): boolean
 
 function menuSettingsFromRows(args: {
   menuRow?: PublicMenuRow | null;
+  legacyPublicMenuSettings?: unknown;
   legacyMenuLanguages?: unknown;
 }): PublicMenuSettings {
   const menuRow = args.menuRow ?? {};
@@ -786,7 +789,11 @@ function menuSettingsFromRows(args: {
     "settings"
   ]);
   const rawSettings =
-    Object.keys(nativeSettings).length > 0 ? nativeSettings : metadataSettings;
+    Object.keys(nativeSettings).length > 0
+      ? nativeSettings
+      : Object.keys(metadataSettings).length > 0
+        ? metadataSettings
+        : objectInput(args.legacyPublicMenuSettings);
   const isEmptySettings = Object.keys(rawSettings).length === 0;
   return normalizePublicMenuSettings(rawSettings, {
     legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
@@ -825,12 +832,14 @@ export function buildSupabasePublicMenu(
   dishRows: PublicMenuRow[],
   options: {
     includeUnavailableDishes?: boolean;
+    legacyPublicMenuSettings?: unknown;
     legacyMenuLanguages?: unknown;
   } = {}
 ): PublicMenu {
   const slug = getPublicMenuRowSlug(restaurantRow) || slugify(rawSlug);
   const restaurantId = getString(restaurantRow, ["id", "restaurant_id"], "");
   const settings = menuSettingsFromRows({
+    legacyPublicMenuSettings: options.legacyPublicMenuSettings,
     legacyMenuLanguages: options.legacyMenuLanguages
   });
   const rowsById = restaurantId
@@ -880,6 +889,7 @@ export function buildRelationalSupabasePublicMenu(args: {
   categoryRows?: PublicMenuRow[];
   dishRows?: PublicMenuRow[];
   includeUnavailableDishes?: boolean;
+  legacyPublicMenuSettings?: unknown;
   legacyMenuLanguages?: unknown;
 }): PublicMenu {
   const slug = getPublicMenuRowSlug(args.restaurantRow) || slugify(args.slug);
@@ -887,6 +897,7 @@ export function buildRelationalSupabasePublicMenu(args: {
   const menuId = getString(args.menuRow ?? {}, ["id", "menu_id"], "");
   const settings = menuSettingsFromRows({
     menuRow: args.menuRow,
+    legacyPublicMenuSettings: args.legacyPublicMenuSettings,
     legacyMenuLanguages: args.legacyMenuLanguages
   });
   const categoryRows = (args.categoryRows ?? [])

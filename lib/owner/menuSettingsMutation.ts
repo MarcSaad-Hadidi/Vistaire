@@ -3,6 +3,12 @@ import {
   serializePublicMenuSettings,
   type PublicMenuSettings
 } from "../menu/publicMenuSettings.ts";
+import {
+  isMissingColumnError,
+  mergePublicMenuSettingsIntoUiConfig,
+  publicMenuSettingsFromMenuRow,
+  type OwnerPublicMenuSettingsSource
+} from "./publicMenuSettingsFallback.ts";
 
 type SupabaseMenuSettingsError = {
   code?: string;
@@ -20,6 +26,7 @@ type SupabaseMenuSettingsSingleResult = PromiseLike<{
 
 type SupabaseMenuSettingsSelectSingle = {
   single(): SupabaseMenuSettingsSingleResult;
+  maybeSingle(): SupabaseMenuSettingsSingleResult;
 };
 
 type SupabaseMenuSettingsSelectable = {
@@ -35,7 +42,8 @@ type SupabaseMenuSettingsSelectAfterEq = {
 };
 
 export type SupabaseMenuSettingsClient = {
-  from(table: "menus"): {
+  from(table: "menus" | "menu_ui_configs"): {
+    insert(row: Record<string, unknown>): SupabaseMenuSettingsSelectable;
     update(row: Record<string, unknown>): {
       eq(column: string, value: unknown): SupabaseMenuSettingsUpdateAfterEq;
     };
@@ -51,7 +59,7 @@ export type OwnerMenuSettingsMutationResult =
       restaurantId: string;
       menuId: string;
       settings: PublicMenuSettings;
-      storage: "settings_json" | "metadata";
+      storage: OwnerPublicMenuSettingsSource;
     }
   | {
       ok: false;
@@ -66,38 +74,91 @@ function objectInput(value: unknown): Record<string, unknown> {
 }
 
 export function isMissingMenuSettingsJsonColumn(error: unknown): boolean {
-  const details = objectInput(error);
-  const haystack = [
-    details.code,
-    details.message,
-    details.details,
-    details.hint
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    details.code === "42703" ||
-    /column\s+["']?settings_json["']?\s+does\s+not\s+exist/i.test(haystack) ||
-    /could\s+not\s+find\s+.*settings_json.*schema\s+cache/i.test(haystack)
-  );
+  return isMissingColumnError(error, "settings_json");
 }
 
 function settingsFromData(
   data: SupabaseMenuSettingsData,
   fallback: PublicMenuSettings,
-  key: "settings_json" | "publicMenuSettings"
+  key: "settings_json" | "publicMenuSettings" | "config_json"
 ): PublicMenuSettings {
-  const source =
-    key === "settings_json"
-      ? objectInput(data).settings_json
-      : objectInput(objectInput(data).metadata).publicMenuSettings;
+  const source = (() => {
+    if (key === "settings_json") return objectInput(data).settings_json;
+    if (key === "config_json") {
+      return objectInput(objectInput(data).config_json).publicMenuSettings;
+    }
+    return objectInput(objectInput(data).metadata).publicMenuSettings;
+  })();
   return serializePublicMenuSettings(normalizePublicMenuSettings(source ?? fallback));
 }
 
 function menuIdFromData(data: SupabaseMenuSettingsData): string {
   const id = objectInput(data).id;
   return typeof id === "string" && id.trim() ? id : "";
+}
+
+function uiConfigIdFromData(data: SupabaseMenuSettingsData): string {
+  const id = objectInput(data).id;
+  return typeof id === "string" && id.trim() ? id : "";
+}
+
+async function saveSettingsToUiConfig(args: {
+  client: SupabaseMenuSettingsClient;
+  restaurantId: string;
+  settings: PublicMenuSettings;
+}): Promise<OwnerMenuSettingsMutationResult> {
+  const existing = await args.client
+    .from("menu_ui_configs")
+    .select("id,theme,config_json,status")
+    .eq("restaurant_id", args.restaurantId)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (existing.error) {
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "Settings menu impossibles a sauvegarder. Appliquez la migration menus.settings_json."
+    };
+  }
+
+  const configJson = mergePublicMenuSettingsIntoUiConfig(
+    existing.data?.config_json,
+    args.settings
+  );
+  const uiConfigId = uiConfigIdFromData(existing.data);
+  const row = {
+    restaurant_id: args.restaurantId,
+    theme:
+      typeof existing.data?.theme === "string" && existing.data.theme.trim()
+        ? existing.data.theme
+        : "fresh-homemade",
+    config_json: configJson,
+    status: "draft",
+    updated_at: new Date().toISOString()
+  };
+  const writer = uiConfigId
+    ? args.client.from("menu_ui_configs").update(row).eq("id", uiConfigId)
+    : args.client.from("menu_ui_configs").insert(row);
+  const fallback = await writer.select("id,config_json").single();
+
+  if (fallback.error || !fallback.data) {
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "Settings menu impossibles a sauvegarder. Appliquez la migration menus.settings_json."
+    };
+  }
+
+  return {
+    ok: true,
+    restaurantId: args.restaurantId,
+    menuId: "",
+    settings: settingsFromData(fallback.data, args.settings, "config_json"),
+    storage: "menu_ui_configs"
+  };
 }
 
 export async function updateOwnerMenuSettings(args: {
@@ -115,11 +176,14 @@ export async function updateOwnerMenuSettings(args: {
     .single();
 
   if (!primary.error && primary.data) {
+    const normalized = publicMenuSettingsFromMenuRow(primary.data);
     return {
       ok: true,
       restaurantId: args.restaurantId,
       menuId: menuIdFromData(primary.data),
-      settings: settingsFromData(primary.data, settings, "settings_json"),
+      settings:
+        normalized?.settings ??
+        settingsFromData(primary.data, settings, "settings_json"),
       storage: "settings_json"
     };
   }
@@ -140,6 +204,13 @@ export async function updateOwnerMenuSettings(args: {
     .single();
 
   const menuId = menuIdFromData(existing.data);
+  if (existing.error && isMissingColumnError(existing.error, "metadata")) {
+    return saveSettingsToUiConfig({
+      client: args.client,
+      restaurantId: args.restaurantId,
+      settings
+    });
+  }
   if (existing.error || !menuId) {
     return {
       ok: false,
@@ -162,6 +233,13 @@ export async function updateOwnerMenuSettings(args: {
     .select("id,metadata")
     .single();
 
+  if (fallback.error && isMissingColumnError(fallback.error, "metadata")) {
+    return saveSettingsToUiConfig({
+      client: args.client,
+      restaurantId: args.restaurantId,
+      settings
+    });
+  }
   if (fallback.error || !fallback.data) {
     return {
       ok: false,
@@ -174,7 +252,9 @@ export async function updateOwnerMenuSettings(args: {
     ok: true,
     restaurantId: args.restaurantId,
     menuId,
-    settings: settingsFromData(fallback.data, settings, "publicMenuSettings"),
+    settings:
+      publicMenuSettingsFromMenuRow(fallback.data)?.settings ??
+      settingsFromData(fallback.data, settings, "publicMenuSettings"),
     storage: "metadata"
   };
 }

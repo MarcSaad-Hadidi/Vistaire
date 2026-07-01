@@ -277,6 +277,8 @@ test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => 
       ingredients: ["Riz chaud", "Poulet grille"],
       allergens: "sesame, soja",
       options: ["Extra sauce maison"],
+      extras: ["Pain naan"],
+      accompaniments: "Riz safrane",
       metadata: {
         extras: ["Pain grille"],
         accompaniments: "Salade verte"
@@ -314,6 +316,8 @@ test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => 
   assert.deepEqual(dish.allergens, ["sesame", "soja"]);
   assert.deepEqual(dish.options, [
     "Extra sauce maison",
+    "Pain naan",
+    "Riz safrane",
     "Pain grille",
     "Salade verte"
   ]);

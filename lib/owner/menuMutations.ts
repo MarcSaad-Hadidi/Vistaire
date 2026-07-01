@@ -3,10 +3,16 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   normalizePublicMenuSettings,
-  serializePublicMenuSettings
+  serializePublicMenuSettings,
+  type PublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { parsePriceToCents } from "@/lib/owner/price";
+import {
+  isMissingColumnError as isMissingSettingsColumnError,
+  publicMenuSettingsFromMenuRow,
+  publicMenuSettingsFromUiConfigRow
+} from "@/lib/owner/publicMenuSettingsFallback";
 
 type MenuMutationResult =
   | { ok: true; record: Record<string, unknown> }
@@ -15,6 +21,7 @@ type MenuMutationResult =
 type PrimaryMenu = {
   id: string;
   settingsJson: unknown;
+  metadata?: unknown;
 };
 
 type MenuRow = {
@@ -23,6 +30,7 @@ type MenuRow = {
   status?: unknown;
   is_primary?: unknown;
   settings_json?: unknown;
+  metadata?: unknown;
 };
 
 type MenuRowsResult =
@@ -93,23 +101,6 @@ function priceInput(value: unknown): string {
     .slice(0, 24);
 }
 
-function isMissingColumnError(error: unknown, column: string): boolean {
-  const details = objectInput(error);
-  const haystack = [
-    details.code,
-    details.message,
-    details.details,
-    details.hint
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    details.code === "42703" ||
-    new RegExp(`column\\s+["']?${column}["']?\\s+does\\s+not\\s+exist`, "i").test(haystack) ||
-    new RegExp(`${column}.*does\\s+not\\s+exist`, "i").test(haystack)
-  );
-}
-
 function isUniqueViolation(error: unknown): boolean {
   return objectInput(error).code === "23505";
 }
@@ -120,7 +111,7 @@ async function fetchPrimaryMenuRows(
 ): Promise<MenuRowsResult> {
   const withSettings = await client
     .from("menus")
-    .select("id,slug,status,is_primary,settings_json")
+    .select("id,slug,status,is_primary,settings_json,metadata")
     .eq("restaurant_id", restaurantId)
     .limit(50);
 
@@ -132,7 +123,25 @@ async function fetchPrimaryMenuRows(
     };
   }
 
-  if (!isMissingColumnError(withSettings.error, "settings_json")) {
+  if (!isMissingSettingsColumnError(withSettings.error, "settings_json")) {
+    return { ok: false, status: 503, error: "Menu principal impossible a charger." };
+  }
+
+  const withMetadata = await client
+    .from("menus")
+    .select("id,slug,status,is_primary,metadata")
+    .eq("restaurant_id", restaurantId)
+    .limit(50);
+
+  if (!withMetadata.error) {
+    return {
+      ok: true,
+      rows: Array.isArray(withMetadata.data) ? withMetadata.data : [],
+      supportsSettingsJson: false
+    };
+  }
+
+  if (!isMissingSettingsColumnError(withMetadata.error, "metadata")) {
     return { ok: false, status: 503, error: "Menu principal impossible a charger." };
   }
 
@@ -164,7 +173,8 @@ function selectPrimaryMenu(rows: MenuRow[]): PrimaryMenu | null {
   if (!primary?.id) return null;
   return {
     id: String(primary.id),
-    settingsJson: primary.settings_json
+    settingsJson: primary.settings_json,
+    metadata: primary.metadata
   };
 }
 
@@ -229,7 +239,8 @@ async function ensurePrimaryMenu(
       ok: true,
       menu: {
         id: String(inserted.data.id),
-        settingsJson: undefined
+        settingsJson: undefined,
+        metadata: undefined
       }
     };
   }
@@ -252,9 +263,85 @@ async function ensurePrimaryMenu(
     ok: true,
     menu: {
       id: String(inserted.data.id),
-      settingsJson: inserted.data.settings_json
+      settingsJson: inserted.data.settings_json,
+      metadata: undefined
     }
   };
+}
+
+async function readUiConfigPublicMenuSettings(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<PublicMenuSettings | null> {
+  const config = await client
+    .from("menu_ui_configs")
+    .select("config_json,status")
+    .eq("restaurant_id", restaurantId)
+    .in("status", ["draft", "published"])
+    .order("updated_at", { ascending: false })
+    .limit(10);
+
+  if (config.error) return null;
+  const rows = Array.isArray(config.data) ? config.data : [];
+  const preferred =
+    rows.find((row) => String(row.status ?? "") === "draft") ??
+    rows.find((row) => String(row.status ?? "") === "published") ??
+    rows[0];
+  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
+}
+
+async function readEffectiveMenuSettings(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  menuId: string;
+  menuRow?: unknown;
+}): Promise<PublicMenuSettings> {
+  const cached = publicMenuSettingsFromMenuRow(args.menuRow)?.settings;
+  if (cached) return cached;
+
+  const withSettings = await args.client
+    .from("menus")
+    .select("settings_json,metadata")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (!withSettings.error) {
+    const settings = publicMenuSettingsFromMenuRow(withSettings.data)?.settings;
+    if (settings) return settings;
+  }
+
+  if (
+    withSettings.error &&
+    !isMissingSettingsColumnError(withSettings.error, "settings_json") &&
+    !isMissingSettingsColumnError(withSettings.error, "metadata")
+  ) {
+    return normalizePublicMenuSettings({});
+  }
+
+  const withNativeSettings = await args.client
+    .from("menus")
+    .select("settings_json")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (!withNativeSettings.error) {
+    const settings = publicMenuSettingsFromMenuRow(withNativeSettings.data)?.settings;
+    if (settings) return settings;
+  }
+
+  const withMetadata = await args.client
+    .from("menus")
+    .select("metadata")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (!withMetadata.error) {
+    const settings = publicMenuSettingsFromMenuRow(withMetadata.data)?.settings;
+    if (settings) return settings;
+  }
+
+  const uiConfigSettings = await readUiConfigPublicMenuSettings(
+    args.client,
+    args.restaurantId
+  );
+  return uiConfigSettings ?? normalizePublicMenuSettings({});
 }
 
 async function uniqueSlug(args: {
@@ -546,7 +633,12 @@ export async function createOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
   }
 
-  const settings = normalizePublicMenuSettings(menuResult.menu.settingsJson);
+  const settings = await readEffectiveMenuSettings({
+    client: args.client,
+    restaurantId: args.restaurantId,
+    menuId: menuResult.menu.id,
+    menuRow: menuResult.menu
+  });
   const slug = await uniqueSlug({
     client: args.client,
     table: "menu_dishes",
@@ -581,25 +673,6 @@ export async function createOwnerMenuDish(args: {
     return { ok: false, status: 503, error: "Plat impossible a creer." };
   }
   return { ok: true, record: inserted.data };
-}
-
-async function readMenuSettingsJson(
-  client: SupabaseClient,
-  menuId: string
-): Promise<unknown> {
-  const menu = await client
-    .from("menus")
-    .select("settings_json")
-    .eq("id", menuId)
-    .maybeSingle();
-
-  if (menu.error && isMissingColumnError(menu.error, "settings_json")) {
-    return undefined;
-  }
-  if (menu.error) {
-    return undefined;
-  }
-  return menu.data?.settings_json;
 }
 
 export async function updateOwnerMenuDish(args: {
@@ -646,9 +719,11 @@ export async function updateOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
   }
 
-  const settings = normalizePublicMenuSettings(
-    await readMenuSettingsJson(args.client, String(existing.data.menu_id))
-  );
+  const settings = await readEffectiveMenuSettings({
+    client: args.client,
+    restaurantId: args.restaurantId,
+    menuId: String(existing.data.menu_id)
+  });
   const slug = await uniqueSlug({
     client: args.client,
     table: "menu_dishes",

@@ -47,3 +47,24 @@ test("owner menu mutations preserve real asset metadata while storing dish detai
   assert.match(publicCore, /"extras"/);
   assert.match(publicCore, /"accompaniments"/);
 });
+
+test("owner dish currency uses effective public menu settings fallbacks", async () => {
+  const mutations = await readFile("lib/owner/menuMutations.ts", "utf8");
+
+  assert.match(mutations, /readEffectiveMenuSettings/);
+  assert.match(mutations, /publicMenuSettingsFromMenuRow/);
+  assert.match(mutations, /publicMenuSettingsFromUiConfigRow/);
+  assert.match(mutations, /isMissingColumnError as isMissingSettingsColumnError/);
+  assert.match(mutations, /menu_ui_configs/);
+  assert.match(mutations, /\.select\("config_json,status"\)/);
+  assert.match(mutations, /row\.status \?\? ""\) === "draft"/);
+  assert.match(
+    mutations,
+    /const settings = await readEffectiveMenuSettings\(\{[\s\S]*menuRow: menuResult\.menu/
+  );
+  assert.doesNotMatch(
+    mutations,
+    /normalizePublicMenuSettings\(menuResult\.menu\.settingsJson\)/
+  );
+  assert.doesNotMatch(mutations, /function isMissingColumnError/);
+});
