@@ -13,6 +13,7 @@ import type {
   PublicMenuContextQuery,
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import {
   buildPublicDishPath,
   getGoogleReviewCta
@@ -24,10 +25,10 @@ import {
   TROUVABLE_CURRENCY_STORAGE_KEY,
   TROUVABLE_LOCALE_STORAGE_KEY,
   TROUVABLE_THEME_STORAGE_KEY,
-  formatTrouvablePriceLabel,
+  formatTrouvableDishPrice,
   getTrouvableCopy,
   normalizeTrouvableCurrency,
-  normalizeTrouvableLocale,
+  normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
   type TrouvableCurrency,
   type TrouvableLocale,
@@ -45,6 +46,7 @@ type TrouvableDishDetailExperienceProps = {
   menu: PublicMenu;
   dish: PublicMenuDish;
   context?: string;
+  exchangeRates: MenuExchangeRates;
   query?: PublicMenuContextQuery;
   typographyClassName?: string;
 };
@@ -92,6 +94,7 @@ export function TrouvableDishDetailExperience({
   menu,
   dish,
   context = "",
+  exchangeRates,
   query,
   typographyClassName = ""
 }: TrouvableDishDetailExperienceProps) {
@@ -103,11 +106,15 @@ export function TrouvableDishDetailExperience({
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
-    normalizeTrouvableLocale(query?.lang)
+    normalizeTrouvableLocaleForSettings(query?.lang, menu.settings)
   );
   const [selectedCurrency, setSelectedCurrency] =
-    useState<TrouvableCurrency>("CAD");
-  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>("dark");
+    useState<TrouvableCurrency>(() =>
+      normalizeTrouvableCurrency(undefined, menu.settings)
+    );
+  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>(() =>
+    normalizeTrouvableTheme(undefined, menu.settings)
+  );
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
@@ -130,14 +137,18 @@ export function TrouvableDishDetailExperience({
   );
   const hasModel = hasPublic3d(activeDish);
   const tags = detailTags(activeDish);
-  const activePrice = activeDish.priceLabel
-    ? formatTrouvablePriceLabel(
-        activeDish.priceLabel,
-        selectedCurrency,
-        selectedLocale
-      )
-    : "";
+  const activePrice = formatTrouvableDishPrice(
+    activeDish,
+    selectedCurrency,
+    selectedLocale,
+    exchangeRates
+  );
   const moreDetailsId = `trouvable-dish-more-details-${activeDish.slug}`;
+  const browserDishHref = buildPublicDishPath(
+    menu.slug,
+    activeDish.slug,
+    localizedQuery
+  );
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
 
   useEffect(() => {
@@ -156,7 +167,7 @@ export function TrouvableDishDetailExperience({
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
       const queryLocale = query?.lang?.toString().trim()
-        ? normalizeTrouvableLocale(query.lang)
+        ? normalizeTrouvableLocaleForSettings(query.lang, menu.settings)
         : null;
       const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
       const storedCurrency = window.localStorage.getItem(
@@ -165,10 +176,13 @@ export function TrouvableDishDetailExperience({
       const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
 
       setSelectedLocale(
-        queryLocale ?? (storedLocale ? normalizeTrouvableLocale(storedLocale) : "fr")
+        queryLocale ??
+          (storedLocale
+            ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
+            : normalizeTrouvableLocaleForSettings(undefined, menu.settings))
       );
-      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency));
-      setSelectedTheme(normalizeTrouvableTheme(storedTheme));
+      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency, menu.settings));
+      setSelectedTheme(normalizeTrouvableTheme(storedTheme, menu.settings));
       if (queryLocale) {
         window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, queryLocale);
       }
@@ -176,7 +190,7 @@ export function TrouvableDishDetailExperience({
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [query?.lang]);
+  }, [menu.settings, query?.lang]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;
@@ -335,24 +349,32 @@ export function TrouvableDishDetailExperience({
           )}
 
           {showModelViewer ? (
-            <div className={styles.inlineModelViewer} id="trouvable-public-model">
-              {ModelViewerComponent ? (
-                <ModelViewerComponent
-                  dish={modelViewerDishFromPublicDish(activeDish)}
-                  minimalChrome
-                  quietChrome
-                  onReturnToDish={() => setShowModelViewer(false)}
-                />
-              ) : modelViewerLoadFailed ? (
-                <div className={styles.modelLoading} role="status">
-                  {copy.modelUnavailable}
-                </div>
-              ) : (
-                <div className={styles.modelLoading} role="status">
-                  {copy.modelPreparing}
-                </div>
-              )}
-            </div>
+            <>
+              <div className={styles.inlineModelViewer} id="trouvable-public-model">
+                {ModelViewerComponent ? (
+                  <ModelViewerComponent
+                    dish={modelViewerDishFromPublicDish(activeDish)}
+                    minimalChrome
+                    quietChrome
+                    onReturnToDish={() => setShowModelViewer(false)}
+                  />
+                ) : modelViewerLoadFailed ? (
+                  <div className={styles.modelLoading} role="status">
+                    {copy.modelUnavailable}
+                  </div>
+                ) : (
+                  <div className={styles.modelLoading} role="status">
+                    {copy.modelPreparing}
+                  </div>
+                )}
+              </div>
+              <p className={styles.arBrowserHelp}>
+                {copy.arBrowserHelp}{" "}
+                <Link href={browserDishHref} target="_blank" rel="noopener noreferrer">
+                  {copy.arBrowserLink}
+                </Link>
+              </p>
+            </>
           ) : null}
 
           <button

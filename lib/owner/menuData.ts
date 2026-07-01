@@ -11,6 +11,10 @@ import {
   type PublicMenuCategory,
   type PublicMenuRow
 } from "@/lib/menu/publicMenuCore";
+import {
+  DEFAULT_PUBLIC_MENU_SETTINGS,
+  serializePublicMenuSettings
+} from "@/lib/menu/publicMenuSettings";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { getBoolean, getString, readSupabaseRows } from "@/lib/analytics/serverRows";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
@@ -36,6 +40,12 @@ type OwnerMenuDataFailure = {
   error: string;
 };
 
+const OWNER_DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
+  ...DEFAULT_PUBLIC_MENU_SETTINGS,
+  supportedLocales: ["fr-CA", "en-CA"],
+  publicMenuStyle: "maison-elyse"
+});
+
 function publicMenuPath(slug: string): string {
   return slug ? `/menu/${encodeURIComponent(slug)}` : "/demo";
 }
@@ -55,6 +65,46 @@ function findPrimaryMenu(
   );
 }
 
+function relationalCategories(args: {
+  categoryRows: PublicMenuRow[];
+  menuId: string;
+  restaurantId: string;
+  dishes: PublicMenu["dishes"];
+}): PublicMenuCategory[] {
+  const dishCountByCategoryId = new Map<string, number>();
+  const dishCountByCategoryLabel = new Map<string, number>();
+  for (const dish of args.dishes) {
+    if (dish.categoryId) {
+      dishCountByCategoryId.set(
+        dish.categoryId,
+        (dishCountByCategoryId.get(dish.categoryId) ?? 0) + 1
+      );
+    }
+    dishCountByCategoryLabel.set(
+      dish.category,
+      (dishCountByCategoryLabel.get(dish.category) ?? 0) + 1
+    );
+  }
+
+  return args.categoryRows
+    .filter((row) => getString(row, ["restaurant_id", "restaurantId"], "") === args.restaurantId)
+    .filter((row) => getString(row, ["menu_id", "menuId"], "") === args.menuId)
+    .map((row, index) => {
+      const id = getString(row, ["id", "category_id"], "");
+      const label = getString(row, ["name", "label"], "Categorie");
+      return {
+        id: id || slugifyRestaurantSlug(label) || `category-${index + 1}`,
+        label,
+        description: getString(row, ["description"], ""),
+        tone: "green" as const,
+        count:
+          (id ? dishCountByCategoryId.get(id) : undefined) ??
+          dishCountByCategoryLabel.get(label) ??
+          0
+      };
+    });
+}
+
 async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
   const restaurant = getRestaurant();
   const menu = await getPublicMenuBySlug("maison-elyse");
@@ -68,6 +118,7 @@ async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
       enabled: false,
       googleReviewUrl: ""
     },
+    settings: OWNER_DEMO_PUBLIC_MENU_SETTINGS,
     source: "demo" as const,
     dishes: []
   };
@@ -120,18 +171,30 @@ export async function getOwnerMenuData(
     slugifyRestaurantSlug(getString(restaurantRow, ["name", "restaurant_name"]));
   const primaryMenu = menusResult.ok ? findPrimaryMenu(menusResult.rows, restaurantId) : null;
   const menu = primaryMenu
-    ? buildRelationalSupabasePublicMenu({
-        slug,
-        restaurantRow,
-        menuRow: primaryMenu,
-        categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
-        dishRows: dishesResult.ok ? dishesResult.rows : []
-      })
+      ? buildRelationalSupabasePublicMenu({
+          slug,
+          restaurantRow,
+          menuRow: primaryMenu,
+          categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
+          dishRows: dishesResult.ok ? dishesResult.rows : [],
+          includeUnavailableDishes: true
+        })
     : buildSupabasePublicMenu(
         slug,
         restaurantRow,
-        dishesResult.ok ? dishesResult.rows : []
+        dishesResult.ok ? dishesResult.rows : [],
+        { includeUnavailableDishes: true }
       );
+  const menuId = primaryMenu ? getString(primaryMenu, ["id", "menu_id"], "") : "";
+  const categories =
+    primaryMenu && categoriesResult.ok
+      ? relationalCategories({
+          categoryRows: categoriesResult.rows,
+          menuId,
+          restaurantId,
+          dishes: menu.dishes
+        })
+      : getVisiblePublicMenuCategories(menu.dishes);
 
   return {
     ok: true,
@@ -142,7 +205,7 @@ export async function getOwnerMenuData(
       publicMenuPath: publicMenuPath(menu.slug)
     },
     menu,
-    categories: getVisiblePublicMenuCategories(menu.dishes),
+    categories,
     dishes: menu.dishes,
     source: "supabase",
     note: dishesResult.ok

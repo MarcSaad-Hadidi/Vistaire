@@ -8,7 +8,9 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "fr";
 
 export function normalizeLocale(value: unknown): Locale {
-  return value === "en" ? "en" : DEFAULT_LOCALE;
+  if (typeof value !== "string") return DEFAULT_LOCALE;
+  const normalized = value.trim().toLowerCase().replace("_", "-");
+  return normalized === "en" || normalized === "en-ca" ? "en" : DEFAULT_LOCALE;
 }
 
 export const LOCALE_LANGUAGE_TAG: Record<Locale, "fr-CA" | "en-CA"> = {

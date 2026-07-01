@@ -3,10 +3,16 @@ import { notFound } from "next/navigation";
 import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
+import { getExchangeRates } from "@/lib/currency/exchangeRates";
 import { normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
+import {
+  normalizePublicMenuLocalePreference,
+  publicLocaleToShortLocale
+} from "@/lib/menu/publicMenuSettings";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import {
+  isMaisonElysePublicMenu,
   isTrouvablePublicMenu,
   resolvePublicMenuUiConfig
 } from "@/lib/menu/trouvableMenuExperience";
@@ -32,17 +38,27 @@ export default async function PublicMenuPage({
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
   const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const initialMenu = await getPublicMenuBySlug(slug, locale);
+
+  if (!initialMenu) {
+    notFound();
+  }
+
+  const activePublicLocale = normalizePublicMenuLocalePreference(
+    hasLangParam ? query.lang : undefined,
+    initialMenu.settings
+  );
+  const activeLocale = publicLocaleToShortLocale(activePublicLocale);
+  const menu =
+    activeLocale === locale
+      ? initialMenu
+      : (await getPublicMenuBySlug(slug, activeLocale)) ?? initialMenu;
   const menuQuery = {
-    ...(hasLangParam ? { lang: locale } : {}),
+    lang: activeLocale,
     table: query.table,
     zone: query.zone,
     view: query.view
   };
-  const menu = await getPublicMenuBySlug(slug, locale);
-
-  if (!menu) {
-    notFound();
-  }
 
   const context = [
     query.table ? `Table ${query.table}` : "",
@@ -59,17 +75,21 @@ export default async function PublicMenuPage({
     fallbackConfig
   );
   const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
+  const exchangeRates = await getExchangeRates({
+    baseCurrency: menu.settings.baseCurrency,
+    supportedCurrencies: menu.settings.supportedCurrencies
+  });
 
-  if (menu.slug === "maison-elyse") {
+  if (isMaisonElysePublicMenu(menu)) {
     const [frenchMenu, englishMenu] = await Promise.all([
-      locale === "fr" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "fr"),
-      locale === "en" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "en")
+      activeLocale === "fr" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "fr"),
+      activeLocale === "en" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "en")
     ]);
 
     return (
       <MaisonElyseQrMenu
         menu={menu}
-        locale={locale}
+        locale={activeLocale}
         localizedMenus={{
           ...(frenchMenu ? { fr: frenchMenu } : {}),
           ...(englishMenu ? { en: englishMenu } : {})
@@ -87,6 +107,7 @@ export default async function PublicMenuPage({
         menu={menu}
         config={resolvedConfig}
         context={context}
+        exchangeRates={exchangeRates}
         query={menuQuery}
         typographyClassName={trouvableTypographyClassName}
       />

@@ -59,12 +59,17 @@ test("builds a Resto Marc public menu from Supabase-like rows", () => {
   assert.equal(menu.slug, "resto-marc");
   assert.equal(menu.name, "Resto Marc");
   assert.equal(menu.source, "supabase");
+  assert.equal(menu.settings.defaultLocale, "fr-CA");
+  assert.equal(menu.settings.baseCurrency, "CAD");
   assert.deepEqual(menu.googleReview, {
     enabled: false,
     googleReviewUrl: ""
   });
   assert.equal(menu.dishes.length, 2);
   assert.equal(menu.dishes[0].name, "Salade fraiche maison");
+  assert.equal(menu.dishes[0].priceCents, 899);
+  assert.equal(menu.dishes[0].priceCurrency, "CAD");
+  assert.equal(menu.dishes[0].baseCurrency, "CAD");
   assert.equal(menu.dishes[1].name, "Bol de riz au poulet et legumes");
   assert.equal(menu.dishes[1].priceLabel, "17,99\u00a0$");
 });
@@ -362,6 +367,39 @@ test("maps real photo and 3D/AR fields without inventing missing assets", () => 
   assert.equal(soupe.has3d, false);
   assert.equal(soupe.hasAr, false);
   assert.equal(soupe.modelStatus, "missing");
+});
+
+test("filters unavailable public dishes unless owner management opts in", () => {
+  const rows = [
+    {
+      id: "visible-id",
+      restaurant_id: restoMarcId,
+      name: "Plat visible",
+      category_name: "Plats",
+      price: 12,
+      is_available: true
+    },
+    {
+      id: "hidden-id",
+      restaurant_id: restoMarcId,
+      name: "Plat indisponible",
+      category_name: "Plats",
+      price: 10,
+      is_available: false
+    }
+  ];
+
+  const publicMenu = buildSupabasePublicMenu("resto-marc", restoMarc, rows);
+  const ownerMenu = buildSupabasePublicMenu("resto-marc", restoMarc, rows, {
+    includeUnavailableDishes: true
+  });
+
+  assert.deepEqual(publicMenu.dishes.map((dish) => dish.id), ["visible-id"]);
+  assert.deepEqual(ownerMenu.dishes.map((dish) => dish.id), [
+    "visible-id",
+    "hidden-id"
+  ]);
+  assert.equal(ownerMenu.dishes[1].available, false);
 });
 
 test("builds public dish links without dropping QR table context", () => {
