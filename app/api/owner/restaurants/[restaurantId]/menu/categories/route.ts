@@ -65,6 +65,11 @@ export async function POST(
     );
   }
 
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId
+  });
+
   return NextResponse.json({ ok: true, category: result.record });
 }
 
@@ -153,6 +158,11 @@ export async function PATCH(
       { status: result.status }
     );
   }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId
+  });
 
   return NextResponse.json({ ok: true, category: result.record });
 }

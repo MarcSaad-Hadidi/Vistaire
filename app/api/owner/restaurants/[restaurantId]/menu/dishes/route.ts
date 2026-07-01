@@ -65,6 +65,12 @@ export async function POST(
     );
   }
 
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId,
+    dishSlug: typeof result.record.slug === "string" ? result.record.slug : undefined
+  });
+
   return NextResponse.json({ ok: true, dish: result.record });
 }
 
@@ -154,6 +160,12 @@ export async function PATCH(
       { status: result.status }
     );
   }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId,
+    dishSlug: typeof result.record.slug === "string" ? result.record.slug : undefined
+  });
 
   return NextResponse.json({ ok: true, dish: result.record });
 }

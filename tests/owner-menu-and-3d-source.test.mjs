@@ -17,6 +17,8 @@ test("owner Carte & plats page uses the interactive menu manager", async () => {
   assert.match(manager, /Supprimer/);
   assert.match(manager, /Confirmer/);
   assert.match(manager, /submitJson/);
+  assert.match(manager, /dishSectionFilter/);
+  assert.match(manager, /filteredDishes/);
 });
 
 test("owner 3D page renders one selected comparison instead of a cascade", async () => {
@@ -82,4 +84,27 @@ test("owner menu deletes dishes and only deletes empty sections", async () => {
   assert.match(manager, /role="alertdialog"/);
   assert.match(revalidation, /revalidatePath\(`\/menu\/\$\{restaurantSlug\}`\)/);
   assert.match(revalidation, /\/dishes\/\$\{dishSlug\}/);
+});
+
+test("owner dish creation can attach photo and GLB and filter dishes by section", async () => {
+  const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
+  const photoRoute = await source(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts"
+  );
+  const dishesRoute = await source(
+    "app/api/owner/restaurants/[restaurantId]/menu/dishes/route.ts"
+  );
+
+  assert.match(manager, /DishAssetDraft/);
+  assert.match(manager, /photoFile/);
+  assert.match(manager, /glbFile/);
+  assert.match(manager, /uploadDishAsset/);
+  assert.match(manager, /model\/glb/);
+  assert.match(manager, /accept="image\/jpeg,image\/png,image\/webp"/);
+  assert.match(manager, /accept="\.glb,model\/gltf-binary"/);
+  assert.match(manager, /Toutes les sections/);
+  assert.match(manager, /filteredDishes\.map/);
+  assert.match(manager, /Aucun plat dans cette section/);
+  assert.match(photoRoute, /revalidateOwnerMenuMutationPaths/);
+  assert.match(dishesRoute, /dishSlug: typeof result\.record\.slug/);
 });
