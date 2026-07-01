@@ -14,6 +14,8 @@ test("owner Carte & plats page uses the interactive menu manager", async () => {
   assert.doesNotMatch(page, /Ajouter plat .*brancher/i);
   assert.match(manager, /Ajouter section/);
   assert.match(manager, /Ajouter plat/);
+  assert.match(manager, /Supprimer/);
+  assert.match(manager, /Confirmer/);
   assert.match(manager, /submitJson/);
 });
 
@@ -40,6 +42,8 @@ test("owner menu mutation routes require owner auth and same-origin", async () =
     assert.match(route, /requireVistaireOwnerApi/);
     assert.match(route, /requireSameOriginOwnerMutation/);
     assert.match(route, /getSupabaseAdminClient/);
+    assert.match(route, /export async function DELETE/);
+    assert.match(route, /revalidateOwnerMenuMutationPaths/);
   }
 });
 
@@ -60,4 +64,22 @@ test("owner menu mutations tolerate the production menu schema", async () => {
   assert.match(manager, /Section :/);
   assert.match(styles, /\.dishTitleCell/);
   assert.match(styles, /\.dishSectionLabel/);
+});
+
+test("owner menu deletes dishes and only deletes empty sections", async () => {
+  const mutations = await source("lib/owner/menuMutations.ts");
+  const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
+  const revalidation = await source("lib/owner/menuMutationRevalidation.ts");
+
+  assert.match(mutations, /deleteOwnerMenuDish/);
+  assert.match(mutations, /\.from\("menu_dishes"\)[\s\S]*?\.delete\(\)/);
+  assert.match(mutations, /deleteOwnerMenuCategory/);
+  assert.match(mutations, /count: "exact", head: true/);
+  assert.match(mutations, /Impossible de supprimer cette section/);
+  assert.match(manager, /requestDeleteDish/);
+  assert.match(manager, /requestDeleteCategory/);
+  assert.match(manager, /method: "POST" \| "PATCH" \| "DELETE"/);
+  assert.match(manager, /role="alertdialog"/);
+  assert.match(revalidation, /revalidatePath\(`\/menu\/\$\{restaurantSlug\}`\)/);
+  assert.match(revalidation, /\/dishes\/\$\{dishSlug\}/);
 });

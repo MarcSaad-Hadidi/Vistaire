@@ -8,6 +8,11 @@ import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
 import type { PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
 type EditorMode = "category" | "dish" | null;
+type DeleteTarget = {
+  type: "category" | "dish";
+  id: string;
+  label: string;
+} | null;
 
 type OwnerRestaurantMenuManagerProps = {
   restaurantId: string;
@@ -65,7 +70,7 @@ function categoryIdForDish(
 
 async function submitJson(
   url: string,
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   body: Record<string, unknown>
 ) {
   const response = await fetch(url, {
@@ -96,6 +101,8 @@ export function OwnerRestaurantMenuManager({
     EMPTY_CATEGORY_DRAFT
   );
   const [dishDraft, setDishDraft] = useState<DishDraft>(EMPTY_DISH_DRAFT);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [deletingKey, setDeletingKey] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -120,12 +127,14 @@ export function OwnerRestaurantMenuManager({
 
   function startNewCategory() {
     resetMessages();
+    setDeleteTarget(null);
     setCategoryDraft(EMPTY_CATEGORY_DRAFT);
     setActiveEditor("category");
   }
 
   function startEditCategory(category: PublicMenuCategory) {
     resetMessages();
+    setDeleteTarget(null);
     setCategoryDraft({
       id: category.id,
       name: category.label,
@@ -136,6 +145,7 @@ export function OwnerRestaurantMenuManager({
 
   function startNewDish() {
     resetMessages();
+    setDeleteTarget(null);
     setDishDraft({
       ...EMPTY_DISH_DRAFT,
       categoryId: sortedCategories[0]?.id ?? ""
@@ -145,6 +155,7 @@ export function OwnerRestaurantMenuManager({
 
   function startEditDish(dish: PublicMenuDish) {
     resetMessages();
+    setDeleteTarget(null);
     setDishDraft({
       id: dish.id,
       name: dish.name,
@@ -158,6 +169,7 @@ export function OwnerRestaurantMenuManager({
 
   function closeEditor() {
     setActiveEditor(null);
+    setDeleteTarget(null);
     setCategoryDraft(EMPTY_CATEGORY_DRAFT);
     setDishDraft(EMPTY_DISH_DRAFT);
   }
@@ -165,10 +177,66 @@ export function OwnerRestaurantMenuManager({
   function refreshAfterSave(message: string) {
     setStatusMessage(message);
     setErrorMessage("");
+    setDeleteTarget(null);
     closeEditor();
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  function requestDeleteCategory(category: PublicMenuCategory) {
+    resetMessages();
+    setActiveEditor(null);
+    if (category.count > 0) {
+      setErrorMessage(
+        "Impossible de supprimer cette section : supprimez ou deplacez ses plats avant."
+      );
+      setDeleteTarget(null);
+      return;
+    }
+    setDeleteTarget({
+      type: "category",
+      id: category.id,
+      label: category.label
+    });
+  }
+
+  function requestDeleteDish(dish: PublicMenuDish) {
+    resetMessages();
+    setActiveEditor(null);
+    setDeleteTarget({
+      type: "dish",
+      id: dish.id,
+      label: dish.name
+    });
+  }
+
+  async function deleteCategory(category: PublicMenuCategory) {
+    const key = `category:${category.id}`;
+    setDeletingKey(key);
+    resetMessages();
+    try {
+      await submitJson(categoryEndpoint, "DELETE", { id: category.id });
+      refreshAfterSave(`Section "${category.label}" supprimee.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Section impossible a supprimer.");
+    } finally {
+      setDeletingKey("");
+    }
+  }
+
+  async function deleteDish(dish: PublicMenuDish) {
+    const key = `dish:${dish.id}`;
+    setDeletingKey(key);
+    resetMessages();
+    try {
+      await submitJson(dishEndpoint, "DELETE", { id: dish.id });
+      refreshAfterSave(`Plat "${dish.name}" supprime.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Plat impossible a supprimer.");
+    } finally {
+      setDeletingKey("");
+    }
   }
 
   async function submitCategory(event: React.FormEvent<HTMLFormElement>) {
@@ -409,23 +477,73 @@ export function OwnerRestaurantMenuManager({
                 </tr>
               </thead>
               <tbody>
-                {categories.map((category) => (
-                  <tr key={category.id}>
-                    <td className={styles.cellMain}>{category.label}</td>
-                    <td className={styles.cellSub}>{category.description}</td>
-                    <td>{category.count}</td>
-                    <td>
-                      <button
-                        className={`${styles.btn} ${styles.btnSmall}`}
-                        type="button"
-                        disabled={!canEdit}
-                        onClick={() => startEditCategory(category)}
-                      >
-                        Modifier
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {categories.map((category) => {
+                  const deleteKey = `category:${category.id}`;
+                  const isConfirmingDelete =
+                    deleteTarget?.type === "category" && deleteTarget.id === category.id;
+
+                  return (
+                    <tr key={category.id}>
+                      <td className={styles.cellMain}>{category.label}</td>
+                      <td className={styles.cellSub}>{category.description}</td>
+                      <td>{category.count}</td>
+                      <td>
+                        <div className={styles.tableActions}>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall}`}
+                            type="button"
+                            disabled={!canEdit || Boolean(deletingKey)}
+                            onClick={() => startEditCategory(category)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                            type="button"
+                            disabled={!canEdit || Boolean(deletingKey)}
+                            aria-label={`Supprimer la section ${category.label}`}
+                            title={
+                              category.count > 0
+                                ? "Supprimez ou deplacez les plats avant de supprimer cette section."
+                                : undefined
+                            }
+                            onClick={() => requestDeleteCategory(category)}
+                          >
+                            Supprimer
+                          </button>
+                          {isConfirmingDelete ? (
+                            <div
+                              className={styles.modelDeleteConfirm}
+                              role="alertdialog"
+                              aria-label={`Confirmer la suppression de la section ${category.label}`}
+                            >
+                              <strong>Supprimer la section {category.label} ?</strong>
+                              <span>Cette section vide sera retiree de la carte.</span>
+                              <div className={styles.tableActions}>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => setDeleteTarget(null)}
+                                >
+                                  Annuler
+                                </button>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => void deleteCategory(category)}
+                                >
+                                  {deletingKey === deleteKey ? "Suppression..." : "Confirmer"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -452,58 +570,104 @@ export function OwnerRestaurantMenuManager({
                 </tr>
               </thead>
               <tbody>
-                {dishes.map((dish) => (
-                  <tr key={dish.id}>
-                    <td>
-                      <div className={styles.dishTitleCell}>
-                        <strong className={styles.cellMain}>{dish.name}</strong>
-                        <span className={styles.dishSectionLabel}>
-                          Section : {dish.category}
-                        </span>
-                      </div>
-                    </td>
-                    <td>{dish.priceLabel || <Badge tone="warn">Prix manquant</Badge>}</td>
-                    <td>
-                      <Badge tone={dish.available ? "ready" : "muted"}>
-                        {dish.available ? "Disponible" : "Indisponible"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={dish.description ? "ready" : "warn"}>
-                        {dish.description ? "Prete" : "A completer"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={dish.hasPhoto ? "ready" : "warn"}>
-                        {dish.hasPhoto ? "Photo prete" : dish.photoStatus}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={dish.hasImmersive ? "ready" : "muted"}>
-                        {dish.hasImmersive ? "Modele pret" : "Aucun modele"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <div className={styles.tableActions}>
-                        <button
-                          className={`${styles.btn} ${styles.btnSmall}`}
-                          type="button"
-                          disabled={!canEdit}
-                          onClick={() => startEditDish(dish)}
-                        >
-                          Modifier
-                        </button>
-                        <Link
-                          className={`${styles.btn} ${styles.btnSmall}`}
-                          href={mediasHref}
-                          prefetch={false}
-                        >
-                          Medias
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {dishes.map((dish) => {
+                  const deleteKey = `dish:${dish.id}`;
+                  const isConfirmingDelete =
+                    deleteTarget?.type === "dish" && deleteTarget.id === dish.id;
+
+                  return (
+                    <tr key={dish.id}>
+                      <td>
+                        <div className={styles.dishTitleCell}>
+                          <strong className={styles.cellMain}>{dish.name}</strong>
+                          <span className={styles.dishSectionLabel}>
+                            Section : {dish.category}
+                          </span>
+                        </div>
+                      </td>
+                      <td>{dish.priceLabel || <Badge tone="warn">Prix manquant</Badge>}</td>
+                      <td>
+                        <Badge tone={dish.available ? "ready" : "muted"}>
+                          {dish.available ? "Disponible" : "Indisponible"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge tone={dish.description ? "ready" : "warn"}>
+                          {dish.description ? "Prete" : "A completer"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge tone={dish.hasPhoto ? "ready" : "warn"}>
+                          {dish.hasPhoto ? "Photo prete" : dish.photoStatus}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge tone={dish.hasImmersive ? "ready" : "muted"}>
+                          {dish.hasImmersive ? "Modele pret" : "Aucun modele"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className={styles.tableActions}>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall}`}
+                            type="button"
+                            disabled={!canEdit || Boolean(deletingKey)}
+                            onClick={() => startEditDish(dish)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                            type="button"
+                            disabled={!canEdit || Boolean(deletingKey)}
+                            aria-label={`Supprimer le plat ${dish.name}`}
+                            onClick={() => requestDeleteDish(dish)}
+                          >
+                            Supprimer
+                          </button>
+                          <Link
+                            className={`${styles.btn} ${styles.btnSmall}`}
+                            href={mediasHref}
+                            prefetch={false}
+                          >
+                            Medias
+                          </Link>
+                          {isConfirmingDelete ? (
+                            <div
+                              className={styles.modelDeleteConfirm}
+                              role="alertdialog"
+                              aria-label={`Confirmer la suppression du plat ${dish.name}`}
+                            >
+                              <strong>Supprimer le plat {dish.name} ?</strong>
+                              <span>
+                                Le plat ne sera plus affiche dans le dashboard ni dans le
+                                menu public.
+                              </span>
+                              <div className={styles.tableActions}>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => setDeleteTarget(null)}
+                                >
+                                  Annuler
+                                </button>
+                                <button
+                                  className={`${styles.btn} ${styles.btnSmall} ${styles.btnDanger}`}
+                                  type="button"
+                                  disabled={deletingKey === deleteKey}
+                                  onClick={() => void deleteDish(dish)}
+                                >
+                                  {deletingKey === deleteKey ? "Suppression..." : "Confirmer"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -365,6 +365,62 @@ export async function updateOwnerMenuCategory(args: {
   return { ok: true, record: updated.data };
 }
 
+export async function deleteOwnerMenuCategory(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  input: unknown;
+}): Promise<MenuMutationResult> {
+  const candidate = objectInput(args.input);
+  const id = stringInput(candidate.id, 80);
+  if (!id) return { ok: false, status: 400, error: "Section requise." };
+
+  const existing = await args.client
+    .from("menu_categories")
+    .select("id,name,menu_id")
+    .eq("id", id)
+    .eq("restaurant_id", args.restaurantId)
+    .maybeSingle();
+  if (existing.error) {
+    return { ok: false, status: 503, error: "Section impossible a verifier." };
+  }
+  if (!existing.data?.id) {
+    return { ok: false, status: 404, error: "Section introuvable." };
+  }
+
+  const dishCount = await args.client
+    .from("menu_dishes")
+    .select("id", { count: "exact", head: true })
+    .eq("restaurant_id", args.restaurantId)
+    .eq("menu_id", String(existing.data.menu_id ?? ""))
+    .eq("category_id", id);
+  if (dishCount.error) {
+    return { ok: false, status: 503, error: "Plats de la section impossibles a verifier." };
+  }
+  if ((dishCount.count ?? 0) > 0) {
+    return {
+      ok: false,
+      status: 409,
+      error: "Impossible de supprimer cette section : supprimez ou deplacez ses plats avant."
+    };
+  }
+
+  const deleted = await args.client
+    .from("menu_categories")
+    .delete()
+    .eq("id", id)
+    .eq("restaurant_id", args.restaurantId)
+    .select("id,name,menu_id")
+    .maybeSingle();
+
+  if (deleted.error) {
+    return { ok: false, status: 503, error: "Section impossible a supprimer." };
+  }
+  if (!deleted.data?.id) {
+    return { ok: false, status: 404, error: "Section introuvable." };
+  }
+  return { ok: true, record: deleted.data };
+}
+
 async function categoryForDish(args: {
   client: SupabaseClient;
   restaurantId: string;
@@ -551,4 +607,43 @@ export async function updateOwnerMenuDish(args: {
     return { ok: false, status: 503, error: "Plat impossible a modifier." };
   }
   return { ok: true, record: updated.data };
+}
+
+export async function deleteOwnerMenuDish(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  input: unknown;
+}): Promise<MenuMutationResult> {
+  const candidate = objectInput(args.input);
+  const id = stringInput(candidate.id, 80);
+  if (!id) return { ok: false, status: 400, error: "Plat requis." };
+
+  const existing = await args.client
+    .from("menu_dishes")
+    .select("id,name,slug,menu_id,category_id")
+    .eq("id", id)
+    .eq("restaurant_id", args.restaurantId)
+    .maybeSingle();
+  if (existing.error) {
+    return { ok: false, status: 503, error: "Plat impossible a verifier." };
+  }
+  if (!existing.data?.id) {
+    return { ok: false, status: 404, error: "Plat introuvable." };
+  }
+
+  const deleted = await args.client
+    .from("menu_dishes")
+    .delete()
+    .eq("id", id)
+    .eq("restaurant_id", args.restaurantId)
+    .select("id,name,slug,menu_id,category_id")
+    .maybeSingle();
+
+  if (deleted.error) {
+    return { ok: false, status: 503, error: "Plat impossible a supprimer." };
+  }
+  if (!deleted.data?.id) {
+    return { ok: false, status: 404, error: "Plat introuvable." };
+  }
+  return { ok: true, record: deleted.data };
 }
