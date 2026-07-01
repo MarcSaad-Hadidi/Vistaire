@@ -104,6 +104,10 @@ test("cleanDishModelMetadata removes model fields and preserves dish/photo metad
     webModel3dStoragePath: `restaurants/${restaurantId}/models/web/dejeuner.glb`,
     arUsdzStoragePath: `restaurants/${restaurantId}/models/ar-ios/dejeuner.usdz`,
     preparedGlbJobId: "job_prepared_12345678",
+    modelAssetVersion: "meshy-20260701-abc123def456",
+    model_asset_version: "legacy-asset-version",
+    modelAssetSha256: "a".repeat(64),
+    modelUpdatedAt: "2026-07-01T17:31:43.000Z",
     ownerMeshyPipeline: true,
     modelStatus: "ready"
   });
@@ -124,6 +128,7 @@ test("hasDishModelMetadata distinguishes missing state from active model metadat
   assert.equal(hasDishModelMetadata({ modelStatus: "missing" }), false);
   assert.equal(hasDishModelMetadata({ photoStatus: "ready" }), false);
   assert.equal(hasDishModelMetadata({ modelStatus: "ready" }), true);
+  assert.equal(hasDishModelMetadata({ modelAssetVersion: "meshy-20260701-abc123def456" }), true);
   assert.equal(hasDishModelMetadata({ webModel3dUrl: "/api/public/menu-dishes/dish/model/glb" }), true);
   assert.equal(
     hasDishModelMetadata({
@@ -164,18 +169,22 @@ test("dish model DELETE route is guarded, scoped, and cleans only server-side mo
 
 test("owner model uploader exposes a confirmed delete flow and clears local model state on success", async () => {
   const uploader = await readFile("components/owner/OwnerDishModelUploader.tsx", "utf8");
-  const mediasPage = await readFile("app/owner/restaurants/[restaurantId]/medias/page.tsx", "utf8");
-  const modelsPage = await readFile("app/owner/restaurants/[restaurantId]/3d/page.tsx", "utf8");
+  const mediaManager = await readFile("components/owner/OwnerRestaurantMediaManager.tsx", "utf8");
+  const modelsManager = await readFile("components/owner/OwnerRestaurant3dManager.tsx", "utf8");
 
   assert.match(uploader, /method: "DELETE"/);
   assert.match(uploader, /Supprimer mod/);
   assert.match(uploader, /GLB web/);
   assert.match(uploader, /USDZ iPhone/);
+  assert.match(uploader, /Telecharger USDZ/);
+  assert.match(uploader, /download=\{usdzDownloadFileName\}/);
+  assert.match(uploader, /buildUsdzDownloadFileName/);
+  assert.match(uploader, /\.usdz`/);
   assert.match(uploader, /setWebModel3dUrl\(""\)/);
   assert.match(uploader, /setArUsdzUrl\(""\)/);
   assert.match(uploader, /setStoragePath\(""\)/);
   assert.match(uploader, /setJobId\(""\)/);
   assert.match(uploader, /router\.refresh\(\)/);
-  assert.match(mediasPage, /dishName=\{dish\.name\}/);
-  assert.match(modelsPage, /dishName=\{dish\.name\}/);
+  assert.match(mediaManager, /dishName=\{dish\.name\}/);
+  assert.match(modelsManager, /dishName=\{dish\.name\}/);
 });

@@ -10,10 +10,14 @@ import {
   resolveOwnerMeshyAssetPath
 } from "@/lib/owner/meshyRuntimeWorkspace";
 import {
+  buildPreparedModelArLiteStoragePath,
   buildPreparedModelPublicArLiteGlbPath,
   buildPreparedModelPublicGlbPath,
-  buildPreparedModelPublicUsdzPath
+  buildPreparedModelPublicUsdzPath,
+  buildPreparedModelUsdzStoragePath,
+  buildPreparedModelWebStoragePath
 } from "@/lib/owner/preparedModelWorkflow";
+import { cleanDishModelMetadata } from "@/lib/owner/deleteDishModelAssets";
 import { sha256Hex } from "@/lib/owner/threeDSourceUploadModel";
 
 const PROJECT_ROOT = /* turbopackIgnore: true */ process.cwd();
@@ -109,12 +113,6 @@ type DurableMeshyAssets = {
   arModel3dBytes: number;
   arUsdzBytes: number;
 };
-
-function getMetadata(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function assertSafeSlug(value: string, label: string): string {
   const slug = value.trim().toLowerCase();
@@ -277,7 +275,7 @@ async function uploadDurableMeshyAsset(args: {
     .upload(args.storagePath, bytes, {
       contentType: args.contentType,
       cacheControl: args.cacheControl ?? "31536000",
-      upsert: true
+      upsert: false
     });
   if (uploaded.error) {
     throw new Error(`Upload Storage impossible pour ${args.storagePath}.`);
@@ -291,14 +289,27 @@ async function publishMeshyAssetsToStorage(args: {
   dishId: string;
   dishSlug: string;
   versionTag: string;
+  assetVersion: string;
   manifestPath: string;
   assets: LocalMeshyAssets;
 }): Promise<DurableMeshyAssets> {
   const basePath = `restaurants/${args.restaurantId}/models`;
-  const sourceStoragePath = `${basePath}/source/${args.dishSlug}.glb`;
-  const webStoragePath = `${basePath}/web/${args.dishSlug}.glb`;
-  const arLiteStoragePath = `${basePath}/ar-lite/${args.dishSlug}.glb`;
-  const usdzStoragePath = `${basePath}/ar-ios/${args.dishSlug}.usdz`;
+  const sourceStoragePath = `${basePath}/source/${args.dishSlug}-${args.assetVersion}.glb`;
+  const webStoragePath = buildPreparedModelWebStoragePath({
+    restaurantId: args.restaurantId,
+    dishSlug: args.dishSlug,
+    assetVersion: args.assetVersion
+  });
+  const arLiteStoragePath = buildPreparedModelArLiteStoragePath({
+    restaurantId: args.restaurantId,
+    dishSlug: args.dishSlug,
+    assetVersion: args.assetVersion
+  });
+  const usdzStoragePath = buildPreparedModelUsdzStoragePath({
+    restaurantId: args.restaurantId,
+    dishSlug: args.dishSlug,
+    assetVersion: args.assetVersion
+  });
   const manifestStoragePath = `${basePath}/manifests/${args.dishSlug}-${args.versionTag}.json`;
 
   await uploadDurableMeshyAsset({
@@ -333,9 +344,15 @@ async function publishMeshyAssetsToStorage(args: {
     cacheControl: "3600"
   });
 
-  const webModel3dUrl = buildPreparedModelPublicGlbPath(args.dishId);
-  const arModel3dUrl = buildPreparedModelPublicArLiteGlbPath(args.dishId);
-  const arUsdzUrl = buildPreparedModelPublicUsdzPath(args.dishId);
+  const webModel3dUrl = buildPreparedModelPublicGlbPath(args.dishId, {
+    assetVersion: args.assetVersion
+  });
+  const arModel3dUrl = buildPreparedModelPublicArLiteGlbPath(args.dishId, {
+    assetVersion: args.assetVersion
+  });
+  const arUsdzUrl = buildPreparedModelPublicUsdzPath(args.dishId, {
+    assetVersion: args.assetVersion
+  });
 
   return {
     bucket: MODEL_BUCKET,
@@ -360,15 +377,17 @@ export async function runRestaurantMeshyDishPipeline(
   const restaurantSlug = assertSafeSlug(args.restaurantSlug, "Slug restaurant");
   const menuSlug = assertSafeSlug(args.menuSlug || "principal", "Slug menu");
   const dishSlug = assertSafeSlug(args.dishSlug, "Slug plat");
-  const versionTag = dateTag();
   const jobId = `job_meshy_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
+  const sourceSha256 = sha256Hex(args.sourceBytes);
+  const versionTag = `${dateTag()}-${sourceSha256.slice(0, 12)}-${jobId
+    .replace(/^job_meshy_/, "")
+    .slice(0, 12)}`;
   let workspace: ReturnType<typeof createOwnerMeshyRuntimeWorkspace>;
   try {
     workspace = createOwnerMeshyRuntimeWorkspace({ restaurantSlug, dishSlug, jobId });
   } catch {
     throw new Error("Workspace temporaire 3D indisponible.");
   }
-  const sourceSha256 = sha256Hex(args.sourceBytes);
   const startedAt = new Date();
 
   try {
@@ -424,6 +443,7 @@ export async function runRestaurantMeshyDishPipeline(
       dishId: args.dishId,
       dishSlug,
       versionTag,
+      assetVersion: versionTag,
       manifestPath,
       assets
     });
@@ -436,14 +456,18 @@ export async function runRestaurantMeshyDishPipeline(
       `meshy-${versionTag}`,
       "manifest.json"
     ].join("/");
+    const modelUpdatedAt = new Date().toISOString();
     const nextMetadata = {
-      ...getMetadata(args.existingMetadata),
+      ...cleanDishModelMetadata(args.existingMetadata),
       model3dUrl: durableAssets.model3dUrl,
       webModel3dUrl: durableAssets.webModel3dUrl,
       arModel3dUrl: durableAssets.arModel3dUrl,
       arUsdzUrl: durableAssets.arUsdzUrl,
       usdzUrl: "",
       modelStatus: "ready",
+      modelAssetVersion: versionTag,
+      modelAssetSha256: manifest.sha256?.meshopt ?? sourceSha256,
+      modelUpdatedAt,
       meshyManifestVersion: manifest.version ?? `meshy-${versionTag}`,
       meshyManifestPath: durableAssets.manifestStoragePath,
       meshyLocalManifestPath: manifestVirtualPath,

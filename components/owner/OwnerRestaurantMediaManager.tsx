@@ -78,10 +78,28 @@ export function OwnerRestaurantMediaManager({
   );
   const selectedDish =
     visibleDishes.find((dish) => dish.id === selectedDishId) ?? null;
+  const selectedComparisonStatus = selectedDish ? comparisonStatus(selectedDish) : null;
+  const selectedComparisonDish =
+    selectedDish && selectedComparisonStatus?.ready ? selectedDish : null;
   const selectionResetMessage =
     selectedDishId && !selectedDish
-      ? "La selection a ete reinitialisee par le filtre actif."
-      : "";
+      ? "La selection est masquee par le filtre actif."
+      : selectedDish && !selectedComparisonStatus?.ready
+        ? "La selection n'est plus comparable car le modele du plat n'est plus complet."
+        : "";
+  const comparisonKey = selectedComparisonDish
+    ? [
+        selectedComparisonDish.id,
+        selectedComparisonDish.modelAssetVersion ?? "",
+        selectedComparisonDish.modelUpdatedAt ?? "",
+        selectedComparisonDish.webModel3dUrl,
+        selectedComparisonDish.webModel3dBytes ?? "",
+        selectedComparisonDish.arModel3dUrl ?? "",
+        selectedComparisonDish.arUsdzUrl,
+        selectedComparisonDish.arUsdzBytes ?? "",
+        selectedComparisonDish.modelStatus ?? ""
+      ].join(":")
+    : "";
 
   function selectForComparison(dish: PublicMenuDish) {
     const status = comparisonStatus(dish);
@@ -133,7 +151,7 @@ export function OwnerRestaurantMediaManager({
               <tbody>
                 {visibleDishes.map((dish) => {
                   const status = comparisonStatus(dish);
-                  const isSelected = selectedDishId === dish.id;
+                  const isSelected = selectedComparisonDish?.id === dish.id;
 
                   return (
                     <tr
@@ -215,20 +233,22 @@ export function OwnerRestaurantMediaManager({
       </Panel>
 
       <Panel title="Comparaison visuelle GLB / USDZ">
-        {!selectedDish ? (
+        {!selectedComparisonDish ? (
           <EmptyState>
             Selectionnez un plat pour comparer son GLB et son USDZ.
           </EmptyState>
         ) : (
           <div className={styles.modelCompareStack}>
             <OwnerDishModelVisualCompare
-              key={selectedDish.id}
-              dishName={selectedDish.name}
-              webModel3dUrl={selectedDish.webModel3dUrl}
-              webModel3dBytes={selectedDish.webModel3dBytes}
-              arPreviewModelUrl={selectedDish.arModel3dUrl || selectedDish.webModel3dUrl}
-              arUsdzUrl={selectedDish.arUsdzUrl}
-              arUsdzBytes={selectedDish.arUsdzBytes}
+              key={comparisonKey}
+              dishName={selectedComparisonDish.name}
+              webModel3dUrl={selectedComparisonDish.webModel3dUrl}
+              webModel3dBytes={selectedComparisonDish.webModel3dBytes}
+              arPreviewModelUrl={
+                selectedComparisonDish.arModel3dUrl || selectedComparisonDish.webModel3dUrl
+              }
+              arUsdzUrl={selectedComparisonDish.arUsdzUrl}
+              arUsdzBytes={selectedComparisonDish.arUsdzBytes}
             />
           </div>
         )}

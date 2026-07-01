@@ -36,3 +36,19 @@ test("owner medias global rows link to the targeted restaurant view", async () =
   assert.match(source, /encodeURIComponent\(restaurant\.id\)/);
   assert.match(source, /Photos manquantes par restaurant/);
 });
+
+test("owner restaurant medias shows one explicitly selected comparison", async () => {
+  const manager = await readFile("components/owner/OwnerRestaurantMediaManager.tsx", "utf8");
+  const compareCount = manager.match(/<OwnerDishModelVisualCompare/g)?.length ?? 0;
+
+  assert.match(manager, /selectedComparisonDish/);
+  assert.match(manager, /comparisonKey/);
+  assert.match(manager, /modelAssetVersion/);
+  assert.match(manager, /selectionResetMessage/);
+  assert.match(manager, /aria-selected=\{isSelected\}/);
+  assert.match(manager, /disabled=\{!status\.ready\}/);
+  assert.match(manager, /!\s*selectedComparisonDish/);
+  assert.match(manager, /key=\{comparisonKey\}/);
+  assert.equal(compareCount, 1);
+  assert.doesNotMatch(manager, /key=\{selectedDish\.id\}/);
+});

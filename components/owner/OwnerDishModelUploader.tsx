@@ -63,6 +63,19 @@ const DELETABLE_MODEL_STATUSES = new Set([
   "usdz_conversion_failed"
 ]);
 
+function buildUsdzDownloadFileName(dishName?: string): string {
+  const normalized = (dishName?.trim() || "vistaire-usdz")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const slug = normalized
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return `${slug || "vistaire-usdz"}.usdz`;
+}
+
 export function OwnerDishModelUploader({
   restaurantId,
   dishId,
@@ -101,6 +114,7 @@ export function OwnerDishModelUploader({
   );
   const isBusy = isUploading || isPublishing || isDeleting;
   const dishLabel = dishName?.trim() || "ce plat";
+  const usdzDownloadFileName = buildUsdzDownloadFileName(dishName);
   const statusLabel = message || (status === "missing" ? "Aucun modèle" : status);
 
   async function upload(file: File) {
@@ -264,6 +278,17 @@ export function OwnerDishModelUploader({
       {arUsdzUrl ? (
         <a className={styles.cellSub} href={arUsdzUrl} target="_blank" rel="noreferrer">
           USDZ public · {formatModelAssetBytes(arUsdzBytes)}
+        </a>
+      ) : null}
+      {arUsdzUrl ? (
+        <a
+          className={`${styles.btn} ${styles.btnSmall}`}
+          href={arUsdzUrl}
+          download={usdzDownloadFileName}
+          type="model/vnd.usdz+zip"
+          aria-label={`Telecharger l'USDZ genere pour ${dishLabel}`}
+        >
+          Telecharger USDZ
         </a>
       ) : null}
       {showDeleteConfirm ? (

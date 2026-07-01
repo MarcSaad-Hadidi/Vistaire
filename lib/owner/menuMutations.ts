@@ -17,6 +17,18 @@ type PrimaryMenu = {
   settingsJson: unknown;
 };
 
+type MenuRow = {
+  id?: unknown;
+  slug?: unknown;
+  status?: unknown;
+  is_primary?: unknown;
+  settings_json?: unknown;
+};
+
+type MenuRowsResult =
+  | { ok: true; rows: MenuRow[]; supportsSettingsJson: boolean }
+  | { ok: false; status: 503; error: string };
+
 type PrimaryMenuResult =
   | { ok: true; menu: PrimaryMenu }
   | { ok: false; status: 400 | 404 | 409 | 503; error: string };
@@ -48,6 +60,89 @@ function priceInput(value: unknown): string {
     .slice(0, 24);
 }
 
+function isMissingColumnError(error: unknown, column: string): boolean {
+  const details = objectInput(error);
+  const haystack = [
+    details.code,
+    details.message,
+    details.details,
+    details.hint
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    details.code === "42703" ||
+    new RegExp(`column\\s+["']?${column}["']?\\s+does\\s+not\\s+exist`, "i").test(haystack) ||
+    new RegExp(`${column}.*does\\s+not\\s+exist`, "i").test(haystack)
+  );
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return objectInput(error).code === "23505";
+}
+
+async function fetchPrimaryMenuRows(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<MenuRowsResult> {
+  const withSettings = await client
+    .from("menus")
+    .select("id,slug,status,is_primary,settings_json")
+    .eq("restaurant_id", restaurantId)
+    .limit(50);
+
+  if (!withSettings.error) {
+    return {
+      ok: true,
+      rows: Array.isArray(withSettings.data) ? withSettings.data : [],
+      supportsSettingsJson: true
+    };
+  }
+
+  if (!isMissingColumnError(withSettings.error, "settings_json")) {
+    return { ok: false, status: 503, error: "Menu principal impossible a charger." };
+  }
+
+  const withoutSettings = await client
+    .from("menus")
+    .select("id,slug,status,is_primary")
+    .eq("restaurant_id", restaurantId)
+    .limit(50);
+
+  if (withoutSettings.error) {
+    return { ok: false, status: 503, error: "Menu principal impossible a charger." };
+  }
+
+  return {
+    ok: true,
+    rows: Array.isArray(withoutSettings.data) ? withoutSettings.data : [],
+    supportsSettingsJson: false
+  };
+}
+
+function selectPrimaryMenu(rows: MenuRow[]): PrimaryMenu | null {
+  const activeRows = rows.filter((row) => String(row.status ?? "") !== "archived");
+  const primary =
+    activeRows.find((row) => row.is_primary === true && row.status === "published") ??
+    activeRows.find((row) => row.is_primary === true) ??
+    activeRows.find((row) => row.slug === "principal") ??
+    activeRows[0];
+
+  if (!primary?.id) return null;
+  return {
+    id: String(primary.id),
+    settingsJson: primary.settings_json
+  };
+}
+
+async function refetchPrimaryMenuAfterConflict(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<PrimaryMenu | null> {
+  const menus = await fetchPrimaryMenuRows(client, restaurantId);
+  return menus.ok ? selectPrimaryMenu(menus.rows) : null;
+}
+
 async function ensurePrimaryMenu(
   client: SupabaseClient,
   restaurantId: string
@@ -65,47 +160,57 @@ async function ensurePrimaryMenu(
     return { ok: false, status: 404, error: "Restaurant introuvable." };
   }
 
-  const menus = await client
-    .from("menus")
-    .select("id,slug,status,is_primary,settings_json")
-    .eq("restaurant_id", restaurantId)
-    .limit(50);
+  const menus = await fetchPrimaryMenuRows(client, restaurantId);
+  if (!menus.ok) return menus;
 
-  if (menus.error) {
-    return { ok: false, status: 503, error: "Menu principal impossible a charger." };
+  const primary = selectPrimaryMenu(menus.rows);
+  if (primary) return { ok: true, menu: primary };
+
+  const insertPayload: Record<string, unknown> = {
+    restaurant_id: restaurantId,
+    name: "Menu principal",
+    slug: "principal",
+    status: "published",
+    is_primary: true
+  };
+  if (menus.supportsSettingsJson) {
+    insertPayload.settings_json = serializePublicMenuSettings(normalizePublicMenuSettings({}));
   }
 
-  const rows = Array.isArray(menus.data) ? menus.data : [];
-  const activeRows = rows.filter((row) => String(row.status ?? "") !== "archived");
-  const primary =
-    activeRows.find((row) => row.is_primary === true && row.status === "published") ??
-    activeRows.find((row) => row.is_primary === true) ??
-    activeRows.find((row) => row.slug === "principal") ??
-    activeRows[0];
+  if (!menus.supportsSettingsJson) {
+    const inserted = await client
+      .from("menus")
+      .insert(insertPayload)
+      .select("id")
+      .single();
 
-  if (primary?.id) {
+    if (isUniqueViolation(inserted.error)) {
+      const existing = await refetchPrimaryMenuAfterConflict(client, restaurantId);
+      if (existing) return { ok: true, menu: existing };
+    }
+    if (inserted.error || !inserted.data?.id) {
+      return { ok: false, status: 503, error: "Menu principal impossible a creer." };
+    }
+
     return {
       ok: true,
       menu: {
-        id: String(primary.id),
-        settingsJson: primary.settings_json
+        id: String(inserted.data.id),
+        settingsJson: undefined
       }
     };
   }
 
   const inserted = await client
     .from("menus")
-    .insert({
-      restaurant_id: restaurantId,
-      name: "Menu principal",
-      slug: "principal",
-      status: "published",
-      is_primary: true,
-      settings_json: serializePublicMenuSettings(normalizePublicMenuSettings({}))
-    })
+    .insert(insertPayload)
     .select("id,settings_json")
     .single();
 
+  if (isUniqueViolation(inserted.error)) {
+    const existing = await refetchPrimaryMenuAfterConflict(client, restaurantId);
+    if (existing) return { ok: true, menu: existing };
+  }
   if (inserted.error || !inserted.data?.id) {
     return { ok: false, status: 503, error: "Menu principal impossible a creer." };
   }
@@ -192,13 +297,15 @@ export async function createOwnerMenuCategory(args: {
       name,
       slug,
       description,
-      display_order: await nextCategoryOrder(args.client, menuResult.menu.id),
-      metadata: { createdFromOwnerMenu: true }
+      display_order: await nextCategoryOrder(args.client, menuResult.menu.id)
     })
     .select("id,name,slug,description,display_order")
     .single();
 
   if (inserted.error || !inserted.data) {
+    if (isUniqueViolation(inserted.error)) {
+      return { ok: false, status: 409, error: "Une section avec ce nom existe deja." };
+    }
     return { ok: false, status: 503, error: "Section impossible a creer." };
   }
   return { ok: true, record: inserted.data };
@@ -340,9 +447,31 @@ export async function createOwnerMenuDish(args: {
     .single();
 
   if (inserted.error || !inserted.data) {
+    if (isUniqueViolation(inserted.error)) {
+      return { ok: false, status: 409, error: "Un plat avec ce nom existe deja." };
+    }
     return { ok: false, status: 503, error: "Plat impossible a creer." };
   }
   return { ok: true, record: inserted.data };
+}
+
+async function readMenuSettingsJson(
+  client: SupabaseClient,
+  menuId: string
+): Promise<unknown> {
+  const menu = await client
+    .from("menus")
+    .select("settings_json")
+    .eq("id", menuId)
+    .maybeSingle();
+
+  if (menu.error && isMissingColumnError(menu.error, "settings_json")) {
+    return undefined;
+  }
+  if (menu.error) {
+    return undefined;
+  }
+  return menu.data?.settings_json;
 }
 
 export async function updateOwnerMenuDish(args: {
@@ -388,12 +517,9 @@ export async function updateOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
   }
 
-  const menu = await args.client
-    .from("menus")
-    .select("settings_json")
-    .eq("id", existing.data.menu_id)
-    .maybeSingle();
-  const settings = normalizePublicMenuSettings(menu.data?.settings_json);
+  const settings = normalizePublicMenuSettings(
+    await readMenuSettingsJson(args.client, String(existing.data.menu_id))
+  );
   const slug = await uniqueSlug({
     client: args.client,
     table: "menu_dishes",

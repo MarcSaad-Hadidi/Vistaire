@@ -455,8 +455,12 @@ export function OwnerRestaurantMenuManager({
                 {dishes.map((dish) => (
                   <tr key={dish.id}>
                     <td>
-                      <strong className={styles.cellMain}>{dish.name}</strong>
-                      <span className={styles.cellSub}>{dish.category}</span>
+                      <div className={styles.dishTitleCell}>
+                        <strong className={styles.cellMain}>{dish.name}</strong>
+                        <span className={styles.dishSectionLabel}>
+                          Section : {dish.category}
+                        </span>
+                      </div>
                     </td>
                     <td>{dish.priceLabel || <Badge tone="warn">Prix manquant</Badge>}</td>
                     <td>

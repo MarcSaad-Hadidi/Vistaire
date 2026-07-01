@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
@@ -29,6 +30,12 @@ type DishRow = {
 function getString(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
+  if (!restaurantSlug) return;
+  revalidatePath(`/menu/${restaurantSlug}`);
+  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
 
 export async function POST(
@@ -150,6 +157,8 @@ export async function POST(
       sourceBytes: validated.bytes,
       originalName: validated.originalName
     });
+
+    revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
 
     return NextResponse.json(
       {

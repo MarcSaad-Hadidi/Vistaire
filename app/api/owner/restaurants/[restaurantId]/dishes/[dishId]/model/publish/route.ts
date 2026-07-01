@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -36,6 +37,12 @@ function getMetadata(value: unknown): Record<string, unknown> {
 function getString(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
+  if (!restaurantSlug) return;
+  revalidatePath(`/menu/${restaurantSlug}`);
+  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
 
 function safeStoragePath(value: unknown, prefix: string): string {
@@ -157,6 +164,8 @@ export async function POST(
       sourceBytes,
       originalName: `${dishSlug}.glb`
     });
+
+    revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
 
     return NextResponse.json({
       ok: true,
