@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   clearExchangeRatesCacheForTests,
@@ -12,8 +13,24 @@ import {
 import { getGreetingForTime } from "../lib/menu/greeting.ts";
 import {
   normalizePublicMenuSettings,
+  normalizePublicMenuLocalePreference,
   validatePublicMenuSettingsInput
 } from "../lib/menu/publicMenuSettings.ts";
+import {
+  getTrouvableLanguageOptions,
+  isTrouvableLocaleSupported
+} from "../components/menu/trouvableMenuControls.ts";
+
+test("demo menu preserves French and English supported locales", async () => {
+  const source = await readFile(
+    new URL("../lib/menu/publicMenu.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /const DEMO_PUBLIC_MENU_SETTINGS/);
+  assert.match(source, /supportedLocales:\s*\[\s*"fr-CA",\s*"en-CA"\s*\]/);
+  assert.match(source, /settings:\s*DEMO_PUBLIC_MENU_SETTINGS/);
+});
 
 test("normalizes public menu settings with legacy menu languages", () => {
   const settings = normalizePublicMenuSettings({}, { legacyMenuLanguages: ["fr", "en"] });
@@ -75,6 +92,22 @@ test("accepts valid locale tags and ISO currency codes beyond the default catalo
   assert.deepEqual([...result.value.supportedCurrencies].sort(), ["CAD", "GBP", "JPY"]);
   assert.equal(result.value.baseCurrency, "GBP");
   assert.equal(result.value.defaultCurrency, "JPY");
+});
+
+test("resolves short language choices to configured locale tags", () => {
+  const settings = normalizePublicMenuSettings({
+    supportedLocales: ["fr-FR", "en-US"],
+    defaultLocale: "fr-FR"
+  });
+
+  assert.equal(normalizePublicMenuLocalePreference("en", settings), "en-US");
+  assert.equal(normalizePublicMenuLocalePreference("fr", settings), "fr-FR");
+  assert.equal(isTrouvableLocaleSupported("en", settings), true);
+  assert.equal(isTrouvableLocaleSupported("fr", settings), true);
+  assert.deepEqual(getTrouvableLanguageOptions(settings), [
+    { locale: "fr", publicLocale: "fr-FR", label: "Francais (fr-FR)" },
+    { locale: "en", publicLocale: "en-US", label: "English (en-US)" }
+  ]);
 });
 
 test("converts and formats structured menu prices with explicit rates", () => {

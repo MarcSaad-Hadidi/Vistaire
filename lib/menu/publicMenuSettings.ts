@@ -216,6 +216,13 @@ export function publicLocaleToLanguageTag(locale: PublicMenuShortLocale): Public
   return locale === "en" ? "en-CA" : "fr-CA";
 }
 
+export function publicLocaleMatchesShortLocale(
+  locale: PublicMenuLocale,
+  shortLocale: PublicMenuShortLocale
+): boolean {
+  return publicLocaleToShortLocale(locale) === shortLocale;
+}
+
 export function normalizePublicMenuLocale(
   value: unknown,
   fallback: PublicMenuLocale = DEFAULT_PUBLIC_MENU_SETTINGS.defaultLocale
@@ -582,7 +589,13 @@ export function normalizePublicMenuLocalePreference(
   settings: PublicMenuSettings
 ): PublicMenuLocale {
   const locale = normalizePublicMenuLocale(value, settings.defaultLocale);
-  return settings.supportedLocales.includes(locale) ? locale : settings.defaultLocale;
+  if (settings.supportedLocales.includes(locale)) return locale;
+  const shortLocale = publicLocaleToShortLocale(locale);
+  return (
+    settings.supportedLocales.find((supportedLocale) =>
+      publicLocaleMatchesShortLocale(supportedLocale, shortLocale)
+    ) ?? settings.defaultLocale
+  );
 }
 
 export function normalizePublicMenuCurrencyPreference(

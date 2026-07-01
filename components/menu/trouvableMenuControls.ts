@@ -15,6 +15,7 @@ import {
   normalizePublicMenuCurrencyPreference,
   normalizePublicMenuLocalePreference,
   normalizePublicMenuThemePreference,
+  publicLocaleMatchesShortLocale,
   publicLocaleToShortLocale,
   publicLocaleToLanguageTag,
   type PublicMenuCurrency,
@@ -408,15 +409,50 @@ export function getTrouvableCurrencyOptions(settings: PublicMenuSettings) {
 
 export function getTrouvableLanguageOptions(settings: PublicMenuSettings): Array<{
   locale: TrouvableLocale;
+  publicLocale: string;
   label: string;
 }> {
-  return settings.supportedLocales.map((locale) => {
-    const shortLocale = publicLocaleToShortLocale(locale);
-    return {
+  const options: Array<{
+    locale: TrouvableLocale;
+    publicLocale: string;
+    label: string;
+  }> = [];
+  const seen = new Set<TrouvableLocale>();
+  for (const publicLocale of settings.supportedLocales) {
+    const shortLocale = publicLocaleToShortLocale(publicLocale);
+    if (seen.has(shortLocale)) continue;
+    seen.add(shortLocale);
+    const localeLabel =
+      publicLocale === "en-CA" || publicLocale === "fr-CA"
+        ? ""
+        : ` (${publicLocale})`;
+    options.push({
       locale: shortLocale,
-      label: shortLocale === "en" ? "English" : "Francais"
-    };
-  });
+      publicLocale,
+      label: `${shortLocale === "en" ? "English" : "Francais"}${localeLabel}`
+    });
+  }
+  return options;
+}
+
+export function isTrouvableLocaleSupported(
+  locale: TrouvableLocale,
+  settings: PublicMenuSettings
+): boolean {
+  return settings.supportedLocales.some((supportedLocale) =>
+    publicLocaleMatchesShortLocale(supportedLocale, locale)
+  );
+}
+
+export function getTrouvableLocalePublicTag(
+  locale: TrouvableLocale,
+  settings: PublicMenuSettings
+): string {
+  return (
+    settings.supportedLocales.find((supportedLocale) =>
+      publicLocaleMatchesShortLocale(supportedLocale, locale)
+    ) ?? publicLocaleToLanguageTag(locale)
+  );
 }
 
 export function parseTrouvablePriceLabel(priceLabel: string): number | null {

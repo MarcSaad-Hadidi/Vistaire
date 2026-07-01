@@ -28,6 +28,12 @@ import {
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
+const DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
+  ...DEFAULT_PUBLIC_MENU_SETTINGS,
+  supportedLocales: ["fr-CA", "en-CA"],
+  publicMenuStyle: "maison-elyse"
+});
+
 function parseDemoPriceCents(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.max(0, Math.round(value * 100));
@@ -52,7 +58,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
     location: restaurant.location,
     cuisineType: restaurant.cuisineType,
     googleReview: normalizeGoogleReviewConfig(restaurant.googleReview),
-    settings: serializePublicMenuSettings(DEFAULT_PUBLIC_MENU_SETTINGS),
+    settings: DEMO_PUBLIC_MENU_SETTINGS,
     source: "demo",
     dishes: dishes.slice(0, 60).map((dish, index) => ({
       id: dish.slug || `demo-${index}`,

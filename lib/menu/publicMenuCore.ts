@@ -519,6 +519,13 @@ function isDishAvailable(row: PublicMenuRow): boolean {
   return available !== false;
 }
 
+function includeDishRow(
+  row: PublicMenuRow,
+  options: { includeUnavailableDishes?: boolean } = {}
+): boolean {
+  return options.includeUnavailableDishes || isDishAvailable(row);
+}
+
 function dishSortOrder(row: PublicMenuRow, index: number): number {
   const sortOrder = getNumber(row, ["sort_order", "sortOrder", "position"], 0);
   return sortOrder > 0 ? sortOrder : 10_000 + index;
@@ -777,7 +784,10 @@ export function buildSupabasePublicMenu(
   rawSlug: string,
   restaurantRow: PublicMenuRow,
   dishRows: PublicMenuRow[],
-  options: { legacyMenuLanguages?: unknown } = {}
+  options: {
+    includeUnavailableDishes?: boolean;
+    legacyMenuLanguages?: unknown;
+  } = {}
 ): PublicMenu {
   const slug = getPublicMenuRowSlug(restaurantRow) || slugify(rawSlug);
   const restaurantId = getString(restaurantRow, ["id", "restaurant_id"], "");
@@ -804,7 +814,7 @@ export function buildSupabasePublicMenu(
       : rowsBySlug;
 
   const dishes = scopedRows
-    .filter(isDishAvailable)
+    .filter((row) => includeDishRow(row, options))
     .map((row, index) => ({ row, index, order: dishSortOrder(row, index) }))
     .sort((a, b) => a.order - b.order || a.index - b.index)
     .slice(0, 200)
@@ -830,6 +840,7 @@ export function buildRelationalSupabasePublicMenu(args: {
   menuRow?: PublicMenuRow | null;
   categoryRows?: PublicMenuRow[];
   dishRows?: PublicMenuRow[];
+  includeUnavailableDishes?: boolean;
   legacyMenuLanguages?: unknown;
 }): PublicMenu {
   const slug = getPublicMenuRowSlug(args.restaurantRow) || slugify(args.slug);
@@ -854,7 +865,7 @@ export function buildRelationalSupabasePublicMenu(args: {
   const dishes = (args.dishRows ?? [])
     .filter((row) => rowMatchesRestaurant(row, restaurantId))
     .filter((row) => rowMatchesMenu(row, menuId))
-    .filter(isDishAvailable)
+    .filter((row) => includeDishRow(row, args))
     .map((row, index) => {
       const categoryId = getString(row, ["category_id", "categoryId"], "");
       const category = categoryById.get(categoryId);

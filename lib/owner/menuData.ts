@@ -40,6 +40,12 @@ type OwnerMenuDataFailure = {
   error: string;
 };
 
+const OWNER_DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
+  ...DEFAULT_PUBLIC_MENU_SETTINGS,
+  supportedLocales: ["fr-CA", "en-CA"],
+  publicMenuStyle: "maison-elyse"
+});
+
 function publicMenuPath(slug: string): string {
   return slug ? `/menu/${encodeURIComponent(slug)}` : "/demo";
 }
@@ -112,7 +118,7 @@ async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
       enabled: false,
       googleReviewUrl: ""
     },
-    settings: serializePublicMenuSettings(DEFAULT_PUBLIC_MENU_SETTINGS),
+    settings: OWNER_DEMO_PUBLIC_MENU_SETTINGS,
     source: "demo" as const,
     dishes: []
   };
@@ -165,17 +171,19 @@ export async function getOwnerMenuData(
     slugifyRestaurantSlug(getString(restaurantRow, ["name", "restaurant_name"]));
   const primaryMenu = menusResult.ok ? findPrimaryMenu(menusResult.rows, restaurantId) : null;
   const menu = primaryMenu
-    ? buildRelationalSupabasePublicMenu({
-        slug,
-        restaurantRow,
-        menuRow: primaryMenu,
-        categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
-        dishRows: dishesResult.ok ? dishesResult.rows : []
-      })
+      ? buildRelationalSupabasePublicMenu({
+          slug,
+          restaurantRow,
+          menuRow: primaryMenu,
+          categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
+          dishRows: dishesResult.ok ? dishesResult.rows : [],
+          includeUnavailableDishes: true
+        })
     : buildSupabasePublicMenu(
         slug,
         restaurantRow,
-        dishesResult.ok ? dishesResult.rows : []
+        dishesResult.ok ? dishesResult.rows : [],
+        { includeUnavailableDishes: true }
       );
   const menuId = primaryMenu ? getString(primaryMenu, ["id", "menu_id"], "") : "";
   const categories =

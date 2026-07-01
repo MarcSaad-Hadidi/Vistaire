@@ -369,6 +369,39 @@ test("maps real photo and 3D/AR fields without inventing missing assets", () => 
   assert.equal(soupe.modelStatus, "missing");
 });
 
+test("filters unavailable public dishes unless owner management opts in", () => {
+  const rows = [
+    {
+      id: "visible-id",
+      restaurant_id: restoMarcId,
+      name: "Plat visible",
+      category_name: "Plats",
+      price: 12,
+      is_available: true
+    },
+    {
+      id: "hidden-id",
+      restaurant_id: restoMarcId,
+      name: "Plat indisponible",
+      category_name: "Plats",
+      price: 10,
+      is_available: false
+    }
+  ];
+
+  const publicMenu = buildSupabasePublicMenu("resto-marc", restoMarc, rows);
+  const ownerMenu = buildSupabasePublicMenu("resto-marc", restoMarc, rows, {
+    includeUnavailableDishes: true
+  });
+
+  assert.deepEqual(publicMenu.dishes.map((dish) => dish.id), ["visible-id"]);
+  assert.deepEqual(ownerMenu.dishes.map((dish) => dish.id), [
+    "visible-id",
+    "hidden-id"
+  ]);
+  assert.equal(ownerMenu.dishes[1].available, false);
+});
+
 test("builds public dish links without dropping QR table context", () => {
   assert.equal(
     buildPublicDishPath("resto-marc", "bol-de-riz", {

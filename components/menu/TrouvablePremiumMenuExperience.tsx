@@ -37,6 +37,7 @@ import {
   getTrouvableDishConvertedPriceCents,
   getTrouvableGreetingForDate,
   getTrouvableLanguageOptions,
+  isTrouvableLocaleSupported,
   normalizeTrouvableCurrency,
   normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
@@ -958,13 +959,7 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function selectLocale(nextLocale: TrouvableLocale) {
-    if (
-      !menu.settings.supportedLocales.includes(
-        nextLocale === "en" ? "en-CA" : "fr-CA"
-      )
-    ) {
-      return;
-    }
+    if (!isTrouvableLocaleSupported(nextLocale, menu.settings)) return;
     setSelectedLocale(nextLocale);
     window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, nextLocale);
     updateBrowserLocale(nextLocale);
