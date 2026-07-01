@@ -64,8 +64,16 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /activeSheet === "filters"/);
   assert.match(source, /activeSheet === "language"/);
   assert.match(source, /activeFilters/);
+  assert.match(source, /setActiveFilters/);
   assert.match(source, /className=\{styles\.filterTrigger\}/);
+  assert.match(source, /styles\.filterSheet/);
+  assert.match(source, /className=\{styles\.filterGrid\}/);
+  assert.match(source, /className=\{styles\.sheetReset\}/);
+  assert.match(source, /className=\{styles\.sheetApply\}/);
   assert.match(source, /toggleQuickFilter/);
+  assert.match(controls, /filterTitle:\s*"Filtres"/);
+  assert.match(controls, /Sans gluten/);
+  assert.match(controls, /\\u00e0 coque/);
   assert.match(source, /openRestaurantReviewSheet/);
   assert.match(source, /openSheet\("experienceReview"\)/);
   assert.match(source, /copy\.reviewExperienceTitle/);
@@ -123,6 +131,10 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.match(css, /font-family:\s*var\(--trouvable-font-ui\)/);
   assert.match(css, /font-family:\s*var\(--trouvable-font-display\)/);
   assert.match(css, /\.filterTrigger/);
+  assert.match(css, /\.filterSheet/);
+  assert.match(css, /\.filterGrid/);
+  assert.match(css, /\.sheetReset/);
+  assert.match(css, /\.sheetApply/);
   assert.match(css, /content:\s*"\\263e"/);
   assert.match(css, /content:\s*"\\2600"/);
   assert.match(css, /\.hero h1[\s\S]*font-style:\s*italic/);

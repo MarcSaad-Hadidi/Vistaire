@@ -307,16 +307,17 @@
 
 .filterTrigger small {
   display: inline-flex;
-  width: 20px;
-  min-width: 20px;
-  height: 20px;
+  min-height: 20px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: rgba(232, 207, 155, 0.9);
   color: #17100a;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 0 7px;
+  text-transform: uppercase;
 }
 
 .filterGlyph {
@@ -2308,10 +2309,9 @@
   }
 
   .filterTrigger small {
-    width: 18px;
-    min-width: 18px;
-    height: 18px;
+    min-height: 18px;
     font-size: 10px;
+    padding-inline: 6px;
   }
 
   .quickFilters button {
@@ -2340,6 +2340,10 @@
   .dishList {
     gap: 12px;
     padding-inline: 16px;
+  }
+
+  .filterGrid {
+    grid-template-columns: 1fr;
   }
 
   .dishCard {
@@ -2812,6 +2816,102 @@
   color: rgba(0, 0, 0, 0.7);
 }
 
+.filterSheet {
+  border-color: rgba(222, 194, 75, 0.34);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(222, 194, 75, 0.1), transparent 38%),
+    linear-gradient(180deg, #050505, #000 72%),
+    #000;
+  box-shadow:
+    0 -28px 88px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(222, 194, 75, 0.16);
+  padding: 16px 14px calc(18px + env(safe-area-inset-bottom));
+}
+
+.filterSheet .sheetHeader {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.filterSheet .sheetHeader p {
+  color: rgba(222, 194, 75, 0.72);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.filterSheet .sheetHeader h2 {
+  color: #fffaf0;
+  font-family: var(--trouvable-font-ui);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.05;
+  text-shadow: none;
+}
+
+.filterSheet .iconButton {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fffaf0;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.filterGrid button {
+  min-height: 44px;
+  border: 1px solid rgba(222, 194, 75, 0.28);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    #050505;
+  color: rgba(255, 250, 240, 0.82);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.1;
+  padding: 0 12px;
+}
+
+.filterGrid .isActive {
+  border-color: rgba(241, 217, 28, 0.95);
+  background: linear-gradient(145deg, #f4dc42, #ba941f);
+  color: #050505;
+  box-shadow: 0 10px 28px rgba(222, 194, 75, 0.18);
+}
+
+.sheetReset,
+.sheetApply {
+  display: inline-flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.sheetReset {
+  background: #050505;
+  color: rgba(232, 207, 155, 0.92);
+}
+
+.sheetApply {
+  border-color: rgba(241, 217, 28, 0.76);
+  background: linear-gradient(145deg, #f4dc42, #ba941f);
+  color: #050505;
+}
+
 .page[data-user-theme="light"] {
   --trouvable-black: #f5efe4;
   --trouvable-ink: #fffaf1;
@@ -2937,6 +3037,55 @@
 .page[data-user-theme="light"] .filterTrigger small {
   background: #b99124;
   color: #fffaf1;
+}
+
+.page[data-user-theme="light"] .filterSheet {
+  border-color: rgba(143, 109, 20, 0.26);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(185, 145, 36, 0.14), transparent 42%),
+    linear-gradient(180deg, #fffaf1, #f5efe4 78%),
+    #f5efe4;
+  color: #17120b;
+  box-shadow:
+    0 -24px 80px rgba(35, 26, 13, 0.18),
+    inset 0 1px 0 rgba(185, 145, 36, 0.2);
+}
+
+.page[data-user-theme="light"] .filterSheet .sheetHeader p {
+  color: #8f6d14;
+}
+
+.page[data-user-theme="light"] .filterSheet .sheetHeader h2 {
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .filterSheet .iconButton {
+  border-color: rgba(35, 26, 13, 0.18);
+  background: #fff9ef;
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .filterGrid button {
+  border-color: rgba(35, 26, 13, 0.18);
+  background: rgba(35, 26, 13, 0.06);
+  color: rgba(35, 26, 13, 0.72);
+}
+
+.page[data-user-theme="light"] .filterGrid .isActive {
+  border-color: #9d7a19;
+  background: #fff4cf;
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .sheetReset {
+  border-color: rgba(143, 109, 20, 0.28);
+  color: #8f6d14;
+}
+
+.page[data-user-theme="light"] .sheetApply {
+  border-color: rgba(143, 109, 20, 0.32);
+  background: rgba(185, 145, 36, 0.16);
+  color: #17120b;
 }
 
 .page[data-user-theme="light"] .quickFilters button[aria-pressed="true"],

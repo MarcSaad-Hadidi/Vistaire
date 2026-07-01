@@ -57,7 +57,15 @@ type QuickFilterId =
   | "nonVeg"
   | "available"
   | "immersive"
-  | "recommended";
+  | "recommended"
+  | "glutenFree"
+  | "dairyFree"
+  | "nutFree"
+  | "shellfishFree"
+  | "eggFree"
+  | "sesameFree"
+  | "soyFree"
+  | "fishFree";
 type ViewMode = "list" | "grid";
 type WaiterTopic = "allergen" | "recommendation" | "selection";
 type ActiveSheet =
@@ -123,6 +131,33 @@ const SPICY_TERMS = [
   "spicy",
   "sriracha"
 ];
+const ALLERGEN_FILTER_TERMS: Record<
+  Exclude<
+    QuickFilterId,
+    "all" | "veg" | "nonVeg" | "available" | "immersive" | "recommended"
+  >,
+  string[]
+> = {
+  glutenFree: ["gluten", "wheat", "ble"],
+  dairyFree: [
+    "dairy",
+    "lait",
+    "lactose",
+    "milk",
+    "cream",
+    "creme",
+    "cheese",
+    "fromage",
+    "beurre",
+    "butter"
+  ],
+  nutFree: ["nut", "nuts", "noix", "amande", "amandes", "noisette", "pistache"],
+  shellfishFree: ["shellfish", "crustace", "crustaces", "homard", "crevette", "crabe"],
+  eggFree: ["egg", "eggs", "oeuf", "oeufs"],
+  sesameFree: ["sesame"],
+  soyFree: ["soy", "soya", "soja"],
+  fishFree: ["fish", "poisson", "saumon", "thon"]
+};
 
 function normalizeText(value: string): string {
   return value
@@ -249,6 +284,11 @@ function dishHasAnyTerm(dish: PublicMenuDish, terms: string[]): boolean {
   return terms.some((term) => text.includes(normalizeText(term)));
 }
 
+function dishHasAllergenTerm(dish: PublicMenuDish, terms: string[]): boolean {
+  const allergenText = normalizeText(dish.allergens.join(" "));
+  return terms.some((term) => allergenText.includes(normalizeText(term)));
+}
+
 function isVegDish(dish: PublicMenuDish): boolean {
   return dishHasAnyTerm(dish, VEG_TERMS) && !isNonVegDish(dish);
 }
@@ -318,6 +358,14 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   if (filter === "available") return dish.available;
   if (filter === "immersive") return dish.has3d || dish.hasAr || dish.hasImmersive;
   if (filter === "recommended") return isRecommendedDish(dish);
+  if (filter in ALLERGEN_FILTER_TERMS) {
+    return !dishHasAllergenTerm(
+      dish,
+      ALLERGEN_FILTER_TERMS[
+        filter as keyof typeof ALLERGEN_FILTER_TERMS
+      ]
+    );
+  }
   return true;
 }
 
@@ -496,6 +544,10 @@ export function TrouvablePremiumMenuExperience({
     () => menu.dishes.some(isRecommendedDish),
     [menu.dishes]
   );
+  const hasAllergenData = useMemo(
+    () => menu.dishes.some((dish) => dish.allergens.length > 0),
+    [menu.dishes]
+  );
   const quickFilters = useMemo(
     () =>
       [
@@ -508,9 +560,28 @@ export function TrouvablePremiumMenuExperience({
           id: "recommended" as const,
           label: copy.signature,
           visible: hasRecommendedData
-        }
+        },
+        { id: "glutenFree" as const, label: copy.glutenFree, visible: hasAllergenData },
+        { id: "dairyFree" as const, label: copy.dairyFree, visible: hasAllergenData },
+        { id: "nutFree" as const, label: copy.nutFree, visible: hasAllergenData },
+        {
+          id: "shellfishFree" as const,
+          label: copy.shellfishFree,
+          visible: hasAllergenData
+        },
+        { id: "eggFree" as const, label: copy.eggFree, visible: hasAllergenData },
+        { id: "sesameFree" as const, label: copy.sesameFree, visible: hasAllergenData },
+        { id: "soyFree" as const, label: copy.soyFree, visible: hasAllergenData },
+        { id: "fishFree" as const, label: copy.fishFree, visible: hasAllergenData }
       ].filter((filter) => filter.visible),
-    [copy, hasImmersiveData, hasNonVegData, hasRecommendedData, hasVegData]
+    [
+      copy,
+      hasAllergenData,
+      hasImmersiveData,
+      hasNonVegData,
+      hasRecommendedData,
+      hasVegData
+    ]
   );
   const activeFilterLabels = useMemo(
     () =>
@@ -527,6 +598,7 @@ export function TrouvablePremiumMenuExperience({
       : activeFilterLabels.length === 1
         ? activeFilterLabels[0]
         : copy.activeFilters(activeFilterLabels.length);
+  const hasActiveFilter = activeFilterLabels.length > 0;
 
   const filteredDishes = useMemo(() => {
     const searchQuery = normalizeText(search.trim());
@@ -817,11 +889,19 @@ export function TrouvablePremiumMenuExperience({
   function quickFilterDescription(filterId: QuickFilterId) {
     if (filterId === "all") return copy.filterAllAria;
     if (filterId === "veg") return copy.filterVegAria;
-    if (filterId === "nonVeg") return copy.filterNonVegAria;
-    if (filterId === "available") return copy.filterAvailableAria;
-    if (filterId === "immersive") return copy.filterImmersiveAria;
-    return copy.filterRecommendedAria;
-  }
+  if (filterId === "nonVeg") return copy.filterNonVegAria;
+  if (filterId === "available") return copy.filterAvailableAria;
+  if (filterId === "immersive") return copy.filterImmersiveAria;
+  if (filterId === "glutenFree") return copy.glutenFree;
+  if (filterId === "dairyFree") return copy.dairyFree;
+  if (filterId === "nutFree") return copy.nutFree;
+  if (filterId === "shellfishFree") return copy.shellfishFree;
+  if (filterId === "eggFree") return copy.eggFree;
+  if (filterId === "sesameFree") return copy.sesameFree;
+  if (filterId === "soyFree") return copy.soyFree;
+  if (filterId === "fishFree") return copy.fishFree;
+  return copy.filterRecommendedAria;
+}
 
   function toggleQuickFilter(filterId: QuickFilterId) {
     if (filterId === "all") {
@@ -977,7 +1057,11 @@ export function TrouvablePremiumMenuExperience({
           if (event.target === event.currentTarget) closeActiveSheet();
         }}
       >
-        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
+        <section
+          ref={sheetRef}
+          className={`${styles.sheet} ${styles.filterSheet}`}
+          tabIndex={-1}
+        >
           <header className={styles.sheetHeader}>
             <div>
               <p>{copy.selectionKicker}</p>
@@ -1223,23 +1307,36 @@ export function TrouvablePremiumMenuExperience({
               x
             </button>
           </header>
-          <div className={styles.choiceList}>
+          {hasActiveFilter ? (
+            <button
+              type="button"
+              className={styles.sheetReset}
+              onClick={() => setActiveFilters([])}
+            >
+              {copy.resetFilters}
+            </button>
+          ) : null}
+          <div
+            className={styles.filterGrid}
+            role="group"
+            aria-label={copy.filterGroupLabel}
+          >
             {quickFilters.map((filter) => (
               <button
                 key={filter.id}
                 type="button"
-                className={styles.choiceButton}
+                className={isQuickFilterActive(filter.id) ? styles.isActive : undefined}
                 aria-pressed={isQuickFilterActive(filter.id)}
+                aria-label={quickFilterDescription(filter.id)}
                 onClick={() => toggleQuickFilter(filter.id)}
               >
-                <span>{filter.label}</span>
-                <small>{quickFilterDescription(filter.id)}</small>
+                {filter.label}
               </button>
             ))}
           </div>
           <button
             type="button"
-            className={styles.primaryAction}
+            className={styles.sheetApply}
             onClick={closeActiveSheet}
           >
             {copy.filterApply}
@@ -1739,8 +1836,8 @@ export function TrouvablePremiumMenuExperience({
               <span />
             </span>
             <span>{filterButtonLabel}</span>
-            {activeFilterLabels.length > 0 ? (
-              <small aria-hidden="true">{activeFilterLabels.length}</small>
+            {activeFilterLabels.length === 1 ? (
+              <small aria-hidden="true">{copy.activeFilterPrefix}</small>
             ) : null}
           </button>
           <div className={styles.viewToggle} aria-label={copy.viewModeAria}>
