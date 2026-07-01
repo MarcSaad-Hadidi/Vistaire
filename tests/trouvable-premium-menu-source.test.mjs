@@ -25,12 +25,20 @@ test("public Trouvable menu is centralized in a targeted premium experience", as
   assert.match(helper, /autoLoad:\s*false/);
 });
 
-test("public /menu/trouvable resolves to the local Trouvable demo menu", async () => {
+test("public /menu/trouvable reads Supabase before the local Trouvable demo fallback", async () => {
   const source = await readFile(publicMenuPath, "utf8");
+  const supabaseReadIndex = source.indexOf(
+    'const restaurantsResult = await readSupabaseRows("restaurants", 200);'
+  );
+  const fallbackIndex = source.indexOf("return trouvableDemoMenu(slug, resolvedLocale);");
 
+  assert.ok(supabaseReadIndex > 0, "Trouvable must reach the Supabase restaurant read");
+  assert.ok(
+    fallbackIndex > supabaseReadIndex,
+    "Trouvable demo data must only be a fallback after Supabase is unavailable"
+  );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
-  assert.match(source, /slug === "trouvable"/);
-  assert.match(source, /trouvableDemoMenu\(slug, resolvedLocale\)/);
+  assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
 });

@@ -386,16 +386,15 @@ export async function getPublicMenuBySlug(
   const resolvedLocale = normalizeLocale(locale);
   if (!slug) return null;
 
-  if (slug === "trouvable") {
-    return trouvableDemoMenu(slug, resolvedLocale);
-  }
-
   if (slug === "maison-elyse") {
     return demoMenu(slug, resolvedLocale);
   }
 
   const restaurantsResult = await readSupabaseRows("restaurants", 200);
   if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
+    if (slug === "trouvable") {
+      return trouvableDemoMenu(slug, resolvedLocale);
+    }
     return null;
   }
 
