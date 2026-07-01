@@ -1,3 +1,5 @@
+import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
+
 export type OwnerRestaurantStatus =
   | "demo"
   | "active"
@@ -207,6 +209,7 @@ export type CreateRestaurantInput = {
   googleReviewUrl?: string;
   notes?: string;
   menuLanguages?: CreateRestaurantMenuLanguage[];
+  publicMenuSettings?: PublicMenuSettings;
   sections?: CreateRestaurantSectionInput[];
   dishes?: CreateRestaurantDishInput[];
 };

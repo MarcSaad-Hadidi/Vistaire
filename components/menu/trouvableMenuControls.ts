@@ -3,9 +3,26 @@ import {
   normalizeLocale,
   type Locale
 } from "../../lib/i18n.ts";
+import {
+  convertMenuPriceCents,
+  formatMenuPrice,
+  formatMenuPriceCents,
+  type MenuExchangeRates
+} from "../../lib/currency/formatMenuPrice.ts";
+import { getGreetingForTime } from "../../lib/menu/greeting.ts";
+import type { PublicMenuDish } from "../../lib/menu/publicMenuCore.ts";
+import {
+  normalizePublicMenuCurrencyPreference,
+  normalizePublicMenuLocalePreference,
+  normalizePublicMenuThemePreference,
+  publicLocaleToShortLocale,
+  publicLocaleToLanguageTag,
+  type PublicMenuCurrency,
+  type PublicMenuSettings
+} from "../../lib/menu/publicMenuSettings.ts";
 
 export type TrouvableLocale = Locale;
-export type TrouvableCurrency = "CAD" | "USD" | "EUR";
+export type TrouvableCurrency = PublicMenuCurrency;
 export type TrouvableTheme = "dark" | "light";
 export type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
 
@@ -31,7 +48,7 @@ export const TROUVABLE_CURRENCY_OPTIONS: Array<{
   { code: "EUR", label: { en: "Euro", fr: "Euro" }, symbol: "€" }
 ];
 
-export const TROUVABLE_STATIC_CAD_RATES: Record<TrouvableCurrency, number> = {
+export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, number>> = {
   CAD: 1,
   USD: 0.73,
   EUR: 0.68
@@ -124,6 +141,9 @@ export const TROUVABLE_COPY = {
     menuContextFallback: "Menu à table",
     modelPreparing: "Préparation de la vue immersive...",
     modelUnavailable: "Vue 3D temporairement indisponible.",
+    arBrowserHelp:
+      "Si \"Afficher devant moi\" ne s'ouvre pas, ouvrez cette fiche dans Safari ou Chrome, puis relancez la 3D.",
+    arBrowserLink: "Ouvrir dans le navigateur",
     moreDetails: "Plus de détails",
     nextDish: "Plat suivant",
     nonVeg: "Non-végé",
@@ -258,6 +278,9 @@ export const TROUVABLE_COPY = {
     menuContextFallback: "Table menu",
     modelPreparing: "Preparing the immersive view...",
     modelUnavailable: "3D view is temporarily unavailable.",
+    arBrowserHelp:
+      "If \"View in my space\" does not open, open this dish in Safari or Chrome, then launch 3D again.",
+    arBrowserLink: "Open in browser",
     moreDetails: "More details",
     nextDish: "Next dish",
     nonVeg: "Non-veg",
@@ -327,11 +350,31 @@ export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
   return normalizeLocale(value);
 }
 
-export function normalizeTrouvableCurrency(value: unknown): TrouvableCurrency {
-  return value === "USD" || value === "EUR" ? value : "CAD";
+export function normalizeTrouvableLocaleForSettings(
+  value: unknown,
+  settings: PublicMenuSettings
+): TrouvableLocale {
+  return publicLocaleToShortLocale(
+    normalizePublicMenuLocalePreference(value, settings)
+  );
 }
 
-export function normalizeTrouvableTheme(value: unknown): TrouvableTheme {
+export function normalizeTrouvableCurrency(
+  value: unknown,
+  settings?: PublicMenuSettings
+): TrouvableCurrency {
+  if (settings) {
+    return normalizePublicMenuCurrencyPreference(value, settings);
+  }
+  const currency = typeof value === "string" ? value.toUpperCase() : "";
+  return /^[A-Z]{3}$/.test(currency) ? currency : "CAD";
+}
+
+export function normalizeTrouvableTheme(
+  value: unknown,
+  settings?: PublicMenuSettings
+): TrouvableTheme {
+  if (settings) return normalizePublicMenuThemePreference(value, settings);
   return value === "light" ? "light" : "dark";
 }
 
@@ -340,10 +383,40 @@ export function getTrouvableCopy(locale: TrouvableLocale) {
 }
 
 export function getTrouvableCurrencyOption(currency: TrouvableCurrency) {
-  return (
-    TROUVABLE_CURRENCY_OPTIONS.find((option) => option.code === currency) ??
-    TROUVABLE_CURRENCY_OPTIONS[0]
-  );
+  const option = TROUVABLE_CURRENCY_OPTIONS.find((item) => item.code === currency);
+  if (option) return option;
+  let symbol = currency;
+  try {
+    const parts = new Intl.NumberFormat("fr-CA", {
+      currency,
+      style: "currency"
+    }).formatToParts(1);
+    symbol = parts.find((part) => part.type === "currency")?.value ?? currency;
+  } catch {
+    symbol = currency;
+  }
+  return {
+    code: currency,
+    label: { en: currency, fr: currency },
+    symbol
+  };
+}
+
+export function getTrouvableCurrencyOptions(settings: PublicMenuSettings) {
+  return settings.supportedCurrencies.map(getTrouvableCurrencyOption);
+}
+
+export function getTrouvableLanguageOptions(settings: PublicMenuSettings): Array<{
+  locale: TrouvableLocale;
+  label: string;
+}> {
+  return settings.supportedLocales.map((locale) => {
+    const shortLocale = publicLocaleToShortLocale(locale);
+    return {
+      locale: shortLocale,
+      label: shortLocale === "en" ? "English" : "Francais"
+    };
+  });
 }
 
 export function parseTrouvablePriceLabel(priceLabel: string): number | null {
@@ -370,23 +443,83 @@ export function parseTrouvablePriceLabel(priceLabel: string): number | null {
 export function formatTrouvableAmount(
   cadAmount: number,
   currency: TrouvableCurrency,
-  locale: TrouvableLocale
+  locale: TrouvableLocale,
+  exchangeRates?: MenuExchangeRates
 ): string {
+  if (exchangeRates) {
+    return formatMenuPrice({
+      priceCents: Math.round(cadAmount * 100),
+      sourceCurrency: exchangeRates.base,
+      targetCurrency: currency,
+      locale,
+      rates: exchangeRates.rates,
+      baseCurrency: exchangeRates.base,
+      fallbackLabel: formatMenuPriceCents({
+        priceCents: Math.round(cadAmount * 100),
+        currency: exchangeRates.base,
+        locale
+      })
+    });
+  }
+
   return new Intl.NumberFormat(LOCALE_LANGUAGE_TAG[locale], {
     currency,
     style: "currency"
-  }).format(cadAmount * TROUVABLE_STATIC_CAD_RATES[currency]);
+  }).format(cadAmount * (TROUVABLE_STATIC_CAD_RATES[currency] ?? 1));
 }
 
 export function formatTrouvablePriceLabel(
   priceLabel: string,
   currency: TrouvableCurrency,
-  locale: TrouvableLocale
+  locale: TrouvableLocale,
+  exchangeRates?: MenuExchangeRates
 ): string {
   const cadAmount = parseTrouvablePriceLabel(priceLabel);
   return cadAmount === null
     ? priceLabel
-    : formatTrouvableAmount(cadAmount, currency, locale);
+    : formatTrouvableAmount(cadAmount, currency, locale, exchangeRates);
+}
+
+export function getTrouvableDishConvertedPriceCents(
+  dish: PublicMenuDish,
+  currency: TrouvableCurrency,
+  exchangeRates?: MenuExchangeRates
+): number | null {
+  const baseCurrency = exchangeRates?.base ?? dish.baseCurrency;
+  const rates = exchangeRates?.rates;
+  return convertMenuPriceCents({
+    priceCents: dish.priceCents,
+    sourceCurrency: dish.priceCurrency,
+    targetCurrency: currency,
+    baseCurrency,
+    rates
+  });
+}
+
+export function formatTrouvableDishPrice(
+  dish: PublicMenuDish,
+  currency: TrouvableCurrency,
+  locale: TrouvableLocale,
+  exchangeRates?: MenuExchangeRates
+): string {
+  return formatMenuPrice({
+    priceCents: dish.priceCents,
+    sourceCurrency: dish.priceCurrency,
+    targetCurrency: currency,
+    locale,
+    rates: exchangeRates?.rates,
+    baseCurrency: exchangeRates?.base ?? dish.baseCurrency,
+    displayPriceMode: dish.displayPriceMode,
+    fallbackLabel: dish.priceLabel
+  });
+}
+
+export function formatTrouvablePriceCents(
+  priceCents: number,
+  currency: TrouvableCurrency,
+  locale: TrouvableLocale
+): string {
+  return formatMenuPriceCents({ priceCents, currency, locale });
 }
 
 export function getTrouvableGreetingPeriod(
@@ -404,6 +537,14 @@ export function getTrouvableGreeting(
   period: TrouvableGreetingPeriod
 ): string {
   return TROUVABLE_COPY[locale].greeting[period];
+}
+
+export function getTrouvableGreetingForDate(
+  locale: TrouvableLocale,
+  timezone: string,
+  date: Date = new Date()
+): string {
+  return getGreetingForTime(date, publicLocaleToLanguageTag(locale), timezone);
 }
 
 export function translateTrouvableCategoryLabel(

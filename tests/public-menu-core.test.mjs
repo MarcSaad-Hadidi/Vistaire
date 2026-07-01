@@ -59,12 +59,17 @@ test("builds a Resto Marc public menu from Supabase-like rows", () => {
   assert.equal(menu.slug, "resto-marc");
   assert.equal(menu.name, "Resto Marc");
   assert.equal(menu.source, "supabase");
+  assert.equal(menu.settings.defaultLocale, "fr-CA");
+  assert.equal(menu.settings.baseCurrency, "CAD");
   assert.deepEqual(menu.googleReview, {
     enabled: false,
     googleReviewUrl: ""
   });
   assert.equal(menu.dishes.length, 2);
   assert.equal(menu.dishes[0].name, "Salade fraiche maison");
+  assert.equal(menu.dishes[0].priceCents, 899);
+  assert.equal(menu.dishes[0].priceCurrency, "CAD");
+  assert.equal(menu.dishes[0].baseCurrency, "CAD");
   assert.equal(menu.dishes[1].name, "Bol de riz au poulet et legumes");
   assert.equal(menu.dishes[1].priceLabel, "17,99\u00a0$");
 });

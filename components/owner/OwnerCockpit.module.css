@@ -667,6 +667,34 @@
   gap: 8px;
 }
 
+.fieldHelp {
+  color: rgba(255, 250, 240, 0.58);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.lockedSetting {
+  display: grid;
+  gap: 7px;
+  min-height: 74px;
+  align-content: center;
+  border: 1px solid rgba(232, 207, 155, 0.14);
+  border-radius: 10px;
+  background: rgba(8, 6, 4, 0.24);
+  padding: 10px 12px;
+}
+
+.lockedSetting strong {
+  color: var(--owner-cream);
+  font-size: 14px;
+}
+
+.lockedSetting small {
+  color: rgba(255, 250, 240, 0.58);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .urlPreview {
   margin-top: 14px;
 }
@@ -1581,6 +1609,11 @@
 
 .tableRow:hover {
   background: var(--surface-2);
+}
+
+.selectedMediaRow {
+  background: rgba(232, 207, 155, 0.08);
+  box-shadow: inset 3px 0 0 rgba(232, 207, 155, 0.72);
 }
 
 .cellMain {
@@ -2510,6 +2543,11 @@
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+
+.draftChip button:disabled {
+  color: rgba(255, 250, 240, 0.34);
+  cursor: not-allowed;
 }
 
 .toggleCardGrid {

@@ -3,11 +3,17 @@ import { notFound } from "next/navigation";
 import { MaisonElyseDishDetail } from "@/components/menu/MaisonElyseDishDetail";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { TrouvableDishDetailExperience } from "@/components/menu/TrouvableDishDetailExperience";
+import { getExchangeRates } from "@/lib/currency/exchangeRates";
 import { normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
 import {
+  normalizePublicMenuLocalePreference,
+  publicLocaleToShortLocale
+} from "@/lib/menu/publicMenuSettings";
+import {
+  isMaisonElysePublicMenu,
   isTrouvablePublicMenu,
   resolvePublicMenuUiConfig
 } from "@/lib/menu/trouvableMenuExperience";
@@ -54,28 +60,38 @@ export default async function PublicDishPage({
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
   const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const initialMenu = await getPublicMenuBySlug(slug, locale);
+
+  if (!initialMenu) {
+    notFound();
+  }
+
+  const activePublicLocale = normalizePublicMenuLocalePreference(
+    hasLangParam ? query.lang : undefined,
+    initialMenu.settings
+  );
+  const activeLocale = publicLocaleToShortLocale(activePublicLocale);
+  const menu =
+    activeLocale === locale
+      ? initialMenu
+      : (await getPublicMenuBySlug(slug, activeLocale)) ?? initialMenu;
   const menuQuery = {
-    ...(hasLangParam ? { lang: locale } : {}),
+    lang: activeLocale,
     table: query.table,
     zone: query.zone,
     view: query.view
   };
-  const menu = await getPublicMenuBySlug(slug, locale);
-
-  if (!menu) {
-    notFound();
-  }
 
   const dish = getPublicMenuDishBySlug(menu, dishSlug);
   if (!dish) {
     notFound();
   }
 
-  if (menu.slug === "maison-elyse") {
+  if (isMaisonElysePublicMenu(menu)) {
     return (
       <MaisonElyseDishDetail
         dish={dish}
-        locale={locale}
+        locale={activeLocale}
         menu={menu}
         query={menuQuery}
       />
@@ -89,10 +105,16 @@ export default async function PublicDishPage({
     .filter(Boolean)
     .join(" · ");
   if (isTrouvablePublicMenu(menu)) {
+    const exchangeRates = await getExchangeRates({
+      baseCurrency: menu.settings.baseCurrency,
+      supportedCurrencies: menu.settings.supportedCurrencies
+    });
+
     return (
       <TrouvableDishDetailExperience
         context={context}
         dish={dish}
+        exchangeRates={exchangeRates}
         menu={menu}
         query={menuQuery}
         typographyClassName={trouvableTypographyClassName}

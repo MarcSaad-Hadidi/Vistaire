@@ -232,7 +232,7 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(page.getByRole("link", { name: /Retour . la carte/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Retour . la carte/i })).toHaveAttribute(
       "href",
-      "/menu/maison-elyse?table=12&zone=terrasse&view=carte"
+      "/menu/maison-elyse?lang=fr&table=12&zone=terrasse&view=carte"
     );
     await expect(page.getByRole("navigation", { name: "Actions du plat" })).toHaveCount(0);
     await expect(

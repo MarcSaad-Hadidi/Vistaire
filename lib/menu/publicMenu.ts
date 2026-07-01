@@ -21,8 +21,23 @@ import {
   type PublicMenu,
   type PublicMenuRow
 } from "@/lib/menu/publicMenuCore";
+import {
+  DEFAULT_PUBLIC_MENU_SETTINGS,
+  serializePublicMenuSettings
+} from "@/lib/menu/publicMenuSettings";
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
+
+function parseDemoPriceCents(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value * 100));
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.trim().replace(",", "."));
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0;
+  }
+  return 0;
+}
 
 function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
   const restaurant = getRestaurant(locale);
@@ -37,6 +52,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
     location: restaurant.location,
     cuisineType: restaurant.cuisineType,
     googleReview: normalizeGoogleReviewConfig(restaurant.googleReview),
+    settings: serializePublicMenuSettings(DEFAULT_PUBLIC_MENU_SETTINGS),
     source: "demo",
     dishes: dishes.slice(0, 60).map((dish, index) => ({
       id: dish.slug || `demo-${index}`,
@@ -47,6 +63,10 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
         getCategoryBySlug(dish.categorySlug ?? "", locale)?.name ??
         (locale === "en" ? "Menu" : "Carte"),
       priceLabel: dish.price ? `$${dish.price}` : "",
+      priceCents: parseDemoPriceCents(dish.price),
+      priceCurrency: "CAD",
+      baseCurrency: "CAD",
+      displayPriceMode: "auto",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
@@ -110,6 +130,40 @@ function findPrimaryMenu(
   );
 }
 
+function getObject(row: PublicMenuRow, key: string): PublicMenuRow {
+  const value = row[key];
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as PublicMenuRow;
+  }
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as PublicMenuRow;
+      }
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function findLegacyMenuLanguages(
+  rows: PublicMenuRow[],
+  restaurantId: string
+): unknown {
+  const scoped = rows.filter(
+    (row) => getString(row, ["restaurant_id", "restaurantId"], "") === restaurantId
+  );
+  const preferred =
+    scoped.find((row) => getString(row, ["status"], "") === "published") ??
+    scoped.find((row) => getString(row, ["status"], "") === "draft") ??
+    scoped[0];
+  if (!preferred) return undefined;
+  const configJson = getObject(preferred, "config_json");
+  return configJson.menuLanguages ?? configJson.menu_languages;
+}
+
 export async function getPublicMenuBySlug(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE
@@ -135,12 +189,16 @@ export async function getPublicMenuBySlug(
     return demoMenu(slug, resolvedLocale);
   }
 
-  const [menusResult, categoriesResult, dishesResult] = await Promise.all([
+  const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
     readSupabaseRows<PublicMenuRow>("menus", 500),
     readSupabaseRows<PublicMenuRow>("menu_categories", 1_000),
-    readSupabaseRows<PublicMenuRow>("menu_dishes", 1_000)
+    readSupabaseRows<PublicMenuRow>("menu_dishes", 1_000),
+    readSupabaseRows<PublicMenuRow>("menu_ui_configs", 1_000)
   ]);
   const primaryMenu = menusResult.ok ? findPrimaryMenu(menusResult.rows, restaurantId) : null;
+  const legacyMenuLanguages = uiConfigsResult.ok
+    ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
+    : undefined;
 
   if (primaryMenu) {
     return buildRelationalSupabasePublicMenu({
@@ -148,13 +206,15 @@ export async function getPublicMenuBySlug(
       restaurantRow: match,
       menuRow: primaryMenu,
       categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
-      dishRows: dishesResult.ok ? dishesResult.rows : []
+      dishRows: dishesResult.ok ? dishesResult.rows : [],
+      legacyMenuLanguages
     });
   }
 
   return buildSupabasePublicMenu(
     slug,
     match,
-    dishesResult.ok ? dishesResult.rows : []
+    dishesResult.ok ? dishesResult.rows : [],
+    { legacyMenuLanguages }
   );
 }

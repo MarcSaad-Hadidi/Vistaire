@@ -56,6 +56,10 @@ import {
   mergeCustomConfig
 } from "@/lib/menu/menuThemePresets";
 import type { PublicMenu, PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCore";
+import {
+  DEFAULT_PUBLIC_MENU_SETTINGS,
+  serializePublicMenuSettings
+} from "@/lib/menu/publicMenuSettings";
 import { DEFAULT_OWNER_QR_STYLE, monogramFromName } from "@/lib/owner/qrStyle";
 import type { OwnerRestaurant, OwnerQrTargetKind } from "@/lib/owner/types";
 import styles from "./MenuUiBuilder.module.css";
@@ -218,6 +222,7 @@ function emptyMenu(restaurant: MenuBuilderRestaurant | undefined): PublicMenu {
       enabled: false,
       googleReviewUrl: ""
     },
+    settings: serializePublicMenuSettings(DEFAULT_PUBLIC_MENU_SETTINGS),
     source: "supabase",
     dishes: []
   };
@@ -237,6 +242,16 @@ function localDish(args: {
     description: args.description,
     category: args.category,
     priceLabel: args.priceLabel,
+    priceCents:
+      Math.max(
+        0,
+        Math.round(
+          Number(args.priceLabel.replace(",", ".").replace(/[^0-9.]/g, "")) * 100
+        )
+      ) || 0,
+    priceCurrency: "CAD",
+    baseCurrency: "CAD",
+    displayPriceMode: "auto",
     imageUrl: "",
     thumbnailUrl: "",
     hasPhoto: false,

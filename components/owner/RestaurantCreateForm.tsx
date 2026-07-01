@@ -9,6 +9,19 @@ import {
   slugifyRestaurantSlug
 } from "@/lib/owner/menuUrlCore";
 import {
+  PUBLIC_MENU_CURRENCIES,
+  PUBLIC_MENU_LOCALE_OPTIONS,
+  normalizePublicMenuCurrency,
+  normalizePublicMenuLocale,
+  publicMenuSettingsToLegacyMenuLanguages,
+  type PublicMenuCurrency,
+  type PublicMenuLocale,
+  type PublicMenuPriceDisplayMode,
+  type PublicMenuSettings,
+  type PublicMenuStyle,
+  type PublicMenuThemeMode
+} from "@/lib/menu/publicMenuSettings";
+import {
   formatPriceCentsForMenu,
   normalizeDisplayPriceMode,
   parsePriceToCents,
@@ -16,7 +29,6 @@ import {
 } from "@/lib/owner/price";
 import type {
   CreateRestaurantDishPhotoStatus,
-  CreateRestaurantMenuLanguage,
   OwnerRestaurant,
   OwnerRestaurantStatus
 } from "@/lib/owner/types";
@@ -46,7 +58,8 @@ type DraftDish = {
   photoStatus: CreateRestaurantDishPhotoStatus;
 };
 
-type MenuLanguage = CreateRestaurantMenuLanguage;
+type MenuLanguage = PublicMenuLocale;
+type MenuCurrency = PublicMenuCurrency;
 
 type SubmitState =
   | { status: "idle"; message: "" }
@@ -107,16 +120,50 @@ const menuLanguageOptions: Array<{
   value: MenuLanguage;
   label: string;
   detail: string;
+}> = PUBLIC_MENU_LOCALE_OPTIONS.map((option) => ({
+  value: option.value,
+  label: option.label,
+  detail: option.value
+}));
+
+const preferredCurrencyDetails: Record<string, string> = {
+  CAD: "Devise de base recommandee au Canada.",
+  USD: "Conversion client en dollar americain.",
+  EUR: "Conversion client en euro."
+};
+
+const currencyOptions: Array<{
+  value: MenuCurrency;
+  label: string;
+  detail: string;
+}> = PUBLIC_MENU_CURRENCIES.map((currency) => ({
+  value: currency,
+  label: currency,
+  detail: preferredCurrencyDetails[currency] ?? "Devise disponible pour le menu public."
+}));
+
+const themeModeOptions: Array<{
+  value: PublicMenuThemeMode;
+  label: string;
+}> = [
+  { value: "dark", label: "Dark premium" },
+  { value: "light", label: "Light" }
+];
+
+const publicMenuStyleOptions: Array<{
+  value: PublicMenuStyle;
+  label: string;
+  detail: string;
 }> = [
   {
-    value: "fr",
-    label: "Francais",
-    detail: "Base de la carte client."
+    value: "trouvable",
+    label: "Style Trouvable",
+    detail: "Experience immersive avec controles langue, devise, theme et fiches plats premium."
   },
   {
-    value: "en",
-    label: "English",
-    detail: "Version bilingue."
+    value: "maison-elyse",
+    label: "Style Maison Elyse",
+    detail: "Carte QR plus editoriale, accueil fort et navigation visuelle classique."
   }
 ];
 
@@ -162,10 +209,14 @@ function draftId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function formatPrice(value: string, displayPriceMode: DisplayPriceMode): string {
+function formatPrice(
+  value: string,
+  displayPriceMode: DisplayPriceMode,
+  currency: MenuCurrency = "CAD"
+): string {
   const parsed = parsePriceToCents(value);
   if (!parsed.ok) return value;
-  return formatPriceCentsForMenu(parsed.cents, "CAD", { displayPriceMode });
+  return formatPriceCentsForMenu(parsed.cents, currency, { displayPriceMode });
 }
 
 function splitList(value: string): string[] {
@@ -187,11 +238,80 @@ function formatList(items: string[]): string {
   return items.length > 0 ? items.join(", ") : "A completer";
 }
 
+function compareByOptionOrder<T extends string>(
+  a: T,
+  b: T,
+  options: readonly { value: T }[]
+): number {
+  const aIndex = options.findIndex((option) => option.value === a);
+  const bIndex = options.findIndex((option) => option.value === b);
+  if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex;
+  if (aIndex >= 0) return -1;
+  if (bIndex >= 0) return 1;
+  return a.localeCompare(b);
+}
+
+function getMenuLanguageLabel(language: MenuLanguage): string {
+  const option = menuLanguageOptions.find((item) => item.value === language);
+  if (option) return option.label;
+  try {
+    return (
+      new Intl.DisplayNames(["fr-CA"], { type: "language" }).of(language) ??
+      language
+    );
+  } catch {
+    return language;
+  }
+}
+
 function formatMenuLanguages(languages: MenuLanguage[]): string {
-  return menuLanguageOptions
-    .filter((option) => languages.includes(option.value))
-    .map((option) => option.label)
-    .join(", ");
+  return languages.length > 0
+    ? languages.map(getMenuLanguageLabel).join(", ")
+    : "Aucune langue";
+}
+
+function normalizeLanguageInput(value: string): MenuLanguage | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized = normalizePublicMenuLocale(raw, "");
+  return normalized ? normalized : null;
+}
+
+function getCurrencyDetail(currency: MenuCurrency): string {
+  return preferredCurrencyDetails[currency] ?? "Devise disponible pour le menu public.";
+}
+
+function formatCurrencyOption(currency: MenuCurrency): string {
+  try {
+    const name = new Intl.DisplayNames(["fr-CA"], { type: "currency" }).of(currency);
+    return name ? `${currency} - ${name}` : currency;
+  } catch {
+    return currency;
+  }
+}
+
+function formatCurrencies(currencies: MenuCurrency[]): string {
+  return currencies.length > 0 ? currencies.join(", ") : "Aucune devise";
+}
+
+function getPublicMenuStyleLabel(style: PublicMenuStyle): string {
+  return publicMenuStyleOptions.find((option) => option.value === style)?.label ?? style;
+}
+
+function normalizeCurrencyInput(value: string): MenuCurrency | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized = normalizePublicMenuCurrency(raw, "");
+  return normalized ? normalized : null;
+}
+
+function isValidTimezone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("fr-CA", { timeZone: value }).format(new Date(0));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function formatPhotoStatus(status: CreateRestaurantDishPhotoStatus): string {
@@ -292,7 +412,24 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [sections, setSections] = useState<DraftSection[]>([]);
   const [sectionName, setSectionName] = useState("");
   const [sectionDescription, setSectionDescription] = useState("");
-  const [menuLanguages, setMenuLanguages] = useState<MenuLanguage[]>(["fr"]);
+  const [menuLanguages, setMenuLanguages] = useState<MenuLanguage[]>(["fr-CA"]);
+  const [defaultMenuLanguage, setDefaultMenuLanguage] =
+    useState<MenuLanguage>("fr-CA");
+  const [supportedCurrencies, setSupportedCurrencies] = useState<MenuCurrency[]>(["CAD"]);
+  const [baseCurrency, setBaseCurrency] = useState<MenuCurrency>("CAD");
+  const [defaultCurrency, setDefaultCurrency] = useState<MenuCurrency>("CAD");
+  const [publicMenuStyle, setPublicMenuStyle] =
+    useState<PublicMenuStyle>("trouvable");
+  const [restaurantTimezone, setRestaurantTimezone] =
+    useState("America/Toronto");
+  const [defaultThemeMode, setDefaultThemeMode] =
+    useState<PublicMenuThemeMode>("dark");
+  const [allowLanguageSelector, setAllowLanguageSelector] = useState(true);
+  const [allowCurrencySelector, setAllowCurrencySelector] = useState(true);
+  const [allowThemeToggle, setAllowThemeToggle] = useState(true);
+  const [taxIncluded, setTaxIncluded] = useState(true);
+  const [priceDisplayMode, setPriceDisplayMode] =
+    useState<PublicMenuPriceDisplayMode>("auto");
   const [dishes, setDishes] = useState<DraftDish[]>([]);
   const [editingDishId, setEditingDishId] = useState("");
   const [dishName, setDishName] = useState("");
@@ -330,6 +467,38 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     (dish) => dish.photoStatus === "ready" || dish.imageUrl.trim()
   ).length;
   const mediaBasePathPreview = "restaurants/{id-supabase}/photos/";
+  const publicMenuSettings = useMemo<PublicMenuSettings>(
+    () => ({
+      defaultLocale: defaultMenuLanguage,
+      supportedLocales: menuLanguages,
+      baseCurrency,
+      defaultCurrency,
+      supportedCurrencies,
+      publicMenuStyle,
+      timezone: restaurantTimezone.trim() || "America/Toronto",
+      defaultThemeMode,
+      allowThemeToggle,
+      allowCurrencySelector,
+      allowLanguageSelector,
+      taxIncluded,
+      priceDisplayMode
+    }),
+    [
+      allowCurrencySelector,
+      allowLanguageSelector,
+      allowThemeToggle,
+      baseCurrency,
+      defaultCurrency,
+      defaultMenuLanguage,
+      defaultThemeMode,
+      menuLanguages,
+      priceDisplayMode,
+      publicMenuStyle,
+      restaurantTimezone,
+      supportedCurrencies,
+      taxIncluded
+    ]
+  );
 
   function updateName(value: string) {
     setName(value);
@@ -389,16 +558,49 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           return current;
         }
         setError("");
-        return current.filter((item) => item !== language);
+        const next = current.filter((item) => item !== language);
+        if (defaultMenuLanguage === language) {
+          setDefaultMenuLanguage(next[0] ?? "fr-CA");
+        }
+        return next;
       }
 
       setError("");
-      return [...current, language].sort((a, b) => {
-        const aIndex = menuLanguageOptions.findIndex((option) => option.value === a);
-        const bIndex = menuLanguageOptions.findIndex((option) => option.value === b);
-        return aIndex - bIndex;
-      });
+      return [...current, language].sort((a, b) =>
+        compareByOptionOrder(a, b, menuLanguageOptions)
+      );
     });
+  }
+
+  function toggleSupportedCurrency(currency: MenuCurrency) {
+    setSupportedCurrencies((current) => {
+      if (current.includes(currency)) {
+        if (current.length === 1) {
+          setError("Gardez au moins une devise pour le menu.");
+          return current;
+        }
+        const next = current.filter((item) => item !== currency);
+        if (baseCurrency === currency) setBaseCurrency(next[0] ?? "CAD");
+        if (defaultCurrency === currency) setDefaultCurrency(next[0] ?? "CAD");
+        setError("");
+        return next;
+      }
+
+      setError("");
+      return [...current, currency].sort(
+        (a, b) => compareByOptionOrder(a, b, currencyOptions)
+      );
+    });
+  }
+
+  function updateBaseCurrency(currency: MenuCurrency) {
+    if (!supportedCurrencies.includes(currency)) return;
+    setBaseCurrency(currency);
+  }
+
+  function updateDefaultCurrency(currency: MenuCurrency) {
+    if (!supportedCurrencies.includes(currency)) return;
+    setDefaultCurrency(currency);
   }
 
   function toggleAllergen(value: string) {
@@ -539,6 +741,26 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         setError("Choisissez au moins une langue de menu.");
         return false;
       }
+      if (!menuLanguages.includes(defaultMenuLanguage)) {
+        setError("La langue par defaut doit etre activee.");
+        return false;
+      }
+      if (supportedCurrencies.length === 0) {
+        setError("Choisissez au moins une devise.");
+        return false;
+      }
+      if (!supportedCurrencies.includes(baseCurrency)) {
+        setError("La devise de base doit etre activee.");
+        return false;
+      }
+      if (!supportedCurrencies.includes(defaultCurrency)) {
+        setError("La devise par defaut doit etre activee.");
+        return false;
+      }
+      if (!isValidTimezone(restaurantTimezone)) {
+        setError("Timezone restaurant invalide.");
+        return false;
+      }
       if (sections.length === 0) {
         setError("Ajoutez au moins une section de menu.");
         return false;
@@ -629,7 +851,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           contactPhone,
           googleReviewUrl,
           notes,
-          menuLanguages,
+          menuLanguages: publicMenuSettingsToLegacyMenuLanguages(publicMenuSettings),
+          publicMenuSettings,
           sections: sections.map((section, index) => ({
             name: section.name,
             description: section.description,
@@ -790,10 +1013,34 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         {currentStep.id === "menu" ? (
           <MenuStep
             menuLanguages={menuLanguages}
+            defaultMenuLanguage={defaultMenuLanguage}
+            supportedCurrencies={supportedCurrencies}
+            baseCurrency={baseCurrency}
+            defaultCurrency={defaultCurrency}
+            publicMenuStyle={publicMenuStyle}
+            restaurantTimezone={restaurantTimezone}
+            defaultThemeMode={defaultThemeMode}
+            allowLanguageSelector={allowLanguageSelector}
+            allowCurrencySelector={allowCurrencySelector}
+            allowThemeToggle={allowThemeToggle}
+            taxIncluded={taxIncluded}
+            priceDisplayMode={priceDisplayMode}
             sections={sections}
             sectionName={sectionName}
             sectionDescription={sectionDescription}
             onToggleLanguage={toggleMenuLanguage}
+            onDefaultMenuLanguageChange={setDefaultMenuLanguage}
+            onToggleCurrency={toggleSupportedCurrency}
+            onBaseCurrencyChange={updateBaseCurrency}
+            onDefaultCurrencyChange={updateDefaultCurrency}
+            onPublicMenuStyleChange={setPublicMenuStyle}
+            onRestaurantTimezoneChange={setRestaurantTimezone}
+            onDefaultThemeModeChange={setDefaultThemeMode}
+            onAllowLanguageSelectorChange={setAllowLanguageSelector}
+            onAllowCurrencySelectorChange={setAllowCurrencySelector}
+            onAllowThemeToggleChange={setAllowThemeToggle}
+            onTaxIncludedChange={setTaxIncluded}
+            onPriceDisplayModeChange={setPriceDisplayMode}
             onSectionNameChange={setSectionName}
             onSectionDescriptionChange={setSectionDescription}
             onAddSection={addSection}
@@ -805,6 +1052,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           <DishesStep
             sections={sections}
             dishes={dishes}
+            baseCurrency={baseCurrency}
             editingDishId={editingDishId}
             dishName={dishName}
             dishSection={dishSection || sections[0]?.name || ""}
@@ -847,6 +1095,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             cuisineType={cuisineType}
             googleReviewUrl={googleReviewUrl}
             menuLanguages={menuLanguages}
+            publicMenuSettings={publicMenuSettings}
             sections={sections}
             dishes={dishes}
             photoReadyCount={photoReadyCount}
@@ -1008,25 +1257,105 @@ function ProfileStep({
 
 function MenuStep({
   menuLanguages,
+  defaultMenuLanguage,
+  supportedCurrencies,
+  baseCurrency,
+  defaultCurrency,
+  publicMenuStyle,
+  restaurantTimezone,
+  defaultThemeMode,
+  allowLanguageSelector,
+  allowCurrencySelector,
+  allowThemeToggle,
+  taxIncluded,
+  priceDisplayMode,
   sections,
   sectionName,
   sectionDescription,
   onToggleLanguage,
+  onDefaultMenuLanguageChange,
+  onToggleCurrency,
+  onBaseCurrencyChange,
+  onDefaultCurrencyChange,
+  onPublicMenuStyleChange,
+  onRestaurantTimezoneChange,
+  onDefaultThemeModeChange,
+  onAllowLanguageSelectorChange,
+  onAllowCurrencySelectorChange,
+  onAllowThemeToggleChange,
+  onTaxIncludedChange,
+  onPriceDisplayModeChange,
   onSectionNameChange,
   onSectionDescriptionChange,
   onAddSection,
   onRemoveSection
 }: {
   menuLanguages: MenuLanguage[];
+  defaultMenuLanguage: MenuLanguage;
+  supportedCurrencies: MenuCurrency[];
+  baseCurrency: MenuCurrency;
+  defaultCurrency: MenuCurrency;
+  publicMenuStyle: PublicMenuStyle;
+  restaurantTimezone: string;
+  defaultThemeMode: PublicMenuThemeMode;
+  allowLanguageSelector: boolean;
+  allowCurrencySelector: boolean;
+  allowThemeToggle: boolean;
+  taxIncluded: boolean;
+  priceDisplayMode: PublicMenuPriceDisplayMode;
   sections: DraftSection[];
   sectionName: string;
   sectionDescription: string;
   onToggleLanguage: (language: MenuLanguage) => void;
+  onDefaultMenuLanguageChange: (language: MenuLanguage) => void;
+  onToggleCurrency: (currency: MenuCurrency) => void;
+  onBaseCurrencyChange: (currency: MenuCurrency) => void;
+  onDefaultCurrencyChange: (currency: MenuCurrency) => void;
+  onPublicMenuStyleChange: (style: PublicMenuStyle) => void;
+  onRestaurantTimezoneChange: (timezone: string) => void;
+  onDefaultThemeModeChange: (theme: PublicMenuThemeMode) => void;
+  onAllowLanguageSelectorChange: (value: boolean) => void;
+  onAllowCurrencySelectorChange: (value: boolean) => void;
+  onAllowThemeToggleChange: (value: boolean) => void;
+  onTaxIncludedChange: (value: boolean) => void;
+  onPriceDisplayModeChange: (mode: PublicMenuPriceDisplayMode) => void;
   onSectionNameChange: (value: string) => void;
   onSectionDescriptionChange: (value: string) => void;
   onAddSection: () => void;
   onRemoveSection: (id: string) => void;
 }) {
+  const [customLanguage, setCustomLanguage] = useState("");
+  const [customCurrency, setCustomCurrency] = useState("");
+  const availableLanguageOptions = menuLanguageOptions.filter(
+    (option) => !menuLanguages.includes(option.value)
+  );
+  const availableCurrencyOptions = currencyOptions.filter(
+    (option) => !supportedCurrencies.includes(option.value)
+  );
+  const hasMultipleCurrencies = supportedCurrencies.length > 1;
+
+  function addLanguage(value: string) {
+    const language = normalizeLanguageInput(value);
+    if (!language || menuLanguages.includes(language)) return;
+    onToggleLanguage(language);
+  }
+
+  function addCustomLanguage() {
+    addLanguage(customLanguage);
+    setCustomLanguage("");
+  }
+
+  function addCurrency(value: string) {
+    const currency = normalizeCurrencyInput(value);
+    if (!currency || supportedCurrencies.includes(currency)) return;
+    onToggleCurrency(currency);
+  }
+
+  function addCustomCurrency() {
+    addCurrency(customCurrency);
+    setCustomCurrency("");
+  }
+
   return (
     <article className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -1043,22 +1372,307 @@ function MenuStep({
             <h4 id="menu-language-title">Langues du menu</h4>
             <p>{formatMenuLanguages(menuLanguages)}</p>
           </div>
-          <div className={styles.menuLanguageGrid}>
-            {menuLanguageOptions.map((option) => {
-              const active = menuLanguages.includes(option.value);
-              return (
+          <div className={styles.formGrid}>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Ajouter une langue</span>
+              <select
+                className={styles.control}
+                value=""
+                aria-label="Ajouter une langue au menu"
+                onChange={(event) => addLanguage(event.target.value)}
+              >
+                <option value="">Choisir une langue...</option>
+                {availableLanguageOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} ({option.value})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Code langue personnalise</span>
+              <input
+                className={styles.control}
+                value={customLanguage}
+                placeholder="ex: ja-JP, ar, es-MX"
+                aria-label="Ajouter un code langue personnalise"
+                onChange={(event) => setCustomLanguage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addCustomLanguage();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnSmall}`}
+                onClick={addCustomLanguage}
+              >
+                Ajouter
+              </button>
+            </label>
+          </div>
+          <div className={styles.inlineDraftList} aria-label="Langues selectionnees">
+            {menuLanguages.map((language) => (
+              <article key={language} className={styles.draftChip}>
+                <strong>{getMenuLanguageLabel(language)}</strong>
+                <small>{language}</small>
                 <button
-                  key={option.value}
                   type="button"
-                  className={`${styles.toggleCard} ${active ? styles.toggleCardActive : ""}`}
-                  aria-pressed={active}
-                  onClick={() => onToggleLanguage(option.value)}
+                  disabled={menuLanguages.length === 1}
+                  onClick={() => onToggleLanguage(language)}
                 >
-                  <strong>{option.label}</strong>
-                  <span>{option.detail}</span>
+                  Retirer
                 </button>
-              );
-            })}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.menuLanguagePanel} aria-labelledby="menu-public-style-title">
+          <div>
+            <h4 id="menu-public-style-title">Style du menu public</h4>
+            <p>
+              Choisissez l&apos;experience visuelle qui sera utilisee sur le QR menu
+              public et sur les fiches plats.
+            </p>
+          </div>
+          <div className={styles.toggleCardGrid} role="group" aria-label="Style du menu public">
+            {publicMenuStyleOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`${styles.toggleCard} ${
+                  publicMenuStyle === option.value ? styles.toggleCardActive : ""
+                }`}
+                aria-pressed={publicMenuStyle === option.value}
+                onClick={() => onPublicMenuStyleChange(option.value)}
+              >
+                <strong>{option.label}</strong>
+                <span>{option.detail}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.menuLanguagePanel} aria-labelledby="menu-settings-title">
+          <div>
+            <h4 id="menu-settings-title">Langues, devises et experience client</h4>
+            <p>
+              Les prix saisis dans l&apos;etape Plats sont dans la devise de base:
+              {" "}
+              {baseCurrency}. Les conversions client restent calculees depuis
+              cette source.
+            </p>
+          </div>
+
+          <div className={styles.formGrid}>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Langue par defaut</span>
+              <select
+                className={styles.control}
+                value={defaultMenuLanguage}
+                onChange={(event) =>
+                  onDefaultMenuLanguageChange(event.target.value as MenuLanguage)
+                }
+              >
+                {menuLanguages.map((language) => (
+                  <option key={language} value={language}>
+                    {getMenuLanguageLabel(language)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Timezone restaurant</span>
+              <input
+                className={styles.control}
+                value={restaurantTimezone}
+                placeholder="America/Toronto"
+                onChange={(event) => onRestaurantTimezoneChange(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className={styles.formGrid}>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Ajouter une devise</span>
+              <select
+                className={styles.control}
+                value=""
+                aria-label="Ajouter une devise au menu"
+                onChange={(event) => addCurrency(event.target.value)}
+              >
+                <option value="">Choisir une devise...</option>
+                {availableCurrencyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {formatCurrencyOption(option.value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Code devise personnalise</span>
+              <input
+                className={styles.control}
+                value={customCurrency}
+                placeholder="ex: GBP, JPY, CHF"
+                maxLength={3}
+                aria-label="Ajouter un code devise personnalise"
+                onChange={(event) => setCustomCurrency(event.target.value.toUpperCase())}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addCustomCurrency();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnSmall}`}
+                onClick={addCustomCurrency}
+              >
+                Ajouter
+              </button>
+            </label>
+          </div>
+
+          <div className={styles.inlineDraftList} aria-label="Devises selectionnees">
+            {supportedCurrencies.map((currency) => (
+              <article key={currency} className={styles.draftChip}>
+                <strong>{currency}</strong>
+                <small>{getCurrencyDetail(currency)}</small>
+                <button
+                  type="button"
+                  disabled={supportedCurrencies.length === 1}
+                  onClick={() => onToggleCurrency(currency)}
+                >
+                  Retirer
+                </button>
+              </article>
+            ))}
+          </div>
+
+          <div className={styles.formGrid}>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Devise des prix saisis</span>
+              <select
+                className={styles.control}
+                value={baseCurrency}
+                aria-describedby="base-currency-help"
+                onChange={(event) =>
+                  onBaseCurrencyChange(event.target.value as MenuCurrency)
+                }
+              >
+                {supportedCurrencies.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {formatCurrencyOption(currency)}
+                  </option>
+                ))}
+              </select>
+              <small id="base-currency-help" className={styles.fieldHelp}>
+                Source officielle: les prix ajoutes a l&apos;etape Plats sont
+                en {baseCurrency}.
+              </small>
+            </label>
+            {hasMultipleCurrencies ? (
+              <label className={styles.formField}>
+                <span className={styles.filterLabel}>Devise affichee au client</span>
+                <select
+                  className={styles.control}
+                  value={defaultCurrency}
+                  aria-describedby="default-currency-help"
+                  onChange={(event) =>
+                    onDefaultCurrencyChange(event.target.value as MenuCurrency)
+                  }
+                >
+                  {supportedCurrencies.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {formatCurrencyOption(currency)}
+                    </option>
+                  ))}
+                </select>
+                <small id="default-currency-help" className={styles.fieldHelp}>
+                  Devise ouverte par defaut sur le menu public. Le client peut
+                  changer si le selecteur devise est autorise.
+                </small>
+              </label>
+            ) : (
+              <div className={styles.lockedSetting}>
+                <span className={styles.filterLabel}>Devise affichee au client</span>
+                <strong>{formatCurrencyOption(defaultCurrency)}</strong>
+                <small>
+                  Identique a la devise des prix tant qu&apos;aucune autre devise
+                  n&apos;est ajoutee.
+                </small>
+              </div>
+            )}
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Theme par defaut</span>
+              <select
+                className={styles.control}
+                value={defaultThemeMode}
+                onChange={(event) =>
+                  onDefaultThemeModeChange(event.target.value as PublicMenuThemeMode)
+                }
+              >
+                {themeModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Affichage prix par defaut</span>
+              <select
+                className={styles.control}
+                value={priceDisplayMode}
+                onChange={(event) =>
+                  onPriceDisplayModeChange(event.target.value as PublicMenuPriceDisplayMode)
+                }
+              >
+                <option value="auto">Auto</option>
+                <option value="integer">Sans cents</option>
+                <option value="decimal">Avec cents</option>
+              </select>
+            </label>
+          </div>
+
+          <div className={styles.toggleCardGrid}>
+            <label className={styles.toggleLine}>
+              <input
+                type="checkbox"
+                checked={allowLanguageSelector}
+                onChange={(event) => onAllowLanguageSelectorChange(event.target.checked)}
+              />
+              <span>Autoriser le changement de langue</span>
+            </label>
+            <label className={styles.toggleLine}>
+              <input
+                type="checkbox"
+                checked={allowCurrencySelector}
+                onChange={(event) => onAllowCurrencySelectorChange(event.target.checked)}
+              />
+              <span>Autoriser le changement de devise</span>
+            </label>
+            <label className={styles.toggleLine}>
+              <input
+                type="checkbox"
+                checked={allowThemeToggle}
+                onChange={(event) => onAllowThemeToggleChange(event.target.checked)}
+              />
+              <span>Autoriser dark/light cote client</span>
+            </label>
+            <label className={styles.toggleLine}>
+              <input
+                type="checkbox"
+                checked={taxIncluded}
+                onChange={(event) => onTaxIncludedChange(event.target.checked)}
+              />
+              <span>Taxes incluses dans les prix affiches</span>
+            </label>
           </div>
         </section>
 
@@ -1095,6 +1709,7 @@ function MenuStep({
 function DishesStep({
   sections,
   dishes,
+  baseCurrency,
   editingDishId,
   dishName,
   dishSection,
@@ -1129,6 +1744,7 @@ function DishesStep({
 }: {
   sections: DraftSection[];
   dishes: DraftDish[];
+  baseCurrency: MenuCurrency;
   editingDishId: string;
   dishName: string;
   dishSection: string;
@@ -1189,7 +1805,7 @@ function DishesStep({
             </select>
           </label>
           <Field
-            label="Prix"
+            label={`Prix (${baseCurrency})`}
             type="text"
             inputMode="decimal"
             value={dishPrice}
@@ -1326,7 +1942,7 @@ function DishesStep({
                       <small className={styles.cellSub}>{dish.description}</small>
                     </td>
                     <td className={styles.cellSub}>{dish.section}</td>
-                    <td>{formatPrice(dish.price, dish.displayPriceMode)}</td>
+                    <td>{formatPrice(dish.price, dish.displayPriceMode, baseCurrency)}</td>
                     <td>
                       <span className={`${styles.badge} ${dish.photoStatus === "ready" || dish.imageUrl ? styles.badgeReady : styles.badgeWarn}`}>
                         {formatPhotoStatus(dish.photoStatus)}
@@ -1371,6 +1987,7 @@ function ReviewStep({
   cuisineType,
   googleReviewUrl,
   menuLanguages,
+  publicMenuSettings,
   sections,
   dishes,
   photoReadyCount,
@@ -1383,6 +2000,7 @@ function ReviewStep({
   cuisineType: string;
   googleReviewUrl: string;
   menuLanguages: MenuLanguage[];
+  publicMenuSettings: PublicMenuSettings;
   sections: DraftSection[];
   dishes: DraftDish[];
   photoReadyCount: number;
@@ -1393,6 +2011,21 @@ function ReviewStep({
   const checks = [
     ["Profil", Boolean(name), `${name || "Nom a completer"} - ${location || "Lieu a preciser"}`],
     ["Langues", menuLanguages.length > 0, formatMenuLanguages(menuLanguages)],
+    [
+      "Devises",
+      publicMenuSettings.supportedCurrencies.length > 0,
+      `${formatCurrencies(publicMenuSettings.supportedCurrencies)} - base ${publicMenuSettings.baseCurrency}`
+    ],
+    [
+      "Style menu",
+      true,
+      getPublicMenuStyleLabel(publicMenuSettings.publicMenuStyle)
+    ],
+    [
+      "Experience",
+      true,
+      `${getMenuLanguageLabel(publicMenuSettings.defaultLocale)} - ${publicMenuSettings.defaultCurrency} - ${publicMenuSettings.defaultThemeMode}`
+    ],
     [
       "Sections",
       sections.length > 0 && sectionsWithoutDish.length === 0,
@@ -1437,7 +2070,7 @@ function ReviewStep({
             <span>Menu</span>
             <strong>{dishes.length}</strong>
             <small>
-              {sections.length} section(s) - {formatMenuLanguages(menuLanguages)}
+              {sections.length} section(s) - {getPublicMenuStyleLabel(publicMenuSettings.publicMenuStyle)} - {publicMenuSettings.defaultCurrency}
             </small>
           </article>
           <article>

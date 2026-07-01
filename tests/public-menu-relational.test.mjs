@@ -26,7 +26,22 @@ test("buildRelationalSupabasePublicMenu maps categories, dishes, metadata, and p
       restaurant_id: restaurantId,
       slug: "principal",
       status: "published",
-      is_primary: true
+      is_primary: true,
+      settings_json: {
+        defaultLocale: "en-CA",
+        supportedLocales: ["en-CA"],
+        baseCurrency: "USD",
+        defaultCurrency: "USD",
+        supportedCurrencies: ["USD"],
+        publicMenuStyle: "maison-elyse",
+        timezone: "America/New_York",
+        defaultThemeMode: "light",
+        allowThemeToggle: false,
+        allowCurrencySelector: false,
+        allowLanguageSelector: false,
+        taxIncluded: true,
+        priceDisplayMode: "decimal"
+      }
     },
     categoryRows: [
       {
@@ -104,9 +119,15 @@ test("buildRelationalSupabasePublicMenu maps categories, dishes, metadata, and p
   });
 
   assert.equal(menu.dishes.length, 2);
+  assert.equal(menu.settings.defaultLocale, "en-CA");
+  assert.deepEqual(menu.settings.supportedCurrencies, ["USD"]);
+  assert.equal(menu.settings.publicMenuStyle, "maison-elyse");
+  assert.equal(menu.publicMenuStyleExplicit, true);
   assert.equal(menu.dishes[0].category, "Entrees");
   assert.equal(menu.dishes[0].categoryDescription, "Ouvertures de saison");
   assert.equal(menu.dishes[0].priceLabel, "14,99\u00a0$");
+  assert.equal(menu.dishes[0].priceCurrency, "CAD");
+  assert.equal(menu.dishes[0].baseCurrency, "USD");
   assert.equal(menu.dishes[0].photoStatus, "ready");
   assert.deepEqual(menu.dishes[0].ingredients, ["betterave"]);
   assert.deepEqual(menu.dishes[0].options, ["Sans lactose sur demande"]);

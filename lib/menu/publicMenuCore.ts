@@ -4,15 +4,31 @@ import {
   type DisplayPriceMode
 } from "../owner/price.ts";
 import { normalizeModelAssetBytes } from "../owner/modelAssetSize.ts";
+import {
+  normalizePublicMenuCurrency,
+  normalizePublicMenuSettings,
+  type PublicMenuCurrency,
+  type PublicMenuPriceDisplayMode,
+  type PublicMenuSettings
+} from "./publicMenuSettings.ts";
 
 export type PublicMenuDish = {
   id: string;
   slug: string;
   name: string;
   description: string;
+  categoryId?: string;
   category: string;
   categoryDescription?: string;
   priceLabel: string;
+  priceCents: number;
+  priceCurrency: PublicMenuCurrency;
+  baseCurrency: PublicMenuCurrency;
+  displayPriceMode: PublicMenuPriceDisplayMode;
+  originalPriceCents?: number;
+  calories?: number;
+  spiceLevel?: number;
+  dietaryType?: string;
   imageUrl: string;
   thumbnailUrl: string;
   hasPhoto: boolean;
@@ -70,6 +86,8 @@ export type PublicMenu = {
   location: string;
   cuisineType: string;
   googleReview: GoogleReviewConfig;
+  settings: PublicMenuSettings;
+  publicMenuStyleExplicit?: boolean;
   source: "supabase" | "demo";
   dishes: PublicMenuDish[];
 };
@@ -444,26 +462,36 @@ function displayPriceMode(value: unknown): DisplayPriceMode {
     : "auto";
 }
 
-function formatPrice(row: PublicMenuRow): string {
-  const metadata = getObject(row, ["metadata", "meta"]);
+function getDisplayPriceMode(row: PublicMenuRow, metadata: PublicMenuRow): PublicMenuPriceDisplayMode {
+  return displayPriceMode(
+    metadata.displayPriceMode ??
+      metadata.display_price_mode ??
+      row.displayPriceMode ??
+      row.display_price_mode
+  ) as PublicMenuPriceDisplayMode;
+}
+
+function getPriceCents(row: PublicMenuRow): number {
   const priceCents = getNumber(row, ["price_cents", "priceCents"], 0);
+  if (priceCents > 0) return Math.round(priceCents);
+  const value = getNumber(row, ["price", "amount", "price_cad"], 0);
+  return value > 0 ? Math.round(value * 100) : 0;
+}
+
+function formatPrice(row: PublicMenuRow, settings: PublicMenuSettings): string {
+  const metadata = getObject(row, ["metadata", "meta"]);
+  const priceCents = getPriceCents(row);
+  const currency = normalizePublicMenuCurrency(
+    getString(row, ["currency"], settings.baseCurrency),
+    settings.baseCurrency
+  );
   if (priceCents > 0) {
-    return formatPriceCentsForMenu(priceCents, getString(row, ["currency"], "CAD"), {
-      displayPriceMode: displayPriceMode(
-        metadata.displayPriceMode ??
-          metadata.display_price_mode ??
-          row.displayPriceMode ??
-          row.display_price_mode
-      )
+    return formatPriceCentsForMenu(priceCents, currency, {
+      displayPriceMode: getDisplayPriceMode(row, metadata)
     });
   }
 
-  const value = getNumber(row, ["price", "amount", "price_cad"], 0);
-  if (!value) return "";
-  return new Intl.NumberFormat("fr-CA", {
-    style: "currency",
-    currency: "CAD"
-  }).format(value);
+  return "";
 }
 
 function categoryDefinition(category: string) {
@@ -509,9 +537,45 @@ function rowRestaurantId(row: PublicMenuRow): string {
   return getString(row, RESTAURANT_ID_KEYS, "");
 }
 
-function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
+function getOptionalNumberFromSources(
+  row: PublicMenuRow,
+  metadata: PublicMenuRow,
+  candidates: string[]
+): number | undefined {
+  const value = getNumberFromSources(row, metadata, candidates);
+  return value > 0 ? value : undefined;
+}
+
+function mapDishRow(
+  row: PublicMenuRow,
+  index: number,
+  settings: PublicMenuSettings
+): PublicMenuDish {
   const metadata = getObject(row, ["metadata", "meta"]);
   const name = getString(row, ["name", "dish_name", "title"], "Plat");
+  const categoryId = getString(row, ["category_id", "categoryId"], "");
+  const priceCents = getPriceCents(row);
+  const priceCurrency = normalizePublicMenuCurrency(
+    getString(row, ["currency"], settings.baseCurrency),
+    settings.baseCurrency
+  );
+  const originalPriceCents = getOptionalNumberFromSources(row, metadata, [
+    "original_price_cents",
+    "originalPriceCents",
+    "promo_original_price_cents",
+    "promoOriginalPriceCents"
+  ]);
+  const calories = getOptionalNumberFromSources(row, metadata, ["calories"]);
+  const spiceLevel = getOptionalNumberFromSources(row, metadata, [
+    "spiceLevel",
+    "spice_level",
+    "spicy"
+  ]);
+  const dietaryType = getString(
+    metadata,
+    ["dietaryType", "dietary_type", "veg", "vegetarian"],
+    ""
+  );
   const imageUrl = getSafeStringFromSources(row, metadata, [
     "image",
     "image_url",
@@ -595,6 +659,7 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
     slug: slug || `dish-${index}`,
     name,
     description: getString(row, ["short_description", "shortDescription", "description", "desc", "summary"], ""),
+    ...(categoryId ? { categoryId } : {}),
     category:
       getString(
         row,
@@ -602,7 +667,15 @@ function mapDishRow(row: PublicMenuRow, index: number): PublicMenuDish {
         DEFAULT_CATEGORY.label
       ) || DEFAULT_CATEGORY.label,
     categoryDescription: getString(row, ["category_description", "categoryDescription"], ""),
-    priceLabel: formatPrice(row),
+    priceLabel: formatPrice(row, settings),
+    priceCents,
+    priceCurrency,
+    baseCurrency: settings.baseCurrency,
+    displayPriceMode: getDisplayPriceMode(row, metadata),
+    ...(originalPriceCents ? { originalPriceCents } : {}),
+    ...(calories ? { calories } : {}),
+    ...(spiceLevel ? { spiceLevel } : {}),
+    ...(dietaryType ? { dietaryType } : {}),
     imageUrl,
     thumbnailUrl,
     hasPhoto: Boolean(imageUrl),
@@ -672,6 +745,29 @@ function rowMatchesRestaurant(row: PublicMenuRow, restaurantId: string): boolean
   return !restaurantId || getString(row, RESTAURANT_ID_KEYS, "") === restaurantId;
 }
 
+function menuSettingsFromRows(args: {
+  menuRow?: PublicMenuRow | null;
+  legacyMenuLanguages?: unknown;
+}): PublicMenuSettings {
+  const rawSettings = getObject(args.menuRow ?? {}, ["settings_json", "settingsJson"]);
+  const isEmptySettings = Object.keys(rawSettings).length === 0;
+  return normalizePublicMenuSettings(rawSettings, {
+    legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
+  });
+}
+
+function menuRowHasPublicMenuStyle(menuRow?: PublicMenuRow | null): boolean {
+  const rawSettings = getObject(menuRow ?? {}, ["settings_json", "settingsJson"]);
+  return (
+    Object.prototype.hasOwnProperty.call(rawSettings, "publicMenuStyle") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "public_menu_style") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menuStyle") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menu_style") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menuExperience") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menu_experience")
+  );
+}
+
 export function getPublicMenuRowSlug(row: PublicMenuRow): string {
   const name = getString(row, ["name", "restaurant_name"], "");
   return getString(row, ["slug", "restaurant_slug"], slugify(name));
@@ -680,10 +776,14 @@ export function getPublicMenuRowSlug(row: PublicMenuRow): string {
 export function buildSupabasePublicMenu(
   rawSlug: string,
   restaurantRow: PublicMenuRow,
-  dishRows: PublicMenuRow[]
+  dishRows: PublicMenuRow[],
+  options: { legacyMenuLanguages?: unknown } = {}
 ): PublicMenu {
   const slug = getPublicMenuRowSlug(restaurantRow) || slugify(rawSlug);
   const restaurantId = getString(restaurantRow, ["id", "restaurant_id"], "");
+  const settings = menuSettingsFromRows({
+    legacyMenuLanguages: options.legacyMenuLanguages
+  });
   const rowsById = restaurantId
     ? dishRows.filter((row) =>
         rowMatchesValue(row, RESTAURANT_ID_KEYS, restaurantId)
@@ -708,7 +808,7 @@ export function buildSupabasePublicMenu(
     .map((row, index) => ({ row, index, order: dishSortOrder(row, index) }))
     .sort((a, b) => a.order - b.order || a.index - b.index)
     .slice(0, 200)
-    .map(({ row, index }) => mapDishRow(row, index));
+    .map(({ row, index }) => mapDishRow(row, index, settings));
 
   return {
     restaurantId,
@@ -717,6 +817,8 @@ export function buildSupabasePublicMenu(
     location: getString(restaurantRow, ["location", "city", "address"], ""),
     cuisineType: getString(restaurantRow, ["cuisine_type", "cuisineType"], ""),
     googleReview: googleReviewConfigFromRestaurantRow(restaurantRow),
+    settings,
+    publicMenuStyleExplicit: false,
     source: "supabase",
     dishes
   };
@@ -728,10 +830,15 @@ export function buildRelationalSupabasePublicMenu(args: {
   menuRow?: PublicMenuRow | null;
   categoryRows?: PublicMenuRow[];
   dishRows?: PublicMenuRow[];
+  legacyMenuLanguages?: unknown;
 }): PublicMenu {
   const slug = getPublicMenuRowSlug(args.restaurantRow) || slugify(args.slug);
   const restaurantId = getString(args.restaurantRow, ["id", "restaurant_id"], "");
   const menuId = getString(args.menuRow ?? {}, ["id", "menu_id"], "");
+  const settings = menuSettingsFromRows({
+    menuRow: args.menuRow,
+    legacyMenuLanguages: args.legacyMenuLanguages
+  });
   const categoryRows = (args.categoryRows ?? [])
     .filter((row) => rowMatchesRestaurant(row, restaurantId))
     .filter((row) => rowMatchesMenu(row, menuId))
@@ -769,7 +876,7 @@ export function buildRelationalSupabasePublicMenu(args: {
     })
     .sort((a, b) => a.order - b.order || a.index - b.index)
     .slice(0, 200)
-    .map(({ row, index }) => mapDishRow(row, index));
+    .map(({ row, index }) => mapDishRow(row, index, settings));
 
   return {
     restaurantId,
@@ -778,6 +885,8 @@ export function buildRelationalSupabasePublicMenu(args: {
     location: getString(args.restaurantRow, ["location", "city", "address"], ""),
     cuisineType: getString(args.restaurantRow, ["cuisine_type", "cuisineType"], ""),
     googleReview: googleReviewConfigFromRestaurantRow(args.restaurantRow),
+    settings,
+    publicMenuStyleExplicit: menuRowHasPublicMenuStyle(args.menuRow),
     source: "supabase",
     dishes
   };

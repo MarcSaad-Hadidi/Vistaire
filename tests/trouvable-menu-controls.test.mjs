@@ -20,7 +20,8 @@ test("Trouvable price labels parse CAD menu prices and format configured currenc
 
 test("Trouvable controls normalize unsupported persisted values safely", () => {
   assert.equal(normalizeTrouvableCurrency("USD"), "USD");
-  assert.equal(normalizeTrouvableCurrency("GBP"), "CAD");
+  assert.equal(normalizeTrouvableCurrency("GBP"), "GBP");
+  assert.equal(normalizeTrouvableCurrency("invalid"), "CAD");
   assert.equal(normalizeTrouvableTheme("light"), "light");
   assert.equal(normalizeTrouvableTheme("sepia"), "dark");
 });

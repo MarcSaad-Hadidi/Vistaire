@@ -11,6 +11,7 @@ import {
   type PointerEvent
 } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   buildPublicDishPath,
@@ -25,23 +26,22 @@ import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import {
-  TROUVABLE_CURRENCY_OPTIONS,
   TROUVABLE_CURRENCY_STORAGE_KEY,
   TROUVABLE_LOCALE_STORAGE_KEY,
   TROUVABLE_THEME_STORAGE_KEY,
-  formatTrouvableAmount,
-  formatTrouvablePriceLabel,
+  formatTrouvableDishPrice,
+  formatTrouvablePriceCents,
+  getTrouvableCurrencyOptions,
   getTrouvableCopy,
   getTrouvableCurrencyOption,
-  getTrouvableGreeting,
-  getTrouvableGreetingPeriod,
+  getTrouvableDishConvertedPriceCents,
+  getTrouvableGreetingForDate,
+  getTrouvableLanguageOptions,
   normalizeTrouvableCurrency,
-  normalizeTrouvableLocale,
+  normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
-  parseTrouvablePriceLabel,
   translateTrouvableCategoryLabel,
   type TrouvableCurrency,
-  type TrouvableGreetingPeriod,
   type TrouvableLocale,
   type TrouvableTheme
 } from "./trouvableMenuControls";
@@ -51,6 +51,7 @@ type TrouvablePremiumMenuExperienceProps = {
   menu: PublicMenu;
   config: MenuUiConfig;
   context?: string;
+  exchangeRates: MenuExchangeRates;
   query?: PublicMenuContextQuery;
   typographyClassName?: string;
 };
@@ -519,6 +520,7 @@ export function TrouvablePremiumMenuExperience({
   menu,
   config,
   context = "",
+  exchangeRates,
   query,
   typographyClassName = ""
 }: TrouvablePremiumMenuExperienceProps) {
@@ -540,13 +542,16 @@ export function TrouvablePremiumMenuExperience({
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
-    normalizeTrouvableLocale(query?.lang)
+    normalizeTrouvableLocaleForSettings(query?.lang, menu.settings)
   );
   const [selectedCurrency, setSelectedCurrency] =
-    useState<TrouvableCurrency>("CAD");
-  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>("dark");
-  const [greetingPeriod, setGreetingPeriod] =
-    useState<TrouvableGreetingPeriod>("afternoon");
+    useState<TrouvableCurrency>(() =>
+      normalizeTrouvableCurrency(undefined, menu.settings)
+    );
+  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>(() =>
+    normalizeTrouvableTheme(undefined, menu.settings)
+  );
+  const [greeting, setGreeting] = useState("");
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
@@ -560,6 +565,19 @@ export function TrouvablePremiumMenuExperience({
   const dishSwipeRef = useRef<SwipeStart>(null);
   const copy = getTrouvableCopy(selectedLocale);
   const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
+  const currencyOptions = useMemo(
+    () => getTrouvableCurrencyOptions(menu.settings),
+    [menu.settings]
+  );
+  const languageOptions = useMemo(
+    () => getTrouvableLanguageOptions(menu.settings),
+    [menu.settings]
+  );
+  const canChangeCurrency =
+    menu.settings.allowCurrencySelector && currencyOptions.length > 1;
+  const canChangeLanguage =
+    menu.settings.allowLanguageSelector && languageOptions.length > 1;
+  const canChangeTheme = menu.settings.allowThemeToggle;
   const localizedQuery = useMemo<PublicMenuContextQuery>(
     () => ({
       ...(query ?? {}),
@@ -700,17 +718,25 @@ export function TrouvablePremiumMenuExperience({
     (total, item) => total + item.quantity,
     0
   );
-  const selectionTotal = selectionItems.reduce((total, item) => {
-    const price = parseTrouvablePriceLabel(item.dish.priceLabel);
-    return price === null ? total : total + price * item.quantity;
+  const selectionTotalCents = selectionItems.reduce((total, item) => {
+    const priceCents = getTrouvableDishConvertedPriceCents(
+      item.dish,
+      selectedCurrency,
+      exchangeRates
+    );
+    return priceCents === null ? total : total + priceCents * item.quantity;
   }, 0);
   const hasPricedSelection =
     selectionItems.length > 0 &&
-    selectionItems.every(
-      (item) => parseTrouvablePriceLabel(item.dish.priceLabel) !== null
+    selectionItems.every((item) =>
+      getTrouvableDishConvertedPriceCents(
+        item.dish,
+        selectedCurrency,
+        exchangeRates
+      ) !== null
     );
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
-  const greeting = getTrouvableGreeting(selectedLocale, greetingPeriod);
+  const greetingText = greeting || copy.greeting.afternoon;
   const viewLabel = viewMode === "grid" ? copy.viewGrid : copy.viewList;
 
   const restoreFocus = useCallback(() => {
@@ -746,7 +772,7 @@ export function TrouvablePremiumMenuExperience({
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
       const queryLocale = query?.lang?.toString().trim()
-        ? normalizeTrouvableLocale(query.lang)
+        ? normalizeTrouvableLocaleForSettings(query.lang, menu.settings)
         : null;
       const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
       const storedCurrency = window.localStorage.getItem(
@@ -755,10 +781,13 @@ export function TrouvablePremiumMenuExperience({
       const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
 
       setSelectedLocale(
-        queryLocale ?? (storedLocale ? normalizeTrouvableLocale(storedLocale) : "fr")
+        queryLocale ??
+          (storedLocale
+            ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
+            : normalizeTrouvableLocaleForSettings(undefined, menu.settings))
       );
-      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency));
-      setSelectedTheme(normalizeTrouvableTheme(storedTheme));
+      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency, menu.settings));
+      setSelectedTheme(normalizeTrouvableTheme(storedTheme, menu.settings));
       if (queryLocale) {
         window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, queryLocale);
       }
@@ -766,7 +795,7 @@ export function TrouvablePremiumMenuExperience({
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [query?.lang]);
+  }, [menu.settings, query?.lang]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;
@@ -777,13 +806,19 @@ export function TrouvablePremiumMenuExperience({
 
   useEffect(() => {
     function syncGreeting() {
-      setGreetingPeriod(getTrouvableGreetingPeriod(new Date()));
+      setGreeting(
+        getTrouvableGreetingForDate(
+          selectedLocale,
+          menu.settings.timezone,
+          new Date()
+        )
+      );
     }
 
     syncGreeting();
     const intervalId = window.setInterval(syncGreeting, 60_000);
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [menu.settings.timezone, selectedLocale]);
 
   useEffect(() => {
     if (!activeSheet) return;
@@ -916,12 +951,20 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function selectCurrency(nextCurrency: TrouvableCurrency) {
+    if (!menu.settings.supportedCurrencies.includes(nextCurrency)) return;
     setSelectedCurrency(nextCurrency);
     setLocalMessage("");
     closeActiveSheet();
   }
 
   function selectLocale(nextLocale: TrouvableLocale) {
+    if (
+      !menu.settings.supportedLocales.includes(
+        nextLocale === "en" ? "en-CA" : "fr-CA"
+      )
+    ) {
+      return;
+    }
     setSelectedLocale(nextLocale);
     window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, nextLocale);
     updateBrowserLocale(nextLocale);
@@ -930,6 +973,7 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function toggleTheme() {
+    if (!canChangeTheme) return;
     setSelectedTheme((current) => (current === "dark" ? "light" : "dark"));
     setLocalMessage("");
   }
@@ -1064,9 +1108,12 @@ export function TrouvablePremiumMenuExperience({
     const badges = dishBadges(dish, selectedLocale);
     const isFeatured = index === 0;
     const isSpicy = isSpicyDish(dish);
-    const priceLabel = dish.priceLabel
-      ? formatTrouvablePriceLabel(dish.priceLabel, selectedCurrency, selectedLocale)
-      : "";
+    const priceLabel = formatTrouvableDishPrice(
+      dish,
+      selectedCurrency,
+      selectedLocale,
+      exchangeRates
+    );
 
     return (
       <li key={dish.id} className={styles.dishItem}>
@@ -1161,13 +1208,12 @@ export function TrouvablePremiumMenuExperience({
                     <div>
                       <strong>{item.dish.name}</strong>
                       <span>
-                        {item.dish.priceLabel
-                          ? formatTrouvablePriceLabel(
-                              item.dish.priceLabel,
-                              selectedCurrency,
-                              selectedLocale
-                            )
-                          : copy.priceToConfirm}
+                        {formatTrouvableDishPrice(
+                          item.dish,
+                          selectedCurrency,
+                          selectedLocale,
+                          exchangeRates
+                        ) || copy.priceToConfirm}
                       </span>
                     </div>
                     <div className={styles.quantityControls}>
@@ -1199,8 +1245,8 @@ export function TrouvablePremiumMenuExperience({
                 <span>{copy.estimatedTotal}</span>
                 <strong>
                   {hasPricedSelection
-                    ? formatTrouvableAmount(
-                        selectionTotal,
+                    ? formatTrouvablePriceCents(
+                        selectionTotalCents,
                         selectedCurrency,
                         selectedLocale
                       )
@@ -1301,7 +1347,7 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderCurrencySheet() {
-    if (activeSheet !== "currency") return null;
+    if (activeSheet !== "currency" || !canChangeCurrency) return null;
 
     return (
       <div
@@ -1329,7 +1375,7 @@ export function TrouvablePremiumMenuExperience({
             </button>
           </header>
           <div className={styles.choiceList}>
-            {TROUVABLE_CURRENCY_OPTIONS.map((option) => (
+            {currencyOptions.map((option) => (
               <button
                 key={option.code}
                 type="button"
@@ -1418,9 +1464,9 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderLanguageSheet() {
-    if (activeSheet !== "language") return null;
+    if (activeSheet !== "language" || !canChangeLanguage) return null;
 
-    const languageOptions: Array<{ locale: TrouvableLocale; label: string }> = [
+    const sheetLanguageOptions = getTrouvableLanguageOptions(menu.settings); void [
       { locale: "fr", label: "Français" },
       { locale: "en", label: "English" }
     ];
@@ -1451,7 +1497,7 @@ export function TrouvablePremiumMenuExperience({
             </button>
           </header>
           <div className={styles.choiceList}>
-            {languageOptions.map((option) => (
+            {sheetLanguageOptions.map((option) => (
               <button
                 key={option.locale}
                 type="button"
@@ -1577,14 +1623,18 @@ export function TrouvablePremiumMenuExperience({
 
     const badges = dishBadges(selectedDish, selectedLocale);
     const hasModel = hasPublic3d(selectedDish);
-    const detailPrice = selectedDish.priceLabel
-      ? formatTrouvablePriceLabel(
-          selectedDish.priceLabel,
-          selectedCurrency,
-          selectedLocale
-        )
-      : "";
+    const detailPrice = formatTrouvableDishPrice(
+      selectedDish,
+      selectedCurrency,
+      selectedLocale,
+      exchangeRates
+    );
     const moreDetailsId = `trouvable-dish-more-details-${selectedDish.slug}`;
+    const browserDishHref = buildPublicDishPath(
+      menu.slug,
+      selectedDish.slug,
+      localizedQuery
+    );
 
     return (
       <div
@@ -1748,24 +1798,32 @@ export function TrouvablePremiumMenuExperience({
               ) : null}
             </div>
             {showDetailModelViewer ? (
-              <div className={styles.inlineModelViewer} id="trouvable-sheet-model">
-                {ModelViewerComponent ? (
-                  <ModelViewerComponent
-                    dish={modelViewerDishFromPublicDish(selectedDish)}
-                    minimalChrome
-                    quietChrome
-                    onReturnToDish={() => setShowDetailModelViewer(false)}
-                  />
-                ) : modelViewerLoadFailed ? (
-                  <div className={styles.modelLoading} role="status">
-                    {copy.modelUnavailable}
-                  </div>
-                ) : (
-                  <div className={styles.modelLoading} role="status">
-                    {copy.modelPreparing}
-                  </div>
-                )}
-              </div>
+              <>
+                <div className={styles.inlineModelViewer} id="trouvable-sheet-model">
+                  {ModelViewerComponent ? (
+                    <ModelViewerComponent
+                      dish={modelViewerDishFromPublicDish(selectedDish)}
+                      minimalChrome
+                      quietChrome
+                      onReturnToDish={() => setShowDetailModelViewer(false)}
+                    />
+                  ) : modelViewerLoadFailed ? (
+                    <div className={styles.modelLoading} role="status">
+                      {copy.modelUnavailable}
+                    </div>
+                  ) : (
+                    <div className={styles.modelLoading} role="status">
+                      {copy.modelPreparing}
+                    </div>
+                  )}
+                </div>
+                <p className={styles.arBrowserHelp}>
+                  {copy.arBrowserHelp}{" "}
+                  <Link href={browserDishHref} target="_blank" rel="noopener noreferrer">
+                    {copy.arBrowserLink}
+                  </Link>
+                </p>
+              </>
             ) : null}
             <button
               type="button"
@@ -1801,7 +1859,10 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "currency"}
             aria-label={`${copy.currencyAria}: ${selectedCurrency}`}
-            onClick={() => openSheet("currency")}
+            disabled={!canChangeCurrency}
+            onClick={() => {
+              if (canChangeCurrency) openSheet("currency");
+            }}
           >
             {currencyOption.code}
           </button>
@@ -1812,7 +1873,10 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "language"}
             aria-label={`${copy.languageAria}: ${selectedLocale.toUpperCase()}`}
-            onClick={() => openSheet("language")}
+            disabled={!canChangeLanguage}
+            onClick={() => {
+              if (canChangeLanguage) openSheet("language");
+            }}
           >
             {selectedLocale.toUpperCase()}
           </button>
@@ -1822,6 +1886,7 @@ export function TrouvablePremiumMenuExperience({
               selectedTheme === "dark" ? copy.themeLightAria : copy.themeDarkAria
             }
             aria-pressed={selectedTheme === "dark"}
+            disabled={!canChangeTheme}
             onClick={toggleTheme}
           >
             {selectedTheme === "dark" ? "◐" : "☀"}
@@ -1850,7 +1915,7 @@ export function TrouvablePremiumMenuExperience({
       <section className={styles.hero} aria-label={`Menu ${menu.name}`}>
         <HeroBotanicalOrnament />
         <div className={styles.heroText}>
-          <p>{greeting}</p>
+          <p>{greetingText}</p>
           <h1>{menu.name}</h1>
           <span>{copy.heroBlurb}</span>
         </div>

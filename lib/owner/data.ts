@@ -898,8 +898,10 @@ export async function getOwnerDashboardData(
 export async function createRestaurant(
   input: CreateRestaurantInput
 ): Promise<CreateRestaurantRecordResult> {
+  type CreateRestaurantDependencies = Parameters<typeof createRestaurantRecord>[1];
+
   return createRestaurantRecord(input, {
-    admin: getSupabaseAdminClient(),
+    admin: getSupabaseAdminClient() as unknown as CreateRestaurantDependencies["admin"],
     getColumns: getSupabaseTableColumns,
     env: process.env
   });

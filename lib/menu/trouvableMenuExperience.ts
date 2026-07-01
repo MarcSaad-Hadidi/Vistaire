@@ -2,14 +2,43 @@ import {
   normalizeMenuUiConfig,
   type MenuUiConfig
 } from "@/lib/menu/menuUiConfig";
+import type { PublicMenuStyle } from "@/lib/menu/publicMenuSettings";
 import type { PublicMenu } from "@/lib/menu/publicMenuCore";
 
-export function isTrouvablePublicMenu(
-  menu: Pick<PublicMenu, "slug" | "name">
+type PublicMenuStyleRouteInput = Pick<PublicMenu, "slug" | "name"> & {
+  settings?: Pick<PublicMenu["settings"], "publicMenuStyle">;
+  publicMenuStyleExplicit?: boolean;
+};
+
+function matchesMenuIdentity(
+  menu: Pick<PublicMenu, "slug" | "name">,
+  expected: string
 ): boolean {
   const slug = menu.slug.trim().toLowerCase();
   const name = menu.name.trim().toLowerCase();
-  return slug === "trouvable" || name === "trouvable";
+  return slug === expected || name === expected;
+}
+
+export function getPublicMenuExperienceStyle(
+  menu: PublicMenuStyleRouteInput
+): PublicMenuStyle | null {
+  if (menu.publicMenuStyleExplicit && menu.settings?.publicMenuStyle) {
+    return menu.settings.publicMenuStyle;
+  }
+
+  if (matchesMenuIdentity(menu, "maison-elyse")) return "maison-elyse";
+  if (matchesMenuIdentity(menu, "trouvable")) return "trouvable";
+  return null;
+}
+
+export function isMaisonElysePublicMenu(menu: PublicMenuStyleRouteInput): boolean {
+  return getPublicMenuExperienceStyle(menu) === "maison-elyse";
+}
+
+export function isTrouvablePublicMenu(
+  menu: PublicMenuStyleRouteInput
+): boolean {
+  return getPublicMenuExperienceStyle(menu) === "trouvable";
 }
 
 export function resolvePublicMenuUiConfig(

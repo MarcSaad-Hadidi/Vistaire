@@ -22,6 +22,21 @@ const workflowInput = {
   googleReviewUrl: "https://search.google.com/local/writereview?placeid=abc123",
   notes: "Creation relationnelle",
   menuLanguages: ["fr", "en"],
+  publicMenuSettings: {
+    defaultLocale: "en-CA",
+    supportedLocales: ["fr-CA", "en-CA"],
+    baseCurrency: "CAD",
+    defaultCurrency: "USD",
+    supportedCurrencies: ["CAD", "USD"],
+    publicMenuStyle: "maison-elyse",
+    timezone: "America/Toronto",
+    defaultThemeMode: "light",
+    allowThemeToggle: true,
+    allowCurrencySelector: true,
+    allowLanguageSelector: true,
+    taxIncluded: true,
+    priceDisplayMode: "auto"
+  },
   sections: [
     { id: "section-entrees", name: "Entrees", description: "Ouvertures de saison", order: 1 },
     { id: "section-desserts", name: "Desserts", description: "Finir doucement", order: 2 }
@@ -141,6 +156,11 @@ test("restaurant creation calls transactional RPC with normalized menu graph", a
   assert.equal(payload.restaurant.slug, "le-comptoir-decimal");
   assert.equal(payload.menu.status, "published");
   assert.equal(payload.menu.is_primary, true);
+  assert.equal(payload.menu.settings_json.defaultLocale, "en-CA");
+  assert.equal(payload.menu.settings_json.defaultCurrency, "USD");
+  assert.deepEqual(payload.menu.settings_json.supportedCurrencies, ["CAD", "USD"]);
+  assert.equal(payload.menu.settings_json.publicMenuStyle, "maison-elyse");
+  assert.equal(payload.ui_config.config_json.publicMenuStyle, "maison-elyse");
   assert.equal(payload.categories.length, 2);
   assert.equal(payload.categories[0].name, "Entrees");
   assert.equal(payload.categories[1].name, "Desserts");
@@ -160,6 +180,22 @@ test("restaurant creation calls transactional RPC with normalized menu graph", a
   assert.equal(result.categoriesPersisted, true);
   assert.equal(result.persistedCategoryCount, 2);
   assert.equal(result.persistedDishCount, 2);
+});
+
+test("restaurant creation rejects settings defaults outside enabled options", () => {
+  const result = validateCreateRestaurantInput({
+    ...workflowInput,
+    publicMenuSettings: {
+      ...workflowInput.publicMenuSettings,
+      supportedLocales: ["fr-CA"],
+      defaultLocale: "en-CA"
+    }
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: "La langue par defaut doit etre activee."
+  });
 });
 
 test("restaurant creation treats child persistence failure as API failure", async () => {
@@ -197,4 +233,17 @@ test("transactional restaurant creation migration defines RPC and menu graph wri
   assert.match(sql, /insert into public\.menu_ui_configs/i);
   assert.match(sql, /revoke execute on function public\.create_owner_restaurant_with_menu/i);
   assert.match(sql, /grant execute on function public\.create_owner_restaurant_with_menu/i);
+});
+
+test("menu settings migration adds settings_json and persists it in RPC", async () => {
+  const sql = await readFile(
+    "supabase/migrations/20260701031742_menu_settings_and_rpc.sql",
+    "utf8"
+  );
+
+  assert.match(sql, /alter table public\.menus\s+add column if not exists settings_json jsonb/i);
+  assert.match(sql, /menus_settings_json_is_object/i);
+  assert.match(sql, /settings_json/i);
+  assert.match(sql, /v_menu -> 'settings_json'/i);
+  assert.match(sql, /notify pgrst, 'reload schema'/i);
 });
