@@ -1726,37 +1726,6 @@
   font-weight: 600;
 }
 
-.spicyMark {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-}
-
-.spicyMark::before,
-.spicyMark::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px 999px 999px 0;
-  background: #ff5454;
-}
-
-.spicyMark::before {
-  width: 20px;
-  height: 13px;
-  right: 1px;
-  top: 5px;
-  transform: rotate(-28deg);
-}
-
-.spicyMark::after {
-  width: 14px;
-  height: 10px;
-  left: 2px;
-  bottom: 2px;
-  transform: rotate(138deg);
-}
-
 .badges {
   position: static;
 }
@@ -2447,11 +2416,6 @@
 
   .dishCard .badges {
     display: none;
-  }
-
-  .spicyMark {
-    width: 21px;
-    height: 21px;
   }
 
   .dishGrid {

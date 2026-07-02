@@ -87,6 +87,17 @@ test("Trouvable cutout PNG dishes render without added visual backgrounds", asyn
   );
 });
 
+test("Trouvable dish cards do not render inferred spicy markers", async () => {
+  const [source, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  assert.doesNotMatch(source, /styles\.spicyMark/);
+  assert.doesNotMatch(source, /isSpicyDish/);
+  assert.doesNotMatch(css, /\.spicyMark/);
+});
+
 test("Trouvable premium menu includes local selection and waiter-only flows", async () => {
   const source = await readFile(componentPath, "utf8");
   const controls = await readFile(controlsPath, "utf8");

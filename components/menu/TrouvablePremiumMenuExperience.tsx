@@ -134,17 +134,6 @@ const VEG_TERMS = [
   "vegetarian",
   "vegetarien"
 ];
-const SPICY_TERMS = [
-  "chili",
-  "epice",
-  "epicee",
-  "epices",
-  "jalapeno",
-  "piment",
-  "piquant",
-  "spicy",
-  "sriracha"
-];
 const ALLERGEN_FILTER_TERMS: Record<
   Exclude<
     QuickFilterId,
@@ -360,10 +349,6 @@ function isVegDish(dish: PublicMenuDish): boolean {
 
 function isNonVegDish(dish: PublicMenuDish): boolean {
   return dishHasAnyTerm(dish, MEAT_TERMS);
-}
-
-function isSpicyDish(dish: PublicMenuDish): boolean {
-  return dishHasAnyTerm(dish, SPICY_TERMS);
 }
 
 function dishMetaLine(dish: PublicMenuDish, locale: TrouvableLocale): string {
@@ -1161,7 +1146,6 @@ export function TrouvablePremiumMenuExperience({
     const href = buildPublicDishPath(menu.slug, dish.slug, localizedQuery);
     const badges = dishBadges(dish, selectedLocale);
     const isFeatured = index === 0;
-    const isSpicy = isSpicyDish(dish);
     const priceLabel = formatTrouvableDishPrice(
       dish,
       selectedCurrency,
@@ -1184,9 +1168,6 @@ export function TrouvablePremiumMenuExperience({
             <span className={styles.dishCopy}>
               <span className={styles.dishTopline}>
                 <strong>{dish.name}</strong>
-                {isSpicy ? (
-                  <span className={styles.spicyMark} aria-label={copy.spicy} />
-                ) : null}
               </span>
               <small>{dishMetaLine(dish, selectedLocale)}</small>
               {priceLabel ? (
