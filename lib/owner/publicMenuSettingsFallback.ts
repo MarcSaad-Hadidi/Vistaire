@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   normalizePublicMenuSettings,
   serializePublicMenuSettings,
@@ -88,6 +89,85 @@ export function publicMenuSettingsFromUiConfigRow(
     source: "menu_ui_configs",
     settings: serializePublicMenuSettings(normalizePublicMenuSettings(settings))
   };
+}
+
+export async function readUiConfigPublicMenuSettings(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<PublicMenuSettings | null> {
+  const config = await client
+    .from("menu_ui_configs")
+    .select("config_json,status")
+    .eq("restaurant_id", restaurantId)
+    .in("status", ["draft", "published"])
+    .order("updated_at", { ascending: false })
+    .limit(10);
+
+  if (config.error) return null;
+  const rows = Array.isArray(config.data) ? config.data : [];
+  const preferred =
+    rows.find((row) => String(row.status ?? "") === "draft") ??
+    rows.find((row) => String(row.status ?? "") === "published") ??
+    rows[0];
+  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
+}
+
+export async function readPublicMenuSettingsWithFallbacks(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  menuId?: string;
+  menuRow?: unknown;
+}): Promise<PublicMenuSettings> {
+  const cached = publicMenuSettingsFromMenuRow(args.menuRow)?.settings;
+  if (cached) return cached;
+
+  if (args.menuId) {
+    const withSettings = await args.client
+      .from("menus")
+      .select("settings_json,metadata")
+      .eq("id", args.menuId)
+      .maybeSingle();
+    if (!withSettings.error) {
+      const settings = publicMenuSettingsFromMenuRow(withSettings.data)?.settings;
+      if (settings) return settings;
+    }
+
+    const shouldTryNativeSettings =
+      !withSettings.error ||
+      isMissingColumnError(withSettings.error, "metadata");
+    if (shouldTryNativeSettings) {
+      const withNativeSettings = await args.client
+        .from("menus")
+        .select("settings_json")
+        .eq("id", args.menuId)
+        .maybeSingle();
+      if (!withNativeSettings.error) {
+        const settings = publicMenuSettingsFromMenuRow(withNativeSettings.data)?.settings;
+        if (settings) return settings;
+      }
+    }
+
+    const shouldTryMetadata =
+      !withSettings.error ||
+      isMissingColumnError(withSettings.error, "settings_json");
+    if (shouldTryMetadata) {
+      const withMetadata = await args.client
+        .from("menus")
+        .select("metadata")
+        .eq("id", args.menuId)
+        .maybeSingle();
+      if (!withMetadata.error) {
+        const settings = publicMenuSettingsFromMenuRow(withMetadata.data)?.settings;
+        if (settings) return settings;
+      }
+    }
+  }
+
+  const uiConfigSettings = await readUiConfigPublicMenuSettings(
+    args.client,
+    args.restaurantId
+  );
+  return uiConfigSettings ?? normalizePublicMenuSettings({});
 }
 
 export function mergePublicMenuSettingsIntoUiConfig(

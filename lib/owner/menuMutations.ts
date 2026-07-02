@@ -10,8 +10,7 @@ import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { parsePriceToCents } from "@/lib/owner/price";
 import {
   isMissingColumnError as isMissingSettingsColumnError,
-  publicMenuSettingsFromMenuRow,
-  publicMenuSettingsFromUiConfigRow
+  readPublicMenuSettingsWithFallbacks
 } from "@/lib/owner/publicMenuSettingsFallback";
 
 type MenuMutationResult =
@@ -269,79 +268,13 @@ async function ensurePrimaryMenu(
   };
 }
 
-async function readUiConfigPublicMenuSettings(
-  client: SupabaseClient,
-  restaurantId: string
-): Promise<PublicMenuSettings | null> {
-  const config = await client
-    .from("menu_ui_configs")
-    .select("config_json,status")
-    .eq("restaurant_id", restaurantId)
-    .in("status", ["draft", "published"])
-    .order("updated_at", { ascending: false })
-    .limit(10);
-
-  if (config.error) return null;
-  const rows = Array.isArray(config.data) ? config.data : [];
-  const preferred =
-    rows.find((row) => String(row.status ?? "") === "draft") ??
-    rows.find((row) => String(row.status ?? "") === "published") ??
-    rows[0];
-  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
-}
-
 async function readEffectiveMenuSettings(args: {
   client: SupabaseClient;
   restaurantId: string;
   menuId: string;
   menuRow?: unknown;
 }): Promise<PublicMenuSettings> {
-  const cached = publicMenuSettingsFromMenuRow(args.menuRow)?.settings;
-  if (cached) return cached;
-
-  const withSettings = await args.client
-    .from("menus")
-    .select("settings_json,metadata")
-    .eq("id", args.menuId)
-    .maybeSingle();
-  if (!withSettings.error) {
-    const settings = publicMenuSettingsFromMenuRow(withSettings.data)?.settings;
-    if (settings) return settings;
-  }
-
-  if (
-    withSettings.error &&
-    !isMissingSettingsColumnError(withSettings.error, "settings_json") &&
-    !isMissingSettingsColumnError(withSettings.error, "metadata")
-  ) {
-    return normalizePublicMenuSettings({});
-  }
-
-  const withNativeSettings = await args.client
-    .from("menus")
-    .select("settings_json")
-    .eq("id", args.menuId)
-    .maybeSingle();
-  if (!withNativeSettings.error) {
-    const settings = publicMenuSettingsFromMenuRow(withNativeSettings.data)?.settings;
-    if (settings) return settings;
-  }
-
-  const withMetadata = await args.client
-    .from("menus")
-    .select("metadata")
-    .eq("id", args.menuId)
-    .maybeSingle();
-  if (!withMetadata.error) {
-    const settings = publicMenuSettingsFromMenuRow(withMetadata.data)?.settings;
-    if (settings) return settings;
-  }
-
-  const uiConfigSettings = await readUiConfigPublicMenuSettings(
-    args.client,
-    args.restaurantId
-  );
-  return uiConfigSettings ?? normalizePublicMenuSettings({});
+  return readPublicMenuSettingsWithFallbacks(args);
 }
 
 async function uniqueSlug(args: {

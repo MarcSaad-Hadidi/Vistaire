@@ -12,7 +12,7 @@ import styles from "./GoogleReviewCard.module.css";
 
 type GoogleReviewCardProps = {
   googleReview: GoogleReviewConfig;
-  locale?: Locale;
+  locale?: Locale | string;
   onReviewRequest?: () => void;
   restaurantId: string;
   restaurantName: string;

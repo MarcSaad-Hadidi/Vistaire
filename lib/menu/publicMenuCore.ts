@@ -1,4 +1,4 @@
-import { normalizeLocale, type Locale } from "../i18n.ts";
+import type { Locale } from "../i18n.ts";
 import {
   formatPriceCentsForMenu,
   type DisplayPriceMode
@@ -6,6 +6,7 @@ import {
 import { normalizeModelAssetBytes } from "../owner/modelAssetSize.ts";
 import {
   normalizePublicMenuCurrency,
+  normalizePublicMenuLocale,
   normalizePublicMenuSettings,
   type PublicMenuCurrency,
   type PublicMenuPriceDisplayMode,
@@ -84,12 +85,20 @@ export type GoogleReviewCta = {
 
 export type PublicMenu = {
   restaurantId: string;
+  menuId?: string;
+  menuName?: string;
   slug: string;
   name: string;
   location: string;
   cuisineType: string;
   googleReview: GoogleReviewConfig;
   settings: PublicMenuSettings;
+  activeLocale?: string;
+  translationStatus?: {
+    locale: string;
+    status: "source" | "missing" | "pending" | "in_progress" | "up_to_date" | "stale" | "error";
+  };
+  localizedUiCopy?: Record<string, unknown>;
   publicMenuStyleExplicit?: boolean;
   source: "supabase" | "demo";
   dishes: PublicMenuDish[];
@@ -941,6 +950,8 @@ export function buildRelationalSupabasePublicMenu(args: {
 
   return {
     restaurantId,
+    menuId: getString(args.menuRow ?? {}, ["id", "menu_id", "menuId"], "") || undefined,
+    menuName: getString(args.menuRow ?? {}, ["name", "menu_name", "title"], "") || undefined,
     slug,
     name: getString(args.restaurantRow, ["name", "restaurant_name"], "Restaurant"),
     location: getString(args.restaurantRow, ["location", "city", "address"], ""),
@@ -1034,7 +1045,7 @@ export function buildPublicDishPath(
   const zone = query?.zone?.toString().trim();
   const view = query?.view?.toString().trim();
   const rawLang = query?.lang?.toString().trim();
-  if (rawLang) params.set("lang", normalizeLocale(rawLang));
+  if (rawLang) params.set("lang", normalizePublicMenuLocale(rawLang));
   if (table) params.set("table", table.slice(0, 24));
   if (zone) params.set("zone", zone.slice(0, 24));
   if (view) params.set("view", view.slice(0, 24));

@@ -25,6 +25,7 @@ import {
   DEFAULT_PUBLIC_MENU_SETTINGS,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
+import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
@@ -421,7 +422,7 @@ export async function getPublicMenuBySlug(
     : undefined;
 
   if (primaryMenu) {
-    return buildRelationalSupabasePublicMenu({
+    const menu = buildRelationalSupabasePublicMenu({
       slug,
       restaurantRow: match,
       menuRow: primaryMenu,
@@ -430,12 +431,14 @@ export async function getPublicMenuBySlug(
       legacyPublicMenuSettings,
       legacyMenuLanguages
     });
+    return applyStoredPublicMenuTranslations(menu, locale);
   }
 
-  return buildSupabasePublicMenu(
+  const menu = buildSupabasePublicMenu(
     slug,
     match,
     dishesResult.ok ? dishesResult.rows : [],
     { legacyPublicMenuSettings, legacyMenuLanguages }
   );
+  return applyStoredPublicMenuTranslations(menu, locale);
 }

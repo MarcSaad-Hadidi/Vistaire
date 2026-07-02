@@ -4,7 +4,6 @@ import { MaisonElyseDishDetail } from "@/components/menu/MaisonElyseDishDetail";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { TrouvableDishDetailExperience } from "@/components/menu/TrouvableDishDetailExperience";
 import { getExchangeRates } from "@/lib/currency/exchangeRates";
-import { normalizeLocale } from "@/lib/i18n";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
@@ -34,8 +33,7 @@ export async function generateMetadata({
   const { slug, dishSlug } = await params;
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
-  const menu = await getPublicMenuBySlug(slug, locale);
+  const menu = await getPublicMenuBySlug(slug, hasLangParam ? query.lang : undefined);
   const dish = menu ? getPublicMenuDishBySlug(menu, dishSlug) : null;
 
   if (!menu || !dish) {
@@ -59,8 +57,10 @@ export default async function PublicDishPage({
   const { slug, dishSlug } = await params;
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
-  const initialMenu = await getPublicMenuBySlug(slug, locale);
+  const initialMenu = await getPublicMenuBySlug(
+    slug,
+    hasLangParam ? query.lang : undefined
+  );
 
   if (!initialMenu) {
     notFound();
@@ -71,12 +71,9 @@ export default async function PublicDishPage({
     initialMenu.settings
   );
   const activeLocale = publicLocaleToShortLocale(activePublicLocale);
-  const menu =
-    activeLocale === locale
-      ? initialMenu
-      : (await getPublicMenuBySlug(slug, activeLocale)) ?? initialMenu;
+  const menu = initialMenu;
   const menuQuery = {
-    lang: activeLocale,
+    lang: activePublicLocale,
     table: query.table,
     zone: query.zone,
     view: query.view

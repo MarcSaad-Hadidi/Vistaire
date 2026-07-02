@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
+import { OwnerMenuTranslationPanel } from "@/components/owner/OwnerMenuTranslationPanel";
 import { Badge } from "@/components/owner/OwnerUi";
 import {
   DEFAULT_PUBLIC_MENU_SETTINGS,
@@ -710,6 +711,12 @@ export function OwnerRestaurantSettings({
             {settingsFeedback.message}
           </p>
         ) : null}
+
+        <OwnerMenuTranslationPanel
+          restaurantId={restaurant.id}
+          settings={settingsDraft}
+          disabled={restaurant.isDemo || settingsPending}
+        />
       </section>
 
       <section

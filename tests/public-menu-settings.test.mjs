@@ -121,9 +121,22 @@ test("resolves short language choices to configured locale tags", () => {
   assert.equal(isTrouvableLocaleSupported("en", settings), true);
   assert.equal(isTrouvableLocaleSupported("fr", settings), true);
   assert.deepEqual(getTrouvableLanguageOptions(settings), [
-    { locale: "fr", publicLocale: "fr-FR", label: "Francais (fr-FR)" },
-    { locale: "en", publicLocale: "en-US", label: "English (en-US)" }
+    { locale: "fr-FR", publicLocale: "fr-FR", label: "Francais (France) (fr-FR)" },
+    { locale: "en-US", publicLocale: "en-US", label: "English (United States) (en-US)" }
   ]);
+});
+
+test("Trouvable language options keep every configured public locale", () => {
+  const settings = normalizePublicMenuSettings({
+    supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT"],
+    defaultLocale: "fr-CA"
+  });
+
+  assert.deepEqual(
+    getTrouvableLanguageOptions(settings).map((option) => option.locale),
+    ["fr-CA", "en-CA", "es-ES", "it-IT"]
+  );
+  assert.equal(normalizePublicMenuLocalePreference("es-ES", settings), "es-ES");
 });
 
 test("converts and formats structured menu prices with explicit rates", () => {

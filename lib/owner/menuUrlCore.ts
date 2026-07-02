@@ -1,4 +1,5 @@
-import { normalizeLocale, type Locale } from "../i18n.ts";
+import type { Locale } from "../i18n.ts";
+import { normalizePublicMenuLocale } from "../menu/publicMenuSettings.ts";
 
 export type OwnerQrTargetKind = "menu" | "admin";
 
@@ -60,7 +61,7 @@ export function buildPublicMenuPath(
   const table = params?.table?.toString().trim();
   const zone = params?.zone?.toString().trim();
   const view = params?.view?.toString().trim();
-  if (lang) query.set("lang", normalizeLocale(lang));
+  if (lang) query.set("lang", normalizePublicMenuLocale(lang));
   if (table) query.set("table", table.slice(0, 24));
   if (zone) query.set("zone", zone.slice(0, 24));
   if (view) query.set("view", view.slice(0, 24));

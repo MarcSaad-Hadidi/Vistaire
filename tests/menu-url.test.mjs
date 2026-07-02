@@ -47,10 +47,14 @@ test("builds Resto Marc public menu paths from restaurant names", () => {
   );
   assert.equal(
     buildPublicMenuPath("Resto Marc", { lang: "en", table: "12" }),
-    "/menu/resto-marc?lang=en&table=12"
+    "/menu/resto-marc?lang=en-CA&table=12"
   );
   assert.equal(
-    buildPublicMenuPath("Resto Marc", { lang: "xx" }),
-    "/menu/resto-marc?lang=fr"
+    buildPublicMenuPath("Resto Marc", { lang: "es-ES" }),
+    "/menu/resto-marc?lang=es-ES"
+  );
+  assert.equal(
+    buildPublicMenuPath("Resto Marc", { lang: "not a locale" }),
+    "/menu/resto-marc?lang=fr-CA"
   );
 });
