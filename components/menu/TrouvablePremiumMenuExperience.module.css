@@ -3197,6 +3197,17 @@
   filter: drop-shadow(var(--dishPhotoHalo));
 }
 
+.dishVisual:has(img),
+.detailSheet .detailVisual:has(img),
+.standaloneDetailCard .detailVisual:has(img),
+.page[data-user-theme="light"] .dishVisual:has(img),
+.page[data-user-theme="light"] .detailSheet .detailVisual:has(img),
+.page[data-user-theme="light"] .standaloneDetailCard .detailVisual:has(img) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .page[data-user-theme="light"] .quickFilters button {
   background: rgba(35, 26, 13, 0.08);
   color: rgba(35, 26, 13, 0.68);

@@ -72,11 +72,14 @@ test("Trouvable AR browser help is hidden until a real fallback condition appear
   assert.match(viewer, /runtimeArFailed/);
 });
 
-test("Trouvable light theme integrates cutout PNG dishes without black visual blocks", async () => {
+test("Trouvable cutout PNG dishes render without added visual backgrounds", async () => {
   const css = await readFile(cssPath, "utf8");
 
   assert.match(css, /dishPhotoHalo/);
-  assert.match(css, /\.page\[data-user-theme="light"\][\s\S]*dishVisual[\s\S]*radial-gradient/);
+  assert.match(css, /\.dishVisual:has\(img\)/);
+  assert.match(css, /\.detailSheet \.detailVisual:has\(img\)/);
+  assert.match(css, /background:\s*transparent/);
+  assert.match(css, /border-color:\s*transparent/);
   assert.match(css, /\.page\[data-user-theme="light"\][\s\S]*detailVisual[\s\S]*drop-shadow/);
   assert.doesNotMatch(
     css,
