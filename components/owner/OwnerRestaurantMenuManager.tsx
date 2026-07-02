@@ -35,6 +35,11 @@ type DishDraft = {
   categoryId: string;
   price: string;
   description: string;
+  ingredientsText: string;
+  allergensText: string;
+  tagsText: string;
+  optionsText: string;
+  chefNote: string;
   available: boolean;
 };
 
@@ -62,6 +67,11 @@ const EMPTY_DISH_DRAFT: DishDraft = {
   categoryId: "",
   price: "",
   description: "",
+  ingredientsText: "",
+  allergensText: "",
+  tagsText: "",
+  optionsText: "",
+  chefNote: "",
   available: true
 };
 
@@ -85,6 +95,14 @@ function priceDraftFromDish(dish: PublicMenuDish): string {
   const cents = Math.round(dish.priceCents);
   const digits = cents % 100 === 0 ? 0 : 2;
   return (cents / 100).toFixed(digits).replace(".", ",");
+}
+
+function splitDishList(value: string): string[] {
+  return value
+    .split(/[,;\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 24);
 }
 
 function categoryIdForDish(
@@ -246,6 +264,11 @@ export function OwnerRestaurantMenuManager({
       categoryId: categoryIdForDish(dish, sortedCategories),
       price: priceDraftFromDish(dish),
       description: dish.description,
+      ingredientsText: dish.ingredients.join(", "),
+      allergensText: dish.allergens.join(", "),
+      tagsText: dish.tags.join(", "),
+      optionsText: dish.options.join(", "),
+      chefNote: dish.houseNote,
       available: dish.available
     });
     setActiveEditor("dish");
@@ -357,6 +380,11 @@ export function OwnerRestaurantMenuManager({
         categoryId: dishDraft.categoryId,
         price: dishDraft.price,
         description: dishDraft.description,
+        ingredients: splitDishList(dishDraft.ingredientsText),
+        allergens: splitDishList(dishDraft.allergensText),
+        tags: splitDishList(dishDraft.tagsText),
+        options: splitDishList(dishDraft.optionsText),
+        chefNote: dishDraft.chefNote.trim(),
         available: dishDraft.available
       });
 
@@ -590,6 +618,75 @@ export function OwnerRestaurantMenuManager({
                   }))
                 }
                 maxLength={800}
+              />
+            </label>
+            <div className={styles.formGrid}>
+              <label className={styles.formField}>
+                <span>Badges / tags</span>
+                <input
+                  className={styles.control}
+                  placeholder="Maison, Populaire, Signature, Nouveaute, Epice, Vegetarien"
+                  value={dishDraft.tagsText}
+                  onChange={(event) =>
+                    setDishDraft((draft) => ({
+                      ...draft,
+                      tagsText: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              <label className={styles.formField}>
+                <span>Ingredients principaux</span>
+                <input
+                  className={styles.control}
+                  value={dishDraft.ingredientsText}
+                  onChange={(event) =>
+                    setDishDraft((draft) => ({
+                      ...draft,
+                      ingredientsText: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              <label className={styles.formField}>
+                <span>Allergenes</span>
+                <input
+                  className={styles.control}
+                  value={dishDraft.allergensText}
+                  onChange={(event) =>
+                    setDishDraft((draft) => ({
+                      ...draft,
+                      allergensText: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              <label className={styles.formField}>
+                <span>Options, extras / accompagnements</span>
+                <input
+                  className={styles.control}
+                  value={dishDraft.optionsText}
+                  onChange={(event) =>
+                    setDishDraft((draft) => ({
+                      ...draft,
+                      optionsText: event.target.value
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <label className={styles.formField}>
+              <span>Note chef</span>
+              <textarea
+                className={styles.textarea}
+                value={dishDraft.chefNote}
+                onChange={(event) =>
+                  setDishDraft((draft) => ({
+                    ...draft,
+                    chefNote: event.target.value
+                  }))
+                }
+                maxLength={500}
               />
             </label>
             {!dishDraft.id ? (

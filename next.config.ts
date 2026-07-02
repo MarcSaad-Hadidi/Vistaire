@@ -47,6 +47,7 @@ const OWNER_MODEL_PIPELINE_ROUTES = [
 const OWNER_MODEL_PIPELINE_SCRIPT_TRACE_INCLUDES = [
   "lib/owner/modelLab/optimizeWorker.mjs",
   "scripts/shared/gltf-transform-cli.mjs",
+  "scripts/shared/ios-quicklook-promotion.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",
   "scripts/build-ios-quicklook-ultra-assets.mjs",

@@ -1853,10 +1853,10 @@ function DishesStep({
             placeholder="bar, fenouil, citron"
           />
           <Field
-            label="Options"
+            label="Options, extras / accompagnements"
             value={dishOptions}
             onChange={onDishOptionsChange}
-            placeholder="Sans lactose sur demande"
+            placeholder="Sans lactose sur demande, salade verte"
           />
           <Field
             label="Note du chef"

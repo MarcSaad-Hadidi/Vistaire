@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import styles from "@/components/owner/OwnerCockpit.module.css";
-import { OwnerDishModelUploader } from "@/components/owner/OwnerDishModelUploader";
+import {
+  OwnerDishModelUploader,
+  OwnerDishModelUploadQueueProvider
+} from "@/components/owner/OwnerDishModelUploader";
 import { OwnerDishModelVisualCompare } from "@/components/owner/OwnerDishModelVisualCompare";
 import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
 import type { PublicMenuDish } from "@/lib/menu/publicMenuCore";
@@ -13,6 +16,8 @@ type OwnerRestaurant3dManagerProps = {
   dishes: PublicMenuDish[];
   menuError?: string;
 };
+
+const ALL_SECTION_FILTER = "all";
 
 function modelStatusLabel(dish: PublicMenuDish): string {
   if (dish.modelStatus === "ready") return "GLB + USDZ prets";
@@ -43,6 +48,22 @@ export function OwnerRestaurant3dManager({
 }: OwnerRestaurant3dManagerProps) {
   const [selectedDishId, setSelectedDishId] = useState("");
   const [selectionMessage, setSelectionMessage] = useState("");
+  const [sectionFilter, setSectionFilter] = useState(ALL_SECTION_FILTER);
+  const comparisonRef = useRef<HTMLDivElement | null>(null);
+  const sectionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(dishes.map((dish) => dish.category.trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, "fr")),
+    [dishes]
+  );
+  const visibleDishes = useMemo(
+    () =>
+      sectionFilter === ALL_SECTION_FILTER
+        ? dishes
+        : dishes.filter((dish) => dish.category === sectionFilter),
+    [dishes, sectionFilter]
+  );
   const selectedDish = dishes.find((dish) => dish.id === selectedDishId) ?? null;
 
   function selectForComparison(dish: PublicMenuDish) {
@@ -50,18 +71,48 @@ export function OwnerRestaurant3dManager({
     if (!status.ready) return;
     setSelectedDishId(dish.id);
     setSelectionMessage(`${dish.name} selectionne pour comparaison.`);
+    window.requestAnimationFrame(() => {
+      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      comparisonRef.current?.scrollIntoView({
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "start"
+      });
+    });
   }
 
   return (
-    <>
+    <OwnerDishModelUploadQueueProvider>
       <Panel
         title="Plats du restaurant"
-        action={<Badge tone="muted">{restaurantSlug}</Badge>}
+        action={
+          <div className={styles.filtersRow}>
+            <Badge tone="muted">{restaurantSlug}</Badge>
+            {sectionOptions.length > 1 ? (
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Section</span>
+                <select
+                  className={styles.select}
+                  value={sectionFilter}
+                  onChange={(event) => setSectionFilter(event.target.value)}
+                >
+                  <option value={ALL_SECTION_FILTER}>Toutes les sections</option>
+                  {sectionOptions.map((section) => (
+                    <option key={section} value={section}>
+                      {section}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+        }
       >
         {menuError ? (
           <EmptyState>{menuError}</EmptyState>
         ) : dishes.length === 0 ? (
           <EmptyState>Aucun plat charge pour ce restaurant.</EmptyState>
+        ) : visibleDishes.length === 0 ? (
+          <EmptyState>Aucun plat dans cette section.</EmptyState>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.dataTable}>
@@ -75,7 +126,7 @@ export function OwnerRestaurant3dManager({
                 </tr>
               </thead>
               <tbody>
-                {dishes.map((dish) => {
+                {visibleDishes.map((dish) => {
                   const status = comparisonStatus(dish);
                   const isSelected = dish.id === selectedDishId;
 
@@ -140,25 +191,27 @@ export function OwnerRestaurant3dManager({
         ) : null}
       </Panel>
 
-      <Panel title="Comparaison visuelle GLB / USDZ">
-        {!selectedDish ? (
-          <EmptyState>
-            Selectionnez un plat pour comparer son GLB et son USDZ.
-          </EmptyState>
-        ) : (
-          <div className={styles.modelCompareStack}>
-            <OwnerDishModelVisualCompare
-              key={selectedDish.id}
-              dishName={selectedDish.name}
-              webModel3dUrl={selectedDish.webModel3dUrl}
-              webModel3dBytes={selectedDish.webModel3dBytes}
-              arPreviewModelUrl={selectedDish.arModel3dUrl || selectedDish.webModel3dUrl}
-              arUsdzUrl={selectedDish.arUsdzUrl}
-              arUsdzBytes={selectedDish.arUsdzBytes}
-            />
-          </div>
-        )}
-      </Panel>
-    </>
+      <div ref={comparisonRef}>
+        <Panel title="Comparaison visuelle GLB / USDZ">
+          {!selectedDish ? (
+            <EmptyState>
+              Selectionnez un plat pour comparer son GLB et son USDZ.
+            </EmptyState>
+          ) : (
+            <div className={styles.modelCompareStack}>
+              <OwnerDishModelVisualCompare
+                key={selectedDish.id}
+                dishName={selectedDish.name}
+                webModel3dUrl={selectedDish.webModel3dUrl}
+                webModel3dBytes={selectedDish.webModel3dBytes}
+                arPreviewModelUrl={selectedDish.arModel3dUrl || selectedDish.webModel3dUrl}
+                arUsdzUrl={selectedDish.arUsdzUrl}
+                arUsdzBytes={selectedDish.arUsdzBytes}
+              />
+            </div>
+          )}
+        </Panel>
+      </div>
+    </OwnerDishModelUploadQueueProvider>
   );
 }

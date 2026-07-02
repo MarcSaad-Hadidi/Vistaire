@@ -277,6 +277,12 @@ test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => 
       ingredients: ["Riz chaud", "Poulet grille"],
       allergens: "sesame, soja",
       options: ["Extra sauce maison"],
+      extras: ["Pain naan"],
+      accompaniments: "Riz safrane",
+      metadata: {
+        extras: ["Pain grille"],
+        accompaniments: "Salade verte"
+      },
       house_note: "Maison",
       tags: ["Maison", "Populaire"],
       sort_order: 1
@@ -308,7 +314,13 @@ test("maps detail-ready fields and finds only Resto Marc dishes by slug", () => 
   assert.equal(dish.imageUrl, "/images/resto-marc/bol-riz.jpg");
   assert.deepEqual(dish.ingredients, ["Riz chaud", "Poulet grille"]);
   assert.deepEqual(dish.allergens, ["sesame", "soja"]);
-  assert.deepEqual(dish.options, ["Extra sauce maison"]);
+  assert.deepEqual(dish.options, [
+    "Extra sauce maison",
+    "Pain naan",
+    "Riz safrane",
+    "Pain grille",
+    "Salade verte"
+  ]);
   assert.equal(dish.houseNote, "Maison");
   assert.deepEqual(dish.tags, ["Maison", "Populaire"]);
   assert.equal(dish.available, true);

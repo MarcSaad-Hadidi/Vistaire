@@ -19,6 +19,7 @@ const RUNTIME_DEPENDENCIES = [
 
 const TRACE_INCLUDES = [
   "scripts/shared/gltf-transform-cli.mjs",
+  "scripts/shared/ios-quicklook-promotion.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",
   "scripts/build-ios-quicklook-ultra-assets.mjs",
@@ -173,4 +174,16 @@ test("owner runtime temp output skips the asset-review-only OpenUSD optimizer", 
   assert.match(ownerBuilder, /VISTAIRE_MESHY_SKIP_OPENUSD_OPTIMIZER/);
   assert.match(iosBuilder, /VISTAIRE_MESHY_SKIP_OPENUSD_OPTIMIZER/);
   assert.match(iosBuilder, /OpenUSD optimizer skipped[\s\S]*raw USDZ/);
+});
+
+test("owner Meshy builder requires a Quick Look promotion manifest", async () => {
+  const ownerBuilder = await readFile("scripts/owner/build-restaurant-meshy-dish.mjs", "utf8");
+
+  assert.match(ownerBuilder, /iosPromotionManifest/);
+  assert.match(ownerBuilder, /Manifest promotion iOS Quick Look introuvable/);
+  assert.match(ownerBuilder, /iosQuickLookPromotion\.selectedLevel/);
+  assert.doesNotMatch(
+    ownerBuilder,
+    /iosQuickLookPromotion\s*=\s*existsSync[\s\S]*:\s*null/
+  );
 });

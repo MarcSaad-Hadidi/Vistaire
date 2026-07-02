@@ -12,6 +12,7 @@ import {
 } from "../lib/currency/formatMenuPrice.ts";
 import { getGreetingForTime } from "../lib/menu/greeting.ts";
 import {
+  PUBLIC_MENU_CURRENCIES,
   normalizePublicMenuSettings,
   normalizePublicMenuLocalePreference,
   validatePublicMenuSettingsInput
@@ -76,6 +77,21 @@ test("normalizes explicit public menu style choices", () => {
     normalizePublicMenuSettings({ publicMenuStyle: "trouvable" }).publicMenuStyle,
     "trouvable"
   );
+});
+
+test("public menu currency picker uses a deterministic SSR-safe catalog", () => {
+  assert.deepEqual(PUBLIC_MENU_CURRENCIES, [
+    "CAD",
+    "USD",
+    "EUR",
+    "GBP",
+    "AUD",
+    "JPY",
+    "CHF",
+    "CNY",
+    "MXN",
+    "BRL"
+  ]);
 });
 
 test("accepts valid locale tags and ISO currency codes beyond the default catalog", () => {

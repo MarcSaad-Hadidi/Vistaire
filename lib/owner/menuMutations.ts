@@ -3,10 +3,16 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   normalizePublicMenuSettings,
-  serializePublicMenuSettings
+  serializePublicMenuSettings,
+  type PublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { parsePriceToCents } from "@/lib/owner/price";
+import {
+  isMissingColumnError as isMissingSettingsColumnError,
+  publicMenuSettingsFromMenuRow,
+  publicMenuSettingsFromUiConfigRow
+} from "@/lib/owner/publicMenuSettingsFallback";
 
 type MenuMutationResult =
   | { ok: true; record: Record<string, unknown> }
@@ -15,6 +21,7 @@ type MenuMutationResult =
 type PrimaryMenu = {
   id: string;
   settingsJson: unknown;
+  metadata?: unknown;
 };
 
 type MenuRow = {
@@ -23,6 +30,7 @@ type MenuRow = {
   status?: unknown;
   is_primary?: unknown;
   settings_json?: unknown;
+  metadata?: unknown;
 };
 
 type MenuRowsResult =
@@ -43,6 +51,39 @@ function stringInput(value: unknown, maxLength = 240): string {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
+function stringListInput(value: unknown, maxItems = 24, maxLength = 120): string[] {
+  const rawItems = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,;\n]+/)
+      : [];
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const rawItem of rawItems) {
+    const item = String(rawItem ?? "").trim().slice(0, maxLength);
+    const key = item.toLowerCase();
+    if (!item || seen.has(key)) continue;
+    seen.add(key);
+    items.push(item);
+    if (items.length >= maxItems) break;
+  }
+  return items;
+}
+
+function mergeStringListInput(...values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const value of values) {
+    for (const item of stringListInput(value)) {
+      const key = item.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(item);
+    }
+  }
+  return items;
+}
+
 function booleanInput(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -60,23 +101,6 @@ function priceInput(value: unknown): string {
     .slice(0, 24);
 }
 
-function isMissingColumnError(error: unknown, column: string): boolean {
-  const details = objectInput(error);
-  const haystack = [
-    details.code,
-    details.message,
-    details.details,
-    details.hint
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    details.code === "42703" ||
-    new RegExp(`column\\s+["']?${column}["']?\\s+does\\s+not\\s+exist`, "i").test(haystack) ||
-    new RegExp(`${column}.*does\\s+not\\s+exist`, "i").test(haystack)
-  );
-}
-
 function isUniqueViolation(error: unknown): boolean {
   return objectInput(error).code === "23505";
 }
@@ -87,7 +111,7 @@ async function fetchPrimaryMenuRows(
 ): Promise<MenuRowsResult> {
   const withSettings = await client
     .from("menus")
-    .select("id,slug,status,is_primary,settings_json")
+    .select("id,slug,status,is_primary,settings_json,metadata")
     .eq("restaurant_id", restaurantId)
     .limit(50);
 
@@ -99,7 +123,25 @@ async function fetchPrimaryMenuRows(
     };
   }
 
-  if (!isMissingColumnError(withSettings.error, "settings_json")) {
+  if (!isMissingSettingsColumnError(withSettings.error, "settings_json")) {
+    return { ok: false, status: 503, error: "Menu principal impossible a charger." };
+  }
+
+  const withMetadata = await client
+    .from("menus")
+    .select("id,slug,status,is_primary,metadata")
+    .eq("restaurant_id", restaurantId)
+    .limit(50);
+
+  if (!withMetadata.error) {
+    return {
+      ok: true,
+      rows: Array.isArray(withMetadata.data) ? withMetadata.data : [],
+      supportsSettingsJson: false
+    };
+  }
+
+  if (!isMissingSettingsColumnError(withMetadata.error, "metadata")) {
     return { ok: false, status: 503, error: "Menu principal impossible a charger." };
   }
 
@@ -131,7 +173,8 @@ function selectPrimaryMenu(rows: MenuRow[]): PrimaryMenu | null {
   if (!primary?.id) return null;
   return {
     id: String(primary.id),
-    settingsJson: primary.settings_json
+    settingsJson: primary.settings_json,
+    metadata: primary.metadata
   };
 }
 
@@ -196,7 +239,8 @@ async function ensurePrimaryMenu(
       ok: true,
       menu: {
         id: String(inserted.data.id),
-        settingsJson: undefined
+        settingsJson: undefined,
+        metadata: undefined
       }
     };
   }
@@ -219,9 +263,85 @@ async function ensurePrimaryMenu(
     ok: true,
     menu: {
       id: String(inserted.data.id),
-      settingsJson: inserted.data.settings_json
+      settingsJson: inserted.data.settings_json,
+      metadata: undefined
     }
   };
+}
+
+async function readUiConfigPublicMenuSettings(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<PublicMenuSettings | null> {
+  const config = await client
+    .from("menu_ui_configs")
+    .select("config_json,status")
+    .eq("restaurant_id", restaurantId)
+    .in("status", ["draft", "published"])
+    .order("updated_at", { ascending: false })
+    .limit(10);
+
+  if (config.error) return null;
+  const rows = Array.isArray(config.data) ? config.data : [];
+  const preferred =
+    rows.find((row) => String(row.status ?? "") === "draft") ??
+    rows.find((row) => String(row.status ?? "") === "published") ??
+    rows[0];
+  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
+}
+
+async function readEffectiveMenuSettings(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  menuId: string;
+  menuRow?: unknown;
+}): Promise<PublicMenuSettings> {
+  const cached = publicMenuSettingsFromMenuRow(args.menuRow)?.settings;
+  if (cached) return cached;
+
+  const withSettings = await args.client
+    .from("menus")
+    .select("settings_json,metadata")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (!withSettings.error) {
+    const settings = publicMenuSettingsFromMenuRow(withSettings.data)?.settings;
+    if (settings) return settings;
+  }
+
+  if (
+    withSettings.error &&
+    !isMissingSettingsColumnError(withSettings.error, "settings_json") &&
+    !isMissingSettingsColumnError(withSettings.error, "metadata")
+  ) {
+    return normalizePublicMenuSettings({});
+  }
+
+  const withNativeSettings = await args.client
+    .from("menus")
+    .select("settings_json")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (!withNativeSettings.error) {
+    const settings = publicMenuSettingsFromMenuRow(withNativeSettings.data)?.settings;
+    if (settings) return settings;
+  }
+
+  const withMetadata = await args.client
+    .from("menus")
+    .select("metadata")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (!withMetadata.error) {
+    const settings = publicMenuSettingsFromMenuRow(withMetadata.data)?.settings;
+    if (settings) return settings;
+  }
+
+  const uiConfigSettings = await readUiConfigPublicMenuSettings(
+    args.client,
+    args.restaurantId
+  );
+  return uiConfigSettings ?? normalizePublicMenuSettings({});
 }
 
 async function uniqueSlug(args: {
@@ -436,12 +556,50 @@ async function categoryForDish(args: {
     .maybeSingle();
 }
 
-function dishMetadata(existing: unknown, parsedPrice: ReturnType<typeof parsePriceToCents>) {
-  return {
+function dishMetadata(
+  existing: unknown,
+  parsedPrice: ReturnType<typeof parsePriceToCents>,
+  candidate: Record<string, unknown> = {}
+) {
+  const metadata: Record<string, unknown> = {
     ...jsonObject(existing),
     displayPriceMode: parsedPrice.ok ? parsedPrice.displayPriceMode : "auto",
     originalPriceInput: parsedPrice.ok ? parsedPrice.originalInput : ""
   };
+  const ingredients = stringListInput(candidate.ingredients);
+  const allergens = stringListInput(candidate.allergens);
+  const tags = mergeStringListInput(candidate.tags, candidate.badges);
+  const options = mergeStringListInput(
+    candidate.options,
+    candidate.extras,
+    candidate.accompaniments
+  );
+  const chefNote = stringInput(candidate.chefNote ?? candidate.chef_note, 500);
+
+  if ("ingredients" in candidate) metadata.ingredients = ingredients;
+  if ("allergens" in candidate) metadata.allergens = allergens;
+  if ("tags" in candidate || "badges" in candidate) {
+    metadata.tags = tags;
+    metadata.badges = tags;
+  }
+  if (
+    "options" in candidate ||
+    "extras" in candidate ||
+    "accompaniments" in candidate
+  ) {
+    metadata.options = options;
+  }
+  if ("chefNote" in candidate || "chef_note" in candidate) {
+    if (chefNote) {
+      metadata.chefNote = chefNote;
+      metadata.houseNote = chefNote;
+    } else {
+      delete metadata.chefNote;
+      delete metadata.houseNote;
+    }
+  }
+
+  return metadata;
 }
 
 export async function createOwnerMenuDish(args: {
@@ -455,6 +613,7 @@ export async function createOwnerMenuDish(args: {
   const categoryId = stringInput(candidate.categoryId ?? candidate.category_id, 80);
   const parsedPrice = parsePriceToCents(priceInput(candidate.price));
   const available = booleanInput(candidate.available, true);
+  const allergens = stringListInput(candidate.allergens);
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
   if (!parsedPrice.ok) return { ok: false, status: 400, error: parsedPrice.error };
@@ -474,7 +633,12 @@ export async function createOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
   }
 
-  const settings = normalizePublicMenuSettings(menuResult.menu.settingsJson);
+  const settings = await readEffectiveMenuSettings({
+    client: args.client,
+    restaurantId: args.restaurantId,
+    menuId: menuResult.menu.id,
+    menuRow: menuResult.menu
+  });
   const slug = await uniqueSlug({
     client: args.client,
     table: "menu_dishes",
@@ -496,8 +660,8 @@ export async function createOwnerMenuDish(args: {
       currency: settings.baseCurrency,
       is_available: available,
       has_immersive_view: false,
-      allergens: [],
-      metadata: dishMetadata({ photoStatus: "planned" }, parsedPrice)
+      allergens,
+      metadata: dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate)
     })
     .select("id,name,slug,category_id,price_cents,currency")
     .single();
@@ -509,25 +673,6 @@ export async function createOwnerMenuDish(args: {
     return { ok: false, status: 503, error: "Plat impossible a creer." };
   }
   return { ok: true, record: inserted.data };
-}
-
-async function readMenuSettingsJson(
-  client: SupabaseClient,
-  menuId: string
-): Promise<unknown> {
-  const menu = await client
-    .from("menus")
-    .select("settings_json")
-    .eq("id", menuId)
-    .maybeSingle();
-
-  if (menu.error && isMissingColumnError(menu.error, "settings_json")) {
-    return undefined;
-  }
-  if (menu.error) {
-    return undefined;
-  }
-  return menu.data?.settings_json;
 }
 
 export async function updateOwnerMenuDish(args: {
@@ -542,6 +687,7 @@ export async function updateOwnerMenuDish(args: {
   const categoryId = stringInput(candidate.categoryId ?? candidate.category_id, 80);
   const parsedPrice = parsePriceToCents(priceInput(candidate.price));
   const available = booleanInput(candidate.available, true);
+  const allergens = stringListInput(candidate.allergens);
   if (!id) return { ok: false, status: 400, error: "Plat requis." };
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
@@ -573,9 +719,11 @@ export async function updateOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
   }
 
-  const settings = normalizePublicMenuSettings(
-    await readMenuSettingsJson(args.client, String(existing.data.menu_id))
-  );
+  const settings = await readEffectiveMenuSettings({
+    client: args.client,
+    restaurantId: args.restaurantId,
+    menuId: String(existing.data.menu_id)
+  });
   const slug = await uniqueSlug({
     client: args.client,
     table: "menu_dishes",
@@ -595,7 +743,8 @@ export async function updateOwnerMenuDish(args: {
       price_cents: parsedPrice.cents,
       currency: settings.baseCurrency,
       is_available: available,
-      metadata: dishMetadata(existing.data.metadata, parsedPrice),
+      allergens,
+      metadata: dishMetadata(existing.data.metadata, parsedPrice, candidate),
       updated_at: new Date().toISOString()
     })
     .eq("id", id)
