@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -27,6 +29,8 @@ import {
   TROUVABLE_THEME_STORAGE_KEY,
   formatTrouvableDishPrice,
   getTrouvableCopy,
+  getTrouvableTextDirection,
+  isTrouvableLocaleSupported,
   normalizeTrouvableCurrency,
   normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
@@ -122,6 +126,9 @@ export function TrouvableDishDetailExperience({
   query,
   typographyClassName = ""
 }: TrouvableDishDetailExperienceProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [activeDish, setActiveDish] = useState(dish);
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
@@ -143,6 +150,7 @@ export function TrouvableDishDetailExperience({
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
+  const textDirection = getTrouvableTextDirection(selectedLocale);
   const localizedQuery = useMemo<PublicMenuContextQuery>(
     () => ({
       ...(query ?? {}),
@@ -174,6 +182,17 @@ export function TrouvableDishDetailExperience({
   );
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
 
+  const replaceLocaleInUrl = useCallback(
+    (nextLocale: TrouvableLocale) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("lang", nextLocale);
+      const queryString = params.toString();
+      const nextPath = queryString ? `${pathname}?${queryString}` : pathname;
+      router.replace(nextPath, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
       setActiveDish(dish);
@@ -196,12 +215,33 @@ export function TrouvableDishDetailExperience({
         TROUVABLE_CURRENCY_STORAGE_KEY
       );
       const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
+      const defaultLocale = normalizeTrouvableLocaleForSettings(
+        undefined,
+        menu.settings
+      );
+      const activeServerLocale = normalizeTrouvableLocaleForSettings(
+        menu.activeLocale,
+        menu.settings
+      );
+      const normalizedStoredLocale = storedLocale
+        ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
+        : null;
+
+      if (
+        !queryLocale &&
+        normalizedStoredLocale &&
+        normalizedStoredLocale !== defaultLocale &&
+        normalizedStoredLocale !== activeServerLocale &&
+        isTrouvableLocaleSupported(normalizedStoredLocale, menu.settings)
+      ) {
+        replaceLocaleInUrl(normalizedStoredLocale);
+        return;
+      }
 
       setSelectedLocale(
         queryLocale ??
-          (storedLocale
-            ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
-            : normalizeTrouvableLocaleForSettings(undefined, menu.settings))
+          normalizedStoredLocale ??
+          defaultLocale
       );
       setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency, menu.settings));
       setSelectedTheme(normalizeTrouvableTheme(storedTheme, menu.settings));
@@ -212,7 +252,7 @@ export function TrouvableDishDetailExperience({
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [menu.settings, query?.lang]);
+  }, [menu.activeLocale, menu.settings, query?.lang, replaceLocaleInUrl]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;
@@ -281,6 +321,8 @@ export function TrouvableDishDetailExperience({
   return (
     <main
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
+      lang={selectedLocale}
+      dir={textDirection}
       data-user-theme={selectedTheme}
       onPointerDown={(event) => {
         if (

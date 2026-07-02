@@ -1,7 +1,4 @@
 import {
-  type Locale
-} from "../../lib/i18n.ts";
-import {
   convertMenuPriceCents,
   formatMenuPrice,
   formatMenuPriceCents,
@@ -14,7 +11,6 @@ import {
   normalizePublicMenuCurrencyPreference,
   normalizePublicMenuLocalePreference,
   normalizePublicMenuThemePreference,
-  publicLocaleToShortLocale,
   PUBLIC_MENU_LOCALE_OPTIONS,
   type PublicMenuCurrency,
   type PublicMenuLocale,
@@ -25,7 +21,10 @@ export type TrouvableLocale = PublicMenuLocale;
 export type TrouvableCurrency = PublicMenuCurrency;
 export type TrouvableTheme = "dark" | "light";
 export type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
-type TrouvableCopyLocale = Locale;
+type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "ar";
+
+const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "ar"] as const;
+const TROUVABLE_COPY_LOCALE_SET = new Set<string>(TROUVABLE_COPY_LOCALES);
 
 export const TROUVABLE_LOCALE_STORAGE_KEY = "vistaire:trouvable-menu-locale";
 export const TROUVABLE_CURRENCY_STORAGE_KEY = "vistaire:trouvable-menu-currency";
@@ -33,7 +32,7 @@ export const TROUVABLE_THEME_STORAGE_KEY = "vistaire:trouvable-menu-theme";
 
 export const TROUVABLE_CURRENCY_OPTIONS: Array<{
   code: TrouvableCurrency;
-  label: Record<TrouvableCopyLocale, string>;
+  label: Partial<Record<TrouvableCopyLocale, string>>;
   symbol: string;
 }> = [
   {
@@ -172,7 +171,7 @@ export const TROUVABLE_COPY = {
     reviewMissing: "Lien Google Review non configuré pour ce restaurant.",
     reviewOpened: "Google Review ouvert dans un nouvel onglet.",
     reviewPlaceholder: "Comment était le goût ?",
-    reviewPost: "POST REVIEW",
+    reviewPost: "Publier l'avis",
     reviewStars: "Note du plat",
     reviewTitle: "Noter ce plat",
     searchLabel: "Recherche",
@@ -257,10 +256,10 @@ export const TROUVABLE_COPY = {
     nutFree: "Nut-free",
     gridAria: "Show grid view",
     greeting: {
-      afternoon: "Good Afternoon",
-      evening: "Good Evening",
-      morning: "Good Morning",
-      night: "Good Night"
+      afternoon: "Good afternoon",
+      evening: "Good evening",
+      morning: "Good morning",
+      night: "Good night"
     },
     heroAction: "View menu",
     heroBlurb: "House cooking, warm accents and table service.",
@@ -346,6 +345,419 @@ export const TROUVABLE_COPY = {
       selection: "Ask about my selection"
     },
     veg: "Veg"
+  },
+  es: {
+    activeCategoryAll: "La carta",
+    add: "Anadir",
+    addToSelection: "Anadir a mi seleccion",
+    all: "Todo",
+    activeFilterPrefix: "Filtro activo",
+    activeFilters: (count: number) => `${count} filtros`,
+    allergens: "Alergenos",
+    askWaiter: "Pedir al camarero",
+    available: "Disponible",
+    backToMenu: "Volver al menu",
+    categories: "CATEGORIAS",
+    categoryAria: "Categorias",
+    clearSearch: "Borrar",
+    close: "Cerrar",
+    closeFilters: "Cerrar filtros",
+    closeDetail: "Cerrar detalles",
+    closeLanguage: "Cerrar idiomas",
+    closeSelection: "Cerrar seleccion",
+    closeWaiter: "Cerrar solicitud",
+    currencyAria: "Elegir divisa del menu",
+    currencyCopy: "Los precios se convierten localmente desde el precio CAD del menu.",
+    currencyKicker: "Divisa",
+    currencyTitle: "Divisa del menu",
+    details: "Detalles",
+    emptySelectionBody: "Anade un plato para preparar una solicitud al camarero.",
+    emptySelectionTitle: "Tu seleccion esta vacia.",
+    estimatedTotal: "Total estimado",
+    filterAllAria: "Mostrar todos los platos",
+    filterAvailableAria: "Filtrar platos disponibles",
+    filterImmersiveAria: "Filtrar platos con 3D o AR",
+    filterNonVegAria: "Filtrar platos no vegetarianos detectados",
+    filterRecommendedAria: "Filtrar platos firma o recomendados",
+    filterVegAria: "Filtrar platos vegetarianos detectados",
+    filterApply: "Aplicar",
+    filterButton: "Filtrar",
+    filterFallback: "Filtro",
+    filterGroupLabel: "Filtros",
+    filterKicker: "Trouvable",
+    filterTitle: "Filtros",
+    filtersAria: "Filtros rapidos",
+    dairyFree: "Sin lacteos",
+    eggFree: "Sin huevo",
+    fishFree: "Sin pescado",
+    glutenFree: "Sin gluten",
+    nutFree: "Sin frutos secos",
+    gridAria: "Mostrar vista en cuadricula",
+    greeting: {
+      afternoon: "Buenas tardes",
+      evening: "Buenas noches",
+      morning: "Buenos dias",
+      night: "Buenas noches"
+    },
+    heroAction: "Ver la carta",
+    heroBlurb: "Cocina de casa, acentos calidos y servicio en mesa.",
+    houseNote: "Nota de la casa",
+    immersiveUnavailable: "La vista 3D no esta disponible para este plato.",
+    ingredients: "Ingredientes",
+    ingredientsCount: (count: number) =>
+      `${count} ingrediente${count > 1 ? "s" : ""}`,
+    languageAria: "Elegir idioma del menu",
+    languageCopy: "Los nombres de platos se conservan si no existe traduccion.",
+    languageKicker: "Idioma",
+    languageTitle: "Idioma del menu",
+    listAria: "Mostrar vista en lista",
+    localOrderHint:
+      "No se envia ningun pedido automaticamente. Muestra esta solicitud al equipo.",
+    menuAria: "Menu Trouvable",
+    menuContextFallback: "Menu de mesa",
+    modelPreparing: "Preparando la vista inmersiva...",
+    modelUnavailable: "La vista 3D no esta disponible temporalmente.",
+    arBrowserHelp:
+      "Si \"Ver frente a mi\" no se abre, abre esta ficha en Safari o Chrome y vuelve a lanzar el 3D.",
+    arBrowserLink: "Abrir en el navegador",
+    moreDetails: "Mas detalles",
+    nextDish: "Plato siguiente",
+    nonVeg: "No veg",
+    noResultsBody: "Prueba otra busqueda o quita un filtro.",
+    noResultsTitle: "Ningun plato coincide.",
+    options: "Opciones",
+    popular: "Popular",
+    previousDish: "Plato anterior",
+    priceToConfirm: "Precio por confirmar",
+    prepareRequest: "Preparar solicitud",
+    quantityDecrease: (name: string) => `Disminuir cantidad de ${name}`,
+    quantityIncrease: (name: string) => `Aumentar cantidad de ${name}`,
+    quantityLabel: (name: string) => `Cantidad de ${name}`,
+    recommendation: "Recomendado",
+    reset: "Restablecer",
+    resetFilters: "Restablecer filtros",
+    resultStatus: (view: string, count: number) =>
+      `Vista ${view}, ${count} plato${count > 1 ? "s" : ""} visible${count > 1 ? "s" : ""}`,
+    review: "DEJAR RESENA",
+    reviewClose: "Cerrar resena",
+    reviewComment: "Tu comentario",
+    reviewExperiencePlaceholder: "Como fue tu visita?",
+    reviewExperienceStars: "Valoracion de la experiencia",
+    reviewExperienceTitle: "Valorar tu experiencia",
+    reviewMissing: "El enlace de Google Review no esta configurado para este restaurante.",
+    reviewOpened: "Google Review se abrio en una nueva pestana.",
+    reviewPlaceholder: "Que tal el sabor?",
+    reviewPost: "Publicar resena",
+    reviewStars: "Valoracion del plato",
+    reviewTitle: "Valorar este plato",
+    searchLabel: "Buscar",
+    searchPlaceholder: "Buscar plato, ingrediente, etiqueta...",
+    selection: "Seleccion",
+    selectionKicker: "Seleccion local",
+    selectionTitle: "Tu seleccion",
+    server: "Camarero",
+    sesameFree: "Sin sesamo",
+    shellfishFree: "Sin mariscos",
+    signature: "Firma",
+    soyFree: "Sin soja",
+    soldOut: "Agotado",
+    tags: "Etiquetas",
+    spicy: "Plato picante",
+    swipeList: "Deslizar",
+    tableToConfirm: "Mesa por confirmar",
+    themeDarkAria: "Activar modo oscuro",
+    themeLightAria: "Activar modo claro",
+    threeD: "VER EN 3D",
+    toConfirm: "Por confirmar",
+    viewAr: "Ver frente a mi",
+    viewGrid: "cuadricula",
+    viewList: "lista",
+    viewModeAria: "Modo de vista",
+    waiterKicker: "Servicio en mesa",
+    waiterReady: (table: string) => `${table} - solicitud lista localmente.`,
+    waiterTitle: "Pedir al camarero",
+    waiterTopic: "Tema de la solicitud",
+    waiterTopics: {
+      allergen: "Pregunta sobre alergenos",
+      recommendation: "Pedir una recomendacion",
+      selection: "Preguntar por mi seleccion"
+    },
+    veg: "Veg"
+  },
+  it: {
+    activeCategoryAll: "Il menu",
+    add: "Aggiungi",
+    addToSelection: "Aggiungi alla selezione",
+    all: "Tutto",
+    activeFilterPrefix: "Filtro attivo",
+    activeFilters: (count: number) => `${count} filtri`,
+    allergens: "Allergeni",
+    askWaiter: "Chiedi al cameriere",
+    available: "Disponibile",
+    backToMenu: "Torna al menu",
+    categories: "CATEGORIE",
+    categoryAria: "Categorie",
+    clearSearch: "Cancella",
+    close: "Chiudi",
+    closeFilters: "Chiudi filtri",
+    closeDetail: "Chiudi dettagli",
+    closeLanguage: "Chiudi lingua",
+    closeSelection: "Chiudi selezione",
+    closeWaiter: "Chiudi richiesta",
+    currencyAria: "Scegli la valuta del menu",
+    currencyCopy: "I prezzi sono convertiti localmente dal prezzo CAD del menu.",
+    currencyKicker: "Valuta",
+    currencyTitle: "Valuta del menu",
+    details: "Dettagli",
+    emptySelectionBody: "Aggiungi un piatto per preparare una richiesta al cameriere.",
+    emptySelectionTitle: "La tua selezione e vuota.",
+    estimatedTotal: "Totale stimato",
+    filterAllAria: "Mostra tutti i piatti",
+    filterAvailableAria: "Filtra i piatti disponibili",
+    filterImmersiveAria: "Filtra i piatti con 3D o AR",
+    filterNonVegAria: "Filtra i piatti non vegetariani rilevati",
+    filterRecommendedAria: "Filtra piatti signature o consigliati",
+    filterVegAria: "Filtra i piatti vegetariani rilevati",
+    filterApply: "Applica",
+    filterButton: "Filtra",
+    filterFallback: "Filtro",
+    filterGroupLabel: "Filtri",
+    filterKicker: "Trouvable",
+    filterTitle: "Filtri",
+    filtersAria: "Filtri rapidi",
+    dairyFree: "Senza latticini",
+    eggFree: "Senza uova",
+    fishFree: "Senza pesce",
+    glutenFree: "Senza glutine",
+    nutFree: "Senza frutta a guscio",
+    gridAria: "Mostra vista griglia",
+    greeting: {
+      afternoon: "Buon pomeriggio",
+      evening: "Buonasera",
+      morning: "Buongiorno",
+      night: "Buona notte"
+    },
+    heroAction: "Vedi il menu",
+    heroBlurb: "Cucina di casa, toni caldi e servizio al tavolo.",
+    houseNote: "Nota della casa",
+    immersiveUnavailable: "La vista 3D non e disponibile per questo piatto.",
+    ingredients: "Ingredienti",
+    ingredientsCount: (count: number) =>
+      `${count} ingrediente${count > 1 ? "i" : ""}`,
+    languageAria: "Scegli la lingua del menu",
+    languageCopy: "I nomi dei piatti restano originali se non esiste una traduzione.",
+    languageKicker: "Lingua",
+    languageTitle: "Lingua del menu",
+    listAria: "Mostra vista lista",
+    localOrderHint:
+      "Nessun ordine viene inviato automaticamente. Mostra questa richiesta al team.",
+    menuAria: "Menu Trouvable",
+    menuContextFallback: "Menu al tavolo",
+    modelPreparing: "Preparazione della vista immersiva...",
+    modelUnavailable: "La vista 3D e temporaneamente non disponibile.",
+    arBrowserHelp:
+      "Se \"Vedi davanti a me\" non si apre, apri questa scheda in Safari o Chrome e rilancia il 3D.",
+    arBrowserLink: "Apri nel browser",
+    moreDetails: "Piu dettagli",
+    nextDish: "Piatto successivo",
+    nonVeg: "Non veg",
+    noResultsBody: "Prova un'altra ricerca o rimuovi un filtro.",
+    noResultsTitle: "Nessun piatto corrisponde.",
+    options: "Opzioni",
+    popular: "Popolare",
+    previousDish: "Piatto precedente",
+    priceToConfirm: "Prezzo da confermare",
+    prepareRequest: "Prepara richiesta",
+    quantityDecrease: (name: string) => `Diminuisci quantita di ${name}`,
+    quantityIncrease: (name: string) => `Aumenta quantita di ${name}`,
+    quantityLabel: (name: string) => `Quantita di ${name}`,
+    recommendation: "Consigliato",
+    reset: "Reimposta",
+    resetFilters: "Reimposta filtri",
+    resultStatus: (view: string, count: number) =>
+      `Vista ${view}, ${count} piatt${count > 1 ? "i" : "o"} visibil${count > 1 ? "i" : "e"}`,
+    review: "LASCIA RECENSIONE",
+    reviewClose: "Chiudi recensione",
+    reviewComment: "Il tuo commento",
+    reviewExperiencePlaceholder: "Com'e stata la visita?",
+    reviewExperienceStars: "Valutazione esperienza",
+    reviewExperienceTitle: "Valuta la tua esperienza",
+    reviewMissing: "Link Google Review non configurato per questo ristorante.",
+    reviewOpened: "Google Review aperto in una nuova scheda.",
+    reviewPlaceholder: "Com'era il gusto?",
+    reviewPost: "Pubblica recensione",
+    reviewStars: "Valutazione piatto",
+    reviewTitle: "Valuta questo piatto",
+    searchLabel: "Cerca",
+    searchPlaceholder: "Cerca piatto, ingrediente, tag...",
+    selection: "Selezione",
+    selectionKicker: "Selezione locale",
+    selectionTitle: "La tua selezione",
+    server: "Cameriere",
+    sesameFree: "Senza sesamo",
+    shellfishFree: "Senza crostacei",
+    signature: "Signature",
+    soyFree: "Senza soia",
+    soldOut: "Esaurito",
+    tags: "Tag",
+    spicy: "Piatto piccante",
+    swipeList: "Scorri",
+    tableToConfirm: "Tavolo da confermare",
+    themeDarkAria: "Attiva modalita scura",
+    themeLightAria: "Attiva modalita chiara",
+    threeD: "VEDI IN 3D",
+    toConfirm: "Da confermare",
+    viewAr: "Vedi davanti a me",
+    viewGrid: "griglia",
+    viewList: "lista",
+    viewModeAria: "Modo vista",
+    waiterKicker: "Servizio al tavolo",
+    waiterReady: (table: string) => `${table} - richiesta pronta localmente.`,
+    waiterTitle: "Chiedi al cameriere",
+    waiterTopic: "Oggetto della richiesta",
+    waiterTopics: {
+      allergen: "Domanda sugli allergeni",
+      recommendation: "Chiedi un consiglio",
+      selection: "Chiedi della mia selezione"
+    },
+    veg: "Veg"
+  },
+  ar: {
+    activeCategoryAll: "القائمة",
+    add: "إضافة",
+    addToSelection: "إضافة إلى اختياري",
+    all: "الكل",
+    activeFilterPrefix: "فلتر نشط",
+    activeFilters: (count: number) => `${count} فلاتر`,
+    allergens: "مسببات الحساسية",
+    askWaiter: "اطلب النادل",
+    available: "متاح",
+    backToMenu: "العودة إلى القائمة",
+    categories: "الفئات",
+    categoryAria: "الفئات",
+    clearSearch: "مسح",
+    close: "إغلاق",
+    closeFilters: "إغلاق الفلاتر",
+    closeDetail: "إغلاق التفاصيل",
+    closeLanguage: "إغلاق اختيار اللغة",
+    closeSelection: "إغلاق الاختيار",
+    closeWaiter: "إغلاق طلب النادل",
+    currencyAria: "اختيار عملة القائمة",
+    currencyCopy: "يتم تحويل الأسعار محليا من سعر القائمة بالدولار الكندي.",
+    currencyKicker: "العملة",
+    currencyTitle: "عملة القائمة",
+    details: "التفاصيل",
+    emptySelectionBody: "أضف طبقا لتحضير طلب للنادل.",
+    emptySelectionTitle: "اختيارك فارغ.",
+    estimatedTotal: "الإجمالي التقديري",
+    filterAllAria: "عرض كل الأطباق",
+    filterAvailableAria: "تصفية الأطباق المتاحة",
+    filterImmersiveAria: "تصفية أطباق 3D أو AR",
+    filterNonVegAria: "تصفية الأطباق غير النباتية",
+    filterRecommendedAria: "تصفية الأطباق المميزة أو المقترحة",
+    filterVegAria: "تصفية الأطباق النباتية",
+    filterApply: "تطبيق",
+    filterButton: "تصفية",
+    filterFallback: "فلتر",
+    filterGroupLabel: "الفلاتر",
+    filterKicker: "Trouvable",
+    filterTitle: "الفلاتر",
+    filtersAria: "فلاتر سريعة",
+    dairyFree: "بدون ألبان",
+    eggFree: "بدون بيض",
+    fishFree: "بدون سمك",
+    glutenFree: "بدون غلوتين",
+    nutFree: "بدون مكسرات",
+    gridAria: "عرض الشبكة",
+    greeting: {
+      afternoon: "مساء الخير",
+      evening: "مساء الخير",
+      morning: "صباح الخير",
+      night: "تصبح على خير"
+    },
+    heroAction: "عرض القائمة",
+    heroBlurb: "طبخ منزلي ولمسات دافئة وخدمة على الطاولة.",
+    houseNote: "ملاحظة الدار",
+    immersiveUnavailable: "عرض 3D غير متاح لهذا الطبق.",
+    ingredients: "المكونات",
+    ingredientsCount: (count: number) => `${count} مكونات`,
+    languageAria: "اختيار لغة القائمة",
+    languageCopy: "تبقى أسماء الأطباق كما هي عند عدم توفر ترجمة.",
+    languageKicker: "اللغة",
+    languageTitle: "لغة القائمة",
+    listAria: "عرض القائمة",
+    localOrderHint:
+      "لا يتم إرسال أي طلب تلقائيا. اعرض هذا الطلب على الفريق.",
+    menuAria: "قائمة Trouvable",
+    menuContextFallback: "قائمة الطاولة",
+    modelPreparing: "جار تحضير العرض التفاعلي...",
+    modelUnavailable: "عرض 3D غير متاح مؤقتا.",
+    arBrowserHelp:
+      "إذا لم يفتح \"اعرض أمامي\"، افتح هذه الصفحة في Safari أو Chrome ثم شغل 3D مرة أخرى.",
+    arBrowserLink: "فتح في المتصفح",
+    moreDetails: "تفاصيل أكثر",
+    nextDish: "الطبق التالي",
+    nonVeg: "غير نباتي",
+    noResultsBody: "جرب بحثا آخر أو أزل فلتر.",
+    noResultsTitle: "لا يوجد طبق مطابق.",
+    options: "الخيارات",
+    popular: "شائع",
+    previousDish: "الطبق السابق",
+    priceToConfirm: "السعر للتأكيد",
+    prepareRequest: "تحضير الطلب",
+    quantityDecrease: (name: string) => `تقليل كمية ${name}`,
+    quantityIncrease: (name: string) => `زيادة كمية ${name}`,
+    quantityLabel: (name: string) => `كمية ${name}`,
+    recommendation: "موصى به",
+    reset: "إعادة ضبط",
+    resetFilters: "إعادة ضبط الفلاتر",
+    resultStatus: (view: string, count: number) =>
+      `عرض ${view}، ${count} أطباق معروضة`,
+    review: "اترك تقييما",
+    reviewClose: "إغلاق التقييم",
+    reviewComment: "تعليقك",
+    reviewExperiencePlaceholder: "كيف كانت زيارتك؟",
+    reviewExperienceStars: "تقييم التجربة",
+    reviewExperienceTitle: "قيّم تجربتك",
+    reviewMissing: "رابط Google Review غير معد لهذا المطعم.",
+    reviewOpened: "تم فتح Google Review في تبويب جديد.",
+    reviewPlaceholder: "كيف كان الطعم؟",
+    reviewPost: "نشر التقييم",
+    reviewStars: "تقييم الطبق",
+    reviewTitle: "قيّم هذا الطبق",
+    searchLabel: "بحث",
+    searchPlaceholder: "ابحث عن طبق أو مكون أو وسم...",
+    selection: "الاختيار",
+    selectionKicker: "اختيار محلي",
+    selectionTitle: "اختيارك",
+    server: "النادل",
+    sesameFree: "بدون سمسم",
+    shellfishFree: "بدون قشريات",
+    signature: "مميز",
+    soyFree: "بدون صويا",
+    soldOut: "غير متاح",
+    tags: "وسوم",
+    spicy: "طبق حار",
+    swipeList: "مرر",
+    tableToConfirm: "الطاولة للتأكيد",
+    themeDarkAria: "تفعيل الوضع الداكن",
+    themeLightAria: "تفعيل الوضع الفاتح",
+    threeD: "عرض 3D",
+    toConfirm: "للتأكيد",
+    viewAr: "اعرض أمامي",
+    viewGrid: "شبكة",
+    viewList: "قائمة",
+    viewModeAria: "نمط العرض",
+    waiterKicker: "خدمة الطاولة",
+    waiterReady: (table: string) => `${table} - الطلب جاهز محليا.`,
+    waiterTitle: "اطلب النادل",
+    waiterTopic: "موضوع الطلب",
+    waiterTopics: {
+      allergen: "سؤال عن الحساسية",
+      recommendation: "طلب توصية",
+      selection: "السؤال عن اختياري"
+    },
+    veg: "نباتي"
   }
 } as const;
 
@@ -379,8 +791,27 @@ export function normalizeTrouvableTheme(
   return value === "light" ? "light" : "dark";
 }
 
+export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLocale {
+  const normalized = normalizePublicMenuLocale(locale);
+  try {
+    const language = new Intl.Locale(normalized).language.toLowerCase();
+    return TROUVABLE_COPY_LOCALE_SET.has(language)
+      ? (language as TrouvableCopyLocale)
+      : "en";
+  } catch {
+    const language = normalized.toLowerCase().split("-")[0] ?? "";
+    return TROUVABLE_COPY_LOCALE_SET.has(language)
+      ? (language as TrouvableCopyLocale)
+      : "en";
+  }
+}
+
 function copyLocaleForPublicLocale(locale: TrouvableLocale): TrouvableCopyLocale {
-  return publicLocaleToShortLocale(locale);
+  return getTrouvableCopyLocale(locale);
+}
+
+export function getTrouvableTextDirection(locale: TrouvableLocale): "ltr" | "rtl" {
+  return copyLocaleForPublicLocale(locale) === "ar" ? "rtl" : "ltr";
 }
 
 function stringOverrides(value: unknown): Record<string, string> {
@@ -436,19 +867,43 @@ export function getTrouvableCurrencyOptions(settings: PublicMenuSettings) {
   return settings.supportedCurrencies.map(getTrouvableCurrencyOption);
 }
 
+function intlDisplayName(
+  locale: TrouvableLocale,
+  type: "currency" | "language",
+  code: string
+): string {
+  try {
+    return new Intl.DisplayNames([normalizePublicMenuLocale(locale)], { type }).of(code) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function getTrouvableCurrencyOptionLabel(
   option: ReturnType<typeof getTrouvableCurrencyOption>,
   locale: TrouvableLocale
 ) {
-  return option.label[copyLocaleForPublicLocale(locale)] ?? option.code;
+  return (
+    intlDisplayName(locale, "currency", option.code) ||
+    option.label[copyLocaleForPublicLocale(locale)] ||
+    option.code
+  );
 }
 
-function formatPublicLocaleLabel(locale: string): string {
+function formatPublicLocaleLabel(
+  locale: string,
+  displayLocale: TrouvableLocale
+): string {
+  const localized = intlDisplayName(displayLocale, "language", locale);
+  if (localized) return `${localized} (${locale})`;
   const option = PUBLIC_MENU_LOCALE_OPTIONS.find((item) => item.value === locale);
   return option ? `${option.label} (${locale})` : locale;
 }
 
-export function getTrouvableLanguageOptions(settings: PublicMenuSettings): Array<{
+export function getTrouvableLanguageOptions(
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  displayLocale: TrouvableLocale = settings.defaultLocale
+): Array<{
   locale: TrouvableLocale;
   publicLocale: string;
   label: string;
@@ -462,7 +917,7 @@ export function getTrouvableLanguageOptions(settings: PublicMenuSettings): Array
     options.push({
       locale: publicLocale,
       publicLocale,
-      label: formatPublicLocaleLabel(publicLocale)
+      label: formatPublicLocaleLabel(publicLocale, displayLocale)
     });
   }
   return options;

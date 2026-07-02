@@ -113,7 +113,10 @@ export default async function PublicDishPage({
         dish={dish}
         exchangeRates={exchangeRates}
         menu={menu}
-        query={menuQuery}
+        query={{
+          ...menuQuery,
+          lang: hasLangParam ? activePublicLocale : undefined
+        }}
         typographyClassName={trouvableTypographyClassName}
       />
     );

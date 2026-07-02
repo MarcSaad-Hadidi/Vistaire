@@ -174,17 +174,31 @@ test("menu translation source fields stay shared between owner generation and pu
   });
 
   assert.deepEqual(sourceFields, {
-    restaurantName: "Cafe Vistaire",
     menuName: "Menu principal"
   });
   assert.equal(
     sourceHashFor(sourceFields),
-    sourceHashFor({ menuName: "Menu principal", restaurantName: "Cafe Vistaire" })
+    sourceHashFor({ menuName: "Menu principal" })
   );
   assert.match(ownerTranslations, /menuTranslationFieldsFromNames/);
   assert.match(publicTranslations, /menuTranslationFieldsFromNames/);
+  assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
+  assert.doesNotMatch(publicTranslations, /field:\s*"restaurantName"/);
+  assert.doesNotMatch(publicTranslations, /name:\s*translatedName/);
   assert.match(publicCore, /menuName\?: string/);
   assert.match(publicCore, /menuName:\s*getString\(args\.menuRow/);
+});
+
+test("stored restaurantName translations cannot replace public restaurant names", async () => {
+  const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const sourceFields = menuTranslationFieldsFromNames({
+    restaurantName: "Cafe Vistaire"
+  });
+
+  assert.deepEqual(sourceFields, {});
+  assert.match(publicTranslations, /name:\s*menu\.name/);
+  assert.doesNotMatch(publicTranslations, /content\["restaurantName"\]/);
+  assert.doesNotMatch(publicTranslations, /getTranslatedString\(\{[\s\S]{0,120}restaurantName/);
 });
 
 test("owner generator checks translation storage before Azure work", async () => {
@@ -218,7 +232,7 @@ test("locale summaries avoid retraduction when only unchanged fields have stored
   const menuEntity = {
     type: "menu",
     id: "menu-1",
-    fields: { restaurantName: "Cafe Vistaire" }
+    fields: { menuName: "Menu principal" }
   };
   const dishEntity = {
     type: "dish",
@@ -233,7 +247,7 @@ test("locale summaries avoid retraduction when only unchanged fields have stored
         translation_status: "up_to_date",
         source_hash: sourceHashFor(menuEntity.fields),
         field_hashes: fieldHashesFor(menuEntity.fields),
-        content: { restaurantName: "Cafe Vistaire ES" }
+        content: { menuName: "Menu principal ES", restaurantName: "Cafe Vistaire ES" }
       }
     ]
   ]);

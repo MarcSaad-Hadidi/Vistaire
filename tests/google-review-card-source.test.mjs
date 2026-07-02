@@ -68,3 +68,14 @@ test("public menu renders Google Review card from the validated CTA helper", asy
   assert.match(core, /parsed\.protocol === "https:"/);
   assert.doesNotMatch(component + renderer, /<iframe|<script|googleapis|gstatic|maps\.google|recaptcha/i);
 });
+
+test("Google Review card has controlled public-menu copy beyond French and English", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /es:\s*\{/);
+  assert.match(source, /it:\s*\{/);
+  assert.match(source, /ar:\s*\{/);
+  assert.match(source, /normalizeGoogleReviewLocale/);
+  assert.doesNotMatch(source, /const resolvedLocale = normalizeLocale\(locale\)/);
+  assert.match(source, /new Intl\.NumberFormat\(resolvedLocale/);
+});

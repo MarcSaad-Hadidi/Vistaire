@@ -37,7 +37,7 @@ const DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
 
 const TROUVABLE_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   ...DEFAULT_PUBLIC_MENU_SETTINGS,
-  supportedLocales: ["fr-CA", "en-CA"],
+  supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "ar"],
   supportedCurrencies: ["CAD", "USD", "EUR"],
   defaultCurrency: "CAD",
   baseCurrency: "CAD",
