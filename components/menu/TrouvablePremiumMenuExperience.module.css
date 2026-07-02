@@ -1311,52 +1311,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .page .botanicalStem {
-    animation: botanicalDraw 1700ms cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
-  }
-
-  .page .botanicalVineRight .botanicalStem {
-    animation-delay: 220ms !important;
-  }
-
-  .page .botanicalLeaf {
-    animation: botanicalBloom 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-  }
-
-  .page .vistaireLeafI::after {
-    animation: vistaireLeafBloom 1180ms 520ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
-  }
-
-  .page .swipeHint {
-    animation: swipeHintBounce 1650ms cubic-bezier(0.3, 1.35, 0.52, 1) infinite !important;
-  }
-
-  .page .leafDelay1 {
-    animation-delay: 480ms !important;
-  }
-
-  .page .leafDelay2 {
-    animation-delay: 680ms !important;
-  }
-
-  .page .leafDelay3 {
-    animation-delay: 880ms !important;
-  }
-
-  .page .leafDelay4 {
-    animation-delay: 1080ms !important;
-  }
-
-  .page .leafDelay5 {
-    animation-delay: 1280ms !important;
-  }
-
-  .page .leafDelay6 {
-    animation-delay: 1480ms !important;
-  }
-}
-
 .hero p {
   color: #f1d91c;
   font-family: var(--trouvable-font-display);
@@ -1458,10 +1412,6 @@
   scroll-snap-type: x mandatory;
 }
 
-.categoryRail > button:first-child {
-  display: none;
-}
-
 .categoryRail button {
   display: grid;
   min-width: 178px;
@@ -1523,6 +1473,27 @@
   font-size: clamp(38px, 10vw, 54px);
   font-weight: 600;
   line-height: 1;
+}
+
+.sectionBody {
+  display: grid;
+  gap: 0;
+}
+
+.sectionBodyEnter {
+  animation: sectionBodyEnter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sectionBodyEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .tools {
