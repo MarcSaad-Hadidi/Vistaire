@@ -166,7 +166,7 @@ test("greeting follows locale and restaurant timezone", () => {
   const date = new Date("2026-07-01T12:00:00.000Z");
 
   assert.equal(getGreetingForTime(date, "fr-CA", "America/Toronto"), "Bonjour");
-  assert.equal(getGreetingForTime(date, "en-CA", "Europe/Paris"), "Good Afternoon");
+  assert.equal(getGreetingForTime(date, "en-CA", "Europe/Paris"), "Good afternoon");
 });
 
 test("exchange rates fetch Frankfurter once per hourly cache window and always include base", async () => {

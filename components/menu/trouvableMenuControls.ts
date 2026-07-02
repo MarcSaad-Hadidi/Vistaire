@@ -892,17 +892,19 @@ export function getTrouvableCurrencyOptionLabel(
 
 function formatPublicLocaleLabel(
   locale: string,
-  displayLocale: TrouvableLocale
+  displayLocale?: TrouvableLocale
 ): string {
-  const localized = intlDisplayName(displayLocale, "language", locale);
-  if (localized) return `${localized} (${locale})`;
+  if (displayLocale) {
+    const localized = intlDisplayName(displayLocale, "language", locale);
+    if (localized) return `${localized} (${locale})`;
+  }
   const option = PUBLIC_MENU_LOCALE_OPTIONS.find((item) => item.value === locale);
   return option ? `${option.label} (${locale})` : locale;
 }
 
 export function getTrouvableLanguageOptions(
   settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
-  displayLocale: TrouvableLocale = settings.defaultLocale
+  displayLocale?: TrouvableLocale
 ): Array<{
   locale: TrouvableLocale;
   publicLocale: string;
