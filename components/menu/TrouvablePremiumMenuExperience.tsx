@@ -38,6 +38,7 @@ import {
   getTrouvableCurrencyOptions,
   getTrouvableCopy,
   getTrouvableCurrencyOption,
+  getTrouvableCurrencyOptionLabel,
   getTrouvableDishConvertedPriceCents,
   getTrouvableGreetingForDate,
   getTrouvableLanguageOptions,
@@ -604,7 +605,7 @@ export function TrouvablePremiumMenuExperience({
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
   const categorySwipeRef = useRef<SwipeStart>(null);
   const dishSwipeRef = useRef<SwipeStart>(null);
-  const copy = getTrouvableCopy(selectedLocale);
+  const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
   const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
   const currencyOptions = useMemo(
     () => getTrouvableCurrencyOptions(menu.settings),
@@ -1420,7 +1421,7 @@ export function TrouvablePremiumMenuExperience({
               >
                 <span>{option.code}</span>
                 <small>
-                  {option.symbol} · {option.label[selectedLocale]}
+                  {option.symbol} · {getTrouvableCurrencyOptionLabel(option, selectedLocale)}
                 </small>
               </button>
             ))}

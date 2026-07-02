@@ -1,6 +1,4 @@
 import {
-  LOCALE_LANGUAGE_TAG,
-  normalizeLocale,
   type Locale
 } from "../../lib/i18n.ts";
 import {
@@ -12,20 +10,22 @@ import {
 import { getGreetingForTime } from "../../lib/menu/greeting.ts";
 import type { PublicMenuDish } from "../../lib/menu/publicMenuCore.ts";
 import {
+  normalizePublicMenuLocale,
   normalizePublicMenuCurrencyPreference,
   normalizePublicMenuLocalePreference,
   normalizePublicMenuThemePreference,
-  publicLocaleMatchesShortLocale,
   publicLocaleToShortLocale,
-  publicLocaleToLanguageTag,
+  PUBLIC_MENU_LOCALE_OPTIONS,
   type PublicMenuCurrency,
+  type PublicMenuLocale,
   type PublicMenuSettings
 } from "../../lib/menu/publicMenuSettings.ts";
 
-export type TrouvableLocale = Locale;
+export type TrouvableLocale = PublicMenuLocale;
 export type TrouvableCurrency = PublicMenuCurrency;
 export type TrouvableTheme = "dark" | "light";
 export type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
+type TrouvableCopyLocale = Locale;
 
 export const TROUVABLE_LOCALE_STORAGE_KEY = "vistaire:trouvable-menu-locale";
 export const TROUVABLE_CURRENCY_STORAGE_KEY = "vistaire:trouvable-menu-currency";
@@ -33,7 +33,7 @@ export const TROUVABLE_THEME_STORAGE_KEY = "vistaire:trouvable-menu-theme";
 
 export const TROUVABLE_CURRENCY_OPTIONS: Array<{
   code: TrouvableCurrency;
-  label: Record<TrouvableLocale, string>;
+  label: Record<TrouvableCopyLocale, string>;
   symbol: string;
 }> = [
   {
@@ -55,7 +55,7 @@ export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, numbe
   EUR: 0.68
 };
 
-const CATEGORY_TRANSLATIONS: Record<string, Partial<Record<TrouvableLocale, string>>> = {
+const CATEGORY_TRANSLATIONS: Record<string, Partial<Record<TrouvableCopyLocale, string>>> = {
   "bols & salades": { en: "Bowls & salads" },
   boissons: { en: "Drinks" },
   burgers: { en: "Burgers" },
@@ -348,16 +348,14 @@ export const TROUVABLE_COPY = {
 } as const;
 
 export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
-  return normalizeLocale(value);
+  return normalizePublicMenuLocale(value);
 }
 
 export function normalizeTrouvableLocaleForSettings(
   value: unknown,
   settings: PublicMenuSettings
 ): TrouvableLocale {
-  return publicLocaleToShortLocale(
-    normalizePublicMenuLocalePreference(value, settings)
-  );
+  return normalizePublicMenuLocalePreference(value, settings);
 }
 
 export function normalizeTrouvableCurrency(
@@ -379,8 +377,37 @@ export function normalizeTrouvableTheme(
   return value === "light" ? "light" : "dark";
 }
 
-export function getTrouvableCopy(locale: TrouvableLocale) {
-  return TROUVABLE_COPY[locale];
+function copyLocaleForPublicLocale(locale: TrouvableLocale): TrouvableCopyLocale {
+  return publicLocaleToShortLocale(locale);
+}
+
+function stringOverrides(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim().length > 0
+    )
+  );
+}
+
+export function getTrouvableCopy(
+  locale: TrouvableLocale,
+  uiCopy?: Record<string, unknown>
+) {
+  const base = TROUVABLE_COPY[copyLocaleForPublicLocale(locale)];
+  if (!uiCopy) return base;
+  return {
+    ...base,
+    ...stringOverrides(uiCopy),
+    greeting: {
+      ...base.greeting,
+      ...stringOverrides(uiCopy.greeting)
+    },
+    waiterTopics: {
+      ...base.waiterTopics,
+      ...stringOverrides(uiCopy.waiterTopics)
+    }
+  };
 }
 
 export function getTrouvableCurrencyOption(currency: TrouvableCurrency) {
@@ -407,6 +434,18 @@ export function getTrouvableCurrencyOptions(settings: PublicMenuSettings) {
   return settings.supportedCurrencies.map(getTrouvableCurrencyOption);
 }
 
+export function getTrouvableCurrencyOptionLabel(
+  option: ReturnType<typeof getTrouvableCurrencyOption>,
+  locale: TrouvableLocale
+) {
+  return option.label[copyLocaleForPublicLocale(locale)] ?? option.code;
+}
+
+function formatPublicLocaleLabel(locale: string): string {
+  const option = PUBLIC_MENU_LOCALE_OPTIONS.find((item) => item.value === locale);
+  return option ? `${option.label} (${locale})` : locale;
+}
+
 export function getTrouvableLanguageOptions(settings: PublicMenuSettings): Array<{
   locale: TrouvableLocale;
   publicLocale: string;
@@ -417,19 +456,11 @@ export function getTrouvableLanguageOptions(settings: PublicMenuSettings): Array
     publicLocale: string;
     label: string;
   }> = [];
-  const seen = new Set<TrouvableLocale>();
   for (const publicLocale of settings.supportedLocales) {
-    const shortLocale = publicLocaleToShortLocale(publicLocale);
-    if (seen.has(shortLocale)) continue;
-    seen.add(shortLocale);
-    const localeLabel =
-      publicLocale === "en-CA" || publicLocale === "fr-CA"
-        ? ""
-        : ` (${publicLocale})`;
     options.push({
-      locale: shortLocale,
+      locale: publicLocale,
       publicLocale,
-      label: `${shortLocale === "en" ? "English" : "Francais"}${localeLabel}`
+      label: formatPublicLocaleLabel(publicLocale)
     });
   }
   return options;
@@ -439,8 +470,8 @@ export function isTrouvableLocaleSupported(
   locale: TrouvableLocale,
   settings: PublicMenuSettings
 ): boolean {
-  return settings.supportedLocales.some((supportedLocale) =>
-    publicLocaleMatchesShortLocale(supportedLocale, locale)
+  return settings.supportedLocales.includes(
+    normalizePublicMenuLocalePreference(locale, settings)
   );
 }
 
@@ -448,11 +479,7 @@ export function getTrouvableLocalePublicTag(
   locale: TrouvableLocale,
   settings: PublicMenuSettings
 ): string {
-  return (
-    settings.supportedLocales.find((supportedLocale) =>
-      publicLocaleMatchesShortLocale(supportedLocale, locale)
-    ) ?? publicLocaleToLanguageTag(locale)
-  );
+  return normalizePublicMenuLocalePreference(locale, settings);
 }
 
 export function parseTrouvablePriceLabel(priceLabel: string): number | null {
@@ -498,7 +525,7 @@ export function formatTrouvableAmount(
     });
   }
 
-  return new Intl.NumberFormat(LOCALE_LANGUAGE_TAG[locale], {
+  return new Intl.NumberFormat(normalizePublicMenuLocale(locale), {
     currency,
     style: "currency"
   }).format(cadAmount * (TROUVABLE_STATIC_CAD_RATES[currency] ?? 1));
@@ -572,7 +599,7 @@ export function getTrouvableGreeting(
   locale: TrouvableLocale,
   period: TrouvableGreetingPeriod
 ): string {
-  return TROUVABLE_COPY[locale].greeting[period];
+  return TROUVABLE_COPY[copyLocaleForPublicLocale(locale)].greeting[period];
 }
 
 export function getTrouvableGreetingForDate(
@@ -580,7 +607,7 @@ export function getTrouvableGreetingForDate(
   timezone: string,
   date: Date = new Date()
 ): string {
-  return getGreetingForTime(date, publicLocaleToLanguageTag(locale), timezone);
+  return getGreetingForTime(date, normalizePublicMenuLocale(locale), timezone);
 }
 
 export function translateTrouvableCategoryLabel(
@@ -592,5 +619,5 @@ export function translateTrouvableCategoryLabel(
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-  return CATEGORY_TRANSLATIONS[normalized]?.[locale] ?? label;
+  return CATEGORY_TRANSLATIONS[normalized]?.[copyLocaleForPublicLocale(locale)] ?? label;
 }

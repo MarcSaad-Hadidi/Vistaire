@@ -119,7 +119,7 @@ export function TrouvableDishDetailExperience({
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
-  const copy = getTrouvableCopy(selectedLocale);
+  const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
   const localizedQuery = useMemo<PublicMenuContextQuery>(
     () => ({
       ...(query ?? {}),
