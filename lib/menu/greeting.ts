@@ -1,21 +1,50 @@
-import { normalizeLocale, type Locale } from "../i18n.ts";
-
 export type GreetingPeriod = "morning" | "afternoon" | "evening" | "night";
+type GreetingLocale = "fr" | "en" | "es" | "it" | "ar";
 
-const GREETINGS: Record<Locale, Record<GreetingPeriod, string>> = {
+const GREETINGS: Record<GreetingLocale, Record<GreetingPeriod, string>> = {
   fr: {
     morning: "Bonjour",
-    afternoon: "Bon apres-midi",
+    afternoon: "Bon après-midi",
     evening: "Bonsoir",
     night: "Bonne nuit"
   },
   en: {
-    morning: "Good Morning",
-    afternoon: "Good Afternoon",
-    evening: "Good Evening",
-    night: "Good Night"
+    morning: "Good morning",
+    afternoon: "Good afternoon",
+    evening: "Good evening",
+    night: "Good night"
+  },
+  es: {
+    morning: "Buenos dias",
+    afternoon: "Buenas tardes",
+    evening: "Buenas noches",
+    night: "Buenas noches"
+  },
+  it: {
+    morning: "Buongiorno",
+    afternoon: "Buon pomeriggio",
+    evening: "Buonasera",
+    night: "Buona notte"
+  },
+  ar: {
+    morning: "صباح الخير",
+    afternoon: "مساء الخير",
+    evening: "مساء الخير",
+    night: "تصبح على خير"
   }
 };
+
+function greetingLocaleFor(value: unknown): GreetingLocale {
+  if (typeof value !== "string") return "fr";
+  const normalized = value.trim().toLowerCase().replace("_", "-");
+  try {
+    const language = new Intl.Locale(normalized).language.toLowerCase();
+    return language in GREETINGS ? (language as GreetingLocale) : "en";
+  } catch {
+    const language = normalized.split("-")[0] ?? "";
+    return language in GREETINGS ? (language as GreetingLocale) : "en";
+  }
+}
 
 function hourInTimezone(date: Date, timezone: string): number {
   try {
@@ -44,9 +73,9 @@ export function getGreetingPeriodForTime(
 
 export function getGreetingForTime(
   date: Date,
-  locale: Locale | string,
+  locale: string,
   timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): string {
-  const resolvedLocale = normalizeLocale(locale);
+  const resolvedLocale = greetingLocaleFor(locale);
   return GREETINGS[resolvedLocale][getGreetingPeriodForTime(date, timezone)];
 }

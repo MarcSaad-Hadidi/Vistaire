@@ -9,10 +9,9 @@ export function menuTranslationFieldsFromNames(args: {
   menuName?: unknown;
 }): MenuTranslationFields {
   const fields: MenuTranslationFields = {};
-  const restaurantName = textInput(args.restaurantName);
   const menuName = textInput(args.menuName);
 
-  if (restaurantName) fields.restaurantName = restaurantName;
+  // Restaurant names are brand/source identity and must never be translated.
   if (menuName) fields.menuName = menuName;
 
   return fields;

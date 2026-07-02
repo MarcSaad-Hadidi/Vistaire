@@ -34,7 +34,6 @@ function dishFields(dish: PublicMenuDish): MenuTranslationFields {
 
 function menuFields(menu: PublicMenu): MenuTranslationFields {
   return menuTranslationFieldsFromNames({
-    restaurantName: menu.name,
     menuName: menu.menuName
   });
 }
@@ -114,8 +113,9 @@ function translationStatus(args: {
   dishRowsById: Map<string, AnyRow>;
   dishes: PublicMenuDish[];
 }): NonNullable<PublicMenu["translationStatus"]> {
+  const hasMenuFields = Object.keys(args.menuFields).length > 0;
   const rows = [
-    args.menuRow,
+    ...(hasMenuFields ? [args.menuRow] : []),
     ...args.categoryRowsById.values(),
     ...args.dishRowsById.values()
   ].filter(Boolean) as AnyRow[];
@@ -130,7 +130,7 @@ function translationStatus(args: {
     return { locale: args.locale, status: "pending" };
   }
 
-  if (!rowMatchesSource(args.menuRow, args.menuFields)) {
+  if (hasMenuFields && !rowMatchesSource(args.menuRow, args.menuFields)) {
     return { locale: args.locale, status: args.menuRow ? "stale" : "missing" };
   }
 
@@ -221,12 +221,14 @@ export async function applyStoredPublicMenuTranslations(
   );
 
   const translatedMenuFields = menuFields(menu);
-  const translatedName = getTranslatedString({
-    field: "restaurantName",
-    source: menu.name,
-    sourceFields: translatedMenuFields,
-    row: menuRow
-  });
+  const translatedMenuName = menu.menuName
+    ? getTranslatedString({
+        field: "menuName",
+        source: menu.menuName,
+        sourceFields: translatedMenuFields,
+        row: menuRow
+      })
+    : menu.menuName;
 
   const translatedDishes = menu.dishes.map((dish) => {
     const sourceFields = dishFields(dish);
@@ -302,7 +304,8 @@ export async function applyStoredPublicMenuTranslations(
   return {
     ...menu,
     activeLocale,
-    name: translatedName,
+    name: menu.name,
+    menuName: translatedMenuName,
     dishes: translatedDishes,
     translationStatus: translationStatus({
       locale: activeLocale,

@@ -161,16 +161,15 @@ function categoryFields(row: AnyRow): MenuTranslationFields {
   return fields;
 }
 
-function menuFields(restaurant: AnyRow, menu: AnyRow): MenuTranslationFields {
+function menuFields(menu: AnyRow): MenuTranslationFields {
   return menuTranslationFieldsFromNames({
-    restaurantName: getString(restaurant, ["name", "restaurant_name"]),
     menuName: getString(menu, ["name"])
   });
 }
 
 function buildEntities(ctx: Omit<TranslationContext, "entities">): MenuTranslationSourceEntity[] {
   return [
-    { type: "menu" as const, id: getString(ctx.menu, ["id"]), fields: menuFields(ctx.restaurant, ctx.menu) },
+    { type: "menu" as const, id: getString(ctx.menu, ["id"]), fields: menuFields(ctx.menu) },
     ...ctx.categories.map((category) => ({
       type: "category" as const,
       id: getString(category, ["id"]),

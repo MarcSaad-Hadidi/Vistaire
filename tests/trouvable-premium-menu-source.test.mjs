@@ -38,6 +38,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
     "Trouvable demo data must only be a fallback after Supabase is unavailable"
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
+  assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"ar"\]/);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
@@ -130,6 +131,12 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /activeSheet === "currency"/);
   assert.match(source, /activeSheet === "filters"/);
   assert.match(source, /activeSheet === "language"/);
+  assert.match(source, /useRouter/);
+  assert.match(source, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
+  assert.doesNotMatch(source, /window\.location\.replace/);
+  assert.doesNotMatch(source, /function updateBrowserLocale[\s\S]*window\.history\.replaceState/);
+  assert.match(source, /lang=\{selectedLocale\}/);
+  assert.match(source, /dir=\{textDirection\}/);
   assert.match(source, /activeFilters/);
   assert.match(source, /setActiveFilters/);
   assert.match(source, /className=\{styles\.filterTrigger\}/);
@@ -139,6 +146,10 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /className=\{styles\.sheetApply\}/);
   assert.match(source, /toggleQuickFilter/);
   assert.match(controls, /filterTitle:\s*"Filtres"/);
+  assert.match(controls, /es:\s*\{/);
+  assert.match(controls, /it:\s*\{/);
+  assert.match(controls, /ar:\s*\{/);
+  assert.match(controls, /getTrouvableTextDirection/);
   assert.match(controls, /Sans gluten/);
   assert.match(controls, /\\u00e0 coque/);
   assert.match(source, /openRestaurantReviewSheet/);
@@ -153,6 +164,21 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(controls, /USD/);
   assert.match(controls, /EUR/);
   assert.match(controls, /tags:\s*"Tags"/);
+});
+
+test("Trouvable standalone dish detail keeps locale URL navigation and RTL in sync", async () => {
+  const detailSource = await readFile(dishDetailPath, "utf8");
+  const pageSource = await readFile(dishPagePath, "utf8");
+
+  assert.match(detailSource, /useRouter/);
+  assert.match(detailSource, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
+  assert.doesNotMatch(detailSource, /window\.location\.replace/);
+  assert.match(detailSource, /lang=\{selectedLocale\}/);
+  assert.match(detailSource, /dir=\{textDirection\}/);
+  assert.match(
+    pageSource,
+    /<TrouvableDishDetailExperience[\s\S]*query=\{\{\s*\.\.\.menuQuery,\s*lang:\s*hasLangParam \? activePublicLocale : undefined\s*\}\}/
+  );
 });
 
 test("Trouvable dish details and reviews are stacked sub-sheets above the dish", async () => {

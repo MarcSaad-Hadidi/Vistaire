@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -42,6 +43,7 @@ import {
   getTrouvableDishConvertedPriceCents,
   getTrouvableGreetingForDate,
   getTrouvableLanguageOptions,
+  getTrouvableTextDirection,
   isTrouvableLocaleSupported,
   normalizeTrouvableCurrency,
   normalizeTrouvableLocaleForSettings,
@@ -594,6 +596,9 @@ export function TrouvablePremiumMenuExperience({
   query,
   typographyClassName = ""
 }: TrouvablePremiumMenuExperienceProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY_ID);
   const [activeFilters, setActiveFilters] = useState<QuickFilterId[]>([]);
   const [search, setSearch] = useState("");
@@ -636,14 +641,15 @@ export function TrouvablePremiumMenuExperience({
   const categorySwipeRef = useRef<SwipeStart>(null);
   const dishSwipeRef = useRef<SwipeStart>(null);
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
+  const textDirection = getTrouvableTextDirection(selectedLocale);
   const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
   const currencyOptions = useMemo(
     () => getTrouvableCurrencyOptions(menu.settings),
     [menu.settings]
   );
   const languageOptions = useMemo(
-    () => getTrouvableLanguageOptions(menu.settings),
-    [menu.settings]
+    () => getTrouvableLanguageOptions(menu.settings, selectedLocale),
+    [menu.settings, selectedLocale]
   );
   const canChangeCurrency =
     menu.settings.allowCurrencySelector && currencyOptions.length > 1;
@@ -846,6 +852,17 @@ export function TrouvablePremiumMenuExperience({
     setDishSubSheet(null);
   }, []);
 
+  const replaceLocaleInUrl = useCallback(
+    (nextLocale: TrouvableLocale) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("lang", nextLocale);
+      const queryString = params.toString();
+      const nextPath = queryString ? `${pathname}?${queryString}` : pathname;
+      router.replace(nextPath, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
       const queryLocale = query?.lang?.toString().trim()
@@ -875,9 +892,7 @@ export function TrouvablePremiumMenuExperience({
         normalizedStoredLocale !== activeServerLocale &&
         isTrouvableLocaleSupported(normalizedStoredLocale, menu.settings)
       ) {
-        const nextUrl = new URL(window.location.href);
-        nextUrl.searchParams.set("lang", normalizedStoredLocale);
-        window.location.replace(nextUrl.toString());
+        replaceLocaleInUrl(normalizedStoredLocale);
         return;
       }
 
@@ -895,7 +910,7 @@ export function TrouvablePremiumMenuExperience({
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [menu.activeLocale, menu.settings, query?.lang]);
+  }, [menu.activeLocale, menu.settings, query?.lang, replaceLocaleInUrl]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;
@@ -1053,16 +1068,6 @@ export function TrouvablePremiumMenuExperience({
     openSheet("experienceReview");
   }
 
-  function updateBrowserLocale(nextLocale: TrouvableLocale) {
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set("lang", nextLocale);
-    window.history.replaceState(
-      null,
-      "",
-      `${currentUrl.pathname}?${currentUrl.searchParams.toString()}${currentUrl.hash}`
-    );
-  }
-
   function selectCurrency(nextCurrency: TrouvableCurrency) {
     if (!menu.settings.supportedCurrencies.includes(nextCurrency)) return;
     setSelectedCurrency(nextCurrency);
@@ -1074,7 +1079,7 @@ export function TrouvablePremiumMenuExperience({
     if (!isTrouvableLocaleSupported(nextLocale, menu.settings)) return;
     setSelectedLocale(nextLocale);
     window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, nextLocale);
-    updateBrowserLocale(nextLocale);
+    replaceLocaleInUrl(nextLocale);
     setLocalMessage("");
     closeActiveSheet();
   }
@@ -1584,10 +1589,7 @@ export function TrouvablePremiumMenuExperience({
   function renderLanguageSheet() {
     if (activeSheet !== "language" || !canChangeLanguage) return null;
 
-    const sheetLanguageOptions = getTrouvableLanguageOptions(menu.settings); void [
-      { locale: "fr", label: "Français" },
-      { locale: "en", label: "English" }
-    ];
+    const sheetLanguageOptions = languageOptions;
 
     return (
       <div
@@ -2081,6 +2083,8 @@ export function TrouvablePremiumMenuExperience({
   return (
     <main
       className={`${styles.page} ${typographyClassName}`.trim()}
+      lang={selectedLocale}
+      dir={textDirection}
       data-blueprint={config.experience.blueprint}
       data-theme={config.theme}
       data-user-theme={selectedTheme}
