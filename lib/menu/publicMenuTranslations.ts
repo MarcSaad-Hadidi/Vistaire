@@ -7,6 +7,7 @@ import {
   stringInput,
   type MenuTranslationFields
 } from "@/lib/translation/menuTranslationModel";
+import { menuTranslationFieldsFromNames } from "@/lib/translation/menuTranslationFields";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import type { PublicMenu, PublicMenuDish } from "./publicMenuCore";
 import { normalizePublicMenuLocalePreference } from "./publicMenuSettings";
@@ -32,9 +33,10 @@ function dishFields(dish: PublicMenuDish): MenuTranslationFields {
 }
 
 function menuFields(menu: PublicMenu): MenuTranslationFields {
-  return {
-    restaurantName: menu.name
-  };
+  return menuTranslationFieldsFromNames({
+    restaurantName: menu.name,
+    menuName: menu.menuName
+  });
 }
 
 function categorySources(menu: PublicMenu): Array<{

@@ -822,12 +822,35 @@ export function TrouvablePremiumMenuExperience({
         TROUVABLE_CURRENCY_STORAGE_KEY
       );
       const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
+      const defaultLocale = normalizeTrouvableLocaleForSettings(
+        undefined,
+        menu.settings
+      );
+      const activeServerLocale = normalizeTrouvableLocaleForSettings(
+        menu.activeLocale,
+        menu.settings
+      );
+      const normalizedStoredLocale = storedLocale
+        ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
+        : null;
+
+      if (
+        !queryLocale &&
+        normalizedStoredLocale &&
+        normalizedStoredLocale !== defaultLocale &&
+        normalizedStoredLocale !== activeServerLocale &&
+        isTrouvableLocaleSupported(normalizedStoredLocale, menu.settings)
+      ) {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("lang", normalizedStoredLocale);
+        window.location.replace(nextUrl.toString());
+        return;
+      }
 
       setSelectedLocale(
         queryLocale ??
-          (storedLocale
-            ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
-            : normalizeTrouvableLocaleForSettings(undefined, menu.settings))
+          normalizedStoredLocale ??
+          defaultLocale
       );
       setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency, menu.settings));
       setSelectedTheme(normalizeTrouvableTheme(storedTheme, menu.settings));
@@ -838,7 +861,7 @@ export function TrouvablePremiumMenuExperience({
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [menu.settings, query?.lang]);
+  }, [menu.activeLocale, menu.settings, query?.lang]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;

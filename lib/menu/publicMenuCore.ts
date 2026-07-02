@@ -86,6 +86,7 @@ export type GoogleReviewCta = {
 export type PublicMenu = {
   restaurantId: string;
   menuId?: string;
+  menuName?: string;
   slug: string;
   name: string;
   location: string;
@@ -950,6 +951,7 @@ export function buildRelationalSupabasePublicMenu(args: {
   return {
     restaurantId,
     menuId: getString(args.menuRow ?? {}, ["id", "menu_id", "menuId"], "") || undefined,
+    menuName: getString(args.menuRow ?? {}, ["name", "menu_name", "title"], "") || undefined,
     slug,
     name: getString(args.restaurantRow, ["name", "restaurant_name"], "Restaurant"),
     location: getString(args.restaurantRow, ["location", "city", "address"], ""),

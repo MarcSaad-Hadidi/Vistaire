@@ -1,7 +1,9 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizePublicMenuSettings, type PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
+import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
+import { readPublicMenuSettingsWithFallbacks } from "@/lib/owner/publicMenuSettingsFallback";
+import { menuTranslationFieldsFromNames } from "@/lib/translation/menuTranslationFields";
 import {
   estimateChangedCharacters,
   fieldHashesFor,
@@ -160,10 +162,10 @@ function categoryFields(row: AnyRow): MenuTranslationFields {
 }
 
 function menuFields(restaurant: AnyRow, menu: AnyRow): MenuTranslationFields {
-  const fields: MenuTranslationFields = {};
-  addField(fields, "restaurantName", getString(restaurant, ["name", "restaurant_name"]));
-  addField(fields, "menuName", getString(menu, ["name"]));
-  return fields;
+  return menuTranslationFieldsFromNames({
+    restaurantName: getString(restaurant, ["name", "restaurant_name"]),
+    menuName: getString(menu, ["name"])
+  });
 }
 
 function buildEntities(ctx: Omit<TranslationContext, "entities">): MenuTranslationSourceEntity[] {
@@ -180,10 +182,6 @@ function buildEntities(ctx: Omit<TranslationContext, "entities">): MenuTranslati
       fields: dishFields(dish)
     }))
   ].filter((entity) => entity.id && Object.keys(entity.fields).length > 0);
-}
-
-function settingsFromMenu(menu: AnyRow): PublicMenuSettings {
-  return normalizePublicMenuSettings(menu.settings_json ?? menu.settingsJson ?? {});
 }
 
 async function getTranslationContext(
@@ -226,13 +224,20 @@ async function getTranslationContext(
     return { status: 503, error: "Donnees menu impossibles a lire." };
   }
 
+  const settings = await readPublicMenuSettingsWithFallbacks({
+    client: admin.client,
+    restaurantId,
+    menuId,
+    menuRow: menuResult.data
+  });
+
   const partial = {
     client: admin.client,
     restaurant: restaurantResult.data as AnyRow,
     menu: menuResult.data as AnyRow,
     categories: (categoriesResult.data ?? []) as AnyRow[],
     dishes: (dishesResult.data ?? []) as AnyRow[],
-    settings: settingsFromMenu(menuResult.data as AnyRow)
+    settings
   };
 
   return { ...partial, entities: buildEntities(partial) };
@@ -260,18 +265,56 @@ function keyForStoredRow(type: "menu" | "category" | "dish", row: AnyRow): strin
   return `${type}:${id}`;
 }
 
+type StoredTranslationsReadError = { ok: false; status: 503; error: string };
+type StoredTranslationsReadResult =
+  | { ok: true; rowsByKey: Map<string, StoredMenuTranslation> }
+  | StoredTranslationsReadError;
+
+function supabaseErrorMessage(error: unknown): string {
+  const details = objectInput(error);
+  return [
+    stringInput(details.message),
+    stringInput(details.details),
+    stringInput(details.hint),
+    stringInput(details.code)
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function translationStorageError(
+  table: string,
+  error: unknown
+): StoredTranslationsReadError {
+  const detail = supabaseErrorMessage(error);
+  return {
+    ok: false,
+    status: 503,
+    error:
+      `Stockage des traductions indisponible (${table}). ` +
+      "Appliquez la migration Supabase des traductions avant de generer. " +
+      (detail ? `Detail Supabase: ${detail}` : "Detail Supabase indisponible.")
+  };
+}
+
 async function readStoredTranslations(
   client: SupabaseClient,
   menuId: string,
   locales: string[]
-): Promise<Map<string, StoredMenuTranslation>> {
+): Promise<StoredTranslationsReadResult> {
   const rowsByKey = new Map<string, StoredMenuTranslation>();
-  if (locales.length === 0) return rowsByKey;
+  if (locales.length === 0) return { ok: true, rowsByKey };
   const [menuRows, categoryRows, dishRows] = await Promise.all([
     client.from("menu_translations").select("*").eq("menu_id", menuId).in("locale", locales),
     client.from("menu_category_translations").select("*").eq("menu_id", menuId).in("locale", locales),
     client.from("menu_dish_translations").select("*").eq("menu_id", menuId).in("locale", locales)
   ]);
+
+  if (menuRows.error) return translationStorageError("menu_translations", menuRows.error);
+  if (categoryRows.error) {
+    return translationStorageError("menu_category_translations", categoryRows.error);
+  }
+  if (dishRows.error) return translationStorageError("menu_dish_translations", dishRows.error);
 
   for (const row of (menuRows.data ?? []) as AnyRow[]) {
     rowsByKey.set(keyForStoredRow("menu", row), row as StoredMenuTranslation);
@@ -282,7 +325,7 @@ async function readStoredTranslations(
   for (const row of (dishRows.data ?? []) as AnyRow[]) {
     rowsByKey.set(keyForStoredRow("dish", row), row as StoredMenuTranslation);
   }
-  return rowsByKey;
+  return { ok: true, rowsByKey };
 }
 
 export async function getOwnerMenuTranslationOverview(
@@ -297,6 +340,9 @@ export async function getOwnerMenuTranslationOverview(
     menuId,
     ctx.settings.supportedLocales
   );
+  if (!rowsByKey.ok) {
+    return { ok: false, status: rowsByKey.status, error: rowsByKey.error };
+  }
   return {
     ok: true,
     provider: resolveTranslationProviderStatus(),
@@ -307,7 +353,7 @@ export async function getOwnerMenuTranslationOverview(
         locale,
         defaultLocale: ctx.settings.defaultLocale,
         entities: ctx.entities,
-        rowsByKey
+        rowsByKey: rowsByKey.rowsByKey
       })
     )
   };
@@ -408,7 +454,11 @@ export async function generateOwnerMenuTranslations(args: {
   }
 
   const menuId = getString(ctx.menu, ["id"]);
-  const rowsByKey = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  const storedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  if (!storedRows.ok) {
+    return { ok: false, status: storedRows.status, error: storedRows.error };
+  }
+  const rowsByKey = storedRows.rowsByKey;
   const estimatedCharacters = ctx.entities.reduce(
     (total, entity) => total + estimateChangedCharacters(entity, rowsByKey.get(`${entity.type}:${entity.id}`)),
     0
@@ -464,6 +514,14 @@ export async function generateOwnerMenuTranslations(args: {
     .select("id")
     .single();
 
+  if (job.error || !job.data?.id) {
+    const storageError = translationStorageError(
+      "menu_translation_jobs",
+      job.error ?? { message: "Aucun identifiant de job retourne par Supabase." }
+    );
+    return { ok: false, status: storageError.status, error: storageError.error };
+  }
+
   let translatedCharacters = 0;
   try {
     for (const entity of ctx.entities) {
@@ -489,34 +547,33 @@ export async function generateOwnerMenuTranslations(args: {
       });
     }
 
-    if (job.data?.id) {
-      await ctx.client
-        .from("menu_translation_jobs")
-        .update({
-          status: "succeeded",
-          translated_characters: translatedCharacters,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", job.data.id);
-    }
+    await ctx.client
+      .from("menu_translation_jobs")
+      .update({
+        status: "succeeded",
+        translated_characters: translatedCharacters,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", job.data.id);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation traduction echouee.";
-    if (job.data?.id) {
-      await ctx.client
-        .from("menu_translation_jobs")
-        .update({
-          status: "failed",
-          error_message: message,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", job.data.id);
-    }
+    await ctx.client
+      .from("menu_translation_jobs")
+      .update({
+        status: "failed",
+        error_message: message,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", job.data.id);
     return { ok: false, status: 503, error: message };
   }
 
   const updatedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  if (!updatedRows.ok) {
+    return { ok: false, status: updatedRows.status, error: updatedRows.error };
+  }
   return {
     ok: true,
     locale: args.locale,
@@ -528,7 +585,7 @@ export async function generateOwnerMenuTranslations(args: {
       locale: args.locale,
       defaultLocale: ctx.settings.defaultLocale,
       entities: ctx.entities,
-      rowsByKey: updatedRows
+      rowsByKey: updatedRows.rowsByKey
     })
   };
 }

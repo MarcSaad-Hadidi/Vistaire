@@ -11,6 +11,7 @@ import {
   sourceHashFor,
   summarizeLocaleTranslationStatus
 } from "../lib/translation/menuTranslationModel.ts";
+import { menuTranslationFieldsFromNames } from "../lib/translation/menuTranslationFields.ts";
 import {
   getServerTranslator,
   resolveTranslationProviderStatus
@@ -146,6 +147,71 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
     }),
     0
   );
+});
+
+test("owner translation settings use the public menu settings fallback resolver", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const ownerMutations = await readRepoFile("lib/owner/menuMutations.ts");
+  const fallbackResolver = await readRepoFile("lib/owner/publicMenuSettingsFallback.ts");
+
+  assert.match(ownerTranslations, /readPublicMenuSettingsWithFallbacks/);
+  assert.match(ownerMutations, /readPublicMenuSettingsWithFallbacks/);
+  assert.doesNotMatch(ownerTranslations, /normalizePublicMenuSettings\(menu\.settings_json/);
+  assert.doesNotMatch(ownerTranslations, /function\s+settingsFromMenu/);
+  assert.match(fallbackResolver, /metadata\.publicMenuSettings/);
+  assert.match(fallbackResolver, /metadata\.public_menu_settings/);
+  assert.match(fallbackResolver, /menu_ui_configs/);
+  assert.match(fallbackResolver, /readUiConfigPublicMenuSettings/);
+});
+
+test("menu translation source fields stay shared between owner generation and public reads", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const publicCore = await readRepoFile("lib/menu/publicMenuCore.ts");
+  const sourceFields = menuTranslationFieldsFromNames({
+    restaurantName: "Cafe Vistaire",
+    menuName: "Menu principal"
+  });
+
+  assert.deepEqual(sourceFields, {
+    restaurantName: "Cafe Vistaire",
+    menuName: "Menu principal"
+  });
+  assert.equal(
+    sourceHashFor(sourceFields),
+    sourceHashFor({ menuName: "Menu principal", restaurantName: "Cafe Vistaire" })
+  );
+  assert.match(ownerTranslations, /menuTranslationFieldsFromNames/);
+  assert.match(publicTranslations, /menuTranslationFieldsFromNames/);
+  assert.match(publicCore, /menuName\?: string/);
+  assert.match(publicCore, /menuName:\s*getString\(args\.menuRow/);
+});
+
+test("owner generator checks translation storage before Azure work", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const readIndex = ownerTranslations.indexOf(
+    "const storedRows = await readStoredTranslations"
+  );
+  const translatorIndex = ownerTranslations.indexOf(
+    "const translator = getServerTranslator()"
+  );
+  const translateIndex = ownerTranslations.indexOf(
+    "await translator.translateTexts"
+  );
+  const jobGuardIndex = ownerTranslations.indexOf(
+    "if (job.error || !job.data?.id)"
+  );
+
+  assert.ok(readIndex !== -1, "generation must read stored translations");
+  assert.ok(translatorIndex !== -1, "generation must still resolve translator");
+  assert.ok(translateIndex !== -1, "generation must still translate when storage is ready");
+  assert.ok(readIndex < translatorIndex, "storage read must happen before provider resolution");
+  assert.ok(jobGuardIndex !== -1, "generation must guard menu_translation_jobs insert");
+  assert.ok(jobGuardIndex < translateIndex, "job insert must be verified before Azure calls");
+  assert.match(ownerTranslations, /menuRows\.error/);
+  assert.match(ownerTranslations, /menu_category_translations/);
+  assert.match(ownerTranslations, /menu_dish_translations/);
+  assert.match(ownerTranslations, /Stockage des traductions indisponible/);
 });
 
 test("locale summaries avoid retraduction when only unchanged fields have stored content", () => {

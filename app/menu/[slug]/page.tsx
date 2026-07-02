@@ -106,7 +106,10 @@ export default async function PublicMenuPage({
         config={resolvedConfig}
         context={context}
         exchangeRates={exchangeRates}
-        query={menuQuery}
+        query={{
+          ...menuQuery,
+          lang: hasLangParam ? activePublicLocale : undefined
+        }}
         typographyClassName={trouvableTypographyClassName}
       />
     );
