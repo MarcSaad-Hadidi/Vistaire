@@ -89,10 +89,12 @@ type ActiveSheet =
   | "waiter"
   | "review"
   | null;
+type DishSubSheet = "details" | "review" | null;
 type SwipeStart = {
   x: number;
   y: number;
   pointerId: number;
+  scrollLeft?: number;
 } | null;
 type SelectionItem = {
   dish: PublicMenuDish;
@@ -402,6 +404,33 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
   );
 }
 
+function isDishSwipeGuardedTarget(
+  target: EventTarget | null,
+  swipeRoot?: Element
+): boolean {
+  if (!(target instanceof Element)) return true;
+  if (
+    target.closest(
+      [
+        "model-viewer",
+        "canvas",
+        "button",
+        "a",
+        "input",
+        "select",
+        "textarea",
+        "[data-no-dish-swipe]"
+      ].join(",")
+    )
+  ) {
+    return true;
+  }
+
+  const dialogTarget = target.closest(["dialog", "[role='dialog']"].join(","));
+  if (!dialogTarget) return false;
+  return !(swipeRoot && (dialogTarget === swipeRoot || dialogTarget.contains(swipeRoot)));
+}
+
 function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolean {
   if (filter === "all") return true;
   if (filter === "veg") return isVegDish(dish);
@@ -451,7 +480,7 @@ function modelViewerDishFromPublicDish(
 function DishVisual({ dish, menu }: { dish: PublicMenuDish; menu: PublicMenu }) {
   if (dish.imageUrl) {
     return (
-      <span className={styles.dishVisual}>
+      <span className={`${styles.dishVisual} ${styles.hasDishImage}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           alt={`Photo de ${dish.name}`}
@@ -570,7 +599,7 @@ export function TrouvablePremiumMenuExperience({
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
-  const [dishDetailsExpanded, setDishDetailsExpanded] = useState(false);
+  const [dishSubSheet, setDishSubSheet] = useState<DishSubSheet>(null);
   const [showDetailModelViewer, setShowDetailModelViewer] = useState(false);
   const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
   const [selection, setSelection] = useState<Map<string, SelectionItem>>(
@@ -599,6 +628,7 @@ export function TrouvablePremiumMenuExperience({
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const sheetRef = useRef<HTMLElement | null>(null);
+  const subSheetRef = useRef<HTMLElement | null>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -806,11 +836,15 @@ export function TrouvablePremiumMenuExperience({
   const closeActiveSheet = useCallback(() => {
     setActiveSheet(null);
     setSelectedDish(null);
-    setDishDetailsExpanded(false);
+    setDishSubSheet(null);
     setShowDetailModelViewer(false);
     setShowArBrowserHelp(false);
     restoreFocus();
   }, [restoreFocus]);
+
+  const closeDishSubSheet = useCallback(() => {
+    setDishSubSheet(null);
+  }, []);
 
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
@@ -891,21 +925,29 @@ export function TrouvablePremiumMenuExperience({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusable = getFocusableElements(sheetRef.current);
-    (focusable[0] ?? sheetRef.current)?.focus();
+    const activeDialog =
+      activeSheet === "dish" && dishSubSheet ? subSheetRef.current : sheetRef.current;
+    const focusable = getFocusableElements(activeDialog);
+    (focusable[0] ?? activeDialog)?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (activeSheet === "dish" && dishSubSheet) {
+          closeDishSubSheet();
+          return;
+        }
         closeActiveSheet();
         return;
       }
       if (event.key !== "Tab") return;
 
-      const elements = getFocusableElements(sheetRef.current);
+      const trapRoot =
+        activeSheet === "dish" && dishSubSheet ? subSheetRef.current : sheetRef.current;
+      const elements = getFocusableElements(trapRoot);
       if (elements.length === 0) {
         event.preventDefault();
-        sheetRef.current?.focus();
+        trapRoot?.focus();
         return;
       }
 
@@ -926,7 +968,7 @@ export function TrouvablePremiumMenuExperience({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSheet, closeActiveSheet]);
+  }, [activeSheet, closeActiveSheet, closeDishSubSheet, dishSubSheet]);
 
   useEffect(() => {
     if (
@@ -996,6 +1038,10 @@ export function TrouvablePremiumMenuExperience({
     setReviewRating(0);
     setReviewText("");
     setLocalMessage("");
+    if (activeSheet === "dish" && selectedDish) {
+      setDishSubSheet("review");
+      return;
+    }
     openSheet("review");
   }
 
@@ -1114,7 +1160,8 @@ export function TrouvablePremiumMenuExperience({
     categorySwipeRef.current = {
       x: event.clientX,
       y: event.clientY,
-      pointerId: event.pointerId
+      pointerId: event.pointerId,
+      scrollLeft: event.currentTarget.scrollLeft
     };
   }
 
@@ -1122,6 +1169,12 @@ export function TrouvablePremiumMenuExperience({
     const start = categorySwipeRef.current;
     categorySwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
+    if (
+      start.scrollLeft !== undefined &&
+      Math.abs(event.currentTarget.scrollLeft - start.scrollLeft) > 4
+    ) {
+      return;
+    }
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
@@ -1129,7 +1182,7 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function openDishDetail(dish: PublicMenuDish) {
-    setDishDetailsExpanded(false);
+    setDishSubSheet(null);
     setShowDetailModelViewer(false);
     setShowArBrowserHelp(false);
     setSelectedDish(dish);
@@ -1141,7 +1194,7 @@ export function TrouvablePremiumMenuExperience({
     const currentIndex = visibleDishes.findIndex((dish) => dish.id === selectedDish.id);
     const safeIndex = currentIndex >= 0 ? currentIndex : 0;
     const nextIndex = (safeIndex + direction + visibleDishes.length) % visibleDishes.length;
-    setDishDetailsExpanded(false);
+    setDishSubSheet(null);
     setShowDetailModelViewer(false);
     setShowArBrowserHelp(false);
     setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
@@ -1149,6 +1202,9 @@ export function TrouvablePremiumMenuExperience({
 
   function handleDishPointerDown(event: PointerEvent<HTMLElement>) {
     if (event.pointerType === "mouse") return;
+    if (dishSubSheet || isDishSwipeGuardedTarget(event.target, event.currentTarget)) {
+      return;
+    }
     dishSwipeRef.current = {
       x: event.clientX,
       y: event.clientY,
@@ -1160,6 +1216,9 @@ export function TrouvablePremiumMenuExperience({
     const start = dishSwipeRef.current;
     dishSwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
+    if (dishSubSheet || isDishSwipeGuardedTarget(event.target, event.currentTarget)) {
+      return;
+    }
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
@@ -1576,10 +1635,18 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderReviewSheet() {
-    if (activeSheet !== "review" && activeSheet !== "experienceReview") return null;
+    if (
+      activeSheet !== "review" &&
+      activeSheet !== "experienceReview" &&
+      !(activeSheet === "dish" && dishSubSheet === "review")
+    ) {
+      return null;
+    }
 
     const isExperienceReview = activeSheet === "experienceReview";
+    const isDishStackReview = activeSheet === "dish" && dishSubSheet === "review";
     const reviewDish = isExperienceReview ? null : selectedDish;
+    const closeReview = isDishStackReview ? closeDishSubSheet : closeActiveSheet;
     const reviewTitle = isExperienceReview
       ? copy.reviewExperienceTitle
       : copy.reviewTitle;
@@ -1592,20 +1659,27 @@ export function TrouvablePremiumMenuExperience({
 
     return (
       <div
-        className={`${styles.overlay} ${styles.reviewOverlay}`}
+        className={`${styles.overlay} ${styles.reviewOverlay} ${
+          isDishStackReview ? styles.stackedOverlay : ""
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-review-title"
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeActiveSheet();
+          if (event.target === event.currentTarget) closeReview();
         }}
+        data-no-dish-swipe="true"
       >
-        <section ref={sheetRef} className={styles.reviewSheet} tabIndex={-1}>
+        <section
+          ref={isDishStackReview ? subSheetRef : sheetRef}
+          className={styles.reviewSheet}
+          tabIndex={-1}
+        >
           <button
             type="button"
             className={styles.reviewClose}
             aria-label={copy.reviewClose}
-            onClick={closeActiveSheet}
+            onClick={closeReview}
           >
             x
           </button>
@@ -1672,6 +1746,98 @@ export function TrouvablePremiumMenuExperience({
               </p>
             ) : null}
           </div>
+        </section>
+      </div>
+    );
+  }
+
+  function renderDishDetailsSubSheet() {
+    if (activeSheet !== "dish" || dishSubSheet !== "details" || !selectedDish) {
+      return null;
+    }
+
+    const visibleTags = selectedDish.tags.filter(Boolean);
+
+    return (
+      <div
+        className={`${styles.overlay} ${styles.stackedOverlay}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trouvable-dish-details-title"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeDishSubSheet();
+        }}
+        data-no-dish-swipe="true"
+      >
+        <section
+          ref={subSheetRef}
+          id={`trouvable-dish-more-details-${selectedDish.slug}`}
+          className={`${styles.sheet} ${styles.detailsSubSheet}`}
+          tabIndex={-1}
+        >
+          <header className={styles.sheetHeader}>
+            <div>
+              <p>{selectedDish.name}</p>
+              <h2 id="trouvable-dish-details-title">{copy.moreDetails}</h2>
+            </div>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={copy.closeDetail}
+              onClick={closeDishSubSheet}
+            >
+              x
+            </button>
+          </header>
+          {selectedDish.description ? (
+            <p className={styles.moreDetailsText}>{selectedDish.description}</p>
+          ) : null}
+          {visibleTags.length > 0 ? (
+            <section className={styles.detailList}>
+              <h3>{copy.tags}</h3>
+              <ul>
+                {visibleTags.map((tag) => (
+                  <li key={tag}>{tag}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {selectedDish.ingredients.length > 0 ? (
+            <section className={styles.detailList}>
+              <h3>{copy.ingredients}</h3>
+              <ul>
+                {selectedDish.ingredients.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {selectedDish.allergens.length > 0 ? (
+            <section className={styles.detailList}>
+              <h3>{copy.allergens}</h3>
+              <ul>
+                {selectedDish.allergens.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {selectedDish.options.length > 0 ? (
+            <section className={styles.detailList}>
+              <h3>{copy.options}</h3>
+              <ul>
+                {selectedDish.options.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {selectedDish.houseNote ? (
+            <section className={styles.houseNote}>
+              <h3>{copy.houseNote}</h3>
+              <p>{selectedDish.houseNote}</p>
+            </section>
+          ) : null}
         </section>
       </div>
     );
@@ -1746,7 +1912,11 @@ export function TrouvablePremiumMenuExperience({
               </button>
             </>
           ) : null}
-          <div className={styles.detailVisual}>
+          <div
+            className={`${styles.detailVisual} ${
+              selectedDish.imageUrl ? styles.hasDishImage : ""
+            }`}
+          >
             {selectedDish.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img alt="" loading="lazy" src={selectedDish.imageUrl} />
@@ -1775,18 +1945,15 @@ export function TrouvablePremiumMenuExperience({
             <button
               type="button"
               className={styles.moreDetailsButton}
-              aria-expanded={dishDetailsExpanded}
-              aria-controls={selectedDish.description ? moreDetailsId : undefined}
-              onClick={() => setDishDetailsExpanded((isExpanded) => !isExpanded)}
+              aria-expanded={dishSubSheet === "details"}
+              aria-controls={moreDetailsId}
+              onClick={() => {
+                setDishSubSheet("details");
+              }}
             >
               <span aria-hidden="true">i</span>
               {copy.moreDetails}
             </button>
-            {selectedDish.description && dishDetailsExpanded ? (
-              <p id={moreDetailsId} className={styles.moreDetailsText}>
-                {selectedDish.description}
-              </p>
-            ) : null}
             {badges.length > 0 ? (
               <div className={styles.badges}>
                 {badges.map((badge) => (
@@ -1859,7 +2026,11 @@ export function TrouvablePremiumMenuExperience({
             </div>
             {showDetailModelViewer ? (
               <>
-                <div className={styles.inlineModelViewer} id="trouvable-sheet-model">
+                <div
+                  className={styles.inlineModelViewer}
+                  id="trouvable-sheet-model"
+                  data-no-dish-swipe="true"
+                >
                   {ModelViewerComponent ? (
                     <ModelViewerComponent
                       dish={modelViewerDishFromPublicDish(selectedDish)}
@@ -1994,17 +2165,20 @@ export function TrouvablePremiumMenuExperience({
       <section
         className={styles.menuPanel}
         aria-label={copy.menuAria}
-        onPointerDown={handleCategoryPointerDown}
-        onPointerUp={handleCategoryPointerUp}
-        onPointerCancel={() => {
-          categorySwipeRef.current = null;
-        }}
       >
         <div className={styles.categoryHeader}>
           <span>{copy.categories}</span>
           <span className={styles.swipeHint}>{copy.swipeList}</span>
         </div>
-        <nav className={styles.categoryRail} aria-label={copy.categoryAria}>
+        <nav
+          className={styles.categoryRail}
+          aria-label={copy.categoryAria}
+          onPointerDown={handleCategoryPointerDown}
+          onPointerUp={handleCategoryPointerUp}
+          onPointerCancel={() => {
+            categorySwipeRef.current = null;
+          }}
+        >
           <button
             type="button"
             aria-current={resolvedActiveCategory === ALL_CATEGORY_ID}
@@ -2133,6 +2307,7 @@ export function TrouvablePremiumMenuExperience({
       />
 
       {renderDishDetailSheet()}
+      {renderDishDetailsSubSheet()}
       {renderSelectionSheet()}
       {renderWaiterSheet()}
       {renderCurrencySheet()}

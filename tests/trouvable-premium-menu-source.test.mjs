@@ -46,7 +46,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
   const source = await readFile(componentPath, "utf8");
 
-  assert.doesNotMatch(source, /model-viewer/);
+  assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.glb/);
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.usdz/);
   assert.match(source, /showDetailModelViewer/);
@@ -77,9 +77,12 @@ test("Trouvable cutout PNG dishes render without added visual backgrounds", asyn
 
   assert.match(css, /dishPhotoHalo/);
   assert.match(css, /\.dishVisual:has\(img\)/);
+  assert.match(css, /\.dishVisual\.hasDishImage/);
   assert.match(css, /\.detailSheet \.detailVisual:has\(img\)/);
   assert.match(css, /background:\s*transparent/);
   assert.match(css, /border-color:\s*transparent/);
+  assert.match(css, /object-fit:\s*contain/);
+  assert.doesNotMatch(css, /object-fit:\s*cover/);
   assert.match(css, /\.page\[data-user-theme="light"\][\s\S]*detailVisual[\s\S]*drop-shadow/);
   assert.doesNotMatch(
     css,
@@ -149,18 +152,93 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(controls, /CAD/);
   assert.match(controls, /USD/);
   assert.match(controls, /EUR/);
+  assert.match(controls, /tags:\s*"Tags"/);
 });
 
-test("Trouvable dish details are revealed only after tapping more details", async () => {
+test("Trouvable dish details and reviews are stacked sub-sheets above the dish", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
 
-  assert.match(source, /dishDetailsExpanded/);
-  assert.match(source, /aria-expanded=\{dishDetailsExpanded\}/);
-  assert.match(source, /selectedDish\.description && dishDetailsExpanded/);
-  assert.match(detailSource, /showMoreDetails/);
-  assert.match(detailSource, /aria-expanded=\{showMoreDetails\}/);
-  assert.match(detailSource, /activeDish\.description && showMoreDetails/);
+  assert.match(source, /type DishSubSheet = "details" \| "review" \| null/);
+  assert.match(source, /renderDishDetailsSubSheet/);
+  assert.match(source, /setDishSubSheet\("details"\)/);
+  assert.match(source, /activeSheet === "dish" && dishSubSheet === "review"/);
+  assert.match(source, /closeDishSubSheet/);
+  assert.match(source, /const subSheetRef = useRef<HTMLElement \| null>\(null\)/);
+  assert.match(source, /if \(activeSheet === "dish" && dishSubSheet\) \{\s*closeDishSubSheet\(\);/);
+  assert.match(source, /ref=\{isDishStackReview \? subSheetRef : sheetRef\}/);
+  assert.match(source, /ref=\{subSheetRef\}[\s\S]{0,140}trouvable-dish-more-details/);
+  assert.match(source, /styles\.stackedOverlay/);
+  assert.doesNotMatch(source, /dishDetailsExpanded/);
+
+  assert.match(detailSource, /type DishDetailSubSheet = "details" \| "review" \| null/);
+  assert.match(detailSource, /activeSubSheet === "details"/);
+  assert.match(detailSource, /activeSubSheet === "review"/);
+  assert.match(detailSource, /setActiveSubSheet\(null\)/);
+  assert.match(detailSource, /styles\.stackedOverlay/);
+  assert.doesNotMatch(detailSource, /showMoreDetails/);
+  assert.doesNotMatch(detailSource, /showReviewSheet/);
+});
+
+test("Trouvable dish swipe guards interactive controls and 3D surfaces", async () => {
+  const source = await readFile(componentPath, "utf8");
+  const detailSource = await readFile(dishDetailPath, "utf8");
+  const guardedSelectors = [
+    "model-viewer",
+    "canvas",
+    "button",
+    "a",
+    "input",
+    "select",
+    "textarea",
+    "dialog",
+    "[role='dialog']",
+    "[data-no-dish-swipe]"
+  ];
+
+  for (const selector of guardedSelectors) {
+    assert.ok(source.includes(`"${selector}"`), `premium menu missing guard ${selector}`);
+    assert.ok(detailSource.includes(`"${selector}"`), `dish detail missing guard ${selector}`);
+  }
+
+  assert.match(source, /isDishSwipeGuardedTarget\(event\.target,\s*event\.currentTarget\)/);
+  assert.match(
+    detailSource,
+    /isDishSwipeGuardedTarget\(event\.target,\s*event\.currentTarget\)/
+  );
+  assert.match(source, /data-no-dish-swipe="true"/);
+  assert.match(detailSource, /data-no-dish-swipe="true"/);
+  assert.doesNotMatch(
+    source,
+    /className=\{styles\.menuPanel\}[\s\S]{0,180}onPointerDown=\{handleCategoryPointerDown\}/
+  );
+  assert.match(
+    source,
+    /className=\{styles\.categoryRail\}[\s\S]{0,220}onPointerDown=\{handleCategoryPointerDown\}/
+  );
+  assert.match(source, /scrollLeft:\s*event\.currentTarget\.scrollLeft/);
+  assert.match(source, /event\.currentTarget\.scrollLeft - start\.scrollLeft/);
+});
+
+test("Trouvable details keep tags, ingredients, allergens, options, and notes separate", async () => {
+  const source = await readFile(componentPath, "utf8");
+  const detailSource = await readFile(dishDetailPath, "utf8");
+
+  for (const field of [
+    "tags",
+    "ingredients",
+    "allergens",
+    "options",
+    "houseNote"
+  ]) {
+    assert.match(source, new RegExp(`selectedDish\\.${field}`));
+    assert.match(detailSource, new RegExp(`activeDish\\.${field}`));
+  }
+
+  assert.match(source, /copy\.tags/);
+  assert.match(detailSource, /copy\.tags/);
+  assert.doesNotMatch(detailSource, /function detailTags/);
+  assert.doesNotMatch(detailSource, /const tags = detailTags/);
 });
 
 test("Trouvable all category stays global while filters and searches resolve dishes", async () => {
@@ -241,6 +319,16 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.doesNotMatch(css, /Neue Montreal/);
   assert.match(css, /overflow-x:\s*clip/);
   assert.match(css, /\.categoryRail[\s\S]*overflow-x:\s*auto/);
+  const categoryRailBlock = css.match(/\.categoryRail\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+  assert.doesNotMatch(categoryRailBlock, /touch-action:\s*pan-y/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\]\s+\.detailList h3,\s*\n\.page\[data-user-theme="light"\]\s+\.houseNote h3\s*\{[\s\S]*color:\s*#6f530e/
+  );
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\]\s+\.detailsSubSheet\s+\.moreDetailsText,\s*\n\.page\[data-user-theme="light"\]\s+\.houseNote p\s*\{[\s\S]*color:\s*rgba\(35,\s*26,\s*13,\s*0\.72\)/
+  );
   assert.match(css, /@media \(max-width: 390px\)/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
