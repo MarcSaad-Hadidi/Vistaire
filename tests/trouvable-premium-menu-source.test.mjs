@@ -164,6 +164,10 @@ test("Trouvable dish details and reviews are stacked sub-sheets above the dish",
   assert.match(source, /setDishSubSheet\("details"\)/);
   assert.match(source, /activeSheet === "dish" && dishSubSheet === "review"/);
   assert.match(source, /closeDishSubSheet/);
+  assert.match(source, /const subSheetRef = useRef<HTMLElement \| null>\(null\)/);
+  assert.match(source, /if \(activeSheet === "dish" && dishSubSheet\) \{\s*closeDishSubSheet\(\);/);
+  assert.match(source, /ref=\{isDishStackReview \? subSheetRef : sheetRef\}/);
+  assert.match(source, /ref=\{subSheetRef\}[\s\S]{0,140}trouvable-dish-more-details/);
   assert.match(source, /styles\.stackedOverlay/);
   assert.doesNotMatch(source, /dishDetailsExpanded/);
 
@@ -212,6 +216,8 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
     source,
     /className=\{styles\.categoryRail\}[\s\S]{0,220}onPointerDown=\{handleCategoryPointerDown\}/
   );
+  assert.match(source, /scrollLeft:\s*event\.currentTarget\.scrollLeft/);
+  assert.match(source, /event\.currentTarget\.scrollLeft - start\.scrollLeft/);
 });
 
 test("Trouvable details keep tags, ingredients, allergens, options, and notes separate", async () => {
@@ -313,6 +319,8 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.doesNotMatch(css, /Neue Montreal/);
   assert.match(css, /overflow-x:\s*clip/);
   assert.match(css, /\.categoryRail[\s\S]*overflow-x:\s*auto/);
+  const categoryRailBlock = css.match(/\.categoryRail\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+  assert.doesNotMatch(categoryRailBlock, /touch-action:\s*pan-y/);
   assert.match(css, /@media \(max-width: 390px\)/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);

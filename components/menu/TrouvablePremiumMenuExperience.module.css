@@ -177,7 +177,6 @@
   backdrop-filter: blur(14px) saturate(112%);
   scroll-snap-type: x proximity;
   scrollbar-width: none;
-  touch-action: pan-y;
   white-space: nowrap;
 }
 

@@ -93,6 +93,7 @@ type SwipeStart = {
   x: number;
   y: number;
   pointerId: number;
+  scrollLeft?: number;
 } | null;
 type SelectionItem = {
   dish: PublicMenuDish;
@@ -626,6 +627,7 @@ export function TrouvablePremiumMenuExperience({
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const sheetRef = useRef<HTMLElement | null>(null);
+  const subSheetRef = useRef<HTMLElement | null>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -899,21 +901,29 @@ export function TrouvablePremiumMenuExperience({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusable = getFocusableElements(sheetRef.current);
-    (focusable[0] ?? sheetRef.current)?.focus();
+    const activeDialog =
+      activeSheet === "dish" && dishSubSheet ? subSheetRef.current : sheetRef.current;
+    const focusable = getFocusableElements(activeDialog);
+    (focusable[0] ?? activeDialog)?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (activeSheet === "dish" && dishSubSheet) {
+          closeDishSubSheet();
+          return;
+        }
         closeActiveSheet();
         return;
       }
       if (event.key !== "Tab") return;
 
-      const elements = getFocusableElements(sheetRef.current);
+      const trapRoot =
+        activeSheet === "dish" && dishSubSheet ? subSheetRef.current : sheetRef.current;
+      const elements = getFocusableElements(trapRoot);
       if (elements.length === 0) {
         event.preventDefault();
-        sheetRef.current?.focus();
+        trapRoot?.focus();
         return;
       }
 
@@ -934,7 +944,7 @@ export function TrouvablePremiumMenuExperience({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSheet, closeActiveSheet]);
+  }, [activeSheet, closeActiveSheet, closeDishSubSheet, dishSubSheet]);
 
   useEffect(() => {
     if (
@@ -1126,7 +1136,8 @@ export function TrouvablePremiumMenuExperience({
     categorySwipeRef.current = {
       x: event.clientX,
       y: event.clientY,
-      pointerId: event.pointerId
+      pointerId: event.pointerId,
+      scrollLeft: event.currentTarget.scrollLeft
     };
   }
 
@@ -1134,6 +1145,12 @@ export function TrouvablePremiumMenuExperience({
     const start = categorySwipeRef.current;
     categorySwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
+    if (
+      start.scrollLeft !== undefined &&
+      Math.abs(event.currentTarget.scrollLeft - start.scrollLeft) > 4
+    ) {
+      return;
+    }
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
@@ -1629,7 +1646,11 @@ export function TrouvablePremiumMenuExperience({
         }}
         data-no-dish-swipe="true"
       >
-        <section ref={sheetRef} className={styles.reviewSheet} tabIndex={-1}>
+        <section
+          ref={isDishStackReview ? subSheetRef : sheetRef}
+          className={styles.reviewSheet}
+          tabIndex={-1}
+        >
           <button
             type="button"
             className={styles.reviewClose}
@@ -1725,6 +1746,7 @@ export function TrouvablePremiumMenuExperience({
         data-no-dish-swipe="true"
       >
         <section
+          ref={subSheetRef}
           id={`trouvable-dish-more-details-${selectedDish.slug}`}
           className={`${styles.sheet} ${styles.detailsSubSheet}`}
           tabIndex={-1}
