@@ -1080,3 +1080,32 @@ export function translateTrouvableCategoryLabel(
     .trim();
   return CATEGORY_TRANSLATIONS[normalized]?.[copyLocaleForPublicLocale(locale)] ?? label;
 }
+
+export function buildNavigableMenuSections(
+  allCategoryId: string,
+  categoryLabels: readonly string[]
+): string[] {
+  const sections = [allCategoryId];
+  const seen = new Set(sections);
+
+  for (const label of categoryLabels) {
+    if (seen.has(label)) continue;
+    seen.add(label);
+    sections.push(label);
+  }
+
+  return sections;
+}
+
+export function getAdjacentMenuSection(
+  sections: readonly string[],
+  currentSection: string,
+  direction: 1 | -1
+): string | null {
+  if (sections.length <= 1) return null;
+  const currentIndex = sections.indexOf(currentSection);
+  if (currentIndex < 0) return null;
+  const nextIndex = currentIndex + direction;
+  if (nextIndex < 0 || nextIndex >= sections.length) return null;
+  return sections[nextIndex] ?? null;
+}

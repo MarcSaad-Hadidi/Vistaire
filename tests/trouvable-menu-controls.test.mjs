@@ -13,7 +13,9 @@ import {
   getTrouvableTextDirection,
   normalizeTrouvableCurrency,
   normalizeTrouvableTheme,
-  parseTrouvablePriceLabel
+  parseTrouvablePriceLabel,
+  buildNavigableMenuSections,
+  getAdjacentMenuSection
 } from "../components/menu/trouvableMenuControls.ts";
 
 test("Trouvable price labels parse CAD menu prices and format configured currencies", () => {
@@ -100,4 +102,21 @@ test("Trouvable language and currency labels follow the active locale", () => {
   );
   assert.equal(getTrouvableTextDirection("ar"), "rtl");
   assert.equal(getTrouvableTextDirection("it-IT"), "ltr");
+});
+
+test("Trouvable menu section navigation includes All first and clamps at edges", () => {
+  const sections = buildNavigableMenuSections("all", [
+    "Dejeuner",
+    "all",
+    "Dejeuner",
+    "Entrees",
+    "Plats"
+  ]);
+
+  assert.deepEqual(sections, ["all", "Dejeuner", "Entrees", "Plats"]);
+  assert.equal(getAdjacentMenuSection(sections, "all", 1), "Dejeuner");
+  assert.equal(getAdjacentMenuSection(sections, "Dejeuner", -1), "all");
+  assert.equal(getAdjacentMenuSection(sections, "Dejeuner", 1), "Entrees");
+  assert.equal(getAdjacentMenuSection(sections, "all", -1), null);
+  assert.equal(getAdjacentMenuSection(sections, "Plats", 1), null);
 });

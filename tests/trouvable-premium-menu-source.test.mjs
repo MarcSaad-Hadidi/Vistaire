@@ -311,8 +311,8 @@ test("Trouvable hero includes animated botanical ornamentation", async () => {
   assert.match(css, /botanicalDraw/);
   assert.match(css, /botanicalBloom/);
   assert.match(css, /botanicalDraw 1700ms/);
-  assert.match(css, /botanicalDraw[\s\S]*!important/);
-  assert.match(css, /botanicalBloom[\s\S]*!important/);
+  assert.doesNotMatch(css, /botanicalDraw[\s\S]{0,180}!important/);
+  assert.doesNotMatch(css, /botanicalBloom[\s\S]{0,180}!important/);
 });
 
 test("Trouvable category swipe hint keeps a looping edge-bounce animation", async () => {
@@ -322,7 +322,32 @@ test("Trouvable category swipe hint keeps a looping edge-bounce animation", asyn
   assert.match(source, /className=\{styles\.swipeHint\}/);
   assert.match(css, /@keyframes swipeHintBounce/);
   assert.match(css, /animation:\s*swipeHintBounce 1650ms/);
-  assert.match(css, /infinite !important/);
+  assert.doesNotMatch(css, /swipeHintBounce[\s\S]{0,180}infinite !important/);
+});
+
+test("Trouvable category swipe uses full navigable sections and keeps the rail synced", async () => {
+  const [source, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  assert.match(source, /buildNavigableMenuSections\(/);
+  assert.match(source, /getAdjacentMenuSection\(/);
+  assert.match(source, /const categoryRailRef = useRef<HTMLElement \| null>\(null\)/);
+  assert.match(source, /scrollIntoView\(\{[\s\S]*inline:\s*"center"/);
+  assert.match(source, /prefersReducedMotion \? "auto" : "smooth"/);
+  assert.match(source, /className=\{`\$\{styles\.sectionBody\} \$\{styles\.sectionBodyEnter\}`\}/);
+  assert.doesNotMatch(
+    source,
+    /categoryOptions\.findIndex\(\(category\) => category\.label === resolvedActiveCategory\)/
+  );
+  assert.doesNotMatch(
+    css,
+    /\.categoryRail\s*>\s*button:first-child\s*\{[\s\S]*?display:\s*none/
+  );
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none !important/);
+  assert.match(css, /@keyframes sectionBodyEnter/);
+  assert.match(css, /220ms cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
 });
 
 test("Trouvable premium menu styles are mobile-first and overflow-safe", async () => {

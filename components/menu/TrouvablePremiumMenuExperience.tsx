@@ -28,6 +28,7 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import {
@@ -48,6 +49,8 @@ import {
   normalizeTrouvableCurrency,
   normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
+  buildNavigableMenuSections,
+  getAdjacentMenuSection,
   translateTrouvableCategoryLabel,
   type TrouvableCurrency,
   type TrouvableLocale,
@@ -638,8 +641,10 @@ export function TrouvablePremiumMenuExperience({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const categoryRailRef = useRef<HTMLElement | null>(null);
   const categorySwipeRef = useRef<SwipeStart>(null);
   const dishSwipeRef = useRef<SwipeStart>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
   const textDirection = getTrouvableTextDirection(selectedLocale);
   const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
@@ -772,6 +777,14 @@ export function TrouvablePremiumMenuExperience({
             }
           ],
     [categories, copy, filteredDishes.length]
+  );
+  const navigableSections = useMemo(
+    () =>
+      buildNavigableMenuSections(
+        ALL_CATEGORY_ID,
+        categories.map((category) => category.label)
+      ),
+    [categories]
   );
   const fallbackCategory = filteredCategories[0]?.label ?? ALL_CATEGORY_ID;
   const activeCategoryIsAvailable =
@@ -934,6 +947,27 @@ export function TrouvablePremiumMenuExperience({
     const intervalId = window.setInterval(syncGreeting, 60_000);
     return () => window.clearInterval(intervalId);
   }, [menu.settings.timezone, selectedLocale]);
+
+  useEffect(() => {
+    const rail = categoryRailRef.current;
+    if (!rail) return;
+
+    const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
+
+    if (resolvedActiveCategory === ALL_CATEGORY_ID) {
+      rail.scrollTo({ left: 0, behavior: scrollBehavior });
+      return;
+    }
+
+    const activeButton = rail.querySelector('button[aria-current="true"]');
+    if (!(activeButton instanceof HTMLElement)) return;
+
+    activeButton.scrollIntoView({
+      inline: "center",
+      block: "nearest",
+      behavior: scrollBehavior
+    });
+  }, [prefersReducedMotion, resolvedActiveCategory]);
 
   useEffect(() => {
     if (!activeSheet) return;
@@ -1150,14 +1184,13 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function selectAdjacentCategory(direction: 1 | -1) {
-    if (categoryOptions.length === 0) return;
-    const currentIndex = Math.max(
-      0,
-      categoryOptions.findIndex((category) => category.label === resolvedActiveCategory)
+    const nextSection = getAdjacentMenuSection(
+      navigableSections,
+      resolvedActiveCategory,
+      direction
     );
-    const nextIndex =
-      (currentIndex + direction + categoryOptions.length) % categoryOptions.length;
-    setActiveCategory(categoryOptions[nextIndex]?.label ?? ALL_CATEGORY_ID);
+    if (!nextSection) return;
+    setActiveCategory(nextSection);
   }
 
   function handleCategoryPointerDown(event: PointerEvent<HTMLElement>) {
@@ -2175,6 +2208,7 @@ export function TrouvablePremiumMenuExperience({
           <span className={styles.swipeHint}>{copy.swipeList}</span>
         </div>
         <nav
+          ref={categoryRailRef}
           className={styles.categoryRail}
           aria-label={copy.categoryAria}
           onPointerDown={handleCategoryPointerDown}
@@ -2210,7 +2244,12 @@ export function TrouvablePremiumMenuExperience({
           ))}
         </nav>
 
-        <h2 className={styles.sectionTitle}>{activeCategoryTitle}</h2>
+        <h2
+          key={`title-${resolvedActiveCategory}`}
+          className={`${styles.sectionTitle} ${styles.sectionBodyEnter}`}
+        >
+          {activeCategoryTitle}
+        </h2>
 
         <div className={styles.tools}>
           <label className={styles.searchField}>
@@ -2276,24 +2315,29 @@ export function TrouvablePremiumMenuExperience({
           </p>
         </div>
 
-        {visibleDishes.length === 0 ? (
-          <div className={styles.emptyState} role="status">
-            <p>{copy.noResultsTitle}</p>
-            <span>{copy.noResultsBody}</span>
-            <button type="button" onClick={clearFilters}>
-              {copy.reset}
-            </button>
-          </div>
-        ) : (
-          <ul
-            id="trouvable-dish-results"
-            className={`${styles.dishList} ${
-              viewMode === "grid" ? styles.dishGrid : ""
-            }`}
-          >
-            {visibleDishes.map((dish, index) => renderDishCard(dish, index))}
-          </ul>
-        )}
+        <div
+          key={resolvedActiveCategory}
+          className={`${styles.sectionBody} ${styles.sectionBodyEnter}`}
+        >
+          {visibleDishes.length === 0 ? (
+            <div className={styles.emptyState} role="status">
+              <p>{copy.noResultsTitle}</p>
+              <span>{copy.noResultsBody}</span>
+              <button type="button" onClick={clearFilters}>
+                {copy.reset}
+              </button>
+            </div>
+          ) : (
+            <ul
+              id="trouvable-dish-results"
+              className={`${styles.dishList} ${
+                viewMode === "grid" ? styles.dishGrid : ""
+              }`}
+            >
+              {visibleDishes.map((dish, index) => renderDishCard(dish, index))}
+            </ul>
+          )}
+        </div>
       </section>
 
       <div className={styles.statusRegion} aria-live="polite">
