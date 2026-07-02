@@ -3326,6 +3326,18 @@
   color: #6f530e;
 }
 
+.page[data-user-theme="light"] .detailList h3,
+.page[data-user-theme="light"] .houseNote h3 {
+  color: #6f530e;
+  font-weight: 900;
+  text-shadow: none;
+}
+
+.page[data-user-theme="light"] .detailsSubSheet .moreDetailsText,
+.page[data-user-theme="light"] .houseNote p {
+  color: rgba(35, 26, 13, 0.72);
+}
+
 .page[data-user-theme="light"] .moreDetailsButton {
   border-bottom-color: rgba(35, 26, 13, 0.48);
   color: rgba(35, 26, 13, 0.72);

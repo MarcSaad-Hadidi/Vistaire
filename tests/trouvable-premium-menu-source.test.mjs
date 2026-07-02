@@ -321,6 +321,14 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.match(css, /\.categoryRail[\s\S]*overflow-x:\s*auto/);
   const categoryRailBlock = css.match(/\.categoryRail\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
   assert.doesNotMatch(categoryRailBlock, /touch-action:\s*pan-y/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\]\s+\.detailList h3,\s*\n\.page\[data-user-theme="light"\]\s+\.houseNote h3\s*\{[\s\S]*color:\s*#6f530e/
+  );
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\]\s+\.detailsSubSheet\s+\.moreDetailsText,\s*\n\.page\[data-user-theme="light"\]\s+\.houseNote p\s*\{[\s\S]*color:\s*rgba\(35,\s*26,\s*13,\s*0\.72\)/
+  );
   assert.match(css, /@media \(max-width: 390px\)/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
