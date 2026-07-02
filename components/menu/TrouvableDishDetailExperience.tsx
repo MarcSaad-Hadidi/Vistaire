@@ -159,9 +159,13 @@ export function TrouvableDishDetailExperience({
     [query, selectedLocale]
   );
   const menuHref = buildPublicMenuPath(menu.slug, localizedQuery);
+  const activeCategoryKey = activeDish.categoryId || activeDish.category;
   const sectionDishes = useMemo(
-    () => menu.dishes.filter((candidate) => candidate.category === activeDish.category),
-    [activeDish.category, menu.dishes]
+    () =>
+      menu.dishes.filter(
+        (candidate) => (candidate.categoryId || candidate.category) === activeCategoryKey
+      ),
+    [activeCategoryKey, menu.dishes]
   );
   const activeIndex = sectionDishes.findIndex(
     (candidate) => candidate.id === activeDish.id
@@ -322,7 +326,7 @@ export function TrouvableDishDetailExperience({
     <main
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
       lang={selectedLocale}
-      dir={textDirection}
+      data-text-direction={textDirection}
       data-user-theme={selectedTheme}
       onPointerDown={(event) => {
         if (
@@ -387,7 +391,7 @@ export function TrouvableDishDetailExperience({
           )}
         </div>
 
-        <section className={styles.detailBody} aria-label={copy.moreDetails}>
+        <section className={styles.detailBody} aria-label={copy.moreDetails} dir={textDirection}>
           <p className={styles.detailRestaurantName}>{context || menu.name}</p>
           <h1 id="trouvable-dish-title">{activeDish.name}</h1>
           {activePrice ? (

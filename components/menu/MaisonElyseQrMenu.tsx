@@ -718,7 +718,7 @@ export function MaisonElyseQrMenu({
 
     return categories
       .map((category) => {
-        const dishes = (groups.get(category.label) ?? []).filter((dish) =>
+        const dishes = (groups.get(category.id) ?? []).filter((dish) =>
           dishMatchesFilter(dish, activeFilter)
         );
 
@@ -730,11 +730,17 @@ export function MaisonElyseQrMenu({
       })
       .filter((section) => section.dishes.length > 0);
   }, [activeCategory, activeFilter, categories, groups]);
+  const selectedCategory = categories.find(
+    (category) => category.id === activeCategory
+  );
   const activeCategoryLabel =
     activeCategory === ALL_CATEGORY_ID
       ? copy.allMenu
       : activeCategory
-        ? displayCategoryLabel(activeCategory, selectedLocale)
+        ? displayCategoryLabel(
+            selectedCategory?.label ?? activeCategory,
+            selectedLocale
+          )
         : copy.sections;
   const hasActiveFilter = activeFilter !== "all";
 
@@ -975,14 +981,14 @@ export function MaisonElyseQrMenu({
 
   const categoryImages = new Map(
     categories.map((category) => {
-      const categoryDishes = groups.get(category.label) ?? [];
+      const categoryDishes = groups.get(category.id) ?? [];
       const previewDish =
         categoryDishes.find(
           (dish) => canAppearInEntryPreview(dish) && dish.imageUrl
         ) ?? categoryDishes.find((dish) => dish.imageUrl);
 
       return [
-        category.label,
+        category.id,
         previewDish?.thumbnailUrl || previewDish?.imageUrl || ""
       ];
     })
@@ -1070,9 +1076,9 @@ export function MaisonElyseQrMenu({
               {categories.map((category) => {
                 return (
                   <button
-                    aria-pressed={activeCategory === category.label}
+                    aria-pressed={activeCategory === category.id}
                     className={
-                      activeCategory === category.label
+                      activeCategory === category.id
                         ? styles.isActive
                         : undefined
                     }
@@ -1189,7 +1195,7 @@ export function MaisonElyseQrMenu({
               {categories.map((category) => (
                 <CategoryCard
                   category={category}
-                  imageUrl={categoryImages.get(category.label) ?? ""}
+                  imageUrl={categoryImages.get(category.id) ?? ""}
                   key={category.id}
                   locale={selectedLocale}
                   onSelect={() => openCategoryInFullMenu(category.label)}

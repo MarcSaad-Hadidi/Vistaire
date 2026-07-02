@@ -91,6 +91,24 @@ export function publicMenuSettingsFromUiConfigRow(
   };
 }
 
+export function publicMenuSettingsFromUiConfigRows(
+  data: unknown,
+  restaurantId = ""
+): PublicMenuSettings | null {
+  const allRows = Array.isArray(data) ? data : [];
+  const rows = restaurantId
+    ? allRows.filter((row) => {
+        const candidate = objectInput(row);
+        return String(candidate.restaurant_id ?? candidate.restaurantId ?? "") === restaurantId;
+      })
+    : allRows;
+  const preferred =
+    rows.find((row) => String(objectInput(row).status ?? "") === "draft") ??
+    rows.find((row) => String(objectInput(row).status ?? "") === "published") ??
+    rows[0];
+  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
+}
+
 export async function readUiConfigPublicMenuSettings(
   client: SupabaseClient,
   restaurantId: string
@@ -104,12 +122,7 @@ export async function readUiConfigPublicMenuSettings(
     .limit(10);
 
   if (config.error) return null;
-  const rows = Array.isArray(config.data) ? config.data : [];
-  const preferred =
-    rows.find((row) => String(row.status ?? "") === "draft") ??
-    rows.find((row) => String(row.status ?? "") === "published") ??
-    rows[0];
-  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
+  return publicMenuSettingsFromUiConfigRows(config.data);
 }
 
 export async function readPublicMenuSettingsWithFallbacks(args: {
