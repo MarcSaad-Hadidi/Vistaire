@@ -55,7 +55,9 @@ type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
 type SwipeStart = {
   x: number;
   y: number;
+  pointerId: number;
 } | null;
+type DishDetailSubSheet = "details" | "review" | null;
 
 function hasPublic3d(dish: PublicMenuDish): boolean {
   return (
@@ -85,9 +87,31 @@ function modelViewerDishFromPublicDish(
   };
 }
 
-function detailTags(dish: PublicMenuDish): string[] {
-  const tags = dish.ingredients.length > 0 ? dish.ingredients : dish.tags;
-  return tags.filter(Boolean).slice(0, 8);
+function isDishSwipeGuardedTarget(
+  target: EventTarget | null,
+  swipeRoot?: Element
+): boolean {
+  if (!(target instanceof Element)) return true;
+  if (
+    target.closest(
+      [
+        "model-viewer",
+        "canvas",
+        "button",
+        "a",
+        "input",
+        "select",
+        "textarea",
+        "[data-no-dish-swipe]"
+      ].join(",")
+    )
+  ) {
+    return true;
+  }
+
+  const dialogTarget = target.closest(["dialog", "[role='dialog']"].join(","));
+  if (!dialogTarget) return false;
+  return !(swipeRoot && (dialogTarget === swipeRoot || dialogTarget.contains(swipeRoot)));
 }
 
 export function TrouvableDishDetailExperience({
@@ -101,8 +125,7 @@ export function TrouvableDishDetailExperience({
   const [activeDish, setActiveDish] = useState(dish);
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
-  const [showReviewSheet, setShowReviewSheet] = useState(false);
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [activeSubSheet, setActiveSubSheet] = useState<DishDetailSubSheet>(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
@@ -136,7 +159,7 @@ export function TrouvableDishDetailExperience({
     (candidate) => candidate.id === activeDish.id
   );
   const hasModel = hasPublic3d(activeDish);
-  const tags = detailTags(activeDish);
+  const visibleTags = activeDish.tags.filter(Boolean).slice(0, 8);
   const activePrice = formatTrouvableDishPrice(
     activeDish,
     selectedCurrency,
@@ -155,8 +178,7 @@ export function TrouvableDishDetailExperience({
     const animationFrameId = window.requestAnimationFrame(() => {
       setActiveDish(dish);
       setShowModelViewer(false);
-      setShowReviewSheet(false);
-      setShowMoreDetails(false);
+      setActiveSubSheet(null);
       setReviewRating(0);
       setReviewText("");
     });
@@ -228,8 +250,7 @@ export function TrouvableDishDetailExperience({
     if (nextDish) {
       setActiveDish(nextDish);
       setShowModelViewer(false);
-      setShowReviewSheet(false);
-      setShowMoreDetails(false);
+      setActiveSubSheet(null);
       setReviewRating(0);
       setReviewText("");
       window.history.replaceState(
@@ -242,9 +263,17 @@ export function TrouvableDishDetailExperience({
 
   function handlePointerUp(event: PointerEvent<HTMLElement>) {
     if (!swipeStart || event.pointerType === "mouse") return;
-    const deltaX = event.clientX - swipeStart.x;
-    const deltaY = event.clientY - swipeStart.y;
+    const start = swipeStart;
     setSwipeStart(null);
+    if (
+      activeSubSheet ||
+      start.pointerId !== event.pointerId ||
+      isDishSwipeGuardedTarget(event.target, event.currentTarget)
+    ) {
+      return;
+    }
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
     selectAdjacentDish(deltaX < 0 ? 1 : -1);
   }
@@ -254,8 +283,16 @@ export function TrouvableDishDetailExperience({
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
       data-user-theme={selectedTheme}
       onPointerDown={(event) => {
-        if (event.pointerType !== "mouse") {
-          setSwipeStart({ x: event.clientX, y: event.clientY });
+        if (
+          event.pointerType !== "mouse" &&
+          !activeSubSheet &&
+          !isDishSwipeGuardedTarget(event.target, event.currentTarget)
+        ) {
+          setSwipeStart({
+            x: event.clientX,
+            y: event.clientY,
+            pointerId: event.pointerId
+          });
         }
       }}
       onPointerUp={handlePointerUp}
@@ -295,7 +332,11 @@ export function TrouvableDishDetailExperience({
       ) : null}
 
       <article className={styles.standaloneDetailCard}>
-        <div className={styles.detailVisual}>
+        <div
+          className={`${styles.detailVisual} ${
+            activeDish.imageUrl ? styles.hasDishImage : ""
+          }`}
+        >
           {activeDish.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img alt={`Photo de ${activeDish.name}`} src={activeDish.imageUrl} />
@@ -313,26 +354,13 @@ export function TrouvableDishDetailExperience({
           <button
             type="button"
             className={styles.moreDetailsButton}
-            aria-expanded={showMoreDetails}
-            aria-controls={activeDish.description ? moreDetailsId : undefined}
-            onClick={() => setShowMoreDetails((isExpanded) => !isExpanded)}
+            aria-expanded={activeSubSheet === "details"}
+            aria-controls={moreDetailsId}
+            onClick={() => setActiveSubSheet("details")}
           >
             <span aria-hidden="true">i</span>
             {copy.moreDetails}
           </button>
-          {activeDish.description && showMoreDetails ? (
-            <p id={moreDetailsId} className={styles.moreDetailsText}>
-              {activeDish.description}
-            </p>
-          ) : null}
-
-          {tags.length > 0 ? (
-            <ul className={styles.detailTagCloud} aria-label={copy.ingredients}>
-              {tags.map((tag) => (
-                <li key={tag}>{tag}</li>
-              ))}
-            </ul>
-          ) : null}
 
           {hasModel ? (
             <button
@@ -350,7 +378,11 @@ export function TrouvableDishDetailExperience({
 
           {showModelViewer ? (
             <>
-              <div className={styles.inlineModelViewer} id="trouvable-public-model">
+              <div
+                className={styles.inlineModelViewer}
+                id="trouvable-public-model"
+                data-no-dish-swipe="true"
+              >
                 {ModelViewerComponent ? (
                   <ModelViewerComponent
                     dish={modelViewerDishFromPublicDish(activeDish)}
@@ -384,7 +416,7 @@ export function TrouvableDishDetailExperience({
             onClick={() => {
               setReviewRating(0);
               setReviewText("");
-              setShowReviewSheet(true);
+              setActiveSubSheet("review");
             }}
           >
             <span aria-hidden="true">★</span>
@@ -393,22 +425,106 @@ export function TrouvableDishDetailExperience({
         </section>
       </article>
 
-      {showReviewSheet ? (
+      {activeSubSheet === "details" ? (
         <div
-          className={`${styles.overlay} ${styles.reviewOverlay}`}
+          className={`${styles.overlay} ${styles.stackedOverlay}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="trouvable-route-details-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setActiveSubSheet(null);
+          }}
+          data-no-dish-swipe="true"
+        >
+          <section
+            id={moreDetailsId}
+            className={`${styles.sheet} ${styles.detailsSubSheet}`}
+            tabIndex={-1}
+          >
+            <header className={styles.sheetHeader}>
+              <div>
+                <p>{activeDish.name}</p>
+                <h2 id="trouvable-route-details-title">{copy.moreDetails}</h2>
+              </div>
+              <button
+                type="button"
+                className={styles.iconButton}
+                aria-label={copy.closeDetail}
+                onClick={() => setActiveSubSheet(null)}
+              >
+                x
+              </button>
+            </header>
+            {activeDish.description ? (
+              <p className={styles.moreDetailsText}>{activeDish.description}</p>
+            ) : null}
+            {visibleTags.length > 0 ? (
+              <section className={styles.detailList}>
+                <h3>{copy.tags}</h3>
+                <ul>
+                  {visibleTags.map((tag) => (
+                    <li key={tag}>{tag}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {activeDish.ingredients.length > 0 ? (
+              <section className={styles.detailList}>
+                <h3>{copy.ingredients}</h3>
+                <ul>
+                  {activeDish.ingredients.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {activeDish.allergens.length > 0 ? (
+              <section className={styles.detailList}>
+                <h3>{copy.allergens}</h3>
+                <ul>
+                  {activeDish.allergens.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {activeDish.options.length > 0 ? (
+              <section className={styles.detailList}>
+                <h3>{copy.options}</h3>
+                <ul>
+                  {activeDish.options.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {activeDish.houseNote ? (
+              <section className={styles.houseNote}>
+                <h3>{copy.houseNote}</h3>
+                <p>{activeDish.houseNote}</p>
+              </section>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
+
+      {activeSubSheet === "review" ? (
+        <div
+          className={`${styles.overlay} ${styles.reviewOverlay} ${styles.stackedOverlay}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="trouvable-route-review-title"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowReviewSheet(false);
+            if (event.target === event.currentTarget) setActiveSubSheet(null);
           }}
+          data-no-dish-swipe="true"
         >
           <section className={styles.reviewSheet} tabIndex={-1}>
             <button
               type="button"
               className={styles.reviewClose}
               aria-label={copy.reviewClose}
-              onClick={() => setShowReviewSheet(false)}
+              onClick={() => setActiveSubSheet(null)}
             >
               x
             </button>

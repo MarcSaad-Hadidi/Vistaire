@@ -177,6 +177,7 @@
   backdrop-filter: blur(14px) saturate(112%);
   scroll-snap-type: x proximity;
   scrollbar-width: none;
+  touch-action: pan-y;
   white-space: nowrap;
 }
 
@@ -450,7 +451,8 @@
 .detailVisual img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .dishCopy {
@@ -1790,6 +1792,7 @@
   border-radius: 0;
   background: #000;
   padding: 0 28px 46px;
+  touch-action: pan-y;
 }
 
 .detailNav {
@@ -1867,8 +1870,8 @@
 .standaloneDetailCard .detailVisual img {
   position: relative;
   z-index: 1;
-  object-fit: cover;
-  object-position: center 68%;
+  object-fit: contain;
+  object-position: center;
   filter: drop-shadow(var(--dishPhotoHalo));
 }
 
@@ -1914,7 +1917,11 @@
 
 .detailList h3,
 .houseNote h3 {
-  display: none;
+  display: block;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  letter-spacing: 0.18em;
 }
 
 .detailList ul {
@@ -1980,6 +1987,7 @@
 .standaloneDetailCard {
   display: grid;
   gap: 18px;
+  touch-action: pan-y;
 }
 
 .detailRestaurantName {
@@ -2018,6 +2026,24 @@
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 28px;
+}
+
+.detailsSubSheet {
+  display: grid;
+  gap: 18px;
+  padding: 24px 22px 28px;
+}
+
+.detailsSubSheet .detailList,
+.detailsSubSheet .houseNote {
+  max-width: none;
+}
+
+.detailsSubSheet .moreDetailsText {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .arBrowserHelp {
@@ -2508,8 +2534,8 @@
     width: 100%;
     height: 100%;
     max-height: 100%;
-    object-fit: cover;
-    object-position: center 68%;
+    object-fit: contain;
+    object-position: center;
   }
 
   .detailSheet .detailBody {
@@ -2697,6 +2723,29 @@
   padding: 24px 22px 34px;
 }
 
+.stackedOverlay {
+  z-index: 60;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 18px 18px 0;
+}
+
+.stackedOverlay .sheet,
+.stackedOverlay .reviewSheet {
+  width: min(100%, 640px);
+  max-height: min(84svh, 720px);
+  min-height: 0;
+  overflow: auto;
+  border-radius: 28px 28px 0 0;
+  background: #000;
+}
+
+.stackedOverlay .reviewSheet {
+  align-content: end;
+}
+
 .reviewClose {
   position: absolute;
   top: 18px;
@@ -2871,6 +2920,20 @@
 
   .reviewSheet {
     padding: 18px 18px 34px;
+  }
+
+  .stackedOverlay {
+    padding: 10px 10px 0;
+  }
+
+  .stackedOverlay .sheet,
+  .stackedOverlay .reviewSheet {
+    max-height: 86svh;
+  }
+
+  .detailsSubSheet {
+    gap: 14px;
+    padding: 20px 16px 24px;
   }
 
   .reviewPanel {
@@ -3058,7 +3121,8 @@
 .page[data-user-theme="light"] .detailSheet,
 .page[data-user-theme="light"].standaloneDetailPage,
 .page[data-user-theme="light"] .reviewOverlay,
-.page[data-user-theme="light"] .reviewSheet {
+.page[data-user-theme="light"] .reviewSheet,
+.page[data-user-theme="light"] .detailsSubSheet {
   background: #f5efe4;
   color: #17120b;
 }
@@ -3164,9 +3228,15 @@
 .dishVisual:has(img),
 .detailSheet .detailVisual:has(img),
 .standaloneDetailCard .detailVisual:has(img),
+.dishVisual.hasDishImage,
+.detailSheet .detailVisual.hasDishImage,
+.standaloneDetailCard .detailVisual.hasDishImage,
 .page[data-user-theme="light"] .dishVisual:has(img),
 .page[data-user-theme="light"] .detailSheet .detailVisual:has(img),
-.page[data-user-theme="light"] .standaloneDetailCard .detailVisual:has(img) {
+.page[data-user-theme="light"] .standaloneDetailCard .detailVisual:has(img),
+.page[data-user-theme="light"] .dishVisual.hasDishImage,
+.page[data-user-theme="light"] .detailSheet .detailVisual.hasDishImage,
+.page[data-user-theme="light"] .standaloneDetailCard .detailVisual.hasDishImage {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
