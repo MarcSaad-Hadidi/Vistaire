@@ -7,7 +7,7 @@ import {
   type PublicMenuCategory,
   type PublicMenuRow
 } from "../menu/publicMenuCore.ts";
-import { publicMenuSettingsFromUiConfigRows } from "./publicMenuSettingsFallback.ts";
+import { publicMenuSettingsFallbackFromUiConfigRows } from "./publicMenuSettingsFallback.ts";
 import { slugifyRestaurantSlug } from "./menuUrlCore.ts";
 
 export type OwnerMenuDataSuccess = {
@@ -142,7 +142,7 @@ export function buildOwnerMenuDataFromRows(
     getPublicMenuRowSlug(restaurantRow) ||
     slugifyRestaurantSlug(getString(restaurantRow, ["name", "restaurant_name"]));
   const primaryMenu = findPrimaryMenu(args.menuRows, args.restaurantId);
-  const legacyPublicMenuSettings = publicMenuSettingsFromUiConfigRows(
+  const legacyPublicMenuSettings = publicMenuSettingsFallbackFromUiConfigRows(
     args.uiConfigRows ?? [],
     args.restaurantId
   );

@@ -5,8 +5,8 @@ import { readFile } from "node:fs/promises";
 import { serializePublicMenuSettings } from "../lib/menu/publicMenuSettings.ts";
 import { updateOwnerMenuSettings } from "../lib/owner/menuSettingsMutation.ts";
 import { buildOwnerMenuDataFromRows } from "../lib/owner/menuDataCore.ts";
+import { buildRelationalSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
 import {
-  publicMenuSettingsFromPublishedUiConfigRows,
   publicMenuSettingsFromUiConfigRows
 } from "../lib/owner/publicMenuSettingsFallback.ts";
 
@@ -259,13 +259,10 @@ test("saved supportedLocales survive owner reload from menu_ui_configs fallback"
   assert.equal(settings.defaultLocale, "fr-CA");
 });
 
-test("owner and public menu_ui_configs settings use separate draft and published preference", () => {
+test("owner and public menu_ui_configs settings use the same effective draft settings", () => {
   const rows = ownerRows().uiConfigRows;
   const ownerSettings = publicMenuSettingsFromUiConfigRows(rows, restaurantId);
-  const publicSettings = publicMenuSettingsFromPublishedUiConfigRows(
-    rows,
-    restaurantId
-  );
+  const publicSettings = publicMenuSettingsFromUiConfigRows(rows, restaurantId);
 
   assert.deepEqual(ownerSettings?.supportedLocales, [
     "fr-CA",
@@ -274,20 +271,29 @@ test("owner and public menu_ui_configs settings use separate draft and published
     "it-IT",
     "ar"
   ]);
-  assert.deepEqual(publicSettings?.supportedLocales, ["fr-CA", "en-CA"]);
+  assert.deepEqual(publicSettings?.supportedLocales, ownerSettings?.supportedLocales);
   assert.equal(ownerSettings?.defaultCurrency, "USD");
-  assert.equal(publicSettings?.defaultLocale, "en-CA");
+  assert.equal(publicSettings?.defaultLocale, ownerSettings?.defaultLocale);
 });
 
-test("public menu_ui_configs fallback does not expose draft-only settings", () => {
+test("public menu_ui_configs fallback reads draft-only saved settings for the public route", () => {
   const draftOnlyRows = ownerRows().uiConfigRows.filter(
     (row) => row.status === "draft"
   );
 
-  assert.equal(
-    publicMenuSettingsFromPublishedUiConfigRows(draftOnlyRows, restaurantId),
-    null
+  const publicSettings = publicMenuSettingsFromUiConfigRows(
+    draftOnlyRows,
+    restaurantId
   );
+
+  assert.deepEqual(publicSettings?.supportedLocales, [
+    "fr-CA",
+    "en-CA",
+    "es-ES",
+    "it-IT",
+    "ar"
+  ]);
+  assert.deepEqual(publicSettings?.supportedCurrencies, ["CAD", "USD", "EUR", "GBP"]);
 });
 
 test("saved supportedCurrencies survive owner reload from menu_ui_configs fallback", () => {
@@ -404,6 +410,28 @@ test("owner API fallback save preserves locales and currencies across two refres
     "JPY",
     "CHF"
   ]);
+});
+
+test("owner and public builders expose identical settings for the same ui_config rows", () => {
+  const rows = ownerRows();
+  const ownerResult = buildOwnerMenuDataFromRows({
+    restaurantId,
+    ...rows
+  });
+  const publicMenu = buildRelationalSupabasePublicMenu({
+    slug: "cafe-vistaire",
+    restaurantRow: rows.restaurantRows[0],
+    menuRow: rows.menuRows[0],
+    categoryRows: rows.categoryRows,
+    dishRows: rows.dishRows,
+    legacyPublicMenuSettings: publicMenuSettingsFromUiConfigRows(
+      rows.uiConfigRows,
+      restaurantId
+    )
+  });
+
+  assert.equal(ownerResult.ok, true);
+  assert.deepEqual(publicMenu.settings, ownerResult.menu.settings);
 });
 
 test("getOwnerMenuData is wired to read menu_ui_configs publicMenuSettings", async () => {
