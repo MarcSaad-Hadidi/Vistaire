@@ -33,6 +33,16 @@ test("demo menu preserves French and English supported locales", async () => {
   assert.match(source, /settings:\s*DEMO_PUBLIC_MENU_SETTINGS/);
 });
 
+test("getPublicMenuBySlug reads the same effective menu_ui_configs settings as owner", async () => {
+  const source = await readFile(
+    new URL("../lib/menu/publicMenu.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /publicMenuSettingsFromUiConfigRows/);
+  assert.doesNotMatch(source, /publicMenuSettingsFromPublishedUiConfigRows/);
+});
+
 test("normalizes public menu settings with legacy menu languages", () => {
   const settings = normalizePublicMenuSettings({}, { legacyMenuLanguages: ["fr", "en"] });
 

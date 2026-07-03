@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   formatTrouvablePriceLabel,
   getTrouvableCopy,
+  getTrouvableCurrencyOptions,
   getTrouvableCurrencyOption,
   getTrouvableCurrencyOptionLabel,
   getTrouvableGreetingForDate,
@@ -102,6 +103,23 @@ test("Trouvable language and currency labels follow the active locale", () => {
   );
   assert.equal(getTrouvableTextDirection("ar"), "rtl");
   assert.equal(getTrouvableTextDirection("it-IT"), "ltr");
+});
+
+test("Trouvable selectors expose every configured public locale and currency", () => {
+  const settings = {
+    defaultLocale: "fr-CA",
+    supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"],
+    supportedCurrencies: ["CAD", "USD", "EUR", "GBP"]
+  };
+
+  assert.deepEqual(
+    getTrouvableLanguageOptions(settings, "fr-CA").map((option) => option.publicLocale),
+    ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"]
+  );
+  assert.deepEqual(
+    getTrouvableCurrencyOptions(settings).map((option) => option.code),
+    ["CAD", "USD", "EUR", "GBP"]
+  );
 });
 
 test("Trouvable menu section navigation includes All first and clamps at edges", () => {

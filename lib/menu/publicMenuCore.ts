@@ -818,6 +818,7 @@ function menuSettingsFromRows(args: {
   legacyMenuLanguages?: unknown;
 }): PublicMenuSettings {
   const menuRow = args.menuRow ?? {};
+  const uiConfigSettings = objectInput(args.legacyPublicMenuSettings);
   const nativeSettings = getObject(menuRow, ["settings_json", "settingsJson"]);
   const metadata = getObject(menuRow, ["metadata", "meta"]);
   const metadataSettings = getObject(metadata, [
@@ -826,18 +827,37 @@ function menuSettingsFromRows(args: {
     "settings"
   ]);
   const rawSettings =
-    Object.keys(nativeSettings).length > 0
-      ? nativeSettings
-      : Object.keys(metadataSettings).length > 0
-        ? metadataSettings
-        : objectInput(args.legacyPublicMenuSettings);
+    Object.keys(uiConfigSettings).length > 0
+      ? uiConfigSettings
+      : Object.keys(nativeSettings).length > 0
+        ? nativeSettings
+        : Object.keys(metadataSettings).length > 0
+          ? metadataSettings
+          : {};
   const isEmptySettings = Object.keys(rawSettings).length === 0;
   return normalizePublicMenuSettings(rawSettings, {
     legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
   });
 }
 
-function menuRowHasPublicMenuStyle(menuRow?: PublicMenuRow | null): boolean {
+function settingsInputHasPublicMenuStyle(rawSettings: PublicMenuRow): boolean {
+  return (
+    Object.prototype.hasOwnProperty.call(rawSettings, "publicMenuStyle") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "public_menu_style") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menuStyle") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menu_style") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menuExperience") ||
+    Object.prototype.hasOwnProperty.call(rawSettings, "menu_experience")
+  );
+}
+
+function menuRowHasPublicMenuStyle(
+  menuRow?: PublicMenuRow | null,
+  legacyPublicMenuSettings?: unknown
+): boolean {
+  const uiConfigSettings = objectInput(legacyPublicMenuSettings);
+  if (settingsInputHasPublicMenuStyle(uiConfigSettings)) return true;
+
   const row = menuRow ?? {};
   const nativeSettings = getObject(row, ["settings_json", "settingsJson"]);
   const metadata = getObject(row, ["metadata", "meta"]);
@@ -848,14 +868,7 @@ function menuRowHasPublicMenuStyle(menuRow?: PublicMenuRow | null): boolean {
   ]);
   const rawSettings =
     Object.keys(nativeSettings).length > 0 ? nativeSettings : metadataSettings;
-  return (
-    Object.prototype.hasOwnProperty.call(rawSettings, "publicMenuStyle") ||
-    Object.prototype.hasOwnProperty.call(rawSettings, "public_menu_style") ||
-    Object.prototype.hasOwnProperty.call(rawSettings, "menuStyle") ||
-    Object.prototype.hasOwnProperty.call(rawSettings, "menu_style") ||
-    Object.prototype.hasOwnProperty.call(rawSettings, "menuExperience") ||
-    Object.prototype.hasOwnProperty.call(rawSettings, "menu_experience")
-  );
+  return settingsInputHasPublicMenuStyle(rawSettings);
 }
 
 export function getPublicMenuRowSlug(row: PublicMenuRow): string {
@@ -913,7 +926,9 @@ export function buildSupabasePublicMenu(
     cuisineType: getString(restaurantRow, ["cuisine_type", "cuisineType"], ""),
     googleReview: googleReviewConfigFromRestaurantRow(restaurantRow),
     settings,
-    publicMenuStyleExplicit: false,
+    publicMenuStyleExplicit: settingsInputHasPublicMenuStyle(
+      objectInput(options.legacyPublicMenuSettings)
+    ),
     source: "supabase",
     dishes
   };
@@ -986,7 +1001,10 @@ export function buildRelationalSupabasePublicMenu(args: {
     cuisineType: getString(args.restaurantRow, ["cuisine_type", "cuisineType"], ""),
     googleReview: googleReviewConfigFromRestaurantRow(args.restaurantRow),
     settings,
-    publicMenuStyleExplicit: menuRowHasPublicMenuStyle(args.menuRow),
+    publicMenuStyleExplicit: menuRowHasPublicMenuStyle(
+      args.menuRow,
+      args.legacyPublicMenuSettings
+    ),
     source: "supabase",
     dishes
   };

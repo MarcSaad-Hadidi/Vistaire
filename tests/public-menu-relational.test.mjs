@@ -235,3 +235,64 @@ test("buildRelationalSupabasePublicMenu reads settings from menu_ui_configs fall
   assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD"]);
   assert.equal(menu.settings.publicMenuStyle, "trouvable");
 });
+
+test("buildRelationalSupabasePublicMenu prefers effective menu_ui_configs settings over stale menu settings", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true,
+      settings_json: {
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA", "en-CA"],
+        baseCurrency: "CAD",
+        defaultCurrency: "CAD",
+        supportedCurrencies: ["CAD"],
+        publicMenuStyle: "maison-elyse",
+        allowCurrencySelector: false,
+        allowLanguageSelector: false
+      }
+    },
+    legacyPublicMenuSettings: {
+      defaultLocale: "fr-CA",
+      supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"],
+      baseCurrency: "CAD",
+      defaultCurrency: "CAD",
+      supportedCurrencies: ["CAD", "USD", "EUR", "GBP"],
+      publicMenuStyle: "trouvable",
+      timezone: "America/Toronto",
+      defaultThemeMode: "dark",
+      allowThemeToggle: true,
+      allowCurrencySelector: true,
+      allowLanguageSelector: true,
+      taxIncluded: true,
+      priceDisplayMode: "auto"
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.deepEqual(menu.settings.supportedLocales, [
+    "fr-CA",
+    "en-CA",
+    "es-ES",
+    "it-IT",
+    "de-DE",
+    "ar"
+  ]);
+  assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD", "EUR", "GBP"]);
+  assert.equal(menu.settings.allowLanguageSelector, true);
+  assert.equal(menu.settings.allowCurrencySelector, true);
+  assert.equal(menu.settings.publicMenuStyle, "trouvable");
+  assert.equal(menu.publicMenuStyleExplicit, true);
+});
