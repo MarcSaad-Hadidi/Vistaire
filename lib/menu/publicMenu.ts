@@ -26,7 +26,7 @@ import {
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
-import { publicMenuSettingsFromUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
+import { publicMenuSettingsFromPublishedUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
@@ -399,7 +399,7 @@ export async function getPublicMenuBySlug(
     ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
     : undefined;
   const legacyPublicMenuSettings = uiConfigsResult.ok
-    ? publicMenuSettingsFromUiConfigRows(uiConfigsResult.rows, restaurantId) ?? undefined
+    ? publicMenuSettingsFromPublishedUiConfigRows(uiConfigsResult.rows, restaurantId) ?? undefined
     : undefined;
 
   if (primaryMenu) {

@@ -5,6 +5,10 @@ import { readFile } from "node:fs/promises";
 import { serializePublicMenuSettings } from "../lib/menu/publicMenuSettings.ts";
 import { updateOwnerMenuSettings } from "../lib/owner/menuSettingsMutation.ts";
 import { buildOwnerMenuDataFromRows } from "../lib/owner/menuDataCore.ts";
+import {
+  publicMenuSettingsFromPublishedUiConfigRows,
+  publicMenuSettingsFromUiConfigRows
+} from "../lib/owner/publicMenuSettingsFallback.ts";
 
 const restaurantId = "11111111-1111-4111-8111-111111111111";
 const menuId = "22222222-2222-4222-8222-222222222222";
@@ -23,6 +27,15 @@ const savedSettings = serializePublicMenuSettings({
   allowLanguageSelector: true,
   taxIncluded: true,
   priceDisplayMode: "auto"
+});
+
+const publishedSettings = serializePublicMenuSettings({
+  ...savedSettings,
+  supportedLocales: ["fr-CA", "en-CA"],
+  defaultLocale: "en-CA",
+  supportedCurrencies: ["CAD", "USD"],
+  baseCurrency: "CAD",
+  defaultCurrency: "USD"
 });
 
 function ownerRows(settings = savedSettings) {
@@ -49,6 +62,15 @@ function ownerRows(settings = savedSettings) {
     dishRows: [],
     uiConfigRows: [
       {
+        id: "22223333-3333-4333-8333-333333333333",
+        restaurant_id: restaurantId,
+        status: "published",
+        updated_at: "2026-07-01T12:00:00.000Z",
+        config_json: {
+          publicMenuSettings: publishedSettings
+        }
+      },
+      {
         id: "33333333-3333-4333-8333-333333333333",
         restaurant_id: restaurantId,
         status: "draft",
@@ -69,6 +91,12 @@ function reloadOwnerSettings(settings = savedSettings) {
 
   assert.equal(result.ok, true);
   return result.menu.settings;
+}
+
+function draftPublicMenuSettings(state) {
+  const draft = state.uiConfigRows.find((row) => row.status === "draft");
+  assert.ok(draft, "Expected a draft menu_ui_configs row");
+  return draft.config_json.publicMenuSettings;
 }
 
 function uiConfigFallbackClient(state) {
@@ -231,6 +259,37 @@ test("saved supportedLocales survive owner reload from menu_ui_configs fallback"
   assert.equal(settings.defaultLocale, "fr-CA");
 });
 
+test("owner and public menu_ui_configs settings use separate draft and published preference", () => {
+  const rows = ownerRows().uiConfigRows;
+  const ownerSettings = publicMenuSettingsFromUiConfigRows(rows, restaurantId);
+  const publicSettings = publicMenuSettingsFromPublishedUiConfigRows(
+    rows,
+    restaurantId
+  );
+
+  assert.deepEqual(ownerSettings?.supportedLocales, [
+    "fr-CA",
+    "en-CA",
+    "es-ES",
+    "it-IT",
+    "ar"
+  ]);
+  assert.deepEqual(publicSettings?.supportedLocales, ["fr-CA", "en-CA"]);
+  assert.equal(ownerSettings?.defaultCurrency, "USD");
+  assert.equal(publicSettings?.defaultLocale, "en-CA");
+});
+
+test("public menu_ui_configs fallback does not expose draft-only settings", () => {
+  const draftOnlyRows = ownerRows().uiConfigRows.filter(
+    (row) => row.status === "draft"
+  );
+
+  assert.equal(
+    publicMenuSettingsFromPublishedUiConfigRows(draftOnlyRows, restaurantId),
+    null
+  );
+});
+
 test("saved supportedCurrencies survive owner reload from menu_ui_configs fallback", () => {
   const settings = reloadOwnerSettings();
 
@@ -242,7 +301,7 @@ test("saved supportedCurrencies survive owner reload from menu_ui_configs fallba
 test("adding a new language after owner reload preserves old languages", async () => {
   const state = ownerRows();
   const client = uiConfigFallbackClient(state);
-  const reloaded = reloadOwnerSettings(state.uiConfigRows[0].config_json.publicMenuSettings);
+  const reloaded = reloadOwnerSettings(draftPublicMenuSettings(state));
   const nextSettings = serializePublicMenuSettings({
     ...reloaded,
     supportedLocales: [...reloaded.supportedLocales, "de-DE"]
@@ -261,7 +320,7 @@ test("adding a new language after owner reload preserves old languages", async (
   );
 
   const afterReload = reloadOwnerSettings(
-    state.uiConfigRows[0].config_json.publicMenuSettings
+    draftPublicMenuSettings(state)
   );
   assert.deepEqual(
     [...afterReload.supportedLocales].sort(),
@@ -272,7 +331,7 @@ test("adding a new language after owner reload preserves old languages", async (
 test("adding a new currency after owner reload preserves old currencies", async () => {
   const state = ownerRows();
   const client = uiConfigFallbackClient(state);
-  const reloaded = reloadOwnerSettings(state.uiConfigRows[0].config_json.publicMenuSettings);
+  const reloaded = reloadOwnerSettings(draftPublicMenuSettings(state));
   const nextSettings = serializePublicMenuSettings({
     ...reloaded,
     supportedCurrencies: [...reloaded.supportedCurrencies, "JPY"]
@@ -294,9 +353,57 @@ test("adding a new currency after owner reload preserves old currencies", async 
   ]);
 
   const afterReload = reloadOwnerSettings(
-    state.uiConfigRows[0].config_json.publicMenuSettings
+    draftPublicMenuSettings(state)
   );
   assert.deepEqual(afterReload.supportedCurrencies, saved.settings.supportedCurrencies);
+});
+
+test("owner API fallback save preserves locales and currencies across two refreshes", async () => {
+  const state = ownerRows();
+  const client = uiConfigFallbackClient(state);
+  const firstReload = reloadOwnerSettings(draftPublicMenuSettings(state));
+  const firstSave = serializePublicMenuSettings({
+    ...firstReload,
+    supportedLocales: [...firstReload.supportedLocales, "de-DE"],
+    supportedCurrencies: [...firstReload.supportedCurrencies, "JPY"]
+  });
+
+  const firstSaved = await updateOwnerMenuSettings({
+    client,
+    restaurantId,
+    settings: firstSave
+  });
+
+  assert.equal(firstSaved.ok, true);
+
+  const secondReload = reloadOwnerSettings(draftPublicMenuSettings(state));
+  const secondSave = serializePublicMenuSettings({
+    ...secondReload,
+    supportedLocales: [...secondReload.supportedLocales, "pt-BR"],
+    supportedCurrencies: [...secondReload.supportedCurrencies, "CHF"]
+  });
+
+  const secondSaved = await updateOwnerMenuSettings({
+    client,
+    restaurantId,
+    settings: secondSave
+  });
+
+  assert.equal(secondSaved.ok, true);
+
+  const finalReload = reloadOwnerSettings(draftPublicMenuSettings(state));
+  assert.deepEqual(
+    [...finalReload.supportedLocales].sort(),
+    ["fr-CA", "en-CA", "es-ES", "it-IT", "ar", "de-DE", "pt-BR"].sort()
+  );
+  assert.deepEqual(finalReload.supportedCurrencies, [
+    "CAD",
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "CHF"
+  ]);
 });
 
 test("getOwnerMenuData is wired to read menu_ui_configs publicMenuSettings", async () => {

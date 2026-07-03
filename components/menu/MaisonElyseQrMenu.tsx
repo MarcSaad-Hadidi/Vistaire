@@ -898,7 +898,9 @@ export function MaisonElyseQrMenu({
     scrollToMenu();
   }
 
-  function openCategoryInFullMenu(categoryLabel: string) {
+  function openCategoryInFullMenu(categoryId: string) {
+    const categoryLabel =
+      categories.find((category) => category.id === categoryId)?.label ?? categoryId;
     skipNextPhonePreviewAutoScrollRef.current = displayMode === "phone-preview";
     setPendingSectionLabel(categoryLabel);
     setActiveCategory(ALL_CATEGORY_ID);
@@ -1084,7 +1086,7 @@ export function MaisonElyseQrMenu({
                     }
                     key={category.id}
                     type="button"
-                    onClick={() => openCategoryInFullMenu(category.label)}
+                    onClick={() => openCategoryInFullMenu(category.id)}
                   >
                     <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
                   </button>
@@ -1198,7 +1200,7 @@ export function MaisonElyseQrMenu({
                   imageUrl={categoryImages.get(category.id) ?? ""}
                   key={category.id}
                   locale={selectedLocale}
-                  onSelect={() => openCategoryInFullMenu(category.label)}
+                  onSelect={() => openCategoryInFullMenu(category.id)}
                 />
               ))}
             </div>

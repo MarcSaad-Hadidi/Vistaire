@@ -33,5 +33,10 @@ test("public menu components use stable category ids for group lookups and activ
       /activeCategory === category\.label/,
       `${componentPath} must not compare active category state to translated labels`
     );
+    assert.doesNotMatch(
+      source,
+      /openCategoryInFullMenu\(category\.label\)/,
+      `${componentPath} must not pass translated labels into category navigation state`
+    );
   }
 });
