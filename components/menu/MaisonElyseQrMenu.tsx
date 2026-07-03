@@ -8,6 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
+import { useTransitionPresence } from "@/lib/useTransitionPresence";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -80,6 +82,8 @@ type DietaryFilterId = Extract<
 type SheetId = "menu" | "filter" | "language" | null;
 
 const ALL_CATEGORY_ID = "all";
+// Kept slightly above the CSS sheet animation duration so the exit finishes before unmount.
+const SHEET_MOTION_MS = 260;
 const ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS = new Set(["homard-bisque"]);
 const MENU_LOCALE_STORAGE_KEY = "vistaire:maison-elyse-menu-locale";
 const LANGUAGE_OPTIONS: Array<{ id: Locale; label: string; shortLabel: string }> = [
@@ -1000,14 +1004,21 @@ export function MaisonElyseQrMenu({
   const currentLanguage =
     LANGUAGE_OPTIONS.find((option) => option.id === selectedLocale) ??
     LANGUAGE_OPTIONS[0];
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const sheetPresence = useTransitionPresence(activeSheet, {
+    durationMs: SHEET_MOTION_MS,
+    disabled: prefersReducedMotion
+  });
+  const renderedSheet = sheetPresence.value;
+  const sheetMotionState = sheetPresence.state;
   const activeSheetLabel =
-    activeSheet === "language"
+    renderedSheet === "language"
       ? copy.languageDialogLabel
-      : activeSheet === "menu"
+      : renderedSheet === "menu"
         ? copy.menuDialogLabel
         : copy.filterDialogLabel;
   const activeSheetKicker =
-    activeSheet === "menu" ? copy.sheetNavigation : copy.preferences;
+    renderedSheet === "menu" ? copy.sheetNavigation : copy.preferences;
 
   function renderLanguageToggle(className = "") {
     return (
@@ -1038,11 +1049,12 @@ export function MaisonElyseQrMenu({
   }
 
   function renderBottomSheet() {
-    if (!activeSheet) return null;
+    if (!renderedSheet) return null;
 
     return (
       <div
         className={styles.sheetBackdrop}
+        data-sheet-state={sheetMotionState}
         onClick={() => setActiveSheet(null)}
       >
         <section
@@ -1063,7 +1075,7 @@ export function MaisonElyseQrMenu({
             </button>
           </div>
 
-          {activeSheet === "menu" ? (
+          {renderedSheet === "menu" ? (
             <div className={styles.sheetList}>
               <button
                 aria-pressed={activeCategory === ALL_CATEGORY_ID}
@@ -1093,7 +1105,7 @@ export function MaisonElyseQrMenu({
                 );
               })}
             </div>
-          ) : activeSheet === "language" ? (
+          ) : renderedSheet === "language" ? (
             <div className={styles.sheetList}>
               {LANGUAGE_OPTIONS.map((option) => (
                 <button

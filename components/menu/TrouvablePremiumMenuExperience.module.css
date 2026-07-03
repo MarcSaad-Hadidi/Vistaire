@@ -581,8 +581,6 @@
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   padding-top: 38px;
-  animation: menuOverlayEnter var(--vistaire-motion-duration, 220ms)
-    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .sheet {
@@ -599,8 +597,29 @@
   padding: 12px;
 }
 
-.sheet:not(.detailSheet) {
+/* Sheet lifecycle: enter/exit are driven by the [data-sheet-state] attribute the React
+   presence hook sets, so overlays can animate out before they unmount. The full-screen
+   dish detail (.detailSheet) is excluded from transforms because it hosts position:fixed
+   arrows; its overlay only cross-fades. */
+.overlay[data-sheet-state="open"] {
+  animation: menuOverlayEnter var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.overlay[data-sheet-state="closing"] {
+  animation: menuOverlayExit var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.overlay[data-sheet-state="open"] .sheet:not(.detailSheet),
+.overlay[data-sheet-state="open"] .reviewSheet {
   animation: menuSheetEnter var(--vistaire-sheet-duration, 240ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.overlay[data-sheet-state="closing"] .sheet:not(.detailSheet),
+.overlay[data-sheet-state="closing"] .reviewSheet {
+  animation: menuSheetExit var(--vistaire-sheet-duration, 240ms)
     var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
@@ -1571,6 +1590,28 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes menuOverlayExit {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes menuSheetExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
   }
 }
 
@@ -2949,11 +2990,9 @@
 
 .stackedOverlay .reviewSheet {
   align-content: end;
-  animation: menuSheetEnter var(--vistaire-sheet-duration, 240ms)
-    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
-.stackedOverlay .reviewPanel {
+.overlay[data-sheet-state="open"] .reviewPanel {
   animation: sectionBodyEnter var(--vistaire-motion-duration, 220ms)
     var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
@@ -3634,4 +3673,30 @@
 
 .page[data-user-theme="light"] .arBrowserHelp a {
   color: #6f530e;
+}
+
+/* Premium tactile feedback. Transform/opacity only, and neutralised by the
+   prefers-reduced-motion block above. */
+.dishCard {
+  transition:
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.dishSummary {
+  transition: transform 180ms
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.dishSummary:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) {
+  .dishCard:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
 }
