@@ -533,12 +533,6 @@ export function TrouvableDishDetailExperience({
           data-no-dish-swipe="true"
         >
           <section className={styles.reviewSheet} tabIndex={-1}>
-            <button
-              type="button"
-              className={styles.reviewClose}
-              aria-label={copy.reviewClose}
-              onClick={() => setActiveSubSheet(null)}
-            />
             <div className={styles.reviewDishGhost} aria-hidden="true">
               {activeDish.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

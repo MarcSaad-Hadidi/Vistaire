@@ -328,18 +328,16 @@ test("Trouvable review sheets dismiss from backdrop and hide visible close contr
 
   assert.match(source, /reviewOverlay\} \$\{styles\.stackedOverlay\}/);
   assert.match(source, /if \(event\.target === event\.currentTarget\) closeReview\(\)/);
-  assert.match(source, /className=\{styles\.reviewClose\}[\s\S]{0,120}aria-label=\{copy\.reviewClose\}/);
-  assert.doesNotMatch(source, /className=\{styles\.reviewClose\}[\s\S]{0,120}>\s*x\s*<\/button>/);
+  assert.doesNotMatch(source, /className=\{styles\.reviewClose\}/);
   assert.match(source, /resolveDishSwipeGesture/);
   assert.match(source, /gesture === "reviewOpen"/);
+  assert.match(source, /event\.key === "Escape"/);
   assert.match(detailSource, /resolveDishSwipeGesture/);
   assert.match(detailSource, /if \(event\.target === event\.currentTarget\) setActiveSubSheet\(null\)/);
-  assert.doesNotMatch(
-    detailSource,
-    /className=\{styles\.reviewClose\}[\s\S]{0,120}>\s*x\s*<\/button>/
-  );
+  assert.doesNotMatch(detailSource, /className=\{styles\.reviewClose\}/);
+  assert.match(detailSource, /if \(event\.key !== "Escape"\) return/);
   assert.match(css, /\.reviewTrigger span[\s\S]*var\(--trouvable-gold\)/);
-  assert.match(css, /\.reviewClose[\s\S]*clip-path:\s*inset\(50%\)/);
+  assert.doesNotMatch(css, /\.reviewClose/);
 });
 
 test("Trouvable hero includes animated botanical ornamentation", async () => {

@@ -1545,12 +1545,6 @@ export function TrouvablePremiumMenuExperience({
           className={styles.reviewSheet}
           tabIndex={-1}
         >
-          <button
-            type="button"
-            className={styles.reviewClose}
-            aria-label={copy.reviewClose}
-            onClick={closeReview}
-          />
           <div className={styles.reviewDishGhost} aria-hidden="true">
             {reviewDish?.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

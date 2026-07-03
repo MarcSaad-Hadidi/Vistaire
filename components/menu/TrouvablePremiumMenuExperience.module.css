@@ -2878,25 +2878,6 @@
   align-content: end;
 }
 
-.reviewClose {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 2;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-  background: transparent;
-  color: transparent;
-  cursor: pointer;
-}
-
 .reviewDishGhost {
   position: absolute;
   inset: 8% 0 38%;
@@ -3319,7 +3300,6 @@
 .page[data-user-theme="light"] .choiceButton,
 .page[data-user-theme="light"] .detailBack,
 .page[data-user-theme="light"] .dishArrow,
-.page[data-user-theme="light"] .reviewClose,
 .page[data-user-theme="light"] .reviewTextarea textarea {
   border-color: rgba(35, 26, 13, 0.18);
   background: #fff9ef;
