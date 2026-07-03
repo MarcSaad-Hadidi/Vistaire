@@ -1,0 +1,114 @@
+.group {
+  display: grid;
+  gap: 10px;
+}
+
+.label {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  padding: 7px 12px;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-transform: uppercase;
+}
+
+.chipAccent {
+  border: 1px solid var(--tag-accent-border);
+  color: var(--tag-accent-text);
+  background: transparent;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--tag-accent-border) 22%, transparent);
+}
+
+.cardRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cardChip {
+  font-size: 10px;
+  padding: 4px 9px;
+}
+
+.detailRow {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.detailChip {
+  max-width: calc(50% - 4px);
+  font-size: 11px;
+  padding: 7px 12px;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .chip {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .cardChip {
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+
+  .detailRow {
+    gap: 7px;
+  }
+
+  .detailChip {
+    max-width: calc(50% - 4px);
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chipAccent {
+    box-shadow: none;
+  }
+}
+
+:global([data-user-theme="light"]) .chipAccent {
+  border: 1px solid var(--tag-accent-border);
+  color: var(--tag-accent-text);
+  background:
+    linear-gradient(180deg, rgba(28, 22, 16, 0.98), rgba(12, 10, 8, 0.99));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 4px rgba(23, 18, 11, 0.14);
+}
+
+:global([data-user-theme="light"]) .label {
+  color: #8f6d14;
+}

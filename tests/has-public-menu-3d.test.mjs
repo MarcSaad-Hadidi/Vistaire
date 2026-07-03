@@ -51,12 +51,9 @@ test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async () => 
 });
 
 test("dish card 3D badge stays decorative and non-interactive", async () => {
-  const source = await import("node:fs/promises").then(({ readFile }) =>
-    readFile("components/menu/DishCard3dBadge.tsx", "utf8")
-  );
-  const css = await import("node:fs/promises").then(({ readFile }) =>
-    readFile("components/menu/DishCard3dBadge.module.css", "utf8")
-  );
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile("components/menu/DishCard3dBadge.tsx", "utf8");
+  const css = await readFile("components/menu/DishCard3dBadge.module.css", "utf8");
 
   assert.match(source, /DishCard3dBadge/);
   assert.match(source, /aria-hidden="true"/);
@@ -79,6 +76,7 @@ test("public menu renderers mount the shared 3D badge on dish visuals", async ()
   assert.match(trouvable, /DishCard3dBadge/);
   assert.match(trouvable, /hasPublicMenu3d\(dish\)/);
   assert.match(trouvable, /dishPriceRow/);
+  assert.doesNotMatch(trouvable, /cardDetailsTrigger/);
   assert.doesNotMatch(maison, /DishCard3dBadge/);
   assert.doesNotMatch(renderer, /DishCard3dBadge/);
 });

@@ -157,7 +157,7 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /copy\.reviewExperienceTitle/);
   assert.match(source, /copy\.reviewExperiencePlaceholder/);
   assert.match(source, /onReviewRequest=\{openRestaurantReviewSheet\}/);
-  assert.match(source, /badges\.add\("3D"\)/);
+  assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.doesNotMatch(source, /badges\.add\("4D"\)/);
   assert.match(controls, /TROUVABLE_STATIC_CAD_RATES/);
   assert.match(controls, /CAD/);
@@ -193,8 +193,9 @@ test("Trouvable dish details and reviews are stacked sub-sheets above the dish",
   assert.match(source, /const subSheetRef = useRef<HTMLElement \| null>\(null\)/);
   assert.match(source, /if \(activeSheet === "dish" && dishSubSheet\) \{\s*closeDishSubSheet\(\);/);
   assert.match(source, /ref=\{isDishStackReview \? subSheetRef : sheetRef\}/);
-  assert.match(source, /ref=\{subSheetRef\}[\s\S]{0,140}trouvable-dish-more-details/);
-  assert.match(source, /styles\.stackedOverlay/);
+  assert.match(source, /panelRef=\{subSheetRef\}/);
+  assert.match(source, /trouvable-dish-more-details-/);
+  assert.match(source, /PremiumDishDetailsSheet/);
   assert.doesNotMatch(source, /dishDetailsExpanded/);
 
   assert.match(detailSource, /type DishDetailSubSheet = "details" \| "review" \| null/);
@@ -253,25 +254,31 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
   assert.doesNotMatch(source, /copy\.all[\s\S]{0,120}categoryRail/);
 });
 
-test("Trouvable details keep tags, ingredients, allergens, options, and notes separate", async () => {
+test("Trouvable details keep ingredients, allergens, options, and notes in the premium sheet", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
+  const sheetSource = await readFile(
+    "components/menu/PremiumDishDetailsSheet.tsx",
+    "utf8"
+  );
 
-  for (const field of [
-    "tags",
-    "ingredients",
-    "allergens",
-    "options",
-    "houseNote"
-  ]) {
-    assert.match(source, new RegExp(`selectedDish\\.${field}`));
-    assert.match(detailSource, new RegExp(`activeDish\\.${field}`));
+  for (const field of ["ingredients", "allergens", "options", "houseNote"]) {
+    assert.match(sheetSource, new RegExp(`dish\\.${field}`));
+    assert.match(source, new RegExp(`selectedDish\\.${field}|dish\\.${field}`));
+    assert.match(
+      detailSource,
+      new RegExp(`activeDish\\.${field}|dish=\\{activeDish\\}|dish\\.${field}`)
+    );
   }
 
-  assert.match(source, /copy\.tags/);
-  assert.match(detailSource, /copy\.tags/);
-  assert.doesNotMatch(detailSource, /function detailTags/);
-  assert.doesNotMatch(detailSource, /const tags = detailTags/);
+  assert.match(source, /PremiumDishDetailsSheet/);
+  assert.match(detailSource, /PremiumDishDetailsSheet/);
+  assert.match(sheetSource, /copy\.detailCompositionLabel/);
+  assert.match(sheetSource, /copy\.detailAllergensLabel/);
+  assert.match(sheetSource, /copy\.detailOptionsLabel/);
+  assert.doesNotMatch(source, /copy\.ingredientsCount\(/);
+  assert.match(source, /DishCard3dBadge/);
+  assert.match(source, /hasPublicMenu3d\(dish\)/);
 });
 
 test("Trouvable all category stays global while filters and searches resolve dishes", async () => {

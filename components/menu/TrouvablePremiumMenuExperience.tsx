@@ -31,6 +31,8 @@ import {
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { GoogleReviewCard } from "./GoogleReviewCard";
+import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
+import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import {
   TROUVABLE_CURRENCY_STORAGE_KEY,
@@ -172,17 +174,6 @@ function normalizeText(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-}
-
-function formatBadgeLabel(value: string, locale: TrouvableLocale): string {
-  const copy = getTrouvableCopy(locale);
-  const label = value.trim();
-  const normalized = normalizeText(label);
-  if (normalized === "recommande" || normalized === "recommended") {
-    return copy.recommendation;
-  }
-  if (normalized === "popular" || normalized === "populaire") return copy.popular;
-  return label;
 }
 
 function displayCategoryLabel(label: string, locale: TrouvableLocale): string {
@@ -358,35 +349,9 @@ function isNonVegDish(dish: PublicMenuDish): boolean {
 
 function dishMetaLine(dish: PublicMenuDish, locale: TrouvableLocale): string {
   const copy = getTrouvableCopy(locale);
-  const calorieTag = dish.tags.find((tag) =>
-    /\b\d{2,4}\s*(cal|calorie|calories|kcal)\b/i.test(tag)
-  );
-  if (calorieTag) return calorieTag;
-  if (dish.ingredients.length > 0) {
-    return copy.ingredientsCount(dish.ingredients.length);
-  }
   return dish.available
     ? translateTrouvableCategoryLabel(dish.category, locale)
     : copy.soldOut;
-}
-
-function dishBadges(dish: PublicMenuDish, locale: TrouvableLocale): string[] {
-  const copy = getTrouvableCopy(locale);
-  const badges = new Set<string>();
-  for (const tag of dish.tags) {
-    if (tag.trim()) badges.add(formatBadgeLabel(tag, locale));
-  }
-  if (
-    normalizeText(`${dish.name} ${dish.description} ${dish.houseNote}`).includes(
-      "maison"
-    )
-  ) {
-    badges.add("Maison");
-  }
-  if (!dish.available) badges.add(copy.soldOut);
-  if (dish.has3d) badges.add("3D");
-  if (dish.hasAr) badges.add("AR");
-  return Array.from(badges).slice(0, 5);
 }
 
 function isRecommendedDish(dish: PublicMenuDish): boolean {
@@ -958,7 +923,9 @@ export function TrouvablePremiumMenuExperience({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const activeDialog =
-      activeSheet === "dish" && dishSubSheet ? subSheetRef.current : sheetRef.current;
+      activeSheet === "dish" && dishSubSheet
+        ? subSheetRef.current
+        : sheetRef.current;
     const focusable = getFocusableElements(activeDialog);
     (focusable[0] ?? activeDialog)?.focus();
 
@@ -975,7 +942,9 @@ export function TrouvablePremiumMenuExperience({
       if (event.key !== "Tab") return;
 
       const trapRoot =
-        activeSheet === "dish" && dishSubSheet ? subSheetRef.current : sheetRef.current;
+        activeSheet === "dish" && dishSubSheet
+          ? subSheetRef.current
+          : sheetRef.current;
       const elements = getFocusableElements(trapRoot);
       if (elements.length === 0) {
         event.preventDefault();
@@ -1242,8 +1211,6 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderDishCard(dish: PublicMenuDish, index: number) {
-    const href = buildPublicDishPath(menu.slug, dish.slug, localizedQuery);
-    const badges = dishBadges(dish, selectedLocale);
     const isFeatured = index === 0;
     const priceLabel = formatTrouvableDishPrice(
       dish,
@@ -1270,11 +1237,6 @@ export function TrouvablePremiumMenuExperience({
                 <strong>{dish.name}</strong>
               </span>
               <small>{dishMetaLine(dish, selectedLocale)}</small>
-              <span className={styles.badges}>
-                {badges.map((badge) => (
-                  <span key={badge}>{badge}</span>
-                ))}
-              </span>
               {priceLabel || show3dBadge ? (
                 <span className={styles.dishPriceRow}>
                   {priceLabel ? (
@@ -1290,9 +1252,6 @@ export function TrouvablePremiumMenuExperience({
             </span>
           </button>
           <div className={styles.cardActions}>
-            <Link href={href} prefetch={false}>
-              {copy.details}
-            </Link>
             <button
               type="button"
               disabled={!dish.available}
@@ -1775,101 +1734,27 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderDishDetailsSubSheet() {
-    if (activeSheet !== "dish" || dishSubSheet !== "details" || !selectedDish) {
-      return null;
-    }
+    const detailsDish =
+      activeSheet === "dish" && dishSubSheet === "details" ? selectedDish : null;
 
-    const visibleTags = selectedDish.tags.filter(Boolean);
+    if (!detailsDish) return null;
 
     return (
-      <div
-        className={`${styles.overlay} ${styles.stackedOverlay}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="trouvable-dish-details-title"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeDishSubSheet();
-        }}
-        data-no-dish-swipe="true"
-      >
-        <section
-          ref={subSheetRef}
-          id={`trouvable-dish-more-details-${selectedDish.slug}`}
-          className={`${styles.sheet} ${styles.detailsSubSheet}`}
-          tabIndex={-1}
-        >
-          <header className={styles.sheetHeader}>
-            <div>
-              <p>{selectedDish.name}</p>
-              <h2 id="trouvable-dish-details-title">{copy.moreDetails}</h2>
-            </div>
-            <button
-              type="button"
-              className={styles.iconButton}
-              aria-label={copy.closeDetail}
-              onClick={closeDishSubSheet}
-            >
-              x
-            </button>
-          </header>
-          {selectedDish.description ? (
-            <p className={styles.moreDetailsText}>{selectedDish.description}</p>
-          ) : null}
-          {visibleTags.length > 0 ? (
-            <section className={styles.detailList}>
-              <h3>{copy.tags}</h3>
-              <ul>
-                {visibleTags.map((tag) => (
-                  <li key={tag}>{tag}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {selectedDish.ingredients.length > 0 ? (
-            <section className={styles.detailList}>
-              <h3>{copy.ingredients}</h3>
-              <ul>
-                {selectedDish.ingredients.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {selectedDish.allergens.length > 0 ? (
-            <section className={styles.detailList}>
-              <h3>{copy.allergens}</h3>
-              <ul>
-                {selectedDish.allergens.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {selectedDish.options.length > 0 ? (
-            <section className={styles.detailList}>
-              <h3>{copy.options}</h3>
-              <ul>
-                {selectedDish.options.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {selectedDish.houseNote ? (
-            <section className={styles.houseNote}>
-              <h3>{copy.houseNote}</h3>
-              <p>{selectedDish.houseNote}</p>
-            </section>
-          ) : null}
-        </section>
-      </div>
+      <PremiumDishDetailsSheet
+        dish={detailsDish}
+        copy={copy}
+        sheetId={`trouvable-dish-more-details-${detailsDish.slug}`}
+        titleId="trouvable-dish-details-title"
+        onClose={closeDishSubSheet}
+        panelRef={subSheetRef}
+        userTheme={selectedTheme}
+      />
     );
   }
 
   function renderDishDetailSheet() {
     if (activeSheet !== "dish" || !selectedDish) return null;
 
-    const badges = dishBadges(selectedDish, selectedLocale);
     const hasModel = hasPublicMenu3d(selectedDish);
     const detailPrice = formatTrouvableDishPrice(
       selectedDish,
@@ -1975,51 +1860,15 @@ export function TrouvablePremiumMenuExperience({
               }}
             >
               <span aria-hidden="true">i</span>
-              {copy.moreDetails}
+              {copy.viewDetails}
             </button>
-            {badges.length > 0 ? (
-              <div className={styles.badges}>
-                {badges.map((badge) => (
-                  <span key={badge}>{badge}</span>
-                ))}
-              </div>
-            ) : null}
-            {selectedDish.ingredients.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.ingredients}</h3>
-                <ul>
-                  {selectedDish.ingredients.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {selectedDish.allergens.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.allergens}</h3>
-                <ul>
-                  {selectedDish.allergens.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {selectedDish.options.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.options}</h3>
-                <ul>
-                  {selectedDish.options.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {selectedDish.houseNote ? (
-              <section className={styles.houseNote}>
-                <h3>{copy.houseNote}</h3>
-                <p>{selectedDish.houseNote}</p>
-              </section>
-            ) : null}
+            <div className={styles.detailOptionTags}>
+              <PremiumDishCardOptionTags
+                items={selectedDish.options}
+                label={copy.cardOptionsLabel}
+                variant="detail"
+              />
+            </div>
             <div className={styles.detailActions}>
               <button
                 type="button"
@@ -2079,7 +1928,12 @@ export function TrouvablePremiumMenuExperience({
                 {showArBrowserHelp || modelViewerLoadFailed ? (
                   <p className={styles.arBrowserHelp}>
                     {copy.arBrowserHelp}{" "}
-                    <Link href={browserDishHref} target="_blank" rel="noopener noreferrer">
+                    <Link
+                      href={browserDishHref}
+                      prefetch={false}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       {copy.arBrowserLink}
                     </Link>
                   </p>

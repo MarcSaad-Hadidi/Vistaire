@@ -1752,6 +1752,31 @@
   display: none;
 }
 
+.cardDetailsTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 32px;
+  margin: 2px 0 0;
+  border: 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.42);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 0 2px 4px;
+  text-transform: uppercase;
+}
+
+.cardDetailsTrigger:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 3px;
+}
+
 .dishGrid .dishCard {
   min-height: 0;
   padding: 12px;
@@ -1905,6 +1930,14 @@
   max-width: 34rem;
   color: rgba(255, 255, 255, 0.66);
   font-size: 18px;
+}
+
+.detailOptionTags {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 760px;
+  align-self: center;
 }
 
 .detailList,
@@ -2442,12 +2475,17 @@
     font-size: 14px;
   }
 
+  .dishPriceRow {
+    gap: 8px;
+  }
+
   .dishPrice {
     font-size: 22px;
   }
 
-  .dishCard .badges {
-    display: none;
+  .cardDetailsTrigger {
+    min-height: 28px;
+    font-size: 11px;
   }
 
   .dishGrid {
@@ -2578,6 +2616,10 @@
 
   .detailList,
   .houseNote {
+    max-width: 340px;
+  }
+
+  .detailOptionTags {
     max-width: 340px;
   }
 
@@ -3357,6 +3399,11 @@
 .page[data-user-theme="light"] .moreDetailsButton span {
   background: rgba(35, 26, 13, 0.18);
   color: #17120b;
+}
+
+.page[data-user-theme="light"] .cardDetailsTrigger {
+  border-bottom-color: rgba(35, 26, 13, 0.38);
+  color: rgba(35, 26, 13, 0.72);
 }
 
 .page[data-user-theme="light"] .reviewPanel {
