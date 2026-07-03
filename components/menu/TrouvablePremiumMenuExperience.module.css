@@ -2830,7 +2830,7 @@
 }
 
 .reviewTrigger span {
-  color: #fff;
+  color: var(--trouvable-gold);
   font-size: 22px;
 }
 
@@ -2876,25 +2876,6 @@
 
 .stackedOverlay .reviewSheet {
   align-content: end;
-}
-
-.reviewClose {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 2;
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-size: 18px;
-  font-weight: 900;
 }
 
 .reviewDishGhost {
@@ -3319,7 +3300,6 @@
 .page[data-user-theme="light"] .choiceButton,
 .page[data-user-theme="light"] .detailBack,
 .page[data-user-theme="light"] .dishArrow,
-.page[data-user-theme="light"] .reviewClose,
 .page[data-user-theme="light"] .reviewTextarea textarea {
   border-color: rgba(35, 26, 13, 0.18);
   background: #fff9ef;
