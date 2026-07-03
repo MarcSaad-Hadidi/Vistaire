@@ -53,7 +53,7 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /showDetailModelViewer/);
   assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
   assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => !isVisible\)/);
-  assert.match(source, /hasPublic3d\(selectedDish\)/);
+  assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /prefetch=\{false\}/);
 });
