@@ -361,9 +361,28 @@ test("Trouvable category swipe hint keeps a looping edge-bounce animation", asyn
   const css = await readFile(cssPath, "utf8");
 
   assert.match(source, /className=\{styles\.swipeHint\}/);
+  assert.match(source, /copy\.swipeLabel/);
+  assert.match(source, /copy\.swipeAria/);
+  assert.match(source, /aria-hidden="true"[\s\S]{0,80}\u2194/);
+  assert.doesNotMatch(source, /\{copy\.swipeList\}/);
   assert.match(css, /@keyframes swipeHintBounce/);
   assert.match(css, /animation:\s*swipeHintBounce 1650ms/);
   assert.doesNotMatch(css, /swipeHintBounce[\s\S]{0,180}infinite !important/);
+});
+
+test("Trouvable public UI labels use extensible localized copy", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(source, /data-copy-dynamic-source=\{copyResolution\.dynamicSource\}/);
+  assert.match(source, /data-copy-neutral-fallback=\{copyResolution\.usedNeutralFallback/);
+  assert.match(source, /label:\s*copy\.immersiveFilterLabel/);
+  assert.match(source, /\$\{copy\.tableLabel\} \$\{tableNumber\.trim\(\)\}/);
+  assert.match(source, /placeholder=\{copy\.tablePlaceholder\}/);
+  assert.match(source, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
+  assert.doesNotMatch(source, /label:\s*"3D \/ AR"/);
+  assert.doesNotMatch(source, /placeholder="Ex\. 12"/);
+  assert.doesNotMatch(source, /Table \$\{tableNumber\.trim\(\)\}/);
 });
 
 test("Trouvable category swipe uses full navigable sections and keeps the rail synced", async () => {

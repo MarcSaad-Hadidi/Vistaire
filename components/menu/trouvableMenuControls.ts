@@ -25,6 +25,8 @@ type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "ar";
 
 const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "ar"] as const;
 const TROUVABLE_COPY_LOCALE_SET = new Set<string>(TROUVABLE_COPY_LOCALES);
+const TROUVABLE_FALLBACK_COPY_LOCALE: TrouvableCopyLocale = "en";
+const RTL_LANGUAGE_CODES = new Set(["ar", "fa", "he", "ur"]);
 
 export const TROUVABLE_LOCALE_STORAGE_KEY = "vistaire:trouvable-menu-locale";
 export const TROUVABLE_CURRENCY_STORAGE_KEY = "vistaire:trouvable-menu-currency";
@@ -78,6 +80,7 @@ export const TROUVABLE_COPY = {
     activeFilterPrefix: "Filtre actif",
     activeFilters: (count: number) => `${count} filtres`,
     allergens: "Allergènes",
+    allergenTitlePrefix: "Allergène",
     askWaiter: "Demander au serveur",
     available: "Disponible",
     backToMenu: "Retour au menu",
@@ -108,6 +111,7 @@ export const TROUVABLE_COPY = {
     filterButton: "Filtrer",
     filterFallback: "Filtre",
     filterGroupLabel: "Filtres",
+    immersiveFilterLabel: "3D / AR",
     filterKicker: "Trouvable",
     filterTitle: "Filtres",
     filtersAria: "Filtres rapides",
@@ -195,7 +199,10 @@ export const TROUVABLE_COPY = {
     soldOut: "Indispo",
     tags: "Tags",
     spicy: "Plat épicé",
-    swipeList: "Balayer ↔",
+    swipeAria: "Balayer pour changer de catégorie",
+    swipeLabel: "Balayer",
+    tableLabel: "Table",
+    tablePlaceholder: "Ex. 12",
     tableToConfirm: "Table à confirmer",
     themeDarkAria: "Activer le mode sombre",
     themeLightAria: "Activer le mode clair",
@@ -224,6 +231,7 @@ export const TROUVABLE_COPY = {
     activeFilterPrefix: "Active filter",
     activeFilters: (count: number) => `${count} filters`,
     allergens: "Allergens",
+    allergenTitlePrefix: "Allergen",
     askWaiter: "Ask waiter",
     available: "Available",
     backToMenu: "Back to menu",
@@ -254,6 +262,7 @@ export const TROUVABLE_COPY = {
     filterButton: "Filter",
     filterFallback: "Filter",
     filterGroupLabel: "Filters",
+    immersiveFilterLabel: "3D / AR",
     filterKicker: "Trouvable",
     filterTitle: "Filters",
     filtersAria: "Quick filters",
@@ -341,7 +350,10 @@ export const TROUVABLE_COPY = {
     soldOut: "Sold out",
     tags: "Tags",
     spicy: "Spicy dish",
-    swipeList: "Swipe List ↔",
+    swipeAria: "Swipe to change category",
+    swipeLabel: "Swipe",
+    tableLabel: "Table",
+    tablePlaceholder: "E.g. 12",
     tableToConfirm: "Table to confirm",
     themeDarkAria: "Turn on dark mode",
     themeLightAria: "Turn on light mode",
@@ -370,6 +382,7 @@ export const TROUVABLE_COPY = {
     activeFilterPrefix: "Filtro activo",
     activeFilters: (count: number) => `${count} filtros`,
     allergens: "Alergenos",
+    allergenTitlePrefix: "Alergeno",
     askWaiter: "Pedir al camarero",
     available: "Disponible",
     backToMenu: "Volver al menu",
@@ -400,6 +413,7 @@ export const TROUVABLE_COPY = {
     filterButton: "Filtrar",
     filterFallback: "Filtro",
     filterGroupLabel: "Filtros",
+    immersiveFilterLabel: "3D / AR",
     filterKicker: "Trouvable",
     filterTitle: "Filtros",
     filtersAria: "Filtros rapidos",
@@ -487,7 +501,10 @@ export const TROUVABLE_COPY = {
     soldOut: "Agotado",
     tags: "Etiquetas",
     spicy: "Plato picante",
-    swipeList: "Deslizar",
+    swipeAria: "Desliza para cambiar de categoría",
+    swipeLabel: "Deslizar",
+    tableLabel: "Mesa",
+    tablePlaceholder: "Ej. 12",
     tableToConfirm: "Mesa por confirmar",
     themeDarkAria: "Activar modo oscuro",
     themeLightAria: "Activar modo claro",
@@ -516,6 +533,7 @@ export const TROUVABLE_COPY = {
     activeFilterPrefix: "Filtro attivo",
     activeFilters: (count: number) => `${count} filtri`,
     allergens: "Allergeni",
+    allergenTitlePrefix: "Allergene",
     askWaiter: "Chiedi al cameriere",
     available: "Disponibile",
     backToMenu: "Torna al menu",
@@ -546,6 +564,7 @@ export const TROUVABLE_COPY = {
     filterButton: "Filtra",
     filterFallback: "Filtro",
     filterGroupLabel: "Filtri",
+    immersiveFilterLabel: "3D / AR",
     filterKicker: "Trouvable",
     filterTitle: "Filtri",
     filtersAria: "Filtri rapidi",
@@ -633,7 +652,10 @@ export const TROUVABLE_COPY = {
     soldOut: "Esaurito",
     tags: "Tag",
     spicy: "Piatto piccante",
-    swipeList: "Scorri",
+    swipeAria: "Scorri per cambiare categoria",
+    swipeLabel: "Scorri",
+    tableLabel: "Tavolo",
+    tablePlaceholder: "Es. 12",
     tableToConfirm: "Tavolo da confermare",
     themeDarkAria: "Attiva modalita scura",
     themeLightAria: "Attiva modalita chiara",
@@ -662,6 +684,7 @@ export const TROUVABLE_COPY = {
     activeFilterPrefix: "فلتر نشط",
     activeFilters: (count: number) => `${count} فلاتر`,
     allergens: "مسببات الحساسية",
+    allergenTitlePrefix: "مسبب الحساسية",
     askWaiter: "اطلب النادل",
     available: "متاح",
     backToMenu: "العودة إلى القائمة",
@@ -692,6 +715,7 @@ export const TROUVABLE_COPY = {
     filterButton: "تصفية",
     filterFallback: "فلتر",
     filterGroupLabel: "الفلاتر",
+    immersiveFilterLabel: "3D / AR",
     filterKicker: "Trouvable",
     filterTitle: "الفلاتر",
     filtersAria: "فلاتر سريعة",
@@ -778,7 +802,10 @@ export const TROUVABLE_COPY = {
     soldOut: "غير متاح",
     tags: "وسوم",
     spicy: "طبق حار",
-    swipeList: "مرر",
+    swipeAria: "مرر لتغيير الفئة",
+    swipeLabel: "مرر",
+    tableLabel: "الطاولة",
+    tablePlaceholder: "مثال 12",
     tableToConfirm: "الطاولة للتأكيد",
     themeDarkAria: "تفعيل الوضع الداكن",
     themeLightAria: "تفعيل الوضع الفاتح",
@@ -800,6 +827,20 @@ export const TROUVABLE_COPY = {
     veg: "نباتي"
   }
 } as const;
+
+type WidenTrouvableCopyValue<T> = T extends (...args: infer Args) => infer Return
+  ? (...args: Args) => Return
+  : T extends Record<string, string>
+    ? { [Key in keyof T]: string }
+    : T extends string
+      ? string
+      : T;
+
+type TrouvableCopy = {
+  [Key in keyof (typeof TROUVABLE_COPY)["en"]]: WidenTrouvableCopyValue<
+    (typeof TROUVABLE_COPY)["en"][Key]
+  >;
+};
 
 export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
   return normalizePublicMenuLocale(value);
@@ -831,27 +872,36 @@ export function normalizeTrouvableTheme(
   return value === "light" ? "light" : "dark";
 }
 
-export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLocale {
+function languageCodeForLocale(locale: unknown): string {
   const normalized = normalizePublicMenuLocale(locale);
   try {
-    const language = new Intl.Locale(normalized).language.toLowerCase();
-    return TROUVABLE_COPY_LOCALE_SET.has(language)
-      ? (language as TrouvableCopyLocale)
-      : "en";
+    return new Intl.Locale(normalized).language.toLowerCase();
   } catch {
-    const language = normalized.toLowerCase().split("-")[0] ?? "";
-    return TROUVABLE_COPY_LOCALE_SET.has(language)
-      ? (language as TrouvableCopyLocale)
-      : "en";
+    return normalized.toLowerCase().split("-")[0] ?? "";
   }
 }
 
-function copyLocaleForPublicLocale(locale: TrouvableLocale): TrouvableCopyLocale {
-  return getTrouvableCopyLocale(locale);
+function builtInCopyLocaleForPublicLocale(
+  locale: TrouvableLocale
+): TrouvableCopyLocale | null {
+  const language = languageCodeForLocale(locale);
+  return TROUVABLE_COPY_LOCALE_SET.has(language)
+    ? (language as TrouvableCopyLocale)
+    : null;
+}
+
+export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLocale {
+  return builtInCopyLocaleForPublicLocale(locale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
 }
 
 export function getTrouvableTextDirection(locale: TrouvableLocale): "ltr" | "rtl" {
-  return copyLocaleForPublicLocale(locale) === "ar" ? "rtl" : "ltr";
+  return RTL_LANGUAGE_CODES.has(languageCodeForLocale(locale)) ? "rtl" : "ltr";
+}
+
+function objectInput(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function stringOverrides(value: unknown): Record<string, string> {
@@ -863,24 +913,127 @@ function stringOverrides(value: unknown): Record<string, string> {
   );
 }
 
+function copyStringOverrides(value: unknown, base: TrouvableCopy): Partial<TrouvableCopy> {
+  const overrides: Partial<TrouvableCopy> = {};
+  for (const [key, text] of Object.entries(stringOverrides(value))) {
+    if (typeof base[key as keyof TrouvableCopy] === "string") {
+      (overrides as Record<string, unknown>)[key] = text;
+    }
+  }
+  return overrides;
+}
+
+function localizedUiCopyBucketKey(value: string):
+  | { normalizedKey: string; language: string }
+  | null {
+  const input = value.trim().replace("_", "-");
+  if (!input || Object.prototype.hasOwnProperty.call(TROUVABLE_COPY.en, value)) {
+    return null;
+  }
+  try {
+    const locale = new Intl.Locale(input);
+    const language = locale.language.toLowerCase();
+    return language
+      ? { normalizedKey: locale.toString().toLowerCase(), language }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function localizedUiCopyBuckets(uiCopy: unknown): Map<string, Record<string, unknown>> {
+  const source = objectInput(uiCopy);
+  const buckets = new Map<string, Record<string, unknown>>();
+  for (const [key, value] of Object.entries(source)) {
+    const localeKey = localizedUiCopyBucketKey(key);
+    if (!localeKey) continue;
+    const bucket = objectInput(value);
+    if (Object.keys(bucket).length === 0) continue;
+    buckets.set(localeKey.normalizedKey, bucket);
+    buckets.set(localeKey.language, bucket);
+  }
+  return buckets;
+}
+
+function hasLocalizedUiCopyBuckets(uiCopy: unknown): boolean {
+  return localizedUiCopyBuckets(uiCopy).size > 0;
+}
+
+function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
+  return overrides.reduce<TrouvableCopy>(
+    (current, override) => ({
+      ...current,
+      ...copyStringOverrides(override, current),
+      greeting: {
+        ...current.greeting,
+        ...stringOverrides(objectInput(override).greeting)
+      },
+      waiterTopics: {
+        ...current.waiterTopics,
+        ...stringOverrides(objectInput(override).waiterTopics)
+      }
+    }),
+    base
+  );
+}
+
+export function resolveTrouvableCopy(
+  locale: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): {
+  copy: TrouvableCopy;
+  resolution: {
+    requestedLocale: string;
+    requestedLanguage: string;
+    dynamicSource: "exact" | "language" | "legacy-flat" | "none";
+    builtInLocale: TrouvableCopyLocale;
+    usedNeutralFallback: boolean;
+  };
+} {
+  const requestedLocale = normalizePublicMenuLocale(locale);
+  const requestedLanguage = languageCodeForLocale(requestedLocale);
+  const builtInLocale =
+    builtInCopyLocaleForPublicLocale(requestedLocale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
+  const buckets = localizedUiCopyBuckets(localizedUiCopy);
+  const exactOverride = buckets.get(requestedLocale.toLowerCase());
+  const languageOverride = buckets.get(requestedLanguage);
+  const legacyFlatOverride =
+    !exactOverride && !languageOverride && localizedUiCopy && !hasLocalizedUiCopyBuckets(localizedUiCopy)
+      ? localizedUiCopy
+      : undefined;
+  const dynamicSource = exactOverride
+    ? "exact"
+    : languageOverride
+      ? "language"
+      : legacyFlatOverride
+        ? "legacy-flat"
+        : "none";
+
+  return {
+    copy: mergeCopy(
+      TROUVABLE_COPY[builtInLocale],
+      languageOverride,
+      exactOverride,
+      legacyFlatOverride
+    ),
+    resolution: {
+      requestedLocale,
+      requestedLanguage,
+      dynamicSource,
+      builtInLocale,
+      usedNeutralFallback:
+        builtInLocale === TROUVABLE_FALLBACK_COPY_LOCALE &&
+        requestedLanguage !== TROUVABLE_FALLBACK_COPY_LOCALE &&
+        dynamicSource === "none"
+    }
+  };
+}
+
 export function getTrouvableCopy(
   locale: TrouvableLocale,
   uiCopy?: Record<string, unknown>
 ) {
-  const base = TROUVABLE_COPY[copyLocaleForPublicLocale(locale)];
-  if (!uiCopy) return base;
-  return {
-    ...base,
-    ...stringOverrides(uiCopy),
-    greeting: {
-      ...base.greeting,
-      ...stringOverrides(uiCopy.greeting)
-    },
-    waiterTopics: {
-      ...base.waiterTopics,
-      ...stringOverrides(uiCopy.waiterTopics)
-    }
-  };
+  return resolveTrouvableCopy(locale, uiCopy).copy;
 }
 
 export function getTrouvableCurrencyOption(currency: TrouvableCurrency) {
@@ -925,7 +1078,7 @@ export function getTrouvableCurrencyOptionLabel(
 ) {
   return (
     intlDisplayName(locale, "currency", option.code) ||
-    option.label[copyLocaleForPublicLocale(locale)] ||
+    option.label[getTrouvableCopyLocale(locale)] ||
     option.code
   );
 }
@@ -1180,7 +1333,7 @@ export function getTrouvableGreeting(
   locale: TrouvableLocale,
   period: TrouvableGreetingPeriod
 ): string {
-  return TROUVABLE_COPY[copyLocaleForPublicLocale(locale)].greeting[period];
+  return TROUVABLE_COPY[getTrouvableCopyLocale(locale)].greeting[period];
 }
 
 export function getTrouvableGreetingForDate(
@@ -1200,7 +1353,7 @@ export function translateTrouvableCategoryLabel(
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-  return CATEGORY_TRANSLATIONS[normalized]?.[copyLocaleForPublicLocale(locale)] ?? label;
+  return CATEGORY_TRANSLATIONS[normalized]?.[getTrouvableCopyLocale(locale)] ?? label;
 }
 
 export function buildNavigableMenuSections(

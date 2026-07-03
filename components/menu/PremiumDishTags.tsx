@@ -10,17 +10,17 @@ export type { PremiumDishTagKind } from "./premiumTagColors";
 
 type PremiumTagChipProps = {
   label: string;
-  kind: PremiumDishTagKind;
   accent: PremiumTagAccent;
   className?: string;
+  title?: string;
   as?: "span" | "li";
 };
 
 function PremiumTagChip({
   label,
-  kind,
   accent,
   className = "",
+  title,
   as = "span"
 }: PremiumTagChipProps) {
   const Tag = as;
@@ -33,9 +33,7 @@ function PremiumTagChip({
     <Tag
       className={`${styles.chip} ${styles.chipAccent} ${className}`.trim()}
       style={style}
-      {...(kind === "allergen"
-        ? { title: `Allergène : ${label}` }
-        : undefined)}
+      {...(title ? { title } : undefined)}
     >
       {label}
     </Tag>
@@ -48,6 +46,7 @@ type PremiumDishTagGroupProps = {
   kind: PremiumDishTagKind;
   labelledById?: string;
   describedBy?: string;
+  itemTitlePrefix?: string;
 };
 
 export function PremiumDishTagGroup({
@@ -55,7 +54,8 @@ export function PremiumDishTagGroup({
   items,
   kind,
   labelledById,
-  describedBy
+  describedBy,
+  itemTitlePrefix
 }: PremiumDishTagGroupProps) {
   const visibleItems = items.map((item) => item.trim()).filter(Boolean);
   if (visibleItems.length === 0) return null;
@@ -78,8 +78,12 @@ export function PremiumDishTagGroup({
             key={item}
             as="li"
             label={item}
-            kind={kind}
             accent={accents[index]}
+            title={
+              kind === "allergen" && itemTitlePrefix
+                ? `${itemTitlePrefix}: ${item}`
+                : undefined
+            }
           />
         ))}
       </ul>
@@ -111,7 +115,6 @@ export function PremiumDishCardOptionTags({
         <PremiumTagChip
           key={item}
           label={item}
-          kind="option"
           accent={accents[index]}
           className={chipClass}
         />

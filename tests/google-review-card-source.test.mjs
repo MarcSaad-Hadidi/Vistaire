@@ -60,8 +60,15 @@ test("public menu renders Google Review card from the validated CTA helper", asy
   ]);
 
   assert.match(component, /getGoogleReviewCta/);
+  assert.match(component, /resolveGoogleReviewCopy/);
   assert.match(renderer, /GoogleReviewCard/);
   assert.match(renderer, /googleReview=\{menu\.googleReview\}/);
+  assert.match(
+    renderer,
+    /const googleReviewLocale =\s*menu\.activeLocale \?\? query\?\.lang \?\? menu\.settings\.defaultLocale/
+  );
+  assert.match(renderer, /locale=\{googleReviewLocale\}/);
+  assert.match(renderer, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
   assert.doesNotMatch(renderer, /googleReview\.enabled[\s\S]{0,120}<a/);
 
   assert.match(core, /new URL/);
@@ -76,6 +83,11 @@ test("Google Review card has controlled public-menu copy beyond French and Engli
   assert.match(source, /it:\s*\{/);
   assert.match(source, /ar:\s*\{/);
   assert.match(source, /normalizeGoogleReviewLocale/);
+  assert.match(source, /localizedGoogleReviewOverride/);
+  assert.match(source, /googleReviewOverrideInput/);
+  assert.match(source, /renderGoogleReviewTemplate/);
+  assert.match(source, /restaurantName\|rating\|count/);
+  assert.match(source, /presentationRatingLabel/);
   assert.doesNotMatch(source, /const resolvedLocale = normalizeLocale\(locale\)/);
   assert.match(source, /new Intl\.NumberFormat\(resolvedLocale/);
 });
