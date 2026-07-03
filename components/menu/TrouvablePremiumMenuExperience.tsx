@@ -438,20 +438,7 @@ function isDishSwipeGuardedTarget(
 
 function isCategorySwipeGuardedTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return true;
-  return Boolean(
-    target.closest(
-      [
-        "button",
-        "a",
-        "input",
-        "select",
-        "textarea",
-        "[role='button']",
-        "[role='link']",
-        "[data-no-category-swipe='true']"
-      ].join(",")
-    )
-  );
+  return Boolean(target.closest('[data-no-category-swipe="true"]'));
 }
 
 function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolean {
@@ -1217,10 +1204,10 @@ export function TrouvablePremiumMenuExperience({
     const start = menuCategorySwipeRef.current;
     menuCategorySwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
-    if (isCategorySwipeGuardedTarget(event.target)) return;
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+    event.preventDefault();
     selectAdjacentCategory(deltaX < 0 ? 1 : -1);
   }
 
@@ -2226,8 +2213,10 @@ export function TrouvablePremiumMenuExperience({
                 ? { "aria-current": true as const }
                 : {})}
               onClick={() =>
-                setActiveCategory((current) =>
-                  current === category.id ? ALL_CATEGORY_ID : category.id
+                setActiveCategory(
+                  resolvedActiveCategory === category.id
+                    ? ALL_CATEGORY_ID
+                    : category.id
                 )
               }
             >
@@ -2241,9 +2230,9 @@ export function TrouvablePremiumMenuExperience({
         <div
           className={styles.categorySwipeSurface}
           data-category-swipe-surface=""
-          onPointerDown={handleMenuCategoryPointerDown}
-          onPointerUp={handleMenuCategoryPointerUp}
-          onPointerCancel={() => {
+          onPointerDownCapture={handleMenuCategoryPointerDown}
+          onPointerUpCapture={handleMenuCategoryPointerUp}
+          onPointerCancelCapture={() => {
             menuCategorySwipeRef.current = null;
           }}
         >

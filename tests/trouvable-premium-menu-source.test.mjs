@@ -244,10 +244,11 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
   );
   assert.match(
     source,
-    /className=\{styles\.categorySwipeSurface\}[\s\S]{0,220}onPointerDown=\{handleMenuCategoryPointerDown\}/
+    /className=\{styles\.categorySwipeSurface\}[\s\S]{0,220}onPointerDownCapture=\{handleMenuCategoryPointerDown\}/
   );
   assert.match(source, /isCategorySwipeGuardedTarget/);
   assert.match(source, /data-no-category-swipe="true"/);
+  assert.match(source, /event\.preventDefault\(\)/);
   assert.doesNotMatch(source, /CategoryIcon kind="all"/);
   assert.doesNotMatch(source, /copy\.all[\s\S]{0,120}categoryRail/);
 });
@@ -279,7 +280,10 @@ test("Trouvable all category stays global while filters and searches resolve dis
   assert.match(source, /categories\.map\(\(category\) => category\.id\)/);
   assert.match(source, /filteredCategories\.some\(\(category\) => category\.id === activeCategory\)/);
   assert.match(source, /activeCategory === ALL_CATEGORY_ID\s*\?\s*ALL_CATEGORY_ID/);
-  assert.match(source, /current === category\.id \? ALL_CATEGORY_ID : category\.id/);
+  assert.match(
+    source,
+    /setActiveCategory\([\s\S]*?resolvedActiveCategory === category\.id[\s\S]*?\?\s*ALL_CATEGORY_ID\s*:\s*category\.id/
+  );
   assert.match(source, /setActiveCategory\(ALL_CATEGORY_ID\)/);
   assert.match(
     source,
