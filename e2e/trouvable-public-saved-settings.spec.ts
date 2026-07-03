@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const SAVED_LOCALES = ["FR-CA", "EN-CA", "ES-ES", "IT-IT", "DE-DE", "AR"];
+const SAVED_LOCALE_SHORT_CODES = ["FR", "EN", "ES", "IT", "DE", "AR"];
 const SAVED_CURRENCIES = ["CAD", "USD", "EUR", "GBP"];
 
 test.skip(
@@ -20,8 +20,16 @@ async function categoryLabels(page: Page): Promise<string[]> {
   );
 }
 
+function localeShortCode(locale: string): string {
+  const [languagePart] = locale.split("-");
+  return (languagePart || locale).toUpperCase();
+}
+
 async function openLanguageSheet(page: Page, currentLocale: string) {
-  await page.locator("button", { hasText: currentLocale }).first().click();
+  await page
+    .locator("button", { hasText: localeShortCode(currentLocale) })
+    .first()
+    .click();
   await expect(
     page.locator('[role="dialog"][aria-labelledby="trouvable-language-title"]')
   ).toBeVisible();
@@ -30,8 +38,10 @@ async function openLanguageSheet(page: Page, currentLocale: string) {
 async function selectLocale(page: Page, currentLocale: string, nextLocale: string) {
   await openLanguageSheet(page, currentLocale);
   const dialog = page.locator('[role="dialog"][aria-labelledby="trouvable-language-title"]');
-  await dialog.getByRole("button", { name: new RegExp(nextLocale, "i") }).click();
-  await expect(page.locator("button", { hasText: nextLocale }).first()).toBeVisible();
+  await dialog.getByRole("button", { name: new RegExp(localeShortCode(nextLocale), "i") }).click();
+  await expect(
+    page.locator("button", { hasText: localeShortCode(nextLocale) }).first()
+  ).toBeVisible();
   await expect(dialog).toBeHidden();
 }
 
@@ -69,8 +79,10 @@ test.describe("Trouvable real public saved settings", () => {
     const languageDialog = page.locator(
       '[role="dialog"][aria-labelledby="trouvable-language-title"]'
     );
-    for (const locale of SAVED_LOCALES) {
-      await expect(languageDialog.getByRole("button", { name: new RegExp(locale, "i") })).toBeVisible();
+    for (const locale of SAVED_LOCALE_SHORT_CODES) {
+      await expect(
+        languageDialog.getByRole("button", { name: new RegExp(locale, "i") })
+      ).toBeVisible();
     }
     await page.keyboard.press("Escape");
 

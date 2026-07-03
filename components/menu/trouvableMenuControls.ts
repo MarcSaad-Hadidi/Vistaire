@@ -118,10 +118,10 @@ export const TROUVABLE_COPY = {
     nutFree: "Sans fruits \u00e0 coque",
     gridAria: "Afficher en grille",
     greeting: {
-      afternoon: "Bon après-midi",
+      afternoon: "Bienvenue",
       evening: "Bonsoir",
       morning: "Bonjour",
-      night: "Bonne nuit"
+      night: "Bonsoir"
     },
     heroAction: "Voir la carte",
     heroBlurb: "Cuisine maison, accents chaleureux et service à table.",
@@ -130,9 +130,11 @@ export const TROUVABLE_COPY = {
     ingredients: "Ingrédients",
     ingredientsCount: (count: number) =>
       `${count} ingrédient${count > 1 ? "s" : ""}`,
+    languageActive: "Actif",
     languageAria: "Choisir la langue du menu",
-    languageCopy: "Le menu garde les noms de plats tels que fournis quand aucune traduction n'existe.",
+    languageCopy: "Les plats restent dans leur langue d'origine si aucune traduction n'existe.",
     languageKicker: "Langue",
+    languageSubtitle: "Consultez la carte dans la langue qui vous convient.",
     languageTitle: "Langue du menu",
     listAria: "Afficher en liste",
     localOrderHint:
@@ -263,10 +265,10 @@ export const TROUVABLE_COPY = {
     nutFree: "Nut-free",
     gridAria: "Show grid view",
     greeting: {
-      afternoon: "Good afternoon",
+      afternoon: "Welcome",
       evening: "Good evening",
       morning: "Good morning",
-      night: "Good night"
+      night: "Good evening"
     },
     heroAction: "View menu",
     heroBlurb: "House cooking, warm accents and table service.",
@@ -275,9 +277,11 @@ export const TROUVABLE_COPY = {
     ingredients: "Ingredients",
     ingredientsCount: (count: number) =>
       `${count} ingredient${count > 1 ? "s" : ""}`,
+    languageActive: "Active",
     languageAria: "Choose menu language",
-    languageCopy: "Dish names stay as provided when no translation exists.",
+    languageCopy: "Dishes stay in their source language when no translation exists.",
     languageKicker: "Language",
+    languageSubtitle: "Browse the menu in the language that suits you.",
     languageTitle: "Menu language",
     listAria: "Show list view",
     localOrderHint:
@@ -408,9 +412,9 @@ export const TROUVABLE_COPY = {
     nutFree: "Sin frutos secos",
     gridAria: "Mostrar vista en cuadricula",
     greeting: {
-      afternoon: "Buenas tardes",
+      afternoon: "Bienvenido",
       evening: "Buenas noches",
-      morning: "Buenos dias",
+      morning: "Buenos días",
       night: "Buenas noches"
     },
     heroAction: "Ver la carta",
@@ -420,9 +424,11 @@ export const TROUVABLE_COPY = {
     ingredients: "Ingredientes",
     ingredientsCount: (count: number) =>
       `${count} ingrediente${count > 1 ? "s" : ""}`,
+    languageActive: "Activo",
     languageAria: "Elegir idioma del menu",
-    languageCopy: "Los nombres de platos se conservan si no existe traduccion.",
+    languageCopy: "Los platos permanecen en su idioma original si no hay traduccion.",
     languageKicker: "Idioma",
+    languageSubtitle: "Consulte la carta en el idioma que prefiera.",
     languageTitle: "Idioma del menu",
     listAria: "Mostrar vista en lista",
     localOrderHint:
@@ -553,10 +559,10 @@ export const TROUVABLE_COPY = {
     nutFree: "Senza frutta a guscio",
     gridAria: "Mostra vista griglia",
     greeting: {
-      afternoon: "Buon pomeriggio",
+      afternoon: "Benvenuto",
       evening: "Buonasera",
       morning: "Buongiorno",
-      night: "Buona notte"
+      night: "Buonasera"
     },
     heroAction: "Vedi il menu",
     heroBlurb: "Cucina di casa, toni caldi e servizio al tavolo.",
@@ -565,9 +571,11 @@ export const TROUVABLE_COPY = {
     ingredients: "Ingredienti",
     ingredientsCount: (count: number) =>
       `${count} ingrediente${count > 1 ? "i" : ""}`,
+    languageActive: "Attivo",
     languageAria: "Scegli la lingua del menu",
-    languageCopy: "I nomi dei piatti restano originali se non esiste una traduzione.",
+    languageCopy: "I piatti restano nella lingua originale se manca una traduzione.",
     languageKicker: "Lingua",
+    languageSubtitle: "Consulta il menu nella lingua che preferisci.",
     languageTitle: "Lingua del menu",
     listAria: "Mostra vista lista",
     localOrderHint:
@@ -698,10 +706,10 @@ export const TROUVABLE_COPY = {
     nutFree: "بدون مكسرات",
     gridAria: "عرض الشبكة",
     greeting: {
-      afternoon: "مساء الخير",
+      afternoon: "أهلاً وسهلاً",
       evening: "مساء الخير",
       morning: "صباح الخير",
-      night: "تصبح على خير"
+      night: "مساء الخير"
     },
     heroAction: "عرض القائمة",
     heroBlurb: "طبخ منزلي ولمسات دافئة وخدمة على الطاولة.",
@@ -709,9 +717,11 @@ export const TROUVABLE_COPY = {
     immersiveUnavailable: "عرض 3D غير متاح لهذا الطبق.",
     ingredients: "المكونات",
     ingredientsCount: (count: number) => `${count} مكونات`,
+    languageActive: "نشط",
     languageAria: "اختيار لغة القائمة",
-    languageCopy: "تبقى أسماء الأطباق كما هي عند عدم توفر ترجمة.",
+    languageCopy: "تبقى الأطباق بلغتها الأصلية عند عدم توفر ترجمة.",
     languageKicker: "اللغة",
+    languageSubtitle: "تصفح القائمة باللغة التي تناسبك.",
     languageTitle: "لغة القائمة",
     listAria: "عرض القائمة",
     localOrderHint:
@@ -929,12 +939,81 @@ function formatPublicLocaleLabel(
   locale: string,
   displayLocale?: TrouvableLocale
 ): string {
+  const presentation = getTrouvableLanguagePresentation(locale);
   if (displayLocale) {
     const localized = intlDisplayName(displayLocale, "language", locale);
     if (localized) return `${localized} (${locale})`;
   }
-  const option = PUBLIC_MENU_LOCALE_OPTIONS.find((item) => item.value === locale);
-  return option ? `${option.label} (${locale})` : locale;
+  return `${presentation.nativeName} · ${presentation.region} (${presentation.code})`;
+}
+
+const LANGUAGE_PRESENTATION: Record<
+  string,
+  { nativeName: string; region: string; code: string }
+> = {
+  ar: { nativeName: "العربية", region: "عربي", code: "AR" },
+  "de-DE": { nativeName: "Deutsch", region: "Deutschland", code: "DE-DE" },
+  "en-CA": { nativeName: "English", region: "Canada", code: "EN-CA" },
+  "en-GB": { nativeName: "English", region: "United Kingdom", code: "EN-GB" },
+  "en-US": { nativeName: "English", region: "United States", code: "EN-US" },
+  "es-ES": { nativeName: "Español", region: "España", code: "ES-ES" },
+  "es-MX": { nativeName: "Español", region: "México", code: "ES-MX" },
+  "fr-CA": { nativeName: "Français", region: "Canada", code: "FR-CA" },
+  "fr-FR": { nativeName: "Français", region: "France", code: "FR-FR" },
+  "it-IT": { nativeName: "Italiano", region: "Italia", code: "IT-IT" },
+  "pt-BR": { nativeName: "Português", region: "Brasil", code: "PT-BR" },
+  "pt-PT": { nativeName: "Português", region: "Portugal", code: "PT-PT" }
+};
+
+function formatLocaleCode(publicLocale: string): string {
+  const normalized = normalizePublicMenuLocale(publicLocale);
+  if (normalized === "ar") return "AR";
+  return normalized.toUpperCase();
+}
+
+export function getTrouvableLanguageShortCode(publicLocale: string): string {
+  const normalized = normalizePublicMenuLocale(publicLocale);
+  const [languagePart] = normalized.split("-");
+  return (languagePart || normalized).toUpperCase();
+}
+
+export function getTrouvableLanguagePresentation(publicLocale: string): {
+  nativeName: string;
+  region: string;
+  code: string;
+} {
+  const normalized = normalizePublicMenuLocale(publicLocale);
+  const preset = LANGUAGE_PRESENTATION[normalized];
+  if (preset) return preset;
+
+  const option = PUBLIC_MENU_LOCALE_OPTIONS.find((item) => item.value === normalized);
+  let nativeName = option?.label ?? normalized;
+  let region = "";
+
+  try {
+    const intlLocale = new Intl.Locale(normalized);
+    const languageDisplay = new Intl.DisplayNames([normalized], { type: "language" }).of(
+      intlLocale.language
+    );
+    if (languageDisplay) nativeName = languageDisplay;
+    if (intlLocale.region) {
+      region =
+        new Intl.DisplayNames([normalized], { type: "region" }).of(intlLocale.region) ??
+        intlLocale.region;
+    }
+  } catch {
+    const parenMatch = option?.label.match(/^(.+?)\s*\((.+)\)$/);
+    if (parenMatch) {
+      nativeName = parenMatch[1]?.trim() ?? nativeName;
+      region = parenMatch[2]?.trim() ?? region;
+    }
+  }
+
+  return {
+    nativeName,
+    region: region || normalized,
+    code: formatLocaleCode(normalized)
+  };
 }
 
 export function getTrouvableLanguageOptions(
@@ -944,16 +1023,29 @@ export function getTrouvableLanguageOptions(
   locale: TrouvableLocale;
   publicLocale: string;
   label: string;
+  nativeName: string;
+  region: string;
+  code: string;
+  shortCode: string;
 }> {
   const options: Array<{
     locale: TrouvableLocale;
     publicLocale: string;
     label: string;
+    nativeName: string;
+    region: string;
+    code: string;
+    shortCode: string;
   }> = [];
   for (const publicLocale of settings.supportedLocales) {
+    const presentation = getTrouvableLanguagePresentation(publicLocale);
     options.push({
       locale: publicLocale,
       publicLocale,
+      nativeName: presentation.nativeName,
+      region: presentation.region,
+      code: presentation.code,
+      shortCode: getTrouvableLanguageShortCode(publicLocale),
       label: formatPublicLocaleLabel(publicLocale, displayLocale)
     });
   }

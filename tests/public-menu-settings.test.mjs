@@ -139,10 +139,28 @@ test("resolves short language choices to configured locale tags", () => {
   assert.equal(normalizePublicMenuLocalePreference("fr", settings), "fr-FR");
   assert.equal(isTrouvableLocaleSupported("en", settings), true);
   assert.equal(isTrouvableLocaleSupported("fr", settings), true);
-  assert.deepEqual(getTrouvableLanguageOptions(settings), [
-    { locale: "fr-FR", publicLocale: "fr-FR", label: "Francais (France) (fr-FR)" },
-    { locale: "en-US", publicLocale: "en-US", label: "English (United States) (en-US)" }
-  ]);
+  assert.deepEqual(
+    getTrouvableLanguageOptions(settings).map((option) => ({
+      locale: option.locale,
+      publicLocale: option.publicLocale,
+      nativeName: option.nativeName,
+      code: option.code
+    })),
+    [
+      {
+        locale: "fr-FR",
+        publicLocale: "fr-FR",
+        nativeName: "Français",
+        code: "FR-FR"
+      },
+      {
+        locale: "en-US",
+        publicLocale: "en-US",
+        nativeName: "English",
+        code: "EN-US"
+      }
+    ]
+  );
 });
 
 test("Trouvable language options keep every configured public locale", () => {
@@ -182,10 +200,11 @@ test("converts and formats structured menu prices with explicit rates", () => {
 });
 
 test("greeting follows locale and restaurant timezone", () => {
-  const date = new Date("2026-07-01T12:00:00.000Z");
+  const morning = new Date("2026-01-15T15:00:00.000Z");
+  const afternoon = new Date("2026-01-15T14:00:00.000Z");
 
-  assert.equal(getGreetingForTime(date, "fr-CA", "America/Toronto"), "Bonjour");
-  assert.equal(getGreetingForTime(date, "en-CA", "Europe/Paris"), "Good afternoon");
+  assert.equal(getGreetingForTime(morning, "fr-CA", "America/Toronto"), "Bonjour");
+  assert.equal(getGreetingForTime(afternoon, "en-CA", "Europe/Paris"), "Welcome");
 });
 
 test("exchange rates fetch Frankfurter once per hourly cache window and always include base", async () => {

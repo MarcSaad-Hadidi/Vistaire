@@ -17,16 +17,26 @@ async function categoryLabels(page: Page): Promise<string[]> {
   );
 }
 
+function localeShortCode(locale: string): string {
+  const [languagePart] = locale.split("-");
+  return (languagePart || locale).toUpperCase();
+}
+
 async function openLanguageSheet(page: Page, currentLocale: string) {
-  await page.locator("button", { hasText: currentLocale.toUpperCase() }).first().click();
+  await page
+    .locator("button", { hasText: localeShortCode(currentLocale) })
+    .first()
+    .click();
   await expect(page.locator('[role="dialog"][aria-labelledby="trouvable-language-title"]')).toBeVisible();
 }
 
 async function selectLocale(page: Page, currentLocale: string, nextLocale: string) {
   await openLanguageSheet(page, currentLocale);
   const dialog = page.locator('[role="dialog"][aria-labelledby="trouvable-language-title"]');
-  await dialog.getByRole("button", { name: new RegExp(nextLocale.toUpperCase(), "i") }).click();
-  await expect(page.locator("button", { hasText: nextLocale.toUpperCase() }).first()).toBeVisible();
+  await dialog.getByRole("button", { name: new RegExp(localeShortCode(nextLocale), "i") }).click();
+  await expect(
+    page.locator("button", { hasText: localeShortCode(nextLocale) }).first()
+  ).toBeVisible();
   await expect(dialog).toBeHidden();
 }
 
