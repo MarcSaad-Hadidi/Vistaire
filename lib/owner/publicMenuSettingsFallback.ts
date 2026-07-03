@@ -13,6 +13,7 @@ export type OwnerPublicMenuSettingsSource =
 export type OwnerPublicMenuSettingsFallback = {
   source: OwnerPublicMenuSettingsSource;
   settings: PublicMenuSettings;
+  localizedUiCopy?: Record<string, unknown>;
   updatedAt?: string;
 };
 
@@ -22,6 +23,26 @@ function objectInput(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function localizedUiCopyInput(value: unknown): Record<string, unknown> | undefined {
+  const input = objectInput(value);
+  const entries = Object.entries(input)
+    .map(([locale, copy]) => {
+      const copyObject = objectInput(copy);
+      return Object.keys(copyObject).length > 0 ? [locale, copyObject] : null;
+    })
+    .filter((entry): entry is [string, Record<string, unknown>] => Boolean(entry));
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function getLocalizedUiCopy(candidate: Record<string, unknown>): Record<string, unknown> | undefined {
+  return (
+    localizedUiCopyInput(candidate.localizedUiCopy) ??
+    localizedUiCopyInput(candidate.localized_ui_copy) ??
+    localizedUiCopyInput(candidate.uiCopy) ??
+    localizedUiCopyInput(candidate.ui_copy)
+  );
 }
 
 export function isMissingColumnError(error: unknown, column: string): boolean {
@@ -49,11 +70,13 @@ export function publicMenuSettingsFromMenuRow(
   const row = objectInput(data);
   const nativeSettings = objectInput(row.settings_json ?? row.settingsJson);
   if (Object.keys(nativeSettings).length > 0) {
+    const localizedUiCopy = getLocalizedUiCopy(nativeSettings);
     return {
       source: "settings_json",
       settings: serializePublicMenuSettings(
         normalizePublicMenuSettings(nativeSettings)
-      )
+      ),
+      ...(localizedUiCopy ? { localizedUiCopy } : {})
     };
   }
 
@@ -64,11 +87,13 @@ export function publicMenuSettingsFromMenuRow(
       metadata.settings
   );
   if (Object.keys(metadataSettings).length > 0) {
+    const localizedUiCopy = getLocalizedUiCopy(metadata) ?? getLocalizedUiCopy(metadataSettings);
     return {
       source: "metadata",
       settings: serializePublicMenuSettings(
         normalizePublicMenuSettings(metadataSettings)
-      )
+      ),
+      ...(localizedUiCopy ? { localizedUiCopy } : {})
     };
   }
 
@@ -86,10 +111,12 @@ export function publicMenuSettingsFromUiConfigRow(
       config.settings
   );
   if (Object.keys(settings).length === 0) return null;
+  const localizedUiCopy = getLocalizedUiCopy(config) ?? getLocalizedUiCopy(settings);
 
   return {
     source: "menu_ui_configs",
     settings: serializePublicMenuSettings(normalizePublicMenuSettings(settings)),
+    ...(localizedUiCopy ? { localizedUiCopy } : {}),
     updatedAt:
       typeof row.updated_at === "string" && row.updated_at.trim()
         ? row.updated_at.trim()

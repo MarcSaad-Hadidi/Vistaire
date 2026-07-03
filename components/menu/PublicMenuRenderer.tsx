@@ -1188,6 +1188,8 @@ export function PublicMenuRenderer({
       {mode === "public" ? (
         <GoogleReviewCard
           googleReview={menu.googleReview}
+          locale={menu.settings.defaultLocale}
+          localizedUiCopy={menu.localizedUiCopy}
           restaurantId={menu.restaurantId}
           restaurantName={menu.name}
           source={menu.source}

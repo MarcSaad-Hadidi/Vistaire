@@ -818,6 +818,7 @@ function rowMatchesRestaurant(row: PublicMenuRow, restaurantId: string): boolean
 
 type MenuSettingsCandidate = {
   rawSettings: PublicMenuRow;
+  localizedUiCopy?: Record<string, unknown>;
   updatedAtMs: number | null;
 };
 
@@ -831,6 +832,41 @@ function rowUpdatedAtMs(row: PublicMenuRow): number | null {
   return parseUpdatedAtMs(row.updated_at ?? row.updatedAt);
 }
 
+function localizedUiCopyInput(value: unknown): Record<string, unknown> | undefined {
+  const input = objectInput(value);
+  const entries = Object.entries(input)
+    .map(([locale, copy]) => {
+      const copyObject = objectInput(copy);
+      return Object.keys(copyObject).length > 0 ? [locale, copyObject] : null;
+    })
+    .filter((entry): entry is [string, Record<string, unknown>] => Boolean(entry));
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function getLocalizedUiCopy(candidate: PublicMenuRow, keys: string[]): Record<string, unknown> | undefined {
+  for (const key of keys) {
+    const value = localizedUiCopyInput(candidate[key]);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function mergeLocalizedUiCopy(
+  ...sources: Array<Record<string, unknown> | undefined>
+): Record<string, unknown> | undefined {
+  const merged: Record<string, unknown> = {};
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [locale, copy] of Object.entries(source)) {
+      const existing = objectInput(merged[locale]);
+      const next = objectInput(copy);
+      if (Object.keys(next).length === 0) continue;
+      merged[locale] = { ...existing, ...next };
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
 function settingsCandidateFromLegacyInput(value: unknown): MenuSettingsCandidate | null {
   const input = objectInput(value);
   const nestedSettings = objectInput(input.settings);
@@ -840,6 +876,10 @@ function settingsCandidateFromLegacyInput(value: unknown): MenuSettingsCandidate
 
   return {
     rawSettings,
+    localizedUiCopy: mergeLocalizedUiCopy(
+      getLocalizedUiCopy(input, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"]),
+      getLocalizedUiCopy(rawSettings, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"])
+    ),
     updatedAtMs: parseUpdatedAtMs(input.updatedAt ?? input.updated_at)
   };
 }
@@ -855,16 +895,23 @@ function settingsCandidateFromMenuRow(
     "public_menu_settings",
     "settings"
   ]);
+  const localizedUiCopy = mergeLocalizedUiCopy(
+    getLocalizedUiCopy(row, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"]),
+    getLocalizedUiCopy(nativeSettings, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"]),
+    getLocalizedUiCopy(metadata, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"]),
+    getLocalizedUiCopy(metadataSettings, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"])
+  );
   const rawSettings =
     Object.keys(nativeSettings).length > 0
       ? nativeSettings
       : Object.keys(metadataSettings).length > 0
         ? metadataSettings
         : {};
-  if (Object.keys(rawSettings).length === 0) return null;
+  if (Object.keys(rawSettings).length === 0 && !localizedUiCopy) return null;
 
   return {
     rawSettings,
+    localizedUiCopy,
     updatedAtMs: rowUpdatedAtMs(row)
   };
 }
@@ -892,19 +939,30 @@ function resolveMenuSettingsCandidate(args: {
     return menuCandidate;
   }
 
-  return menuCandidate ?? uiConfigCandidate ?? { rawSettings: {}, updatedAtMs: null };
+  const selected = menuCandidate ?? uiConfigCandidate ?? { rawSettings: {}, updatedAtMs: null };
+  return {
+    ...selected,
+    localizedUiCopy: mergeLocalizedUiCopy(
+      uiConfigCandidate?.localizedUiCopy,
+      menuCandidate?.localizedUiCopy
+    )
+  };
 }
 
-function menuSettingsFromRows(args: {
+function menuSettingsBundleFromRows(args: {
   menuRow?: PublicMenuRow | null;
   legacyPublicMenuSettings?: unknown;
   legacyMenuLanguages?: unknown;
-}): PublicMenuSettings {
-  const rawSettings = resolveMenuSettingsCandidate(args).rawSettings;
+}): { settings: PublicMenuSettings; localizedUiCopy?: Record<string, unknown> } {
+  const candidate = resolveMenuSettingsCandidate(args);
+  const rawSettings = candidate.rawSettings;
   const isEmptySettings = Object.keys(rawSettings).length === 0;
-  return normalizePublicMenuSettings(rawSettings, {
-    legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
-  });
+  return {
+    settings: normalizePublicMenuSettings(rawSettings, {
+      legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
+    }),
+    ...(candidate.localizedUiCopy ? { localizedUiCopy: candidate.localizedUiCopy } : {})
+  };
 }
 
 function settingsInputHasPublicMenuStyle(rawSettings: PublicMenuRow): boolean {
@@ -947,10 +1005,11 @@ export function buildSupabasePublicMenu(
 ): PublicMenu {
   const slug = getPublicMenuRowSlug(restaurantRow) || slugify(rawSlug);
   const restaurantId = getString(restaurantRow, ["id", "restaurant_id"], "");
-  const settings = menuSettingsFromRows({
+  const menuSettings = menuSettingsBundleFromRows({
     legacyPublicMenuSettings: options.legacyPublicMenuSettings,
     legacyMenuLanguages: options.legacyMenuLanguages
   });
+  const { settings } = menuSettings;
   const rowsById = restaurantId
     ? dishRows.filter((row) =>
         rowMatchesValue(row, RESTAURANT_ID_KEYS, restaurantId)
@@ -985,6 +1044,9 @@ export function buildSupabasePublicMenu(
     cuisineType: getString(restaurantRow, ["cuisine_type", "cuisineType"], ""),
     googleReview: googleReviewConfigFromRestaurantRow(restaurantRow),
     settings,
+    ...(menuSettings.localizedUiCopy
+      ? { localizedUiCopy: menuSettings.localizedUiCopy }
+      : {}),
     publicMenuStyleExplicit: settingsInputHasPublicMenuStyle(
       resolveMenuSettingsCandidate({
         legacyPublicMenuSettings: options.legacyPublicMenuSettings
@@ -1008,11 +1070,12 @@ export function buildRelationalSupabasePublicMenu(args: {
   const slug = getPublicMenuRowSlug(args.restaurantRow) || slugify(args.slug);
   const restaurantId = getString(args.restaurantRow, ["id", "restaurant_id"], "");
   const menuId = getString(args.menuRow ?? {}, ["id", "menu_id"], "");
-  const settings = menuSettingsFromRows({
+  const menuSettings = menuSettingsBundleFromRows({
     menuRow: args.menuRow,
     legacyPublicMenuSettings: args.legacyPublicMenuSettings,
     legacyMenuLanguages: args.legacyMenuLanguages
   });
+  const { settings } = menuSettings;
   const categoryRows = (args.categoryRows ?? [])
     .filter((row) => rowMatchesRestaurant(row, restaurantId))
     .filter((row) => rowMatchesMenu(row, menuId))
@@ -1062,6 +1125,9 @@ export function buildRelationalSupabasePublicMenu(args: {
     cuisineType: getString(args.restaurantRow, ["cuisine_type", "cuisineType"], ""),
     googleReview: googleReviewConfigFromRestaurantRow(args.restaurantRow),
     settings,
+    ...(menuSettings.localizedUiCopy
+      ? { localizedUiCopy: menuSettings.localizedUiCopy }
+      : {}),
     publicMenuStyleExplicit: menuRowHasPublicMenuStyle(
       args.menuRow,
       args.legacyPublicMenuSettings

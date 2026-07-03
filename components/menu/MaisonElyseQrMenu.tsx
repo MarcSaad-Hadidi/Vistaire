@@ -1041,6 +1041,7 @@ export function MaisonElyseQrMenu({
       <GoogleReviewCard
         googleReview={activeMenu.googleReview}
         locale={selectedLocale}
+        localizedUiCopy={activeMenu.localizedUiCopy}
         restaurantId={activeMenu.restaurantId}
         restaurantName={activeMenu.name}
         source={activeMenu.source}

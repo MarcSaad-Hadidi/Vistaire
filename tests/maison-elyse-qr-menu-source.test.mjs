@@ -227,6 +227,7 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.doesNotMatch(component, /PREFERENCE_FILTERS/);
   assert.doesNotMatch(component, /showDetailFilters/);
   assert.match(component, /googleReview=\{activeMenu\.googleReview\}/);
+  assert.match(component, /localizedUiCopy=\{activeMenu\.localizedUiCopy\}/);
   assert.match(component, /restaurantId=\{activeMenu\.restaurantId\}/);
   assert.match(component, /restaurantName=\{activeMenu\.name\}/);
   assert.match(component, /source=\{activeMenu\.source\}/);

@@ -48,7 +48,6 @@ import {
   formatTrouvableDishPrice,
   formatTrouvablePriceCents,
   getTrouvableCurrencyOptions,
-  getTrouvableCopy,
   getTrouvableCurrencyOption,
   getTrouvableCurrencyOptionLabel,
   getTrouvableDishConvertedPriceCents,
@@ -60,6 +59,7 @@ import {
   normalizeTrouvableCurrency,
   normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
+  resolveTrouvableCopy,
   buildNavigableMenuSections,
   getAdjacentMenuSection,
   translateTrouvableCategoryLabel,
@@ -227,7 +227,7 @@ function isNonVegDish(dish: PublicMenuDish): boolean {
 }
 
 function dishMetaLine(dish: PublicMenuDish, locale: TrouvableLocale): string {
-  const copy = getTrouvableCopy(locale);
+  const { copy } = resolveTrouvableCopy(locale);
   return dish.available
     ? translateTrouvableCategoryLabel(dish.category, locale)
     : copy.soldOut;
@@ -492,7 +492,10 @@ export function TrouvablePremiumMenuExperience({
   });
   const renderedSubSheet = subSheetPresence.value;
   const subSheetMotionState = subSheetPresence.state;
-  const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
+  const { copy, resolution: copyResolution } = resolveTrouvableCopy(
+    selectedLocale,
+    menu.localizedUiCopy
+  );
   const textDirection = getTrouvableTextDirection(selectedLocale);
   const greetingText = useSyncExternalStore(
     (onStoreChange) => {
@@ -557,7 +560,7 @@ export function TrouvablePremiumMenuExperience({
         { id: "veg" as const, label: copy.veg, visible: hasVegData },
         { id: "nonVeg" as const, label: copy.nonVeg, visible: hasNonVegData },
         { id: "available" as const, label: copy.available, visible: true },
-        { id: "immersive" as const, label: "3D / AR", visible: hasImmersiveData },
+        { id: "immersive" as const, label: copy.immersiveFilterLabel, visible: hasImmersiveData },
         {
           id: "recommended" as const,
           label: copy.signature,
@@ -977,7 +980,7 @@ export function TrouvablePremiumMenuExperience({
 
   function prepareWaiterRequest() {
     const tableCopy = tableNumber.trim()
-      ? `Table ${tableNumber.trim()}`
+      ? `${copy.tableLabel} ${tableNumber.trim()}`
       : copy.tableToConfirm;
     const message = copy.waiterReady(tableCopy);
     setWaiterMessage(message);
@@ -1313,13 +1316,13 @@ export function TrouvablePremiumMenuExperience({
             </button>
           </header>
           <label className={styles.fieldLabel}>
-            Table
+            {copy.tableLabel}
             <input
               id="trouvable-waiter-table"
               inputMode="numeric"
               maxLength={24}
               name="table"
-              placeholder="Ex. 12"
+              placeholder={copy.tablePlaceholder}
               value={tableNumber}
               onChange={(event) => setTableNumber(event.target.value)}
             />
@@ -1885,6 +1888,9 @@ export function TrouvablePremiumMenuExperience({
       lang={selectedLocale}
       data-text-direction={textDirection}
       data-blueprint={config.experience.blueprint}
+      data-copy-built-in-locale={copyResolution.builtInLocale}
+      data-copy-dynamic-source={copyResolution.dynamicSource}
+      data-copy-neutral-fallback={copyResolution.usedNeutralFallback ? "true" : "false"}
       data-theme={config.theme}
       data-user-theme={selectedTheme}
     >
@@ -1907,7 +1913,11 @@ export function TrouvablePremiumMenuExperience({
           >
             {currencyOption.code}
           </button>
-          {query?.table ? <span className={styles.tableChip}>Table {query.table}</span> : null}
+          {query?.table ? (
+            <span className={styles.tableChip}>
+              {copy.tableLabel} {query.table}
+            </span>
+          ) : null}
           <button
             type="button"
             className={styles.headerControl}
@@ -1971,7 +1981,10 @@ export function TrouvablePremiumMenuExperience({
       >
         <div className={styles.categoryHeader} data-no-category-swipe="true">
           <span>{copy.categories}</span>
-          <span className={styles.swipeHint}>{copy.swipeList}</span>
+          <span className={styles.swipeHint} aria-label={copy.swipeAria}>
+            <span>{copy.swipeLabel}</span>
+            <span aria-hidden="true">↔</span>
+          </span>
         </div>
         <nav
           ref={categoryRailRef}
@@ -2117,6 +2130,7 @@ export function TrouvablePremiumMenuExperience({
       <GoogleReviewCard
         googleReview={menu.googleReview}
         locale={selectedLocale}
+        localizedUiCopy={menu.localizedUiCopy}
         onReviewRequest={openRestaurantReviewSheet}
         restaurantId={menu.restaurantId}
         restaurantName={menu.name}

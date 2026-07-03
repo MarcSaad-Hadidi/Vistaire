@@ -31,9 +31,11 @@ test("premium details sheet renders grouped dish metadata", async () => {
   assert.match(sheetSource, /copy\.detailCompositionLabel/);
   assert.match(sheetSource, /copy\.detailAllergensLabel/);
   assert.match(sheetSource, /copy\.detailOptionsLabel/);
+  assert.match(sheetSource, /itemTitlePrefix=\{copy\.allergenTitlePrefix\}/);
   assert.match(tagsSource, /assignPremiumTagAccents/);
   assert.match(tagsSource, /chipAccent/);
   assert.match(tagsSource, /kind === "allergen"/);
+  assert.doesNotMatch(tagsSource, /Allerg[eè]ne\s*:/);
 });
 
 test("details popup opens from the dish sheet without a card-level trigger", async () => {

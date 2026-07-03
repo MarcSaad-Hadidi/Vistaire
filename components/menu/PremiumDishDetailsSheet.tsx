@@ -114,6 +114,7 @@ export function PremiumDishDetailsSheet({
             kind="allergen"
             labelledById={allergenId}
             describedBy={hasAllergens ? allergenId : undefined}
+            itemTitlePrefix={copy.allergenTitlePrefix}
           />
           <PremiumDishTagGroup
             label={copy.detailOptionsLabel}

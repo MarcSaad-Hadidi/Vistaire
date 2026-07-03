@@ -18,6 +18,7 @@ import {
   normalizeTrouvableCurrency,
   normalizeTrouvableTheme,
   parseTrouvablePriceLabel,
+  resolveTrouvableCopy,
   buildNavigableMenuSections,
   getAdjacentMenuSection
 } from "../components/menu/trouvableMenuControls.ts";
@@ -80,11 +81,91 @@ test("restaurant greeting never uses sleep or good-night copy", () => {
 test("Trouvable copy supports Spanish, Italian, and Arabic without falling back to English", () => {
   assert.equal(getTrouvableCopy("es-ES").moreDetails, "Ver detalles");
   assert.equal(getTrouvableCopy("es-ES").threeD, "VER EN 3D");
+  assert.equal(getTrouvableCopy("es-ES").swipeLabel, "Deslizar");
   assert.equal(getTrouvableCopy("it-IT").moreDetails, "Vedi dettagli");
   assert.equal(getTrouvableCopy("it-IT").threeD, "VEDI IN 3D");
+  assert.equal(getTrouvableCopy("it-IT").swipeLabel, "Scorri");
   assert.equal(getTrouvableCopy("ar").moreDetails, "\u0639\u0631\u0636 \u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644");
   assert.equal(getTrouvableCopy("ar").threeD, "\u0639\u0631\u0636 3D");
+  assert.equal(getTrouvableCopy("ar").swipeLabel, "\u0645\u0631\u0631");
   assert.equal(getTrouvableCopy("fr-CA").reviewPost, "Publier l'avis");
+});
+
+test("Trouvable copy reads exact dynamic localized UI copy before built-ins", () => {
+  const copy = getTrouvableCopy("de-DE", {
+    "de-DE": {
+      moreDetails: "Details ansehen",
+      searchPlaceholder: "Gericht, Zutat oder Tag suchen...",
+      swipeLabel: "Wischen",
+      tableLabel: "Tisch",
+      tablePlaceholder: "Z. B. 12",
+      threeD: "IN 3D ANSEHEN"
+    }
+  });
+
+  assert.equal(copy.moreDetails, "Details ansehen");
+  assert.equal(copy.searchPlaceholder, "Gericht, Zutat oder Tag suchen...");
+  assert.equal(copy.swipeLabel, "Wischen");
+  assert.equal(copy.tableLabel, "Tisch");
+  assert.equal(copy.tablePlaceholder, "Z. B. 12");
+  assert.equal(copy.threeD, "IN 3D ANSEHEN");
+});
+
+test("Trouvable copy reads base-language dynamic UI copy for non-built-in locales", () => {
+  const copy = getTrouvableCopy("pt-BR", {
+    pt: {
+      filterButton: "Filtrar",
+      immersiveFilterLabel: "3D / RA",
+      moreDetails: "Ver detalhes",
+      swipeLabel: "Deslizar",
+      threeD: "VER EM 3D"
+    }
+  });
+
+  assert.equal(copy.filterButton, "Filtrar");
+  assert.equal(copy.immersiveFilterLabel, "3D / RA");
+  assert.equal(copy.moreDetails, "Ver detalhes");
+  assert.equal(copy.swipeLabel, "Deslizar");
+  assert.equal(copy.threeD, "VER EM 3D");
+});
+
+test("Trouvable copy merges missing dynamic keys from the locale fallback", () => {
+  const copy = getTrouvableCopy("es-MX", {
+    es: {
+      moreDetails: "Abrir detalles"
+    }
+  });
+
+  assert.equal(copy.moreDetails, "Abrir detalles");
+  assert.equal(copy.filterButton, "Filtrar");
+  assert.equal(copy.threeD, "VER EN 3D");
+});
+
+test("Trouvable copy exposes documented neutral fallback metadata for missing UI packs", () => {
+  const { copy, resolution } = resolveTrouvableCopy("ja-JP");
+
+  assert.equal(copy.moreDetails, "View details");
+  assert.equal(resolution.dynamicSource, "none");
+  assert.equal(resolution.builtInLocale, "en");
+  assert.equal(resolution.usedNeutralFallback, true);
+});
+
+test("Trouvable dynamic UI copy cannot replace function-valued copy with strings", () => {
+  const copy = getTrouvableCopy("de-DE", {
+    "de-DE": {
+      activeFilters: "Kaputte Filter",
+      filterButton: "Filtern",
+      quantityLabel: "Kaputte Menge",
+      resultStatus: "Kaputter Status",
+      waiterReady: "Kaputter Service"
+    }
+  });
+
+  assert.equal(copy.filterButton, "Filtern");
+  assert.equal(typeof copy.activeFilters, "function");
+  assert.equal(typeof copy.quantityLabel, "function");
+  assert.equal(typeof copy.resultStatus, "function");
+  assert.equal(typeof copy.waiterReady, "function");
 });
 
 test("Trouvable greeting uses the active public locale and restaurant timezone", () => {

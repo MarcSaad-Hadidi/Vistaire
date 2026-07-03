@@ -13,6 +13,7 @@ import styles from "./GoogleReviewCard.module.css";
 type GoogleReviewCardProps = {
   googleReview: GoogleReviewConfig;
   locale?: string;
+  localizedUiCopy?: Record<string, unknown>;
   onReviewRequest?: () => void;
   restaurantId: string;
   restaurantName: string;
@@ -107,6 +108,21 @@ const GOOGLE_REVIEW_COPY: Record<
   }
 };
 
+type GoogleReviewCopy = (typeof GOOGLE_REVIEW_COPY)[GoogleReviewCopyLocale];
+
+const GOOGLE_REVIEW_OVERRIDE_KEYS = new Set([
+  "action",
+  "fallbackRestaurant",
+  "metaLabel",
+  "note",
+  "presentationRatingLabel",
+  "presentationReviewCountLabel",
+  "ratingLabel",
+  "reviewCountLabel",
+  "text",
+  "title"
+]);
+
 function normalizeGoogleReviewLocale(locale: string): GoogleReviewCopyLocale {
   const normalized = normalizePublicMenuLocale(locale);
   try {
@@ -120,6 +136,150 @@ function normalizeGoogleReviewLocale(locale: string): GoogleReviewCopyLocale {
       ? (language as GoogleReviewCopyLocale)
       : "en";
   }
+}
+
+function languageCodeForLocale(locale: string): string {
+  try {
+    return new Intl.Locale(normalizePublicMenuLocale(locale)).language.toLowerCase();
+  } catch {
+    return locale.toLowerCase().split("-")[0] ?? "";
+  }
+}
+
+function normalizedLocaleKey(locale: string): string {
+  return normalizePublicMenuLocale(locale).toLowerCase();
+}
+
+function objectInput(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function stringInput(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function stringOverride(
+  overrides: Record<string, unknown> | null,
+  keys: string[]
+): string | undefined {
+  if (!overrides) return undefined;
+  for (const key of keys) {
+    const value = stringInput(overrides[key]);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function hasGoogleReviewOverrideKey(value: Record<string, unknown>): boolean {
+  return Object.keys(value).some((key) => GOOGLE_REVIEW_OVERRIDE_KEYS.has(key));
+}
+
+function googleReviewOverrideInput(value: unknown): Record<string, unknown> | null {
+  const object = objectInput(value);
+  if (!object) return null;
+  const nested =
+    objectInput(object.googleReview) ??
+    objectInput(object.google_review) ??
+    objectInput(object.googleReviewCard) ??
+    objectInput(object.google_review_card);
+  if (nested) return nested;
+  return hasGoogleReviewOverrideKey(object) ? object : null;
+}
+
+function localizedGoogleReviewOverride(
+  locale: string,
+  localizedUiCopy?: Record<string, unknown>
+): Record<string, unknown> | null {
+  const copyMap = objectInput(localizedUiCopy);
+  if (!copyMap) return null;
+
+  const exactLocale = normalizedLocaleKey(locale);
+  const language = languageCodeForLocale(locale);
+  const exactKey = Object.keys(copyMap).find(
+    (key) => normalizedLocaleKey(key) === exactLocale
+  );
+  const exactOverride = exactKey
+    ? googleReviewOverrideInput(copyMap[exactKey])
+    : null;
+  if (exactOverride) return exactOverride;
+
+  const languageOverride = googleReviewOverrideInput(copyMap[language]);
+  if (languageOverride) return languageOverride;
+
+  return googleReviewOverrideInput(copyMap);
+}
+
+function renderGoogleReviewTemplate(
+  template: string,
+  values: Record<string, string>
+): string {
+  return template.replace(
+    /\{(restaurantName|rating|count)\}/g,
+    (_match, key: string) => values[key] ?? ""
+  );
+}
+
+function mergeGoogleReviewCopy(
+  base: GoogleReviewCopy,
+  overrides: Record<string, unknown> | null
+): GoogleReviewCopy {
+  if (!overrides) return base;
+
+  const textTemplate = stringOverride(overrides, ["text", "body", "description"]);
+  const ratingTemplate = stringOverride(overrides, ["ratingLabel"]);
+  const presentationRatingTemplate = stringOverride(overrides, [
+    "presentationRatingLabel",
+    "ratingPresentationLabel"
+  ]);
+  const reviewCountTemplate = stringOverride(overrides, ["reviewCountLabel"]);
+  const presentationReviewCountTemplate = stringOverride(overrides, [
+    "presentationReviewCountLabel",
+    "reviewCountPresentationLabel"
+  ]);
+
+  return {
+    ...base,
+    action: stringOverride(overrides, ["action", "cta", "buttonLabel"]) ?? base.action,
+    fallbackRestaurant:
+      stringOverride(overrides, ["fallbackRestaurant", "restaurantFallback"]) ??
+      base.fallbackRestaurant,
+    metaLabel: stringOverride(overrides, ["metaLabel", "summaryLabel"]) ?? base.metaLabel,
+    note: stringOverride(overrides, ["note", "policyNote"]) ?? base.note,
+    ratingLabel: (rating, isPresentationOnly) => {
+      const template = isPresentationOnly
+        ? presentationRatingTemplate ?? ratingTemplate
+        : ratingTemplate;
+      return template
+        ? renderGoogleReviewTemplate(template, { rating })
+        : base.ratingLabel(rating, isPresentationOnly);
+    },
+    reviewCountLabel: (count, isPresentationOnly) => {
+      const template = isPresentationOnly
+        ? presentationReviewCountTemplate ?? reviewCountTemplate
+        : reviewCountTemplate;
+      return template
+        ? renderGoogleReviewTemplate(template, { count })
+        : base.reviewCountLabel(count, isPresentationOnly);
+    },
+    text: textTemplate
+      ? (restaurantName) =>
+          renderGoogleReviewTemplate(textTemplate, { restaurantName })
+      : base.text,
+    title: stringOverride(overrides, ["title", "heading"]) ?? base.title
+  };
+}
+
+export function resolveGoogleReviewCopy(
+  locale: string,
+  localizedUiCopy?: Record<string, unknown>
+): GoogleReviewCopy {
+  const resolvedLocale = normalizePublicMenuLocale(locale);
+  const base = GOOGLE_REVIEW_COPY[normalizeGoogleReviewLocale(resolvedLocale)];
+  return mergeGoogleReviewCopy(
+    base,
+    localizedGoogleReviewOverride(resolvedLocale, localizedUiCopy)
+  );
 }
 
 function formatRating(rating: number, resolvedLocale: string): string {
@@ -136,6 +296,7 @@ function formatReviewCount(count: number, resolvedLocale: string): string {
 export function GoogleReviewCard({
   googleReview,
   locale = "fr",
+  localizedUiCopy,
   onReviewRequest,
   restaurantId,
   restaurantName,
@@ -143,7 +304,7 @@ export function GoogleReviewCard({
   source
 }: GoogleReviewCardProps) {
   const resolvedLocale = normalizePublicMenuLocale(locale);
-  const copy = GOOGLE_REVIEW_COPY[normalizeGoogleReviewLocale(resolvedLocale)];
+  const copy = resolveGoogleReviewCopy(resolvedLocale, localizedUiCopy);
   const normalizedGoogleReview = normalizeGoogleReviewConfig(googleReview);
   const cta = getGoogleReviewCta(normalizedGoogleReview);
   const isPresentationOnly =

@@ -193,6 +193,46 @@ test("buildRelationalSupabasePublicMenu reads settings from menu metadata fallba
   assert.equal(menu.publicMenuStyleExplicit, true);
 });
 
+test("buildRelationalSupabasePublicMenu reads localized UI copy from menu settings by locale", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true,
+      settings_json: {
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA", "de-DE"],
+        localizedUiCopy: {
+          "de-DE": {
+            filterButton: "Filtern",
+            swipeLabel: "Wischen",
+            threeD: "IN 3D ANSEHEN"
+          }
+        }
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.deepEqual(menu.localizedUiCopy?.["de-DE"], {
+    filterButton: "Filtern",
+    swipeLabel: "Wischen",
+    threeD: "IN 3D ANSEHEN"
+  });
+  assert.deepEqual(menu.settings.supportedLocales, ["fr-CA", "de-DE"]);
+});
+
 test("buildRelationalSupabasePublicMenu reads settings from menu_ui_configs fallback", () => {
   const menu = buildRelationalSupabasePublicMenu({
     slug: "le-comptoir-decimal",
@@ -234,6 +274,58 @@ test("buildRelationalSupabasePublicMenu reads settings from menu_ui_configs fall
   assert.equal(menu.settings.defaultCurrency, "USD");
   assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD"]);
   assert.equal(menu.settings.publicMenuStyle, "trouvable");
+});
+
+test("buildRelationalSupabasePublicMenu reads localized UI copy from menu_ui_configs fallback", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true
+    },
+    legacyPublicMenuSettings: {
+      source: "menu_ui_configs",
+      settings: {
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA", "pt-BR"],
+        baseCurrency: "CAD",
+        defaultCurrency: "CAD",
+        supportedCurrencies: ["CAD"],
+        publicMenuStyle: "trouvable",
+        timezone: "America/Toronto",
+        defaultThemeMode: "dark",
+        allowThemeToggle: true,
+        allowCurrencySelector: true,
+        allowLanguageSelector: true,
+        taxIncluded: true,
+        priceDisplayMode: "auto"
+      },
+      localizedUiCopy: {
+        pt: {
+          filterButton: "Filtrar",
+          swipeLabel: "Deslizar"
+        }
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.deepEqual(menu.localizedUiCopy?.pt, {
+    filterButton: "Filtrar",
+    swipeLabel: "Deslizar"
+  });
+  assert.deepEqual(menu.settings.supportedLocales, ["fr-CA", "pt-BR"]);
 });
 
 test("buildRelationalSupabasePublicMenu prefers effective menu_ui_configs settings over stale menu settings", () => {
