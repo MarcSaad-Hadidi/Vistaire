@@ -31,6 +31,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
+import { useTransitionPresence } from "@/lib/useTransitionPresence";
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
@@ -120,6 +121,8 @@ type SelectionItem = {
 type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
 
 const ALL_CATEGORY_ID = "all";
+// Kept slightly above the CSS sheet animation duration so the exit finishes before unmount.
+const SHEET_MOTION_MS = 260;
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const MEAT_TERMS = [
@@ -476,6 +479,19 @@ export function TrouvablePremiumMenuExperience({
   const menuCategorySwipeRef = useRef<PointerSwipeStart | null>(null);
   const dishSwipeRef = useRef<DishSwipeStart | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const sheetPresence = useTransitionPresence(activeSheet, {
+    durationMs: SHEET_MOTION_MS,
+    disabled: prefersReducedMotion
+  });
+  const renderedSheet = sheetPresence.value;
+  const sheetMotionState = sheetPresence.state;
+  const subSheetSource = activeSheet === "dish" ? dishSubSheet : null;
+  const subSheetPresence = useTransitionPresence(subSheetSource, {
+    durationMs: SHEET_MOTION_MS,
+    disabled: prefersReducedMotion
+  });
+  const renderedSubSheet = subSheetPresence.value;
+  const subSheetMotionState = subSheetPresence.state;
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
   const textDirection = getTrouvableTextDirection(selectedLocale);
   const greetingText = useSyncExternalStore(
@@ -688,11 +704,9 @@ export function TrouvablePremiumMenuExperience({
   );
 
   const closeActiveSheet = useCallback(() => {
+    // Only flip the logical state here. Dish/sub-sheet data stays mounted through the
+    // closing animation and is cleared once the sheet has fully left the DOM (see effect below).
     setActiveSheet(null);
-    setSelectedDish(null);
-    setDishSubSheet(null);
-    setShowDetailModelViewer(false);
-    setShowArBrowserHelp(false);
     restoreFocus();
   }, [restoreFocus]);
 
@@ -869,6 +883,20 @@ export function TrouvablePremiumMenuExperience({
       cancelled = true;
     };
   }, [ModelViewerComponent, modelViewerLoadFailed, showDetailModelViewer]);
+
+  // Once the sheet layer has fully closed (past its exit animation), drop the dish-scoped
+  // state so a reopened sheet starts clean and the model viewer never lingers. Derived during
+  // render on the closed transition (React's previous-render pattern), avoiding a cascading effect.
+  const [prevRenderedSheet, setPrevRenderedSheet] = useState(renderedSheet);
+  if (renderedSheet !== prevRenderedSheet) {
+    setPrevRenderedSheet(renderedSheet);
+    if (renderedSheet === null) {
+      setSelectedDish(null);
+      setDishSubSheet(null);
+      setShowDetailModelViewer(false);
+      setShowArBrowserHelp(false);
+    }
+  }
 
   function addDish(dish: PublicMenuDish) {
     if (!dish.available) return;
@@ -1154,11 +1182,12 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderSelectionSheet() {
-    if (activeSheet !== "selection") return null;
+    if (renderedSheet !== "selection") return null;
 
     return (
       <div
         className={styles.overlay}
+        data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-selection-title"
@@ -1255,11 +1284,12 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderWaiterSheet() {
-    if (activeSheet !== "waiter") return null;
+    if (renderedSheet !== "waiter") return null;
 
     return (
       <div
         className={styles.overlay}
+        data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-waiter-title"
@@ -1334,11 +1364,12 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderCurrencySheet() {
-    if (activeSheet !== "currency" || !canChangeCurrency) return null;
+    if (renderedSheet !== "currency" || !canChangeCurrency) return null;
 
     return (
       <div
         className={styles.overlay}
+        data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-currency-title"
@@ -1384,11 +1415,12 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderFiltersSheet() {
-    if (activeSheet !== "filters") return null;
+    if (renderedSheet !== "filters") return null;
 
     return (
       <div
         className={styles.overlay}
+        data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-filters-title"
@@ -1455,13 +1487,14 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderLanguageSheet() {
-    if (activeSheet !== "language" || !canChangeLanguage) return null;
+    if (renderedSheet !== "language" || !canChangeLanguage) return null;
 
     const sheetLanguageOptions = languageOptions;
 
     return (
       <div
         className={styles.overlay}
+        data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-language-title"
@@ -1507,18 +1540,24 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderReviewSheet() {
-    if (
-      activeSheet !== "review" &&
-      activeSheet !== "experienceReview" &&
-      !(activeSheet === "dish" && dishSubSheet === "review")
-    ) {
+    const showAsPrimaryReview =
+      renderedSheet === "review" || renderedSheet === "experienceReview";
+    const showAsStackReview =
+      renderedSheet === "dish" && renderedSubSheet === "review";
+    if (!showAsPrimaryReview && !showAsStackReview) {
       return null;
     }
 
-    const isExperienceReview = activeSheet === "experienceReview";
-    const isDishStackReview = activeSheet === "dish" && dishSubSheet === "review";
+    // Active (live) intent, used to route the close handler while the sheet is still open.
+    const isDishStackReviewActive = activeSheet === "dish" && dishSubSheet === "review";
+    // Rendered intent, used for markup/refs so the sub-sheet keeps its identity while closing.
+    const isDishStackReview = showAsStackReview;
+    const reviewMotionState = showAsStackReview
+      ? subSheetMotionState
+      : sheetMotionState;
+    const isExperienceReview = renderedSheet === "experienceReview";
     const reviewDish = isExperienceReview ? null : selectedDish;
-    const closeReview = isDishStackReview ? closeDishSubSheet : closeActiveSheet;
+    const closeReview = isDishStackReviewActive ? closeDishSubSheet : closeActiveSheet;
     const reviewTitle = isExperienceReview
       ? copy.reviewExperienceTitle
       : copy.reviewTitle;
@@ -1532,6 +1571,7 @@ export function TrouvablePremiumMenuExperience({
     return (
       <div
         className={`${styles.overlay} ${styles.reviewOverlay} ${styles.stackedOverlay}`}
+        data-sheet-state={reviewMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-review-title"
@@ -1615,7 +1655,9 @@ export function TrouvablePremiumMenuExperience({
 
   function renderDishDetailsSubSheet() {
     const detailsDish =
-      activeSheet === "dish" && dishSubSheet === "details" ? selectedDish : null;
+      renderedSheet === "dish" && renderedSubSheet === "details"
+        ? selectedDish
+        : null;
 
     if (!detailsDish) return null;
 
@@ -1628,12 +1670,13 @@ export function TrouvablePremiumMenuExperience({
         onClose={closeDishSubSheet}
         panelRef={subSheetRef}
         userTheme={selectedTheme}
+        dataState={subSheetMotionState}
       />
     );
   }
 
   function renderDishDetailSheet() {
-    if (activeSheet !== "dish" || !selectedDish) return null;
+    if (renderedSheet !== "dish" || !selectedDish) return null;
 
     const hasModel = hasPublicMenu3d(selectedDish);
     const detailPrice = formatTrouvableDishPrice(
@@ -1652,6 +1695,7 @@ export function TrouvablePremiumMenuExperience({
     return (
       <div
         className={`${styles.overlay} ${styles.dishOverlay}`}
+        data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-dish-title"

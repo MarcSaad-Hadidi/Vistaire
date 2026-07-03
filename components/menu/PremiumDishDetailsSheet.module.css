@@ -8,7 +8,14 @@
   overflow: auto;
   background: rgba(0, 0, 0, 0.78);
   padding: 18px 18px 0;
+}
+
+.overlay[data-sheet-state="open"] {
   animation: detailsOverlayEnter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.overlay[data-sheet-state="closing"] {
+  animation: detailsOverlayExit 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .sheet {
@@ -27,7 +34,14 @@
   color: #fff;
   box-shadow: 0 -28px 88px rgba(0, 0, 0, 0.62);
   padding: 22px 22px calc(24px + env(safe-area-inset-bottom));
+}
+
+.overlay[data-sheet-state="open"] .sheet {
   animation: detailsSheetEnter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.overlay[data-sheet-state="closing"] .sheet {
+  animation: detailsSheetExit 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .sheet:focus {
@@ -146,6 +160,28 @@
   }
 }
 
+@keyframes detailsOverlayExit {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes detailsSheetExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+}
+
 @media (max-width: 520px) {
   .overlay {
     padding: 10px 10px 0;
@@ -165,7 +201,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .overlay,
-  .sheet {
+  .sheet,
+  .overlay[data-sheet-state="open"],
+  .overlay[data-sheet-state="closing"],
+  .overlay[data-sheet-state="open"] .sheet,
+  .overlay[data-sheet-state="closing"] .sheet {
     animation: none;
   }
 }

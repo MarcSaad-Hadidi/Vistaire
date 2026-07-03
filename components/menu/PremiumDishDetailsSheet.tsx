@@ -1,6 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
+import type { TransitionPresenceState } from "@/lib/useTransitionPresence";
 import type { PublicMenuDish } from "@/lib/menu/publicMenuCore";
 import type { getTrouvableCopy } from "./trouvableMenuControls";
 import {
@@ -21,6 +22,7 @@ type PremiumDishDetailsSheetProps = {
   panelRef?: RefObject<HTMLElement | null>;
   className?: string;
   userTheme?: "dark" | "light";
+  dataState?: TransitionPresenceState;
 };
 
 export function PremiumDishDetailsSheet({
@@ -31,7 +33,8 @@ export function PremiumDishDetailsSheet({
   onClose,
   panelRef,
   className = "",
-  userTheme = "dark"
+  userTheme = "dark",
+  dataState = "open"
 }: PremiumDishDetailsSheetProps) {
   const compositionId = `${sheetId}-composition-label`;
   const allergenId = `${sheetId}-allergen-label`;
@@ -53,6 +56,7 @@ export function PremiumDishDetailsSheet({
   return (
     <div
       className={sheetStyles.overlay}
+      data-sheet-state={dataState}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
