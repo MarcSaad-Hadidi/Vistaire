@@ -436,6 +436,11 @@ function isDishSwipeGuardedTarget(
   return !(swipeRoot && (dialogTarget === swipeRoot || dialogTarget.contains(swipeRoot)));
 }
 
+function isCategorySwipeGuardedTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return true;
+  return Boolean(target.closest('[data-no-category-swipe="true"]'));
+}
+
 function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolean {
   if (filter === "all") return true;
   if (filter === "veg") return isVegDish(dish);
@@ -642,7 +647,7 @@ export function TrouvablePremiumMenuExperience({
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
   const categoryRailRef = useRef<HTMLElement | null>(null);
-  const categorySwipeRef = useRef<SwipeStart>(null);
+  const menuCategorySwipeRef = useRef<SwipeStart>(null);
   const dishSwipeRef = useRef<SwipeStart>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
@@ -763,21 +768,7 @@ export function TrouvablePremiumMenuExperience({
     () => getVisiblePublicMenuCategories(filteredDishes),
     [filteredDishes]
   );
-  const categoryOptions = useMemo(
-    () =>
-      categories.length > 0
-        ? categories
-        : [
-            {
-              id: ALL_CATEGORY_ID,
-              label: copy.all,
-              description: copy.activeCategoryAll,
-              tone: "yellow" as const,
-              count: filteredDishes.length
-            }
-          ],
-    [categories, copy, filteredDishes.length]
-  );
+  const categoryOptions = useMemo(() => categories, [categories]);
   const navigableSections = useMemo(
     () =>
       buildNavigableMenuSections(
@@ -1199,29 +1190,24 @@ export function TrouvablePremiumMenuExperience({
     setActiveCategory(nextSection);
   }
 
-  function handleCategoryPointerDown(event: PointerEvent<HTMLElement>) {
+  function handleMenuCategoryPointerDown(event: PointerEvent<HTMLElement>) {
     if (event.pointerType === "mouse") return;
-    categorySwipeRef.current = {
+    if (isCategorySwipeGuardedTarget(event.target)) return;
+    menuCategorySwipeRef.current = {
       x: event.clientX,
       y: event.clientY,
-      pointerId: event.pointerId,
-      scrollLeft: event.currentTarget.scrollLeft
+      pointerId: event.pointerId
     };
   }
 
-  function handleCategoryPointerUp(event: PointerEvent<HTMLElement>) {
-    const start = categorySwipeRef.current;
-    categorySwipeRef.current = null;
+  function handleMenuCategoryPointerUp(event: PointerEvent<HTMLElement>) {
+    const start = menuCategorySwipeRef.current;
+    menuCategorySwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
-    if (
-      start.scrollLeft !== undefined &&
-      Math.abs(event.currentTarget.scrollLeft - start.scrollLeft) > 4
-    ) {
-      return;
-    }
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
-    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+    event.preventDefault();
     selectAdjacentCategory(deltaX < 0 ? 1 : -1);
   }
 
@@ -2209,7 +2195,7 @@ export function TrouvablePremiumMenuExperience({
         className={styles.menuPanel}
         aria-label={copy.menuAria}
       >
-        <div className={styles.categoryHeader}>
+        <div className={styles.categoryHeader} data-no-category-swipe="true">
           <span>{copy.categories}</span>
           <span className={styles.swipeHint}>{copy.swipeList}</span>
         </div>
@@ -2217,29 +2203,20 @@ export function TrouvablePremiumMenuExperience({
           ref={categoryRailRef}
           className={styles.categoryRail}
           aria-label={copy.categoryAria}
-          onPointerDown={handleCategoryPointerDown}
-          onPointerUp={handleCategoryPointerUp}
-          onPointerCancel={() => {
-            categorySwipeRef.current = null;
-          }}
+          data-no-category-swipe="true"
         >
-          <button
-            type="button"
-            aria-current={resolvedActiveCategory === ALL_CATEGORY_ID}
-            onClick={() => setActiveCategory(ALL_CATEGORY_ID)}
-          >
-            <CategoryIcon kind="all" />
-            <span>{copy.all}</span>
-            <small>{filteredDishes.length}</small>
-          </button>
           {categoryOptions.map((category) => (
             <button
               key={category.id}
               type="button"
-              aria-current={resolvedActiveCategory === category.id}
+              {...(resolvedActiveCategory === category.id
+                ? { "aria-current": true as const }
+                : {})}
               onClick={() =>
-                setActiveCategory((current) =>
-                  current === category.id ? ALL_CATEGORY_ID : category.id
+                setActiveCategory(
+                  resolvedActiveCategory === category.id
+                    ? ALL_CATEGORY_ID
+                    : category.id
                 )
               }
             >
@@ -2250,15 +2227,24 @@ export function TrouvablePremiumMenuExperience({
           ))}
         </nav>
 
-        <h2
-          key={`title-${resolvedActiveCategory}`}
-          className={`${styles.sectionTitle} ${styles.sectionBodyEnter}`}
-          dir={textDirection}
+        <div
+          className={styles.categorySwipeSurface}
+          data-category-swipe-surface=""
+          onPointerDownCapture={handleMenuCategoryPointerDown}
+          onPointerUpCapture={handleMenuCategoryPointerUp}
+          onPointerCancelCapture={() => {
+            menuCategorySwipeRef.current = null;
+          }}
         >
-          {activeCategoryTitle}
-        </h2>
+          <h2
+            key={`title-${resolvedActiveCategory}`}
+            className={`${styles.sectionTitle} ${styles.sectionBodyEnter}`}
+            dir={textDirection}
+          >
+            {activeCategoryTitle}
+          </h2>
 
-        <div className={styles.tools}>
+        <div className={styles.tools} data-no-category-swipe="true">
           <label className={styles.searchField}>
             <span>{copy.searchLabel}</span>
             <input
@@ -2344,6 +2330,7 @@ export function TrouvablePremiumMenuExperience({
               {visibleDishes.map((dish, index) => renderDishCard(dish, index))}
             </ul>
           )}
+        </div>
         </div>
       </section>
 

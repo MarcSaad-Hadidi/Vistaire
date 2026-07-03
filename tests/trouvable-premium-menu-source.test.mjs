@@ -236,14 +236,21 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
   assert.match(detailSource, /data-no-dish-swipe="true"/);
   assert.doesNotMatch(
     source,
-    /className=\{styles\.menuPanel\}[\s\S]{0,180}onPointerDown=\{handleCategoryPointerDown\}/
+    /className=\{styles\.menuPanel\}[\s\S]{0,180}onPointerDown=\{handleMenuCategoryPointerDown\}/
+  );
+  assert.doesNotMatch(
+    source,
+    /className=\{styles\.categoryRail\}[\s\S]{0,220}onPointerDown=\{handleMenuCategoryPointerDown\}/
   );
   assert.match(
     source,
-    /className=\{styles\.categoryRail\}[\s\S]{0,220}onPointerDown=\{handleCategoryPointerDown\}/
+    /className=\{styles\.categorySwipeSurface\}[\s\S]{0,220}onPointerDownCapture=\{handleMenuCategoryPointerDown\}/
   );
-  assert.match(source, /scrollLeft:\s*event\.currentTarget\.scrollLeft/);
-  assert.match(source, /event\.currentTarget\.scrollLeft - start\.scrollLeft/);
+  assert.match(source, /isCategorySwipeGuardedTarget/);
+  assert.match(source, /data-no-category-swipe="true"/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.doesNotMatch(source, /CategoryIcon kind="all"/);
+  assert.doesNotMatch(source, /copy\.all[\s\S]{0,120}categoryRail/);
 });
 
 test("Trouvable details keep tags, ingredients, allergens, options, and notes separate", async () => {
@@ -273,7 +280,10 @@ test("Trouvable all category stays global while filters and searches resolve dis
   assert.match(source, /categories\.map\(\(category\) => category\.id\)/);
   assert.match(source, /filteredCategories\.some\(\(category\) => category\.id === activeCategory\)/);
   assert.match(source, /activeCategory === ALL_CATEGORY_ID\s*\?\s*ALL_CATEGORY_ID/);
-  assert.match(source, /current === category\.id \? ALL_CATEGORY_ID : category\.id/);
+  assert.match(
+    source,
+    /setActiveCategory\([\s\S]*?resolvedActiveCategory === category\.id[\s\S]*?\?\s*ALL_CATEGORY_ID\s*:\s*category\.id/
+  );
   assert.match(source, /setActiveCategory\(ALL_CATEGORY_ID\)/);
   assert.match(
     source,
@@ -340,10 +350,13 @@ test("Trouvable category swipe uses full navigable sections and keeps the rail s
   assert.match(source, /scrollIntoView\(\{[\s\S]*inline:\s*"center"/);
   assert.match(source, /prefersReducedMotion \? "auto" : "smooth"/);
   assert.match(source, /className=\{`\$\{styles\.sectionBody\} \$\{styles\.sectionBodyEnter\}`\}/);
+  assert.match(source, /className=\{styles\.categorySwipeSurface\}/);
+  assert.match(source, /handleMenuCategoryPointerDown/);
   assert.doesNotMatch(
     source,
     /categoryOptions\.findIndex\(\(category\) => category\.label === resolvedActiveCategory\)/
   );
+  assert.doesNotMatch(source, /<CategoryIcon kind="all" \/>/);
   assert.doesNotMatch(
     css,
     /\.categoryRail\s*>\s*button:first-child\s*\{[\s\S]*?display:\s*none/
