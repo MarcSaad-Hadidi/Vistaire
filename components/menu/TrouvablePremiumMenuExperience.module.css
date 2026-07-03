@@ -581,6 +581,8 @@
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   padding-top: 38px;
+  animation: menuOverlayEnter var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .sheet {
@@ -595,6 +597,11 @@
   color: #fffaf0;
   box-shadow: 0 -24px 80px rgba(0, 0, 0, 0.42);
   padding: 12px;
+}
+
+.sheet:not(.detailSheet) {
+  animation: menuSheetEnter var(--vistaire-sheet-duration, 240ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .sheet:focus {
@@ -1078,6 +1085,9 @@
   --trouvable-gold: #dec24b;
   --trouvable-gold-2: #f3dc75;
   --trouvable-blue: #74ddf2;
+  --vistaire-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --vistaire-motion-duration: 220ms;
+  --vistaire-sheet-duration: 240ms;
   min-height: 100svh;
   background: var(--trouvable-black);
   color: #fff;
@@ -1425,6 +1435,18 @@
   padding: 22px 18px;
   text-align: center;
   text-transform: uppercase;
+  transition:
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.categoryRail button:active {
+  transform: scale(0.985);
 }
 
 .categoryRail button:first-of-type {
@@ -1526,7 +1548,30 @@
 }
 
 .sectionBodyEnter {
-  animation: sectionBodyEnter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: sectionBodyEnter var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+@keyframes menuOverlayEnter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes menuSheetEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes sectionBodyEnter {
@@ -1612,6 +1657,18 @@
   color: #fff;
   font-size: 16px;
   padding: 0 16px;
+  transition:
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.filterTrigger:active {
+  transform: scale(0.98);
 }
 
 .viewToggle {
@@ -1633,6 +1690,17 @@
   color: rgba(255, 255, 255, 0.68);
   font-size: 28px;
   padding: 0;
+  border-radius: 999px;
+  transition:
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.viewToggle button:active {
+  transform: scale(0.96);
 }
 
 .viewToggle button[aria-pressed="true"] {
@@ -1845,6 +1913,11 @@
   align-items: stretch;
   padding: 0;
   background: #000;
+}
+
+.dishOverlay .detailBody {
+  animation: sectionBodyEnter var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .detailSheet,
@@ -2876,6 +2949,13 @@
 
 .stackedOverlay .reviewSheet {
   align-content: end;
+  animation: menuSheetEnter var(--vistaire-sheet-duration, 240ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.stackedOverlay .reviewPanel {
+  animation: sectionBodyEnter var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .reviewDishGhost {
@@ -2947,6 +3027,16 @@
   font-size: 48px;
   line-height: 1;
   padding: 0;
+  transition:
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    filter var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.reviewStars button:active {
+  transform: scale(0.94);
 }
 
 .reviewStars button[aria-pressed="true"] {
@@ -3094,6 +3184,18 @@
   font: inherit;
   padding: 14px 16px;
   text-align: left;
+  transition:
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.choiceButton:active {
+  transform: scale(0.99);
 }
 
 .choiceButton span {
@@ -3119,6 +3221,8 @@
 }
 
 .filterSheet {
+  display: grid;
+  gap: 12px;
   border-color: rgba(222, 194, 75, 0.34);
   background:
     radial-gradient(circle at 50% 0%, rgba(222, 194, 75, 0.1), transparent 38%),
@@ -3179,6 +3283,20 @@
   font-weight: 900;
   line-height: 1.1;
   padding: 0 12px;
+  transition:
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.filterGrid button:active {
+  transform: scale(0.98);
 }
 
 .filterGrid .isActive {
@@ -3201,6 +3319,19 @@
   font: inherit;
   font-size: 12px;
   font-weight: 850;
+  transition:
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.sheetReset:active,
+.sheetApply:active {
+  transform: scale(0.98);
 }
 
 .sheetReset {

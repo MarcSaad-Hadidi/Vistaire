@@ -391,7 +391,29 @@ test("Trouvable category swipe uses full navigable sections and keeps the rail s
   );
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none !important/);
   assert.match(css, /@keyframes sectionBodyEnter/);
-  assert.match(css, /220ms cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
+  assert.match(css, /--vistaire-motion-ease:\s*cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
+  assert.match(css, /--vistaire-motion-duration:\s*220ms/);
+  assert.match(css, /@keyframes menuOverlayEnter/);
+  assert.match(css, /@keyframes menuSheetEnter/);
+  assert.match(css, /\.overlay[\s\S]*animation:\s*menuOverlayEnter/);
+  assert.match(css, /\.sheet:not\(\.detailSheet\)[\s\S]*animation:\s*menuSheetEnter/);
+});
+
+test("Trouvable filter sheet uses premium filterSheet styling on the filters dialog", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(
+    source,
+    /function renderFiltersSheet\(\)[\s\S]*className=\{`\$\{styles\.sheet\} \$\{styles\.filterSheet\}`\}/
+  );
+  assert.match(
+    source,
+    /function renderSelectionSheet\(\)[\s\S]*className=\{styles\.sheet\}[\s\S]*?selectionTitle/
+  );
+  assert.doesNotMatch(
+    source,
+    /function renderSelectionSheet\(\)[\s\S]*?selectionTitle[\s\S]{0,400}filterSheet/
+  );
 });
 
 test("Trouvable premium menu styles are mobile-first and overflow-safe", async () => {
