@@ -327,6 +327,8 @@ export function PublicMenuRenderer({
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
   const [menuFilter, setMenuFilter] = useState<MenuFilterId>("all");
+  const googleReviewLocale =
+    menu.activeLocale ?? query?.lang ?? menu.settings.defaultLocale;
   const categories = useMemo(
     () =>
       getVisiblePublicMenuCategories(menu.dishes).sort(
@@ -1188,7 +1190,7 @@ export function PublicMenuRenderer({
       {mode === "public" ? (
         <GoogleReviewCard
           googleReview={menu.googleReview}
-          locale={menu.settings.defaultLocale}
+          locale={googleReviewLocale}
           localizedUiCopy={menu.localizedUiCopy}
           restaurantId={menu.restaurantId}
           restaurantName={menu.name}

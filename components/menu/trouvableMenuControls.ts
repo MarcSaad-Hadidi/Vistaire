@@ -923,20 +923,34 @@ function copyStringOverrides(value: unknown, base: TrouvableCopy): Partial<Trouv
   return overrides;
 }
 
-function normalizedLocaleKey(value: string): string {
-  return normalizePublicMenuLocale(value, value).toLowerCase();
+function localizedUiCopyBucketKey(value: string):
+  | { normalizedKey: string; language: string }
+  | null {
+  const input = value.trim().replace("_", "-");
+  if (!input || Object.prototype.hasOwnProperty.call(TROUVABLE_COPY.en, value)) {
+    return null;
+  }
+  try {
+    const locale = new Intl.Locale(input);
+    const language = locale.language.toLowerCase();
+    return language
+      ? { normalizedKey: locale.toString().toLowerCase(), language }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function localizedUiCopyBuckets(uiCopy: unknown): Map<string, Record<string, unknown>> {
   const source = objectInput(uiCopy);
   const buckets = new Map<string, Record<string, unknown>>();
   for (const [key, value] of Object.entries(source)) {
+    const localeKey = localizedUiCopyBucketKey(key);
+    if (!localeKey) continue;
     const bucket = objectInput(value);
     if (Object.keys(bucket).length === 0) continue;
-    const normalizedKey = normalizedLocaleKey(key);
-    const language = languageCodeForLocale(key);
-    buckets.set(normalizedKey, bucket);
-    if (language) buckets.set(language.toLowerCase(), bucket);
+    buckets.set(localeKey.normalizedKey, bucket);
+    buckets.set(localeKey.language, bucket);
   }
   return buckets;
 }

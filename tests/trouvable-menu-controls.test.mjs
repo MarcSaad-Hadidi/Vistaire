@@ -141,6 +141,24 @@ test("Trouvable copy merges missing dynamic keys from the locale fallback", () =
   assert.equal(copy.threeD, "VER EN 3D");
 });
 
+test("Trouvable legacy flat UI copy can include nested copy groups", () => {
+  const copy = getTrouvableCopy("pt-BR", {
+    filterButton: "Filtrar",
+    greeting: {
+      morning: "Bom dia"
+    },
+    threeD: "VER EM 3D",
+    waiterTopics: {
+      selection: "Pedir minha seleção"
+    }
+  });
+
+  assert.equal(copy.filterButton, "Filtrar");
+  assert.equal(copy.greeting.morning, "Bom dia");
+  assert.equal(copy.threeD, "VER EM 3D");
+  assert.equal(copy.waiterTopics.selection, "Pedir minha seleção");
+});
+
 test("Trouvable copy exposes documented neutral fallback metadata for missing UI packs", () => {
   const { copy, resolution } = resolveTrouvableCopy("ja-JP");
 

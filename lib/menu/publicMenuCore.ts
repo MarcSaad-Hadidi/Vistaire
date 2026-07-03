@@ -834,13 +834,7 @@ function rowUpdatedAtMs(row: PublicMenuRow): number | null {
 
 function localizedUiCopyInput(value: unknown): Record<string, unknown> | undefined {
   const input = objectInput(value);
-  const entries = Object.entries(input)
-    .map(([locale, copy]) => {
-      const copyObject = objectInput(copy);
-      return Object.keys(copyObject).length > 0 ? [locale, copyObject] : null;
-    })
-    .filter((entry): entry is [string, Record<string, unknown>] => Boolean(entry));
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  return Object.keys(input).length > 0 ? input : undefined;
 }
 
 function getLocalizedUiCopy(candidate: PublicMenuRow, keys: string[]): Record<string, unknown> | undefined {
@@ -857,11 +851,19 @@ function mergeLocalizedUiCopy(
   const merged: Record<string, unknown> = {};
   for (const source of sources) {
     if (!source) continue;
-    for (const [locale, copy] of Object.entries(source)) {
-      const existing = objectInput(merged[locale]);
-      const next = objectInput(copy);
-      if (Object.keys(next).length === 0) continue;
-      merged[locale] = { ...existing, ...next };
+    for (const [key, value] of Object.entries(source)) {
+      const existingObject = objectInput(merged[key]);
+      const nextObject = objectInput(value);
+      if (Object.keys(nextObject).length > 0) {
+        merged[key] =
+          Object.keys(existingObject).length > 0
+            ? { ...existingObject, ...nextObject }
+            : nextObject;
+      } else if (
+        typeof value === "string" ? value.trim() : value !== undefined && value !== null
+      ) {
+        merged[key] = value;
+      }
     }
   }
   return Object.keys(merged).length > 0 ? merged : undefined;

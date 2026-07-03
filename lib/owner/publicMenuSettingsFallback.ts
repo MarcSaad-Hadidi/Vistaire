@@ -27,13 +27,7 @@ function objectInput(value: unknown): Record<string, unknown> {
 
 function localizedUiCopyInput(value: unknown): Record<string, unknown> | undefined {
   const input = objectInput(value);
-  const entries = Object.entries(input)
-    .map(([locale, copy]) => {
-      const copyObject = objectInput(copy);
-      return Object.keys(copyObject).length > 0 ? [locale, copyObject] : null;
-    })
-    .filter((entry): entry is [string, Record<string, unknown>] => Boolean(entry));
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  return Object.keys(input).length > 0 ? input : undefined;
 }
 
 function getLocalizedUiCopy(candidate: Record<string, unknown>): Record<string, unknown> | undefined {

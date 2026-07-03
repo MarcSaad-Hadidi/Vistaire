@@ -233,6 +233,53 @@ test("buildRelationalSupabasePublicMenu reads localized UI copy from menu settin
   assert.deepEqual(menu.settings.supportedLocales, ["fr-CA", "de-DE"]);
 });
 
+test("buildRelationalSupabasePublicMenu preserves legacy flat UI copy from menu settings", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true,
+      settings_json: {
+        defaultLocale: "pt-BR",
+        supportedLocales: ["pt-BR"],
+        uiCopy: {
+          filterButton: "Filtrar",
+          greeting: {
+            morning: "Bom dia"
+          },
+          threeD: "VER EM 3D",
+          waiterTopics: {
+            selection: "Pedir minha seleção"
+          }
+        }
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.deepEqual(menu.localizedUiCopy, {
+    filterButton: "Filtrar",
+    greeting: {
+      morning: "Bom dia"
+    },
+    threeD: "VER EM 3D",
+    waiterTopics: {
+      selection: "Pedir minha seleção"
+    }
+  });
+});
+
 test("buildRelationalSupabasePublicMenu reads settings from menu_ui_configs fallback", () => {
   const menu = buildRelationalSupabasePublicMenu({
     slug: "le-comptoir-decimal",
