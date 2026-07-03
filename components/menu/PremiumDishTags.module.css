@@ -100,5 +100,15 @@
 }
 
 :global([data-user-theme="light"]) .chipAccent {
-  box-shadow: none;
+  border: 1px solid var(--tag-accent-border);
+  color: var(--tag-accent-text);
+  background:
+    linear-gradient(180deg, rgba(28, 22, 16, 0.98), rgba(12, 10, 8, 0.99));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 4px rgba(23, 18, 11, 0.14);
+}
+
+:global([data-user-theme="light"]) .label {
+  color: #8f6d14;
 }
