@@ -39,6 +39,8 @@ import {
   type TrouvableTheme
 } from "./trouvableMenuControls";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
+import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
+import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -171,7 +173,6 @@ export function TrouvableDishDetailExperience({
     (candidate) => candidate.id === activeDish.id
   );
   const hasModel = hasPublic3d(activeDish);
-  const visibleTags = activeDish.tags.filter(Boolean).slice(0, 8);
   const activePrice = formatTrouvableDishPrice(
     activeDish,
     selectedCurrency,
@@ -405,8 +406,15 @@ export function TrouvableDishDetailExperience({
             onClick={() => setActiveSubSheet("details")}
           >
             <span aria-hidden="true">i</span>
-            {copy.moreDetails}
+            {copy.viewDetails}
           </button>
+          <div className={styles.detailOptionTags}>
+            <PremiumDishCardOptionTags
+              items={activeDish.options}
+              label={copy.cardOptionsLabel}
+              variant="detail"
+            />
+          </div>
 
           {hasModel ? (
             <button
@@ -472,86 +480,14 @@ export function TrouvableDishDetailExperience({
       </article>
 
       {activeSubSheet === "details" ? (
-        <div
-          className={`${styles.overlay} ${styles.stackedOverlay}`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="trouvable-route-details-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setActiveSubSheet(null);
-          }}
-          data-no-dish-swipe="true"
-        >
-          <section
-            id={moreDetailsId}
-            className={`${styles.sheet} ${styles.detailsSubSheet}`}
-            tabIndex={-1}
-          >
-            <header className={styles.sheetHeader}>
-              <div>
-                <p>{activeDish.name}</p>
-                <h2 id="trouvable-route-details-title">{copy.moreDetails}</h2>
-              </div>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={copy.closeDetail}
-                onClick={() => setActiveSubSheet(null)}
-              >
-                x
-              </button>
-            </header>
-            {activeDish.description ? (
-              <p className={styles.moreDetailsText}>{activeDish.description}</p>
-            ) : null}
-            {visibleTags.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.tags}</h3>
-                <ul>
-                  {visibleTags.map((tag) => (
-                    <li key={tag}>{tag}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {activeDish.ingredients.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.ingredients}</h3>
-                <ul>
-                  {activeDish.ingredients.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {activeDish.allergens.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.allergens}</h3>
-                <ul>
-                  {activeDish.allergens.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {activeDish.options.length > 0 ? (
-              <section className={styles.detailList}>
-                <h3>{copy.options}</h3>
-                <ul>
-                  {activeDish.options.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {activeDish.houseNote ? (
-              <section className={styles.houseNote}>
-                <h3>{copy.houseNote}</h3>
-                <p>{activeDish.houseNote}</p>
-              </section>
-            ) : null}
-          </section>
-        </div>
+        <PremiumDishDetailsSheet
+          dish={activeDish}
+          copy={copy}
+          sheetId={moreDetailsId}
+          titleId="trouvable-route-details-title"
+          onClose={() => setActiveSubSheet(null)}
+          userTheme={selectedTheme}
+        />
       ) : null}
 
       {activeSubSheet === "review" ? (

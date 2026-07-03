@@ -1,0 +1,224 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 18px 18px 0;
+  animation: detailsOverlayEnter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sheet {
+  position: relative;
+  display: grid;
+  gap: 22px;
+  width: min(100%, 640px);
+  max-height: min(84svh, 720px);
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid rgba(222, 194, 75, 0.28);
+  border-radius: 28px 28px 0 0;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(222, 194, 75, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.96), #000 72%);
+  color: #fff;
+  box-shadow: 0 -28px 88px rgba(0, 0, 0, 0.62);
+  padding: 22px 22px calc(24px + env(safe-area-inset-bottom));
+  animation: detailsSheetEnter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sheet:focus {
+  outline: none;
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+  padding-right: 52px;
+  text-align: left;
+}
+
+.kicker {
+  margin: 0;
+  color: rgba(222, 194, 75, 0.82);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: #fff;
+  font-family: var(--trouvable-font-display, "Noto Serif Display", Georgia, serif);
+  font-size: clamp(28px, 7vw, 38px);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.description {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.houseNote {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(222, 194, 75, 0.24);
+  border-radius: 18px;
+  background: rgba(222, 194, 75, 0.06);
+  padding: 14px 16px;
+}
+
+.houseNoteLabel {
+  margin: 0;
+  color: rgba(222, 194, 75, 0.82);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.houseNoteText {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-family: var(--trouvable-font-display, "Noto Serif Display", Georgia, serif);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.groups {
+  display: grid;
+  gap: 18px;
+}
+
+.fallback {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@keyframes detailsOverlayEnter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes detailsSheetEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .overlay {
+    padding: 10px 10px 0;
+  }
+
+  .sheet {
+    gap: 18px;
+    max-height: 86svh;
+    border-radius: 24px 24px 0 0;
+    padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .description {
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .sheet {
+    animation: none;
+  }
+}
+
+.page[data-user-theme="light"] .sheet {
+  border-color: rgba(143, 109, 20, 0.26);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(185, 145, 36, 0.12), transparent 42%),
+    linear-gradient(180deg, #fffaf1, #f5efe4 72%);
+  color: #17120b;
+}
+
+.overlay[data-user-theme="light"] .sheet {
+  border-color: rgba(143, 109, 20, 0.26);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(185, 145, 36, 0.12), transparent 42%),
+    linear-gradient(180deg, #fffaf1, #f5efe4 72%);
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .close,
+.overlay[data-user-theme="light"] .close {
+  border-color: rgba(35, 26, 13, 0.18);
+  background: rgba(255, 249, 239, 0.88);
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .kicker,
+.page[data-user-theme="light"] .houseNoteLabel,
+.overlay[data-user-theme="light"] .kicker,
+.overlay[data-user-theme="light"] .houseNoteLabel {
+  color: #8f6d14;
+}
+
+.page[data-user-theme="light"] .title,
+.overlay[data-user-theme="light"] .title {
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .description,
+.page[data-user-theme="light"] .houseNoteText,
+.overlay[data-user-theme="light"] .description,
+.overlay[data-user-theme="light"] .houseNoteText {
+  color: rgba(35, 26, 13, 0.78);
+}
+
+.page[data-user-theme="light"] .houseNote,
+.overlay[data-user-theme="light"] .houseNote {
+  border-color: rgba(143, 109, 20, 0.22);
+  background: rgba(185, 145, 36, 0.08);
+}
+
+.page[data-user-theme="light"] .fallback,
+.overlay[data-user-theme="light"] .fallback {
+  color: rgba(35, 26, 13, 0.56);
+}
