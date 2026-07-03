@@ -1166,11 +1166,7 @@ export function TrouvablePremiumMenuExperience({
           if (event.target === event.currentTarget) closeActiveSheet();
         }}
       >
-        <section
-          ref={sheetRef}
-          className={`${styles.sheet} ${styles.filterSheet}`}
-          tabIndex={-1}
-        >
+        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
           <header className={styles.sheetHeader}>
             <div>
               <p>{copy.selectionKicker}</p>
@@ -1400,7 +1396,11 @@ export function TrouvablePremiumMenuExperience({
           if (event.target === event.currentTarget) closeActiveSheet();
         }}
       >
-        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
+        <section
+          ref={sheetRef}
+          className={`${styles.sheet} ${styles.filterSheet}`}
+          tabIndex={-1}
+        >
           <header className={styles.sheetHeader}>
             <div>
               <p>{copy.filterKicker}</p>
