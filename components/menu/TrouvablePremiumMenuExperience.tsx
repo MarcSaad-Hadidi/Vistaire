@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentType,
   type PointerEvent
 } from "react";
@@ -47,6 +48,7 @@ import {
   getTrouvableDishConvertedPriceCents,
   getTrouvableGreetingForDate,
   getTrouvableLanguageOptions,
+  getTrouvableLanguageShortCode,
   getTrouvableTextDirection,
   isTrouvableLocaleSupported,
   normalizeTrouvableCurrency,
@@ -586,7 +588,6 @@ export function TrouvablePremiumMenuExperience({
   const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>(() =>
     normalizeTrouvableTheme(undefined, menu.settings)
   );
-  const [greeting, setGreeting] = useState("");
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
@@ -603,6 +604,19 @@ export function TrouvablePremiumMenuExperience({
   const prefersReducedMotion = usePrefersReducedMotion();
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
   const textDirection = getTrouvableTextDirection(selectedLocale);
+  const greetingText = useSyncExternalStore(
+    (onStoreChange) => {
+      const intervalId = window.setInterval(onStoreChange, 60_000);
+      return () => window.clearInterval(intervalId);
+    },
+    () =>
+      getTrouvableGreetingForDate(
+        selectedLocale,
+        menu.settings.timezone,
+        new Date()
+      ),
+    () => copy.greeting.afternoon
+  );
   const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
   const currencyOptions = useMemo(
     () => getTrouvableCurrencyOptions(menu.settings),
@@ -775,7 +789,6 @@ export function TrouvablePremiumMenuExperience({
       ) !== null
     );
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
-  const greetingText = greeting || copy.greeting.afternoon;
   const viewLabel = viewMode === "grid" ? copy.viewGrid : copy.viewList;
 
   const restoreFocus = useCallback(() => {
@@ -879,22 +892,6 @@ export function TrouvablePremiumMenuExperience({
     window.localStorage.setItem(TROUVABLE_CURRENCY_STORAGE_KEY, selectedCurrency);
     window.localStorage.setItem(TROUVABLE_THEME_STORAGE_KEY, selectedTheme);
   }, [preferencesLoaded, selectedCurrency, selectedLocale, selectedTheme]);
-
-  useEffect(() => {
-    function syncGreeting() {
-      setGreeting(
-        getTrouvableGreetingForDate(
-          selectedLocale,
-          menu.settings.timezone,
-          new Date()
-        )
-      );
-    }
-
-    syncGreeting();
-    const intervalId = window.setInterval(syncGreeting, 60_000);
-    return () => window.clearInterval(intervalId);
-  }, [menu.settings.timezone, selectedLocale]);
 
   useEffect(() => {
     const rail = categoryRailRef.current;
@@ -1603,14 +1600,16 @@ export function TrouvablePremiumMenuExperience({
                 type="button"
                 className={styles.choiceButton}
                 aria-pressed={selectedLocale === option.locale}
+                aria-label={`${option.nativeName}, ${option.region}, ${option.code}`}
                 onClick={() => selectLocale(option.locale)}
               >
-                <span>{option.locale.toUpperCase()}</span>
-                <small>{option.label}</small>
+                <span>{option.shortCode}</span>
+                <small dir="auto">
+                  {option.nativeName} · {option.region}
+                </small>
               </button>
             ))}
           </div>
-          <p className={styles.localHint}>{copy.languageCopy}</p>
         </section>
       </div>
     );
@@ -1989,13 +1988,13 @@ export function TrouvablePremiumMenuExperience({
             className={styles.headerControl}
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "language"}
-            aria-label={`${copy.languageAria}: ${selectedLocale.toUpperCase()}`}
+            aria-label={`${copy.languageAria}: ${getTrouvableLanguageShortCode(selectedLocale)}`}
             disabled={!canChangeLanguage}
             onClick={() => {
               if (canChangeLanguage) openSheet("language");
             }}
           >
-            {selectedLocale.toUpperCase()}
+            {getTrouvableLanguageShortCode(selectedLocale)}
           </button>
           <button
             type="button"

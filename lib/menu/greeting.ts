@@ -1,38 +1,47 @@
 export type GreetingPeriod = "morning" | "afternoon" | "evening" | "night";
-type GreetingLocale = "fr" | "en" | "es" | "it" | "ar";
+type GreetingLocale = "fr" | "en" | "es" | "it" | "de" | "ar";
 
 const GREETINGS: Record<GreetingLocale, Record<GreetingPeriod, string>> = {
   fr: {
     morning: "Bonjour",
-    afternoon: "Bon après-midi",
+    afternoon: "Bienvenue",
     evening: "Bonsoir",
-    night: "Bonne nuit"
+    night: "Bonsoir"
   },
   en: {
     morning: "Good morning",
-    afternoon: "Good afternoon",
+    afternoon: "Welcome",
     evening: "Good evening",
-    night: "Good night"
+    night: "Good evening"
   },
   es: {
-    morning: "Buenos dias",
-    afternoon: "Buenas tardes",
+    morning: "Buenos días",
+    afternoon: "Bienvenido",
     evening: "Buenas noches",
     night: "Buenas noches"
   },
   it: {
     morning: "Buongiorno",
-    afternoon: "Buon pomeriggio",
+    afternoon: "Benvenuto",
     evening: "Buonasera",
-    night: "Buona notte"
+    night: "Buonasera"
+  },
+  de: {
+    morning: "Guten Morgen",
+    afternoon: "Willkommen",
+    evening: "Guten Abend",
+    night: "Guten Abend"
   },
   ar: {
     morning: "صباح الخير",
-    afternoon: "مساء الخير",
+    afternoon: "أهلاً وسهلاً",
     evening: "مساء الخير",
-    night: "تصبح على خير"
+    night: "مساء الخير"
   }
 };
+
+const SLEEP_GREETING_PATTERNS =
+  /bonne nuit|good night|buona notte|gute nacht|تصبح على خير|sleep well|dormez bien|have a good night/i;
 
 function greetingLocaleFor(value: unknown): GreetingLocale {
   if (typeof value !== "string") return "fr";
@@ -77,5 +86,10 @@ export function getGreetingForTime(
   timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): string {
   const resolvedLocale = greetingLocaleFor(locale);
-  return GREETINGS[resolvedLocale][getGreetingPeriodForTime(date, timezone)];
+  const period = getGreetingPeriodForTime(date, timezone);
+  const greeting = GREETINGS[resolvedLocale][period];
+  if (SLEEP_GREETING_PATTERNS.test(greeting)) {
+    return GREETINGS[resolvedLocale].afternoon;
+  }
+  return greeting;
 }
