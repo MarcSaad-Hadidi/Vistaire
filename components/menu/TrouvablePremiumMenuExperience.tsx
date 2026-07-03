@@ -12,8 +12,9 @@ import {
   type PointerEvent
 } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
   getTrouvableCategoryIconKind,
   type TrouvableCategoryIconKind
@@ -108,10 +109,6 @@ type SelectionItem = {
 type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
 
 const ALL_CATEGORY_ID = "all";
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((entry) => entry.trim().replace(/\/+$/, ""))
-  .filter(Boolean);
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const MEAT_TERMS = [
@@ -457,17 +454,6 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
     );
   }
   return true;
-}
-
-function hasPublic3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
 }
 
 function modelViewerDishFromPublicDish(
@@ -1265,6 +1251,7 @@ export function TrouvablePremiumMenuExperience({
       selectedLocale,
       exchangeRates
     );
+    const show3dBadge = hasPublicMenu3d(dish);
 
     return (
       <li key={dish.id} className={styles.dishItem}>
@@ -1283,14 +1270,23 @@ export function TrouvablePremiumMenuExperience({
                 <strong>{dish.name}</strong>
               </span>
               <small>{dishMetaLine(dish, selectedLocale)}</small>
-              {priceLabel ? (
-                <span className={styles.dishPrice}>{priceLabel}</span>
-              ) : null}
               <span className={styles.badges}>
                 {badges.map((badge) => (
                   <span key={badge}>{badge}</span>
                 ))}
               </span>
+              {priceLabel || show3dBadge ? (
+                <span className={styles.dishPriceRow}>
+                  {priceLabel ? (
+                    <span className={styles.dishPrice}>{priceLabel}</span>
+                  ) : (
+                    <span className={styles.dishPriceSpacer} aria-hidden="true" />
+                  )}
+                  {show3dBadge ? (
+                    <DishCard3dBadge className={styles.dishCard3dBadge} />
+                  ) : null}
+                </span>
+              ) : null}
             </span>
           </button>
           <div className={styles.cardActions}>
@@ -1874,7 +1870,7 @@ export function TrouvablePremiumMenuExperience({
     if (activeSheet !== "dish" || !selectedDish) return null;
 
     const badges = dishBadges(selectedDish, selectedLocale);
-    const hasModel = hasPublic3d(selectedDish);
+    const hasModel = hasPublicMenu3d(selectedDish);
     const detailPrice = formatTrouvableDishPrice(
       selectedDish,
       selectedCurrency,

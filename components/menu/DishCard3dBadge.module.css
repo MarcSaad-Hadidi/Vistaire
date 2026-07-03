@@ -1,0 +1,39 @@
+.badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px 2px 4px;
+  border: 1px solid rgba(56, 220, 230, 0.34);
+  border-radius: 999px;
+  background:
+    linear-gradient(145deg, rgba(8, 58, 68, 0.9), rgba(4, 36, 44, 0.92));
+  box-shadow:
+    0 0 10px rgba(34, 211, 238, 0.16),
+    inset 0 1px 0 rgba(94, 234, 212, 0.14);
+  color: #67e8f9;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  color: #5eead4;
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.35));
+}
+
+.label {
+  color: #a5f3fc;
+  text-shadow: 0 0 6px rgba(34, 211, 238, 0.28);
+}

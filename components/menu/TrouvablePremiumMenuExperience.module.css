@@ -1670,8 +1670,11 @@
 }
 
 .dishCopy {
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  align-content: stretch;
   gap: 12px;
+  min-height: 136px;
 }
 
 .dishTopline {
@@ -1695,12 +1698,35 @@
   -webkit-line-clamp: 1;
 }
 
+.dishPriceRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  width: 100%;
+}
+
+.dishPriceSpacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dishCard3dBadge {
+  position: static;
+  right: auto;
+  bottom: auto;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .dishPrice,
 .detailPrice {
   color: #f3f3f3;
   font-family: var(--trouvable-font-display);
   font-size: clamp(25px, 7vw, 34px);
   font-weight: 600;
+  line-height: 1;
 }
 
 .badges {
@@ -2405,6 +2431,11 @@
 
   .dishCopy {
     gap: 7px;
+    min-height: 0;
+  }
+
+  .dishPriceRow {
+    gap: 8px;
   }
 
   .dishCopy small {
@@ -2450,6 +2481,10 @@
 
   .dishGrid .dishCopy small {
     font-size: 12px;
+  }
+
+  .dishGrid .dishCopy {
+    min-height: 0;
   }
 
   .dishGrid .dishPrice {
