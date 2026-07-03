@@ -1670,8 +1670,11 @@
 }
 
 .dishCopy {
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  align-content: stretch;
   gap: 12px;
+  min-height: 136px;
 }
 
 .dishTopline {
@@ -1723,6 +1726,7 @@
   font-family: var(--trouvable-font-display);
   font-size: clamp(25px, 7vw, 34px);
   font-weight: 600;
+  line-height: 1;
 }
 
 .badges {
@@ -2460,6 +2464,11 @@
 
   .dishCopy {
     gap: 7px;
+    min-height: 0;
+  }
+
+  .dishPriceRow {
+    gap: 8px;
   }
 
   .dishCopy small {
@@ -2510,6 +2519,10 @@
 
   .dishGrid .dishCopy small {
     font-size: 12px;
+  }
+
+  .dishGrid .dishCopy {
+    min-height: 0;
   }
 
   .dishGrid .dishPrice {

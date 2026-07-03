@@ -65,15 +65,18 @@ test("dish card 3D badge stays decorative and non-interactive", async () => {
   assert.match(css, /position:\s*absolute/);
 });
 
-test("Trouvable menu mounts the shared 3D badge on dish cards", async () => {
+test("public menu renderers mount the shared 3D badge on dish visuals", async () => {
   const { readFile } = await import("node:fs/promises");
-  const trouvable = await readFile(
-    "components/menu/TrouvablePremiumMenuExperience.tsx",
-    "utf8"
-  );
+  const [trouvable, maison, renderer] = await Promise.all([
+    readFile("components/menu/TrouvablePremiumMenuExperience.tsx", "utf8"),
+    readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8"),
+    readFile("components/menu/PublicMenuRenderer.tsx", "utf8")
+  ]);
 
   assert.match(trouvable, /DishCard3dBadge/);
   assert.match(trouvable, /hasPublicMenu3d\(dish\)/);
   assert.match(trouvable, /dishPriceRow/);
   assert.doesNotMatch(trouvable, /cardDetailsTrigger/);
+  assert.doesNotMatch(maison, /DishCard3dBadge/);
+  assert.doesNotMatch(renderer, /DishCard3dBadge/);
 });
