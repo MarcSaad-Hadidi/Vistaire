@@ -235,17 +235,37 @@ export function getTrouvableCategoryIconKindForCategory(
 export function getTrouvableCategorySortPriority(
   category: TrouvableCategoryIdentity
 ): number {
-  const kind = getTrouvableCategoryIconKindForCategory(category);
-  return TROUVABLE_CATEGORY_KIND_SORT_INDEX.get(kind) ?? 900 + kind.length;
+  const kind = resolveCategoryKind(category);
+  if (!kind) return Number.MAX_SAFE_INTEGER;
+  return TROUVABLE_CATEGORY_KIND_SORT_INDEX.get(kind) ?? Number.MAX_SAFE_INTEGER;
+}
+
+function getTrouvableCategorySortPriorityIfKnown(
+  category: TrouvableCategoryIdentity
+): number | null {
+  const kind = resolveCategoryKind(category);
+  if (!kind) return null;
+  const priority = TROUVABLE_CATEGORY_KIND_SORT_INDEX.get(kind);
+  return priority === undefined ? null : priority;
 }
 
 export function sortTrouvablePublicMenuCategories(
   categories: PublicMenuCategory[]
 ): PublicMenuCategory[] {
-  return [...categories].sort((left, right) => {
-    const priorityDelta =
-      getTrouvableCategorySortPriority(left) - getTrouvableCategorySortPriority(right);
-    if (priorityDelta !== 0) return priorityDelta;
-    return left.label.localeCompare(right.label, "fr", { sensitivity: "base" });
-  });
+  return categories
+    .map((category, index) => ({
+      category,
+      index,
+      priority: getTrouvableCategorySortPriorityIfKnown(category)
+    }))
+    .sort((left, right) => {
+      if (left.priority !== null && right.priority !== null) {
+        const priorityDelta = left.priority - right.priority;
+        if (priorityDelta !== 0) return priorityDelta;
+        return left.index - right.index;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ category }) => category);
 }

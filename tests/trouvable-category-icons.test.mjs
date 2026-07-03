@@ -135,3 +135,29 @@ test("unknown Trouvable categories use a deterministic non-spark fallback family
   assert.equal(TROUVABLE_CATEGORY_ICON_FALLBACKS.includes(first), true);
   assert.notEqual(first, "spark");
 });
+
+test("unrecognized categories preserve CMS display order", () => {
+  const categories = sortTrouvablePublicMenuCategories([
+    { id: "plats", label: "Plats", description: "", tone: "green", count: 5 },
+    { id: "marche", label: "Inspiration du marche", description: "", tone: "green", count: 2 },
+    { id: "ouverture", label: "Ouverture de table", description: "", tone: "blue", count: 2 }
+  ]);
+
+  assert.deepEqual(
+    categories.map((category) => category.label),
+    ["Plats", "Inspiration du marche", "Ouverture de table"]
+  );
+});
+
+test("unrecognized categories stay between recognized ones by CMS index", () => {
+  const categories = sortTrouvablePublicMenuCategories([
+    { id: "ouverture", label: "Ouverture de table", description: "", tone: "blue", count: 2 },
+    { id: "plats", label: "Plats", description: "", tone: "green", count: 5 },
+    { id: "classique", label: "Classiques reinventes", description: "", tone: "green", count: 3 }
+  ]);
+
+  assert.deepEqual(
+    categories.map((category) => category.label),
+    ["Ouverture de table", "Plats", "Classiques reinventes"]
+  );
+});

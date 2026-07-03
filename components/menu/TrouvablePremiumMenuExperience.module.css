@@ -1451,6 +1451,41 @@
   stroke: none;
 }
 
+.categoryRail svg[data-icon-mode="stroke-detail"] {
+  stroke-width: 1.5;
+}
+
+.categoryRail svg[data-icon-mode="travel-tone"] {
+  fill: none;
+  stroke: none;
+}
+
+.categoryRail svg[data-icon-mode="travel-tone"] path {
+  stroke: none;
+}
+
+.categoryRail svg[data-icon-mode="travel-tone"] path[data-travel-layer="base"],
+.categoryRail svg[data-icon-mode="travel-tone"] polygon[data-travel-layer="base"] {
+  fill: currentColor;
+  fill-opacity: 0.32;
+  opacity: 1;
+}
+
+.categoryRail svg[data-icon-mode="travel-tone"] path[data-travel-layer="land"] {
+  fill: currentColor;
+  fill-opacity: 1;
+  opacity: 1;
+}
+
+.categoryRail svg[data-icon-mode="brand"] {
+  fill: none;
+  stroke: none;
+}
+
+.categoryRail svg[data-icon-mode="brand"] path {
+  stroke: none;
+}
+
 .categoryRail span {
   font-size: 19px;
   font-weight: 500;
@@ -2339,6 +2374,41 @@
 
   .categoryRail svg[data-icon-mode="fill"] {
     fill: currentColor;
+    stroke: none;
+  }
+
+  .categoryRail svg[data-icon-mode="stroke-detail"] {
+    stroke-width: 1.25;
+  }
+
+  .categoryRail svg[data-icon-mode="travel-tone"] {
+    fill: none;
+    stroke: none;
+  }
+
+  .categoryRail svg[data-icon-mode="travel-tone"] path {
+    stroke: none;
+  }
+
+  .categoryRail svg[data-icon-mode="travel-tone"] path[data-travel-layer="base"],
+  .categoryRail svg[data-icon-mode="travel-tone"] polygon[data-travel-layer="base"] {
+    fill: currentColor;
+    fill-opacity: 0.32;
+    opacity: 1;
+  }
+
+  .categoryRail svg[data-icon-mode="travel-tone"] path[data-travel-layer="land"] {
+    fill: currentColor;
+    fill-opacity: 1;
+    opacity: 1;
+  }
+
+  .categoryRail svg[data-icon-mode="brand"] {
+    fill: none;
+    stroke: none;
+  }
+
+  .categoryRail svg[data-icon-mode="brand"] path {
     stroke: none;
   }
 
