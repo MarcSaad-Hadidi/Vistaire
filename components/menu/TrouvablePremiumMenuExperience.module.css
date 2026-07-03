@@ -1480,6 +1480,11 @@
   gap: 0;
 }
 
+.categorySwipeSurface {
+  display: grid;
+  gap: 0;
+}
+
 .sectionBodyEnter {
   animation: sectionBodyEnter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
