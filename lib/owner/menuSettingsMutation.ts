@@ -18,6 +18,9 @@ type SupabaseMenuSettingsError = {
 };
 
 type SupabaseMenuSettingsData = Record<string, unknown> | null;
+type PublicMenuSettingsPayload = PublicMenuSettings & {
+  localizedUiCopy?: Record<string, unknown>;
+};
 
 type SupabaseMenuSettingsSingleResult = PromiseLike<{
   data: SupabaseMenuSettingsData;
@@ -90,6 +93,16 @@ function settingsFromData(
     return objectInput(objectInput(data).metadata).publicMenuSettings;
   })();
   return serializePublicMenuSettings(normalizePublicMenuSettings(source ?? fallback));
+}
+
+function withPreservedLocalizedUiCopy(
+  settings: PublicMenuSettings,
+  localizedUiCopy?: Record<string, unknown>
+): PublicMenuSettingsPayload {
+  const serialized = serializePublicMenuSettings(settings) as PublicMenuSettingsPayload;
+  return localizedUiCopy && Object.keys(localizedUiCopy).length > 0
+    ? { ...serialized, localizedUiCopy }
+    : serialized;
 }
 
 function menuIdFromData(data: SupabaseMenuSettingsData): string {
@@ -166,7 +179,16 @@ export async function updateOwnerMenuSettings(args: {
   restaurantId: string;
   settings: PublicMenuSettings;
 }): Promise<OwnerMenuSettingsMutationResult> {
-  const settings = serializePublicMenuSettings(args.settings);
+  const existingPrimary = await args.client
+    .from("menus")
+    .select("id,settings_json,metadata")
+    .eq("restaurant_id", args.restaurantId)
+    .eq("is_primary", true)
+    .single();
+  const settings = withPreservedLocalizedUiCopy(
+    args.settings,
+    publicMenuSettingsFromMenuRow(existingPrimary.data)?.localizedUiCopy
+  );
   const primary = await args.client
     .from("menus")
     .update({ settings_json: settings })
@@ -220,12 +242,16 @@ export async function updateOwnerMenuSettings(args: {
   }
 
   const metadata = objectInput(existing.data?.metadata);
+  const metadataSettings = withPreservedLocalizedUiCopy(
+    settings,
+    publicMenuSettingsFromMenuRow(existing.data)?.localizedUiCopy
+  );
   const fallback = await args.client
     .from("menus")
     .update({
       metadata: {
         ...metadata,
-        publicMenuSettings: settings
+        publicMenuSettings: metadataSettings
       },
       updated_at: new Date().toISOString()
     })

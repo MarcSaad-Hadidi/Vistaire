@@ -62,9 +62,19 @@ export function publicMenuSettingsFromMenuRow(
   data: unknown
 ): OwnerPublicMenuSettingsFallback | null {
   const row = objectInput(data);
+  const metadata = objectInput(row.metadata);
+  const metadataSettings = objectInput(
+    metadata.publicMenuSettings ??
+      metadata.public_menu_settings ??
+      metadata.settings
+  );
   const nativeSettings = objectInput(row.settings_json ?? row.settingsJson);
   if (Object.keys(nativeSettings).length > 0) {
-    const localizedUiCopy = getLocalizedUiCopy(nativeSettings);
+    const localizedUiCopy =
+      getLocalizedUiCopy(nativeSettings) ??
+      getLocalizedUiCopy(row) ??
+      getLocalizedUiCopy(metadata) ??
+      getLocalizedUiCopy(metadataSettings);
     return {
       source: "settings_json",
       settings: serializePublicMenuSettings(
@@ -74,12 +84,6 @@ export function publicMenuSettingsFromMenuRow(
     };
   }
 
-  const metadata = objectInput(row.metadata);
-  const metadataSettings = objectInput(
-    metadata.publicMenuSettings ??
-      metadata.public_menu_settings ??
-      metadata.settings
-  );
   if (Object.keys(metadataSettings).length > 0) {
     const localizedUiCopy = getLocalizedUiCopy(metadata) ?? getLocalizedUiCopy(metadataSettings);
     return {
@@ -226,8 +230,20 @@ export function mergePublicMenuSettingsIntoUiConfig(
   configJson: unknown,
   settings: PublicMenuSettings
 ): Record<string, unknown> {
+  const config = objectInput(configJson);
+  const existingSettings = objectInput(
+    config.publicMenuSettings ??
+      config.public_menu_settings ??
+      config.settings
+  );
+  const localizedUiCopy = getLocalizedUiCopy(config) ?? getLocalizedUiCopy(existingSettings);
+  const publicMenuSettings = serializePublicMenuSettings(settings) as Record<string, unknown>;
+
   return {
-    ...objectInput(configJson),
-    [UI_CONFIG_SETTINGS_KEY]: serializePublicMenuSettings(settings)
+    ...config,
+    [UI_CONFIG_SETTINGS_KEY]: {
+      ...publicMenuSettings,
+      ...(localizedUiCopy ? { localizedUiCopy } : {})
+    }
   };
 }

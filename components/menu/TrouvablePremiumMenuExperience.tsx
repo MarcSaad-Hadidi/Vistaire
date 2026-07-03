@@ -62,7 +62,6 @@ import {
   resolveTrouvableCopy,
   buildNavigableMenuSections,
   getAdjacentMenuSection,
-  translateTrouvableCategoryLabel,
   type TrouvableCurrency,
   type TrouvableLocale,
   type TrouvableTheme
@@ -188,9 +187,8 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-function displayCategoryLabel(label: string, locale: TrouvableLocale): string {
-  const translated = translateTrouvableCategoryLabel(label, locale);
-  return translated.length > 12 ? `${translated.slice(0, 10).trim()}...` : translated;
+function displayCategoryLabel(label: string): string {
+  return label.length > 12 ? `${label.slice(0, 10).trim()}...` : label;
 }
 
 function searchableDishText(dish: PublicMenuDish): string {
@@ -226,11 +224,8 @@ function isNonVegDish(dish: PublicMenuDish): boolean {
   return dishHasAnyTerm(dish, MEAT_TERMS);
 }
 
-function dishMetaLine(dish: PublicMenuDish, locale: TrouvableLocale): string {
-  const { copy } = resolveTrouvableCopy(locale);
-  return dish.available
-    ? translateTrouvableCategoryLabel(dish.category, locale)
-    : copy.soldOut;
+function dishMetaLine(dish: PublicMenuDish, soldOutLabel: string): string {
+  return dish.available ? dish.category : soldOutLabel;
 }
 
 function isRecommendedDish(dish: PublicMenuDish): boolean {
@@ -323,7 +318,7 @@ function DishVisual({ dish, menu }: { dish: PublicMenuDish; menu: PublicMenu }) 
       <span className={`${styles.dishVisual} ${styles.hasDishImage}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          alt={`Photo de ${dish.name}`}
+          alt=""
           loading="lazy"
           src={dish.thumbnailUrl || dish.imageUrl}
         />
@@ -506,7 +501,8 @@ export function TrouvablePremiumMenuExperience({
       getTrouvableGreetingForDate(
         selectedLocale,
         menu.settings.timezone,
-        new Date()
+        new Date(),
+        menu.localizedUiCopy
       ),
     () => copy.greeting.afternoon
   );
@@ -651,10 +647,7 @@ export function TrouvablePremiumMenuExperience({
   const activeCategoryTitle =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? copy.activeCategoryAll
-      : translateTrouvableCategoryLabel(
-          resolvedCategory?.label ?? resolvedActiveCategory,
-          selectedLocale
-        );
+      : resolvedCategory?.label ?? resolvedActiveCategory;
   const visibleDishes =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? filteredDishes
@@ -1155,7 +1148,7 @@ export function TrouvablePremiumMenuExperience({
               <span className={styles.dishTopline}>
                 <strong>{dish.name}</strong>
               </span>
-              <small>{dishMetaLine(dish, selectedLocale)}</small>
+              <small>{dishMetaLine(dish, copy.soldOut)}</small>
               {priceLabel || show3dBadge ? (
                 <span className={styles.dishPriceRow}>
                   {priceLabel ? (
@@ -1891,6 +1884,9 @@ export function TrouvablePremiumMenuExperience({
       data-copy-built-in-locale={copyResolution.builtInLocale}
       data-copy-dynamic-source={copyResolution.dynamicSource}
       data-copy-neutral-fallback={copyResolution.usedNeutralFallback ? "true" : "false"}
+      data-copy-complete={copyResolution.uiCopyComplete ? "true" : "false"}
+      data-copy-missing-keys={copyResolution.missingKeys.length}
+      data-copy-ignored-keys={copyResolution.ignoredKeys.length}
       data-theme={config.theme}
       data-user-theme={selectedTheme}
     >
@@ -1963,11 +1959,11 @@ export function TrouvablePremiumMenuExperience({
         </div>
       </header>
 
-      <section className={styles.hero} aria-label={`Menu ${menu.name}`}>
+      <section className={styles.hero} aria-labelledby="trouvable-hero-title">
         <HeroBotanicalOrnament />
         <div className={styles.heroText} dir={textDirection}>
           <p>{greetingText}</p>
-          <h1>{menu.name}</h1>
+          <h1 id="trouvable-hero-title">{menu.name}</h1>
           <span>{copy.heroBlurb}</span>
         </div>
         <button type="button" onClick={() => setActiveCategory(ALL_CATEGORY_ID)}>
@@ -2010,7 +2006,7 @@ export function TrouvablePremiumMenuExperience({
               <TrouvableCategoryIcon
                 kind={getTrouvableCategoryIconKindForCategory(category)}
               />
-              <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
+              <span>{displayCategoryLabel(category.label)}</span>
               <small>{category.count}</small>
             </button>
           ))}

@@ -4,7 +4,10 @@ import {
   formatMenuPriceCents,
   type MenuExchangeRates
 } from "../../lib/currency/formatMenuPrice.ts";
-import { getGreetingForTime } from "../../lib/menu/greeting.ts";
+import {
+  getGreetingForTime,
+  getGreetingPeriodForTime
+} from "../../lib/menu/greeting.ts";
 import type { PublicMenuDish } from "../../lib/menu/publicMenuCore.ts";
 import {
   normalizePublicMenuLocale,
@@ -55,6 +58,79 @@ export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, numbe
   USD: 0.73,
   EUR: 0.68
 };
+
+const TROUVABLE_GOOGLE_REVIEW_COPY = {
+  fr: {
+    action: "Laisser un avis Google",
+    fallbackRestaurant: "le restaurant",
+    metaLabel: "Résumé Google",
+    note:
+      "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle.",
+    presentationRatingLabel: "Aperçu Google : {rating}/5",
+    presentationReviewCountLabel: "Aperçu : {count} avis",
+    ratingLabel: "{rating}/5 sur Google",
+    reviewCountLabel: "{count} avis Google",
+    text:
+      "Partagez votre expérience chez {restaurantName}. Votre avis Google aide l'équipe à mieux comprendre chaque visite et à se faire découvrir.",
+    title: "Votre expérience compte"
+  },
+  en: {
+    action: "Leave a Google review",
+    fallbackRestaurant: "the restaurant",
+    metaLabel: "Google summary",
+    note:
+      "No benefit is offered in exchange for a review. Your review should reflect your real experience.",
+    presentationRatingLabel: "Google preview: {rating}/5",
+    presentationReviewCountLabel: "Preview: {count} reviews",
+    ratingLabel: "{rating}/5 on Google",
+    reviewCountLabel: "{count} Google reviews",
+    text:
+      "Share your experience at {restaurantName}. Your Google review helps the team understand each visit and be discovered.",
+    title: "Your experience matters"
+  },
+  es: {
+    action: "Dejar una reseña en Google",
+    fallbackRestaurant: "el restaurante",
+    metaLabel: "Resumen de Google",
+    note:
+      "No se ofrece ningún beneficio a cambio de una reseña. Tu reseña debe reflejar tu experiencia real.",
+    presentationRatingLabel: "Vista previa de Google: {rating}/5",
+    presentationReviewCountLabel: "Vista previa: {count} reseñas",
+    ratingLabel: "{rating}/5 en Google",
+    reviewCountLabel: "{count} reseñas de Google",
+    text:
+      "Comparte tu experiencia en {restaurantName}. Tu reseña de Google ayuda al equipo a entender cada visita y a ser descubierto.",
+    title: "Tu experiencia cuenta"
+  },
+  it: {
+    action: "Lascia una recensione Google",
+    fallbackRestaurant: "il ristorante",
+    metaLabel: "Riepilogo Google",
+    note:
+      "Non viene offerto alcun vantaggio in cambio di una recensione. La recensione deve riflettere la tua esperienza reale.",
+    presentationRatingLabel: "Anteprima Google: {rating}/5",
+    presentationReviewCountLabel: "Anteprima: {count} recensioni",
+    ratingLabel: "{rating}/5 su Google",
+    reviewCountLabel: "{count} recensioni Google",
+    text:
+      "Condividi la tua esperienza da {restaurantName}. La tua recensione Google aiuta il team a capire ogni visita e a farsi scoprire.",
+    title: "La tua esperienza conta"
+  },
+  ar: {
+    action: "اترك تقييما على Google",
+    fallbackRestaurant: "المطعم",
+    metaLabel: "ملخص Google",
+    note:
+      "لا يتم تقديم أي منفعة مقابل التقييم. يجب أن يعكس تقييمك تجربتك الحقيقية.",
+    presentationRatingLabel: "معاينة Google: {rating}/5",
+    presentationReviewCountLabel: "معاينة: {count} تقييم",
+    ratingLabel: "{rating}/5 على Google",
+    reviewCountLabel: "{count} تقييم Google",
+    text:
+      "شارك تجربتك لدى {restaurantName}. يساعد تقييمك على Google الفريق على فهم كل زيارة والوصول إلى ضيوف جدد.",
+    title: "تجربتك مهمة"
+  }
+} as const;
 
 const CATEGORY_TRANSLATIONS: Record<string, Partial<Record<TrouvableCopyLocale, string>>> = {
   "bols & salades": { en: "Bowls & salads" },
@@ -127,6 +203,7 @@ export const TROUVABLE_COPY = {
       morning: "Bonjour",
       night: "Bonsoir"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.fr,
     heroAction: "Voir la carte",
     heroBlurb: "Cuisine maison, accents chaleureux et service à table.",
     houseNote: "Note maison",
@@ -278,6 +355,7 @@ export const TROUVABLE_COPY = {
       morning: "Good morning",
       night: "Good evening"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.en,
     heroAction: "View menu",
     heroBlurb: "House cooking, warm accents and table service.",
     houseNote: "House note",
@@ -429,6 +507,7 @@ export const TROUVABLE_COPY = {
       morning: "Buenos días",
       night: "Buenas noches"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.es,
     heroAction: "Ver la carta",
     heroBlurb: "Cocina de casa, acentos calidos y servicio en mesa.",
     houseNote: "Nota de la casa",
@@ -580,6 +659,7 @@ export const TROUVABLE_COPY = {
       morning: "Buongiorno",
       night: "Buonasera"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.it,
     heroAction: "Vedi il menu",
     heroBlurb: "Cucina di casa, toni caldi e servizio al tavolo.",
     houseNote: "Nota della casa",
@@ -731,6 +811,7 @@ export const TROUVABLE_COPY = {
       morning: "صباح الخير",
       night: "مساء الخير"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.ar,
     heroAction: "عرض القائمة",
     heroBlurb: "طبخ منزلي ولمسات دافئة وخدمة على الطاولة.",
     houseNote: "ملاحظة الدار",
@@ -842,6 +923,78 @@ type TrouvableCopy = {
   >;
 };
 
+type LocalizedUiCopyBuckets = {
+  exact: Map<string, Record<string, unknown>>;
+  language: Map<string, Record<string, unknown>>;
+};
+
+type CopyLeafSpec = {
+  path: string;
+  key: keyof TrouvableCopy;
+  nestedKey?: string;
+  kind: "string" | "function-template";
+};
+
+function renderCopyTemplate(
+  template: string,
+  values: Record<string, string | number>
+): string {
+  return Object.entries(values).reduce(
+    (output, [key, value]) =>
+      output.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
+    template
+  );
+}
+
+const COPY_FUNCTION_TEMPLATE_BUILDERS: {
+  [Key in keyof TrouvableCopy]?: (template: string) => TrouvableCopy[Key];
+} = {
+  activeFilters: (template) => (count: number) =>
+    renderCopyTemplate(template, { count }),
+  ingredientsCount: (template) => (count: number) =>
+    renderCopyTemplate(template, { count }),
+  quantityDecrease: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityIncrease: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityLabel: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  resultStatus: (template) => (view: string, count: number) =>
+    renderCopyTemplate(template, { view, count }),
+  waiterReady: (template) => (table: string) =>
+    renderCopyTemplate(template, { table })
+};
+
+function copyLeafSpecs(base: TrouvableCopy): CopyLeafSpec[] {
+  const specs: CopyLeafSpec[] = [];
+  for (const [rawKey, value] of Object.entries(base)) {
+    const key = rawKey as keyof TrouvableCopy;
+    if (typeof value === "string") {
+      specs.push({ key, kind: "string", path: rawKey });
+      continue;
+    }
+    if (typeof value === "function" && COPY_FUNCTION_TEMPLATE_BUILDERS[key]) {
+      specs.push({ key, kind: "function-template", path: rawKey });
+      continue;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      for (const [nestedKey, nestedValue] of Object.entries(value)) {
+        if (typeof nestedValue === "string") {
+          specs.push({
+            key,
+            kind: "string",
+            nestedKey,
+            path: `${rawKey}.${nestedKey}`
+          });
+        }
+      }
+    }
+  }
+  return specs;
+}
+
+const TROUVABLE_COPY_LEAF_SPECS = copyLeafSpecs(TROUVABLE_COPY.en);
+
 export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
   return normalizePublicMenuLocale(value);
 }
@@ -923,6 +1076,21 @@ function copyStringOverrides(value: unknown, base: TrouvableCopy): Partial<Trouv
   return overrides;
 }
 
+function copyFunctionTemplateOverrides(
+  value: unknown,
+  base: TrouvableCopy
+): Partial<TrouvableCopy> {
+  const overrides: Partial<TrouvableCopy> = {};
+  for (const [key, text] of Object.entries(stringOverrides(value))) {
+    const copyKey = key as keyof TrouvableCopy;
+    const builder = COPY_FUNCTION_TEMPLATE_BUILDERS[copyKey];
+    if (builder && typeof base[copyKey] === "function") {
+      (overrides as Record<string, unknown>)[key] = builder(text);
+    }
+  }
+  return overrides;
+}
+
 function localizedUiCopyBucketKey(value: string):
   | { normalizedKey: string; language: string }
   | null {
@@ -941,22 +1109,124 @@ function localizedUiCopyBucketKey(value: string):
   }
 }
 
-function localizedUiCopyBuckets(uiCopy: unknown): Map<string, Record<string, unknown>> {
+function localizedUiCopyBuckets(uiCopy: unknown): LocalizedUiCopyBuckets {
   const source = objectInput(uiCopy);
-  const buckets = new Map<string, Record<string, unknown>>();
+  const exact = new Map<string, Record<string, unknown>>();
+  const language = new Map<string, Record<string, unknown>>();
   for (const [key, value] of Object.entries(source)) {
     const localeKey = localizedUiCopyBucketKey(key);
     if (!localeKey) continue;
     const bucket = objectInput(value);
     if (Object.keys(bucket).length === 0) continue;
-    buckets.set(localeKey.normalizedKey, bucket);
-    buckets.set(localeKey.language, bucket);
+    exact.set(localeKey.normalizedKey, bucket);
+    if (localeKey.normalizedKey === localeKey.language) {
+      language.set(localeKey.language, bucket);
+    }
   }
-  return buckets;
+  return { exact, language };
 }
 
-function hasLocalizedUiCopyBuckets(uiCopy: unknown): boolean {
-  return localizedUiCopyBuckets(uiCopy).size > 0;
+function copyOverrideDiagnostics(value: unknown): {
+  coveredPaths: Set<string>;
+  ignoredKeys: Set<string>;
+} {
+  const input = objectInput(value);
+  const coveredPaths = new Set<string>();
+  const ignoredKeys = new Set<string>();
+
+  for (const [rawKey, rawValue] of Object.entries(input)) {
+    const key = rawKey as keyof TrouvableCopy;
+    const baseValue = TROUVABLE_COPY.en[key];
+    if (baseValue === undefined) {
+      if (!localizedUiCopyBucketKey(rawKey)) ignoredKeys.add(rawKey);
+      continue;
+    }
+
+    if (typeof baseValue === "string") {
+      if (typeof rawValue === "string" && rawValue.trim()) {
+        coveredPaths.add(rawKey);
+      } else {
+        ignoredKeys.add(rawKey);
+      }
+      continue;
+    }
+
+    if (typeof baseValue === "function") {
+      if (
+        COPY_FUNCTION_TEMPLATE_BUILDERS[key] &&
+        typeof rawValue === "string" &&
+        rawValue.trim()
+      ) {
+        coveredPaths.add(rawKey);
+      } else {
+        ignoredKeys.add(rawKey);
+      }
+      continue;
+    }
+
+    if (baseValue && typeof baseValue === "object" && !Array.isArray(baseValue)) {
+      const nestedInput = objectInput(rawValue);
+      if (Object.keys(nestedInput).length === 0) {
+        ignoredKeys.add(rawKey);
+        continue;
+      }
+      for (const [nestedKey, nestedValue] of Object.entries(nestedInput)) {
+        const nestedPath = `${rawKey}.${nestedKey}`;
+        if (
+          Object.prototype.hasOwnProperty.call(baseValue, nestedKey) &&
+          typeof nestedValue === "string" &&
+          nestedValue.trim()
+        ) {
+          coveredPaths.add(nestedPath);
+        } else {
+          ignoredKeys.add(nestedPath);
+        }
+      }
+      continue;
+    }
+
+    ignoredKeys.add(rawKey);
+  }
+
+  return { coveredPaths, ignoredKeys };
+}
+
+function copyCoverageFor(overrides: unknown[]): {
+  coveredPaths: Set<string>;
+  ignoredKeys: string[];
+} {
+  const coveredPaths = new Set<string>();
+  const ignoredKeys = new Set<string>();
+  for (const override of overrides) {
+    const diagnostics = copyOverrideDiagnostics(override);
+    for (const path of diagnostics.coveredPaths) coveredPaths.add(path);
+    for (const key of diagnostics.ignoredKeys) ignoredKeys.add(key);
+  }
+  return {
+    coveredPaths,
+    ignoredKeys: Array.from(ignoredKeys).sort()
+  };
+}
+
+function hasFlatCopyOverride(uiCopy: unknown): boolean {
+  return copyOverrideDiagnostics(uiCopy).coveredPaths.size > 0;
+}
+
+function copyNestedOverrides(value: unknown, base: TrouvableCopy): Partial<TrouvableCopy> {
+  const input = objectInput(value);
+  const overrides: Partial<TrouvableCopy> = {};
+  for (const [rawKey, baseValue] of Object.entries(base)) {
+    if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
+      continue;
+    }
+    const nestedOverrides = stringOverrides(input[rawKey]);
+    if (Object.keys(nestedOverrides).length === 0) continue;
+    (overrides as Record<string, unknown>)[rawKey] = {
+      ...baseValue,
+      ...nestedOverrides
+    };
+  }
+  return overrides;
 }
 
 function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
@@ -964,14 +1234,8 @@ function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy 
     (current, override) => ({
       ...current,
       ...copyStringOverrides(override, current),
-      greeting: {
-        ...current.greeting,
-        ...stringOverrides(objectInput(override).greeting)
-      },
-      waiterTopics: {
-        ...current.waiterTopics,
-        ...stringOverrides(objectInput(override).waiterTopics)
-      }
+      ...copyFunctionTemplateOverrides(override, current),
+      ...copyNestedOverrides(override, current)
     }),
     base
   );
@@ -988,6 +1252,9 @@ export function resolveTrouvableCopy(
     dynamicSource: "exact" | "language" | "legacy-flat" | "none";
     builtInLocale: TrouvableCopyLocale;
     usedNeutralFallback: boolean;
+    uiCopyComplete: boolean;
+    missingKeys: string[];
+    ignoredKeys: string[];
   };
 } {
   const requestedLocale = normalizePublicMenuLocale(locale);
@@ -995,10 +1262,10 @@ export function resolveTrouvableCopy(
   const builtInLocale =
     builtInCopyLocaleForPublicLocale(requestedLocale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
   const buckets = localizedUiCopyBuckets(localizedUiCopy);
-  const exactOverride = buckets.get(requestedLocale.toLowerCase());
-  const languageOverride = buckets.get(requestedLanguage);
+  const exactOverride = buckets.exact.get(requestedLocale.toLowerCase());
+  const languageOverride = buckets.language.get(requestedLanguage);
   const legacyFlatOverride =
-    !exactOverride && !languageOverride && localizedUiCopy && !hasLocalizedUiCopyBuckets(localizedUiCopy)
+    localizedUiCopy && hasFlatCopyOverride(localizedUiCopy)
       ? localizedUiCopy
       : undefined;
   const dynamicSource = exactOverride
@@ -1008,13 +1275,25 @@ export function resolveTrouvableCopy(
       : legacyFlatOverride
         ? "legacy-flat"
         : "none";
+  const dynamicOverrides = [legacyFlatOverride, languageOverride, exactOverride].filter(
+    Boolean
+  );
+  const dynamicCoverage = copyCoverageFor(dynamicOverrides);
+  const hasBuiltInCompleteCopy = builtInLocale !== TROUVABLE_FALLBACK_COPY_LOCALE ||
+    requestedLanguage === TROUVABLE_FALLBACK_COPY_LOCALE;
+  const missingKeys = hasBuiltInCompleteCopy
+    ? []
+    : TROUVABLE_COPY_LEAF_SPECS
+        .map((spec) => spec.path)
+        .filter((path) => !dynamicCoverage.coveredPaths.has(path));
+  const uiCopyComplete = missingKeys.length === 0;
 
   return {
     copy: mergeCopy(
       TROUVABLE_COPY[builtInLocale],
+      legacyFlatOverride,
       languageOverride,
-      exactOverride,
-      legacyFlatOverride
+      exactOverride
     ),
     resolution: {
       requestedLocale,
@@ -1024,7 +1303,10 @@ export function resolveTrouvableCopy(
       usedNeutralFallback:
         builtInLocale === TROUVABLE_FALLBACK_COPY_LOCALE &&
         requestedLanguage !== TROUVABLE_FALLBACK_COPY_LOCALE &&
-        dynamicSource === "none"
+        !uiCopyComplete,
+      uiCopyComplete,
+      missingKeys,
+      ignoredKeys: dynamicCoverage.ignoredKeys
     }
   };
 }
@@ -1339,8 +1621,14 @@ export function getTrouvableGreeting(
 export function getTrouvableGreetingForDate(
   locale: TrouvableLocale,
   timezone: string,
-  date: Date = new Date()
+  date: Date = new Date(),
+  localizedUiCopy?: Record<string, unknown>
 ): string {
+  const resolved = resolveTrouvableCopy(locale, localizedUiCopy);
+  if (resolved.resolution.dynamicSource !== "none") {
+    const period = getGreetingPeriodForTime(date, timezone);
+    return resolved.copy.greeting[period];
+  }
   return getGreetingForTime(date, normalizePublicMenuLocale(locale), timezone);
 }
 

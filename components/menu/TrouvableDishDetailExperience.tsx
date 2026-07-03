@@ -28,12 +28,12 @@ import {
   TROUVABLE_LOCALE_STORAGE_KEY,
   TROUVABLE_THEME_STORAGE_KEY,
   formatTrouvableDishPrice,
-  getTrouvableCopy,
   getTrouvableTextDirection,
   isTrouvableLocaleSupported,
   normalizeTrouvableCurrency,
   normalizeTrouvableLocaleForSettings,
   normalizeTrouvableTheme,
+  resolveTrouvableCopy,
   type TrouvableCurrency,
   type TrouvableLocale,
   type TrouvableTheme
@@ -156,7 +156,10 @@ export function TrouvableDishDetailExperience({
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
-  const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
+  const { copy, resolution: copyResolution } = resolveTrouvableCopy(
+    selectedLocale,
+    menu.localizedUiCopy
+  );
   const textDirection = getTrouvableTextDirection(selectedLocale);
   const localizedQuery = useMemo<PublicMenuContextQuery>(
     () => ({
@@ -362,6 +365,12 @@ export function TrouvableDishDetailExperience({
       lang={selectedLocale}
       data-text-direction={textDirection}
       data-user-theme={selectedTheme}
+      data-copy-built-in-locale={copyResolution.builtInLocale}
+      data-copy-dynamic-source={copyResolution.dynamicSource}
+      data-copy-neutral-fallback={copyResolution.usedNeutralFallback ? "true" : "false"}
+      data-copy-complete={copyResolution.uiCopyComplete ? "true" : "false"}
+      data-copy-missing-keys={copyResolution.missingKeys.length}
+      data-copy-ignored-keys={copyResolution.ignoredKeys.length}
       onPointerDown={(event) => {
         if (
           event.pointerType !== "mouse" &&
@@ -421,7 +430,7 @@ export function TrouvableDishDetailExperience({
         >
           {activeDish.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt={`Photo de ${activeDish.name}`} src={activeDish.imageUrl} />
+            <img alt="" src={activeDish.imageUrl} />
           ) : (
             <span>{menu.name.slice(0, 1)}</span>
           )}
