@@ -168,6 +168,12 @@ test("menu translation source fields stay shared between owner generation and pu
   const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
   const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
   const publicCore = await readRepoFile("lib/menu/publicMenuCore.ts");
+  const ownerDishFields =
+    ownerTranslations.match(/function dishFields[\s\S]*?return fields;\s*}\s*function categoryFields/)?.[0] ??
+    "";
+  const publicDishFields =
+    publicTranslations.match(/function dishFields[\s\S]*?}\s*function menuFields/)?.[0] ??
+    "";
   const sourceFields = menuTranslationFieldsFromNames({
     restaurantName: "Cafe Vistaire",
     menuName: "Menu principal"
@@ -183,7 +189,15 @@ test("menu translation source fields stay shared between owner generation and pu
   assert.match(ownerTranslations, /menuTranslationFieldsFromNames/);
   assert.match(publicTranslations, /menuTranslationFieldsFromNames/);
   assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
+  assert.ok(ownerDishFields, "owner dishFields source must be found");
+  assert.ok(publicDishFields, "public dishFields source must be found");
+  assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*"name"/);
+  assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /field:\s*"restaurantName"/);
+  assert.doesNotMatch(
+    publicTranslations,
+    /name:\s*getTranslatedString\(\{[\s\S]{0,180}source:\s*dish\.name/
+  );
   assert.doesNotMatch(publicTranslations, /name:\s*translatedName/);
   assert.match(publicCore, /menuName\?: string/);
   assert.match(publicCore, /menuName:\s*getString\(args\.menuRow/);

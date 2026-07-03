@@ -4,7 +4,10 @@ import {
   formatMenuPriceCents,
   type MenuExchangeRates
 } from "../../lib/currency/formatMenuPrice.ts";
-import { getGreetingForTime } from "../../lib/menu/greeting.ts";
+import {
+  getGreetingForTime,
+  getGreetingPeriodForTime
+} from "../../lib/menu/greeting.ts";
 import type { PublicMenuDish } from "../../lib/menu/publicMenuCore.ts";
 import {
   normalizePublicMenuLocale,
@@ -842,6 +845,41 @@ type TrouvableCopy = {
   >;
 };
 
+type LocalizedUiCopyBuckets = {
+  exact: Map<string, Record<string, unknown>>;
+  language: Map<string, Record<string, unknown>>;
+};
+
+function renderCopyTemplate(
+  template: string,
+  values: Record<string, string | number>
+): string {
+  return Object.entries(values).reduce(
+    (output, [key, value]) =>
+      output.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
+    template
+  );
+}
+
+const COPY_FUNCTION_TEMPLATE_BUILDERS: {
+  [Key in keyof TrouvableCopy]?: (template: string) => TrouvableCopy[Key];
+} = {
+  activeFilters: (template) => (count: number) =>
+    renderCopyTemplate(template, { count }),
+  ingredientsCount: (template) => (count: number) =>
+    renderCopyTemplate(template, { count }),
+  quantityDecrease: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityIncrease: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityLabel: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  resultStatus: (template) => (view: string, count: number) =>
+    renderCopyTemplate(template, { view, count }),
+  waiterReady: (template) => (table: string) =>
+    renderCopyTemplate(template, { table })
+};
+
 export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
   return normalizePublicMenuLocale(value);
 }
@@ -923,6 +961,21 @@ function copyStringOverrides(value: unknown, base: TrouvableCopy): Partial<Trouv
   return overrides;
 }
 
+function copyFunctionTemplateOverrides(
+  value: unknown,
+  base: TrouvableCopy
+): Partial<TrouvableCopy> {
+  const overrides: Partial<TrouvableCopy> = {};
+  for (const [key, text] of Object.entries(stringOverrides(value))) {
+    const copyKey = key as keyof TrouvableCopy;
+    const builder = COPY_FUNCTION_TEMPLATE_BUILDERS[copyKey];
+    if (builder && typeof base[copyKey] === "function") {
+      (overrides as Record<string, unknown>)[key] = builder(text);
+    }
+  }
+  return overrides;
+}
+
 function localizedUiCopyBucketKey(value: string):
   | { normalizedKey: string; language: string }
   | null {
@@ -941,22 +994,77 @@ function localizedUiCopyBucketKey(value: string):
   }
 }
 
-function localizedUiCopyBuckets(uiCopy: unknown): Map<string, Record<string, unknown>> {
+function localizedUiCopyBuckets(uiCopy: unknown): LocalizedUiCopyBuckets {
   const source = objectInput(uiCopy);
-  const buckets = new Map<string, Record<string, unknown>>();
+  const exact = new Map<string, Record<string, unknown>>();
+  const language = new Map<string, Record<string, unknown>>();
   for (const [key, value] of Object.entries(source)) {
     const localeKey = localizedUiCopyBucketKey(key);
     if (!localeKey) continue;
     const bucket = objectInput(value);
     if (Object.keys(bucket).length === 0) continue;
-    buckets.set(localeKey.normalizedKey, bucket);
-    buckets.set(localeKey.language, bucket);
+    exact.set(localeKey.normalizedKey, bucket);
+    if (localeKey.normalizedKey === localeKey.language) {
+      language.set(localeKey.language, bucket);
+    }
   }
-  return buckets;
+  return { exact, language };
 }
 
 function hasLocalizedUiCopyBuckets(uiCopy: unknown): boolean {
-  return localizedUiCopyBuckets(uiCopy).size > 0;
+  const buckets = localizedUiCopyBuckets(uiCopy);
+  return buckets.exact.size > 0 || buckets.language.size > 0;
+}
+
+function copyOverrideCoverage(value: unknown, base: TrouvableCopy): Set<keyof TrouvableCopy> {
+  const covered = new Set<keyof TrouvableCopy>();
+  const input = objectInput(value);
+
+  for (const [key] of Object.entries(stringOverrides(value))) {
+    const copyKey = key as keyof TrouvableCopy;
+    if (
+      typeof base[copyKey] === "string" ||
+      (COPY_FUNCTION_TEMPLATE_BUILDERS[copyKey] && typeof base[copyKey] === "function")
+    ) {
+      covered.add(copyKey);
+    }
+  }
+
+  const greetingOverrides = stringOverrides(input.greeting);
+  if (
+    Object.keys(base.greeting).every((key) =>
+      Object.prototype.hasOwnProperty.call(greetingOverrides, key)
+    )
+  ) {
+    covered.add("greeting");
+  }
+
+  const waiterTopicOverrides = stringOverrides(input.waiterTopics);
+  if (
+    Object.keys(base.waiterTopics).every((key) =>
+      Object.prototype.hasOwnProperty.call(waiterTopicOverrides, key)
+    )
+  ) {
+    covered.add("waiterTopics");
+  }
+
+  return covered;
+}
+
+function hasCompleteDynamicCopyCoverage(
+  base: TrouvableCopy,
+  overrides: unknown[]
+): boolean {
+  if (overrides.length === 0) return false;
+  const covered = new Set<keyof TrouvableCopy>();
+  for (const override of overrides) {
+    for (const key of copyOverrideCoverage(override, base)) {
+      covered.add(key);
+    }
+  }
+  return (Object.keys(base) as Array<keyof TrouvableCopy>).every((key) =>
+    covered.has(key)
+  );
 }
 
 function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
@@ -964,6 +1072,7 @@ function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy 
     (current, override) => ({
       ...current,
       ...copyStringOverrides(override, current),
+      ...copyFunctionTemplateOverrides(override, current),
       greeting: {
         ...current.greeting,
         ...stringOverrides(objectInput(override).greeting)
@@ -995,8 +1104,8 @@ export function resolveTrouvableCopy(
   const builtInLocale =
     builtInCopyLocaleForPublicLocale(requestedLocale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
   const buckets = localizedUiCopyBuckets(localizedUiCopy);
-  const exactOverride = buckets.get(requestedLocale.toLowerCase());
-  const languageOverride = buckets.get(requestedLanguage);
+  const exactOverride = buckets.exact.get(requestedLocale.toLowerCase());
+  const languageOverride = buckets.language.get(requestedLanguage);
   const legacyFlatOverride =
     !exactOverride && !languageOverride && localizedUiCopy && !hasLocalizedUiCopyBuckets(localizedUiCopy)
       ? localizedUiCopy
@@ -1008,6 +1117,13 @@ export function resolveTrouvableCopy(
       : legacyFlatOverride
         ? "legacy-flat"
         : "none";
+  const dynamicOverrides = [languageOverride, exactOverride, legacyFlatOverride].filter(
+    Boolean
+  );
+  const hasCompleteDynamicCopy = hasCompleteDynamicCopyCoverage(
+    TROUVABLE_COPY[builtInLocale],
+    dynamicOverrides
+  );
 
   return {
     copy: mergeCopy(
@@ -1024,7 +1140,7 @@ export function resolveTrouvableCopy(
       usedNeutralFallback:
         builtInLocale === TROUVABLE_FALLBACK_COPY_LOCALE &&
         requestedLanguage !== TROUVABLE_FALLBACK_COPY_LOCALE &&
-        dynamicSource === "none"
+        !hasCompleteDynamicCopy
     }
   };
 }
@@ -1339,8 +1455,14 @@ export function getTrouvableGreeting(
 export function getTrouvableGreetingForDate(
   locale: TrouvableLocale,
   timezone: string,
-  date: Date = new Date()
+  date: Date = new Date(),
+  localizedUiCopy?: Record<string, unknown>
 ): string {
+  const resolved = resolveTrouvableCopy(locale, localizedUiCopy);
+  if (resolved.resolution.dynamicSource !== "none") {
+    const period = getGreetingPeriodForTime(date, timezone);
+    return resolved.copy.greeting[period];
+  }
   return getGreetingForTime(date, normalizePublicMenuLocale(locale), timezone);
 }
 

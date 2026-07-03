@@ -22,7 +22,6 @@ function listInput(value: unknown): string[] {
 
 function dishFields(dish: PublicMenuDish): MenuTranslationFields {
   return {
-    name: dish.name,
     ...(dish.description ? { description: dish.description } : {}),
     ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
     ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),
@@ -238,12 +237,6 @@ export async function applyStoredPublicMenuTranslations(
     const categoryRow = categoryRowsById.get(categoryId);
     return {
       ...dish,
-      name: getTranslatedString({
-        field: "name",
-        source: dish.name,
-        sourceFields,
-        row: dishRow
-      }),
       description: getTranslatedString({
         field: "description",
         source: dish.description,

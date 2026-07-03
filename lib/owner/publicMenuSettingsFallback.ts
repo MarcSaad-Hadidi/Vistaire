@@ -226,8 +226,20 @@ export function mergePublicMenuSettingsIntoUiConfig(
   configJson: unknown,
   settings: PublicMenuSettings
 ): Record<string, unknown> {
+  const config = objectInput(configJson);
+  const existingSettings = objectInput(
+    config.publicMenuSettings ??
+      config.public_menu_settings ??
+      config.settings
+  );
+  const localizedUiCopy = getLocalizedUiCopy(config) ?? getLocalizedUiCopy(existingSettings);
+  const publicMenuSettings = serializePublicMenuSettings(settings) as Record<string, unknown>;
+
   return {
-    ...objectInput(configJson),
-    [UI_CONFIG_SETTINGS_KEY]: serializePublicMenuSettings(settings)
+    ...config,
+    [UI_CONFIG_SETTINGS_KEY]: {
+      ...publicMenuSettings,
+      ...(localizedUiCopy ? { localizedUiCopy } : {})
+    }
   };
 }

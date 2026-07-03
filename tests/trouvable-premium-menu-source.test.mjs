@@ -372,17 +372,31 @@ test("Trouvable category swipe hint keeps a looping edge-bounce animation", asyn
 
 test("Trouvable public UI labels use extensible localized copy", async () => {
   const source = await readFile(componentPath, "utf8");
+  const detailSource = await readFile(dishDetailPath, "utf8");
 
   assert.match(source, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(
+    source,
+    /getTrouvableGreetingForDate\(\s*selectedLocale,\s*menu\.settings\.timezone,\s*new Date\(\),\s*menu\.localizedUiCopy\s*\)/
+  );
   assert.match(source, /data-copy-dynamic-source=\{copyResolution\.dynamicSource\}/);
   assert.match(source, /data-copy-neutral-fallback=\{copyResolution\.usedNeutralFallback/);
   assert.match(source, /label:\s*copy\.immersiveFilterLabel/);
   assert.match(source, /\$\{copy\.tableLabel\} \$\{tableNumber\.trim\(\)\}/);
   assert.match(source, /placeholder=\{copy\.tablePlaceholder\}/);
   assert.match(source, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
+  assert.match(source, /aria-labelledby="trouvable-hero-title"/);
+  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
   assert.doesNotMatch(source, /label:\s*"3D \/ AR"/);
   assert.doesNotMatch(source, /placeholder="Ex\. 12"/);
   assert.doesNotMatch(source, /Table \$\{tableNumber\.trim\(\)\}/);
+  assert.doesNotMatch(source, /aria-label=\{`Menu \$\{menu\.name\}`\}/);
+  assert.doesNotMatch(source, /translateTrouvableCategoryLabel/);
+  assert.doesNotMatch(source, /Photo de \$\{/);
+  assert.doesNotMatch(detailSource, /Photo de \$\{/);
+  assert.match(detailSource, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(detailSource, /data-copy-dynamic-source=\{copyResolution\.dynamicSource\}/);
+  assert.match(detailSource, /data-copy-neutral-fallback=\{copyResolution\.usedNeutralFallback/);
 });
 
 test("Trouvable category swipe uses full navigable sections and keeps the rail synced", async () => {

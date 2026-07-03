@@ -129,6 +129,22 @@ test("Trouvable copy reads base-language dynamic UI copy for non-built-in locale
   assert.equal(copy.threeD, "VER EM 3D");
 });
 
+test("Trouvable copy merges base and exact Greek UI buckets without order loss", () => {
+  const copy = getTrouvableCopy("el-GR", {
+    el: {
+      searchLabel: "\u0391\u03bd\u03b1\u03b6\u03ae\u03c4\u03b7\u03c3\u03b7",
+      threeD: "\u03a0\u03a1\u039f\u0392\u039f\u039b\u0397 \u03a3\u0395 3D"
+    },
+    "el-GR": {
+      swipeLabel: "\u03a3\u03cd\u03c1\u03b5\u03c4\u03b5"
+    }
+  });
+
+  assert.equal(copy.searchLabel, "\u0391\u03bd\u03b1\u03b6\u03ae\u03c4\u03b7\u03c3\u03b7");
+  assert.equal(copy.swipeLabel, "\u03a3\u03cd\u03c1\u03b5\u03c4\u03b5");
+  assert.equal(copy.threeD, "\u03a0\u03a1\u039f\u0392\u039f\u039b\u0397 \u03a3\u0395 3D");
+});
+
 test("Trouvable copy merges missing dynamic keys from the locale fallback", () => {
   const copy = getTrouvableCopy("es-MX", {
     es: {
@@ -168,22 +184,49 @@ test("Trouvable copy exposes documented neutral fallback metadata for missing UI
   assert.equal(resolution.usedNeutralFallback, true);
 });
 
-test("Trouvable dynamic UI copy cannot replace function-valued copy with strings", () => {
-  const copy = getTrouvableCopy("de-DE", {
-    "de-DE": {
-      activeFilters: "Kaputte Filter",
-      filterButton: "Filtern",
-      quantityLabel: "Kaputte Menge",
-      resultStatus: "Kaputter Status",
-      waiterReady: "Kaputter Service"
+test("Trouvable copy flags partial non-built-in UI packs that still use English fallback", () => {
+  const { copy, resolution } = resolveTrouvableCopy("el-GR", {
+    el: {
+      swipeLabel: "\u03a3\u03cd\u03c1\u03b5\u03c4\u03b5"
     }
   });
 
-  assert.equal(copy.filterButton, "Filtern");
+  assert.equal(copy.swipeLabel, "\u03a3\u03cd\u03c1\u03b5\u03c4\u03b5");
+  assert.equal(copy.moreDetails, "View details");
+  assert.equal(resolution.dynamicSource, "language");
+  assert.equal(resolution.builtInLocale, "en");
+  assert.equal(resolution.usedNeutralFallback, true);
+});
+
+test("Trouvable dynamic UI copy localizes function-valued labels with templates", () => {
+  const copy = getTrouvableCopy("el-GR", {
+    el: {
+      activeFilters: "{count} \u03c6\u03af\u03bb\u03c4\u03c1\u03b1",
+      filterButton: "\u03a6\u03af\u03bb\u03c4\u03c1\u03bf",
+      quantityLabel: "\u03a0\u03bf\u03c3\u03cc\u03c4\u03b7\u03c4\u03b1 \u03b3\u03b9\u03b1 {name}",
+      resultStatus: "\u03a0\u03c1\u03bf\u03b2\u03bf\u03bb\u03ae {view}, {count} \u03c0\u03b9\u03ac\u03c4\u03b1",
+      waiterReady: "{table} - \u03c4\u03bf \u03b1\u03af\u03c4\u03b7\u03bc\u03b1 \u03b5\u03af\u03bd\u03b1\u03b9 \u03ad\u03c4\u03bf\u03b9\u03bc\u03bf."
+    }
+  });
+
+  assert.equal(copy.filterButton, "\u03a6\u03af\u03bb\u03c4\u03c1\u03bf");
   assert.equal(typeof copy.activeFilters, "function");
   assert.equal(typeof copy.quantityLabel, "function");
   assert.equal(typeof copy.resultStatus, "function");
   assert.equal(typeof copy.waiterReady, "function");
+  assert.equal(copy.activeFilters(2), "2 \u03c6\u03af\u03bb\u03c4\u03c1\u03b1");
+  assert.equal(
+    copy.quantityLabel("Spanakopita"),
+    "\u03a0\u03bf\u03c3\u03cc\u03c4\u03b7\u03c4\u03b1 \u03b3\u03b9\u03b1 Spanakopita"
+  );
+  assert.equal(
+    copy.resultStatus("grid", 4),
+    "\u03a0\u03c1\u03bf\u03b2\u03bf\u03bb\u03ae grid, 4 \u03c0\u03b9\u03ac\u03c4\u03b1"
+  );
+  assert.equal(
+    copy.waiterReady("Table 12"),
+    "Table 12 - \u03c4\u03bf \u03b1\u03af\u03c4\u03b7\u03bc\u03b1 \u03b5\u03af\u03bd\u03b1\u03b9 \u03ad\u03c4\u03bf\u03b9\u03bc\u03bf."
+  );
 });
 
 test("Trouvable greeting uses the active public locale and restaurant timezone", () => {
@@ -199,6 +242,22 @@ test("Trouvable greeting uses the active public locale and restaurant timezone",
   assert.equal(getTrouvableGreetingForDate("de-DE", "UTC", evening), "Guten Abend");
   assert.equal(getTrouvableGreetingForDate("ar", "UTC", evening), "\u0645\u0633\u0627\u0621 \u0627\u0644\u062e\u064a\u0631");
   assert.equal(getTrouvableGreetingForDate("ar", "UTC", night), "\u0645\u0633\u0627\u0621 \u0627\u0644\u062e\u064a\u0631");
+});
+
+test("Trouvable greeting uses dynamic Greek restaurant UI copy when provided", () => {
+  const evening = new Date("2026-07-02T19:00:00.000Z");
+
+  assert.equal(
+    getTrouvableGreetingForDate("el-GR", "UTC", evening, {
+      el: {
+        greeting: {
+          evening: "\u039a\u03b1\u03bb\u03b7\u03c3\u03c0\u03ad\u03c1\u03b1",
+          night: "\u039a\u03b1\u03bb\u03b7\u03c3\u03c0\u03ad\u03c1\u03b1"
+        }
+      }
+    }),
+    "\u039a\u03b1\u03bb\u03b7\u03c3\u03c0\u03ad\u03c1\u03b1"
+  );
 });
 
 test("Trouvable language and currency labels follow the active locale", () => {
@@ -236,13 +295,13 @@ test("Trouvable language and currency labels follow the active locale", () => {
 test("Trouvable selectors expose every configured public locale and currency", () => {
   const settings = {
     defaultLocale: "fr-CA",
-    supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"],
+    supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "el-GR", "ar"],
     supportedCurrencies: ["CAD", "USD", "EUR", "GBP"]
   };
 
   assert.deepEqual(
     getTrouvableLanguageOptions(settings, "fr-CA").map((option) => option.publicLocale),
-    ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"]
+    ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "el-GR", "ar"]
   );
   assert.deepEqual(
     getTrouvableCurrencyOptions(settings).map((option) => option.code),

@@ -12,6 +12,7 @@ const MENU_ID = "33333333-3333-4333-8333-333333333333";
 function menuSettingsClient({
   primaryError = null,
   metadata = { photoPolicy: "ready" },
+  settingsJson = null,
   metadataSelectError = null,
   metadataUpdateError = null,
   uiConfig = {
@@ -139,9 +140,13 @@ function menuSettingsClient({
                   calls.push({ table, action: "select", columns });
                   return {
                     async single() {
+                      if (primaryError && columns.includes("settings_json")) {
+                        return { data: null, error: primaryError };
+                      }
                       return {
                         data: {
                           id: MENU_ID,
+                          ...(settingsJson ? { settings_json: settingsJson } : {}),
                           metadata
                         },
                         error: null
@@ -163,12 +168,16 @@ function menuSettingsClient({
                   calls.push({ table, action: "eq", column: column2, value: value2 });
                   return {
                     async single() {
+                      if (primaryError && columns.includes("settings_json")) {
+                        return { data: null, error: primaryError };
+                      }
                       if (metadataSelectError) {
                         return { data: null, error: metadataSelectError };
                       }
                       return {
                         data: {
                           id: MENU_ID,
+                          ...(settingsJson ? { settings_json: settingsJson } : {}),
                           metadata
                         },
                         error: null
@@ -201,6 +210,36 @@ const settings = {
   priceDisplayMode: "auto"
 };
 
+test("owner menu settings preserve localized UI copy stored in settings_json", async () => {
+  const localizedUiCopy = {
+    el: {
+      filterButton: "\u03a6\u03af\u03bb\u03c4\u03c1\u03bf",
+      threeD: "\u03a0\u03a1\u039f\u0392\u039f\u039b\u0397 \u03a3\u0395 3D"
+    }
+  };
+  const client = menuSettingsClient({
+    settingsJson: {
+      ...settings,
+      localizedUiCopy
+    }
+  });
+
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.storage, "settings_json");
+
+  const settingsWrite = client.calls.find(
+    (call) => call.action === "update" && Object.hasOwn(call.row, "settings_json")
+  );
+  assert.ok(settingsWrite);
+  assert.deepEqual(settingsWrite.row.settings_json.localizedUiCopy, localizedUiCopy);
+});
+
 test("owner menu settings fall back to menu metadata when settings_json is missing", async () => {
   const client = menuSettingsClient({
     primaryError: {
@@ -228,6 +267,44 @@ test("owner menu settings fall back to menu metadata when settings_json is missi
   assert.deepEqual(metadataWrite.row.metadata.publicMenuSettings, result.settings);
 });
 
+test("owner menu settings preserve localized UI copy stored with metadata settings", async () => {
+  const localizedUiCopy = {
+    el: {
+      filterButton: "\u03a6\u03af\u03bb\u03c4\u03c1\u03bf"
+    }
+  };
+  const client = menuSettingsClient({
+    primaryError: {
+      code: "42703",
+      message: 'column menus.settings_json does not exist'
+    },
+    metadata: {
+      publicMenuSettings: {
+        ...settings,
+        localizedUiCopy
+      }
+    }
+  });
+
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.storage, "metadata");
+
+  const metadataWrite = client.calls.find(
+    (call) => call.action === "update" && Object.hasOwn(call.row, "metadata")
+  );
+  assert.ok(metadataWrite);
+  assert.deepEqual(
+    metadataWrite.row.metadata.publicMenuSettings.localizedUiCopy,
+    localizedUiCopy
+  );
+});
+
 test("owner menu settings fall back to menu_ui_configs when menus has no settings columns", async () => {
   const client = menuSettingsClient({
     primaryError: {
@@ -237,6 +314,22 @@ test("owner menu settings fall back to menu_ui_configs when menus has no setting
     metadataSelectError: {
       code: "PGRST204",
       message: "Could not find the 'metadata' column of 'menus' in the schema cache"
+    },
+    uiConfig: {
+      id: "44444444-4444-4444-8444-444444444444",
+      theme: "fresh-homemade",
+      config_json: {
+        menuLanguages: ["fr", "en"],
+        publicMenuSettings: {
+          ...settings,
+          localizedUiCopy: {
+            el: {
+              filterButton: "\u03a6\u03af\u03bb\u03c4\u03c1\u03bf"
+            }
+          }
+        }
+      },
+      status: "draft"
     }
   });
 
@@ -259,7 +352,14 @@ test("owner menu settings fall back to menu_ui_configs when menus has no setting
   );
   assert.ok(uiConfigWrite);
   assert.deepEqual(uiConfigWrite.row.config_json.menuLanguages, ["fr", "en"]);
-  assert.deepEqual(uiConfigWrite.row.config_json.publicMenuSettings, result.settings);
+  const writtenSettings = { ...uiConfigWrite.row.config_json.publicMenuSettings };
+  delete writtenSettings.localizedUiCopy;
+  assert.deepEqual(writtenSettings, result.settings);
+  assert.deepEqual(uiConfigWrite.row.config_json.publicMenuSettings.localizedUiCopy, {
+    el: {
+      filterButton: "\u03a6\u03af\u03bb\u03c4\u03c1\u03bf"
+    }
+  });
 });
 
 test("settings_json error detection only catches missing-column failures", () => {
