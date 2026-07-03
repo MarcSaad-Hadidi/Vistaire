@@ -13,6 +13,7 @@ export type OwnerPublicMenuSettingsSource =
 export type OwnerPublicMenuSettingsFallback = {
   source: OwnerPublicMenuSettingsSource;
   settings: PublicMenuSettings;
+  updatedAt?: string;
 };
 
 const UI_CONFIG_SETTINGS_KEY = "publicMenuSettings";
@@ -77,6 +78,7 @@ export function publicMenuSettingsFromMenuRow(
 export function publicMenuSettingsFromUiConfigRow(
   data: unknown
 ): OwnerPublicMenuSettingsFallback | null {
+  const row = objectInput(data);
   const config = objectInput(objectInput(data).config_json);
   const settings = objectInput(
     config.publicMenuSettings ??
@@ -87,14 +89,20 @@ export function publicMenuSettingsFromUiConfigRow(
 
   return {
     source: "menu_ui_configs",
-    settings: serializePublicMenuSettings(normalizePublicMenuSettings(settings))
+    settings: serializePublicMenuSettings(normalizePublicMenuSettings(settings)),
+    updatedAt:
+      typeof row.updated_at === "string" && row.updated_at.trim()
+        ? row.updated_at.trim()
+        : typeof row.updatedAt === "string" && row.updatedAt.trim()
+          ? row.updatedAt.trim()
+          : undefined
   };
 }
 
-export function publicMenuSettingsFromUiConfigRows(
+export function publicMenuSettingsFallbackFromUiConfigRows(
   data: unknown,
   restaurantId = ""
-): PublicMenuSettings | null {
+): OwnerPublicMenuSettingsFallback | null {
   // Effective public menu settings are stored in menu_ui_configs for legacy
   // databases without menus.settings_json. Owner reloads and public routes
   // must read the same saved values, so the editable draft wins when present.
@@ -109,7 +117,14 @@ export function publicMenuSettingsFromUiConfigRows(
     rows.find((row) => String(objectInput(row).status ?? "") === "draft") ??
     rows.find((row) => String(objectInput(row).status ?? "") === "published") ??
     rows[0];
-  return publicMenuSettingsFromUiConfigRow(preferred)?.settings ?? null;
+  return publicMenuSettingsFromUiConfigRow(preferred);
+}
+
+export function publicMenuSettingsFromUiConfigRows(
+  data: unknown,
+  restaurantId = ""
+): PublicMenuSettings | null {
+  return publicMenuSettingsFallbackFromUiConfigRows(data, restaurantId)?.settings ?? null;
 }
 
 export async function readUiConfigPublicMenuSettings(

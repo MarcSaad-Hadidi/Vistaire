@@ -39,8 +39,17 @@ test("getPublicMenuBySlug reads the same effective menu_ui_configs settings as o
     "utf8"
   );
 
-  assert.match(source, /publicMenuSettingsFromUiConfigRows/);
+  assert.match(source, /publicMenuSettingsFallbackFromUiConfigRows/);
   assert.doesNotMatch(source, /publicMenuSettingsFromPublishedUiConfigRows/);
+});
+
+test("getPublicMenuBySlug keeps ui_config freshness metadata for menu settings precedence", async () => {
+  const source = await readFile(
+    new URL("../lib/menu/publicMenu.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /publicMenuSettingsFallbackFromUiConfigRows/);
 });
 
 test("normalizes public menu settings with legacy menu languages", () => {

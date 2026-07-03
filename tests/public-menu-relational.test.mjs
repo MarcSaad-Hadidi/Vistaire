@@ -252,6 +252,7 @@ test("buildRelationalSupabasePublicMenu prefers effective menu_ui_configs settin
       slug: "principal",
       status: "published",
       is_primary: true,
+      updated_at: "2026-07-01T12:00:00.000Z",
       settings_json: {
         defaultLocale: "fr-CA",
         supportedLocales: ["fr-CA", "en-CA"],
@@ -264,19 +265,89 @@ test("buildRelationalSupabasePublicMenu prefers effective menu_ui_configs settin
       }
     },
     legacyPublicMenuSettings: {
-      defaultLocale: "fr-CA",
-      supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"],
-      baseCurrency: "CAD",
-      defaultCurrency: "CAD",
-      supportedCurrencies: ["CAD", "USD", "EUR", "GBP"],
-      publicMenuStyle: "trouvable",
-      timezone: "America/Toronto",
-      defaultThemeMode: "dark",
-      allowThemeToggle: true,
-      allowCurrencySelector: true,
-      allowLanguageSelector: true,
-      taxIncluded: true,
-      priceDisplayMode: "auto"
+      source: "menu_ui_configs",
+      updatedAt: "2026-07-02T12:00:00.000Z",
+      settings: {
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"],
+        baseCurrency: "CAD",
+        defaultCurrency: "CAD",
+        supportedCurrencies: ["CAD", "USD", "EUR", "GBP"],
+        publicMenuStyle: "trouvable",
+        timezone: "America/Toronto",
+        defaultThemeMode: "dark",
+        allowThemeToggle: true,
+        allowCurrencySelector: true,
+        allowLanguageSelector: true,
+        taxIncluded: true,
+        priceDisplayMode: "auto"
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.deepEqual(menu.settings.supportedLocales, [
+    "fr-CA",
+    "en-CA",
+    "es-ES",
+    "it-IT",
+    "de-DE",
+    "ar"
+  ]);
+  assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD", "EUR", "GBP"]);
+  assert.equal(menu.settings.allowLanguageSelector, true);
+  assert.equal(menu.settings.allowCurrencySelector, true);
+  assert.equal(menu.settings.publicMenuStyle, "trouvable");
+  assert.equal(menu.publicMenuStyleExplicit, true);
+});
+
+test("buildRelationalSupabasePublicMenu prefers fresh menu settings over older menu_ui_configs fallback", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "le-comptoir-decimal",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Le Comptoir Decimal",
+      slug: "le-comptoir-decimal",
+      location: "Montreal",
+      cuisine_type: "Cuisine de saison"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      slug: "principal",
+      status: "published",
+      is_primary: true,
+      updated_at: "2026-07-03T12:00:00.000Z",
+      settings_json: {
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "de-DE", "ar"],
+        baseCurrency: "CAD",
+        defaultCurrency: "CAD",
+        supportedCurrencies: ["CAD", "USD", "EUR", "GBP"],
+        publicMenuStyle: "trouvable",
+        timezone: "America/Toronto",
+        defaultThemeMode: "dark",
+        allowThemeToggle: true,
+        allowCurrencySelector: true,
+        allowLanguageSelector: true,
+        taxIncluded: true,
+        priceDisplayMode: "auto"
+      }
+    },
+    legacyPublicMenuSettings: {
+      source: "menu_ui_configs",
+      updatedAt: "2026-07-02T12:00:00.000Z",
+      settings: {
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA", "en-CA"],
+        baseCurrency: "CAD",
+        defaultCurrency: "CAD",
+        supportedCurrencies: ["CAD"],
+        publicMenuStyle: "maison-elyse",
+        allowCurrencySelector: false,
+        allowLanguageSelector: false
+      }
     },
     categoryRows: [],
     dishRows: []

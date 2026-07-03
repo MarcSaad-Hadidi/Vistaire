@@ -812,28 +812,91 @@ function rowMatchesRestaurant(row: PublicMenuRow, restaurantId: string): boolean
   return !restaurantId || getString(row, RESTAURANT_ID_KEYS, "") === restaurantId;
 }
 
-function menuSettingsFromRows(args: {
-  menuRow?: PublicMenuRow | null;
-  legacyPublicMenuSettings?: unknown;
-  legacyMenuLanguages?: unknown;
-}): PublicMenuSettings {
-  const menuRow = args.menuRow ?? {};
-  const uiConfigSettings = objectInput(args.legacyPublicMenuSettings);
-  const nativeSettings = getObject(menuRow, ["settings_json", "settingsJson"]);
-  const metadata = getObject(menuRow, ["metadata", "meta"]);
+type MenuSettingsCandidate = {
+  rawSettings: PublicMenuRow;
+  updatedAtMs: number | null;
+};
+
+function parseUpdatedAtMs(value: unknown): number | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function rowUpdatedAtMs(row: PublicMenuRow): number | null {
+  return parseUpdatedAtMs(row.updated_at ?? row.updatedAt);
+}
+
+function settingsCandidateFromLegacyInput(value: unknown): MenuSettingsCandidate | null {
+  const input = objectInput(value);
+  const nestedSettings = objectInput(input.settings);
+  const rawSettings =
+    Object.keys(nestedSettings).length > 0 ? nestedSettings : input;
+  if (Object.keys(rawSettings).length === 0) return null;
+
+  return {
+    rawSettings,
+    updatedAtMs: parseUpdatedAtMs(input.updatedAt ?? input.updated_at)
+  };
+}
+
+function settingsCandidateFromMenuRow(
+  menuRow?: PublicMenuRow | null
+): MenuSettingsCandidate | null {
+  const row = menuRow ?? {};
+  const nativeSettings = getObject(row, ["settings_json", "settingsJson"]);
+  const metadata = getObject(row, ["metadata", "meta"]);
   const metadataSettings = getObject(metadata, [
     "publicMenuSettings",
     "public_menu_settings",
     "settings"
   ]);
   const rawSettings =
-    Object.keys(uiConfigSettings).length > 0
-      ? uiConfigSettings
-      : Object.keys(nativeSettings).length > 0
-        ? nativeSettings
-        : Object.keys(metadataSettings).length > 0
-          ? metadataSettings
-          : {};
+    Object.keys(nativeSettings).length > 0
+      ? nativeSettings
+      : Object.keys(metadataSettings).length > 0
+        ? metadataSettings
+        : {};
+  if (Object.keys(rawSettings).length === 0) return null;
+
+  return {
+    rawSettings,
+    updatedAtMs: rowUpdatedAtMs(row)
+  };
+}
+
+function resolveMenuSettingsCandidate(args: {
+  menuRow?: PublicMenuRow | null;
+  legacyPublicMenuSettings?: unknown;
+}): MenuSettingsCandidate {
+  const menuCandidate = settingsCandidateFromMenuRow(args.menuRow);
+  const uiConfigCandidate = settingsCandidateFromLegacyInput(
+    args.legacyPublicMenuSettings
+  );
+
+  if (menuCandidate && uiConfigCandidate) {
+    if (
+      menuCandidate.updatedAtMs !== null &&
+      uiConfigCandidate.updatedAtMs !== null
+    ) {
+      return uiConfigCandidate.updatedAtMs > menuCandidate.updatedAtMs
+        ? uiConfigCandidate
+        : menuCandidate;
+    }
+    // Once menus.settings_json exists, owner saves target the menu row first.
+    // Without comparable timestamps, do not let a legacy UI config mask it.
+    return menuCandidate;
+  }
+
+  return menuCandidate ?? uiConfigCandidate ?? { rawSettings: {}, updatedAtMs: null };
+}
+
+function menuSettingsFromRows(args: {
+  menuRow?: PublicMenuRow | null;
+  legacyPublicMenuSettings?: unknown;
+  legacyMenuLanguages?: unknown;
+}): PublicMenuSettings {
+  const rawSettings = resolveMenuSettingsCandidate(args).rawSettings;
   const isEmptySettings = Object.keys(rawSettings).length === 0;
   return normalizePublicMenuSettings(rawSettings, {
     legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined
@@ -855,20 +918,12 @@ function menuRowHasPublicMenuStyle(
   menuRow?: PublicMenuRow | null,
   legacyPublicMenuSettings?: unknown
 ): boolean {
-  const uiConfigSettings = objectInput(legacyPublicMenuSettings);
-  if (settingsInputHasPublicMenuStyle(uiConfigSettings)) return true;
-
-  const row = menuRow ?? {};
-  const nativeSettings = getObject(row, ["settings_json", "settingsJson"]);
-  const metadata = getObject(row, ["metadata", "meta"]);
-  const metadataSettings = getObject(metadata, [
-    "publicMenuSettings",
-    "public_menu_settings",
-    "settings"
-  ]);
-  const rawSettings =
-    Object.keys(nativeSettings).length > 0 ? nativeSettings : metadataSettings;
-  return settingsInputHasPublicMenuStyle(rawSettings);
+  return settingsInputHasPublicMenuStyle(
+    resolveMenuSettingsCandidate({
+      menuRow,
+      legacyPublicMenuSettings
+    }).rawSettings
+  );
 }
 
 export function getPublicMenuRowSlug(row: PublicMenuRow): string {
@@ -927,7 +982,9 @@ export function buildSupabasePublicMenu(
     googleReview: googleReviewConfigFromRestaurantRow(restaurantRow),
     settings,
     publicMenuStyleExplicit: settingsInputHasPublicMenuStyle(
-      objectInput(options.legacyPublicMenuSettings)
+      resolveMenuSettingsCandidate({
+        legacyPublicMenuSettings: options.legacyPublicMenuSettings
+      }).rawSettings
     ),
     source: "supabase",
     dishes
