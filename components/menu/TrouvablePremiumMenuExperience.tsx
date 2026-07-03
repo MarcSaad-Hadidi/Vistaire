@@ -17,8 +17,8 @@ import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
-  getTrouvableCategoryIconKind,
-  type TrouvableCategoryIconKind
+  getTrouvableCategoryIconKindForCategory,
+  sortTrouvablePublicMenuCategories
 } from "@/lib/menu/trouvableCategoryIcons";
 import {
   buildPublicDishPath,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
+import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
@@ -181,139 +182,6 @@ function normalizeText(value: string): string {
 function displayCategoryLabel(label: string, locale: TrouvableLocale): string {
   const translated = translateTrouvableCategoryLabel(label, locale);
   return translated.length > 12 ? `${translated.slice(0, 10).trim()}...` : translated;
-}
-
-function CategoryIcon({ kind }: { kind: TrouvableCategoryIconKind }) {
-  if (kind === "all") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M12 12h10v10H12zm14 0h10v10H26zM12 26h10v10H12zm14 0h10v10H26z" />
-      </svg>
-    );
-  }
-
-  if (kind === "classic") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M13 18c6-7 16-8 22-2 5 5 5 13 0 18-6 6-16 5-22-2" />
-        <path d="M18 22h12M18 28h14" />
-      </svg>
-    );
-  }
-
-  if (kind === "starter") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M11 30c4-9 22-9 26 0H11Z" />
-        <path d="M14 25c3-5 17-5 20 0M24 14v7M18 17l3 4M30 17l-3 4" />
-      </svg>
-    );
-  }
-
-  if (kind === "flame") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M24 39c-7 0-12-5-12-12 0-6 4-10 8-14 0 5 4 7 4 11 3-4 4-8 3-14 6 5 9 10 9 17 0 7-5 12-12 12Z" />
-        <path d="M24 34c-3 0-5-2-5-5 0-2 1-4 4-7 1 3 4 4 4 7 0 3-1 5-3 5Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "travel") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M24 39c7-7 11-13 11-19a11 11 0 0 0-22 0c0 6 4 12 11 19Z" />
-        <path d="M24 24a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "pasta") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M13 34c4-7 18-7 22 0H13Z" />
-        <path d="M17 27c2-4 4-4 6 0s4 4 6 0 4-4 6 0M17 14v13M23 14v13M29 14v13M35 14v13" />
-      </svg>
-    );
-  }
-
-  if (kind === "morning") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M13 29a11 11 0 0 1 22 0" />
-        <path d="M24 10v6M12 18l4 4M36 18l-4 4M9 34h30" />
-      </svg>
-    );
-  }
-
-  if (kind === "dessert") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M11 24h26l-4 14H15l-4-14Z" />
-        <path d="M15 24c1-6 6-9 9-9s8 3 9 9M20 15l4-5 4 5" />
-      </svg>
-    );
-  }
-
-  if (kind === "fresh") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M38 10C24 10 12 19 10 34c15 2 25-8 28-24Z" />
-        <path d="M12 34c8-9 14-13 26-24" />
-      </svg>
-    );
-  }
-
-  if (kind === "drinks") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M16 10h16l-3 14a5 5 0 0 1-10 0L16 10Z" />
-        <path d="M24 29v9M18 38h12M18 17h12" />
-      </svg>
-    );
-  }
-
-  if (kind === "chef") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M15 21c-3-5 2-10 7-7 3-5 10-3 10 3 5-1 8 5 4 9H15Z" />
-        <path d="M16 26h20v10H16zM20 31h8" />
-      </svg>
-    );
-  }
-
-  if (kind === "cloche") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M11 32c2-10 8-16 13-16s11 6 13 16H11Z" />
-        <path d="M9 36h30M24 12v4" />
-      </svg>
-    );
-  }
-
-  if (kind === "garden") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M24 38V18" />
-        <path d="M24 26c-8 0-12-5-12-11 8 0 12 5 12 11Zm0 4c8 0 12-5 12-11-8 0-12 5-12 11Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "cellar") {
-    return (
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M18 12h12l-2 8v15a6 6 0 0 1-12 0V20l2-8Z" />
-        <path d="M17 25h12M20 17h8" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <path d="M12 28c5-8 19-8 24 0M14 35h20M24 13v8" />
-    </svg>
-  );
 }
 
 function searchableDishText(dish: PublicMenuDish): string {
@@ -640,7 +508,7 @@ export function TrouvablePremiumMenuExperience({
   );
 
   const categories = useMemo(
-    () => getVisiblePublicMenuCategories(menu.dishes),
+    () => sortTrouvablePublicMenuCategories(getVisiblePublicMenuCategories(menu.dishes)),
     [menu.dishes]
   );
   const hasVegData = useMemo(() => menu.dishes.some(isVegDish), [menu.dishes]);
@@ -730,7 +598,7 @@ export function TrouvablePremiumMenuExperience({
     [filteredDishes]
   );
   const filteredCategories = useMemo(
-    () => getVisiblePublicMenuCategories(filteredDishes),
+    () => sortTrouvablePublicMenuCategories(getVisiblePublicMenuCategories(filteredDishes)),
     [filteredDishes]
   );
   const categoryOptions = useMemo(() => categories, [categories]);
@@ -2069,7 +1937,9 @@ export function TrouvablePremiumMenuExperience({
                 )
               }
             >
-              <CategoryIcon kind={getTrouvableCategoryIconKind(category.label)} />
+              <TrouvableCategoryIcon
+                kind={getTrouvableCategoryIconKindForCategory(category)}
+              />
               <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
               <small>{category.count}</small>
             </button>

@@ -1446,6 +1446,11 @@
   stroke-width: 3.2;
 }
 
+.categoryRail svg[data-icon-mode="fill"] {
+  fill: currentColor;
+  stroke: none;
+}
+
 .categoryRail span {
   font-size: 19px;
   font-weight: 500;
@@ -2330,6 +2335,11 @@
     width: 30px;
     height: 30px;
     stroke-width: 3;
+  }
+
+  .categoryRail svg[data-icon-mode="fill"] {
+    fill: currentColor;
+    stroke: none;
   }
 
   .categoryRail span {
