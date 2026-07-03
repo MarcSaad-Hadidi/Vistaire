@@ -718,7 +718,7 @@ export function MaisonElyseQrMenu({
 
     return categories
       .map((category) => {
-        const dishes = (groups.get(category.label) ?? []).filter((dish) =>
+        const dishes = (groups.get(category.id) ?? []).filter((dish) =>
           dishMatchesFilter(dish, activeFilter)
         );
 
@@ -730,11 +730,17 @@ export function MaisonElyseQrMenu({
       })
       .filter((section) => section.dishes.length > 0);
   }, [activeCategory, activeFilter, categories, groups]);
+  const selectedCategory = categories.find(
+    (category) => category.id === activeCategory
+  );
   const activeCategoryLabel =
     activeCategory === ALL_CATEGORY_ID
       ? copy.allMenu
       : activeCategory
-        ? displayCategoryLabel(activeCategory, selectedLocale)
+        ? displayCategoryLabel(
+            selectedCategory?.label ?? activeCategory,
+            selectedLocale
+          )
         : copy.sections;
   const hasActiveFilter = activeFilter !== "all";
 
@@ -892,7 +898,9 @@ export function MaisonElyseQrMenu({
     scrollToMenu();
   }
 
-  function openCategoryInFullMenu(categoryLabel: string) {
+  function openCategoryInFullMenu(categoryId: string) {
+    const categoryLabel =
+      categories.find((category) => category.id === categoryId)?.label ?? categoryId;
     skipNextPhonePreviewAutoScrollRef.current = displayMode === "phone-preview";
     setPendingSectionLabel(categoryLabel);
     setActiveCategory(ALL_CATEGORY_ID);
@@ -975,14 +983,14 @@ export function MaisonElyseQrMenu({
 
   const categoryImages = new Map(
     categories.map((category) => {
-      const categoryDishes = groups.get(category.label) ?? [];
+      const categoryDishes = groups.get(category.id) ?? [];
       const previewDish =
         categoryDishes.find(
           (dish) => canAppearInEntryPreview(dish) && dish.imageUrl
         ) ?? categoryDishes.find((dish) => dish.imageUrl);
 
       return [
-        category.label,
+        category.id,
         previewDish?.thumbnailUrl || previewDish?.imageUrl || ""
       ];
     })
@@ -1070,15 +1078,15 @@ export function MaisonElyseQrMenu({
               {categories.map((category) => {
                 return (
                   <button
-                    aria-pressed={activeCategory === category.label}
+                    aria-pressed={activeCategory === category.id}
                     className={
-                      activeCategory === category.label
+                      activeCategory === category.id
                         ? styles.isActive
                         : undefined
                     }
                     key={category.id}
                     type="button"
-                    onClick={() => openCategoryInFullMenu(category.label)}
+                    onClick={() => openCategoryInFullMenu(category.id)}
                   >
                     <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
                   </button>
@@ -1189,10 +1197,10 @@ export function MaisonElyseQrMenu({
               {categories.map((category) => (
                 <CategoryCard
                   category={category}
-                  imageUrl={categoryImages.get(category.label) ?? ""}
+                  imageUrl={categoryImages.get(category.id) ?? ""}
                   key={category.id}
                   locale={selectedLocale}
-                  onSelect={() => openCategoryInFullMenu(category.label)}
+                  onSelect={() => openCategoryInFullMenu(category.id)}
                 />
               ))}
             </div>

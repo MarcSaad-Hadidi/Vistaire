@@ -526,6 +526,34 @@ function normalizeCategory(category: string): string {
   return definition?.label ?? (category.trim() || DEFAULT_CATEGORY.label);
 }
 
+function categoryDefinitionById(categoryId: string) {
+  return (
+    CATEGORY_DEFINITIONS.find((definition) => definition.id === categoryId) ??
+    null
+  );
+}
+
+function publicMenuCategoryId(dish: PublicMenuDish): string {
+  const categoryId = dish.categoryId?.trim();
+  if (categoryId) return categoryId;
+  const category = dish.category || DEFAULT_CATEGORY.label;
+  return (
+    categoryDefinition(category)?.id ??
+    slugify(category) ??
+    DEFAULT_CATEGORY.id
+  );
+}
+
+function publicMenuCategoryLabel(dishes: PublicMenuDish[]): string {
+  const latestLabel = [...dishes]
+    .reverse()
+    .find((dish) => dish.category.trim())?.category;
+  const label = latestLabel || DEFAULT_CATEGORY.label;
+  return dishes.some((dish) => dish.categoryDescription)
+    ? label
+    : normalizeCategory(label);
+}
+
 function isDishAvailable(row: PublicMenuRow): boolean {
   const available = getBoolean(row, [
     "available",
@@ -970,26 +998,24 @@ export function getPublicMenuCategoryGroups(
   const insertionGroups = new Map<string, PublicMenuDish[]>();
   const hasRelationalDescriptions = dishes.some((dish) => dish.categoryDescription);
   for (const dish of dishes) {
-    const category = dish.categoryDescription
-      ? dish.category || DEFAULT_CATEGORY.label
-      : normalizeCategory(dish.category || DEFAULT_CATEGORY.label);
-    const list = insertionGroups.get(category) ?? [];
+    const categoryId = publicMenuCategoryId(dish);
+    const list = insertionGroups.get(categoryId) ?? [];
     list.push(dish);
-    insertionGroups.set(category, list);
+    insertionGroups.set(categoryId, list);
   }
 
   if (hasRelationalDescriptions) return insertionGroups;
 
   const orderedGroups = new Map<string, PublicMenuDish[]>();
   for (const definition of CATEGORY_DEFINITIONS) {
-    const dishesForCategory = insertionGroups.get(definition.label);
+    const dishesForCategory = insertionGroups.get(definition.id);
     if (dishesForCategory?.length) {
-      orderedGroups.set(definition.label, dishesForCategory);
+      orderedGroups.set(definition.id, dishesForCategory);
     }
   }
-  for (const [category, dishesForCategory] of insertionGroups) {
-    if (!orderedGroups.has(category) && dishesForCategory.length) {
-      orderedGroups.set(category, dishesForCategory);
+  for (const [categoryId, dishesForCategory] of insertionGroups) {
+    if (!orderedGroups.has(categoryId) && dishesForCategory.length) {
+      orderedGroups.set(categoryId, dishesForCategory);
     }
   }
   return orderedGroups;
@@ -999,13 +1025,14 @@ export function getVisiblePublicMenuCategories(
   dishes: PublicMenuDish[]
 ): PublicMenuCategory[] {
   const groups = getPublicMenuCategoryGroups(dishes);
-  return Array.from(groups.entries()).map(([label, categoryDishes]) => {
-    const definition = categoryDefinition(label);
+  return Array.from(groups.entries()).map(([id, categoryDishes]) => {
+    const label = publicMenuCategoryLabel(categoryDishes);
+    const definition = categoryDefinitionById(id) ?? categoryDefinition(label);
     return {
-      id: definition?.id ?? slugify(label) ?? DEFAULT_CATEGORY.id,
+      id: id || definition?.id || slugify(label) || DEFAULT_CATEGORY.id,
       label,
       description:
-        categoryDishes.find((dish) => dish.categoryDescription)?.categoryDescription ??
+        [...categoryDishes].reverse().find((dish) => dish.categoryDescription)?.categoryDescription ??
         definition?.description ??
         DEFAULT_CATEGORY.description,
       tone: definition?.tone ?? DEFAULT_CATEGORY.tone,

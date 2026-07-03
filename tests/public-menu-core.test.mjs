@@ -231,8 +231,8 @@ test("groups Resto Marc dishes into visible category cards without empty categor
     categories.map((category) => category.label),
     ["Plats", "Boissons"]
   );
-  assert.equal(groups.get("Plats")?.[0]?.name, "Bol de riz au poulet et legumes");
-  assert.equal(groups.has("Entrees"), false);
+  assert.equal(groups.get("plats")?.[0]?.name, "Bol de riz au poulet et legumes");
+  assert.equal(groups.has("entrees"), false);
   assert.equal(isFreshHomemadeMenu(menu), true);
 });
 
@@ -434,13 +434,13 @@ test("builds public dish links without dropping QR table context", () => {
       lang: "en",
       table: "12"
     }),
-    "/menu/resto-marc/dishes/bol-de-riz?lang=en&table=12"
+    "/menu/resto-marc/dishes/bol-de-riz?lang=en-CA&table=12"
   );
   assert.equal(
     buildPublicDishPath("resto-marc", "bol-de-riz", {
       lang: "de"
     }),
-    "/menu/resto-marc/dishes/bol-de-riz?lang=fr"
+    "/menu/resto-marc/dishes/bol-de-riz?lang=de"
   );
   assert.equal(
     buildPublicDishPath("resto-marc", "bol-de-riz", {
@@ -449,6 +449,6 @@ test("builds public dish links without dropping QR table context", () => {
       zone: "terrasse",
       view: "carte"
     }),
-    "/menu/resto-marc/dishes/bol-de-riz?lang=en&table=12&zone=terrasse&view=carte"
+    "/menu/resto-marc/dishes/bol-de-riz?lang=en-CA&table=12&zone=terrasse&view=carte"
   );
 });

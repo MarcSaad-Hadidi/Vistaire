@@ -26,6 +26,7 @@ import {
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
+import { publicMenuSettingsFromPublishedUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
@@ -359,26 +360,6 @@ function findLegacyMenuLanguages(
   return configJson.menuLanguages ?? configJson.menu_languages;
 }
 
-function findLegacyPublicMenuSettings(
-  rows: PublicMenuRow[],
-  restaurantId: string
-): unknown {
-  const scoped = rows.filter(
-    (row) => getString(row, ["restaurant_id", "restaurantId"], "") === restaurantId
-  );
-  const preferred =
-    scoped.find((row) => getString(row, ["status"], "") === "published") ??
-    scoped.find((row) => getString(row, ["status"], "") === "draft") ??
-    scoped[0];
-  if (!preferred) return undefined;
-  const configJson = getObject(preferred, "config_json");
-  return (
-    configJson.publicMenuSettings ??
-    configJson.public_menu_settings ??
-    configJson.settings
-  );
-}
-
 export async function getPublicMenuBySlug(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE
@@ -418,7 +399,7 @@ export async function getPublicMenuBySlug(
     ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
     : undefined;
   const legacyPublicMenuSettings = uiConfigsResult.ok
-    ? findLegacyPublicMenuSettings(uiConfigsResult.rows, restaurantId)
+    ? publicMenuSettingsFromPublishedUiConfigRows(uiConfigsResult.rows, restaurantId) ?? undefined
     : undefined;
 
   if (primaryMenu) {

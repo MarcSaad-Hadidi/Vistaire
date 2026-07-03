@@ -357,7 +357,7 @@ export function PublicMenuRenderer({
   const tabs = [
     { id: ALL_TAB_ID, label: "Tout", count: filteredDishes.length },
     ...filteredCategories.map((category) => ({
-      id: category.label,
+      id: category.id,
       label: category.label,
       count: category.count
     }))
@@ -365,16 +365,19 @@ export function PublicMenuRenderer({
   const resolvedActiveTab =
     activeTab !== HOME_TAB_ID &&
     activeTab !== ALL_TAB_ID &&
-    !filteredCategories.some((category) => category.label === activeTab)
+    !filteredCategories.some((category) => category.id === activeTab)
       ? ALL_TAB_ID
       : activeTab;
+  const resolvedCategory = filteredCategories.find(
+    (category) => category.id === resolvedActiveTab
+  );
   const selectedDishes =
     resolvedActiveTab !== HOME_TAB_ID && resolvedActiveTab !== ALL_TAB_ID
       ? groups.get(resolvedActiveTab) ?? []
       : [];
   const activeCategoryList =
     resolvedActiveTab !== HOME_TAB_ID && resolvedActiveTab !== ALL_TAB_ID
-      ? filteredCategories.filter((category) => category.label === resolvedActiveTab)
+      ? filteredCategories.filter((category) => category.id === resolvedActiveTab)
       : filteredCategories;
   const featuredDishes = filteredDishes
     .filter((dish) => dish.tags.length > 0 || dish.category === "Plats")
@@ -395,7 +398,7 @@ export function PublicMenuRenderer({
       ? "Categories"
       : resolvedActiveTab === ALL_TAB_ID
         ? "Tout le menu"
-        : resolvedActiveTab;
+        : resolvedCategory?.label ?? resolvedActiveTab;
   const showTabs = config.navigation.style !== "cards";
   const showCategoryCards =
     config.navigation.style !== "tabs" || resolvedActiveTab === HOME_TAB_ID;
@@ -663,7 +666,7 @@ export function PublicMenuRenderer({
             key={category.id}
             type="button"
             className={categoryTone(category)}
-            onClick={() => setActiveTab(category.label)}
+            onClick={() => setActiveTab(category.id)}
           >
             {config.navigation.showDishCounts ? (
               <span>{category.count} choix</span>
@@ -717,7 +720,7 @@ export function PublicMenuRenderer({
     return (
       <div className={`${styles.fullMenuList} ${options.className ?? ""}`}>
         {categoryList.map((category, index) => {
-          const dishes = groups.get(category.label) ?? [];
+          const dishes = groups.get(category.id) ?? [];
           if (!dishes.length) return null;
           return (
             <section key={category.id} className={styles.fullMenuSection}>
@@ -770,7 +773,7 @@ export function PublicMenuRenderer({
     return (
       <section className={styles.fullMenuSection}>
         <div className={styles.sectionHeader}>
-          <h3>{resolvedActiveTab}</h3>
+          <h3>{resolvedCategory?.label ?? resolvedActiveTab}</h3>
           <span>{selectedDishes.length} choix</span>
         </div>
         {renderDishList(selectedDishes)}
@@ -922,7 +925,7 @@ export function PublicMenuRenderer({
             {renderFeaturedSection(
               "Boissons et cocktails",
               "A boire",
-              drinksFirstCategories.flatMap((category) => groups.get(category.label) ?? []).slice(0, 5),
+              drinksFirstCategories.flatMap((category) => groups.get(category.id) ?? []).slice(0, 5),
               { priceBoard: true }
             )}
             {renderFullMenuList(drinksFirstCategories, { priceBoard: true })}

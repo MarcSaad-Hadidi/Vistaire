@@ -782,24 +782,30 @@ export function TrouvablePremiumMenuExperience({
     () =>
       buildNavigableMenuSections(
         ALL_CATEGORY_ID,
-        categories.map((category) => category.label)
+        categories.map((category) => category.id)
       ),
     [categories]
   );
-  const fallbackCategory = filteredCategories[0]?.label ?? ALL_CATEGORY_ID;
+  const fallbackCategory = filteredCategories[0]?.id ?? ALL_CATEGORY_ID;
   const activeCategoryIsAvailable =
     activeCategory === ALL_CATEGORY_ID ||
-    filteredCategories.some((category) => category.label === activeCategory);
+    filteredCategories.some((category) => category.id === activeCategory);
   const resolvedActiveCategory =
     activeCategory === ALL_CATEGORY_ID
       ? ALL_CATEGORY_ID
       : activeCategoryIsAvailable
         ? activeCategory
         : fallbackCategory;
+  const resolvedCategory = filteredCategories.find(
+    (category) => category.id === resolvedActiveCategory
+  );
   const activeCategoryTitle =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? copy.activeCategoryAll
-      : translateTrouvableCategoryLabel(resolvedActiveCategory, selectedLocale);
+      : translateTrouvableCategoryLabel(
+          resolvedCategory?.label ?? resolvedActiveCategory,
+          selectedLocale
+        );
   const visibleDishes =
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? filteredDishes
@@ -2117,7 +2123,7 @@ export function TrouvablePremiumMenuExperience({
     <main
       className={`${styles.page} ${typographyClassName}`.trim()}
       lang={selectedLocale}
-      dir={textDirection}
+      data-text-direction={textDirection}
       data-blueprint={config.experience.blueprint}
       data-theme={config.theme}
       data-user-theme={selectedTheme}
@@ -2189,7 +2195,7 @@ export function TrouvablePremiumMenuExperience({
 
       <section className={styles.hero} aria-label={`Menu ${menu.name}`}>
         <HeroBotanicalOrnament />
-        <div className={styles.heroText}>
+        <div className={styles.heroText} dir={textDirection}>
           <p>{greetingText}</p>
           <h1>{menu.name}</h1>
           <span>{copy.heroBlurb}</span>
@@ -2230,10 +2236,10 @@ export function TrouvablePremiumMenuExperience({
             <button
               key={category.id}
               type="button"
-              aria-current={resolvedActiveCategory === category.label}
+              aria-current={resolvedActiveCategory === category.id}
               onClick={() =>
                 setActiveCategory((current) =>
-                  current === category.label ? ALL_CATEGORY_ID : category.label
+                  current === category.id ? ALL_CATEGORY_ID : category.id
                 )
               }
             >
@@ -2247,6 +2253,7 @@ export function TrouvablePremiumMenuExperience({
         <h2
           key={`title-${resolvedActiveCategory}`}
           className={`${styles.sectionTitle} ${styles.sectionBodyEnter}`}
+          dir={textDirection}
         >
           {activeCategoryTitle}
         </h2>

@@ -270,13 +270,16 @@ test("Trouvable details keep tags, ingredients, allergens, options, and notes se
 test("Trouvable all category stays global while filters and searches resolve dishes", async () => {
   const source = await readFile(componentPath, "utf8");
 
+  assert.match(source, /categories\.map\(\(category\) => category\.id\)/);
+  assert.match(source, /filteredCategories\.some\(\(category\) => category\.id === activeCategory\)/);
   assert.match(source, /activeCategory === ALL_CATEGORY_ID\s*\?\s*ALL_CATEGORY_ID/);
-  assert.match(source, /current === category\.label \? ALL_CATEGORY_ID : category\.label/);
+  assert.match(source, /current === category\.id \? ALL_CATEGORY_ID : category\.id/);
   assert.match(source, /setActiveCategory\(ALL_CATEGORY_ID\)/);
   assert.match(
     source,
     /resolvedActiveCategory === ALL_CATEGORY_ID\s*\?\s*filteredDishes/
   );
+  assert.match(source, /filteredGroups\.get\(resolvedActiveCategory\)/);
   assert.doesNotMatch(
     source,
     /activeCategory === ALL_CATEGORY_ID && [\s\S]{0,80}\? [a-zA-Z]+Category/

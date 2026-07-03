@@ -130,13 +130,14 @@ export function PublicMenuExperience({
     () => [
       { id: ALL_TAB_ID, label: "Tout", count: menu.dishes.length },
       ...categories.map((category) => ({
-        id: category.label,
+        id: category.id,
         label: category.label,
         count: category.count
       }))
     ],
     [categories, menu.dishes.length]
   );
+  const activeCategory = categories.find((category) => category.id === activeTab);
   const selectedDishes =
     activeTab !== HOME_TAB_ID && activeTab !== ALL_TAB_ID
       ? groups.get(activeTab) ?? []
@@ -188,7 +189,7 @@ export function PublicMenuExperience({
       ? "Catégories"
       : activeTab === ALL_TAB_ID
         ? "Tout le menu"
-        : activeTab;
+        : activeCategory?.label ?? activeTab;
 
   return (
     <main className={styles.page}>
@@ -276,7 +277,7 @@ export function PublicMenuExperience({
                     key={category.id}
                     type="button"
                     className={categoryTone(category)}
-                    onClick={() => selectTab(category.label)}
+                    onClick={() => selectTab(category.id)}
                   >
                     <span className={styles.categoryCount}>
                       {category.count} choix
@@ -312,7 +313,7 @@ export function PublicMenuExperience({
           ) : activeTab === ALL_TAB_ID ? (
             <div className={styles.fullMenuList}>
               {categories.map((category) => {
-                const dishes = groups.get(category.label) ?? [];
+                const dishes = groups.get(category.id) ?? [];
                 return (
                   <section key={category.id} className={styles.fullMenuSection}>
                     <div className={styles.fullMenuSectionHeader}>
@@ -336,7 +337,7 @@ export function PublicMenuExperience({
           ) : (
             <section className={styles.fullMenuSection}>
               <div className={styles.fullMenuSectionHeader}>
-                <h3>{activeTab}</h3>
+                <h3>{activeCategory?.label ?? activeTab}</h3>
                 <span>{selectedDishes.length} choix</span>
               </div>
               <ul className={styles.dishList}>
