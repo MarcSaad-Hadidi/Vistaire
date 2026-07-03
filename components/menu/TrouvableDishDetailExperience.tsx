@@ -39,6 +39,10 @@ import {
   type TrouvableTheme
 } from "./trouvableMenuControls";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
+import {
+  getDishSwipeScrollTop,
+  resolveDishSwipeGesture
+} from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
@@ -62,6 +66,7 @@ type SwipeStart = {
   x: number;
   y: number;
   pointerId: number;
+  scrollTop: number;
 } | null;
 type DishDetailSubSheet = "details" | "review" | null;
 
@@ -306,12 +311,19 @@ export function TrouvableDishDetailExperience({
     }
   }
 
+  function openReviewSheet() {
+    setReviewRating(0);
+    setReviewText("");
+    setActiveSubSheet("review");
+  }
+
   function handlePointerUp(event: PointerEvent<HTMLElement>) {
     if (!swipeStart || event.pointerType === "mouse") return;
     const start = swipeStart;
     setSwipeStart(null);
     if (
       activeSubSheet ||
+      showModelViewer ||
       start.pointerId !== event.pointerId ||
       isDishSwipeGuardedTarget(event.target, event.currentTarget)
     ) {
@@ -319,9 +331,30 @@ export function TrouvableDishDetailExperience({
     }
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
-    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
-    selectAdjacentDish(deltaX < 0 ? 1 : -1);
+    const scrollDelta =
+      getDishSwipeScrollTop(event.currentTarget) - start.scrollTop;
+    const gesture = resolveDishSwipeGesture(deltaX, deltaY, scrollDelta);
+    if (gesture === "reviewOpen") {
+      openReviewSheet();
+      return;
+    }
+    if (gesture === "next" || gesture === "previous") {
+      selectAdjacentDish(gesture === "next" ? 1 : -1);
+    }
   }
+
+  useEffect(() => {
+    if (activeSubSheet !== "review") return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setActiveSubSheet(null);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [activeSubSheet]);
 
   return (
     <main
@@ -333,12 +366,14 @@ export function TrouvableDishDetailExperience({
         if (
           event.pointerType !== "mouse" &&
           !activeSubSheet &&
+          !showModelViewer &&
           !isDishSwipeGuardedTarget(event.target, event.currentTarget)
         ) {
           setSwipeStart({
             x: event.clientX,
             y: event.clientY,
-            pointerId: event.pointerId
+            pointerId: event.pointerId,
+            scrollTop: getDishSwipeScrollTop(event.currentTarget)
           });
         }
       }}
@@ -408,7 +443,7 @@ export function TrouvableDishDetailExperience({
             <span aria-hidden="true">i</span>
             {copy.viewDetails}
           </button>
-          <div className={styles.detailOptionTags}>
+          <div className={styles.detailOptionTags} data-no-dish-swipe="true">
             <PremiumDishCardOptionTags
               items={activeDish.options}
               label={copy.cardOptionsLabel}
@@ -467,11 +502,7 @@ export function TrouvableDishDetailExperience({
             type="button"
             className={styles.reviewTrigger}
             aria-haspopup="dialog"
-            onClick={() => {
-              setReviewRating(0);
-              setReviewText("");
-              setActiveSubSheet("review");
-            }}
+            onClick={openReviewSheet}
           >
             <span aria-hidden="true">★</span>
             {copy.review}
@@ -496,7 +527,7 @@ export function TrouvableDishDetailExperience({
           role="dialog"
           aria-modal="true"
           aria-labelledby="trouvable-route-review-title"
-          onMouseDown={(event) => {
+          onClick={(event) => {
             if (event.target === event.currentTarget) setActiveSubSheet(null);
           }}
           data-no-dish-swipe="true"
@@ -507,9 +538,7 @@ export function TrouvableDishDetailExperience({
               className={styles.reviewClose}
               aria-label={copy.reviewClose}
               onClick={() => setActiveSubSheet(null)}
-            >
-              x
-            </button>
+            />
             <div className={styles.reviewDishGhost} aria-hidden="true">
               {activeDish.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

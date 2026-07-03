@@ -319,6 +319,29 @@ test("Trouvable review sheets track Google review outbound clicks", async () => 
   assert.match(tracking, /destination:\s*"google_review"/);
 });
 
+test("Trouvable review sheets dismiss from backdrop and hide visible close control", async () => {
+  const [source, detailSource, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(dishDetailPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  assert.match(source, /reviewOverlay\} \$\{styles\.stackedOverlay\}/);
+  assert.match(source, /if \(event\.target === event\.currentTarget\) closeReview\(\)/);
+  assert.match(source, /className=\{styles\.reviewClose\}[\s\S]{0,120}aria-label=\{copy\.reviewClose\}/);
+  assert.doesNotMatch(source, /className=\{styles\.reviewClose\}[\s\S]{0,120}>\s*x\s*<\/button>/);
+  assert.match(source, /resolveDishSwipeGesture/);
+  assert.match(source, /gesture === "reviewOpen"/);
+  assert.match(detailSource, /resolveDishSwipeGesture/);
+  assert.match(detailSource, /if \(event\.target === event\.currentTarget\) setActiveSubSheet\(null\)/);
+  assert.doesNotMatch(
+    detailSource,
+    /className=\{styles\.reviewClose\}[\s\S]{0,120}>\s*x\s*<\/button>/
+  );
+  assert.match(css, /\.reviewTrigger span[\s\S]*var\(--trouvable-gold\)/);
+  assert.match(css, /\.reviewClose[\s\S]*clip-path:\s*inset\(50%\)/);
+});
+
 test("Trouvable hero includes animated botanical ornamentation", async () => {
   const source = await readFile(componentPath, "utf8");
   const css = await readFile(cssPath, "utf8");

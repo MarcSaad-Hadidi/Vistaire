@@ -37,6 +37,10 @@ import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import {
+  getDishSwipeScrollTop,
+  resolveDishSwipeGesture
+} from "@/lib/menu/dishReviewSwipe";
+import {
   TROUVABLE_CURRENCY_STORAGE_KEY,
   TROUVABLE_LOCALE_STORAGE_KEY,
   TROUVABLE_THEME_STORAGE_KEY,
@@ -101,12 +105,14 @@ type ActiveSheet =
   | "review"
   | null;
 type DishSubSheet = "details" | "review" | null;
-type SwipeStart = {
+type PointerSwipeStart = {
   x: number;
   y: number;
   pointerId: number;
-  scrollLeft?: number;
-} | null;
+};
+type DishSwipeStart = PointerSwipeStart & {
+  scrollTop: number;
+};
 type SelectionItem = {
   dish: PublicMenuDish;
   quantity: number;
@@ -467,8 +473,8 @@ export function TrouvablePremiumMenuExperience({
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
   const categoryRailRef = useRef<HTMLElement | null>(null);
-  const menuCategorySwipeRef = useRef<SwipeStart>(null);
-  const dishSwipeRef = useRef<SwipeStart>(null);
+  const menuCategorySwipeRef = useRef<PointerSwipeStart | null>(null);
+  const dishSwipeRef = useRef<DishSwipeStart | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
   const copy = getTrouvableCopy(selectedLocale, menu.localizedUiCopy);
   const textDirection = getTrouvableTextDirection(selectedLocale);
@@ -1052,13 +1058,18 @@ export function TrouvablePremiumMenuExperience({
 
   function handleDishPointerDown(event: PointerEvent<HTMLElement>) {
     if (event.pointerType === "mouse") return;
-    if (dishSubSheet || isDishSwipeGuardedTarget(event.target, event.currentTarget)) {
+    if (
+      dishSubSheet ||
+      showDetailModelViewer ||
+      isDishSwipeGuardedTarget(event.target, event.currentTarget)
+    ) {
       return;
     }
     dishSwipeRef.current = {
       x: event.clientX,
       y: event.clientY,
-      pointerId: event.pointerId
+      pointerId: event.pointerId,
+      scrollTop: getDishSwipeScrollTop(event.currentTarget)
     };
   }
 
@@ -1066,13 +1077,25 @@ export function TrouvablePremiumMenuExperience({
     const start = dishSwipeRef.current;
     dishSwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
-    if (dishSubSheet || isDishSwipeGuardedTarget(event.target, event.currentTarget)) {
+    if (
+      dishSubSheet ||
+      showDetailModelViewer ||
+      isDishSwipeGuardedTarget(event.target, event.currentTarget)
+    ) {
       return;
     }
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
-    if (Math.abs(deltaX) < 46 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
-    selectAdjacentDish(deltaX < 0 ? 1 : -1);
+    const scrollDelta =
+      getDishSwipeScrollTop(event.currentTarget) - start.scrollTop;
+    const gesture = resolveDishSwipeGesture(deltaX, deltaY, scrollDelta);
+    if (gesture === "reviewOpen") {
+      openReviewSheet();
+      return;
+    }
+    if (gesture === "next" || gesture === "previous") {
+      selectAdjacentDish(gesture === "next" ? 1 : -1);
+    }
   }
 
   function renderDishCard(dish: PublicMenuDish, index: number) {
@@ -1508,13 +1531,11 @@ export function TrouvablePremiumMenuExperience({
 
     return (
       <div
-        className={`${styles.overlay} ${styles.reviewOverlay} ${
-          isDishStackReview ? styles.stackedOverlay : ""
-        }`}
+        className={`${styles.overlay} ${styles.reviewOverlay} ${styles.stackedOverlay}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trouvable-review-title"
-        onMouseDown={(event) => {
+        onClick={(event) => {
           if (event.target === event.currentTarget) closeReview();
         }}
         data-no-dish-swipe="true"
@@ -1529,9 +1550,7 @@ export function TrouvablePremiumMenuExperience({
             className={styles.reviewClose}
             aria-label={copy.reviewClose}
             onClick={closeReview}
-          >
-            x
-          </button>
+          />
           <div className={styles.reviewDishGhost} aria-hidden="true">
             {reviewDish?.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -1729,7 +1748,7 @@ export function TrouvablePremiumMenuExperience({
               <span aria-hidden="true">i</span>
               {copy.viewDetails}
             </button>
-            <div className={styles.detailOptionTags}>
+            <div className={styles.detailOptionTags} data-no-dish-swipe="true">
               <PremiumDishCardOptionTags
                 items={selectedDish.options}
                 label={copy.cardOptionsLabel}
