@@ -20,6 +20,7 @@ export type PublicMenuDish = {
   description: string;
   categoryId?: string;
   category: string;
+  categorySlug?: string;
   categoryDescription?: string;
   priceLabel: string;
   priceCents: number;
@@ -114,6 +115,7 @@ export type PublicMenuContextQuery = {
 export type PublicMenuCategory = {
   id: string;
   label: string;
+  slug?: string;
   description: string;
   tone: "blue" | "green" | "yellow" | "red";
   count: number;
@@ -710,6 +712,7 @@ function mapDishRow(
   const slug = slugify(
     getString(row, ["slug", "dish_slug", "dishSlug"], name)
   );
+  const categorySlug = getString(row, ["category_slug", "categorySlug"], "");
 
   return {
     id: getString(row, ["id", "dish_id", "slug", "dish_slug"], `dish-${index}`),
@@ -717,6 +720,7 @@ function mapDishRow(
     name,
     description: getString(row, ["short_description", "shortDescription", "description", "desc", "summary"], ""),
     ...(categoryId ? { categoryId } : {}),
+    ...(categorySlug ? { categorySlug } : {}),
     category:
       getString(
         row,
@@ -1103,9 +1107,13 @@ export function getVisiblePublicMenuCategories(
   return Array.from(groups.entries()).map(([id, categoryDishes]) => {
     const label = publicMenuCategoryLabel(categoryDishes);
     const definition = categoryDefinitionById(id) ?? categoryDefinition(label);
+    const slug =
+      categoryDishes.find((dish) => dish.categorySlug?.trim())?.categorySlug?.trim() ||
+      undefined;
     return {
       id: id || definition?.id || slugify(label) || DEFAULT_CATEGORY.id,
       label,
+      ...(slug ? { slug } : {}),
       description:
         [...categoryDishes].reverse().find((dish) => dish.categoryDescription)?.categoryDescription ??
         definition?.description ??
