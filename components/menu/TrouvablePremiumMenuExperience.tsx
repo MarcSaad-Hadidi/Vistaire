@@ -1610,7 +1610,6 @@ export function TrouvablePremiumMenuExperience({
               </button>
             ))}
           </div>
-          <p className={styles.localHint}>{copy.languageCopy}</p>
         </section>
       </div>
     );
