@@ -29,7 +29,6 @@ type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "de" | "el" | "ar";
 const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "de", "el", "ar"] as const;
 const TROUVABLE_COPY_LOCALE_SET = new Set<string>(TROUVABLE_COPY_LOCALES);
 const TROUVABLE_FALLBACK_COPY_LOCALE: TrouvableCopyLocale = "en";
-const RTL_LANGUAGE_CODES = new Set(["ar", "fa", "he", "ur"]);
 
 export const TROUVABLE_LOCALE_STORAGE_KEY = "vistaire:trouvable-menu-locale";
 export const TROUVABLE_CURRENCY_STORAGE_KEY = "vistaire:trouvable-menu-currency";
@@ -1754,8 +1753,12 @@ export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLo
   return builtInCopyLocaleForPublicLocale(locale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
 }
 
-export function getTrouvableTextDirection(locale: TrouvableLocale): "ltr" | "rtl" {
-  return RTL_LANGUAGE_CODES.has(languageCodeForLocale(locale)) ? "rtl" : "ltr";
+export function getTrouvableTextDirection(_locale: TrouvableLocale): "ltr" | "rtl" {
+  void _locale;
+  // Vistaire keeps the public menu chrome in the same visual order for every locale.
+  // The locale still drives translated copy and lang attributes, but it must not
+  // mirror controls, rails, sheets, or immersive UI for RTL languages.
+  return "ltr";
 }
 
 function objectInput(value: unknown): Record<string, unknown> {

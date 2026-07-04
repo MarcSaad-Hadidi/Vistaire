@@ -492,7 +492,7 @@ test("Trouvable language and currency labels follow the active locale", () => {
     getTrouvableCurrencyOptionLabel(getTrouvableCurrencyOption("CAD"), "es-ES"),
     /canad/i
   );
-  assert.equal(getTrouvableTextDirection("ar"), "rtl");
+  assert.equal(getTrouvableTextDirection("ar"), "ltr");
   assert.equal(getTrouvableTextDirection("it-IT"), "ltr");
 });
 

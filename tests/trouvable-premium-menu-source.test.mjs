@@ -172,7 +172,7 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(controls, /tags:\s*"Tags"/);
 });
 
-test("Trouvable standalone dish detail keeps locale URL navigation and RTL in sync", async () => {
+test("Trouvable standalone dish detail keeps locale URL navigation and layout direction in sync", async () => {
   const detailSource = await readFile(dishDetailPath, "utf8");
   const pageSource = await readFile(dishPagePath, "utf8");
 
