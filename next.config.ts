@@ -40,6 +40,8 @@ const GLB_MODEL_HEADERS = [
 
 const OWNER_MODEL_PIPELINE_ROUTES = [
   "/api/owner/restaurants/*/dishes/*/model/glb",
+  "/api/owner/restaurants/*/dishes/*/model/viewer-glb",
+  "/api/owner/restaurants/*/dishes/*/model/usdz-runtime",
   "/api/owner/restaurants/*/dishes/*/model/publish",
   "/api/owner/model-lab/optimize",
 ] as const;
@@ -49,6 +51,11 @@ const OWNER_MODEL_PIPELINE_SCRIPT_TRACE_INCLUDES = [
   "scripts/shared/gltf-transform-cli.mjs",
   "scripts/shared/ios-quicklook-promotion.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
+  "scripts/owner/optimize-restaurant-usdz.mjs",
+  "scripts/owner/optimize_restaurant_usdz.py",
+  "scripts/3d/shared/validators/usdz-basic.mjs",
+  "scripts/3d/shared/validators/file-exists.mjs",
+  "scripts/3d/shared/validators/sha256.mjs",
   "scripts/build-demo-ar-lite-assets.mjs",
   "scripts/build-ios-quicklook-ultra-assets.mjs",
   "scripts/optimize-usdz-binary-layers.py",

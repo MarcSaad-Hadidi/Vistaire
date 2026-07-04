@@ -20,9 +20,11 @@ type OwnerRestaurant3dManagerProps = {
 const ALL_SECTION_FILTER = "all";
 
 function modelStatusLabel(dish: PublicMenuDish): string {
-  if (dish.modelStatus === "ready") return "GLB + USDZ prets";
-  if (dish.preparedGlbStoragePath) return "Conversion a finaliser";
-  if (dish.webModel3dUrl) return "GLB pret, USDZ attendu";
+  const hasViewer = Boolean(dish.webModel3dUrl);
+  const hasUsdz = Boolean(dish.arUsdzUrl);
+  if (hasViewer && hasUsdz) return "GLB viewer + USDZ runtime prets";
+  if (hasViewer) return "GLB viewer pret · USDZ runtime manquant";
+  if (hasUsdz) return "USDZ runtime pret · GLB viewer manquant";
   return "Aucun modele";
 }
 
@@ -32,10 +34,10 @@ function comparisonStatus(dish: PublicMenuDish): {
   tone: "ready" | "warn" | "muted";
 } {
   if (!dish.webModel3dUrl) {
-    return { ready: false, label: "GLB manquant", tone: "muted" };
+    return { ready: false, label: "GLB viewer manquant", tone: "muted" };
   }
   if (!dish.arUsdzUrl) {
-    return { ready: false, label: "USDZ manquant", tone: "warn" };
+    return { ready: false, label: "USDZ runtime manquant", tone: "warn" };
   }
   return { ready: true, label: "Voir comparaison", tone: "ready" };
 }
@@ -160,10 +162,14 @@ export function OwnerRestaurant3dManager({
                             initialStatus={dish.modelStatus}
                             initialWebModel3dUrl={dish.webModel3dUrl}
                             initialWebModel3dBytes={dish.webModel3dBytes}
+                            initialViewerGlbStatus={dish.viewerGlbStatus}
                             initialArUsdzUrl={dish.arUsdzUrl}
                             initialArUsdzBytes={dish.arUsdzBytes}
-                            initialPreparedGlbJobId={dish.preparedGlbJobId}
-                            initialPreparedGlbStoragePath={dish.preparedGlbStoragePath}
+                            initialUsdzRuntimeStatus={dish.usdzRuntimeStatus}
+                            initialUsdzOptimizationProfile={dish.usdzOptimizationProfile}
+                            initialUsdzSourceBytes={dish.usdzSourceBytes}
+                            initialUsdzSourceOriginalName={dish.usdzSourceOriginalName}
+                            initialQuickLookQaStatus={dish.quickLookQaStatus}
                           />
                           <button
                             className={`${styles.btn} ${styles.btnSmall}`}

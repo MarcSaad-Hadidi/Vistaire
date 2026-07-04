@@ -2134,6 +2134,53 @@
   font-size: 13px;
 }
 
+.modelSplitUploader {
+  display: grid;
+  gap: 12px;
+  min-width: min(100%, 260px);
+}
+
+.modelUploadZones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .modelUploadZones {
+    grid-template-columns: 1fr;
+  }
+}
+
+.modelUploadZone {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid rgba(230, 214, 190, 0.16);
+  border-radius: 10px;
+  background: rgba(20, 14, 9, 0.55);
+}
+
+.modelUploadHint {
+  color: var(--owner-soft);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.modelStatChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sheetStatus {
+  margin: 8px 0 0;
+  color: var(--owner-soft);
+  font-size: 12px;
+}
+
 .restaurantDashboard,
 .createWizard,
 .creationStage {
