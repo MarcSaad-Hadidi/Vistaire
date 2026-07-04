@@ -144,7 +144,41 @@ test("dish photo upload API and public proxy use guarded server-side storage", a
   assert.match(uploadRoute, /validateDishPhotoFile/);
   assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.upload/);
   assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.remove/);
+  assert.match(uploadRoute, /export async function DELETE/);
+  assert.match(uploadRoute, /clearDishPhotoMetadata/);
+  assert.match(uploadRoute, /deleteDishMediaStorageTargets/);
+  assert.match(uploadRoute, /oldPhotoStoragePath/);
+  assert.match(uploadRoute, /warning/);
   assert.doesNotMatch(uploadRoute, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(publicRoute, /storage\.from\(bucket\)\.download/);
   assert.match(publicRoute, /photoStoragePath/);
+});
+
+test("photo replacement, delete, and dish delete use the central media collector", async () => {
+  const uploadRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
+    "utf8"
+  );
+  const dishRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/menu/dishes/route.ts",
+    "utf8"
+  );
+  const photoHelper = await readFile("lib/owner/dishPhotoUpload.ts", "utf8");
+  const mutations = await readFile("lib/owner/menuMutations.ts", "utf8");
+
+  assert.match(uploadRoute, /DELETE\(\s*request: NextRequest/);
+  assert.match(uploadRoute, /image_url: null/);
+  assert.match(photoHelper, /delete metadata\.photoStatus/);
+  assert.match(photoHelper, /delete metadata\.photoStorageBucket/);
+  assert.match(photoHelper, /delete metadata\.photoStoragePath/);
+  assert.match(photoHelper, /delete metadata\.photoSha256/);
+  assert.match(photoHelper, /delete metadata\.photoContentType/);
+  assert.match(photoHelper, /delete metadata\.photoBytes/);
+  assert.match(uploadRoute, /oldPhotoStoragePath !== storagePath/);
+  assert.match(uploadRoute, /skippedCount/);
+  assert.match(uploadRoute, /revalidateOwnerMenuMutationPaths/);
+  assert.match(dishRoute, /mediaCleanup/);
+  assert.match(mutations, /collectDishMediaStorageTargets/);
+  assert.match(mutations, /deleteDishMediaStorageTargets/);
+  assert.match(mutations, /select\("id,name,slug,menu_id,category_id,metadata"\)/);
 });

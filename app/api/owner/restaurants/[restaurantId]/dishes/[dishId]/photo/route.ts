@@ -6,9 +6,14 @@ import {
 import {
   buildDishPhotoPublicPath,
   buildDishPhotoStoragePath,
+  clearDishPhotoMetadata,
   mergeDishPhotoMetadata,
   validateDishPhotoFile
 } from "@/lib/owner/dishPhotoUpload";
+import {
+  collectDishPhotoStorageTarget,
+  deleteDishMediaStorageTargets
+} from "@/lib/owner/dishMediaGarbageCollector";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
@@ -108,6 +113,11 @@ export async function POST(
       { status: 404 }
     );
   }
+  const oldMetadata = getMetadata(dish.metadata);
+  const oldPhotoStoragePath =
+    typeof oldMetadata.photoStoragePath === "string"
+      ? oldMetadata.photoStoragePath.trim()
+      : "";
 
   let storagePath: string;
   let imageUrl: string;
@@ -143,7 +153,7 @@ export async function POST(
     );
   }
 
-  const metadata = mergeDishPhotoMetadata(getMetadata(dish.metadata), {
+  const metadata = mergeDishPhotoMetadata(oldMetadata, {
     storageBucket: MEDIA_BUCKET,
     storagePath,
     sha256: validated.sha256,
@@ -166,6 +176,14 @@ export async function POST(
     );
   }
 
+  const replacementCleanup =
+    oldPhotoStoragePath && oldPhotoStoragePath !== storagePath
+      ? await deleteDishMediaStorageTargets(
+          admin.client,
+          collectDishPhotoStorageTarget(dish.metadata, restaurantId)
+        )
+      : { deleted: [], skipped: [], warnings: [] };
+
   await revalidateOwnerMenuMutationPaths({
     client: admin.client,
     restaurantId,
@@ -176,6 +194,99 @@ export async function POST(
     ok: true,
     imageUrl,
     storagePath,
-    dishUpdated: true
+    dishUpdated: true,
+    skippedCount: replacementCleanup.skipped.length,
+    warning: replacementCleanup.warnings[0],
+    warnings: replacementCleanup.warnings
+  });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ restaurantId: string; dishId: string }> }
+) {
+  const owner = await requireVistaireOwnerApi();
+  if (!owner.ok) return owner.response;
+
+  const originError = requireSameOriginOwnerMutation(request);
+  if (originError) return originError;
+
+  const { restaurantId, dishId } = await params;
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return NextResponse.json({ ok: false, error: admin.reason }, { status: 503 });
+  }
+
+  const { data: dish, error: dishError } = await admin.client
+    .from("menu_dishes")
+    .select("id,restaurant_id,slug,name,metadata")
+    .eq("id", dishId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (dishError) {
+    return NextResponse.json(
+      { ok: false, error: "Plat impossible a verifier." },
+      { status: 503 }
+    );
+  }
+  if (!dish) {
+    return NextResponse.json(
+      { ok: false, error: "Plat introuvable pour ce restaurant." },
+      { status: 404 }
+    );
+  }
+
+  const cleanup = await deleteDishMediaStorageTargets(
+    admin.client,
+    collectDishPhotoStorageTarget(dish.metadata, restaurantId)
+  );
+  const failedValidDelete =
+    cleanup.deleted.length === 0 &&
+    cleanup.skipped.length === 0 &&
+    cleanup.warnings.some((warning) => warning.includes("non supprime"));
+  if (failedValidDelete) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Suppression Storage impossible pour cette photo.",
+        skippedCount: cleanup.skipped.length,
+        warnings: cleanup.warnings
+      },
+      { status: 503 }
+    );
+  }
+
+  const updated = await admin.client
+    .from("menu_dishes")
+    .update({
+      image_url: null,
+      metadata: clearDishPhotoMetadata(getMetadata(dish.metadata))
+    })
+    .eq("id", dishId)
+    .eq("restaurant_id", restaurantId)
+    .select("id")
+    .maybeSingle();
+
+  if (updated.error || !updated.data) {
+    return NextResponse.json(
+      { ok: false, error: "Photo supprimee mais plat impossible a nettoyer." },
+      { status: 503 }
+    );
+  }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: admin.client,
+    restaurantId,
+    dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
+  });
+
+  return NextResponse.json({
+    ok: true,
+    imageUrl: null,
+    dishUpdated: true,
+    deletedCount: cleanup.deleted.length,
+    skippedCount: cleanup.skipped.length,
+    warnings: cleanup.warnings
   });
 }

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 import {
   FORBIDDEN_SOURCE_STORAGE_FIELDS,
@@ -840,6 +841,33 @@ test("validated runtime pipeline uploads runtime and report after source cleanup
   assert.ok(uploads[1].endsWith("-usdz-report.json"));
 });
 
+test("no source USDZ signed upload URL is ever created", async () => {
+  const sourceFiles = [
+    usdzRoute,
+    pipeline,
+    read("lib/owner/usdzRuntimeModel.ts"),
+    read("scripts/owner/optimize-restaurant-usdz.mjs")
+  ].join("\n");
+
+  assert.doesNotMatch(sourceFiles, /createSignedUploadUrl\([^)]*source/i);
+  assert.doesNotMatch(sourceFiles, /createSignedUploadUrl\([^)]*master/i);
+  assert.doesNotMatch(sourceFiles, /source.*signedUpload/i);
+  assert.doesNotMatch(sourceFiles, /master.*signedUpload/i);
+});
+
+test("signed upload URL flow, when added, is constrained to runtime and report only", () => {
+  const allSource = [
+    usdzRoute,
+    pipeline,
+    read("lib/owner/usdzRuntimeModel.ts"),
+    read("scripts/owner/optimize-restaurant-usdz.mjs")
+  ].join("\n");
+
+  assert.doesNotMatch(allSource, /createSignedUploadUrl\(/);
+  assert.match(allSource, /runtimeStoragePath/);
+  assert.match(allSource, /reportStoragePath/);
+});
+
 test("deleting usdz-runtime also targets the linked optimization report", () => {
   const metadata = {
     arUsdzStoragePath: `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-20260704-abcdef12.usdz`,
@@ -891,7 +919,41 @@ test("worker refuses to store source and reports geometry honestly", () => {
   assert.match(worker, /Triangle budget depasse sans optimisation Blender reussie/);
   assert.match(worker, /guard_output_path/);
   assert.match(worker, /shutil\.rmtree\(workspace/);
+  assert.match(cli, /VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS/);
+  assert.match(cli, /VISTAIRE_USDZ_PYTHON/);
+  assert.match(cli, /VISTAIRE_USDZ_BLENDER/);
+  assert.match(cli, /origin .*non autorisee|Origin .*not allowed/i);
+  assert.match(cli, /triangleCountAfter < triangleCountBefore/);
   // CLI never uploads anywhere.
   assert.doesNotMatch(cli, /supabase/i);
   assert.doesNotMatch(cli, /\.upload\(/);
+});
+
+test("worker CLI refuses an origin outside VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "scripts/owner/optimize-restaurant-usdz.mjs",
+      "--origin",
+      "https://evil.example",
+      "--source",
+      "missing.usdz",
+      "--output",
+      "runtime.usdz",
+      "--report",
+      "report.json"
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS: "https://www.vistaire.ca"
+      },
+      encoding: "utf8"
+    }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Origin worker USDZ non autorisee/);
+  assert.doesNotMatch(result.stderr, /Source USDZ introuvable/);
 });

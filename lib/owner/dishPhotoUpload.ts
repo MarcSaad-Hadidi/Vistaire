@@ -185,3 +185,18 @@ export function mergeDishPhotoMetadata(
     photoBytes: info.bytes
   };
 }
+
+export function clearDishPhotoMetadata(existing: unknown): Record<string, unknown> {
+  const metadata =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {};
+
+  delete metadata.photoStatus;
+  delete metadata.photoStorageBucket;
+  delete metadata.photoStoragePath;
+  delete metadata.photoSha256;
+  delete metadata.photoContentType;
+  delete metadata.photoBytes;
+  return metadata;
+}

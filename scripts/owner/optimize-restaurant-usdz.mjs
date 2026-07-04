@@ -17,6 +17,13 @@
  *
  * Fail-closed: if OpenUSD/Pillow/Python is unavailable, this exits non-zero and
  * no runtime is produced, so the API uploads nothing.
+ *
+ * Local worker hardening:
+ * - VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS must include the production owner origin
+ *   when this CLI is exposed behind a local worker bridge.
+ * - VISTAIRE_USDZ_PYTHON points at the Python runtime with OpenUSD/Pillow.
+ * - VISTAIRE_USDZ_BLENDER points at Blender for future geometry decimation; geometry
+ *   cannot be reported as done unless triangleCountAfter < triangleCountBefore.
  */
 
 import { spawn } from "node:child_process";
@@ -90,6 +97,25 @@ function candidateProfiles(requestedProfile) {
 function resolvePythonExecutable() {
   if (process.env.VISTAIRE_USDZ_PYTHON) return process.env.VISTAIRE_USDZ_PYTHON;
   return process.platform === "win32" ? "python" : "python3";
+}
+
+function resolveBlenderExecutable() {
+  return process.env.VISTAIRE_USDZ_BLENDER || "blender";
+}
+
+function allowedWorkerOrigins() {
+  return (process.env.VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function assertAllowedWorkerOrigin(origin) {
+  if (!origin) return;
+  const allowed = allowedWorkerOrigins();
+  if (allowed.length === 0 || !allowed.includes(origin)) {
+    emitError("Origin worker USDZ non autorisee.", "origin", { origin });
+  }
 }
 
 function runPython(python, args) {
@@ -214,7 +240,10 @@ async function main() {
   const output = args.output ? resolve(args.output) : "";
   const reportPath = args.report ? resolve(args.report) : "";
   const profile = (args.profile || "balanced").toLowerCase();
+  const origin = typeof args.origin === "string" ? args.origin.trim() : "";
 
+  assertAllowedWorkerOrigin(origin);
+  resolveBlenderExecutable();
   if (!source || !output || !reportPath) {
     emitError("Arguments requis: --source --output --report.", "args");
   }
@@ -330,6 +359,17 @@ async function main() {
   }
 
   const optimizationApplied = Boolean(report.optimizationApplied);
+  if (report.geometryOptimization === "done") {
+    const triangleCountBefore = Number(report.triangleCountBefore);
+    const triangleCountAfter = Number(report.triangleCountAfter);
+    if (!(triangleCountAfter < triangleCountBefore)) {
+      rmSync(output, { force: true });
+      emitError(
+        "geometryOptimization=done exige triangleCountAfter < triangleCountBefore.",
+        "geometry"
+      );
+    }
+  }
   if (optimizationApplied && runtimeSha256 === sourceSha256 && runtimeBytes === sourceBytes) {
     rmSync(output, { force: true });
     emitError("Runtime identique au source malgre l'optimisation.", "identical");

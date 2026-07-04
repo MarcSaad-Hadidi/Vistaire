@@ -9,6 +9,10 @@ import {
   hasDishModelMetadata,
   isSafeDishModelStoragePath
 } from "../lib/owner/deleteDishModelAssets.ts";
+import {
+  collectDishMediaStorageTargets,
+  isSafeDishPhotoStoragePath
+} from "../lib/owner/dishMediaGarbageCollector.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const otherRestaurantId = "22222222-3333-4444-8555-666666666666";
@@ -45,6 +49,74 @@ test("dish model storage collection keeps only safe paths for the restaurant", (
   assert.deepEqual(
     groupTargetsByBucket(collection.targets).get("vistaire-3d"),
     collection.targets.map((target) => target.path)
+  );
+});
+
+test("full dish media collector includes photo and all runtime 3D targets", () => {
+  const metadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: `restaurants/${restaurantId}/photos/originals/dejeuner.png`,
+    webModel3dStoragePath: `restaurants/${restaurantId}/models/web/dejeuner.glb`,
+    viewerGlbStoragePath: `restaurants/${restaurantId}/models/web/dejeuner-viewer.glb`,
+    arUsdzStoragePath: `restaurants/${restaurantId}/models/ar-ios/dejeuner.usdz`,
+    usdzRuntimeStoragePath: `restaurants/${restaurantId}/models/ar-ios/dejeuner-runtime.usdz`,
+    usdzOptimizationReportStoragePath: `restaurants/${restaurantId}/models/manifests/dejeuner-usdz-report.json`,
+    meshyManifestStoragePath: `restaurants/${restaurantId}/models/manifests/dejeuner-meshy.json`,
+    preparedGlbStoragePath: `restaurants/${restaurantId}/models/staging/job_prepared_12345678/source.glb`
+  };
+
+  const collection = collectDishMediaStorageTargets(metadata, restaurantId);
+
+  assert.deepEqual(
+    new Set(collection.targets.map((target) => `${target.bucket}:${target.path}`)),
+    new Set([
+      `vistaire-media:restaurants/${restaurantId}/photos/originals/dejeuner.png`,
+      `vistaire-3d:restaurants/${restaurantId}/models/web/dejeuner.glb`,
+      `vistaire-3d:restaurants/${restaurantId}/models/web/dejeuner-viewer.glb`,
+      `vistaire-3d:restaurants/${restaurantId}/models/ar-ios/dejeuner.usdz`,
+      `vistaire-3d:restaurants/${restaurantId}/models/ar-ios/dejeuner-runtime.usdz`,
+      `vistaire-3d:restaurants/${restaurantId}/models/manifests/dejeuner-usdz-report.json`,
+      `vistaire-3d:restaurants/${restaurantId}/models/manifests/dejeuner-meshy.json`,
+      `vistaire-3d:restaurants/${restaurantId}/models/staging/job_prepared_12345678/source.glb`
+    ])
+  );
+  assert.deepEqual(collection.skipped, []);
+});
+
+test("dish media collector skips unsafe photo paths and wrong buckets", () => {
+  const unsafePath = collectDishMediaStorageTargets(
+    {
+      photoStorageBucket: "vistaire-media",
+      photoStoragePath: `restaurants/${restaurantId}/photos/originals/../secret.png`
+    },
+    restaurantId
+  );
+  assert.equal(unsafePath.targets.length, 0);
+  assert.equal(unsafePath.skipped[0].reason, "unsafe_path");
+
+  const wrongBucket = collectDishMediaStorageTargets(
+    {
+      photoStorageBucket: "vistaire-3d",
+      photoStoragePath: `restaurants/${restaurantId}/photos/originals/dejeuner.png`
+    },
+    restaurantId
+  );
+  assert.equal(wrongBucket.targets.length, 0);
+  assert.equal(wrongBucket.skipped[0].reason, "unsafe_bucket");
+
+  assert.equal(
+    isSafeDishPhotoStoragePath(
+      `restaurants/${restaurantId}/photos/originals/dejeuner.webp`,
+      restaurantId
+    ),
+    true
+  );
+  assert.equal(
+    isSafeDishPhotoStoragePath(
+      `restaurants/${otherRestaurantId}/photos/originals/dejeuner.webp`,
+      restaurantId
+    ),
+    false
   );
 });
 
@@ -175,6 +247,7 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /method: "DELETE"/);
   assert.match(uploader, /Supprimer GLB viewer/);
   assert.match(uploader, /Supprimer USDZ runtime/);
+  assert.match(uploader, /Tout supprimer/);
   assert.match(uploader, /GLB viewer/);
   assert.match(uploader, /USDZ runtime/);
   assert.match(uploader, /Telecharger USDZ runtime/);
@@ -182,6 +255,8 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /buildDownloadFileName/);
   assert.match(uploader, /setWebModel3dUrl\(""\)/);
   assert.match(uploader, /setArUsdzUrl\(""\)/);
+  assert.match(uploader, /setUsdzSourceOriginalName\(""\)/);
+  assert.match(uploader, /setQuickLookQaStatus\(""\)/);
   assert.match(uploader, /router\.refresh\(\)/);
   assert.match(mediaManager, /dishName=\{dish\.name\}/);
   assert.match(modelsManager, /dishName=\{dish\.name\}/);

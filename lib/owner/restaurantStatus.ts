@@ -1,4 +1,9 @@
 import type { OwnerRestaurantStatus } from "@/lib/owner/types";
+import {
+  collectDishMediaStorageTargets,
+  deleteDishMediaStorageTargets,
+  type DishMediaDeleteReport
+} from "@/lib/owner/dishMediaGarbageCollector";
 
 type SupabaseUpdateError = {
   code?: string;
@@ -118,6 +123,24 @@ export type RestaurantStorageCleanupReport = {
   buckets: string[];
   prefixes: string[];
   warnings: string[];
+  dishMedia?: {
+    deletedFiles: number;
+    skippedFiles: number;
+    warnings: string[];
+  };
+};
+
+type MenuDishMediaListClient = SupabaseRestaurantStatusClient & {
+  from(table: "menu_dishes"): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        limit(count: number): PromiseLike<{
+          data: Array<{ metadata: unknown }> | null;
+          error: SupabaseUpdateError | null;
+        }>;
+      };
+    };
+  };
 };
 
 export type DeleteRestaurantResult =
@@ -495,6 +518,50 @@ async function cleanupRestaurantStorage(args: {
   return report;
 }
 
+async function collectRestaurantDishMediaRows(args: {
+  client: SupabaseRestaurantStatusClient;
+  restaurantId: string;
+}): Promise<{ rows: Array<{ metadata: unknown }>; warnings: string[] }> {
+  const mediaClient = args.client as MenuDishMediaListClient;
+  const result = await mediaClient
+    .from("menu_dishes")
+    .select("id,metadata")
+    .eq("restaurant_id", args.restaurantId)
+    .limit(1000);
+  if (result.error) {
+    return {
+      rows: [],
+      warnings: ["Medias des plats impossibles a lister avant suppression restaurant."]
+    };
+  }
+  return {
+    rows: Array.isArray(result.data) ? result.data : [],
+    warnings: []
+  };
+}
+
+async function cleanupRestaurantDishMedia(args: {
+  client: SupabaseRestaurantStatusClient;
+  restaurantId: string;
+  rows: Array<{ metadata: unknown }>;
+}): Promise<DishMediaDeleteReport> {
+  const aggregate: DishMediaDeleteReport = { deleted: [], skipped: [], warnings: [] };
+  for (const row of args.rows) {
+    const collection = collectDishMediaStorageTargets(row.metadata, args.restaurantId);
+    const report = await deleteDishMediaStorageTargets(args.client, collection);
+    aggregate.deleted.push(...report.deleted);
+    aggregate.skipped.push(...report.skipped);
+    aggregate.warnings.push(...report.warnings);
+  }
+  return aggregate;
+}
+
+function hasBlockingDishMediaCleanupWarning(report: DishMediaDeleteReport): boolean {
+  return report.warnings.some(
+    (warning) => warning.includes("non supprime") || warning.includes("indisponible")
+  );
+}
+
 function normalizedDeleted(value: unknown): Record<string, number> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
 
@@ -671,6 +738,40 @@ export async function deleteRestaurantRecord(
   }
 
   const restaurantIdValue = getString(restaurant, "id");
+  const dishMediaRows = await collectRestaurantDishMediaRows({
+    client: dependencies.admin.client,
+    restaurantId: restaurantIdValue
+  });
+  if (dishMediaRows.warnings.length > 0) {
+    return failureResult({
+      status: 503,
+      error: "Medias des plats impossibles a lister avant suppression restaurant.",
+      warnings: dishMediaRows.warnings
+    });
+  }
+  const dishMedia = await cleanupRestaurantDishMedia({
+    client: dependencies.admin.client,
+    restaurantId: restaurantIdValue,
+    rows: dishMediaRows.rows
+  });
+  if (hasBlockingDishMediaCleanupWarning(dishMedia)) {
+    return failureResult({
+      status: 503,
+      error: "Medias des plats impossibles a supprimer dans Storage.",
+      storage: {
+        ...emptyStorageReport(),
+        attempted: true,
+        deletedFiles: dishMedia.deleted.length,
+        dishMedia: {
+          deletedFiles: dishMedia.deleted.length,
+          skippedFiles: dishMedia.skipped.length,
+          warnings: dishMedia.warnings
+        },
+        warnings: dishMedia.warnings
+      },
+      warnings: dishMedia.warnings
+    });
+  }
   const rpcResult = await deleteRestaurantWithRpc({
     client: dependencies.admin.client,
     restaurantId: restaurantIdValue,
@@ -692,6 +793,13 @@ export async function deleteRestaurantRecord(
       env: dependencies.env ?? process.env,
       shouldAttempt: confirmation.deleteStorage === true
     });
+    storage.deletedFiles += dishMedia.deleted.length;
+    storage.warnings.push(...dishMedia.warnings);
+    storage.dishMedia = {
+      deletedFiles: dishMedia.deleted.length,
+      skippedFiles: dishMedia.skipped.length,
+      warnings: dishMedia.warnings
+    };
 
     return {
       ok: true,

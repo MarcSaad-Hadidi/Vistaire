@@ -169,3 +169,28 @@ materials, use one of these reliable pipelines:
   USDZ and verify package validity.
 - OpenUSD tools (`usdchecker`, `usdcat`, `usdzip`) to inspect and package USDZ
   safely.
+
+## Owner USDZ V2 Local Worker
+
+The owner USDZ V2 production path treats the uploaded master USDZ as transient
+only. It may exist in the API temp workspace and the local worker workspace, but
+it must not be uploaded to Supabase and must not be committed or deployed to
+Vercel. Supabase receives only:
+
+- the validated runtime USDZ under `restaurants/{restaurantId}/models/ar-ios/`;
+- the lightweight optimization report under
+  `restaurants/{restaurantId}/models/manifests/`.
+
+When the optimizer is exposed through a local worker bridge, configure:
+
+```powershell
+$env:VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS = "https://www.vistaire.ca,https://vistaire.ca"
+$env:VISTAIRE_USDZ_PYTHON = "C:\path\to\python.exe"
+$env:VISTAIRE_USDZ_BLENDER = "C:\path\to\blender.exe"
+```
+
+`VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS` must include the production owner origin.
+`VISTAIRE_USDZ_PYTHON` must point to a Python runtime with OpenUSD and Pillow.
+`VISTAIRE_USDZ_BLENDER` is required for any future geometry decimation worker;
+the CLI refuses a report that claims `geometryOptimization=done` unless
+`triangleCountAfter < triangleCountBefore`.

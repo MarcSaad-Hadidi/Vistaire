@@ -12,6 +12,10 @@ import {
   isMissingColumnError as isMissingSettingsColumnError,
   readPublicMenuSettingsWithFallbacks
 } from "@/lib/owner/publicMenuSettingsFallback";
+import {
+  collectDishMediaStorageTargets,
+  deleteDishMediaStorageTargets
+} from "@/lib/owner/dishMediaGarbageCollector";
 
 type MenuMutationResult =
   | { ok: true; record: Record<string, unknown> }
@@ -702,7 +706,7 @@ export async function deleteOwnerMenuDish(args: {
 
   const existing = await args.client
     .from("menu_dishes")
-    .select("id,name,slug,menu_id,category_id")
+    .select("id,name,slug,menu_id,category_id,metadata")
     .eq("id", id)
     .eq("restaurant_id", args.restaurantId)
     .maybeSingle();
@@ -711,6 +715,17 @@ export async function deleteOwnerMenuDish(args: {
   }
   if (!existing.data?.id) {
     return { ok: false, status: 404, error: "Plat introuvable." };
+  }
+  const mediaCleanup = await deleteDishMediaStorageTargets(
+    args.client,
+    collectDishMediaStorageTargets(existing.data.metadata, args.restaurantId)
+  );
+  if (mediaCleanup.warnings.some((warning) => warning.includes("non supprime") || warning.includes("indisponible"))) {
+    return {
+      ok: false,
+      status: 503,
+      error: "Medias du plat impossibles a supprimer dans Storage."
+    };
   }
 
   const deleted = await args.client
@@ -727,5 +742,5 @@ export async function deleteOwnerMenuDish(args: {
   if (!deleted.data?.id) {
     return { ok: false, status: 404, error: "Plat introuvable." };
   }
-  return { ok: true, record: deleted.data };
+  return { ok: true, record: { ...deleted.data, mediaCleanup } };
 }
