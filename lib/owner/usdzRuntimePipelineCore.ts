@@ -10,7 +10,7 @@ import {
   buildUsdzRuntimeMetadataPatch,
   buildUsdzRuntimeStoragePath,
   computeSplitModelStatus,
-  createModelAssetVersion,
+  createUsdzRuntimeAssetVersion,
   evaluateRuntimeUsdzUploadGate,
   getMetadataObject,
   MODEL_BUCKET,
@@ -169,6 +169,23 @@ async function rollbackStorageObjects(
   }
 }
 
+async function fetchFreshDishMetadata(args: {
+  adminClient: SupabaseClient;
+  dishId: string;
+  restaurantId: string;
+}): Promise<Record<string, unknown>> {
+  const result = await args.adminClient
+    .from("menu_dishes")
+    .select("metadata")
+    .eq("id", args.dishId)
+    .eq("restaurant_id", args.restaurantId)
+    .maybeSingle();
+  if (result.error || !result.data) {
+    throw new Error("Metadata du plat impossible a relire avant publication USDZ.");
+  }
+  return getMetadataObject((result.data as { metadata?: unknown }).metadata);
+}
+
 /**
  * Optimizes a heavy source USDZ transiently and uploads ONLY the validated
  * runtime USDZ + a lightweight report to Supabase. The source never leaves the
@@ -180,7 +197,6 @@ export async function runUsdzRuntimePipeline(
 ): Promise<UsdzRuntimePipelineResult> {
   const processedAt = new Date().toISOString();
   const sourceSha256 = sha256Hex(args.sourceBytes);
-  const version = createModelAssetVersion(sourceSha256);
 
   const workspace = mkdtempSync(join(resolve(tmpdir()), "vistaire-usdz-runtime-"));
   const sourcePath = join(workspace, "source.usdz");
@@ -229,12 +245,40 @@ export async function runUsdzRuntimePipeline(
       throw new Error(gate.error);
     }
 
+    const version = createUsdzRuntimeAssetVersion({
+      profile: args.profile,
+      runtimeSha256: gate.runtimeSha256
+    });
+
     const runtimeStoragePath = buildUsdzRuntimeStoragePath({
       restaurantId: args.restaurantId,
       dishSlug: args.dishSlug,
       version
     });
     const reportStoragePath = `restaurants/${args.restaurantId}/models/manifests/${args.dishSlug}-${version}-usdz-report.json`;
+
+    const patch = buildUsdzRuntimeMetadataPatch(
+      {
+        restaurantId: args.restaurantId,
+        dishId: args.dishId,
+        dishSlug: args.dishSlug,
+        version,
+        runtimeBytes: runtimeBytes.byteLength,
+        runtimeSha256: gate.runtimeSha256,
+        reportStoragePath,
+        profile: args.profile,
+        warnings: summary.warnings,
+        fails: summary.fails,
+        source: {
+          originalName: args.originalName,
+          bytes: args.sourceBytes.byteLength,
+          sha256: sourceSha256,
+          processedAt
+        },
+        uploadedAt: new Date().toISOString()
+      },
+      runtimeStoragePath
+    );
 
     const uploadedRuntime = await args.adminClient.storage
       .from(MODEL_BUCKET)
@@ -260,34 +304,21 @@ export async function runUsdzRuntimePipeline(
       throw new Error("Upload Storage impossible pour le rapport d'optimisation USDZ.");
     }
 
-    const patch = buildUsdzRuntimeMetadataPatch(
-      {
-        restaurantId: args.restaurantId,
+    let merged: Record<string, unknown>;
+    try {
+      const freshMetadata = await fetchFreshDishMetadata({
+        adminClient: args.adminClient,
         dishId: args.dishId,
-        dishSlug: args.dishSlug,
-        version,
-        runtimeBytes: runtimeBytes.byteLength,
-        runtimeSha256: gate.runtimeSha256,
-        reportStoragePath,
-        profile: args.profile,
-        warnings: summary.warnings,
-        fails: summary.fails,
-        source: {
-          originalName: args.originalName,
-          bytes: args.sourceBytes.byteLength,
-          sha256: sourceSha256,
-          processedAt
-        },
-        uploadedAt: new Date().toISOString()
-      },
-      runtimeStoragePath
-    );
-
-    const existing = getMetadataObject(args.existingMetadata);
-    let merged = { ...existing, ...patch };
-    merged = restampPublicModelUrls(merged, args.dishId, version);
-    merged.modelStatus = computeSplitModelStatus(merged);
-    assertNoForbiddenSourceStorage(merged);
+        restaurantId: args.restaurantId
+      });
+      merged = { ...freshMetadata, ...patch };
+      merged = restampPublicModelUrls(merged, args.dishId, version);
+      merged.modelStatus = computeSplitModelStatus(merged);
+      assertNoForbiddenSourceStorage(merged);
+    } catch (error) {
+      await rollbackStorageObjects(args.adminClient, [runtimeStoragePath, reportStoragePath]);
+      throw error;
+    }
 
     const updated = await args.adminClient
       .from("menu_dishes")

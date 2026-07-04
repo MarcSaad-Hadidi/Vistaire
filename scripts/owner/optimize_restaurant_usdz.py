@@ -26,7 +26,7 @@ import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 try:
     from pxr import Sdf, Usd, UsdShade, UsdUtils  # type: ignore
@@ -63,6 +63,7 @@ PROFILES: dict[str, dict[str, int]] = {
 
 DATA_ROLES = {"normal", "roughness", "metallic", "occlusion"}
 TEXTURE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+USD_LAYER_SUFFIXES = (".usd", ".usdc", ".usda")
 
 
 @dataclass
@@ -296,16 +297,42 @@ def ensure_default_prim(stage: Usd.Stage) -> None:
         return
 
 
-def find_root_layer(extracted: Path) -> Path:
-    # The first entry of the USDZ is the root layer per Apple/Pixar convention.
-    candidates = sorted(
-        [p for p in extracted.rglob("*") if p.suffix.lower() in (".usd", ".usdc", ".usda")]
-    )
-    if not candidates:
-        raise RuntimeError("Aucune couche USD trouvee dans le package extrait.")
-    # Prefer a top-level root layer.
-    top_level = [p for p in candidates if p.parent == extracted]
-    return top_level[0] if top_level else candidates[0]
+def find_root_layer_entry(archive_names: list[str]) -> PurePosixPath:
+    """Return the first USD layer entry in archive order.
+
+    USDZ packages use the first USD/USD[A/C] entry as the package root layer.
+    Do not sort candidates: alphabetical order can select a sibling layer that
+    is not the authored root.
+    """
+    for name in archive_names:
+        if name.endswith("/"):
+            continue
+        entry = PurePosixPath(name)
+        has_windows_drive = len(name) >= 2 and name[1] == ":" and name[0].isalpha()
+        if (
+            "\\" in name
+            or has_windows_drive
+            or entry.is_absolute()
+            or any(part == ".." for part in entry.parts)
+        ):
+            raise RuntimeError(f"Chemin de couche USD dangereux dans le package: {name}")
+        if entry.suffix.lower() in USD_LAYER_SUFFIXES:
+            return entry
+    raise RuntimeError("Aucune couche USD trouvee dans le package extrait.")
+
+
+def find_root_layer(extracted: Path, archive_entry: PurePosixPath) -> Path:
+    root = extracted.resolve()
+    candidate = (root / Path(*archive_entry.parts)).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError(f"Chemin de couche USD dangereux dans le package: {archive_entry}") from exc
+    if not candidate.exists():
+        raise RuntimeError(
+            f"Couche USD root introuvable apres extraction: {archive_entry.as_posix()}"
+        )
+    return candidate
 
 
 def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -> None:
@@ -329,10 +356,14 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
 
     try:
         with zipfile.ZipFile(source) as archive:
-            if not archive.namelist():
+            archive_names = archive.namelist()
+            if not archive_names:
                 fail(report, "Package USDZ source vide.", "zip")
+            root_layer_entry = find_root_layer_entry(archive_names)
     except zipfile.BadZipFile:
         fail(report, "Source n'est pas un package USDZ/ZIP valide.", "zip")
+    except RuntimeError as exc:
+        fail(report, str(exc), "zip")
 
     workspace = Path(tempfile.mkdtemp(prefix="vistaire-usdz-"))
     try:
@@ -341,7 +372,7 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         if not UsdUtils.ExtractUsdzPackage(str(source), str(extracted), True, False, True):
             fail(report, f"Extraction USDZ impossible: {source}", "extract")
 
-        root_layer = find_root_layer(extracted)
+        root_layer = find_root_layer(extracted, root_layer_entry)
         stage = Usd.Stage.Open(str(root_layer))
         if stage is None:
             fail(report, f"Stage USD illisible: {root_layer}", "open")

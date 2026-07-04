@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { unzipSync } from "fflate";
 
 import { validateUsdzBasic } from "../scripts/3d/shared/validators/usdz-basic.mjs";
 
@@ -68,6 +69,74 @@ UsdUtils.CreateNewUsdzPackage(str(layer), str(out))
 print(str(out))
 `;
 
+const MULTI_LAYER_GENERATOR = `
+import shutil, sys
+from pathlib import Path
+from pxr import Usd, UsdGeom, UsdUtils
+
+out = Path(sys.argv[1])
+work = out.parent / "multi-root-work"
+if work.exists():
+    shutil.rmtree(work)
+work.mkdir(parents=True, exist_ok=True)
+
+decoy = work / "a_decoy.usda"
+decoy_stage = Usd.Stage.CreateNew(str(decoy))
+decoy_root = UsdGeom.Xform.Define(decoy_stage, "/AlphaDecoy")
+decoy_stage.SetDefaultPrim(decoy_root.GetPrim())
+UsdGeom.Cube.Define(decoy_stage, "/AlphaDecoy/Cube")
+decoy_stage.GetRootLayer().Save()
+
+root = work / "z_root.usda"
+root_stage = Usd.Stage.CreateNew(str(root))
+selected_root = UsdGeom.Xform.Define(root_stage, "/SelectedRoot")
+root_stage.SetDefaultPrim(selected_root.GetPrim())
+UsdGeom.Cube.Define(root_stage, "/SelectedRoot/Cube")
+root_stage.GetRootLayer().subLayerPaths.append("a_decoy.usda")
+root_stage.GetRootLayer().Save()
+
+if out.exists():
+    out.unlink()
+UsdUtils.CreateNewUsdzPackage(str(root), str(out))
+print(str(out))
+`;
+
+function usdTextBundle(filePath) {
+  const entries = unzipSync(readFileSync(filePath));
+  return Object.entries(entries)
+    .filter(([name]) => /\.usd[ac]?$/i.test(name))
+    .map(([, bytes]) => Buffer.from(bytes).toString("utf8"))
+    .join("\n");
+}
+
+function zipCentralDirectoryEntryNames(filePath) {
+  const buffer = readFileSync(filePath);
+  const eocdSignature = 0x06054b50;
+  let eocdOffset = -1;
+  for (let index = buffer.length - 22; index >= 0; index -= 1) {
+    if (buffer.readUInt32LE(index) === eocdSignature) {
+      eocdOffset = index;
+      break;
+    }
+  }
+  assert.notEqual(eocdOffset, -1, "ZIP end-of-central-directory must exist");
+
+  const totalEntries = buffer.readUInt16LE(eocdOffset + 10);
+  let offset = buffer.readUInt32LE(eocdOffset + 16);
+  const names = [];
+  for (let index = 0; index < totalEntries; index += 1) {
+    assert.equal(buffer.readUInt32LE(offset), 0x02014b50, "central directory header expected");
+    const nameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const nameStart = offset + 46;
+    const nameEnd = nameStart + nameLength;
+    names.push(buffer.subarray(nameStart, nameEnd).toString("utf8"));
+    offset = nameEnd + extraLength + commentLength;
+  }
+  return names;
+}
+
 test("USDZ runtime optimizer produces a valid, smaller runtime with an honest report", { skip: !TOOLCHAIN_AVAILABLE ? "OpenUSD/Pillow not available" : false }, () => {
   const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-test-"));
   const genPy = join(dir, "gen.py");
@@ -100,6 +169,45 @@ test("USDZ runtime optimizer produces a valid, smaller runtime with an honest re
     assert.equal(parsedReport.geometryOptimization, "skipped");
     assert.ok(typeof parsedReport.reductionPercent === "number");
     assert.ok(parsedReport.textureCount >= 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("USDZ runtime optimizer uses the first archive USD layer instead of alphabetical order", { skip: !TOOLCHAIN_AVAILABLE ? "OpenUSD/Pillow not available" : false }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-root-test-"));
+  const genPy = join(dir, "gen-multi-layer.py");
+  const source = join(dir, "source.usdz");
+  const runtime = join(dir, "runtime.usdz");
+  const report = join(dir, "report.json");
+  try {
+    writeFileSync(genPy, MULTI_LAYER_GENERATOR, "utf8");
+    execFileSync(PYTHON, [genPy, source], { stdio: "pipe" });
+    assert.ok(existsSync(source), "multi-layer source USDZ generated");
+
+    const sourceUsdEntries = zipCentralDirectoryEntryNames(source).filter((name) => /\.usd[ac]?$/i.test(name));
+    assert.equal(sourceUsdEntries[0], "z_root.usda");
+    assert.equal([...sourceUsdEntries].sort()[0], "a_decoy.usda");
+
+    const sourceText = usdTextBundle(source);
+    assert.match(sourceText, /SelectedRoot/);
+    assert.match(sourceText, /AlphaDecoy/);
+
+    const stdout = execFileSync(
+      process.execPath,
+      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "light"],
+      { encoding: "utf8" }
+    );
+    const summary = JSON.parse(stdout.trim().split("\n").pop());
+
+    assert.equal(summary.ok, true);
+    assert.ok(existsSync(runtime), "runtime USDZ produced");
+
+    const runtimeValidation = validateUsdzBasic({ filePath: runtime, productionUrl: false });
+    assert.equal(runtimeValidation.ok, true, JSON.stringify(runtimeValidation.fails));
+
+    const runtimeText = usdTextBundle(runtime);
+    assert.match(runtimeText, /SelectedRoot/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

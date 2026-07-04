@@ -8,6 +8,7 @@ import {
   buildUsdzRuntimeMetadataPatch,
   buildViewerGlbMetadataPatch,
   buildViewerGlbStoragePlan,
+  createUsdzRuntimeAssetVersion,
   evaluateRuntimeUsdzUploadGate,
   validateUsdzStructure,
   sha256Hex
@@ -40,8 +41,10 @@ function validUsdzBytes(size = 64) {
 
 function mockAdminClient(handlers = {}) {
   const removed = [];
+  const updates = [];
   return {
     removed,
+    updates,
     client: {
       storage: {
         from: () => ({
@@ -55,11 +58,24 @@ function mockAdminClient(handlers = {}) {
       from: (table) => {
         if (table === "menu_dishes") {
           return {
-            update: () => ({
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle:
+                    handlers.dishSelect ??
+                    (async () => ({ data: { metadata: handlers.freshMetadata ?? {} }, error: null }))
+                })
+              })
+            }),
+            update: (payload) => ({
               eq: () => ({
                 eq: () => ({
                   select: () => ({
-                    maybeSingle: handlers.dishUpdate ?? (async () => ({ data: { id: DISH_ID }, error: null }))
+                    maybeSingle: async () => {
+                      updates.push(payload);
+                      if (handlers.dishUpdate) return handlers.dishUpdate(payload);
+                      return { data: { id: DISH_ID }, error: null };
+                    }
                   })
                 })
               })
@@ -175,6 +191,42 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
     assert.equal(field in patch, false);
   }
   assert.doesNotThrow(() => assertNoForbiddenSourceStorage(patch));
+});
+
+test("runtime asset version and storage path change when the same source is processed with a different profile", async () => {
+  const runtimeBytes = validUsdzBytes(7000);
+  const runtimeSha256 = sha256Hex(runtimeBytes);
+
+  async function runForProfile(profile) {
+    const uploads = [];
+    const { client } = mockAdminClient({
+      upload: async (path) => {
+        uploads.push(path);
+        return { data: {}, error: null };
+      }
+    });
+    const result = await runUsdzRuntimePipeline({
+      ...basePipelineArgs(client, successOptimizer(runtimeBytes)),
+      profile
+    });
+    return { result, uploads };
+  }
+
+  const premium = await runForProfile("premium");
+  const light = await runForProfile("light");
+
+  assert.equal(
+    premium.result.version,
+    createUsdzRuntimeAssetVersion({ profile: "premium", runtimeSha256 })
+  );
+  assert.equal(
+    light.result.version,
+    createUsdzRuntimeAssetVersion({ profile: "light", runtimeSha256 })
+  );
+  assert.notEqual(premium.result.version, light.result.version);
+  assert.notEqual(premium.uploads[0], light.uploads[0]);
+  assert.ok(premium.result.arUsdzUrl.endsWith(`?v=${premium.result.version}`));
+  assert.ok(light.result.arUsdzUrl.endsWith(`?v=${light.result.version}`));
 });
 
 test("runtime upload gate blocks bad output and passes a valid runtime", () => {
@@ -421,6 +473,35 @@ test("metadata update error rolls back runtime and report from Storage", async (
   );
   assert.equal(uploads.length, 2);
   assert.deepEqual(removed, uploads);
+});
+
+test("runtime pipeline merges USDZ patch onto fresh dish metadata so concurrent GLB viewer metadata is preserved", async () => {
+  const concurrentGlbMetadata = {
+    webModel3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=old-glb-version`,
+    model3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=old-glb-version`,
+    webModel3dStoragePath: `restaurants/${RESTAURANT_ID}/models/web/homard-grille-old-glb-version.glb`,
+    viewerGlbStatus: "ready",
+    viewerGlbSha256: "c".repeat(64),
+    concurrentMarker: "glb-added-during-usdz-optimization"
+  };
+  const { client, updates } = mockAdminClient({
+    dishSelect: async () => ({ data: { metadata: concurrentGlbMetadata }, error: null })
+  });
+
+  const result = await runUsdzRuntimePipeline({
+    ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000))),
+    existingMetadata: { staleOnly: "must-not-be-merged" }
+  });
+
+  assert.equal(updates.length, 1);
+  const metadata = updates[0].metadata;
+  assert.equal(metadata.concurrentMarker, "glb-added-during-usdz-optimization");
+  assert.equal(metadata.viewerGlbStatus, "ready");
+  assert.equal(metadata.webModel3dStoragePath, concurrentGlbMetadata.webModel3dStoragePath);
+  assert.equal(metadata.webModel3dUrl, `/api/public/menu-dishes/${DISH_ID}/model/glb?v=${result.version}`);
+  assert.equal(metadata.model3dUrl, `/api/public/menu-dishes/${DISH_ID}/model/glb?v=${result.version}`);
+  assert.equal(metadata.arUsdzUrl, result.arUsdzUrl);
+  assert.equal("staleOnly" in metadata, false);
 });
 
 test("validated runtime pipeline uploads runtime and report after source cleanup", async () => {

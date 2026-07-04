@@ -289,6 +289,16 @@ export function createModelAssetVersion(seedSha256?: string): string {
   return `${dateTag()}-${seed}`.toLowerCase();
 }
 
+export function createUsdzRuntimeAssetVersion(args: {
+  profile: UsdzOptimizationProfile;
+  runtimeSha256: string;
+}): string {
+  const seed = createHash("sha256")
+    .update(`${args.profile}:${args.runtimeSha256}`)
+    .digest("hex");
+  return createModelAssetVersion(seed);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
