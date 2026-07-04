@@ -470,6 +470,27 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);
 });
 
+test("Trouvable menu tools stay sticky under the top bar with a single control surface", async () => {
+  const [source, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  assert.match(source, /toolsSentinelRef/);
+  assert.match(source, /topBarRef/);
+  assert.match(source, /setToolsPinned/);
+  assert.match(source, /data-pinned=\{toolsPinned \? "true" : "false"\}/);
+  assert.match(source, /IntersectionObserver/);
+  assert.match(source, /ResizeObserver/);
+  assert.match(source, /id="trouvable-menu-search"/);
+  assert.doesNotMatch(source, /id="trouvable-menu-search-sticky"/);
+  assert.match(css, /\.tools[\s\S]*position:\s*sticky/);
+  assert.match(css, /top:\s*var\(--trouvable-sticky-tools-top/);
+  assert.match(css, /\.tools\[data-pinned="true"\]/);
+  assert.match(css, /@keyframes toolsPinEnter/);
+  assert.match(css, /\.toolsSentinel/);
+});
+
 test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
   const page = await readFile(pagePath, "utf8");
   const dishPage = await readFile(dishPagePath, "utf8");
