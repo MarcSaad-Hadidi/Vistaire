@@ -5,7 +5,7 @@
  * Contract:
  *   node scripts/owner/optimize-restaurant-usdz.mjs \
  *     --source <tmp source.usdz> --output <tmp runtime.usdz> \
- *     --report <tmp report.json> --profile balanced|premium|light
+ *     --report <tmp report.json> --profile balanced|premium|light|emergency
  *
  * - Validates the source USDZ structurally (usdz-basic).
  * - Runs the Python worker (OpenUSD + Pillow) that extracts, inspects,
@@ -45,12 +45,13 @@ import { validateUsdzBasic } from "../3d/shared/validators/usdz-basic.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PYTHON_WORKER = join(SCRIPT_DIR, "optimize_restaurant_usdz.py");
-const PROFILE_ORDER = ["premium", "balanced", "light"];
+const PROFILE_ORDER = ["premium", "balanced", "light", "emergency"];
 const VALID_PROFILES = new Set(PROFILE_ORDER);
 const DEFAULT_PROFILE_BUDGETS = {
-  premium: 12 * 1024 * 1024,
-  balanced: 8 * 1024 * 1024,
-  light: Math.floor(5.5 * 1024 * 1024)
+  premium: 16 * 1024 * 1024,
+  balanced: 12 * 1024 * 1024,
+  light: 10 * 1024 * 1024,
+  emergency: Math.floor(5.5 * 1024 * 1024)
 };
 
 function parseArgs(argv) {

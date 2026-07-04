@@ -18,7 +18,7 @@ import {
   type OwnerDishModelUploadQueueState
 } from "@/lib/owner/ownerDishModelUploadQueue";
 
-export type UsdzOptimizationProfileOption = "premium" | "balanced" | "light";
+export type UsdzOptimizationProfileOption = "premium" | "balanced" | "light" | "emergency";
 
 type OwnerDishModelUploaderProps = {
   restaurantId: string;
@@ -102,16 +102,17 @@ type DeletePayload = {
 };
 
 const PROFILE_OPTIONS: { value: UsdzOptimizationProfileOption; label: string }[] = [
-  { value: "premium", label: "Premium (qualite max)" },
-  { value: "balanced", label: "Balanced (defaut)" },
-  { value: "light", label: "Light (fallback leger)" }
+  { value: "premium", label: "Premium (16 MB max)" },
+  { value: "balanced", label: "Balanced (12 MB max)" },
+  { value: "light", label: "Light mobile safe (10 MB max)" },
+  { value: "emergency", label: "Emergency 5.5 MB (fallback agressif)" }
 ];
 
 const LOCAL_USDZ_WORKER_URL =
   process.env.NEXT_PUBLIC_USDZ_WORKER_URL || "http://127.0.0.1:8787";
 
 function isProfileOption(value: string): value is UsdzOptimizationProfileOption {
-  return value === "premium" || value === "balanced" || value === "light";
+  return value === "premium" || value === "balanced" || value === "light" || value === "emergency";
 }
 
 function reductionPercent(sourceBytes: number, runtimeBytes: number): number {

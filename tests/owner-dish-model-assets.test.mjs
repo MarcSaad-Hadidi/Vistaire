@@ -250,6 +250,8 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /Tout supprimer/);
   assert.match(uploader, /GLB viewer/);
   assert.match(uploader, /USDZ runtime/);
+  assert.match(uploader, /Light mobile safe \(10 MB max\)/);
+  assert.match(uploader, /Emergency 5\.5 MB \(fallback agressif\)/);
   assert.match(uploader, /Telecharger USDZ runtime/);
   assert.match(uploader, /download=\{usdzFileName\}/);
   assert.match(uploader, /buildDownloadFileName/);

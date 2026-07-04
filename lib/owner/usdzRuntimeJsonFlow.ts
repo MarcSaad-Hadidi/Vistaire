@@ -228,7 +228,14 @@ export function parsePrepareUploadInput(value: unknown): UsdzRuntimePrepareUploa
   const jobId = typeof value.jobId === "string" ? value.jobId : "";
   const jobToken = typeof value.jobToken === "string" ? value.jobToken : "";
   const profile = value.profile;
-  if (profile !== "premium" && profile !== "balanced" && profile !== "light") return null;
+  if (
+    profile !== "premium" &&
+    profile !== "balanced" &&
+    profile !== "light" &&
+    profile !== "emergency"
+  ) {
+    return null;
+  }
   return {
     jobId,
     jobToken,

@@ -11,6 +11,7 @@ import {
   buildViewerGlbStoragePlan,
   createUsdzRuntimeAssetVersion,
   evaluateRuntimeUsdzUploadGate,
+  USDZ_OPTIMIZATION_PROFILES,
   validateUsdzStructure,
   sha256Hex
 } from "../lib/owner/usdzRuntimeModel.ts";
@@ -454,7 +455,7 @@ test("prepare-upload enforces the selected profile byte budget", async () => {
     dishSlug: "homard-grille",
     sourceOriginalName: "master.usdz",
     sourceBytes: 20 * 1024 * 1024,
-    profile: "light",
+    profile: "emergency",
     env
   });
   assert.equal(token.ok, true);
@@ -469,7 +470,7 @@ test("prepare-upload enforces the selected profile byte budget", async () => {
         input: {
           jobId: token.jobId,
           jobToken: token.token,
-          profile: "light",
+          profile: "emergency",
           sourceBytes: 20 * 1024 * 1024,
           sourceSha256: "b".repeat(64),
           runtimeBytes: 6 * 1024 * 1024,
@@ -482,6 +483,67 @@ test("prepare-upload enforces the selected profile byte budget", async () => {
       }),
     /limite runtime/
   );
+});
+
+test("light profile budget accepts a mobile-safe runtime without signing source storage", async () => {
+  assert.equal(USDZ_OPTIMIZATION_PROFILES.light.targetMaxBytes, 10 * 1024 * 1024);
+  assert.equal(
+    USDZ_OPTIMIZATION_PROFILES.emergency.targetMaxBytes,
+    5.5 * 1024 * 1024
+  );
+
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 26 * 1024 * 1024,
+    profile: "light",
+    env
+  });
+  assert.equal(token.ok, true);
+
+  const signedPaths = [];
+  const { client } = mockAdminClient({
+    createSignedUploadUrl: async (path) => {
+      signedPaths.push(path);
+      return {
+        data: {
+          signedUrl: `https://storage.vistaire.test/object/upload/sign/${path}`,
+          token: "signed-token",
+          path
+        },
+        error: null
+      };
+    }
+  });
+
+  const prepared = await prepareUsdzRuntimeSignedUpload({
+    adminClient: client,
+    env,
+    maxRuntimeBytes: 16 * 1024 * 1024,
+    input: {
+      jobId: token.jobId,
+      jobToken: token.token,
+      profile: "light",
+      sourceBytes: 26 * 1024 * 1024,
+      sourceSha256: "b".repeat(64),
+      runtimeBytes: 9 * 1024 * 1024,
+      runtimeSha256: "a".repeat(64),
+      reportBytes: 512,
+      geometryOptimization: "done",
+      warnings: [],
+      fails: []
+    }
+  });
+
+  assert.equal(prepared.ok, true);
+  assert.deepEqual(signedPaths, [prepared.runtimeStoragePath, prepared.reportStoragePath]);
+  assert.doesNotMatch(signedPaths.join("\n"), /source|master|raw|candidate/i);
 });
 
 test("complete rejects report JSON that does not prove sourceStored false", async () => {
@@ -918,7 +980,12 @@ test("worker refuses to store source and reports geometry honestly", () => {
   assert.match(worker, /Blender indisponible/);
   assert.match(worker, /Triangle budget depasse sans optimisation Blender reussie/);
   assert.match(worker, /guard_output_path/);
+  assert.match(worker, /optimized_root = root_layer\.parent/);
+  assert.match(worker, /validate_packaging_root\(root_layer, extracted\)/);
+  assert.match(worker, /UsdUtils\.ComputeAllDependencies/);
   assert.match(worker, /shutil\.rmtree\(workspace/);
+  assert.match(cli, /light:\s*10 \* 1024 \* 1024/);
+  assert.match(cli, /emergency:\s*Math\.floor\(5\.5 \* 1024 \* 1024\)/);
   assert.match(cli, /VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS/);
   assert.match(cli, /VISTAIRE_USDZ_PYTHON/);
   assert.match(cli, /VISTAIRE_USDZ_BLENDER/);

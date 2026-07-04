@@ -85,6 +85,15 @@ PROFILES: dict[str, dict[str, float | int]] = {
         "decimateRatio": 0.5,
         "mergeDistance": 0.00008,
     },
+    "emergency": {
+        "baseColorMax": 768,
+        "normalMax": 768,
+        "ormMax": 768,
+        "jpegQuality": 76,
+        "targetTriangles": 70_000,
+        "decimateRatio": 0.38,
+        "mergeDistance": 0.00010,
+    },
 }
 
 DATA_ROLES = {"normal", "roughness", "metallic", "occlusion"}
@@ -258,8 +267,28 @@ def resolve_blender() -> str | None:
     return shutil.which("blender")
 
 
+def ensure_path_under_extracted(path: Path, extracted: Path, label: str) -> None:
+    try:
+        path.resolve().relative_to(extracted.resolve())
+    except ValueError as exc:
+        raise RuntimeError(f"{label} hors du package extrait: {path}") from exc
+
+
+def unresolved_asset_dependencies(root_layer: Path) -> list[str]:
+    try:
+        _, _, unresolved = UsdUtils.ComputeAllDependencies(str(root_layer))
+    except Exception as exc:
+        return [f"validation dependencies impossible: {exc}"]
+    return [str(item) for item in unresolved]
+
+
+def validate_packaging_root(root_layer: Path, extracted: Path) -> list[str]:
+    ensure_path_under_extracted(root_layer, extracted, "Root USDZ runtime")
+    return unresolved_asset_dependencies(root_layer)
+
+
 def run_blender_geometry_pass(
-    root_layer: Path, workspace: Path, profile: dict[str, float | int], report: Report
+    root_layer: Path, extracted: Path, workspace: Path, profile: dict[str, float | int], report: Report
 ) -> Path:
     blender = resolve_blender()
     if not blender:
@@ -269,7 +298,7 @@ def run_blender_geometry_pass(
         return root_layer
 
     script = Path(__file__).with_name("blender_usdz_geometry_optimizer.py")
-    optimized_root = workspace / "geometry-optimized.usdc"
+    optimized_root = root_layer.parent / "__vistaire_geometry_optimized.usdc"
     metrics_path = workspace / "geometry-metrics.json"
     command = [
         blender,
@@ -318,6 +347,13 @@ def run_blender_geometry_pass(
     before = int(metrics.get("trianglesBefore", report.triangle_count_before) or 0)
     after = int(metrics.get("trianglesAfter", before) or 0)
     if before > 0 and after > 0 and after < before:
+        try:
+            ensure_path_under_extracted(optimized_root, extracted, "Root USDZ optimise")
+        except RuntimeError as exc:
+            report.geometry_optimization = "failed"
+            report.geometry_optimization_reason = str(exc)
+            report.warnings.append(report.geometry_optimization_reason)
+            return root_layer
         report.geometry_optimization = "done"
         report.geometry_optimization_reason = "Blender headless decimation/cleanup applied."
         report.triangle_count_before = before
@@ -619,7 +655,7 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         report.triangle_count_after = report.triangle_count_before
 
         if report.triangle_count_before > int(profile["targetTriangles"]):
-            root_layer = run_blender_geometry_pass(root_layer, workspace, profile, report)
+            root_layer = run_blender_geometry_pass(root_layer, extracted, workspace, profile, report)
             stage = Usd.Stage.Open(str(root_layer))
             if stage is None:
                 fail(report, f"Stage USD illisible apres Blender: {root_layer}", "open-blender")
@@ -691,6 +727,14 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
 
         # Save the stage (in case default prim was added) and repackage.
         stage.GetRootLayer().Save()
+        unresolved_assets = validate_packaging_root(root_layer, extracted)
+        if unresolved_assets:
+            fail(
+                report,
+                "References USDZ runtime non resolues avant packaging: "
+                + ", ".join(unresolved_assets[:10]),
+                "package-dependencies",
+            )
         output.parent.mkdir(parents=True, exist_ok=True)
         if output.exists():
             output.unlink()
