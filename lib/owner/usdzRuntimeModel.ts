@@ -425,6 +425,15 @@ export type UsdzRuntimeUploadInputs = {
   profile: UsdzOptimizationProfile;
   warnings: string[];
   fails: string[];
+  reductionPercent?: number;
+  geometryOptimization?: string;
+  triangleCountBefore?: number;
+  triangleCountAfter?: number;
+  geometryReductionPercent?: number;
+  textureCount?: number;
+  changedTextures?: number;
+  candidateAttempts?: unknown[];
+  attemptCount?: number;
   source: {
     originalName: string;
     bytes: number;
@@ -475,6 +484,15 @@ export function buildUsdzRuntimeMetadataPatch(
     usdzOptimizationReportStoragePath: inputs.reportStoragePath,
     usdzOptimizationWarnings: inputs.warnings,
     usdzOptimizationFails: inputs.fails,
+    usdzOptimizationReductionPercent: inputs.reductionPercent ?? 0,
+    usdzGeometryOptimization: inputs.geometryOptimization ?? "unknown",
+    usdzTriangleCountBefore: inputs.triangleCountBefore ?? 0,
+    usdzTriangleCountAfter: inputs.triangleCountAfter ?? 0,
+    usdzGeometryReductionPercent: inputs.geometryReductionPercent ?? 0,
+    usdzTextureCount: inputs.textureCount ?? 0,
+    usdzChangedTextures: inputs.changedTextures ?? 0,
+    usdzOptimizationAttemptCount: inputs.attemptCount ?? 0,
+    usdzOptimizationCandidateAttempts: inputs.candidateAttempts ?? [],
     usdzSourceOriginalName: inputs.source.originalName,
     usdzSourceBytes: inputs.source.bytes,
     usdzSourceSha256: inputs.source.sha256,

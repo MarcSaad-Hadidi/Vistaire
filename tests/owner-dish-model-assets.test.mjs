@@ -163,7 +163,7 @@ test("dish model DELETE route is guarded, scoped, and cleans only server-side mo
   assert.match(route, /collectDishModelStorageTargets\(dish\.metadata, restaurantId\)/);
   assert.match(route, /storage\.from\(bucket\)\.remove\(paths\)/);
   assert.match(route, /cleanDishModelMetadata\(dish\.metadata\)/);
-  assert.match(route, /has_immersive_view: false/);
+  assert.match(route, /has_immersive_view: isFullDelete \? false : stillImmersive/);
   assert.doesNotMatch(route, /request\.json\(\).*StoragePath/s);
 });
 
@@ -173,17 +173,15 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   const modelsManager = await readFile("components/owner/OwnerRestaurant3dManager.tsx", "utf8");
 
   assert.match(uploader, /method: "DELETE"/);
-  assert.match(uploader, /Supprimer mod/);
-  assert.match(uploader, /GLB web/);
-  assert.match(uploader, /USDZ iPhone/);
-  assert.match(uploader, /Telecharger USDZ/);
-  assert.match(uploader, /download=\{usdzDownloadFileName\}/);
-  assert.match(uploader, /buildUsdzDownloadFileName/);
-  assert.match(uploader, /\.usdz`/);
+  assert.match(uploader, /Supprimer GLB viewer/);
+  assert.match(uploader, /Supprimer USDZ runtime/);
+  assert.match(uploader, /GLB viewer/);
+  assert.match(uploader, /USDZ runtime/);
+  assert.match(uploader, /Telecharger USDZ runtime/);
+  assert.match(uploader, /download=\{usdzFileName\}/);
+  assert.match(uploader, /buildDownloadFileName/);
   assert.match(uploader, /setWebModel3dUrl\(""\)/);
   assert.match(uploader, /setArUsdzUrl\(""\)/);
-  assert.match(uploader, /setStoragePath\(""\)/);
-  assert.match(uploader, /setJobId\(""\)/);
   assert.match(uploader, /router\.refresh\(\)/);
   assert.match(mediaManager, /dishName=\{dish\.name\}/);
   assert.match(modelsManager, /dishName=\{dish\.name\}/);
@@ -198,7 +196,7 @@ test("owner model uploader is coordinated by a shared FIFO queue in table parent
   assert.match(uploader, /OwnerDishModelUploadQueueProvider/);
   assert.match(uploader, /queueState === "queued"/);
   assert.match(uploader, /En file\.\.\./);
-  assert.match(uploader, /Pipeline\.\.\./);
+  assert.match(uploader, /Optimisation USDZ\.\.\./);
   assert.match(mediaManager, /OwnerDishModelUploadQueueProvider/);
   assert.match(modelsManager, /OwnerDishModelUploadQueueProvider/);
 });

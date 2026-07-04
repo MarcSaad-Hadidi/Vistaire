@@ -21,7 +21,16 @@
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,7 +38,13 @@ import { validateUsdzBasic } from "../3d/shared/validators/usdz-basic.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PYTHON_WORKER = join(SCRIPT_DIR, "optimize_restaurant_usdz.py");
-const VALID_PROFILES = new Set(["premium", "balanced", "light"]);
+const PROFILE_ORDER = ["premium", "balanced", "light"];
+const VALID_PROFILES = new Set(PROFILE_ORDER);
+const DEFAULT_PROFILE_BUDGETS = {
+  premium: 12 * 1024 * 1024,
+  balanced: 8 * 1024 * 1024,
+  light: Math.floor(5.5 * 1024 * 1024)
+};
 
 function parseArgs(argv) {
   const args = {};
@@ -56,6 +71,22 @@ function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+function parsePositiveInt(value, fallback) {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function targetBudgetBytes(profile) {
+  const envKey = `VISTAIRE_USDZ_${profile.toUpperCase()}_TARGET_BYTES`;
+  return parsePositiveInt(process.env[envKey], DEFAULT_PROFILE_BUDGETS[profile]);
+}
+
+function candidateProfiles(requestedProfile) {
+  const startIndex = PROFILE_ORDER.indexOf(requestedProfile);
+  return PROFILE_ORDER.slice(startIndex < 0 ? 1 : startIndex);
+}
+
 function resolvePythonExecutable() {
   if (process.env.VISTAIRE_USDZ_PYTHON) return process.env.VISTAIRE_USDZ_PYTHON;
   return process.platform === "win32" ? "python" : "python3";
@@ -79,6 +110,102 @@ function runPython(python, args) {
       resolvePromise({ code: code ?? -1, stdout, stderr });
     });
   });
+}
+
+class OptimizerStageError extends Error {
+  constructor(message, stage, extra = {}) {
+    super(message);
+    this.name = "OptimizerStageError";
+    this.stage = stage;
+    this.extra = extra;
+  }
+}
+
+function parseWorkerReport(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+async function runCandidate({ python, source, workspace, profile }) {
+  const runtimePath = join(workspace, `runtime-${profile}.usdz`);
+  const reportPath = join(workspace, `report-${profile}.json`);
+  const startedAt = Date.now();
+  const result = await runPython(python, [
+    "--source",
+    source,
+    "--output",
+    runtimePath,
+    "--report",
+    reportPath,
+    "--profile",
+    profile
+  ]);
+  const attempt = {
+    profile,
+    targetBytes: targetBudgetBytes(profile),
+    ok: result.code === 0,
+    runtimeBytes: existsSync(runtimePath) ? statSync(runtimePath).size : 0,
+    durationMs: Date.now() - startedAt
+  };
+  if (result.code !== 0) {
+    let detail = result.stderr.trim() || result.stdout.trim();
+    let stage = "worker";
+    try {
+      const parsed = JSON.parse(result.stderr.trim().split("\n").pop());
+      if (parsed && parsed.error) detail = parsed.error;
+      if (parsed && parsed.stage) stage = parsed.stage;
+    } catch {
+      // keep raw detail
+    }
+    return {
+      ok: false,
+      runtimePath,
+      reportPath,
+      attempt: { ...attempt, error: detail, stage },
+      stderr: result.stderr,
+      stdout: result.stdout
+    };
+  }
+
+  let report = {};
+  try {
+    report = parseWorkerReport(reportPath);
+  } catch (error) {
+    return {
+      ok: false,
+      runtimePath,
+      reportPath,
+      attempt: {
+        ...attempt,
+        ok: false,
+        error: `Rapport illisible: ${error.message}`,
+        stage: "report-parse"
+      },
+      stderr: result.stderr,
+      stdout: result.stdout
+    };
+  }
+
+  const passedBudget = attempt.runtimeBytes > 0 && attempt.runtimeBytes <= attempt.targetBytes;
+  return {
+    ok: true,
+    runtimePath,
+    reportPath,
+    report,
+    attempt: {
+      ...attempt,
+      runtimeBytes: report.runtimeBytes ?? attempt.runtimeBytes,
+      reductionPercent: report.reductionPercent ?? 0,
+      geometryOptimization: report.geometryOptimization ?? "skipped",
+      triangleCountBefore: report.triangleCountBefore ?? 0,
+      triangleCountAfter: report.triangleCountAfter ?? 0,
+      targetTriangles: report.targetTriangles ?? 0,
+      warnings: Array.isArray(report.warnings) ? report.warnings : [],
+      fails: Array.isArray(report.fails) ? report.fails : [],
+      passedBudget
+    },
+    stderr: result.stderr,
+    stdout: result.stdout
+  };
 }
 
 async function main() {
@@ -113,36 +240,71 @@ async function main() {
   const sourceSha256 = sha256File(source);
 
   const python = resolvePythonExecutable();
-  const result = await runPython(python, [
-    "--source",
-    source,
-    "--output",
-    output,
-    "--report",
-    reportPath,
-    "--profile",
-    profile
-  ]);
+  const candidateWorkspace = mkdtempSync(join(resolve(tmpdir()), "vistaire-usdz-candidates-"));
+  const attempts = [];
+  let chosen = null;
 
-  if (result.code !== 0) {
-    if (existsSync(output)) rmSync(output, { force: true });
-    let detail = result.stderr.trim() || result.stdout.trim();
-    let stage = "worker";
-    try {
-      const parsed = JSON.parse(result.stderr.trim().split("\n").pop());
-      if (parsed && parsed.error) detail = parsed.error;
-      if (parsed && parsed.stage) stage = parsed.stage;
-    } catch {
-      // keep raw detail
+  try {
+    for (const candidateProfile of candidateProfiles(profile)) {
+      const candidate = await runCandidate({
+        python,
+        source,
+        workspace: candidateWorkspace,
+        profile: candidateProfile
+      });
+      attempts.push(candidate.attempt);
+      if (!candidate.ok) {
+        rmSync(candidate.runtimePath, { force: true });
+        rmSync(candidate.reportPath, { force: true });
+        continue;
+      }
+
+      const fails = Array.isArray(candidate.report.fails) ? candidate.report.fails : [];
+      const passedBudget =
+        candidate.attempt.runtimeBytes > 0 &&
+        candidate.attempt.runtimeBytes <= candidate.attempt.targetBytes;
+      if (fails.length === 0 && passedBudget) {
+        chosen = candidate;
+        break;
+      }
+
+      rmSync(candidate.runtimePath, { force: true });
+      rmSync(candidate.reportPath, { force: true });
     }
-    emitError(`Worker USDZ echoue: ${detail}`, stage);
+
+    if (!chosen) {
+      throw new OptimizerStageError("Aucune candidate USDZ runtime sous budget.", "budget", {
+        attempts
+      });
+    }
+
+    copyFileSync(chosen.runtimePath, output);
+    copyFileSync(chosen.reportPath, reportPath);
+    const finalReport = parseWorkerReport(reportPath);
+    writeFileSync(
+      reportPath,
+      JSON.stringify(
+        {
+          ...finalReport,
+          profile: chosen.attempt.profile,
+          candidateAttempts: attempts,
+          attemptCount: attempts.length,
+          sourceStored: false
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+  } finally {
+    rmSync(candidateWorkspace, { recursive: true, force: true });
   }
 
   if (!existsSync(output)) {
-    emitError("Le worker n'a produit aucun runtime USDZ.", "output-missing");
+    emitError("Le worker n'a produit aucun runtime USDZ.", "output-missing", { attempts });
   }
   if (!existsSync(reportPath)) {
-    emitError("Le worker n'a produit aucun rapport.", "report-missing");
+    emitError("Le worker n'a produit aucun rapport.", "report-missing", { attempts });
   }
 
   const runtimeValidation = validateUsdzBasic({
@@ -176,7 +338,7 @@ async function main() {
   process.stdout.write(
     `${JSON.stringify({
       ok: true,
-      profile,
+      profile: report.profile ?? chosen?.attempt?.profile ?? profile,
       sourcePath: source,
       runtimePath: output,
       reportPath,
@@ -186,11 +348,22 @@ async function main() {
       runtimeSha256,
       optimizationApplied,
       geometryOptimization: report.geometryOptimization ?? "skipped",
+      geometryOptimizationReason: report.geometryOptimizationReason ?? "",
+      triangleCountBefore: report.triangleCountBefore ?? 0,
+      triangleCountAfter: report.triangleCountAfter ?? 0,
+      geometryReductionPercent: report.geometryReductionPercent ?? 0,
       reductionPercent: report.reductionPercent ?? 0,
+      candidateAttempts: Array.isArray(report.candidateAttempts)
+        ? report.candidateAttempts
+        : attempts,
+      attemptCount: attempts.length,
       warnings: Array.isArray(report.warnings) ? report.warnings : [],
       fails: Array.isArray(report.fails) ? report.fails : [],
       textureCount: report.textureCount ?? 0,
+      changedTextures: report.changedTextures ?? 0,
       materialCount: report.materialCount ?? 0,
+      sourceStored: false,
+      cleanup: report.cleanup ?? { extractedWorkspaceRemoved: true },
       runtimeValidation: {
         entryCount: runtimeValidation.metrics.entryCount,
         usdLayerCount: runtimeValidation.metrics.usdLayerCount,
@@ -202,5 +375,8 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (error instanceof OptimizerStageError) {
+    emitError(error.message, error.stage, error.extra);
+  }
   emitError(error instanceof Error ? error.message : String(error), "uncaught");
 });

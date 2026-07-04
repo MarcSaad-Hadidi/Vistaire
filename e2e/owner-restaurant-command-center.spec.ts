@@ -46,6 +46,35 @@ function installPageHealth(page: Page) {
   };
 }
 
+async function stubMenuTranslations(page: Page) {
+  await page.route("**/api/owner/restaurants/*/menu-translations", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        provider: {
+          configured: false,
+          provider: "e2e-fallback",
+          reason: "Traductions stubbees pour le parcours owner E2E."
+        },
+        defaultLocale: "fr-CA",
+        supportedLocales: ["fr-CA"],
+        locales: [
+          {
+            locale: "fr-CA",
+            status: "source",
+            estimatedCharacters: 0,
+            missingEntities: 0,
+            staleEntities: 0,
+            errorEntities: 0
+          }
+        ]
+      })
+    });
+  });
+}
+
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
     .poll(() =>
@@ -65,6 +94,7 @@ test("owner portfolio opens restaurant overview and contextual routes stay clean
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
   const health = installPageHealth(page);
+  await stubMenuTranslations(page);
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/owner", { waitUntil: "networkidle" });
@@ -120,7 +150,12 @@ test("owner portfolio opens restaurant overview and contextual routes stay clean
 
   await page.goto(`${dashboardHref}/3d`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 2, name: /3D \/ AR/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Ajouter GLB" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /(Uploader|Remplacer) GLB viewer/ }).first()
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Worker local manquant\. Lance npm run owner:usdz-worker/).first()
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.goto(`${dashboardHref}/preview`, { waitUntil: "domcontentloaded" });
@@ -204,8 +239,10 @@ test("owner restaurants picker, legacy query redirect, and creation wizard profi
   await page.getByRole("button", { name: "Continuer" }).click();
   await expect(page.getByText("2. Structure menu")).toBeVisible();
   await expect(page.getByText("Langues du menu")).toBeVisible();
-  await page.getByRole("button", { name: /English/ }).click();
-  await expect(page.getByText("Francais, English")).toBeVisible();
+  await page.getByLabel("Ajouter une langue au menu").selectOption("en-CA");
+  const selectedLanguages = page.getByLabel("Langues selectionnees");
+  await expect(selectedLanguages.getByText("English (Canada)")).toBeVisible();
+  await expect(selectedLanguages.getByText("en-CA")).toBeVisible();
   await expect(page.getByText("Aucune section ajoutee.")).toBeVisible();
   await expectNoHorizontalOverflow(page);
 

@@ -59,6 +59,14 @@ export type PublicMenuDish = {
   usdzRuntimeStatus?: string;
   usdzRuntimeBytes?: number;
   usdzOptimizationProfile?: string;
+  usdzOptimizationReductionPercent?: number;
+  usdzGeometryOptimization?: string;
+  usdzTriangleCountBefore?: number;
+  usdzTriangleCountAfter?: number;
+  usdzGeometryReductionPercent?: number;
+  usdzTextureCount?: number;
+  usdzChangedTextures?: number;
+  usdzOptimizationAttemptCount?: number;
   usdzSourceBytes?: number;
   usdzSourceOriginalName?: string;
   usdzSourceStored?: boolean;
@@ -729,6 +737,24 @@ function mapDishRow(
     getNumberFromSources(row, metadata, ["usdzRuntimeBytes"])
   );
   const usdzOptimizationProfile = getString(metadata, ["usdzOptimizationProfile"], "");
+  const usdzOptimizationReductionPercent = getNumberFromSources(row, metadata, [
+    "usdzOptimizationReductionPercent"
+  ]);
+  const usdzGeometryOptimization = getString(metadata, ["usdzGeometryOptimization"], "");
+  const usdzTriangleCountBefore = getNumberFromSources(row, metadata, [
+    "usdzTriangleCountBefore"
+  ]);
+  const usdzTriangleCountAfter = getNumberFromSources(row, metadata, [
+    "usdzTriangleCountAfter"
+  ]);
+  const usdzGeometryReductionPercent = getNumberFromSources(row, metadata, [
+    "usdzGeometryReductionPercent"
+  ]);
+  const usdzTextureCount = getNumberFromSources(row, metadata, ["usdzTextureCount"]);
+  const usdzChangedTextures = getNumberFromSources(row, metadata, ["usdzChangedTextures"]);
+  const usdzOptimizationAttemptCount = getNumberFromSources(row, metadata, [
+    "usdzOptimizationAttemptCount"
+  ]);
   const usdzSourceBytes = normalizeModelAssetBytes(
     getNumberFromSources(row, metadata, ["usdzSourceBytes"])
   );
@@ -808,6 +834,14 @@ function mapDishRow(
     ...(usdzRuntimeStatus ? { usdzRuntimeStatus } : {}),
     usdzRuntimeBytes,
     ...(usdzOptimizationProfile ? { usdzOptimizationProfile } : {}),
+    usdzOptimizationReductionPercent,
+    ...(usdzGeometryOptimization ? { usdzGeometryOptimization } : {}),
+    usdzTriangleCountBefore,
+    usdzTriangleCountAfter,
+    usdzGeometryReductionPercent,
+    usdzTextureCount,
+    usdzChangedTextures,
+    usdzOptimizationAttemptCount,
     usdzSourceBytes,
     ...(usdzSourceOriginalName ? { usdzSourceOriginalName } : {}),
     usdzSourceStored,
