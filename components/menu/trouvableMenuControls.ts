@@ -1506,7 +1506,7 @@ type WidenTrouvableCopyValue<T> = T extends (...args: infer Args) => infer Retur
       ? string
       : T;
 
-type TrouvableCopy = {
+export type TrouvableCopy = {
   [Key in keyof (typeof TROUVABLE_COPY)["en"]]: WidenTrouvableCopyValue<
     (typeof TROUVABLE_COPY)["en"][Key]
   >;
@@ -1522,6 +1522,13 @@ type CopyLeafSpec = {
   key: keyof TrouvableCopy;
   nestedKey?: string;
   kind: "string" | "function-template";
+};
+
+export type TrouvableUiCopyTranslationEntry = {
+  path: string;
+  text: string;
+  kind: CopyLeafSpec["kind"];
+  placeholders: string[];
 };
 
 function renderCopyTemplate(
@@ -1556,6 +1563,19 @@ const COPY_FUNCTION_TEMPLATE_BUILDERS: {
     renderCopyTemplate(template, { table })
 };
 
+const COPY_FUNCTION_TEMPLATE_PLACEHOLDERS: {
+  [Key in keyof TrouvableCopy]?: string[];
+} = {
+  activeFilters: ["count"],
+  ingredientsCount: ["count"],
+  modelAlt: ["name"],
+  quantityDecrease: ["name"],
+  quantityIncrease: ["name"],
+  quantityLabel: ["name"],
+  resultStatus: ["view", "count"],
+  waiterReady: ["table"]
+};
+
 function copyLeafSpecs(base: TrouvableCopy): CopyLeafSpec[] {
   const specs: CopyLeafSpec[] = [];
   for (const [rawKey, value] of Object.entries(base)) {
@@ -1585,6 +1605,102 @@ function copyLeafSpecs(base: TrouvableCopy): CopyLeafSpec[] {
 }
 
 const TROUVABLE_COPY_LEAF_SPECS = copyLeafSpecs(TROUVABLE_COPY.en);
+
+function sourceTemplateForCopyFunction(
+  key: keyof TrouvableCopy,
+  value: TrouvableCopy[keyof TrouvableCopy]
+): string {
+  if (typeof value !== "function") return "";
+  switch (key) {
+    case "activeFilters":
+    case "ingredientsCount":
+      return (value as (count: string) => string)("{count}");
+    case "modelAlt":
+    case "quantityDecrease":
+    case "quantityIncrease":
+    case "quantityLabel":
+      return (value as (name: string) => string)("{name}");
+    case "resultStatus":
+      return (value as (view: string, count: string) => string)("{view}", "{count}");
+    case "waiterReady":
+      return (value as (table: string) => string)("{table}");
+    default:
+      return "";
+  }
+}
+
+function setCopyPackPath(
+  target: Record<string, unknown>,
+  path: string,
+  value: string
+) {
+  const [head, child] = path.split(".", 2);
+  if (!child) {
+    target[path] = value;
+    return;
+  }
+  const parent = objectInput(target[head]);
+  target[head] = {
+    ...parent,
+    [child]: value
+  };
+}
+
+function ensureTemplatePlaceholders(text: string, placeholders: string[]): string {
+  let output = text.trim();
+  for (const placeholder of placeholders) {
+    const token = `{${placeholder}}`;
+    if (!output.includes(token)) output = `${output} ${token}`.trim();
+  }
+  return output;
+}
+
+export function getTrouvableUiCopyTranslationEntries(
+  sourceLocale: TrouvableLocale = "fr-CA"
+): TrouvableUiCopyTranslationEntry[] {
+  const sourceCopyLocale =
+    builtInCopyLocaleForPublicLocale(normalizePublicMenuLocale(sourceLocale)) ??
+    TROUVABLE_FALLBACK_COPY_LOCALE;
+  const sourceCopy = TROUVABLE_COPY[sourceCopyLocale];
+
+  return TROUVABLE_COPY_LEAF_SPECS.map((spec) => {
+    const value = spec.nestedKey
+      ? objectInput(sourceCopy[spec.key])[spec.nestedKey]
+      : sourceCopy[spec.key];
+    const placeholders =
+      spec.kind === "function-template"
+        ? COPY_FUNCTION_TEMPLATE_PLACEHOLDERS[spec.key] ?? []
+        : [];
+    return {
+      path: spec.path,
+      text:
+        spec.kind === "function-template"
+          ? sourceTemplateForCopyFunction(spec.key, value as TrouvableCopy[keyof TrouvableCopy])
+          : typeof value === "string"
+            ? value
+            : "",
+      kind: spec.kind,
+      placeholders
+    };
+  }).filter((entry) => entry.text.trim().length > 0);
+}
+
+export function buildTrouvableLocalizedUiCopyPack(
+  entries: TrouvableUiCopyTranslationEntry[],
+  translations: string[]
+): Record<string, unknown> {
+  const pack: Record<string, unknown> = {};
+  entries.forEach((entry, index) => {
+    const rawText = translations[index] ?? entry.text;
+    const text =
+      entry.kind === "function-template"
+        ? ensureTemplatePlaceholders(rawText, entry.placeholders)
+        : rawText.trim();
+    if (!text) return;
+    setCopyPackPath(pack, entry.path, text);
+  });
+  return pack;
+}
 
 export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
   return normalizePublicMenuLocale(value);

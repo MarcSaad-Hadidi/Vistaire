@@ -17,6 +17,19 @@ export type OwnerPublicMenuSettingsFallback = {
   updatedAt?: string;
 };
 
+export type PersistGeneratedLocalizedUiCopyResult =
+  | {
+      ok: true;
+      source: OwnerPublicMenuSettingsSource;
+      settings: PublicMenuSettings;
+      localizedUiCopy: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      status: 503;
+      error: string;
+    };
+
 const UI_CONFIG_SETTINGS_KEY = "publicMenuSettings";
 
 function objectInput(value: unknown): Record<string, unknown> {
@@ -37,6 +50,16 @@ function getLocalizedUiCopy(candidate: Record<string, unknown>): Record<string, 
     localizedUiCopyInput(candidate.uiCopy) ??
     localizedUiCopyInput(candidate.ui_copy)
   );
+}
+
+function settingsWithLocalizedUiCopy(
+  settings: PublicMenuSettings,
+  localizedUiCopy?: Record<string, unknown>
+): Record<string, unknown> {
+  const serialized = serializePublicMenuSettings(settings) as Record<string, unknown>;
+  return localizedUiCopy && Object.keys(localizedUiCopy).length > 0
+    ? { ...serialized, localizedUiCopy }
+    : serialized;
 }
 
 export function isMissingColumnError(error: unknown, column: string): boolean {
@@ -156,25 +179,32 @@ export async function readUiConfigPublicMenuSettings(
   client: SupabaseClient,
   restaurantId: string
 ): Promise<PublicMenuSettings | null> {
+  return (await readUiConfigPublicMenuSettingsFallback(client, restaurantId))?.settings ?? null;
+}
+
+export async function readUiConfigPublicMenuSettingsFallback(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<OwnerPublicMenuSettingsFallback | null> {
   const config = await client
     .from("menu_ui_configs")
-    .select("config_json,status")
+    .select("config_json,status,updated_at")
     .eq("restaurant_id", restaurantId)
     .in("status", ["draft", "published"])
     .order("updated_at", { ascending: false })
     .limit(10);
 
   if (config.error) return null;
-  return publicMenuSettingsFromUiConfigRows(config.data);
+  return publicMenuSettingsFallbackFromUiConfigRows(config.data, restaurantId);
 }
 
-export async function readPublicMenuSettingsWithFallbacks(args: {
+export async function readPublicMenuSettingsBundleWithFallbacks(args: {
   client: SupabaseClient;
   restaurantId: string;
   menuId?: string;
   menuRow?: unknown;
-}): Promise<PublicMenuSettings> {
-  const cached = publicMenuSettingsFromMenuRow(args.menuRow)?.settings;
+}): Promise<OwnerPublicMenuSettingsFallback> {
+  const cached = publicMenuSettingsFromMenuRow(args.menuRow);
   if (cached) return cached;
 
   if (args.menuId) {
@@ -184,7 +214,7 @@ export async function readPublicMenuSettingsWithFallbacks(args: {
       .eq("id", args.menuId)
       .maybeSingle();
     if (!withSettings.error) {
-      const settings = publicMenuSettingsFromMenuRow(withSettings.data)?.settings;
+      const settings = publicMenuSettingsFromMenuRow(withSettings.data);
       if (settings) return settings;
     }
 
@@ -198,7 +228,7 @@ export async function readPublicMenuSettingsWithFallbacks(args: {
         .eq("id", args.menuId)
         .maybeSingle();
       if (!withNativeSettings.error) {
-        const settings = publicMenuSettingsFromMenuRow(withNativeSettings.data)?.settings;
+        const settings = publicMenuSettingsFromMenuRow(withNativeSettings.data);
         if (settings) return settings;
       }
     }
@@ -213,22 +243,35 @@ export async function readPublicMenuSettingsWithFallbacks(args: {
         .eq("id", args.menuId)
         .maybeSingle();
       if (!withMetadata.error) {
-        const settings = publicMenuSettingsFromMenuRow(withMetadata.data)?.settings;
+        const settings = publicMenuSettingsFromMenuRow(withMetadata.data);
         if (settings) return settings;
       }
     }
   }
 
-  const uiConfigSettings = await readUiConfigPublicMenuSettings(
+  const uiConfigSettings = await readUiConfigPublicMenuSettingsFallback(
     args.client,
     args.restaurantId
   );
-  return uiConfigSettings ?? normalizePublicMenuSettings({});
+  return uiConfigSettings ?? {
+    source: "settings_json",
+    settings: normalizePublicMenuSettings({})
+  };
+}
+
+export async function readPublicMenuSettingsWithFallbacks(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  menuId?: string;
+  menuRow?: unknown;
+}): Promise<PublicMenuSettings> {
+  return (await readPublicMenuSettingsBundleWithFallbacks(args)).settings;
 }
 
 export function mergePublicMenuSettingsIntoUiConfig(
   configJson: unknown,
-  settings: PublicMenuSettings
+  settings: PublicMenuSettings,
+  nextLocalizedUiCopy?: Record<string, unknown>
 ): Record<string, unknown> {
   const config = objectInput(configJson);
   const existingSettings = objectInput(
@@ -236,14 +279,150 @@ export function mergePublicMenuSettingsIntoUiConfig(
       config.public_menu_settings ??
       config.settings
   );
-  const localizedUiCopy = getLocalizedUiCopy(config) ?? getLocalizedUiCopy(existingSettings);
-  const publicMenuSettings = serializePublicMenuSettings(settings) as Record<string, unknown>;
+  const localizedUiCopy =
+    nextLocalizedUiCopy ??
+    getLocalizedUiCopy(config) ??
+    getLocalizedUiCopy(existingSettings);
+  const publicMenuSettings = settingsWithLocalizedUiCopy(settings, localizedUiCopy);
 
   return {
     ...config,
-    [UI_CONFIG_SETTINGS_KEY]: {
-      ...publicMenuSettings,
-      ...(localizedUiCopy ? { localizedUiCopy } : {})
-    }
+    [UI_CONFIG_SETTINGS_KEY]: publicMenuSettings
+  };
+}
+
+function persistError(source: OwnerPublicMenuSettingsSource, error?: unknown): PersistGeneratedLocalizedUiCopyResult {
+  const details = objectInput(error);
+  const message = [
+    typeof details.message === "string" ? details.message : "",
+    typeof details.details === "string" ? details.details : "",
+    typeof details.hint === "string" ? details.hint : "",
+    typeof details.code === "string" ? details.code : ""
+  ].filter(Boolean).join(" ");
+  return {
+    ok: false,
+    status: 503,
+    error:
+      `Pack interface traduction impossible a sauvegarder (${source}).` +
+      (message ? ` Detail Supabase: ${message}` : "")
+  };
+}
+
+async function persistLocalizedUiCopyToUiConfig(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  settings: PublicMenuSettings;
+  localizedUiCopy: Record<string, unknown>;
+}): Promise<PersistGeneratedLocalizedUiCopyResult> {
+  const existing = await args.client
+    .from("menu_ui_configs")
+    .select("id,theme,config_json,status")
+    .eq("restaurant_id", args.restaurantId)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (existing.error) return persistError("menu_ui_configs", existing.error);
+
+  const configJson = mergePublicMenuSettingsIntoUiConfig(
+    existing.data?.config_json,
+    args.settings,
+    args.localizedUiCopy
+  );
+  const existingId =
+    typeof existing.data?.id === "string" && existing.data.id.trim()
+      ? existing.data.id.trim()
+      : "";
+  const row = {
+    restaurant_id: args.restaurantId,
+    theme:
+      typeof existing.data?.theme === "string" && existing.data.theme.trim()
+        ? existing.data.theme
+        : "fresh-homemade",
+    config_json: configJson,
+    status: "draft",
+    updated_at: new Date().toISOString()
+  };
+  const writer = existingId
+    ? args.client.from("menu_ui_configs").update(row).eq("id", existingId)
+    : args.client.from("menu_ui_configs").insert(row);
+  const written = await writer.select("id,config_json").single();
+
+  if (written.error || !written.data) {
+    return persistError("menu_ui_configs", written.error);
+  }
+
+  return {
+    ok: true,
+    source: "menu_ui_configs",
+    settings: publicMenuSettingsFromUiConfigRow(written.data)?.settings ?? args.settings,
+    localizedUiCopy: args.localizedUiCopy
+  };
+}
+
+export async function persistGeneratedLocalizedUiCopy(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  menuId: string;
+  menuRow?: unknown;
+  settings: PublicMenuSettings;
+  localizedUiCopy: Record<string, unknown>;
+}): Promise<PersistGeneratedLocalizedUiCopyResult> {
+  const payload = settingsWithLocalizedUiCopy(args.settings, args.localizedUiCopy);
+  const native = await args.client
+    .from("menus")
+    .update({ settings_json: payload, updated_at: new Date().toISOString() })
+    .eq("id", args.menuId)
+    .select("id,settings_json")
+    .single();
+
+  if (!native.error && native.data) {
+    return {
+      ok: true,
+      source: "settings_json",
+      settings: publicMenuSettingsFromMenuRow(native.data)?.settings ?? args.settings,
+      localizedUiCopy: args.localizedUiCopy
+    };
+  }
+
+  if (!isMissingColumnError(native.error, "settings_json")) {
+    return persistError("settings_json", native.error);
+  }
+
+  const existing = await args.client
+    .from("menus")
+    .select("id,metadata")
+    .eq("id", args.menuId)
+    .maybeSingle();
+  if (existing.error && isMissingColumnError(existing.error, "metadata")) {
+    return persistLocalizedUiCopyToUiConfig(args);
+  }
+  if (existing.error || !existing.data) return persistError("metadata", existing.error);
+
+  const metadata = objectInput(existing.data.metadata);
+  const fallback = await args.client
+    .from("menus")
+    .update({
+      metadata: {
+        ...metadata,
+        publicMenuSettings: payload
+      },
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", args.menuId)
+    .select("id,metadata")
+    .single();
+
+  if (fallback.error && isMissingColumnError(fallback.error, "metadata")) {
+    return persistLocalizedUiCopyToUiConfig(args);
+  }
+  if (fallback.error || !fallback.data) {
+    return persistError("metadata", fallback.error);
+  }
+
+  return {
+    ok: true,
+    source: "metadata",
+    settings: publicMenuSettingsFromMenuRow(fallback.data)?.settings ?? args.settings,
+    localizedUiCopy: args.localizedUiCopy
   };
 }

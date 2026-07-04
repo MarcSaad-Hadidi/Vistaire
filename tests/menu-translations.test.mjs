@@ -16,6 +16,13 @@ import {
   getServerTranslator,
   resolveTranslationProviderStatus
 } from "../lib/translation/serverTranslatorCore.ts";
+import {
+  buildPublicMenuLocalizedUiCopyPack,
+  estimatePublicMenuUiCopyCharacters,
+  getPublicMenuUiCopyTranslationEntries,
+  mergeGeneratedLocalizedUiCopy,
+  publicMenuUiCopyReadiness
+} from "../lib/translation/publicMenuUiCopyTranslation.ts";
 
 const repoRootUrl = new URL("..", import.meta.url);
 const repoRootPath = fileURLToPath(repoRootUrl);
@@ -157,7 +164,7 @@ test("owner translation settings use the public menu settings fallback resolver"
   const ownerMutations = await readRepoFile("lib/owner/menuMutations.ts");
   const fallbackResolver = await readRepoFile("lib/owner/publicMenuSettingsFallback.ts");
 
-  assert.match(ownerTranslations, /readPublicMenuSettingsWithFallbacks/);
+  assert.match(ownerTranslations, /readPublicMenuSettingsBundleWithFallbacks/);
   assert.match(ownerMutations, /readPublicMenuSettingsWithFallbacks/);
   assert.doesNotMatch(ownerTranslations, /normalizePublicMenuSettings\(menu\.settings_json/);
   assert.doesNotMatch(ownerTranslations, /function\s+settingsFromMenu/);
@@ -165,6 +172,66 @@ test("owner translation settings use the public menu settings fallback resolver"
   assert.match(fallbackResolver, /metadata\.public_menu_settings/);
   assert.match(fallbackResolver, /menu_ui_configs/);
   assert.match(fallbackResolver, /readUiConfigPublicMenuSettings/);
+});
+
+test("generated public menu UI copy makes a newly enabled locale public-ready", () => {
+  const settings = {
+    defaultLocale: "fr-CA",
+    supportedLocales: ["fr-CA", "nl-NL"],
+    baseCurrency: "CAD",
+    defaultCurrency: "CAD",
+    supportedCurrencies: ["CAD"],
+    publicMenuStyle: "trouvable",
+    timezone: "America/Toronto",
+    defaultThemeMode: "dark",
+    allowThemeToggle: true,
+    allowCurrencySelector: true,
+    allowLanguageSelector: true,
+    taxIncluded: true,
+    priceDisplayMode: "auto"
+  };
+
+  assert.equal(publicMenuUiCopyReadiness(settings, "nl-NL").isReady, false);
+
+  const entries = getPublicMenuUiCopyTranslationEntries(settings);
+  assert.ok(entries.length > 50);
+  assert.ok(entries.some((entry) => entry.path === "searchPlaceholder"));
+  assert.ok(entries.some((entry) => entry.path === "modelViewer.loadingBody"));
+  assert.ok(
+    entries.some(
+      (entry) =>
+        entry.path === "resultStatus" &&
+        entry.kind === "function-template" &&
+        entry.placeholders.includes("view") &&
+        entry.placeholders.includes("count")
+    )
+  );
+
+  const translated = entries.map((entry) =>
+    entry.kind === "function-template"
+      ? `nl:${entry.path}:${entry.placeholders.map((name) => `{${name}}`).join(":")}`
+      : `nl:${entry.path}`
+  );
+  const pack = buildPublicMenuLocalizedUiCopyPack(entries, translated);
+  const localizedUiCopy = mergeGeneratedLocalizedUiCopy(undefined, "nl-NL", pack);
+  const readiness = publicMenuUiCopyReadiness(settings, "nl-NL", localizedUiCopy);
+
+  assert.equal(readiness.isReady, true);
+  assert.deepEqual(readiness.missingKeys, []);
+  assert.equal(
+    estimatePublicMenuUiCopyCharacters(settings, "nl-NL", localizedUiCopy),
+    0
+  );
+});
+
+test("owner translation generation creates and persists public UI copy packs for active locales", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+
+  assert.match(ownerTranslations, /buildPublicMenuUiCopyTranslationPlan/);
+  assert.match(ownerTranslations, /persistGeneratedLocalizedUiCopy/);
+  assert.match(ownerTranslations, /publicMenuUiCopyReadiness/);
+  assert.match(ownerTranslations, /translatedUiCopyCharacters/);
+  assert.doesNotMatch(ownerTranslations, /menu\/trouvable|slug\s*===\s*["']trouvable["']/);
 });
 
 test("menu translation source fields stay shared between owner generation and public reads", async () => {
