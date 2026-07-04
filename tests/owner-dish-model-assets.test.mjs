@@ -61,6 +61,9 @@ test("full dish media collector includes photo and all runtime 3D targets", () =
     arUsdzStoragePath: `restaurants/${restaurantId}/models/ar-ios/dejeuner.usdz`,
     usdzRuntimeStoragePath: `restaurants/${restaurantId}/models/ar-ios/dejeuner-runtime.usdz`,
     usdzOptimizationReportStoragePath: `restaurants/${restaurantId}/models/manifests/dejeuner-usdz-report.json`,
+    usdzPhysicalScaleStatus: "normalized",
+    usdzPhysicalScaleDishKind: "burger",
+    usdzPhysicalScaleHeightAfterMeters: 0.15,
     meshyManifestStoragePath: `restaurants/${restaurantId}/models/manifests/dejeuner-meshy.json`,
     preparedGlbStoragePath: `restaurants/${restaurantId}/models/staging/job_prepared_12345678/source.glb`
   };
@@ -253,6 +256,30 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /Light mobile safe \(10 MB max\)/);
   assert.match(uploader, /Emergency 5\.5 MB \(fallback agressif\)/);
   assert.match(uploader, /Telecharger USDZ runtime/);
+  assert.match(uploader, /AR size preset/);
+  assert.match(uploader, /Burger \/ Sandwich/);
+  assert.match(uploader, /Plateau \/ Sharing/);
+  assert.match(uploader, /Fallback \/ Generique/);
+  assert.match(uploader, /selectedDishKindPreset/);
+  assert.match(uploader, /resolveUsdzDishKindPreset/);
+  assert.match(uploader, /REQUIRED_USDZ_WORKER_VERSION = 3/);
+  assert.match(uploader, /REQUIRED_USDZ_WORKER_CAPABILITY = "physicalScaleNormalization"/);
+  assert.match(uploader, /payload\.capabilities\.includes\(REQUIRED_USDZ_WORKER_CAPABILITY\)/);
+  assert.match(uploader, /Worker local USDZ V3 requis/);
+  assert.match(uploader, /category/);
+  assert.match(uploader, /Scale normalized/);
+  assert.match(uploader, /Scale unchanged/);
+  assert.match(uploader, /Type de plat/);
+  assert.match(uploader, /AR scale preset/);
+  assert.match(uploader, /dimension === "footprint"/);
+  assert.match(uploader, /Footprint/);
+  assert.match(uploader, /Taille finale/);
+  assert.match(uploader, /physicalScaleWarnings/);
+  assert.match(uploader, /initialUsdzPhysicalScaleWarnings/);
+  assert.match(uploader, /visibleWarnings/);
+  assert.match(uploader, /Fallback scale/);
+  assert.match(uploader, /initialUsdzPhysicalScaleStatus/);
+  assert.match(uploader, /setPhysicalScaleStatus\(""\)/);
   assert.match(uploader, /download=\{usdzFileName\}/);
   assert.match(uploader, /buildDownloadFileName/);
   assert.match(uploader, /setWebModel3dUrl\(""\)/);
@@ -261,7 +288,9 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /setQuickLookQaStatus\(""\)/);
   assert.match(uploader, /router\.refresh\(\)/);
   assert.match(mediaManager, /dishName=\{dish\.name\}/);
+  assert.match(mediaManager, /category=\{dish\.category\}/);
   assert.match(modelsManager, /dishName=\{dish\.name\}/);
+  assert.match(modelsManager, /category=\{dish\.category\}/);
 });
 
 test("owner model uploader is coordinated by a shared FIFO queue in table parents", async () => {

@@ -26,6 +26,11 @@ import {
 import { buildSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
 import { runUsdzRuntimePipeline } from "../lib/owner/usdzRuntimePipelineCore.ts";
 import { collectTargetedDishModelDeletion } from "../lib/owner/deleteDishModelAssets.ts";
+import {
+  USDZ_DISH_KIND_OPTIONS,
+  inferUsdzDishKind,
+  resolveUsdzDishKindPreset
+} from "../lib/owner/usdzDishKind.ts";
 
 const read = (path) => readFileSync(path, "utf8");
 
@@ -52,6 +57,7 @@ const viewerLib = read("lib/owner/viewerGlbUpload.ts");
 const cli = read("scripts/owner/optimize-restaurant-usdz.mjs");
 const worker = read("scripts/owner/optimize_restaurant_usdz.py");
 const localWorker = read("scripts/owner/usdz-local-worker.mjs");
+const blenderOptimizer = read("scripts/owner/blender_usdz_geometry_optimizer.py");
 
 const RESTAURANT_ID = "11111111-2222-4333-8444-555555555555";
 const DISH_ID = "22222222-3333-4444-8555-666666666666";
@@ -168,6 +174,26 @@ function successOptimizer(runtimeBytes, { fails = [], optimizationApplied = true
   };
 }
 
+function extractPhysicalScaleTargets(source, constantName) {
+  const start = source.indexOf(`${constantName} = {`);
+  assert.notEqual(start, -1, `${constantName} must exist`);
+  const end = source.indexOf("\n}\n", start);
+  assert.notEqual(end, -1, `${constantName} must have a simple dict body`);
+  const block = source.slice(start, end);
+  const targets = {};
+  for (const match of block.matchAll(
+    /"([^"]+)": \{"dimension": "([^"]+)", "targetMeters": ([0-9.]+), "minMeters": ([0-9.]+), "maxMeters": ([0-9.]+)\}/g
+  )) {
+    targets[match[1]] = {
+      dimension: match[2],
+      targetMeters: Number(match[3]),
+      minMeters: Number(match[4]),
+      maxMeters: Number(match[5])
+    };
+  }
+  return targets;
+}
+
 test("forbidden source-storage fields are never persisted by the runtime pipeline", () => {
   // The only file allowed to mention these strings is the guard list itself.
   for (const field of FORBIDDEN_SOURCE_STORAGE_FIELDS) {
@@ -210,6 +236,29 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
     triangleCountBefore: 240000,
     triangleCountAfter: 132000,
     geometryReductionPercent: 45,
+    physicalScale: {
+      status: "normalized",
+      dishKind: "burger",
+      dimension: "height",
+      targetMeters: 0.15,
+      minMeters: 0.1,
+      maxMeters: 0.22,
+      heightBeforeMeters: 0.03,
+      widthBeforeMeters: 0.08,
+      depthBeforeMeters: 0.07,
+      footprintBeforeMeters: 0.08,
+      heightAfterMeters: 0.15,
+      widthAfterMeters: 0.4,
+      depthAfterMeters: 0.35,
+      footprintAfterMeters: 0.4,
+      centeredX: true,
+      centeredY: true,
+      grounded: true,
+      centerOffsetBeforeMeters: 0.12,
+      centerOffsetAfterMeters: 0,
+      scaleFactor: 5,
+      warnings: ["Scale factor above 4"]
+    },
     textureCount: 4,
     changedTextures: 2,
     attemptCount: 2,
@@ -230,6 +279,17 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
   assert.equal(patch.usdzUrl, "");
   assert.equal(patch.quickLookQaStatus, "not-tested");
   assert.equal(patch.usdzGeometryOptimization, "done");
+  assert.equal(patch.usdzPhysicalScaleStatus, "normalized");
+  assert.equal(patch.usdzPhysicalScaleDishKind, "burger");
+  assert.equal(patch.usdzPhysicalScaleDimension, "height");
+  assert.equal(patch.usdzPhysicalScaleHeightAfterMeters, 0.15);
+  assert.equal(patch.usdzPhysicalScaleFootprintBeforeMeters, 0.08);
+  assert.equal(patch.usdzPhysicalScaleFootprintAfterMeters, 0.4);
+  assert.equal(patch.usdzPhysicalScaleCenteredX, true);
+  assert.equal(patch.usdzPhysicalScaleCenteredY, true);
+  assert.equal(patch.usdzPhysicalScaleGrounded, true);
+  assert.equal(patch.usdzPhysicalScaleScaleFactor, 5);
+  assert.deepEqual(patch.usdzPhysicalScaleWarnings, ["Scale factor above 4"]);
   assert.equal(patch.usdzTriangleCountBefore, 240000);
   assert.equal(patch.usdzTriangleCountAfter, 132000);
   assert.equal(patch.usdzOptimizationAttemptCount, 2);
@@ -359,6 +419,44 @@ test("validateUsdzStructure rejects LFS pointers and bad magic", () => {
     /LFS/
   );
   assert.match(String(validateUsdzStructure(Buffer.alloc(64))), /Signature/);
+});
+
+test("USDZ dish kind auto inference is generic and category-first", () => {
+  assert.equal(inferUsdzDishKind({ dishName: "Chocolate cake", category: "Desserts" }), "dessert");
+  assert.equal(inferUsdzDishKind({ dishName: "Signature burger", category: "Soupes" }), "bowl");
+  assert.equal(inferUsdzDishKind({ dishName: "Margherita", category: "Pizzas" }), "pizza");
+  assert.equal(inferUsdzDishKind({ dishName: "Chef selection", category: "Sharing plates" }), "platter");
+  assert.equal(inferUsdzDishKind({ dishName: "Sea bass", category: "Mains" }), "plate");
+  assert.equal(inferUsdzDishKind({ dishName: "Mystery item", category: "" }), "fallback");
+  assert.equal(inferUsdzDishKind({ dishName: "The Grill", category: "" }), "plate");
+  assert.equal(inferUsdzDishKind({ dishName: "The steak", category: "Mains" }), "plate");
+  assert.equal(inferUsdzDishKind({ dishName: "Th\u00e9 glac\u00e9", category: "" }), "drink");
+  assert.equal(inferUsdzDishKind({ dishName: "Iced tea", category: "" }), "drink");
+});
+
+test("manual USDZ dish kind preset overrides auto inference", () => {
+  assert.equal(
+    resolveUsdzDishKindPreset({
+      selectedPreset: "platter",
+      dishName: "Chocolate cake",
+      category: "Desserts"
+    }),
+    "platter"
+  );
+  assert.equal(
+    resolveUsdzDishKindPreset({
+      selectedPreset: "auto",
+      dishName: "Chocolate cake",
+      category: "Desserts"
+    }),
+    "dessert"
+  );
+});
+
+test("USDZ dish kind presets are generic and include platter", () => {
+  assert.ok(USDZ_DISH_KIND_OPTIONS.some((option) => option.value === "platter"));
+  const source = read("lib/owner/usdzDishKind.ts");
+  assert.doesNotMatch(source, /trouvable|homard|ravioles|maison.?elyse|dejeuner-classique/i);
 });
 
 test("usdz-runtime route uploads only after optimization and reports source not stored", () => {
@@ -656,6 +754,72 @@ test("complete rejects report JSON that does not prove sourceStored false", asyn
   assert.deepEqual(removed, [runtimeStoragePath, reportStoragePath]);
 });
 
+test("complete rejects stale worker reports without physical scale metrics", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    env
+  });
+  assert.equal(token.ok, true);
+  const runtimeBytes = validUsdzBytes(7000);
+  const runtimeSha256 = sha256Hex(runtimeBytes);
+  const version = createUsdzRuntimeSignedAssetVersion({
+    profile: "balanced",
+    runtimeSha256,
+    jobId: token.jobId
+  });
+  const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
+  const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
+  const report = {
+    sourceStored: false,
+    reductionPercent: 12,
+    geometryOptimization: "done",
+    warnings: [],
+    fails: []
+  };
+  const { client, removed, updates } = mockAdminClient({
+    download: async (path) => ({
+      data: new Blob([path.endsWith(".usdz") ? runtimeBytes : Buffer.from(JSON.stringify(report))]),
+      error: null
+    })
+  });
+
+  await assert.rejects(
+    () =>
+      completeUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "balanced",
+          sourceBytes: 8000,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: runtimeBytes.byteLength,
+          runtimeSha256,
+          reportBytes: Buffer.byteLength(JSON.stringify(report)),
+          geometryOptimization: "done",
+          warnings: [],
+          fails: [],
+          version,
+          runtimeStoragePath,
+          reportStoragePath
+        }
+      }),
+    /physicalScale requis/
+  );
+  assert.deepEqual(removed, [runtimeStoragePath, reportStoragePath]);
+  assert.equal(updates.length, 0);
+});
+
 test("fail rollback removes only the signed runtime after report upload fails", async () => {
   const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
   const token = createUsdzRuntimeJobToken({
@@ -792,6 +956,27 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
     geometryReductionPercent: 50,
     textureCount: 4,
     changedTextures: 2,
+    physicalScale: {
+      status: "normalized",
+      dishKind: "burger",
+      dimension: "height",
+      targetMeters: 0.15,
+      minMeters: 0.1,
+      maxMeters: 0.22,
+      heightBeforeMeters: 0.03,
+      widthBeforeMeters: 0.08,
+      depthBeforeMeters: 0.07,
+      footprintBeforeMeters: 0.08,
+      heightAfterMeters: 0.15,
+      widthAfterMeters: 0.4,
+      depthAfterMeters: 0.35,
+      footprintAfterMeters: 0.4,
+      centeredX: true,
+      centeredY: true,
+      grounded: true,
+      scaleFactor: 5,
+      warnings: ["Scale factor above 4"]
+    },
     attemptCount: 1,
     candidateAttempts: [
       { profile: "balanced", targetBytes: 8000, runtimeBytes: 7000, passedBudget: true }
@@ -834,6 +1019,14 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
   assert.equal(result.reductionPercent, 12);
   assert.deepEqual(result.warnings, ["normal map missing"]);
   assert.equal(updates[0].metadata.usdzGeometryOptimization, "done");
+  assert.equal(updates[0].metadata.usdzPhysicalScaleStatus, "normalized");
+  assert.equal(updates[0].metadata.usdzPhysicalScaleDishKind, "burger");
+  assert.equal(updates[0].metadata.usdzPhysicalScaleHeightAfterMeters, 0.15);
+  assert.equal(updates[0].metadata.usdzPhysicalScaleFootprintAfterMeters, 0.4);
+  assert.equal(updates[0].metadata.usdzPhysicalScaleCenteredX, true);
+  assert.equal(updates[0].metadata.usdzPhysicalScaleCenteredY, true);
+  assert.equal(updates[0].metadata.usdzPhysicalScaleGrounded, true);
+  assert.deepEqual(updates[0].metadata.usdzPhysicalScaleWarnings, ["Scale factor above 4"]);
   assert.equal(updates[0].metadata.usdzTriangleCountBefore, 240000);
   assert.equal(updates[0].metadata.usdzTriangleCountAfter, 120000);
   assert.equal(updates[0].metadata.usdzOptimizationAttemptCount, 1);
@@ -1092,7 +1285,13 @@ test("signed upload URL flow, when added, is constrained to runtime and report o
 test("deleting usdz-runtime also targets the linked optimization report", () => {
   const metadata = {
     arUsdzStoragePath: `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-20260704-abcdef12.usdz`,
-    usdzOptimizationReportStoragePath: `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-20260704-abcdef12-usdz-report.json`
+    usdzOptimizationReportStoragePath: `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-20260704-abcdef12-usdz-report.json`,
+    usdzPhysicalScaleFootprintBeforeMeters: 0.08,
+    usdzPhysicalScaleFootprintAfterMeters: 0.4,
+    usdzPhysicalScaleCenteredX: true,
+    usdzPhysicalScaleCenteredY: true,
+    usdzPhysicalScaleGrounded: true,
+    usdzPhysicalScaleWarnings: ["Scale factor above 4"]
   };
   const { targets, clearKeys } = collectTargetedDishModelDeletion(
     metadata,
@@ -1103,6 +1302,12 @@ test("deleting usdz-runtime also targets the linked optimization report", () => 
   assert.ok(targets.some((target) => target.kind === "ios_usdz_runtime" || target.kind === "ios_usdz"));
   assert.ok(targets.some((target) => target.kind === "usdz_report"));
   assert.ok(clearKeys.includes("usdzOptimizationReportStoragePath"));
+  assert.ok(clearKeys.includes("usdzPhysicalScaleFootprintBeforeMeters"));
+  assert.ok(clearKeys.includes("usdzPhysicalScaleFootprintAfterMeters"));
+  assert.ok(clearKeys.includes("usdzPhysicalScaleCenteredX"));
+  assert.ok(clearKeys.includes("usdzPhysicalScaleCenteredY"));
+  assert.ok(clearKeys.includes("usdzPhysicalScaleGrounded"));
+  assert.ok(clearKeys.includes("usdzPhysicalScaleWarnings"));
 });
 
 test("viewer-glb route never triggers a USDZ pipeline", () => {
@@ -1153,6 +1358,22 @@ test("worker refuses to store source and reports geometry honestly", () => {
   assert.match(worker, /geometry_optimization[^\n]*=[^\n]*"skipped"/);
   assert.match(worker, /Blender indisponible/);
   assert.match(worker, /Triangle budget depasse sans optimisation Blender reussie/);
+  assert.match(worker, /physical_scale/);
+  assert.match(worker, /physicalScale/);
+  assert.match(worker, /Echelle physique invalide/);
+  assert.match(worker, /"platter"/);
+  const blender = read("scripts/owner/blender_usdz_geometry_optimizer.py");
+  assert.match(blender, /"platter"/);
+  assert.match(blender, /"footprint"/);
+  assert.match(blender, /max_x - min_x/);
+  assert.match(blender, /max_y - min_y/);
+  assert.match(blender, /max\([^)]*width[^)]*depth[^)]*\)/s);
+  assert.match(blender, /centerX/);
+  assert.match(blender, /centerY/);
+  assert.match(blender, /centeredX/);
+  assert.match(blender, /centeredY/);
+  assert.match(blender, /grounded/);
+  assert.match(blender, /Matrix\.Translation\(\(-float\(scaled\["centerX"\]\), -float\(scaled\["centerY"\]\), 0\)\)/);
   assert.match(worker, /guard_output_path/);
   assert.match(worker, /optimized_root = root_layer\.parent/);
   assert.match(worker, /validate_packaging_root\(root_layer, extracted\)/);
@@ -1160,6 +1381,9 @@ test("worker refuses to store source and reports geometry honestly", () => {
   assert.match(worker, /shutil\.rmtree\(workspace/);
   assert.match(cli, /light:\s*10 \* 1024 \* 1024/);
   assert.match(cli, /emergency:\s*Math\.floor\(5\.5 \* 1024 \* 1024\)/);
+  assert.match(cli, /VALID_DISH_KINDS/);
+  assert.match(cli, /--dish-kind/);
+  assert.match(cli, /platter/);
   assert.match(cli, /VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS/);
   assert.match(cli, /VISTAIRE_USDZ_PYTHON/);
   assert.match(cli, /VISTAIRE_USDZ_BLENDER/);
@@ -1168,6 +1392,43 @@ test("worker refuses to store source and reports geometry honestly", () => {
   // CLI never uploads anywhere.
   assert.doesNotMatch(cli, /supabase/i);
   assert.doesNotMatch(cli, /\.upload\(/);
+});
+
+test("physical scale targets use footprint for solid dishes and height for burger and drink", () => {
+  const python = read("scripts/owner/optimize_restaurant_usdz.py");
+  for (const source of [blenderOptimizer, python]) {
+    assert.match(source, /"burger": \{"dimension": "height"/);
+    assert.match(source, /"drink": \{"dimension": "height"/);
+    for (const kind of ["pizza", "plate", "bowl", "dessert", "fallback"]) {
+      assert.match(source, new RegExp(`"${kind}": \\{"dimension": "footprint"`));
+    }
+    assert.match(
+      source,
+      /"platter": \{"dimension": "footprint", "targetMeters": 0\.32, "minMeters": 0\.22, "maxMeters": 0\.45\}/
+    );
+  }
+  assert.doesNotMatch(blenderOptimizer, /"pizza": \{"dimension": "width"/);
+  assert.doesNotMatch(blenderOptimizer, /"plate": \{"dimension": "width"/);
+  assert.doesNotMatch(blenderOptimizer, /"platter": \{"dimension": "width"/);
+});
+
+test("Blender and Python physical scale target maps stay in parity", () => {
+  assert.deepEqual(
+    extractPhysicalScaleTargets(blenderOptimizer, "DISH_SCALE_TARGETS"),
+    extractPhysicalScaleTargets(worker, "DISH_PHYSICAL_SCALE_TARGETS")
+  );
+});
+
+test("local worker forwards dish kind to the transient optimizer without changing upload paths", () => {
+  assert.match(localWorker, /dishKind/);
+  assert.match(localWorker, /form\.get\("dishKind"\)/);
+  assert.match(localWorker, /"--dish-kind"/);
+  assert.match(localWorker, /physicalScale: summary\.physicalScale/);
+  assert.match(localWorker, /WORKER_VERSION = 3/);
+  assert.match(localWorker, /WORKER_CAPABILITIES = \["physicalScaleNormalization"\]/);
+  assert.match(localWorker, /capabilities: WORKER_CAPABILITIES/);
+  assert.doesNotMatch(localWorker, /dishKind[\s\S]{0,120}StoragePath/);
+  assert.doesNotMatch(localWorker, /dishKind[\s\S]{0,120}\.upload\(/);
 });
 
 test("worker CLI refuses an origin outside VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS", () => {

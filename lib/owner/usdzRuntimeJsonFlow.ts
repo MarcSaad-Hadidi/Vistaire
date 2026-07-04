@@ -150,6 +150,57 @@ function cleanCandidateAttempts(value: unknown): unknown[] {
     .slice(0, 6);
 }
 
+function cleanPhysicalScale(value: unknown) {
+  if (!isRecord(value)) return undefined;
+  return {
+    status: typeof value.status === "string" ? value.status : "unknown",
+    dishKind: typeof value.dishKind === "string" ? value.dishKind : "fallback",
+    dimension: typeof value.dimension === "string" ? value.dimension : "",
+    targetMeters: cleanNumber(value.targetMeters),
+    minMeters: cleanNumber(value.minMeters),
+    maxMeters: cleanNumber(value.maxMeters),
+    heightBeforeMeters: cleanNumber(value.heightBeforeMeters),
+    widthBeforeMeters: cleanNumber(value.widthBeforeMeters),
+    depthBeforeMeters: cleanNumber(value.depthBeforeMeters),
+    footprintBeforeMeters: cleanNumber(value.footprintBeforeMeters),
+    heightAfterMeters: cleanNumber(value.heightAfterMeters),
+    widthAfterMeters: cleanNumber(value.widthAfterMeters),
+    depthAfterMeters: cleanNumber(value.depthAfterMeters),
+    footprintAfterMeters: cleanNumber(value.footprintAfterMeters),
+    scaleFactor: cleanNumber(value.scaleFactor) || 1,
+    centeredX: value.centeredX === true,
+    centeredY: value.centeredY === true,
+    grounded: value.grounded === true,
+    centerOffsetBeforeMeters: cleanNumber(value.centerOffsetBeforeMeters),
+    centerOffsetAfterMeters: cleanNumber(value.centerOffsetAfterMeters),
+    warnings: cleanStringArray(value.warnings)
+  };
+}
+
+type CleanPhysicalScale = ReturnType<typeof cleanPhysicalScale>;
+
+function assertPhysicalScalePublishable(value: CleanPhysicalScale): asserts value is NonNullable<CleanPhysicalScale> {
+  if (!value) {
+    throw new Error("Rapport USDZ invalide: physicalScale requis.");
+  }
+  if (value.status !== "normalized" && value.status !== "unchanged") {
+    throw new Error("Rapport USDZ invalide: physicalScale non valide.");
+  }
+  if (value.dimension !== "height" && value.dimension !== "footprint") {
+    throw new Error("Rapport USDZ invalide: dimension physicalScale invalide.");
+  }
+  if (value.minMeters <= 0 || value.maxMeters <= 0 || value.maxMeters < value.minMeters) {
+    throw new Error("Rapport USDZ invalide: bornes physicalScale invalides.");
+  }
+  const finalMeters = value.dimension === "height" ? value.heightAfterMeters : value.footprintAfterMeters;
+  if (finalMeters < value.minMeters || finalMeters > value.maxMeters) {
+    throw new Error("Rapport USDZ invalide: taille physicalScale finale hors bornes.");
+  }
+  if (value.centeredX !== true || value.centeredY !== true || value.grounded !== true) {
+    throw new Error("Rapport USDZ invalide: modele non centre ou non grounded.");
+  }
+}
+
 export function createUsdzRuntimeSignedAssetVersion(args: {
   profile: UsdzOptimizationProfile;
   runtimeSha256: string;
@@ -483,6 +534,7 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   reductionPercent: number;
   profile: UsdzOptimizationProfile;
   geometryOptimization: string;
+  physicalScale?: ReturnType<typeof cleanPhysicalScale>;
   warnings: string[];
   fails: string[];
 }> {
@@ -525,6 +577,8 @@ export async function completeUsdzRuntimeSignedUpload(args: {
     }
     const reportWarnings = cleanStringArray(parsedReport.warnings);
     const reportCandidateAttempts = cleanCandidateAttempts(parsedReport.candidateAttempts);
+    const reportPhysicalScale = cleanPhysicalScale(parsedReport.physicalScale);
+    assertPhysicalScalePublishable(reportPhysicalScale);
 
     const gate = evaluateRuntimeUsdzUploadGate({
       runtimeBytes,
@@ -557,6 +611,7 @@ export async function completeUsdzRuntimeSignedUpload(args: {
         triangleCountBefore: cleanPositiveInt(parsedReport.triangleCountBefore),
         triangleCountAfter: cleanPositiveInt(parsedReport.triangleCountAfter),
         geometryReductionPercent: cleanNumber(parsedReport.geometryReductionPercent),
+        physicalScale: reportPhysicalScale,
         textureCount: cleanPositiveInt(parsedReport.textureCount),
         changedTextures: cleanPositiveInt(parsedReport.changedTextures),
         candidateAttempts: reportCandidateAttempts,
@@ -607,6 +662,7 @@ export async function completeUsdzRuntimeSignedUpload(args: {
         typeof parsedReport.geometryOptimization === "string"
           ? parsedReport.geometryOptimization
           : args.input.geometryOptimization,
+      physicalScale: reportPhysicalScale,
       warnings: reportWarnings,
       fails: reportFails
     };

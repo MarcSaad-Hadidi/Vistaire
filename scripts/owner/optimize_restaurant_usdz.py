@@ -96,6 +96,17 @@ PROFILES: dict[str, dict[str, float | int]] = {
     },
 }
 
+DISH_PHYSICAL_SCALE_TARGETS = {
+    "burger": {"dimension": "height", "targetMeters": 0.15, "minMeters": 0.10, "maxMeters": 0.22},
+    "pizza": {"dimension": "footprint", "targetMeters": 0.32, "minMeters": 0.22, "maxMeters": 0.40},
+    "plate": {"dimension": "footprint", "targetMeters": 0.26, "minMeters": 0.18, "maxMeters": 0.34},
+    "bowl": {"dimension": "footprint", "targetMeters": 0.18, "minMeters": 0.12, "maxMeters": 0.25},
+    "dessert": {"dimension": "footprint", "targetMeters": 0.12, "minMeters": 0.08, "maxMeters": 0.18},
+    "drink": {"dimension": "height", "targetMeters": 0.18, "minMeters": 0.12, "maxMeters": 0.25},
+    "platter": {"dimension": "footprint", "targetMeters": 0.32, "minMeters": 0.22, "maxMeters": 0.45},
+    "fallback": {"dimension": "footprint", "targetMeters": 0.20, "minMeters": 0.10, "maxMeters": 0.35},
+}
+
 DATA_ROLES = {"normal", "roughness", "metallic", "occlusion"}
 TEXTURE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 USD_LAYER_SUFFIXES = (".usd", ".usdc", ".usda")
@@ -129,6 +140,7 @@ class Report:
     target_triangles: int = 0
     removed_objects: list[str] = field(default_factory=list)
     optimized_objects: list[dict] = field(default_factory=list)
+    physical_scale: dict = field(default_factory=dict)
     layer_optimization: str = "skipped"
     root_layer_entry: str = ""
     internal_files: list[dict] = field(default_factory=list)
@@ -174,6 +186,7 @@ def report_to_dict(report: Report) -> dict:
         "targetTriangles": report.target_triangles,
         "removedObjects": report.removed_objects,
         "optimizedObjects": report.optimized_objects,
+        "physicalScale": report.physical_scale,
         "layerOptimization": report.layer_optimization,
         "rootLayerEntry": report.root_layer_entry,
         "internalFiles": report.internal_files,
@@ -288,13 +301,43 @@ def validate_packaging_root(root_layer: Path, extracted: Path) -> list[str]:
 
 
 def run_blender_geometry_pass(
-    root_layer: Path, extracted: Path, workspace: Path, profile: dict[str, float | int], report: Report
+    root_layer: Path,
+    extracted: Path,
+    workspace: Path,
+    profile: dict[str, float | int],
+    report: Report,
+    dish_kind: str,
 ) -> Path:
     blender = resolve_blender()
     if not blender:
         report.geometry_optimization = "skipped"
         report.geometry_optimization_reason = "Blender indisponible; geometryOptimization ne peut pas etre done."
         report.warnings.append("Blender headless indisponible; geometrie conservee.")
+        target = DISH_PHYSICAL_SCALE_TARGETS[dish_kind]
+        report.physical_scale = {
+            "status": "failed",
+            "dishKind": dish_kind,
+            "dimension": target["dimension"],
+            "targetMeters": target["targetMeters"],
+            "minMeters": target["minMeters"],
+            "maxMeters": target["maxMeters"],
+            "heightBeforeMeters": 0,
+            "widthBeforeMeters": 0,
+            "depthBeforeMeters": 0,
+            "footprintBeforeMeters": 0,
+            "heightAfterMeters": 0,
+            "widthAfterMeters": 0,
+            "depthAfterMeters": 0,
+            "footprintAfterMeters": 0,
+            "scaleFactor": 1.0,
+            "centeredX": False,
+            "centeredY": False,
+            "grounded": False,
+            "centerOffsetBeforeMeters": 0,
+            "centerOffsetAfterMeters": 0,
+            "warnings": ["Blender unavailable; physical scale could not be measured."],
+        }
+        report.fails.append("Echelle physique invalide: Blender indisponible pour normaliser le modele AR.")
         return root_layer
 
     script = Path(__file__).with_name("blender_usdz_geometry_optimizer.py")
@@ -318,6 +361,8 @@ def run_blender_geometry_pass(
         str(float(profile["decimateRatio"])),
         "--merge-distance",
         str(float(profile["mergeDistance"])),
+        "--dish-kind",
+        dish_kind,
     ]
     try:
         completed = subprocess.run(
@@ -331,6 +376,8 @@ def run_blender_geometry_pass(
         report.geometry_optimization = "failed"
         report.geometry_optimization_reason = f"Blender geometry pass impossible: {exc}"
         report.warnings.append(report.geometry_optimization_reason)
+        report.physical_scale = {"status": "failed", "dishKind": dish_kind}
+        report.fails.append(f"Echelle physique invalide: Blender impossible ({exc}).")
         return root_layer
 
     if completed.returncode != 0 or not optimized_root.exists() or not metrics_path.exists():
@@ -341,11 +388,18 @@ def run_blender_geometry_pass(
             report.warnings.append("Blender geometry pass echoue: " + " / ".join(detail))
         else:
             report.warnings.append("Blender geometry pass echoue sans detail.")
+        report.physical_scale = {"status": "failed", "dishKind": dish_kind}
+        report.fails.append("Echelle physique invalide: Blender n'a pas produit de metriques exploitables.")
         return root_layer
 
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    report.physical_scale = dict(metrics.get("physicalScale") or {"status": "failed", "dishKind": dish_kind})
+    if report.physical_scale.get("status") == "failed":
+        report.fails.append("Echelle physique invalide apres normalisation Blender.")
     before = int(metrics.get("trianglesBefore", report.triangle_count_before) or 0)
     after = int(metrics.get("trianglesAfter", before) or 0)
+    scale_changed = report.physical_scale.get("status") == "normalized"
+    use_optimized_root = scale_changed
     if before > 0 and after > 0 and after < before:
         try:
             ensure_path_under_extracted(optimized_root, extracted, "Root USDZ optimise")
@@ -362,11 +416,22 @@ def run_blender_geometry_pass(
         report.blender_version = metrics.get("blenderVersion")
         report.removed_objects = list(metrics.get("removedObjects") or [])
         report.optimized_objects = list(metrics.get("optimizedObjects") or [])
+        use_optimized_root = True
+    else:
+        report.geometry_optimization = "skipped"
+        report.geometry_optimization_reason = "Blender ran but did not reduce triangle count."
+        report.warnings.append(report.geometry_optimization_reason)
+
+    if use_optimized_root:
+        try:
+            ensure_path_under_extracted(optimized_root, extracted, "Root USDZ optimise")
+        except RuntimeError as exc:
+            report.geometry_optimization = "failed"
+            report.geometry_optimization_reason = str(exc)
+            report.warnings.append(report.geometry_optimization_reason)
+            return root_layer
         return optimized_root
 
-    report.geometry_optimization = "skipped"
-    report.geometry_optimization_reason = "Blender ran but did not reduce triangle count."
-    report.warnings.append(report.geometry_optimization_reason)
     return root_layer
 
 
@@ -600,11 +665,13 @@ def find_root_layer(extracted: Path, archive_entry: PurePosixPath) -> Path:
     return candidate
 
 
-def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -> None:
+def optimize(source: Path, output: Path, report_path: Path, profile_slug: str, dish_kind: str) -> None:
     raw_profile = PROFILES.get(profile_slug)
     if raw_profile is None:
         fail(None, f"Profil inconnu: {profile_slug}", "profile")
     profile = apply_profile_env_overrides(profile_slug, raw_profile)
+    if dish_kind not in DISH_PHYSICAL_SCALE_TARGETS:
+        dish_kind = "fallback"
 
     source = source.resolve()
     output = output.resolve()
@@ -654,17 +721,18 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         report.triangle_count_before = count_stage_triangles(stage)
         report.triangle_count_after = report.triangle_count_before
 
-        if report.triangle_count_before > int(profile["targetTriangles"]):
-            root_layer = run_blender_geometry_pass(root_layer, extracted, workspace, profile, report)
-            stage = Usd.Stage.Open(str(root_layer))
-            if stage is None:
-                fail(report, f"Stage USD illisible apres Blender: {root_layer}", "open-blender")
-            ensure_default_prim(stage)
-            if report.geometry_optimization != "done":
-                report.triangle_count_after = count_stage_triangles(stage)
-        else:
-            report.geometry_optimization = "skipped"
-            report.geometry_optimization_reason = "Triangle count already within profile target."
+        root_layer = run_blender_geometry_pass(root_layer, extracted, workspace, profile, report, dish_kind)
+        if report.physical_scale.get("status") == "failed":
+            fail(report, "Echelle physique invalide apres normalisation Blender.", "physical-scale")
+        stage = Usd.Stage.Open(str(root_layer))
+        if stage is None:
+            fail(report, f"Stage USD illisible apres Blender: {root_layer}", "open-blender")
+        ensure_default_prim(stage)
+        if report.geometry_optimization != "done":
+            report.triangle_count_after = count_stage_triangles(stage)
+
+        if report.triangle_count_before <= int(profile["targetTriangles"]) and report.geometry_optimization == "skipped":
+            report.geometry_optimization_reason = "Triangle count already within profile target; physical scale pass still ran."
 
         if (
             report.target_triangles > 0
@@ -722,7 +790,9 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         )
 
         report.optimization_applied = (
-            report.changed_textures > 0 or report.geometry_optimization == "done"
+            report.changed_textures > 0
+            or report.geometry_optimization == "done"
+            or report.physical_scale.get("status") == "normalized"
         )
 
         # Save the stage (in case default prim was added) and repackage.
@@ -768,8 +838,14 @@ def main() -> None:
     parser.add_argument(
         "--profile", type=str, default="balanced", choices=sorted(PROFILES.keys())
     )
+    parser.add_argument(
+        "--dish-kind",
+        type=str,
+        default="fallback",
+        choices=sorted(DISH_PHYSICAL_SCALE_TARGETS.keys()),
+    )
     args = parser.parse_args()
-    optimize(args.source, args.output, args.report, args.profile)
+    optimize(args.source, args.output, args.report, args.profile, args.dish_kind)
 
 
 if __name__ == "__main__":

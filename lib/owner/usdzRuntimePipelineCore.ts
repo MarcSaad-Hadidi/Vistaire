@@ -88,6 +88,29 @@ type CliSummary = {
   runtimeSha256: string;
   optimizationApplied: boolean;
   geometryOptimization: string;
+  physicalScale?: {
+    status?: string;
+    dishKind?: string;
+    dimension?: string;
+    targetMeters?: number;
+    minMeters?: number;
+    maxMeters?: number;
+    heightBeforeMeters?: number;
+    widthBeforeMeters?: number;
+    depthBeforeMeters?: number;
+    footprintBeforeMeters?: number;
+    heightAfterMeters?: number;
+    widthAfterMeters?: number;
+    depthAfterMeters?: number;
+    footprintAfterMeters?: number;
+    scaleFactor?: number;
+    centeredX?: boolean;
+    centeredY?: boolean;
+    grounded?: boolean;
+    centerOffsetBeforeMeters?: number;
+    centerOffsetAfterMeters?: number;
+    warnings?: string[];
+  };
   triangleCountBefore?: number;
   triangleCountAfter?: number;
   geometryReductionPercent?: number;
@@ -284,6 +307,7 @@ export async function runUsdzRuntimePipeline(
         fails: summary.fails,
         reductionPercent: summary.reductionPercent,
         geometryOptimization: summary.geometryOptimization,
+        physicalScale: summary.physicalScale,
         triangleCountBefore: summary.triangleCountBefore ?? 0,
         triangleCountAfter: summary.triangleCountAfter ?? 0,
         geometryReductionPercent: summary.geometryReductionPercent ?? 0,

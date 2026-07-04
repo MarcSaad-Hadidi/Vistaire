@@ -64,6 +64,18 @@ export type PublicMenuDish = {
   usdzTriangleCountBefore?: number;
   usdzTriangleCountAfter?: number;
   usdzGeometryReductionPercent?: number;
+  usdzPhysicalScaleStatus?: string;
+  usdzPhysicalScaleDishKind?: string;
+  usdzPhysicalScaleDimension?: string;
+  usdzPhysicalScaleHeightAfterMeters?: number;
+  usdzPhysicalScaleWidthAfterMeters?: number;
+  usdzPhysicalScaleDepthAfterMeters?: number;
+  usdzPhysicalScaleFootprintAfterMeters?: number;
+  usdzPhysicalScaleCenteredX?: boolean;
+  usdzPhysicalScaleCenteredY?: boolean;
+  usdzPhysicalScaleGrounded?: boolean;
+  usdzPhysicalScaleScaleFactor?: number;
+  usdzPhysicalScaleWarnings?: string[];
   usdzTextureCount?: number;
   usdzChangedTextures?: number;
   usdzOptimizationAttemptCount?: number;
@@ -750,6 +762,30 @@ function mapDishRow(
   const usdzGeometryReductionPercent = getNumberFromSources(row, metadata, [
     "usdzGeometryReductionPercent"
   ]);
+  const usdzPhysicalScaleStatus = getString(metadata, ["usdzPhysicalScaleStatus"], "");
+  const usdzPhysicalScaleDishKind = getString(metadata, ["usdzPhysicalScaleDishKind"], "");
+  const usdzPhysicalScaleDimension = getString(metadata, ["usdzPhysicalScaleDimension"], "");
+  const usdzPhysicalScaleHeightAfterMeters = getNumberFromSources(row, metadata, [
+    "usdzPhysicalScaleHeightAfterMeters"
+  ]);
+  const usdzPhysicalScaleWidthAfterMeters = getNumberFromSources(row, metadata, [
+    "usdzPhysicalScaleWidthAfterMeters"
+  ]);
+  const usdzPhysicalScaleDepthAfterMeters = getNumberFromSources(row, metadata, [
+    "usdzPhysicalScaleDepthAfterMeters"
+  ]);
+  const usdzPhysicalScaleFootprintAfterMeters = getNumberFromSources(row, metadata, [
+    "usdzPhysicalScaleFootprintAfterMeters"
+  ]);
+  const usdzPhysicalScaleCenteredX = getBoolean(metadata, ["usdzPhysicalScaleCenteredX"]) ?? undefined;
+  const usdzPhysicalScaleCenteredY = getBoolean(metadata, ["usdzPhysicalScaleCenteredY"]) ?? undefined;
+  const usdzPhysicalScaleGrounded = getBoolean(metadata, ["usdzPhysicalScaleGrounded"]) ?? undefined;
+  const usdzPhysicalScaleScaleFactor = getNumberFromSources(row, metadata, [
+    "usdzPhysicalScaleScaleFactor"
+  ]);
+  const usdzPhysicalScaleWarnings = getStringListFromSources(row, metadata, [
+    "usdzPhysicalScaleWarnings"
+  ]);
   const usdzTextureCount = getNumberFromSources(row, metadata, ["usdzTextureCount"]);
   const usdzChangedTextures = getNumberFromSources(row, metadata, ["usdzChangedTextures"]);
   const usdzOptimizationAttemptCount = getNumberFromSources(row, metadata, [
@@ -839,6 +875,18 @@ function mapDishRow(
     usdzTriangleCountBefore,
     usdzTriangleCountAfter,
     usdzGeometryReductionPercent,
+    ...(usdzPhysicalScaleStatus ? { usdzPhysicalScaleStatus } : {}),
+    ...(usdzPhysicalScaleDishKind ? { usdzPhysicalScaleDishKind } : {}),
+    ...(usdzPhysicalScaleDimension ? { usdzPhysicalScaleDimension } : {}),
+    usdzPhysicalScaleHeightAfterMeters,
+    usdzPhysicalScaleWidthAfterMeters,
+    usdzPhysicalScaleDepthAfterMeters,
+    usdzPhysicalScaleFootprintAfterMeters,
+    ...(usdzPhysicalScaleCenteredX === undefined ? {} : { usdzPhysicalScaleCenteredX }),
+    ...(usdzPhysicalScaleCenteredY === undefined ? {} : { usdzPhysicalScaleCenteredY }),
+    ...(usdzPhysicalScaleGrounded === undefined ? {} : { usdzPhysicalScaleGrounded }),
+    usdzPhysicalScaleScaleFactor,
+    ...(usdzPhysicalScaleWarnings.length > 0 ? { usdzPhysicalScaleWarnings } : {}),
     usdzTextureCount,
     usdzChangedTextures,
     usdzOptimizationAttemptCount,

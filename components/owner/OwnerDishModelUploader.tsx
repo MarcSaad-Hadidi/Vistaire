@@ -17,6 +17,11 @@ import {
   createOwnerDishModelUploadQueue,
   type OwnerDishModelUploadQueueState
 } from "@/lib/owner/ownerDishModelUploadQueue";
+import {
+  USDZ_DISH_KIND_OPTIONS,
+  resolveUsdzDishKindPreset,
+  type UsdzDishKindPreset
+} from "@/lib/owner/usdzDishKind";
 
 export type UsdzOptimizationProfileOption = "premium" | "balanced" | "light" | "emergency";
 
@@ -24,6 +29,7 @@ type OwnerDishModelUploaderProps = {
   restaurantId: string;
   dishId: string;
   dishName?: string;
+  category?: string;
   initialStatus?: string;
   initialWebModel3dUrl?: string;
   initialWebModel3dBytes?: number;
@@ -36,6 +42,15 @@ type OwnerDishModelUploaderProps = {
   initialUsdzTriangleCountBefore?: number;
   initialUsdzTriangleCountAfter?: number;
   initialUsdzGeometryReductionPercent?: number;
+  initialUsdzPhysicalScaleStatus?: string;
+  initialUsdzPhysicalScaleDishKind?: string;
+  initialUsdzPhysicalScaleDimension?: string;
+  initialUsdzPhysicalScaleHeightAfterMeters?: number;
+  initialUsdzPhysicalScaleWidthAfterMeters?: number;
+  initialUsdzPhysicalScaleDepthAfterMeters?: number;
+  initialUsdzPhysicalScaleFootprintAfterMeters?: number;
+  initialUsdzPhysicalScaleScaleFactor?: number;
+  initialUsdzPhysicalScaleWarnings?: string[];
   initialUsdzOptimizationAttemptCount?: number;
   initialUsdzChangedTextures?: number;
   initialUsdzSourceBytes?: number;
@@ -71,6 +86,7 @@ type UsdzRuntimePayload = {
   triangleCountBefore?: number;
   triangleCountAfter?: number;
   geometryReductionPercent?: number;
+  physicalScale?: UsdzPhysicalScalePayload | null;
   attemptCount?: number;
   textureCount?: number;
   changedTextures?: number;
@@ -78,6 +94,18 @@ type UsdzRuntimePayload = {
   warnings?: string[];
   fails?: string[];
   job?: { id?: string };
+};
+
+type UsdzPhysicalScalePayload = {
+  status?: string;
+  dishKind?: string;
+  dimension?: string;
+  heightAfterMeters?: number;
+  widthAfterMeters?: number;
+  depthAfterMeters?: number;
+  footprintAfterMeters?: number;
+  scaleFactor?: number;
+  warnings?: string[];
 };
 
 type UsdzRuntimeStartPayload = {
@@ -110,14 +138,79 @@ const PROFILE_OPTIONS: { value: UsdzOptimizationProfileOption; label: string }[]
 
 const LOCAL_USDZ_WORKER_URL =
   process.env.NEXT_PUBLIC_USDZ_WORKER_URL || "http://127.0.0.1:8787";
+const REQUIRED_USDZ_WORKER_VERSION = 3;
+const REQUIRED_USDZ_WORKER_CAPABILITY = "physicalScaleNormalization";
 
 function isProfileOption(value: string): value is UsdzOptimizationProfileOption {
   return value === "premium" || value === "balanced" || value === "light" || value === "emergency";
 }
 
+function isDishKindPreset(value: string): value is UsdzDishKindPreset {
+  return USDZ_DISH_KIND_OPTIONS.some((option) => option.value === value);
+}
+
 function reductionPercent(sourceBytes: number, runtimeBytes: number): number {
   if (sourceBytes <= 0 || runtimeBytes <= 0) return 0;
   return Math.max(0, Math.round((1 - runtimeBytes / sourceBytes) * 100));
+}
+
+function formatScaleCentimeters(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return `${Math.round(value * 100)} cm`;
+}
+
+function physicalScaleSizeLabel(args: {
+  dimension: string;
+  heightMeters: number;
+  widthMeters: number;
+  depthMeters: number;
+  footprintMeters: number;
+}): string {
+  if (args.dimension === "footprint") {
+    const footprint = formatScaleCentimeters(args.footprintMeters || Math.max(args.widthMeters, args.depthMeters));
+    const width = formatScaleCentimeters(args.widthMeters);
+    const depth = formatScaleCentimeters(args.depthMeters);
+    return [
+      footprint ? `Footprint ${footprint}` : "",
+      width ? `Width ${width}` : "",
+      depth ? `Depth ${depth}` : ""
+    ]
+      .filter(Boolean)
+      .join(" Â· ");
+  }
+
+  const dimension = args.dimension === "height" ? "Height" : "Width";
+  const meters = args.dimension === "height" ? args.heightMeters : args.widthMeters;
+  const primary = formatScaleCentimeters(meters);
+  const depth = formatScaleCentimeters(args.depthMeters);
+  return [primary ? `${dimension} ${primary}` : "", depth ? `Depth ${depth}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function physicalScaleStatusLabel(status: string): string {
+  if (status === "normalized") return "Scale normalized";
+  if (status === "unchanged") return "Scale unchanged";
+  return `Scale ${status}`;
+}
+
+function dedupeWarnings(...warnings: string[][]): string[] {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const list of warnings) {
+    for (const warning of list) {
+      const value = String(warning ?? "").trim();
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) continue;
+      seen.add(key);
+      values.push(value);
+    }
+  }
+  return values;
+}
+
+function dishKindLabel(value: string): string {
+  return USDZ_DISH_KIND_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
 type QueueUploadArgs = {
@@ -220,6 +313,7 @@ export function OwnerDishModelUploader({
   restaurantId,
   dishId,
   dishName,
+  category,
   initialWebModel3dUrl = "",
   initialWebModel3dBytes = 0,
   initialArUsdzUrl = "",
@@ -229,6 +323,15 @@ export function OwnerDishModelUploader({
   initialUsdzTriangleCountBefore = 0,
   initialUsdzTriangleCountAfter = 0,
   initialUsdzGeometryReductionPercent = 0,
+  initialUsdzPhysicalScaleStatus = "",
+  initialUsdzPhysicalScaleDishKind = "",
+  initialUsdzPhysicalScaleDimension = "",
+  initialUsdzPhysicalScaleHeightAfterMeters = 0,
+  initialUsdzPhysicalScaleWidthAfterMeters = 0,
+  initialUsdzPhysicalScaleDepthAfterMeters = 0,
+  initialUsdzPhysicalScaleFootprintAfterMeters = 0,
+  initialUsdzPhysicalScaleScaleFactor = 1,
+  initialUsdzPhysicalScaleWarnings = [],
   initialUsdzOptimizationAttemptCount = 0,
   initialUsdzChangedTextures = 0,
   initialUsdzSourceBytes = 0,
@@ -254,6 +357,8 @@ export function OwnerDishModelUploader({
   const [profile, setProfile] = useState<UsdzOptimizationProfileOption>(
     isProfileOption(initialUsdzOptimizationProfile) ? initialUsdzOptimizationProfile : "balanced"
   );
+  const [selectedDishKindPreset, setSelectedDishKindPreset] =
+    useState<UsdzDishKindPreset>("auto");
   const [workerStatus, setWorkerStatus] = useState<"checking" | "available" | "missing">(
     "checking"
   );
@@ -269,9 +374,36 @@ export function OwnerDishModelUploader({
   const [geometryReduction, setGeometryReduction] = useState(
     initialUsdzGeometryReductionPercent
   );
+  const [physicalScaleStatus, setPhysicalScaleStatus] = useState(
+    initialUsdzPhysicalScaleStatus
+  );
+  const [physicalScaleDishKind, setPhysicalScaleDishKind] = useState(
+    initialUsdzPhysicalScaleDishKind
+  );
+  const [physicalScaleDimension, setPhysicalScaleDimension] = useState(
+    initialUsdzPhysicalScaleDimension
+  );
+  const [physicalScaleHeightMeters, setPhysicalScaleHeightMeters] = useState(
+    initialUsdzPhysicalScaleHeightAfterMeters
+  );
+  const [physicalScaleWidthMeters, setPhysicalScaleWidthMeters] = useState(
+    initialUsdzPhysicalScaleWidthAfterMeters
+  );
+  const [physicalScaleDepthMeters, setPhysicalScaleDepthMeters] = useState(
+    initialUsdzPhysicalScaleDepthAfterMeters
+  );
+  const [physicalScaleFootprintMeters, setPhysicalScaleFootprintMeters] = useState(
+    initialUsdzPhysicalScaleFootprintAfterMeters
+  );
+  const [physicalScaleFactor, setPhysicalScaleFactor] = useState(
+    initialUsdzPhysicalScaleScaleFactor
+  );
+  const [physicalScaleWarnings, setPhysicalScaleWarnings] = useState(
+    initialUsdzPhysicalScaleWarnings
+  );
   const [attemptCount, setAttemptCount] = useState(initialUsdzOptimizationAttemptCount);
   const [changedTextures, setChangedTextures] = useState(initialUsdzChangedTextures);
-  const [lastWarnings, setLastWarnings] = useState<string[]>([]);
+  const [lastWarnings, setLastWarnings] = useState<string[]>(initialUsdzPhysicalScaleWarnings);
 
   const [localQueueState, setLocalQueueState] = useState<OwnerDishModelUploadQueueState>("idle");
   const [activeUpload, setActiveUpload] = useState<"" | "viewer-glb" | "usdz-runtime">("");
@@ -290,6 +422,15 @@ export function OwnerDishModelUploader({
   const hasViewer = Boolean(webModel3dUrl);
   const hasUsdz = Boolean(arUsdzUrl);
   const savings = reductionPercent(usdzSourceBytes, arUsdzBytes);
+  const physicalScaleSize = physicalScaleSizeLabel({
+    dimension: physicalScaleDimension,
+    heightMeters: physicalScaleHeightMeters,
+    widthMeters: physicalScaleWidthMeters,
+    depthMeters: physicalScaleDepthMeters,
+    footprintMeters: physicalScaleFootprintMeters
+  });
+  const physicalScaleFootprintLabel = formatScaleCentimeters(physicalScaleFootprintMeters);
+  const visibleWarnings = dedupeWarnings(physicalScaleWarnings, lastWarnings);
   const workerStatusLabel =
     workerStatus === "available"
       ? "Worker local detecte"
@@ -321,8 +462,16 @@ export function OwnerDishModelUploader({
       signal: controller.signal
     })
       .then(async (response) => {
-        const payload = (await response.json().catch(() => ({}))) as { ok?: boolean };
-        setWorkerStatus(response.ok && payload.ok ? "available" : "missing");
+        const payload = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          version?: number;
+          capabilities?: string[];
+        };
+        const hasPhysicalScaleCapability =
+          Number(payload.version) >= REQUIRED_USDZ_WORKER_VERSION &&
+          Array.isArray(payload.capabilities) &&
+          payload.capabilities.includes(REQUIRED_USDZ_WORKER_CAPABILITY);
+        setWorkerStatus(response.ok && payload.ok && hasPhysicalScaleCapability ? "available" : "missing");
       })
       .catch(() => setWorkerStatus("missing"))
       .finally(() => window.clearTimeout(timer));
@@ -355,7 +504,7 @@ export function OwnerDishModelUploader({
     setError("");
     setMessage("");
     if (workerStatus !== "available") {
-      throw new Error("Worker local manquant. Lance npm run owner:usdz-worker.");
+      throw new Error("Worker local USDZ V3 requis. Relance npm run owner:usdz-worker.");
     }
     const basePath = `/api/owner/restaurants/${encodeURIComponent(restaurantId)}/dishes/${encodeURIComponent(dishId)}/model/usdz-runtime`;
     const startResponse = await fetch(`${basePath}/start`, {
@@ -381,10 +530,16 @@ export function OwnerDishModelUploader({
     }
 
     const formData = new FormData();
+    const resolvedDishKind = resolveUsdzDishKindPreset({
+      selectedPreset: selectedDishKindPreset,
+      dishName,
+      category
+    });
     formData.set("file", file);
     formData.set("profile", startPayload.profile || profile);
     formData.set("jobId", startPayload.jobId);
     formData.set("jobToken", startPayload.jobToken);
+    formData.set("dishKind", resolvedDishKind);
     formData.set("apiBaseUrl", window.location.origin);
     formData.set("prepareUploadEndpoint", startPayload.endpoints.prepareUpload);
     formData.set("completeEndpoint", startPayload.endpoints.complete);
@@ -407,9 +562,18 @@ export function OwnerDishModelUploader({
     setTriangleCountBefore(payload.triangleCountBefore ?? 0);
     setTriangleCountAfter(payload.triangleCountAfter ?? 0);
     setGeometryReduction(payload.geometryReductionPercent ?? 0);
+    setPhysicalScaleStatus(payload.physicalScale?.status ?? "");
+    setPhysicalScaleDishKind(payload.physicalScale?.dishKind ?? "");
+    setPhysicalScaleDimension(payload.physicalScale?.dimension ?? "");
+    setPhysicalScaleHeightMeters(payload.physicalScale?.heightAfterMeters ?? 0);
+    setPhysicalScaleWidthMeters(payload.physicalScale?.widthAfterMeters ?? 0);
+    setPhysicalScaleDepthMeters(payload.physicalScale?.depthAfterMeters ?? 0);
+    setPhysicalScaleFootprintMeters(payload.physicalScale?.footprintAfterMeters ?? 0);
+    setPhysicalScaleFactor(payload.physicalScale?.scaleFactor ?? 1);
+    setPhysicalScaleWarnings(payload.physicalScale?.warnings ?? []);
     setAttemptCount(payload.attemptCount ?? 0);
     setChangedTextures(payload.changedTextures ?? 0);
-    setLastWarnings(payload.warnings ?? []);
+    setLastWarnings(dedupeWarnings(payload.physicalScale?.warnings ?? [], payload.warnings ?? []));
     setShowDeleteConfirm(false);
     router.refresh();
   }
@@ -485,6 +649,16 @@ export function OwnerDishModelUploader({
         setUsdzSourceBytes(0);
         setUsdzSourceOriginalName("");
         setQuickLookQaStatus("");
+        setPhysicalScaleStatus("");
+        setPhysicalScaleDishKind("");
+        setPhysicalScaleDimension("");
+        setPhysicalScaleHeightMeters(0);
+        setPhysicalScaleWidthMeters(0);
+        setPhysicalScaleDepthMeters(0);
+        setPhysicalScaleFootprintMeters(0);
+        setPhysicalScaleFactor(1);
+        setPhysicalScaleWarnings([]);
+        setLastWarnings([]);
       }
       setShowDeleteConfirm(false);
       setMessage(payload.modelDeleted ? "Supprime." : "Rien a supprimer.");
@@ -582,6 +756,26 @@ export function OwnerDishModelUploader({
               </option>
             ))}
           </select>
+          <label className={styles.fieldLabel} htmlFor={`usdz-dish-kind-${dishId}`}>
+            AR size preset
+          </label>
+          <select
+            id={`usdz-dish-kind-${dishId}`}
+            className={styles.select}
+            aria-label="AR size preset: Burger / Sandwich, Plateau / Sharing, Fallback / Generique"
+            value={selectedDishKindPreset}
+            disabled={isBusy}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              if (isDishKindPreset(value)) setSelectedDishKindPreset(value);
+            }}
+          >
+            {USDZ_DISH_KIND_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             className={`${styles.btn} ${styles.btnSmall} ${styles.btnPrimary}`}
@@ -625,14 +819,39 @@ export function OwnerDishModelUploader({
                   {geometryReduction > 0 ? ` · -${Math.round(geometryReduction)}%` : ""}
                 </span>
               ) : null}
+              {physicalScaleStatus ? (
+                <span className={`${styles.badge} ${styles.badgeWarn}`}>
+                  {physicalScaleStatusLabel(physicalScaleStatus)}
+                </span>
+              ) : null}
+              {physicalScaleDishKind ? (
+                <span className={styles.cellSub}>Type de plat: {physicalScaleDishKind}</span>
+              ) : null}
+              {physicalScaleDishKind ? (
+                <span className={styles.cellSub}>
+                  AR scale preset: {dishKindLabel(physicalScaleDishKind)}
+                </span>
+              ) : null}
+              {physicalScaleSize ? (
+                <span className={styles.cellSub}>Taille finale: {physicalScaleSize}</span>
+              ) : null}
+              {physicalScaleFootprintLabel && physicalScaleDimension !== "footprint" ? (
+                <span className={styles.cellSub}>Footprint AR: {physicalScaleFootprintLabel}</span>
+              ) : null}
+              {physicalScaleDishKind === "fallback" ? (
+                <span className={styles.cellSub}>Fallback scale utilise</span>
+              ) : null}
+              {physicalScaleFactor && physicalScaleFactor !== 1 ? (
+                <span className={styles.cellSub}>Scale factor: {physicalScaleFactor.toFixed(2)}</span>
+              ) : null}
               {attemptCount > 0 ? (
                 <span className={styles.cellSub}>Attempts: {attemptCount}</span>
               ) : null}
               {changedTextures > 0 ? (
                 <span className={styles.cellSub}>Textures optimisees: {changedTextures}</span>
               ) : null}
-              {lastWarnings.length > 0 ? (
-                <span className={styles.cellSub}>Warnings: {lastWarnings.slice(0, 2).join(" · ")}</span>
+              {visibleWarnings.length > 0 ? (
+                <span className={styles.cellSub}>Warnings: {visibleWarnings.slice(0, 2).join(" · ")}</span>
               ) : null}
               {usdzSourceOriginalName ? (
                 <span className={styles.cellSub}>Master: {usdzSourceOriginalName}</span>
