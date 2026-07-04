@@ -475,7 +475,10 @@ export function TrouvablePremiumMenuExperience({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const selectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const topBarRef = useRef<HTMLElement | null>(null);
+  const toolsSentinelRef = useRef<HTMLDivElement | null>(null);
   const categoryRailRef = useRef<HTMLElement | null>(null);
+  const [toolsPinned, setToolsPinned] = useState(false);
   const menuCategorySwipeRef = useRef<PointerSwipeStart | null>(null);
   const dishSwipeRef = useRef<DishSwipeStart | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -823,6 +826,86 @@ export function TrouvablePremiumMenuExperience({
       behavior: scrollBehavior
     });
   }, [prefersReducedMotion, resolvedActiveCategory]);
+
+  useEffect(() => {
+    const topBar = topBarRef.current;
+    const page = topBar?.closest(`.${styles.page}`);
+    if (!topBar || !(page instanceof HTMLElement)) return;
+
+    const syncStickyToolsTop = () => {
+      page.style.setProperty(
+        "--trouvable-sticky-tools-top",
+        `${Math.ceil(topBar.getBoundingClientRect().height)}px`
+      );
+    };
+
+    syncStickyToolsTop();
+    window.addEventListener("resize", syncStickyToolsTop);
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(syncStickyToolsTop);
+    resizeObserver?.observe(topBar);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", syncStickyToolsTop);
+    };
+  }, []);
+
+  useEffect(() => {
+    const sentinel = toolsSentinelRef.current;
+    const page = sentinel?.closest(`.${styles.page}`);
+    if (!sentinel || !(page instanceof HTMLElement)) return;
+
+    const readTopInset = () => {
+      const raw = getComputedStyle(page)
+        .getPropertyValue("--trouvable-sticky-tools-top")
+        .trim();
+      const parsed = Number.parseFloat(raw);
+      return Number.isFinite(parsed) ? parsed : 72;
+    };
+
+    if (!("IntersectionObserver" in window)) {
+      return;
+    }
+
+    let observer: IntersectionObserver | null = null;
+
+    const bindObserver = () => {
+      observer?.disconnect();
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry) return;
+          const topInset = readTopInset();
+          setToolsPinned(
+            !entry.isIntersecting && entry.boundingClientRect.top < topInset
+          );
+        },
+        {
+          root: null,
+          threshold: 0,
+          rootMargin: `-${readTopInset()}px 0px 0px 0px`
+        }
+      );
+      observer.observe(sentinel);
+    };
+
+    bindObserver();
+
+    const topBar = topBarRef.current;
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && topBar) {
+      resizeObserver = new ResizeObserver(bindObserver);
+      resizeObserver.observe(topBar);
+    }
+
+    return () => {
+      observer?.disconnect();
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (!activeSheet) return;
@@ -1960,7 +2043,7 @@ export function TrouvablePremiumMenuExperience({
       data-theme={config.theme}
       data-user-theme={selectedTheme}
     >
-      <header className={styles.topBar}>
+      <header ref={topBarRef} className={styles.topBar}>
         <div className={styles.brandBlock}>
           <VistaireWord />
           <small>{context || copy.menuContextFallback}</small>
@@ -2099,7 +2182,16 @@ export function TrouvablePremiumMenuExperience({
             {activeCategoryTitle}
           </h2>
 
-        <div className={styles.tools} data-no-category-swipe="true">
+        <div
+          ref={toolsSentinelRef}
+          className={styles.toolsSentinel}
+          aria-hidden="true"
+        />
+        <div
+          className={styles.tools}
+          data-pinned={toolsPinned ? "true" : "false"}
+          data-no-category-swipe="true"
+        >
           <label className={styles.searchField}>
             <span>{copy.searchLabel}</span>
             <input

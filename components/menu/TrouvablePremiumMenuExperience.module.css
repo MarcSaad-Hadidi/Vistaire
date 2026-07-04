@@ -936,6 +936,10 @@
     scroll-behavior: auto;
   }
 
+  .tools[data-pinned="true"] {
+    animation: none;
+  }
+
   .page *,
   .page *::before,
   .page *::after {
@@ -1104,6 +1108,7 @@
   --trouvable-gold: #dec24b;
   --trouvable-gold-2: #f3dc75;
   --trouvable-blue: #74ddf2;
+  --trouvable-sticky-tools-top: 72px;
   --vistaire-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --vistaire-motion-duration: 220ms;
   --vistaire-sheet-duration: 240ms;
@@ -1633,11 +1638,99 @@
   }
 }
 
+.toolsSentinel {
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .tools {
+  position: sticky;
+  top: var(--trouvable-sticky-tools-top, 72px);
+  z-index: 25;
   grid-template-columns: minmax(120px, 1fr) auto auto;
   align-items: center;
   gap: 18px;
   margin: 0 28px 28px;
+  transition:
+    background var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    padding var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    margin var(--vistaire-motion-duration, 220ms)
+      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.tools[data-pinned="true"] {
+  margin-inline: clamp(12px, 4vw, 28px);
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background: rgba(5, 5, 5, 0.94);
+  -webkit-backdrop-filter: blur(14px) saturate(118%);
+  backdrop-filter: blur(14px) saturate(118%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  animation: toolsPinEnter var(--vistaire-motion-duration, 220ms)
+    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.tools[data-pinned="true"] .resultStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tools[data-pinned="true"] .searchField input {
+  min-height: 46px;
+  border-radius: 18px;
+  font-size: 14px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.tools[data-pinned="true"] .searchField::before {
+  bottom: 11px;
+  font-size: 20px;
+}
+
+.tools[data-pinned="true"] .filterTrigger {
+  min-height: 46px;
+  font-size: 14px;
+  padding-inline: 14px;
+}
+
+.tools[data-pinned="true"] .viewToggle {
+  width: 108px;
+  min-height: 52px;
+  padding: 4px;
+}
+
+.tools[data-pinned="true"] .viewToggle button {
+  width: 46px;
+  min-height: 44px;
+  font-size: 22px;
+}
+
+@keyframes toolsPinEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .searchField {
