@@ -14,9 +14,12 @@ import {
   getTrouvableGreetingPeriod,
   getTrouvableLanguageOptions,
   getTrouvableLanguagePresentation,
+  getTrouvableReadyLanguageOptions,
   getTrouvableLanguageShortCode,
   getTrouvableTextDirection,
+  isTrouvableLocalePublicReady,
   normalizeTrouvableCurrency,
+  normalizeTrouvableReadyLocaleForSettings,
   normalizeTrouvableTheme,
   parseTrouvablePriceLabel,
   resolveTrouvableCopy,
@@ -49,6 +52,51 @@ function buildCompleteLocalizedUiPack(prefix, value = TROUVABLE_COPY.en, path = 
       key,
       buildCompleteLocalizedUiPack(prefix, nestedValue, path ? `${path}.${key}` : key)
     ])
+  );
+}
+
+const GREEK_MENU_FORBIDDEN_ENGLISH = [
+  "Good evening",
+  "Categories",
+  "Swipe",
+  "Menu",
+  "Search dish, ingredient, tag...",
+  "Filter",
+  "list view, 36 dishes shown",
+  "Your experience matters",
+  "Share your experience",
+  "Leave a Google review",
+  "View details",
+  "VIEW IN 3D",
+  "TAP TO REVIEW",
+  "House note",
+  "In the dish",
+  "Allergens to note",
+  "Customize"
+];
+
+function collectCopySamples(value, path = "") {
+  if (typeof value === "string") return [value];
+  if (typeof value === "function") {
+    switch (path) {
+      case "activeFilters":
+      case "ingredientsCount":
+        return [value(2)];
+      case "quantityDecrease":
+      case "quantityIncrease":
+      case "quantityLabel":
+        return [value("Spanakopita")];
+      case "resultStatus":
+        return [value("list", 36)];
+      case "waiterReady":
+        return [value("Table 12")];
+      default:
+        return [];
+    }
+  }
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).flatMap(([key, nestedValue]) =>
+    collectCopySamples(nestedValue, path ? `${path}.${key}` : key)
   );
 }
 
@@ -115,6 +163,59 @@ test("Trouvable copy supports Spanish, Italian, and Arabic without falling back 
   assert.equal(getTrouvableCopy("ar").threeD, "\u0639\u0631\u0636 3D");
   assert.equal(getTrouvableCopy("ar").swipeLabel, "\u0645\u0631\u0631");
   assert.equal(getTrouvableCopy("fr-CA").reviewPost, "Publier l'avis");
+});
+
+test("Trouvable built-in Greek UI copy is complete and avoids visible English menu strings", () => {
+  const { copy, resolution } = resolveTrouvableCopy("el-GR");
+  const evening = new Date("2026-07-02T19:00:00.000Z");
+
+  assert.equal(resolution.builtInLocale, "el");
+  assert.equal(resolution.uiCopyComplete, true);
+  assert.equal(resolution.usedNeutralFallback, false);
+  assert.deepEqual(resolution.missingKeys, []);
+  assert.equal(getTrouvableGreetingForDate("el-GR", "UTC", evening), "Καλησπέρα");
+  assert.equal(copy.activeCategoryAll, "Μενού");
+  assert.equal(copy.categories, "ΚΑΤΗΓΟΡΙΕΣ");
+  assert.equal(copy.swipeLabel, "Σύρετε");
+  assert.equal(copy.searchPlaceholder, "Αναζήτηση πιάτου, υλικού, ετικέτας...");
+  assert.equal(copy.filterButton, "Φίλτρα");
+  assert.equal(copy.resultStatus(copy.viewList, 36), "Προβολή λίστας, εμφανίζονται 36 πιάτα");
+  assert.equal(copy.googleReview.title, "Η εμπειρία σας μετράει");
+  assert.equal(copy.googleReview.action, "Αφήστε αξιολόγηση Google");
+  assert.equal(copy.moreDetails, "Δείτε λεπτομέρειες");
+  assert.equal(copy.threeD, "ΠΡΟΒΟΛΗ ΣΕ 3D");
+  assert.equal(copy.review, "ΑΞΙΟΛΟΓΗΣΗ");
+  assert.equal(copy.houseNote, "Σημείωση κουζίνας");
+  assert.equal(copy.detailCompositionLabel, "Στο πιάτο");
+  assert.equal(copy.detailAllergensLabel, "Αλλεργιογόνα προς προσοχή");
+  assert.equal(copy.detailOptionsLabel, "Προσαρμογή");
+
+  const renderedCopy = collectCopySamples(copy).join("\n");
+  for (const forbidden of GREEK_MENU_FORBIDDEN_ENGLISH) {
+    assert.equal(
+      renderedCopy.includes(forbidden),
+      false,
+      `Greek UI copy still contains visible English string: ${forbidden}`
+    );
+  }
+});
+
+test("Trouvable built-in German UI copy is public-ready for completed menu translations", () => {
+  const { copy, resolution } = resolveTrouvableCopy("de-DE");
+  const evening = new Date("2026-07-02T19:00:00.000Z");
+
+  assert.equal(resolution.builtInLocale, "de");
+  assert.equal(resolution.uiCopyComplete, true);
+  assert.equal(resolution.usedNeutralFallback, false);
+  assert.deepEqual(resolution.missingKeys, []);
+  assert.equal(isTrouvableLocalePublicReady("de-DE"), true);
+  assert.equal(getTrouvableGreetingForDate("de-DE", "UTC", evening), "Guten Abend");
+  assert.equal(copy.activeCategoryAll, "Menü");
+  assert.equal(copy.categories, "KATEGORIEN");
+  assert.equal(copy.searchPlaceholder, "Gericht, Zutat, Tag suchen...");
+  assert.equal(copy.moreDetails, "Details ansehen");
+  assert.equal(copy.threeD, "IN 3D ANSEHEN");
+  assert.equal(copy.googleReview.action, "Google-Bewertung abgeben");
 });
 
 test("Trouvable copy reads exact dynamic localized UI copy before built-ins", () => {
@@ -228,20 +329,20 @@ test("Trouvable copy exposes documented neutral fallback metadata for missing UI
 });
 
 test("Trouvable complete dynamic UI packs avoid neutral fallback for non-built-in locales", () => {
-  const { copy, resolution } = resolveTrouvableCopy("el-GR", {
-    el: buildCompleteLocalizedUiPack("el")
+  const { copy, resolution } = resolveTrouvableCopy("pt-BR", {
+    pt: buildCompleteLocalizedUiPack("pt")
   });
 
   assert.equal(TROUVABLE_COPY.en.googleReview.title, "Your experience matters");
-  assert.equal(copy.moreDetails, "el:moreDetails");
-  assert.equal(copy.greeting.evening, "el:greeting.evening");
-  assert.equal(copy.googleReview.title, "el:googleReview.title");
+  assert.equal(copy.moreDetails, "pt:moreDetails");
+  assert.equal(copy.greeting.evening, "pt:greeting.evening");
+  assert.equal(copy.googleReview.title, "pt:googleReview.title");
   assert.equal(
     copy.googleReview.text,
-    "el:googleReview.text"
+    "pt:googleReview.text"
   );
-  assert.equal(copy.activeFilters(3), "el:activeFilters:3");
-  assert.equal(copy.quantityLabel("Spanakopita"), "el:quantityLabel:Spanakopita");
+  assert.equal(copy.activeFilters(3), "pt:activeFilters:3");
+  assert.equal(copy.quantityLabel("Pastel"), "pt:quantityLabel:Pastel");
   assert.equal(resolution.dynamicSource, "language");
   assert.equal(resolution.builtInLocale, "en");
   assert.equal(resolution.uiCopyComplete, true);
@@ -251,17 +352,17 @@ test("Trouvable complete dynamic UI packs avoid neutral fallback for non-built-i
 });
 
 test("Trouvable partial dynamic UI packs report missing and ignored keys", () => {
-  const { copy, resolution } = resolveTrouvableCopy("el-GR", {
-    el: {
+  const { copy, resolution } = resolveTrouvableCopy("ja-JP", {
+    ja: {
       greeting: {
-        evening: "\u039a\u03b1\u03bb\u03b7\u03c3\u03c0\u03ad\u03c1\u03b1"
+        evening: "こんばんは"
       },
-      swipeLabel: "\u03a3\u03cd\u03c1\u03b5\u03c4\u03b5",
-      typoLabel: "\u039b\u03ac\u03b8\u03bf\u03c2"
+      swipeLabel: "スワイプ",
+      typoLabel: "誤り"
     }
   });
 
-  assert.equal(copy.swipeLabel, "\u03a3\u03cd\u03c1\u03b5\u03c4\u03b5");
+  assert.equal(copy.swipeLabel, "スワイプ");
   assert.equal(copy.moreDetails, "View details");
   assert.equal(resolution.uiCopyComplete, false);
   assert.equal(resolution.usedNeutralFallback, true);
@@ -378,6 +479,45 @@ test("Trouvable selectors expose every configured public locale and currency", (
   assert.deepEqual(
     getTrouvableCurrencyOptions(settings).map((option) => option.code),
     ["CAD", "USD", "EUR", "GBP"]
+  );
+});
+
+test("Trouvable public-ready language options hide incomplete UI packs", () => {
+  const settings = {
+    defaultLocale: "fr-CA",
+    supportedLocales: ["fr-CA", "el-GR", "ja-JP", "pt-BR"],
+    supportedCurrencies: ["CAD"]
+  };
+  const localizedUiCopy = {
+    pt: buildCompleteLocalizedUiPack("pt")
+  };
+
+  const allOptions = getTrouvableLanguageOptions(settings, "el-GR", localizedUiCopy);
+  const readyOptions = getTrouvableReadyLanguageOptions(
+    settings,
+    "el-GR",
+    localizedUiCopy
+  );
+
+  assert.equal(isTrouvableLocalePublicReady("el-GR"), true);
+  assert.equal(isTrouvableLocalePublicReady("ja-JP"), false);
+  assert.equal(allOptions.find((option) => option.publicLocale === "ja-JP")?.isReady, false);
+  assert.equal(
+    allOptions.find((option) => option.publicLocale === "ja-JP")?.missingCopyKeys
+      .length > 0,
+    true
+  );
+  assert.deepEqual(
+    readyOptions.map((option) => option.publicLocale),
+    ["fr-CA", "el-GR", "pt-BR"]
+  );
+  assert.equal(
+    normalizeTrouvableReadyLocaleForSettings("ja-JP", settings, localizedUiCopy),
+    "fr-CA"
+  );
+  assert.equal(
+    normalizeTrouvableReadyLocaleForSettings("pt-BR", settings, localizedUiCopy),
+    "pt-BR"
   );
 });
 

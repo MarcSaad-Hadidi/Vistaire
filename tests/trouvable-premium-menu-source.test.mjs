@@ -30,7 +30,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   const supabaseReadIndex = source.indexOf(
     'const restaurantsResult = await readSupabaseRows("restaurants", 200);'
   );
-  const fallbackIndex = source.indexOf("return trouvableDemoMenu(slug, resolvedLocale);");
+  const fallbackIndex = source.indexOf("return trouvableDemoMenu(slug, locale);");
 
   assert.ok(supabaseReadIndex > 0, "Trouvable must reach the Supabase restaurant read");
   assert.ok(
@@ -38,7 +38,9 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
     "Trouvable demo data must only be a fallback after Supabase is unavailable"
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
-  assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"ar"\]/);
+  assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
+  assert.match(source, /name:\s*dish\.nameFr/);
+  assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
@@ -375,6 +377,8 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   const detailSource = await readFile(dishDetailPath, "utf8");
 
   assert.match(source, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(source, /getTrouvableReadyLanguageOptions\(\s*menu\.settings,\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(source, /normalizeTrouvableReadyLocaleForSettings\(\s*query\?\.lang,\s*menu\.settings,\s*menu\.localizedUiCopy\s*\)/);
   assert.match(
     source,
     /getTrouvableGreetingForDate\(\s*selectedLocale,\s*menu\.settings\.timezone,\s*new Date\(\),\s*menu\.localizedUiCopy\s*\)/
@@ -382,6 +386,11 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.match(source, /data-copy-dynamic-source=\{copyResolution\.dynamicSource\}/);
   assert.match(source, /data-copy-neutral-fallback=\{copyResolution\.usedNeutralFallback/);
   assert.match(source, /data-copy-complete=\{copyResolution\.uiCopyComplete/);
+  assert.match(source, /data-locale-public-ready=\{\s*copyResolution\.uiCopyComplete/);
+  assert.match(source, /data-menu-translation-status=\{menu\.translationStatus\?\.status/);
+  assert.match(source, /data-menu-ready-locales=\{menu\.settings\.supportedLocales\.join\(","\)\}/);
+  assert.match(source, /data-menu-blocked-locales=\{\s*menu\.translationLocales\s*\?/);
+  assert.match(source, /data-menu-blocked-locale-reasons=\{\s*menu\.translationLocales\s*\?/);
   assert.match(source, /data-copy-missing-keys=\{copyResolution\.missingKeys\.length\}/);
   assert.match(source, /data-copy-ignored-keys=\{copyResolution\.ignoredKeys\.length\}/);
   assert.match(source, /label:\s*copy\.immersiveFilterLabel/);
@@ -398,9 +407,15 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.doesNotMatch(source, /Photo de \$\{/);
   assert.doesNotMatch(detailSource, /Photo de \$\{/);
   assert.match(detailSource, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(detailSource, /normalizeTrouvableReadyLocaleForSettings\(\s*query\?\.lang,\s*menu\.settings,\s*menu\.localizedUiCopy\s*\)/);
   assert.match(detailSource, /data-copy-dynamic-source=\{copyResolution\.dynamicSource\}/);
   assert.match(detailSource, /data-copy-neutral-fallback=\{copyResolution\.usedNeutralFallback/);
   assert.match(detailSource, /data-copy-complete=\{copyResolution\.uiCopyComplete/);
+  assert.match(detailSource, /data-locale-public-ready=\{\s*copyResolution\.uiCopyComplete/);
+  assert.match(detailSource, /data-menu-translation-status=\{menu\.translationStatus\?\.status/);
+  assert.match(detailSource, /data-menu-ready-locales=\{menu\.settings\.supportedLocales\.join\(","\)\}/);
+  assert.match(detailSource, /data-menu-blocked-locales=\{\s*menu\.translationLocales\s*\?/);
+  assert.match(detailSource, /data-menu-blocked-locale-reasons=\{\s*menu\.translationLocales\s*\?/);
   assert.match(detailSource, /data-copy-missing-keys=\{copyResolution\.missingKeys\.length\}/);
   assert.match(detailSource, /data-copy-ignored-keys=\{copyResolution\.ignoredKeys\.length\}/);
 });

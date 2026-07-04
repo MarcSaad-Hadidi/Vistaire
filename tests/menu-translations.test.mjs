@@ -71,12 +71,15 @@ test("translation migration keeps RLS server-only for public rendering", async (
 
 test("translation server code stays server-only and client components avoid admin Supabase imports", async () => {
   const publicOverlay = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const readiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
   const serverTranslator = await readRepoFile("lib/translation/serverTranslator.ts");
   const sourceFiles = await collectSourceFiles(repoRootPath);
 
   assert.match(publicOverlay, /import "server-only"/);
   assert.match(publicOverlay, /getSupabaseAdminClient/);
-  assert.match(publicOverlay, /\.eq\("locale", activeLocale\)/);
+  assert.match(publicOverlay, /\.in\("locale", translationCandidateLocales\)/);
+  assert.match(publicOverlay, /publicMenuTranslationStatusesForRows/);
+  assert.match(readiness, /storedTranslationRowMatchesFields/);
   assert.doesNotMatch(publicOverlay, /\.select\("\*"\)/);
   assert.match(serverTranslator, /import "server-only"/);
 
@@ -167,12 +170,13 @@ test("owner translation settings use the public menu settings fallback resolver"
 test("menu translation source fields stay shared between owner generation and public reads", async () => {
   const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
   const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const publicReadiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
   const publicCore = await readRepoFile("lib/menu/publicMenuCore.ts");
   const ownerDishFields =
     ownerTranslations.match(/function dishFields[\s\S]*?return fields;\s*}\s*function categoryFields/)?.[0] ??
     "";
   const publicDishFields =
-    publicTranslations.match(/function dishFields[\s\S]*?}\s*function menuFields/)?.[0] ??
+    publicReadiness.match(/function publicMenuDishTranslationFields[\s\S]*?}\s*export function publicMenuTranslationMenuFields/)?.[0] ??
     "";
   const sourceFields = menuTranslationFieldsFromNames({
     restaurantName: "Cafe Vistaire",
@@ -187,7 +191,7 @@ test("menu translation source fields stay shared between owner generation and pu
     sourceHashFor({ menuName: "Menu principal" })
   );
   assert.match(ownerTranslations, /menuTranslationFieldsFromNames/);
-  assert.match(publicTranslations, /menuTranslationFieldsFromNames/);
+  assert.match(publicReadiness, /menuTranslationFieldsFromNames/);
   assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
   assert.ok(ownerDishFields, "owner dishFields source must be found");
   assert.ok(publicDishFields, "public dishFields source must be found");

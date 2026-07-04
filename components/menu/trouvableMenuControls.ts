@@ -24,9 +24,9 @@ export type TrouvableLocale = PublicMenuLocale;
 export type TrouvableCurrency = PublicMenuCurrency;
 export type TrouvableTheme = "dark" | "light";
 export type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
-type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "ar";
+type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "de" | "el" | "ar";
 
-const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "ar"] as const;
+const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "de", "el", "ar"] as const;
 const TROUVABLE_COPY_LOCALE_SET = new Set<string>(TROUVABLE_COPY_LOCALES);
 const TROUVABLE_FALLBACK_COPY_LOCALE: TrouvableCopyLocale = "en";
 const RTL_LANGUAGE_CODES = new Set(["ar", "fa", "he", "ur"]);
@@ -115,6 +115,34 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     text:
       "Condividi la tua esperienza da {restaurantName}. La tua recensione Google aiuta il team a capire ogni visita e a farsi scoprire.",
     title: "La tua esperienza conta"
+  },
+  de: {
+    action: "Google-Bewertung abgeben",
+    fallbackRestaurant: "das Restaurant",
+    metaLabel: "Google-Zusammenfassung",
+    note:
+      "Es wird kein Vorteil im Austausch für eine Bewertung angeboten. Ihre Bewertung sollte Ihre echte Erfahrung widerspiegeln.",
+    presentationRatingLabel: "Google-Vorschau: {rating}/5",
+    presentationReviewCountLabel: "Vorschau: {count} Bewertungen",
+    ratingLabel: "{rating}/5 bei Google",
+    reviewCountLabel: "{count} Google-Bewertungen",
+    text:
+      "Teilen Sie Ihre Erfahrung bei {restaurantName}. Ihre Google-Bewertung hilft dem Team, jeden Besuch besser zu verstehen und leichter entdeckt zu werden.",
+    title: "Ihre Erfahrung zählt"
+  },
+  el: {
+    action: "Αφήστε αξιολόγηση Google",
+    fallbackRestaurant: "το εστιατόριο",
+    metaLabel: "Σύνοψη Google",
+    note:
+      "Δεν προσφέρεται κανένα όφελος ως αντάλλαγμα για αξιολόγηση. Η αξιολόγησή σας πρέπει να αντικατοπτρίζει την πραγματική εμπειρία σας.",
+    presentationRatingLabel: "Προεπισκόπηση Google: {rating}/5",
+    presentationReviewCountLabel: "Προεπισκόπηση: {count} αξιολογήσεις",
+    ratingLabel: "{rating}/5 στο Google",
+    reviewCountLabel: "{count} αξιολογήσεις Google",
+    text:
+      "Μοιραστείτε την εμπειρία σας στο {restaurantName}. Η αξιολόγησή σας στο Google βοηθά την ομάδα να κατανοεί κάθε επίσκεψη και να γίνεται πιο εύκολα ανακαλύψιμη.",
+    title: "Η εμπειρία σας μετράει"
   },
   ar: {
     action: "اترك تقييما على Google",
@@ -756,6 +784,310 @@ export const TROUVABLE_COPY = {
     },
     veg: "Veg"
   },
+  de: {
+    activeCategoryAll: "Menü",
+    add: "Hinzufügen",
+    addToSelection: "Zur Auswahl hinzufügen",
+    all: "Alle",
+    activeFilterPrefix: "Aktiver Filter",
+    activeFilters: (count: number) => `${count} Filter`,
+    allergens: "Allergene",
+    allergenTitlePrefix: "Allergen",
+    askWaiter: "Service fragen",
+    available: "Verfügbar",
+    backToMenu: "Zurück zum Menü",
+    categories: "KATEGORIEN",
+    categoryAria: "Kategorien",
+    clearSearch: "Löschen",
+    close: "Schließen",
+    closeFilters: "Filter schließen",
+    closeDetail: "Details schließen",
+    closeLanguage: "Sprachauswahl schließen",
+    closeSelection: "Auswahl schließen",
+    closeWaiter: "Serviceanfrage schließen",
+    currencyAria: "Menüwährung wählen",
+    currencyCopy: "Preise werden lokal vom CAD-Menüpreis umgerechnet.",
+    currencyKicker: "Währung",
+    currencyTitle: "Menüwährung",
+    details: "Details",
+    emptySelectionBody: "Fügen Sie ein Gericht hinzu, um eine Serviceanfrage vorzubereiten.",
+    emptySelectionTitle: "Ihre Auswahl ist leer.",
+    estimatedTotal: "Geschätzte Summe",
+    filterAllAria: "Alle Gerichte anzeigen",
+    filterAvailableAria: "Verfügbare Gerichte filtern",
+    filterImmersiveAria: "Gerichte mit 3D oder AR filtern",
+    filterNonVegAria: "Erkannte nicht-vegetarische Gerichte filtern",
+    filterRecommendedAria: "Empfohlene Gerichte filtern",
+    filterVegAria: "Erkannte vegetarische Gerichte filtern",
+    filterApply: "Anwenden",
+    filterButton: "Filtern",
+    filterFallback: "Filter",
+    filterGroupLabel: "Filter",
+    immersiveFilterLabel: "3D / AR",
+    filterKicker: "Trouvable",
+    filterTitle: "Filter",
+    filtersAria: "Schnellfilter",
+    dairyFree: "Ohne Milchprodukte",
+    eggFree: "Ohne Eier",
+    fishFree: "Ohne Fisch",
+    glutenFree: "Glutenfrei",
+    nutFree: "Ohne Nüsse",
+    gridAria: "Rasteransicht anzeigen",
+    greeting: {
+      afternoon: "Willkommen",
+      evening: "Guten Abend",
+      morning: "Guten Morgen",
+      night: "Guten Abend"
+    },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.de,
+    heroAction: "Menü ansehen",
+    heroBlurb: "Hausgemachte Küche, warme Akzente und Service am Tisch.",
+    houseNote: "Küchennotiz",
+    immersiveUnavailable: "Die 3D-Ansicht ist für dieses Gericht nicht verfügbar.",
+    ingredients: "Zutaten",
+    ingredientsCount: (count: number) =>
+      `${count} ${count === 1 ? "Zutat" : "Zutaten"}`,
+    languageActive: "Aktiv",
+    languageAria: "Menüsprache wählen",
+    languageKicker: "Sprache",
+    languageSubtitle: "Lesen Sie das Menü in der Sprache, die zu Ihnen passt.",
+    languageTitle: "Menüsprache",
+    listAria: "Listenansicht anzeigen",
+    localOrderHint:
+      "Es wird keine Bestellung automatisch gesendet. Zeigen Sie diese Anfrage dem Team.",
+    menuAria: "Trouvable-Menü",
+    menuContextFallback: "Tischmenü",
+    modelPreparing: "Interaktive Ansicht wird vorbereitet...",
+    modelUnavailable: "Die 3D-Ansicht ist vorübergehend nicht verfügbar.",
+    arBrowserHelp:
+      "Wenn \"In meinem Raum ansehen\" nicht geöffnet wird, öffnen Sie dieses Gericht in Safari oder Chrome und starten Sie 3D erneut.",
+    arBrowserLink: "Im Browser öffnen",
+    moreDetails: "Details ansehen",
+    viewDetails: "Details ansehen",
+    detailCompositionLabel: "Im Gericht",
+    detailAllergensLabel: "Allergene beachten",
+    detailOptionsLabel: "Anpassen",
+    detailHouseNoteLabel: "Küchennotiz",
+    detailFallback: "Für dieses Gericht gibt es keine weiteren Details.",
+    cardOptionsLabel: "Verfügbare Optionen",
+    nextDish: "Nächstes Gericht",
+    nonVeg: "Nicht vegetarisch",
+    noResultsBody: "Versuchen Sie eine andere Suche oder entfernen Sie einen Filter.",
+    noResultsTitle: "Kein Gericht passt.",
+    options: "Optionen",
+    popular: "Beliebt",
+    previousDish: "Vorheriges Gericht",
+    priceToConfirm: "Preis zu bestätigen",
+    prepareRequest: "Anfrage vorbereiten",
+    quantityDecrease: (name: string) => `Menge von ${name} verringern`,
+    quantityIncrease: (name: string) => `Menge von ${name} erhöhen`,
+    quantityLabel: (name: string) => `Menge von ${name}`,
+    recommendation: "Empfohlen",
+    reset: "Zurücksetzen",
+    resetFilters: "Filter zurücksetzen",
+    resultStatus: (view: string, count: number) =>
+      `${view}-Ansicht, ${count} ${count === 1 ? "Gericht" : "Gerichte"} angezeigt`,
+    review: "BEWERTEN",
+    reviewClose: "Bewertung schließen",
+    reviewComment: "Ihr Kommentar",
+    reviewExperiencePlaceholder: "Wie war Ihr Besuch?",
+    reviewExperienceStars: "Erlebnisbewertung",
+    reviewExperienceTitle: "Bewerten Sie Ihre Erfahrung",
+    reviewMissing: "Der Google-Review-Link ist für dieses Restaurant nicht konfiguriert.",
+    reviewOpened: "Google Review wurde in einem neuen Tab geöffnet.",
+    reviewPlaceholder: "Wie war der Geschmack?",
+    reviewPost: "BEWERTUNG SENDEN",
+    reviewStars: "Gerichtbewertung",
+    reviewTitle: "Dieses Gericht bewerten",
+    searchLabel: "Suche",
+    searchPlaceholder: "Gericht, Zutat, Tag suchen...",
+    selection: "Auswahl",
+    selectionKicker: "Lokale Auswahl",
+    selectionTitle: "Ihre Auswahl",
+    server: "Service",
+    sesameFree: "Ohne Sesam",
+    shellfishFree: "Ohne Schalentiere",
+    signature: "Empfehlung",
+    soyFree: "Ohne Soja",
+    soldOut: "Ausverkauft",
+    tags: "Tags",
+    spicy: "Scharfes Gericht",
+    swipeAria: "Wischen, um die Kategorie zu wechseln",
+    swipeLabel: "Wischen",
+    tableLabel: "Tisch",
+    tablePlaceholder: "z. B. 12",
+    tableToConfirm: "Tisch zu bestätigen",
+    themeDarkAria: "Dunklen Modus aktivieren",
+    themeLightAria: "Hellen Modus aktivieren",
+    threeD: "IN 3D ANSEHEN",
+    toConfirm: "Zu bestätigen",
+    viewAr: "In meinem Raum ansehen",
+    viewGrid: "Raster",
+    viewList: "Liste",
+    viewModeAria: "Ansichtsmodus",
+    waiterKicker: "Tischservice",
+    waiterReady: (table: string) => `${table} - Anfrage lokal bereit.`,
+    waiterTitle: "Service fragen",
+    waiterTopic: "Anfragethema",
+    waiterTopics: {
+      allergen: "Frage zu Allergenen",
+      recommendation: "Empfehlung erfragen",
+      selection: "Zu meiner Auswahl fragen"
+    },
+    veg: "Vegetarisch"
+  },
+  el: {
+    activeCategoryAll: "Μενού",
+    add: "Προσθήκη",
+    addToSelection: "Προσθήκη στην επιλογή μου",
+    all: "Όλα",
+    activeFilterPrefix: "Ενεργό φίλτρο",
+    activeFilters: (count: number) => `${count} φίλτρα`,
+    allergens: "Αλλεργιογόνα",
+    allergenTitlePrefix: "Αλλεργιογόνο",
+    askWaiter: "Ρωτήστε τον σερβιτόρο",
+    available: "Διαθέσιμο",
+    backToMenu: "Επιστροφή στο μενού",
+    categories: "ΚΑΤΗΓΟΡΙΕΣ",
+    categoryAria: "Κατηγορίες",
+    clearSearch: "Καθαρισμός",
+    close: "Κλείσιμο",
+    closeFilters: "Κλείσιμο φίλτρων",
+    closeDetail: "Κλείσιμο λεπτομερειών",
+    closeLanguage: "Κλείσιμο επιλογής γλώσσας",
+    closeSelection: "Κλείσιμο επιλογής",
+    closeWaiter: "Κλείσιμο αιτήματος σερβιτόρου",
+    currencyAria: "Επιλέξτε νόμισμα μενού",
+    currencyCopy: "Οι τιμές μετατρέπονται τοπικά από την τιμή CAD του μενού.",
+    currencyKicker: "Νόμισμα",
+    currencyTitle: "Νόμισμα μενού",
+    details: "Λεπτομέρειες",
+    emptySelectionBody: "Προσθέστε ένα πιάτο για να ετοιμάσετε αίτημα προς τον σερβιτόρο.",
+    emptySelectionTitle: "Η επιλογή σας είναι κενή.",
+    estimatedTotal: "Εκτιμώμενο σύνολο",
+    filterAllAria: "Εμφάνιση όλων των πιάτων",
+    filterAvailableAria: "Φιλτράρισμα διαθέσιμων πιάτων",
+    filterImmersiveAria: "Φιλτράρισμα πιάτων με 3D ή AR",
+    filterNonVegAria: "Φιλτράρισμα μη χορτοφαγικών πιάτων",
+    filterRecommendedAria: "Φιλτράρισμα προτεινόμενων πιάτων",
+    filterVegAria: "Φιλτράρισμα χορτοφαγικών πιάτων",
+    filterApply: "Εφαρμογή",
+    filterButton: "Φίλτρα",
+    filterFallback: "Φίλτρο",
+    filterGroupLabel: "Φίλτρα",
+    immersiveFilterLabel: "3D / AR",
+    filterKicker: "Trouvable",
+    filterTitle: "Φίλτρα",
+    filtersAria: "Γρήγορα φίλτρα",
+    dairyFree: "Χωρίς γαλακτοκομικά",
+    eggFree: "Χωρίς αυγά",
+    fishFree: "Χωρίς ψάρι",
+    glutenFree: "Χωρίς γλουτένη",
+    nutFree: "Χωρίς ξηρούς καρπούς",
+    gridAria: "Εμφάνιση σε πλέγμα",
+    greeting: {
+      afternoon: "Καλώς ήρθατε",
+      evening: "Καλησπέρα",
+      morning: "Καλημέρα",
+      night: "Καλησπέρα"
+    },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.el,
+    heroAction: "Δείτε το μενού",
+    heroBlurb: "Σπιτική κουζίνα, ζεστές πινελιές και εξυπηρέτηση στο τραπέζι.",
+    houseNote: "Σημείωση κουζίνας",
+    immersiveUnavailable: "Η προβολή 3D δεν είναι διαθέσιμη για αυτό το πιάτο.",
+    ingredients: "Υλικά",
+    ingredientsCount: (count: number) =>
+      `${count} ${count === 1 ? "υλικό" : "υλικά"}`,
+    languageActive: "Ενεργό",
+    languageAria: "Επιλέξτε γλώσσα μενού",
+    languageKicker: "Γλώσσα",
+    languageSubtitle: "Περιηγηθείτε στο μενού στη γλώσσα που σας ταιριάζει.",
+    languageTitle: "Γλώσσα μενού",
+    listAria: "Εμφάνιση σε λίστα",
+    localOrderHint:
+      "Καμία παραγγελία δεν αποστέλλεται αυτόματα. Δείξτε αυτό το αίτημα στην ομάδα.",
+    menuAria: "Μενού Trouvable",
+    menuContextFallback: "Μενού τραπεζιού",
+    modelPreparing: "Προετοιμασία της καθηλωτικής προβολής...",
+    modelUnavailable: "Η προβολή 3D είναι προσωρινά μη διαθέσιμη.",
+    arBrowserHelp:
+      "Αν η επιλογή \"Προβολή στον χώρο μου\" δεν ανοίξει, ανοίξτε αυτό το πιάτο σε Safari ή Chrome και ξεκινήστε ξανά το 3D.",
+    arBrowserLink: "Άνοιγμα στο πρόγραμμα περιήγησης",
+    moreDetails: "Δείτε λεπτομέρειες",
+    viewDetails: "Δείτε λεπτομέρειες",
+    detailCompositionLabel: "Στο πιάτο",
+    detailAllergensLabel: "Αλλεργιογόνα προς προσοχή",
+    detailOptionsLabel: "Προσαρμογή",
+    detailHouseNoteLabel: "Σημείωση κουζίνας",
+    detailFallback: "Δεν υπάρχουν επιπλέον λεπτομέρειες για αυτό το πιάτο.",
+    cardOptionsLabel: "Διαθέσιμες επιλογές",
+    nextDish: "Επόμενο πιάτο",
+    nonVeg: "Μη χορτοφαγικό",
+    noResultsBody: "Δοκιμάστε άλλη αναζήτηση ή αφαιρέστε ένα φίλτρο.",
+    noResultsTitle: "Δεν βρέθηκε αντίστοιχο πιάτο.",
+    options: "Επιλογές",
+    popular: "Δημοφιλές",
+    previousDish: "Προηγούμενο πιάτο",
+    priceToConfirm: "Τιμή προς επιβεβαίωση",
+    prepareRequest: "Προετοιμασία αιτήματος",
+    quantityDecrease: (name: string) => `Μείωση ποσότητας για ${name}`,
+    quantityIncrease: (name: string) => `Αύξηση ποσότητας για ${name}`,
+    quantityLabel: (name: string) => `Ποσότητα για ${name}`,
+    recommendation: "Προτεινόμενο",
+    reset: "Επαναφορά",
+    resetFilters: "Επαναφορά φίλτρων",
+    resultStatus: (view: string, count: number) =>
+      `Προβολή ${view}, εμφανίζονται ${count} ${count === 1 ? "πιάτο" : "πιάτα"}`,
+    review: "ΑΞΙΟΛΟΓΗΣΗ",
+    reviewClose: "Κλείσιμο αξιολόγησης",
+    reviewComment: "Το σχόλιό σας",
+    reviewExperiencePlaceholder: "Πώς ήταν η επίσκεψή σας;",
+    reviewExperienceStars: "Βαθμολογία εμπειρίας",
+    reviewExperienceTitle: "Αξιολογήστε την εμπειρία σας",
+    reviewMissing: "Ο σύνδεσμος αξιολόγησης Google δεν έχει ρυθμιστεί για αυτό το εστιατόριο.",
+    reviewOpened: "Η αξιολόγηση Google άνοιξε σε νέα καρτέλα.",
+    reviewPlaceholder: "Πώς ήταν η γεύση;",
+    reviewPost: "ΔΗΜΟΣΙΕΥΣΗ ΑΞΙΟΛΟΓΗΣΗΣ",
+    reviewStars: "Βαθμολογία πιάτου",
+    reviewTitle: "Αξιολογήστε αυτό το πιάτο",
+    searchLabel: "Αναζήτηση",
+    searchPlaceholder: "Αναζήτηση πιάτου, υλικού, ετικέτας...",
+    selection: "Επιλογή",
+    selectionKicker: "Τοπική επιλογή",
+    selectionTitle: "Η επιλογή σας",
+    server: "Σερβιτόρος",
+    sesameFree: "Χωρίς σουσάμι",
+    shellfishFree: "Χωρίς οστρακοειδή",
+    signature: "Πρόταση",
+    soyFree: "Χωρίς σόγια",
+    soldOut: "Εξαντλήθηκε",
+    tags: "Ετικέτες",
+    spicy: "Πικάντικο πιάτο",
+    swipeAria: "Σύρετε για αλλαγή κατηγορίας",
+    swipeLabel: "Σύρετε",
+    tableLabel: "Τραπέζι",
+    tablePlaceholder: "π.χ. 12",
+    tableToConfirm: "Τραπέζι προς επιβεβαίωση",
+    themeDarkAria: "Ενεργοποίηση σκοτεινής λειτουργίας",
+    themeLightAria: "Ενεργοποίηση φωτεινής λειτουργίας",
+    threeD: "ΠΡΟΒΟΛΗ ΣΕ 3D",
+    toConfirm: "Προς επιβεβαίωση",
+    viewAr: "Προβολή στον χώρο μου",
+    viewGrid: "πλέγματος",
+    viewList: "λίστας",
+    viewModeAria: "Τρόπος εμφάνισης",
+    waiterKicker: "Εξυπηρέτηση τραπεζιού",
+    waiterReady: (table: string) => `${table} - το αίτημα είναι έτοιμο τοπικά.`,
+    waiterTitle: "Ρωτήστε τον σερβιτόρο",
+    waiterTopic: "Θέμα αιτήματος",
+    waiterTopics: {
+      allergen: "Ερώτηση για αλλεργιογόνα",
+      recommendation: "Ζητήστε πρόταση",
+      selection: "Ρωτήστε για την επιλογή μου"
+    },
+    veg: "Χορτοφαγικό"
+  },
   ar: {
     activeCategoryAll: "القائمة",
     add: "إضافة",
@@ -1386,6 +1718,7 @@ const LANGUAGE_PRESENTATION: Record<
   "en-CA": { nativeName: "English", region: "Canada", code: "EN-CA" },
   "en-GB": { nativeName: "English", region: "United Kingdom", code: "EN-GB" },
   "en-US": { nativeName: "English", region: "United States", code: "EN-US" },
+  "el-GR": { nativeName: "Ελληνικά", region: "Ελλάδα", code: "EL-GR" },
   "es-ES": { nativeName: "Español", region: "España", code: "ES-ES" },
   "es-MX": { nativeName: "Español", region: "México", code: "ES-MX" },
   "fr-CA": { nativeName: "Français", region: "Canada", code: "FR-CA" },
@@ -1446,10 +1779,7 @@ export function getTrouvableLanguagePresentation(publicLocale: string): {
   };
 }
 
-export function getTrouvableLanguageOptions(
-  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
-  displayLocale?: TrouvableLocale
-): Array<{
+type TrouvableLanguageOption = {
   locale: TrouvableLocale;
   publicLocale: string;
   label: string;
@@ -1457,18 +1787,47 @@ export function getTrouvableLanguageOptions(
   region: string;
   code: string;
   shortCode: string;
-}> {
-  const options: Array<{
-    locale: TrouvableLocale;
-    publicLocale: string;
-    label: string;
-    nativeName: string;
-    region: string;
-    code: string;
-    shortCode: string;
-  }> = [];
+  isReady: boolean;
+  missingCopyKeys: string[];
+  ignoredCopyKeys: string[];
+  copyDynamicSource: ReturnType<typeof resolveTrouvableCopy>["resolution"]["dynamicSource"];
+  copyNeutralFallback: boolean;
+};
+
+function normalizeTrouvableLocaleForPublicSettings(
+  value: unknown,
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">
+): TrouvableLocale {
+  const fallback = settings.defaultLocale ?? settings.supportedLocales[0] ?? "fr-CA";
+  const locale = normalizePublicMenuLocale(value, fallback);
+  if (settings.supportedLocales.includes(locale)) return locale;
+  const shortLocale = locale.toLowerCase().startsWith("fr") ? "fr" : "en";
+  return (
+    settings.supportedLocales.find((supportedLocale) =>
+      supportedLocale.toLowerCase().startsWith(shortLocale)
+    ) ??
+    settings.supportedLocales[0] ??
+    fallback
+  );
+}
+
+export function isTrouvableLocalePublicReady(
+  locale: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): boolean {
+  const { resolution } = resolveTrouvableCopy(locale, localizedUiCopy);
+  return resolution.uiCopyComplete && !resolution.usedNeutralFallback;
+}
+
+export function getTrouvableLanguageOptions(
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  displayLocale?: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): TrouvableLanguageOption[] {
+  const options: TrouvableLanguageOption[] = [];
   for (const publicLocale of settings.supportedLocales) {
     const presentation = getTrouvableLanguagePresentation(publicLocale);
+    const { resolution } = resolveTrouvableCopy(publicLocale, localizedUiCopy);
     options.push({
       locale: publicLocale,
       publicLocale,
@@ -1476,10 +1835,49 @@ export function getTrouvableLanguageOptions(
       region: presentation.region,
       code: presentation.code,
       shortCode: getTrouvableLanguageShortCode(publicLocale),
-      label: formatPublicLocaleLabel(publicLocale, displayLocale)
+      label: formatPublicLocaleLabel(publicLocale, displayLocale),
+      isReady: resolution.uiCopyComplete && !resolution.usedNeutralFallback,
+      missingCopyKeys: resolution.missingKeys,
+      ignoredCopyKeys: resolution.ignoredKeys,
+      copyDynamicSource: resolution.dynamicSource,
+      copyNeutralFallback: resolution.usedNeutralFallback
     });
   }
   return options;
+}
+
+export function getTrouvableReadyLanguageOptions(
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  displayLocale?: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): TrouvableLanguageOption[] {
+  return getTrouvableLanguageOptions(
+    settings,
+    displayLocale,
+    localizedUiCopy
+  ).filter((option) => option.isReady);
+}
+
+export function normalizeTrouvableReadyLocaleForSettings(
+  value: unknown,
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  localizedUiCopy?: Record<string, unknown>
+): TrouvableLocale {
+  const candidate = normalizeTrouvableLocaleForPublicSettings(value, settings);
+  if (isTrouvableLocalePublicReady(candidate, localizedUiCopy)) return candidate;
+
+  const defaultLocale = normalizeTrouvableLocaleForPublicSettings(
+    undefined,
+    settings
+  );
+  if (isTrouvableLocalePublicReady(defaultLocale, localizedUiCopy)) {
+    return defaultLocale;
+  }
+
+  return (
+    getTrouvableReadyLanguageOptions(settings, defaultLocale, localizedUiCopy)[0]
+      ?.locale ?? defaultLocale
+  );
 }
 
 export function isTrouvableLocaleSupported(
@@ -1625,7 +2023,10 @@ export function getTrouvableGreetingForDate(
   localizedUiCopy?: Record<string, unknown>
 ): string {
   const resolved = resolveTrouvableCopy(locale, localizedUiCopy);
-  if (resolved.resolution.dynamicSource !== "none") {
+  if (
+    resolved.resolution.uiCopyComplete &&
+    !resolved.resolution.usedNeutralFallback
+  ) {
     const period = getGreetingPeriodForTime(date, timezone);
     return resolved.copy.greeting[period];
   }

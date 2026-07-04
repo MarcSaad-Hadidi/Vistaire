@@ -84,6 +84,16 @@ export type GoogleReviewCta = {
   googleReviewCount?: number;
 };
 
+export type PublicMenuTranslationStatus = {
+  locale: string;
+  status: "source" | "missing" | "pending" | "in_progress" | "up_to_date" | "stale" | "error";
+  reason?: string;
+  entityType?: "menu" | "category" | "dish";
+  entityId?: string;
+  entityLabel?: string;
+  field?: string;
+};
+
 export type PublicMenu = {
   restaurantId: string;
   menuId?: string;
@@ -95,10 +105,8 @@ export type PublicMenu = {
   googleReview: GoogleReviewConfig;
   settings: PublicMenuSettings;
   activeLocale?: string;
-  translationStatus?: {
-    locale: string;
-    status: "source" | "missing" | "pending" | "in_progress" | "up_to_date" | "stale" | "error";
-  };
+  translationStatus?: PublicMenuTranslationStatus;
+  translationLocales?: PublicMenuTranslationStatus[];
   localizedUiCopy?: Record<string, unknown>;
   publicMenuStyleExplicit?: boolean;
   source: "supabase" | "demo";

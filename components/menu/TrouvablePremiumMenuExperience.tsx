@@ -52,12 +52,11 @@ import {
   getTrouvableCurrencyOptionLabel,
   getTrouvableDishConvertedPriceCents,
   getTrouvableGreetingForDate,
-  getTrouvableLanguageOptions,
+  getTrouvableReadyLanguageOptions,
   getTrouvableLanguageShortCode,
   getTrouvableTextDirection,
-  isTrouvableLocaleSupported,
   normalizeTrouvableCurrency,
-  normalizeTrouvableLocaleForSettings,
+  normalizeTrouvableReadyLocaleForSettings,
   normalizeTrouvableTheme,
   resolveTrouvableCopy,
   buildNavigableMenuSections,
@@ -451,7 +450,11 @@ export function TrouvablePremiumMenuExperience({
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
-    normalizeTrouvableLocaleForSettings(query?.lang, menu.settings)
+    normalizeTrouvableReadyLocaleForSettings(
+      query?.lang,
+      menu.settings,
+      menu.localizedUiCopy
+    )
   );
   const [selectedCurrency, setSelectedCurrency] =
     useState<TrouvableCurrency>(() =>
@@ -512,8 +515,13 @@ export function TrouvablePremiumMenuExperience({
     [menu.settings]
   );
   const languageOptions = useMemo(
-    () => getTrouvableLanguageOptions(menu.settings, selectedLocale),
-    [menu.settings, selectedLocale]
+    () =>
+      getTrouvableReadyLanguageOptions(
+        menu.settings,
+        selectedLocale,
+        menu.localizedUiCopy
+      ),
+    [menu.localizedUiCopy, menu.settings, selectedLocale]
   );
   const canChangeCurrency =
     menu.settings.allowCurrencySelector && currencyOptions.length > 1;
@@ -724,31 +732,40 @@ export function TrouvablePremiumMenuExperience({
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
       const queryLocale = query?.lang?.toString().trim()
-        ? normalizeTrouvableLocaleForSettings(query.lang, menu.settings)
+        ? normalizeTrouvableReadyLocaleForSettings(
+            query.lang,
+            menu.settings,
+            menu.localizedUiCopy
+          )
         : null;
       const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
       const storedCurrency = window.localStorage.getItem(
         TROUVABLE_CURRENCY_STORAGE_KEY
       );
       const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
-      const defaultLocale = normalizeTrouvableLocaleForSettings(
+      const defaultLocale = normalizeTrouvableReadyLocaleForSettings(
         undefined,
-        menu.settings
+        menu.settings,
+        menu.localizedUiCopy
       );
-      const activeServerLocale = normalizeTrouvableLocaleForSettings(
+      const activeServerLocale = normalizeTrouvableReadyLocaleForSettings(
         menu.activeLocale,
-        menu.settings
+        menu.settings,
+        menu.localizedUiCopy
       );
       const normalizedStoredLocale = storedLocale
-        ? normalizeTrouvableLocaleForSettings(storedLocale, menu.settings)
+        ? normalizeTrouvableReadyLocaleForSettings(
+            storedLocale,
+            menu.settings,
+            menu.localizedUiCopy
+          )
         : null;
 
       if (
         !queryLocale &&
         normalizedStoredLocale &&
         normalizedStoredLocale !== defaultLocale &&
-        normalizedStoredLocale !== activeServerLocale &&
-        isTrouvableLocaleSupported(normalizedStoredLocale, menu.settings)
+        normalizedStoredLocale !== activeServerLocale
       ) {
         replaceLocaleInUrl(normalizedStoredLocale);
         return;
@@ -768,7 +785,13 @@ export function TrouvablePremiumMenuExperience({
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [menu.activeLocale, menu.settings, query?.lang, replaceLocaleInUrl]);
+  }, [
+    menu.activeLocale,
+    menu.localizedUiCopy,
+    menu.settings,
+    query?.lang,
+    replaceLocaleInUrl
+  ]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;
@@ -957,10 +980,15 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function selectLocale(nextLocale: TrouvableLocale) {
-    if (!isTrouvableLocaleSupported(nextLocale, menu.settings)) return;
-    setSelectedLocale(nextLocale);
-    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, nextLocale);
-    replaceLocaleInUrl(nextLocale);
+    const readyLocale = normalizeTrouvableReadyLocaleForSettings(
+      nextLocale,
+      menu.settings,
+      menu.localizedUiCopy
+    );
+    if (readyLocale !== nextLocale) return;
+    setSelectedLocale(readyLocale);
+    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, readyLocale);
+    replaceLocaleInUrl(readyLocale);
     setLocalMessage("");
     closeActiveSheet();
   }
@@ -1885,6 +1913,40 @@ export function TrouvablePremiumMenuExperience({
       data-copy-dynamic-source={copyResolution.dynamicSource}
       data-copy-neutral-fallback={copyResolution.usedNeutralFallback ? "true" : "false"}
       data-copy-complete={copyResolution.uiCopyComplete ? "true" : "false"}
+      data-locale-public-ready={
+        copyResolution.uiCopyComplete && !copyResolution.usedNeutralFallback
+          ? "true"
+          : "false"
+      }
+      data-menu-translation-status={menu.translationStatus?.status ?? ""}
+      data-menu-ready-locales={menu.settings.supportedLocales.join(",")}
+      data-menu-blocked-locales={
+        menu.translationLocales
+          ?.filter(
+            (item) => item.status !== "source" && item.status !== "up_to_date"
+          )
+          .map((item) => `${item.locale}:${item.status}`)
+          .join(",") ?? ""
+      }
+      data-menu-blocked-locale-reasons={
+        menu.translationLocales
+          ?.filter(
+            (item) => item.status !== "source" && item.status !== "up_to_date"
+          )
+          .map((item) =>
+            [
+              item.locale,
+              item.status,
+              item.entityType,
+              item.entityLabel ?? item.entityId,
+              item.field,
+              item.reason
+            ]
+              .filter(Boolean)
+              .join(":")
+          )
+          .join("|") ?? ""
+      }
       data-copy-missing-keys={copyResolution.missingKeys.length}
       data-copy-ignored-keys={copyResolution.ignoredKeys.length}
       data-theme={config.theme}
