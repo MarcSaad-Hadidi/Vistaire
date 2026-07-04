@@ -12,7 +12,8 @@ import {
   getMetadataObject,
   MODEL_BUCKET,
   restampPublicModelUrls,
-  sha256Hex
+  sha256Hex,
+  VIEWER_GLB_CLEARED_AR_LITE_FIELDS
 } from "@/lib/owner/usdzRuntimeModel";
 
 type OwnerIdentity = {
@@ -38,7 +39,6 @@ export type ViewerGlbUploadResult = {
   jobId: string;
   version: string;
   webModel3dUrl: string;
-  arModel3dUrl: string;
   viewerGlbBytes: number;
   modelStatus: string;
 };
@@ -89,7 +89,6 @@ export async function runViewerGlbUpload(
   });
 
   await uploadGlb(args.adminClient, plan.webStoragePath, args.sourceBytes);
-  await uploadGlb(args.adminClient, plan.arLiteStoragePath, args.sourceBytes);
 
   const existing = getMetadataObject(args.existingMetadata);
   const previousWebPath =
@@ -112,6 +111,11 @@ export async function runViewerGlbUpload(
   );
 
   let merged = { ...existing, ...patch };
+  // A viewer GLB is never an AR-lite asset: clear any stale AR-lite fields so a
+  // viewer-only dish is not reported as Android AR ready by the public menu.
+  for (const field of VIEWER_GLB_CLEARED_AR_LITE_FIELDS) {
+    delete merged[field];
+  }
   merged = restampPublicModelUrls(merged, args.dishId, version);
   merged.modelStatus = computeSplitModelStatus(merged);
   assertNoForbiddenSourceStorage(merged);
@@ -128,7 +132,9 @@ export async function runViewerGlbUpload(
   }
 
   await removeIfDifferent(args.adminClient, previousWebPath, plan.webStoragePath);
-  await removeIfDifferent(args.adminClient, previousArLitePath, plan.arLiteStoragePath);
+  // No new AR-lite object is produced, so any previous AR-lite copy is now
+  // orphaned and must be removed from Storage (metadata already cleared).
+  await removeIfDifferent(args.adminClient, previousArLitePath, "");
 
   const jobId = `job_viewer_glb_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
   await args.adminClient.from("owner_3d_pipeline_jobs").insert({
@@ -142,6 +148,7 @@ export async function runViewerGlbUpload(
     logs: [
       "Owner viewer GLB uploaded (pre-optimized via optimizeglb.com).",
       "No USDZ pipeline was triggered; no USDZ was derived from this GLB.",
+      "No Android AR-lite copy was produced; viewer GLB is web-view only.",
       "menu_dishes metadata updated with viewer GLB URLs only."
     ],
     step_logs: [],
@@ -152,15 +159,6 @@ export async function runViewerGlbUpload(
         label: "Viewer web GLB",
         path: plan.webStoragePath,
         publicUrl: patch.webModel3dUrl,
-        sha256,
-        bytes: args.sourceBytes.byteLength
-      },
-      {
-        id: `${jobId}_ar_lite_glb`,
-        type: "ar_lite_glb",
-        label: "Android AR-lite GLB (viewer copy)",
-        path: plan.arLiteStoragePath,
-        publicUrl: patch.arModel3dUrl,
         sha256,
         bytes: args.sourceBytes.byteLength
       }
@@ -195,7 +193,6 @@ export async function runViewerGlbUpload(
     jobId,
     version,
     webModel3dUrl: String(patch.webModel3dUrl),
-    arModel3dUrl: String(patch.arModel3dUrl),
     viewerGlbBytes: args.sourceBytes.byteLength,
     modelStatus: String(merged.modelStatus)
   };

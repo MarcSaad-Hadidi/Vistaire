@@ -153,7 +153,6 @@ export async function POST(
         modelStatus: result.modelStatus,
         version: result.version,
         webModel3dUrl: result.webModel3dUrl,
-        arModel3dUrl: result.arModel3dUrl,
         viewerGlbBytes: result.viewerGlbBytes,
         job: { id: result.jobId },
         usdzTriggered: false,

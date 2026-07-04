@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 import {
-  buildPreparedModelArLiteStoragePath,
   buildPreparedModelPublicArLiteGlbPath,
   buildPreparedModelPublicGlbPath,
   buildPreparedModelPublicUsdzPath,
@@ -340,7 +339,6 @@ export type ViewerGlbUploadInputs = {
 export type ViewerGlbStoragePlan = {
   bucket: string;
   webStoragePath: string;
-  arLiteStoragePath: string;
 };
 
 export function buildViewerGlbStoragePlan(args: {
@@ -354,39 +352,45 @@ export function buildViewerGlbStoragePlan(args: {
       restaurantId: args.restaurantId,
       dishSlug: args.dishSlug,
       assetVersion: args.version
-    }),
-    arLiteStoragePath: buildPreparedModelArLiteStoragePath({
-      restaurantId: args.restaurantId,
-      dishSlug: args.dishSlug,
-      assetVersion: args.version
     })
   };
 }
 
 /**
- * The metadata patch for a viewer GLB upload. Preserves the public contract
- * (webModel3dUrl/model3dUrl/arModel3dUrl + storage paths + version) and adds
- * additive viewerGlb* fields. Never derives or references any USDZ.
+ * Metadata keys that describe an Android AR-lite GLB. A viewer GLB is NOT an
+ * AR-lite asset, so a viewer upload clears these to guarantee the public never
+ * reports Android AR ready from a viewer-only dish.
+ */
+export const VIEWER_GLB_CLEARED_AR_LITE_FIELDS = [
+  "arModel3dUrl",
+  "ar_model_3d_url",
+  "arModel3dStorageBucket",
+  "ar_model_3d_storage_bucket",
+  "arModel3dStoragePath",
+  "ar_model_3d_storage_path",
+  "arModel3dBytes",
+  "ar_model_3d_bytes"
+] as const;
+
+/**
+ * The metadata patch for a viewer GLB upload. Preserves the web public contract
+ * (webModel3dUrl/model3dUrl + storage paths + version) and adds additive
+ * viewerGlb* fields. It NEVER sets any AR-lite (arModel3d*) field, so a
+ * viewer-only dish is not treated as Android AR ready, and it never derives or
+ * references any USDZ.
  */
 export function buildViewerGlbMetadataPatch(
   inputs: ViewerGlbUploadInputs,
   plan: ViewerGlbStoragePlan
 ): Record<string, unknown> {
   const webUrl = buildPreparedModelPublicGlbPath(inputs.dishId, { assetVersion: inputs.version });
-  const arLiteUrl = buildPreparedModelPublicArLiteGlbPath(inputs.dishId, {
-    assetVersion: inputs.version
-  });
 
   return {
     model3dUrl: webUrl,
     webModel3dUrl: webUrl,
-    arModel3dUrl: arLiteUrl,
     webModel3dStorageBucket: plan.bucket,
     webModel3dStoragePath: plan.webStoragePath,
-    arModel3dStorageBucket: plan.bucket,
-    arModel3dStoragePath: plan.arLiteStoragePath,
     webModel3dBytes: inputs.bytes,
-    arModel3dBytes: inputs.bytes,
     modelAssetVersion: inputs.version,
     modelAssetSha256: inputs.sha256,
     modelUpdatedAt: inputs.uploadedAt,

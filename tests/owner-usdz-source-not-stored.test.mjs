@@ -6,10 +6,15 @@ import {
   FORBIDDEN_SOURCE_STORAGE_FIELDS,
   assertNoForbiddenSourceStorage,
   buildUsdzRuntimeMetadataPatch,
+  buildViewerGlbMetadataPatch,
+  buildViewerGlbStoragePlan,
   evaluateRuntimeUsdzUploadGate,
   validateUsdzStructure,
   sha256Hex
 } from "../lib/owner/usdzRuntimeModel.ts";
+import { buildSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
+import { runUsdzRuntimePipeline } from "../lib/owner/usdzRuntimePipelineCore.ts";
+import { collectTargetedDishModelDeletion } from "../lib/owner/deleteDishModelAssets.ts";
 
 const read = (path) => readFileSync(path, "utf8");
 
@@ -19,15 +24,95 @@ const usdzRoute = read(
 const viewerRoute = read(
   "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/viewer-glb/route.ts"
 );
-const pipeline = read("lib/owner/usdzRuntimePipeline.ts");
+const pipeline = read("lib/owner/usdzRuntimePipelineCore.ts");
 const viewerLib = read("lib/owner/viewerGlbUpload.ts");
 const cli = read("scripts/owner/optimize-restaurant-usdz.mjs");
 const worker = read("scripts/owner/optimize_restaurant_usdz.py");
+
+const RESTAURANT_ID = "11111111-2222-4333-8444-555555555555";
+const DISH_ID = "22222222-3333-4444-8555-666666666666";
 
 function validUsdzBytes(size = 64) {
   const head = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
   const eocd = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
   return Buffer.concat([head, Buffer.alloc(Math.max(8, size - 8)), eocd]);
+}
+
+function mockAdminClient(handlers = {}) {
+  const removed = [];
+  return {
+    removed,
+    client: {
+      storage: {
+        from: () => ({
+          upload: handlers.upload ?? (async () => ({ data: {}, error: null })),
+          remove: async (paths) => {
+            removed.push(...paths);
+            if (handlers.remove) return handlers.remove(paths);
+          }
+        })
+      },
+      from: (table) => {
+        if (table === "menu_dishes") {
+          return {
+            update: () => ({
+              eq: () => ({
+                eq: () => ({
+                  select: () => ({
+                    maybeSingle: handlers.dishUpdate ?? (async () => ({ data: { id: DISH_ID }, error: null }))
+                  })
+                })
+              })
+            })
+          };
+        }
+        if (table === "owner_3d_pipeline_jobs") {
+          return {
+            insert: handlers.jobInsert ?? (async () => ({ data: {}, error: null }))
+          };
+        }
+        throw new Error(`unexpected table ${table}`);
+      }
+    }
+  };
+}
+
+function basePipelineArgs(adminClient, optimizer) {
+  return {
+    adminClient,
+    owner: { userId: "user_test", email: "test@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    existingMetadata: { webModel3dUrl: "/api/public/menu-dishes/x/model/glb" },
+    sourceBytes: validUsdzBytes(8000),
+    originalName: "master.usdz",
+    profile: "balanced",
+    maxRuntimeBytes: 16 * 1024 * 1024,
+    optimizer
+  };
+}
+
+function successOptimizer(runtimeBytes, { fails = [], optimizationApplied = true } = {}) {
+  return async ({ outputPath, reportPath }) => {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(outputPath, runtimeBytes);
+    writeFileSync(reportPath, JSON.stringify({ ok: true }));
+    return {
+      ok: true,
+      runtimePath: outputPath,
+      reportPath,
+      runtimeBytes: runtimeBytes.byteLength,
+      runtimeSha256: sha256Hex(runtimeBytes),
+      optimizationApplied,
+      geometryOptimization: "skipped",
+      reductionPercent: 10,
+      warnings: [],
+      fails
+    };
+  };
 }
 
 test("forbidden source-storage fields are never persisted by the runtime pipeline", () => {
@@ -149,6 +234,20 @@ test("runtime upload gate blocks bad output and passes a valid runtime", () => {
     optimizationExpected: false
   });
   assert.equal(badStructure.ok, false);
+
+  const sourceNotCleaned = evaluateRuntimeUsdzUploadGate({
+    runtimeBytes: runtime,
+    sourceBytes: 120_000_000,
+    sourceSha256: "b".repeat(64),
+    maxRuntimeBytes: 16 * 1024 * 1024,
+    reportGenerated: true,
+    sourceCleaned: false,
+    optimizationExpected: true
+  });
+  assert.equal(sourceNotCleaned.ok, false);
+  if (!sourceNotCleaned.ok) {
+    assert.match(sourceNotCleaned.error, /source/i);
+  }
 });
 
 test("validateUsdzStructure rejects LFS pointers and bad magic", () => {
@@ -173,26 +272,197 @@ test("usdz-runtime route uploads only after optimization and reports source not 
 
 test("usdz runtime pipeline gates before upload, uploads runtime only, and cleans temp in finally", () => {
   const gateIndex = pipeline.indexOf("evaluateRuntimeUsdzUploadGate");
-  const uploadIndex = pipeline.indexOf(".upload(");
+  const sourceDeleteIndex = pipeline.indexOf("rmSync(sourcePath");
+  const uploadIndex = pipeline.indexOf(".upload(runtimeStoragePath");
   assert.ok(gateIndex > -1, "gate must be called");
-  assert.ok(uploadIndex > -1, "an upload must exist");
-  assert.ok(gateIndex < uploadIndex, "gate must be evaluated before any upload");
+  assert.ok(sourceDeleteIndex > -1, "source must be deleted before upload");
+  assert.ok(uploadIndex > -1, "runtime upload must exist");
+  assert.ok(sourceDeleteIndex < uploadIndex, "source must be deleted before runtime upload");
+  assert.ok(gateIndex < uploadIndex, "gate must be evaluated before runtime upload");
 
   // The source buffer/path is never uploaded.
   assert.doesNotMatch(pipeline, /\.upload\(\s*sourcePath/);
   assert.doesNotMatch(pipeline, /\.upload\([^)]*source\.usdz/);
   assert.match(pipeline, /writeFileSync\(sourcePath/);
+  assert.match(pipeline, /const sourceCleaned = !existsSync\(sourcePath\)/);
+  assert.match(pipeline, /uploadedReport\.error/);
+  assert.match(pipeline, /rollbackStorageObjects/);
+  assert.match(pipeline, /summary\.fails\.length > 0/);
   assert.match(pipeline, /\.upload\(runtimeStoragePath/);
   assert.match(pipeline, /\.upload\(reportStoragePath/);
   assert.match(pipeline, /finally\s*{\s*[\s\S]*rmSync\(workspace/);
   assert.match(pipeline, /assertNoForbiddenSourceStorage/);
 });
 
+test("viewer GLB metadata patch does not set arModel3dUrl or AR-lite storage fields", () => {
+  const plan = buildViewerGlbStoragePlan({
+    restaurantId: RESTAURANT_ID,
+    dishSlug: "homard-grille",
+    version: "20260704-abcdef12"
+  });
+  const patch = buildViewerGlbMetadataPatch(
+    {
+      restaurantId: RESTAURANT_ID,
+      dishId: DISH_ID,
+      dishSlug: "homard-grille",
+      version: "20260704-abcdef12",
+      bytes: 2_500_000,
+      sha256: "a".repeat(64),
+      originalName: "viewer.glb",
+      uploadedAt: "2026-07-04T00:00:00.000Z"
+    },
+    plan
+  );
+
+  assert.ok(String(patch.webModel3dUrl).startsWith("/api/public/menu-dishes/"));
+  assert.equal("arModel3dUrl" in patch, false);
+  assert.equal("arModel3dStoragePath" in patch, false);
+  assert.equal("arModel3dStorageBucket" in patch, false);
+  assert.equal("arModel3dBytes" in patch, false);
+  assert.equal("arLiteStoragePath" in plan, false);
+});
+
+test("viewer GLB upload lib does not copy AR-lite to Storage", () => {
+  assert.doesNotMatch(viewerLib, /arLiteStoragePath/);
+  assert.doesNotMatch(viewerLib, /plan\.arLiteStoragePath/);
+  assert.match(viewerLib, /VIEWER_GLB_CLEARED_AR_LITE_FIELDS/);
+  assert.equal(viewerLib.includes("await uploadGlb(args.adminClient, plan.webStoragePath"), true);
+  assert.equal(
+    (viewerLib.match(/await uploadGlb\(/g) ?? []).length,
+    1,
+    "only one GLB upload (web viewer) is allowed"
+  );
+});
+
+test("hasAndroidAr stays false when only GLB viewer metadata exists", () => {
+  const menu = buildSupabasePublicMenu(
+    "demo",
+    { id: RESTAURANT_ID, slug: "demo", name: "Demo" },
+    [
+      {
+        id: DISH_ID,
+        restaurant_id: RESTAURANT_ID,
+        name: "Homard grille",
+        slug: "homard-grille",
+        metadata: {
+          webModel3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=20260704-abcdef12`,
+          webModel3dStoragePath: `restaurants/${RESTAURANT_ID}/models/web/homard-grille-20260704-abcdef12.glb`,
+          viewerGlbStatus: "ready"
+        }
+      }
+    ]
+  );
+
+  const dish = menu.dishes[0];
+  assert.equal(dish.has3d, true);
+  assert.equal(dish.hasAndroidAr, false);
+  assert.equal(dish.hasIosAr, false);
+  assert.equal(dish.arModel3dUrl, "");
+});
+
+test("summary.fails blocks USDZ runtime upload", async () => {
+  const uploads = [];
+  const { client } = mockAdminClient({
+    upload: async (path) => {
+      uploads.push(path);
+      return { data: {}, error: null };
+    }
+  });
+
+  await assert.rejects(
+    () =>
+      runUsdzRuntimePipeline({
+        ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000), { fails: ["glossy material"] }))
+      }),
+    /Optimisation USDZ bloquee/
+  );
+  assert.equal(uploads.length, 0);
+});
+
+test("report upload error rolls back runtime from Storage", async () => {
+  const uploads = [];
+  const { client, removed } = mockAdminClient({
+    upload: async (path) => {
+      uploads.push(path);
+      if (path.endsWith("-usdz-report.json")) {
+        return { data: null, error: { message: "report failed" } };
+      }
+      return { data: {}, error: null };
+    }
+  });
+
+  await assert.rejects(
+    () =>
+      runUsdzRuntimePipeline({
+        ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000)))
+      }),
+    /rapport d'optimisation USDZ/
+  );
+  assert.equal(uploads.length, 2);
+  assert.deepEqual(removed, [uploads[0]]);
+});
+
+test("metadata update error rolls back runtime and report from Storage", async () => {
+  const uploads = [];
+  const { client, removed } = mockAdminClient({
+    upload: async (path) => {
+      uploads.push(path);
+      return { data: {}, error: null };
+    },
+    dishUpdate: async () => ({ data: null, error: { message: "db failed" } })
+  });
+
+  await assert.rejects(
+    () =>
+      runUsdzRuntimePipeline({
+        ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000)))
+      }),
+    /Plat impossible a mettre a jour/
+  );
+  assert.equal(uploads.length, 2);
+  assert.deepEqual(removed, uploads);
+});
+
+test("validated runtime pipeline uploads runtime and report after source cleanup", async () => {
+  const uploads = [];
+  const { client } = mockAdminClient({
+    upload: async (path) => {
+      uploads.push(path);
+      return { data: {}, error: null };
+    }
+  });
+
+  const result = await runUsdzRuntimePipeline({
+    ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000)))
+  });
+
+  assert.equal(result.status, "ready");
+  assert.equal(uploads.length, 2);
+  assert.ok(uploads[0].includes("/models/ar-ios/"));
+  assert.ok(uploads[1].endsWith("-usdz-report.json"));
+});
+
+test("deleting usdz-runtime also targets the linked optimization report", () => {
+  const metadata = {
+    arUsdzStoragePath: `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-20260704-abcdef12.usdz`,
+    usdzOptimizationReportStoragePath: `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-20260704-abcdef12-usdz-report.json`
+  };
+  const { targets, clearKeys } = collectTargetedDishModelDeletion(
+    metadata,
+    RESTAURANT_ID,
+    "usdz-runtime"
+  );
+
+  assert.ok(targets.some((target) => target.kind === "ios_usdz_runtime" || target.kind === "ios_usdz"));
+  assert.ok(targets.some((target) => target.kind === "usdz_report"));
+  assert.ok(clearKeys.includes("usdzOptimizationReportStoragePath"));
+});
+
 test("viewer-glb route never triggers a USDZ pipeline", () => {
   assert.doesNotMatch(viewerRoute, /runUsdzRuntimePipeline/);
   assert.doesNotMatch(viewerRoute, /runRestaurantMeshyDishPipeline/);
   assert.doesNotMatch(viewerLib, /runUsdzRuntimePipeline/);
-  assert.doesNotMatch(viewerLib, /\.usdz/);
+  assert.doesNotMatch(viewerRoute, /arModel3dUrl/);
   assert.match(viewerRoute, /usdzTriggered: false/);
 });
 

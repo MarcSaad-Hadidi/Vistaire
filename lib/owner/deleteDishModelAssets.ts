@@ -365,12 +365,13 @@ export function collectTargetedDishModelDeletion(
 
   const kindsByTarget: Record<Exclude<DishModelDeleteTarget, "all">, Set<string>> = {
     "viewer-glb": new Set(["viewer_glb", "web_glb", "ar_lite_glb", "legacy_model_glb", "source_glb", "prepared_glb"]),
-    "usdz-runtime": new Set(["ios_usdz", "ios_usdz_runtime"]),
-    report: new Set(["usdz_report", "manifest"])
+    // Removing the runtime USDZ also removes its linked report to avoid orphans.
+    "usdz-runtime": new Set(["ios_usdz", "ios_usdz_runtime", "usdz_report"]),
+    report: new Set(["usdz_report"])
   };
   const keysByTarget: Record<Exclude<DishModelDeleteTarget, "all">, readonly string[]> = {
     "viewer-glb": VIEWER_GLB_DELETE_KEYS,
-    "usdz-runtime": USDZ_RUNTIME_DELETE_KEYS,
+    "usdz-runtime": [...USDZ_RUNTIME_DELETE_KEYS, ...USDZ_REPORT_DELETE_KEYS],
     report: USDZ_REPORT_DELETE_KEYS
   };
 
