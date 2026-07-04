@@ -20,6 +20,17 @@ export type PublicMenuTranslationRows = {
   dishRows: AnyRow[];
 };
 
+function storedDishTags(dish: PublicMenuDish): string[] {
+  let tags = dish.tags;
+  if (dish.isRecommended) {
+    tags = tags.filter((tag) => tag.toLowerCase() !== "recommande");
+  }
+  if (dish.isSignature) {
+    tags = tags.filter((tag) => tag.toLowerCase() !== "signature");
+  }
+  return tags;
+}
+
 function listInput(value: unknown): string[] {
   return Array.isArray(value)
     ? value.map((item) => stringInput(item)).filter(Boolean)
@@ -86,13 +97,14 @@ function storedTranslationFieldFailure(
 export function publicMenuDishTranslationFields(
   dish: PublicMenuDish
 ): MenuTranslationFields {
+  const tags = storedDishTags(dish);
   return {
     ...(dish.description ? { description: dish.description } : {}),
     ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
     ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),
     ...(dish.options.length > 0 ? { options: dish.options } : {}),
     ...(dish.houseNote ? { houseNote: dish.houseNote } : {}),
-    ...(dish.tags.length > 0 ? { tags: dish.tags } : {})
+    ...(tags.length > 0 ? { tags } : {})
   };
 }
 

@@ -250,6 +250,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Carte Trouvable",
     menuContextFallback: "Menu à table",
     modelPreparing: "Préparation de la vue immersive...",
+    modelAlt: (name: string) => `Vue du plat : ${name}`,
+    modelViewer: {
+      loadingBody: "Quelques secondes peuvent être nécessaires selon le réseau.",
+      arHelp:
+        "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).",
+      quickLookCta: "Afficher devant moi",
+      shareText: "Découvrez ce plat en 3D.",
+      loadFailureTitle: "La vue 3D n'a pas pu être chargée pour le moment.",
+      loadFailureBodyWithAr:
+        "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari.",
+      loadFailureBody:
+        "Vous pouvez réessayer maintenant ou revenir à la fiche du plat.",
+      retry: "Réessayer",
+      close: "Fermer",
+      returnToDish: "Revenir à la fiche du plat",
+      slowNetworkTitle: "Réseau lent détecté : charger la vue 3D ?",
+      slowNetworkBody:
+        "La photo du plat reste disponible, et la vue 3D peut être lancée quand vous le souhaitez.",
+      slowNetworkCta: "Charger la vue 3D",
+      noModelQuiet: "Vue 3D indisponible pour le moment.",
+      noModelIos:
+        "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari.",
+      noModelIosHandoff:
+        "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari.",
+      noModelSoon: "Ce plat sera bientôt disponible en 3D.",
+      safariTitle: "Réalité augmentée disponible dans Safari",
+      copyLink: "Copier le lien",
+      linkCopied: "Lien copié",
+      share: "Partager",
+      iosUsdzMissing: "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.",
+      desktopArHint:
+        "La réalité augmentée se lance depuis un téléphone compatible.",
+      arAndroidBrowser:
+        "Votre navigateur ne permet pas la réalité augmentée ici. Vous pouvez quand même faire tourner le plat en 3D.",
+      arIosHandoff:
+        "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone."
+    },
     modelUnavailable: "Vue 3D temporairement indisponible.",
     arBrowserHelp:
       "Si \"Afficher devant moi\" ne s'ouvre pas, ouvrez cette fiche dans Safari ou Chrome, puis relancez la 3D.",
@@ -402,6 +439,42 @@ export const TROUVABLE_COPY = {
     menuAria: "Trouvable menu",
     menuContextFallback: "Table menu",
     modelPreparing: "Preparing the immersive view...",
+    modelAlt: (name: string) => `Dish view: ${name}`,
+    modelViewer: {
+      loadingBody: "A few seconds may be needed depending on the network.",
+      arHelp:
+        "Rotate the dish in 3D. In AR, place it once: it stays fixed there, without automatic rotation or resizing.",
+      quickLookCta: "View in my space",
+      shareText: "Explore this dish in 3D.",
+      loadFailureTitle: "The 3D view could not be loaded right now.",
+      loadFailureBodyWithAr:
+        "You can retry 3D or place the dish in your space from Safari.",
+      loadFailureBody:
+        "You can try again now or return to the dish details.",
+      retry: "Try again",
+      close: "Close",
+      returnToDish: "Return to dish details",
+      slowNetworkTitle: "Slow network detected: load 3D view?",
+      slowNetworkBody:
+        "The dish photo remains available, and the 3D view can be launched whenever you like.",
+      slowNetworkCta: "Load 3D view",
+      noModelQuiet: "3D view is unavailable for now.",
+      noModelIos:
+        "The 3D view will be available here soon. You can already place the dish in your space in Safari.",
+      noModelIosHandoff:
+        "The 3D view will be available here soon. To place the dish in your space, open this dish page in Safari.",
+      noModelSoon: "This dish will be available in 3D soon.",
+      safariTitle: "Augmented reality available in Safari",
+      copyLink: "Copy link",
+      linkCopied: "Link copied",
+      share: "Share",
+      iosUsdzMissing: "To enable iPhone AR, add a USDZ file to this dish.",
+      desktopArHint: "Augmented reality launches from a compatible phone.",
+      arAndroidBrowser:
+        "Your browser does not allow augmented reality here. You can still rotate the dish in 3D.",
+      arIosHandoff:
+        "To place the dish in your space, open this dish page in Safari on iPhone."
+    },
     modelUnavailable: "3D view is temporarily unavailable.",
     arBrowserHelp:
       "If \"View in my space\" does not open, open this dish in Safari or Chrome, then launch 3D again.",
@@ -554,6 +627,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Menu Trouvable",
     menuContextFallback: "Menu de mesa",
     modelPreparing: "Preparando la vista inmersiva...",
+    modelAlt: (name: string) => `Vista del plato: ${name}`,
+    modelViewer: {
+      loadingBody: "Pueden hacer falta unos segundos segun la red.",
+      arHelp:
+        "Gira el plato en 3D. En RA, colocalo una vez: queda fijo en ese lugar, sin rotacion automatica ni cambio de tamano.",
+      quickLookCta: "Ver frente a mi",
+      shareText: "Descubre este plato en 3D.",
+      loadFailureTitle: "La vista 3D no se pudo cargar por ahora.",
+      loadFailureBodyWithAr:
+        "Puedes volver a intentar el 3D o colocar el plato delante de ti desde Safari.",
+      loadFailureBody:
+        "Puedes intentarlo de nuevo ahora o volver a la ficha del plato.",
+      retry: "Reintentar",
+      close: "Cerrar",
+      returnToDish: "Volver a la ficha del plato",
+      slowNetworkTitle: "Red lenta detectada: cargar la vista 3D?",
+      slowNetworkBody:
+        "La foto del plato sigue disponible, y la vista 3D se puede abrir cuando quieras.",
+      slowNetworkCta: "Cargar vista 3D",
+      noModelQuiet: "Vista 3D no disponible por ahora.",
+      noModelIos:
+        "La vista 3D estara disponible aqui pronto. Ya puedes colocar el plato delante de ti en Safari.",
+      noModelIosHandoff:
+        "La vista 3D estara disponible aqui pronto. Para colocar el plato delante de ti, abre esta ficha en Safari.",
+      noModelSoon: "Este plato estara disponible en 3D pronto.",
+      safariTitle: "Realidad aumentada disponible en Safari",
+      copyLink: "Copiar enlace",
+      linkCopied: "Enlace copiado",
+      share: "Compartir",
+      iosUsdzMissing: "Para activar la RA en iPhone, anade un archivo USDZ a este plato.",
+      desktopArHint:
+        "La realidad aumentada se abre desde un telefono compatible.",
+      arAndroidBrowser:
+        "Tu navegador no permite la realidad aumentada aqui. Aun asi puedes girar el plato en 3D.",
+      arIosHandoff:
+        "Para colocar el plato delante de ti, abre esta ficha en Safari en iPhone."
+    },
     modelUnavailable: "La vista 3D no esta disponible temporalmente.",
     arBrowserHelp:
       "Si \"Ver frente a mi\" no se abre, abre esta ficha en Safari o Chrome y vuelve a lanzar el 3D.",
@@ -706,6 +816,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Menu Trouvable",
     menuContextFallback: "Menu al tavolo",
     modelPreparing: "Preparazione della vista immersiva...",
+    modelAlt: (name: string) => `Vista del piatto: ${name}`,
+    modelViewer: {
+      loadingBody: "Potrebbero servire alcuni secondi a seconda della rete.",
+      arHelp:
+        "Ruota il piatto in 3D. In AR, posizionalo una sola volta: resta fisso in quel punto, senza rotazione automatica o ridimensionamento.",
+      quickLookCta: "Vedi davanti a me",
+      shareText: "Scopri questo piatto in 3D.",
+      loadFailureTitle: "La vista 3D non puo essere caricata al momento.",
+      loadFailureBodyWithAr:
+        "Puoi riprovare il 3D o posizionare il piatto davanti a te da Safari.",
+      loadFailureBody:
+        "Puoi riprovare ora o tornare alla scheda del piatto.",
+      retry: "Riprova",
+      close: "Chiudi",
+      returnToDish: "Torna alla scheda del piatto",
+      slowNetworkTitle: "Rete lenta rilevata: caricare la vista 3D?",
+      slowNetworkBody:
+        "La foto del piatto resta disponibile e la vista 3D puo essere avviata quando vuoi.",
+      slowNetworkCta: "Carica vista 3D",
+      noModelQuiet: "Vista 3D non disponibile per il momento.",
+      noModelIos:
+        "La vista 3D sara presto disponibile qui. Puoi gia posizionare il piatto davanti a te in Safari.",
+      noModelIosHandoff:
+        "La vista 3D sara presto disponibile qui. Per posizionare il piatto davanti a te, apri questa scheda in Safari.",
+      noModelSoon: "Questo piatto sara presto disponibile in 3D.",
+      safariTitle: "Realta aumentata disponibile in Safari",
+      copyLink: "Copia link",
+      linkCopied: "Link copiato",
+      share: "Condividi",
+      iosUsdzMissing: "Per attivare l'AR su iPhone, aggiungi un file USDZ a questo piatto.",
+      desktopArHint:
+        "La realta aumentata si avvia da un telefono compatibile.",
+      arAndroidBrowser:
+        "Il tuo browser non consente la realta aumentata qui. Puoi comunque ruotare il piatto in 3D.",
+      arIosHandoff:
+        "Per posizionare il piatto davanti a te, apri questa scheda in Safari su iPhone."
+    },
     modelUnavailable: "La vista 3D e temporaneamente non disponibile.",
     arBrowserHelp:
       "Se \"Vedi davanti a me\" non si apre, apri questa scheda in Safari o Chrome e rilancia il 3D.",
@@ -858,6 +1005,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Trouvable-Menü",
     menuContextFallback: "Tischmenü",
     modelPreparing: "Interaktive Ansicht wird vorbereitet...",
+    modelAlt: (name: string) => `Ansicht des Gerichts: ${name}`,
+    modelViewer: {
+      loadingBody: "Je nach Verbindung kann es einige Sekunden dauern.",
+      arHelp:
+        "Drehen Sie das Gericht in 3D. In AR platzieren Sie es einmal: Es bleibt dort fixiert, ohne automatische Drehung oder Größenänderung.",
+      quickLookCta: "In meinem Raum ansehen",
+      shareText: "Dieses Gericht in 3D ansehen.",
+      loadFailureTitle: "Die 3D-Ansicht konnte momentan nicht geladen werden.",
+      loadFailureBodyWithAr:
+        "Sie können 3D erneut versuchen oder das Gericht in Safari vor sich platzieren.",
+      loadFailureBody:
+        "Sie können es jetzt erneut versuchen oder zu den Details des Gerichts zurückkehren.",
+      retry: "Erneut versuchen",
+      close: "Schließen",
+      returnToDish: "Zurück zu den Details des Gerichts",
+      slowNetworkTitle: "Langsames Netzwerk erkannt: 3D-Ansicht laden?",
+      slowNetworkBody:
+        "Das Foto des Gerichts bleibt verfügbar, und die 3D-Ansicht kann jederzeit geöffnet werden.",
+      slowNetworkCta: "3D-Ansicht laden",
+      noModelQuiet: "3D-Ansicht derzeit nicht verfügbar.",
+      noModelIos:
+        "Die 3D-Ansicht wird hier bald verfügbar sein. Sie können das Gericht bereits in Safari vor sich platzieren.",
+      noModelIosHandoff:
+        "Die 3D-Ansicht wird hier bald verfügbar sein. Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari.",
+      noModelSoon: "Dieses Gericht wird bald in 3D verfügbar sein.",
+      safariTitle: "Augmented Reality in Safari verfügbar",
+      copyLink: "Link kopieren",
+      linkCopied: "Link kopiert",
+      share: "Teilen",
+      iosUsdzMissing: "Um iPhone-AR zu aktivieren, fügen Sie diesem Gericht eine USDZ-Datei hinzu.",
+      desktopArHint:
+        "Augmented Reality startet von einem kompatiblen Telefon.",
+      arAndroidBrowser:
+        "Ihr Browser erlaubt hier keine Augmented Reality. Sie können das Gericht trotzdem in 3D drehen.",
+      arIosHandoff:
+        "Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari auf dem iPhone."
+    },
     modelUnavailable: "Die 3D-Ansicht ist vorübergehend nicht verfügbar.",
     arBrowserHelp:
       "Wenn \"In meinem Raum ansehen\" nicht geöffnet wird, öffnen Sie dieses Gericht in Safari oder Chrome und starten Sie 3D erneut.",
@@ -1010,6 +1194,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Μενού Trouvable",
     menuContextFallback: "Μενού τραπεζιού",
     modelPreparing: "Προετοιμασία της καθηλωτικής προβολής...",
+    modelAlt: (name: string) => `Προβολή πιάτου: ${name}`,
+    modelViewer: {
+      loadingBody: "Μπορεί να χρειαστούν λίγα δευτερόλεπτα ανάλογα με το δίκτυο.",
+      arHelp:
+        "Περιστρέψτε το πιάτο σε 3D. Σε AR, τοποθετήστε το μία φορά: παραμένει σταθερό εκεί, χωρίς αυτόματη περιστροφή ή αλλαγή μεγέθους.",
+      quickLookCta: "Προβολή μπροστά μου",
+      shareText: "Δείτε αυτό το πιάτο σε 3D.",
+      loadFailureTitle: "Η προβολή 3D δεν μπόρεσε να φορτωθεί προς το παρόν.",
+      loadFailureBodyWithAr:
+        "Μπορείτε να δοκιμάσετε ξανά την 3D προβολή ή να τοποθετήσετε το πιάτο μπροστά σας από το Safari.",
+      loadFailureBody:
+        "Μπορείτε να δοκιμάσετε ξανά τώρα ή να επιστρέψετε στις λεπτομέρειες του πιάτου.",
+      retry: "Δοκιμή ξανά",
+      close: "Κλείσιμο",
+      returnToDish: "Επιστροφή στις λεπτομέρειες του πιάτου",
+      slowNetworkTitle: "Εντοπίστηκε αργό δίκτυο: να φορτωθεί η προβολή 3D;",
+      slowNetworkBody:
+        "Η φωτογραφία του πιάτου παραμένει διαθέσιμη και η προβολή 3D μπορεί να ανοίξει όποτε θέλετε.",
+      slowNetworkCta: "Φόρτωση προβολής 3D",
+      noModelQuiet: "Η προβολή 3D δεν είναι διαθέσιμη προς το παρόν.",
+      noModelIos:
+        "Η προβολή 3D θα είναι σύντομα διαθέσιμη εδώ. Μπορείτε ήδη να τοποθετήσετε το πιάτο μπροστά σας στο Safari.",
+      noModelIosHandoff:
+        "Η προβολή 3D θα είναι σύντομα διαθέσιμη εδώ. Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari.",
+      noModelSoon: "Αυτό το πιάτο θα είναι σύντομα διαθέσιμο σε 3D.",
+      safariTitle: "Η επαυξημένη πραγματικότητα είναι διαθέσιμη στο Safari",
+      copyLink: "Αντιγραφή συνδέσμου",
+      linkCopied: "Ο σύνδεσμος αντιγράφηκε",
+      share: "Κοινοποίηση",
+      iosUsdzMissing: "Για να ενεργοποιηθεί το AR στο iPhone, προσθέστε ένα αρχείο USDZ σε αυτό το πιάτο.",
+      desktopArHint:
+        "Η επαυξημένη πραγματικότητα ξεκινά από συμβατό τηλέφωνο.",
+      arAndroidBrowser:
+        "Το πρόγραμμα περιήγησής σας δεν επιτρέπει επαυξημένη πραγματικότητα εδώ. Μπορείτε όμως να περιστρέψετε το πιάτο σε 3D.",
+      arIosHandoff:
+        "Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari σε iPhone."
+    },
     modelUnavailable: "Η προβολή 3D είναι προσωρινά μη διαθέσιμη.",
     arBrowserHelp:
       "Αν η επιλογή \"Προβολή στον χώρο μου\" δεν ανοίξει, ανοίξτε αυτό το πιάτο σε Safari ή Chrome και ξεκινήστε ξανά το 3D.",
@@ -1161,6 +1382,42 @@ export const TROUVABLE_COPY = {
     menuAria: "قائمة Trouvable",
     menuContextFallback: "قائمة الطاولة",
     modelPreparing: "جار تحضير العرض التفاعلي...",
+    modelAlt: (name: string) => `عرض الطبق: ${name}`,
+    modelViewer: {
+      loadingBody: "قد يستغرق الأمر بضع ثوان حسب الشبكة.",
+      arHelp:
+        "حرّك الطبق في 3D. في AR، ضعه مرة واحدة: يبقى ثابتاً في ذلك المكان من دون تدوير تلقائي أو تغيير حجم.",
+      quickLookCta: "اعرضه أمامي",
+      shareText: "شاهد هذا الطبق بتقنية 3D.",
+      loadFailureTitle: "تعذر تحميل عرض 3D حالياً.",
+      loadFailureBodyWithAr:
+        "يمكنك إعادة محاولة عرض 3D أو وضع الطبق أمامك من Safari.",
+      loadFailureBody:
+        "يمكنك المحاولة مرة أخرى الآن أو الرجوع إلى تفاصيل الطبق.",
+      retry: "إعادة المحاولة",
+      close: "إغلاق",
+      returnToDish: "الرجوع إلى تفاصيل الطبق",
+      slowNetworkTitle: "تم اكتشاف شبكة بطيئة: هل تريد تحميل عرض 3D؟",
+      slowNetworkBody:
+        "تبقى صورة الطبق متاحة، ويمكن فتح عرض 3D عندما تريد.",
+      slowNetworkCta: "تحميل عرض 3D",
+      noModelQuiet: "عرض 3D غير متاح حالياً.",
+      noModelIos:
+        "سيصبح عرض 3D متاحاً هنا قريباً. يمكنك حالياً وضع الطبق أمامك في Safari.",
+      noModelIosHandoff:
+        "سيصبح عرض 3D متاحاً هنا قريباً. لوضع الطبق أمامك، افتح هذه الصفحة في Safari.",
+      noModelSoon: "سيصبح هذا الطبق متاحاً بتقنية 3D قريباً.",
+      safariTitle: "الواقع المعزز متاح في Safari",
+      copyLink: "نسخ الرابط",
+      linkCopied: "تم نسخ الرابط",
+      share: "مشاركة",
+      iosUsdzMissing: "لتفعيل AR على iPhone، أضف ملف USDZ إلى هذا الطبق.",
+      desktopArHint: "يتم تشغيل الواقع المعزز من هاتف متوافق.",
+      arAndroidBrowser:
+        "متصفحك لا يسمح بالواقع المعزز هنا. يمكنك مع ذلك تدوير الطبق في 3D.",
+      arIosHandoff:
+        "لوضع الطبق أمامك، افتح هذه الصفحة في Safari على iPhone."
+    },
     modelUnavailable: "عرض 3D غير متاح مؤقتا.",
     arBrowserHelp:
       "إذا لم يفتح \"اعرض أمامي\"، افتح هذه الصفحة في Safari أو Chrome ثم شغل 3D مرة أخرى.",
@@ -1285,6 +1542,8 @@ const COPY_FUNCTION_TEMPLATE_BUILDERS: {
     renderCopyTemplate(template, { count }),
   ingredientsCount: (template) => (count: number) =>
     renderCopyTemplate(template, { count }),
+  modelAlt: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
   quantityDecrease: (template) => (name: string) =>
     renderCopyTemplate(template, { name }),
   quantityIncrease: (template) => (name: string) =>

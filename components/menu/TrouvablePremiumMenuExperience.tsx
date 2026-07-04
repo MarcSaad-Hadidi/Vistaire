@@ -37,6 +37,7 @@ import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
+import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import {
   getDishSwipeScrollTop,
   resolveDishSwipeGesture
@@ -228,6 +229,7 @@ function dishMetaLine(dish: PublicMenuDish, soldOutLabel: string): string {
 }
 
 function isRecommendedDish(dish: PublicMenuDish): boolean {
+  if (dish.isSignature || dish.isRecommended) return true;
   const text = searchableDishText(dish);
   return ["signature", "populaire", "popular", "recommande", "recommended"].some(
     (term) => text.includes(term)
@@ -495,6 +497,7 @@ export function TrouvablePremiumMenuExperience({
     menu.localizedUiCopy
   );
   const textDirection = getTrouvableTextDirection(selectedLocale);
+  useTrouvableDocumentLanguage(selectedLocale, textDirection);
   const greetingText = useSyncExternalStore(
     (onStoreChange) => {
       const intervalId = window.setInterval(onStoreChange, 60_000);
@@ -1856,6 +1859,11 @@ export function TrouvablePremiumMenuExperience({
                       dish={modelViewerDishFromPublicDish(selectedDish)}
                       minimalChrome
                       quietChrome
+                      copy={{
+                        loadingTitle: copy.modelPreparing,
+                        ...copy.modelViewer,
+                        modelAlt: copy.modelAlt
+                      }}
                       onReturnToDish={() => {
                         setShowDetailModelViewer(false);
                         setShowArBrowserHelp(false);

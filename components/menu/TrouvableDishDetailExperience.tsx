@@ -44,6 +44,7 @@ import {
 } from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
+import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -164,6 +165,7 @@ export function TrouvableDishDetailExperience({
     menu.localizedUiCopy
   );
   const textDirection = getTrouvableTextDirection(selectedLocale);
+  useTrouvableDocumentLanguage(selectedLocale, textDirection);
   const localizedQuery = useMemo<PublicMenuContextQuery>(
     () => ({
       ...(query ?? {}),
@@ -538,6 +540,11 @@ export function TrouvableDishDetailExperience({
                     dish={modelViewerDishFromPublicDish(activeDish)}
                     minimalChrome
                     quietChrome
+                    copy={{
+                      loadingTitle: copy.modelPreparing,
+                      ...copy.modelViewer,
+                      modelAlt: copy.modelAlt
+                    }}
                     onReturnToDish={() => setShowModelViewer(false)}
                   />
                 ) : modelViewerLoadFailed ? (

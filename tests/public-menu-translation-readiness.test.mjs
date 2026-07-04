@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   filterPublicMenuSettingsForReadyTranslations,
+  publicMenuDishTranslationFields,
   publicMenuTranslationStatusesForRows,
   storedTranslationRowMatchesFields
 } from "../lib/menu/publicMenuTranslationReadiness.ts";
@@ -247,5 +248,49 @@ test("public readiness accepts field-complete rows with stale aggregate hashes o
       dishFields
     ),
     false
+  );
+});
+
+test("derived recommended tags do not block stored content readiness", () => {
+  const recommendedDish = {
+    ...dish,
+    isRecommended: true,
+    tags: [...dish.tags, "Recommande"]
+  };
+  const recommendedMenu = {
+    ...menu,
+    dishes: [recommendedDish]
+  };
+
+  assert.deepEqual(
+    publicMenuDishTranslationFields(recommendedDish).tags,
+    dish.tags
+  );
+
+  const statuses = publicMenuTranslationStatusesForRows(recommendedMenu, {
+    menuRows: [],
+    categoryRows: [
+      rowFor("de-DE", "category_id", "sandwichs", categoryFields, {
+        name: "Sandwiches",
+        description: "Warme Klassiker"
+      })
+    ],
+    dishRows: [
+      rowFor("de-DE", "dish_id", dish.id, dishFields, {
+        description:
+          "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
+        ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
+        allergens: ["Weizen/Roggen", "Senf"],
+        options: ["Extra Smoked Meat", "Senf separat"],
+        houseNote:
+          "Eine direkte Anspielung auf Montrealer Klassiker, warm serviert und grosszugig geschnitten.",
+        tags: ["Empfehlung", "Hausbeilage"]
+      })
+    ]
+  });
+
+  assert.deepEqual(
+    statuses.find((status) => status.locale === "de-DE"),
+    { locale: "de-DE", status: "up_to_date" }
   );
 });

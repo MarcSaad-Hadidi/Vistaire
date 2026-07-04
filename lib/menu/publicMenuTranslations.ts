@@ -237,6 +237,9 @@ export async function applyStoredPublicMenuTranslations(
   const translatedDishes = menu.dishes.map((dish) => {
     const sourceFields = publicMenuDishTranslationFields(dish);
     const dishRow = dishRowsById.get(dish.id);
+    const translatableTags = Array.isArray(sourceFields.tags)
+      ? sourceFields.tags
+      : [];
     const categoryId = dish.categoryId || dish.category;
     const categoryFields = categoryFieldsById.get(categoryId);
     const categoryRow = categoryRowsById.get(categoryId);
@@ -292,7 +295,7 @@ export async function applyStoredPublicMenuTranslations(
       }),
       tags: getTranslatedList({
         field: "tags",
-        source: dish.tags,
+        source: translatableTags,
         sourceFields,
         row: dishRow
       })

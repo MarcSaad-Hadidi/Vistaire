@@ -56,6 +56,10 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
   assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => !isVisible\)/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
+  assert.match(source, /loadingTitle:\s*copy\.modelPreparing/);
+  assert.match(source, /\.\.\.copy\.modelViewer/);
+  assert.match(source, /modelAlt:\s*copy\.modelAlt/);
+  assert.match(source, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /prefetch=\{false\}/);
 });
@@ -175,6 +179,7 @@ test("Trouvable standalone dish detail keeps locale URL navigation and RTL in sy
   assert.match(detailSource, /useRouter/);
   assert.match(detailSource, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
   assert.doesNotMatch(detailSource, /window\.location\.replace/);
+  assert.match(detailSource, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
   assert.match(detailSource, /lang=\{selectedLocale\}/);
   assert.match(detailSource, /dir=\{textDirection\}/);
   assert.match(

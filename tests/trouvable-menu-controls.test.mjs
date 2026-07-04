@@ -33,6 +33,7 @@ const SLEEP_GREETING_PATTERN =
 const TEMPLATE_KEYS = new Map([
   ["activeFilters", "{count}"],
   ["ingredientsCount", "{count}"],
+  ["modelAlt", "{name}"],
   ["quantityDecrease", "{name}"],
   ["quantityIncrease", "{name}"],
   ["quantityLabel", "{name}"],
@@ -72,7 +73,10 @@ const GREEK_MENU_FORBIDDEN_ENGLISH = [
   "House note",
   "In the dish",
   "Allergens to note",
-  "Customize"
+  "Customize",
+  "Preparing the immersive view",
+  "A few seconds may be needed",
+  "View in my space"
 ];
 
 function collectCopySamples(value, path = "") {
@@ -85,6 +89,7 @@ function collectCopySamples(value, path = "") {
       case "quantityDecrease":
       case "quantityIncrease":
       case "quantityLabel":
+      case "modelAlt":
         return [value("Spanakopita")];
       case "resultStatus":
         return [value("list", 36)];
@@ -162,6 +167,14 @@ test("Trouvable copy supports Spanish, Italian, and Arabic without falling back 
   assert.equal(getTrouvableCopy("ar").moreDetails, "\u0639\u0631\u0636 \u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644");
   assert.equal(getTrouvableCopy("ar").threeD, "\u0639\u0631\u0636 3D");
   assert.equal(getTrouvableCopy("ar").swipeLabel, "\u0645\u0631\u0631");
+  assert.equal(
+    getTrouvableCopy("ar").modelViewer.loadingBody,
+    "\u0642\u062f \u064a\u0633\u062a\u063a\u0631\u0642 \u0627\u0644\u0623\u0645\u0631 \u0628\u0636\u0639 \u062b\u0648\u0627\u0646 \u062d\u0633\u0628 \u0627\u0644\u0634\u0628\u0643\u0629."
+  );
+  assert.equal(
+    getTrouvableCopy("ar").modelAlt("Caesar"),
+    "\u0639\u0631\u0636 \u0627\u0644\u0637\u0628\u0642: Caesar"
+  );
   assert.equal(getTrouvableCopy("fr-CA").reviewPost, "Publier l'avis");
 });
 
@@ -184,6 +197,11 @@ test("Trouvable built-in Greek UI copy is complete and avoids visible English me
   assert.equal(copy.googleReview.action, "Αφήστε αξιολόγηση Google");
   assert.equal(copy.moreDetails, "Δείτε λεπτομέρειες");
   assert.equal(copy.threeD, "ΠΡΟΒΟΛΗ ΣΕ 3D");
+  assert.equal(
+    copy.modelViewer.loadingBody,
+    "Μπορεί να χρειαστούν λίγα δευτερόλεπτα ανάλογα με το δίκτυο."
+  );
+  assert.equal(copy.modelAlt("Caesar"), "Προβολή πιάτου: Caesar");
   assert.equal(copy.review, "ΑΞΙΟΛΟΓΗΣΗ");
   assert.equal(copy.houseNote, "Σημείωση κουζίνας");
   assert.equal(copy.detailCompositionLabel, "Στο πιάτο");
@@ -198,6 +216,19 @@ test("Trouvable built-in Greek UI copy is complete and avoids visible English me
       `Greek UI copy still contains visible English string: ${forbidden}`
     );
   }
+});
+
+test("Trouvable Arabic 3D viewer copy avoids French loader strings", () => {
+  const copy = getTrouvableCopy("ar");
+  const renderedCopy = collectCopySamples(copy).join("\n");
+
+  assert.equal(renderedCopy.includes("Préparation de la vue immersive"), false);
+  assert.equal(
+    renderedCopy.includes("Quelques secondes peuvent être nécessaires selon le réseau"),
+    false
+  );
+  assert.equal(copy.modelViewer.loadingBody, "قد يستغرق الأمر بضع ثوان حسب الشبكة.");
+  assert.equal(copy.modelViewer.quickLookCta, "اعرضه أمامي");
 });
 
 test("Trouvable built-in German UI copy is public-ready for completed menu translations", () => {
