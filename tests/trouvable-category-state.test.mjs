@@ -77,7 +77,7 @@ test("FR -> AR -> EN -> ES -> IT category labels do not duplicate stable categor
   assert.equal(groups.get("main")?.length, 5);
 });
 
-test("Trouvable Arabic uses RTL text direction without applying rtl to root layout", async () => {
+test("Trouvable Arabic keeps the same LTR public UI layout", async () => {
   const menuSource = await readFile(
     "components/menu/TrouvablePremiumMenuExperience.tsx",
     "utf8"

@@ -63,6 +63,8 @@ export type PublicMenuDish = {
     | "pending_manual_usdz"
     | "usdz_conversion_failed";
   available: boolean;
+  isSignature?: boolean;
+  isRecommended?: boolean;
   ingredients: string[];
   allergens: string[];
   options: string[];
@@ -84,6 +86,16 @@ export type GoogleReviewCta = {
   googleReviewCount?: number;
 };
 
+export type PublicMenuTranslationStatus = {
+  locale: string;
+  status: "source" | "missing" | "pending" | "in_progress" | "up_to_date" | "stale" | "error";
+  reason?: string;
+  entityType?: "menu" | "category" | "dish";
+  entityId?: string;
+  entityLabel?: string;
+  field?: string;
+};
+
 export type PublicMenu = {
   restaurantId: string;
   menuId?: string;
@@ -95,10 +107,8 @@ export type PublicMenu = {
   googleReview: GoogleReviewConfig;
   settings: PublicMenuSettings;
   activeLocale?: string;
-  translationStatus?: {
-    locale: string;
-    status: "source" | "missing" | "pending" | "in_progress" | "up_to_date" | "stale" | "error";
-  };
+  translationStatus?: PublicMenuTranslationStatus;
+  translationLocales?: PublicMenuTranslationStatus[];
   localizedUiCopy?: Record<string, unknown>;
   publicMenuStyleExplicit?: boolean;
   source: "supabase" | "demo";
@@ -705,6 +715,8 @@ function mapDishRow(
   const modelAssetSha256 = getString(metadata, ["modelAssetSha256", "model_asset_sha256"], "");
   const modelUpdatedAt = getString(metadata, ["modelUpdatedAt", "model_updated_at"], "");
   const hasImmersiveFlag = getBoolean(row, ["has_immersive_view", "hasImmersiveView"]);
+  const isSignature = getBoolean(row, ["is_signature", "isSignature"]);
+  const isRecommended = getBoolean(row, ["is_recommended", "isRecommended"]);
   const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl || hasImmersiveFlag);
   const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
   const hasAndroidAr = Boolean(arModel3dUrl);
@@ -780,6 +792,8 @@ function mapDishRow(
                 ? "ready"
                 : "missing",
     available: isDishAvailable(row),
+    ...(isSignature ? { isSignature } : {}),
+    ...(isRecommended ? { isRecommended } : {}),
     ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
     allergens: getStringListFromSources(row, metadata, ["allergens", "allergenes", "allergen_list"]),
     options: mergeStringLists(
@@ -802,8 +816,8 @@ function mapDishRow(
     tags: mergeStringLists(
       getStringListFromSources(row, metadata, ["tags", "labels"]),
       getStringList(metadata, ["badges"]),
-      getBoolean(row, ["is_signature", "isSignature"]) ? ["Signature"] : [],
-      getBoolean(row, ["is_recommended", "isRecommended"]) ? ["Recommande"] : []
+      isSignature ? ["Signature"] : [],
+      isRecommended ? ["Recommande"] : []
     )
   };
 }

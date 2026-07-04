@@ -23,6 +23,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import {
   DEFAULT_PUBLIC_MENU_SETTINGS,
+  normalizePublicMenuLocalePreference,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
@@ -38,7 +39,7 @@ const DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
 
 const TROUVABLE_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   ...DEFAULT_PUBLIC_MENU_SETTINGS,
-  supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "ar"],
+  supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "el-GR", "ar"],
   supportedCurrencies: ["CAD", "USD", "EUR"],
   defaultCurrency: "CAD",
   baseCurrency: "CAD",
@@ -59,20 +60,32 @@ const TROUVABLE_DISHES = [
       "Oeufs fermiers, pommes de terre croustillantes, salade d'herbes et pain au levain grille.",
     descriptionEn:
       "Farm eggs, crisp potatoes, herb salad, and toasted sourdough.",
+    descriptionEl:
+      "Αυγά ελευθέρας βοσκής, τραγανές πατάτες, σαλάτα μυρωδικών και φρυγανισμένο ψωμί με προζύμι.",
     categoryFr: "Dejeuner",
     categoryEn: "Breakfast",
+    categoryEl: "Πρωινό",
     priceCents: 1800,
     imageUrl: "/images/demo/dishes/maison-elyse-n1.png",
     ingredientsFr: ["Oeufs", "Pommes de terre", "Herbes fraiches", "Pain au levain"],
     ingredientsEn: ["Eggs", "Potatoes", "Fresh herbs", "Sourdough"],
+    ingredientsEl: ["Αυγά", "Πατάτες", "Φρέσκα μυρωδικά", "Ψωμί με προζύμι"],
     allergensFr: ["Oeufs", "Gluten"],
     allergensEn: ["Eggs", "Gluten"],
+    allergensEl: ["Αυγά", "Γλουτένη"],
     optionsFr: ["Bacon croustillant +4", "Avocat citronne +5", "Sans gluten sur demande"],
     optionsEn: ["Crisp bacon +4", "Lemon avocado +5", "Gluten-free on request"],
+    optionsEl: [
+      "Τραγανό μπέικον +4",
+      "Αβοκάντο με λεμόνι +5",
+      "Χωρίς γλουτένη κατόπιν αιτήματος"
+    ],
     houseNoteFr: "Le plat signature pour tester le parcours public Trouvable.",
     houseNoteEn: "The signature plate for the Trouvable public flow.",
+    houseNoteEl: "Το πιάτο-υπογραφή για τη δοκιμή της δημόσιας εμπειρίας Trouvable.",
     tagsFr: ["Signature", "Maison"],
-    tagsEn: ["Signature", "House"]
+    tagsEn: ["Signature", "House"],
+    tagsEl: ["Πρόταση", "Σπιτικό"]
   },
   {
     slug: "ravioles-chevre-miel-monteregie",
@@ -82,20 +95,28 @@ const TROUVABLE_DISHES = [
       "Ravioles fondantes, beurre noisette, citron confit et herbes du jardin.",
     descriptionEn:
       "Silky ravioli, brown butter, preserved lemon, and garden herbs.",
+    descriptionEl:
+      "Απαλά ραβιόλια, καστανό βούτυρο, διατηρημένο λεμόνι και μυρωδικά κήπου.",
     categoryFr: "Entrees",
     categoryEn: "Starters",
+    categoryEl: "Ορεκτικά",
     priceCents: 2400,
     imageUrl: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
     ingredientsFr: ["Chevre", "Miel", "Citron confit", "Herbes"],
     ingredientsEn: ["Goat cheese", "Honey", "Preserved lemon", "Herbs"],
+    ingredientsEl: ["Κατσικίσιο τυρί", "Μέλι", "Διατηρημένο λεμόνι", "Μυρωδικά"],
     allergensFr: ["Lait", "Gluten"],
     allergensEn: ["Milk", "Gluten"],
+    allergensEl: ["Γάλα", "Γλουτένη"],
     optionsFr: ["Portion partage +8"],
     optionsEn: ["Sharing portion +8"],
+    optionsEl: ["Μερίδα για μοίρασμα +8"],
     houseNoteFr: "Servi chaud, ideal pour commencer en douceur.",
     houseNoteEn: "Served warm, a gentle opening plate.",
+    houseNoteEl: "Σερβίρεται ζεστό, ιδανικό για ένα ήπιο ξεκίνημα.",
     tagsFr: ["Vegetarien"],
-    tagsEn: ["Vegetarian"]
+    tagsEn: ["Vegetarian"],
+    tagsEl: ["Χορτοφαγικό"]
   },
   {
     slug: "tartare-saumon-label-rouge",
@@ -105,20 +126,28 @@ const TROUVABLE_DISHES = [
       "Saumon coupe minute, pomme verte, aneth, creme sure et chips fines.",
     descriptionEn:
       "Fresh-cut salmon, green apple, dill, sour cream, and thin chips.",
+    descriptionEl:
+      "Σολομός κομμένος την τελευταία στιγμή, πράσινο μήλο, άνηθος, ξινή κρέμα και λεπτά τσιπς.",
     categoryFr: "Entrees",
     categoryEn: "Starters",
+    categoryEl: "Ορεκτικά",
     priceCents: 2600,
     imageUrl: "/images/demo/dishes/tartare-saumon-label-rouge.png",
     ingredientsFr: ["Saumon", "Pomme verte", "Aneth", "Creme sure"],
     ingredientsEn: ["Salmon", "Green apple", "Dill", "Sour cream"],
+    ingredientsEl: ["Σολομός", "Πράσινο μήλο", "Άνηθος", "Ξινή κρέμα"],
     allergensFr: ["Poisson", "Lait"],
     allergensEn: ["Fish", "Milk"],
+    allergensEl: ["Ψάρι", "Γάλα"],
     optionsFr: ["Chips supplementaires +3"],
     optionsEn: ["Extra chips +3"],
+    optionsEl: ["Επιπλέον τσιπς +3"],
     houseNoteFr: "Fraicheur vive, parfait avec un blanc sec.",
     houseNoteEn: "Bright and fresh, ideal with a dry white.",
+    houseNoteEl: "Έντονη φρεσκάδα, ιδανικό με ξηρό λευκό κρασί.",
     tagsFr: ["Frais"],
-    tagsEn: ["Fresh"]
+    tagsEn: ["Fresh"],
+    tagsEl: ["Φρέσκο"]
   },
   {
     slug: "risotto-cepes-parmesan",
@@ -128,20 +157,28 @@ const TROUVABLE_DISHES = [
       "Riz carnaroli, cepes, parmesan affine et jus court aux champignons.",
     descriptionEn:
       "Carnaroli rice, porcini, aged parmesan, and mushroom jus.",
+    descriptionEl:
+      "Ρύζι carnaroli, πορτσίνι, παλαιωμένη παρμεζάνα και συμπυκνωμένος ζωμός μανιταριών.",
     categoryFr: "Plats",
     categoryEn: "Mains",
+    categoryEl: "Κυρίως πιάτα",
     priceCents: 3200,
     imageUrl: "/images/demo/dishes/risotto-cepes-parmesan.png",
     ingredientsFr: ["Riz carnaroli", "Cepes", "Parmesan", "Champignons"],
     ingredientsEn: ["Carnaroli rice", "Porcini", "Parmesan", "Mushrooms"],
+    ingredientsEl: ["Ρύζι carnaroli", "Πορτσίνι", "Παρμεζάνα", "Μανιτάρια"],
     allergensFr: ["Lait"],
     allergensEn: ["Milk"],
+    allergensEl: ["Γάλα"],
     optionsFr: ["Truffe rapee +12"],
     optionsEn: ["Shaved truffle +12"],
+    optionsEl: ["Τριμμένη τρούφα +12"],
     houseNoteFr: "Texture cremeuse, finition minute.",
     houseNoteEn: "Creamy texture, finished to order.",
+    houseNoteEl: "Κρεμώδης υφή, τελείωμα στην παραγγελία.",
     tagsFr: ["Vegetarien"],
-    tagsEn: ["Vegetarian"]
+    tagsEn: ["Vegetarian"],
+    tagsEl: ["Χορτοφαγικό"]
   },
   {
     slug: "souffle-chocolat-grand-cru",
@@ -151,20 +188,28 @@ const TROUVABLE_DISHES = [
       "Souffle chaud, coeur chocolat noir, creme anglaise vanillee.",
     descriptionEn:
       "Warm souffle, dark chocolate center, vanilla custard.",
+    descriptionEl:
+      "Ζεστό σουφλέ, καρδιά μαύρης σοκολάτας, κρέμα βανίλιας.",
     categoryFr: "Desserts",
     categoryEn: "Desserts",
+    categoryEl: "Επιδόρπια",
     priceCents: 1600,
     imageUrl: "/images/demo/dishes/souffle-chocolat-grand-cru.png",
     ingredientsFr: ["Chocolat", "Oeufs", "Vanille", "Creme"],
     ingredientsEn: ["Chocolate", "Eggs", "Vanilla", "Cream"],
+    ingredientsEl: ["Σοκολάτα", "Αυγά", "Βανίλια", "Κρέμα"],
     allergensFr: ["Oeufs", "Lait"],
     allergensEn: ["Eggs", "Milk"],
+    allergensEl: ["Αυγά", "Γάλα"],
     optionsFr: ["A commander 12 minutes avant"],
     optionsEn: ["Order 12 minutes ahead"],
+    optionsEl: ["Παραγγελία 12 λεπτά νωρίτερα"],
     houseNoteFr: "Dessert signature servi a la minute.",
     houseNoteEn: "Signature dessert served to order.",
+    houseNoteEl: "Πιάτο-υπογραφή επιδόρπιο, σερβίρεται τη στιγμή.",
     tagsFr: ["Signature"],
-    tagsEn: ["Signature"]
+    tagsEn: ["Signature"],
+    tagsEl: ["Πρόταση"]
   }
 ];
 
@@ -255,28 +300,65 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
   };
 }
 
-function trouvableDemoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
-  const isEnglish = locale === "en";
+function publicMenuLanguageCode(locale: string): string {
+  try {
+    return new Intl.Locale(locale).language.toLowerCase();
+  } catch {
+    return locale.toLowerCase().split("-")[0] ?? "";
+  }
+}
+
+function trouvableDemoMenu(
+  slug: string,
+  requestedLocale: unknown = TROUVABLE_PUBLIC_MENU_SETTINGS.defaultLocale
+): PublicMenu {
+  const activePublicLocale = normalizePublicMenuLocalePreference(
+    requestedLocale,
+    TROUVABLE_PUBLIC_MENU_SETTINGS
+  );
+  const activeLanguage = publicMenuLanguageCode(activePublicLocale);
+  const isEnglish = activeLanguage === "en";
+  const isGreek = activeLanguage === "el";
 
   return {
     restaurantId: "trouvable-demo",
     slug,
     name: "Trouvable",
     location: "Montreal",
-    cuisineType: isEnglish ? "Premium brunch and evening plates" : "Brunch premium et assiettes du soir",
+    cuisineType: isGreek
+      ? "Premium brunch και βραδινά πιάτα"
+      : isEnglish
+        ? "Premium brunch and evening plates"
+        : "Brunch premium et assiettes du soir",
     googleReview: normalizeGoogleReviewConfig({
       enabled: false,
       googleReviewUrl: ""
     }),
     settings: TROUVABLE_PUBLIC_MENU_SETTINGS,
+    activeLocale: activePublicLocale,
+    translationStatus: {
+      locale: activePublicLocale,
+      status:
+        activePublicLocale === TROUVABLE_PUBLIC_MENU_SETTINGS.defaultLocale
+          ? "source"
+          : "up_to_date"
+    },
     publicMenuStyleExplicit: true,
     source: "demo",
     dishes: TROUVABLE_DISHES.map((dish) => ({
       id: dish.slug,
       slug: dish.slug,
-      name: isEnglish ? dish.nameEn : dish.nameFr,
-      description: isEnglish ? dish.descriptionEn : dish.descriptionFr,
-      category: isEnglish ? dish.categoryEn : dish.categoryFr,
+      name: dish.nameFr,
+      description: isGreek
+        ? dish.descriptionEl
+        : isEnglish
+          ? dish.descriptionEn
+          : dish.descriptionFr,
+      category: isGreek
+        ? dish.categoryEl
+        : isEnglish
+          ? dish.categoryEn
+          : dish.categoryFr,
       priceLabel: `$${(dish.priceCents / 100).toFixed(0)}`,
       priceCents: dish.priceCents,
       priceCurrency: "CAD",
@@ -302,11 +384,27 @@ function trouvableDemoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       modelStatus: "missing",
       hasImmersive: false,
       available: true,
-      ingredients: isEnglish ? dish.ingredientsEn : dish.ingredientsFr,
-      allergens: isEnglish ? dish.allergensEn : dish.allergensFr,
-      options: isEnglish ? dish.optionsEn : dish.optionsFr,
-      houseNote: isEnglish ? dish.houseNoteEn : dish.houseNoteFr,
-      tags: isEnglish ? dish.tagsEn : dish.tagsFr
+      ingredients: isGreek
+        ? dish.ingredientsEl
+        : isEnglish
+          ? dish.ingredientsEn
+          : dish.ingredientsFr,
+      allergens: isGreek
+        ? dish.allergensEl
+        : isEnglish
+          ? dish.allergensEn
+          : dish.allergensFr,
+      options: isGreek
+        ? dish.optionsEl
+        : isEnglish
+          ? dish.optionsEn
+          : dish.optionsFr,
+      houseNote: isGreek
+        ? dish.houseNoteEl
+        : isEnglish
+          ? dish.houseNoteEn
+          : dish.houseNoteFr,
+      tags: isGreek ? dish.tagsEl : isEnglish ? dish.tagsEn : dish.tagsFr
     }))
   };
 }
@@ -375,7 +473,7 @@ export async function getPublicMenuBySlug(
   const restaurantsResult = await readSupabaseRows("restaurants", 200);
   if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
     if (slug === "trouvable") {
-      return trouvableDemoMenu(slug, resolvedLocale);
+      return trouvableDemoMenu(slug, locale);
     }
     return null;
   }

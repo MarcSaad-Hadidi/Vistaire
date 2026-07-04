@@ -19,7 +19,6 @@ import {
 } from "@/lib/dish3dManifest";
 import type { Dish } from "@/lib/demoMenuData";
 import {
-  getArUnavailableMessage,
   isAndroidDevice,
   isAndroidLikelySceneViewerCapable,
   isIosDevice,
@@ -33,13 +32,9 @@ export { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoder
 const MV_INIT_TIMEOUT_MS = 12_000;
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
 const LOADER_REVEAL_DELAY_MS = 700;
-const AR_HELP_TEXT =
-  "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).";
 const AR_READY_CAMERA_ORBIT = "0deg 68deg 145%";
 const AR_READY_CAMERA_TARGET = "0m 0.015m 0m";
 const AR_READY_FIELD_OF_VIEW = "34deg";
-const IOS_USDZ_MISSING_TEXT =
-  "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.";
 const MODEL_FRAME_CLASS =
   "h-[min(58vh,420px)] min-h-[280px] w-full rounded-xl bg-[#10100e] ring-1 ring-white/8 sm:h-[min(65vh,460px)] sm:min-h-[340px]";
 const MODEL_VIEWER_SHELL_CLASS =
@@ -50,6 +45,77 @@ const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS 
   .split(/[,\s]+/)
   .map((entry) => entry.trim().replace(/\/+$/, ""))
   .filter(Boolean);
+
+export type DishModelViewerCopy = Partial<{
+  loadingTitle: string;
+  loadingBody: string;
+  arHelp: string;
+  quickLookCta: string;
+  shareText: string;
+  loadFailureTitle: string;
+  loadFailureBodyWithAr: string;
+  loadFailureBody: string;
+  retry: string;
+  close: string;
+  returnToDish: string;
+  slowNetworkTitle: string;
+  slowNetworkBody: string;
+  slowNetworkCta: string;
+  noModelQuiet: string;
+  noModelIos: string;
+  noModelIosHandoff: string;
+  noModelSoon: string;
+  safariTitle: string;
+  copyLink: string;
+  linkCopied: string;
+  share: string;
+  iosUsdzMissing: string;
+  desktopArHint: string;
+  arAndroidBrowser: string;
+  arIosHandoff: string;
+  modelAlt: (dishName: string) => string;
+}>;
+
+type ResolvedDishModelViewerCopy = Required<DishModelViewerCopy>;
+
+const DEFAULT_MODEL_VIEWER_COPY = {
+  loadingTitle: "Préparation de la vue immersive...",
+  loadingBody: "Quelques secondes peuvent être nécessaires selon le réseau.",
+  arHelp:
+    "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).",
+  quickLookCta: "Afficher devant moi",
+  shareText: "Découvrez ce plat en 3D.",
+  loadFailureTitle: "La vue 3D n'a pas pu être chargée pour le moment.",
+  loadFailureBodyWithAr:
+    "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari.",
+  loadFailureBody:
+    "Vous pouvez réessayer maintenant ou revenir à la fiche du plat.",
+  retry: "Réessayer",
+  close: "Fermer",
+  returnToDish: "Revenir à la fiche du plat",
+  slowNetworkTitle: "Réseau lent détecté : charger la vue 3D ?",
+  slowNetworkBody:
+    "La photo du plat reste disponible, et la vue 3D peut être lancée quand vous le souhaitez.",
+  slowNetworkCta: "Charger la vue 3D",
+  noModelQuiet: "Vue 3D indisponible pour le moment.",
+  noModelIos:
+    "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari.",
+  noModelIosHandoff:
+    "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari.",
+  noModelSoon: "Ce plat sera bientôt disponible en 3D.",
+  safariTitle: "Réalité augmentée disponible dans Safari",
+  copyLink: "Copier le lien",
+  linkCopied: "Lien copié",
+  share: "Partager",
+  iosUsdzMissing: "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.",
+  desktopArHint:
+    "La réalité augmentée se lance depuis un téléphone compatible.",
+  arAndroidBrowser:
+    "Votre navigateur ne permet pas la réalité augmentée ici. Vous pouvez quand même faire tourner le plat en 3D.",
+  arIosHandoff:
+    "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone.",
+  modelAlt: (dishName: string) => `Vue du plat : ${dishName}`
+} satisfies ResolvedDishModelViewerCopy;
 
 export type DishModelViewerProps = {
   dish: Pick<
@@ -68,10 +134,19 @@ export type DishModelViewerProps = {
   /** Chrome minimal : titres et aide fournis par le parent si besoin. */
   minimalChrome?: boolean;
   quietChrome?: boolean;
+  copy?: DishModelViewerCopy;
   onReturnToDish?: () => void;
   onArFallbackNeeded?: (reason: string) => void;
   onArFallbackCleared?: () => void;
 };
+
+function resolveModelViewerCopy(copy?: DishModelViewerCopy): ResolvedDishModelViewerCopy {
+  return {
+    ...DEFAULT_MODEL_VIEWER_COPY,
+    ...copy,
+    modelAlt: copy?.modelAlt ?? DEFAULT_MODEL_VIEWER_COPY.modelAlt
+  };
+}
 
 async function ensureModelViewerLoaded(): Promise<void> {
   configureModelViewerAssetDecoders();
@@ -192,13 +267,13 @@ async function copyPageLink(): Promise<boolean> {
   }
 }
 
-async function sharePageLink(dishName: string): Promise<boolean> {
+async function sharePageLink(dishName: string, text: string): Promise<boolean> {
   const url = getCurrentPageUrl();
   if (!url || !navigator.share) return false;
   try {
     await navigator.share({
       title: dishName,
-      text: "Découvrez ce plat en 3D.",
+      text,
       url
     });
     return true;
@@ -255,12 +330,14 @@ function PremiumDishBackdrop({
 
 function PremiumLoadingState({
   dish,
+  copy,
   progress = 0
 }: {
   dish: Pick<
     Dish,
     "name" | "image" | "imageObjectPosition" | "imageObjectPositionDetail"
   >;
+  copy: ResolvedDishModelViewerCopy;
   progress?: number;
 }) {
   const progressPercent = Math.max(8, Math.min(100, Math.round(progress * 100)));
@@ -275,10 +352,10 @@ function PremiumLoadingState({
       <PremiumDishBackdrop dish={dish} />
       <div className="relative">
         <p className="font-display text-lg leading-tight text-cream sm:text-xl">
-          Préparation de la vue immersive...
+          {copy.loadingTitle}
         </p>
         <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
-          Quelques secondes peuvent être nécessaires selon le réseau.
+          {copy.loadingBody}
         </p>
         <div className="mt-5 h-px w-full overflow-hidden rounded-full bg-white/12">
           <div
@@ -294,10 +371,12 @@ function PremiumLoadingState({
 function IosQuickLookArLink({
   href,
   className,
+  label,
   onClick
 }: {
   href: string;
   className: string;
+  label: string;
   onClick: () => void;
 }) {
   return (
@@ -310,13 +389,14 @@ function IosQuickLookArLink({
         aria-hidden="true"
         className="pointer-events-none absolute h-px w-px opacity-0"
       />
-      <span className="whitespace-nowrap">Afficher devant moi</span>
+      <span className="whitespace-nowrap">{label}</span>
     </a>
   );
 }
 
 function PremiumFailureState({
   dish,
+  copy,
   onRetry,
   onReturnToDish,
   quickLookHref,
@@ -327,6 +407,7 @@ function PremiumFailureState({
     Dish,
     "name" | "image" | "imageObjectPosition" | "imageObjectPositionDetail"
   >;
+  copy: ResolvedDishModelViewerCopy;
   onRetry: () => void;
   onReturnToDish?: () => void;
   quickLookHref?: string;
@@ -344,19 +425,18 @@ function PremiumFailureState({
       <PremiumDishBackdrop dish={dish} />
       <div className="relative">
         <p className="font-display text-lg leading-tight text-cream sm:text-xl">
-          La vue 3D n’a pas pu être chargée pour le moment.
+          {copy.loadFailureTitle}
         </p>
         {!quietChrome ? (
           <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
-            {hasDirectAr
-              ? "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari."
-              : "Vous pouvez réessayer maintenant ou revenir à la fiche du plat."}
+            {hasDirectAr ? copy.loadFailureBodyWithAr : copy.loadFailureBody}
           </p>
         ) : null}
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           {hasDirectAr ? (
             <IosQuickLookArLink
               href={quickLookHref!}
+              label={copy.quickLookCta}
               onClick={onQuickLookClick!}
               className="relative inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-4 text-xs font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             />
@@ -370,14 +450,14 @@ function PremiumFailureState({
             }`}
             onClick={onRetry}
           >
-            Réessayer
+            {copy.retry}
           </button>
           <button
             type="button"
             className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             onClick={onReturnToDish}
           >
-            {quietChrome ? "Fermer" : "Revenir à la fiche du plat"}
+            {quietChrome ? copy.close : copy.returnToDish}
           </button>
         </div>
       </div>
@@ -389,10 +469,12 @@ export function DishModelViewer({
   dish,
   minimalChrome = false,
   quietChrome = false,
+  copy: customCopy,
   onReturnToDish,
   onArFallbackNeeded,
   onArFallbackCleared
 }: DishModelViewerProps) {
+  const copy = resolveModelViewerCopy(customCopy);
   const titleId = useId();
   const helpId = useId();
   const [mvReady, setMvReady] = useState(false);
@@ -465,7 +547,6 @@ export function DishModelViewer({
     isAndroid && !androidArUnavailable && arLiteReady;
   const showNoModelIosHandoff =
     !hasModel && needsIosHandoff && Boolean(iosSrc) && !shouldConfirmSlowNetwork;
-  const slowNetworkMessage = modelSelection.message;
 
   const markModelLoaded = useCallback(() => {
     setModelLoaded(true);
@@ -715,12 +796,11 @@ export function DishModelViewer({
               id={titleId}
               className="font-display text-lg leading-tight text-cream sm:text-xl"
             >
-              {slowNetworkMessage || "Réseau lent détecté : charger la vue 3D ?"}
+              {copy.slowNetworkTitle}
             </p>
             {!quietChrome ? (
               <p className="mt-2 max-w-sm text-xs leading-relaxed text-[#d6c7af] sm:text-sm">
-                La photo du plat reste disponible, et la vue 3D peut être lancée
-                quand vous le souhaitez.
+                {copy.slowNetworkBody}
               </p>
             ) : null}
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -729,7 +809,7 @@ export function DishModelViewer({
                 className="inline-flex min-h-10 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-4 text-xs font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 onClick={() => setSlowNetworkConfirmed(true)}
               >
-                Charger la vue 3D
+                {copy.slowNetworkCta}
               </button>
               {onReturnToDish ? (
                 <button
@@ -737,7 +817,7 @@ export function DishModelViewer({
                   className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                   onClick={onReturnToDish}
                 >
-                  {quietChrome ? "Fermer" : "Revenir à la fiche du plat"}
+                  {quietChrome ? copy.close : copy.returnToDish}
                 </button>
               ) : null}
             </div>
@@ -764,15 +844,16 @@ export function DishModelViewer({
           >
             {canOpenDirectIosQuickLook
               ? quietChrome
-                ? "Vue 3D indisponible pour le moment."
-                : "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari."
+                ? copy.noModelQuiet
+                : copy.noModelIos
               : showNoModelIosHandoff && !quietChrome
-                ? "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari."
-              : "Ce plat sera bientôt disponible en 3D."}
+                ? copy.noModelIosHandoff
+              : copy.noModelSoon}
           </p>
           {canOpenDirectIosQuickLook ? (
             <IosQuickLookArLink
               href={directIosQuickLookHref}
+              label={copy.quickLookCta}
               onClick={trackArIntent}
               className="relative mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-5 text-sm font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             />
@@ -784,10 +865,10 @@ export function DishModelViewer({
               aria-live="polite"
             >
               <p className="font-display text-base leading-tight text-cream">
-                Réalité augmentée disponible dans Safari
+                {copy.safariTitle}
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
-                {getArUnavailableMessage("iosHandoff")}
+                {copy.arIosHandoff}
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button
@@ -802,16 +883,16 @@ export function DishModelViewer({
                     });
                   }}
                 >
-                  {copyConfirmed ? "Lien copié" : "Copier le lien"}
+                  {copyConfirmed ? copy.linkCopied : copy.copyLink}
                 </button>
                 <button
                   type="button"
                   className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                   onClick={() => {
-                    void sharePageLink(dish.name);
+                    void sharePageLink(dish.name, copy.shareText);
                   }}
                 >
-                  Partager
+                  {copy.share}
                 </button>
               </div>
             </div>
@@ -838,6 +919,7 @@ export function DishModelViewer({
         {showLoadFailure ? (
           <PremiumFailureState
             dish={dish}
+            copy={copy}
             onRetry={handleRetry}
             onReturnToDish={onReturnToDish}
             quickLookHref={
@@ -858,7 +940,7 @@ export function DishModelViewer({
                   ref={bindModelViewerRef}
                   src={modelSrc}
                   {...(iosSrc ? { "ios-src": iosSrc } : {})}
-                  alt={`Vue du plat : ${dish.name}`}
+                  alt={copy.modelAlt(dish.name)}
                   aria-describedby={quietChrome ? undefined : helpId}
                   camera-controls
                   {...(!prefersReducedMotion && !arSessionActive ? { "auto-rotate": true } : {})}
@@ -892,12 +974,13 @@ export function DishModelViewer({
                       className="inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border border-champagne/55 bg-champagne px-6 text-center text-sm font-semibold text-[#17100a] shadow-[0_14px_40px_rgba(0,0,0,0.34)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
                       onClick={handleModelViewerArClick}
                     >
-                      Afficher devant moi
+                      {copy.quickLookCta}
                     </button>
                   ) : null}
                   {showIosQuickLookButton ? (
                     <IosQuickLookArLink
                       href={directIosQuickLookHref}
+                      label={copy.quickLookCta}
                       onClick={trackArIntent}
                       className="relative inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border border-champagne/55 bg-champagne px-6 text-center text-sm font-semibold text-[#17100a] shadow-[0_14px_40px_rgba(0,0,0,0.34)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
                     />
@@ -905,20 +988,20 @@ export function DishModelViewer({
                 </div>
               ) : null}
               {showLoader ? (
-                <PremiumLoadingState dish={dish} progress={modelProgress} />
+                <PremiumLoadingState dish={dish} copy={copy} progress={modelProgress} />
               ) : null}
             </div>
 
             {!quietChrome ? (
               <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                <p id={helpId}>{AR_HELP_TEXT}</p>
+                <p id={helpId}>{copy.arHelp}</p>
                 {onReturnToDish ? (
                   <button
                     type="button"
                     className="mt-2 inline-flex min-h-10 items-center justify-center rounded-full border border-white/18 bg-black/35 px-4 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                     onClick={onReturnToDish}
                   >
-                    Revenir a la fiche du plat
+                    {copy.returnToDish}
                   </button>
                 ) : null}
               </div>
@@ -930,10 +1013,10 @@ export function DishModelViewer({
                 aria-live="polite"
               >
                 <p className="font-display text-base leading-tight text-cream">
-                  Réalité augmentée disponible dans Safari
+                  {copy.safariTitle}
                 </p>
                 <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
-                  {getArUnavailableMessage("iosHandoff")}
+                  {copy.arIosHandoff}
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button
@@ -948,33 +1031,33 @@ export function DishModelViewer({
                       });
                     }}
                   >
-                    {copyConfirmed ? "Lien copié" : "Copier le lien"}
+                    {copyConfirmed ? copy.linkCopied : copy.copyLink}
                   </button>
                   <button
                     type="button"
                     className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                     onClick={() => {
-                      void sharePageLink(dish.name);
+                      void sharePageLink(dish.name, copy.shareText);
                     }}
                   >
-                    Partager
+                    {copy.share}
                   </button>
                 </div>
               </div>
             ) : null}
             {!quietChrome && showAndroidFallback ? (
               <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                {getArUnavailableMessage("androidBrowser")}
+                {copy.arAndroidBrowser}
               </p>
             ) : null}
             {!quietChrome && showMissingIosAr ? (
               <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                {IOS_USDZ_MISSING_TEXT}
+                {copy.iosUsdzMissing}
               </p>
             ) : null}
             {!quietChrome && showDesktopArHint ? (
               <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                La réalité augmentée se lance depuis un téléphone compatible.
+                {copy.desktopArHint}
               </p>
             ) : null}
           </div>

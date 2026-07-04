@@ -16,6 +16,13 @@ import {
   getServerTranslator,
   resolveTranslationProviderStatus
 } from "../lib/translation/serverTranslatorCore.ts";
+import {
+  buildPublicMenuLocalizedUiCopyPack,
+  estimatePublicMenuUiCopyCharacters,
+  getPublicMenuUiCopyTranslationEntries,
+  mergeGeneratedLocalizedUiCopy,
+  publicMenuUiCopyReadiness
+} from "../lib/translation/publicMenuUiCopyTranslation.ts";
 
 const repoRootUrl = new URL("..", import.meta.url);
 const repoRootPath = fileURLToPath(repoRootUrl);
@@ -71,12 +78,15 @@ test("translation migration keeps RLS server-only for public rendering", async (
 
 test("translation server code stays server-only and client components avoid admin Supabase imports", async () => {
   const publicOverlay = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const readiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
   const serverTranslator = await readRepoFile("lib/translation/serverTranslator.ts");
   const sourceFiles = await collectSourceFiles(repoRootPath);
 
   assert.match(publicOverlay, /import "server-only"/);
   assert.match(publicOverlay, /getSupabaseAdminClient/);
-  assert.match(publicOverlay, /\.eq\("locale", activeLocale\)/);
+  assert.match(publicOverlay, /\.in\("locale", translationCandidateLocales\)/);
+  assert.match(publicOverlay, /publicMenuTranslationStatusesForRows/);
+  assert.match(readiness, /storedTranslationRowMatchesFields/);
   assert.doesNotMatch(publicOverlay, /\.select\("\*"\)/);
   assert.match(serverTranslator, /import "server-only"/);
 
@@ -154,7 +164,7 @@ test("owner translation settings use the public menu settings fallback resolver"
   const ownerMutations = await readRepoFile("lib/owner/menuMutations.ts");
   const fallbackResolver = await readRepoFile("lib/owner/publicMenuSettingsFallback.ts");
 
-  assert.match(ownerTranslations, /readPublicMenuSettingsWithFallbacks/);
+  assert.match(ownerTranslations, /readPublicMenuSettingsBundleWithFallbacks/);
   assert.match(ownerMutations, /readPublicMenuSettingsWithFallbacks/);
   assert.doesNotMatch(ownerTranslations, /normalizePublicMenuSettings\(menu\.settings_json/);
   assert.doesNotMatch(ownerTranslations, /function\s+settingsFromMenu/);
@@ -164,10 +174,77 @@ test("owner translation settings use the public menu settings fallback resolver"
   assert.match(fallbackResolver, /readUiConfigPublicMenuSettings/);
 });
 
+test("generated public menu UI copy makes a newly enabled locale public-ready", () => {
+  const settings = {
+    defaultLocale: "fr-CA",
+    supportedLocales: ["fr-CA", "nl-NL"],
+    baseCurrency: "CAD",
+    defaultCurrency: "CAD",
+    supportedCurrencies: ["CAD"],
+    publicMenuStyle: "trouvable",
+    timezone: "America/Toronto",
+    defaultThemeMode: "dark",
+    allowThemeToggle: true,
+    allowCurrencySelector: true,
+    allowLanguageSelector: true,
+    taxIncluded: true,
+    priceDisplayMode: "auto"
+  };
+
+  assert.equal(publicMenuUiCopyReadiness(settings, "nl-NL").isReady, false);
+
+  const entries = getPublicMenuUiCopyTranslationEntries(settings);
+  assert.ok(entries.length > 50);
+  assert.ok(entries.some((entry) => entry.path === "searchPlaceholder"));
+  assert.ok(entries.some((entry) => entry.path === "modelViewer.loadingBody"));
+  assert.ok(
+    entries.some(
+      (entry) =>
+        entry.path === "resultStatus" &&
+        entry.kind === "function-template" &&
+        entry.placeholders.includes("view") &&
+        entry.placeholders.includes("count")
+    )
+  );
+
+  const translated = entries.map((entry) =>
+    entry.kind === "function-template"
+      ? `nl:${entry.path}:${entry.placeholders.map((name) => `{${name}}`).join(":")}`
+      : `nl:${entry.path}`
+  );
+  const pack = buildPublicMenuLocalizedUiCopyPack(entries, translated);
+  const localizedUiCopy = mergeGeneratedLocalizedUiCopy(undefined, "nl-NL", pack);
+  const readiness = publicMenuUiCopyReadiness(settings, "nl-NL", localizedUiCopy);
+
+  assert.equal(readiness.isReady, true);
+  assert.deepEqual(readiness.missingKeys, []);
+  assert.equal(
+    estimatePublicMenuUiCopyCharacters(settings, "nl-NL", localizedUiCopy),
+    0
+  );
+});
+
+test("owner translation generation creates and persists public UI copy packs for active locales", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+
+  assert.match(ownerTranslations, /buildPublicMenuUiCopyTranslationPlan/);
+  assert.match(ownerTranslations, /persistGeneratedLocalizedUiCopy/);
+  assert.match(ownerTranslations, /publicMenuUiCopyReadiness/);
+  assert.match(ownerTranslations, /translatedUiCopyCharacters/);
+  assert.doesNotMatch(ownerTranslations, /menu\/trouvable|slug\s*===\s*["']trouvable["']/);
+});
+
 test("menu translation source fields stay shared between owner generation and public reads", async () => {
   const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
   const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const publicReadiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
   const publicCore = await readRepoFile("lib/menu/publicMenuCore.ts");
+  const ownerDishFields =
+    ownerTranslations.match(/function dishFields[\s\S]*?return fields;\s*}\s*function categoryFields/)?.[0] ??
+    "";
+  const publicDishFields =
+    publicReadiness.match(/function publicMenuDishTranslationFields[\s\S]*?}\s*export function publicMenuTranslationMenuFields/)?.[0] ??
+    "";
   const sourceFields = menuTranslationFieldsFromNames({
     restaurantName: "Cafe Vistaire",
     menuName: "Menu principal"
@@ -181,9 +258,17 @@ test("menu translation source fields stay shared between owner generation and pu
     sourceHashFor({ menuName: "Menu principal" })
   );
   assert.match(ownerTranslations, /menuTranslationFieldsFromNames/);
-  assert.match(publicTranslations, /menuTranslationFieldsFromNames/);
+  assert.match(publicReadiness, /menuTranslationFieldsFromNames/);
   assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
+  assert.ok(ownerDishFields, "owner dishFields source must be found");
+  assert.ok(publicDishFields, "public dishFields source must be found");
+  assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*"name"/);
+  assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /field:\s*"restaurantName"/);
+  assert.doesNotMatch(
+    publicTranslations,
+    /name:\s*getTranslatedString\(\{[\s\S]{0,180}source:\s*dish\.name/
+  );
   assert.doesNotMatch(publicTranslations, /name:\s*translatedName/);
   assert.match(publicCore, /menuName\?: string/);
   assert.match(publicCore, /menuName:\s*getString\(args\.menuRow/);

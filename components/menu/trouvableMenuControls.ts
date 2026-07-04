@@ -4,7 +4,10 @@ import {
   formatMenuPriceCents,
   type MenuExchangeRates
 } from "../../lib/currency/formatMenuPrice.ts";
-import { getGreetingForTime } from "../../lib/menu/greeting.ts";
+import {
+  getGreetingForTime,
+  getGreetingPeriodForTime
+} from "../../lib/menu/greeting.ts";
 import type { PublicMenuDish } from "../../lib/menu/publicMenuCore.ts";
 import {
   normalizePublicMenuLocale,
@@ -21,12 +24,11 @@ export type TrouvableLocale = PublicMenuLocale;
 export type TrouvableCurrency = PublicMenuCurrency;
 export type TrouvableTheme = "dark" | "light";
 export type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
-type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "ar";
+type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "de" | "el" | "ar";
 
-const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "ar"] as const;
+const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "de", "el", "ar"] as const;
 const TROUVABLE_COPY_LOCALE_SET = new Set<string>(TROUVABLE_COPY_LOCALES);
 const TROUVABLE_FALLBACK_COPY_LOCALE: TrouvableCopyLocale = "en";
-const RTL_LANGUAGE_CODES = new Set(["ar", "fa", "he", "ur"]);
 
 export const TROUVABLE_LOCALE_STORAGE_KEY = "vistaire:trouvable-menu-locale";
 export const TROUVABLE_CURRENCY_STORAGE_KEY = "vistaire:trouvable-menu-currency";
@@ -55,6 +57,107 @@ export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, numbe
   USD: 0.73,
   EUR: 0.68
 };
+
+const TROUVABLE_GOOGLE_REVIEW_COPY = {
+  fr: {
+    action: "Laisser un avis Google",
+    fallbackRestaurant: "le restaurant",
+    metaLabel: "Résumé Google",
+    note:
+      "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle.",
+    presentationRatingLabel: "Aperçu Google : {rating}/5",
+    presentationReviewCountLabel: "Aperçu : {count} avis",
+    ratingLabel: "{rating}/5 sur Google",
+    reviewCountLabel: "{count} avis Google",
+    text:
+      "Partagez votre expérience chez {restaurantName}. Votre avis Google aide l'équipe à mieux comprendre chaque visite et à se faire découvrir.",
+    title: "Votre expérience compte"
+  },
+  en: {
+    action: "Leave a Google review",
+    fallbackRestaurant: "the restaurant",
+    metaLabel: "Google summary",
+    note:
+      "No benefit is offered in exchange for a review. Your review should reflect your real experience.",
+    presentationRatingLabel: "Google preview: {rating}/5",
+    presentationReviewCountLabel: "Preview: {count} reviews",
+    ratingLabel: "{rating}/5 on Google",
+    reviewCountLabel: "{count} Google reviews",
+    text:
+      "Share your experience at {restaurantName}. Your Google review helps the team understand each visit and be discovered.",
+    title: "Your experience matters"
+  },
+  es: {
+    action: "Dejar una reseña en Google",
+    fallbackRestaurant: "el restaurante",
+    metaLabel: "Resumen de Google",
+    note:
+      "No se ofrece ningún beneficio a cambio de una reseña. Tu reseña debe reflejar tu experiencia real.",
+    presentationRatingLabel: "Vista previa de Google: {rating}/5",
+    presentationReviewCountLabel: "Vista previa: {count} reseñas",
+    ratingLabel: "{rating}/5 en Google",
+    reviewCountLabel: "{count} reseñas de Google",
+    text:
+      "Comparte tu experiencia en {restaurantName}. Tu reseña de Google ayuda al equipo a entender cada visita y a ser descubierto.",
+    title: "Tu experiencia cuenta"
+  },
+  it: {
+    action: "Lascia una recensione Google",
+    fallbackRestaurant: "il ristorante",
+    metaLabel: "Riepilogo Google",
+    note:
+      "Non viene offerto alcun vantaggio in cambio di una recensione. La recensione deve riflettere la tua esperienza reale.",
+    presentationRatingLabel: "Anteprima Google: {rating}/5",
+    presentationReviewCountLabel: "Anteprima: {count} recensioni",
+    ratingLabel: "{rating}/5 su Google",
+    reviewCountLabel: "{count} recensioni Google",
+    text:
+      "Condividi la tua esperienza da {restaurantName}. La tua recensione Google aiuta il team a capire ogni visita e a farsi scoprire.",
+    title: "La tua esperienza conta"
+  },
+  de: {
+    action: "Google-Bewertung abgeben",
+    fallbackRestaurant: "das Restaurant",
+    metaLabel: "Google-Zusammenfassung",
+    note:
+      "Es wird kein Vorteil im Austausch für eine Bewertung angeboten. Ihre Bewertung sollte Ihre echte Erfahrung widerspiegeln.",
+    presentationRatingLabel: "Google-Vorschau: {rating}/5",
+    presentationReviewCountLabel: "Vorschau: {count} Bewertungen",
+    ratingLabel: "{rating}/5 bei Google",
+    reviewCountLabel: "{count} Google-Bewertungen",
+    text:
+      "Teilen Sie Ihre Erfahrung bei {restaurantName}. Ihre Google-Bewertung hilft dem Team, jeden Besuch besser zu verstehen und leichter entdeckt zu werden.",
+    title: "Ihre Erfahrung zählt"
+  },
+  el: {
+    action: "Αφήστε αξιολόγηση Google",
+    fallbackRestaurant: "το εστιατόριο",
+    metaLabel: "Σύνοψη Google",
+    note:
+      "Δεν προσφέρεται κανένα όφελος ως αντάλλαγμα για αξιολόγηση. Η αξιολόγησή σας πρέπει να αντικατοπτρίζει την πραγματική εμπειρία σας.",
+    presentationRatingLabel: "Προεπισκόπηση Google: {rating}/5",
+    presentationReviewCountLabel: "Προεπισκόπηση: {count} αξιολογήσεις",
+    ratingLabel: "{rating}/5 στο Google",
+    reviewCountLabel: "{count} αξιολογήσεις Google",
+    text:
+      "Μοιραστείτε την εμπειρία σας στο {restaurantName}. Η αξιολόγησή σας στο Google βοηθά την ομάδα να κατανοεί κάθε επίσκεψη και να γίνεται πιο εύκολα ανακαλύψιμη.",
+    title: "Η εμπειρία σας μετράει"
+  },
+  ar: {
+    action: "اترك تقييما على Google",
+    fallbackRestaurant: "المطعم",
+    metaLabel: "ملخص Google",
+    note:
+      "لا يتم تقديم أي منفعة مقابل التقييم. يجب أن يعكس تقييمك تجربتك الحقيقية.",
+    presentationRatingLabel: "معاينة Google: {rating}/5",
+    presentationReviewCountLabel: "معاينة: {count} تقييم",
+    ratingLabel: "{rating}/5 على Google",
+    reviewCountLabel: "{count} تقييم Google",
+    text:
+      "شارك تجربتك لدى {restaurantName}. يساعد تقييمك على Google الفريق على فهم كل زيارة والوصول إلى ضيوف جدد.",
+    title: "تجربتك مهمة"
+  }
+} as const;
 
 const CATEGORY_TRANSLATIONS: Record<string, Partial<Record<TrouvableCopyLocale, string>>> = {
   "bols & salades": { en: "Bowls & salads" },
@@ -127,6 +230,7 @@ export const TROUVABLE_COPY = {
       morning: "Bonjour",
       night: "Bonsoir"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.fr,
     heroAction: "Voir la carte",
     heroBlurb: "Cuisine maison, accents chaleureux et service à table.",
     houseNote: "Note maison",
@@ -145,6 +249,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Carte Trouvable",
     menuContextFallback: "Menu à table",
     modelPreparing: "Préparation de la vue immersive...",
+    modelAlt: (name: string) => `Vue du plat : ${name}`,
+    modelViewer: {
+      loadingBody: "Quelques secondes peuvent être nécessaires selon le réseau.",
+      arHelp:
+        "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).",
+      quickLookCta: "Afficher devant moi",
+      shareText: "Découvrez ce plat en 3D.",
+      loadFailureTitle: "La vue 3D n'a pas pu être chargée pour le moment.",
+      loadFailureBodyWithAr:
+        "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari.",
+      loadFailureBody:
+        "Vous pouvez réessayer maintenant ou revenir à la fiche du plat.",
+      retry: "Réessayer",
+      close: "Fermer",
+      returnToDish: "Revenir à la fiche du plat",
+      slowNetworkTitle: "Réseau lent détecté : charger la vue 3D ?",
+      slowNetworkBody:
+        "La photo du plat reste disponible, et la vue 3D peut être lancée quand vous le souhaitez.",
+      slowNetworkCta: "Charger la vue 3D",
+      noModelQuiet: "Vue 3D indisponible pour le moment.",
+      noModelIos:
+        "La vue 3D sera bientôt disponible ici. Vous pouvez déjà placer le plat devant vous dans Safari.",
+      noModelIosHandoff:
+        "La vue 3D sera bientôt disponible ici. Pour placer le plat devant vous, ouvrez cette fiche dans Safari.",
+      noModelSoon: "Ce plat sera bientôt disponible en 3D.",
+      safariTitle: "Réalité augmentée disponible dans Safari",
+      copyLink: "Copier le lien",
+      linkCopied: "Lien copié",
+      share: "Partager",
+      iosUsdzMissing: "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.",
+      desktopArHint:
+        "La réalité augmentée se lance depuis un téléphone compatible.",
+      arAndroidBrowser:
+        "Votre navigateur ne permet pas la réalité augmentée ici. Vous pouvez quand même faire tourner le plat en 3D.",
+      arIosHandoff:
+        "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone."
+    },
     modelUnavailable: "Vue 3D temporairement indisponible.",
     arBrowserHelp:
       "Si \"Afficher devant moi\" ne s'ouvre pas, ouvrez cette fiche dans Safari ou Chrome, puis relancez la 3D.",
@@ -278,6 +419,7 @@ export const TROUVABLE_COPY = {
       morning: "Good morning",
       night: "Good evening"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.en,
     heroAction: "View menu",
     heroBlurb: "House cooking, warm accents and table service.",
     houseNote: "House note",
@@ -296,6 +438,42 @@ export const TROUVABLE_COPY = {
     menuAria: "Trouvable menu",
     menuContextFallback: "Table menu",
     modelPreparing: "Preparing the immersive view...",
+    modelAlt: (name: string) => `Dish view: ${name}`,
+    modelViewer: {
+      loadingBody: "A few seconds may be needed depending on the network.",
+      arHelp:
+        "Rotate the dish in 3D. In AR, place it once: it stays fixed there, without automatic rotation or resizing.",
+      quickLookCta: "View in my space",
+      shareText: "Explore this dish in 3D.",
+      loadFailureTitle: "The 3D view could not be loaded right now.",
+      loadFailureBodyWithAr:
+        "You can retry 3D or place the dish in your space from Safari.",
+      loadFailureBody:
+        "You can try again now or return to the dish details.",
+      retry: "Try again",
+      close: "Close",
+      returnToDish: "Return to dish details",
+      slowNetworkTitle: "Slow network detected: load 3D view?",
+      slowNetworkBody:
+        "The dish photo remains available, and the 3D view can be launched whenever you like.",
+      slowNetworkCta: "Load 3D view",
+      noModelQuiet: "3D view is unavailable for now.",
+      noModelIos:
+        "The 3D view will be available here soon. You can already place the dish in your space in Safari.",
+      noModelIosHandoff:
+        "The 3D view will be available here soon. To place the dish in your space, open this dish page in Safari.",
+      noModelSoon: "This dish will be available in 3D soon.",
+      safariTitle: "Augmented reality available in Safari",
+      copyLink: "Copy link",
+      linkCopied: "Link copied",
+      share: "Share",
+      iosUsdzMissing: "To enable iPhone AR, add a USDZ file to this dish.",
+      desktopArHint: "Augmented reality launches from a compatible phone.",
+      arAndroidBrowser:
+        "Your browser does not allow augmented reality here. You can still rotate the dish in 3D.",
+      arIosHandoff:
+        "To place the dish in your space, open this dish page in Safari on iPhone."
+    },
     modelUnavailable: "3D view is temporarily unavailable.",
     arBrowserHelp:
       "If \"View in my space\" does not open, open this dish in Safari or Chrome, then launch 3D again.",
@@ -429,6 +607,7 @@ export const TROUVABLE_COPY = {
       morning: "Buenos días",
       night: "Buenas noches"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.es,
     heroAction: "Ver la carta",
     heroBlurb: "Cocina de casa, acentos calidos y servicio en mesa.",
     houseNote: "Nota de la casa",
@@ -447,6 +626,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Menu Trouvable",
     menuContextFallback: "Menu de mesa",
     modelPreparing: "Preparando la vista inmersiva...",
+    modelAlt: (name: string) => `Vista del plato: ${name}`,
+    modelViewer: {
+      loadingBody: "Pueden hacer falta unos segundos segun la red.",
+      arHelp:
+        "Gira el plato en 3D. En RA, colocalo una vez: queda fijo en ese lugar, sin rotacion automatica ni cambio de tamano.",
+      quickLookCta: "Ver frente a mi",
+      shareText: "Descubre este plato en 3D.",
+      loadFailureTitle: "La vista 3D no se pudo cargar por ahora.",
+      loadFailureBodyWithAr:
+        "Puedes volver a intentar el 3D o colocar el plato delante de ti desde Safari.",
+      loadFailureBody:
+        "Puedes intentarlo de nuevo ahora o volver a la ficha del plato.",
+      retry: "Reintentar",
+      close: "Cerrar",
+      returnToDish: "Volver a la ficha del plato",
+      slowNetworkTitle: "Red lenta detectada: cargar la vista 3D?",
+      slowNetworkBody:
+        "La foto del plato sigue disponible, y la vista 3D se puede abrir cuando quieras.",
+      slowNetworkCta: "Cargar vista 3D",
+      noModelQuiet: "Vista 3D no disponible por ahora.",
+      noModelIos:
+        "La vista 3D estara disponible aqui pronto. Ya puedes colocar el plato delante de ti en Safari.",
+      noModelIosHandoff:
+        "La vista 3D estara disponible aqui pronto. Para colocar el plato delante de ti, abre esta ficha en Safari.",
+      noModelSoon: "Este plato estara disponible en 3D pronto.",
+      safariTitle: "Realidad aumentada disponible en Safari",
+      copyLink: "Copiar enlace",
+      linkCopied: "Enlace copiado",
+      share: "Compartir",
+      iosUsdzMissing: "Para activar la RA en iPhone, anade un archivo USDZ a este plato.",
+      desktopArHint:
+        "La realidad aumentada se abre desde un telefono compatible.",
+      arAndroidBrowser:
+        "Tu navegador no permite la realidad aumentada aqui. Aun asi puedes girar el plato en 3D.",
+      arIosHandoff:
+        "Para colocar el plato delante de ti, abre esta ficha en Safari en iPhone."
+    },
     modelUnavailable: "La vista 3D no esta disponible temporalmente.",
     arBrowserHelp:
       "Si \"Ver frente a mi\" no se abre, abre esta ficha en Safari o Chrome y vuelve a lanzar el 3D.",
@@ -580,6 +796,7 @@ export const TROUVABLE_COPY = {
       morning: "Buongiorno",
       night: "Buonasera"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.it,
     heroAction: "Vedi il menu",
     heroBlurb: "Cucina di casa, toni caldi e servizio al tavolo.",
     houseNote: "Nota della casa",
@@ -598,6 +815,43 @@ export const TROUVABLE_COPY = {
     menuAria: "Menu Trouvable",
     menuContextFallback: "Menu al tavolo",
     modelPreparing: "Preparazione della vista immersiva...",
+    modelAlt: (name: string) => `Vista del piatto: ${name}`,
+    modelViewer: {
+      loadingBody: "Potrebbero servire alcuni secondi a seconda della rete.",
+      arHelp:
+        "Ruota il piatto in 3D. In AR, posizionalo una sola volta: resta fisso in quel punto, senza rotazione automatica o ridimensionamento.",
+      quickLookCta: "Vedi davanti a me",
+      shareText: "Scopri questo piatto in 3D.",
+      loadFailureTitle: "La vista 3D non puo essere caricata al momento.",
+      loadFailureBodyWithAr:
+        "Puoi riprovare il 3D o posizionare il piatto davanti a te da Safari.",
+      loadFailureBody:
+        "Puoi riprovare ora o tornare alla scheda del piatto.",
+      retry: "Riprova",
+      close: "Chiudi",
+      returnToDish: "Torna alla scheda del piatto",
+      slowNetworkTitle: "Rete lenta rilevata: caricare la vista 3D?",
+      slowNetworkBody:
+        "La foto del piatto resta disponibile e la vista 3D puo essere avviata quando vuoi.",
+      slowNetworkCta: "Carica vista 3D",
+      noModelQuiet: "Vista 3D non disponibile per il momento.",
+      noModelIos:
+        "La vista 3D sara presto disponibile qui. Puoi gia posizionare il piatto davanti a te in Safari.",
+      noModelIosHandoff:
+        "La vista 3D sara presto disponibile qui. Per posizionare il piatto davanti a te, apri questa scheda in Safari.",
+      noModelSoon: "Questo piatto sara presto disponibile in 3D.",
+      safariTitle: "Realta aumentata disponibile in Safari",
+      copyLink: "Copia link",
+      linkCopied: "Link copiato",
+      share: "Condividi",
+      iosUsdzMissing: "Per attivare l'AR su iPhone, aggiungi un file USDZ a questo piatto.",
+      desktopArHint:
+        "La realta aumentata si avvia da un telefono compatibile.",
+      arAndroidBrowser:
+        "Il tuo browser non consente la realta aumentata qui. Puoi comunque ruotare il piatto in 3D.",
+      arIosHandoff:
+        "Per posizionare il piatto davanti a te, apri questa scheda in Safari su iPhone."
+    },
     modelUnavailable: "La vista 3D e temporaneamente non disponibile.",
     arBrowserHelp:
       "Se \"Vedi davanti a me\" non si apre, apri questa scheda in Safari o Chrome e rilancia il 3D.",
@@ -676,6 +930,384 @@ export const TROUVABLE_COPY = {
     },
     veg: "Veg"
   },
+  de: {
+    activeCategoryAll: "Menü",
+    add: "Hinzufügen",
+    addToSelection: "Zur Auswahl hinzufügen",
+    all: "Alle",
+    activeFilterPrefix: "Aktiver Filter",
+    activeFilters: (count: number) => `${count} Filter`,
+    allergens: "Allergene",
+    allergenTitlePrefix: "Allergen",
+    askWaiter: "Service fragen",
+    available: "Verfügbar",
+    backToMenu: "Zurück zum Menü",
+    categories: "KATEGORIEN",
+    categoryAria: "Kategorien",
+    clearSearch: "Löschen",
+    close: "Schließen",
+    closeFilters: "Filter schließen",
+    closeDetail: "Details schließen",
+    closeLanguage: "Sprachauswahl schließen",
+    closeSelection: "Auswahl schließen",
+    closeWaiter: "Serviceanfrage schließen",
+    currencyAria: "Menüwährung wählen",
+    currencyCopy: "Preise werden lokal vom CAD-Menüpreis umgerechnet.",
+    currencyKicker: "Währung",
+    currencyTitle: "Menüwährung",
+    details: "Details",
+    emptySelectionBody: "Fügen Sie ein Gericht hinzu, um eine Serviceanfrage vorzubereiten.",
+    emptySelectionTitle: "Ihre Auswahl ist leer.",
+    estimatedTotal: "Geschätzte Summe",
+    filterAllAria: "Alle Gerichte anzeigen",
+    filterAvailableAria: "Verfügbare Gerichte filtern",
+    filterImmersiveAria: "Gerichte mit 3D oder AR filtern",
+    filterNonVegAria: "Erkannte nicht-vegetarische Gerichte filtern",
+    filterRecommendedAria: "Empfohlene Gerichte filtern",
+    filterVegAria: "Erkannte vegetarische Gerichte filtern",
+    filterApply: "Anwenden",
+    filterButton: "Filtern",
+    filterFallback: "Filter",
+    filterGroupLabel: "Filter",
+    immersiveFilterLabel: "3D / AR",
+    filterKicker: "Trouvable",
+    filterTitle: "Filter",
+    filtersAria: "Schnellfilter",
+    dairyFree: "Ohne Milchprodukte",
+    eggFree: "Ohne Eier",
+    fishFree: "Ohne Fisch",
+    glutenFree: "Glutenfrei",
+    nutFree: "Ohne Nüsse",
+    gridAria: "Rasteransicht anzeigen",
+    greeting: {
+      afternoon: "Willkommen",
+      evening: "Guten Abend",
+      morning: "Guten Morgen",
+      night: "Guten Abend"
+    },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.de,
+    heroAction: "Menü ansehen",
+    heroBlurb: "Hausgemachte Küche, warme Akzente und Service am Tisch.",
+    houseNote: "Küchennotiz",
+    immersiveUnavailable: "Die 3D-Ansicht ist für dieses Gericht nicht verfügbar.",
+    ingredients: "Zutaten",
+    ingredientsCount: (count: number) =>
+      `${count} ${count === 1 ? "Zutat" : "Zutaten"}`,
+    languageActive: "Aktiv",
+    languageAria: "Menüsprache wählen",
+    languageKicker: "Sprache",
+    languageSubtitle: "Lesen Sie das Menü in der Sprache, die zu Ihnen passt.",
+    languageTitle: "Menüsprache",
+    listAria: "Listenansicht anzeigen",
+    localOrderHint:
+      "Es wird keine Bestellung automatisch gesendet. Zeigen Sie diese Anfrage dem Team.",
+    menuAria: "Trouvable-Menü",
+    menuContextFallback: "Tischmenü",
+    modelPreparing: "Interaktive Ansicht wird vorbereitet...",
+    modelAlt: (name: string) => `Ansicht des Gerichts: ${name}`,
+    modelViewer: {
+      loadingBody: "Je nach Verbindung kann es einige Sekunden dauern.",
+      arHelp:
+        "Drehen Sie das Gericht in 3D. In AR platzieren Sie es einmal: Es bleibt dort fixiert, ohne automatische Drehung oder Größenänderung.",
+      quickLookCta: "In meinem Raum ansehen",
+      shareText: "Dieses Gericht in 3D ansehen.",
+      loadFailureTitle: "Die 3D-Ansicht konnte momentan nicht geladen werden.",
+      loadFailureBodyWithAr:
+        "Sie können 3D erneut versuchen oder das Gericht in Safari vor sich platzieren.",
+      loadFailureBody:
+        "Sie können es jetzt erneut versuchen oder zu den Details des Gerichts zurückkehren.",
+      retry: "Erneut versuchen",
+      close: "Schließen",
+      returnToDish: "Zurück zu den Details des Gerichts",
+      slowNetworkTitle: "Langsames Netzwerk erkannt: 3D-Ansicht laden?",
+      slowNetworkBody:
+        "Das Foto des Gerichts bleibt verfügbar, und die 3D-Ansicht kann jederzeit geöffnet werden.",
+      slowNetworkCta: "3D-Ansicht laden",
+      noModelQuiet: "3D-Ansicht derzeit nicht verfügbar.",
+      noModelIos:
+        "Die 3D-Ansicht wird hier bald verfügbar sein. Sie können das Gericht bereits in Safari vor sich platzieren.",
+      noModelIosHandoff:
+        "Die 3D-Ansicht wird hier bald verfügbar sein. Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari.",
+      noModelSoon: "Dieses Gericht wird bald in 3D verfügbar sein.",
+      safariTitle: "Augmented Reality in Safari verfügbar",
+      copyLink: "Link kopieren",
+      linkCopied: "Link kopiert",
+      share: "Teilen",
+      iosUsdzMissing: "Um iPhone-AR zu aktivieren, fügen Sie diesem Gericht eine USDZ-Datei hinzu.",
+      desktopArHint:
+        "Augmented Reality startet von einem kompatiblen Telefon.",
+      arAndroidBrowser:
+        "Ihr Browser erlaubt hier keine Augmented Reality. Sie können das Gericht trotzdem in 3D drehen.",
+      arIosHandoff:
+        "Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari auf dem iPhone."
+    },
+    modelUnavailable: "Die 3D-Ansicht ist vorübergehend nicht verfügbar.",
+    arBrowserHelp:
+      "Wenn \"In meinem Raum ansehen\" nicht geöffnet wird, öffnen Sie dieses Gericht in Safari oder Chrome und starten Sie 3D erneut.",
+    arBrowserLink: "Im Browser öffnen",
+    moreDetails: "Details ansehen",
+    viewDetails: "Details ansehen",
+    detailCompositionLabel: "Im Gericht",
+    detailAllergensLabel: "Allergene beachten",
+    detailOptionsLabel: "Anpassen",
+    detailHouseNoteLabel: "Küchennotiz",
+    detailFallback: "Für dieses Gericht gibt es keine weiteren Details.",
+    cardOptionsLabel: "Verfügbare Optionen",
+    nextDish: "Nächstes Gericht",
+    nonVeg: "Nicht vegetarisch",
+    noResultsBody: "Versuchen Sie eine andere Suche oder entfernen Sie einen Filter.",
+    noResultsTitle: "Kein Gericht passt.",
+    options: "Optionen",
+    popular: "Beliebt",
+    previousDish: "Vorheriges Gericht",
+    priceToConfirm: "Preis zu bestätigen",
+    prepareRequest: "Anfrage vorbereiten",
+    quantityDecrease: (name: string) => `Menge von ${name} verringern`,
+    quantityIncrease: (name: string) => `Menge von ${name} erhöhen`,
+    quantityLabel: (name: string) => `Menge von ${name}`,
+    recommendation: "Empfohlen",
+    reset: "Zurücksetzen",
+    resetFilters: "Filter zurücksetzen",
+    resultStatus: (view: string, count: number) =>
+      `${view}-Ansicht, ${count} ${count === 1 ? "Gericht" : "Gerichte"} angezeigt`,
+    review: "BEWERTEN",
+    reviewClose: "Bewertung schließen",
+    reviewComment: "Ihr Kommentar",
+    reviewExperiencePlaceholder: "Wie war Ihr Besuch?",
+    reviewExperienceStars: "Erlebnisbewertung",
+    reviewExperienceTitle: "Bewerten Sie Ihre Erfahrung",
+    reviewMissing: "Der Google-Review-Link ist für dieses Restaurant nicht konfiguriert.",
+    reviewOpened: "Google Review wurde in einem neuen Tab geöffnet.",
+    reviewPlaceholder: "Wie war der Geschmack?",
+    reviewPost: "BEWERTUNG SENDEN",
+    reviewStars: "Gerichtbewertung",
+    reviewTitle: "Dieses Gericht bewerten",
+    searchLabel: "Suche",
+    searchPlaceholder: "Gericht, Zutat, Tag suchen...",
+    selection: "Auswahl",
+    selectionKicker: "Lokale Auswahl",
+    selectionTitle: "Ihre Auswahl",
+    server: "Service",
+    sesameFree: "Ohne Sesam",
+    shellfishFree: "Ohne Schalentiere",
+    signature: "Empfehlung",
+    soyFree: "Ohne Soja",
+    soldOut: "Ausverkauft",
+    tags: "Tags",
+    spicy: "Scharfes Gericht",
+    swipeAria: "Wischen, um die Kategorie zu wechseln",
+    swipeLabel: "Wischen",
+    tableLabel: "Tisch",
+    tablePlaceholder: "z. B. 12",
+    tableToConfirm: "Tisch zu bestätigen",
+    themeDarkAria: "Dunklen Modus aktivieren",
+    themeLightAria: "Hellen Modus aktivieren",
+    threeD: "IN 3D ANSEHEN",
+    toConfirm: "Zu bestätigen",
+    viewAr: "In meinem Raum ansehen",
+    viewGrid: "Raster",
+    viewList: "Liste",
+    viewModeAria: "Ansichtsmodus",
+    waiterKicker: "Tischservice",
+    waiterReady: (table: string) => `${table} - Anfrage lokal bereit.`,
+    waiterTitle: "Service fragen",
+    waiterTopic: "Anfragethema",
+    waiterTopics: {
+      allergen: "Frage zu Allergenen",
+      recommendation: "Empfehlung erfragen",
+      selection: "Zu meiner Auswahl fragen"
+    },
+    veg: "Vegetarisch"
+  },
+  el: {
+    activeCategoryAll: "Μενού",
+    add: "Προσθήκη",
+    addToSelection: "Προσθήκη στην επιλογή μου",
+    all: "Όλα",
+    activeFilterPrefix: "Ενεργό φίλτρο",
+    activeFilters: (count: number) => `${count} φίλτρα`,
+    allergens: "Αλλεργιογόνα",
+    allergenTitlePrefix: "Αλλεργιογόνο",
+    askWaiter: "Ρωτήστε τον σερβιτόρο",
+    available: "Διαθέσιμο",
+    backToMenu: "Επιστροφή στο μενού",
+    categories: "ΚΑΤΗΓΟΡΙΕΣ",
+    categoryAria: "Κατηγορίες",
+    clearSearch: "Καθαρισμός",
+    close: "Κλείσιμο",
+    closeFilters: "Κλείσιμο φίλτρων",
+    closeDetail: "Κλείσιμο λεπτομερειών",
+    closeLanguage: "Κλείσιμο επιλογής γλώσσας",
+    closeSelection: "Κλείσιμο επιλογής",
+    closeWaiter: "Κλείσιμο αιτήματος σερβιτόρου",
+    currencyAria: "Επιλέξτε νόμισμα μενού",
+    currencyCopy: "Οι τιμές μετατρέπονται τοπικά από την τιμή CAD του μενού.",
+    currencyKicker: "Νόμισμα",
+    currencyTitle: "Νόμισμα μενού",
+    details: "Λεπτομέρειες",
+    emptySelectionBody: "Προσθέστε ένα πιάτο για να ετοιμάσετε αίτημα προς τον σερβιτόρο.",
+    emptySelectionTitle: "Η επιλογή σας είναι κενή.",
+    estimatedTotal: "Εκτιμώμενο σύνολο",
+    filterAllAria: "Εμφάνιση όλων των πιάτων",
+    filterAvailableAria: "Φιλτράρισμα διαθέσιμων πιάτων",
+    filterImmersiveAria: "Φιλτράρισμα πιάτων με 3D ή AR",
+    filterNonVegAria: "Φιλτράρισμα μη χορτοφαγικών πιάτων",
+    filterRecommendedAria: "Φιλτράρισμα προτεινόμενων πιάτων",
+    filterVegAria: "Φιλτράρισμα χορτοφαγικών πιάτων",
+    filterApply: "Εφαρμογή",
+    filterButton: "Φίλτρα",
+    filterFallback: "Φίλτρο",
+    filterGroupLabel: "Φίλτρα",
+    immersiveFilterLabel: "3D / AR",
+    filterKicker: "Trouvable",
+    filterTitle: "Φίλτρα",
+    filtersAria: "Γρήγορα φίλτρα",
+    dairyFree: "Χωρίς γαλακτοκομικά",
+    eggFree: "Χωρίς αυγά",
+    fishFree: "Χωρίς ψάρι",
+    glutenFree: "Χωρίς γλουτένη",
+    nutFree: "Χωρίς ξηρούς καρπούς",
+    gridAria: "Εμφάνιση σε πλέγμα",
+    greeting: {
+      afternoon: "Καλώς ήρθατε",
+      evening: "Καλησπέρα",
+      morning: "Καλημέρα",
+      night: "Καλησπέρα"
+    },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.el,
+    heroAction: "Δείτε το μενού",
+    heroBlurb: "Σπιτική κουζίνα, ζεστές πινελιές και εξυπηρέτηση στο τραπέζι.",
+    houseNote: "Σημείωση κουζίνας",
+    immersiveUnavailable: "Η προβολή 3D δεν είναι διαθέσιμη για αυτό το πιάτο.",
+    ingredients: "Υλικά",
+    ingredientsCount: (count: number) =>
+      `${count} ${count === 1 ? "υλικό" : "υλικά"}`,
+    languageActive: "Ενεργό",
+    languageAria: "Επιλέξτε γλώσσα μενού",
+    languageKicker: "Γλώσσα",
+    languageSubtitle: "Περιηγηθείτε στο μενού στη γλώσσα που σας ταιριάζει.",
+    languageTitle: "Γλώσσα μενού",
+    listAria: "Εμφάνιση σε λίστα",
+    localOrderHint:
+      "Καμία παραγγελία δεν αποστέλλεται αυτόματα. Δείξτε αυτό το αίτημα στην ομάδα.",
+    menuAria: "Μενού Trouvable",
+    menuContextFallback: "Μενού τραπεζιού",
+    modelPreparing: "Προετοιμασία της καθηλωτικής προβολής...",
+    modelAlt: (name: string) => `Προβολή πιάτου: ${name}`,
+    modelViewer: {
+      loadingBody: "Μπορεί να χρειαστούν λίγα δευτερόλεπτα ανάλογα με το δίκτυο.",
+      arHelp:
+        "Περιστρέψτε το πιάτο σε 3D. Σε AR, τοποθετήστε το μία φορά: παραμένει σταθερό εκεί, χωρίς αυτόματη περιστροφή ή αλλαγή μεγέθους.",
+      quickLookCta: "Προβολή μπροστά μου",
+      shareText: "Δείτε αυτό το πιάτο σε 3D.",
+      loadFailureTitle: "Η προβολή 3D δεν μπόρεσε να φορτωθεί προς το παρόν.",
+      loadFailureBodyWithAr:
+        "Μπορείτε να δοκιμάσετε ξανά την 3D προβολή ή να τοποθετήσετε το πιάτο μπροστά σας από το Safari.",
+      loadFailureBody:
+        "Μπορείτε να δοκιμάσετε ξανά τώρα ή να επιστρέψετε στις λεπτομέρειες του πιάτου.",
+      retry: "Δοκιμή ξανά",
+      close: "Κλείσιμο",
+      returnToDish: "Επιστροφή στις λεπτομέρειες του πιάτου",
+      slowNetworkTitle: "Εντοπίστηκε αργό δίκτυο: να φορτωθεί η προβολή 3D;",
+      slowNetworkBody:
+        "Η φωτογραφία του πιάτου παραμένει διαθέσιμη και η προβολή 3D μπορεί να ανοίξει όποτε θέλετε.",
+      slowNetworkCta: "Φόρτωση προβολής 3D",
+      noModelQuiet: "Η προβολή 3D δεν είναι διαθέσιμη προς το παρόν.",
+      noModelIos:
+        "Η προβολή 3D θα είναι σύντομα διαθέσιμη εδώ. Μπορείτε ήδη να τοποθετήσετε το πιάτο μπροστά σας στο Safari.",
+      noModelIosHandoff:
+        "Η προβολή 3D θα είναι σύντομα διαθέσιμη εδώ. Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari.",
+      noModelSoon: "Αυτό το πιάτο θα είναι σύντομα διαθέσιμο σε 3D.",
+      safariTitle: "Η επαυξημένη πραγματικότητα είναι διαθέσιμη στο Safari",
+      copyLink: "Αντιγραφή συνδέσμου",
+      linkCopied: "Ο σύνδεσμος αντιγράφηκε",
+      share: "Κοινοποίηση",
+      iosUsdzMissing: "Για να ενεργοποιηθεί το AR στο iPhone, προσθέστε ένα αρχείο USDZ σε αυτό το πιάτο.",
+      desktopArHint:
+        "Η επαυξημένη πραγματικότητα ξεκινά από συμβατό τηλέφωνο.",
+      arAndroidBrowser:
+        "Το πρόγραμμα περιήγησής σας δεν επιτρέπει επαυξημένη πραγματικότητα εδώ. Μπορείτε όμως να περιστρέψετε το πιάτο σε 3D.",
+      arIosHandoff:
+        "Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari σε iPhone."
+    },
+    modelUnavailable: "Η προβολή 3D είναι προσωρινά μη διαθέσιμη.",
+    arBrowserHelp:
+      "Αν η επιλογή \"Προβολή στον χώρο μου\" δεν ανοίξει, ανοίξτε αυτό το πιάτο σε Safari ή Chrome και ξεκινήστε ξανά το 3D.",
+    arBrowserLink: "Άνοιγμα στο πρόγραμμα περιήγησης",
+    moreDetails: "Δείτε λεπτομέρειες",
+    viewDetails: "Δείτε λεπτομέρειες",
+    detailCompositionLabel: "Στο πιάτο",
+    detailAllergensLabel: "Αλλεργιογόνα προς προσοχή",
+    detailOptionsLabel: "Προσαρμογή",
+    detailHouseNoteLabel: "Σημείωση κουζίνας",
+    detailFallback: "Δεν υπάρχουν επιπλέον λεπτομέρειες για αυτό το πιάτο.",
+    cardOptionsLabel: "Διαθέσιμες επιλογές",
+    nextDish: "Επόμενο πιάτο",
+    nonVeg: "Μη χορτοφαγικό",
+    noResultsBody: "Δοκιμάστε άλλη αναζήτηση ή αφαιρέστε ένα φίλτρο.",
+    noResultsTitle: "Δεν βρέθηκε αντίστοιχο πιάτο.",
+    options: "Επιλογές",
+    popular: "Δημοφιλές",
+    previousDish: "Προηγούμενο πιάτο",
+    priceToConfirm: "Τιμή προς επιβεβαίωση",
+    prepareRequest: "Προετοιμασία αιτήματος",
+    quantityDecrease: (name: string) => `Μείωση ποσότητας για ${name}`,
+    quantityIncrease: (name: string) => `Αύξηση ποσότητας για ${name}`,
+    quantityLabel: (name: string) => `Ποσότητα για ${name}`,
+    recommendation: "Προτεινόμενο",
+    reset: "Επαναφορά",
+    resetFilters: "Επαναφορά φίλτρων",
+    resultStatus: (view: string, count: number) =>
+      `Προβολή ${view}, εμφανίζονται ${count} ${count === 1 ? "πιάτο" : "πιάτα"}`,
+    review: "ΑΞΙΟΛΟΓΗΣΗ",
+    reviewClose: "Κλείσιμο αξιολόγησης",
+    reviewComment: "Το σχόλιό σας",
+    reviewExperiencePlaceholder: "Πώς ήταν η επίσκεψή σας;",
+    reviewExperienceStars: "Βαθμολογία εμπειρίας",
+    reviewExperienceTitle: "Αξιολογήστε την εμπειρία σας",
+    reviewMissing: "Ο σύνδεσμος αξιολόγησης Google δεν έχει ρυθμιστεί για αυτό το εστιατόριο.",
+    reviewOpened: "Η αξιολόγηση Google άνοιξε σε νέα καρτέλα.",
+    reviewPlaceholder: "Πώς ήταν η γεύση;",
+    reviewPost: "ΔΗΜΟΣΙΕΥΣΗ ΑΞΙΟΛΟΓΗΣΗΣ",
+    reviewStars: "Βαθμολογία πιάτου",
+    reviewTitle: "Αξιολογήστε αυτό το πιάτο",
+    searchLabel: "Αναζήτηση",
+    searchPlaceholder: "Αναζήτηση πιάτου, υλικού, ετικέτας...",
+    selection: "Επιλογή",
+    selectionKicker: "Τοπική επιλογή",
+    selectionTitle: "Η επιλογή σας",
+    server: "Σερβιτόρος",
+    sesameFree: "Χωρίς σουσάμι",
+    shellfishFree: "Χωρίς οστρακοειδή",
+    signature: "Πρόταση",
+    soyFree: "Χωρίς σόγια",
+    soldOut: "Εξαντλήθηκε",
+    tags: "Ετικέτες",
+    spicy: "Πικάντικο πιάτο",
+    swipeAria: "Σύρετε για αλλαγή κατηγορίας",
+    swipeLabel: "Σύρετε",
+    tableLabel: "Τραπέζι",
+    tablePlaceholder: "π.χ. 12",
+    tableToConfirm: "Τραπέζι προς επιβεβαίωση",
+    themeDarkAria: "Ενεργοποίηση σκοτεινής λειτουργίας",
+    themeLightAria: "Ενεργοποίηση φωτεινής λειτουργίας",
+    threeD: "ΠΡΟΒΟΛΗ ΣΕ 3D",
+    toConfirm: "Προς επιβεβαίωση",
+    viewAr: "Προβολή στον χώρο μου",
+    viewGrid: "πλέγματος",
+    viewList: "λίστας",
+    viewModeAria: "Τρόπος εμφάνισης",
+    waiterKicker: "Εξυπηρέτηση τραπεζιού",
+    waiterReady: (table: string) => `${table} - το αίτημα είναι έτοιμο τοπικά.`,
+    waiterTitle: "Ρωτήστε τον σερβιτόρο",
+    waiterTopic: "Θέμα αιτήματος",
+    waiterTopics: {
+      allergen: "Ερώτηση για αλλεργιογόνα",
+      recommendation: "Ζητήστε πρόταση",
+      selection: "Ρωτήστε για την επιλογή μου"
+    },
+    veg: "Χορτοφαγικό"
+  },
   ar: {
     activeCategoryAll: "القائمة",
     add: "إضافة",
@@ -731,6 +1363,7 @@ export const TROUVABLE_COPY = {
       morning: "صباح الخير",
       night: "مساء الخير"
     },
+    googleReview: TROUVABLE_GOOGLE_REVIEW_COPY.ar,
     heroAction: "عرض القائمة",
     heroBlurb: "طبخ منزلي ولمسات دافئة وخدمة على الطاولة.",
     houseNote: "ملاحظة الدار",
@@ -748,6 +1381,42 @@ export const TROUVABLE_COPY = {
     menuAria: "قائمة Trouvable",
     menuContextFallback: "قائمة الطاولة",
     modelPreparing: "جار تحضير العرض التفاعلي...",
+    modelAlt: (name: string) => `عرض الطبق: ${name}`,
+    modelViewer: {
+      loadingBody: "قد يستغرق الأمر بضع ثوان حسب الشبكة.",
+      arHelp:
+        "حرّك الطبق في 3D. في AR، ضعه مرة واحدة: يبقى ثابتاً في ذلك المكان من دون تدوير تلقائي أو تغيير حجم.",
+      quickLookCta: "اعرضه أمامي",
+      shareText: "شاهد هذا الطبق بتقنية 3D.",
+      loadFailureTitle: "تعذر تحميل عرض 3D حالياً.",
+      loadFailureBodyWithAr:
+        "يمكنك إعادة محاولة عرض 3D أو وضع الطبق أمامك من Safari.",
+      loadFailureBody:
+        "يمكنك المحاولة مرة أخرى الآن أو الرجوع إلى تفاصيل الطبق.",
+      retry: "إعادة المحاولة",
+      close: "إغلاق",
+      returnToDish: "الرجوع إلى تفاصيل الطبق",
+      slowNetworkTitle: "تم اكتشاف شبكة بطيئة: هل تريد تحميل عرض 3D؟",
+      slowNetworkBody:
+        "تبقى صورة الطبق متاحة، ويمكن فتح عرض 3D عندما تريد.",
+      slowNetworkCta: "تحميل عرض 3D",
+      noModelQuiet: "عرض 3D غير متاح حالياً.",
+      noModelIos:
+        "سيصبح عرض 3D متاحاً هنا قريباً. يمكنك حالياً وضع الطبق أمامك في Safari.",
+      noModelIosHandoff:
+        "سيصبح عرض 3D متاحاً هنا قريباً. لوضع الطبق أمامك، افتح هذه الصفحة في Safari.",
+      noModelSoon: "سيصبح هذا الطبق متاحاً بتقنية 3D قريباً.",
+      safariTitle: "الواقع المعزز متاح في Safari",
+      copyLink: "نسخ الرابط",
+      linkCopied: "تم نسخ الرابط",
+      share: "مشاركة",
+      iosUsdzMissing: "لتفعيل AR على iPhone، أضف ملف USDZ إلى هذا الطبق.",
+      desktopArHint: "يتم تشغيل الواقع المعزز من هاتف متوافق.",
+      arAndroidBrowser:
+        "متصفحك لا يسمح بالواقع المعزز هنا. يمكنك مع ذلك تدوير الطبق في 3D.",
+      arIosHandoff:
+        "لوضع الطبق أمامك، افتح هذه الصفحة في Safari على iPhone."
+    },
     modelUnavailable: "عرض 3D غير متاح مؤقتا.",
     arBrowserHelp:
       "إذا لم يفتح \"اعرض أمامي\"، افتح هذه الصفحة في Safari أو Chrome ثم شغل 3D مرة أخرى.",
@@ -836,11 +1505,201 @@ type WidenTrouvableCopyValue<T> = T extends (...args: infer Args) => infer Retur
       ? string
       : T;
 
-type TrouvableCopy = {
+export type TrouvableCopy = {
   [Key in keyof (typeof TROUVABLE_COPY)["en"]]: WidenTrouvableCopyValue<
     (typeof TROUVABLE_COPY)["en"][Key]
   >;
 };
+
+type LocalizedUiCopyBuckets = {
+  exact: Map<string, Record<string, unknown>>;
+  language: Map<string, Record<string, unknown>>;
+};
+
+type CopyLeafSpec = {
+  path: string;
+  key: keyof TrouvableCopy;
+  nestedKey?: string;
+  kind: "string" | "function-template";
+};
+
+export type TrouvableUiCopyTranslationEntry = {
+  path: string;
+  text: string;
+  kind: CopyLeafSpec["kind"];
+  placeholders: string[];
+};
+
+function renderCopyTemplate(
+  template: string,
+  values: Record<string, string | number>
+): string {
+  return Object.entries(values).reduce(
+    (output, [key, value]) =>
+      output.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
+    template
+  );
+}
+
+const COPY_FUNCTION_TEMPLATE_BUILDERS: {
+  [Key in keyof TrouvableCopy]?: (template: string) => TrouvableCopy[Key];
+} = {
+  activeFilters: (template) => (count: number) =>
+    renderCopyTemplate(template, { count }),
+  ingredientsCount: (template) => (count: number) =>
+    renderCopyTemplate(template, { count }),
+  modelAlt: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityDecrease: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityIncrease: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  quantityLabel: (template) => (name: string) =>
+    renderCopyTemplate(template, { name }),
+  resultStatus: (template) => (view: string, count: number) =>
+    renderCopyTemplate(template, { view, count }),
+  waiterReady: (template) => (table: string) =>
+    renderCopyTemplate(template, { table })
+};
+
+const COPY_FUNCTION_TEMPLATE_PLACEHOLDERS: {
+  [Key in keyof TrouvableCopy]?: string[];
+} = {
+  activeFilters: ["count"],
+  ingredientsCount: ["count"],
+  modelAlt: ["name"],
+  quantityDecrease: ["name"],
+  quantityIncrease: ["name"],
+  quantityLabel: ["name"],
+  resultStatus: ["view", "count"],
+  waiterReady: ["table"]
+};
+
+function copyLeafSpecs(base: TrouvableCopy): CopyLeafSpec[] {
+  const specs: CopyLeafSpec[] = [];
+  for (const [rawKey, value] of Object.entries(base)) {
+    const key = rawKey as keyof TrouvableCopy;
+    if (typeof value === "string") {
+      specs.push({ key, kind: "string", path: rawKey });
+      continue;
+    }
+    if (typeof value === "function" && COPY_FUNCTION_TEMPLATE_BUILDERS[key]) {
+      specs.push({ key, kind: "function-template", path: rawKey });
+      continue;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      for (const [nestedKey, nestedValue] of Object.entries(value)) {
+        if (typeof nestedValue === "string") {
+          specs.push({
+            key,
+            kind: "string",
+            nestedKey,
+            path: `${rawKey}.${nestedKey}`
+          });
+        }
+      }
+    }
+  }
+  return specs;
+}
+
+const TROUVABLE_COPY_LEAF_SPECS = copyLeafSpecs(TROUVABLE_COPY.en);
+
+function sourceTemplateForCopyFunction(
+  key: keyof TrouvableCopy,
+  value: TrouvableCopy[keyof TrouvableCopy]
+): string {
+  if (typeof value !== "function") return "";
+  switch (key) {
+    case "activeFilters":
+    case "ingredientsCount":
+      return (value as (count: string) => string)("{count}");
+    case "modelAlt":
+    case "quantityDecrease":
+    case "quantityIncrease":
+    case "quantityLabel":
+      return (value as (name: string) => string)("{name}");
+    case "resultStatus":
+      return (value as (view: string, count: string) => string)("{view}", "{count}");
+    case "waiterReady":
+      return (value as (table: string) => string)("{table}");
+    default:
+      return "";
+  }
+}
+
+function setCopyPackPath(
+  target: Record<string, unknown>,
+  path: string,
+  value: string
+) {
+  const [head, child] = path.split(".", 2);
+  if (!child) {
+    target[path] = value;
+    return;
+  }
+  const parent = objectInput(target[head]);
+  target[head] = {
+    ...parent,
+    [child]: value
+  };
+}
+
+function ensureTemplatePlaceholders(text: string, placeholders: string[]): string {
+  let output = text.trim();
+  for (const placeholder of placeholders) {
+    const token = `{${placeholder}}`;
+    if (!output.includes(token)) output = `${output} ${token}`.trim();
+  }
+  return output;
+}
+
+export function getTrouvableUiCopyTranslationEntries(
+  sourceLocale: TrouvableLocale = "fr-CA"
+): TrouvableUiCopyTranslationEntry[] {
+  const sourceCopyLocale =
+    builtInCopyLocaleForPublicLocale(normalizePublicMenuLocale(sourceLocale)) ??
+    TROUVABLE_FALLBACK_COPY_LOCALE;
+  const sourceCopy = TROUVABLE_COPY[sourceCopyLocale];
+
+  return TROUVABLE_COPY_LEAF_SPECS.map((spec) => {
+    const value = spec.nestedKey
+      ? objectInput(sourceCopy[spec.key])[spec.nestedKey]
+      : sourceCopy[spec.key];
+    const placeholders =
+      spec.kind === "function-template"
+        ? COPY_FUNCTION_TEMPLATE_PLACEHOLDERS[spec.key] ?? []
+        : [];
+    return {
+      path: spec.path,
+      text:
+        spec.kind === "function-template"
+          ? sourceTemplateForCopyFunction(spec.key, value as TrouvableCopy[keyof TrouvableCopy])
+          : typeof value === "string"
+            ? value
+            : "",
+      kind: spec.kind,
+      placeholders
+    };
+  }).filter((entry) => entry.text.trim().length > 0);
+}
+
+export function buildTrouvableLocalizedUiCopyPack(
+  entries: TrouvableUiCopyTranslationEntry[],
+  translations: string[]
+): Record<string, unknown> {
+  const pack: Record<string, unknown> = {};
+  entries.forEach((entry, index) => {
+    const rawText = translations[index] ?? entry.text;
+    const text =
+      entry.kind === "function-template"
+        ? ensureTemplatePlaceholders(rawText, entry.placeholders)
+        : rawText.trim();
+    if (!text) return;
+    setCopyPackPath(pack, entry.path, text);
+  });
+  return pack;
+}
 
 export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
   return normalizePublicMenuLocale(value);
@@ -894,8 +1753,12 @@ export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLo
   return builtInCopyLocaleForPublicLocale(locale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
 }
 
-export function getTrouvableTextDirection(locale: TrouvableLocale): "ltr" | "rtl" {
-  return RTL_LANGUAGE_CODES.has(languageCodeForLocale(locale)) ? "rtl" : "ltr";
+export function getTrouvableTextDirection(_locale: TrouvableLocale): "ltr" | "rtl" {
+  void _locale;
+  // Vistaire keeps the public menu chrome in the same visual order for every locale.
+  // The locale still drives translated copy and lang attributes, but it must not
+  // mirror controls, rails, sheets, or immersive UI for RTL languages.
+  return "ltr";
 }
 
 function objectInput(value: unknown): Record<string, unknown> {
@@ -923,6 +1786,21 @@ function copyStringOverrides(value: unknown, base: TrouvableCopy): Partial<Trouv
   return overrides;
 }
 
+function copyFunctionTemplateOverrides(
+  value: unknown,
+  base: TrouvableCopy
+): Partial<TrouvableCopy> {
+  const overrides: Partial<TrouvableCopy> = {};
+  for (const [key, text] of Object.entries(stringOverrides(value))) {
+    const copyKey = key as keyof TrouvableCopy;
+    const builder = COPY_FUNCTION_TEMPLATE_BUILDERS[copyKey];
+    if (builder && typeof base[copyKey] === "function") {
+      (overrides as Record<string, unknown>)[key] = builder(text);
+    }
+  }
+  return overrides;
+}
+
 function localizedUiCopyBucketKey(value: string):
   | { normalizedKey: string; language: string }
   | null {
@@ -941,22 +1819,124 @@ function localizedUiCopyBucketKey(value: string):
   }
 }
 
-function localizedUiCopyBuckets(uiCopy: unknown): Map<string, Record<string, unknown>> {
+function localizedUiCopyBuckets(uiCopy: unknown): LocalizedUiCopyBuckets {
   const source = objectInput(uiCopy);
-  const buckets = new Map<string, Record<string, unknown>>();
+  const exact = new Map<string, Record<string, unknown>>();
+  const language = new Map<string, Record<string, unknown>>();
   for (const [key, value] of Object.entries(source)) {
     const localeKey = localizedUiCopyBucketKey(key);
     if (!localeKey) continue;
     const bucket = objectInput(value);
     if (Object.keys(bucket).length === 0) continue;
-    buckets.set(localeKey.normalizedKey, bucket);
-    buckets.set(localeKey.language, bucket);
+    exact.set(localeKey.normalizedKey, bucket);
+    if (localeKey.normalizedKey === localeKey.language) {
+      language.set(localeKey.language, bucket);
+    }
   }
-  return buckets;
+  return { exact, language };
 }
 
-function hasLocalizedUiCopyBuckets(uiCopy: unknown): boolean {
-  return localizedUiCopyBuckets(uiCopy).size > 0;
+function copyOverrideDiagnostics(value: unknown): {
+  coveredPaths: Set<string>;
+  ignoredKeys: Set<string>;
+} {
+  const input = objectInput(value);
+  const coveredPaths = new Set<string>();
+  const ignoredKeys = new Set<string>();
+
+  for (const [rawKey, rawValue] of Object.entries(input)) {
+    const key = rawKey as keyof TrouvableCopy;
+    const baseValue = TROUVABLE_COPY.en[key];
+    if (baseValue === undefined) {
+      if (!localizedUiCopyBucketKey(rawKey)) ignoredKeys.add(rawKey);
+      continue;
+    }
+
+    if (typeof baseValue === "string") {
+      if (typeof rawValue === "string" && rawValue.trim()) {
+        coveredPaths.add(rawKey);
+      } else {
+        ignoredKeys.add(rawKey);
+      }
+      continue;
+    }
+
+    if (typeof baseValue === "function") {
+      if (
+        COPY_FUNCTION_TEMPLATE_BUILDERS[key] &&
+        typeof rawValue === "string" &&
+        rawValue.trim()
+      ) {
+        coveredPaths.add(rawKey);
+      } else {
+        ignoredKeys.add(rawKey);
+      }
+      continue;
+    }
+
+    if (baseValue && typeof baseValue === "object" && !Array.isArray(baseValue)) {
+      const nestedInput = objectInput(rawValue);
+      if (Object.keys(nestedInput).length === 0) {
+        ignoredKeys.add(rawKey);
+        continue;
+      }
+      for (const [nestedKey, nestedValue] of Object.entries(nestedInput)) {
+        const nestedPath = `${rawKey}.${nestedKey}`;
+        if (
+          Object.prototype.hasOwnProperty.call(baseValue, nestedKey) &&
+          typeof nestedValue === "string" &&
+          nestedValue.trim()
+        ) {
+          coveredPaths.add(nestedPath);
+        } else {
+          ignoredKeys.add(nestedPath);
+        }
+      }
+      continue;
+    }
+
+    ignoredKeys.add(rawKey);
+  }
+
+  return { coveredPaths, ignoredKeys };
+}
+
+function copyCoverageFor(overrides: unknown[]): {
+  coveredPaths: Set<string>;
+  ignoredKeys: string[];
+} {
+  const coveredPaths = new Set<string>();
+  const ignoredKeys = new Set<string>();
+  for (const override of overrides) {
+    const diagnostics = copyOverrideDiagnostics(override);
+    for (const path of diagnostics.coveredPaths) coveredPaths.add(path);
+    for (const key of diagnostics.ignoredKeys) ignoredKeys.add(key);
+  }
+  return {
+    coveredPaths,
+    ignoredKeys: Array.from(ignoredKeys).sort()
+  };
+}
+
+function hasFlatCopyOverride(uiCopy: unknown): boolean {
+  return copyOverrideDiagnostics(uiCopy).coveredPaths.size > 0;
+}
+
+function copyNestedOverrides(value: unknown, base: TrouvableCopy): Partial<TrouvableCopy> {
+  const input = objectInput(value);
+  const overrides: Partial<TrouvableCopy> = {};
+  for (const [rawKey, baseValue] of Object.entries(base)) {
+    if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
+      continue;
+    }
+    const nestedOverrides = stringOverrides(input[rawKey]);
+    if (Object.keys(nestedOverrides).length === 0) continue;
+    (overrides as Record<string, unknown>)[rawKey] = {
+      ...baseValue,
+      ...nestedOverrides
+    };
+  }
+  return overrides;
 }
 
 function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
@@ -964,14 +1944,8 @@ function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy 
     (current, override) => ({
       ...current,
       ...copyStringOverrides(override, current),
-      greeting: {
-        ...current.greeting,
-        ...stringOverrides(objectInput(override).greeting)
-      },
-      waiterTopics: {
-        ...current.waiterTopics,
-        ...stringOverrides(objectInput(override).waiterTopics)
-      }
+      ...copyFunctionTemplateOverrides(override, current),
+      ...copyNestedOverrides(override, current)
     }),
     base
   );
@@ -988,6 +1962,9 @@ export function resolveTrouvableCopy(
     dynamicSource: "exact" | "language" | "legacy-flat" | "none";
     builtInLocale: TrouvableCopyLocale;
     usedNeutralFallback: boolean;
+    uiCopyComplete: boolean;
+    missingKeys: string[];
+    ignoredKeys: string[];
   };
 } {
   const requestedLocale = normalizePublicMenuLocale(locale);
@@ -995,10 +1972,10 @@ export function resolveTrouvableCopy(
   const builtInLocale =
     builtInCopyLocaleForPublicLocale(requestedLocale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
   const buckets = localizedUiCopyBuckets(localizedUiCopy);
-  const exactOverride = buckets.get(requestedLocale.toLowerCase());
-  const languageOverride = buckets.get(requestedLanguage);
+  const exactOverride = buckets.exact.get(requestedLocale.toLowerCase());
+  const languageOverride = buckets.language.get(requestedLanguage);
   const legacyFlatOverride =
-    !exactOverride && !languageOverride && localizedUiCopy && !hasLocalizedUiCopyBuckets(localizedUiCopy)
+    localizedUiCopy && hasFlatCopyOverride(localizedUiCopy)
       ? localizedUiCopy
       : undefined;
   const dynamicSource = exactOverride
@@ -1008,13 +1985,25 @@ export function resolveTrouvableCopy(
       : legacyFlatOverride
         ? "legacy-flat"
         : "none";
+  const dynamicOverrides = [legacyFlatOverride, languageOverride, exactOverride].filter(
+    Boolean
+  );
+  const dynamicCoverage = copyCoverageFor(dynamicOverrides);
+  const hasBuiltInCompleteCopy = builtInLocale !== TROUVABLE_FALLBACK_COPY_LOCALE ||
+    requestedLanguage === TROUVABLE_FALLBACK_COPY_LOCALE;
+  const missingKeys = hasBuiltInCompleteCopy
+    ? []
+    : TROUVABLE_COPY_LEAF_SPECS
+        .map((spec) => spec.path)
+        .filter((path) => !dynamicCoverage.coveredPaths.has(path));
+  const uiCopyComplete = missingKeys.length === 0;
 
   return {
     copy: mergeCopy(
       TROUVABLE_COPY[builtInLocale],
+      legacyFlatOverride,
       languageOverride,
-      exactOverride,
-      legacyFlatOverride
+      exactOverride
     ),
     resolution: {
       requestedLocale,
@@ -1024,7 +2013,10 @@ export function resolveTrouvableCopy(
       usedNeutralFallback:
         builtInLocale === TROUVABLE_FALLBACK_COPY_LOCALE &&
         requestedLanguage !== TROUVABLE_FALLBACK_COPY_LOCALE &&
-        dynamicSource === "none"
+        !uiCopyComplete,
+      uiCopyComplete,
+      missingKeys,
+      ignoredKeys: dynamicCoverage.ignoredKeys
     }
   };
 }
@@ -1104,6 +2096,7 @@ const LANGUAGE_PRESENTATION: Record<
   "en-CA": { nativeName: "English", region: "Canada", code: "EN-CA" },
   "en-GB": { nativeName: "English", region: "United Kingdom", code: "EN-GB" },
   "en-US": { nativeName: "English", region: "United States", code: "EN-US" },
+  "el-GR": { nativeName: "Ελληνικά", region: "Ελλάδα", code: "EL-GR" },
   "es-ES": { nativeName: "Español", region: "España", code: "ES-ES" },
   "es-MX": { nativeName: "Español", region: "México", code: "ES-MX" },
   "fr-CA": { nativeName: "Français", region: "Canada", code: "FR-CA" },
@@ -1164,10 +2157,7 @@ export function getTrouvableLanguagePresentation(publicLocale: string): {
   };
 }
 
-export function getTrouvableLanguageOptions(
-  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
-  displayLocale?: TrouvableLocale
-): Array<{
+type TrouvableLanguageOption = {
   locale: TrouvableLocale;
   publicLocale: string;
   label: string;
@@ -1175,18 +2165,47 @@ export function getTrouvableLanguageOptions(
   region: string;
   code: string;
   shortCode: string;
-}> {
-  const options: Array<{
-    locale: TrouvableLocale;
-    publicLocale: string;
-    label: string;
-    nativeName: string;
-    region: string;
-    code: string;
-    shortCode: string;
-  }> = [];
+  isReady: boolean;
+  missingCopyKeys: string[];
+  ignoredCopyKeys: string[];
+  copyDynamicSource: ReturnType<typeof resolveTrouvableCopy>["resolution"]["dynamicSource"];
+  copyNeutralFallback: boolean;
+};
+
+function normalizeTrouvableLocaleForPublicSettings(
+  value: unknown,
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">
+): TrouvableLocale {
+  const fallback = settings.defaultLocale ?? settings.supportedLocales[0] ?? "fr-CA";
+  const locale = normalizePublicMenuLocale(value, fallback);
+  if (settings.supportedLocales.includes(locale)) return locale;
+  const shortLocale = locale.toLowerCase().startsWith("fr") ? "fr" : "en";
+  return (
+    settings.supportedLocales.find((supportedLocale) =>
+      supportedLocale.toLowerCase().startsWith(shortLocale)
+    ) ??
+    settings.supportedLocales[0] ??
+    fallback
+  );
+}
+
+export function isTrouvableLocalePublicReady(
+  locale: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): boolean {
+  const { resolution } = resolveTrouvableCopy(locale, localizedUiCopy);
+  return resolution.uiCopyComplete && !resolution.usedNeutralFallback;
+}
+
+export function getTrouvableLanguageOptions(
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  displayLocale?: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): TrouvableLanguageOption[] {
+  const options: TrouvableLanguageOption[] = [];
   for (const publicLocale of settings.supportedLocales) {
     const presentation = getTrouvableLanguagePresentation(publicLocale);
+    const { resolution } = resolveTrouvableCopy(publicLocale, localizedUiCopy);
     options.push({
       locale: publicLocale,
       publicLocale,
@@ -1194,10 +2213,49 @@ export function getTrouvableLanguageOptions(
       region: presentation.region,
       code: presentation.code,
       shortCode: getTrouvableLanguageShortCode(publicLocale),
-      label: formatPublicLocaleLabel(publicLocale, displayLocale)
+      label: formatPublicLocaleLabel(publicLocale, displayLocale),
+      isReady: resolution.uiCopyComplete && !resolution.usedNeutralFallback,
+      missingCopyKeys: resolution.missingKeys,
+      ignoredCopyKeys: resolution.ignoredKeys,
+      copyDynamicSource: resolution.dynamicSource,
+      copyNeutralFallback: resolution.usedNeutralFallback
     });
   }
   return options;
+}
+
+export function getTrouvableReadyLanguageOptions(
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  displayLocale?: TrouvableLocale,
+  localizedUiCopy?: Record<string, unknown>
+): TrouvableLanguageOption[] {
+  return getTrouvableLanguageOptions(
+    settings,
+    displayLocale,
+    localizedUiCopy
+  ).filter((option) => option.isReady);
+}
+
+export function normalizeTrouvableReadyLocaleForSettings(
+  value: unknown,
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  localizedUiCopy?: Record<string, unknown>
+): TrouvableLocale {
+  const candidate = normalizeTrouvableLocaleForPublicSettings(value, settings);
+  if (isTrouvableLocalePublicReady(candidate, localizedUiCopy)) return candidate;
+
+  const defaultLocale = normalizeTrouvableLocaleForPublicSettings(
+    undefined,
+    settings
+  );
+  if (isTrouvableLocalePublicReady(defaultLocale, localizedUiCopy)) {
+    return defaultLocale;
+  }
+
+  return (
+    getTrouvableReadyLanguageOptions(settings, defaultLocale, localizedUiCopy)[0]
+      ?.locale ?? defaultLocale
+  );
 }
 
 export function isTrouvableLocaleSupported(
@@ -1339,8 +2397,17 @@ export function getTrouvableGreeting(
 export function getTrouvableGreetingForDate(
   locale: TrouvableLocale,
   timezone: string,
-  date: Date = new Date()
+  date: Date = new Date(),
+  localizedUiCopy?: Record<string, unknown>
 ): string {
+  const resolved = resolveTrouvableCopy(locale, localizedUiCopy);
+  if (
+    resolved.resolution.uiCopyComplete &&
+    !resolved.resolution.usedNeutralFallback
+  ) {
+    const period = getGreetingPeriodForTime(date, timezone);
+    return resolved.copy.greeting[period];
+  }
   return getGreetingForTime(date, normalizePublicMenuLocale(locale), timezone);
 }
 

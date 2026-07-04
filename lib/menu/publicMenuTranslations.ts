@@ -1,60 +1,58 @@
 import "server-only";
 
 import {
-  fieldHashesFor,
   objectInput,
-  sourceHashFor,
   stringInput,
   type MenuTranslationFields
 } from "@/lib/translation/menuTranslationModel";
-import { menuTranslationFieldsFromNames } from "@/lib/translation/menuTranslationFields";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
-import type { PublicMenu, PublicMenuDish } from "./publicMenuCore";
+import type { PublicMenu, PublicMenuTranslationStatus } from "./publicMenuCore";
 import { normalizePublicMenuLocalePreference } from "./publicMenuSettings";
+import {
+  filterPublicMenuSettingsForReadyTranslations,
+  publicMenuCategoryTranslationSources,
+  publicMenuDishTranslationFields,
+  publicMenuTranslationMenuFields,
+  publicMenuTranslationStatusesForRows,
+  storedTranslationFieldMatches,
+  type PublicMenuTranslationRows
+} from "./publicMenuTranslationReadiness.ts";
 
 type AnyRow = Record<string, unknown>;
+
+function missingTranslationStatuses(menu: PublicMenu): PublicMenuTranslationStatus[] {
+  return menu.settings.supportedLocales.map((locale) => ({
+    locale,
+    status: locale === menu.settings.defaultLocale ? "source" : "missing"
+  }));
+}
+
+function rowsForLocale(rows: AnyRow[], locale: string): AnyRow[] {
+  return rows.filter((row) => stringInput(row.locale) === locale);
+}
+
+function rowById(rows: AnyRow[], idField: string): Map<string, AnyRow> {
+  return new Map(
+    rows
+      .map((row) => [stringInput(row[idField]), row] as const)
+      .filter(([id]) => Boolean(id))
+  );
+}
+
+function statusForLocale(
+  statuses: PublicMenuTranslationStatus[],
+  locale: string
+): PublicMenuTranslationStatus {
+  return statuses.find((status) => status.locale === locale) ?? {
+    locale,
+    status: "missing"
+  };
+}
 
 function listInput(value: unknown): string[] {
   return Array.isArray(value)
     ? value.map((item) => stringInput(item)).filter(Boolean)
     : [];
-}
-
-function dishFields(dish: PublicMenuDish): MenuTranslationFields {
-  return {
-    name: dish.name,
-    ...(dish.description ? { description: dish.description } : {}),
-    ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
-    ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),
-    ...(dish.options.length > 0 ? { options: dish.options } : {}),
-    ...(dish.houseNote ? { houseNote: dish.houseNote } : {}),
-    ...(dish.tags.length > 0 ? { tags: dish.tags } : {})
-  };
-}
-
-function menuFields(menu: PublicMenu): MenuTranslationFields {
-  return menuTranslationFieldsFromNames({
-    menuName: menu.menuName
-  });
-}
-
-function categorySources(menu: PublicMenu): Array<{
-  id: string;
-  fields: MenuTranslationFields;
-}> {
-  const byId = new Map<string, { id: string; fields: MenuTranslationFields }>();
-  for (const dish of menu.dishes) {
-    const id = dish.categoryId || dish.category;
-    if (!id || byId.has(id)) continue;
-    byId.set(id, {
-      id,
-      fields: {
-        name: dish.category,
-        ...(dish.categoryDescription ? { description: dish.categoryDescription } : {})
-      }
-    });
-  }
-  return Array.from(byId.values());
 }
 
 function getTranslatedString(args: {
@@ -65,12 +63,13 @@ function getTranslatedString(args: {
 }): string {
   if (!args.source.trim()) return args.source;
   const content = objectInput(args.row?.content);
-  const fieldHashes = objectInput(args.row?.field_hashes);
-  const expectedHashes = fieldHashesFor(args.sourceFields);
   if (
-    args.row?.translation_status !== "up_to_date" ||
-    args.row?.source_hash !== sourceHashFor(args.sourceFields) ||
-    fieldHashes[args.field] !== expectedHashes[args.field]
+    !storedTranslationFieldMatches(
+      args.row,
+      args.sourceFields,
+      args.field,
+      args.source
+    )
   ) {
     return args.source;
   }
@@ -86,12 +85,13 @@ function getTranslatedList(args: {
 }): string[] {
   if (args.source.length === 0) return args.source;
   const content = objectInput(args.row?.content);
-  const fieldHashes = objectInput(args.row?.field_hashes);
-  const expectedHashes = fieldHashesFor(args.sourceFields);
   if (
-    args.row?.translation_status !== "up_to_date" ||
-    args.row?.source_hash !== sourceHashFor(args.sourceFields) ||
-    fieldHashes[args.field] !== expectedHashes[args.field]
+    !storedTranslationFieldMatches(
+      args.row,
+      args.sourceFields,
+      args.field,
+      args.source
+    )
   ) {
     return args.source;
   }
@@ -99,128 +99,132 @@ function getTranslatedList(args: {
   return translated.length > 0 ? translated : args.source;
 }
 
-function rowMatchesSource(row: AnyRow | undefined, fields: MenuTranslationFields): boolean {
-  if (!row || row.translation_status !== "up_to_date") return false;
-  return row.source_hash === sourceHashFor(fields);
-}
-
-function translationStatus(args: {
-  locale: string;
-  menuRow?: AnyRow;
-  menuFields: MenuTranslationFields;
-  categoryRowsById: Map<string, AnyRow>;
-  categoryFieldsById: Map<string, MenuTranslationFields>;
-  dishRowsById: Map<string, AnyRow>;
-  dishes: PublicMenuDish[];
-}): NonNullable<PublicMenu["translationStatus"]> {
-  const hasMenuFields = Object.keys(args.menuFields).length > 0;
-  const rows = [
-    ...(hasMenuFields ? [args.menuRow] : []),
-    ...args.categoryRowsById.values(),
-    ...args.dishRowsById.values()
-  ].filter(Boolean) as AnyRow[];
-
-  if (rows.some((row) => row.translation_status === "error")) {
-    return { locale: args.locale, status: "error" };
-  }
-  if (rows.some((row) => row.translation_status === "in_progress")) {
-    return { locale: args.locale, status: "in_progress" };
-  }
-  if (rows.some((row) => row.translation_status === "pending")) {
-    return { locale: args.locale, status: "pending" };
-  }
-
-  if (hasMenuFields && !rowMatchesSource(args.menuRow, args.menuFields)) {
-    return { locale: args.locale, status: args.menuRow ? "stale" : "missing" };
-  }
-
-  for (const [categoryId, fields] of args.categoryFieldsById.entries()) {
-    const row = args.categoryRowsById.get(categoryId);
-    if (!rowMatchesSource(row, fields)) {
-      return { locale: args.locale, status: row ? "stale" : "missing" };
-    }
-  }
-
-  for (const dish of args.dishes) {
-    const row = args.dishRowsById.get(dish.id);
-    if (!rowMatchesSource(row, dishFields(dish))) {
-      return { locale: args.locale, status: row ? "stale" : "missing" };
-    }
-  }
-
-  return { locale: args.locale, status: "up_to_date" };
-}
-
 export async function applyStoredPublicMenuTranslations(
   menu: PublicMenu,
   requestedLocale: unknown
 ): Promise<PublicMenu> {
-  const activeLocale = normalizePublicMenuLocalePreference(requestedLocale, menu.settings);
+  const requestedActiveLocale = normalizePublicMenuLocalePreference(
+    requestedLocale,
+    menu.settings
+  );
   if (menu.source !== "supabase" || !menu.menuId) {
+    const translationLocales = missingTranslationStatuses(menu);
     return {
       ...menu,
-      activeLocale,
-      translationStatus: {
-        locale: activeLocale,
-        status: activeLocale === menu.settings.defaultLocale ? "source" : "missing"
-      }
-    };
-  }
-  if (activeLocale === menu.settings.defaultLocale) {
-    return {
-      ...menu,
-      activeLocale,
-      translationStatus: { locale: activeLocale, status: "source" }
+      activeLocale: requestedActiveLocale,
+      translationLocales,
+      translationStatus: statusForLocale(translationLocales, requestedActiveLocale)
     };
   }
 
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
+    const translationLocales = missingTranslationStatuses(menu);
+    const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
+      menu.settings,
+      translationLocales
+    );
+    const activeLocale = normalizePublicMenuLocalePreference(
+      requestedLocale,
+      filteredSettings
+    );
     return {
       ...menu,
+      settings: filteredSettings,
       activeLocale,
-      translationStatus: { locale: activeLocale, status: "missing" }
+      translationLocales,
+      translationStatus: statusForLocale(translationLocales, activeLocale)
     };
   }
 
+  const translationCandidateLocales = menu.settings.supportedLocales.filter(
+    (locale) => locale !== menu.settings.defaultLocale
+  );
   const [menuRows, categoryRows, dishRows] = await Promise.all([
-    admin.client
-      .from("menu_translations")
-      .select("locale,translation_status,source_hash,field_hashes,content")
-      .eq("menu_id", menu.menuId)
-      .eq("locale", activeLocale),
-    admin.client
-      .from("menu_category_translations")
-      .select("category_id,locale,translation_status,source_hash,field_hashes,content")
-      .eq("menu_id", menu.menuId)
-      .eq("locale", activeLocale),
-    admin.client
-      .from("menu_dish_translations")
-      .select("dish_id,locale,translation_status,source_hash,field_hashes,content")
-      .eq("menu_id", menu.menuId)
-      .eq("locale", activeLocale)
+    translationCandidateLocales.length > 0
+      ? admin.client
+          .from("menu_translations")
+          .select("locale,translation_status,source_hash,field_hashes,content")
+          .eq("menu_id", menu.menuId)
+          .in("locale", translationCandidateLocales)
+      : Promise.resolve({ data: [], error: null }),
+    translationCandidateLocales.length > 0
+      ? admin.client
+          .from("menu_category_translations")
+          .select("category_id,locale,translation_status,source_hash,field_hashes,content")
+          .eq("menu_id", menu.menuId)
+          .in("locale", translationCandidateLocales)
+      : Promise.resolve({ data: [], error: null }),
+    translationCandidateLocales.length > 0
+      ? admin.client
+          .from("menu_dish_translations")
+          .select("dish_id,locale,translation_status,source_hash,field_hashes,content")
+          .eq("menu_id", menu.menuId)
+          .in("locale", translationCandidateLocales)
+      : Promise.resolve({ data: [], error: null })
   ]);
 
   if (menuRows.error || categoryRows.error || dishRows.error) {
+    const translationLocales = missingTranslationStatuses(menu);
+    const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
+      menu.settings,
+      translationLocales
+    );
+    const activeLocale = normalizePublicMenuLocalePreference(
+      requestedLocale,
+      filteredSettings
+    );
     return {
       ...menu,
+      settings: filteredSettings,
       activeLocale,
-      translationStatus: { locale: activeLocale, status: "missing" }
+      translationLocales,
+      translationStatus: statusForLocale(translationLocales, activeLocale)
     };
   }
 
-  const menuRow = ((menuRows.data ?? []) as AnyRow[])[0];
-  const categoryRowsById = new Map(
-    ((categoryRows.data ?? []) as AnyRow[]).map((row) => [stringInput(row.category_id), row])
+  const translationRows: PublicMenuTranslationRows = {
+    menuRows: (menuRows.data ?? []) as AnyRow[],
+    categoryRows: (categoryRows.data ?? []) as AnyRow[],
+    dishRows: (dishRows.data ?? []) as AnyRow[]
+  };
+  const translationLocales = publicMenuTranslationStatusesForRows(
+    menu,
+    translationRows
   );
-  const dishRowsById = new Map(
-    ((dishRows.data ?? []) as AnyRow[]).map((row) => [stringInput(row.dish_id), row])
+  const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
+    menu.settings,
+    translationLocales
   );
-  const categoryFieldsById = new Map(
-    categorySources(menu).map((category) => [category.id, category.fields])
+  const activeLocale = normalizePublicMenuLocalePreference(
+    requestedLocale,
+    filteredSettings
   );
 
-  const translatedMenuFields = menuFields(menu);
+  if (activeLocale === filteredSettings.defaultLocale) {
+    return {
+      ...menu,
+      settings: filteredSettings,
+      activeLocale,
+      translationLocales,
+      translationStatus: statusForLocale(translationLocales, activeLocale)
+    };
+  }
+
+  const activeMenuRows = rowsForLocale(translationRows.menuRows, activeLocale);
+  const activeCategoryRows = rowsForLocale(translationRows.categoryRows, activeLocale);
+  const activeDishRows = rowsForLocale(translationRows.dishRows, activeLocale);
+  const menuRow = activeMenuRows[0];
+  const categoryRowsById = rowById(activeCategoryRows, "category_id");
+  const dishRowsById = rowById(activeDishRows, "dish_id");
+  const categoryFieldsById = new Map(
+    publicMenuCategoryTranslationSources(menu).map((category) => [
+      category.id,
+      category.fields
+    ])
+  );
+
+  const translatedMenuFields = publicMenuTranslationMenuFields(menu);
   const translatedMenuName = menu.menuName
     ? getTranslatedString({
         field: "menuName",
@@ -231,19 +235,16 @@ export async function applyStoredPublicMenuTranslations(
     : menu.menuName;
 
   const translatedDishes = menu.dishes.map((dish) => {
-    const sourceFields = dishFields(dish);
+    const sourceFields = publicMenuDishTranslationFields(dish);
     const dishRow = dishRowsById.get(dish.id);
+    const translatableTags = Array.isArray(sourceFields.tags)
+      ? sourceFields.tags
+      : [];
     const categoryId = dish.categoryId || dish.category;
     const categoryFields = categoryFieldsById.get(categoryId);
     const categoryRow = categoryRowsById.get(categoryId);
     return {
       ...dish,
-      name: getTranslatedString({
-        field: "name",
-        source: dish.name,
-        sourceFields,
-        row: dishRow
-      }),
       description: getTranslatedString({
         field: "description",
         source: dish.description,
@@ -294,7 +295,7 @@ export async function applyStoredPublicMenuTranslations(
       }),
       tags: getTranslatedList({
         field: "tags",
-        source: dish.tags,
+        source: translatableTags,
         sourceFields,
         row: dishRow
       })
@@ -303,18 +304,12 @@ export async function applyStoredPublicMenuTranslations(
 
   return {
     ...menu,
+    settings: filteredSettings,
     activeLocale,
     name: menu.name,
     menuName: translatedMenuName,
     dishes: translatedDishes,
-    translationStatus: translationStatus({
-      locale: activeLocale,
-      menuRow,
-      menuFields: translatedMenuFields,
-      categoryRowsById,
-      categoryFieldsById,
-      dishRowsById,
-      dishes: menu.dishes
-    })
+    translationLocales,
+    translationStatus: statusForLocale(translationLocales, activeLocale)
   };
 }

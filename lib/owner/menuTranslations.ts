@@ -2,7 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
-import { readPublicMenuSettingsWithFallbacks } from "@/lib/owner/publicMenuSettingsFallback";
+import {
+  persistGeneratedLocalizedUiCopy,
+  readPublicMenuSettingsBundleWithFallbacks
+} from "@/lib/owner/publicMenuSettingsFallback";
 import { menuTranslationFieldsFromNames } from "@/lib/translation/menuTranslationFields";
 import {
   estimateChangedCharacters,
@@ -23,6 +26,13 @@ import {
   getServerTranslator,
   resolveTranslationProviderStatus
 } from "@/lib/translation/serverTranslator";
+import {
+  buildPublicMenuLocalizedUiCopyPack,
+  buildPublicMenuUiCopyTranslationPlan,
+  estimatePublicMenuUiCopyCharacters,
+  mergeGeneratedLocalizedUiCopy,
+  publicMenuUiCopyReadiness
+} from "@/lib/translation/publicMenuUiCopyTranslation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 type AnyRow = Record<string, unknown>;
@@ -34,6 +44,7 @@ type TranslationContext = {
   categories: AnyRow[];
   dishes: AnyRow[];
   settings: PublicMenuSettings;
+  localizedUiCopy?: Record<string, unknown>;
   entities: MenuTranslationSourceEntity[];
 };
 
@@ -106,7 +117,6 @@ function addField(
 function dishFields(row: AnyRow): MenuTranslationFields {
   const metadata = getObject(row, ["metadata", "meta"]);
   const fields: MenuTranslationFields = {};
-  addField(fields, "name", getString(row, ["name"]));
   addField(fields, "description", getString(row, ["short_description", "shortDescription", "description"]));
   addField(
     fields,
@@ -223,7 +233,7 @@ async function getTranslationContext(
     return { status: 503, error: "Donnees menu impossibles a lire." };
   }
 
-  const settings = await readPublicMenuSettingsWithFallbacks({
+  const settingsBundle = await readPublicMenuSettingsBundleWithFallbacks({
     client: admin.client,
     restaurantId,
     menuId,
@@ -236,7 +246,8 @@ async function getTranslationContext(
     menu: menuResult.data as AnyRow,
     categories: (categoriesResult.data ?? []) as AnyRow[],
     dishes: (dishesResult.data ?? []) as AnyRow[],
-    settings
+    settings: settingsBundle.settings,
+    localizedUiCopy: settingsBundle.localizedUiCopy
   };
 
   return { ...partial, entities: buildEntities(partial) };
@@ -348,10 +359,9 @@ export async function getOwnerMenuTranslationOverview(
     defaultLocale: ctx.settings.defaultLocale,
     supportedLocales: ctx.settings.supportedLocales,
     locales: ctx.settings.supportedLocales.map((locale) =>
-      summarizeLocaleTranslationStatus({
+      summarizeLocaleTranslationStatusWithUiCopy({
+        ctx,
         locale,
-        defaultLocale: ctx.settings.defaultLocale,
-        entities: ctx.entities,
         rowsByKey: rowsByKey.rowsByKey
       })
     )
@@ -438,6 +448,44 @@ async function upsertEntityTranslation(args: {
   if (error) throw new Error(error.message);
 }
 
+function summarizeLocaleTranslationStatusWithUiCopy(args: {
+  ctx: TranslationContext;
+  locale: string;
+  rowsByKey: Map<string, StoredMenuTranslation>;
+  localizedUiCopy?: Record<string, unknown>;
+}): MenuTranslationStatusSummary {
+  const summary = summarizeLocaleTranslationStatus({
+    locale: args.locale,
+    defaultLocale: args.ctx.settings.defaultLocale,
+    entities: args.ctx.entities,
+    rowsByKey: args.rowsByKey
+  });
+  const readiness = publicMenuUiCopyReadiness(
+    args.ctx.settings,
+    args.locale,
+    args.localizedUiCopy ?? args.ctx.localizedUiCopy
+  );
+  if (readiness.isReady) return summary;
+
+  const uiCopyCharacters = estimatePublicMenuUiCopyCharacters(
+    args.ctx.settings,
+    args.locale,
+    args.localizedUiCopy ?? args.ctx.localizedUiCopy
+  );
+  return {
+    ...summary,
+    status:
+      summary.status === "source" || summary.status === "up_to_date"
+        ? "stale"
+        : summary.status,
+    estimatedCharacters: summary.estimatedCharacters + uiCopyCharacters,
+    staleEntities: summary.staleEntities + 1,
+    error:
+      summary.error ??
+      `Pack interface public incomplet (${readiness.missingKeys.length} textes UI manquants).`
+  };
+}
+
 export async function generateOwnerMenuTranslations(args: {
   restaurantId: string;
   locale: string;
@@ -448,9 +496,6 @@ export async function generateOwnerMenuTranslations(args: {
   if (!ctx.settings.supportedLocales.includes(args.locale)) {
     return { ok: false, status: 400, error: "Langue non activee pour ce menu." };
   }
-  if (args.locale === ctx.settings.defaultLocale) {
-    return { ok: false, status: 400, error: "La langue par defaut utilise les champs source." };
-  }
 
   const menuId = getString(ctx.menu, ["id"]);
   const storedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
@@ -458,10 +503,23 @@ export async function generateOwnerMenuTranslations(args: {
     return { ok: false, status: storedRows.status, error: storedRows.error };
   }
   const rowsByKey = storedRows.rowsByKey;
-  const estimatedCharacters = ctx.entities.reduce(
-    (total, entity) => total + estimateChangedCharacters(entity, rowsByKey.get(`${entity.type}:${entity.id}`)),
-    0
-  );
+  const isDefaultLocale = args.locale === ctx.settings.defaultLocale;
+  const contentEstimatedCharacters = isDefaultLocale
+    ? 0
+    : ctx.entities.reduce(
+        (total, entity) => total + estimateChangedCharacters(entity, rowsByKey.get(`${entity.type}:${entity.id}`)),
+        0
+      );
+  const uiCopyPlan = buildPublicMenuUiCopyTranslationPlan({
+    settings: ctx.settings,
+    locale: args.locale,
+    localizedUiCopy: ctx.localizedUiCopy
+  });
+  if (isDefaultLocale && uiCopyPlan.entries.length === 0) {
+    return { ok: false, status: 400, error: "La langue par defaut utilise les champs source." };
+  }
+  const estimatedCharacters =
+    contentEstimatedCharacters + uiCopyPlan.estimatedCharacters;
   const providerStatus = resolveTranslationProviderStatus();
 
   if (args.dryRun) {
@@ -472,10 +530,9 @@ export async function generateOwnerMenuTranslations(args: {
       estimatedCharacters,
       translatedCharacters: 0,
       provider: providerStatus.provider,
-      status: summarizeLocaleTranslationStatus({
+      status: summarizeLocaleTranslationStatusWithUiCopy({
+        ctx,
         locale: args.locale,
-        defaultLocale: ctx.settings.defaultLocale,
-        entities: ctx.entities,
         rowsByKey
       })
     };
@@ -522,28 +579,57 @@ export async function generateOwnerMenuTranslations(args: {
   }
 
   let translatedCharacters = 0;
+  let translatedUiCopyCharacters = 0;
+  let generatedLocalizedUiCopy = ctx.localizedUiCopy;
   try {
-    for (const entity of ctx.entities) {
-      const row = rowsByKey.get(`${entity.type}:${entity.id}`);
-      const entityStatus = resolveEntityTranslationStatus(entity, row);
-      if (entityStatus.status === "up_to_date") continue;
+    if (!isDefaultLocale) {
+      for (const entity of ctx.entities) {
+        const row = rowsByKey.get(`${entity.type}:${entity.id}`);
+        const entityStatus = resolveEntityTranslationStatus(entity, row);
+        if (entityStatus.status === "up_to_date") continue;
 
-      const tasks = flattenTranslationTasks(entity, row);
-      if (tasks.length === 0) continue;
-      const texts = tasks.map((task) => task.text);
+        const tasks = flattenTranslationTasks(entity, row);
+        if (tasks.length === 0) continue;
+        const texts = tasks.map((task) => task.text);
+        const translations = await translator.translateTexts({
+          texts,
+          fromLocale: ctx.settings.defaultLocale,
+          toLocale: args.locale
+        });
+        translatedCharacters += texts.reduce((total, text) => total + text.length, 0);
+        await upsertEntityTranslation({
+          ctx,
+          entity,
+          locale: args.locale,
+          provider: translator.provider,
+          content: applyTaskTranslations(entity, row, tasks, translations)
+        });
+      }
+    }
+
+    if (uiCopyPlan.entries.length > 0) {
+      const texts = uiCopyPlan.entries.map((entry) => entry.text);
       const translations = await translator.translateTexts({
         texts,
-        fromLocale: ctx.settings.defaultLocale,
+        fromLocale: uiCopyPlan.sourceLocale,
         toLocale: args.locale
       });
-      translatedCharacters += texts.reduce((total, text) => total + text.length, 0);
-      await upsertEntityTranslation({
-        ctx,
-        entity,
-        locale: args.locale,
-        provider: translator.provider,
-        content: applyTaskTranslations(entity, row, tasks, translations)
+      translatedUiCopyCharacters = texts.reduce((total, text) => total + text.length, 0);
+      translatedCharacters += translatedUiCopyCharacters;
+      generatedLocalizedUiCopy = mergeGeneratedLocalizedUiCopy(
+        ctx.localizedUiCopy,
+        args.locale,
+        buildPublicMenuLocalizedUiCopyPack(uiCopyPlan.entries, translations)
+      );
+      const persisted = await persistGeneratedLocalizedUiCopy({
+        client: ctx.client,
+        restaurantId: getString(ctx.restaurant, ["id"]),
+        menuId,
+        menuRow: ctx.menu,
+        settings: ctx.settings,
+        localizedUiCopy: generatedLocalizedUiCopy
       });
+      if (!persisted.ok) throw new Error(persisted.error);
     }
 
     await ctx.client
@@ -580,11 +666,11 @@ export async function generateOwnerMenuTranslations(args: {
     estimatedCharacters,
     translatedCharacters,
     provider: translator.provider,
-    status: summarizeLocaleTranslationStatus({
+    status: summarizeLocaleTranslationStatusWithUiCopy({
+      ctx,
       locale: args.locale,
-      defaultLocale: ctx.settings.defaultLocale,
-      entities: ctx.entities,
-      rowsByKey: updatedRows.rowsByKey
+      rowsByKey: updatedRows.rowsByKey,
+      localizedUiCopy: generatedLocalizedUiCopy
     })
   };
 }

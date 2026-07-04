@@ -5,20 +5,24 @@ import assert from "node:assert/strict";
 const componentPath = "components/menu/GoogleReviewCard.tsx";
 const trackingPath = "components/menu/googleReviewTracking.ts";
 const rendererPath = "components/menu/PublicMenuRenderer.tsx";
+const controlsPath = "components/menu/trouvableMenuControls.ts";
 const corePath = "lib/menu/publicMenuCore.ts";
 
 test("Google Review card uses neutral approved wording and no incentive or gating copy", async () => {
-  const source = await readFile(componentPath, "utf8");
+  const [source, controls] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(controlsPath, "utf8")
+  ]);
 
   for (const text of [
     "Votre expérience compte",
     "Partagez votre expérience chez",
-    "Votre avis Google aide l’équipe à mieux comprendre chaque visite",
+    "Votre avis Google aide l'équipe à mieux comprendre chaque visite",
     "Laisser un avis Google",
-    "Aucun avantage n’est offert en échange d’un avis.",
+    "Aucun avantage n'est offert en échange d'un avis.",
     "Votre avis doit refléter votre expérience réelle."
   ]) {
-    assert.match(source, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(controls, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
   for (const forbidden of [
@@ -26,14 +30,14 @@ test("Google Review card uses neutral approved wording and no incentive or gatin
     "Avis positif",
     "Si vous avez apprécié",
     "Si vous êtes satisfait",
-    "Si vous n’êtes pas satisfait",
+    "Si vous n'êtes pas satisfait",
     "Vistaire presentation",
     "Présentation Vistaire",
     "contactez-nous",
     "rabais",
     "cadeau"
   ]) {
-    assert.doesNotMatch(source, new RegExp(forbidden, "i"));
+    assert.doesNotMatch(source + controls, new RegExp(forbidden, "i"));
   }
 });
 
@@ -61,6 +65,7 @@ test("public menu renders Google Review card from the validated CTA helper", asy
 
   assert.match(component, /getGoogleReviewCta/);
   assert.match(component, /resolveGoogleReviewCopy/);
+  assert.match(component, /resolveTrouvableCopy/);
   assert.match(renderer, /GoogleReviewCard/);
   assert.match(renderer, /googleReview=\{menu\.googleReview\}/);
   assert.match(
@@ -76,15 +81,18 @@ test("public menu renders Google Review card from the validated CTA helper", asy
   assert.doesNotMatch(component + renderer, /<iframe|<script|googleapis|gstatic|maps\.google|recaptcha/i);
 });
 
-test("Google Review card has controlled public-menu copy beyond French and English", async () => {
-  const source = await readFile(componentPath, "utf8");
+test("Google Review card uses the shared Trouvable UI copy pack", async () => {
+  const [source, controls] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(controlsPath, "utf8")
+  ]);
 
-  assert.match(source, /es:\s*\{/);
-  assert.match(source, /it:\s*\{/);
-  assert.match(source, /ar:\s*\{/);
-  assert.match(source, /normalizeGoogleReviewLocale/);
-  assert.match(source, /localizedGoogleReviewOverride/);
-  assert.match(source, /googleReviewOverrideInput/);
+  assert.match(controls, /es:\s*\{/);
+  assert.match(controls, /it:\s*\{/);
+  assert.match(controls, /ar:\s*\{/);
+  assert.match(controls, /googleReview:\s*TROUVABLE_GOOGLE_REVIEW_COPY/);
+  assert.match(source, /resolveTrouvableCopy/);
+  assert.match(source, /copy\.googleReview/);
   assert.match(source, /renderGoogleReviewTemplate/);
   assert.match(source, /restaurantName\|rating\|count/);
   assert.match(source, /presentationRatingLabel/);
