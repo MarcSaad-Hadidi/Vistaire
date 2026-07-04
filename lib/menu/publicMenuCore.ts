@@ -54,6 +54,15 @@ export type PublicMenuDish = {
   modelUpdatedAt?: string;
   preparedGlbJobId?: string;
   preparedGlbStoragePath?: string;
+  viewerGlbStatus?: string;
+  viewerGlbBytes?: number;
+  usdzRuntimeStatus?: string;
+  usdzRuntimeBytes?: number;
+  usdzOptimizationProfile?: string;
+  usdzSourceBytes?: number;
+  usdzSourceOriginalName?: string;
+  usdzSourceStored?: boolean;
+  quickLookQaStatus?: string;
   modelStatus:
     | "ready"
     | "missing"
@@ -711,6 +720,21 @@ function mapDishRow(
     "preparedGlbStoragePath",
     "prepared_glb_storage_path"
   ]);
+  const viewerGlbStatus = getString(metadata, ["viewerGlbStatus"], "");
+  const viewerGlbBytes = normalizeModelAssetBytes(
+    getNumberFromSources(row, metadata, ["viewerGlbBytes"])
+  );
+  const usdzRuntimeStatus = getString(metadata, ["usdzRuntimeStatus"], "");
+  const usdzRuntimeBytes = normalizeModelAssetBytes(
+    getNumberFromSources(row, metadata, ["usdzRuntimeBytes"])
+  );
+  const usdzOptimizationProfile = getString(metadata, ["usdzOptimizationProfile"], "");
+  const usdzSourceBytes = normalizeModelAssetBytes(
+    getNumberFromSources(row, metadata, ["usdzSourceBytes"])
+  );
+  const usdzSourceOriginalName = getString(metadata, ["usdzSourceOriginalName"], "");
+  const usdzSourceStored = metadata.usdzSourceStored === true;
+  const quickLookQaStatus = getString(metadata, ["quickLookQaStatus"], "");
   const modelAssetVersion = getString(metadata, ["modelAssetVersion", "model_asset_version"], "");
   const modelAssetSha256 = getString(metadata, ["modelAssetSha256", "model_asset_sha256"], "");
   const modelUpdatedAt = getString(metadata, ["modelUpdatedAt", "model_updated_at"], "");
@@ -779,6 +803,15 @@ function mapDishRow(
     ...(modelUpdatedAt ? { modelUpdatedAt } : {}),
     preparedGlbJobId,
     preparedGlbStoragePath,
+    ...(viewerGlbStatus ? { viewerGlbStatus } : {}),
+    viewerGlbBytes,
+    ...(usdzRuntimeStatus ? { usdzRuntimeStatus } : {}),
+    usdzRuntimeBytes,
+    ...(usdzOptimizationProfile ? { usdzOptimizationProfile } : {}),
+    usdzSourceBytes,
+    ...(usdzSourceOriginalName ? { usdzSourceOriginalName } : {}),
+    usdzSourceStored,
+    ...(quickLookQaStatus ? { quickLookQaStatus } : {}),
     modelStatus:
       getString(metadata, ["modelStatus", "model_status"], "") === "ready"
         ? "ready"

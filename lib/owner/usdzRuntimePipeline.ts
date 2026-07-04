@@ -1,0 +1,324 @@
+import "server-only";
+
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import {
+  assertNoForbiddenSourceStorage,
+  buildUsdzRuntimeMetadataPatch,
+  buildUsdzRuntimeStoragePath,
+  computeSplitModelStatus,
+  createModelAssetVersion,
+  evaluateRuntimeUsdzUploadGate,
+  getMetadataObject,
+  MODEL_BUCKET,
+  restampPublicModelUrls,
+  sha256Hex,
+  type UsdzOptimizationProfile
+} from "@/lib/owner/usdzRuntimeModel";
+
+const PROJECT_ROOT = process.cwd();
+const CLI_RELATIVE_PATH = "scripts/owner/optimize-restaurant-usdz.mjs";
+const CLI_PATH = join(PROJECT_ROOT, CLI_RELATIVE_PATH);
+const CLI_TIMEOUT_MS = 8 * 60 * 1000;
+
+type OwnerIdentity = {
+  userId: string;
+  email?: string | null;
+};
+
+export type UsdzRuntimePipelineArgs = {
+  adminClient: SupabaseClient;
+  owner: OwnerIdentity;
+  restaurantId: string;
+  restaurantSlug: string;
+  menuSlug: string;
+  dishId: string;
+  dishSlug: string;
+  existingMetadata: unknown;
+  sourceBytes: Buffer;
+  originalName: string;
+  profile: UsdzOptimizationProfile;
+  maxRuntimeBytes: number;
+};
+
+export type UsdzRuntimePipelineResult = {
+  status: "ready";
+  jobId: string;
+  version: string;
+  arUsdzUrl: string;
+  usdzRuntimeBytes: number;
+  usdzSourceBytes: number;
+  reductionPercent: number;
+  profile: UsdzOptimizationProfile;
+  geometryOptimization: string;
+  warnings: string[];
+  fails: string[];
+};
+
+type CliSummary = {
+  ok: boolean;
+  runtimePath: string;
+  reportPath: string;
+  runtimeBytes: number;
+  runtimeSha256: string;
+  optimizationApplied: boolean;
+  geometryOptimization: string;
+  reductionPercent: number;
+  warnings: string[];
+  fails: string[];
+};
+
+function runOptimizerCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [CLI_PATH, ...args], {
+      cwd: PROJECT_ROOT,
+      env: process.env,
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("Optimisation USDZ trop longue."));
+    }, CLI_TIMEOUT_MS);
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        resolvePromise({ stdout, stderr });
+      } else {
+        let message = stderr.trim() || stdout.trim() || "Worker USDZ indisponible.";
+        try {
+          const parsed = JSON.parse(stderr.trim().split("\n").pop() as string);
+          if (parsed && parsed.error) message = parsed.error;
+        } catch {
+          // keep raw message
+        }
+        reject(new Error(message));
+      }
+    });
+  });
+}
+
+function parseCliSummary(stdout: string): CliSummary {
+  const line = stdout.trim().split("\n").filter(Boolean).pop() ?? "";
+  const parsed = JSON.parse(line) as CliSummary;
+  if (!parsed.ok || !parsed.runtimePath || !parsed.reportPath) {
+    throw new Error("Sortie worker USDZ invalide.");
+  }
+  return parsed;
+}
+
+/**
+ * Optimizes a heavy source USDZ transiently and uploads ONLY the validated
+ * runtime USDZ + a lightweight report to Supabase. The source never leaves the
+ * controlled temp directory, which is deleted in `finally`. If any step fails
+ * before the gate passes, nothing is uploaded.
+ */
+export async function runUsdzRuntimePipeline(
+  args: UsdzRuntimePipelineArgs
+): Promise<UsdzRuntimePipelineResult> {
+  const processedAt = new Date().toISOString();
+  const sourceSha256 = sha256Hex(args.sourceBytes);
+  const version = createModelAssetVersion(sourceSha256);
+
+  const workspace = mkdtempSync(join(resolve(tmpdir()), "vistaire-usdz-runtime-"));
+  const sourcePath = join(workspace, "source.usdz");
+  const runtimePath = join(workspace, "runtime.usdz");
+  const reportPath = join(workspace, "report.json");
+
+  try {
+    writeFileSync(sourcePath, args.sourceBytes);
+
+    const { stdout } = await runOptimizerCli([
+      "--source",
+      sourcePath,
+      "--output",
+      runtimePath,
+      "--report",
+      reportPath,
+      "--profile",
+      args.profile
+    ]);
+    const summary = parseCliSummary(stdout);
+
+    if (!existsSync(runtimePath)) {
+      throw new Error("Aucun runtime USDZ produit par le worker.");
+    }
+    const runtimeBytes = readFileSync(runtimePath);
+    const reportGenerated = existsSync(reportPath);
+
+    const gate = evaluateRuntimeUsdzUploadGate({
+      runtimeBytes,
+      sourceBytes: args.sourceBytes.byteLength,
+      sourceSha256,
+      maxRuntimeBytes: args.maxRuntimeBytes,
+      reportGenerated,
+      // Cleanup is guaranteed by the `finally` block below; the source is never uploaded.
+      sourceCleaned: true,
+      optimizationExpected: summary.optimizationApplied
+    });
+    if (!gate.ok) {
+      throw new Error(gate.error);
+    }
+
+    const runtimeStoragePath = buildUsdzRuntimeStoragePath({
+      restaurantId: args.restaurantId,
+      dishSlug: args.dishSlug,
+      version
+    });
+    const reportStoragePath = `restaurants/${args.restaurantId}/models/manifests/${args.dishSlug}-${version}-usdz-report.json`;
+
+    const uploadedRuntime = await args.adminClient.storage
+      .from(MODEL_BUCKET)
+      .upload(runtimeStoragePath, runtimeBytes, {
+        contentType: "model/vnd.usdz+zip",
+        cacheControl: "31536000",
+        upsert: true
+      });
+    if (uploadedRuntime.error) {
+      throw new Error("Upload Storage impossible pour le runtime USDZ.");
+    }
+
+    const reportBytes = reportGenerated ? readFileSync(reportPath) : Buffer.from("{}");
+    await args.adminClient.storage.from(MODEL_BUCKET).upload(reportStoragePath, reportBytes, {
+      contentType: "application/json",
+      cacheControl: "3600",
+      upsert: true
+    });
+
+    const patch = buildUsdzRuntimeMetadataPatch(
+      {
+        restaurantId: args.restaurantId,
+        dishId: args.dishId,
+        dishSlug: args.dishSlug,
+        version,
+        runtimeBytes: runtimeBytes.byteLength,
+        runtimeSha256: gate.runtimeSha256,
+        reportStoragePath,
+        profile: args.profile,
+        warnings: summary.warnings,
+        fails: summary.fails,
+        source: {
+          originalName: args.originalName,
+          bytes: args.sourceBytes.byteLength,
+          sha256: sourceSha256,
+          processedAt
+        },
+        uploadedAt: new Date().toISOString()
+      },
+      runtimeStoragePath
+    );
+
+    const existing = getMetadataObject(args.existingMetadata);
+    let merged = { ...existing, ...patch };
+    merged = restampPublicModelUrls(merged, args.dishId, version);
+    merged.modelStatus = computeSplitModelStatus(merged);
+    assertNoForbiddenSourceStorage(merged);
+
+    const updated = await args.adminClient
+      .from("menu_dishes")
+      .update({ has_immersive_view: true, metadata: merged })
+      .eq("id", args.dishId)
+      .eq("restaurant_id", args.restaurantId)
+      .select("id")
+      .maybeSingle();
+    if (updated.error || !updated.data) {
+      throw new Error("Plat impossible a mettre a jour avec le runtime USDZ.");
+    }
+
+    const jobId = `job_usdz_runtime_${randomUUID().replace(/-/g, "").slice(0, 18)}`;
+    await args.adminClient.from("owner_3d_pipeline_jobs").insert({
+      id: jobId,
+      restaurant_slug: args.restaurantSlug,
+      menu_slug: args.menuSlug,
+      dish_slug: args.dishSlug,
+      asset_version: version,
+      step: "usdz_runtime_optimize",
+      status: "published",
+      logs: [
+        "Owner USDZ master processed transiently (never stored in Supabase).",
+        `USDZ-only optimizer produced a runtime USDZ (profile ${args.profile}).`,
+        "Only the validated runtime USDZ and a lightweight report were uploaded.",
+        "Source/candidate/temp files were removed in a finally block.",
+        "usdzSourceStored=false; Quick Look QA remains not-tested until a real iPhone validates."
+      ],
+      step_logs: [],
+      artifacts: [
+        {
+          id: `${jobId}_ios_usdz`,
+          type: "ios_usdz",
+          label: "iOS Quick Look runtime USDZ",
+          path: runtimeStoragePath,
+          publicUrl: patch.arUsdzUrl,
+          sha256: gate.runtimeSha256,
+          bytes: runtimeBytes.byteLength
+        },
+        {
+          id: `${jobId}_report`,
+          type: "usdz_report",
+          label: "USDZ optimization report",
+          path: reportStoragePath
+        }
+      ],
+      metrics: {
+        usdzSourceBytes: args.sourceBytes.byteLength,
+        usdzSourceSha256: sourceSha256,
+        usdzRuntimeBytes: runtimeBytes.byteLength,
+        usdzRuntimeSha256: gate.runtimeSha256,
+        reductionPercent: summary.reductionPercent,
+        geometryOptimization: summary.geometryOptimization,
+        optimizationProfile: args.profile,
+        storageBucket: MODEL_BUCKET,
+        conversionMethod: "owner-usdz-only-optimizer",
+        usdzSourceStored: false
+      },
+      quality_status: "published",
+      started_at: processedAt,
+      finished_at: new Date().toISOString(),
+      duration_ms: 0,
+      initiated_by_clerk_user_id: args.owner.userId,
+      initiated_by_email: args.owner.email ?? null,
+      next_action: "Run real-device iPhone Quick Look QA before promoting.",
+      manual_runner_command: `node ${CLI_RELATIVE_PATH} --source <runtime-temp.usdz> --output <runtime.usdz> --report <report.json> --profile ${args.profile}`,
+      worker_kind: "external_worker",
+      dedupe_key: `${args.restaurantSlug}:${args.menuSlug}:${args.dishSlug}:${version}:usdz_runtime`,
+      metadata: {
+        restaurantId: args.restaurantId,
+        dishId: args.dishId,
+        reportStoragePath,
+        usdzSourceStored: false
+      }
+    });
+
+    return {
+      status: "ready",
+      jobId,
+      version,
+      arUsdzUrl: String(patch.arUsdzUrl),
+      usdzRuntimeBytes: runtimeBytes.byteLength,
+      usdzSourceBytes: args.sourceBytes.byteLength,
+      reductionPercent: summary.reductionPercent,
+      profile: args.profile,
+      geometryOptimization: summary.geometryOptimization,
+      warnings: summary.warnings,
+      fails: summary.fails
+    };
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}

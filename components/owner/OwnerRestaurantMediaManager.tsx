@@ -250,10 +250,14 @@ export function OwnerRestaurantMediaManager({
                             initialStatus={dish.modelStatus}
                             initialWebModel3dUrl={dish.webModel3dUrl}
                             initialWebModel3dBytes={dish.webModel3dBytes}
+                            initialViewerGlbStatus={dish.viewerGlbStatus}
                             initialArUsdzUrl={dish.arUsdzUrl}
                             initialArUsdzBytes={dish.arUsdzBytes}
-                            initialPreparedGlbJobId={dish.preparedGlbJobId}
-                            initialPreparedGlbStoragePath={dish.preparedGlbStoragePath}
+                            initialUsdzRuntimeStatus={dish.usdzRuntimeStatus}
+                            initialUsdzOptimizationProfile={dish.usdzOptimizationProfile}
+                            initialUsdzSourceBytes={dish.usdzSourceBytes}
+                            initialUsdzSourceOriginalName={dish.usdzSourceOriginalName}
+                            initialQuickLookQaStatus={dish.quickLookQaStatus}
                           />
                           <button
                             type="button"

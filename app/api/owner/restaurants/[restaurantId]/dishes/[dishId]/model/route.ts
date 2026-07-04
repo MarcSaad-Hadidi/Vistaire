@@ -6,10 +6,13 @@ import {
 } from "@/lib/auth/ownerApi";
 import {
   cleanDishModelMetadata,
+  cleanTargetedDishModelMetadata,
   collectDishModelStorageTargets,
+  collectTargetedDishModelDeletion,
   DISH_MODEL_MISSING_STATUS,
   groupTargetsByBucket,
-  hasDishModelMetadata
+  hasDishModelMetadata,
+  type DishModelDeleteTarget
 } from "@/lib/owner/deleteDishModelAssets";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
@@ -95,17 +98,27 @@ export async function DELETE(
   const restaurantSlug = slugifyRestaurantSlug(getString(restaurant.data, "slug") || restaurantId);
   const dishSlug = slugifyRestaurantSlug(dish.slug || dish.name || dishId);
 
-  const collected = collectDishModelStorageTargets(dish.metadata, restaurantId);
+  const requestedTarget = request.nextUrl.searchParams.get("target") ?? "all";
+  const validTargets: DishModelDeleteTarget[] = ["all", "viewer-glb", "usdz-runtime", "report"];
+  const target = (validTargets as string[]).includes(requestedTarget)
+    ? (requestedTarget as DishModelDeleteTarget)
+    : "all";
+
+  const isFullDelete = target === "all";
+  const collectedAll = collectDishModelStorageTargets(dish.metadata, restaurantId);
+  const scoped = collectTargetedDishModelDeletion(dish.metadata, restaurantId, target);
+
   const modelDeleted =
-    collected.targets.length > 0 ||
-    collected.skipped.length > 0 ||
-    Boolean(dish.has_immersive_view) ||
-    hasDishModelMetadata(dish.metadata);
+    scoped.targets.length > 0 ||
+    (isFullDelete &&
+      (collectedAll.skipped.length > 0 ||
+        Boolean(dish.has_immersive_view) ||
+        hasDishModelMetadata(dish.metadata)));
 
   let attemptedCount = 0;
   let deletedCount = 0;
 
-  for (const [bucket, paths] of groupTargetsByBucket(collected.targets)) {
+  for (const [bucket, paths] of groupTargetsByBucket(scoped.targets)) {
     attemptedCount += paths.length;
     const removal = await admin.client.storage.from(bucket).remove(paths);
     if (removal.error) {
@@ -114,7 +127,7 @@ export async function DELETE(
           ok: false,
           error: "Suppression Storage impossible pour ce modele.",
           deletedCount,
-          skippedCount: collected.skipped.length,
+          skippedCount: collectedAll.skipped.length,
           modelStatus: DISH_MODEL_MISSING_STATUS
         },
         { status: 503 }
@@ -123,11 +136,20 @@ export async function DELETE(
     deletedCount += Array.isArray(removal.data) ? removal.data.length : paths.length;
   }
 
-  const cleanedMetadata = cleanDishModelMetadata(dish.metadata);
+  const cleanedMetadata = isFullDelete
+    ? cleanDishModelMetadata(dish.metadata)
+    : cleanTargetedDishModelMetadata(dish.metadata, scoped.clearKeys);
+
+  const nextModelStatus =
+    typeof cleanedMetadata.modelStatus === "string"
+      ? cleanedMetadata.modelStatus
+      : DISH_MODEL_MISSING_STATUS;
+  const stillImmersive = nextModelStatus !== DISH_MODEL_MISSING_STATUS;
+
   const updated = await admin.client
     .from("menu_dishes")
     .update({
-      has_immersive_view: false,
+      has_immersive_view: isFullDelete ? false : stillImmersive,
       metadata: cleanedMetadata
     })
     .eq("id", dishId)
@@ -146,11 +168,12 @@ export async function DELETE(
 
   return NextResponse.json({
     ok: true,
+    target,
     modelDeleted,
     dishUpdated: true,
     attemptedCount,
     deletedCount,
-    skippedCount: collected.skipped.length,
-    modelStatus: DISH_MODEL_MISSING_STATUS
+    skippedCount: collectedAll.skipped.length,
+    modelStatus: nextModelStatus
   });
 }

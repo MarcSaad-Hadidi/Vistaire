@@ -107,6 +107,26 @@ const STORAGE_CANDIDATES: StorageCandidate[] = [
     folders: ["ar-ios"]
   },
   {
+    kind: "ios_usdz_runtime",
+    pathKey: "usdzRuntimeStoragePath",
+    bucketKey: "usdzRuntimeStorageBucket",
+    extension: ".usdz",
+    folders: ["ar-ios"]
+  },
+  {
+    kind: "viewer_glb",
+    pathKey: "viewerGlbStoragePath",
+    bucketKey: "viewerGlbStorageBucket",
+    extension: ".glb",
+    folders: ["web"]
+  },
+  {
+    kind: "usdz_report",
+    pathKey: "usdzOptimizationReportStoragePath",
+    extension: ".json",
+    folders: ["manifests"]
+  },
+  {
     kind: "manifest",
     pathKey: "meshyManifestStoragePath",
     bucketKey: "meshyManifestStorageBucket",
@@ -244,8 +264,149 @@ export const DISH_MODEL_METADATA_KEYS = [
   "preparedGlbStoragePath",
   "prepared_glb_storage_path",
   "ownerMeshyPipeline",
-  "owner_meshy_pipeline"
+  "owner_meshy_pipeline",
+  "viewerGlbStatus",
+  "viewerGlbStorageBucket",
+  "viewerGlbStoragePath",
+  "viewerGlbBytes",
+  "viewerGlbSha256",
+  "viewerGlbOriginalName",
+  "viewerGlbUploadedAt",
+  "usdzRuntimeStatus",
+  "usdzRuntimeStorageBucket",
+  "usdzRuntimeStoragePath",
+  "usdzRuntimeBytes",
+  "usdzRuntimeSha256",
+  "usdzRuntimeContentType",
+  "usdzRuntimeUploadedAt",
+  "usdzOptimizationProfile",
+  "usdzOptimizationReportStoragePath",
+  "usdzOptimizationWarnings",
+  "usdzOptimizationFails",
+  "usdzSourceOriginalName",
+  "usdzSourceBytes",
+  "usdzSourceSha256",
+  "usdzSourceProcessedAt",
+  "usdzSourceStored",
+  "usdzSourceRetention",
+  "quickLookQaStatus"
 ] as const;
+
+/** Metadata keys grouped by deletion target for granular admin deletes. */
+export const VIEWER_GLB_DELETE_KEYS = [
+  "model3dUrl",
+  "model3d_url",
+  "webModel3dUrl",
+  "web_model_3d_url",
+  "arModel3dUrl",
+  "ar_model_3d_url",
+  "webModel3dStorageBucket",
+  "webModel3dStoragePath",
+  "arModel3dStorageBucket",
+  "arModel3dStoragePath",
+  "webModel3dBytes",
+  "arModel3dBytes",
+  "viewerGlbStatus",
+  "viewerGlbStorageBucket",
+  "viewerGlbStoragePath",
+  "viewerGlbBytes",
+  "viewerGlbSha256",
+  "viewerGlbOriginalName",
+  "viewerGlbUploadedAt"
+] as const;
+
+export const USDZ_RUNTIME_DELETE_KEYS = [
+  "arUsdzUrl",
+  "ar_usdz_url",
+  "usdzUrl",
+  "usdz_url",
+  "arUsdzStorageBucket",
+  "arUsdzStoragePath",
+  "arUsdzBytes",
+  "usdzRuntimeStatus",
+  "usdzRuntimeStorageBucket",
+  "usdzRuntimeStoragePath",
+  "usdzRuntimeBytes",
+  "usdzRuntimeSha256",
+  "usdzRuntimeContentType",
+  "usdzRuntimeUploadedAt",
+  "usdzOptimizationProfile",
+  "usdzOptimizationWarnings",
+  "usdzOptimizationFails",
+  "usdzSourceOriginalName",
+  "usdzSourceBytes",
+  "usdzSourceSha256",
+  "usdzSourceProcessedAt",
+  "usdzSourceStored",
+  "usdzSourceRetention",
+  "quickLookQaStatus"
+] as const;
+
+export const USDZ_REPORT_DELETE_KEYS = ["usdzOptimizationReportStoragePath"] as const;
+
+export type DishModelDeleteTarget = "all" | "viewer-glb" | "usdz-runtime" | "report";
+
+/**
+ * Collects only the storage targets and metadata keys for a specific delete
+ * target, so the admin can remove the viewer GLB, the runtime USDZ, or the
+ * report independently. There is never a source USDZ to remove (not stored).
+ */
+export function collectTargetedDishModelDeletion(
+  metadataValue: unknown,
+  restaurantId: string,
+  target: DishModelDeleteTarget
+): { targets: DishModelStorageTarget[]; clearKeys: readonly string[] } {
+  if (target === "all") {
+    return {
+      targets: collectDishModelStorageTargets(metadataValue, restaurantId).targets,
+      clearKeys: DISH_MODEL_METADATA_KEYS
+    };
+  }
+
+  const kindsByTarget: Record<Exclude<DishModelDeleteTarget, "all">, Set<string>> = {
+    "viewer-glb": new Set(["viewer_glb", "web_glb", "ar_lite_glb", "legacy_model_glb", "source_glb", "prepared_glb"]),
+    "usdz-runtime": new Set(["ios_usdz", "ios_usdz_runtime"]),
+    report: new Set(["usdz_report", "manifest"])
+  };
+  const keysByTarget: Record<Exclude<DishModelDeleteTarget, "all">, readonly string[]> = {
+    "viewer-glb": VIEWER_GLB_DELETE_KEYS,
+    "usdz-runtime": USDZ_RUNTIME_DELETE_KEYS,
+    report: USDZ_REPORT_DELETE_KEYS
+  };
+
+  const allTargets = collectDishModelStorageTargets(metadataValue, restaurantId).targets;
+  const kinds = kindsByTarget[target];
+  return {
+    targets: allTargets.filter((entry) => kinds.has(entry.kind)),
+    clearKeys: keysByTarget[target]
+  };
+}
+
+/** Removes only the requested metadata keys and recomputes modelStatus. */
+export function cleanTargetedDishModelMetadata(
+  metadataValue: unknown,
+  clearKeys: readonly string[]
+): Record<string, unknown> {
+  const metadata = getObjectMetadata(metadataValue);
+  for (const key of clearKeys) {
+    delete metadata[key];
+  }
+  const hasViewer =
+    (typeof metadata.webModel3dUrl === "string" && metadata.webModel3dUrl.trim().length > 0) ||
+    (typeof metadata.model3dUrl === "string" && metadata.model3dUrl.trim().length > 0);
+  const hasUsdz =
+    typeof metadata.arUsdzUrl === "string" && metadata.arUsdzUrl.trim().length > 0;
+  if (!hasViewer && !hasUsdz) {
+    metadata.modelStatus = DISH_MODEL_MISSING_STATUS;
+  } else if (hasViewer && hasUsdz) {
+    metadata.modelStatus = "ready";
+  } else if (hasViewer) {
+    metadata.modelStatus = "web_ready_usdz_pending";
+  } else {
+    metadata.modelStatus = "ready";
+  }
+  return metadata;
+}
 
 const MODEL_STATUSES = new Set([
   "ready",
