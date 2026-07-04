@@ -821,12 +821,16 @@ export function TrouvablePremiumMenuExperience({
     };
 
     syncStickyToolsTop();
-    const resizeObserver = new ResizeObserver(syncStickyToolsTop);
-    resizeObserver.observe(topBar);
     window.addEventListener("resize", syncStickyToolsTop);
 
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(syncStickyToolsTop);
+    resizeObserver?.observe(topBar);
+
     return () => {
-      resizeObserver.disconnect();
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", syncStickyToolsTop);
     };
   }, []);
@@ -871,14 +875,16 @@ export function TrouvablePremiumMenuExperience({
 
     bindObserver();
 
-    const resizeObserver = new ResizeObserver(bindObserver);
-    if (topBarRef.current) {
-      resizeObserver.observe(topBarRef.current);
+    const topBar = topBarRef.current;
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && topBar) {
+      resizeObserver = new ResizeObserver(bindObserver);
+      resizeObserver.observe(topBar);
     }
 
     return () => {
       observer?.disconnect();
-      resizeObserver.disconnect();
+      resizeObserver?.disconnect();
     };
   }, []);
 

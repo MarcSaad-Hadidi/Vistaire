@@ -481,7 +481,7 @@ test("Trouvable menu tools stay sticky under the top bar with a single control s
   assert.match(source, /setToolsPinned/);
   assert.match(source, /data-pinned=\{toolsPinned \? "true" : "false"\}/);
   assert.match(source, /IntersectionObserver/);
-  assert.match(source, /ResizeObserver/);
+  assert.match(source, /typeof ResizeObserver === "undefined"/);
   assert.match(source, /id="trouvable-menu-search"/);
   assert.doesNotMatch(source, /id="trouvable-menu-search-sticky"/);
   assert.match(css, /\.tools[\s\S]*position:\s*sticky/);
