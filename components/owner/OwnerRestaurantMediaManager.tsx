@@ -255,6 +255,12 @@ export function OwnerRestaurantMediaManager({
                             initialArUsdzBytes={dish.arUsdzBytes}
                             initialUsdzRuntimeStatus={dish.usdzRuntimeStatus}
                             initialUsdzOptimizationProfile={dish.usdzOptimizationProfile}
+                            initialUsdzGeometryOptimization={dish.usdzGeometryOptimization}
+                            initialUsdzTriangleCountBefore={dish.usdzTriangleCountBefore}
+                            initialUsdzTriangleCountAfter={dish.usdzTriangleCountAfter}
+                            initialUsdzGeometryReductionPercent={dish.usdzGeometryReductionPercent}
+                            initialUsdzOptimizationAttemptCount={dish.usdzOptimizationAttemptCount}
+                            initialUsdzChangedTextures={dish.usdzChangedTextures}
                             initialUsdzSourceBytes={dish.usdzSourceBytes}
                             initialUsdzSourceOriginalName={dish.usdzSourceOriginalName}
                             initialQuickLookQaStatus={dish.quickLookQaStatus}

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 import {
   FORBIDDEN_SOURCE_STORAGE_FIELDS,
@@ -10,9 +11,18 @@ import {
   buildViewerGlbStoragePlan,
   createUsdzRuntimeAssetVersion,
   evaluateRuntimeUsdzUploadGate,
+  USDZ_OPTIMIZATION_PROFILES,
   validateUsdzStructure,
   sha256Hex
 } from "../lib/owner/usdzRuntimeModel.ts";
+import {
+  createUsdzRuntimeJobToken,
+  createUsdzRuntimeSignedAssetVersion,
+  completeUsdzRuntimeSignedUpload,
+  prepareUsdzRuntimeSignedUpload,
+  rollbackUsdzRuntimeSignedUpload,
+  verifyUsdzRuntimeJobToken
+} from "../lib/owner/usdzRuntimeJsonFlow.ts";
 import { buildSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
 import { runUsdzRuntimePipeline } from "../lib/owner/usdzRuntimePipelineCore.ts";
 import { collectTargetedDishModelDeletion } from "../lib/owner/deleteDishModelAssets.ts";
@@ -22,6 +32,18 @@ const read = (path) => readFileSync(path, "utf8");
 const usdzRoute = read(
   "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/usdz-runtime/route.ts"
 );
+const usdzStartRoute = read(
+  "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/usdz-runtime/start/route.ts"
+);
+const usdzPrepareRoute = read(
+  "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/usdz-runtime/prepare-upload/route.ts"
+);
+const usdzCompleteRoute = read(
+  "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/usdz-runtime/complete/route.ts"
+);
+const usdzFailRoute = read(
+  "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/usdz-runtime/fail/route.ts"
+);
 const viewerRoute = read(
   "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/viewer-glb/route.ts"
 );
@@ -29,6 +51,7 @@ const pipeline = read("lib/owner/usdzRuntimePipelineCore.ts");
 const viewerLib = read("lib/owner/viewerGlbUpload.ts");
 const cli = read("scripts/owner/optimize-restaurant-usdz.mjs");
 const worker = read("scripts/owner/optimize_restaurant_usdz.py");
+const localWorker = read("scripts/owner/usdz-local-worker.mjs");
 
 const RESTAURANT_ID = "11111111-2222-4333-8444-555555555555";
 const DISH_ID = "22222222-3333-4444-8555-666666666666";
@@ -49,9 +72,23 @@ function mockAdminClient(handlers = {}) {
       storage: {
         from: () => ({
           upload: handlers.upload ?? (async () => ({ data: {}, error: null })),
+          createSignedUploadUrl:
+            handlers.createSignedUploadUrl ??
+            (async (path) => ({
+              data: {
+                signedUrl: `https://storage.vistaire.test/object/upload/sign/${path}`,
+                token: "signed-token",
+                path
+              },
+              error: null
+            })),
+          download:
+            handlers.download ??
+            (async () => ({ data: new Blob([validUsdzBytes(7000)]), error: null })),
           remove: async (paths) => {
             removed.push(...paths);
             if (handlers.remove) return handlers.remove(paths);
+            return { data: paths.map((name) => ({ name })), error: null };
           }
         })
       },
@@ -164,11 +201,20 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
       version: "20260704-abcdef12",
       runtimeBytes: 6_000_000,
       runtimeSha256: "a".repeat(64),
-      reportStoragePath: "restaurants/x/models/manifests/homard.json",
-      profile: "balanced",
-      warnings: [],
-      fails: [],
-      source: {
+    reportStoragePath: "restaurants/x/models/manifests/homard.json",
+    profile: "balanced",
+    warnings: [],
+    fails: [],
+    reductionPercent: 72,
+    geometryOptimization: "done",
+    triangleCountBefore: 240000,
+    triangleCountAfter: 132000,
+    geometryReductionPercent: 45,
+    textureCount: 4,
+    changedTextures: 2,
+    attemptCount: 2,
+    candidateAttempts: [{ profile: "balanced", passedBudget: true }],
+    source: {
         originalName: "master.usdz",
         bytes: 120_000_000,
         sha256: "b".repeat(64),
@@ -183,6 +229,10 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
   assert.equal(patch.usdzSourceRetention, "none");
   assert.equal(patch.usdzUrl, "");
   assert.equal(patch.quickLookQaStatus, "not-tested");
+  assert.equal(patch.usdzGeometryOptimization, "done");
+  assert.equal(patch.usdzTriangleCountBefore, 240000);
+  assert.equal(patch.usdzTriangleCountAfter, 132000);
+  assert.equal(patch.usdzOptimizationAttemptCount, 2);
   assert.equal(patch.usdzSourceBytes, 120_000_000);
   assert.equal(patch.usdzSourceOriginalName, "master.usdz");
   assert.ok(String(patch.arUsdzUrl).startsWith("/api/public/menu-dishes/"));
@@ -313,13 +363,502 @@ test("validateUsdzStructure rejects LFS pointers and bad magic", () => {
 
 test("usdz-runtime route uploads only after optimization and reports source not stored", () => {
   assert.match(usdzRoute, /runtime = "nodejs"/);
-  assert.match(usdzRoute, /requireVistaireOwnerApi\(\)/);
-  assert.match(usdzRoute, /requireSameOriginOwnerMutation\(request\)/);
-  assert.match(usdzRoute, /validateUsdzFile/);
-  assert.match(usdzRoute, /runUsdzRuntimePipeline/);
+  assert.match(usdzRoute, /Upload USDZ direct desactive/);
   assert.match(usdzRoute, /usdzSourceStored: false/);
-  // The route itself never uploads to storage; that happens post-gate in the pipeline.
+  assert.doesNotMatch(usdzRoute, /request\.formData\(/);
+  assert.doesNotMatch(usdzRoute, /File/);
+  assert.doesNotMatch(usdzRoute, /runUsdzRuntimePipeline/);
   assert.doesNotMatch(usdzRoute, /storage[\s\S]{0,40}\.upload\(/);
+});
+
+test("usdz runtime JSON lifecycle routes never parse multipart files", () => {
+  const lifecycleRoutes = [usdzStartRoute, usdzPrepareRoute, usdzCompleteRoute, usdzFailRoute].join("\n");
+  assert.doesNotMatch(lifecycleRoutes, /request\.formData\(/);
+  assert.doesNotMatch(lifecycleRoutes, /FormData/);
+  assert.match(usdzStartRoute, /request\.json\(\)/);
+  assert.match(usdzPrepareRoute, /request\.json\(\)/);
+  assert.match(usdzCompleteRoute, /request\.json\(\)/);
+  assert.match(usdzFailRoute, /request\.json\(\)/);
+  assert.match(usdzStartRoute, /requireVistaireOwnerApi\(\)/);
+  assert.match(usdzStartRoute, /requireSameOriginOwnerMutation\(request\)/);
+  assert.match(usdzPrepareRoute, /assertUsdzRuntimeJobClaimsMatchRoute/);
+  assert.match(usdzCompleteRoute, /assertUsdzRuntimeJobClaimsMatchRoute/);
+  assert.match(usdzFailRoute, /assertUsdzRuntimeJobClaimsMatchRoute/);
+  assert.match(lifecycleRoutes, /jobToken/);
+  assert.match(lifecycleRoutes, /usdzSourceStored: false/);
+});
+
+test("prepare-upload signs only runtime USDZ and report JSON paths", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    env
+  });
+  assert.equal(token.ok, true);
+  const signedPaths = [];
+  const { client } = mockAdminClient({
+    createSignedUploadUrl: async (path) => {
+      signedPaths.push(path);
+      return {
+        data: {
+          signedUrl: `https://storage.vistaire.test/object/upload/sign/${path}`,
+          token: "signed-token",
+          path
+        },
+        error: null
+      };
+    }
+  });
+
+  const runtimeBytes = validUsdzBytes(7000);
+  const prepared = await prepareUsdzRuntimeSignedUpload({
+    adminClient: client,
+    env,
+    maxRuntimeBytes: 16 * 1024 * 1024,
+    input: {
+      jobId: token.jobId,
+      jobToken: token.token,
+      profile: "balanced",
+      sourceBytes: 8000,
+      sourceSha256: "b".repeat(64),
+      runtimeBytes: runtimeBytes.byteLength,
+      runtimeSha256: sha256Hex(runtimeBytes),
+      reportBytes: 512,
+      geometryOptimization: "done",
+      warnings: [],
+      fails: []
+    }
+  });
+
+  assert.equal(prepared.ok, true);
+  assert.equal(signedPaths.length, 2);
+  assert.ok(signedPaths[0].includes("/models/ar-ios/"));
+  assert.ok(signedPaths[0].endsWith(".usdz"));
+  assert.ok(signedPaths[1].includes("/models/manifests/"));
+  assert.ok(signedPaths[1].endsWith("-usdz-report.json"));
+  assert.doesNotMatch(signedPaths.join("\n"), /source|master|raw|candidate/i);
+});
+
+test("prepare-upload enforces the selected profile byte budget", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 20 * 1024 * 1024,
+    profile: "emergency",
+    env
+  });
+  assert.equal(token.ok, true);
+  const { client } = mockAdminClient();
+
+  await assert.rejects(
+    () =>
+      prepareUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        maxRuntimeBytes: 16 * 1024 * 1024,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "emergency",
+          sourceBytes: 20 * 1024 * 1024,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: 6 * 1024 * 1024,
+          runtimeSha256: "a".repeat(64),
+          reportBytes: 512,
+          geometryOptimization: "done",
+          warnings: [],
+          fails: []
+        }
+      }),
+    /limite runtime/
+  );
+});
+
+test("light profile budget accepts a mobile-safe runtime without signing source storage", async () => {
+  assert.equal(USDZ_OPTIMIZATION_PROFILES.light.targetMaxBytes, 10 * 1024 * 1024);
+  assert.equal(
+    USDZ_OPTIMIZATION_PROFILES.emergency.targetMaxBytes,
+    5.5 * 1024 * 1024
+  );
+
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 26 * 1024 * 1024,
+    profile: "light",
+    env
+  });
+  assert.equal(token.ok, true);
+
+  const signedPaths = [];
+  const { client } = mockAdminClient({
+    createSignedUploadUrl: async (path) => {
+      signedPaths.push(path);
+      return {
+        data: {
+          signedUrl: `https://storage.vistaire.test/object/upload/sign/${path}`,
+          token: "signed-token",
+          path
+        },
+        error: null
+      };
+    }
+  });
+
+  const prepared = await prepareUsdzRuntimeSignedUpload({
+    adminClient: client,
+    env,
+    maxRuntimeBytes: 16 * 1024 * 1024,
+    input: {
+      jobId: token.jobId,
+      jobToken: token.token,
+      profile: "light",
+      sourceBytes: 26 * 1024 * 1024,
+      sourceSha256: "b".repeat(64),
+      runtimeBytes: 9 * 1024 * 1024,
+      runtimeSha256: "a".repeat(64),
+      reportBytes: 512,
+      geometryOptimization: "done",
+      warnings: [],
+      fails: []
+    }
+  });
+
+  assert.equal(prepared.ok, true);
+  assert.deepEqual(signedPaths, [prepared.runtimeStoragePath, prepared.reportStoragePath]);
+  assert.doesNotMatch(signedPaths.join("\n"), /source|master|raw|candidate/i);
+});
+
+test("signed upload retry gets a job-scoped runtime path", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const runtimeSha256 = "a".repeat(64);
+  async function prepareForJob() {
+    const token = createUsdzRuntimeJobToken({
+      owner: { userId: "user_test", email: "owner@vistaire.test" },
+      restaurantId: RESTAURANT_ID,
+      restaurantSlug: "demo",
+      menuSlug: "principal",
+      dishId: DISH_ID,
+      dishSlug: "homard-grille",
+      sourceOriginalName: "master.usdz",
+      sourceBytes: 8000,
+      profile: "balanced",
+      env
+    });
+    assert.equal(token.ok, true);
+    const { client } = mockAdminClient();
+    return prepareUsdzRuntimeSignedUpload({
+      adminClient: client,
+      env,
+      maxRuntimeBytes: 16 * 1024 * 1024,
+      input: {
+        jobId: token.jobId,
+        jobToken: token.token,
+        profile: "balanced",
+        sourceBytes: 8000,
+        sourceSha256: "b".repeat(64),
+        runtimeBytes: 7000,
+        runtimeSha256,
+        reportBytes: 512,
+        geometryOptimization: "done",
+        warnings: [],
+        fails: []
+      }
+    });
+  }
+
+  const first = await prepareForJob();
+  const retry = await prepareForJob();
+  assert.notEqual(first.version, retry.version);
+  assert.notEqual(first.runtimeStoragePath, retry.runtimeStoragePath);
+  assert.notEqual(first.reportStoragePath, retry.reportStoragePath);
+});
+
+test("complete rejects report JSON that does not prove sourceStored false", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    env
+  });
+  assert.equal(token.ok, true);
+  const runtimeBytes = validUsdzBytes(7000);
+  const runtimeSha256 = sha256Hex(runtimeBytes);
+  const version = createUsdzRuntimeSignedAssetVersion({
+    profile: "balanced",
+    runtimeSha256,
+    jobId: token.jobId
+  });
+  const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
+  const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
+  const { client, removed } = mockAdminClient({
+    download: async (path) => ({
+      data: new Blob([
+        path.endsWith(".usdz")
+          ? runtimeBytes
+          : Buffer.from(JSON.stringify({ sourceStored: true }))
+      ]),
+      error: null
+    })
+  });
+
+  await assert.rejects(
+    () =>
+      completeUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "balanced",
+          sourceBytes: 8000,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: runtimeBytes.byteLength,
+          runtimeSha256,
+          reportBytes: Buffer.byteLength(JSON.stringify({ sourceStored: true })),
+          geometryOptimization: "done",
+          warnings: [],
+          fails: [],
+          version,
+          runtimeStoragePath,
+          reportStoragePath
+        }
+      }),
+    /sourceStored/
+  );
+  assert.deepEqual(removed, [runtimeStoragePath, reportStoragePath]);
+});
+
+test("fail rollback removes only the signed runtime after report upload fails", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    env
+  });
+  assert.equal(token.ok, true);
+  const runtimeSha256 = "a".repeat(64);
+  const version = createUsdzRuntimeSignedAssetVersion({
+    profile: "balanced",
+    runtimeSha256,
+    jobId: token.jobId
+  });
+  const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
+  const { client, removed } = mockAdminClient();
+
+  const rollback = await rollbackUsdzRuntimeSignedUpload({
+    adminClient: client,
+    env,
+    input: {
+      jobId: token.jobId,
+      jobToken: token.token,
+      profile: "balanced",
+      sourceBytes: 8000,
+      sourceSha256: "b".repeat(64),
+      runtimeBytes: 7000,
+      runtimeSha256,
+      reportBytes: 512,
+      geometryOptimization: "done",
+      warnings: [],
+      fails: [],
+      version,
+      runtimeStoragePath
+    }
+  });
+
+  assert.equal(rollback.ok, true);
+  assert.deepEqual(removed, [runtimeStoragePath]);
+});
+
+test("fail rollback refuses source master raw and candidate paths", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    env
+  });
+  assert.equal(token.ok, true);
+  const runtimeSha256 = "a".repeat(64);
+  const version = createUsdzRuntimeSignedAssetVersion({
+    profile: "balanced",
+    runtimeSha256,
+    jobId: token.jobId
+  });
+  const { client, removed } = mockAdminClient();
+
+  for (const path of [
+    `restaurants/${RESTAURANT_ID}/models/source/master.usdz`,
+    `restaurants/${RESTAURANT_ID}/models/raw/candidate.usdz`,
+    `restaurants/${RESTAURANT_ID}/models/candidates/runtime.usdz`
+  ]) {
+    await assert.rejects(
+      () =>
+        rollbackUsdzRuntimeSignedUpload({
+          adminClient: client,
+          env,
+          input: {
+            jobId: token.jobId,
+            jobToken: token.token,
+            profile: "balanced",
+            sourceBytes: 8000,
+            sourceSha256: "b".repeat(64),
+            runtimeBytes: 7000,
+            runtimeSha256,
+            reportBytes: 512,
+            geometryOptimization: "done",
+            warnings: [],
+            fails: [],
+            version,
+            runtimeStoragePath: path
+          }
+        }),
+      /Chemin rollback runtime USDZ invalide/
+    );
+  }
+  assert.deepEqual(removed, []);
+});
+
+test("complete publishes metrics from the uploaded report, not client JSON", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    env
+  });
+  assert.equal(token.ok, true);
+  const runtimeBytes = validUsdzBytes(7000);
+  const runtimeSha256 = sha256Hex(runtimeBytes);
+  const version = createUsdzRuntimeSignedAssetVersion({
+    profile: "balanced",
+    runtimeSha256,
+    jobId: token.jobId
+  });
+  const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
+  const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
+  const report = {
+    sourceStored: false,
+    reductionPercent: 12,
+    geometryOptimization: "done",
+    triangleCountBefore: 240000,
+    triangleCountAfter: 120000,
+    geometryReductionPercent: 50,
+    textureCount: 4,
+    changedTextures: 2,
+    attemptCount: 1,
+    candidateAttempts: [
+      { profile: "balanced", targetBytes: 8000, runtimeBytes: 7000, passedBudget: true }
+    ],
+    warnings: ["normal map missing"],
+    fails: []
+  };
+  const { client, updates } = mockAdminClient({
+    download: async (path) => ({
+      data: new Blob([path.endsWith(".usdz") ? runtimeBytes : Buffer.from(JSON.stringify(report))]),
+      error: null
+    })
+  });
+
+  const result = await completeUsdzRuntimeSignedUpload({
+    adminClient: client,
+    env,
+    input: {
+      jobId: token.jobId,
+      jobToken: token.token,
+      profile: "balanced",
+      sourceBytes: 8000,
+      sourceSha256: "b".repeat(64),
+      runtimeBytes: runtimeBytes.byteLength,
+      runtimeSha256,
+      reportBytes: Buffer.byteLength(JSON.stringify(report)),
+      geometryOptimization: "skipped",
+      warnings: ["client warning should not persist"],
+      fails: [],
+      reductionPercent: 99,
+      triangleCountBefore: 1,
+      triangleCountAfter: 1,
+      version,
+      runtimeStoragePath,
+      reportStoragePath
+    }
+  });
+
+  assert.equal(result.geometryOptimization, "done");
+  assert.equal(result.reductionPercent, 12);
+  assert.deepEqual(result.warnings, ["normal map missing"]);
+  assert.equal(updates[0].metadata.usdzGeometryOptimization, "done");
+  assert.equal(updates[0].metadata.usdzTriangleCountBefore, 240000);
+  assert.equal(updates[0].metadata.usdzTriangleCountAfter, 120000);
+  assert.equal(updates[0].metadata.usdzOptimizationAttemptCount, 1);
+});
+
+test("jobToken verification rejects tampering and expiry", () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const nowMs = Date.parse("2026-07-04T00:00:00.000Z");
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 8000,
+    profile: "balanced",
+    nowMs,
+    env
+  });
+  assert.equal(token.ok, true);
+  assert.equal(verifyUsdzRuntimeJobToken(token.token, env, nowMs + 1000).ok, true);
+  assert.equal(verifyUsdzRuntimeJobToken(`${token.token}x`, env, nowMs + 1000).ok, false);
+  assert.equal(verifyUsdzRuntimeJobToken(token.token, env, nowMs + 31 * 60 * 1000).ok, false);
 });
 
 test("usdz runtime pipeline gates before upload, uploads runtime only, and cleans temp in finally", () => {
@@ -523,6 +1062,33 @@ test("validated runtime pipeline uploads runtime and report after source cleanup
   assert.ok(uploads[1].endsWith("-usdz-report.json"));
 });
 
+test("no source USDZ signed upload URL is ever created", async () => {
+  const sourceFiles = [
+    usdzRoute,
+    pipeline,
+    read("lib/owner/usdzRuntimeModel.ts"),
+    read("scripts/owner/optimize-restaurant-usdz.mjs")
+  ].join("\n");
+
+  assert.doesNotMatch(sourceFiles, /createSignedUploadUrl\([^)]*source/i);
+  assert.doesNotMatch(sourceFiles, /createSignedUploadUrl\([^)]*master/i);
+  assert.doesNotMatch(sourceFiles, /source.*signedUpload/i);
+  assert.doesNotMatch(sourceFiles, /master.*signedUpload/i);
+});
+
+test("signed upload URL flow, when added, is constrained to runtime and report only", () => {
+  const allSource = [
+    usdzRoute,
+    pipeline,
+    read("lib/owner/usdzRuntimeModel.ts"),
+    read("scripts/owner/optimize-restaurant-usdz.mjs")
+  ].join("\n");
+
+  assert.doesNotMatch(allSource, /createSignedUploadUrl\(/);
+  assert.match(allSource, /runtimeStoragePath/);
+  assert.match(allSource, /reportStoragePath/);
+});
+
 test("deleting usdz-runtime also targets the linked optimization report", () => {
   const metadata = {
     arUsdzStoragePath: `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-20260704-abcdef12.usdz`,
@@ -547,11 +1113,88 @@ test("viewer-glb route never triggers a USDZ pipeline", () => {
   assert.match(viewerRoute, /usdzTriggered: false/);
 });
 
+test("local worker deletes source before signed upload and skips upload when optimizer fails", () => {
+  const optimizerIndex = localWorker.indexOf("const summary = await runOptimizer");
+  const failGateIndex = localWorker.indexOf("Array.isArray(summary.fails)");
+  const sourceDeleteIndex = localWorker.indexOf("rmSync(sourcePath, { force: true })");
+  const catchSourceDeleteIndex = localWorker.indexOf("if (sourcePath) rmSync(sourcePath, { force: true })");
+  const notifyFailIndex = localWorker.indexOf("if (form) await notifyFail");
+  const prepareIndex = localWorker.indexOf("preparePayload = {");
+  const uploadIndex = localWorker.indexOf("uploadSigned(prepared.runtimeUpload");
+  const runtimeUploadedIndex = localWorker.indexOf("runtimeUploaded = true");
+  const reportUploadedIndex = localWorker.indexOf("reportUploaded = true");
+  const rollbackPayloadIndex = localWorker.indexOf("const rollbackPayload");
+  assert.ok(optimizerIndex > -1, "local worker must run optimizer");
+  assert.ok(failGateIndex > optimizerIndex, "optimizer fails must be checked");
+  assert.ok(sourceDeleteIndex > failGateIndex, "source must be deleted before network upload");
+  assert.ok(prepareIndex > sourceDeleteIndex, "prepare-upload JSON happens after source cleanup");
+  assert.ok(uploadIndex > prepareIndex, "signed upload happens only after prepare-upload");
+  assert.ok(runtimeUploadedIndex > uploadIndex, "worker tracks successful runtime upload");
+  assert.ok(reportUploadedIndex > runtimeUploadedIndex, "worker tracks successful report upload");
+  assert.ok(rollbackPayloadIndex > catchSourceDeleteIndex, "worker builds rollback after source cleanup");
+  assert.ok(
+    catchSourceDeleteIndex > -1 && catchSourceDeleteIndex < notifyFailIndex,
+    "failure notification must happen after source cleanup"
+  );
+  assert.match(localWorker, /runtimeStoragePath: runtimeUploaded \? prepared\.runtimeStoragePath : undefined/);
+  assert.match(localWorker, /reportStoragePath: reportUploaded \? prepared\.reportStoragePath : undefined/);
+  assert.match(localWorker, /finally\s*{[\s\S]*rmSync\(workspace, \{ recursive: true, force: true \}\)/);
+  assert.doesNotMatch(localWorker, /sourceStoragePath|masterUsdzStoragePath|rawUsdzStoragePath/);
+});
+
+test("fail route performs token-scoped runtime rollback only", () => {
+  assert.match(usdzFailRoute, /parseRollbackInput/);
+  assert.match(usdzFailRoute, /rollbackUsdzRuntimeSignedUpload/);
+  assert.match(usdzFailRoute, /assertUsdzRuntimeJobClaimsMatchRoute/);
+  assert.doesNotMatch(usdzFailRoute, /sourceStoragePath|masterUsdzStoragePath|rawUsdzStoragePath|candidateStoragePath/);
+});
+
 test("worker refuses to store source and reports geometry honestly", () => {
   assert.match(worker, /geometry_optimization[^\n]*=[^\n]*"skipped"/);
+  assert.match(worker, /Blender indisponible/);
+  assert.match(worker, /Triangle budget depasse sans optimisation Blender reussie/);
   assert.match(worker, /guard_output_path/);
+  assert.match(worker, /optimized_root = root_layer\.parent/);
+  assert.match(worker, /validate_packaging_root\(root_layer, extracted\)/);
+  assert.match(worker, /UsdUtils\.ComputeAllDependencies/);
   assert.match(worker, /shutil\.rmtree\(workspace/);
+  assert.match(cli, /light:\s*10 \* 1024 \* 1024/);
+  assert.match(cli, /emergency:\s*Math\.floor\(5\.5 \* 1024 \* 1024\)/);
+  assert.match(cli, /VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS/);
+  assert.match(cli, /VISTAIRE_USDZ_PYTHON/);
+  assert.match(cli, /VISTAIRE_USDZ_BLENDER/);
+  assert.match(cli, /origin .*non autorisee|Origin .*not allowed/i);
+  assert.match(cli, /triangleCountAfter < triangleCountBefore/);
   // CLI never uploads anywhere.
   assert.doesNotMatch(cli, /supabase/i);
   assert.doesNotMatch(cli, /\.upload\(/);
+});
+
+test("worker CLI refuses an origin outside VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "scripts/owner/optimize-restaurant-usdz.mjs",
+      "--origin",
+      "https://evil.example",
+      "--source",
+      "missing.usdz",
+      "--output",
+      "runtime.usdz",
+      "--report",
+      "report.json"
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS: "https://www.vistaire.ca"
+      },
+      encoding: "utf8"
+    }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Origin worker USDZ non autorisee/);
+  assert.doesNotMatch(result.stderr, /Source USDZ introuvable/);
 });

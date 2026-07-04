@@ -119,7 +119,11 @@ export async function DELETE(
     dishSlug: typeof result.record.slug === "string" ? result.record.slug : undefined
   });
 
-  return NextResponse.json({ ok: true, dish: result.record });
+  return NextResponse.json({
+    ok: true,
+    dish: result.record,
+    mediaCleanup: (result.record as { mediaCleanup?: unknown }).mediaCleanup
+  });
 }
 
 export async function PATCH(

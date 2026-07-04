@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -17,7 +18,7 @@ import {
   type OwnerDishModelUploadQueueState
 } from "@/lib/owner/ownerDishModelUploadQueue";
 
-export type UsdzOptimizationProfileOption = "premium" | "balanced" | "light";
+export type UsdzOptimizationProfileOption = "premium" | "balanced" | "light" | "emergency";
 
 type OwnerDishModelUploaderProps = {
   restaurantId: string;
@@ -31,6 +32,12 @@ type OwnerDishModelUploaderProps = {
   initialArUsdzBytes?: number;
   initialUsdzRuntimeStatus?: string;
   initialUsdzOptimizationProfile?: string;
+  initialUsdzGeometryOptimization?: string;
+  initialUsdzTriangleCountBefore?: number;
+  initialUsdzTriangleCountAfter?: number;
+  initialUsdzGeometryReductionPercent?: number;
+  initialUsdzOptimizationAttemptCount?: number;
+  initialUsdzChangedTextures?: number;
   initialUsdzSourceBytes?: number;
   initialUsdzSourceOriginalName?: string;
   initialQuickLookQaStatus?: string;
@@ -61,10 +68,29 @@ type UsdzRuntimePayload = {
   reductionPercent?: number;
   profile?: string;
   geometryOptimization?: string;
+  triangleCountBefore?: number;
+  triangleCountAfter?: number;
+  geometryReductionPercent?: number;
+  attemptCount?: number;
+  textureCount?: number;
+  changedTextures?: number;
   quickLookQaStatus?: string;
   warnings?: string[];
   fails?: string[];
   job?: { id?: string };
+};
+
+type UsdzRuntimeStartPayload = {
+  ok?: boolean;
+  error?: string;
+  jobId?: string;
+  jobToken?: string;
+  profile?: string;
+  endpoints?: {
+    prepareUpload?: string;
+    complete?: string;
+    fail?: string;
+  };
 };
 
 type DeletePayload = {
@@ -76,13 +102,17 @@ type DeletePayload = {
 };
 
 const PROFILE_OPTIONS: { value: UsdzOptimizationProfileOption; label: string }[] = [
-  { value: "premium", label: "Premium (qualite max)" },
-  { value: "balanced", label: "Balanced (defaut)" },
-  { value: "light", label: "Light (fallback leger)" }
+  { value: "premium", label: "Premium (16 MB max)" },
+  { value: "balanced", label: "Balanced (12 MB max)" },
+  { value: "light", label: "Light mobile safe (10 MB max)" },
+  { value: "emergency", label: "Emergency 5.5 MB (fallback agressif)" }
 ];
 
+const LOCAL_USDZ_WORKER_URL =
+  process.env.NEXT_PUBLIC_USDZ_WORKER_URL || "http://127.0.0.1:8787";
+
 function isProfileOption(value: string): value is UsdzOptimizationProfileOption {
-  return value === "premium" || value === "balanced" || value === "light";
+  return value === "premium" || value === "balanced" || value === "light" || value === "emergency";
 }
 
 function reductionPercent(sourceBytes: number, runtimeBytes: number): number {
@@ -195,6 +225,12 @@ export function OwnerDishModelUploader({
   initialArUsdzUrl = "",
   initialArUsdzBytes = 0,
   initialUsdzOptimizationProfile = "balanced",
+  initialUsdzGeometryOptimization = "",
+  initialUsdzTriangleCountBefore = 0,
+  initialUsdzTriangleCountAfter = 0,
+  initialUsdzGeometryReductionPercent = 0,
+  initialUsdzOptimizationAttemptCount = 0,
+  initialUsdzChangedTextures = 0,
   initialUsdzSourceBytes = 0,
   initialUsdzSourceOriginalName = "",
   initialQuickLookQaStatus = ""
@@ -218,6 +254,24 @@ export function OwnerDishModelUploader({
   const [profile, setProfile] = useState<UsdzOptimizationProfileOption>(
     isProfileOption(initialUsdzOptimizationProfile) ? initialUsdzOptimizationProfile : "balanced"
   );
+  const [workerStatus, setWorkerStatus] = useState<"checking" | "available" | "missing">(
+    "checking"
+  );
+  const [geometryOptimization, setGeometryOptimization] = useState(
+    initialUsdzGeometryOptimization
+  );
+  const [triangleCountBefore, setTriangleCountBefore] = useState(
+    initialUsdzTriangleCountBefore
+  );
+  const [triangleCountAfter, setTriangleCountAfter] = useState(
+    initialUsdzTriangleCountAfter
+  );
+  const [geometryReduction, setGeometryReduction] = useState(
+    initialUsdzGeometryReductionPercent
+  );
+  const [attemptCount, setAttemptCount] = useState(initialUsdzOptimizationAttemptCount);
+  const [changedTextures, setChangedTextures] = useState(initialUsdzChangedTextures);
+  const [lastWarnings, setLastWarnings] = useState<string[]>([]);
 
   const [localQueueState, setLocalQueueState] = useState<OwnerDishModelUploadQueueState>("idle");
   const [activeUpload, setActiveUpload] = useState<"" | "viewer-glb" | "usdz-runtime">("");
@@ -236,6 +290,16 @@ export function OwnerDishModelUploader({
   const hasViewer = Boolean(webModel3dUrl);
   const hasUsdz = Boolean(arUsdzUrl);
   const savings = reductionPercent(usdzSourceBytes, arUsdzBytes);
+  const workerStatusLabel =
+    workerStatus === "available"
+      ? "Worker local detecte"
+      : workerStatus === "checking"
+        ? "Detection du worker local..."
+        : "Worker local manquant";
+  const workerHint =
+    workerStatus === "available"
+      ? "Le master USDZ sera envoye au worker local, pas a Vercel."
+      : "Lance npm run owner:usdz-worker puis reessayez.";
 
   const statusLabel = (() => {
     if (isUploadQueued) return "En file...";
@@ -248,6 +312,25 @@ export function OwnerDishModelUploader({
     if (hasUsdz) return "USDZ runtime pret, GLB viewer manquant";
     return "Aucun modele";
   })();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 1500);
+    fetch(`${LOCAL_USDZ_WORKER_URL}/health`, {
+      method: "GET",
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as { ok?: boolean };
+        setWorkerStatus(response.ok && payload.ok ? "available" : "missing");
+      })
+      .catch(() => setWorkerStatus("missing"))
+      .finally(() => window.clearTimeout(timer));
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, []);
 
   async function runViewerUpload(file: File) {
     setError("");
@@ -271,16 +354,48 @@ export function OwnerDishModelUploader({
   async function runUsdzUpload(file: File) {
     setError("");
     setMessage("");
+    if (workerStatus !== "available") {
+      throw new Error("Worker local manquant. Lance npm run owner:usdz-worker.");
+    }
+    const basePath = `/api/owner/restaurants/${encodeURIComponent(restaurantId)}/dishes/${encodeURIComponent(dishId)}/model/usdz-runtime`;
+    const startResponse = await fetch(`${basePath}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originalName: file.name,
+        sourceBytes: file.size,
+        profile
+      })
+    });
+    const startPayload = (await startResponse.json().catch(() => ({}))) as UsdzRuntimeStartPayload;
+    if (
+      !startResponse.ok ||
+      !startPayload.ok ||
+      !startPayload.jobId ||
+      !startPayload.jobToken ||
+      !startPayload.endpoints?.prepareUpload ||
+      !startPayload.endpoints.complete ||
+      !startPayload.endpoints.fail
+    ) {
+      throw new Error(startPayload.error || "Initialisation USDZ worker impossible.");
+    }
+
     const formData = new FormData();
     formData.set("file", file);
-    formData.set("profile", profile);
-    const response = await fetch(
-      `/api/owner/restaurants/${encodeURIComponent(restaurantId)}/dishes/${encodeURIComponent(dishId)}/model/usdz-runtime`,
-      { method: "POST", body: formData }
-    );
+    formData.set("profile", startPayload.profile || profile);
+    formData.set("jobId", startPayload.jobId);
+    formData.set("jobToken", startPayload.jobToken);
+    formData.set("apiBaseUrl", window.location.origin);
+    formData.set("prepareUploadEndpoint", startPayload.endpoints.prepareUpload);
+    formData.set("completeEndpoint", startPayload.endpoints.complete);
+    formData.set("failEndpoint", startPayload.endpoints.fail);
+    const response = await fetch(`${LOCAL_USDZ_WORKER_URL}/optimize-usdz`, {
+      method: "POST",
+      body: formData
+    });
     const payload = (await response.json().catch(() => ({}))) as UsdzRuntimePayload;
     if (!response.ok || !payload.ok || !payload.arUsdzUrl) {
-      throw new Error(payload.error || "Optimisation USDZ impossible. Aucun fichier stocke.");
+      throw new Error(payload.error || "Optimisation USDZ locale impossible. Aucun fichier stocke.");
     }
     setArUsdzUrl(payload.arUsdzUrl ?? "");
     setArUsdzBytes(payload.usdzRuntimeBytes ?? 0);
@@ -288,6 +403,13 @@ export function OwnerDishModelUploader({
     setUsdzSourceOriginalName(file.name);
     setQuickLookQaStatus(payload.quickLookQaStatus ?? "not-tested");
     if (payload.profile && isProfileOption(payload.profile)) setProfile(payload.profile);
+    setGeometryOptimization(payload.geometryOptimization ?? "");
+    setTriangleCountBefore(payload.triangleCountBefore ?? 0);
+    setTriangleCountAfter(payload.triangleCountAfter ?? 0);
+    setGeometryReduction(payload.geometryReductionPercent ?? 0);
+    setAttemptCount(payload.attemptCount ?? 0);
+    setChangedTextures(payload.changedTextures ?? 0);
+    setLastWarnings(payload.warnings ?? []);
     setShowDeleteConfirm(false);
     router.refresh();
   }
@@ -473,6 +595,9 @@ export function OwnerDishModelUploader({
                 : "Uploader USDZ master"}
           </button>
           <span className={styles.modelUploadHint}>
+            {workerStatusLabel}. {workerHint}
+          </span>
+          <span className={styles.modelUploadHint}>
             USDZ source haute qualite traite temporairement. Vistaire ne stocke que
             l’USDZ optimise final. Le master n’est jamais stocke.
           </span>
@@ -488,6 +613,27 @@ export function OwnerDishModelUploader({
               <span className={`${styles.badge} ${styles.badgeWarn}`}>
                 Quick Look QA {quickLookQaStatus || "not-tested"}
               </span>
+              {geometryOptimization ? (
+                <span className={`${styles.badge} ${styles.badgeWarn}`}>
+                  Geometry {geometryOptimization}
+                </span>
+              ) : null}
+              {triangleCountBefore > 0 || triangleCountAfter > 0 ? (
+                <span className={styles.cellSub}>
+                  Triangles {triangleCountBefore.toLocaleString("fr-CA")} -&gt;{" "}
+                  {triangleCountAfter.toLocaleString("fr-CA")}
+                  {geometryReduction > 0 ? ` · -${Math.round(geometryReduction)}%` : ""}
+                </span>
+              ) : null}
+              {attemptCount > 0 ? (
+                <span className={styles.cellSub}>Attempts: {attemptCount}</span>
+              ) : null}
+              {changedTextures > 0 ? (
+                <span className={styles.cellSub}>Textures optimisees: {changedTextures}</span>
+              ) : null}
+              {lastWarnings.length > 0 ? (
+                <span className={styles.cellSub}>Warnings: {lastWarnings.slice(0, 2).join(" · ")}</span>
+              ) : null}
               {usdzSourceOriginalName ? (
                 <span className={styles.cellSub}>Master: {usdzSourceOriginalName}</span>
               ) : null}

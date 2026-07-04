@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -29,7 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
 try:
-    from pxr import Sdf, Usd, UsdShade, UsdUtils  # type: ignore
+    from pxr import Sdf, Usd, UsdGeom, UsdShade, UsdUtils  # type: ignore
 except Exception as exc:  # pragma: no cover - environment guard
     print(
         json.dumps(
@@ -55,10 +57,43 @@ except Exception as exc:  # pragma: no cover - environment guard
     sys.exit(3)
 
 
-PROFILES: dict[str, dict[str, int]] = {
-    "premium": {"baseColorMax": 2048, "normalMax": 1536, "ormMax": 1536, "jpegQuality": 90},
-    "balanced": {"baseColorMax": 1536, "normalMax": 1280, "ormMax": 1024, "jpegQuality": 88},
-    "light": {"baseColorMax": 1024, "normalMax": 1024, "ormMax": 1024, "jpegQuality": 84},
+PROFILES: dict[str, dict[str, float | int]] = {
+    "premium": {
+        "baseColorMax": 2048,
+        "normalMax": 1536,
+        "ormMax": 1536,
+        "jpegQuality": 90,
+        "targetTriangles": 300_000,
+        "decimateRatio": 0.78,
+        "mergeDistance": 0.00003,
+    },
+    "balanced": {
+        "baseColorMax": 1536,
+        "normalMax": 1280,
+        "ormMax": 1024,
+        "jpegQuality": 88,
+        "targetTriangles": 180_000,
+        "decimateRatio": 0.66,
+        "mergeDistance": 0.00005,
+    },
+    "light": {
+        "baseColorMax": 1024,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "jpegQuality": 84,
+        "targetTriangles": 100_000,
+        "decimateRatio": 0.5,
+        "mergeDistance": 0.00008,
+    },
+    "emergency": {
+        "baseColorMax": 768,
+        "normalMax": 768,
+        "ormMax": 768,
+        "jpegQuality": 76,
+        "targetTriangles": 70_000,
+        "decimateRatio": 0.38,
+        "mergeDistance": 0.00010,
+    },
 }
 
 DATA_ROLES = {"normal", "roughness", "metallic", "occlusion"}
@@ -75,6 +110,7 @@ class TextureInfo:
     final_bytes: int = 0
     final_size: tuple[int, int] | None = None
     changed: bool = False
+    final_path: Path | None = None
 
 
 @dataclass
@@ -84,14 +120,29 @@ class Report:
     runtime_bytes: int = 0
     geometry_optimization: str = "skipped"
     geometry_optimization_reason: str = (
-        "Reliable USD mesh decimation is not available in this worker; geometry is preserved."
+        "Blender geometry pass was not required or not available; geometry is preserved."
     )
+    blender_version: str | None = None
+    triangle_count_before: int = 0
+    triangle_count_after: int = 0
+    geometry_reduction_percent: float = 0.0
+    target_triangles: int = 0
+    removed_objects: list[str] = field(default_factory=list)
+    optimized_objects: list[dict] = field(default_factory=list)
     layer_optimization: str = "skipped"
+    root_layer_entry: str = ""
+    internal_files: list[dict] = field(default_factory=list)
+    largest_entries: list[dict] = field(default_factory=list)
+    texture_bytes_before: int = 0
+    texture_bytes_after: int = 0
+    estimated_geometry_bytes: int = 0
     textures: list[dict] = field(default_factory=list)
     texture_count: int = 0
     material_count: int = 0
     changed_textures: int = 0
     optimization_applied: bool = False
+    source_stored: bool = False
+    cleanup: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     fails: list[str] = field(default_factory=list)
 
@@ -116,12 +167,27 @@ def report_to_dict(report: Report) -> dict:
         ),
         "geometryOptimization": report.geometry_optimization,
         "geometryOptimizationReason": report.geometry_optimization_reason,
+        "blenderVersion": report.blender_version,
+        "triangleCountBefore": report.triangle_count_before,
+        "triangleCountAfter": report.triangle_count_after,
+        "geometryReductionPercent": report.geometry_reduction_percent,
+        "targetTriangles": report.target_triangles,
+        "removedObjects": report.removed_objects,
+        "optimizedObjects": report.optimized_objects,
         "layerOptimization": report.layer_optimization,
+        "rootLayerEntry": report.root_layer_entry,
+        "internalFiles": report.internal_files,
+        "largestEntries": report.largest_entries,
+        "textureBytesBefore": report.texture_bytes_before,
+        "textureBytesAfter": report.texture_bytes_after,
+        "estimatedGeometryBytes": report.estimated_geometry_bytes,
         "textureCount": report.texture_count,
         "materialCount": report.material_count,
         "changedTextures": report.changed_textures,
         "optimizationApplied": report.optimization_applied,
         "textures": report.textures,
+        "sourceStored": report.source_stored,
+        "cleanup": report.cleanup,
         "warnings": report.warnings,
         "fails": report.fails,
     }
@@ -134,6 +200,178 @@ def guard_output_path(output: Path) -> None:
         raise ValueError(f"Refus d'ecrire un runtime USDZ sous public/models: {resolved}")
     if ".git" in parts:
         raise ValueError(f"Refus d'ecrire un runtime USDZ dans un arbre git: {resolved}")
+
+
+def env_int(name: str, fallback: int) -> int:
+    raw = os.environ.get(name)
+    if not raw:
+        return fallback
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return fallback
+    return parsed if parsed > 0 else fallback
+
+
+def apply_profile_env_overrides(profile_slug: str, profile: dict[str, float | int]) -> dict[str, float | int]:
+    prefix = f"VISTAIRE_USDZ_{profile_slug.upper()}"
+    return {
+        **profile,
+        "targetTriangles": env_int(
+            f"{prefix}_TARGET_TRIANGLES", int(profile["targetTriangles"])
+        ),
+    }
+
+
+def analyze_archive_entries(source: Path, archive_names: list[str]) -> tuple[list[dict], list[dict], int]:
+    entries: list[dict] = []
+    texture_bytes = 0
+    with zipfile.ZipFile(source) as archive:
+        info_by_name = {entry.filename: entry for entry in archive.infolist()}
+    for name in archive_names:
+        if name.endswith("/"):
+            continue
+        info = info_by_name.get(name)
+        if info is None:
+            continue
+        suffix = PurePosixPath(name).suffix.lower()
+        size = int(info.file_size)
+        if suffix in TEXTURE_SUFFIXES:
+            texture_bytes += size
+        entries.append({"path": name, "bytes": size, "suffix": suffix})
+    largest = sorted(entries, key=lambda item: int(item["bytes"]), reverse=True)[:12]
+    return entries, largest, texture_bytes
+
+
+def mesh_triangle_count(mesh: UsdGeom.Mesh) -> int:
+    counts = mesh.GetFaceVertexCountsAttr().Get() or []
+    total = 0
+    for count in counts:
+        if count >= 3:
+            total += max(1, int(count) - 2)
+    return total
+
+
+def count_stage_triangles(stage: Usd.Stage) -> int:
+    total = 0
+    for prim in stage.Traverse():
+        if prim.IsA(UsdGeom.Mesh):
+            total += mesh_triangle_count(UsdGeom.Mesh(prim))
+    return total
+
+
+def resolve_blender() -> str | None:
+    configured = os.environ.get("VISTAIRE_USDZ_BLENDER")
+    if configured:
+        return configured
+    return shutil.which("blender")
+
+
+def ensure_path_under_extracted(path: Path, extracted: Path, label: str) -> None:
+    try:
+        path.resolve().relative_to(extracted.resolve())
+    except ValueError as exc:
+        raise RuntimeError(f"{label} hors du package extrait: {path}") from exc
+
+
+def unresolved_asset_dependencies(root_layer: Path) -> list[str]:
+    try:
+        _, _, unresolved = UsdUtils.ComputeAllDependencies(str(root_layer))
+    except Exception as exc:
+        return [f"validation dependencies impossible: {exc}"]
+    return [str(item) for item in unresolved]
+
+
+def validate_packaging_root(root_layer: Path, extracted: Path) -> list[str]:
+    ensure_path_under_extracted(root_layer, extracted, "Root USDZ runtime")
+    return unresolved_asset_dependencies(root_layer)
+
+
+def run_blender_geometry_pass(
+    root_layer: Path, extracted: Path, workspace: Path, profile: dict[str, float | int], report: Report
+) -> Path:
+    blender = resolve_blender()
+    if not blender:
+        report.geometry_optimization = "skipped"
+        report.geometry_optimization_reason = "Blender indisponible; geometryOptimization ne peut pas etre done."
+        report.warnings.append("Blender headless indisponible; geometrie conservee.")
+        return root_layer
+
+    script = Path(__file__).with_name("blender_usdz_geometry_optimizer.py")
+    optimized_root = root_layer.parent / "__vistaire_geometry_optimized.usdc"
+    metrics_path = workspace / "geometry-metrics.json"
+    command = [
+        blender,
+        "--background",
+        "--python",
+        str(script),
+        "--",
+        "--input",
+        str(root_layer),
+        "--output",
+        str(optimized_root),
+        "--metrics",
+        str(metrics_path),
+        "--target-triangles",
+        str(int(profile["targetTriangles"])),
+        "--decimate-ratio",
+        str(float(profile["decimateRatio"])),
+        "--merge-distance",
+        str(float(profile["mergeDistance"])),
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=env_int("VISTAIRE_USDZ_BLENDER_TIMEOUT_SECONDS", 240),
+        )
+    except Exception as exc:
+        report.geometry_optimization = "failed"
+        report.geometry_optimization_reason = f"Blender geometry pass impossible: {exc}"
+        report.warnings.append(report.geometry_optimization_reason)
+        return root_layer
+
+    if completed.returncode != 0 or not optimized_root.exists() or not metrics_path.exists():
+        detail = (completed.stderr or completed.stdout or "").strip().splitlines()[-3:]
+        report.geometry_optimization = "failed"
+        report.geometry_optimization_reason = "Blender geometry pass echoue."
+        if detail:
+            report.warnings.append("Blender geometry pass echoue: " + " / ".join(detail))
+        else:
+            report.warnings.append("Blender geometry pass echoue sans detail.")
+        return root_layer
+
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    before = int(metrics.get("trianglesBefore", report.triangle_count_before) or 0)
+    after = int(metrics.get("trianglesAfter", before) or 0)
+    if before > 0 and after > 0 and after < before:
+        try:
+            ensure_path_under_extracted(optimized_root, extracted, "Root USDZ optimise")
+        except RuntimeError as exc:
+            report.geometry_optimization = "failed"
+            report.geometry_optimization_reason = str(exc)
+            report.warnings.append(report.geometry_optimization_reason)
+            return root_layer
+        report.geometry_optimization = "done"
+        report.geometry_optimization_reason = "Blender headless decimation/cleanup applied."
+        report.triangle_count_before = before
+        report.triangle_count_after = after
+        report.geometry_reduction_percent = round((1 - after / before) * 100, 2)
+        report.blender_version = metrics.get("blenderVersion")
+        report.removed_objects = list(metrics.get("removedObjects") or [])
+        report.optimized_objects = list(metrics.get("optimizedObjects") or [])
+        return optimized_root
+
+    report.geometry_optimization = "skipped"
+    report.geometry_optimization_reason = "Blender ran but did not reduce triangle count."
+    report.warnings.append(report.geometry_optimization_reason)
+    return root_layer
+
+
+def relative_asset_path(path: Path, extracted: Path) -> str:
+    return path.resolve().relative_to(extracted.resolve()).as_posix()
 
 
 def classify_textures(stage: Usd.Stage, extracted: Path) -> dict[str, str]:
@@ -178,7 +416,29 @@ def classify_textures(stage: Usd.Stage, extracted: Path) -> dict[str, str]:
     return roles
 
 
-def resize_texture(info: TextureInfo, profile: dict[str, int]) -> None:
+def rewrite_texture_asset_references(
+    stage: Usd.Stage, replacements: dict[str, str]
+) -> None:
+    if not replacements:
+        return
+    by_name = {PurePosixPath(old).name: new for old, new in replacements.items()}
+    for prim in stage.Traverse():
+        shader = UsdShade.Shader(prim)
+        if not shader:
+            continue
+        file_input = shader.GetInput("file")
+        if not file_input:
+            continue
+        asset = file_input.Get()
+        if asset is None:
+            continue
+        raw = getattr(asset, "path", str(asset))
+        replacement = replacements.get(str(raw)) or by_name.get(PurePosixPath(str(raw)).name)
+        if replacement:
+            file_input.Set(Sdf.AssetPath(replacement))
+
+
+def resize_texture(info: TextureInfo, profile: dict[str, float | int], extracted: Path) -> None:
     suffix = info.path.suffix.lower()
     if suffix not in TEXTURE_SUFFIXES:
         return
@@ -187,13 +447,13 @@ def resize_texture(info: TextureInfo, profile: dict[str, int]) -> None:
             image.load()
             info.original_size = image.size
             if info.role == "baseColor" or info.role == "emissive":
-                max_dim = profile["baseColorMax"]
+                max_dim = int(profile["baseColorMax"])
             elif info.role == "normal":
-                max_dim = profile["normalMax"]
+                max_dim = int(profile["normalMax"])
             elif info.role in DATA_ROLES:
-                max_dim = profile["ormMax"]
+                max_dim = int(profile["ormMax"])
             else:
-                max_dim = profile["baseColorMax"]
+                max_dim = int(profile["baseColorMax"])
 
             width, height = image.size
             needs_resize = max(width, height) > max_dim
@@ -203,30 +463,35 @@ def resize_texture(info: TextureInfo, profile: dict[str, int]) -> None:
                 new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
                 working = image.resize(new_size, Image.LANCZOS)
 
-            if not needs_resize:
+            should_convert_to_jpeg = info.role in {"baseColor", "emissive"} and suffix not in (
+                ".jpg",
+                ".jpeg",
+            )
+            if not needs_resize and not should_convert_to_jpeg:
                 # Leave untouched to avoid recompressing data maps and shifting values.
                 info.final_size = image.size
                 info.final_bytes = info.original_bytes
                 return
 
             is_data_map = info.role in DATA_ROLES
-            if suffix in (".jpg", ".jpeg") and not is_data_map:
+            output_path = info.path
+            if should_convert_to_jpeg:
+                output_path = info.path.with_suffix(".jpg")
+            if output_path.suffix.lower() in (".jpg", ".jpeg") and not is_data_map:
                 rgb = working.convert("RGB")
-                rgb.save(info.path, format="JPEG", quality=profile["jpegQuality"], optimize=True)
+                rgb.save(output_path, format="JPEG", quality=int(profile["jpegQuality"]), optimize=True)
             elif suffix in (".jpg", ".jpeg") and is_data_map:
                 # High quality to preserve linear data values.
-                working.convert("RGB").save(info.path, format="JPEG", quality=96, optimize=True)
-            elif suffix == ".png":
-                working.save(info.path, format="PNG", optimize=True)
+                working.convert("RGB").save(output_path, format="JPEG", quality=96, optimize=True)
+            elif output_path.suffix.lower() == ".png":
+                working.save(output_path, format="PNG", optimize=True)
             elif suffix == ".webp":
-                working.save(
-                    info.path,
-                    format="WEBP",
-                    quality=95 if is_data_map else profile["jpegQuality"],
-                    method=6,
-                )
+                png_path = info.path.with_suffix(".png")
+                working.save(png_path, format="PNG", optimize=True)
+                output_path = png_path
             info.final_size = working.size
-            info.final_bytes = info.path.stat().st_size
+            info.final_path = output_path if output_path != info.path else None
+            info.final_bytes = output_path.stat().st_size
             info.changed = True
     except Exception as exc:  # pragma: no cover - defensive
         info.final_size = info.original_size
@@ -336,9 +601,10 @@ def find_root_layer(extracted: Path, archive_entry: PurePosixPath) -> Path:
 
 
 def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -> None:
-    profile = PROFILES.get(profile_slug)
-    if profile is None:
+    raw_profile = PROFILES.get(profile_slug)
+    if raw_profile is None:
         fail(None, f"Profil inconnu: {profile_slug}", "profile")
+    profile = apply_profile_env_overrides(profile_slug, raw_profile)
 
     source = source.resolve()
     output = output.resolve()
@@ -353,6 +619,7 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         fail(None, "Source USDZ vide.", "source")
 
     report = Report(profile=profile_slug, source_bytes=source_bytes)
+    report.target_triangles = int(profile["targetTriangles"])
 
     try:
         with zipfile.ZipFile(source) as archive:
@@ -360,10 +627,17 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
             if not archive_names:
                 fail(report, "Package USDZ source vide.", "zip")
             root_layer_entry = find_root_layer_entry(archive_names)
+            entries, largest_entries, texture_bytes = analyze_archive_entries(source, archive_names)
     except zipfile.BadZipFile:
         fail(report, "Source n'est pas un package USDZ/ZIP valide.", "zip")
     except RuntimeError as exc:
         fail(report, str(exc), "zip")
+
+    report.root_layer_entry = root_layer_entry.as_posix()
+    report.internal_files = entries
+    report.largest_entries = largest_entries
+    report.texture_bytes_before = texture_bytes
+    report.estimated_geometry_bytes = max(0, source_bytes - texture_bytes)
 
     workspace = Path(tempfile.mkdtemp(prefix="vistaire-usdz-"))
     try:
@@ -377,6 +651,34 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         if stage is None:
             fail(report, f"Stage USD illisible: {root_layer}", "open")
         ensure_default_prim(stage)
+        report.triangle_count_before = count_stage_triangles(stage)
+        report.triangle_count_after = report.triangle_count_before
+
+        if report.triangle_count_before > int(profile["targetTriangles"]):
+            root_layer = run_blender_geometry_pass(root_layer, extracted, workspace, profile, report)
+            stage = Usd.Stage.Open(str(root_layer))
+            if stage is None:
+                fail(report, f"Stage USD illisible apres Blender: {root_layer}", "open-blender")
+            ensure_default_prim(stage)
+            if report.geometry_optimization != "done":
+                report.triangle_count_after = count_stage_triangles(stage)
+        else:
+            report.geometry_optimization = "skipped"
+            report.geometry_optimization_reason = "Triangle count already within profile target."
+
+        if (
+            report.target_triangles > 0
+            and report.triangle_count_after > report.target_triangles
+            and report.geometry_optimization != "done"
+        ):
+            report.fails.append(
+                "Triangle budget depasse sans optimisation Blender reussie "
+                f"({report.triangle_count_after} > {report.target_triangles})."
+            )
+        elif report.target_triangles > 0 and report.triangle_count_after > report.target_triangles:
+            report.fails.append(
+                f"Triangle budget depasse apres optimisation ({report.triangle_count_after} > {report.target_triangles})."
+            )
 
         roles = classify_textures(stage, extracted)
         inspect_materials(stage, report)
@@ -388,13 +690,20 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
         if report.texture_count == 0:
             report.warnings.append("Aucune texture detectee; runtime ~ repack seul.")
 
+        replacements: dict[str, str] = {}
         for tex_path in sorted(texture_paths):
             info = TextureInfo(path=tex_path)
             info.original_bytes = tex_path.stat().st_size
             info.role = roles.get(tex_path.name, "unknown")
-            resize_texture(info, profile)
+            resize_texture(info, profile, extracted)
             if info.changed:
                 report.changed_textures += 1
+            final_path = info.final_path or tex_path
+            if info.final_path:
+                replacements[relative_asset_path(tex_path, extracted)] = relative_asset_path(
+                    final_path, extracted
+                )
+                replacements[tex_path.name] = relative_asset_path(final_path, extracted)
             report.textures.append(
                 {
                     "name": tex_path.name,
@@ -403,14 +712,29 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
                     "originalSize": list(info.original_size) if info.original_size else None,
                     "finalBytes": info.final_bytes,
                     "finalSize": list(info.final_size) if info.final_size else None,
+                    "finalName": final_path.name,
                     "changed": info.changed,
                 }
             )
+        rewrite_texture_asset_references(stage, replacements)
+        report.texture_bytes_after = sum(
+            (info.get("finalBytes") or 0) for info in report.textures
+        )
 
-        report.optimization_applied = report.changed_textures > 0
+        report.optimization_applied = (
+            report.changed_textures > 0 or report.geometry_optimization == "done"
+        )
 
         # Save the stage (in case default prim was added) and repackage.
         stage.GetRootLayer().Save()
+        unresolved_assets = validate_packaging_root(root_layer, extracted)
+        if unresolved_assets:
+            fail(
+                report,
+                "References USDZ runtime non resolues avant packaging: "
+                + ", ".join(unresolved_assets[:10]),
+                "package-dependencies",
+            )
         output.parent.mkdir(parents=True, exist_ok=True)
         if output.exists():
             output.unlink()
@@ -422,6 +746,12 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str) -
             fail(report, f"Runtime USDZ illisible apres packaging: {output}", "verify")
 
         report.runtime_bytes = output.stat().st_size
+        report.cleanup = {
+            "sourceStored": False,
+            "extractedWorkspaceRemoved": True,
+            "candidateWorkspace": "transient",
+            "cleanupMode": "finally",
+        }
 
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report_to_dict(report), indent=2), encoding="utf-8")

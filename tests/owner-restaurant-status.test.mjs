@@ -87,6 +87,9 @@ function deleteClient({
   rpcUnavailable = false,
   onRpc = () => {},
   deleteResults = {},
+  dishRows = [],
+  dishRowsError = null,
+  onDishMediaList = () => {},
   verifyRestaurantDeleted = true,
   verifyError = null,
   onDelete = () => {},
@@ -129,6 +132,26 @@ function deleteClient({
                   data: null,
                   error: result.error ?? null,
                   count: result.count ?? null
+                };
+              }
+            };
+          }
+        };
+      }
+      if (table === "menu_dishes") {
+        return {
+          select(columns) {
+            assert.equal(columns, "id,metadata");
+            return {
+              eq(column, value) {
+                assert.equal(column, "restaurant_id");
+                assert.equal(value, RESTAURANT_ID);
+                onDishMediaList({ table, column, value });
+                return {
+                  async limit(count) {
+                    assert.equal(count, 1000);
+                    return { data: dishRows, error: dishRowsError };
+                  }
                 };
               }
             };
@@ -257,6 +280,7 @@ test("restores an archived restaurant to setup_needed", async () => {
 
 test("deletes a confirmed restaurant and reports linked Supabase cleanup counts", async () => {
   const rpcCalls = [];
+  const dishMediaLists = [];
   const result = await deleteRestaurantRecord(
     RESTAURANT_ID,
     { confirmation: "Bistro Test", deleteStorage: false },
@@ -280,6 +304,9 @@ test("deletes a confirmed restaurant and reports linked Supabase cleanup counts"
           },
           onRpc(call) {
             rpcCalls.push(call);
+          },
+          onDishMediaList(call) {
+            dishMediaLists.push(call);
           }
         })
       }
@@ -303,6 +330,197 @@ test("deletes a confirmed restaurant and reports linked Supabase cleanup counts"
       }
     }
   ]);
+  assert.deepEqual(dishMediaLists, []);
+});
+
+test("restaurant deleteStorage=false never removes dish media storage", async () => {
+  const storageCalls = [];
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: false },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          dishRows: [
+            {
+              metadata: {
+                photoStoragePath: `restaurants/${RESTAURANT_ID}/photos/originals/burger.webp`
+              }
+            }
+          ],
+          storage: {
+            from(bucket) {
+              return {
+                async list(prefix) {
+                  storageCalls.push({ action: "list", bucket, prefix });
+                  return { data: [], error: null };
+                },
+                async remove(paths) {
+                  storageCalls.push({ action: "remove", bucket, paths });
+                  return { data: [], error: null };
+                }
+              };
+            }
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.storage.attempted, false);
+  assert.equal(result.storage.dishMedia, undefined);
+  assert.deepEqual(storageCalls, []);
+});
+
+test("restaurant RPC failure never removes dish media storage", async () => {
+  const storageCalls = [];
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: true },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          dishRows: [
+            {
+              metadata: {
+                photoStoragePath: `restaurants/${RESTAURANT_ID}/photos/originals/nachos.webp`
+              }
+            }
+          ],
+          rpcError: {
+            code: "P0001",
+            message: "Impossible de supprimer les donnees liees dans menu_dishes."
+          },
+          storage: {
+            from(bucket) {
+              return {
+                async list(prefix) {
+                  storageCalls.push({ action: "list", bucket, prefix });
+                  return { data: [], error: null };
+                },
+                async remove(paths) {
+                  storageCalls.push({ action: "remove", bucket, paths });
+                  return { data: [], error: null };
+                }
+              };
+            }
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.restaurantDeleted, false);
+  assert.deepEqual(storageCalls, []);
+});
+
+test("restaurant RPC deleted with deleteStorage=true removes precollected dish media", async () => {
+  const storageCalls = [];
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: true },
+    {
+      env: {
+        VISTAIRE_MEDIA_BUCKET: "vistaire-media",
+        VISTAIRE_3D_CDN_BUCKET: "vistaire-3d"
+      },
+      admin: {
+        ok: true,
+        client: deleteClient({
+          dishRows: [
+            {
+              metadata: {
+                photoStoragePath: `restaurants/${RESTAURANT_ID}/photos/originals/burger.webp`,
+                webModel3dStoragePath: `restaurants/${RESTAURANT_ID}/models/web/burger.glb`
+              }
+            }
+          ],
+          storage: {
+            from(bucket) {
+              return {
+                async list(prefix) {
+                  storageCalls.push({ action: "list", bucket, prefix });
+                  return { data: [], error: null };
+                },
+                async remove(paths) {
+                  storageCalls.push({ action: "remove", bucket, paths });
+                  return { data: paths.map((name) => ({ name })), error: null };
+                }
+              };
+            }
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.storage.dishMedia.deletedFiles, 2);
+  assert.equal(
+    storageCalls.some(
+      (call) =>
+        call.action === "remove" &&
+        call.bucket === "vistaire-media" &&
+        call.paths.includes(`restaurants/${RESTAURANT_ID}/photos/originals/burger.webp`)
+    ),
+    true
+  );
+  assert.equal(
+    storageCalls.some(
+      (call) =>
+        call.action === "remove" &&
+        call.bucket === "vistaire-3d" &&
+        call.paths.includes(`restaurants/${RESTAURANT_ID}/models/web/burger.glb`)
+    ),
+    true
+  );
+});
+
+test("restaurant dish media cleanup warnings are reported after confirmed DB deletion", async () => {
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: true },
+    {
+      env: {
+        VISTAIRE_MEDIA_BUCKET: "vistaire-media",
+        VISTAIRE_3D_CDN_BUCKET: "vistaire-3d"
+      },
+      admin: {
+        ok: true,
+        client: deleteClient({
+          dishRows: [
+            {
+              metadata: {
+                photoStoragePath: `restaurants/${RESTAURANT_ID}/photos/originals/burger.webp`
+              }
+            }
+          ],
+          storage: {
+            from(bucket) {
+              return {
+                async list() {
+                  return { data: [], error: null };
+                },
+                async remove() {
+                  return { data: null, error: { message: `${bucket} unavailable` } };
+                }
+              };
+            }
+          }
+        })
+      }
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.restaurantDeleted, true);
+  assert.equal(result.storage.dishMedia.deletedFiles, 0);
+  assert.match(result.storage.dishMedia.warnings.join("\n"), /non supprime|unavailable/);
+  assert.match(result.storage.warnings.join("\n"), /non supprime|unavailable/);
 });
 
 test("restaurant delete requires exact confirmation and protects demo rows", async () => {

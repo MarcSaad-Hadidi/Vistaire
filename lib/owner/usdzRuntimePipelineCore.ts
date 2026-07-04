@@ -70,6 +70,12 @@ export type UsdzRuntimePipelineResult = {
   reductionPercent: number;
   profile: UsdzOptimizationProfile;
   geometryOptimization: string;
+  triangleCountBefore: number;
+  triangleCountAfter: number;
+  geometryReductionPercent: number;
+  attemptCount: number;
+  textureCount: number;
+  changedTextures: number;
   warnings: string[];
   fails: string[];
 };
@@ -82,6 +88,13 @@ type CliSummary = {
   runtimeSha256: string;
   optimizationApplied: boolean;
   geometryOptimization: string;
+  triangleCountBefore?: number;
+  triangleCountAfter?: number;
+  geometryReductionPercent?: number;
+  candidateAttempts?: unknown[];
+  attemptCount?: number;
+  textureCount?: number;
+  changedTextures?: number;
   reductionPercent: number;
   warnings: string[];
   fails: string[];
@@ -269,6 +282,15 @@ export async function runUsdzRuntimePipeline(
         profile: args.profile,
         warnings: summary.warnings,
         fails: summary.fails,
+        reductionPercent: summary.reductionPercent,
+        geometryOptimization: summary.geometryOptimization,
+        triangleCountBefore: summary.triangleCountBefore ?? 0,
+        triangleCountAfter: summary.triangleCountAfter ?? 0,
+        geometryReductionPercent: summary.geometryReductionPercent ?? 0,
+        textureCount: summary.textureCount ?? 0,
+        changedTextures: summary.changedTextures ?? 0,
+        candidateAttempts: summary.candidateAttempts ?? [],
+        attemptCount: summary.attemptCount ?? 0,
         source: {
           originalName: args.originalName,
           bytes: args.sourceBytes.byteLength,
@@ -379,6 +401,10 @@ export async function runUsdzRuntimePipeline(
           usdzRuntimeSha256: gate.runtimeSha256,
           reductionPercent: summary.reductionPercent,
           geometryOptimization: summary.geometryOptimization,
+          triangleCountBefore: summary.triangleCountBefore ?? 0,
+          triangleCountAfter: summary.triangleCountAfter ?? 0,
+          geometryReductionPercent: summary.geometryReductionPercent ?? 0,
+          attemptCount: summary.attemptCount ?? 0,
           optimizationProfile: args.profile,
           storageBucket: MODEL_BUCKET,
           conversionMethod: "owner-usdz-only-optimizer",
@@ -415,6 +441,12 @@ export async function runUsdzRuntimePipeline(
       reductionPercent: summary.reductionPercent,
       profile: args.profile,
       geometryOptimization: summary.geometryOptimization,
+      triangleCountBefore: summary.triangleCountBefore ?? 0,
+      triangleCountAfter: summary.triangleCountAfter ?? 0,
+      geometryReductionPercent: summary.geometryReductionPercent ?? 0,
+      attemptCount: summary.attemptCount ?? 0,
+      textureCount: summary.textureCount ?? 0,
+      changedTextures: summary.changedTextures ?? 0,
       warnings: summary.warnings,
       fails: summary.fails
     };

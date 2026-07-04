@@ -187,7 +187,7 @@ test("USDZ runtime optimizer uses the first archive USD layer instead of alphabe
 
     const sourceUsdEntries = zipCentralDirectoryEntryNames(source).filter((name) => /\.usd[ac]?$/i.test(name));
     assert.equal(sourceUsdEntries[0], "z_root.usda");
-    assert.equal([...sourceUsdEntries].sort()[0], "a_decoy.usda");
+    assert.equal([...sourceUsdEntries].sort()[0], "0/a_decoy.usda");
 
     const sourceText = usdTextBundle(source);
     assert.match(sourceText, /SelectedRoot/);

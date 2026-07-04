@@ -28,7 +28,7 @@ export const FORBIDDEN_SOURCE_STORAGE_FIELDS = [
   "failedCandidateUsdzStoragePath"
 ] as const;
 
-export type UsdzOptimizationProfile = "premium" | "balanced" | "light";
+export type UsdzOptimizationProfile = "premium" | "balanced" | "light" | "emergency";
 
 export type UsdzOptimizationProfileConfig = {
   slug: UsdzOptimizationProfile;
@@ -57,7 +57,7 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
     normalMax: 1536,
     ormMax: 1536,
     jpegQuality: 90,
-    targetMaxBytes: 12 * 1024 * 1024
+    targetMaxBytes: 16 * 1024 * 1024
   },
   balanced: {
     slug: "balanced",
@@ -66,7 +66,7 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
     normalMax: 1280,
     ormMax: 1024,
     jpegQuality: 88,
-    targetMaxBytes: 8 * 1024 * 1024
+    targetMaxBytes: 12 * 1024 * 1024
   },
   light: {
     slug: "light",
@@ -75,6 +75,15 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
     normalMax: 1024,
     ormMax: 1024,
     jpegQuality: 84,
+    targetMaxBytes: 10 * 1024 * 1024
+  },
+  emergency: {
+    slug: "emergency",
+    label: "Emergency",
+    baseColorMax: 768,
+    normalMax: 768,
+    ormMax: 768,
+    jpegQuality: 76,
     targetMaxBytes: 5.5 * 1024 * 1024
   }
 };
@@ -82,7 +91,7 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
 export const DEFAULT_USDZ_OPTIMIZATION_PROFILE: UsdzOptimizationProfile = "balanced";
 
 export function isUsdzOptimizationProfile(value: unknown): value is UsdzOptimizationProfile {
-  return value === "premium" || value === "balanced" || value === "light";
+  return value === "premium" || value === "balanced" || value === "light" || value === "emergency";
 }
 
 export const DEFAULT_USDZ_SOURCE_MAX_BYTES = 150 * 1024 * 1024;
@@ -425,6 +434,15 @@ export type UsdzRuntimeUploadInputs = {
   profile: UsdzOptimizationProfile;
   warnings: string[];
   fails: string[];
+  reductionPercent?: number;
+  geometryOptimization?: string;
+  triangleCountBefore?: number;
+  triangleCountAfter?: number;
+  geometryReductionPercent?: number;
+  textureCount?: number;
+  changedTextures?: number;
+  candidateAttempts?: unknown[];
+  attemptCount?: number;
   source: {
     originalName: string;
     bytes: number;
@@ -475,6 +493,15 @@ export function buildUsdzRuntimeMetadataPatch(
     usdzOptimizationReportStoragePath: inputs.reportStoragePath,
     usdzOptimizationWarnings: inputs.warnings,
     usdzOptimizationFails: inputs.fails,
+    usdzOptimizationReductionPercent: inputs.reductionPercent ?? 0,
+    usdzGeometryOptimization: inputs.geometryOptimization ?? "unknown",
+    usdzTriangleCountBefore: inputs.triangleCountBefore ?? 0,
+    usdzTriangleCountAfter: inputs.triangleCountAfter ?? 0,
+    usdzGeometryReductionPercent: inputs.geometryReductionPercent ?? 0,
+    usdzTextureCount: inputs.textureCount ?? 0,
+    usdzChangedTextures: inputs.changedTextures ?? 0,
+    usdzOptimizationAttemptCount: inputs.attemptCount ?? 0,
+    usdzOptimizationCandidateAttempts: inputs.candidateAttempts ?? [],
     usdzSourceOriginalName: inputs.source.originalName,
     usdzSourceBytes: inputs.source.bytes,
     usdzSourceSha256: inputs.source.sha256,
