@@ -1,9 +1,9 @@
-import type { OwnerRestaurantStatus } from "@/lib/owner/types";
+import type { OwnerRestaurantStatus } from "./types.ts";
 import {
   collectDishMediaStorageTargets,
   deleteDishMediaStorageTargets,
   type DishMediaDeleteReport
-} from "@/lib/owner/dishMediaGarbageCollector";
+} from "./dishMediaGarbageCollector.ts";
 
 type SupabaseUpdateError = {
   code?: string;
@@ -556,12 +556,6 @@ async function cleanupRestaurantDishMedia(args: {
   return aggregate;
 }
 
-function hasBlockingDishMediaCleanupWarning(report: DishMediaDeleteReport): boolean {
-  return report.warnings.some(
-    (warning) => warning.includes("non supprime") || warning.includes("indisponible")
-  );
-}
-
 function normalizedDeleted(value: unknown): Record<string, number> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
 
@@ -738,10 +732,13 @@ export async function deleteRestaurantRecord(
   }
 
   const restaurantIdValue = getString(restaurant, "id");
-  const dishMediaRows = await collectRestaurantDishMediaRows({
-    client: dependencies.admin.client,
-    restaurantId: restaurantIdValue
-  });
+  const dishMediaRows =
+    confirmation.deleteStorage === true
+      ? await collectRestaurantDishMediaRows({
+          client: dependencies.admin.client,
+          restaurantId: restaurantIdValue
+        })
+      : { rows: [], warnings: [] };
   if (dishMediaRows.warnings.length > 0) {
     return failureResult({
       status: 503,
@@ -749,29 +746,7 @@ export async function deleteRestaurantRecord(
       warnings: dishMediaRows.warnings
     });
   }
-  const dishMedia = await cleanupRestaurantDishMedia({
-    client: dependencies.admin.client,
-    restaurantId: restaurantIdValue,
-    rows: dishMediaRows.rows
-  });
-  if (hasBlockingDishMediaCleanupWarning(dishMedia)) {
-    return failureResult({
-      status: 503,
-      error: "Medias des plats impossibles a supprimer dans Storage.",
-      storage: {
-        ...emptyStorageReport(),
-        attempted: true,
-        deletedFiles: dishMedia.deleted.length,
-        dishMedia: {
-          deletedFiles: dishMedia.deleted.length,
-          skippedFiles: dishMedia.skipped.length,
-          warnings: dishMedia.warnings
-        },
-        warnings: dishMedia.warnings
-      },
-      warnings: dishMedia.warnings
-    });
-  }
+
   const rpcResult = await deleteRestaurantWithRpc({
     client: dependencies.admin.client,
     restaurantId: restaurantIdValue,
@@ -793,13 +768,20 @@ export async function deleteRestaurantRecord(
       env: dependencies.env ?? process.env,
       shouldAttempt: confirmation.deleteStorage === true
     });
-    storage.deletedFiles += dishMedia.deleted.length;
-    storage.warnings.push(...dishMedia.warnings);
-    storage.dishMedia = {
-      deletedFiles: dishMedia.deleted.length,
-      skippedFiles: dishMedia.skipped.length,
-      warnings: dishMedia.warnings
-    };
+    if (confirmation.deleteStorage === true) {
+      const dishMedia = await cleanupRestaurantDishMedia({
+        client: dependencies.admin.client,
+        restaurantId: restaurantIdValue,
+        rows: dishMediaRows.rows
+      });
+      storage.deletedFiles += dishMedia.deleted.length;
+      storage.warnings.push(...dishMedia.warnings);
+      storage.dishMedia = {
+        deletedFiles: dishMedia.deleted.length,
+        skippedFiles: dishMedia.skipped.length,
+        warnings: dishMedia.warnings
+      };
+    }
 
     return {
       ok: true,

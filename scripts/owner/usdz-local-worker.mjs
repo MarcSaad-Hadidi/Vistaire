@@ -178,7 +178,7 @@ function absoluteApiUrl(apiBaseUrl, endpoint) {
   return new URL(endpoint, apiBaseUrl).toString();
 }
 
-async function notifyFail(form, message, apiBaseUrl) {
+async function notifyFail(form, message, apiBaseUrl, rollbackPayload = {}) {
   const failEndpoint = String(form.get("failEndpoint") || "");
   const jobToken = String(form.get("jobToken") || "");
   const jobId = String(form.get("jobId") || "");
@@ -188,6 +188,7 @@ async function notifyFail(form, message, apiBaseUrl) {
       jobId,
       jobToken,
       error: message,
+      ...rollbackPayload,
       usdzSourceStored: false
     });
   } catch {
@@ -206,6 +207,10 @@ async function handleOptimize(req, res) {
   let sourcePath = "";
   let form = null;
   let apiBaseUrl = "";
+  let preparePayload = null;
+  let prepared = null;
+  let runtimeUploaded = false;
+  let reportUploaded = false;
   try {
     form = await readFormData(req);
     apiBaseUrl = String(form.get("apiBaseUrl") || "");
@@ -250,7 +255,7 @@ async function handleOptimize(req, res) {
     const runtimeSha256 = sha256File(runtimePath);
     rmSync(sourcePath, { force: true });
 
-    const preparePayload = {
+    preparePayload = {
       jobId,
       jobToken,
       profile: summary.profile || profile,
@@ -263,12 +268,14 @@ async function handleOptimize(req, res) {
       warnings: summary.warnings || [],
       fails: summary.fails || []
     };
-    const prepared = await postJson(
+    prepared = await postJson(
       absoluteApiUrl(apiBaseUrl, prepareEndpoint),
       preparePayload
     );
     await uploadSigned(prepared.runtimeUpload, runtimeBytesBuffer, "model/vnd.usdz+zip");
+    runtimeUploaded = true;
     await uploadSigned(prepared.reportUpload, reportBytesBuffer, "application/json");
+    reportUploaded = true;
 
     const completed = await postJson(absoluteApiUrl(apiBaseUrl, completeEndpoint), {
       ...preparePayload,
@@ -294,7 +301,16 @@ async function handleOptimize(req, res) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Optimisation USDZ locale impossible.";
     if (sourcePath) rmSync(sourcePath, { force: true });
-    if (form) await notifyFail(form, message, apiBaseUrl);
+    const rollbackPayload =
+      prepared && preparePayload && (runtimeUploaded || reportUploaded)
+        ? {
+            ...preparePayload,
+            version: prepared.version,
+            runtimeStoragePath: runtimeUploaded ? prepared.runtimeStoragePath : undefined,
+            reportStoragePath: reportUploaded ? prepared.reportStoragePath : undefined
+          }
+        : {};
+    if (form) await notifyFail(form, message, apiBaseUrl, rollbackPayload);
     writeJson(res, 500, { ok: false, error: message, usdzSourceStored: false }, headers);
   } finally {
     if (workspace) rmSync(workspace, { recursive: true, force: true });

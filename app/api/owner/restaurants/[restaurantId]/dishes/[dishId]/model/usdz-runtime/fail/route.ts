@@ -1,8 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   assertUsdzRuntimeJobClaimsMatchRoute,
+  parseRollbackInput,
+  rollbackUsdzRuntimeSignedUpload,
   verifyUsdzRuntimeJobToken
 } from "@/lib/owner/usdzRuntimeJsonFlow";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +40,37 @@ export async function POST(
       { status: 403 }
     );
   }
+
+  const rollbackInput = parseRollbackInput(input);
+  if (rollbackInput && (rollbackInput.runtimeStoragePath || rollbackInput.reportStoragePath)) {
+    const admin = getSupabaseAdminClient();
+    if (!admin.ok) {
+      return NextResponse.json({ ok: false, error: admin.reason, usdzSourceStored: false }, { status: 503 });
+    }
+    try {
+      const rollback = await rollbackUsdzRuntimeSignedUpload({
+        adminClient: admin.client,
+        input: rollbackInput
+      });
+      return NextResponse.json({
+        ok: true,
+        jobId: verified.claims.jobId,
+        status: "failed",
+        rollback,
+        usdzSourceStored: false
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : "Rollback USDZ impossible.",
+          usdzSourceStored: false
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     jobId: verified.claims.jobId,

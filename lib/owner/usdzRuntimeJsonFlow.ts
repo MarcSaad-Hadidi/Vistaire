@@ -6,7 +6,7 @@ import {
   buildUsdzRuntimeMetadataPatch,
   buildUsdzRuntimeStoragePath,
   computeSplitModelStatus,
-  createUsdzRuntimeAssetVersion,
+  createModelAssetVersion,
   evaluateRuntimeUsdzUploadGate,
   getMetadataObject,
   MODEL_BUCKET,
@@ -67,6 +67,12 @@ export type UsdzRuntimeCompleteInput = UsdzRuntimePrepareUploadInput & {
   changedTextures?: number;
   candidateAttempts?: unknown[];
   attemptCount?: number;
+};
+
+export type UsdzRuntimeRollbackInput = UsdzRuntimePrepareUploadInput & {
+  version: string;
+  runtimeStoragePath?: string;
+  reportStoragePath?: string;
 };
 
 export type UsdzRuntimePreparedUpload = {
@@ -142,6 +148,17 @@ function cleanCandidateAttempts(value: unknown): unknown[] {
       targetTriangles: cleanPositiveInt(item.targetTriangles)
     }))
     .slice(0, 6);
+}
+
+export function createUsdzRuntimeSignedAssetVersion(args: {
+  profile: UsdzOptimizationProfile;
+  runtimeSha256: string;
+  jobId: string;
+}): string {
+  const seed = createHmac("sha256", args.jobId)
+    .update(`${args.profile}:${args.runtimeSha256}`)
+    .digest("hex");
+  return createModelAssetVersion(seed);
 }
 
 export function createUsdzRuntimeJobToken(args: {
@@ -274,6 +291,21 @@ export function parseCompleteInput(value: unknown): UsdzRuntimeCompleteInput | n
   };
 }
 
+export function parseRollbackInput(value: unknown): UsdzRuntimeRollbackInput | null {
+  const base = parsePrepareUploadInput(value);
+  if (!base || !isRecord(value)) return null;
+  const runtimeStoragePath =
+    typeof value.runtimeStoragePath === "string" ? value.runtimeStoragePath.trim() : "";
+  const reportStoragePath =
+    typeof value.reportStoragePath === "string" ? value.reportStoragePath.trim() : "";
+  return {
+    ...base,
+    version: typeof value.version === "string" ? value.version.trim() : "",
+    runtimeStoragePath: runtimeStoragePath || undefined,
+    reportStoragePath: reportStoragePath || undefined
+  };
+}
+
 function assertClaimsMatchInput(
   claims: UsdzRuntimeJobClaims,
   input: UsdzRuntimePrepareUploadInput
@@ -306,16 +338,10 @@ export async function prepareUsdzRuntimeSignedUpload(args: {
     throw new Error("Runtime USDZ au-dessus de la limite runtime.");
   }
 
-  const version = createUsdzRuntimeAssetVersion({
-    profile: args.input.profile,
-    runtimeSha256: args.input.runtimeSha256
-  });
-  const runtimeStoragePath = buildUsdzRuntimeStoragePath({
-    restaurantId: verified.claims.restaurantId,
-    dishSlug: verified.claims.dishSlug,
-    version
-  });
-  const reportStoragePath = `restaurants/${verified.claims.restaurantId}/models/manifests/${verified.claims.dishSlug}-${version}-usdz-report.json`;
+  const expected = expectedUsdzRuntimePaths(verified.claims, args.input);
+  const version = expected.version;
+  const runtimeStoragePath = expected.runtimeStoragePath;
+  const reportStoragePath = expected.reportStoragePath;
 
   const bucket = args.adminClient.storage.from(MODEL_BUCKET);
   const runtimeUpload = await bucket.createSignedUploadUrl(runtimeStoragePath);
@@ -359,6 +385,60 @@ async function rollbackStorageObjects(
   } catch {
     // best-effort rollback; the local worker still removes transient files.
   }
+}
+
+function expectedUsdzRuntimePaths(claims: UsdzRuntimeJobClaims, input: UsdzRuntimePrepareUploadInput) {
+  const version = createUsdzRuntimeSignedAssetVersion({
+    profile: input.profile,
+    runtimeSha256: input.runtimeSha256,
+    jobId: claims.jobId
+  });
+  return {
+    version,
+    runtimeStoragePath: buildUsdzRuntimeStoragePath({
+      restaurantId: claims.restaurantId,
+      dishSlug: claims.dishSlug,
+      version
+    }),
+    reportStoragePath: `restaurants/${claims.restaurantId}/models/manifests/${claims.dishSlug}-${version}-usdz-report.json`
+  };
+}
+
+export async function rollbackUsdzRuntimeSignedUpload(args: {
+  adminClient: SupabaseClient;
+  input: UsdzRuntimeRollbackInput;
+  env?: NodeJS.ProcessEnv;
+}): Promise<{ ok: true; removedPaths: string[]; usdzSourceStored: false }> {
+  const verified = verifyUsdzRuntimeJobToken(args.input.jobToken, args.env ?? process.env);
+  if (!verified.ok) throw new Error(verified.error);
+  assertClaimsMatchInput(verified.claims, args.input);
+  const expected = expectedUsdzRuntimePaths(verified.claims, args.input);
+  if (args.input.version !== expected.version) {
+    throw new Error("Version rollback USDZ invalide.");
+  }
+
+  const paths: string[] = [];
+  if (args.input.runtimeStoragePath) {
+    if (args.input.runtimeStoragePath !== expected.runtimeStoragePath) {
+      throw new Error("Chemin rollback runtime USDZ invalide.");
+    }
+    paths.push(args.input.runtimeStoragePath);
+  }
+  if (args.input.reportStoragePath) {
+    if (args.input.reportStoragePath !== expected.reportStoragePath) {
+      throw new Error("Chemin rollback rapport USDZ invalide.");
+    }
+    paths.push(args.input.reportStoragePath);
+  }
+
+  if (paths.length > 0) {
+    const removal = await args.adminClient.storage.from(MODEL_BUCKET).remove(paths);
+    if (removal.error) {
+      throw new Error("Rollback Storage USDZ impossible.");
+    }
+  }
+
+  return { ok: true, removedPaths: paths, usdzSourceStored: false };
 }
 
 async function downloadStorageBytes(
@@ -410,18 +490,12 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   if (!verified.ok) throw new Error(verified.error);
   assertClaimsMatchInput(verified.claims, args.input);
 
-  const expectedVersion = createUsdzRuntimeAssetVersion({
-    profile: args.input.profile,
-    runtimeSha256: args.input.runtimeSha256
-  });
+  const expected = expectedUsdzRuntimePaths(verified.claims, args.input);
+  const expectedVersion = expected.version;
   if (args.input.version !== expectedVersion) throw new Error("Version runtime USDZ invalide.");
 
-  const expectedRuntimePath = buildUsdzRuntimeStoragePath({
-    restaurantId: verified.claims.restaurantId,
-    dishSlug: verified.claims.dishSlug,
-    version: expectedVersion
-  });
-  const expectedReportPath = `restaurants/${verified.claims.restaurantId}/models/manifests/${verified.claims.dishSlug}-${expectedVersion}-usdz-report.json`;
+  const expectedRuntimePath = expected.runtimeStoragePath;
+  const expectedReportPath = expected.reportStoragePath;
   if (
     args.input.runtimeStoragePath !== expectedRuntimePath ||
     args.input.reportStoragePath !== expectedReportPath
