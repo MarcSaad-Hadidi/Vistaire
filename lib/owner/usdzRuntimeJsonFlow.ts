@@ -7,13 +7,17 @@ import {
   buildUsdzRuntimeStoragePath,
   computeSplitModelStatus,
   createModelAssetVersion,
+  defaultUsdzOptimizationRecipe,
   evaluateRuntimeUsdzUploadGate,
   getMetadataObject,
+  isUsdzOptimizationRecipe,
+  isUsdzOptimizationRecipeForProfile,
   MODEL_BUCKET,
   restampPublicModelUrls,
   sha256Hex,
   USDZ_OPTIMIZATION_PROFILES,
-  type UsdzOptimizationProfile
+  type UsdzOptimizationProfile,
+  type UsdzOptimizationRecipe
 } from "./usdzRuntimeModel.ts";
 
 const JOB_TOKEN_VERSION = "v1";
@@ -45,6 +49,10 @@ export type UsdzRuntimePrepareUploadInput = {
   jobId: string;
   jobToken: string;
   profile: UsdzOptimizationProfile;
+  selectedProfile: UsdzOptimizationProfile;
+  selectedRecipe: UsdzOptimizationRecipe;
+  profileFallbackApplied: boolean;
+  recipeFallbackApplied: boolean;
   sourceBytes: number;
   sourceSha256: string;
   runtimeBytes: number;
@@ -148,6 +156,24 @@ function cleanCandidateAttempts(value: unknown): unknown[] {
       targetTriangles: cleanPositiveInt(item.targetTriangles)
     }))
     .slice(0, 6);
+}
+
+function cleanProfile(value: unknown): UsdzOptimizationProfile | null {
+  if (
+    value === "premium" ||
+    value === "balanced" ||
+    value === "light" ||
+    value === "emergency"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function cleanRecipe(value: unknown): UsdzOptimizationRecipe | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return isUsdzOptimizationRecipe(normalized) ? normalized : null;
 }
 
 function cleanPhysicalScale(value: unknown) {
@@ -295,19 +321,18 @@ export function parsePrepareUploadInput(value: unknown): UsdzRuntimePrepareUploa
   if (!isRecord(value)) return null;
   const jobId = typeof value.jobId === "string" ? value.jobId : "";
   const jobToken = typeof value.jobToken === "string" ? value.jobToken : "";
-  const profile = value.profile;
-  if (
-    profile !== "premium" &&
-    profile !== "balanced" &&
-    profile !== "light" &&
-    profile !== "emergency"
-  ) {
-    return null;
-  }
+  const profile = cleanProfile(value.profile);
+  if (!profile) return null;
+  const selectedProfile = cleanProfile(value.selectedProfile) ?? profile;
+  const selectedRecipe = cleanRecipe(value.selectedRecipe) ?? defaultUsdzOptimizationRecipe(selectedProfile);
   return {
     jobId,
     jobToken,
     profile,
+    selectedProfile,
+    selectedRecipe,
+    profileFallbackApplied: value.profileFallbackApplied === true,
+    recipeFallbackApplied: value.recipeFallbackApplied === true,
     sourceBytes: cleanPositiveInt(value.sourceBytes),
     sourceSha256: cleanSha256(value.sourceSha256),
     runtimeBytes: cleanPositiveInt(value.runtimeBytes),
@@ -363,6 +388,14 @@ function assertClaimsMatchInput(
 ): void {
   if (claims.jobId !== input.jobId) throw new Error("jobId USDZ invalide.");
   if (claims.profile !== input.profile) throw new Error("Profil USDZ invalide.");
+  const selectedProfile = input.selectedProfile ?? input.profile;
+  if (selectedProfile !== input.profile || input.profileFallbackApplied === true) {
+    throw new Error("Profil USDZ selectionne invalide.");
+  }
+  const selectedRecipe = input.selectedRecipe ?? defaultUsdzOptimizationRecipe(selectedProfile);
+  if (!isUsdzOptimizationRecipeForProfile(input.profile, selectedRecipe)) {
+    throw new Error("Recette USDZ selectionnee invalide.");
+  }
   if (claims.sourceBytes !== input.sourceBytes) throw new Error("Taille source USDZ invalide.");
   if (!input.sourceSha256) throw new Error("SHA-256 source requis.");
   if (!input.runtimeSha256) throw new Error("SHA-256 runtime requis.");
@@ -383,7 +416,8 @@ export async function prepareUsdzRuntimeSignedUpload(args: {
   const verified = verifyUsdzRuntimeJobToken(args.input.jobToken, args.env ?? process.env);
   if (!verified.ok) throw new Error(verified.error);
   assertClaimsMatchInput(verified.claims, args.input);
-  const profileBudget = Math.floor(USDZ_OPTIMIZATION_PROFILES[args.input.profile].targetMaxBytes);
+  const budgetProfile = args.input.selectedProfile ?? args.input.profile;
+  const profileBudget = Math.floor(USDZ_OPTIMIZATION_PROFILES[budgetProfile].targetMaxBytes);
   const effectiveMaxRuntimeBytes = Math.min(args.maxRuntimeBytes, profileBudget);
   if (args.input.runtimeBytes > effectiveMaxRuntimeBytes) {
     throw new Error("Runtime USDZ au-dessus de la limite runtime.");
@@ -533,6 +567,10 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   usdzSourceBytes: number;
   reductionPercent: number;
   profile: UsdzOptimizationProfile;
+  selectedProfile: UsdzOptimizationProfile;
+  selectedRecipe: UsdzOptimizationRecipe;
+  profileFallbackApplied: boolean;
+  recipeFallbackApplied: boolean;
   geometryOptimization: string;
   physicalScale?: ReturnType<typeof cleanPhysicalScale>;
   warnings: string[];
@@ -578,6 +616,34 @@ export async function completeUsdzRuntimeSignedUpload(args: {
     const reportWarnings = cleanStringArray(parsedReport.warnings);
     const reportCandidateAttempts = cleanCandidateAttempts(parsedReport.candidateAttempts);
     const reportPhysicalScale = cleanPhysicalScale(parsedReport.physicalScale);
+    const reportRequestedProfile = cleanProfile(parsedReport.requestedProfile) ?? cleanProfile(parsedReport.profile);
+    const inputSelectedProfile = args.input.selectedProfile ?? args.input.profile;
+    const reportSelectedProfile = cleanProfile(parsedReport.selectedProfile) ?? reportRequestedProfile;
+    const inputSelectedRecipe = args.input.selectedRecipe ?? defaultUsdzOptimizationRecipe(inputSelectedProfile);
+    const reportSelectedRecipe =
+      cleanRecipe(parsedReport.selectedRecipe) ?? cleanRecipe(parsedReport.recipe);
+    const reportFallbackApplied = parsedReport.profileFallbackApplied === true;
+    const inputFallbackApplied = args.input.profileFallbackApplied === true;
+    const reportRecipeFallbackApplied = parsedReport.recipeFallbackApplied === true;
+    const inputRecipeFallbackApplied = args.input.recipeFallbackApplied === true;
+    if (reportRequestedProfile && reportRequestedProfile !== args.input.profile) {
+      throw new Error("Rapport USDZ invalide: profil demande incoherent.");
+    }
+    if (reportSelectedProfile && reportSelectedProfile !== inputSelectedProfile) {
+      throw new Error("Rapport USDZ invalide: profil selectionne incoherent.");
+    }
+    if (reportFallbackApplied !== inputFallbackApplied) {
+      throw new Error("Rapport USDZ invalide: fallback profil incoherent.");
+    }
+    if (!reportSelectedRecipe || reportSelectedRecipe !== inputSelectedRecipe) {
+      throw new Error("Rapport USDZ invalide: recette selectionnee incoherente.");
+    }
+    if (!isUsdzOptimizationRecipeForProfile(args.input.profile, reportSelectedRecipe)) {
+      throw new Error("Rapport USDZ invalide: recette hors profil.");
+    }
+    if (reportRecipeFallbackApplied !== inputRecipeFallbackApplied) {
+      throw new Error("Rapport USDZ invalide: fallback recette incoherent.");
+    }
     assertPhysicalScalePublishable(reportPhysicalScale);
 
     const gate = evaluateRuntimeUsdzUploadGate({
@@ -601,6 +667,10 @@ export async function completeUsdzRuntimeSignedUpload(args: {
         runtimeSha256: args.input.runtimeSha256,
         reportStoragePath: args.input.reportStoragePath,
         profile: args.input.profile,
+        selectedProfile: inputSelectedProfile,
+        selectedRecipe: inputSelectedRecipe,
+        profileFallbackApplied: inputFallbackApplied,
+        recipeFallbackApplied: inputRecipeFallbackApplied,
         warnings: reportWarnings,
         fails: reportFails,
         reductionPercent: cleanNumber(parsedReport.reductionPercent),
@@ -658,6 +728,10 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       usdzSourceBytes: args.input.sourceBytes,
       reductionPercent: cleanNumber(parsedReport.reductionPercent),
       profile: args.input.profile,
+      selectedProfile: inputSelectedProfile,
+      selectedRecipe: inputSelectedRecipe,
+      profileFallbackApplied: inputFallbackApplied,
+      recipeFallbackApplied: inputRecipeFallbackApplied,
       geometryOptimization:
         typeof parsedReport.geometryOptimization === "string"
           ? parsedReport.geometryOptimization

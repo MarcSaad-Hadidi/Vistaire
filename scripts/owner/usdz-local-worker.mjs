@@ -239,7 +239,7 @@ async function handleOptimize(req, res) {
       throw new Error("USDZ source trop volumineux.");
     }
 
-    const profile = String(form.get("profile") || "balanced");
+    const requestedProfile = String(form.get("profile") || "balanced");
     const dishKind = String(form.get("dishKind") || "fallback");
     const jobId = String(form.get("jobId") || "");
     const jobToken = String(form.get("jobToken") || "");
@@ -257,7 +257,22 @@ async function handleOptimize(req, res) {
     const sourceBytes = statSync(sourcePath).size;
     const sourceSha256 = sha256File(sourcePath);
 
-    const summary = await runOptimizer({ sourcePath, runtimePath, reportPath, profile, dishKind });
+    const summary = await runOptimizer({
+      sourcePath,
+      runtimePath,
+      reportPath,
+      profile: requestedProfile,
+      dishKind
+    });
+    const selectedProfile = summary.selectedProfile || summary.profile || requestedProfile;
+    const selectedRecipe = summary.selectedRecipe || summary.recipe || `${selectedProfile}-max`;
+    const profileFallbackApplied = Boolean(summary.profileFallbackApplied);
+    const recipeFallbackApplied = Boolean(summary.recipeFallbackApplied);
+    if (selectedProfile !== requestedProfile && !profileFallbackApplied) {
+      throw new Error(
+        `Profil USDZ selectionne invalide: ${requestedProfile} demande, ${selectedProfile} produit.`
+      );
+    }
     if (Array.isArray(summary.fails) && summary.fails.length > 0) {
       throw new Error(`Optimisation USDZ bloquee: ${summary.fails.join("; ")}`);
     }
@@ -273,7 +288,11 @@ async function handleOptimize(req, res) {
     preparePayload = {
       jobId,
       jobToken,
-      profile: summary.profile || profile,
+      profile: requestedProfile,
+      selectedProfile,
+      selectedRecipe,
+      profileFallbackApplied,
+      recipeFallbackApplied,
       sourceBytes,
       sourceSha256,
       runtimeBytes: runtimeBytesBuffer.byteLength,

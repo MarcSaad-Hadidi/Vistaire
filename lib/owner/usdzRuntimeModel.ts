@@ -29,6 +29,17 @@ export const FORBIDDEN_SOURCE_STORAGE_FIELDS = [
 ] as const;
 
 export type UsdzOptimizationProfile = "premium" | "balanced" | "light" | "emergency";
+export type UsdzOptimizationRecipe =
+  | "premium-max"
+  | "premium-fit"
+  | "premium-safe"
+  | "balanced-max"
+  | "balanced-fit"
+  | "balanced-safe"
+  | "light-max"
+  | "light-safe"
+  | "emergency-max"
+  | "emergency-safe";
 
 export type UsdzOptimizationProfileConfig = {
   slug: UsdzOptimizationProfile;
@@ -57,7 +68,7 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
     normalMax: 1536,
     ormMax: 1536,
     jpegQuality: 90,
-    targetMaxBytes: 16 * 1024 * 1024
+    targetMaxBytes: 24 * 1024 * 1024
   },
   balanced: {
     slug: "balanced",
@@ -66,7 +77,7 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
     normalMax: 1280,
     ormMax: 1024,
     jpegQuality: 88,
-    targetMaxBytes: 12 * 1024 * 1024
+    targetMaxBytes: 16 * 1024 * 1024
   },
   light: {
     slug: "light",
@@ -84,19 +95,65 @@ export const USDZ_OPTIMIZATION_PROFILES: Record<
     normalMax: 768,
     ormMax: 768,
     jpegQuality: 76,
-    targetMaxBytes: 5.5 * 1024 * 1024
+    targetMaxBytes: 6 * 1024 * 1024
   }
 };
 
 export const DEFAULT_USDZ_OPTIMIZATION_PROFILE: UsdzOptimizationProfile = "balanced";
+export const USDZ_OPTIMIZATION_PROFILE_RECIPES: Record<
+  UsdzOptimizationProfile,
+  readonly UsdzOptimizationRecipe[]
+> = {
+  premium: ["premium-max", "premium-fit", "premium-safe"],
+  balanced: ["balanced-max", "balanced-fit", "balanced-safe"],
+  light: ["light-max", "light-safe"],
+  emergency: ["emergency-max", "emergency-safe"]
+};
 
 export function isUsdzOptimizationProfile(value: unknown): value is UsdzOptimizationProfile {
   return value === "premium" || value === "balanced" || value === "light" || value === "emergency";
 }
 
+export function isUsdzOptimizationRecipe(value: unknown): value is UsdzOptimizationRecipe {
+  return (
+    value === "premium-max" ||
+    value === "premium-fit" ||
+    value === "premium-safe" ||
+    value === "balanced-max" ||
+    value === "balanced-fit" ||
+    value === "balanced-safe" ||
+    value === "light-max" ||
+    value === "light-safe" ||
+    value === "emergency-max" ||
+    value === "emergency-safe"
+  );
+}
+
+export function defaultUsdzOptimizationRecipe(
+  profile: UsdzOptimizationProfile
+): UsdzOptimizationRecipe {
+  return USDZ_OPTIMIZATION_PROFILE_RECIPES[profile][0];
+}
+
+export function usdzOptimizationRecipeProfile(
+  recipe: UsdzOptimizationRecipe
+): UsdzOptimizationProfile {
+  if (recipe.startsWith("premium-")) return "premium";
+  if (recipe.startsWith("balanced-")) return "balanced";
+  if (recipe.startsWith("light-")) return "light";
+  return "emergency";
+}
+
+export function isUsdzOptimizationRecipeForProfile(
+  profile: UsdzOptimizationProfile,
+  recipe: UsdzOptimizationRecipe
+): boolean {
+  return usdzOptimizationRecipeProfile(recipe) === profile;
+}
+
 export const DEFAULT_USDZ_SOURCE_MAX_BYTES = 150 * 1024 * 1024;
 export const HARD_USDZ_SOURCE_MAX_BYTES = 512 * 1024 * 1024;
-export const DEFAULT_USDZ_RUNTIME_MAX_BYTES = 16 * 1024 * 1024;
+export const DEFAULT_USDZ_RUNTIME_MAX_BYTES = 24 * 1024 * 1024;
 export const HARD_USDZ_RUNTIME_MAX_BYTES = 64 * 1024 * 1024;
 
 type UploadEnv = Record<string, string | undefined>;
@@ -432,6 +489,10 @@ export type UsdzRuntimeUploadInputs = {
   runtimeSha256: string;
   reportStoragePath: string;
   profile: UsdzOptimizationProfile;
+  selectedProfile?: UsdzOptimizationProfile;
+  selectedRecipe?: UsdzOptimizationRecipe;
+  profileFallbackApplied?: boolean;
+  recipeFallbackApplied?: boolean;
   warnings: string[];
   fails: string[];
   reductionPercent?: number;
@@ -498,6 +559,8 @@ export function buildUsdzRuntimeMetadataPatch(
 ): Record<string, unknown> {
   const usdzUrl = buildPreparedModelPublicUsdzPath(inputs.dishId, { assetVersion: inputs.version });
   const physicalScale = inputs.physicalScale ?? {};
+  const selectedProfile = inputs.selectedProfile ?? inputs.profile;
+  const selectedRecipe = inputs.selectedRecipe ?? defaultUsdzOptimizationRecipe(selectedProfile);
 
   return {
     arUsdzUrl: usdzUrl,
@@ -513,7 +576,11 @@ export function buildUsdzRuntimeMetadataPatch(
     usdzRuntimeSha256: inputs.runtimeSha256,
     usdzRuntimeContentType: "model/vnd.usdz+zip",
     usdzRuntimeUploadedAt: inputs.uploadedAt,
-    usdzOptimizationProfile: inputs.profile,
+    usdzOptimizationRequestedProfile: inputs.profile,
+    usdzOptimizationProfile: selectedProfile,
+    usdzOptimizationSelectedRecipe: selectedRecipe,
+    usdzOptimizationProfileFallbackApplied: inputs.profileFallbackApplied === true,
+    usdzOptimizationRecipeFallbackApplied: inputs.recipeFallbackApplied === true,
     usdzOptimizationReportStoragePath: inputs.reportStoragePath,
     usdzOptimizationWarnings: inputs.warnings,
     usdzOptimizationFails: inputs.fails,

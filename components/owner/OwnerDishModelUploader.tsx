@@ -37,7 +37,11 @@ type OwnerDishModelUploaderProps = {
   initialArUsdzUrl?: string;
   initialArUsdzBytes?: number;
   initialUsdzRuntimeStatus?: string;
+  initialUsdzOptimizationRequestedProfile?: string;
   initialUsdzOptimizationProfile?: string;
+  initialUsdzOptimizationSelectedRecipe?: string;
+  initialUsdzOptimizationProfileFallbackApplied?: boolean;
+  initialUsdzOptimizationRecipeFallbackApplied?: boolean;
   initialUsdzGeometryOptimization?: string;
   initialUsdzTriangleCountBefore?: number;
   initialUsdzTriangleCountAfter?: number;
@@ -87,6 +91,11 @@ type UsdzRuntimePayload = {
   usdzSourceStored?: boolean;
   reductionPercent?: number;
   profile?: string;
+  requestedProfile?: string;
+  selectedProfile?: string;
+  selectedRecipe?: string;
+  profileFallbackApplied?: boolean;
+  recipeFallbackApplied?: boolean;
   geometryOptimization?: string;
   triangleCountBefore?: number;
   triangleCountAfter?: number;
@@ -108,6 +117,8 @@ type UsdzOptimizationAttemptPayload = {
   runtimeBytes?: number;
   targetBytes?: number;
   passedBudget?: boolean;
+  recipe?: string;
+  selectedRecipe?: string;
   fails?: string[];
   physicalScale?: { status?: string } | null;
 };
@@ -146,10 +157,10 @@ type DeletePayload = {
 };
 
 const PROFILE_OPTIONS: { value: UsdzOptimizationProfileOption; label: string }[] = [
-  { value: "premium", label: "Premium (16 MB max)" },
-  { value: "balanced", label: "Balanced (12 MB max)" },
+  { value: "premium", label: "Premium (24 MB max)" },
+  { value: "balanced", label: "Balanced (16 MB max)" },
   { value: "light", label: "Light mobile safe (10 MB max)" },
-  { value: "emergency", label: "Emergency 5.5 MB (fallback agressif)" }
+  { value: "emergency", label: "Emergency 6 MB (fallback agressif)" }
 ];
 
 const LOCAL_USDZ_WORKER_URL =
@@ -229,10 +240,15 @@ function dishKindLabel(value: string): string {
   return USDZ_DISH_KIND_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
+function profileLabel(value: string): string {
+  return PROFILE_OPTIONS.find((option) => option.value === value)?.label.split(" ")[0] ?? value;
+}
+
 function formatUsdzFailureDiagnostic(payload: UsdzRuntimePayload): string {
   const attempts = payload.candidateAttempts || payload.attempts || [];
   const firstAttempts = attempts.slice(0, 2).map((attempt) => {
     const profile = attempt.profile || "profil";
+    const recipe = attempt.selectedRecipe || attempt.recipe || "";
     const cause =
       attempt.fails?.[0] ||
       attempt.error ||
@@ -241,11 +257,22 @@ function formatUsdzFailureDiagnostic(payload: UsdzRuntimePayload): string {
       Number(attempt.runtimeBytes) > 0 && Number(attempt.targetBytes) > 0
         ? ` ${formatModelAssetBytes(Number(attempt.runtimeBytes))}/${formatModelAssetBytes(Number(attempt.targetBytes))}`
         : "";
-    return `${profile}: ${cause}${budget}`;
+    return `${profile}${recipe ? ` / ${recipe}` : ""}: ${cause}${budget}`;
   });
   const prefix = [payload.failureKind, payload.stage].filter(Boolean).join(" / ");
-  return [prefix ? `Diagnostic USDZ ${prefix}` : "Diagnostic USDZ", ...firstAttempts]
+  const budgetFailure = payload.failureKind === "byte-budget" || payload.stage === "budget";
+  const requestedProfile = payload.profile || payload.requestedProfile || attempts[0]?.profile || "";
+  const headline =
+    budgetFailure && requestedProfile
+      ? `${profileLabel(requestedProfile)} impossible: runtime au-dessus du budget`
+      : prefix
+        ? `Diagnostic USDZ ${prefix}`
+        : "Diagnostic USDZ";
+  const attemptLabel =
+    attempts.length > 1 ? `${attempts.length} recettes tentees` : attempts.length === 1 ? "1 recette tentee" : "";
+  return [prefix ? `Diagnostic USDZ ${prefix}` : "Diagnostic USDZ", attemptLabel, ...firstAttempts]
     .filter(Boolean)
+    .map((entry, index) => (index === 0 ? headline : entry))
     .join(" - ");
 }
 
@@ -355,6 +382,10 @@ export function OwnerDishModelUploader({
   initialArUsdzUrl = "",
   initialArUsdzBytes = 0,
   initialUsdzOptimizationProfile = "balanced",
+  initialUsdzOptimizationRequestedProfile = initialUsdzOptimizationProfile,
+  initialUsdzOptimizationSelectedRecipe = "",
+  initialUsdzOptimizationProfileFallbackApplied = false,
+  initialUsdzOptimizationRecipeFallbackApplied = false,
   initialUsdzGeometryOptimization = "",
   initialUsdzTriangleCountBefore = 0,
   initialUsdzTriangleCountAfter = 0,
@@ -391,7 +422,28 @@ export function OwnerDishModelUploader({
     initialQuickLookQaStatus || (initialArUsdzUrl ? "not-tested" : "")
   );
   const [profile, setProfile] = useState<UsdzOptimizationProfileOption>(
+    isProfileOption(initialUsdzOptimizationRequestedProfile)
+      ? initialUsdzOptimizationRequestedProfile
+      : isProfileOption(initialUsdzOptimizationProfile)
+        ? initialUsdzOptimizationProfile
+        : "balanced"
+  );
+  const [runtimeProfile, setRuntimeProfile] = useState<UsdzOptimizationProfileOption>(
     isProfileOption(initialUsdzOptimizationProfile) ? initialUsdzOptimizationProfile : "balanced"
+  );
+  const [runtimeRequestedProfile, setRuntimeRequestedProfile] = useState<UsdzOptimizationProfileOption>(
+    isProfileOption(initialUsdzOptimizationRequestedProfile)
+      ? initialUsdzOptimizationRequestedProfile
+      : isProfileOption(initialUsdzOptimizationProfile)
+        ? initialUsdzOptimizationProfile
+        : "balanced"
+  );
+  const [selectedRecipe, setSelectedRecipe] = useState(initialUsdzOptimizationSelectedRecipe);
+  const [profileFallbackApplied, setProfileFallbackApplied] = useState(
+    initialUsdzOptimizationProfileFallbackApplied
+  );
+  const [recipeFallbackApplied, setRecipeFallbackApplied] = useState(
+    initialUsdzOptimizationRecipeFallbackApplied
   );
   const [selectedDishKindPreset, setSelectedDishKindPreset] =
     useState<UsdzDishKindPreset>("auto");
@@ -596,7 +648,13 @@ export function OwnerDishModelUploader({
     setUsdzSourceBytes(payload.usdzSourceBytes ?? 0);
     setUsdzSourceOriginalName(file.name);
     setQuickLookQaStatus(payload.quickLookQaStatus ?? "not-tested");
-    if (payload.profile && isProfileOption(payload.profile)) setProfile(payload.profile);
+    const selectedProfile = payload.selectedProfile || payload.profile || profile;
+    const requestedProfile = payload.requestedProfile || payload.profile || profile;
+    if (isProfileOption(selectedProfile)) setRuntimeProfile(selectedProfile);
+    if (isProfileOption(requestedProfile)) setRuntimeRequestedProfile(requestedProfile);
+    setSelectedRecipe(payload.selectedRecipe || "");
+    setProfileFallbackApplied(payload.profileFallbackApplied === true);
+    setRecipeFallbackApplied(payload.recipeFallbackApplied === true);
     setGeometryOptimization(payload.geometryOptimization ?? "");
     setTriangleCountBefore(payload.triangleCountBefore ?? 0);
     setTriangleCountAfter(payload.triangleCountAfter ?? 0);
@@ -689,6 +747,9 @@ export function OwnerDishModelUploader({
         setUsdzSourceBytes(0);
         setUsdzSourceOriginalName("");
         setQuickLookQaStatus("");
+        setRuntimeProfile(profile);
+        setRuntimeRequestedProfile(profile);
+        setProfileFallbackApplied(false);
         setPhysicalScaleStatus("");
         setPhysicalScaleDishKind("");
         setPhysicalScaleDimension("");
@@ -847,6 +908,23 @@ export function OwnerDishModelUploader({
               <span className={`${styles.badge} ${styles.badgeWarn}`}>
                 Quick Look QA {quickLookQaStatus || "not-tested"}
               </span>
+              <span className={styles.cellSub}>Profil runtime: {profileLabel(runtimeProfile)}</span>
+              <span className={styles.cellSub}>Profil demande: {profileLabel(runtimeRequestedProfile)}</span>
+              {selectedRecipe ? (
+                <span className={styles.cellSub}>Recette runtime: {selectedRecipe}</span>
+              ) : null}
+              {profileFallbackApplied ? (
+                <span className={styles.cellSub}>
+                  Fallback profil applique: {profileLabel(runtimeRequestedProfile)} -&gt;{" "}
+                  {profileLabel(runtimeProfile)}
+                </span>
+              ) : null}
+              {recipeFallbackApplied && selectedRecipe ? (
+                <span className={styles.cellSub}>
+                  Fallback recette applique: {profileLabel(runtimeRequestedProfile)} -&gt;{" "}
+                  {selectedRecipe}
+                </span>
+              ) : null}
               {geometryOptimization ? (
                 <span className={`${styles.badge} ${styles.badgeWarn}`}>
                   Geometry {geometryOptimization}

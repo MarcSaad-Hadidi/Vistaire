@@ -53,7 +53,8 @@ const FAKE_WORKER = `
 import { copyFileSync, writeFileSync } from "node:fs";
 
 const mode = process.env.VISTAIRE_FAKE_USDZ_MODE || "physical-scale-stderr";
-const args = process.argv.slice(3);
+let args = process.argv.slice(2);
+if (args[0] && !args[0].startsWith("--")) args = args.slice(1);
 function arg(name) {
   const index = args.indexOf(name);
   return index >= 0 ? args[index + 1] : "";
@@ -62,11 +63,15 @@ const source = arg("--source");
 const output = arg("--output");
 const report = arg("--report");
 const profile = arg("--profile") || "balanced";
+const recipe = arg("--recipe") || profile + "-max";
 
 function writeRuntimeReport(extra = {}) {
   copyFileSync(source, output);
   writeFileSync(report, JSON.stringify({
     profile,
+    recipe,
+    selectedRecipe: recipe,
+    profileRecipe: profile + ":" + recipe,
     sourceBytes: 2048,
     runtimeBytes: 2048,
     reductionPercent: 0,
@@ -143,6 +148,59 @@ if (mode === "over-budget") {
   writeRuntimeReport();
   process.exit(0);
 }
+if (mode === "strict-success") {
+  writeRuntimeReport({ optimizationApplied: false });
+  process.exit(0);
+}
+if (mode === "premium-safe-success") {
+  if (profile !== "premium") {
+    console.error(JSON.stringify({ ok: false, error: "unexpected profile", stage: "profile" }));
+    process.exit(2);
+  }
+  if (recipe !== "premium-safe") {
+    writeRuntimeReport({ runtimeBytes: 30 * 1024 * 1024 });
+    process.exit(0);
+  }
+  writeRuntimeReport({
+    optimizationApplied: false,
+    runtimeBytes: 20 * 1024 * 1024,
+    triangleCountBefore: 1555864,
+    triangleCountAfter: 220000,
+    targetTriangles: 220000
+  });
+  process.exit(0);
+}
+if (mode === "emergency-safe-success") {
+  if (profile !== "emergency") {
+    console.error(JSON.stringify({ ok: false, error: "unexpected profile", stage: "profile" }));
+    process.exit(2);
+  }
+  if (recipe !== "emergency-safe") {
+    writeRuntimeReport({
+      optimizationApplied: false,
+      runtimeBytes: 5_980_000,
+      triangleCountBefore: 1555864,
+      triangleCountAfter: 77793,
+      targetTriangles: 70000,
+      minDecimateRatio: 0.03,
+      maxDecimatePasses: 2,
+      decimatePassesApplied: 1,
+      fails: ["Triangle budget depasse apres optimisation (77793 > 70000)."]
+    });
+    process.exit(0);
+  }
+  writeRuntimeReport({
+    optimizationApplied: false,
+    runtimeBytes: 5_620_000,
+    triangleCountBefore: 1555864,
+    triangleCountAfter: 55000,
+    targetTriangles: 55000,
+    minDecimateRatio: 0.02,
+    maxDecimatePasses: 2,
+    decimatePassesApplied: 2
+  });
+  process.exit(0);
+}
 if (mode === "bad-report") {
   copyFileSync(source, output);
   writeFileSync(report, "{", "utf8");
@@ -151,6 +209,21 @@ if (mode === "bad-report") {
 if (mode === "invalid-runtime") {
   writeRuntimeReport();
   writeFileSync(output, "not-a-usdz", "utf8");
+  process.exit(0);
+}
+if (mode === "light-only-success") {
+  if (profile !== "light") {
+    writeRuntimeReport({
+      runtimeBytes: 30 * 1024 * 1024,
+      fails: ["premium fake failure"]
+    });
+    process.exit(0);
+  }
+  writeRuntimeReport({
+    triangleCountBefore: 1555864,
+    triangleCountAfter: 100000,
+    targetTriangles: 100000
+  });
   process.exit(0);
 }
 console.error(JSON.stringify({ ok: false, error: "fake worker mode unknown", stage: "fake" }));
@@ -181,7 +254,7 @@ function writeFakePython(dir) {
   return commandPath;
 }
 
-function runCliWithFakeWorker(mode, extraEnv = {}) {
+function runCliWithFakeWorker(mode, extraEnv = {}, profile = "premium", extraArgs = []) {
   const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-fake-worker-"));
   const source = join(dir, "source.usdz");
   const runtime = join(dir, "runtime.usdz");
@@ -191,7 +264,20 @@ function runCliWithFakeWorker(mode, extraEnv = {}) {
     const fakePython = writeFakePython(dir);
     const result = spawnSync(
       process.execPath,
-      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "premium", "--dish-kind", "plate"],
+      [
+        CLI,
+        "--source",
+        source,
+        "--output",
+        runtime,
+        "--report",
+        report,
+        "--profile",
+        profile,
+        "--dish-kind",
+        "plate",
+        ...extraArgs
+      ],
       {
         cwd: process.cwd(),
         env: {
@@ -203,7 +289,19 @@ function runCliWithFakeWorker(mode, extraEnv = {}) {
         encoding: "utf8"
       }
     );
-    return { result, stderrJson: JSON.parse(result.stderr.trim().split("\n").pop()) };
+    const stderrLine =
+      result.stderr
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim().startsWith("{"))
+        .pop() || "{}";
+    const stdoutLine = result.stdout.trim().split("\n").filter(Boolean).pop() || "{}";
+    return {
+      result,
+      stderrJson: JSON.parse(stderrLine),
+      stdoutJson: JSON.parse(stdoutLine),
+      reportJson: existsSync(report) ? JSON.parse(readFileSync(report, "utf8")) : null
+    };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -602,12 +700,93 @@ test("USDZ runtime optimizer reports byte budgets only when candidates exceed by
   assert.notEqual(result.status, 0);
   assert.equal(stderrJson.stage, "budget");
   assert.equal(stderrJson.failureKind, "byte-budget");
-  assert.match(stderrJson.error, /depassent le budget/i);
-  assert.match(stderrJson.error, /premium 2048 B\/1 B/);
+  assert.match(stderrJson.error, /Premium au-dessus du budget|depassent le budget/i);
+  assert.match(stderrJson.error, /premium.*2048 B\/1 B|2048 B \/ 1 B/);
   assert.equal(stderrJson.selectedCandidate, null);
   assert.equal(stderrJson.attempts[0].runtimeBytes, 2048);
   assert.equal(stderrJson.attempts[0].targetBytes, 1);
   assert.equal(stderrJson.attempts[0].passedBudget, false);
+});
+
+test("USDZ runtime optimizer uses strict requested profile candidates by default", () => {
+  for (const requestedProfile of ["premium", "balanced", "light", "emergency"]) {
+    const { result, stdoutJson } = runCliWithFakeWorker("strict-success", {}, requestedProfile);
+
+    assert.equal(result.status, 0);
+    assert.equal(stdoutJson.profile, requestedProfile);
+    assert.equal(stdoutJson.requestedProfile, requestedProfile);
+    assert.equal(stdoutJson.selectedProfile, requestedProfile);
+    assert.match(stdoutJson.selectedRecipe, new RegExp(`^${requestedProfile}-`));
+    assert.equal(stdoutJson.profileFallbackApplied, false);
+    assert.equal(stdoutJson.recipeFallbackApplied, false);
+    assert.ok(stdoutJson.candidateAttempts.every((attempt) => attempt.profile === requestedProfile));
+  }
+});
+
+test("USDZ runtime optimizer does not select light when premium is requested by default", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("light-only-success", {}, "premium");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.selectedCandidate, null);
+  assert.equal(stderrJson.profileFallbackApplied, false);
+  assert.ok(stderrJson.attempts.every((attempt) => attempt.profile === "premium"));
+  assert.deepEqual(
+    stderrJson.attempts.map((attempt) => attempt.recipe),
+    ["premium-max", "premium-fit", "premium-safe"]
+  );
+  assert.match(stderrJson.error, /premium fake failure/i);
+});
+
+test("USDZ runtime optimizer falls back only across recipes inside the requested profile", () => {
+  const { result, stdoutJson, reportJson } = runCliWithFakeWorker(
+    "premium-safe-success",
+    {},
+    "premium"
+  );
+
+  assert.equal(result.status, 0);
+  assert.equal(stdoutJson.profile, "premium");
+  assert.equal(stdoutJson.requestedProfile, "premium");
+  assert.equal(stdoutJson.selectedProfile, "premium");
+  assert.equal(stdoutJson.selectedRecipe, "premium-safe");
+  assert.equal(stdoutJson.profileFallbackApplied, false);
+  assert.equal(stdoutJson.recipeFallbackApplied, true);
+  assert.deepEqual(
+    stdoutJson.candidateAttempts.map((attempt) => `${attempt.profile}:${attempt.recipe}`),
+    ["premium:premium-max", "premium:premium-fit", "premium:premium-safe"]
+  );
+  assert.equal(reportJson.selectedProfile, "premium");
+  assert.equal(reportJson.selectedRecipe, "premium-safe");
+  assert.equal(reportJson.recipeFallbackApplied, true);
+});
+
+test("USDZ runtime optimizer can choose emergency-safe without profile fallback", () => {
+  const { result, stdoutJson, reportJson } = runCliWithFakeWorker(
+    "emergency-safe-success",
+    {},
+    "emergency"
+  );
+
+  assert.equal(result.status, 0);
+  assert.equal(stdoutJson.profile, "emergency");
+  assert.equal(stdoutJson.requestedProfile, "emergency");
+  assert.equal(stdoutJson.selectedProfile, "emergency");
+  assert.equal(stdoutJson.selectedRecipe, "emergency-safe");
+  assert.equal(stdoutJson.profileFallbackApplied, false);
+  assert.equal(stdoutJson.recipeFallbackApplied, true);
+  assert.deepEqual(
+    stdoutJson.candidateAttempts.map((attempt) => `${attempt.profile}:${attempt.recipe}`),
+    ["emergency:emergency-max", "emergency:emergency-safe"]
+  );
+  assert.equal(stdoutJson.candidateAttempts[0].targetTriangles, 70000);
+  assert.equal(stdoutJson.candidateAttempts[0].minDecimateRatio, 0.03);
+  assert.equal(stdoutJson.candidateAttempts[1].targetTriangles, 55000);
+  assert.equal(stdoutJson.candidateAttempts[1].minDecimateRatio, 0.02);
+  assert.equal(stdoutJson.candidateAttempts[1].decimatePassesApplied, 2);
+  assert.equal(reportJson.selectedProfile, "emergency");
+  assert.equal(reportJson.selectedRecipe, "emergency-safe");
+  assert.equal(reportJson.profileFallbackApplied, false);
+  assert.equal(reportJson.recipeFallbackApplied, true);
 });
 
 test("USDZ runtime optimizer preserves attempts when selected runtime fails final validation", () => {
@@ -631,4 +810,26 @@ test("Blender optimizer refreshes scene geometry after baked mesh transforms", (
   assert.match(blender, /bpy\.context\.view_layer\.update\(\)/);
   assert.match(blender, /bake_meshes_to_world\(\)[\s\S]*refresh_scene_geometry\(\)/);
   assert.match(blender, /transform_mesh_geometry\(matrix: Matrix\)[\s\S]*refresh_scene_geometry\(\)/);
+});
+
+test("Blender optimizer uses recipe-driven decimation limits instead of a hardcoded 0.05 floor", () => {
+  const blender = readFileSync("scripts/owner/blender_usdz_geometry_optimizer.py", "utf8");
+  const worker = readFileSync("scripts/owner/optimize_restaurant_usdz.py", "utf8");
+  const config = JSON.parse(readFileSync("scripts/owner/usdz-optimization-recipes.json", "utf8"));
+
+  assert.doesNotMatch(blender, /max\(0\.05,\s*min/);
+  assert.match(blender, /--min-decimate-ratio/);
+  assert.match(blender, /--max-decimate-passes/);
+  assert.match(blender, /decimatePassesApplied/);
+  assert.match(worker, /"--min-decimate-ratio"/);
+  assert.match(worker, /"--max-decimate-passes"/);
+  assert.equal(config.profiles.emergency.recipes[0].minDecimateRatio, 0.03);
+  assert.equal(config.profiles.emergency.recipes[1].minDecimateRatio, 0.02);
+  assert.equal(config.profiles.emergency.recipes[1].maxDecimatePasses, 2);
+  for (const profile of ["premium", "balanced", "light"]) {
+    for (const recipe of config.profiles[profile].recipes) {
+      assert.equal(recipe.minDecimateRatio, 0.05);
+      assert.equal(recipe.maxDecimatePasses, 1);
+    }
+  }
 });

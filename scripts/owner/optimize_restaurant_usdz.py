@@ -58,43 +58,28 @@ except Exception as exc:  # pragma: no cover - environment guard
     sys.exit(3)
 
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+RECIPE_CONFIG_PATH = SCRIPT_DIR / "usdz-optimization-recipes.json"
+
+
+def load_recipe_config() -> dict:
+    with RECIPE_CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+RECIPE_CONFIG = load_recipe_config()
+PROFILE_CONFIGS = RECIPE_CONFIG["profiles"]
 PROFILES: dict[str, dict[str, float | int]] = {
-    "premium": {
-        "baseColorMax": 2048,
-        "normalMax": 1536,
-        "ormMax": 1536,
-        "jpegQuality": 90,
-        "targetTriangles": 300_000,
-        "decimateRatio": 0.78,
-        "mergeDistance": 0.00003,
-    },
-    "balanced": {
-        "baseColorMax": 1536,
-        "normalMax": 1280,
-        "ormMax": 1024,
-        "jpegQuality": 88,
-        "targetTriangles": 180_000,
-        "decimateRatio": 0.66,
-        "mergeDistance": 0.00005,
-    },
-    "light": {
-        "baseColorMax": 1024,
-        "normalMax": 1024,
-        "ormMax": 1024,
-        "jpegQuality": 84,
-        "targetTriangles": 100_000,
-        "decimateRatio": 0.5,
-        "mergeDistance": 0.00008,
-    },
-    "emergency": {
-        "baseColorMax": 768,
-        "normalMax": 768,
-        "ormMax": 768,
-        "jpegQuality": 76,
-        "targetTriangles": 70_000,
-        "decimateRatio": 0.38,
-        "mergeDistance": 0.00010,
-    },
+    profile_slug: profile_config["recipes"][0] for profile_slug, profile_config in PROFILE_CONFIGS.items()
+}
+RECIPES_BY_PROFILE: dict[str, list[dict[str, float | int | str]]] = {
+    profile_slug: list(profile_config["recipes"])
+    for profile_slug, profile_config in PROFILE_CONFIGS.items()
+}
+RECIPES_BY_SLUG: dict[str, tuple[str, dict[str, float | int | str]]] = {
+    str(recipe["slug"]): (profile_slug, recipe)
+    for profile_slug, recipes in RECIPES_BY_PROFILE.items()
+    for recipe in recipes
 }
 
 DISH_PHYSICAL_SCALE_TARGETS = {
@@ -128,6 +113,7 @@ class TextureInfo:
 @dataclass
 class Report:
     profile: str
+    recipe: str
     source_bytes: int
     runtime_bytes: int = 0
     geometry_optimization: str = "skipped"
@@ -139,6 +125,9 @@ class Report:
     triangle_count_after: int = 0
     geometry_reduction_percent: float = 0.0
     target_triangles: int = 0
+    min_decimate_ratio: float = 0.05
+    max_decimate_passes: int = 1
+    decimate_passes_applied: int = 0
     removed_objects: list[str] = field(default_factory=list)
     optimized_objects: list[dict] = field(default_factory=list)
     physical_scale: dict = field(default_factory=dict)
@@ -171,6 +160,9 @@ def fail(report: Report | None, message: str, stage: str) -> None:
 def report_to_dict(report: Report) -> dict:
     return {
         "profile": report.profile,
+        "recipe": report.recipe,
+        "selectedRecipe": report.recipe,
+        "profileRecipe": f"{report.profile}:{report.recipe}",
         "sourceBytes": report.source_bytes,
         "runtimeBytes": report.runtime_bytes,
         "reductionPercent": (
@@ -185,6 +177,9 @@ def report_to_dict(report: Report) -> dict:
         "triangleCountAfter": report.triangle_count_after,
         "geometryReductionPercent": report.geometry_reduction_percent,
         "targetTriangles": report.target_triangles,
+        "minDecimateRatio": report.min_decimate_ratio,
+        "maxDecimatePasses": report.max_decimate_passes,
+        "decimatePassesApplied": report.decimate_passes_applied,
         "removedObjects": report.removed_objects,
         "optimizedObjects": report.optimized_objects,
         "physicalScale": report.physical_scale,
@@ -227,7 +222,7 @@ def env_int(name: str, fallback: int) -> int:
     return parsed if parsed > 0 else fallback
 
 
-def apply_profile_env_overrides(profile_slug: str, profile: dict[str, float | int]) -> dict[str, float | int]:
+def apply_profile_env_overrides(profile_slug: str, profile: dict[str, float | int | str]) -> dict[str, float | int | str]:
     prefix = f"VISTAIRE_USDZ_{profile_slug.upper()}"
     return {
         **profile,
@@ -235,6 +230,25 @@ def apply_profile_env_overrides(profile_slug: str, profile: dict[str, float | in
             f"{prefix}_TARGET_TRIANGLES", int(profile["targetTriangles"])
         ),
     }
+
+
+def resolve_recipe(profile_slug: str, recipe_slug: str | None) -> dict[str, float | int | str]:
+    recipes = RECIPES_BY_PROFILE.get(profile_slug)
+    if not recipes:
+        fail(None, f"Profil inconnu: {profile_slug}", "profile")
+    if not recipe_slug:
+        return recipes[0]
+    match = RECIPES_BY_SLUG.get(recipe_slug)
+    if match is None:
+        fail(None, f"Recette USDZ inconnue: {recipe_slug}", "recipe")
+    recipe_profile, recipe = match
+    if recipe_profile != profile_slug:
+        fail(
+            None,
+            f"Recette USDZ invalide pour {profile_slug}: {recipe_slug}",
+            "recipe",
+        )
+    return recipe
 
 
 def analyze_archive_entries(source: Path, archive_names: list[str]) -> tuple[list[dict], list[dict], int]:
@@ -396,6 +410,10 @@ def run_blender_geometry_pass(
         str(int(profile["targetTriangles"])),
         "--decimate-ratio",
         str(float(profile["decimateRatio"])),
+        "--min-decimate-ratio",
+        str(float(profile.get("minDecimateRatio", 0.05))),
+        "--max-decimate-passes",
+        str(int(profile.get("maxDecimatePasses", 1))),
         "--merge-distance",
         str(float(profile["mergeDistance"])),
         "--dish-kind",
@@ -451,6 +469,9 @@ def run_blender_geometry_pass(
         report.triangle_count_after = after
         report.geometry_reduction_percent = round((1 - after / before) * 100, 2)
         report.blender_version = metrics.get("blenderVersion")
+        report.min_decimate_ratio = float(metrics.get("minDecimateRatio", profile.get("minDecimateRatio", 0.05)) or 0.05)
+        report.max_decimate_passes = int(metrics.get("maxDecimatePasses", profile.get("maxDecimatePasses", 1)) or 1)
+        report.decimate_passes_applied = int(metrics.get("decimatePassesApplied", 0) or 0)
         report.removed_objects = list(metrics.get("removedObjects") or [])
         report.optimized_objects = list(metrics.get("optimizedObjects") or [])
         use_optimized_root = True
@@ -702,11 +723,17 @@ def find_root_layer(extracted: Path, archive_entry: PurePosixPath) -> Path:
     return candidate
 
 
-def optimize(source: Path, output: Path, report_path: Path, profile_slug: str, dish_kind: str) -> None:
-    raw_profile = PROFILES.get(profile_slug)
-    if raw_profile is None:
-        fail(None, f"Profil inconnu: {profile_slug}", "profile")
-    profile = apply_profile_env_overrides(profile_slug, raw_profile)
+def optimize(
+    source: Path,
+    output: Path,
+    report_path: Path,
+    profile_slug: str,
+    dish_kind: str,
+    recipe_slug: str | None = None,
+) -> None:
+    raw_recipe = resolve_recipe(profile_slug, recipe_slug)
+    recipe = str(raw_recipe["slug"])
+    profile = apply_profile_env_overrides(profile_slug, raw_recipe)
     if dish_kind not in DISH_PHYSICAL_SCALE_TARGETS:
         dish_kind = "fallback"
 
@@ -722,8 +749,10 @@ def optimize(source: Path, output: Path, report_path: Path, profile_slug: str, d
     if source_bytes <= 0:
         fail(None, "Source USDZ vide.", "source")
 
-    report = Report(profile=profile_slug, source_bytes=source_bytes)
+    report = Report(profile=profile_slug, recipe=recipe, source_bytes=source_bytes)
     report.target_triangles = int(profile["targetTriangles"])
+    report.min_decimate_ratio = float(profile.get("minDecimateRatio", 0.05))
+    report.max_decimate_passes = int(profile.get("maxDecimatePasses", 1))
 
     try:
         with zipfile.ZipFile(source) as archive:
@@ -873,7 +902,13 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument(
-        "--profile", type=str, default="balanced", choices=sorted(PROFILES.keys())
+        "--profile", type=str, default="balanced", choices=sorted(PROFILE_CONFIGS.keys())
+    )
+    parser.add_argument(
+        "--recipe",
+        type=str,
+        default="",
+        choices=["", *sorted(RECIPES_BY_SLUG.keys())],
     )
     parser.add_argument(
         "--dish-kind",
@@ -882,7 +917,7 @@ def main() -> None:
         choices=sorted(DISH_PHYSICAL_SCALE_TARGETS.keys()),
     )
     args = parser.parse_args()
-    optimize(args.source, args.output, args.report, args.profile, args.dish_kind)
+    optimize(args.source, args.output, args.report, args.profile, args.dish_kind, args.recipe or None)
 
 
 if __name__ == "__main__":

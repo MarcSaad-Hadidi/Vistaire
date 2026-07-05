@@ -217,9 +217,38 @@ def normalize_physical_scale(dish_kind: str) -> dict:
     return physical_scale_payload(status, normalized_kind, target, before, after, scale_factor)
 
 
-def optimize_meshes(target_triangles: int, decimate_ratio: float, merge_distance: float) -> dict:
+def clamp_ratio(value: float, minimum: float) -> float:
+    return max(minimum, min(1.0, value))
+
+
+def apply_decimate_pass(ratio: float, pass_index: int, optimized: list[dict]) -> None:
+    for obj in [item for item in bpy.context.scene.objects if item.type == "MESH"]:
+        if mesh_triangle_count(obj) < 512:
+            continue
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        modifier = obj.modifiers.new(name=f"VistaireRuntimeDecimate{pass_index}", type="DECIMATE")
+        modifier.ratio = ratio
+        modifier.use_collapse_triangulate = True
+        try:
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
+            optimized.append({"name": obj.name, "ratio": ratio, "pass": pass_index})
+        except Exception:
+            obj.modifiers.remove(modifier)
+        obj.select_set(False)
+    refresh_scene_geometry()
+
+
+def optimize_meshes(
+    target_triangles: int,
+    decimate_ratio: float,
+    merge_distance: float,
+    min_decimate_ratio: float,
+    max_decimate_passes: int,
+) -> dict:
     removed = []
     optimized = []
+    decimate_passes_applied = 0
     mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
     for obj in mesh_objects:
         if obj.hide_get() or obj.hide_viewport or obj.hide_render or obj.data is None:
@@ -241,22 +270,17 @@ def optimize_meshes(target_triangles: int, decimate_ratio: float, merge_distance
         bpy.ops.object.mode_set(mode="OBJECT")
 
     before = scene_triangle_count()
-    if before > target_triangles and before > 0:
-        ratio = max(0.05, min(1.0, target_triangles / before, decimate_ratio))
-        for obj in [item for item in bpy.context.scene.objects if item.type == "MESH"]:
-            if mesh_triangle_count(obj) < 512:
-                continue
-            bpy.context.view_layer.objects.active = obj
-            obj.select_set(True)
-            modifier = obj.modifiers.new(name="VistaireRuntimeDecimate", type="DECIMATE")
-            modifier.ratio = ratio
-            modifier.use_collapse_triangulate = True
-            try:
-                bpy.ops.object.modifier_apply(modifier=modifier.name)
-                optimized.append({"name": obj.name, "ratio": ratio})
-            except Exception:
-                obj.modifiers.remove(modifier)
-            obj.select_set(False)
+    current = before
+    pass_count = max(1, int(max_decimate_passes))
+    minimum_ratio = max(0.01, min(1.0, float(min_decimate_ratio)))
+    if target_triangles > 0 and before > target_triangles and before > 0:
+        for pass_index in range(1, pass_count + 1):
+            ratio = clamp_ratio(min(target_triangles / current, decimate_ratio), minimum_ratio)
+            apply_decimate_pass(ratio, pass_index, optimized)
+            decimate_passes_applied += 1
+            current = scene_triangle_count()
+            if current <= target_triangles:
+                break
 
     for obj in [item for item in bpy.context.scene.objects if item.type == "MESH"]:
         bpy.context.view_layer.objects.active = obj
@@ -271,7 +295,15 @@ def optimize_meshes(target_triangles: int, decimate_ratio: float, merge_distance
         obj.select_set(False)
 
     after = scene_triangle_count()
-    return {"removedObjects": removed, "optimizedObjects": optimized, "trianglesBefore": before, "trianglesAfter": after}
+    return {
+        "removedObjects": removed,
+        "optimizedObjects": optimized,
+        "trianglesBefore": before,
+        "trianglesAfter": after,
+        "minDecimateRatio": minimum_ratio,
+        "maxDecimatePasses": pass_count,
+        "decimatePassesApplied": decimate_passes_applied,
+    }
 
 
 def main() -> None:
@@ -287,6 +319,8 @@ def main() -> None:
     parser.add_argument("--metrics", type=Path, required=True)
     parser.add_argument("--target-triangles", type=int, required=True)
     parser.add_argument("--decimate-ratio", type=float, default=0.72)
+    parser.add_argument("--min-decimate-ratio", type=float, default=0.05)
+    parser.add_argument("--max-decimate-passes", type=int, default=1)
     parser.add_argument("--merge-distance", type=float, default=0.00005)
     parser.add_argument("--dish-kind", type=str, default="fallback", choices=sorted(DISH_SCALE_TARGETS.keys()))
     args = parser.parse_args(argv)
@@ -294,7 +328,13 @@ def main() -> None:
     clear_scene()
     bpy.ops.wm.usd_import(filepath=str(args.input))
     before_import = scene_triangle_count()
-    metrics = optimize_meshes(args.target_triangles, args.decimate_ratio, args.merge_distance)
+    metrics = optimize_meshes(
+        args.target_triangles,
+        args.decimate_ratio,
+        args.merge_distance,
+        args.min_decimate_ratio,
+        args.max_decimate_passes,
+    )
     physical_scale = normalize_physical_scale(args.dish_kind)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     if args.output.exists():
