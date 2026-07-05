@@ -1394,6 +1394,14 @@ test("worker refuses to store source and reports geometry honestly", () => {
   assert.doesNotMatch(cli, /\.upload\(/);
 });
 
+test("Python optimizer discovers Blender installed in Windows Program Files", () => {
+  assert.match(worker, /ProgramFiles/);
+  assert.match(worker, /Blender Foundation/);
+  assert.match(worker, /Blender \*\/blender\.exe/);
+  assert.match(worker, /windows_blender_candidates/);
+  assert.match(worker, /resolve_blender\(\)[\s\S]*windows_blender_candidates\(\)/);
+});
+
 test("physical scale targets use footprint for solid dishes and height for burger and drink", () => {
   const python = read("scripts/owner/optimize_restaurant_usdz.py");
   for (const source of [blenderOptimizer, python]) {

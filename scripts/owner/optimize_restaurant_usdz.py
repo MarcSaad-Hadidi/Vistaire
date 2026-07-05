@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -273,11 +274,47 @@ def count_stage_triangles(stage: Usd.Stage) -> int:
     return total
 
 
+def blender_candidate_sort_key(path: Path) -> tuple[tuple[int, ...], float, str]:
+    match = re.search(r"Blender\s+([0-9]+(?:\.[0-9]+)*)", path.parent.name)
+    version = tuple(int(part) for part in match.group(1).split(".")) if match else ()
+    try:
+        modified = path.stat().st_mtime
+    except OSError:
+        modified = 0.0
+    return (version, modified, str(path))
+
+
+def windows_blender_candidates() -> list[Path]:
+    roots = [
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramW6432"),
+        os.environ.get("ProgramFiles(x86)"),
+        "C:/Program Files",
+        "C:/Program Files (x86)",
+    ]
+    candidates: dict[str, Path] = {}
+    for root in roots:
+        if not root:
+            continue
+        base = Path(root) / "Blender Foundation"
+        if not base.exists():
+            continue
+        for candidate in base.glob("Blender */blender.exe"):
+            if candidate.is_file():
+                candidates[str(candidate.resolve()).lower()] = candidate
+    return sorted(candidates.values(), key=blender_candidate_sort_key, reverse=True)
+
+
 def resolve_blender() -> str | None:
     configured = os.environ.get("VISTAIRE_USDZ_BLENDER")
     if configured:
         return configured
-    return shutil.which("blender")
+    path_blender = shutil.which("blender")
+    if path_blender:
+        return path_blender
+    for candidate in windows_blender_candidates():
+        return str(candidate)
+    return None
 
 
 def ensure_path_under_extracted(path: Path, extracted: Path, label: str) -> None:
