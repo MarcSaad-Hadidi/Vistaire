@@ -125,6 +125,9 @@ class Report:
     triangle_count_after: int = 0
     geometry_reduction_percent: float = 0.0
     target_triangles: int = 0
+    min_decimate_ratio: float = 0.05
+    max_decimate_passes: int = 1
+    decimate_passes_applied: int = 0
     removed_objects: list[str] = field(default_factory=list)
     optimized_objects: list[dict] = field(default_factory=list)
     physical_scale: dict = field(default_factory=dict)
@@ -174,6 +177,9 @@ def report_to_dict(report: Report) -> dict:
         "triangleCountAfter": report.triangle_count_after,
         "geometryReductionPercent": report.geometry_reduction_percent,
         "targetTriangles": report.target_triangles,
+        "minDecimateRatio": report.min_decimate_ratio,
+        "maxDecimatePasses": report.max_decimate_passes,
+        "decimatePassesApplied": report.decimate_passes_applied,
         "removedObjects": report.removed_objects,
         "optimizedObjects": report.optimized_objects,
         "physicalScale": report.physical_scale,
@@ -404,6 +410,10 @@ def run_blender_geometry_pass(
         str(int(profile["targetTriangles"])),
         "--decimate-ratio",
         str(float(profile["decimateRatio"])),
+        "--min-decimate-ratio",
+        str(float(profile.get("minDecimateRatio", 0.05))),
+        "--max-decimate-passes",
+        str(int(profile.get("maxDecimatePasses", 1))),
         "--merge-distance",
         str(float(profile["mergeDistance"])),
         "--dish-kind",
@@ -459,6 +469,9 @@ def run_blender_geometry_pass(
         report.triangle_count_after = after
         report.geometry_reduction_percent = round((1 - after / before) * 100, 2)
         report.blender_version = metrics.get("blenderVersion")
+        report.min_decimate_ratio = float(metrics.get("minDecimateRatio", profile.get("minDecimateRatio", 0.05)) or 0.05)
+        report.max_decimate_passes = int(metrics.get("maxDecimatePasses", profile.get("maxDecimatePasses", 1)) or 1)
+        report.decimate_passes_applied = int(metrics.get("decimatePassesApplied", 0) or 0)
         report.removed_objects = list(metrics.get("removedObjects") or [])
         report.optimized_objects = list(metrics.get("optimizedObjects") or [])
         use_optimized_root = True
@@ -738,6 +751,8 @@ def optimize(
 
     report = Report(profile=profile_slug, recipe=recipe, source_bytes=source_bytes)
     report.target_triangles = int(profile["targetTriangles"])
+    report.min_decimate_ratio = float(profile.get("minDecimateRatio", 0.05))
+    report.max_decimate_passes = int(profile.get("maxDecimatePasses", 1))
 
     try:
         with zipfile.ZipFile(source) as archive:

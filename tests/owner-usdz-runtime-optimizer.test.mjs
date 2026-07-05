@@ -170,6 +170,37 @@ if (mode === "premium-safe-success") {
   });
   process.exit(0);
 }
+if (mode === "emergency-safe-success") {
+  if (profile !== "emergency") {
+    console.error(JSON.stringify({ ok: false, error: "unexpected profile", stage: "profile" }));
+    process.exit(2);
+  }
+  if (recipe !== "emergency-safe") {
+    writeRuntimeReport({
+      optimizationApplied: false,
+      runtimeBytes: 5_980_000,
+      triangleCountBefore: 1555864,
+      triangleCountAfter: 77793,
+      targetTriangles: 70000,
+      minDecimateRatio: 0.03,
+      maxDecimatePasses: 2,
+      decimatePassesApplied: 1,
+      fails: ["Triangle budget depasse apres optimisation (77793 > 70000)."]
+    });
+    process.exit(0);
+  }
+  writeRuntimeReport({
+    optimizationApplied: false,
+    runtimeBytes: 5_620_000,
+    triangleCountBefore: 1555864,
+    triangleCountAfter: 55000,
+    targetTriangles: 55000,
+    minDecimateRatio: 0.02,
+    maxDecimatePasses: 2,
+    decimatePassesApplied: 2
+  });
+  process.exit(0);
+}
 if (mode === "bad-report") {
   copyFileSync(source, output);
   writeFileSync(report, "{", "utf8");
@@ -729,6 +760,35 @@ test("USDZ runtime optimizer falls back only across recipes inside the requested
   assert.equal(reportJson.recipeFallbackApplied, true);
 });
 
+test("USDZ runtime optimizer can choose emergency-safe without profile fallback", () => {
+  const { result, stdoutJson, reportJson } = runCliWithFakeWorker(
+    "emergency-safe-success",
+    {},
+    "emergency"
+  );
+
+  assert.equal(result.status, 0);
+  assert.equal(stdoutJson.profile, "emergency");
+  assert.equal(stdoutJson.requestedProfile, "emergency");
+  assert.equal(stdoutJson.selectedProfile, "emergency");
+  assert.equal(stdoutJson.selectedRecipe, "emergency-safe");
+  assert.equal(stdoutJson.profileFallbackApplied, false);
+  assert.equal(stdoutJson.recipeFallbackApplied, true);
+  assert.deepEqual(
+    stdoutJson.candidateAttempts.map((attempt) => `${attempt.profile}:${attempt.recipe}`),
+    ["emergency:emergency-max", "emergency:emergency-safe"]
+  );
+  assert.equal(stdoutJson.candidateAttempts[0].targetTriangles, 70000);
+  assert.equal(stdoutJson.candidateAttempts[0].minDecimateRatio, 0.03);
+  assert.equal(stdoutJson.candidateAttempts[1].targetTriangles, 55000);
+  assert.equal(stdoutJson.candidateAttempts[1].minDecimateRatio, 0.02);
+  assert.equal(stdoutJson.candidateAttempts[1].decimatePassesApplied, 2);
+  assert.equal(reportJson.selectedProfile, "emergency");
+  assert.equal(reportJson.selectedRecipe, "emergency-safe");
+  assert.equal(reportJson.profileFallbackApplied, false);
+  assert.equal(reportJson.recipeFallbackApplied, true);
+});
+
 test("USDZ runtime optimizer preserves attempts when selected runtime fails final validation", () => {
   const { result, stderrJson } = runCliWithFakeWorker("invalid-runtime");
 
@@ -750,4 +810,26 @@ test("Blender optimizer refreshes scene geometry after baked mesh transforms", (
   assert.match(blender, /bpy\.context\.view_layer\.update\(\)/);
   assert.match(blender, /bake_meshes_to_world\(\)[\s\S]*refresh_scene_geometry\(\)/);
   assert.match(blender, /transform_mesh_geometry\(matrix: Matrix\)[\s\S]*refresh_scene_geometry\(\)/);
+});
+
+test("Blender optimizer uses recipe-driven decimation limits instead of a hardcoded 0.05 floor", () => {
+  const blender = readFileSync("scripts/owner/blender_usdz_geometry_optimizer.py", "utf8");
+  const worker = readFileSync("scripts/owner/optimize_restaurant_usdz.py", "utf8");
+  const config = JSON.parse(readFileSync("scripts/owner/usdz-optimization-recipes.json", "utf8"));
+
+  assert.doesNotMatch(blender, /max\(0\.05,\s*min/);
+  assert.match(blender, /--min-decimate-ratio/);
+  assert.match(blender, /--max-decimate-passes/);
+  assert.match(blender, /decimatePassesApplied/);
+  assert.match(worker, /"--min-decimate-ratio"/);
+  assert.match(worker, /"--max-decimate-passes"/);
+  assert.equal(config.profiles.emergency.recipes[0].minDecimateRatio, 0.03);
+  assert.equal(config.profiles.emergency.recipes[1].minDecimateRatio, 0.02);
+  assert.equal(config.profiles.emergency.recipes[1].maxDecimatePasses, 2);
+  for (const profile of ["premium", "balanced", "light"]) {
+    for (const recipe of config.profiles[profile].recipes) {
+      assert.equal(recipe.minDecimateRatio, 0.05);
+      assert.equal(recipe.maxDecimatePasses, 1);
+    }
+  }
 });

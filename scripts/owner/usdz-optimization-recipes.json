@@ -12,6 +12,8 @@
           "jpegQuality": 90,
           "targetTriangles": 300000,
           "decimateRatio": 0.78,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00003
         },
         {
@@ -22,6 +24,8 @@
           "jpegQuality": 88,
           "targetTriangles": 260000,
           "decimateRatio": 0.7,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00004
         },
         {
@@ -32,6 +36,8 @@
           "jpegQuality": 86,
           "targetTriangles": 220000,
           "decimateRatio": 0.62,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00005
         }
       ]
@@ -48,6 +54,8 @@
           "jpegQuality": 88,
           "targetTriangles": 180000,
           "decimateRatio": 0.66,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00005
         },
         {
@@ -58,6 +66,8 @@
           "jpegQuality": 86,
           "targetTriangles": 150000,
           "decimateRatio": 0.58,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00006
         },
         {
@@ -68,6 +78,8 @@
           "jpegQuality": 84,
           "targetTriangles": 130000,
           "decimateRatio": 0.52,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00007
         }
       ]
@@ -84,6 +96,8 @@
           "jpegQuality": 84,
           "targetTriangles": 100000,
           "decimateRatio": 0.5,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00008
         },
         {
@@ -94,6 +108,8 @@
           "jpegQuality": 82,
           "targetTriangles": 90000,
           "decimateRatio": 0.46,
+          "minDecimateRatio": 0.05,
+          "maxDecimatePasses": 1,
           "mergeDistance": 0.00009
         }
       ]
@@ -110,6 +126,8 @@
           "jpegQuality": 76,
           "targetTriangles": 70000,
           "decimateRatio": 0.38,
+          "minDecimateRatio": 0.03,
+          "maxDecimatePasses": 2,
           "mergeDistance": 0.0001
         },
         {
@@ -120,6 +138,8 @@
           "jpegQuality": 72,
           "targetTriangles": 55000,
           "decimateRatio": 0.32,
+          "minDecimateRatio": 0.02,
+          "maxDecimatePasses": 2,
           "mergeDistance": 0.00012
         }
       ]

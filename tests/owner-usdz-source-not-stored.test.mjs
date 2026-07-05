@@ -1636,6 +1636,12 @@ test("worker refuses to store source and reports geometry honestly", () => {
   const recipeConfig = JSON.parse(read("scripts/owner/usdz-optimization-recipes.json"));
   assert.equal(recipeConfig.profiles.light.targetMaxBytes, 10 * 1024 * 1024);
   assert.equal(recipeConfig.profiles.emergency.targetMaxBytes, 6 * 1024 * 1024);
+  assert.equal(recipeConfig.profiles.emergency.recipes[0].minDecimateRatio, 0.03);
+  assert.equal(recipeConfig.profiles.emergency.recipes[1].minDecimateRatio, 0.02);
+  assert.equal(recipeConfig.profiles.emergency.recipes[1].maxDecimatePasses, 2);
+  assert.match(worker, /"--min-decimate-ratio"/);
+  assert.match(worker, /"--max-decimate-passes"/);
+  assert.match(worker, /decimatePassesApplied/);
   assert.match(cli, /VALID_DISH_KINDS/);
   assert.match(cli, /--dish-kind/);
   assert.match(cli, /platter/);

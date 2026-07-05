@@ -346,6 +346,8 @@ async function runCandidate({ python, source, workspace, profile, recipe, dishKi
     selectedRecipe: recipeSlug,
     targetBytes: targetBudgetBytes(profile),
     targetTriangles: Number(recipe?.targetTriangles) || 0,
+    minDecimateRatio: Number(recipe?.minDecimateRatio) || 0.05,
+    maxDecimatePasses: Number(recipe?.maxDecimatePasses) || 1,
     ok: result.code === 0,
     runtimeBytes: existsSync(runtimePath) ? statSync(runtimePath).size : 0,
     durationMs: Date.now() - startedAt
@@ -422,6 +424,9 @@ async function runCandidate({ python, source, workspace, profile, recipe, dishKi
       triangleCountBefore: report.triangleCountBefore ?? 0,
       triangleCountAfter: report.triangleCountAfter ?? 0,
       targetTriangles: report.targetTriangles ?? attempt.targetTriangles,
+      minDecimateRatio: report.minDecimateRatio ?? attempt.minDecimateRatio,
+      maxDecimatePasses: report.maxDecimatePasses ?? attempt.maxDecimatePasses,
+      decimatePassesApplied: report.decimatePassesApplied ?? 0,
       physicalScale: report.physicalScale ?? null,
       warnings: Array.isArray(report.warnings) ? report.warnings : [],
       fails: Array.isArray(report.fails) ? report.fails : [],
