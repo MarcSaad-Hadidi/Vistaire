@@ -114,6 +114,24 @@ if (mode === "blender-unavailable-report") {
   }));
   process.exit(2);
 }
+if (mode === "blender-launch-report") {
+  console.error(JSON.stringify({
+    ok: false,
+    error: "Echelle physique invalide: Blender impossible ([Errno 13] Permission denied).",
+    stage: "physical-scale",
+    report: {
+      geometryOptimization: "skipped",
+      geometryOptimizationReason: "Blender geometry pass impossible: [Errno 13] Permission denied",
+      physicalScale: {
+        status: "failed",
+        dishKind: "plate",
+        warnings: []
+      },
+      fails: ["Echelle physique invalide: Blender impossible ([Errno 13] Permission denied)."]
+    }
+  }));
+  process.exit(2);
+}
 if (mode === "physical-scale-report") {
   writeRuntimeReport({
     physicalScale: { status: "failed", dishKind: "plate", dimension: "footprint", grounded: false },
@@ -549,6 +567,16 @@ test("USDZ runtime optimizer preserves failed worker report details for missing 
   assert.deepEqual(stderrJson.attempts[0].fails, [
     "Echelle physique invalide: Blender indisponible pour normaliser le modele AR."
   ]);
+});
+
+test("USDZ runtime optimizer classifies Blender launch failures as Blender setup failures", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("blender-launch-report");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "blender");
+  assert.equal(stderrJson.failureKind, "blender");
+  assert.match(stderrJson.error, /Blender impossible|Blender geometry pass impossible/);
+  assert.equal(stderrJson.attempts[0].stage, "physical-scale");
 });
 
 test("USDZ runtime optimizer reports failed physical scale from candidate report", () => {

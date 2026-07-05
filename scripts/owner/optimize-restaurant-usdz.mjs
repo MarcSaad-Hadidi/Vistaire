@@ -167,7 +167,7 @@ function attemptHasTriangleFailure(attempt) {
 function attemptHasBlenderFailure(attempt) {
   const fails = Array.isArray(attempt.fails) ? attempt.fails : [];
   const warnings = Array.isArray(attempt.warnings) ? attempt.warnings : [];
-  const blenderUnavailablePattern = /blender (?:indisponible|unavailable)|blender executable|executable introuvable|n'a pas produit|geometry pass echoue/i;
+  const blenderUnavailablePattern = /blender (?:indisponible|unavailable|impossible)|blender executable|executable introuvable|n'a pas produit|geometry pass (?:echoue|impossible)/i;
   return (
     /blender/i.test(String(attempt.stage)) ||
     blenderUnavailablePattern.test(String(attempt.error)) ||
