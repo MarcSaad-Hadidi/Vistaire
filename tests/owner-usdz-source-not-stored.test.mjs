@@ -10,8 +10,11 @@ import {
   buildViewerGlbMetadataPatch,
   buildViewerGlbStoragePlan,
   createUsdzRuntimeAssetVersion,
+  defaultUsdzOptimizationRecipe,
   evaluateRuntimeUsdzUploadGate,
+  isUsdzOptimizationRecipeForProfile,
   USDZ_OPTIMIZATION_PROFILES,
+  USDZ_OPTIMIZATION_PROFILE_RECIPES,
   validateUsdzStructure,
   sha256Hex
 } from "../lib/owner/usdzRuntimeModel.ts";
@@ -230,7 +233,9 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
     reportStoragePath: "restaurants/x/models/manifests/homard.json",
     profile: "balanced",
     selectedProfile: "balanced",
+    selectedRecipe: "balanced-fit",
     profileFallbackApplied: false,
+    recipeFallbackApplied: true,
     warnings: [],
     fails: [],
     reductionPercent: 72,
@@ -297,7 +302,9 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
   assert.equal(patch.usdzOptimizationAttemptCount, 2);
   assert.equal(patch.usdzOptimizationRequestedProfile, "balanced");
   assert.equal(patch.usdzOptimizationProfile, "balanced");
+  assert.equal(patch.usdzOptimizationSelectedRecipe, "balanced-fit");
   assert.equal(patch.usdzOptimizationProfileFallbackApplied, false);
+  assert.equal(patch.usdzOptimizationRecipeFallbackApplied, true);
   assert.equal(patch.usdzSourceBytes, 120_000_000);
   assert.equal(patch.usdzSourceOriginalName, "master.usdz");
   assert.ok(String(patch.arUsdzUrl).startsWith("/api/public/menu-dishes/"));
@@ -306,6 +313,25 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
     assert.equal(field in patch, false);
   }
   assert.doesNotThrow(() => assertNoForbiddenSourceStorage(patch));
+});
+
+test("USDZ recipe registry stays consistent with the shared optimizer config", () => {
+  const config = JSON.parse(read("scripts/owner/usdz-optimization-recipes.json"));
+
+  for (const [profile, profileConfig] of Object.entries(config.profiles)) {
+    assert.equal(
+      USDZ_OPTIMIZATION_PROFILES[profile].targetMaxBytes,
+      profileConfig.targetMaxBytes
+    );
+    assert.deepEqual(
+      USDZ_OPTIMIZATION_PROFILE_RECIPES[profile],
+      profileConfig.recipes.map((recipe) => recipe.slug)
+    );
+    assert.equal(defaultUsdzOptimizationRecipe(profile), profileConfig.recipes[0].slug);
+    for (const recipe of profileConfig.recipes) {
+      assert.equal(isUsdzOptimizationRecipeForProfile(profile, recipe.slug), true);
+    }
+  }
 });
 
 test("runtime asset version and storage path change when the same source is processed with a different profile", async () => {
@@ -579,7 +605,7 @@ test("prepare-upload enforces the selected profile byte budget", async () => {
           profile: "emergency",
           sourceBytes: 20 * 1024 * 1024,
           sourceSha256: "b".repeat(64),
-          runtimeBytes: 6 * 1024 * 1024,
+          runtimeBytes: 7 * 1024 * 1024,
           runtimeSha256: "a".repeat(64),
           reportBytes: 512,
           geometryOptimization: "done",
@@ -637,6 +663,58 @@ test("prepare-upload rejects selectedProfile mismatch in strict mode before sign
         }
       }),
     /Profil USDZ selectionne invalide/
+  );
+  assert.deepEqual(signedPaths, []);
+});
+
+test("prepare-upload rejects selectedRecipe outside the requested profile before signing uploads", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 20 * 1024 * 1024,
+    profile: "premium",
+    env
+  });
+  assert.equal(token.ok, true);
+  const signedPaths = [];
+  const { client } = mockAdminClient({
+    createSignedUploadUrl: async (path) => {
+      signedPaths.push(path);
+      return { data: { signedUrl: "https://storage.test", token: "token", path }, error: null };
+    }
+  });
+
+  await assert.rejects(
+    () =>
+      prepareUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        maxRuntimeBytes: 24 * 1024 * 1024,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "premium",
+          selectedProfile: "premium",
+          selectedRecipe: "light-max",
+          profileFallbackApplied: false,
+          recipeFallbackApplied: false,
+          sourceBytes: 20 * 1024 * 1024,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: 8 * 1024 * 1024,
+          runtimeSha256: "a".repeat(64),
+          reportBytes: 512,
+          geometryOptimization: "done",
+          warnings: [],
+          fails: []
+        }
+      }),
+    /Recette USDZ selectionnee invalide/
   );
   assert.deepEqual(signedPaths, []);
 });
@@ -731,7 +809,7 @@ test("light profile budget accepts a mobile-safe runtime without signing source 
   assert.equal(USDZ_OPTIMIZATION_PROFILES.light.targetMaxBytes, 10 * 1024 * 1024);
   assert.equal(
     USDZ_OPTIMIZATION_PROFILES.emergency.targetMaxBytes,
-    5.5 * 1024 * 1024
+    6 * 1024 * 1024
   );
 
   const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
@@ -921,6 +999,11 @@ test("complete rejects stale worker reports without physical scale metrics", asy
   const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
   const report = {
     sourceStored: false,
+    requestedProfile: "balanced",
+    selectedProfile: "balanced",
+    selectedRecipe: "balanced-max",
+    recipeFallbackApplied: false,
+    profileFallbackApplied: false,
     reductionPercent: 12,
     geometryOptimization: "done",
     warnings: [],
@@ -1090,6 +1173,11 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
   const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
   const report = {
     sourceStored: false,
+    requestedProfile: "balanced",
+    selectedProfile: "balanced",
+    selectedRecipe: "balanced-fit",
+    recipeFallbackApplied: true,
+    profileFallbackApplied: false,
     reductionPercent: 12,
     geometryOptimization: "done",
     triangleCountBefore: 240000,
@@ -1120,7 +1208,7 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
     },
     attemptCount: 1,
     candidateAttempts: [
-      { profile: "balanced", targetBytes: 8000, runtimeBytes: 7000, passedBudget: true }
+      { profile: "balanced", recipe: "balanced-fit", targetBytes: 8000, runtimeBytes: 7000, passedBudget: true }
     ],
     warnings: ["normal map missing"],
     fails: []
@@ -1139,6 +1227,10 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
       jobId: token.jobId,
       jobToken: token.token,
       profile: "balanced",
+      selectedProfile: "balanced",
+      selectedRecipe: "balanced-fit",
+      profileFallbackApplied: false,
+      recipeFallbackApplied: true,
       sourceBytes: 8000,
       sourceSha256: "b".repeat(64),
       runtimeBytes: runtimeBytes.byteLength,
@@ -1157,6 +1249,8 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
   });
 
   assert.equal(result.geometryOptimization, "done");
+  assert.equal(result.selectedRecipe, "balanced-fit");
+  assert.equal(result.recipeFallbackApplied, true);
   assert.equal(result.reductionPercent, 12);
   assert.deepEqual(result.warnings, ["normal map missing"]);
   assert.equal(updates[0].metadata.usdzGeometryOptimization, "done");
@@ -1171,6 +1265,8 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
   assert.equal(updates[0].metadata.usdzTriangleCountBefore, 240000);
   assert.equal(updates[0].metadata.usdzTriangleCountAfter, 120000);
   assert.equal(updates[0].metadata.usdzOptimizationAttemptCount, 1);
+  assert.equal(updates[0].metadata.usdzOptimizationSelectedRecipe, "balanced-fit");
+  assert.equal(updates[0].metadata.usdzOptimizationRecipeFallbackApplied, true);
 });
 
 test("jobToken verification rejects tampering and expiry", () => {
@@ -1494,8 +1590,12 @@ test("local worker keeps requested profile separate from optimizer selected prof
   assert.match(localWorker, /profile: requestedProfile/);
   assert.match(localWorker, /const selectedProfile = summary\.selectedProfile \|\| summary\.profile \|\| requestedProfile/);
   assert.match(localWorker, /selectedProfile,/);
+  assert.match(localWorker, /const selectedRecipe = summary\.selectedRecipe \|\| summary\.recipe \|\| `\$\{selectedProfile\}-max`/);
+  assert.match(localWorker, /selectedRecipe,/);
   assert.match(localWorker, /const profileFallbackApplied = Boolean\(summary\.profileFallbackApplied\)/);
   assert.match(localWorker, /profileFallbackApplied,/);
+  assert.match(localWorker, /const recipeFallbackApplied = Boolean\(summary\.recipeFallbackApplied\)/);
+  assert.match(localWorker, /recipeFallbackApplied,/);
   assert.doesNotMatch(localWorker, /profile: summary\.profile \|\| profile/);
 });
 
@@ -1531,8 +1631,11 @@ test("worker refuses to store source and reports geometry honestly", () => {
   assert.match(worker, /validate_packaging_root\(root_layer, extracted\)/);
   assert.match(worker, /UsdUtils\.ComputeAllDependencies/);
   assert.match(worker, /shutil\.rmtree\(workspace/);
-  assert.match(cli, /light:\s*10 \* 1024 \* 1024/);
-  assert.match(cli, /emergency:\s*Math\.floor\(5\.5 \* 1024 \* 1024\)/);
+  assert.match(cli, /usdz-optimization-recipes\.json/);
+  assert.match(cli, /DEFAULT_PROFILE_BUDGETS = Object\.fromEntries/);
+  const recipeConfig = JSON.parse(read("scripts/owner/usdz-optimization-recipes.json"));
+  assert.equal(recipeConfig.profiles.light.targetMaxBytes, 10 * 1024 * 1024);
+  assert.equal(recipeConfig.profiles.emergency.targetMaxBytes, 6 * 1024 * 1024);
   assert.match(cli, /VALID_DISH_KINDS/);
   assert.match(cli, /--dish-kind/);
   assert.match(cli, /platter/);

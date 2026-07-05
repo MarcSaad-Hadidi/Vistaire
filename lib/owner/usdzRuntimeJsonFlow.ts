@@ -7,13 +7,17 @@ import {
   buildUsdzRuntimeStoragePath,
   computeSplitModelStatus,
   createModelAssetVersion,
+  defaultUsdzOptimizationRecipe,
   evaluateRuntimeUsdzUploadGate,
   getMetadataObject,
+  isUsdzOptimizationRecipe,
+  isUsdzOptimizationRecipeForProfile,
   MODEL_BUCKET,
   restampPublicModelUrls,
   sha256Hex,
   USDZ_OPTIMIZATION_PROFILES,
-  type UsdzOptimizationProfile
+  type UsdzOptimizationProfile,
+  type UsdzOptimizationRecipe
 } from "./usdzRuntimeModel.ts";
 
 const JOB_TOKEN_VERSION = "v1";
@@ -46,7 +50,9 @@ export type UsdzRuntimePrepareUploadInput = {
   jobToken: string;
   profile: UsdzOptimizationProfile;
   selectedProfile: UsdzOptimizationProfile;
+  selectedRecipe: UsdzOptimizationRecipe;
   profileFallbackApplied: boolean;
+  recipeFallbackApplied: boolean;
   sourceBytes: number;
   sourceSha256: string;
   runtimeBytes: number;
@@ -162,6 +168,12 @@ function cleanProfile(value: unknown): UsdzOptimizationProfile | null {
     return value;
   }
   return null;
+}
+
+function cleanRecipe(value: unknown): UsdzOptimizationRecipe | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return isUsdzOptimizationRecipe(normalized) ? normalized : null;
 }
 
 function cleanPhysicalScale(value: unknown) {
@@ -312,12 +324,15 @@ export function parsePrepareUploadInput(value: unknown): UsdzRuntimePrepareUploa
   const profile = cleanProfile(value.profile);
   if (!profile) return null;
   const selectedProfile = cleanProfile(value.selectedProfile) ?? profile;
+  const selectedRecipe = cleanRecipe(value.selectedRecipe) ?? defaultUsdzOptimizationRecipe(selectedProfile);
   return {
     jobId,
     jobToken,
     profile,
     selectedProfile,
+    selectedRecipe,
     profileFallbackApplied: value.profileFallbackApplied === true,
+    recipeFallbackApplied: value.recipeFallbackApplied === true,
     sourceBytes: cleanPositiveInt(value.sourceBytes),
     sourceSha256: cleanSha256(value.sourceSha256),
     runtimeBytes: cleanPositiveInt(value.runtimeBytes),
@@ -376,6 +391,10 @@ function assertClaimsMatchInput(
   const selectedProfile = input.selectedProfile ?? input.profile;
   if (selectedProfile !== input.profile || input.profileFallbackApplied === true) {
     throw new Error("Profil USDZ selectionne invalide.");
+  }
+  const selectedRecipe = input.selectedRecipe ?? defaultUsdzOptimizationRecipe(selectedProfile);
+  if (!isUsdzOptimizationRecipeForProfile(input.profile, selectedRecipe)) {
+    throw new Error("Recette USDZ selectionnee invalide.");
   }
   if (claims.sourceBytes !== input.sourceBytes) throw new Error("Taille source USDZ invalide.");
   if (!input.sourceSha256) throw new Error("SHA-256 source requis.");
@@ -549,7 +568,9 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   reductionPercent: number;
   profile: UsdzOptimizationProfile;
   selectedProfile: UsdzOptimizationProfile;
+  selectedRecipe: UsdzOptimizationRecipe;
   profileFallbackApplied: boolean;
+  recipeFallbackApplied: boolean;
   geometryOptimization: string;
   physicalScale?: ReturnType<typeof cleanPhysicalScale>;
   warnings: string[];
@@ -598,8 +619,13 @@ export async function completeUsdzRuntimeSignedUpload(args: {
     const reportRequestedProfile = cleanProfile(parsedReport.requestedProfile) ?? cleanProfile(parsedReport.profile);
     const inputSelectedProfile = args.input.selectedProfile ?? args.input.profile;
     const reportSelectedProfile = cleanProfile(parsedReport.selectedProfile) ?? reportRequestedProfile;
+    const inputSelectedRecipe = args.input.selectedRecipe ?? defaultUsdzOptimizationRecipe(inputSelectedProfile);
+    const reportSelectedRecipe =
+      cleanRecipe(parsedReport.selectedRecipe) ?? cleanRecipe(parsedReport.recipe);
     const reportFallbackApplied = parsedReport.profileFallbackApplied === true;
     const inputFallbackApplied = args.input.profileFallbackApplied === true;
+    const reportRecipeFallbackApplied = parsedReport.recipeFallbackApplied === true;
+    const inputRecipeFallbackApplied = args.input.recipeFallbackApplied === true;
     if (reportRequestedProfile && reportRequestedProfile !== args.input.profile) {
       throw new Error("Rapport USDZ invalide: profil demande incoherent.");
     }
@@ -608,6 +634,15 @@ export async function completeUsdzRuntimeSignedUpload(args: {
     }
     if (reportFallbackApplied !== inputFallbackApplied) {
       throw new Error("Rapport USDZ invalide: fallback profil incoherent.");
+    }
+    if (!reportSelectedRecipe || reportSelectedRecipe !== inputSelectedRecipe) {
+      throw new Error("Rapport USDZ invalide: recette selectionnee incoherente.");
+    }
+    if (!isUsdzOptimizationRecipeForProfile(args.input.profile, reportSelectedRecipe)) {
+      throw new Error("Rapport USDZ invalide: recette hors profil.");
+    }
+    if (reportRecipeFallbackApplied !== inputRecipeFallbackApplied) {
+      throw new Error("Rapport USDZ invalide: fallback recette incoherent.");
     }
     assertPhysicalScalePublishable(reportPhysicalScale);
 
@@ -633,7 +668,9 @@ export async function completeUsdzRuntimeSignedUpload(args: {
         reportStoragePath: args.input.reportStoragePath,
         profile: args.input.profile,
         selectedProfile: inputSelectedProfile,
+        selectedRecipe: inputSelectedRecipe,
         profileFallbackApplied: inputFallbackApplied,
+        recipeFallbackApplied: inputRecipeFallbackApplied,
         warnings: reportWarnings,
         fails: reportFails,
         reductionPercent: cleanNumber(parsedReport.reductionPercent),
@@ -692,7 +729,9 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       reductionPercent: cleanNumber(parsedReport.reductionPercent),
       profile: args.input.profile,
       selectedProfile: inputSelectedProfile,
+      selectedRecipe: inputSelectedRecipe,
       profileFallbackApplied: inputFallbackApplied,
+      recipeFallbackApplied: inputRecipeFallbackApplied,
       geometryOptimization:
         typeof parsedReport.geometryOptimization === "string"
           ? parsedReport.geometryOptimization

@@ -45,15 +45,17 @@ import { validateUsdzBasic } from "../3d/shared/validators/usdz-basic.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PYTHON_WORKER = join(SCRIPT_DIR, "optimize_restaurant_usdz.py");
+const RECIPE_CONFIG_PATH = join(SCRIPT_DIR, "usdz-optimization-recipes.json");
+const RECIPE_CONFIG = JSON.parse(readFileSync(RECIPE_CONFIG_PATH, "utf8"));
 const PROFILE_ORDER = ["premium", "balanced", "light", "emergency"];
 const VALID_PROFILES = new Set(PROFILE_ORDER);
 const VALID_DISH_KINDS = new Set(["burger", "pizza", "plate", "bowl", "dessert", "drink", "platter", "fallback"]);
-const DEFAULT_PROFILE_BUDGETS = {
-  premium: 16 * 1024 * 1024,
-  balanced: 12 * 1024 * 1024,
-  light: 10 * 1024 * 1024,
-  emergency: Math.floor(5.5 * 1024 * 1024)
-};
+const DEFAULT_PROFILE_BUDGETS = Object.fromEntries(
+  Object.entries(RECIPE_CONFIG.profiles).map(([profile, config]) => [
+    profile,
+    Number(config.targetMaxBytes)
+  ])
+);
 
 function parseArgs(argv) {
   const args = {};
@@ -95,10 +97,17 @@ function targetBudgetBytes(profile) {
   return parsePositiveInt(process.env[envKey], DEFAULT_PROFILE_BUDGETS[profile]);
 }
 
-function candidateProfiles(requestedProfile, allowProfileFallback = false) {
-  if (!allowProfileFallback) return [requestedProfile];
+function profileRecipes(profile) {
+  const recipes = RECIPE_CONFIG.profiles?.[profile]?.recipes;
+  return Array.isArray(recipes) ? recipes : [];
+}
+
+function candidateRecipes(requestedProfile, allowProfileFallback = false) {
+  const entriesForProfile = (profile) =>
+    profileRecipes(profile).map((recipe, index) => ({ profile, recipe, index }));
+  if (!allowProfileFallback) return entriesForProfile(requestedProfile);
   const startIndex = PROFILE_ORDER.indexOf(requestedProfile);
-  return PROFILE_ORDER.slice(startIndex < 0 ? 1 : startIndex);
+  return PROFILE_ORDER.slice(startIndex < 0 ? 1 : startIndex).flatMap(entriesForProfile);
 }
 
 function resolvePythonExecutable() {
@@ -238,6 +247,17 @@ function classifyCandidateFailure(attempts) {
     return { failureKind: "triangle-budget", stage: "geometry", message: detail };
   }
 
+  if (
+    failedBeforeReport.length === allAttempts.length &&
+    failedBeforeReport.some((attempt) => Array.isArray(attempt.fails) && attempt.fails.length > 0)
+  ) {
+    const detail =
+      failedBeforeReport.find((attempt) => Array.isArray(attempt.fails) && attempt.fails.length > 0)?.fails?.[0] ||
+      failedBeforeReport.find((attempt) => attempt.error)?.error ||
+      "Toutes les candidates ont echoue.";
+    return { failureKind: "candidate-failed", stage: failedBeforeReport[0]?.stage || "worker", message: detail };
+  }
+
   if (overBudget.length === allAttempts.length) {
     if (overBudget.length === 1) {
       const attempt = overBudget[0];
@@ -301,9 +321,10 @@ function parseWorkerReport(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-async function runCandidate({ python, source, workspace, profile, dishKind }) {
-  const runtimePath = join(workspace, `runtime-${profile}.usdz`);
-  const reportPath = join(workspace, `report-${profile}.json`);
+async function runCandidate({ python, source, workspace, profile, recipe, dishKind }) {
+  const recipeSlug = recipe?.slug || `${profile}-default`;
+  const runtimePath = join(workspace, `runtime-${profile}-${recipeSlug}.usdz`);
+  const reportPath = join(workspace, `report-${profile}-${recipeSlug}.json`);
   const startedAt = Date.now();
   const result = await runPython(python, [
     "--source",
@@ -314,12 +335,17 @@ async function runCandidate({ python, source, workspace, profile, dishKind }) {
     reportPath,
     "--profile",
     profile,
+    "--recipe",
+    recipeSlug,
     "--dish-kind",
     dishKind
   ]);
   const attempt = {
     profile,
+    recipe: recipeSlug,
+    selectedRecipe: recipeSlug,
     targetBytes: targetBudgetBytes(profile),
+    targetTriangles: Number(recipe?.targetTriangles) || 0,
     ok: result.code === 0,
     runtimeBytes: existsSync(runtimePath) ? statSync(runtimePath).size : 0,
     durationMs: Date.now() - startedAt
@@ -395,7 +421,7 @@ async function runCandidate({ python, source, workspace, profile, dishKind }) {
       geometryOptimization: report.geometryOptimization ?? "skipped",
       triangleCountBefore: report.triangleCountBefore ?? 0,
       triangleCountAfter: report.triangleCountAfter ?? 0,
-      targetTriangles: report.targetTriangles ?? 0,
+      targetTriangles: report.targetTriangles ?? attempt.targetTriangles,
       physicalScale: report.physicalScale ?? null,
       warnings: Array.isArray(report.warnings) ? report.warnings : [],
       fails: Array.isArray(report.fails) ? report.fails : [],
@@ -451,12 +477,13 @@ async function main() {
   let chosen = null;
 
   try {
-    for (const candidateProfile of candidateProfiles(profile, allowProfileFallback)) {
+    for (const candidateEntry of candidateRecipes(profile, allowProfileFallback)) {
       const candidate = await runCandidate({
         python,
         source,
         workspace: candidateWorkspace,
-        profile: candidateProfile,
+        profile: candidateEntry.profile,
+        recipe: candidateEntry.recipe,
         dishKind
       });
       attempts.push(candidate.attempt);
@@ -487,10 +514,13 @@ async function main() {
         attempts,
         requestedProfile: profile,
         selectedProfile: null,
-        profileFallbackApplied: false
+        selectedRecipe: null,
+        profileFallbackApplied: false,
+        recipeFallbackApplied: false
       });
     }
 
+    const firstRequestedRecipe = profileRecipes(profile)[0]?.slug || "";
     copyFileSync(chosen.runtimePath, output);
     copyFileSync(chosen.reportPath, reportPath);
     const finalReport = parseWorkerReport(reportPath);
@@ -502,7 +532,11 @@ async function main() {
           profile,
           requestedProfile: profile,
           selectedProfile: chosen.attempt.profile,
+          selectedRecipe: chosen.attempt.recipe,
+          recipe: chosen.attempt.recipe,
+          profileRecipe: `${chosen.attempt.profile}:${chosen.attempt.recipe}`,
           profileFallbackApplied: chosen.attempt.profile !== profile,
+          recipeFallbackApplied: chosen.attempt.profile === profile && chosen.attempt.recipe !== firstRequestedRecipe,
           candidateAttempts: attempts,
           attemptCount: attempts.length,
           sourceStored: false
@@ -535,7 +569,13 @@ async function main() {
       selectedCandidate: chosen?.attempt ?? null,
       requestedProfile: profile,
       selectedProfile: chosen?.attempt?.profile ?? null,
+      selectedRecipe: chosen?.attempt?.recipe ?? null,
       profileFallbackApplied: Boolean(chosen?.attempt?.profile && chosen.attempt.profile !== profile),
+      recipeFallbackApplied: Boolean(
+        chosen?.attempt?.profile === profile &&
+          chosen?.attempt?.recipe &&
+          chosen.attempt.recipe !== profileRecipes(profile)[0]?.slug
+      ),
       attempts,
       fails: runtimeValidation.fails
     });
@@ -574,7 +614,13 @@ async function main() {
       profile: report.profile ?? profile,
       requestedProfile: report.requestedProfile ?? profile,
       selectedProfile: report.selectedProfile ?? chosen?.attempt?.profile ?? profile,
+      selectedRecipe: report.selectedRecipe ?? chosen?.attempt?.recipe ?? profileRecipes(profile)[0]?.slug ?? "",
+      recipe: report.recipe ?? report.selectedRecipe ?? chosen?.attempt?.recipe ?? "",
+      profileRecipe:
+        report.profileRecipe ??
+        `${report.selectedProfile ?? chosen?.attempt?.profile ?? profile}:${report.selectedRecipe ?? chosen?.attempt?.recipe ?? ""}`,
       profileFallbackApplied: Boolean(report.profileFallbackApplied),
+      recipeFallbackApplied: Boolean(report.recipeFallbackApplied),
       sourcePath: source,
       runtimePath: output,
       reportPath,

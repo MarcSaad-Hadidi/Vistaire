@@ -254,12 +254,21 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /GLB viewer/);
   assert.match(uploader, /USDZ runtime/);
   assert.match(uploader, /Profil runtime/);
+  assert.match(uploader, /Profil demande/);
+  assert.match(uploader, /Recette runtime/);
   assert.match(uploader, /profileFallbackApplied/);
   assert.match(uploader, /Fallback profil applique/);
+  assert.match(uploader, /recipeFallbackApplied/);
+  assert.match(uploader, /Fallback recette applique/);
   assert.match(uploader, /selectedProfile/);
+  assert.match(uploader, /selectedRecipe/);
+  assert.match(uploader, /initialUsdzOptimizationRequestedProfile/);
+  assert.match(uploader, /initialUsdzOptimizationSelectedRecipe/);
   assert.doesNotMatch(uploader, /if \(payload\.profile && isProfileOption\(payload\.profile\)\) setProfile\(payload\.profile\)/);
+  assert.match(uploader, /Premium \(24 MB max\)/);
+  assert.match(uploader, /Balanced \(16 MB max\)/);
   assert.match(uploader, /Light mobile safe \(10 MB max\)/);
-  assert.match(uploader, /Emergency 5\.5 MB \(fallback agressif\)/);
+  assert.match(uploader, /Emergency 6 MB \(fallback agressif\)/);
   assert.match(uploader, /Telecharger USDZ runtime/);
   assert.match(uploader, /AR size preset/);
   assert.match(uploader, /Burger \/ Sandwich/);
@@ -300,8 +309,14 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /router\.refresh\(\)/);
   assert.match(mediaManager, /dishName=\{dish\.name\}/);
   assert.match(mediaManager, /category=\{dish\.category\}/);
+  assert.match(mediaManager, /initialUsdzOptimizationRequestedProfile/);
+  assert.match(mediaManager, /initialUsdzOptimizationSelectedRecipe/);
+  assert.match(mediaManager, /initialUsdzOptimizationRecipeFallbackApplied/);
   assert.match(modelsManager, /dishName=\{dish\.name\}/);
   assert.match(modelsManager, /category=\{dish\.category\}/);
+  assert.match(modelsManager, /initialUsdzOptimizationRequestedProfile/);
+  assert.match(modelsManager, /initialUsdzOptimizationSelectedRecipe/);
+  assert.match(modelsManager, /initialUsdzOptimizationRecipeFallbackApplied/);
 });
 
 test("owner model uploader is coordinated by a shared FIFO queue in table parents", async () => {

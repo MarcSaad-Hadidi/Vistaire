@@ -58,7 +58,11 @@ export type PublicMenuDish = {
   viewerGlbBytes?: number;
   usdzRuntimeStatus?: string;
   usdzRuntimeBytes?: number;
+  usdzOptimizationRequestedProfile?: string;
   usdzOptimizationProfile?: string;
+  usdzOptimizationSelectedRecipe?: string;
+  usdzOptimizationProfileFallbackApplied?: boolean;
+  usdzOptimizationRecipeFallbackApplied?: boolean;
   usdzOptimizationReductionPercent?: number;
   usdzGeometryOptimization?: string;
   usdzTriangleCountBefore?: number;
@@ -748,7 +752,17 @@ function mapDishRow(
   const usdzRuntimeBytes = normalizeModelAssetBytes(
     getNumberFromSources(row, metadata, ["usdzRuntimeBytes"])
   );
+  const usdzOptimizationRequestedProfile = getString(metadata, [
+    "usdzOptimizationRequestedProfile"
+  ], "");
   const usdzOptimizationProfile = getString(metadata, ["usdzOptimizationProfile"], "");
+  const usdzOptimizationSelectedRecipe = getString(metadata, [
+    "usdzOptimizationSelectedRecipe"
+  ], "");
+  const usdzOptimizationProfileFallbackApplied =
+    getBoolean(metadata, ["usdzOptimizationProfileFallbackApplied"]) ?? undefined;
+  const usdzOptimizationRecipeFallbackApplied =
+    getBoolean(metadata, ["usdzOptimizationRecipeFallbackApplied"]) ?? undefined;
   const usdzOptimizationReductionPercent = getNumberFromSources(row, metadata, [
     "usdzOptimizationReductionPercent"
   ]);
@@ -869,7 +883,15 @@ function mapDishRow(
     viewerGlbBytes,
     ...(usdzRuntimeStatus ? { usdzRuntimeStatus } : {}),
     usdzRuntimeBytes,
+    ...(usdzOptimizationRequestedProfile ? { usdzOptimizationRequestedProfile } : {}),
     ...(usdzOptimizationProfile ? { usdzOptimizationProfile } : {}),
+    ...(usdzOptimizationSelectedRecipe ? { usdzOptimizationSelectedRecipe } : {}),
+    ...(usdzOptimizationProfileFallbackApplied === undefined
+      ? {}
+      : { usdzOptimizationProfileFallbackApplied }),
+    ...(usdzOptimizationRecipeFallbackApplied === undefined
+      ? {}
+      : { usdzOptimizationRecipeFallbackApplied }),
     usdzOptimizationReductionPercent,
     ...(usdzGeometryOptimization ? { usdzGeometryOptimization } : {}),
     usdzTriangleCountBefore,

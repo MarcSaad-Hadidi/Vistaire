@@ -53,7 +53,8 @@ const FAKE_WORKER = `
 import { copyFileSync, writeFileSync } from "node:fs";
 
 const mode = process.env.VISTAIRE_FAKE_USDZ_MODE || "physical-scale-stderr";
-const args = process.argv.slice(3);
+let args = process.argv.slice(2);
+if (args[0] && !args[0].startsWith("--")) args = args.slice(1);
 function arg(name) {
   const index = args.indexOf(name);
   return index >= 0 ? args[index + 1] : "";
@@ -62,11 +63,15 @@ const source = arg("--source");
 const output = arg("--output");
 const report = arg("--report");
 const profile = arg("--profile") || "balanced";
+const recipe = arg("--recipe") || profile + "-max";
 
 function writeRuntimeReport(extra = {}) {
   copyFileSync(source, output);
   writeFileSync(report, JSON.stringify({
     profile,
+    recipe,
+    selectedRecipe: recipe,
+    profileRecipe: profile + ":" + recipe,
     sourceBytes: 2048,
     runtimeBytes: 2048,
     reductionPercent: 0,
@@ -147,6 +152,24 @@ if (mode === "strict-success") {
   writeRuntimeReport({ optimizationApplied: false });
   process.exit(0);
 }
+if (mode === "premium-safe-success") {
+  if (profile !== "premium") {
+    console.error(JSON.stringify({ ok: false, error: "unexpected profile", stage: "profile" }));
+    process.exit(2);
+  }
+  if (recipe !== "premium-safe") {
+    writeRuntimeReport({ runtimeBytes: 30 * 1024 * 1024 });
+    process.exit(0);
+  }
+  writeRuntimeReport({
+    optimizationApplied: false,
+    runtimeBytes: 20 * 1024 * 1024,
+    triangleCountBefore: 1555864,
+    triangleCountAfter: 220000,
+    targetTriangles: 220000
+  });
+  process.exit(0);
+}
 if (mode === "bad-report") {
   copyFileSync(source, output);
   writeFileSync(report, "{", "utf8");
@@ -159,8 +182,11 @@ if (mode === "invalid-runtime") {
 }
 if (mode === "light-only-success") {
   if (profile !== "light") {
-    console.error(JSON.stringify({ ok: false, error: "premium fake failure", stage: "budget" }));
-    process.exit(2);
+    writeRuntimeReport({
+      runtimeBytes: 30 * 1024 * 1024,
+      fails: ["premium fake failure"]
+    });
+    process.exit(0);
   }
   writeRuntimeReport({
     triangleCountBefore: 1555864,
@@ -644,7 +670,7 @@ test("USDZ runtime optimizer reports byte budgets only when candidates exceed by
   assert.equal(stderrJson.stage, "budget");
   assert.equal(stderrJson.failureKind, "byte-budget");
   assert.match(stderrJson.error, /Premium au-dessus du budget|depassent le budget/i);
-  assert.match(stderrJson.error, /premium 2048 B\/1 B|2048 B \/ 1 B/);
+  assert.match(stderrJson.error, /premium.*2048 B\/1 B|2048 B \/ 1 B/);
   assert.equal(stderrJson.selectedCandidate, null);
   assert.equal(stderrJson.attempts[0].runtimeBytes, 2048);
   assert.equal(stderrJson.attempts[0].targetBytes, 1);
@@ -659,11 +685,10 @@ test("USDZ runtime optimizer uses strict requested profile candidates by default
     assert.equal(stdoutJson.profile, requestedProfile);
     assert.equal(stdoutJson.requestedProfile, requestedProfile);
     assert.equal(stdoutJson.selectedProfile, requestedProfile);
+    assert.match(stdoutJson.selectedRecipe, new RegExp(`^${requestedProfile}-`));
     assert.equal(stdoutJson.profileFallbackApplied, false);
-    assert.deepEqual(
-      stdoutJson.candidateAttempts.map((attempt) => attempt.profile),
-      [requestedProfile]
-    );
+    assert.equal(stdoutJson.recipeFallbackApplied, false);
+    assert.ok(stdoutJson.candidateAttempts.every((attempt) => attempt.profile === requestedProfile));
   }
 });
 
@@ -673,11 +698,35 @@ test("USDZ runtime optimizer does not select light when premium is requested by 
   assert.notEqual(result.status, 0);
   assert.equal(stderrJson.selectedCandidate, null);
   assert.equal(stderrJson.profileFallbackApplied, false);
+  assert.ok(stderrJson.attempts.every((attempt) => attempt.profile === "premium"));
   assert.deepEqual(
-    stderrJson.attempts.map((attempt) => attempt.profile),
-    ["premium"]
+    stderrJson.attempts.map((attempt) => attempt.recipe),
+    ["premium-max", "premium-fit", "premium-safe"]
   );
   assert.match(stderrJson.error, /premium fake failure/i);
+});
+
+test("USDZ runtime optimizer falls back only across recipes inside the requested profile", () => {
+  const { result, stdoutJson, reportJson } = runCliWithFakeWorker(
+    "premium-safe-success",
+    {},
+    "premium"
+  );
+
+  assert.equal(result.status, 0);
+  assert.equal(stdoutJson.profile, "premium");
+  assert.equal(stdoutJson.requestedProfile, "premium");
+  assert.equal(stdoutJson.selectedProfile, "premium");
+  assert.equal(stdoutJson.selectedRecipe, "premium-safe");
+  assert.equal(stdoutJson.profileFallbackApplied, false);
+  assert.equal(stdoutJson.recipeFallbackApplied, true);
+  assert.deepEqual(
+    stdoutJson.candidateAttempts.map((attempt) => `${attempt.profile}:${attempt.recipe}`),
+    ["premium:premium-max", "premium:premium-fit", "premium:premium-safe"]
+  );
+  assert.equal(reportJson.selectedProfile, "premium");
+  assert.equal(reportJson.selectedRecipe, "premium-safe");
+  assert.equal(reportJson.recipeFallbackApplied, true);
 });
 
 test("USDZ runtime optimizer preserves attempts when selected runtime fails final validation", () => {

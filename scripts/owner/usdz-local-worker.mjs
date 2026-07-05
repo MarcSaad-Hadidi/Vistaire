@@ -265,7 +265,9 @@ async function handleOptimize(req, res) {
       dishKind
     });
     const selectedProfile = summary.selectedProfile || summary.profile || requestedProfile;
+    const selectedRecipe = summary.selectedRecipe || summary.recipe || `${selectedProfile}-max`;
     const profileFallbackApplied = Boolean(summary.profileFallbackApplied);
+    const recipeFallbackApplied = Boolean(summary.recipeFallbackApplied);
     if (selectedProfile !== requestedProfile && !profileFallbackApplied) {
       throw new Error(
         `Profil USDZ selectionne invalide: ${requestedProfile} demande, ${selectedProfile} produit.`
@@ -288,7 +290,9 @@ async function handleOptimize(req, res) {
       jobToken,
       profile: requestedProfile,
       selectedProfile,
+      selectedRecipe,
       profileFallbackApplied,
+      recipeFallbackApplied,
       sourceBytes,
       sourceSha256,
       runtimeBytes: runtimeBytesBuffer.byteLength,
