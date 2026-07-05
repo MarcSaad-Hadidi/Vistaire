@@ -20,7 +20,18 @@ function pythonHasToolchain() {
   }
 }
 
-const TOOLCHAIN_AVAILABLE = pythonHasToolchain();
+function blenderAvailable() {
+  const blender = process.env.VISTAIRE_USDZ_BLENDER || "blender";
+  try {
+    const probe = spawnSync(blender, ["--version"], { stdio: "ignore" });
+    return probe.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+const TOOLCHAIN_AVAILABLE = pythonHasToolchain() && blenderAvailable();
+const TOOLCHAIN_SKIP_REASON = "OpenUSD/Pillow/Blender not available";
 
 const GENERATOR = `
 import sys, tempfile
@@ -101,6 +112,51 @@ UsdUtils.CreateNewUsdzPackage(str(root), str(out))
 print(str(out))
 `;
 
+const OFFSET_RECT_GENERATOR = `
+import sys
+from pathlib import Path
+from pxr import Usd, UsdGeom, UsdUtils
+
+out = Path(sys.argv[1])
+width = float(sys.argv[2])
+depth = float(sys.argv[3])
+height = float(sys.argv[4])
+offset_x = float(sys.argv[5])
+offset_y = float(sys.argv[6])
+bottom_z = float(sys.argv[7])
+work = out.parent / "offset-rect-work"
+work.mkdir(parents=True, exist_ok=True)
+layer = work / "model.usda"
+stage = Usd.Stage.CreateNew(str(layer))
+root = UsdGeom.Xform.Define(stage, "/Dish")
+stage.SetDefaultPrim(root.GetPrim())
+mesh = UsdGeom.Mesh.Define(stage, "/Dish/Rect")
+x0 = offset_x - width / 2
+x1 = offset_x + width / 2
+y0 = offset_y - depth / 2
+y1 = offset_y + depth / 2
+z0 = bottom_z
+z1 = bottom_z + height
+mesh.CreatePointsAttr([
+    (x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0),
+    (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1),
+])
+mesh.CreateFaceVertexCountsAttr([4, 4, 4, 4, 4, 4])
+mesh.CreateFaceVertexIndicesAttr([
+    0, 1, 2, 3,
+    4, 7, 6, 5,
+    0, 4, 5, 1,
+    1, 5, 6, 2,
+    2, 6, 7, 3,
+    3, 7, 4, 0,
+])
+stage.GetRootLayer().Save()
+if out.exists():
+    out.unlink()
+UsdUtils.CreateNewUsdzPackage(str(layer), str(out))
+print(str(out))
+`;
+
 function usdTextBundle(filePath) {
   const entries = unzipSync(readFileSync(filePath));
   return Object.entries(entries)
@@ -137,7 +193,7 @@ function zipCentralDirectoryEntryNames(filePath) {
   return names;
 }
 
-test("USDZ runtime optimizer produces a valid, smaller runtime with an honest report", { skip: !TOOLCHAIN_AVAILABLE ? "OpenUSD/Pillow not available" : false }, () => {
+test("USDZ runtime optimizer produces a valid, smaller runtime with an honest report", { skip: !TOOLCHAIN_AVAILABLE ? TOOLCHAIN_SKIP_REASON : false }, () => {
   const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-test-"));
   const genPy = join(dir, "gen.py");
   const source = join(dir, "source.usdz");
@@ -150,7 +206,7 @@ test("USDZ runtime optimizer produces a valid, smaller runtime with an honest re
 
     const stdout = execFileSync(
       process.execPath,
-      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "balanced"],
+      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "balanced", "--dish-kind", "burger"],
       { encoding: "utf8" }
     );
     const summary = JSON.parse(stdout.trim().split("\n").pop());
@@ -161,12 +217,17 @@ test("USDZ runtime optimizer produces a valid, smaller runtime with an honest re
     assert.notEqual(summary.runtimeSha256, summary.sourceSha256, "runtime differs from source");
     assert.equal(summary.geometryOptimization, "skipped");
     assert.equal(summary.optimizationApplied, true, "a 2048 base color texture must be resized");
+    assert.equal(summary.physicalScale?.dishKind, "burger");
+    assert.equal(summary.physicalScale?.dimension, "height");
+    assert.equal(summary.physicalScale?.status, "normalized");
 
     const runtimeValidation = validateUsdzBasic({ filePath: runtime, productionUrl: false });
     assert.equal(runtimeValidation.ok, true, JSON.stringify(runtimeValidation.fails));
 
     const parsedReport = JSON.parse(readFileSync(report, "utf8"));
     assert.equal(parsedReport.geometryOptimization, "skipped");
+    assert.equal(parsedReport.physicalScale.status, "normalized");
+    assert.equal(parsedReport.physicalScale.heightAfterMeters, 0.15);
     assert.ok(typeof parsedReport.reductionPercent === "number");
     assert.ok(parsedReport.textureCount >= 1);
   } finally {
@@ -174,7 +235,7 @@ test("USDZ runtime optimizer produces a valid, smaller runtime with an honest re
   }
 });
 
-test("USDZ runtime optimizer uses the first archive USD layer instead of alphabetical order", { skip: !TOOLCHAIN_AVAILABLE ? "OpenUSD/Pillow not available" : false }, () => {
+test("USDZ runtime optimizer uses the first archive USD layer instead of alphabetical order", { skip: !TOOLCHAIN_AVAILABLE ? TOOLCHAIN_SKIP_REASON : false }, () => {
   const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-root-test-"));
   const genPy = join(dir, "gen-multi-layer.py");
   const source = join(dir, "source.usdz");
@@ -211,4 +272,83 @@ test("USDZ runtime optimizer uses the first archive USD layer instead of alphabe
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("USDZ physical scale uses footprint when depth is larger than width", { skip: !TOOLCHAIN_AVAILABLE ? TOOLCHAIN_SKIP_REASON : false }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-footprint-test-"));
+  const genPy = join(dir, "gen-offset-rect.py");
+  const source = join(dir, "source.usdz");
+  const runtime = join(dir, "runtime.usdz");
+  const report = join(dir, "report.json");
+  try {
+    writeFileSync(genPy, OFFSET_RECT_GENERATOR, "utf8");
+    execFileSync(PYTHON, [genPy, source, "0.03", "0.32", "0.02", "0", "0", "0"], { stdio: "pipe" });
+    const stdout = execFileSync(
+      process.execPath,
+      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "light", "--dish-kind", "pizza"],
+      { encoding: "utf8" }
+    );
+    const summary = JSON.parse(stdout.trim().split("\n").pop());
+    assert.equal(summary.ok, true);
+    assert.equal(summary.physicalScale?.dimension, "footprint");
+    assert.equal(summary.physicalScale?.status, "unchanged");
+    assert.ok(summary.physicalScale.footprintAfterMeters >= 0.319);
+    assert.ok(summary.physicalScale.footprintAfterMeters <= 0.321);
+    assert.ok(summary.physicalScale.widthAfterMeters < summary.physicalScale.depthAfterMeters);
+    assert.ok(summary.physicalScale.scaleFactor <= 1.001);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("USDZ physical scale recenters horizontally and grounds the model", { skip: !TOOLCHAIN_AVAILABLE ? TOOLCHAIN_SKIP_REASON : false }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-center-test-"));
+  const genPy = join(dir, "gen-offset-rect.py");
+  const source = join(dir, "source.usdz");
+  const runtime = join(dir, "runtime.usdz");
+  const report = join(dir, "report.json");
+  try {
+    writeFileSync(genPy, OFFSET_RECT_GENERATOR, "utf8");
+    execFileSync(PYTHON, [genPy, source, "0.26", "0.18", "0.04", "0.6", "-0.4", "-0.03"], { stdio: "pipe" });
+    const stdout = execFileSync(
+      process.execPath,
+      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "light", "--dish-kind", "plate"],
+      { encoding: "utf8" }
+    );
+    const summary = JSON.parse(stdout.trim().split("\n").pop());
+    assert.equal(summary.ok, true);
+    assert.equal(summary.physicalScale?.dimension, "footprint");
+    assert.equal(summary.physicalScale?.status, "normalized");
+    assert.equal(summary.physicalScale?.centeredX, true);
+    assert.equal(summary.physicalScale?.centeredY, true);
+    assert.equal(summary.physicalScale?.grounded, true);
+    assert.ok(summary.physicalScale.centerOffsetBeforeMeters > 0.7);
+    assert.ok(summary.physicalScale.centerOffsetAfterMeters <= 0.001);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("USDZ runtime optimizer CLI accepts platter dish kind", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "--source",
+      "missing.usdz",
+      "--output",
+      "runtime.usdz",
+      "--report",
+      "report.json",
+      "--profile",
+      "light",
+      "--dish-kind",
+      "platter"
+    ],
+    { cwd: process.cwd(), encoding: "utf8" }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Source USDZ introuvable/);
+  assert.doesNotMatch(result.stderr, /Type de plat invalide/);
 });

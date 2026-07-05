@@ -47,6 +47,7 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PYTHON_WORKER = join(SCRIPT_DIR, "optimize_restaurant_usdz.py");
 const PROFILE_ORDER = ["premium", "balanced", "light", "emergency"];
 const VALID_PROFILES = new Set(PROFILE_ORDER);
+const VALID_DISH_KINDS = new Set(["burger", "pizza", "plate", "bowl", "dessert", "drink", "platter", "fallback"]);
 const DEFAULT_PROFILE_BUDGETS = {
   premium: 16 * 1024 * 1024,
   balanced: 12 * 1024 * 1024,
@@ -152,7 +153,7 @@ function parseWorkerReport(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-async function runCandidate({ python, source, workspace, profile }) {
+async function runCandidate({ python, source, workspace, profile, dishKind }) {
   const runtimePath = join(workspace, `runtime-${profile}.usdz`);
   const reportPath = join(workspace, `report-${profile}.json`);
   const startedAt = Date.now();
@@ -164,7 +165,9 @@ async function runCandidate({ python, source, workspace, profile }) {
     "--report",
     reportPath,
     "--profile",
-    profile
+    profile,
+    "--dish-kind",
+    dishKind
   ]);
   const attempt = {
     profile,
@@ -226,6 +229,7 @@ async function runCandidate({ python, source, workspace, profile }) {
       triangleCountBefore: report.triangleCountBefore ?? 0,
       triangleCountAfter: report.triangleCountAfter ?? 0,
       targetTriangles: report.targetTriangles ?? 0,
+      physicalScale: report.physicalScale ?? null,
       warnings: Array.isArray(report.warnings) ? report.warnings : [],
       fails: Array.isArray(report.fails) ? report.fails : [],
       passedBudget
@@ -241,6 +245,7 @@ async function main() {
   const output = args.output ? resolve(args.output) : "";
   const reportPath = args.report ? resolve(args.report) : "";
   const profile = (args.profile || "balanced").toLowerCase();
+  const dishKind = (args["dish-kind"] || "fallback").toLowerCase();
   const origin = typeof args.origin === "string" ? args.origin.trim() : "";
 
   assertAllowedWorkerOrigin(origin);
@@ -250,6 +255,9 @@ async function main() {
   }
   if (!VALID_PROFILES.has(profile)) {
     emitError(`Profil invalide: ${profile}.`, "args");
+  }
+  if (!VALID_DISH_KINDS.has(dishKind)) {
+    emitError(`Type de plat invalide: ${dishKind}.`, "args");
   }
   if (source === output) {
     emitError("Source et output identiques.", "args");
@@ -280,7 +288,8 @@ async function main() {
         python,
         source,
         workspace: candidateWorkspace,
-        profile: candidateProfile
+        profile: candidateProfile,
+        dishKind
       });
       attempts.push(candidate.attempt);
       if (!candidate.ok) {
@@ -393,6 +402,7 @@ async function main() {
       triangleCountBefore: report.triangleCountBefore ?? 0,
       triangleCountAfter: report.triangleCountAfter ?? 0,
       geometryReductionPercent: report.geometryReductionPercent ?? 0,
+      physicalScale: report.physicalScale ?? null,
       reductionPercent: report.reductionPercent ?? 0,
       candidateAttempts: Array.isArray(report.candidateAttempts)
         ? report.candidateAttempts

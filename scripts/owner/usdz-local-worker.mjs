@@ -29,6 +29,8 @@ const OPTIMIZER = join(SCRIPT_DIR, "optimize-restaurant-usdz.mjs");
 const HOST = process.env.VISTAIRE_USDZ_WORKER_HOST || "127.0.0.1";
 const PORT = Number(process.env.VISTAIRE_USDZ_WORKER_PORT || 8787);
 const MAX_SOURCE_BYTES = Number(process.env.VISTAIRE_USDZ_WORKER_MAX_SOURCE_BYTES || 150 * 1024 * 1024);
+const WORKER_VERSION = 3;
+const WORKER_CAPABILITIES = ["physicalScaleNormalization"];
 
 function allowedOrigins() {
   return (process.env.VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS ||
@@ -112,7 +114,9 @@ function runOptimizer(args) {
         "--report",
         args.reportPath,
         "--profile",
-        args.profile
+        args.profile,
+        "--dish-kind",
+        args.dishKind
       ],
       { cwd: PROJECT_ROOT, env: process.env, windowsHide: true }
     );
@@ -226,6 +230,7 @@ async function handleOptimize(req, res) {
     }
 
     const profile = String(form.get("profile") || "balanced");
+    const dishKind = String(form.get("dishKind") || "fallback");
     const jobId = String(form.get("jobId") || "");
     const jobToken = String(form.get("jobToken") || "");
     const prepareEndpoint = String(form.get("prepareUploadEndpoint") || "");
@@ -242,7 +247,7 @@ async function handleOptimize(req, res) {
     const sourceBytes = statSync(sourcePath).size;
     const sourceSha256 = sha256File(sourcePath);
 
-    const summary = await runOptimizer({ sourcePath, runtimePath, reportPath, profile });
+    const summary = await runOptimizer({ sourcePath, runtimePath, reportPath, profile, dishKind });
     if (Array.isArray(summary.fails) && summary.fails.length > 0) {
       throw new Error(`Optimisation USDZ bloquee: ${summary.fails.join("; ")}`);
     }
@@ -286,6 +291,7 @@ async function handleOptimize(req, res) {
       triangleCountBefore: summary.triangleCountBefore || 0,
       triangleCountAfter: summary.triangleCountAfter || 0,
       geometryReductionPercent: summary.geometryReductionPercent || 0,
+      physicalScale: summary.physicalScale || null,
       textureCount: summary.textureCount || 0,
       changedTextures: summary.changedTextures || 0,
       candidateAttempts: summary.candidateAttempts || [],
@@ -331,7 +337,8 @@ const server = createServer((req, res) => {
       {
         ok: true,
         worker: "vistaire-usdz-local-worker",
-        version: 2,
+        version: WORKER_VERSION,
+        capabilities: WORKER_CAPABILITIES,
         host: HOST,
         port: PORT,
         sourceStored: false

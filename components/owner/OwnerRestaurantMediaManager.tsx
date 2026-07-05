@@ -247,6 +247,7 @@ export function OwnerRestaurantMediaManager({
                             restaurantId={restaurantId}
                             dishId={dish.id}
                             dishName={dish.name}
+                            category={dish.category}
                             initialStatus={dish.modelStatus}
                             initialWebModel3dUrl={dish.webModel3dUrl}
                             initialWebModel3dBytes={dish.webModel3dBytes}
@@ -259,6 +260,15 @@ export function OwnerRestaurantMediaManager({
                             initialUsdzTriangleCountBefore={dish.usdzTriangleCountBefore}
                             initialUsdzTriangleCountAfter={dish.usdzTriangleCountAfter}
                             initialUsdzGeometryReductionPercent={dish.usdzGeometryReductionPercent}
+                            initialUsdzPhysicalScaleStatus={dish.usdzPhysicalScaleStatus}
+                            initialUsdzPhysicalScaleDishKind={dish.usdzPhysicalScaleDishKind}
+                            initialUsdzPhysicalScaleDimension={dish.usdzPhysicalScaleDimension}
+                            initialUsdzPhysicalScaleHeightAfterMeters={dish.usdzPhysicalScaleHeightAfterMeters}
+                            initialUsdzPhysicalScaleWidthAfterMeters={dish.usdzPhysicalScaleWidthAfterMeters}
+                            initialUsdzPhysicalScaleDepthAfterMeters={dish.usdzPhysicalScaleDepthAfterMeters}
+                            initialUsdzPhysicalScaleFootprintAfterMeters={dish.usdzPhysicalScaleFootprintAfterMeters}
+                            initialUsdzPhysicalScaleScaleFactor={dish.usdzPhysicalScaleScaleFactor}
+                            initialUsdzPhysicalScaleWarnings={dish.usdzPhysicalScaleWarnings}
                             initialUsdzOptimizationAttemptCount={dish.usdzOptimizationAttemptCount}
                             initialUsdzChangedTextures={dish.usdzChangedTextures}
                             initialUsdzSourceBytes={dish.usdzSourceBytes}

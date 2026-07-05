@@ -439,6 +439,29 @@ export type UsdzRuntimeUploadInputs = {
   triangleCountBefore?: number;
   triangleCountAfter?: number;
   geometryReductionPercent?: number;
+  physicalScale?: {
+    status?: string;
+    dishKind?: string;
+    dimension?: string;
+    targetMeters?: number;
+    minMeters?: number;
+    maxMeters?: number;
+    heightBeforeMeters?: number;
+    widthBeforeMeters?: number;
+    depthBeforeMeters?: number;
+    footprintBeforeMeters?: number;
+    heightAfterMeters?: number;
+    widthAfterMeters?: number;
+    depthAfterMeters?: number;
+    footprintAfterMeters?: number;
+    scaleFactor?: number;
+    centeredX?: boolean;
+    centeredY?: boolean;
+    grounded?: boolean;
+    centerOffsetBeforeMeters?: number;
+    centerOffsetAfterMeters?: number;
+    warnings?: string[];
+  };
   textureCount?: number;
   changedTextures?: number;
   candidateAttempts?: unknown[];
@@ -474,6 +497,7 @@ export function buildUsdzRuntimeMetadataPatch(
   runtimeStoragePath: string
 ): Record<string, unknown> {
   const usdzUrl = buildPreparedModelPublicUsdzPath(inputs.dishId, { assetVersion: inputs.version });
+  const physicalScale = inputs.physicalScale ?? {};
 
   return {
     arUsdzUrl: usdzUrl,
@@ -498,6 +522,27 @@ export function buildUsdzRuntimeMetadataPatch(
     usdzTriangleCountBefore: inputs.triangleCountBefore ?? 0,
     usdzTriangleCountAfter: inputs.triangleCountAfter ?? 0,
     usdzGeometryReductionPercent: inputs.geometryReductionPercent ?? 0,
+    usdzPhysicalScaleStatus: physicalScale.status ?? "unknown",
+    usdzPhysicalScaleDishKind: physicalScale.dishKind ?? "fallback",
+    usdzPhysicalScaleDimension: physicalScale.dimension ?? "",
+    usdzPhysicalScaleTargetMeters: physicalScale.targetMeters ?? 0,
+    usdzPhysicalScaleMinMeters: physicalScale.minMeters ?? 0,
+    usdzPhysicalScaleMaxMeters: physicalScale.maxMeters ?? 0,
+    usdzPhysicalScaleHeightBeforeMeters: physicalScale.heightBeforeMeters ?? 0,
+    usdzPhysicalScaleWidthBeforeMeters: physicalScale.widthBeforeMeters ?? 0,
+    usdzPhysicalScaleDepthBeforeMeters: physicalScale.depthBeforeMeters ?? 0,
+    usdzPhysicalScaleFootprintBeforeMeters: physicalScale.footprintBeforeMeters ?? 0,
+    usdzPhysicalScaleHeightAfterMeters: physicalScale.heightAfterMeters ?? 0,
+    usdzPhysicalScaleWidthAfterMeters: physicalScale.widthAfterMeters ?? 0,
+    usdzPhysicalScaleDepthAfterMeters: physicalScale.depthAfterMeters ?? 0,
+    usdzPhysicalScaleFootprintAfterMeters: physicalScale.footprintAfterMeters ?? 0,
+    usdzPhysicalScaleScaleFactor: physicalScale.scaleFactor ?? 1,
+    usdzPhysicalScaleCenteredX: physicalScale.centeredX === true,
+    usdzPhysicalScaleCenteredY: physicalScale.centeredY === true,
+    usdzPhysicalScaleGrounded: physicalScale.grounded === true,
+    usdzPhysicalScaleCenterOffsetBeforeMeters: physicalScale.centerOffsetBeforeMeters ?? 0,
+    usdzPhysicalScaleCenterOffsetAfterMeters: physicalScale.centerOffsetAfterMeters ?? 0,
+    usdzPhysicalScaleWarnings: physicalScale.warnings ?? [],
     usdzTextureCount: inputs.textureCount ?? 0,
     usdzChangedTextures: inputs.changedTextures ?? 0,
     usdzOptimizationAttemptCount: inputs.attemptCount ?? 0,
