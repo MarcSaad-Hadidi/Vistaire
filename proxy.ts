@@ -11,6 +11,13 @@ import {
   shouldApplyDevOwnerBypass,
   shouldApplyDevOwnerBypassToken
 } from "@/lib/auth/devOwnerBypass";
+import {
+  MARKDOWN_CONTENT_TYPE,
+  buildHomeAgentLinkHeader,
+  buildHomepageMarkdown,
+  markdownTokenEstimate,
+  shouldServeMarkdownForAcceptHeader
+} from "@/lib/agent-discovery";
 import { getLocaleFromPath, VISTAIRE_LOCALE_HEADER } from "@/lib/i18n";
 import { updateSession } from "@/utils/supabase/middleware";
 
@@ -76,6 +83,34 @@ function devOwnerBypassResponse(request: NextRequest): NextResponse | null {
   return response;
 }
 
+function acceptsMarkdown(request: NextRequest): boolean {
+  return shouldServeMarkdownForAcceptHeader(request.headers.get("accept"));
+}
+
+function homepageMarkdownResponse(): Response {
+  const markdown = buildHomepageMarkdown();
+
+  return new Response(markdown, {
+    headers: {
+      "Content-Type": MARKDOWN_CONTENT_TYPE,
+      Link: buildHomeAgentLinkHeader(),
+      Vary: "Accept",
+      "x-markdown-tokens": markdownTokenEstimate(markdown)
+    }
+  });
+}
+
+function withHomepageAgentDiscoveryHeaders(
+  request: NextRequest,
+  response: NextResponse
+): NextResponse {
+  if (request.nextUrl.pathname !== "/") return response;
+
+  response.headers.set("Link", buildHomeAgentLinkHeader());
+  response.headers.append("Vary", "Accept");
+  return response;
+}
+
 const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
   const requestHeaders = requestHeadersWithLocale(request);
 
@@ -95,6 +130,10 @@ const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
 }, { signInUrl: "/sign-in" });
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  if (request.nextUrl.pathname === "/" && acceptsMarkdown(request)) {
+    return homepageMarkdownResponse();
+  }
+
   if (needsClerkAuthContext(request)) {
     const bypassResponse = devOwnerBypassResponse(request);
     if (bypassResponse) return bypassResponse;
@@ -102,11 +141,11 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
     return handleProtectedRoute(request, event);
   }
 
-  return NextResponse.next({
+  return withHomepageAgentDiscoveryHeaders(request, NextResponse.next({
     request: {
       headers: requestHeadersWithLocale(request),
     },
-  });
+  }));
 }
 
 export const config = {

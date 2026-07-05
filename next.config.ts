@@ -33,6 +33,19 @@ const STATIC_ASSET_HEADERS = [
   { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ] as const;
 
+const AGENT_DISCOVERY_LINK_HEADER = [
+  '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
+  '</.well-known/agent-skills/index.json>; rel="service-desc"; type="application/json"',
+  '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
+  '</auth.md>; rel="service-doc"; type="text/markdown"',
+  '</docs/api>; rel="service-doc"; type="text/html"',
+].join(", ");
+
+const HOMEPAGE_AGENT_DISCOVERY_HEADERS = [
+  { key: "Link", value: AGENT_DISCOVERY_LINK_HEADER },
+  { key: "Vary", value: "Accept" },
+] as const;
+
 const GLB_MODEL_HEADERS = [
   { key: "Content-Type", value: "model/gltf-binary" },
   ...STATIC_ASSET_HEADERS,
@@ -261,6 +274,10 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/",
+        headers: [...HOMEPAGE_AGENT_DISCOVERY_HEADERS],
+      },
       {
         source: "/models/demo/:path*.usdz",
         headers: [...USDZ_MODEL_HEADERS],

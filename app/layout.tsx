@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
 import { JsonLd } from "@/components/JsonLd";
 import {
   LOCALE_LANGUAGE_TAG,
@@ -76,6 +77,7 @@ export default async function RootLayout({
             buildWebsiteJsonLd(undefined, locale)
           ]}
         />
+        <WebMcpProvider />
         <div id="contenu">{children}</div>
       </body>
     </html>
