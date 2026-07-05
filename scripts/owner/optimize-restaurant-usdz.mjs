@@ -122,7 +122,10 @@ function assertAllowedWorkerOrigin(origin) {
 
 function runPython(python, args) {
   return new Promise((resolvePromise) => {
-    const child = spawn(python, [PYTHON_WORKER, ...args], { windowsHide: true });
+    const child = spawn(python, [PYTHON_WORKER, ...args], {
+      windowsHide: true,
+      shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => {
@@ -138,6 +141,130 @@ function runPython(python, args) {
       resolvePromise({ code: code ?? -1, stdout, stderr });
     });
   });
+}
+
+function formatBytes(bytes) {
+  return `${Math.max(0, Number(bytes) || 0)} B`;
+}
+
+function attemptHasPhysicalScaleFailure(attempt) {
+  const fails = Array.isArray(attempt.fails) ? attempt.fails : [];
+  return (
+    attempt.stage === "physical-scale" ||
+    attempt.physicalScale?.status === "failed" ||
+    fails.some((fail) => /physique|physical|scale|ground|center/i.test(String(fail)))
+  );
+}
+
+function attemptHasTriangleFailure(attempt) {
+  const fails = Array.isArray(attempt.fails) ? attempt.fails : [];
+  return (
+    attempt.stage === "geometry" ||
+    fails.some((fail) => /triangle/i.test(String(fail)))
+  );
+}
+
+function attemptHasBlenderFailure(attempt) {
+  const fails = Array.isArray(attempt.fails) ? attempt.fails : [];
+  const warnings = Array.isArray(attempt.warnings) ? attempt.warnings : [];
+  const blenderUnavailablePattern = /blender (?:indisponible|unavailable)|blender executable|executable introuvable|n'a pas produit|geometry pass echoue/i;
+  return (
+    /blender/i.test(String(attempt.stage)) ||
+    blenderUnavailablePattern.test(String(attempt.error)) ||
+    blenderUnavailablePattern.test(String(attempt.geometryOptimizationReason)) ||
+    fails.some((fail) => blenderUnavailablePattern.test(String(fail))) ||
+    warnings.some((warning) => blenderUnavailablePattern.test(String(warning))) ||
+    attempt.physicalScale?.warnings?.some?.((warning) => blenderUnavailablePattern.test(String(warning)))
+  );
+}
+
+function classifyCandidateFailure(attempts) {
+  const allAttempts = Array.isArray(attempts) ? attempts : [];
+  const failedBeforeReport = allAttempts.filter((attempt) => attempt.ok === false);
+  const invalidReports = allAttempts.filter((attempt) => attempt.stage === "report-parse");
+  const blenderFailures = allAttempts.filter(attemptHasBlenderFailure);
+  const physicalScaleFailures = allAttempts.filter(attemptHasPhysicalScaleFailure);
+  const triangleFailures = allAttempts.filter(attemptHasTriangleFailure);
+  const invalidRuntimeFailures = allAttempts.filter((attempt) => /runtime/i.test(String(attempt.stage)) || /runtime invalide/i.test(String(attempt.error)));
+  const overBudget = allAttempts.filter(
+    (attempt) =>
+      attempt.ok !== false &&
+      Array.isArray(attempt.fails) &&
+      attempt.fails.length === 0 &&
+      Number(attempt.runtimeBytes) > 0 &&
+      Number(attempt.targetBytes) > 0 &&
+      Number(attempt.runtimeBytes) > Number(attempt.targetBytes)
+  );
+
+  if (allAttempts.length === 0) {
+    return {
+      failureKind: "no-candidates",
+      stage: "candidate-selection",
+      message: "Aucune candidate USDZ runtime n'a ete executee."
+    };
+  }
+
+  if (blenderFailures.length === allAttempts.length) {
+    const detail =
+      blenderFailures.find((attempt) => Array.isArray(attempt.fails) && attempt.fails.length > 0)?.fails?.[0] ||
+      blenderFailures.find((attempt) => attempt.error)?.error ||
+      "Blender geometry pass echoue.";
+    return { failureKind: "blender", stage: "blender", message: detail };
+  }
+
+  if (physicalScaleFailures.length === allAttempts.length) {
+    const detail =
+      physicalScaleFailures.find((attempt) => Array.isArray(attempt.fails) && attempt.fails.length > 0)?.fails?.[0] ||
+      physicalScaleFailures.find((attempt) => attempt.error)?.error ||
+      "Echelle physique invalide apres normalisation Blender.";
+    return { failureKind: "physical-scale", stage: "physical-scale", message: detail };
+  }
+
+  if (triangleFailures.length === allAttempts.length) {
+    const detail = triangleFailures.find((attempt) => attempt.fails?.length)?.fails?.[0] || "Triangle budget depasse pour toutes les candidates.";
+    return { failureKind: "triangle-budget", stage: "geometry", message: detail };
+  }
+
+  if (overBudget.length === allAttempts.length) {
+    const details = overBudget
+      .map((attempt) => `${attempt.profile} ${formatBytes(attempt.runtimeBytes)}/${formatBytes(attempt.targetBytes)}`)
+      .join(", ");
+    return {
+      failureKind: "byte-budget",
+      stage: "budget",
+      message: `Toutes les candidates depassent le budget: ${details}.`
+    };
+  }
+
+  if (invalidReports.length === allAttempts.length) {
+    return {
+      failureKind: "report-invalid",
+      stage: "report-parse",
+      message: invalidReports.find((attempt) => attempt.error)?.error || "Rapports candidates illisibles."
+    };
+  }
+
+  if (invalidRuntimeFailures.length === allAttempts.length) {
+    return {
+      failureKind: "runtime-invalid",
+      stage: "validate-runtime",
+      message: "Runtime invalide apres optimisation pour toutes les candidates."
+    };
+  }
+
+  if (failedBeforeReport.length === allAttempts.length) {
+    return {
+      failureKind: "worker-failed-before-report",
+      stage: failedBeforeReport[0]?.stage || "worker",
+      message: failedBeforeReport.find((attempt) => attempt.error)?.error || "Toutes les candidates ont echoue avant rapport."
+    };
+  }
+
+  return {
+    failureKind: "mixed",
+    stage: "candidate-selection",
+    message: "Aucune candidate USDZ runtime valide. Voir attempts pour le detail par profil."
+  };
 }
 
 class OptimizerStageError extends Error {
@@ -179,10 +306,14 @@ async function runCandidate({ python, source, workspace, profile, dishKind }) {
   if (result.code !== 0) {
     let detail = result.stderr.trim() || result.stdout.trim();
     let stage = "worker";
+    let failedReport = {};
     try {
       const parsed = JSON.parse(result.stderr.trim().split("\n").pop());
       if (parsed && parsed.error) detail = parsed.error;
       if (parsed && parsed.stage) stage = parsed.stage;
+      if (parsed && parsed.report && typeof parsed.report === "object") {
+        failedReport = parsed.report;
+      }
     } catch {
       // keep raw detail
     }
@@ -190,7 +321,16 @@ async function runCandidate({ python, source, workspace, profile, dishKind }) {
       ok: false,
       runtimePath,
       reportPath,
-      attempt: { ...attempt, error: detail, stage },
+      attempt: {
+        ...attempt,
+        error: detail,
+        stage,
+        geometryOptimization: failedReport.geometryOptimization ?? "failed",
+        geometryOptimizationReason: failedReport.geometryOptimizationReason ?? "",
+        physicalScale: failedReport.physicalScale ?? null,
+        warnings: Array.isArray(failedReport.warnings) ? failedReport.warnings : [],
+        fails: Array.isArray(failedReport.fails) ? failedReport.fails : []
+      },
       stderr: result.stderr,
       stdout: result.stdout
     };
@@ -215,7 +355,8 @@ async function runCandidate({ python, source, workspace, profile, dishKind }) {
     };
   }
 
-  const passedBudget = attempt.runtimeBytes > 0 && attempt.runtimeBytes <= attempt.targetBytes;
+  const runtimeBytes = report.runtimeBytes ?? attempt.runtimeBytes;
+  const passedBudget = runtimeBytes > 0 && runtimeBytes <= attempt.targetBytes;
   return {
     ok: true,
     runtimePath,
@@ -223,7 +364,12 @@ async function runCandidate({ python, source, workspace, profile, dishKind }) {
     report,
     attempt: {
       ...attempt,
-      runtimeBytes: report.runtimeBytes ?? attempt.runtimeBytes,
+      ok: Array.isArray(report.fails) ? report.fails.length === 0 : true,
+      stage:
+        Array.isArray(report.fails) && report.fails.length > 0 && report.physicalScale?.status === "failed"
+          ? "physical-scale"
+          : "report",
+      runtimeBytes,
       reductionPercent: report.reductionPercent ?? 0,
       geometryOptimization: report.geometryOptimization ?? "skipped",
       triangleCountBefore: report.triangleCountBefore ?? 0,
@@ -312,7 +458,10 @@ async function main() {
     }
 
     if (!chosen) {
-      throw new OptimizerStageError("Aucune candidate USDZ runtime sous budget.", "budget", {
+      const diagnostic = classifyCandidateFailure(attempts);
+      throw new OptimizerStageError(diagnostic.message, diagnostic.stage, {
+        failureKind: diagnostic.failureKind,
+        selectedCandidate: null,
         attempts
       });
     }
@@ -354,6 +503,9 @@ async function main() {
   if (!runtimeValidation.ok) {
     rmSync(output, { force: true });
     emitError("Runtime USDZ invalide apres optimisation.", "validate-runtime", {
+      failureKind: "runtime-invalid",
+      selectedCandidate: chosen?.attempt ?? null,
+      attempts,
       fails: runtimeValidation.fails
     });
   }

@@ -177,9 +177,9 @@ function successOptimizer(runtimeBytes, { fails = [], optimizationApplied = true
 function extractPhysicalScaleTargets(source, constantName) {
   const start = source.indexOf(`${constantName} = {`);
   assert.notEqual(start, -1, `${constantName} must exist`);
-  const end = source.indexOf("\n}\n", start);
-  assert.notEqual(end, -1, `${constantName} must have a simple dict body`);
-  const block = source.slice(start, end);
+  const endMatch = /\r?\n}\r?\n/.exec(source.slice(start));
+  assert.ok(endMatch, `${constantName} must have a simple dict body`);
+  const block = source.slice(start, start + endMatch.index);
   const targets = {};
   for (const match of block.matchAll(
     /"([^"]+)": \{"dimension": "([^"]+)", "targetMeters": ([0-9.]+), "minMeters": ([0-9.]+), "maxMeters": ([0-9.]+)\}/g
@@ -1429,6 +1429,17 @@ test("local worker forwards dish kind to the transient optimizer without changin
   assert.match(localWorker, /capabilities: WORKER_CAPABILITIES/);
   assert.doesNotMatch(localWorker, /dishKind[\s\S]{0,120}StoragePath/);
   assert.doesNotMatch(localWorker, /dishKind[\s\S]{0,120}\.upload\(/);
+});
+
+test("local worker preserves optimizer failure diagnostics without storing source", () => {
+  assert.match(localWorker, /class OptimizerRunError extends Error/);
+  assert.match(localWorker, /diagnostics = parsed/);
+  assert.match(localWorker, /failureKind: diagnostics\.failureKind/);
+  assert.match(localWorker, /selectedCandidate: diagnostics\.selectedCandidate \?\? null/);
+  assert.match(localWorker, /candidateAttempts: Array\.isArray\(diagnostics\.attempts\)/);
+  assert.match(localWorker, /usdzSourceStored: false/);
+  assert.match(localWorker, /if \(sourcePath\) rmSync\(sourcePath, \{ force: true \}\)/);
+  assert.doesNotMatch(localWorker, /sourceStoragePath|masterUsdzStoragePath|rawUsdzStoragePath/);
 });
 
 test("worker CLI refuses an origin outside VISTAIRE_USDZ_WORKER_ALLOWED_ORIGINS", () => {

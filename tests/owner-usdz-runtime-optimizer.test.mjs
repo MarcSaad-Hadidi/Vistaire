@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { unzipSync } from "fflate";
+import { unzipSync, zipSync, strToU8 } from "fflate";
 
 import { validateUsdzBasic } from "../scripts/3d/shared/validators/usdz-basic.mjs";
 
@@ -32,6 +32,164 @@ function blenderAvailable() {
 
 const TOOLCHAIN_AVAILABLE = pythonHasToolchain() && blenderAvailable();
 const TOOLCHAIN_SKIP_REASON = "OpenUSD/Pillow/Blender not available";
+
+const MINIMAL_USDA = `#usda 1.0
+(
+    defaultPrim = "Dish"
+)
+
+def Xform "Dish"
+{
+    def Mesh "Cube"
+    {
+        point3f[] points = [(-0.1, -0.1, 0), (0.1, -0.1, 0), (0.1, 0.1, 0), (-0.1, 0.1, 0), (-0.1, -0.1, 0.1), (0.1, -0.1, 0.1), (0.1, 0.1, 0.1), (-0.1, 0.1, 0.1)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 4, 7, 6, 5, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
+    }
+}
+`;
+
+const FAKE_WORKER = `
+import { copyFileSync, writeFileSync } from "node:fs";
+
+const mode = process.env.VISTAIRE_FAKE_USDZ_MODE || "physical-scale-stderr";
+const args = process.argv.slice(3);
+function arg(name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : "";
+}
+const source = arg("--source");
+const output = arg("--output");
+const report = arg("--report");
+const profile = arg("--profile") || "balanced";
+
+function writeRuntimeReport(extra = {}) {
+  copyFileSync(source, output);
+  writeFileSync(report, JSON.stringify({
+    profile,
+    sourceBytes: 2048,
+    runtimeBytes: 2048,
+    reductionPercent: 0,
+    geometryOptimization: "skipped",
+    geometryOptimizationReason: "fake worker",
+    triangleCountBefore: 12,
+    triangleCountAfter: 12,
+    targetTriangles: 100,
+    physicalScale: { status: "normalized", dishKind: "plate", dimension: "footprint" },
+    warnings: [],
+    fails: [],
+    textureCount: 0,
+    changedTextures: 0,
+    materialCount: 0,
+    optimizationApplied: true,
+    sourceStored: false,
+    cleanup: { extractedWorkspaceRemoved: true },
+    ...extra
+  }), "utf8");
+}
+
+if (mode === "physical-scale-stderr") {
+  console.error(JSON.stringify({ ok: false, error: "Echelle physique invalide apres normalisation Blender.", stage: "physical-scale" }));
+  process.exit(2);
+}
+if (mode === "blender-stderr") {
+  console.error(JSON.stringify({ ok: false, error: "Blender executable introuvable.", stage: "blender" }));
+  process.exit(2);
+}
+if (mode === "blender-unavailable-report") {
+  console.error(JSON.stringify({
+    ok: false,
+    error: "Echelle physique invalide apres normalisation Blender.",
+    stage: "physical-scale",
+    report: {
+      geometryOptimization: "skipped",
+      geometryOptimizationReason: "Blender indisponible; geometryOptimization ne peut pas etre done.",
+      physicalScale: {
+        status: "failed",
+        dishKind: "plate",
+        warnings: ["Blender unavailable; physical scale could not be measured."]
+      },
+      fails: ["Echelle physique invalide: Blender indisponible pour normaliser le modele AR."]
+    }
+  }));
+  process.exit(2);
+}
+if (mode === "physical-scale-report") {
+  writeRuntimeReport({
+    physicalScale: { status: "failed", dishKind: "plate", dimension: "footprint", grounded: false },
+    fails: ["Echelle physique invalide: modele non grounded."]
+  });
+  process.exit(0);
+}
+if (mode === "over-budget") {
+  writeRuntimeReport();
+  process.exit(0);
+}
+if (mode === "bad-report") {
+  copyFileSync(source, output);
+  writeFileSync(report, "{", "utf8");
+  process.exit(0);
+}
+if (mode === "invalid-runtime") {
+  writeRuntimeReport();
+  writeFileSync(output, "not-a-usdz", "utf8");
+  process.exit(0);
+}
+console.error(JSON.stringify({ ok: false, error: "fake worker mode unknown", stage: "fake" }));
+process.exit(2);
+`;
+
+function writeMinimalUsdz(filePath) {
+  writeFileSync(filePath, Buffer.from(zipSync({ "model.usda": strToU8(MINIMAL_USDA) })));
+}
+
+function writeFakePython(dir) {
+  const fakeWorker = join(dir, "fake-worker.mjs");
+  writeFileSync(fakeWorker, FAKE_WORKER, "utf8");
+  if (process.platform === "win32") {
+    const commandPath = join(dir, "fake-python.cmd");
+    writeFileSync(
+      commandPath,
+      `@echo off\r\n"${process.execPath}" "${fakeWorker}" %*\r\nexit /b %ERRORLEVEL%\r\n`,
+      "utf8"
+    );
+    return commandPath;
+  }
+  const commandPath = join(dir, "fake-python.sh");
+  writeFileSync(commandPath, `#!/bin/sh\n"${process.execPath}" "${fakeWorker}" "$@"\n`, {
+    encoding: "utf8",
+    mode: 0o755
+  });
+  return commandPath;
+}
+
+function runCliWithFakeWorker(mode, extraEnv = {}) {
+  const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-fake-worker-"));
+  const source = join(dir, "source.usdz");
+  const runtime = join(dir, "runtime.usdz");
+  const report = join(dir, "report.json");
+  try {
+    writeMinimalUsdz(source);
+    const fakePython = writeFakePython(dir);
+    const result = spawnSync(
+      process.execPath,
+      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "premium", "--dish-kind", "plate"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          ...extraEnv,
+          VISTAIRE_USDZ_PYTHON: fakePython,
+          VISTAIRE_FAKE_USDZ_MODE: mode
+        },
+        encoding: "utf8"
+      }
+    );
+    return { result, stderrJson: JSON.parse(result.stderr.trim().split("\n").pop()) };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
 
 const GENERATOR = `
 import sys, tempfile
@@ -351,4 +509,98 @@ test("USDZ runtime optimizer CLI accepts platter dish kind", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Source USDZ introuvable/);
   assert.doesNotMatch(result.stderr, /Type de plat invalide/);
+});
+
+test("USDZ runtime optimizer reports physical scale failure instead of budget when every candidate fails scale", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("physical-scale-stderr");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "physical-scale");
+  assert.equal(stderrJson.failureKind, "physical-scale");
+  assert.match(stderrJson.error, /Echelle physique invalide/);
+  assert.doesNotMatch(stderrJson.error, /sous budget/i);
+  assert.equal(stderrJson.selectedCandidate, null);
+  assert.ok(stderrJson.attempts.length >= 1);
+  assert.equal(stderrJson.attempts[0].stage, "physical-scale");
+});
+
+test("USDZ runtime optimizer reports Blender failure instead of budget when every candidate fails in Blender", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("blender-stderr");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "blender");
+  assert.equal(stderrJson.failureKind, "blender");
+  assert.match(stderrJson.error, /Blender/);
+  assert.doesNotMatch(stderrJson.error, /sous budget/i);
+  assert.equal(stderrJson.selectedCandidate, null);
+  assert.equal(stderrJson.attempts[0].stage, "blender");
+});
+
+test("USDZ runtime optimizer preserves failed worker report details for missing Blender", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("blender-unavailable-report");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "blender");
+  assert.equal(stderrJson.failureKind, "blender");
+  assert.match(stderrJson.error, /Blender indisponible/);
+  assert.doesNotMatch(stderrJson.error, /sous budget/i);
+  assert.equal(stderrJson.attempts[0].stage, "physical-scale");
+  assert.equal(stderrJson.attempts[0].physicalScale.status, "failed");
+  assert.deepEqual(stderrJson.attempts[0].fails, [
+    "Echelle physique invalide: Blender indisponible pour normaliser le modele AR."
+  ]);
+});
+
+test("USDZ runtime optimizer reports failed physical scale from candidate report", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("physical-scale-report");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "physical-scale");
+  assert.equal(stderrJson.failureKind, "physical-scale");
+  assert.match(stderrJson.error, /modele non grounded|Echelle physique/i);
+  assert.doesNotMatch(stderrJson.error, /sous budget/i);
+  assert.equal(stderrJson.attempts[0].physicalScale.status, "failed");
+  assert.deepEqual(stderrJson.attempts[0].fails, ["Echelle physique invalide: modele non grounded."]);
+});
+
+test("USDZ runtime optimizer reports byte budgets only when candidates exceed byte budget", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("over-budget", {
+    VISTAIRE_USDZ_PREMIUM_TARGET_BYTES: "1",
+    VISTAIRE_USDZ_BALANCED_TARGET_BYTES: "1",
+    VISTAIRE_USDZ_LIGHT_TARGET_BYTES: "1",
+    VISTAIRE_USDZ_EMERGENCY_TARGET_BYTES: "1"
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "budget");
+  assert.equal(stderrJson.failureKind, "byte-budget");
+  assert.match(stderrJson.error, /depassent le budget/i);
+  assert.match(stderrJson.error, /premium 2048 B\/1 B/);
+  assert.equal(stderrJson.selectedCandidate, null);
+  assert.equal(stderrJson.attempts[0].runtimeBytes, 2048);
+  assert.equal(stderrJson.attempts[0].targetBytes, 1);
+  assert.equal(stderrJson.attempts[0].passedBudget, false);
+});
+
+test("USDZ runtime optimizer preserves attempts when selected runtime fails final validation", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("invalid-runtime");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.stage, "validate-runtime");
+  assert.equal(stderrJson.failureKind, "runtime-invalid");
+  assert.equal(stderrJson.selectedCandidate.profile, "premium");
+  assert.ok(stderrJson.attempts.length >= 1);
+  assert.equal(stderrJson.attempts[0].profile, "premium");
+  assert.match(stderrJson.error, /Runtime USDZ invalide/);
+  assert.ok(Array.isArray(stderrJson.fails));
+});
+
+test("Blender optimizer refreshes scene geometry after baked mesh transforms", () => {
+  const blender = readFileSync("scripts/owner/blender_usdz_geometry_optimizer.py", "utf8");
+
+  assert.match(blender, /def refresh_scene_geometry\(\) -> None:/);
+  assert.match(blender, /obj\.data\.update\(\)/);
+  assert.match(blender, /bpy\.context\.view_layer\.update\(\)/);
+  assert.match(blender, /bake_meshes_to_world\(\)[\s\S]*refresh_scene_geometry\(\)/);
+  assert.match(blender, /transform_mesh_geometry\(matrix: Matrix\)[\s\S]*refresh_scene_geometry\(\)/);
 });

@@ -57,6 +57,12 @@ def mesh_objects():
     return [obj for obj in bpy.context.scene.objects if obj.type == "MESH" and obj.data is not None]
 
 
+def refresh_scene_geometry() -> None:
+    for obj in mesh_objects():
+        obj.data.update()
+    bpy.context.view_layer.update()
+
+
 def scene_bounds() -> dict | None:
     points = []
     for obj in mesh_objects():
@@ -151,13 +157,13 @@ def bake_meshes_to_world() -> None:
             obj.data = obj.data.copy()
         obj.data.transform(obj.matrix_world)
         obj.matrix_world = Matrix.Identity(4)
-        obj.data.update()
+    refresh_scene_geometry()
 
 
 def transform_mesh_geometry(matrix: Matrix) -> None:
     for obj in mesh_objects():
         obj.data.transform(matrix)
-        obj.data.update()
+    refresh_scene_geometry()
 
 
 def normalize_physical_scale(dish_kind: str) -> dict:
