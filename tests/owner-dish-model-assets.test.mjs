@@ -277,6 +277,12 @@ test("owner model uploader exposes a confirmed delete flow and clears local mode
   assert.match(uploader, /physicalScaleWarnings/);
   assert.match(uploader, /initialUsdzPhysicalScaleWarnings/);
   assert.match(uploader, /visibleWarnings/);
+  assert.match(uploader, /UsdzOptimizationAttemptPayload/);
+  assert.match(uploader, /formatUsdzFailureDiagnostic/);
+  assert.match(uploader, /setLastFailureDiagnostic/);
+  assert.match(uploader, /Diagnostic USDZ/);
+  assert.match(uploader, /candidateAttempts/);
+  assert.match(uploader, /failureKind/);
   assert.match(uploader, /Fallback scale/);
   assert.match(uploader, /initialUsdzPhysicalScaleStatus/);
   assert.match(uploader, /setPhysicalScaleStatus\(""\)/);

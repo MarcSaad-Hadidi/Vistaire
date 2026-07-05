@@ -74,6 +74,11 @@ type ViewerUploadPayload = {
 type UsdzRuntimePayload = {
   ok?: boolean;
   error?: string;
+  failureKind?: string;
+  stage?: string;
+  selectedCandidate?: unknown;
+  candidateAttempts?: UsdzOptimizationAttemptPayload[];
+  attempts?: UsdzOptimizationAttemptPayload[];
   status?: string;
   version?: string;
   arUsdzUrl?: string;
@@ -94,6 +99,17 @@ type UsdzRuntimePayload = {
   warnings?: string[];
   fails?: string[];
   job?: { id?: string };
+};
+
+type UsdzOptimizationAttemptPayload = {
+  profile?: string;
+  stage?: string;
+  error?: string;
+  runtimeBytes?: number;
+  targetBytes?: number;
+  passedBudget?: boolean;
+  fails?: string[];
+  physicalScale?: { status?: string } | null;
 };
 
 type UsdzPhysicalScalePayload = {
@@ -211,6 +227,26 @@ function dedupeWarnings(...warnings: string[][]): string[] {
 
 function dishKindLabel(value: string): string {
   return USDZ_DISH_KIND_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+function formatUsdzFailureDiagnostic(payload: UsdzRuntimePayload): string {
+  const attempts = payload.candidateAttempts || payload.attempts || [];
+  const firstAttempts = attempts.slice(0, 2).map((attempt) => {
+    const profile = attempt.profile || "profil";
+    const cause =
+      attempt.fails?.[0] ||
+      attempt.error ||
+      (attempt.physicalScale?.status === "failed" ? "physicalScale failed" : attempt.stage || "failed");
+    const budget =
+      Number(attempt.runtimeBytes) > 0 && Number(attempt.targetBytes) > 0
+        ? ` ${formatModelAssetBytes(Number(attempt.runtimeBytes))}/${formatModelAssetBytes(Number(attempt.targetBytes))}`
+        : "";
+    return `${profile}: ${cause}${budget}`;
+  });
+  const prefix = [payload.failureKind, payload.stage].filter(Boolean).join(" / ");
+  return [prefix ? `Diagnostic USDZ ${prefix}` : "Diagnostic USDZ", ...firstAttempts]
+    .filter(Boolean)
+    .join(" - ");
 }
 
 type QueueUploadArgs = {
@@ -404,6 +440,7 @@ export function OwnerDishModelUploader({
   const [attemptCount, setAttemptCount] = useState(initialUsdzOptimizationAttemptCount);
   const [changedTextures, setChangedTextures] = useState(initialUsdzChangedTextures);
   const [lastWarnings, setLastWarnings] = useState<string[]>(initialUsdzPhysicalScaleWarnings);
+  const [lastFailureDiagnostic, setLastFailureDiagnostic] = useState("");
 
   const [localQueueState, setLocalQueueState] = useState<OwnerDishModelUploadQueueState>("idle");
   const [activeUpload, setActiveUpload] = useState<"" | "viewer-glb" | "usdz-runtime">("");
@@ -484,6 +521,7 @@ export function OwnerDishModelUploader({
   async function runViewerUpload(file: File) {
     setError("");
     setMessage("");
+    setLastFailureDiagnostic("");
     const formData = new FormData();
     formData.set("file", file);
     const response = await fetch(
@@ -550,6 +588,7 @@ export function OwnerDishModelUploader({
     });
     const payload = (await response.json().catch(() => ({}))) as UsdzRuntimePayload;
     if (!response.ok || !payload.ok || !payload.arUsdzUrl) {
+      setLastFailureDiagnostic(formatUsdzFailureDiagnostic(payload));
       throw new Error(payload.error || "Optimisation USDZ locale impossible. Aucun fichier stocke.");
     }
     setArUsdzUrl(payload.arUsdzUrl ?? "");
@@ -574,6 +613,7 @@ export function OwnerDishModelUploader({
     setAttemptCount(payload.attemptCount ?? 0);
     setChangedTextures(payload.changedTextures ?? 0);
     setLastWarnings(dedupeWarnings(payload.physicalScale?.warnings ?? [], payload.warnings ?? []));
+    setLastFailureDiagnostic("");
     setShowDeleteConfirm(false);
     router.refresh();
   }
@@ -925,6 +965,9 @@ export function OwnerDishModelUploader({
         </div>
       ) : null}
       {error ? <span className={styles.errorText}>{error}</span> : null}
+      {lastFailureDiagnostic ? (
+        <span className={styles.cellSub}>{lastFailureDiagnostic}</span>
+      ) : null}
     </div>
   );
 }

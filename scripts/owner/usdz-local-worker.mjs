@@ -76,6 +76,14 @@ function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+class OptimizerRunError extends Error {
+  constructor(message, diagnostics = {}) {
+    super(message);
+    this.name = "OptimizerRunError";
+    this.diagnostics = diagnostics;
+  }
+}
+
 async function readFormData(req) {
   const length = Number(req.headers["content-length"] || 0);
   if (!Number.isFinite(length) || length <= 0) {
@@ -140,13 +148,15 @@ function runOptimizer(args) {
         return;
       }
       let message = stderr.trim() || stdout.trim() || "Optimiseur USDZ indisponible.";
+      let diagnostics = {};
       try {
         const parsed = JSON.parse(stderr.trim().split("\n").pop());
         if (parsed?.error) message = parsed.error;
+        diagnostics = parsed;
       } catch {
         // keep raw message
       }
-      reject(new Error(message));
+      reject(new OptimizerRunError(message, diagnostics));
     });
   });
 }
@@ -306,6 +316,7 @@ async function handleOptimize(req, res) {
     }, headers);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Optimisation USDZ locale impossible.";
+    const diagnostics = error instanceof OptimizerRunError ? error.diagnostics || {} : {};
     if (sourcePath) rmSync(sourcePath, { force: true });
     const rollbackPayload =
       prepared && preparePayload && (runtimeUploaded || reportUploaded)
@@ -317,7 +328,21 @@ async function handleOptimize(req, res) {
           }
         : {};
     if (form) await notifyFail(form, message, apiBaseUrl, rollbackPayload);
-    writeJson(res, 500, { ok: false, error: message, usdzSourceStored: false }, headers);
+    writeJson(
+      res,
+      500,
+      {
+        ok: false,
+        error: message,
+        failureKind: diagnostics.failureKind,
+        stage: diagnostics.stage,
+        selectedCandidate: diagnostics.selectedCandidate ?? null,
+        candidateAttempts: Array.isArray(diagnostics.attempts) ? diagnostics.attempts : [],
+        attempts: Array.isArray(diagnostics.attempts) ? diagnostics.attempts : [],
+        usdzSourceStored: false
+      },
+      headers
+    );
   } finally {
     if (workspace) rmSync(workspace, { recursive: true, force: true });
   }
