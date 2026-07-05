@@ -61,6 +61,10 @@ function parseArgs(argv) {
     const token = argv[i];
     if (token.startsWith("--")) {
       const key = token.slice(2);
+      if (i + 1 >= argv.length || argv[i + 1].startsWith("--")) {
+        args[key] = true;
+        continue;
+      }
       const value = argv[i + 1];
       args[key] = value;
       i += 1;
@@ -91,7 +95,8 @@ function targetBudgetBytes(profile) {
   return parsePositiveInt(process.env[envKey], DEFAULT_PROFILE_BUDGETS[profile]);
 }
 
-function candidateProfiles(requestedProfile) {
+function candidateProfiles(requestedProfile, allowProfileFallback = false) {
+  if (!allowProfileFallback) return [requestedProfile];
   const startIndex = PROFILE_ORDER.indexOf(requestedProfile);
   return PROFILE_ORDER.slice(startIndex < 0 ? 1 : startIndex);
 }
@@ -145,6 +150,14 @@ function runPython(python, args) {
 
 function formatBytes(bytes) {
   return `${Math.max(0, Number(bytes) || 0)} B`;
+}
+
+function profileLabel(profile) {
+  if (profile === "premium") return "Premium";
+  if (profile === "balanced") return "Balanced";
+  if (profile === "light") return "Light";
+  if (profile === "emergency") return "Emergency";
+  return String(profile || "Profil");
 }
 
 function attemptHasPhysicalScaleFailure(attempt) {
@@ -226,6 +239,14 @@ function classifyCandidateFailure(attempts) {
   }
 
   if (overBudget.length === allAttempts.length) {
+    if (overBudget.length === 1) {
+      const attempt = overBudget[0];
+      return {
+        failureKind: "byte-budget",
+        stage: "budget",
+        message: `Profil ${profileLabel(attempt.profile)} au-dessus du budget: ${formatBytes(attempt.runtimeBytes)} / ${formatBytes(attempt.targetBytes)}.`
+      };
+    }
     const details = overBudget
       .map((attempt) => `${attempt.profile} ${formatBytes(attempt.runtimeBytes)}/${formatBytes(attempt.targetBytes)}`)
       .join(", ");
@@ -393,6 +414,7 @@ async function main() {
   const profile = (args.profile || "balanced").toLowerCase();
   const dishKind = (args["dish-kind"] || "fallback").toLowerCase();
   const origin = typeof args.origin === "string" ? args.origin.trim() : "";
+  const allowProfileFallback = args["allow-profile-fallback"] === true;
 
   assertAllowedWorkerOrigin(origin);
   resolveBlenderExecutable();
@@ -429,7 +451,7 @@ async function main() {
   let chosen = null;
 
   try {
-    for (const candidateProfile of candidateProfiles(profile)) {
+    for (const candidateProfile of candidateProfiles(profile, allowProfileFallback)) {
       const candidate = await runCandidate({
         python,
         source,
@@ -462,7 +484,10 @@ async function main() {
       throw new OptimizerStageError(diagnostic.message, diagnostic.stage, {
         failureKind: diagnostic.failureKind,
         selectedCandidate: null,
-        attempts
+        attempts,
+        requestedProfile: profile,
+        selectedProfile: null,
+        profileFallbackApplied: false
       });
     }
 
@@ -474,7 +499,10 @@ async function main() {
       JSON.stringify(
         {
           ...finalReport,
-          profile: chosen.attempt.profile,
+          profile,
+          requestedProfile: profile,
+          selectedProfile: chosen.attempt.profile,
+          profileFallbackApplied: chosen.attempt.profile !== profile,
           candidateAttempts: attempts,
           attemptCount: attempts.length,
           sourceStored: false
@@ -505,6 +533,9 @@ async function main() {
     emitError("Runtime USDZ invalide apres optimisation.", "validate-runtime", {
       failureKind: "runtime-invalid",
       selectedCandidate: chosen?.attempt ?? null,
+      requestedProfile: profile,
+      selectedProfile: chosen?.attempt?.profile ?? null,
+      profileFallbackApplied: Boolean(chosen?.attempt?.profile && chosen.attempt.profile !== profile),
       attempts,
       fails: runtimeValidation.fails
     });
@@ -540,7 +571,10 @@ async function main() {
   process.stdout.write(
     `${JSON.stringify({
       ok: true,
-      profile: report.profile ?? chosen?.attempt?.profile ?? profile,
+      profile: report.profile ?? profile,
+      requestedProfile: report.requestedProfile ?? profile,
+      selectedProfile: report.selectedProfile ?? chosen?.attempt?.profile ?? profile,
+      profileFallbackApplied: Boolean(report.profileFallbackApplied),
       sourcePath: source,
       runtimePath: output,
       reportPath,

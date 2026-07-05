@@ -45,6 +45,8 @@ export type UsdzRuntimePrepareUploadInput = {
   jobId: string;
   jobToken: string;
   profile: UsdzOptimizationProfile;
+  selectedProfile: UsdzOptimizationProfile;
+  profileFallbackApplied: boolean;
   sourceBytes: number;
   sourceSha256: string;
   runtimeBytes: number;
@@ -148,6 +150,18 @@ function cleanCandidateAttempts(value: unknown): unknown[] {
       targetTriangles: cleanPositiveInt(item.targetTriangles)
     }))
     .slice(0, 6);
+}
+
+function cleanProfile(value: unknown): UsdzOptimizationProfile | null {
+  if (
+    value === "premium" ||
+    value === "balanced" ||
+    value === "light" ||
+    value === "emergency"
+  ) {
+    return value;
+  }
+  return null;
 }
 
 function cleanPhysicalScale(value: unknown) {
@@ -295,19 +309,15 @@ export function parsePrepareUploadInput(value: unknown): UsdzRuntimePrepareUploa
   if (!isRecord(value)) return null;
   const jobId = typeof value.jobId === "string" ? value.jobId : "";
   const jobToken = typeof value.jobToken === "string" ? value.jobToken : "";
-  const profile = value.profile;
-  if (
-    profile !== "premium" &&
-    profile !== "balanced" &&
-    profile !== "light" &&
-    profile !== "emergency"
-  ) {
-    return null;
-  }
+  const profile = cleanProfile(value.profile);
+  if (!profile) return null;
+  const selectedProfile = cleanProfile(value.selectedProfile) ?? profile;
   return {
     jobId,
     jobToken,
     profile,
+    selectedProfile,
+    profileFallbackApplied: value.profileFallbackApplied === true,
     sourceBytes: cleanPositiveInt(value.sourceBytes),
     sourceSha256: cleanSha256(value.sourceSha256),
     runtimeBytes: cleanPositiveInt(value.runtimeBytes),
@@ -363,6 +373,10 @@ function assertClaimsMatchInput(
 ): void {
   if (claims.jobId !== input.jobId) throw new Error("jobId USDZ invalide.");
   if (claims.profile !== input.profile) throw new Error("Profil USDZ invalide.");
+  const selectedProfile = input.selectedProfile ?? input.profile;
+  if (selectedProfile !== input.profile || input.profileFallbackApplied === true) {
+    throw new Error("Profil USDZ selectionne invalide.");
+  }
   if (claims.sourceBytes !== input.sourceBytes) throw new Error("Taille source USDZ invalide.");
   if (!input.sourceSha256) throw new Error("SHA-256 source requis.");
   if (!input.runtimeSha256) throw new Error("SHA-256 runtime requis.");
@@ -383,7 +397,8 @@ export async function prepareUsdzRuntimeSignedUpload(args: {
   const verified = verifyUsdzRuntimeJobToken(args.input.jobToken, args.env ?? process.env);
   if (!verified.ok) throw new Error(verified.error);
   assertClaimsMatchInput(verified.claims, args.input);
-  const profileBudget = Math.floor(USDZ_OPTIMIZATION_PROFILES[args.input.profile].targetMaxBytes);
+  const budgetProfile = args.input.selectedProfile ?? args.input.profile;
+  const profileBudget = Math.floor(USDZ_OPTIMIZATION_PROFILES[budgetProfile].targetMaxBytes);
   const effectiveMaxRuntimeBytes = Math.min(args.maxRuntimeBytes, profileBudget);
   if (args.input.runtimeBytes > effectiveMaxRuntimeBytes) {
     throw new Error("Runtime USDZ au-dessus de la limite runtime.");
@@ -533,6 +548,8 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   usdzSourceBytes: number;
   reductionPercent: number;
   profile: UsdzOptimizationProfile;
+  selectedProfile: UsdzOptimizationProfile;
+  profileFallbackApplied: boolean;
   geometryOptimization: string;
   physicalScale?: ReturnType<typeof cleanPhysicalScale>;
   warnings: string[];
@@ -578,6 +595,20 @@ export async function completeUsdzRuntimeSignedUpload(args: {
     const reportWarnings = cleanStringArray(parsedReport.warnings);
     const reportCandidateAttempts = cleanCandidateAttempts(parsedReport.candidateAttempts);
     const reportPhysicalScale = cleanPhysicalScale(parsedReport.physicalScale);
+    const reportRequestedProfile = cleanProfile(parsedReport.requestedProfile) ?? cleanProfile(parsedReport.profile);
+    const inputSelectedProfile = args.input.selectedProfile ?? args.input.profile;
+    const reportSelectedProfile = cleanProfile(parsedReport.selectedProfile) ?? reportRequestedProfile;
+    const reportFallbackApplied = parsedReport.profileFallbackApplied === true;
+    const inputFallbackApplied = args.input.profileFallbackApplied === true;
+    if (reportRequestedProfile && reportRequestedProfile !== args.input.profile) {
+      throw new Error("Rapport USDZ invalide: profil demande incoherent.");
+    }
+    if (reportSelectedProfile && reportSelectedProfile !== inputSelectedProfile) {
+      throw new Error("Rapport USDZ invalide: profil selectionne incoherent.");
+    }
+    if (reportFallbackApplied !== inputFallbackApplied) {
+      throw new Error("Rapport USDZ invalide: fallback profil incoherent.");
+    }
     assertPhysicalScalePublishable(reportPhysicalScale);
 
     const gate = evaluateRuntimeUsdzUploadGate({
@@ -601,6 +632,8 @@ export async function completeUsdzRuntimeSignedUpload(args: {
         runtimeSha256: args.input.runtimeSha256,
         reportStoragePath: args.input.reportStoragePath,
         profile: args.input.profile,
+        selectedProfile: inputSelectedProfile,
+        profileFallbackApplied: inputFallbackApplied,
         warnings: reportWarnings,
         fails: reportFails,
         reductionPercent: cleanNumber(parsedReport.reductionPercent),
@@ -658,6 +691,8 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       usdzSourceBytes: args.input.sourceBytes,
       reductionPercent: cleanNumber(parsedReport.reductionPercent),
       profile: args.input.profile,
+      selectedProfile: inputSelectedProfile,
+      profileFallbackApplied: inputFallbackApplied,
       geometryOptimization:
         typeof parsedReport.geometryOptimization === "string"
           ? parsedReport.geometryOptimization

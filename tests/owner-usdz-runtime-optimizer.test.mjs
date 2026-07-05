@@ -143,6 +143,10 @@ if (mode === "over-budget") {
   writeRuntimeReport();
   process.exit(0);
 }
+if (mode === "strict-success") {
+  writeRuntimeReport({ optimizationApplied: false });
+  process.exit(0);
+}
 if (mode === "bad-report") {
   copyFileSync(source, output);
   writeFileSync(report, "{", "utf8");
@@ -151,6 +155,18 @@ if (mode === "bad-report") {
 if (mode === "invalid-runtime") {
   writeRuntimeReport();
   writeFileSync(output, "not-a-usdz", "utf8");
+  process.exit(0);
+}
+if (mode === "light-only-success") {
+  if (profile !== "light") {
+    console.error(JSON.stringify({ ok: false, error: "premium fake failure", stage: "budget" }));
+    process.exit(2);
+  }
+  writeRuntimeReport({
+    triangleCountBefore: 1555864,
+    triangleCountAfter: 100000,
+    targetTriangles: 100000
+  });
   process.exit(0);
 }
 console.error(JSON.stringify({ ok: false, error: "fake worker mode unknown", stage: "fake" }));
@@ -181,7 +197,7 @@ function writeFakePython(dir) {
   return commandPath;
 }
 
-function runCliWithFakeWorker(mode, extraEnv = {}) {
+function runCliWithFakeWorker(mode, extraEnv = {}, profile = "premium", extraArgs = []) {
   const dir = mkdtempSync(join(tmpdir(), "vistaire-usdz-fake-worker-"));
   const source = join(dir, "source.usdz");
   const runtime = join(dir, "runtime.usdz");
@@ -191,7 +207,20 @@ function runCliWithFakeWorker(mode, extraEnv = {}) {
     const fakePython = writeFakePython(dir);
     const result = spawnSync(
       process.execPath,
-      [CLI, "--source", source, "--output", runtime, "--report", report, "--profile", "premium", "--dish-kind", "plate"],
+      [
+        CLI,
+        "--source",
+        source,
+        "--output",
+        runtime,
+        "--report",
+        report,
+        "--profile",
+        profile,
+        "--dish-kind",
+        "plate",
+        ...extraArgs
+      ],
       {
         cwd: process.cwd(),
         env: {
@@ -203,7 +232,19 @@ function runCliWithFakeWorker(mode, extraEnv = {}) {
         encoding: "utf8"
       }
     );
-    return { result, stderrJson: JSON.parse(result.stderr.trim().split("\n").pop()) };
+    const stderrLine =
+      result.stderr
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim().startsWith("{"))
+        .pop() || "{}";
+    const stdoutLine = result.stdout.trim().split("\n").filter(Boolean).pop() || "{}";
+    return {
+      result,
+      stderrJson: JSON.parse(stderrLine),
+      stdoutJson: JSON.parse(stdoutLine),
+      reportJson: existsSync(report) ? JSON.parse(readFileSync(report, "utf8")) : null
+    };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -602,12 +643,41 @@ test("USDZ runtime optimizer reports byte budgets only when candidates exceed by
   assert.notEqual(result.status, 0);
   assert.equal(stderrJson.stage, "budget");
   assert.equal(stderrJson.failureKind, "byte-budget");
-  assert.match(stderrJson.error, /depassent le budget/i);
-  assert.match(stderrJson.error, /premium 2048 B\/1 B/);
+  assert.match(stderrJson.error, /Premium au-dessus du budget|depassent le budget/i);
+  assert.match(stderrJson.error, /premium 2048 B\/1 B|2048 B \/ 1 B/);
   assert.equal(stderrJson.selectedCandidate, null);
   assert.equal(stderrJson.attempts[0].runtimeBytes, 2048);
   assert.equal(stderrJson.attempts[0].targetBytes, 1);
   assert.equal(stderrJson.attempts[0].passedBudget, false);
+});
+
+test("USDZ runtime optimizer uses strict requested profile candidates by default", () => {
+  for (const requestedProfile of ["premium", "balanced", "light", "emergency"]) {
+    const { result, stdoutJson } = runCliWithFakeWorker("strict-success", {}, requestedProfile);
+
+    assert.equal(result.status, 0);
+    assert.equal(stdoutJson.profile, requestedProfile);
+    assert.equal(stdoutJson.requestedProfile, requestedProfile);
+    assert.equal(stdoutJson.selectedProfile, requestedProfile);
+    assert.equal(stdoutJson.profileFallbackApplied, false);
+    assert.deepEqual(
+      stdoutJson.candidateAttempts.map((attempt) => attempt.profile),
+      [requestedProfile]
+    );
+  }
+});
+
+test("USDZ runtime optimizer does not select light when premium is requested by default", () => {
+  const { result, stderrJson } = runCliWithFakeWorker("light-only-success", {}, "premium");
+
+  assert.notEqual(result.status, 0);
+  assert.equal(stderrJson.selectedCandidate, null);
+  assert.equal(stderrJson.profileFallbackApplied, false);
+  assert.deepEqual(
+    stderrJson.attempts.map((attempt) => attempt.profile),
+    ["premium"]
+  );
+  assert.match(stderrJson.error, /premium fake failure/i);
 });
 
 test("USDZ runtime optimizer preserves attempts when selected runtime fails final validation", () => {

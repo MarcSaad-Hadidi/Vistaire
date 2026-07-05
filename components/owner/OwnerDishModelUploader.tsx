@@ -87,6 +87,9 @@ type UsdzRuntimePayload = {
   usdzSourceStored?: boolean;
   reductionPercent?: number;
   profile?: string;
+  requestedProfile?: string;
+  selectedProfile?: string;
+  profileFallbackApplied?: boolean;
   geometryOptimization?: string;
   triangleCountBefore?: number;
   triangleCountAfter?: number;
@@ -229,6 +232,10 @@ function dishKindLabel(value: string): string {
   return USDZ_DISH_KIND_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
+function profileLabel(value: string): string {
+  return PROFILE_OPTIONS.find((option) => option.value === value)?.label.split(" ")[0] ?? value;
+}
+
 function formatUsdzFailureDiagnostic(payload: UsdzRuntimePayload): string {
   const attempts = payload.candidateAttempts || payload.attempts || [];
   const firstAttempts = attempts.slice(0, 2).map((attempt) => {
@@ -244,8 +251,17 @@ function formatUsdzFailureDiagnostic(payload: UsdzRuntimePayload): string {
     return `${profile}: ${cause}${budget}`;
   });
   const prefix = [payload.failureKind, payload.stage].filter(Boolean).join(" / ");
+  const budgetFailure = payload.failureKind === "byte-budget" || payload.stage === "budget";
+  const requestedProfile = payload.profile || payload.requestedProfile || attempts[0]?.profile || "";
+  const headline =
+    budgetFailure && requestedProfile
+      ? `${profileLabel(requestedProfile)} impossible: runtime au-dessus du budget`
+      : prefix
+        ? `Diagnostic USDZ ${prefix}`
+        : "Diagnostic USDZ";
   return [prefix ? `Diagnostic USDZ ${prefix}` : "Diagnostic USDZ", ...firstAttempts]
     .filter(Boolean)
+    .map((entry, index) => (index === 0 ? headline : entry))
     .join(" - ");
 }
 
@@ -393,6 +409,13 @@ export function OwnerDishModelUploader({
   const [profile, setProfile] = useState<UsdzOptimizationProfileOption>(
     isProfileOption(initialUsdzOptimizationProfile) ? initialUsdzOptimizationProfile : "balanced"
   );
+  const [runtimeProfile, setRuntimeProfile] = useState<UsdzOptimizationProfileOption>(
+    isProfileOption(initialUsdzOptimizationProfile) ? initialUsdzOptimizationProfile : "balanced"
+  );
+  const [runtimeRequestedProfile, setRuntimeRequestedProfile] = useState<UsdzOptimizationProfileOption>(
+    isProfileOption(initialUsdzOptimizationProfile) ? initialUsdzOptimizationProfile : "balanced"
+  );
+  const [profileFallbackApplied, setProfileFallbackApplied] = useState(false);
   const [selectedDishKindPreset, setSelectedDishKindPreset] =
     useState<UsdzDishKindPreset>("auto");
   const [workerStatus, setWorkerStatus] = useState<"checking" | "available" | "missing">(
@@ -596,7 +619,11 @@ export function OwnerDishModelUploader({
     setUsdzSourceBytes(payload.usdzSourceBytes ?? 0);
     setUsdzSourceOriginalName(file.name);
     setQuickLookQaStatus(payload.quickLookQaStatus ?? "not-tested");
-    if (payload.profile && isProfileOption(payload.profile)) setProfile(payload.profile);
+    const selectedProfile = payload.selectedProfile || payload.profile || profile;
+    const requestedProfile = payload.requestedProfile || payload.profile || profile;
+    if (isProfileOption(selectedProfile)) setRuntimeProfile(selectedProfile);
+    if (isProfileOption(requestedProfile)) setRuntimeRequestedProfile(requestedProfile);
+    setProfileFallbackApplied(payload.profileFallbackApplied === true);
     setGeometryOptimization(payload.geometryOptimization ?? "");
     setTriangleCountBefore(payload.triangleCountBefore ?? 0);
     setTriangleCountAfter(payload.triangleCountAfter ?? 0);
@@ -689,6 +716,9 @@ export function OwnerDishModelUploader({
         setUsdzSourceBytes(0);
         setUsdzSourceOriginalName("");
         setQuickLookQaStatus("");
+        setRuntimeProfile(profile);
+        setRuntimeRequestedProfile(profile);
+        setProfileFallbackApplied(false);
         setPhysicalScaleStatus("");
         setPhysicalScaleDishKind("");
         setPhysicalScaleDimension("");
@@ -847,6 +877,13 @@ export function OwnerDishModelUploader({
               <span className={`${styles.badge} ${styles.badgeWarn}`}>
                 Quick Look QA {quickLookQaStatus || "not-tested"}
               </span>
+              <span className={styles.cellSub}>Profil runtime: {profileLabel(runtimeProfile)}</span>
+              {profileFallbackApplied ? (
+                <span className={styles.cellSub}>
+                  Fallback profil applique: {profileLabel(runtimeRequestedProfile)} -&gt;{" "}
+                  {profileLabel(runtimeProfile)}
+                </span>
+              ) : null}
               {geometryOptimization ? (
                 <span className={`${styles.badge} ${styles.badgeWarn}`}>
                   Geometry {geometryOptimization}

@@ -432,6 +432,8 @@ export type UsdzRuntimeUploadInputs = {
   runtimeSha256: string;
   reportStoragePath: string;
   profile: UsdzOptimizationProfile;
+  selectedProfile?: UsdzOptimizationProfile;
+  profileFallbackApplied?: boolean;
   warnings: string[];
   fails: string[];
   reductionPercent?: number;
@@ -498,6 +500,7 @@ export function buildUsdzRuntimeMetadataPatch(
 ): Record<string, unknown> {
   const usdzUrl = buildPreparedModelPublicUsdzPath(inputs.dishId, { assetVersion: inputs.version });
   const physicalScale = inputs.physicalScale ?? {};
+  const selectedProfile = inputs.selectedProfile ?? inputs.profile;
 
   return {
     arUsdzUrl: usdzUrl,
@@ -513,7 +516,9 @@ export function buildUsdzRuntimeMetadataPatch(
     usdzRuntimeSha256: inputs.runtimeSha256,
     usdzRuntimeContentType: "model/vnd.usdz+zip",
     usdzRuntimeUploadedAt: inputs.uploadedAt,
-    usdzOptimizationProfile: inputs.profile,
+    usdzOptimizationRequestedProfile: inputs.profile,
+    usdzOptimizationProfile: selectedProfile,
+    usdzOptimizationProfileFallbackApplied: inputs.profileFallbackApplied === true,
     usdzOptimizationReportStoragePath: inputs.reportStoragePath,
     usdzOptimizationWarnings: inputs.warnings,
     usdzOptimizationFails: inputs.fails,

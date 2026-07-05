@@ -229,6 +229,8 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
       runtimeSha256: "a".repeat(64),
     reportStoragePath: "restaurants/x/models/manifests/homard.json",
     profile: "balanced",
+    selectedProfile: "balanced",
+    profileFallbackApplied: false,
     warnings: [],
     fails: [],
     reductionPercent: 72,
@@ -293,6 +295,9 @@ test("runtime metadata patch stores only runtime + non-binary source metadata", 
   assert.equal(patch.usdzTriangleCountBefore, 240000);
   assert.equal(patch.usdzTriangleCountAfter, 132000);
   assert.equal(patch.usdzOptimizationAttemptCount, 2);
+  assert.equal(patch.usdzOptimizationRequestedProfile, "balanced");
+  assert.equal(patch.usdzOptimizationProfile, "balanced");
+  assert.equal(patch.usdzOptimizationProfileFallbackApplied, false);
   assert.equal(patch.usdzSourceBytes, 120_000_000);
   assert.equal(patch.usdzSourceOriginalName, "master.usdz");
   assert.ok(String(patch.arUsdzUrl).startsWith("/api/public/menu-dishes/"));
@@ -575,6 +580,142 @@ test("prepare-upload enforces the selected profile byte budget", async () => {
           sourceBytes: 20 * 1024 * 1024,
           sourceSha256: "b".repeat(64),
           runtimeBytes: 6 * 1024 * 1024,
+          runtimeSha256: "a".repeat(64),
+          reportBytes: 512,
+          geometryOptimization: "done",
+          warnings: [],
+          fails: []
+        }
+      }),
+    /limite runtime/
+  );
+});
+
+test("prepare-upload rejects selectedProfile mismatch in strict mode before signing uploads", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 20 * 1024 * 1024,
+    profile: "premium",
+    env
+  });
+  assert.equal(token.ok, true);
+  const signedPaths = [];
+  const { client } = mockAdminClient({
+    createSignedUploadUrl: async (path) => {
+      signedPaths.push(path);
+      return { data: { signedUrl: "https://storage.test", token: "token", path }, error: null };
+    }
+  });
+
+  await assert.rejects(
+    () =>
+      prepareUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        maxRuntimeBytes: 16 * 1024 * 1024,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "premium",
+          selectedProfile: "light",
+          profileFallbackApplied: false,
+          sourceBytes: 20 * 1024 * 1024,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: 8 * 1024 * 1024,
+          runtimeSha256: "a".repeat(64),
+          reportBytes: 512,
+          geometryOptimization: "done",
+          warnings: [],
+          fails: []
+        }
+      }),
+    /Profil USDZ selectionne invalide/
+  );
+  assert.deepEqual(signedPaths, []);
+});
+
+test("claims.profile mismatch is still rejected as a token security violation", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 20 * 1024 * 1024,
+    profile: "premium",
+    env
+  });
+  assert.equal(token.ok, true);
+  const { client } = mockAdminClient();
+
+  await assert.rejects(
+    () =>
+      prepareUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        maxRuntimeBytes: 16 * 1024 * 1024,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "light",
+          selectedProfile: "light",
+          profileFallbackApplied: false,
+          sourceBytes: 20 * 1024 * 1024,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: 8 * 1024 * 1024,
+          runtimeSha256: "a".repeat(64),
+          reportBytes: 512,
+          geometryOptimization: "done",
+          warnings: [],
+          fails: []
+        }
+      }),
+    /Profil USDZ invalide/
+  );
+});
+
+test("prepare-upload validates runtime bytes against selectedProfile budget", async () => {
+  const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
+  const token = createUsdzRuntimeJobToken({
+    owner: { userId: "user_test", email: "owner@vistaire.test" },
+    restaurantId: RESTAURANT_ID,
+    restaurantSlug: "demo",
+    menuSlug: "principal",
+    dishId: DISH_ID,
+    dishSlug: "homard-grille",
+    sourceOriginalName: "master.usdz",
+    sourceBytes: 20 * 1024 * 1024,
+    profile: "light",
+    env
+  });
+  assert.equal(token.ok, true);
+  const { client } = mockAdminClient();
+
+  await assert.rejects(
+    () =>
+      prepareUsdzRuntimeSignedUpload({
+        adminClient: client,
+        env,
+        maxRuntimeBytes: 16 * 1024 * 1024,
+        input: {
+          jobId: token.jobId,
+          jobToken: token.token,
+          profile: "light",
+          selectedProfile: "light",
+          profileFallbackApplied: false,
+          sourceBytes: 20 * 1024 * 1024,
+          sourceSha256: "b".repeat(64),
+          runtimeBytes: 11 * 1024 * 1024,
           runtimeSha256: "a".repeat(64),
           reportBytes: 512,
           geometryOptimization: "done",
@@ -1345,6 +1486,17 @@ test("local worker deletes source before signed upload and skips upload when opt
   assert.match(localWorker, /reportStoragePath: reportUploaded \? prepared\.reportStoragePath : undefined/);
   assert.match(localWorker, /finally\s*{[\s\S]*rmSync\(workspace, \{ recursive: true, force: true \}\)/);
   assert.doesNotMatch(localWorker, /sourceStoragePath|masterUsdzStoragePath|rawUsdzStoragePath/);
+});
+
+test("local worker keeps requested profile separate from optimizer selected profile", () => {
+  assert.match(localWorker, /const requestedProfile = String\(form\.get\("profile"\) \|\| "balanced"\)/);
+  assert.match(localWorker, /const summary = await runOptimizer\(\{[\s\S]*profile: requestedProfile,[\s\S]*dishKind[\s\S]*\}\)/);
+  assert.match(localWorker, /profile: requestedProfile/);
+  assert.match(localWorker, /const selectedProfile = summary\.selectedProfile \|\| summary\.profile \|\| requestedProfile/);
+  assert.match(localWorker, /selectedProfile,/);
+  assert.match(localWorker, /const profileFallbackApplied = Boolean\(summary\.profileFallbackApplied\)/);
+  assert.match(localWorker, /profileFallbackApplied,/);
+  assert.doesNotMatch(localWorker, /profile: summary\.profile \|\| profile/);
 });
 
 test("fail route performs token-scoped runtime rollback only", () => {
