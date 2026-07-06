@@ -318,6 +318,7 @@ export function buildOauthProtectedResourceMetadata() {
     resource: absoluteUrl("/"),
     resource_name: "Vistaire public site and session-protected owner app",
     resource_documentation: absoluteUrl("/auth.md"),
+    authorization_servers: [],
     bearer_methods_supported: [],
     oauth_status: "not_available",
     authorization_server_note:

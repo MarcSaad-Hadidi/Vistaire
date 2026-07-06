@@ -104,7 +104,7 @@ test("auth and protected resource metadata do not invent OAuth server endpoints"
   assert.match(authMarkdown, /Clerk session authentication/);
   assert.match(authMarkdown, /Supabase is used for data and storage/);
   assert.match(authMarkdown, /OAuth Protected Resource Metadata/);
-  assert.equal(Object.hasOwn(metadata, "authorization_servers"), false);
+  assert.deepEqual(metadata.authorization_servers, []);
   assert.equal(Object.hasOwn(metadata, "scopes_supported"), false);
   assert.deepEqual(metadata.bearer_methods_supported, []);
   assert.ok(metadata.resource.endsWith("/"));
