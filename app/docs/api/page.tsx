@@ -16,8 +16,9 @@ export default function ApiDocsPage() {
       <h1>Documentation API publique</h1>
       <p>
         Cette page documente uniquement les endpoints publics et non destructifs
-        exposes dans le catalogue API. Les routes owner/admin restent protegees
-        et ne sont pas publiees comme API publique.
+        exposes dans le catalogue API. Les routes owner restent protegees et
+        ne sont pas publiees comme API publique. La page /admin est une preview
+        publique noindex, pas une API agent.
       </p>
       <ul>
         <li>
@@ -28,6 +29,11 @@ export default function ApiDocsPage() {
         </li>
         <li>
           <a href={absoluteUrl("/auth.md")}>auth.md</a>
+        </li>
+        <li>
+          <a href={absoluteUrl("/.well-known/oauth-protected-resource")}>
+            OAuth Protected Resource Metadata
+          </a>
         </li>
       </ul>
     </main>
