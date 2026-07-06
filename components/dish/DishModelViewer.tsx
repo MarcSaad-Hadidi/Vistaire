@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   useCallback,
   useEffect,
@@ -292,6 +291,45 @@ function getPosterPosition(
   );
 }
 
+function isDynamicPublicDishPhoto(src: string): boolean {
+  return /^\/api\/public\/menu-dishes\/[^/]+\/photo(?:[?#].*)?$/.test(src);
+}
+
+function DishBackdropImage({
+  src,
+  objectPosition
+}: {
+  src: string;
+  objectPosition: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const handleImageRef = useCallback((node: HTMLImageElement | null) => {
+    if (!node) return;
+    window.requestAnimationFrame(() => {
+      if (node.complete && node.naturalWidth === 0) setImageFailed(true);
+    });
+  }, []);
+
+  if (imageFailed) return null;
+
+  const isDynamicPhoto = isDynamicPublicDishPhoto(src);
+
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      ref={handleImageRef}
+      src={src}
+      alt=""
+      className="absolute inset-0 h-full w-full object-cover opacity-80"
+      style={{ objectPosition }}
+      aria-hidden="true"
+      decoding="async"
+      data-dynamic-public-dish-photo={isDynamicPhoto ? true : undefined}
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
+
 function PremiumDishBackdrop({
   dish
 }: {
@@ -300,22 +338,21 @@ function PremiumDishBackdrop({
     "name" | "image" | "imageObjectPosition" | "imageObjectPositionDetail"
   >;
 }) {
+  const objectPosition = getPosterPosition(dish);
+
   return (
     <>
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-[#2a1f18] via-[#16100c] to-[#080706]"
+        aria-hidden
+      />
       {dish.image ? (
-        <Image
+        <DishBackdropImage
+          key={dish.image}
           src={dish.image}
-          alt=""
-          fill
-          sizes="(max-width: 768px) 100vw, 672px"
-          className="object-cover opacity-80"
-          style={{ objectPosition: getPosterPosition(dish) }}
-          quality={90}
-          aria-hidden
+          objectPosition={objectPosition}
         />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2a1f18] via-[#16100c] to-[#080706]" />
-      )}
+      ) : null}
       <div
         className="absolute inset-0 bg-gradient-to-b from-[#080706]/20 via-[#080706]/68 to-[#080706]/94"
         aria-hidden
