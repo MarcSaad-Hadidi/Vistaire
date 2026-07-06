@@ -51,6 +51,7 @@ export type DishModelViewerCopy = Partial<{
   arHelp: string;
   quickLookCta: string;
   shareText: string;
+  sizeDisclaimer: string;
   loadFailureTitle: string;
   loadFailureBodyWithAr: string;
   loadFailureBody: string;
@@ -84,6 +85,8 @@ const DEFAULT_MODEL_VIEWER_COPY = {
     "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).",
   quickLookCta: "Afficher devant moi",
   shareText: "Découvrez ce plat en 3D.",
+  sizeDisclaimer:
+    "Visuel indicatif : la taille affichée en 3D peut différer de la taille réelle du plat. Cette vue sert seulement à montrer l'apparence du plat.",
   loadFailureTitle: "La vue 3D n'a pas pu être chargée pour le moment.",
   loadFailureBodyWithAr:
     "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari.",
@@ -1043,6 +1046,9 @@ export function DishModelViewer({
                 ) : null}
               </div>
             ) : null}
+            <p className="mt-2 px-1 text-center text-[0.72rem] leading-relaxed text-[#a9977c] sm:text-xs">
+              {copy.sizeDisclaimer}
+            </p>
             {!quietChrome && showHandoff ? (
               <div
                 className="mt-3 rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"

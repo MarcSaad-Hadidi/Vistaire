@@ -37,3 +37,15 @@ test("model viewer keeps iOS Quick Look fallback available when 3D fails", () =>
     /onQuickLookClick=\{\s*canOpenDirectIosQuickLook \? trackArIntent : undefined\s*\}/
   );
 });
+
+test("model viewer shows a 3D size disclaimer inside the loaded viewer path", () => {
+  assert.match(modelViewerSource, /sizeDisclaimer: string;/);
+  assert.match(
+    modelViewerSource,
+    /Visuel indicatif : la taille affichée en 3D peut différer de la taille réelle du plat/
+  );
+  assert.match(
+    modelViewerSource,
+    /<p className="mt-2 px-1 text-center text-\[0\.72rem\][\s\S]*\{copy\.sizeDisclaimer\}/
+  );
+});
