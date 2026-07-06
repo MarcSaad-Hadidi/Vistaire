@@ -65,7 +65,8 @@ export async function POST(
       ...result,
       usdzSourceStored: false,
       quickLookQaStatus: "not-tested",
-      dishUpdated: true
+      dishUpdated: true,
+      warning: result.cleanup.errors[0]?.message
     });
   } catch (error) {
     return NextResponse.json(

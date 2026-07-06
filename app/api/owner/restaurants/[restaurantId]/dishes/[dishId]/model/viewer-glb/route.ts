@@ -156,7 +156,9 @@ export async function POST(
         viewerGlbBytes: result.viewerGlbBytes,
         job: { id: result.jobId },
         usdzTriggered: false,
-        dishUpdated: true
+        dishUpdated: true,
+        cleanup: result.cleanup,
+        warning: result.cleanup.errors[0]?.message
       },
       { status: 201 }
     );

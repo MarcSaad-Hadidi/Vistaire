@@ -147,7 +147,9 @@ test("dish photo upload API and public proxy use guarded server-side storage", a
   assert.match(uploadRoute, /export async function DELETE/);
   assert.match(uploadRoute, /clearDishPhotoMetadata/);
   assert.match(uploadRoute, /deleteDishMediaStorageTargets/);
-  assert.match(uploadRoute, /oldPhotoStoragePath/);
+  assert.match(uploadRoute, /cleanupReplacedDishAssets/);
+  assert.match(uploadRoute, /previousMetadata: oldMetadata/);
+  assert.match(uploadRoute, /nextMetadata: metadata/);
   assert.match(uploadRoute, /warning/);
   assert.doesNotMatch(uploadRoute, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(publicRoute, /storage\.from\(bucket\)\.download/);
@@ -174,7 +176,8 @@ test("photo replacement, delete, and dish delete use the central media collector
   assert.match(photoHelper, /delete metadata\.photoSha256/);
   assert.match(photoHelper, /delete metadata\.photoContentType/);
   assert.match(photoHelper, /delete metadata\.photoBytes/);
-  assert.match(uploadRoute, /oldPhotoStoragePath !== storagePath/);
+  assert.match(uploadRoute, /reason: "dish-photo-replacement"/);
+  assert.match(uploadRoute, /cleanup: replacementCleanup/);
   assert.match(uploadRoute, /skippedCount/);
   assert.match(uploadRoute, /revalidateOwnerMenuMutationPaths/);
   assert.match(dishRoute, /mediaCleanup/);

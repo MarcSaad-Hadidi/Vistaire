@@ -19,6 +19,10 @@ import {
 } from "@/lib/owner/preparedModelWorkflow";
 import { cleanDishModelMetadata } from "@/lib/owner/deleteDishModelAssets";
 import { sha256Hex } from "@/lib/owner/threeDSourceUploadModel";
+import {
+  cleanupReplacedDishAssets,
+  type CleanupReplacedDishAssetsReport
+} from "@/lib/owner/dishAssetReplacementCleanup";
 
 const PROJECT_ROOT = /* turbopackIgnore: true */ process.cwd();
 const PIPELINE_SCRIPT_RELATIVE_PATH = "scripts/owner/build-restaurant-meshy-dish.mjs";
@@ -85,6 +89,7 @@ type PipelineRunResult = {
   webModel3dBytes: number;
   arModel3dBytes: number;
   arUsdzBytes: number;
+  cleanup: CleanupReplacedDishAssetsReport;
 };
 
 type LocalMeshyAssets = {
@@ -283,6 +288,19 @@ async function uploadDurableMeshyAsset(args: {
   return bytes.byteLength;
 }
 
+async function rollbackDurableMeshyAssets(
+  adminClient: SupabaseClient,
+  paths: string[]
+): Promise<void> {
+  const cleanPaths = paths.map((path) => path.trim()).filter(Boolean);
+  if (cleanPaths.length === 0) return;
+  try {
+    await adminClient.storage.from(MODEL_BUCKET).remove(cleanPaths);
+  } catch {
+    // Best-effort rollback after a failed multi-asset publish.
+  }
+}
+
 async function publishMeshyAssetsToStorage(args: {
   adminClient: SupabaseClient;
   restaurantId: string;
@@ -311,64 +329,75 @@ async function publishMeshyAssetsToStorage(args: {
     assetVersion: args.assetVersion
   });
   const manifestStoragePath = `${basePath}/manifests/${args.dishSlug}-${args.versionTag}.json`;
+  const uploadedPaths: string[] = [];
 
-  await uploadDurableMeshyAsset({
-    adminClient: args.adminClient,
-    storagePath: sourceStoragePath,
-    localPath: args.assets.model3dPath || args.assets.webModel3dPath,
-    contentType: "model/gltf-binary"
-  });
-  const webModel3dBytes = await uploadDurableMeshyAsset({
-    adminClient: args.adminClient,
-    storagePath: webStoragePath,
-    localPath: args.assets.webModel3dPath,
-    contentType: "model/gltf-binary"
-  });
-  const arModel3dBytes = await uploadDurableMeshyAsset({
-    adminClient: args.adminClient,
-    storagePath: arLiteStoragePath,
-    localPath: args.assets.arModel3dPath,
-    contentType: "model/gltf-binary"
-  });
-  const arUsdzBytes = await uploadDurableMeshyAsset({
-    adminClient: args.adminClient,
-    storagePath: usdzStoragePath,
-    localPath: args.assets.arUsdzPath,
-    contentType: "model/vnd.usdz+zip"
-  });
-  await uploadDurableMeshyAsset({
-    adminClient: args.adminClient,
-    storagePath: manifestStoragePath,
-    localPath: args.manifestPath,
-    contentType: "application/json",
-    cacheControl: "3600"
-  });
+  try {
+    await uploadDurableMeshyAsset({
+      adminClient: args.adminClient,
+      storagePath: sourceStoragePath,
+      localPath: args.assets.model3dPath || args.assets.webModel3dPath,
+      contentType: "model/gltf-binary"
+    });
+    uploadedPaths.push(sourceStoragePath);
+    const webModel3dBytes = await uploadDurableMeshyAsset({
+      adminClient: args.adminClient,
+      storagePath: webStoragePath,
+      localPath: args.assets.webModel3dPath,
+      contentType: "model/gltf-binary"
+    });
+    uploadedPaths.push(webStoragePath);
+    const arModel3dBytes = await uploadDurableMeshyAsset({
+      adminClient: args.adminClient,
+      storagePath: arLiteStoragePath,
+      localPath: args.assets.arModel3dPath,
+      contentType: "model/gltf-binary"
+    });
+    uploadedPaths.push(arLiteStoragePath);
+    const arUsdzBytes = await uploadDurableMeshyAsset({
+      adminClient: args.adminClient,
+      storagePath: usdzStoragePath,
+      localPath: args.assets.arUsdzPath,
+      contentType: "model/vnd.usdz+zip"
+    });
+    uploadedPaths.push(usdzStoragePath);
+    await uploadDurableMeshyAsset({
+      adminClient: args.adminClient,
+      storagePath: manifestStoragePath,
+      localPath: args.manifestPath,
+      contentType: "application/json",
+      cacheControl: "3600"
+    });
+    uploadedPaths.push(manifestStoragePath);
 
-  const webModel3dUrl = buildPreparedModelPublicGlbPath(args.dishId, {
-    assetVersion: args.assetVersion
-  });
-  const arModel3dUrl = buildPreparedModelPublicArLiteGlbPath(args.dishId, {
-    assetVersion: args.assetVersion
-  });
-  const arUsdzUrl = buildPreparedModelPublicUsdzPath(args.dishId, {
-    assetVersion: args.assetVersion
-  });
+    const webModel3dUrl = buildPreparedModelPublicGlbPath(args.dishId, {
+      assetVersion: args.assetVersion
+    });
+    const arModel3dUrl = buildPreparedModelPublicArLiteGlbPath(args.dishId, {
+      assetVersion: args.assetVersion
+    });
+    const arUsdzUrl = buildPreparedModelPublicUsdzPath(args.dishId, {
+      assetVersion: args.assetVersion
+    });
 
-  return {
-    bucket: MODEL_BUCKET,
-    sourceStoragePath,
-    webStoragePath,
-    arLiteStoragePath,
-    usdzStoragePath,
-    manifestStoragePath,
-    model3dUrl: webModel3dUrl,
-    webModel3dUrl,
-    arModel3dUrl,
-    arUsdzUrl,
-    webModel3dBytes,
-    arModel3dBytes,
-    arUsdzBytes
-  };
+    return {
+      bucket: MODEL_BUCKET,
+      sourceStoragePath,
+      webStoragePath,
+      arLiteStoragePath,
+      usdzStoragePath,
+      manifestStoragePath,
+      model3dUrl: webModel3dUrl,
+      webModel3dUrl,
+      arModel3dUrl,
+      arUsdzUrl,
+      webModel3dBytes,
+      arModel3dBytes,
+      arUsdzBytes
+    };
+  } catch (error) {
+    await rollbackDurableMeshyAssets(args.adminClient, uploadedPaths);
+    throw error;
+  }
 }
 
 export async function runRestaurantMeshyDishPipeline(
@@ -501,8 +530,24 @@ export async function runRestaurantMeshyDishPipeline(
       .select("id")
       .maybeSingle();
     if (updated.error || !updated.data) {
+      await rollbackDurableMeshyAssets(args.adminClient, [
+        durableAssets.sourceStoragePath,
+        durableAssets.webStoragePath,
+        durableAssets.arLiteStoragePath,
+        durableAssets.usdzStoragePath,
+        durableAssets.manifestStoragePath
+      ]);
       throw new Error("Plat impossible a mettre a jour avec les URLs Meshy.");
     }
+
+    const cleanup = await cleanupReplacedDishAssets({
+      client: args.adminClient,
+      dishId: args.dishId,
+      restaurantId: args.restaurantId,
+      previousMetadata: args.existingMetadata,
+      nextMetadata,
+      reason: "meshy-model-replacement"
+    });
 
     const finishedAt = new Date();
     const manualRunnerCommand = [
@@ -533,7 +578,10 @@ export async function runRestaurantMeshyDishPipeline(
         "Owner GLB uploaded.",
         "Meshy restaurant pipeline generated web GLB, AR-lite GLB, and iOS USDZ.",
         "Generated assets were uploaded to Supabase Storage.",
-        "menu_dishes metadata was updated with durable public proxy URLs."
+        "menu_dishes metadata was updated with durable public proxy URLs.",
+        cleanup.errors.length > 0
+          ? `Storage cleanup partiel: ${cleanup.errors.map((entry) => entry.message).join("; ")}`
+          : "Superseded Storage assets cleanup completed or skipped safely."
       ],
       step_logs: [],
       artifacts: [
@@ -615,7 +663,8 @@ export async function runRestaurantMeshyDishPipeline(
       arUsdzUrl: durableAssets.arUsdzUrl,
       webModel3dBytes: durableAssets.webModel3dBytes,
       arModel3dBytes: durableAssets.arModel3dBytes,
-      arUsdzBytes: durableAssets.arUsdzBytes
+      arUsdzBytes: durableAssets.arUsdzBytes,
+      cleanup
     };
   } finally {
     workspace.cleanup();

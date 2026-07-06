@@ -19,6 +19,10 @@ import {
   type UsdzOptimizationProfile,
   type UsdzOptimizationRecipe
 } from "./usdzRuntimeModel.ts";
+import {
+  cleanupReplacedDishAssets,
+  type CleanupReplacedDishAssetsReport
+} from "./dishAssetReplacementCleanup.ts";
 
 const JOB_TOKEN_VERSION = "v1";
 const DEFAULT_JOB_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -575,6 +579,7 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   physicalScale?: ReturnType<typeof cleanPhysicalScale>;
   warnings: string[];
   fails: string[];
+  cleanup: CleanupReplacedDishAssetsReport;
 }> {
   const verified = verifyUsdzRuntimeJobToken(args.input.jobToken, args.env ?? process.env);
   if (!verified.ok) throw new Error(verified.error);
@@ -719,6 +724,15 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       throw new Error("Plat impossible a mettre a jour avec le runtime USDZ.");
     }
 
+    const cleanup = await cleanupReplacedDishAssets({
+      client: args.adminClient,
+      dishId: verified.claims.dishId,
+      restaurantId: verified.claims.restaurantId,
+      previousMetadata: freshMetadata,
+      nextMetadata: merged,
+      reason: "usdz-runtime-replacement"
+    });
+
     return {
       status: "ready",
       jobId: verified.claims.jobId,
@@ -738,7 +752,8 @@ export async function completeUsdzRuntimeSignedUpload(args: {
           : args.input.geometryOptimization,
       physicalScale: reportPhysicalScale,
       warnings: reportWarnings,
-      fails: reportFails
+      fails: reportFails,
+      cleanup
     };
   } catch (error) {
     await rollbackStorageObjects(args.adminClient, [

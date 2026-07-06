@@ -14,6 +14,7 @@ import {
   collectDishPhotoStorageTarget,
   deleteDishMediaStorageTargets
 } from "@/lib/owner/dishMediaGarbageCollector";
+import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
@@ -114,10 +115,6 @@ export async function POST(
     );
   }
   const oldMetadata = getMetadata(dish.metadata);
-  const oldPhotoStoragePath =
-    typeof oldMetadata.photoStoragePath === "string"
-      ? oldMetadata.photoStoragePath.trim()
-      : "";
 
   let storagePath: string;
   let imageUrl: string;
@@ -176,13 +173,17 @@ export async function POST(
     );
   }
 
-  const replacementCleanup =
-    oldPhotoStoragePath && oldPhotoStoragePath !== storagePath
-      ? await deleteDishMediaStorageTargets(
-          admin.client,
-          collectDishPhotoStorageTarget(dish.metadata, restaurantId)
-        )
-      : { deleted: [], skipped: [], warnings: [] };
+  const replacementCleanup = await cleanupReplacedDishAssets({
+    client: admin.client,
+    dishId,
+    restaurantId,
+    previousMetadata: oldMetadata,
+    nextMetadata: metadata,
+    reason: "dish-photo-replacement"
+  });
+  const cleanupWarnings = replacementCleanup.errors.map(
+    (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
+  );
 
   await revalidateOwnerMenuMutationPaths({
     client: admin.client,
@@ -195,9 +196,15 @@ export async function POST(
     imageUrl,
     storagePath,
     dishUpdated: true,
-    skippedCount: replacementCleanup.skipped.length,
-    warning: replacementCleanup.warnings[0],
-    warnings: replacementCleanup.warnings
+    deletedCount: replacementCleanup.deleted.length,
+    skippedCount:
+      replacementCleanup.skippedStillReferenced.length +
+      replacementCleanup.skippedUnsafeBucket.length +
+      replacementCleanup.skippedUnsafePrefix.length +
+      replacementCleanup.skippedMissingPath.length,
+    cleanup: replacementCleanup,
+    warning: cleanupWarnings[0],
+    warnings: cleanupWarnings
   });
 }
 

@@ -15,6 +15,10 @@ import {
   sha256Hex,
   VIEWER_GLB_CLEARED_AR_LITE_FIELDS
 } from "@/lib/owner/usdzRuntimeModel";
+import {
+  cleanupReplacedDishAssets,
+  type CleanupReplacedDishAssetsReport
+} from "@/lib/owner/dishAssetReplacementCleanup";
 
 type OwnerIdentity = {
   userId: string;
@@ -41,6 +45,7 @@ export type ViewerGlbUploadResult = {
   webModel3dUrl: string;
   viewerGlbBytes: number;
   modelStatus: string;
+  cleanup: CleanupReplacedDishAssetsReport;
 };
 
 async function uploadGlb(
@@ -58,17 +63,16 @@ async function uploadGlb(
   }
 }
 
-async function removeIfDifferent(
+async function rollbackUploadedGlb(
   adminClient: SupabaseClient,
-  previousPath: string,
-  nextPath: string
+  storagePath: string
 ): Promise<void> {
-  const previous = previousPath.trim();
-  if (!previous || previous === nextPath) return;
+  const path = storagePath.trim();
+  if (!path) return;
   try {
-    await adminClient.storage.from(MODEL_BUCKET).remove([previous]);
+    await adminClient.storage.from(MODEL_BUCKET).remove([path]);
   } catch {
-    // best-effort cleanup of a superseded viewer GLB
+    // Best-effort rollback after a failed DB update.
   }
 }
 
@@ -91,11 +95,6 @@ export async function runViewerGlbUpload(
   await uploadGlb(args.adminClient, plan.webStoragePath, args.sourceBytes);
 
   const existing = getMetadataObject(args.existingMetadata);
-  const previousWebPath =
-    typeof existing.webModel3dStoragePath === "string" ? existing.webModel3dStoragePath : "";
-  const previousArLitePath =
-    typeof existing.arModel3dStoragePath === "string" ? existing.arModel3dStoragePath : "";
-
   const patch = buildViewerGlbMetadataPatch(
     {
       restaurantId: args.restaurantId,
@@ -128,13 +127,18 @@ export async function runViewerGlbUpload(
     .select("id")
     .maybeSingle();
   if (updated.error || !updated.data) {
+    await rollbackUploadedGlb(args.adminClient, plan.webStoragePath);
     throw new Error("Plat impossible a mettre a jour avec le GLB viewer.");
   }
 
-  await removeIfDifferent(args.adminClient, previousWebPath, plan.webStoragePath);
-  // No new AR-lite object is produced, so any previous AR-lite copy is now
-  // orphaned and must be removed from Storage (metadata already cleared).
-  await removeIfDifferent(args.adminClient, previousArLitePath, "");
+  const cleanup = await cleanupReplacedDishAssets({
+    client: args.adminClient,
+    dishId: args.dishId,
+    restaurantId: args.restaurantId,
+    previousMetadata: existing,
+    nextMetadata: merged,
+    reason: "viewer-glb-replacement"
+  });
 
   const jobId = `job_viewer_glb_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
   await args.adminClient.from("owner_3d_pipeline_jobs").insert({
@@ -149,7 +153,10 @@ export async function runViewerGlbUpload(
       "Owner viewer GLB uploaded (pre-optimized via optimizeglb.com).",
       "No USDZ pipeline was triggered; no USDZ was derived from this GLB.",
       "No Android AR-lite copy was produced; viewer GLB is web-view only.",
-      "menu_dishes metadata updated with viewer GLB URLs only."
+      "menu_dishes metadata updated with viewer GLB URLs only.",
+      cleanup.errors.length > 0
+        ? `Storage cleanup partiel: ${cleanup.errors.map((entry) => entry.message).join("; ")}`
+        : "Superseded Storage assets cleanup completed or skipped safely."
     ],
     step_logs: [],
     artifacts: [
@@ -194,6 +201,7 @@ export async function runViewerGlbUpload(
     version,
     webModel3dUrl: String(patch.webModel3dUrl),
     viewerGlbBytes: args.sourceBytes.byteLength,
-    modelStatus: String(merged.modelStatus)
+    modelStatus: String(merged.modelStatus),
+    cleanup
   };
 }
