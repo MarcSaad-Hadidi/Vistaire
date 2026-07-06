@@ -17,8 +17,6 @@ import {
 import { VistairePdfToDigitalHoverReveal } from "./VistairePdfToDigitalHoverReveal";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
-const menuHref = "/vistaire-preview/demo";
-
 const pdfProblems = [
   {
     title: "Zoom forcé",
@@ -87,12 +85,6 @@ const premiumPoints = [
   "Une 3D / AR sélective, utile seulement quand elle rend le plat plus clair."
 ] as const;
 
-const internalLinks = [
-  { label: "Explorer la carte", href: menuHref },
-  { label: "Comparer avec un PDF", href: "/vistaire-preview/pdf-vs-menu-digital" },
-  { label: "Parler à Vistaire", href: "/vistaire-preview/contact" }
-] as const;
-
 function ArrowIcon() {
   return (
     <svg
@@ -115,7 +107,7 @@ function ArrowIcon() {
 export function VistaireMenuDigitalRestaurantPreview({
   h1,
   locale = "fr",
-  routeMode = "preview",
+  routeMode = "production",
   seoAppendix
 }: {
   h1?: string;
@@ -278,10 +270,7 @@ export function VistaireMenuDigitalRestaurantPreview({
         };
   const pageTitle =
     h1 ?? copy.defaultTitle;
-  const pageInternalLinks =
-    routeMode === "preview"
-      ? internalLinks
-      : [
+  const pageInternalLinks = [
           { label: copy.viewMenu, href: routes.menu },
           { label: copy.comparePdf, href: routes.pdfVsDigital },
           { label: copy.talk, href: routes.contact }

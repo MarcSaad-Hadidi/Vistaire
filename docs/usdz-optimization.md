@@ -146,7 +146,7 @@ npm.cmd run demo:validate-network
 
 Run this on a real iPhone in Safari over HTTPS:
 
-1. Open `/demo/dishes/ravioles-romarin`.
+1. Open `/demo`.
 2. Tap `Voir en 3D`.
 3. Tap `Afficher devant moi`.
 4. Confirm Quick Look opens and the dish appears at the expected scale.

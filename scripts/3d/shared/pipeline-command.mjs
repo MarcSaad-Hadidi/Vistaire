@@ -2436,7 +2436,8 @@ function runCleanStale(args) {
 function runPreview(args) {
   const result = createResult("3d:preview");
   const identity = identityFromArgs(args, { requireVersion: false });
-  result.metrics.route = `/demo/dishes/${identity.dishSlug}`;
+  result.metrics.route = `/menu/${identity.restaurantSlug}/dishes/${identity.dishSlug}`;
+  result.metrics.demoRoute = "/demo";
   result.metrics.manifest = args.manifest ?? "";
   result.warnings.push("Preview does not replace browser QA or real-device AR checks.");
   return result;

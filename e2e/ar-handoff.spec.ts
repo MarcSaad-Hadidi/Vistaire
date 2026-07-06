@@ -29,11 +29,25 @@ function collectModelAssetRequests(page: Page) {
 }
 
 async function expectNoEarlyImmersiveLoad(page: Page, requests: string[]) {
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 }).last()).toBeVisible();
   await expect(page.locator("model-viewer")).toHaveCount(0);
   await expect(page.locator('a[rel="ar"][href$=".usdz"]')).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Afficher devant moi" })).toHaveCount(0);
   expect(requests).toEqual([]);
+}
+
+async function openDemoDish(page: Page, dishName: RegExp) {
+  await page.goto("/demo", {
+    waitUntil: "domcontentloaded"
+  });
+
+  const phoneViewport = page.getByTestId("demo-phone-viewport");
+  await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+  const dishButton = phoneViewport.getByRole("button", { name: dishName });
+  await dishButton.scrollIntoViewIfNeeded();
+  await expect(dishButton).toBeVisible();
+  await dishButton.click();
+  await expect(phoneViewport.getByRole("heading", { level: 1, name: dishName })).toBeVisible();
 }
 
 async function open3dViewer(page: Page) {
@@ -55,9 +69,7 @@ test.describe("AR browser handoff", () => {
 
     await simulateIosBrowser(page, BRAVE_IOS_UA);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/demo/dishes/ravioles-romarin", {
-      waitUntil: "domcontentloaded"
-    });
+    await openDemoDish(page, /Ravioles/i);
 
     await expectNoEarlyImmersiveLoad(page, requests);
     await expect(page.getByRole("button", { name: "Voir en 3D" })).toBeVisible();
@@ -76,9 +88,7 @@ test.describe("AR fallback resilience", () => {
 
     await simulateIosBrowser(page, IOS_SAFARI_UA);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/demo/dishes/homard-bisque", {
-      waitUntil: "domcontentloaded"
-    });
+    await openDemoDish(page, /Homard/i);
 
     await expectNoEarlyImmersiveLoad(page, requests);
     await open3dViewer(page);
@@ -99,9 +109,7 @@ test.describe("AR fallback resilience", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.route("**/*.glb", (route) => route.abort());
 
-    await page.goto("/demo/dishes/homard-bisque", {
-      waitUntil: "domcontentloaded"
-    });
+    await openDemoDish(page, /Homard/i);
 
     const voir3d = page.getByRole("button", { name: "Voir en 3D" });
     await voir3d.scrollIntoViewIfNeeded();
@@ -112,6 +120,6 @@ test.describe("AR fallback resilience", () => {
       timeout: 20_000
     });
     await expect(page.getByRole("button", { name: /R.essayer/ })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 }).last()).toBeVisible();
   });
 });

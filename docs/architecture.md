@@ -13,7 +13,7 @@ Vistaire is a Next.js App Router application for a premium restaurant menu exper
 ## Route Map
 - `/`: public Vistaire landing page.
 - `/demo`: public demo restaurant menu.
-- `/demo/dishes/[slug]`: public dish detail page.
+- `/demo`: public dish detail page.
 - `/admin`: public restaurant preview/admin demo surface.
 - `/apercu-restaurateur`: public marketing page that presents the restaurateur dashboard value proposition.
 - `/owner`: protected internal Vistaire owner cockpit.
@@ -29,7 +29,7 @@ Vistaire is a Next.js App Router application for a premium restaurant menu exper
 ## Product Boundaries
 - Landing: `app/page.tsx`, `components/landing/*`, `components/Header.tsx`, `components/DemoRequestSection.tsx`.
 - Demo menu: `app/demo/*`, `components/menu/*`, `lib/demoMenuData.ts`, `lib/menuQuery.ts`.
-- Dish detail and 3D/AR: `app/demo/dishes/[slug]/page.tsx`, `components/dish/*`, `lib/dishAssetWarmup.ts`, `lib/quickLookAssets.ts`, `lib/arEnvironment.ts`.
+- Dish detail and 3D/AR: `app/demo/page.tsx`, `components/dish/*`, `lib/dishAssetWarmup.ts`, `lib/quickLookAssets.ts`, `lib/arEnvironment.ts`.
 - Public restaurateur dashboard marketing: `app/apercu-restaurateur/page.tsx`.
 - Admin preview: `app/admin/*`, `components/admin/*`, `lib/admin/*`, `lib/demoAdminInsights.ts`.
 - Owner/internal: `app/owner/*`, `components/owner/*`, `lib/owner/*`.

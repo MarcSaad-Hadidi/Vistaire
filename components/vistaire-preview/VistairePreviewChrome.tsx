@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getLocalizedPath, type Locale } from "@/lib/i18n";
-import { getPricingPage, PRICING_PAGE } from "@/lib/pricingPage";
+import { getPricingPage } from "@/lib/pricingPage";
 import {
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
@@ -17,7 +17,7 @@ type PreviewNavItem = {
 
 type PreviewNavSection = "home" | "menu" | "about" | "contact";
 type PreviewChromeWidth = "standard" | "wide";
-export type VistaireRouteMode = "preview" | "production";
+export type VistaireRouteMode = "production";
 
 type VistaireChromeRoutes = {
   about: string;
@@ -35,57 +35,41 @@ type VistaireChromeRoutes = {
 };
 
 export function getVistaireChromeRoutes(
-  mode: VistaireRouteMode = "preview",
+  mode: VistaireRouteMode = "production",
   locale: Locale = "fr"
 ): VistaireChromeRoutes {
   const pricingPage = getPricingPage(locale);
+  void mode;
 
-  if (mode === "production") {
-    if (locale === "en") {
-      return {
-        about: "/en/about",
-        appointment: "/en/book-a-call",
-        contact: "/en/contact",
-        dish: "/en/vistaire-menu/dishes/homard-bisque",
-        home: "/en",
-        menu: "/en/vistaire-menu",
-        menu3dAr: "/en/3d-ar-restaurant-menu",
-        menuDigital: "/en/digital-restaurant-menu",
-        menuQrCode: "/en/qr-code-restaurant-menu",
-        pdfVsDigital: "/en/pdf-vs-digital-menu",
-        pricing: pricingPage.path,
-        restaurateurDashboard: "/en/restaurant-preview"
-      };
-    }
-
+  if (locale === "en") {
     return {
-      about: "/a-propos",
-      appointment: "/prendre-rendez-vous",
-      contact: "/contact",
-      dish: "/demo/dishes/homard-bisque",
-      home: "/",
-      menu: "/demo",
-      menu3dAr: "/menu-3d-ar-restaurant",
-      menuDigital: "/menu-digital-restaurant",
-      menuQrCode: "/menu-qr-code-restaurant",
-      pdfVsDigital: "/menu-pdf-vs-menu-digital",
+      about: "/en/about",
+      appointment: "/en/book-a-call",
+      contact: "/en/contact",
+      dish: "/en/vistaire-menu",
+      home: "/en",
+      menu: "/en/vistaire-menu",
+      menu3dAr: "/en/3d-ar-restaurant-menu",
+      menuDigital: "/en/digital-restaurant-menu",
+      menuQrCode: "/en/qr-code-restaurant-menu",
+      pdfVsDigital: "/en/pdf-vs-digital-menu",
       pricing: pricingPage.path,
-      restaurateurDashboard: "/apercu-restaurateur"
+      restaurateurDashboard: "/en/restaurant-preview"
     };
   }
 
   return {
-    about: "/vistaire-preview/a-propos",
-    appointment: "/vistaire-preview/prendre-rendez-vous",
-    contact: "/vistaire-preview/contact",
-    dish: "/vistaire-preview/demo/dishes/homard-bisque",
-    home: "/vistaire-preview",
-    menu: "/vistaire-preview/demo",
-    menu3dAr: "/vistaire-preview/menu-3d-ar-restaurant",
-    menuDigital: "/vistaire-preview/menu-digital-restaurant",
-    menuQrCode: "/vistaire-preview/menu-qr-code-restaurant",
-    pdfVsDigital: "/vistaire-preview/pdf-vs-menu-digital",
-    pricing: PRICING_PAGE.path,
+    about: "/a-propos",
+    appointment: "/prendre-rendez-vous",
+    contact: "/contact",
+    dish: "/demo",
+    home: "/",
+    menu: "/demo",
+    menu3dAr: "/menu-3d-ar-restaurant",
+    menuDigital: "/menu-digital-restaurant",
+    menuQrCode: "/menu-qr-code-restaurant",
+    pdfVsDigital: "/menu-pdf-vs-menu-digital",
+    pricing: pricingPage.path,
     restaurateurDashboard: "/apercu-restaurateur"
   };
 }
@@ -104,25 +88,6 @@ const navLabels: Record<Locale, Record<PreviewNavSection, string>> = {
     contact: "Contact"
   }
 };
-
-const footerProduct = [
-  { label: "Carte digitale", href: "/vistaire-preview/demo" },
-  { label: "Fiches plats", href: "/vistaire-preview/demo/dishes/homard-bisque" },
-  { label: "3D / AR sélective", href: "/vistaire-preview/menu-3d-ar-restaurant" }
-] as const;
-
-const footerResources = [
-  {
-    label: "Menu digital restaurant",
-    href: "/vistaire-preview/menu-digital-restaurant"
-  },
-  {
-    label: "Menu QR code restaurant",
-    href: "/vistaire-preview/menu-qr-code-restaurant"
-  },
-  { label: "PDF vs menu digital", href: "/vistaire-preview/pdf-vs-menu-digital" },
-  { label: "Restaurants haut de gamme", href: "/vistaire-preview/a-propos" }
-] as const;
 
 const useCaseGeoSlugs = [
   "menu-qr-sans-pdf",
@@ -253,7 +218,7 @@ export function PreviewNav({
   contactHref,
   currentPath,
   locale = "fr",
-  routeMode = "preview"
+  routeMode = "production"
 }: {
   activeSection?: PreviewNavSection;
   contactHref?: string;
@@ -320,7 +285,7 @@ export function PreviewNav({
 export function PreviewFooter({
   currentPath,
   locale = "fr",
-  routeMode = "preview",
+  routeMode = "production",
   width = "standard"
 }: {
   currentPath?: string;
@@ -331,10 +296,8 @@ export function PreviewFooter({
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const resolvedCurrentPath = currentPath ?? routes.home;
   const productLinks =
-    routeMode === "preview"
-      ? footerProduct
-      : locale === "en"
-        ? [
+    locale === "en"
+      ? [
             { label: "Sample menu", href: routes.menu },
             { label: "Dish pages", href: routes.dish },
             { label: "Selective 3D / AR", href: routes.menu3dAr },
@@ -347,10 +310,8 @@ export function PreviewFooter({
             { label: "Aperçu restaurateur", href: routes.restaurateurDashboard }
           ];
   const resourceLinks =
-    routeMode === "preview"
-      ? footerResources
-      : locale === "en"
-        ? [
+    locale === "en"
+      ? [
             { label: "Pricing", href: routes.pricing },
             { label: "Digital restaurant menu", href: routes.menuDigital },
             { label: "QR code restaurant menu", href: routes.menuQrCode },
@@ -366,20 +327,14 @@ export function PreviewFooter({
             { label: "PDF vs menu digital", href: routes.pdfVsDigital },
             { label: "À propos", href: routes.about }
           ];
-  const useCaseLinks =
-    routeMode === "production"
-      ? getGeoFooterLinks(
-          locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
-          locale
-        )
-      : [];
-  const marketLinks =
-    routeMode === "production"
-      ? getGeoFooterLinks(
-          locale === "en" ? marketGeoSlugsEn : marketGeoSlugs,
-          locale
-        )
-      : [];
+  const useCaseLinks = getGeoFooterLinks(
+    locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
+    locale
+  );
+  const marketLinks = getGeoFooterLinks(
+    locale === "en" ? marketGeoSlugsEn : marketGeoSlugs,
+    locale
+  );
   const socialProfiles = getVistaireSocialProfiles();
 
   return (

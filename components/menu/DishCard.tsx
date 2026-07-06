@@ -174,7 +174,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
               </span>
             ) : (
               <Link
-                href={`/demo/dishes/${dish.slug}`}
+                href={"/demo"}
                 prefetch={false}
                 onPointerEnter={handleDishIntentWarmup}
                 onPointerDown={handleDishIntentWarmup}
@@ -265,7 +265,7 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
             </span>
           ) : (
             <Link
-              href={`/demo/dishes/${dish.slug}`}
+              href={"/demo"}
               prefetch={false}
               onPointerEnter={handleDishIntentWarmup}
               onPointerDown={handleDishIntentWarmup}

@@ -315,10 +315,7 @@ test.describe("Vistaire SEO smoke", () => {
       "/sign-in",
       "/sign-in/",
       "/todos",
-      "/todos/",
-      "/dev",
-      "/dev/",
-      "/dev/*"
+      "/todos/"
     ]) {
       expect(robotsText).toContain(`Disallow: ${path}`);
     }

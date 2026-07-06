@@ -16,14 +16,6 @@ import {
 import { VistairePreviewPdfCompareSlider } from "./VistairePreviewPdfCompareSlider";
 import styles from "./VistairePdfVsMenuDigitalPreview.module.css";
 
-const menuHref = "/vistaire-preview/demo";
-
-const internalLinks = [
-  { label: "Explorer la carte", href: menuHref },
-  { label: "Comprendre Vistaire", href: "/vistaire-preview/a-propos" },
-  { label: "Parler à Vistaire", href: "/vistaire-preview/contact" }
-] as const;
-
 function ArrowIcon() {
   return (
     <svg
@@ -46,7 +38,7 @@ function ArrowIcon() {
 export function VistairePdfVsMenuDigitalPreview({
   h1,
   locale = "fr",
-  routeMode = "preview",
+  routeMode = "production",
   seoAppendix
 }: {
   h1?: string;
@@ -283,10 +275,7 @@ export function VistairePdfVsMenuDigitalPreview({
           ]
         };
   const pageTitle = h1 ?? copy.defaultTitle;
-  const pageInternalLinks =
-    routeMode === "preview"
-      ? internalLinks
-      : [
+  const pageInternalLinks = [
           { label: copy.viewMenu, href: routes.menu },
           { label: copy.understand, href: routes.about },
           { label: copy.talk, href: routes.contact }

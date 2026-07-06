@@ -67,7 +67,7 @@ function FramerImage({
 
 export function VistaireContactPreview({
   locale = "fr",
-  routeMode = "preview"
+  routeMode = "production"
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;

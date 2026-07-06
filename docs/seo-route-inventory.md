@@ -71,10 +71,6 @@ These routes should stay out of the sitemap and public SEO linking. Several are 
 | `/legacy/[...slug]` | `app/legacy/[...slug]/page.tsx` | archived legacy surfaces | noindex | no | low | Keep noindex and unlinked. |
 | `/menu/[slug]` | `app/menu/[slug]/page.tsx` | dynamic restaurant menu | noindex | no | strategic | Keep noindex until public menu SEO is explicitly scoped. |
 | `/menu/[slug]/dishes/[dishSlug]` | `app/menu/[slug]/dishes/[dishSlug]/page.tsx` | dynamic dish detail | noindex | no | strategic | Keep noindex until dish SEO has a separate strategy. |
-| `/demo/dishes/[slug]` | `app/demo/dishes/[slug]/page.tsx` | sample dish detail | noindex | no | low | Keep noindex to avoid sitemap dish bloat. |
-| `/en/vistaire-menu/dishes/[slug]` | `app/en/vistaire-menu/dishes/[slug]/page.tsx` | EN sample dish detail | noindex | no | low | Keep noindex to match the FR sample dish behavior. |
-| `/vistaire-preview/**` | `app/vistaire-preview/**` | internal preview surfaces | noindex | no | low | Keep disallowed and out of the sitemap. |
-| `/dev/**` | `app/dev/**` | review/dev pages | robots disallow | no | medium | Consider route-level noindex later if pages remain public. |
 | `/api/**` | `app/api/**/route.ts` | API routes | not pages | no | low | Keep robots-disallowed. |
 
 ## Redirected Old Routes

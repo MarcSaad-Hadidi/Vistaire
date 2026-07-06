@@ -36,7 +36,7 @@ test("homepage discovery headers use registered or documented link relations", (
   assert.ok(header.includes('</.well-known/agent-skills/index.json>; rel="service-desc"'));
   assert.ok(header.includes('</.well-known/mcp/server-card.json>; rel="service-desc"'));
   assert.ok(header.includes('</auth.md>; rel="service-doc"'));
-  assert.ok(header.includes('</docs/api>; rel="service-doc"'));
+  assert.ok(header.includes('</openapi.json>; rel="service-desc"'));
 });
 
 test("markdown negotiation source is useful and configured through proxy", () => {

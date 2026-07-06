@@ -90,7 +90,7 @@ export default async function AdminPage({
                 {popularDish ? (
                   <Link
                     className={styles.secondaryButton}
-                    href={`/demo/dishes/${popularDish.slug}`}
+                    href="/demo"
                     prefetch={false}
                   >
                     Ouvrir une fiche populaire

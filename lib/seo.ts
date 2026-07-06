@@ -41,12 +41,6 @@ export const INTERNAL_ROBOTS_DISALLOW = [
   "/todos",
   "/todos/",
   "/todos/*",
-  "/dev",
-  "/dev/",
-  "/dev/*",
-  "/vistaire-preview",
-  "/vistaire-preview/",
-  "/vistaire-preview/*",
   "/legacy",
   "/legacy/",
   "/legacy/*"

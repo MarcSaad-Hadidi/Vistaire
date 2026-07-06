@@ -231,6 +231,22 @@ async function openDish3d(page: Page) {
     .toBeGreaterThan(0);
 }
 
+async function openDemoDish(page: Page, dishName: RegExp) {
+  await expectHealthyResponse(
+    await page.goto("/demo", {
+      waitUntil: "domcontentloaded"
+    })
+  );
+
+  const phoneViewport = page.getByTestId("demo-phone-viewport");
+  await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+  const dishButton = phoneViewport.getByRole("button", { name: dishName });
+  await dishButton.scrollIntoViewIfNeeded();
+  await expect(dishButton).toBeVisible();
+  await dishButton.click();
+  await expect(phoneViewport.getByRole("heading", { level: 1, name: dishName })).toBeVisible();
+}
+
 test.describe("Vistaire MVP smoke", () => {
   test("landing production keeps the promoted Framer video hero healthy", async ({
     page
@@ -384,13 +400,9 @@ test.describe("Vistaire MVP smoke", () => {
 
     await stubAnalytics(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await expectHealthyResponse(
-      await page.goto("/demo/dishes/homard-bisque", {
-        waitUntil: "domcontentloaded"
-      })
-    );
+    await openDemoDish(page, /Homard/i);
 
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 }).last()).toBeVisible();
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(modelRequests).toEqual([]);
     await expectNoHorizontalOverflow(page);

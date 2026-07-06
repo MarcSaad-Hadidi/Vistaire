@@ -83,7 +83,7 @@ export function buildHomeAgentLinkHeader() {
     '</.well-known/agent-skills/index.json>; rel="service-desc"; type="application/json"',
     '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
     '</auth.md>; rel="service-doc"; type="text/markdown"',
-    '</docs/api>; rel="service-doc"; type="text/html"'
+    '</openapi.json>; rel="service-desc"; type="application/openapi+json"'
   ].join(", ");
 }
 
@@ -107,7 +107,7 @@ export function buildHomepageMarkdown() {
     `- Menu digital restaurant: ${absoluteUrl("/menu-digital-restaurant")}`,
     `- Tarifs: ${absoluteUrl("/tarifs-menu-digital-restaurant")}`,
     `- Contact: ${absoluteUrl("/prendre-rendez-vous")}`,
-    `- API docs: ${absoluteUrl("/docs/api")}`,
+    `- OpenAPI: ${absoluteUrl("/openapi.json")}`,
     "",
     "## Contact",
     "",
@@ -279,11 +279,6 @@ export function buildApiCatalog() {
         ],
         "service-doc": [
           {
-            href: absoluteUrl("/docs/api"),
-            type: "text/html",
-            title: "Vistaire public API notes"
-          },
-          {
             href: absoluteUrl("/auth.md"),
             type: "text/markdown",
             title: "Vistaire agent authentication notes"
@@ -422,8 +417,7 @@ export const AGENT_SKILL_DOCS = [
       "",
       "## Public API description",
       "",
-      `- OpenAPI: ${absoluteUrl("/openapi.json")}`,
-      `- API docs: ${absoluteUrl("/docs/api")}`
+      `- OpenAPI: ${absoluteUrl("/openapi.json")}`
     ].join("\n")
   }
 ] as const;
