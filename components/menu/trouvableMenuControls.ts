@@ -256,6 +256,8 @@ export const TROUVABLE_COPY = {
         "Faites tourner le plat en 3D. En AR, placez-le une fois : il reste fixe à cet endroit (sans rotation automatique ni redimensionnement).",
       quickLookCta: "Afficher devant moi",
       shareText: "Découvrez ce plat en 3D.",
+      sizeDisclaimer:
+        "Visuel indicatif : la taille 3D peut différer de la taille réelle du plat.",
       loadFailureTitle: "La vue 3D n'a pas pu être chargée pour le moment.",
       loadFailureBodyWithAr:
         "Vous pouvez réessayer la 3D ou placer le plat devant vous depuis Safari.",
@@ -445,6 +447,8 @@ export const TROUVABLE_COPY = {
         "Rotate the dish in 3D. In AR, place it once: it stays fixed there, without automatic rotation or resizing.",
       quickLookCta: "View in my space",
       shareText: "Explore this dish in 3D.",
+      sizeDisclaimer:
+        "Indicative visual: the 3D size may differ from the dish's real size.",
       loadFailureTitle: "The 3D view could not be loaded right now.",
       loadFailureBodyWithAr:
         "You can retry 3D or place the dish in your space from Safari.",
@@ -633,6 +637,8 @@ export const TROUVABLE_COPY = {
         "Gira el plato en 3D. En RA, colocalo una vez: queda fijo en ese lugar, sin rotacion automatica ni cambio de tamano.",
       quickLookCta: "Ver frente a mi",
       shareText: "Descubre este plato en 3D.",
+      sizeDisclaimer:
+        "Visual indicativo: el tamaño 3D puede diferir del tamaño real del plato.",
       loadFailureTitle: "La vista 3D no se pudo cargar por ahora.",
       loadFailureBodyWithAr:
         "Puedes volver a intentar el 3D o colocar el plato delante de ti desde Safari.",
@@ -822,6 +828,8 @@ export const TROUVABLE_COPY = {
         "Ruota il piatto in 3D. In AR, posizionalo una sola volta: resta fisso in quel punto, senza rotazione automatica o ridimensionamento.",
       quickLookCta: "Vedi davanti a me",
       shareText: "Scopri questo piatto in 3D.",
+      sizeDisclaimer:
+        "Visuale indicativa: la dimensione 3D può differire dalla dimensione reale del piatto.",
       loadFailureTitle: "La vista 3D non puo essere caricata al momento.",
       loadFailureBodyWithAr:
         "Puoi riprovare il 3D o posizionare il piatto davanti a te da Safari.",
@@ -1011,6 +1019,8 @@ export const TROUVABLE_COPY = {
         "Drehen Sie das Gericht in 3D. In AR platzieren Sie es einmal: Es bleibt dort fixiert, ohne automatische Drehung oder Größenänderung.",
       quickLookCta: "In meinem Raum ansehen",
       shareText: "Dieses Gericht in 3D ansehen.",
+      sizeDisclaimer:
+        "Hinweis: Die 3D-Größe kann von der tatsächlichen Größe des Gerichts abweichen.",
       loadFailureTitle: "Die 3D-Ansicht konnte momentan nicht geladen werden.",
       loadFailureBodyWithAr:
         "Sie können 3D erneut versuchen oder das Gericht in Safari vor sich platzieren.",
@@ -1200,6 +1210,8 @@ export const TROUVABLE_COPY = {
         "Περιστρέψτε το πιάτο σε 3D. Σε AR, τοποθετήστε το μία φορά: παραμένει σταθερό εκεί, χωρίς αυτόματη περιστροφή ή αλλαγή μεγέθους.",
       quickLookCta: "Προβολή μπροστά μου",
       shareText: "Δείτε αυτό το πιάτο σε 3D.",
+      sizeDisclaimer:
+        "Ενδεικτική απεικόνιση: το μέγεθος 3D μπορεί να διαφέρει από το πραγματικό μέγεθος του πιάτου.",
       loadFailureTitle: "Η προβολή 3D δεν μπόρεσε να φορτωθεί προς το παρόν.",
       loadFailureBodyWithAr:
         "Μπορείτε να δοκιμάσετε ξανά την 3D προβολή ή να τοποθετήσετε το πιάτο μπροστά σας από το Safari.",
@@ -1388,6 +1400,8 @@ export const TROUVABLE_COPY = {
         "حرّك الطبق في 3D. في AR، ضعه مرة واحدة: يبقى ثابتاً في ذلك المكان من دون تدوير تلقائي أو تغيير حجم.",
       quickLookCta: "اعرضه أمامي",
       shareText: "شاهد هذا الطبق بتقنية 3D.",
+      sizeDisclaimer:
+        "عرض إرشادي: قد يختلف حجم 3D عن الحجم الحقيقي للطبق.",
       loadFailureTitle: "تعذر تحميل عرض 3D حالياً.",
       loadFailureBodyWithAr:
         "يمكنك إعادة محاولة عرض 3D أو وضع الطبق أمامك من Safari.",
@@ -1604,6 +1618,12 @@ function copyLeafSpecs(base: TrouvableCopy): CopyLeafSpec[] {
 }
 
 const TROUVABLE_COPY_LEAF_SPECS = copyLeafSpecs(TROUVABLE_COPY.en);
+const TROUVABLE_COPY_OPTIONAL_READINESS_PATHS = new Set([
+  "modelViewer.sizeDisclaimer"
+]);
+const TROUVABLE_COPY_REQUIRED_LEAF_SPECS = TROUVABLE_COPY_LEAF_SPECS.filter(
+  (spec) => !TROUVABLE_COPY_OPTIONAL_READINESS_PATHS.has(spec.path)
+);
 
 function sourceTemplateForCopyFunction(
   key: keyof TrouvableCopy,
@@ -1993,7 +2013,7 @@ export function resolveTrouvableCopy(
     requestedLanguage === TROUVABLE_FALLBACK_COPY_LOCALE;
   const missingKeys = hasBuiltInCompleteCopy
     ? []
-    : TROUVABLE_COPY_LEAF_SPECS
+    : TROUVABLE_COPY_REQUIRED_LEAF_SPECS
         .map((spec) => spec.path)
         .filter((path) => !dynamicCoverage.coveredPaths.has(path));
   const uiCopyComplete = missingKeys.length === 0;

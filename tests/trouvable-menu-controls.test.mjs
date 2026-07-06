@@ -56,6 +56,12 @@ function buildCompleteLocalizedUiPack(prefix, value = TROUVABLE_COPY.en, path = 
   );
 }
 
+function buildLegacyCompleteLocalizedUiPack(prefix) {
+  const pack = buildCompleteLocalizedUiPack(prefix);
+  delete pack.modelViewer.sizeDisclaimer;
+  return pack;
+}
+
 const GREEK_MENU_FORBIDDEN_ENGLISH = [
   "Good evening",
   "Categories",
@@ -161,9 +167,17 @@ test("Trouvable copy supports Spanish, Italian, and Arabic without falling back 
   assert.equal(getTrouvableCopy("es-ES").moreDetails, "Ver detalles");
   assert.equal(getTrouvableCopy("es-ES").threeD, "VER EN 3D");
   assert.equal(getTrouvableCopy("es-ES").swipeLabel, "Deslizar");
+  assert.equal(
+    getTrouvableCopy("es-ES").modelViewer.sizeDisclaimer,
+    "Visual indicativo: el tamaño 3D puede diferir del tamaño real del plato."
+  );
   assert.equal(getTrouvableCopy("it-IT").moreDetails, "Vedi dettagli");
   assert.equal(getTrouvableCopy("it-IT").threeD, "VEDI IN 3D");
   assert.equal(getTrouvableCopy("it-IT").swipeLabel, "Scorri");
+  assert.equal(
+    getTrouvableCopy("it-IT").modelViewer.sizeDisclaimer,
+    "Visuale indicativa: la dimensione 3D può differire dalla dimensione reale del piatto."
+  );
   assert.equal(getTrouvableCopy("ar").moreDetails, "\u0639\u0631\u0636 \u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644");
   assert.equal(getTrouvableCopy("ar").threeD, "\u0639\u0631\u0636 3D");
   assert.equal(getTrouvableCopy("ar").swipeLabel, "\u0645\u0631\u0631");
@@ -382,6 +396,22 @@ test("Trouvable complete dynamic UI packs avoid neutral fallback for non-built-i
   assert.deepEqual(resolution.ignoredKeys, []);
 });
 
+test("Trouvable custom locale readiness tolerates missing optional 3D disclaimer", () => {
+  const legacyPtPack = buildLegacyCompleteLocalizedUiPack("pt");
+  const { copy, resolution } = resolveTrouvableCopy("pt-BR", {
+    pt: legacyPtPack
+  });
+
+  assert.equal(copy.moreDetails, "pt:moreDetails");
+  assert.equal(
+    copy.modelViewer.sizeDisclaimer,
+    TROUVABLE_COPY.en.modelViewer.sizeDisclaimer
+  );
+  assert.equal(resolution.uiCopyComplete, true);
+  assert.equal(resolution.usedNeutralFallback, false);
+  assert.deepEqual(resolution.missingKeys, []);
+});
+
 test("Trouvable partial dynamic UI packs report missing and ignored keys", () => {
   const { copy, resolution } = resolveTrouvableCopy("ja-JP", {
     ja: {
@@ -520,7 +550,7 @@ test("Trouvable public-ready language options hide incomplete UI packs", () => {
     supportedCurrencies: ["CAD"]
   };
   const localizedUiCopy = {
-    pt: buildCompleteLocalizedUiPack("pt")
+    pt: buildLegacyCompleteLocalizedUiPack("pt")
   };
 
   const allOptions = getTrouvableLanguageOptions(settings, "el-GR", localizedUiCopy);
