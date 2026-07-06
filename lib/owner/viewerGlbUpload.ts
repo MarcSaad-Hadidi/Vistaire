@@ -65,10 +65,12 @@ async function uploadGlb(
 
 async function rollbackUploadedGlb(
   adminClient: SupabaseClient,
-  storagePath: string
+  storagePath: string,
+  protectedPaths: readonly string[] = []
 ): Promise<void> {
   const path = storagePath.trim();
   if (!path) return;
+  if (protectedPaths.some((protectedPath) => protectedPath.trim() === path)) return;
   try {
     await adminClient.storage.from(MODEL_BUCKET).remove([path]);
   } catch {
@@ -91,10 +93,14 @@ export async function runViewerGlbUpload(
     dishSlug: args.dishSlug,
     version
   });
+  const existing = getMetadataObject(args.existingMetadata);
+  const activeViewerPaths = [
+    typeof existing.webModel3dStoragePath === "string" ? existing.webModel3dStoragePath : "",
+    typeof existing.viewerGlbStoragePath === "string" ? existing.viewerGlbStoragePath : ""
+  ].filter(Boolean);
 
   await uploadGlb(args.adminClient, plan.webStoragePath, args.sourceBytes);
 
-  const existing = getMetadataObject(args.existingMetadata);
   const patch = buildViewerGlbMetadataPatch(
     {
       restaurantId: args.restaurantId,
@@ -127,7 +133,7 @@ export async function runViewerGlbUpload(
     .select("id")
     .maybeSingle();
   if (updated.error || !updated.data) {
-    await rollbackUploadedGlb(args.adminClient, plan.webStoragePath);
+    await rollbackUploadedGlb(args.adminClient, plan.webStoragePath, activeViewerPaths);
     throw new Error("Plat impossible a mettre a jour avec le GLB viewer.");
   }
 

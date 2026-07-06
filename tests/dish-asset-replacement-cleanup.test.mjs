@@ -272,8 +272,10 @@ test("viewer GLB upload rolls back the newly uploaded file when DB update fails"
   const source = await readFile("lib/owner/viewerGlbUpload.ts", "utf8");
 
   assert.match(source, /await uploadGlb\(args\.adminClient, plan\.webStoragePath, args\.sourceBytes\)/);
+  assert.match(source, /activeViewerPaths/);
   assert.match(source, /if \(updated\.error \|\| !updated\.data\) \{/);
-  assert.match(source, /await rollbackUploadedGlb\(args\.adminClient, plan\.webStoragePath\)/);
+  assert.match(source, /await rollbackUploadedGlb\(args\.adminClient, plan\.webStoragePath, activeViewerPaths\)/);
+  assert.match(source, /protectedPaths\.some\(\(protectedPath\) => protectedPath\.trim\(\) === path\)/);
   assert.match(source, /storage\.from\(MODEL_BUCKET\)\.remove\(\[path\]\)/);
 });
 
