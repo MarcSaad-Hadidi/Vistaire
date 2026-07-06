@@ -136,7 +136,7 @@ export function buildOpenApiDocument() {
       title: "Vistaire Public Discovery API",
       version: "0.1.0",
       description:
-        "Minimal public API description for safe Vistaire discovery endpoints. Owner/admin APIs are intentionally excluded."
+        "Minimal public API description for safe Vistaire discovery endpoints. Owner APIs are intentionally excluded."
     },
     servers: [{ url: absoluteUrl("/") }],
     paths: {
@@ -315,18 +315,13 @@ export function buildApiCatalog() {
 
 export function buildOauthProtectedResourceMetadata() {
   return {
-    resource: absoluteUrl("/api/owner"),
-    resource_name: "Vistaire owner APIs",
+    resource: absoluteUrl("/"),
+    resource_name: "Vistaire public site and session-protected owner app",
     resource_documentation: absoluteUrl("/auth.md"),
-    bearer_methods_supported: ["header"],
-    scopes_supported: [
-      "owner:read",
-      "owner:write",
-      "owner:3d-assets"
-    ],
-    authorization_servers: [],
+    bearer_methods_supported: [],
+    oauth_status: "not_available",
     authorization_server_note:
-      "Vistaire protects owner/admin APIs with Clerk sessions and an owner allowlist. The repo does not define a Vistaire-operated OAuth authorization server, token endpoint, or public agent registration flow, so no issuer is advertised here."
+      "Vistaire protects owner routes and owner APIs with Clerk session authentication and a server-side owner allowlist. The repo does not define a Vistaire-operated OAuth authorization server, credential endpoint, JWKS endpoint, bearer credential resource access, documented public OAuth scopes, or public agent registration flow, so no issuer or bearer method is advertised here."
   };
 }
 
@@ -378,7 +373,7 @@ export const AGENT_SKILL_DOCS = [
       "",
       "- Read the public homepage and public SEO/menu pages.",
       "- Follow public demo/menu links exposed by the site.",
-      "- Do not request owner, admin, sign-in, todos, or private API routes.",
+      "- Do not request owner, admin, sign-in, todos, or non-public API routes.",
       "",
       "## Useful URLs",
       "",
@@ -422,7 +417,7 @@ export const AGENT_SKILL_DOCS = [
       "",
       "- Fetch public dish photos or GLB models only when a public menu page links to them.",
       "- Treat route parameters as opaque identifiers.",
-      "- Do not enumerate private owner/admin APIs or mutate restaurant data.",
+      "- Do not enumerate non-public owner APIs or mutate restaurant data.",
       "",
       "## Public API description",
       "",
@@ -460,20 +455,31 @@ export function buildAuthMarkdown() {
     "",
     "Vistaire publishes this file so agents can understand the current authentication and registration posture without guessing.",
     "",
+    "## Service",
+    "",
+    `- Name: ${SITE_NAME}`,
+    `- Base URL: ${absoluteUrl("/")}`,
+    `- Contact: ${CONTACT_EMAIL}`,
+    "",
     "## Public agent access",
     "",
     "- Public site pages, the API catalog, this auth.md file, MCP Server Card, and Agent Skills documents are available without authentication.",
     "- Public read-only menu media endpoints may be used when linked from public menu pages.",
-    "- Vistaire does not currently provide self-service agent registration, OAuth dynamic client registration, or an agent token issuance endpoint.",
+    "- Vistaire does not currently provide self-service agent registration, OAuth dynamic client registration, or an agent credential issuance endpoint.",
     "",
-    "## Protected owner access",
+    "## Authentication model",
     "",
-    "- Owner/admin routes are protected by Clerk session authentication and a Vistaire owner allowlist.",
-    "- The repo does not define a Vistaire-operated OAuth authorization server, token endpoint, JWKS endpoint, or OIDC issuer for public agents.",
-    "- Protected owner scopes are documented only as descriptive product areas: owner:read, owner:write, owner:3d-assets.",
+    "- Owner routes and owner APIs are protected by Clerk session authentication and a Vistaire owner allowlist.",
+    "- The /admin preview is a public noindex demonstration surface, not an advertised agent API and not owner-authenticated production tooling.",
+    "- Supabase is used for data and storage; the public Supabase project URL/key are not an OAuth issuer for Vistaire agent access.",
+    "- The repo does not define a Vistaire-operated OAuth authorization server, credential endpoint, JWKS endpoint, OIDC issuer, bearer credential API access, or public OAuth scopes for agents.",
+    "- No agent_auth block is published because there is no real register URI, credential issuance flow, or supported identity assertion flow in this repository.",
     "",
     "## Registration process",
     "",
+    "- Registration status: manual review only.",
+    "- Supported identity types for agents: none documented for self-service use.",
+    "- Credential types for agents: none issued by Vistaire self-service flows.",
     `Contact ${CONTACT_EMAIL} or use ${absoluteUrl("/prendre-rendez-vous")} for partnership or integration access.`,
     "Do not attempt automated account creation or owner/admin route probing.",
     "",
@@ -481,13 +487,15 @@ export function buildAuthMarkdown() {
     "",
     `- API catalog: ${absoluteUrl("/.well-known/api-catalog")}`,
     `- OAuth Protected Resource Metadata: ${absoluteUrl("/.well-known/oauth-protected-resource")}`,
+    "- OAuth Authorization Server Metadata: not published because Vistaire has no OAuth authorization server.",
+    "- OpenID Connect Discovery: not published because Vistaire has no Vistaire-operated OIDC issuer.",
     `- MCP Server Card: ${absoluteUrl("/.well-known/mcp/server-card.json")}`,
     `- Agent Skills index: ${absoluteUrl("/.well-known/agent-skills/index.json")}`,
     "",
     "## Safety and privacy",
     "",
     "- Do not submit contact forms, upload files, delete content, change menus, or trigger owner workflows without explicit human instruction.",
-    "- Do not collect or infer private owner/admin data from protected endpoints.",
+    "- Do not collect or infer non-public owner data from protected endpoints.",
     "- Treat public menu media as read-only presentation assets."
   ].join("\n");
 }

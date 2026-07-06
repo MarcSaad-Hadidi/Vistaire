@@ -15,6 +15,7 @@ import {
   buildHomepageMarkdown,
   buildMcpServerCard,
   buildOauthProtectedResourceMetadata,
+  buildOpenApiDocument,
   shouldServeMarkdownForAcceptHeader
 } from "../lib/agent-discovery/index.ts";
 
@@ -100,11 +101,48 @@ test("auth and protected resource metadata do not invent OAuth server endpoints"
 
   assert.match(authMarkdown, /^# Vistaire auth\.md/m);
   assert.match(authMarkdown, /does not currently provide self-service agent registration/);
-  assert.deepEqual(metadata.authorization_servers, []);
-  assert.deepEqual(metadata.bearer_methods_supported, ["header"]);
-  assert.ok(metadata.resource.endsWith("/api/owner"));
+  assert.match(authMarkdown, /Clerk session authentication/);
+  assert.match(authMarkdown, /Supabase is used for data and storage/);
+  assert.match(authMarkdown, /OAuth Protected Resource Metadata/);
+  assert.equal(Object.hasOwn(metadata, "authorization_servers"), false);
+  assert.equal(Object.hasOwn(metadata, "scopes_supported"), false);
+  assert.deepEqual(metadata.bearer_methods_supported, []);
+  assert.ok(metadata.resource.endsWith("/"));
+  assert.equal(metadata.resource_documentation, "https://www.vistaire.ca/auth.md");
+  assert.match(metadata.oauth_status, /not_available/);
   assert.ok(!JSON.stringify(metadata).includes("token_endpoint"));
   assert.ok(!JSON.stringify(metadata).includes("authorization_endpoint"));
+  assert.ok(!JSON.stringify(metadata).includes("owner:write"));
+  assert.doesNotMatch(authMarkdown, /^agent_auth:/m);
+  assert.doesNotMatch(authMarkdown, /register_uri:\s*https?:\/\//);
+});
+
+test("auth copy distinguishes protected owner routes from public admin preview", () => {
+  const authMarkdown = buildAuthMarkdown();
+
+  assert.doesNotMatch(authMarkdown, /Owner\/admin routes are protected/);
+  assert.match(authMarkdown, /Owner routes and owner APIs/);
+  assert.match(authMarkdown, /admin.*public.*noindex/i);
+});
+
+test("public OpenAPI document excludes owner admin and auth server endpoints", () => {
+  const openApi = buildOpenApiDocument();
+  const paths = Object.keys(openApi.paths);
+  const serialized = JSON.stringify(openApi);
+
+  assert.deepEqual(paths.sort(), [
+    "/api/exchange-rates",
+    "/api/public/menu-dishes/{dishId}/model/glb",
+    "/api/public/menu-dishes/{dishId}/model/usdz",
+    "/api/public/menu-dishes/{dishId}/photo"
+  ].sort());
+  assert.doesNotMatch(serialized, /\/api\/owner/);
+  assert.doesNotMatch(serialized, /\/api\/admin/);
+  assert.doesNotMatch(serialized, /\/owner/);
+  assert.doesNotMatch(serialized, /\/admin/);
+  assert.doesNotMatch(serialized, /\/oauth\/token|\/oauth\/authorize|jwks/i);
+  assert.ok(paths.every((path) => openApi.paths[path].get));
+  assert.ok(paths.every((path) => !openApi.paths[path].post));
 });
 
 test("mcp server card is explicit about missing backend transport", () => {
@@ -135,10 +173,16 @@ test("DNS-AID docs exist with manual SVCB and DNSSEC instructions", () => {
   assert.ok(existsSync(path));
 
   const docs = readFileSync(path, "utf8");
-  assert.match(docs, /_index\._agents\.vistaire\.ca/);
+  assert.match(docs, /www\.vistaire\.ca/);
+  assert.match(docs, /_index\._agents\.www\.vistaire\.ca/);
+  assert.doesNotMatch(docs, /^_a2a\._agents\.www\.vistaire\.ca.*IN (?:SVCB|HTTPS)/m);
+  assert.match(docs, /HTTPS/);
   assert.match(docs, /SVCB/);
+  assert.match(docs, /alpn=/);
+  assert.match(docs, /endpoint/);
   assert.match(docs, /DNSSEC/);
-  assert.match(docs, /dig _index\._agents\.vistaire\.ca SVCB \+dnssec/);
+  assert.match(docs, /dig HTTPS _index\._agents\.www\.vistaire\.ca \+dnssec/);
+  assert.match(docs, /manual DNS action required/i);
 });
 
 test("discovery outputs do not expose known secret names", () => {
