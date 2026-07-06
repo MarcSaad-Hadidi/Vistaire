@@ -181,7 +181,9 @@ export async function POST(
       arModel3dBytes: result.arModel3dBytes,
       arUsdzBytes: result.arUsdzBytes,
       job: { id: result.jobId },
-      dishUpdated: true
+      dishUpdated: true,
+      cleanup: result.cleanup,
+      warning: result.cleanup.errors[0]?.message
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Pipeline Meshy impossible.";
