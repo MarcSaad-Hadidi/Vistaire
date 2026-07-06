@@ -36,7 +36,7 @@ function ArrowIcon() {
 export function VistaireMenu3dArRestaurantPreview({
   h1,
   locale = "fr",
-  routeMode = "preview",
+  routeMode = "production",
   seoAppendix
 }: {
   h1?: string;

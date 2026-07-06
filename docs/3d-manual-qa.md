@@ -28,7 +28,7 @@ claims.
 
 ## Chrome DevTools
 
-Check `/`, `/demo`, `/demo/dishes/homard-bisque`, and any affected production
+Check `/`, `/demo`, `/demo`, and any affected production
 menu route at 375px, 390px, 430px, and desktop.
 
 - Console has no unexpected errors.

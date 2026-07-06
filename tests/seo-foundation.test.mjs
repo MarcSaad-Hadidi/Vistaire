@@ -33,8 +33,8 @@ test("resolves canonical production URLs with a stable Vistaire fallback", () =>
   assert.equal(resolveSiteUrl("vistaire.ca").origin, "https://vistaire.ca");
   assert.equal(getSiteUrl(siteEnv).origin, "https://www.vistaire.ca");
   assert.equal(
-    absoluteUrl("/demo/dishes/homard-bisque", siteEnv),
-    "https://www.vistaire.ca/demo/dishes/homard-bisque"
+    absoluteUrl("/demo", siteEnv),
+    "https://www.vistaire.ca/demo"
   );
 });
 
@@ -140,18 +140,25 @@ test("publishes an llms.txt guide for public AI crawlers without private claims"
   }
 });
 
-test("keeps demo admin and dish detail pages out of search indexes", () => {
+test("keeps demo admin out of search indexes and removes legacy dish pages", () => {
   const adminLayout = readFileSync(
     join(process.cwd(), "app", "admin", "layout.tsx"),
     "utf8"
   );
-  const dishPage = readFileSync(
-    join(process.cwd(), "app", "demo", "dishes", "[slug]", "page.tsx"),
-    "utf8"
+  const dishPagePath = join(process.cwd(), "app", "demo", "dishes", "[slug]", "page.tsx");
+  const englishDishPagePath = join(
+    process.cwd(),
+    "app",
+    "en",
+    "vistaire-menu",
+    "dishes",
+    "[slug]",
+    "page.tsx"
   );
 
   assert.match(adminLayout, /robots:\s*\{\s*index:\s*false,\s*follow:\s*true/s);
-  assert.match(dishPage, /robots:\s*\{\s*index:\s*false,\s*follow:\s*true/s);
+  assert.equal(existsSync(dishPagePath), false);
+  assert.equal(existsSync(englishDishPagePath), false);
 });
 
 test("declares an indexable public restaurateur dashboard page", () => {
@@ -253,12 +260,6 @@ test("allows useful crawlers while keeping internal surfaces out of robots crawl
     "/todos",
     "/todos/",
     "/todos/*",
-    "/dev",
-    "/dev/",
-    "/dev/*",
-    "/vistaire-preview",
-    "/vistaire-preview/",
-    "/vistaire-preview/*",
     "/legacy",
     "/legacy/",
     "/legacy/*"

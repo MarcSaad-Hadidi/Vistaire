@@ -409,7 +409,7 @@ export const SEO_PAGES: SeoPageData[] = [
         "Couche immersive pour plats compatibles, avec fiche plat claire et fallback premium."
     },
     primaryCta: {
-      href: "/demo/dishes/homard-bisque",
+      href: "/demo",
       label: "Voir une fiche plat"
     },
     secondaryCta: {
@@ -883,7 +883,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         "Immersive layer for compatible dishes, with a clear dish page and premium fallback."
     },
     primaryCta: {
-      href: "/en/vistaire-menu/dishes/homard-bisque",
+      href: "/en/vistaire-menu",
       label: "View a dish page"
     },
     secondaryCta: {

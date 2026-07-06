@@ -92,13 +92,13 @@ Chaque nouvelle PR part de `origin/main` a jour. Ne jamais partir de #24-#31. Ne
 
 - Titre recommande: `Add minimal Vistaire MVP smoke tests`
 - Branche recommandee: `feature/rebuild-pr30-smoke-tests`
-- Objectif: ajouter un filet QA minimal pour `/`, `/demo`, `/demo/dishes/homard-bisque`, `/admin` et protection `/owner`.
+- Objectif: ajouter un filet QA minimal pour `/`, `/demo`, `/demo`, `/admin` et protection `/owner`.
 - Fichiers autorises: `e2e/mvp-smoke.spec.ts`, `playwright.config.ts`, `package.json`, eventuellement `.github/workflows/app-ci.yml` pour `test:unit` seulement.
 - Fichiers interdits: `app/**`, `components/**`, `lib/**`, `public/**`, `scripts/3d/**`, `3D Plat/**`, `3D photo/**`.
 - Anciens elements a reprendre: structure de #30 `mvp-smoke`, config Playwright `screenshot: only-on-failure`, `video: off`, retries CI a 1.
 - Anciens elements a exclure: `seo-smoke.spec.ts` avant PR C, attentes hero stale, scripts `3d:*`, changements runtime.
 - Validations obligatoires: `npm run assets:check`, `npm run lfs:check`, `npm run lint`, `npm run typecheck`, `npm run build`, `npm run test:smoke`.
-- Chrome DevTools obligatoire: verifier `/`, `/demo`, `/demo/dishes/homard-bisque`, `/admin`, `/owner` en 390px et 430px; console propre; Network sans 404/500; aucun GLB/USDZ avant clic 3D.
+- Chrome DevTools obligatoire: verifier `/`, `/demo`, `/demo`, `/admin`, `/owner` en 390px et 430px; console propre; Network sans 404/500; aucun GLB/USDZ avant clic 3D.
 - Risques: flakiness Playwright, assertions trop liees a copy exacte, auth locale Clerk.
 - Criteres de merge: tests stables localement, pas de changement runtime, aucune sortie Playwright commitee.
 
@@ -125,10 +125,10 @@ Chaque nouvelle PR part de `origin/main` a jour. Ne jamais partir de #24-#31. Ne
 - Fichiers autorises: `app/(seo)/**`, `components/seo/**`, `lib/seo.ts`, `lib/seoPages.ts`, `tests/seo-foundation.test.mjs`, eventuellement `e2e/seo-smoke.spec.ts`, `components/SiteFooter.tsx`.
 - Fichiers autorises avec limite stricte: `app/page.tsx` metadata-only si necessaire; aucune modification JSX/hero/sections.
 - Fichiers interdits: `components/landing/**`, `lib/demoMenuData.ts` sauf libelle demo fictive minimal, `public/**`, `scripts/3d/**`, admin/owner runtime.
-- Anciens elements a reprendre: helpers JSON-LD, pages SEO, sitemap sans `/admin` ni `/demo/dishes/*`, noindex admin/dish, `llms.txt` explicitement non ajoute.
+- Anciens elements a reprendre: helpers JSON-LD, pages SEO, sitemap sans `/admin`, noindex admin/dish, `llms.txt` explicitement non ajoute.
 - Anciens elements a exclure: crawler user-agents non verifies, BOM/copy mal encodee, CSS globale non liee aux pages SEO, homepage visual rewrite.
 - Validations obligatoires: baseline + tests SEO + smoke routes SEO si ajoutees.
-- Chrome DevTools obligatoire: `/`, pages SEO, `/robots.txt`, `/sitemap.xml`, `/admin`, `/demo/dishes/homard-bisque`; verifier head/canonical/noindex.
+- Chrome DevTools obligatoire: `/`, pages SEO, `/robots.txt`, `/sitemap.xml`, `/admin`, `/demo`; verifier head/canonical/noindex.
 - Risques: copy trop longue, pages SEO trop marketing, crawler rules incorrectes.
 - Criteres de merge: schema valide, sitemap attendu, pas de regression hero, pas d'asset.
 
@@ -142,7 +142,7 @@ Chaque nouvelle PR part de `origin/main` a jour. Ne jamais partir de #24-#31. Ne
 - Anciens elements a reprendre: no GLB/USDZ avant intention, low-end warmup guards, touch target fixes menu/dish.
 - Anciens elements a exclure: `canUseScrubVideo` bloque par reduced/Save-Data/low-end, e2e qui accepte `currentSrc === ""` sur hero.
 - Validations obligatoires: baseline + tests warmup/quicklook + e2e dish/menu si change.
-- Chrome DevTools obligatoire: 390px et 430px sur `/demo` et `/demo/dishes/homard-bisque`; aucun GLB/USDZ avant clic; pas d'overflow.
+- Chrome DevTools obligatoire: 390px et 430px sur `/demo` et `/demo`; aucun GLB/USDZ avant clic; pas d'overflow.
 - Risques: empecher un fallback AR existant ou rendre la 3D inaccessible.
 - Criteres de merge: behavior mesure, hero intact, 3D lazy load prouve.
 
@@ -184,7 +184,7 @@ Chaque nouvelle PR part de `origin/main` a jour. Ne jamais partir de #24-#31. Ne
 - Anciens elements a reprendre: `approvedAt` gate, `arVisualStatus === "approved"` gate, known failed USDZ denylist, Android/mobile variant preference.
 - Anciens elements a exclure: resolver qui suppose uniquement `/models/restaurants/`, manifests qui pointent vers fichiers exclus, claims real-device sans test.
 - Validations obligatoires: baseline + tests 3D/warmup/quicklook + e2e AR handoff si runtime touche.
-- Chrome DevTools obligatoire: `/demo/dishes/homard-bisque`; aucun GLB/USDZ avant clic; GLB/CDN uniquement apres intention; Network sans 404.
+- Chrome DevTools obligatoire: `/demo`; aucun GLB/USDZ avant clic; GLB/CDN uniquement apres intention; Network sans 404.
 - Risques: CDN non disponible, CORS/Content-Type incorrect, Quick Look iPhone non prouve.
 - Criteres de merge: manifest approuve, checksum/bytes documentes, no asset Git, pas de claim device sans preuve.
 
@@ -296,7 +296,7 @@ npm run build
 Browser QA pour cette PR docs-only:
 
 - Lancer l'app localement si possible.
-- Verifier `/`, `/demo`, `/demo/dishes/homard-bisque`.
+- Verifier `/`, `/demo`, `/demo`.
 - Console sans erreur inattendue.
 - Network sans 404/500 evident.
 - Aucun GLB/USDZ avant user intent.

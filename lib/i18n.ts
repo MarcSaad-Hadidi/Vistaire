@@ -133,32 +133,8 @@ export function getLocaleFromPath(pathname: string): Locale {
   return normalizePathname(pathname).startsWith("/en") ? "en" : "fr";
 }
 
-function buildDishPair(pathname: string): { fr: string; en: string } | null {
-  const normalized = normalizePathname(pathname);
-  const frenchMatch = normalized.match(/^\/demo\/dishes\/([^/]+)$/);
-  if (frenchMatch?.[1]) {
-    return {
-      fr: `/demo/dishes/${frenchMatch[1]}`,
-      en: `/en/vistaire-menu/dishes/${frenchMatch[1]}`
-    };
-  }
-
-  const englishMatch = normalized.match(/^\/en\/vistaire-menu\/dishes\/([^/]+)$/);
-  if (englishMatch?.[1]) {
-    return {
-      fr: `/demo/dishes/${englishMatch[1]}`,
-      en: `/en/vistaire-menu/dishes/${englishMatch[1]}`
-    };
-  }
-
-  return null;
-}
-
 export function getBilingualRoutePair(pathname: string) {
   const normalized = normalizePathname(pathname);
-  const dishPair = buildDishPair(normalized);
-  if (dishPair) return dishPair;
-
   return (
     BILINGUAL_ROUTE_PAIRS.find(
       (route) => route.fr === normalized || route.en === normalized

@@ -15,7 +15,7 @@ import styles from "./VistaireRendezVousPreview.module.css";
 
 export function VistaireRendezVousPreview({
   locale = "fr",
-  routeMode = "preview"
+  routeMode = "production"
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;

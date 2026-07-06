@@ -91,7 +91,7 @@ Public routes:
 - `/`
 - `/apercu-restaurateur`
 - `/demo`
-- `/demo/dishes/[slug]`
+- `/demo`
 - `/admin`
 - `/sign-in`
 - SEO pages such as `/menu-digital-restaurant`, `/menu-qr-code-restaurant`,
@@ -112,7 +112,7 @@ Routes that should not be indexed:
 - `/sign-in`
 - `/todos`
 - `/api/*`
-- `/demo/dishes/[slug]` pages, because individual demo dishes are useful for QA
+- `/demo` pages, because individual demo dishes are useful for QA
   and sales navigation but should not become search landing pages.
 
 Security and auth risks to verify:
@@ -287,7 +287,7 @@ Photos and assets:
 
 QA mobile:
 
-- Test `/`, `/demo`, `/demo/dishes/homard-bisque`, `/admin`, and `/owner`.
+- Test `/`, `/demo`, `/demo`, `/admin`, and `/owner`.
 - Check 375, 390, and 430 px widths.
 - Check console and Network.
 - Confirm no horizontal overflow.
@@ -321,7 +321,7 @@ Launch:
 - Primary CTA opens `/demo`.
 - `/demo` loads Maison Elyse menu and clearly reads as a demo restaurant.
 - Search, filters, category tabs, and dish cards work at 375, 390, and 430 px.
-- `/demo/dishes/homard-bisque` loads.
+- `/demo` loads.
 - "Voir en 3D" is visible for Homard and no `model-viewer` exists before click.
 - No GLB/USDZ is requested before user intent.
 - Clicking 3D loads the GLB path without 404/500.

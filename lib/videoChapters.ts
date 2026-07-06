@@ -45,7 +45,7 @@ export const videoChapters: VideoChapter[] = [
     title: "Le plat apparaît devant lui.",
     body: "Le client visualise le plat avant de commander, directement sur son téléphone.",
     cta: "Explorer une fiche plat",
-    ctaHref: "/demo/dishes/homard-bisque",
+    ctaHref: "/demo",
     secondaryCta: "Menu client",
     secondaryCtaHref: "/demo"
   },

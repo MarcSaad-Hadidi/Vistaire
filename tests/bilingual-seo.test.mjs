@@ -184,11 +184,10 @@ test("sets English document language from the request path", () => {
   assert.match(layoutSource, /lang=\{documentLanguage\}/);
 });
 
-test("keeps dev review routes out of robots crawl", async () => {
-  const { INTERNAL_ROBOTS_DISALLOW, buildRobotsTxt } = await import("../lib/seo.ts");
+test("keeps deleted dev review routes out of public sitemap", async () => {
+  const { buildSitemapEntries } = await import("../lib/seo.ts");
+  const entries = buildSitemapEntries([], new Date("2026-05-18T00:00:00.000Z"), siteEnv);
+  const urls = entries.map((entry) => new URL(entry.url).pathname || "/");
 
-  for (const path of ["/dev", "/dev/", "/dev/*"]) {
-    assert.equal(INTERNAL_ROBOTS_DISALLOW.includes(path), true);
-    assert.match(buildRobotsTxt(siteEnv), new RegExp(`Disallow: ${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
-  }
+  assert.equal(urls.some((path) => path === "/dev" || path.startsWith("/dev/")), false);
 });

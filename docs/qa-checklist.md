@@ -16,7 +16,7 @@ Run `node --test tests/*.test.mjs` or a narrower `node --test tests/<file>.test.
 Use browser DevTools or Playwright for routes affected by the task. Common smoke routes:
 - `/`
 - `/demo`
-- `/demo/dishes/homard-bisque`
+- `/demo`
 - `/admin` when admin preview changes
 - `/owner` when auth or owner surfaces change
 

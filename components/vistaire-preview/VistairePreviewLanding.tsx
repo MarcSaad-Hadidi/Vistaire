@@ -60,7 +60,7 @@ function ArrowIcon() {
 
 export function VistairePreviewLanding({
   locale = "fr",
-  routeMode = "preview"
+  routeMode = "production"
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;

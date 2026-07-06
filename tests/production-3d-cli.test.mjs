@@ -46,3 +46,28 @@ test("Next.js config serves production restaurant GLB and USDZ paths with immuta
   assert.match(configSource, /Content-Disposition/);
   assert.match(configSource, /model\/gltf-binary/);
 });
+
+test("3D preview scripts no longer point at removed demo dish pages", async () => {
+  const networkValidationSource = readFileSync(
+    "scripts/validate-demo-network-headers.mjs",
+    "utf8"
+  );
+  const { runPipelineCommand } = await import(
+    "../scripts/3d/shared/pipeline-command.mjs"
+  );
+
+  assert.doesNotMatch(networkValidationSource, /\/demo\/dishes\//);
+  assert.match(networkValidationSource, /\/menu\/maison-elyse\/dishes\/homard-bisque/);
+
+  const output = runPipelineCommand("3d:preview", [
+    "--restaurant",
+    "maison-elyse",
+    "--menu",
+    "main",
+    "--dish",
+    "homard-bisque"
+  ]);
+
+  assert.equal(output.metrics.route, "/menu/maison-elyse/dishes/homard-bisque");
+  assert.equal(output.metrics.demoRoute, "/demo");
+});

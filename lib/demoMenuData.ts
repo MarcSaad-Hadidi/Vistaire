@@ -48,7 +48,7 @@ export type Dish = {
   image: string | null;
   /** Valeur CSS `object-position` pour les vignettes du menu (cartes). */
   imageObjectPosition?: string;
-  /** `object-position` pour le hero photo de la fiche plat (`/demo/dishes/[slug]`). */
+  /** `object-position` pour le hero photo de la fiche plat. */
   imageObjectPositionDetail?: string;
   ingredients: string[];
   allergens: Allergen[];

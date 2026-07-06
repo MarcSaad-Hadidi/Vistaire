@@ -15,8 +15,6 @@ import {
 } from "./VistairePreviewChrome";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
-const menuHref = "/vistaire-preview/demo";
-
 const journeySteps = [
   {
     step: "01",
@@ -63,13 +61,6 @@ const comparisonItems = [
       "3D / AR sélective seulement quand elle améliore la compréhension du plat."
     ]
   }
-] as const;
-
-const internalLinks = [
-  { label: "Explorer la carte", href: menuHref },
-  { label: "Comparer avec un PDF", href: "/vistaire-preview/pdf-vs-menu-digital" },
-  { label: "Menu digital restaurant", href: "/vistaire-preview/menu-digital-restaurant" },
-  { label: "Parler à Vistaire", href: "/vistaire-preview/contact" }
 ] as const;
 
 function ArrowIcon() {
@@ -125,7 +116,7 @@ async function buildMenuQrSvg(targetUrl: string) {
 export async function VistaireMenuQrCodeRestaurantPreview({
   h1,
   locale = "fr",
-  routeMode = "preview",
+  routeMode = "production",
   seoAppendix
 }: {
   h1?: string;
@@ -250,10 +241,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
         };
   const pageTitle =
     h1 ?? copy.defaultTitle;
-  const pageInternalLinks =
-    routeMode === "preview"
-      ? internalLinks
-      : [
+  const pageInternalLinks = [
           { label: copy.viewMenu, href: routes.menu },
           { label: copy.comparePdf, href: routes.pdfVsDigital },
           { label: copy.digitalMenu, href: routes.menuDigital },

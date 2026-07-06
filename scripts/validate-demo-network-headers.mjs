@@ -13,10 +13,7 @@ const BASE_URL = (
 
 const ROUTES = [
   "/demo",
-  "/demo/dishes/ravioles-romarin",
-  "/demo/dishes/homard-bisque",
-  "/demo/dishes/souffle-chocolat",
-  "/demo/dishes/cocktail-maison-elyse",
+  "/menu/maison-elyse/dishes/homard-bisque",
   "/admin",
   "/owner"
 ];
