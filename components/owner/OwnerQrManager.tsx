@@ -108,9 +108,9 @@ export function OwnerQrManager({
             }`}
             onClick={() => setTargetKind("admin")}
           >
-            <span>QR admin owner</span>
-            <em>Interne owner - protege</em>
-            <small>Interne seulement - ne pas imprimer pour les clients.</small>
+            <span>QR dashboard restaurant</span>
+            <em>Interne restaurant</em>
+            <small>Ne pas imprimer pour les clients.</small>
           </button>
         </div>
       </div>

@@ -37,7 +37,7 @@ export default async function OwnerQrCodesPage({
     <>
       <ModuleHeader
         title="QR Codes"
-        description="Generer, personnaliser, tester et telecharger les QR securises par restaurant : menu public pour les clients ou acces owner interne protege."
+        description="Generer, personnaliser, tester et telecharger les QR securises par restaurant : menu public pour les clients ou dashboard restaurant interne."
       />
 
       <Panel title="Customizer QR Vistaire">
@@ -52,8 +52,8 @@ export default async function OwnerQrCodesPage({
       <p className={styles.sourceTag}>
         Securite : le token est genere cote serveur (crypto), seul son hash est
         stocke. Persistance via la table <code>qr_codes</code> (voir
-        docs/owner-qr-schema.md). Sans Supabase, un token signe temporaire est
-        utilise et clairement signale comme non persiste.
+        docs/owner-qr-schema.md). Sans Supabase, seul un QR menu peut utiliser
+        le fallback signe non persiste ; un QR dashboard doit etre enregistre.
       </p>
     </>
   );

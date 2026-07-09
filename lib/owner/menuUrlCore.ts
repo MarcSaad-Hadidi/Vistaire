@@ -105,6 +105,21 @@ export function isOwnerQrTargetPathAllowed(
     return targetPath === "/demo" || targetPath.startsWith("/menu/");
   }
 
+  return targetPath === "/admin";
+}
+
+/**
+ * Resolution policy for persisted rows. New admin QR codes must target /admin,
+ * while already printed owner QR codes remain valid during migration.
+ */
+export function isOwnerQrResolvedTargetPathAllowed(
+  targetKind: OwnerQrTargetKind,
+  input: string
+): boolean {
+  const targetPath = sanitizeOwnerQrTargetPath(input);
+  if (!targetPath) return false;
+  if (isOwnerQrTargetPathAllowed(targetKind, targetPath)) return true;
+  if (targetKind !== "admin") return false;
   return (
     targetPath === "/owner" ||
     targetPath.startsWith("/owner/") ||
@@ -113,20 +128,21 @@ export function isOwnerQrTargetPathAllowed(
 }
 
 export function inferOwnerQrTargetKind(targetPath: string): OwnerQrTargetKind {
-  return isOwnerQrTargetPathAllowed("admin", targetPath) ? "admin" : "menu";
+  return isOwnerQrResolvedTargetPathAllowed("admin", targetPath)
+    ? "admin"
+    : "menu";
 }
 
 export function buildOwnerQrTarget(args: BuildOwnerQrTargetArgs): OwnerQrTarget {
   const restaurantName = args.restaurantName.trim() || "Restaurant";
 
   if (args.targetKind === "admin") {
-    const targetPath = buildRestaurantDashboardPath(args.restaurantId || args.restaurantSlug);
     return {
       targetKind: "admin",
-      label: `QR admin - ${restaurantName}`,
-      usage: "Interne seulement - ne pas imprimer pour les clients.",
-      targetPath,
-      badgeLabel: "Interne owner - protege"
+      label: `QR dashboard restaurant - ${restaurantName}`,
+      usage: "Ne pas imprimer pour les clients.",
+      targetPath: "/admin",
+      badgeLabel: "Interne restaurant"
     };
   }
 
