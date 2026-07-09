@@ -123,13 +123,14 @@ test("admin access tokens fail closed for weak secrets and malformed identity", 
 
 test("admin authorization derives restaurant scope from the cookie only", async () => {
   const access = await readFile("lib/admin/access.ts", "utf8");
+  const accessCore = await readFile("lib/admin/accessCore.ts", "utf8");
   const adminPage = await readFile("app/admin/page.tsx", "utf8");
 
   assert.match(access, /vistaire_admin_access/);
   assert.match(access, /VISTAIRE_ADMIN_SESSION_SECRET/);
   assert.match(access, /target_kind|targetKind/);
   assert.match(access, /status/);
-  assert.match(access, /active/);
+  assert.match(accessCore, /active/);
   assert.doesNotMatch(adminPage, /searchParams/);
   assert.doesNotMatch(adminPage, /restaurantId.*search|search.*restaurantId/is);
 });
