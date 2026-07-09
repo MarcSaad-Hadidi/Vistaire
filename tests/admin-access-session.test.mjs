@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const now = 1_783_631_200;
 const secret = "test-secret-with-at-least-thirty-two-bytes";
 const loadAccessSessionCore = () => import("../lib/admin/accessSessionCore.ts");
-const loadAdminAccess = () => import("../lib/admin/access.ts");
+const loadAdminAccess = () => import("../lib/admin/accessCore.ts");
 
 async function createAccessFixture(overrides = {}) {
   const { createAdminAccessToken } = await loadAccessSessionCore();
@@ -132,6 +132,17 @@ test("admin authorization derives restaurant scope from the cookie only", async 
   assert.match(access, /active/);
   assert.doesNotMatch(adminPage, /searchParams/);
   assert.doesNotMatch(adminPage, /restaurantId.*search|search.*restaurantId/is);
+});
+
+test("admin access wrapper preserves the server-only boundary", async () => {
+  const access = await readFile("lib/admin/access.ts", "utf8");
+  const core = await readFile("lib/admin/accessCore.ts", "utf8");
+
+  assert.match(access, /^import "server-only";/);
+  assert.match(access, /import \{ cookies \} from "next\/headers"/);
+  assert.match(access, /getSupabaseAdminClient/);
+  assert.match(access, /requireAdminRestaurantAccessCore/);
+  assert.doesNotMatch(core, /server-only|next\/headers|supabase/i);
 });
 
 test("admin authorization accepts exact and legacy active admin targets", async () => {

@@ -1,45 +1,31 @@
-import { verifyAdminAccessToken } from "./accessSessionCore.ts";
+import "server-only";
+
+import { cookies } from "next/headers";
+import { inferOwnerQrTargetKind } from "@/lib/owner/menuUrlCore";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import {
-  inferOwnerQrTargetKind,
-  isOwnerQrResolvedTargetPathAllowed
-} from "../owner/menuUrlCore.ts";
+  requireAdminRestaurantAccess as requireAdminRestaurantAccessCore,
+  type AdminAccessDependencies,
+  type AdminCapability,
+  type AdminRestaurantAccessResult,
+  type LiveQrAccessRow
+} from "@/lib/admin/accessCore";
+
+export type {
+  AdminAccessDependencies,
+  AdminCapability,
+  AdminRestaurantAccessResult,
+  LiveQrAccessRow
+} from "@/lib/admin/accessCore";
 
 const ADMIN_ACCESS_COOKIE = "vistaire_admin_access";
 
-export type AdminCapability = "dashboard:read" | "dish:availability:write";
-
-type LiveQrAccessRow = {
-  id: string;
-  restaurantId: string;
-  targetKind: "menu" | "admin";
-  targetPath: string;
-  status: string;
-};
-
-type AdminAccessDependencies = {
-  getCookieValue?: () => Promise<string | undefined> | string | undefined;
-  readQrCode?: (qrId: string) => Promise<LiveQrAccessRow | null>;
-  secret?: string;
-  now?: number;
-};
-
-export type AdminRestaurantAccessResult =
-  | {
-      ok: true;
-      qrId: string;
-      restaurantId: string;
-      expiresAt: number;
-    }
-  | { ok: false; reason: "configuration" | "session" | "revoked" };
-
 async function readCookieValue(): Promise<string | undefined> {
-  const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   return cookieStore.get(ADMIN_ACCESS_COOKIE)?.value;
 }
 
 async function readLiveQrCode(qrId: string): Promise<LiveQrAccessRow | null> {
-  const { getSupabaseAdminClient } = await import("../../utils/supabase/admin.ts");
   const admin = getSupabaseAdminClient();
   if (!admin.ok) throw new Error(admin.reason);
 
@@ -69,37 +55,13 @@ async function readLiveQrCode(qrId: string): Promise<LiveQrAccessRow | null> {
 }
 
 export async function requireAdminRestaurantAccess(
-  _capability: AdminCapability,
+  capability: AdminCapability,
   dependencies: AdminAccessDependencies = {}
 ): Promise<AdminRestaurantAccessResult> {
-  const secret = dependencies.secret ?? process.env.VISTAIRE_ADMIN_SESSION_SECRET;
-  if (!secret) return { ok: false, reason: "configuration" };
-
-  try {
-    const token = await (dependencies.getCookieValue ?? readCookieValue)();
-    if (!token) return { ok: false, reason: "session" };
-    const payload = verifyAdminAccessToken(token, secret, dependencies.now);
-    if (!payload) return { ok: false, reason: "session" };
-
-    const qr = await (dependencies.readQrCode ?? readLiveQrCode)(payload.qrId);
-    if (
-      !qr ||
-      qr.id !== payload.qrId ||
-      qr.restaurantId !== payload.restaurantId ||
-      qr.targetKind !== "admin" ||
-      !isOwnerQrResolvedTargetPathAllowed(qr.targetKind, qr.targetPath) ||
-      qr.status !== "active"
-    ) {
-      return { ok: false, reason: "revoked" };
-    }
-
-    return {
-      ok: true,
-      qrId: payload.qrId,
-      restaurantId: payload.restaurantId,
-      expiresAt: payload.exp
-    };
-  } catch {
-    return { ok: false, reason: "configuration" };
-  }
+  return requireAdminRestaurantAccessCore(capability, {
+    secret: dependencies.secret ?? process.env.VISTAIRE_ADMIN_SESSION_SECRET,
+    now: dependencies.now,
+    getCookieValue: dependencies.getCookieValue ?? readCookieValue,
+    readQrCode: dependencies.readQrCode ?? readLiveQrCode
+  });
 }
