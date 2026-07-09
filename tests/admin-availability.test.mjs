@@ -24,8 +24,8 @@ test("availability input accepts exactly one boolean final-state field", async (
   assert.equal(parseAvailabilityInput([]).ok, false);
 });
 
-test("availability mutation uses only cookie scope and cannot target query or body restaurant ids", async () => {
-  const { updateAdminDishAvailability } = await loadAvailability();
+test("availability request handler uses only session scope and cannot target query or body restaurant ids", async () => {
+  const { handleAdminAvailabilityRequest } = await loadAvailability();
   const rpcCalls = [];
   const dependencies = {
     requireAccess: async () => ({
@@ -40,7 +40,7 @@ test("availability mutation uses only cookie scope and cannot target query or bo
     }
   };
 
-  const queryAttack = await updateAdminDishAvailability(
+  const queryAttack = await handleAdminAvailabilityRequest(
     {
       dishId: "dish-a",
       input: { available: false },
@@ -58,7 +58,7 @@ test("availability mutation uses only cookie scope and cannot target query or bo
     }
   ]);
 
-  const bodyAttack = await updateAdminDishAvailability(
+  const bodyAttack = await handleAdminAvailabilityRequest(
     {
       dishId: "dish-b",
       input: { available: true, restaurantId: "restaurant-b" }
@@ -87,6 +87,13 @@ test("availability route derives scope from admin access and calls only the atom
   assert.match(route, /Origin/);
   assert.doesNotMatch(route, /body\.restaurantId|input\.restaurantId/);
   assert.doesNotMatch(route, /\.from\(["']menu_dishes["']\)\s*\.update/);
+  const patchBody = route.match(
+    /export async function PATCH\([\s\S]*?\n}/
+  )?.[0] ?? "";
+  assert.match(
+    patchBody,
+    /return\s+handleAdminAvailabilityRequest\([\s\S]*request[\s\S]*params[\s\S]*\{[\s\S]*requireAccess:[\s\S]*callAvailabilityRpc:/
+  );
 });
 
 test("availability SQL atomically scopes the one allowed dish field to an active admin QR", async () => {

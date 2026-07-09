@@ -133,3 +133,15 @@ test("fallback analytics suppress all presentation numbers", async () => {
   assert.equal(state.kind, "insufficient");
   assert.doesNotMatch(JSON.stringify(state), /987654|123456|777777|Plat démo/);
 });
+
+test("admin page and loader delegate fallback handling to the analytics state boundary", async () => {
+  const page = await readFile("app/admin/page.tsx", "utf8");
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  const combined = `${page}\n${loader}`;
+
+  assert.match(loader, /import\s*\{\s*buildAdminAnalyticsState\s*\}/);
+  assert.match(loader, /analytics:\s*buildAdminAnalyticsState\(/);
+  assert.doesNotMatch(page, /getDemoRestaurantId|getDemoAdminInsights|source\s*===\s*["']fallback/);
+  assert.doesNotMatch(page, /@\/lib\/analytics\/insights/);
+  assert.doesNotMatch(combined, /insights\.summary|insights\.topDishes/);
+});

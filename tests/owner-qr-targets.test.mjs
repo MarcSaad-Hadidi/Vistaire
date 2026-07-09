@@ -111,7 +111,13 @@ test("signed QR fallback is dev-gated and menu-target validated", async () => {
   assert.match(tokenSource, /process\.env\.NODE_ENV !== "production"/);
   assert.match(storeSource, /canUseSignedQrFallback/);
   assert.match(storeSource, /isOwnerQrTargetPathAllowed\("menu", targetPath\)/);
-  assert.match(storeSource, /createOwnerQrCodeWithDependencies/);
+  const createOwnerQrCodeBody = storeSource.match(
+    /export async function createOwnerQrCode\([\s\S]*?\n}\n\nexport async function updateOwnerQrCode/
+  )?.[0] ?? "";
+  assert.match(
+    createOwnerQrCodeBody,
+    /return\s+createOwnerQrCodeWithDependencies\(args,\s*\{[\s\S]*persistQrCode:[\s\S]*createSignedMenuFallback:/
+  );
 });
 
 test("restaurant dashboard copies the configured menu URL used by QR", async () => {
