@@ -41,14 +41,18 @@ test("availability request handler uses only session scope and cannot target que
   };
 
   const queryAttack = await handleAdminAvailabilityRequest(
-    {
-      dishId: "dish-a",
-      input: { available: false },
-      queryRestaurantId: "restaurant-b"
-    },
+    new Request(
+      "http://localhost/admin/api/dishes/dish-a/availability?restaurantId=restaurant-b",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ available: false })
+      }
+    ),
+    Promise.resolve({ dishId: "dish-a" }),
     dependencies
   );
-  assert.equal(queryAttack.ok, true);
+  assert.equal(queryAttack.status, 200);
   assert.deepEqual(rpcCalls, [
     {
       qrId: "qr-a",
@@ -59,13 +63,15 @@ test("availability request handler uses only session scope and cannot target que
   ]);
 
   const bodyAttack = await handleAdminAvailabilityRequest(
-    {
-      dishId: "dish-b",
-      input: { available: true, restaurantId: "restaurant-b" }
-    },
+    new Request("http://localhost/admin/api/dishes/dish-b/availability", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ available: true, restaurantId: "restaurant-b" })
+    }),
+    Promise.resolve({ dishId: "dish-b" }),
     dependencies
   );
-  assert.equal(bodyAttack.ok, false);
+  assert.equal(bodyAttack.status, 400);
   assert.equal(rpcCalls.length, 1);
   assert.equal(JSON.stringify(rpcCalls).includes("restaurant-b"), false);
 });
@@ -92,7 +98,7 @@ test("availability route derives scope from admin access and calls only the atom
   )?.[0] ?? "";
   assert.match(
     patchBody,
-    /return\s+handleAdminAvailabilityRequest\([\s\S]*request[\s\S]*params[\s\S]*\{[\s\S]*requireAccess:[\s\S]*callAvailabilityRpc:/
+    /return\s+handleAdminAvailabilityRequest\(request,\s*params,\s*\{[\s\S]*requireAccess:[\s\S]*callAvailabilityRpc:[\s\S]*}\s*\);/
   );
 });
 

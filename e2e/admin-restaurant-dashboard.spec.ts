@@ -122,6 +122,12 @@ test("authorized admin filters dishes and toggles a final availability state", a
   test.skip(!ADMIN_E2E_QR_TOKEN, "requires an active admin QR fixture");
   const health = installPageHealth(page);
   const requestedStates: boolean[] = [];
+  const actionRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.method() !== "HEAD") {
+      actionRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
 
   await page.route("**/admin/api/dishes/*/availability", async (route) => {
     const body = route.request().postDataJSON() as { available?: boolean };
@@ -185,6 +191,26 @@ test("authorized admin filters dishes and toggles a final availability state", a
     }
     await expect(page.getByRole("link", { name: /Ouvrir menu client/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Copier.*menu/i })).toBeVisible();
+    await expect(page.locator("form:visible")).toHaveCount(0);
+    const accessibleActions = await page
+      .locator('button:visible, a[href]:visible')
+      .evaluateAll((items) =>
+        items.map((item) =>
+          (item.getAttribute("aria-label") || item.textContent || "").trim().replace(/\s+/g, " ")
+        )
+      );
+    const allowedActions = [
+      /^Ouvrir menu client$/i,
+      /^Copier(?: le)? lien (?:du )?menu$/i,
+      /^(?:Tous|Disponibles|Indisponibles|Prix manquant|Description manquante|Photo manquante|3D\/AR)$/,
+      /^Rendre .+ (?:disponible|indisponible)$/i
+    ];
+    assertActions: for (const action of accessibleActions) {
+      for (const allowed of allowedActions) {
+        if (allowed.test(action)) continue assertActions;
+      }
+      throw new Error(`Action dashboard non autorisée: ${action || "<sans nom>"}`);
+    }
 
     const rows = page.locator("[data-admin-dish-row]");
     const allRows = await rows.evaluateAll((items) =>
@@ -239,6 +265,12 @@ test("authorized admin filters dishes and toggles a final availability state", a
   }
 
   expect(requestedStates).toEqual([false, false]);
+  expect(actionRequests).toHaveLength(2);
+  expect(
+    actionRequests.every((entry) =>
+      /^PATCH \/admin\/api\/dishes\/[^/]+\/availability$/.test(entry)
+    )
+  ).toBe(true);
   health.expectClean();
 });
 

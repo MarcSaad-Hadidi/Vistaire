@@ -145,3 +145,25 @@ test("admin page and loader delegate fallback handling to the analytics state bo
   assert.doesNotMatch(page, /@\/lib\/analytics\/insights/);
   assert.doesNotMatch(combined, /insights\.summary|insights\.topDishes/);
 });
+
+test("admin page loads only the authorized restaurant and renders the dashboard data contract", async () => {
+  const page = await readFile("app/admin/page.tsx", "utf8");
+  const dashboard = await readFile(
+    "components/admin/AdminRestaurantDashboard.tsx",
+    "utf8"
+  );
+
+  assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
+  assert.match(page, /const\s+data\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.match(page, /<AdminRestaurantDashboard\s+data=\{data\}\s*\/>/);
+  assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
+  assert.match(
+    dashboard,
+    /analytics\.kind === "real"\s*\?\s*<AdminRealAnalytics[\s\S]*:\s*<AdminAnalyticsEvidenceState/
+  );
+  const evidenceBranch = dashboard.split(/AdminAnalyticsEvidenceState/)[1] ?? "";
+  assert.doesNotMatch(
+    evidenceBranch,
+    /AdminServiceActivity|AdminTopDishes|AdminSearchInsights|AdminEngagementFunnel/
+  );
+});
