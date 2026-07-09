@@ -1,9 +1,8 @@
-import "server-only";
-
-import { cookies } from "next/headers";
-import { verifyAdminAccessToken } from "@/lib/admin/accessSessionCore";
-import { inferOwnerQrTargetKind } from "@/lib/owner/menuUrlCore";
-import { getSupabaseAdminClient } from "@/utils/supabase/admin";
+import { verifyAdminAccessToken } from "./accessSessionCore.ts";
+import {
+  inferOwnerQrTargetKind,
+  isOwnerQrResolvedTargetPathAllowed
+} from "../owner/menuUrlCore.ts";
 
 const ADMIN_ACCESS_COOKIE = "vistaire_admin_access";
 
@@ -13,6 +12,7 @@ type LiveQrAccessRow = {
   id: string;
   restaurantId: string;
   targetKind: "menu" | "admin";
+  targetPath: string;
   status: string;
 };
 
@@ -33,11 +33,13 @@ export type AdminRestaurantAccessResult =
   | { ok: false; reason: "configuration" | "session" | "revoked" };
 
 async function readCookieValue(): Promise<string | undefined> {
+  const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   return cookieStore.get(ADMIN_ACCESS_COOKIE)?.value;
 }
 
 async function readLiveQrCode(qrId: string): Promise<LiveQrAccessRow | null> {
+  const { getSupabaseAdminClient } = await import("../../utils/supabase/admin.ts");
   const admin = getSupabaseAdminClient();
   if (!admin.ok) throw new Error(admin.reason);
 
@@ -61,6 +63,7 @@ async function readLiveQrCode(qrId: string): Promise<LiveQrAccessRow | null> {
     restaurantId:
       typeof data.restaurant_id === "string" ? data.restaurant_id : "",
     targetKind,
+    targetPath,
     status: typeof data.status === "string" ? data.status : ""
   };
 }
@@ -84,6 +87,7 @@ export async function requireAdminRestaurantAccess(
       qr.id !== payload.qrId ||
       qr.restaurantId !== payload.restaurantId ||
       qr.targetKind !== "admin" ||
+      !isOwnerQrResolvedTargetPathAllowed(qr.targetKind, qr.targetPath) ||
       qr.status !== "active"
     ) {
       return { ok: false, reason: "revoked" };

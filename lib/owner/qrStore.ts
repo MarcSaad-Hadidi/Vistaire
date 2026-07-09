@@ -27,6 +27,7 @@ import {
 } from "@/lib/owner/qrCreationCore";
 import {
   inferOwnerQrTargetKind,
+  isOwnerQrResolvedTargetPathAllowed,
   isOwnerQrTargetPathAllowed,
   sanitizeOwnerQrTargetPath
 } from "@/lib/owner/menuUrlCore";
@@ -266,14 +267,6 @@ export type QrResolution =
     }
   | { ok: false };
 
-function isLegacyAdminTargetPath(targetPath: string): boolean {
-  return (
-    targetPath === "/owner" ||
-    targetPath.startsWith("/owner/") ||
-    targetPath.startsWith("/owner?")
-  );
-}
-
 function firstRpcRow(data: unknown): AnyRow | null {
   if (Array.isArray(data)) return (data[0] as AnyRow | undefined) ?? null;
   return data && typeof data === "object" ? (data as AnyRow) : null;
@@ -300,12 +293,9 @@ function resolutionFromRow(row: AnyRow, expectedPath?: string): QrResolution {
     rawTargetKind === "menu" || rawTargetKind === "admin"
       ? rawTargetKind
       : inferOwnerQrTargetKind(targetPath);
-  const pathAllowed =
-    targetKind === "menu"
-      ? isOwnerQrTargetPathAllowed("menu", targetPath)
-      : isOwnerQrTargetPathAllowed("admin", targetPath) ||
-        isLegacyAdminTargetPath(targetPath);
-  if (!pathAllowed) return { ok: false };
+  if (!isOwnerQrResolvedTargetPathAllowed(targetKind, targetPath)) {
+    return { ok: false };
+  }
 
   return { ok: true, qrId, restaurantId, targetKind, targetPath };
 }

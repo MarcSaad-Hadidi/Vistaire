@@ -108,17 +108,29 @@ export function isOwnerQrTargetPathAllowed(
   return targetPath === "/admin";
 }
 
+/**
+ * Resolution policy for persisted rows. New admin QR codes must target /admin,
+ * while already printed owner QR codes remain valid during migration.
+ */
+export function isOwnerQrResolvedTargetPathAllowed(
+  targetKind: OwnerQrTargetKind,
+  input: string
+): boolean {
+  const targetPath = sanitizeOwnerQrTargetPath(input);
+  if (!targetPath) return false;
+  if (isOwnerQrTargetPathAllowed(targetKind, targetPath)) return true;
+  if (targetKind !== "admin") return false;
+  return (
+    targetPath === "/owner" ||
+    targetPath.startsWith("/owner/") ||
+    targetPath.startsWith("/owner?")
+  );
+}
+
 export function inferOwnerQrTargetKind(targetPath: string): OwnerQrTargetKind {
-  const sanitized = sanitizeOwnerQrTargetPath(targetPath);
-  if (
-    sanitized === "/admin" ||
-    sanitized === "/owner" ||
-    sanitized?.startsWith("/owner/") ||
-    sanitized?.startsWith("/owner?")
-  ) {
-    return "admin";
-  }
-  return "menu";
+  return isOwnerQrResolvedTargetPathAllowed("admin", targetPath)
+    ? "admin"
+    : "menu";
 }
 
 export function buildOwnerQrTarget(args: BuildOwnerQrTargetArgs): OwnerQrTarget {

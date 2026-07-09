@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, context: QrRouteContext) {
       { qrId: resolved.qrId, restaurantId: resolved.restaurantId },
       secret
     );
-    const response = protectedRedirect(request, resolved.targetPath);
+    const response = protectedRedirect(request, "/admin");
     response.cookies.set("vistaire_admin_access", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

@@ -5,6 +5,28 @@ import { readFile } from "node:fs/promises";
 const now = 1_783_631_200;
 const secret = "test-secret-with-at-least-thirty-two-bytes";
 const loadAccessSessionCore = () => import("../lib/admin/accessSessionCore.ts");
+const loadAdminAccess = () => import("../lib/admin/access.ts");
+
+async function createAccessFixture(overrides = {}) {
+  const { createAdminAccessToken } = await loadAccessSessionCore();
+  const token = createAdminAccessToken(
+    { qrId: "qr-1", restaurantId: "rest-1", now },
+    secret
+  );
+  return {
+    secret,
+    now: now + 60,
+    getCookieValue: () => token,
+    readQrCode: async () => ({
+      id: "qr-1",
+      restaurantId: "rest-1",
+      targetKind: "admin",
+      targetPath: "/admin",
+      status: "active"
+    }),
+    ...overrides
+  };
+}
 
 test("admin access tokens contain only the scoped eight-hour session fields", async () => {
   const {
@@ -110,4 +132,114 @@ test("admin authorization derives restaurant scope from the cookie only", async 
   assert.match(access, /active/);
   assert.doesNotMatch(adminPage, /searchParams/);
   assert.doesNotMatch(adminPage, /restaurantId.*search|search.*restaurantId/is);
+});
+
+test("admin authorization accepts exact and legacy active admin targets", async () => {
+  const { requireAdminRestaurantAccess } = await loadAdminAccess();
+  for (const targetPath of [
+    "/admin",
+    "/owner",
+    "/owner/restaurants/rest-1",
+    "/owner/restaurants?restaurantId=rest-1"
+  ]) {
+    const dependencies = await createAccessFixture({
+      readQrCode: async () => ({
+        id: "qr-1",
+        restaurantId: "rest-1",
+        targetKind: "admin",
+        targetPath,
+        status: "active"
+      })
+    });
+    assert.deepEqual(
+      await requireAdminRestaurantAccess("dashboard:read", dependencies),
+      {
+        ok: true,
+        qrId: "qr-1",
+        restaurantId: "rest-1",
+        expiresAt: now + 28_800
+      }
+    );
+  }
+});
+
+test("admin authorization rejects mismatched QR and restaurant identity", async () => {
+  const { requireAdminRestaurantAccess } = await loadAdminAccess();
+  for (const row of [
+    {
+      id: "qr-other",
+      restaurantId: "rest-1",
+      targetKind: "admin",
+      targetPath: "/admin",
+      status: "active"
+    },
+    {
+      id: "qr-1",
+      restaurantId: "rest-other",
+      targetKind: "admin",
+      targetPath: "/admin",
+      status: "active"
+    }
+  ]) {
+    const dependencies = await createAccessFixture({ readQrCode: async () => row });
+    assert.deepEqual(
+      await requireAdminRestaurantAccess("dashboard:read", dependencies),
+      { ok: false, reason: "revoked" }
+    );
+  }
+});
+
+test("admin authorization rejects menu, inactive, and incoherent paths", async () => {
+  const { requireAdminRestaurantAccess } = await loadAdminAccess();
+  const rows = [
+    { targetKind: "menu", targetPath: "/menu/rest-1", status: "active" },
+    { targetKind: "admin", targetPath: "/admin", status: "paused" },
+    { targetKind: "admin", targetPath: "/admin", status: "archived" },
+    { targetKind: "admin", targetPath: "/menu/rest-1", status: "active" },
+    { targetKind: "admin", targetPath: "https://evil.example", status: "active" }
+  ];
+  for (const row of rows) {
+    const dependencies = await createAccessFixture({
+      readQrCode: async () => ({
+        id: "qr-1",
+        restaurantId: "rest-1",
+        ...row
+      })
+    });
+    assert.deepEqual(
+      await requireAdminRestaurantAccess("dashboard:read", dependencies),
+      { ok: false, reason: "revoked" }
+    );
+  }
+});
+
+test("admin authorization fails closed for reader, secret, and expiry errors", async () => {
+  const { requireAdminRestaurantAccess } = await loadAdminAccess();
+  const readerError = await createAccessFixture({
+    readQrCode: async () => {
+      throw new Error("database unavailable");
+    }
+  });
+  assert.deepEqual(
+    await requireAdminRestaurantAccess("dashboard:read", readerError),
+    { ok: false, reason: "configuration" }
+  );
+
+  const missingSecret = await createAccessFixture({ secret: "" });
+  assert.deepEqual(
+    await requireAdminRestaurantAccess("dashboard:read", missingSecret),
+    { ok: false, reason: "configuration" }
+  );
+
+  const weakSecret = await createAccessFixture({ secret: "short" });
+  assert.deepEqual(
+    await requireAdminRestaurantAccess("dashboard:read", weakSecret),
+    { ok: false, reason: "session" }
+  );
+
+  const expired = await createAccessFixture({ now: now + 28_800 });
+  assert.deepEqual(
+    await requireAdminRestaurantAccess("dashboard:read", expired),
+    { ok: false, reason: "session" }
+  );
 });

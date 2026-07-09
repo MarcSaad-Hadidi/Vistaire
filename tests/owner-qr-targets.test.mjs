@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildOwnerQrTarget,
   inferOwnerQrTargetKind,
+  isOwnerQrResolvedTargetPathAllowed,
   isOwnerQrTargetPathAllowed,
   sanitizeOwnerQrTargetPath
 } from "../lib/owner/menuUrlCore.ts";
@@ -83,6 +84,21 @@ test("infers QR target kind from persisted target paths", () => {
   assert.equal(inferOwnerQrTargetKind("/admin"), "admin");
   assert.equal(inferOwnerQrTargetKind("/owner/restaurants?restaurantId=rest_123"), "admin");
   assert.equal(inferOwnerQrTargetKind("/owner/restaurants/rest_123"), "admin");
+});
+
+test("allows legacy owner paths only when resolving existing admin QR rows", () => {
+  for (const path of [
+    "/owner",
+    "/owner/restaurants/rest_123",
+    "/owner/restaurants?restaurantId=rest_123"
+  ]) {
+    assert.equal(isOwnerQrTargetPathAllowed("admin", path), false);
+    assert.equal(isOwnerQrResolvedTargetPathAllowed("admin", path), true);
+  }
+  assert.equal(
+    isOwnerQrResolvedTargetPathAllowed("admin", "/menu/maison-elyse"),
+    false
+  );
 });
 
 test("keeps logo QR styles scannable with high error correction", () => {

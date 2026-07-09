@@ -91,6 +91,8 @@ test("QR exchange sets only the path-scoped restaurant admin session", async () 
   assert.match(route, /sameSite:\s*"lax"/);
   assert.match(route, /path:\s*"\/admin"/);
   assert.match(route, /maxAge:\s*ADMIN_ACCESS_TTL_SECONDS/);
+  assert.match(route, /resolved\.targetKind === "menu"[\s\S]*resolved\.targetPath/);
+  assert.match(route, /protectedRedirect\(request, "\/admin"\)/);
   assert.match(route, /Cache-Control["'],\s*["']no-store/);
   assert.match(route, /Referrer-Policy["'],\s*["']no-referrer/);
   assert.doesNotMatch(route, /[?&]restaurantId=/);
