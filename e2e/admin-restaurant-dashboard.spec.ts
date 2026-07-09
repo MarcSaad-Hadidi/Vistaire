@@ -120,11 +120,11 @@ test("authorized admin filters dishes and toggles a final availability state", a
 }) => {
   test.skip(!ADMIN_E2E_QR_TOKEN, "requires an active admin QR fixture");
   const health = installPageHealth(page);
-  let requestedState: boolean | undefined;
+  const requestedStates: boolean[] = [];
 
   await page.route("**/admin/api/dishes/*/availability", async (route) => {
     const body = route.request().postDataJSON() as { available?: boolean };
-    requestedState = body.available;
+    if (typeof body.available === "boolean") requestedStates.push(body.available);
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -137,28 +137,47 @@ test("authorized admin filters dishes and toggles a final availability state", a
     });
   });
 
-  await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_QR_TOKEN ?? "")}`, {
-    waitUntil: "networkidle"
-  });
-  await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByText("Dashboard restaurant").first()).toBeVisible();
+  const filters = [
+    { name: "Tous", expected: null },
+    { name: "Disponibles", expected: /Disponible/i },
+    { name: "Indisponibles", expected: /Indisponible/i },
+    { name: "Prix manquant", expected: /Prix manquant/i },
+    { name: "Description manquante", expected: /Description manquante/i },
+    { name: "Photo manquante", expected: /Photo manquante/i },
+    { name: "3D/AR", expected: /3D|AR/i }
+  ];
 
-  for (const filter of [
-    "Tous",
-    "Disponibles",
-    "Indisponibles",
-    "Prix manquant",
-    "Description manquante",
-    "Photo manquante",
-    "3D/AR"
-  ]) {
-    await expect(page.getByRole("button", { name: filter, exact: true })).toBeVisible();
+  for (const width of [390, 430]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_QR_TOKEN ?? "")}`, {
+      waitUntil: "networkidle"
+    });
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByText("Dashboard restaurant").first()).toBeVisible();
+
+    const rows = page.locator("[data-admin-dish-row]");
+    for (const filter of filters) {
+      await page.getByRole("button", { name: filter.name, exact: true }).click();
+      await expect(rows.first(), `${filter.name} must retain a matching dish`).toBeVisible();
+      if (filter.expected) await expect(rows.first()).toContainText(filter.expected);
+    }
+
+    await page.getByRole("button", { name: "Disponibles", exact: true }).click();
+    const row = rows.first();
+    const toggle = row.getByRole("button", { name: /Rendre .* indisponible/i });
+    const dishName = await toggle.getAttribute("aria-label");
+    await toggle.click();
+    await expect.poll(() => requestedStates.at(-1)).toBe(false);
+    await expect(row).toContainText("Indisponible");
+    await expect(
+      row.getByRole("button", {
+        name: dishName?.replace("indisponible", "disponible") ?? /Rendre .* disponible/i
+      })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   }
 
-  const toggle = page.getByRole("button", { name: /Rendre .* indisponible/i }).first();
-  await toggle.click();
-  await expect.poll(() => requestedState).toBe(false);
-  await expectNoHorizontalOverflow(page);
+  expect(requestedStates).toEqual([false, false]);
   health.expectClean();
 });
 

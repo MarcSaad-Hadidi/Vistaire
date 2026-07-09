@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { parseAvailabilityInput } from "../lib/admin/availability.ts";
+const loadAvailability = () => import("../lib/admin/availability.ts");
 
-test("availability input accepts exactly one boolean final-state field", () => {
+test("availability input accepts exactly one boolean final-state field", async () => {
+  const { parseAvailabilityInput } = await loadAvailability();
   assert.deepEqual(parseAvailabilityInput({ available: false }), {
     ok: true,
     available: false
@@ -14,12 +15,59 @@ test("availability input accepts exactly one boolean final-state field", () => {
     available: true
   });
   assert.equal(parseAvailabilityInput({ available: "false" }).ok, false);
+  assert.equal(parseAvailabilityInput({ available: true, arbitrary: "value" }).ok, false);
   assert.equal(
     parseAvailabilityInput({ available: true, restaurantId: "rest-2" }).ok,
     false
   );
   assert.equal(parseAvailabilityInput(null).ok, false);
   assert.equal(parseAvailabilityInput([]).ok, false);
+});
+
+test("availability mutation uses only cookie scope and cannot target query or body restaurant ids", async () => {
+  const { updateAdminDishAvailability } = await loadAvailability();
+  const rpcCalls = [];
+  const dependencies = {
+    requireAccess: async () => ({
+      ok: true,
+      qrId: "qr-a",
+      restaurantId: "restaurant-a",
+      expiresAt: new Date("2026-07-09T20:00:00.000Z")
+    }),
+    callAvailabilityRpc: async (input) => {
+      rpcCalls.push(input);
+      return { ok: true, dishId: input.dishId, available: input.available };
+    }
+  };
+
+  const queryAttack = await updateAdminDishAvailability(
+    {
+      dishId: "dish-a",
+      input: { available: false },
+      queryRestaurantId: "restaurant-b"
+    },
+    dependencies
+  );
+  assert.equal(queryAttack.ok, true);
+  assert.deepEqual(rpcCalls, [
+    {
+      qrId: "qr-a",
+      restaurantId: "restaurant-a",
+      dishId: "dish-a",
+      available: false
+    }
+  ]);
+
+  const bodyAttack = await updateAdminDishAvailability(
+    {
+      dishId: "dish-b",
+      input: { available: true, restaurantId: "restaurant-b" }
+    },
+    dependencies
+  );
+  assert.equal(bodyAttack.ok, false);
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(JSON.stringify(rpcCalls).includes("restaurant-b"), false);
 });
 
 test("availability route derives scope from admin access and calls only the atomic RPC", async () => {

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { buildAdminMenuReadiness } from "../lib/admin/menuReadiness.ts";
+const loadMenuReadiness = () => import("../lib/admin/menuReadiness.ts");
 
 const categories = [
   { id: "starters", label: "Entrées", slug: "entrees" },
@@ -60,7 +60,8 @@ const dishes = [
   })
 ];
 
-test("builds deterministic restaurant menu readiness counts and priorities", () => {
+test("builds deterministic restaurant menu readiness counts and priorities", async () => {
+  const { buildAdminMenuReadiness } = await loadMenuReadiness();
   const summary = buildAdminMenuReadiness(categories, dishes);
 
   assert.deepEqual(summary.counts, {
@@ -78,7 +79,8 @@ test("builds deterministic restaurant menu readiness counts and priorities", () 
   assert.ok(summary.score >= 0 && summary.score <= 100);
 });
 
-test("empty menus have a finite zero score and a concrete setup action", () => {
+test("empty menus have a finite zero score and a concrete setup action", async () => {
+  const { buildAdminMenuReadiness } = await loadMenuReadiness();
   const summary = buildAdminMenuReadiness([], []);
 
   assert.equal(summary.score, 0);
@@ -97,4 +99,37 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
   assert.doesNotMatch(page, /getDemoRestaurantId|searchParams/);
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /noarchive:\s*true/);
+});
+
+test("admin dashboard exposes only menu reading and dish availability", async () => {
+  const page = await readFile("app/admin/page.tsx", "utf8");
+  const dashboard = await readFile(
+    "components/admin/AdminRestaurantDashboard.tsx",
+    "utf8"
+  );
+  const worklist = await readFile("components/admin/AdminDishWorklist.tsx", "utf8");
+  const combined = `${page}\n${dashboard}\n${worklist}`;
+
+  assert.match(combined, /dashboard:read/);
+  assert.match(combined, /AdminDishAvailabilityControl|data-admin-availability-slot/);
+  assert.doesNotMatch(combined, /AdminAssistant|\/api\/owner|OwnerDish/);
+  assert.doesNotMatch(combined, /(?:create|delete|remove|upload)(?:Dish|Media|Restaurant)/i);
+});
+
+test("fallback analytics suppress all presentation numbers", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const state = buildAdminAnalyticsState({
+    source: "fallback",
+    note: "Lecture de présentation",
+    insights: {
+      summary: [
+        { id: "menu-opens", label: "Ouvertures", value: "987654" },
+        { id: "dish-views", label: "Vues", value: "123456" }
+      ],
+      topDishes: [{ dish: { id: "demo", name: "Plat démo" }, views: 777777 }]
+    }
+  });
+
+  assert.equal(state.kind, "insufficient");
+  assert.doesNotMatch(JSON.stringify(state), /987654|123456|777777|Plat démo/);
 });
