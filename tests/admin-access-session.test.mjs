@@ -72,7 +72,11 @@ test("failed persistence never signs an admin QR while menu QR may use signed fa
   );
   const signedTargets = [];
   const dependencies = {
-    persistQrCode: async () => ({ ok: false, error: "storage unavailable" }),
+    persistQrCode: async () => ({
+      ok: false,
+      error: "storage unavailable",
+      fallbackEligible: true
+    }),
     createSignedMenuFallback: ({ targetPath }) => {
       signedTargets.push(targetPath);
       return "signed-menu-token";
@@ -106,6 +110,32 @@ test("failed persistence never signs an admin QR while menu QR may use signed fa
   assert.deepEqual(signedTargets, ["/menu/restaurant-a"]);
 });
 
+test("ordinary QR persistence failures never invoke the signed menu fallback", async () => {
+  const { createOwnerQrCodeWithDependencies } = await import(
+    "../lib/owner/qrCreationCore.ts"
+  );
+  let signed = false;
+  const failure = { ok: false, error: "insert failed" };
+  const result = await createOwnerQrCodeWithDependencies(
+    {
+      restaurantId: "rest-a",
+      targetKind: "menu",
+      targetPath: "/menu/restaurant-a",
+      label: "QR menu"
+    },
+    {
+      persistQrCode: async () => failure,
+      createSignedMenuFallback: () => {
+        signed = true;
+        return "must-not-be-signed";
+      }
+    }
+  );
+
+  assert.deepEqual(result, failure);
+  assert.equal(signed, false);
+});
+
 test("admin access tokens fail closed for weak secrets and malformed identity", async () => {
   const { createAdminAccessToken, verifyAdminAccessToken } =
     await loadAccessSessionCore();
@@ -131,8 +161,16 @@ test("admin authorization derives restaurant scope from the cookie only", async 
   assert.match(access, /target_kind|targetKind/);
   assert.match(access, /status/);
   assert.match(accessCore, /active/);
+  assert.match(adminPage, /requireAdminRestaurantAccess\("dashboard:read"\)/);
+  assert.match(adminPage, /Accès dashboard restaurant requis/);
+  assert.match(adminPage, /Scannez le QR admin interne de votre restaurant\./);
+  assert.match(adminPage, /getRestaurantInsights\(access\.restaurantId\)/);
+  assert.ok(
+    adminPage.indexOf('requireAdminRestaurantAccess("dashboard:read")') <
+      adminPage.indexOf("getRestaurantInsights(access.restaurantId)")
+  );
   assert.doesNotMatch(adminPage, /searchParams/);
-  assert.doesNotMatch(adminPage, /restaurantId.*search|search.*restaurantId/is);
+  assert.doesNotMatch(adminPage, /getDemoRestaurantId/);
 });
 
 test("admin access wrapper preserves the server-only boundary", async () => {

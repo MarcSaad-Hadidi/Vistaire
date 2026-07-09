@@ -23,11 +23,16 @@ import {
 } from "@/lib/owner/qrTokens";
 import {
   createOwnerQrCodeWithDependencies,
-  type CreateOwnerQrCodeArgs
+  type CreateOwnerQrCodeArgs,
+  type QrPersistenceResult
 } from "@/lib/owner/qrCreationCore";
 import {
+  resolveQrRowMetadata,
+  resolveSignedMenuFallback,
+  type QrResolution
+} from "@/lib/owner/qrResolutionCore";
+import {
   inferOwnerQrTargetKind,
-  isOwnerQrResolvedTargetPathAllowed,
   isOwnerQrTargetPathAllowed,
   sanitizeOwnerQrTargetPath
 } from "@/lib/owner/menuUrlCore";
@@ -35,7 +40,6 @@ import type {
   CreateOwnerQrCodeResult,
   OwnerQrCodeRecord,
   OwnerQrCodeStatus,
-  OwnerQrTargetKind,
   OwnerQrStyle
 } from "@/lib/owner/types";
 
@@ -139,7 +143,7 @@ function mapQrRow(row: AnyRow): OwnerQrCodeRecord {
 
 async function persistOwnerQrCode(
   args: CreateOwnerQrCodeArgs
-): Promise<CreateOwnerQrCodeResult> {
+): Promise<QrPersistenceResult> {
   const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath);
   const targetPath = sanitizeOwnerQrTargetPath(args.targetPath);
   if (!targetPath) {
@@ -194,7 +198,8 @@ async function persistOwnerQrCode(
 
   return {
     ok: false,
-    error: "Le QR n'a pas pu etre enregistre : Supabase persistant est requis."
+    error: "Le QR n'a pas pu etre enregistre : Supabase persistant est requis.",
+    fallbackEligible: true
   };
 }
 
@@ -257,15 +262,7 @@ export async function updateOwnerQrCode(
   return { ok: true, record: mapQrRow(data as AnyRow) };
 }
 
-export type QrResolution =
-  | {
-      ok: true;
-      qrId: string;
-      restaurantId: string;
-      targetKind: OwnerQrTargetKind;
-      targetPath: string;
-    }
-  | { ok: false };
+export type { QrResolution } from "@/lib/owner/qrResolutionCore";
 
 function firstRpcRow(data: unknown): AnyRow | null {
   if (Array.isArray(data)) return (data[0] as AnyRow | undefined) ?? null;
@@ -279,25 +276,22 @@ function resolutionFromRow(row: AnyRow, expectedPath?: string): QrResolution {
     ["restaurant_id", "restaurantId"],
     ""
   );
-  const status = getString(row, ["status"], "");
-  const targetPath = sanitizeOwnerQrTargetPath(
-    getString(row, ["target_path", "targetPath"], "")
-  );
-  if (!qrId || !restaurantId || status !== "active" || !targetPath) {
-    return { ok: false };
-  }
-  if (expectedPath && targetPath !== expectedPath) return { ok: false };
-
+  const targetPath = getString(row, ["target_path", "targetPath"], "");
   const rawTargetKind = getString(row, ["target_kind", "targetKind"], "");
   const targetKind =
     rawTargetKind === "menu" || rawTargetKind === "admin"
       ? rawTargetKind
-      : inferOwnerQrTargetKind(targetPath);
-  if (!isOwnerQrResolvedTargetPathAllowed(targetKind, targetPath)) {
-    return { ok: false };
-  }
-
-  return { ok: true, qrId, restaurantId, targetKind, targetPath };
+      : undefined;
+  return resolveQrRowMetadata(
+    {
+      qrId,
+      restaurantId,
+      status: getString(row, ["status"], ""),
+      targetKind,
+      targetPath
+    },
+    expectedPath
+  );
 }
 
 function isRpcUnavailable(error: { code?: string; message?: string } | null): boolean {
@@ -326,20 +320,7 @@ export async function resolveQrToken(token: string): Promise<QrResolution> {
   // Signed fallback token (dev/build, or when DB lookup missed).
   const signed = verifySignedQrToken(token);
   if (signed) {
-    const targetPath = sanitizeOwnerQrTargetPath(signed.targetPath);
-    if (
-      targetPath &&
-      signed.restaurantId &&
-      isOwnerQrTargetPathAllowed("menu", targetPath)
-    ) {
-      return {
-        ok: true,
-        qrId: "signed-menu-fallback",
-        restaurantId: signed.restaurantId,
-        targetKind: "menu",
-        targetPath
-      };
-    }
+    return resolveSignedMenuFallback(signed);
   }
 
   return { ok: false };

@@ -11,10 +11,8 @@ import {
   PreviewNav
 } from "@/components/vistaire-preview/VistairePreviewChrome";
 import styles from "@/components/vistaire-preview/VistaireRestaurateurDashboardPreview.module.css";
-import {
-  getDemoRestaurantId,
-  getRestaurantInsights
-} from "@/lib/analytics/insights";
+import { requireAdminRestaurantAccess } from "@/lib/admin/access";
+import { getRestaurantInsights } from "@/lib/analytics/insights";
 
 export const dynamic = "force-dynamic";
 
@@ -29,16 +27,26 @@ const SUMMARY_METRIC_IDS = [
   "top-category"
 ];
 
-export default async function AdminPage({
-  searchParams
-}: {
-  searchParams?: Promise<{ restaurantId?: string }>;
-}) {
-  const params = await searchParams;
-  const demoRestaurantId = getDemoRestaurantId();
-  const restaurantId =
-    params?.restaurantId === demoRestaurantId ? params.restaurantId : demoRestaurantId;
-  const result = await getRestaurantInsights(restaurantId);
+export default async function AdminPage() {
+  const access = await requireAdminRestaurantAccess("dashboard:read");
+  if (!access.ok) {
+    return (
+      <main className={styles.page}>
+        <section aria-labelledby="admin-access-title" className={styles.hero}>
+          <div className={`${styles.previewFrame} ${styles.adminFrame}`}>
+            <section className={`${styles.card} ${styles.adminFullPanel}`}>
+              <div className={styles.adminPanelHeader}>
+                <h1 id="admin-access-title">Accès dashboard restaurant requis</h1>
+                <p>Scannez le QR admin interne de votre restaurant.</p>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const result = await getRestaurantInsights(access.restaurantId);
   const insights = result.insights;
   const popularDish = insights.topDishes[0]?.dish;
   const summaryMetrics = insights.summary.filter((metric) =>
@@ -168,7 +176,7 @@ export default async function AdminPage({
 
           <section className={`${styles.card} ${styles.adminFullPanel}`}>
             <AdminAssistant
-              restaurantId={restaurantId}
+              restaurantId={access.restaurantId}
               dailySummary={insights.dailySummary}
               recommendations={insights.recommendations}
             />

@@ -1,4 +1,7 @@
-import { buildQrRedirectPath } from "./menuUrlCore.ts";
+import {
+  buildQrRedirectPath,
+  inferOwnerQrTargetKind
+} from "./menuUrlCore.ts";
 import { DEFAULT_OWNER_QR_STYLE, normalizeOwnerQrStyle } from "./qrStyle.ts";
 import type {
   CreateOwnerQrCodeResult,
@@ -15,18 +18,27 @@ export type CreateOwnerQrCodeArgs = {
 };
 
 type CreationDependencies = {
-  persistQrCode: (args: CreateOwnerQrCodeArgs) => Promise<CreateOwnerQrCodeResult>;
+  persistQrCode: (args: CreateOwnerQrCodeArgs) => Promise<QrPersistenceResult>;
   createSignedMenuFallback: (
     args: CreateOwnerQrCodeArgs
   ) => string | CreateOwnerQrCodeResult;
 };
+
+export type QrPersistenceResult =
+  | CreateOwnerQrCodeResult
+  | { ok: false; error: string; fallbackEligible: true };
 
 export async function createOwnerQrCodeWithDependencies(
   args: CreateOwnerQrCodeArgs,
   dependencies: CreationDependencies
 ): Promise<CreateOwnerQrCodeResult> {
   const persisted = await dependencies.persistQrCode(args);
-  if (persisted.ok || args.targetKind === "admin") return persisted;
+  const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath);
+  const fallbackEligible =
+    !persisted.ok &&
+    "fallbackEligible" in persisted &&
+    persisted.fallbackEligible === true;
+  if (persisted.ok || targetKind !== "menu" || !fallbackEligible) return persisted;
 
   const fallback = dependencies.createSignedMenuFallback(args);
   if (typeof fallback !== "string") return fallback;
