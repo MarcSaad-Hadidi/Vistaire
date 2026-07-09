@@ -19,10 +19,11 @@ test("owner QR manager exposes restaurant, QR type, destination, and safety badg
 
   assert.match(manager, /buildOwnerQrTarget/);
   assert.match(manager, /QR menu public/);
-  assert.match(manager, /QR admin owner/);
+  assert.match(manager, /QR dashboard restaurant/);
   assert.match(manager, /Destination exacte/);
   assert.match(manager, /Public client/);
-  assert.match(manager, /Interne owner/);
+  assert.match(manager, /Interne restaurant/);
+  assert.match(manager, /Ne pas imprimer pour les clients/);
   assert.match(customizer, /Logo au centre/);
   assert.match(customizer, /Aucun logo/);
   assert.match(customizer, /Monogramme du restaurant/);
@@ -48,7 +49,8 @@ test("owner QR page can be preselected from restaurant creation success", async 
   assert.match(manager, /return value === "admin" \? "admin" : "menu"/);
   assert.match(manager, /restaurant\.slug === initialRestaurantSlug/);
   assert.match(createForm, /qrCodesHref/);
-  assert.match(createForm, /target=menu/);
+  assert.match(createForm, /Generer le QR menu/);
+  assert.match(createForm, /state\.qrCodesHref/);
 });
 
 test("owner QR customizer saves target kind and displays persistence details", async () => {
@@ -78,4 +80,18 @@ test("QR scan RPC is not executable by public browser roles", async () => {
     migration,
     /grant execute on function public\.resolve_qr_code_scan\(text\) to service_role/i
   );
+});
+
+test("QR exchange sets only the path-scoped restaurant admin session", async () => {
+  const route = await readFile("app/q/[token]/route.ts", "utf8");
+
+  assert.match(route, /vistaire_admin_access/);
+  assert.match(route, /httpOnly:\s*true/);
+  assert.match(route, /secure:\s*process\.env\.NODE_ENV === "production"/);
+  assert.match(route, /sameSite:\s*"lax"/);
+  assert.match(route, /path:\s*"\/admin"/);
+  assert.match(route, /maxAge:\s*ADMIN_ACCESS_TTL_SECONDS/);
+  assert.match(route, /Cache-Control["'],\s*["']no-store/);
+  assert.match(route, /Referrer-Policy["'],\s*["']no-referrer/);
+  assert.doesNotMatch(route, /[?&]restaurantId=/);
 });
