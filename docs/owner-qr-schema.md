@@ -8,12 +8,13 @@ The `/q/<token>` route resolves the token server-side, then redirects to one of
 two internal target kinds:
 
 - Menu QR: `/menu/<restaurant-slug>` for guests.
-- Admin owner QR: `/owner/restaurants?restaurantId=<id>` for internal owner use.
+- Restaurant dashboard QR: `/admin` for internal restaurant use.
 
-Admin QR codes are only a shortcut to a protected owner route. They never contain
-credentials, service-role keys, session tokens, magic links, or any auth bypass.
-Unauthenticated or unauthorized scanners are still blocked by Clerk and the
-Vistaire owner allowlist.
+Admin QR codes exchange the opaque persistent QR token for an eight-hour,
+HTTP-only session scoped to the QR row's restaurant. The session is signed with
+the dedicated `VISTAIRE_ADMIN_SESSION_SECRET`, and every protected request
+revalidates the active admin QR row. They never contain credentials or service
+role keys.
 
 ## Why a table (and not the slug in the QR)
 
@@ -40,6 +41,7 @@ See [`supabase/migrations/0001_qr_codes.sql`](../supabase/migrations/0001_qr_cod
 | `token_hash` | text | unique; SHA-256 / HMAC-SHA256 of the token |
 | `token_preview` | text | first chars only, for the UI |
 | `target_path` | text | internal redirect target |
+| `target_kind` | text | `menu` \| `admin`; added/backfilled by the admin access migration |
 | `style_json` | jsonb | `OwnerQrStyle` snapshot |
 | `status` | text | `active` \| `paused` \| `archived` |
 | `scan_count` | integer | incremented on resolve |
@@ -54,12 +56,14 @@ This repo has no Supabase CLI wired in, so apply the migration manually:
 1. Open your Supabase project, then SQL Editor.
 2. Paste the contents of `supabase/migrations/0001_qr_codes.sql`, then run.
 3. Paste the contents of `supabase/migrations/0002_qr_resolve_scan_rpc.sql`, then run.
-4. Re-running is safe (`if not exists` / `create or replace` guards).
+4. Paste `supabase/migrations/20260709180000_admin_qr_access.sql`, then run.
+5. Re-running is safe (`if not exists` / `create or replace` guards).
 
 **Option B - psql**
 ```bash
 psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_qr_codes.sql
 psql "$SUPABASE_DB_URL" -f supabase/migrations/0002_qr_resolve_scan_rpc.sql
+psql "$SUPABASE_DB_URL" -f supabase/migrations/20260709180000_admin_qr_access.sql
 ```
 
 ## Atomic scan counts
@@ -80,16 +84,19 @@ grants execution only to `service_role`.
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (already used) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only access to `qr_codes` (already used) |
 | `VISTAIRE_QR_TOKEN_SECRET` | Optional. Peppers the token hash and signs the dev fallback token. Set this in production. |
+| `VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS` | Optional comma-separated legacy QR hash secrets retained during rotation. |
+| `VISTAIRE_ADMIN_SESSION_SECRET` | Dedicated secret (at least 32 bytes) for eight-hour restaurant admin sessions. |
 
 ## Fallback behaviour (no DB yet)
 
 If Supabase is not configured, QR creation degrades gracefully to a stateless
 signed token (HMAC-signed, dev/build only):
 
-- The QR still works: `/q/<signed-token>` verifies the signature and redirects.
+- A menu QR still works: `/q/<signed-token>` verifies the signature and redirects.
 - Nothing is persisted, so `scan_count`, `status`, and saved styles are not
   available.
-- The owner UI clearly labels these QR codes as non persisted.
+- The owner UI clearly labels these menu QR codes as non persisted.
+- Admin/dashboard QR creation fails closed without persistent Supabase storage.
 
 If Supabase is configured but the `qr_codes` insert fails, the API returns an
 error instead of claiming production persistence.

@@ -105,28 +105,32 @@ export function isOwnerQrTargetPathAllowed(
     return targetPath === "/demo" || targetPath.startsWith("/menu/");
   }
 
-  return (
-    targetPath === "/owner" ||
-    targetPath.startsWith("/owner/") ||
-    targetPath.startsWith("/owner?")
-  );
+  return targetPath === "/admin";
 }
 
 export function inferOwnerQrTargetKind(targetPath: string): OwnerQrTargetKind {
-  return isOwnerQrTargetPathAllowed("admin", targetPath) ? "admin" : "menu";
+  const sanitized = sanitizeOwnerQrTargetPath(targetPath);
+  if (
+    sanitized === "/admin" ||
+    sanitized === "/owner" ||
+    sanitized?.startsWith("/owner/") ||
+    sanitized?.startsWith("/owner?")
+  ) {
+    return "admin";
+  }
+  return "menu";
 }
 
 export function buildOwnerQrTarget(args: BuildOwnerQrTargetArgs): OwnerQrTarget {
   const restaurantName = args.restaurantName.trim() || "Restaurant";
 
   if (args.targetKind === "admin") {
-    const targetPath = buildRestaurantDashboardPath(args.restaurantId || args.restaurantSlug);
     return {
       targetKind: "admin",
-      label: `QR admin - ${restaurantName}`,
-      usage: "Interne seulement - ne pas imprimer pour les clients.",
-      targetPath,
-      badgeLabel: "Interne owner - protege"
+      label: `QR dashboard restaurant - ${restaurantName}`,
+      usage: "Ne pas imprimer pour les clients.",
+      targetPath: "/admin",
+      badgeLabel: "Interne restaurant"
     };
   }
 

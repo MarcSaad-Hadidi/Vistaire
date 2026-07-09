@@ -291,8 +291,8 @@ export function OwnerQrCustomizer({
         </div>
         {targetKind === "admin" ? (
           <p className={styles.qrWarning}>
-            Interne owner - protege. Ce QR ouvre une route /owner qui exige une
-            connexion autorisee ; il ne contient aucun identifiant ni secret.
+            Interne restaurant. Ne pas imprimer pour les clients. Ce QR ouvre le
+            dashboard restaurant protege ; il ne contient aucun identifiant ni secret.
           </p>
         ) : null}
         {lowContrast ? (

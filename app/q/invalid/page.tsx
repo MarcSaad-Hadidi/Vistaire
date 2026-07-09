@@ -1,26 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { resolveQrToken } from "@/lib/owner/qrStore";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false }
 };
 
-type QrRedirectPageProps = {
-  params: Promise<{ token: string }>;
-};
-
-export default async function QrRedirectPage({ params }: QrRedirectPageProps) {
-  const { token } = await params;
-  const resolved = await resolveQrToken(token);
-
-  if (resolved.ok) {
-    redirect(resolved.targetPath);
-  }
-
+export default function InvalidQrPage() {
   return (
     <main
       style={{
@@ -50,8 +35,7 @@ export default async function QrRedirectPage({ params }: QrRedirectPageProps) {
           QR introuvable ou désactivé
         </h1>
         <p style={{ margin: "0 0 20px", color: "rgba(255, 250, 240, 0.72)" }}>
-          Ce QR ne pointe plus vers un menu actif. Demandez au restaurant un QR à
-          jour.
+          Ce QR n&apos;est plus actif. Demandez au restaurant un QR à jour.
         </p>
         <Link
           href="/"

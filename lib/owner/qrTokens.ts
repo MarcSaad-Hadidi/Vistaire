@@ -62,6 +62,43 @@ export function hashQrToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
+/** Current storage format. Versioning keeps future rotations explicit. */
+export function hashQrTokenForStorage(token: string): string {
+  return `sha256:${createHash("sha256").update(token).digest("hex")}`;
+}
+
+function configuredPreviousLegacySecrets(env: NodeJS.ProcessEnv): string[] {
+  return [
+    env.VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS,
+    env.VISTAIRE_QR_TOKEN_SECRET_PREVIOUS,
+    env.VISTAIRE_QR_TOKEN_PREVIOUS_SECRET
+  ]
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => value.split(/[\s,;]+/))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+/** Bounded lookup candidates for current and grandfathered token hashes. */
+export function qrTokenHashCandidates(
+  token: string,
+  env: NodeJS.ProcessEnv = process.env
+): string[] {
+  const candidates = [
+    hashQrTokenForStorage(token),
+    createHash("sha256").update(token).digest("hex")
+  ];
+  if (env.VISTAIRE_QR_TOKEN_SECRET) {
+    candidates.push(
+      createHmac("sha256", env.VISTAIRE_QR_TOKEN_SECRET).update(token).digest("hex")
+    );
+  }
+  for (const secret of configuredPreviousLegacySecrets(env).slice(0, 4)) {
+    candidates.push(createHmac("sha256", secret).update(token).digest("hex"));
+  }
+  return [...new Set(candidates)];
+}
+
 /** Short, safe preview for the owner UI (never the full token). */
 export function tokenPreview(token: string): string {
   return `${token.slice(0, 6)}…`;
