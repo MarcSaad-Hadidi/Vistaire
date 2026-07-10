@@ -9,10 +9,7 @@ import {
   isAdminAssistantQuestionInScope,
   isMenuAuditQuestion
 } from "@/lib/admin/recommendations";
-import {
-  getDemoRestaurantId,
-  getRestaurantInsights
-} from "@/lib/analytics/insights";
+import { getRestaurantInsights } from "@/lib/analytics/insights";
 import type { AdminRecommendation } from "@/lib/demoAdminInsights";
 
 export type AdminAssistantMode = "summary" | "question";
@@ -21,7 +18,7 @@ export type AdminAssistantResult = {
   answer: string;
   source: "mistral" | "rules" | "blocked";
   recommendations: AdminRecommendation[];
-  dataSource: "supabase" | "fallback";
+  dataSource: "real" | "partial" | "empty" | "preview";
 };
 
 const MAX_QUESTION_LENGTH = 220;
@@ -39,15 +36,9 @@ function metricValue(
   return insights.summary.find((item) => item.id === id)?.value ?? fallback;
 }
 
-function safeRestaurantId(value: unknown): string {
-  const demoId = getDemoRestaurantId();
-  return typeof value === "string" && value.trim() === demoId ? demoId : demoId;
-}
-
 export function validateAdminAssistantRequest(input: unknown):
   | {
       ok: true;
-      restaurantId: string;
       mode: AdminAssistantMode;
       question: string;
     }
@@ -57,6 +48,13 @@ export function validateAdminAssistantRequest(input: unknown):
   }
 
   const candidate = input as Record<string, unknown>;
+  const keys = Object.keys(candidate);
+  if (keys.some((key) => key !== "mode" && key !== "question")) {
+    return { ok: false, error: "Question invalide." };
+  }
+  if (candidate.mode !== "summary" && candidate.mode !== "question") {
+    return { ok: false, error: "Question invalide." };
+  }
   const mode = candidate.mode === "summary" ? "summary" : "question";
   const question = normalizeQuestion(candidate.question);
 
@@ -67,7 +65,6 @@ export function validateAdminAssistantRequest(input: unknown):
   if (mode === "question" && !isAdminAssistantQuestionInScope(question)) {
     return {
       ok: true,
-      restaurantId: safeRestaurantId(candidate.restaurantId),
       mode,
       question
     };
@@ -75,23 +72,31 @@ export function validateAdminAssistantRequest(input: unknown):
 
   return {
     ok: true,
-    restaurantId: safeRestaurantId(candidate.restaurantId),
     mode,
     question
   };
 }
 
 export async function getAdminAssistantAnswer(args: {
-  restaurantId?: string;
+  restaurantId: string;
   mode: AdminAssistantMode;
   question?: string;
   allowMistral?: boolean;
 }): Promise<AdminAssistantResult> {
-  const restaurantId = safeRestaurantId(args.restaurantId);
-  const result = await getRestaurantInsights(restaurantId);
+  const result = await getRestaurantInsights(args.restaurantId);
   const insights = result.insights;
   const recommendations = buildRuleBasedAdminRecommendations(insights);
   const question = normalizeQuestion(args.question);
+
+  if (result.source !== "real") {
+    return {
+      answer:
+        "Pas encore assez d’activité réelle pour répondre de façon fiable. Les tendances apparaîtront après davantage de consultations du menu.",
+      source: "rules",
+      recommendations: [],
+      dataSource: result.source
+    };
+  }
   const isBlocked =
     args.mode === "question" &&
     (!isAdminAssistantQuestionInScope(question) || isMenuAuditQuestion(question));

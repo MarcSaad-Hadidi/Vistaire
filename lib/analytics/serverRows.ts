@@ -2,7 +2,7 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
-export type DataSourceStatus = "supabase" | "fallback";
+export type DataSourceStatus = "real" | "partial" | "empty" | "preview";
 
 export type DataReadResult<T> =
   | { ok: true; rows: T[] }
@@ -31,6 +31,35 @@ export async function readSupabaseRows<T extends AnyRow>(
 
   if (error) {
     logServerDataError(`read ${table}`, error.message);
+    return { ok: false, error: error.message, rows: [] };
+  }
+
+  return { ok: true, rows: (data ?? []) as T[] };
+}
+
+export async function readSupabaseRowsByColumn<T extends AnyRow>(
+  table: string,
+  column: string,
+  value: string,
+  limit = 500
+): Promise<DataReadResult<T>> {
+  if (!value.trim()) {
+    return { ok: false, error: "A scoped data read requires an identifier.", rows: [] };
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return { ok: false, error: admin.reason, rows: [] };
+  }
+
+  const { data, error } = await admin.client
+    .from(table)
+    .select("*")
+    .eq(column, value)
+    .limit(limit);
+
+  if (error) {
+    logServerDataError(`read scoped ${table}`, error.message);
     return { ok: false, error: error.message, rows: [] };
   }
 

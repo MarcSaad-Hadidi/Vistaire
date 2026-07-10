@@ -116,10 +116,10 @@ test("admin dashboard exposes only menu reading and dish availability", async ()
   assert.doesNotMatch(combined, /(?:create|delete|remove|upload)(?:Dish|Media|Restaurant)/i);
 });
 
-test("fallback analytics suppress all presentation numbers", async () => {
+test("preview analytics suppress all presentation numbers", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const state = buildAdminAnalyticsState({
-    source: "fallback",
+    source: "preview",
     note: "Lecture de présentation",
     insights: {
       summary: [
@@ -130,8 +130,34 @@ test("fallback analytics suppress all presentation numbers", async () => {
     }
   });
 
-  assert.equal(state.kind, "insufficient");
+  assert.equal(state.kind, "preview");
   assert.doesNotMatch(JSON.stringify(state), /987654|123456|777777|Plat démo/);
+});
+
+test("analytics evidence states distinguish real, partial, empty and preview data", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const insights = {
+    generatedFor: "Le Rivage",
+    summary: [],
+    topDishes: []
+  };
+
+  assert.equal(
+    buildAdminAnalyticsState({ source: "real", note: "", insights }).kind,
+    "real"
+  );
+  assert.equal(
+    buildAdminAnalyticsState({ source: "partial", note: "", insights }).kind,
+    "partial"
+  );
+  assert.equal(
+    buildAdminAnalyticsState({ source: "empty", note: "", insights }).kind,
+    "empty"
+  );
+  assert.equal(
+    buildAdminAnalyticsState({ source: "preview", note: "", insights }).kind,
+    "preview"
+  );
 });
 
 test("admin page and loader delegate fallback handling to the analytics state boundary", async () => {
@@ -139,9 +165,9 @@ test("admin page and loader delegate fallback handling to the analytics state bo
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
   const combined = `${page}\n${loader}`;
 
-  assert.match(loader, /import\s*\{\s*buildAdminAnalyticsState\s*\}/);
+  assert.match(loader, /import\s*\{[\s\S]*?buildAdminAnalyticsState[\s\S]*?\}\s*from\s*["']@\/lib\/admin\/analyticsState["']/);
   assert.match(loader, /analytics:\s*buildAdminAnalyticsState\(/);
-  assert.doesNotMatch(page, /getDemoRestaurantId|getDemoAdminInsights|source\s*===\s*["']fallback/);
+  assert.doesNotMatch(page, /getDemoRestaurantId|getDemoAdminInsights|source\s*===\s*["']preview/);
   assert.doesNotMatch(page, /@\/lib\/analytics\/insights/);
   assert.doesNotMatch(combined, /insights\.summary|insights\.topDishes/);
 });
@@ -154,8 +180,9 @@ test("admin page loads only the authorized restaurant and renders the dashboard 
   );
 
   assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
-  assert.match(page, /const\s+data\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
-  assert.match(page, /<AdminRestaurantDashboard\s+data=\{data\}\s*\/>/);
+  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.match(page, /if\s*\(!result\.ok\)/);
+  assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
   assert.match(
     dashboard,

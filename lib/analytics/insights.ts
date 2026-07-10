@@ -1,8 +1,6 @@
 import "server-only";
 
 import {
-  getCategoryBySlug,
-  getDishBySlug,
   type Category,
   type Dish
 } from "@/lib/demoMenuData";
@@ -22,10 +20,10 @@ import {
   getSearchInterpretation
 } from "@/lib/admin/recommendations";
 import {
-  filterRowsByRestaurantId,
+  getBoolean,
   getNumber,
   getString,
-  readSupabaseRows,
+  readSupabaseRowsByColumn,
   type AnyRow,
   type DataSourceStatus
 } from "@/lib/analytics/serverRows";
@@ -58,16 +56,6 @@ function formatSeconds(value: number): string {
   return seconds > 0 ? `${minutes} min ${seconds} s` : `${minutes} min`;
 }
 
-function fallbackCategory(slug: string, name: string): Category {
-  return {
-    id: `category-${slug || "unknown"}`,
-    slug: slug || "plats",
-    name: name || "Carte",
-    description: "",
-    order: 99
-  };
-}
-
 function fallbackDish(row: AnyRow, rank: number): Dish {
   const slug = getString(row, ["dish_slug", "dishSlug", "slug"], `plat-${rank}`);
   const name = getString(row, ["dish_name", "dishName", "name"], "Plat consulté");
@@ -78,25 +66,103 @@ function fallbackDish(row: AnyRow, rank: number): Dish {
   );
 
   return {
-    id: `dish-${slug}`,
+    id: getString(row, ["id", "dish_id", "dishId"], `dish-${slug}`),
     slug,
     name,
     categorySlug,
-    shortDescription: "",
-    description: "",
-    price: 0,
-    image: null,
+    shortDescription: getString(row, ["short_description", "shortDescription"], ""),
+    description: getString(row, ["description"], ""),
+    price: getNumber(row, ["price_cents", "priceCents"], 0) / 100,
+    image: getString(row, ["image_url", "imageUrl"], "") || null,
     ingredients: [],
     allergens: [],
     options: [],
     sides: [],
     chefRecommendation: "",
-    isSignature: false,
-    isRecommended: false,
-    isAvailable: true,
+    isSignature: getBoolean(row, ["is_signature", "isSignature"], false),
+    isRecommended: getBoolean(row, ["is_recommended", "isRecommended"], false),
+    isAvailable: getBoolean(row, ["is_available", "isAvailable"], true),
     preparationTime: "",
     model3dUrl: "",
     usdzUrl: ""
+  };
+}
+
+function findMenuDishRow(row: AnyRow, menuDishRows: AnyRow[]): AnyRow | undefined {
+  const dishId = getString(row, ["dish_id", "dishId", "id"], "");
+  const dishSlug = getString(row, ["dish_slug", "dishSlug", "slug"], "");
+  return menuDishRows.find((candidate) => {
+    const candidateId = getString(candidate, ["id", "dish_id", "dishId"], "");
+    const candidateSlug = getString(candidate, ["slug", "dish_slug", "dishSlug"], "");
+    return Boolean(
+      (dishId && candidateId === dishId) ||
+        (dishSlug && candidateSlug === dishSlug)
+    );
+  });
+}
+
+function resolveRealMenuItem(
+  row: AnyRow,
+  rank: number,
+  menuDishRows: AnyRow[],
+  menuCategoryRows: AnyRow[]
+): { dish: Dish; category: Category } {
+  const menuDish = findMenuDishRow(row, menuDishRows);
+  const mergedDish = menuDish
+    ? {
+        ...row,
+        ...menuDish,
+        dish_id: getString(menuDish, ["id", "dish_id"], ""),
+        dish_slug: getString(menuDish, ["slug", "dish_slug"], ""),
+        dish_name: getString(menuDish, ["name", "dish_name"], "Plat consulté")
+      }
+    : row;
+  const dish = fallbackDish(mergedDish, rank);
+  const categoryId = getString(mergedDish, ["category_id", "categoryId"], "");
+  const categorySlug = getString(
+    mergedDish,
+    ["category_slug", "categorySlug"],
+    dish.categorySlug
+  );
+  const menuCategory = menuCategoryRows.find((candidate) => {
+    const candidateId = getString(candidate, ["id", "category_id"], "");
+    const candidateSlug = getString(candidate, ["slug", "category_slug"], "");
+    return Boolean(
+      (categoryId && candidateId === categoryId) ||
+        (categorySlug && candidateSlug === categorySlug)
+    );
+  });
+  const resolvedCategorySlug = getString(
+    menuCategory ?? mergedDish,
+    ["slug", "category_slug", "categorySlug"],
+    categorySlug
+  );
+
+  return {
+    dish: { ...dish, categorySlug: resolvedCategorySlug || dish.categorySlug },
+    category: {
+      id: getString(
+        menuCategory ?? mergedDish,
+        ["id", "category_id"],
+        `category-${resolvedCategorySlug || rank}`
+      ),
+      slug: resolvedCategorySlug || "carte",
+      name: getString(
+        menuCategory ?? mergedDish,
+        ["name", "category_name", "categoryName"],
+        "Carte"
+      ),
+      description: getString(
+        menuCategory ?? mergedDish,
+        ["description", "category_description"],
+        ""
+      ),
+      order: getNumber(
+        menuCategory ?? mergedDish,
+        ["display_order", "sort_order", "order"],
+        99
+      )
+    }
   };
 }
 
@@ -242,7 +308,10 @@ function buildSearchRowsFromEvents(eventRows: AnyRow[]): AnyRow[] {
   }));
 }
 
-function buildCategoryRowsFromEvents(eventRows: AnyRow[]): AnyRow[] {
+function buildCategoryRowsFromEvents(
+  eventRows: AnyRow[],
+  menuCategoryRows: AnyRow[]
+): AnyRow[] {
   const bySlug = new Map<string, number>();
 
   for (const row of eventRows) {
@@ -254,10 +323,14 @@ function buildCategoryRowsFromEvents(eventRows: AnyRow[]): AnyRow[] {
   }
 
   return [...bySlug.entries()].map(([slug, count]) => {
-    const category = getCategoryBySlug(slug);
+    const category = menuCategoryRows.find(
+      (candidate) => getString(candidate, ["slug", "category_slug"], "") === slug
+    );
     return {
       category_slug: slug,
-      category_name: category?.name ?? "Carte",
+      category_name: category
+        ? getString(category, ["name", "category_name"], "Carte")
+        : "Carte",
       views: count
     };
   });
@@ -301,14 +374,21 @@ function countRelatedSearches(
 
 function buildTopDishes(
   rows: AnyRow[],
-  searches: DemoAdminInsights["searchInsights"]
+  searches: DemoAdminInsights["searchInsights"],
+  menuDishRows: AnyRow[],
+  menuCategoryRows: AnyRow[]
 ): TopDishInsight[] {
   const sorted = [...rows]
     .sort((a, b) => getDishViews(b) - getDishViews(a))
     .slice(0, 6);
   const rawScores = sorted.map((row, index) => {
     const slug = getString(row, ["dish_slug", "dishSlug", "slug"], `plat-${index + 1}`);
-    const dish = (slug ? getDishBySlug(slug) : undefined) ?? fallbackDish(row, index + 1);
+    const { dish } = resolveRealMenuItem(
+      row,
+      index + 1,
+      menuDishRows,
+      menuCategoryRows
+    );
     const views = getDishViews(row);
     const immersiveInteractions = getImmersiveCount(row);
     const relatedSearchCount = countRelatedSearches(dish.name, slug, searches);
@@ -333,13 +413,12 @@ function buildTopDishes(
 
   return sorted.map((row, index) => {
     const slug = getString(row, ["dish_slug", "dishSlug", "slug"], "");
-    const dish = (slug ? getDishBySlug(slug) : undefined) ?? fallbackDish(row, index + 1);
-    const category =
-      getCategoryBySlug(dish.categorySlug) ??
-      fallbackCategory(
-        dish.categorySlug,
-        getString(row, ["category_name", "categoryName"], "Carte")
-      );
+    const { dish, category } = resolveRealMenuItem(
+      row,
+      index + 1,
+      menuDishRows,
+      menuCategoryRows
+    );
     const views = getDishViews(row);
     const immersiveInteractions = getImmersiveCount(row);
     const averageSeconds = getNumber(row, [
@@ -453,6 +532,9 @@ function hasCompleteAdminInsights(insights: DemoAdminInsights): boolean {
 }
 
 function buildRealInsights(args: {
+  restaurantName: string;
+  menuDishRows: AnyRow[];
+  menuCategoryRows: AnyRow[];
   dailyRows: AnyRow[];
   dishRows: AnyRow[];
   searchRows: AnyRow[];
@@ -473,13 +555,18 @@ function buildRealInsights(args: {
   const searches = buildSearchInsights(effectiveSearchRows);
   const effectiveDishRows =
     dishWindow.rows.length > 0 ? dishWindow.rows : buildDishRowsFromEvents(eventRows);
-  const topDishes = buildTopDishes(effectiveDishRows, searches);
+  const topDishes = buildTopDishes(
+    effectiveDishRows,
+    searches,
+    args.menuDishRows,
+    args.menuCategoryRows
+  );
   if (topDishes.length === 0) return null;
 
   const effectiveCategoryRows =
     categoryWindow.rows.length > 0
       ? categoryWindow.rows
-      : buildCategoryRowsFromEvents(eventRows);
+      : buildCategoryRowsFromEvents(eventRows, args.menuCategoryRows);
   const isCurrentDay =
     dailyWindow.isCurrentDay ||
     eventWindow.isCurrentDay ||
@@ -551,7 +638,7 @@ function buildRealInsights(args: {
   });
 
   return {
-    generatedFor: "Maison Élyse",
+    generatedFor: args.restaurantName,
     serviceLabel: isCurrentDay
       ? "Aujourd'hui · Activité réelle"
       : "Activité collectée · Données réelles",
@@ -640,12 +727,9 @@ function buildRealInsights(args: {
       }
     ],
     engagementFunnel,
-    serviceActivity:
-      eventRows.length > 0
-        ? buildServiceActivity(eventRows)
-        : getDemoAdminInsights().serviceActivity.map((item) => ({ ...item, count: 0, share: 0 })),
+    serviceActivity: buildServiceActivity(eventRows),
     recommendations: buildRuleBasedAdminRecommendations({
-      generatedFor: "Maison Élyse",
+      generatedFor: args.restaurantName,
       serviceLabel: isCurrentDay
         ? "Aujourd'hui · Activité réelle"
         : "Activité collectée · Données réelles",
@@ -686,40 +770,141 @@ function buildRealInsights(args: {
   };
 }
 
+function buildEmptyInsights(restaurantName: string): DemoAdminInsights {
+  return {
+    generatedFor: restaurantName,
+    serviceLabel: "Activité du menu",
+    dailySummary:
+      "Les premières tendances apparaîtront après les prochaines consultations du menu.",
+    summary: [],
+    topDishes: [],
+    searchInsights: [],
+    immersiveInsights: [],
+    engagementFunnel: [],
+    serviceActivity: [],
+    recommendations: []
+  };
+}
+
 export async function getRestaurantInsights(
-  restaurantId = DEMO_RESTAURANT_ID
+  restaurantId: string
 ): Promise<RestaurantInsightsResult> {
-  const [daily, dishes, searches, categories, events] = await Promise.all([
-    readSupabaseRows("restaurant_daily_analytics", 90),
-    readSupabaseRows("restaurant_dish_analytics", 200),
-    readSupabaseRows("restaurant_search_analytics", 100),
-    readSupabaseRows("restaurant_category_analytics", 100),
-    readSupabaseRows("analytics_events", 1_000)
+  const scopedRestaurantId = restaurantId.trim();
+  if (!scopedRestaurantId) {
+    return {
+      insights: buildEmptyInsights("Votre restaurant"),
+      source: "empty",
+      note: "Identité restaurant indisponible."
+    };
+  }
+
+  const [
+    restaurantResult,
+    menuCategoryResult,
+    menuDishResult,
+    dailyResult,
+    dishResult,
+    searchResult,
+    categoryResult,
+    eventResult
+  ] = await Promise.all([
+    readSupabaseRowsByColumn("restaurants", "id", restaurantId, 1),
+    readSupabaseRowsByColumn(
+      "menu_categories",
+      "restaurant_id",
+      restaurantId,
+      250
+    ),
+    readSupabaseRowsByColumn(
+      "menu_dishes",
+      "restaurant_id",
+      restaurantId,
+      500
+    ),
+    readSupabaseRowsByColumn(
+      "restaurant_daily_analytics",
+      "restaurant_id",
+      restaurantId,
+      90
+    ),
+    readSupabaseRowsByColumn(
+      "restaurant_dish_analytics",
+      "restaurant_id",
+      restaurantId,
+      200
+    ),
+    readSupabaseRowsByColumn(
+      "restaurant_search_analytics",
+      "restaurant_id",
+      restaurantId,
+      100
+    ),
+    readSupabaseRowsByColumn(
+      "restaurant_category_analytics",
+      "restaurant_id",
+      restaurantId,
+      100
+    ),
+    readSupabaseRowsByColumn(
+      "analytics_events",
+      "restaurant_id",
+      restaurantId,
+      1_000
+    )
   ]);
 
-  const realInsights =
-    daily.ok || dishes.ok || searches.ok || categories.ok || events.ok
-      ? buildRealInsights({
-          dailyRows: daily.ok ? filterRowsByRestaurantId(daily.rows, restaurantId) : [],
-          dishRows: dishes.ok ? filterRowsByRestaurantId(dishes.rows, restaurantId) : [],
-          searchRows: searches.ok ? filterRowsByRestaurantId(searches.rows, restaurantId) : [],
-          categoryRows: categories.ok ? filterRowsByRestaurantId(categories.rows, restaurantId) : [],
-          eventRows: events.ok ? filterRowsByRestaurantId(events.rows, restaurantId) : []
-        })
-      : null;
+  const restaurantName = restaurantResult.ok
+    ? getString(restaurantResult.rows[0] ?? {}, ["name"], "Votre restaurant")
+    : "Votre restaurant";
+  const analyticsResults = [
+    dailyResult,
+    dishResult,
+    searchResult,
+    categoryResult,
+    eventResult
+  ];
+  const hasAnalyticsRows = analyticsResults.some(
+    (result) => result.ok && result.rows.length > 0
+  );
+  const realInsights = hasAnalyticsRows
+    ? buildRealInsights({
+        restaurantName,
+        menuDishRows: menuDishResult.ok ? menuDishResult.rows : [],
+        menuCategoryRows: menuCategoryResult.ok ? menuCategoryResult.rows : [],
+        dailyRows: dailyResult.ok ? dailyResult.rows : [],
+        dishRows: dishResult.ok ? dishResult.rows : [],
+        searchRows: searchResult.ok ? searchResult.rows : [],
+        categoryRows: categoryResult.ok ? categoryResult.rows : [],
+        eventRows: eventResult.ok ? eventResult.rows : []
+      })
+    : null;
 
-  if (realInsights && hasCompleteAdminInsights(realInsights)) {
+  if (realInsights) {
+    const complete = hasCompleteAdminInsights(realInsights);
     return {
       insights: realInsights,
-      source: "supabase",
-      note: "Données collectées sur le menu Vistaire."
+      source: complete ? "real" : "partial",
+      note: complete
+        ? "Données collectées sur le menu Vistaire."
+        : "Données réelles encore insuffisantes pour afficher des tendances fiables."
+    };
+  }
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    restaurantId === DEMO_RESTAURANT_ID
+  ) {
+    return {
+      insights: getDemoAdminInsights(),
+      source: "preview",
+      note: "Prévisualisation locale; données de présentation masquées."
     };
   }
 
   return {
-    insights: getDemoAdminInsights(),
-    source: "fallback",
-    note: "Lecture de présentation pour illustrer les insights Vistaire."
+    insights: buildEmptyInsights(restaurantName),
+    source: "empty",
+    note: "Aucune activité menu disponible pour le moment."
   };
 }
 
