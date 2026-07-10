@@ -157,6 +157,51 @@ test("availability route invokes the atomic RPC with access-derived QR and resta
   assert.doesNotMatch(route, /selectAdminDashboardMenu/);
 });
 
+test("availability media type accepts JSON parameters but rejects JSON lookalikes", async () => {
+  const { handleAdminAvailabilityRequest } = await loadAvailability();
+  const dependencies = {
+    requireAccess: async () => ({ ok: false }),
+    updateAvailability: async () => ({ ok: false, status: 503 })
+  };
+  for (const contentType of ["application/json", "application/json; charset=utf-8", "Application/JSON ; Charset=UTF-8"]) {
+    const response = await handleAdminAvailabilityRequest(
+      new Request("http://localhost/admin/api/dishes/33333333-3333-4333-8333-333333333333/availability", {
+        method: "PATCH",
+        headers: { "content-type": contentType, origin: "http://localhost" },
+        body: "{}"
+      }),
+      Promise.resolve({ dishId: "33333333-3333-4333-8333-333333333333" }),
+      dependencies
+    );
+    assert.equal(response.status, 401, contentType);
+  }
+  for (const contentType of ["application/jsonp", "application/json-evil", "text/application/json"]) {
+    const response = await handleAdminAvailabilityRequest(
+      new Request("http://localhost/admin/api/dishes/33333333-3333-4333-8333-333333333333/availability", {
+        method: "PATCH",
+        headers: { "content-type": contentType, origin: "http://localhost" },
+        body: "{}"
+      }),
+      Promise.resolve({ dishId: "33333333-3333-4333-8333-333333333333" }),
+      dependencies
+    );
+    assert.equal(response.status, 415, contentType);
+  }
+});
+
+test("post-commit revalidation failures are logged and never replace RPC success", async () => {
+  const { preserveAvailabilityResultAfterRevalidation } = await loadAvailability();
+  const logged = [];
+  const committed = { ok: true, dishId: "dish", dishSlug: "plat", available: false };
+  const result = await preserveAvailabilityResultAfterRevalidation(
+    committed,
+    async () => { throw new Error("cache unavailable"); },
+    (message) => logged.push(message)
+  );
+  assert.equal(result, committed);
+  assert.deepEqual(logged, ["Admin availability revalidation failed after commit."]);
+});
+
 test("missing availability RPC fails closed as a controlled 503 without fallback", async () => {
   const { handleAdminAvailabilityRequest } = await loadAvailability();
   const response = await handleAdminAvailabilityRequest(
@@ -193,6 +238,7 @@ test("successful availability changes revalidate admin and public menu paths", a
 
   assert.match(route, /revalidatePath\(["']\/admin["']\)/);
   assert.match(route, /revalidateOwnerMenuMutationPaths/);
+  assert.match(route, /preserveAvailabilityResultAfterRevalidation/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}`/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}\/dishes\/\$\{dishSlug\}`/);
   assert.match(control, /router\.refresh\(\)/);

@@ -82,6 +82,14 @@ export async function requireAdminRestaurantAccess(
       return { ok: false, reason: "revoked" };
     }
 
+    const capabilities: readonly AdminCapability[] =
+      qr.targetPath === "/admin"
+        ? ADMIN_CAPABILITIES
+        : ["dashboard:read"];
+    if (!capabilities.includes(capability)) {
+      return { ok: false, reason: "capability" };
+    }
+
     return {
       ok: true,
       sessionKind: "qr",
@@ -89,7 +97,7 @@ export async function requireAdminRestaurantAccess(
       qrId: payload.qrId,
       restaurantId: payload.restaurantId,
       expiresAt: payload.exp,
-      capabilities: ADMIN_CAPABILITIES
+      capabilities
     };
   } catch {
     return { ok: false, reason: "configuration" };

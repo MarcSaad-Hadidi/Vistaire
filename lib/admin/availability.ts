@@ -26,6 +26,21 @@ type AvailabilityDependencies = {
 
 const MAX_BODY_BYTES = 1_024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const REVALIDATION_FAILURE_MESSAGE =
+  "Admin availability revalidation failed after commit.";
+
+export async function preserveAvailabilityResultAfterRevalidation<T>(
+  committedResult: T,
+  revalidate: () => Promise<void> | void,
+  log: (message: string) => void = (message) => console.error(message)
+): Promise<T> {
+  try {
+    await revalidate();
+  } catch {
+    log(REVALIDATION_FAILURE_MESSAGE);
+  }
+  return committedResult;
+}
 
 function json(body: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -77,7 +92,8 @@ export async function handleAdminAvailabilityRequest(
   }
 
   const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().startsWith("application/json")) {
+  const mediaType = contentType.split(";", 1)[0]?.trim().toLowerCase();
+  if (mediaType !== "application/json") {
     return json({ ok: false, error: "Corps JSON requis." }, 415);
   }
 

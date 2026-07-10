@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
 import {
   handleAdminAvailabilityRequest,
+  preserveAvailabilityResultAfterRevalidation,
   type AvailabilityUpdateResult
 } from "@/lib/admin/availability";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
@@ -38,19 +39,21 @@ async function updateDishAvailability({
   if (!data) return { ok: false, status: 404 };
   const row = data as Record<string, unknown>;
 
-  revalidatePath("/admin");
-  await revalidateOwnerMenuMutationPaths({
-    client: admin.client,
-    restaurantId,
-    dishSlug: typeof row.dish_slug === "string" ? row.dish_slug : ""
-  });
-
-  return {
+  const result: AvailabilityUpdateResult = {
     ok: true,
     dishId: typeof row.dish_id === "string" ? row.dish_id : dishId,
     dishSlug: typeof row.dish_slug === "string" ? row.dish_slug : "",
     available: row.is_available === true
   };
+
+  return preserveAvailabilityResultAfterRevalidation(result, async () => {
+    revalidatePath("/admin");
+    await revalidateOwnerMenuMutationPaths({
+      client: admin.client,
+      restaurantId,
+      dishSlug: result.ok ? result.dishSlug : ""
+    });
+  });
 }
 
 export async function PATCH(

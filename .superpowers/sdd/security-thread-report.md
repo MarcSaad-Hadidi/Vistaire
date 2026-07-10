@@ -70,3 +70,18 @@ Status: `DONE_WITH_CONCERNS`
 - The migration was not applied anywhere, especially not production, as required.
 - Supabase documentation URLs could not be fetched by the available web tool (internal 400/safe-open errors); implementation was checked against the installed Supabase skill security guidance and repository schema/migrations.
 - Browser/DevTools QA was not run because this task owns security/availability logic and no stable test database was available for a real mutation. UI behavior is source-contract tested, typechecked, linted, and built, but not interactively verified.
+
+## Review corrections — legacy capability, post-commit revalidation, media type
+
+- Review status addressed: three Important findings corrected in strict TDD.
+- RED command: `node --test tests/admin-access-session.test.mjs tests/admin-availability.test.mjs tests/admin-availability-rpc.test.mjs`
+- RED result: 24 tests, 20 passed, 4 failed for the expected legacy write over-grant, JSON lookalike acceptance, missing post-commit isolation helper, and missing route integration.
+- Strengthened post-commit RED command: `node --test tests/admin-availability.test.mjs`; 9 tests, 7 passed, 2 failed because the result-preserving helper and route integration were absent. The final test asserts reference-equal committed success is returned after a thrown revalidation.
+- GREEN command: `node --test tests/admin-access-session.test.mjs tests/admin-access-security.test.mjs tests/admin-local-preview.test.mjs tests/admin-availability.test.mjs tests/admin-availability-rpc.test.mjs`
+- GREEN result: 35/35 passed.
+- `npm run typecheck --if-present`: passed.
+- Targeted ESLint on the six changed implementation/test files: passed with zero warnings.
+- Legacy active admin QR targets under `/owner` keep `dashboard:read` compatibility but receive only that capability; `dish:availability:write` now requires canonical `/admin`. The RPC source-contract test proves the same canonical path requirement and rejects an `/owner` pattern.
+- Post-RPC revalidation now runs through a fail-contained helper. A cache/path revalidation exception logs only `Admin availability revalidation failed after commit.` server-side and preserves the successful RPC result, so the client receives success/no-store and refreshes from server truth.
+- Content type parsing now compares the normalized media type before the first `;`: `application/json` with parameters is accepted, while `application/jsonp`, `application/json-evil`, and `text/application/json` are rejected with 415.
+- Residual limits remain unchanged: no migration application and no isolated Postgres matrix because Docker is unavailable.

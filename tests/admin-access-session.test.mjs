@@ -184,7 +184,7 @@ test("admin access wrapper preserves the server-only boundary", async () => {
   assert.doesNotMatch(core, /server-only|next\/headers|supabase/i);
 });
 
-test("admin authorization accepts exact and legacy active admin targets", async () => {
+test("admin authorization gives write capability only to canonical admin QR targets", async () => {
   const { requireAdminRestaurantAccess } = await loadAdminAccess();
   for (const targetPath of [
     "/admin",
@@ -201,21 +201,23 @@ test("admin authorization accepts exact and legacy active admin targets", async 
         status: "active"
       })
     });
-    assert.deepEqual(
-      await requireAdminRestaurantAccess("dashboard:read", dependencies),
-      {
+    const capabilities = targetPath === "/admin"
+      ? ["dashboard:read", "dish:availability:write"]
+      : ["dashboard:read"];
+    assert.deepEqual(await requireAdminRestaurantAccess("dashboard:read", dependencies), {
         ok: true,
         sessionKind: "qr",
         assurance: "live-admin-qr",
         qrId: "qr-1",
         restaurantId: "rest-1",
         expiresAt: now + 28_800,
-        capabilities: ["dashboard:read", "dish:availability:write"]
-      }
-    );
-    assert.equal(
-      (await requireAdminRestaurantAccess("dish:availability:write", dependencies)).ok,
-      true
+        capabilities
+    });
+    assert.deepEqual(
+      await requireAdminRestaurantAccess("dish:availability:write", dependencies),
+      targetPath === "/admin"
+        ? { ok: true, sessionKind: "qr", assurance: "live-admin-qr", qrId: "qr-1", restaurantId: "rest-1", expiresAt: now + 28_800, capabilities }
+        : { ok: false, reason: "capability" }
     );
   }
 });

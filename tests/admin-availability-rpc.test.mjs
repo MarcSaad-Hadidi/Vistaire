@@ -16,6 +16,8 @@ test("atomic availability RPC has narrow typed inputs and service-role-only exec
   assert.match(sql, /target_kind\s*=\s*'admin'/i);
   assert.match(sql, /status\s*=\s*'active'/i);
   assert.match(sql, /target_path/i);
+  assert.match(sql, /target_path\s*=\s*'\/admin'/i);
+  assert.doesNotMatch(sql, /target_path\s+like\s+'\/owner/i);
   assert.match(sql, /public\.menus/i);
   assert.match(sql, /public\.menu_dishes/i);
   assert.match(sql, /restaurant_id\s*=\s*p_restaurant_id/i);
