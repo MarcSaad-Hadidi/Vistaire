@@ -30,3 +30,29 @@ test("final real state carries the complete evidence contract and thresholds", a
   assert.equal(small.kind, "insufficient");
   assert.equal(small.reason, "sample-too-small");
 });
+
+test("cta-only traffic never proves menu or dish instrumentation", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const events = Array.from({ length: 25 }, (_, index) => ({ id: `${index}`, event_name: "cta_clicked", session_id: `s${index}`, created_at: `2026-07-0${(index % 2) + 1}T10:00:00.000Z` }));
+  const state = buildAdminAnalyticsState({ observationWindow: window, events });
+  assert.equal(state.kind, "insufficient");
+  assert.equal(state.reason, "instrumentation-unproven");
+});
+
+test("analytics aggregates obey independent evidence thresholds", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const events = [];
+  for (let index = 0; index < 20; index++) {
+    const session_id = `s${index}`;
+    const created_at = `2026-07-${index < 10 ? "03" : "04"}T10:00:00.000Z`;
+    events.push({ id: `m${index}`, event_name: "menu_opened", session_id, created_at });
+    events.push({ id: `d${index}`, event_name: "dish_opened", session_id, created_at, dish_slug: index < 5 ? "a" : "b", category_slug: "plats" });
+    events.push({ id: `q${index}`, event_name: "search_used", session_id, created_at, search_query: index < 3 ? "saumon" : "" });
+  }
+  const state = buildAdminAnalyticsState({ observationWindow: window, events });
+  assert.equal(state.kind, "real");
+  assert.equal(state.activitySeries.length, 2);
+  assert.deepEqual(state.topDishes.map((item) => item.slug), ["b", "a"]);
+  assert.deepEqual(state.searches, [{ term: "saumon", count: 3 }]);
+  assert.equal(state.funnel.kind, "measured");
+});

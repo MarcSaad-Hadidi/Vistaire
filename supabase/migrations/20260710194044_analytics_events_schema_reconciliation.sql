@@ -22,6 +22,7 @@ begin
     where a.attrelid='public.analytics_events'::regclass and a.attname=r.name and not a.attisdropped;
     if actual is null or actual <> format('%s|%s|%s',r.typ,r.required,coalesce(r.def,'')) then raise exception 'incompatible column %: %',r.name,actual; end if;
   end loop;
+  if exists(select 1 from pg_constraint where conrelid='public.analytics_events'::regclass and conname not in ('analytics_events_pkey','analytics_events_restaurant_id_fkey','analytics_events_menu_id_fkey','analytics_events_dish_id_fkey','analytics_events_event_name_check','analytics_events_source_check')) then raise exception 'unexpected constraint on analytics_events'; end if;
   if (select count(*) from pg_attribute where attrelid='public.analytics_events'::regclass and attnum>0 and not attisdropped) <> 16 then raise exception 'incompatible column count'; end if;
 
   for r in select * from (values
@@ -35,6 +36,8 @@ begin
     select pg_get_constraintdef(oid) into actual from pg_constraint where conrelid='public.analytics_events'::regclass and conname=r.name;
     if actual is null then execute r.ddl; elsif actual <> r.definition then raise exception 'incompatible constraint %: %',r.name,actual; end if;
   end loop;
+  -- The primary-key backing index is an explicitly allowed system-owned index.
+  if exists(select 1 from pg_index i join pg_class x on x.oid=i.indexrelid where i.indrelid='public.analytics_events'::regclass and not exists(select 1 from pg_constraint c where c.conindid=i.indexrelid) and x.relname not in ('analytics_events_restaurant_id_idx','analytics_events_menu_id_idx','analytics_events_dish_id_idx','analytics_events_session_id_idx','analytics_events_event_name_idx','analytics_events_source_idx','analytics_events_created_at_idx','analytics_events_restaurant_created_at_idx','analytics_events_dashboard_scope_idx')) then raise exception 'unexpected index on analytics_events'; end if;
 
   for r in select * from (values
     ('analytics_events_restaurant_id_idx','CREATE INDEX analytics_events_restaurant_id_idx ON public.analytics_events USING btree (restaurant_id)','create index analytics_events_restaurant_id_idx on public.analytics_events (restaurant_id)'),
@@ -66,9 +69,12 @@ do $security$ declare actual text; begin
  select cmd||'|'||permissive||'|'||roles::text||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'') into actual from pg_policies where schemaname='public' and tablename='analytics_events' and policyname='vistaire_no_direct_public_access';
  if actual is null then create policy vistaire_no_direct_public_access on public.analytics_events as restrictive for all to anon, authenticated using (false) with check (false);
  elsif actual <> 'ALL|RESTRICTIVE|{anon,authenticated}|false|false' then raise exception 'incompatible policy vistaire_no_direct_public_access: %',actual; end if;
+ if exists(select 1 from pg_policies where schemaname='public' and tablename='analytics_events' and policyname<>'vistaire_no_direct_public_access') then raise exception 'unexpected policy on analytics_events'; end if;
  if exists(select 1 from information_schema.table_privileges where table_schema='public' and table_name='analytics_events' and grantee in ('anon','authenticated')) then raise exception 'incompatible grant browser role'; end if;
  -- pg_class.relacl/aclexplode is the authoritative catalog representation of grants.
  if exists(select 1 from pg_class c cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a join pg_roles grantee on grantee.oid=a.grantee where c.oid='public.analytics_events'::regclass and grantee.rolname in ('anon','authenticated')) then raise exception 'incompatible grant browser role catalog'; end if;
  if (select array_agg(privilege_type order by privilege_type)::text from information_schema.table_privileges where table_schema='public' and table_name='analytics_events' and grantee='service_role') <> '{INSERT,SELECT}' then raise exception 'incompatible grant service_role'; end if;
+ if exists(select 1 from pg_class c cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a join pg_roles grantee on grantee.oid=a.grantee where c.oid='public.analytics_events'::regclass and grantee.rolname not in ('postgres','service_role')) then raise exception 'unexpected grant on analytics_events'; end if;
+ if exists(select 1 from pg_default_acl d cross join lateral aclexplode(d.defaclacl) a join pg_roles grantee on grantee.oid=a.grantee where d.defaclnamespace='public'::regnamespace and d.defaclobjtype='r' and grantee.rolname in ('anon','authenticated','service_role')) then raise exception 'unexpected default privilege for analytics_events roles'; end if;
 end $security$;
 commit;

@@ -11,6 +11,7 @@ test("dashboard loader exposes the approved nested range contract without demo a
   assert.match(source, /publicMenuPath:\s*string/);
   assert.match(source, /menu:\s*\{/);
   assert.doesNotMatch(source, /DemoAdminInsights|getRestaurantInsights/);
+  assert.doesNotMatch(source, /AdminAnalyticsState<any>|menuPath:\s*string/);
 });
 
 test("dashboard reads explicit fields and scopes selected menu in the database", async () => {
@@ -21,4 +22,10 @@ test("dashboard reads explicit fields and scopes selected menu in the database",
   assert.match(reader, /for \(const \[column, value\] of Object\.entries\(filters\)\)/);
   assert.match(reader, /query = query\.eq\(column, value\)/);
   assert.ok(scoped.indexOf("query = query.eq(column, value)") < scoped.indexOf(".limit(limit)"));
+});
+
+test("range parser remains exported for UI-owned page wiring", async () => {
+  const range = await readFile("lib/admin/dashboardRange.ts", "utf8");
+  assert.match(range, /export function parseAdminDashboardRange/);
+  assert.match(range, /value === "today-utc" \|\| value === "7d" \|\| value === "30d"/);
 });
