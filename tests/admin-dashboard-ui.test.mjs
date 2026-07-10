@@ -36,9 +36,9 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
 
 test("page strictly allowlists server ranges and discloses UTC timezone", async () => {
   const [page, dashboard] = await Promise.all([read("app/admin/page.tsx"), read("components/admin/AdminRestaurantDashboard.tsx")]);
-  assert.match(page, /today-utc[\s\S]*7d[\s\S]*30d/);
-  assert.match(page, /searchParams/);
-  assert.match(page, /loadAdminDashboardData/);
+  assert.match(page, /parseAdminDashboardRange\(\(await searchParams\)\?\.range\)/);
+  assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
+  assert.doesNotMatch(page, /\(await searchParams\)\?\.(?:restaurantId|restaurant)|as\s+RangeLoader/);
   assert.match(dashboard, /Aujourd.hui[^\n]*UTC|Fen.tre glissante[^\n]*UTC/);
   assert.match(dashboard, /fuseau horaire[^\n]*pas configur/i);
 });

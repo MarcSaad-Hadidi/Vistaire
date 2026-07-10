@@ -130,7 +130,8 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
   assert.match(page, /requireAdminRestaurantAccess\("dashboard:read"\)/);
   assert.match(page, /Accès dashboard restaurant requis/);
   assert.match(page, /Scannez le QR admin interne de votre restaurant\./);
-  assert.doesNotMatch(page, /getDemoRestaurantId|searchParams/);
+  assert.doesNotMatch(page, /getDemoRestaurantId|\(await searchParams\)\?\.(?:restaurantId|restaurant)/);
+  assert.match(page, /parseAdminDashboardRange\(\(await searchParams\)\?\.range\)/);
   assert.doesNotMatch(page, /href=["']\/owner\//);
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /noarchive:\s*true/);
@@ -188,15 +189,12 @@ test("admin page loads only the authorized restaurant and renders the dashboard 
   );
 
   assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
-  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(page, /if\s*\(!result\.ok\)/);
-  assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s*\/>/);
+  assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s+range=\{range\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
-  assert.match(dashboard, /analytics\.kind === "real" \|\| data\.analytics\.kind === "partial"/);
-  assert.match(dashboard, /Données réelles — échantillon encore limité/);
-  const evidenceBranch = dashboard.split(/AdminAnalyticsEvidenceState/)[1] ?? "";
-  assert.doesNotMatch(
-    evidenceBranch,
-    /AdminServiceActivity|AdminTopDishes|AdminSearchInsights|AdminEngagementFunnel/
-  );
+  assert.match(dashboard, /data\.menu/);
+  assert.match(dashboard, /data\.restaurant\.publicMenuPath/);
+  assert.match(dashboard, /state=\{data\.analytics\}/);
+  assert.doesNotMatch(dashboard, /adaptDashboardData|ViewData|data\.dishes|data\.readiness|data\.restaurant\.menuPath|case\s*["'](?:partial|empty|preview)/);
 });

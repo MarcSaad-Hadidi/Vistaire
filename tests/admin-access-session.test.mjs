@@ -164,12 +164,13 @@ test("admin authorization derives restaurant scope from the cookie only", async 
   assert.match(adminPage, /requireAdminRestaurantAccess\("dashboard:read"\)/);
   assert.match(adminPage, /Accès dashboard restaurant requis/);
   assert.match(adminPage, /Scannez le QR admin interne de votre restaurant\./);
-  assert.match(adminPage, /loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.match(adminPage, /loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.ok(
     adminPage.indexOf('requireAdminRestaurantAccess("dashboard:read")') <
-      adminPage.indexOf("loadAdminDashboardData(access.restaurantId)")
+      adminPage.indexOf("loadAdminDashboardData(access.restaurantId, range)")
   );
-  assert.doesNotMatch(adminPage, /searchParams/);
+  assert.match(adminPage, /parseAdminDashboardRange\(\(await searchParams\)\?\.range\)/);
+  assert.doesNotMatch(adminPage, /\(await searchParams\)\?\.(?:restaurantId|restaurant)|\(await searchParams\)\?\[['"]restaurantId['"]\]/);
   assert.doesNotMatch(adminPage, /getDemoRestaurantId/);
 });
 
