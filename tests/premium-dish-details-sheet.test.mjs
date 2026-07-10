@@ -6,6 +6,7 @@ const menuPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const detailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const sheetPath = "components/menu/PremiumDishDetailsSheet.tsx";
 const tagsPath = "components/menu/PremiumDishTags.tsx";
+const menuCssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
 
 test("menu cards show only the 3D badge and no option tags or details trigger", async () => {
   const source = await readFile(menuPath, "utf8");
@@ -57,4 +58,19 @@ test("review popup remains separate from premium details sheet", async () => {
   assert.match(menuSource, /dishSubSheet === "review"/);
   assert.match(menuSource, /PremiumDishDetailsSheet/);
   assert.match(menuSource, /dishSubSheet === "details"/);
+});
+
+test("review stars keep selected state visible in light and dark themes", async () => {
+  const css = await readFile(menuCssPath, "utf8");
+
+  assert.match(css, /\.reviewStars button\[aria-pressed="true"\]/);
+  assert.match(css, /--review-star-active:\s*#c98f16/);
+  assert.match(css, /--review-star-inactive:\s*rgba\(255,\s*255,\s*255,\s*0\.24\)/);
+  assert.match(css, /--review-star-active-shadow:\s*rgba\(201,\s*143,\s*22,\s*0\.38\)/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\] \.reviewStars button\[aria-pressed="true"\]/
+  );
+  assert.match(css, /--review-star-active:\s*#9f6900/);
+  assert.match(css, /--review-star-inactive:\s*rgba\(35,\s*26,\s*13,\s*0\.26\)/);
 });

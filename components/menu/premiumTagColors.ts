@@ -63,58 +63,27 @@ function buildGoldenPalette(count: number): PremiumTagAccent[] {
 }
 
 const GROUP_PALETTE = buildGoldenPalette(24);
-
-function hashTagLabel(label: string): number {
-  const normalized = label
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    hash = (hash * 31 + normalized.charCodeAt(i)) >>> 0;
-  }
-  return hash;
-}
-
-function assignGroupAccents(
-  labels: string[],
-  palette: PremiumTagAccent[] = GROUP_PALETTE
-): PremiumTagAccent[] {
-  if (labels.length === 0) return [];
-
-  const ranked = labels
-    .map((label, originalIndex) => ({
-      label,
-      originalIndex,
-      hash: hashTagLabel(label)
-    }))
-    .sort((left, right) => {
-      if (left.hash !== right.hash) return left.hash - right.hash;
-      return left.originalIndex - right.originalIndex;
-    });
-
-  const accents = new Array<PremiumTagAccent>(labels.length);
-  ranked.forEach((entry, rank) => {
-    accents[entry.originalIndex] = palette[rank % palette.length];
-  });
-
-  return accents;
-}
+const SECTION_ACCENTS: Record<PremiumDishTagKind, PremiumTagAccent> = {
+  ingredient: accent("#9eae70", "#dce7b4"),
+  allergen: accent("#bd4a4f", "#ffc2bd"),
+  option: accent("#c79a2f", "#ffe08a")
+};
 
 export function assignPremiumTagAccents(
   labels: string[],
   kind: PremiumDishTagKind
 ): PremiumTagAccent[] {
-  void kind;
   const visibleLabels = labels.map((label) => label.trim()).filter(Boolean);
-  return assignGroupAccents(visibleLabels);
+  return visibleLabels.map(() => SECTION_ACCENTS[kind]);
 }
 
 export function assignPremiumTagAccentsGlobally(
-  groupLabels: string[][]
+  groupLabels: string[][],
+  kinds: PremiumDishTagKind[] = ["ingredient", "allergen", "option"]
 ): PremiumTagAccent[][] {
-  return groupLabels.map((labels) => assignPremiumTagAccents(labels, "option"));
+  return groupLabels.map((labels, index) =>
+    assignPremiumTagAccents(labels, kinds[index] ?? "option")
+  );
 }
 
 export function getPremiumTagAccent(
@@ -122,9 +91,9 @@ export function getPremiumTagAccent(
   kind: PremiumDishTagKind,
   index = 0
 ): PremiumTagAccent {
-  void kind;
+  const normalized = label.trim();
   void index;
-  return assignPremiumTagAccents([label], "option")[0] ?? GROUP_PALETTE[0];
+  return normalized ? SECTION_ACCENTS[kind] : GROUP_PALETTE[0];
 }
 
 export function countUniqueAccents(accents: PremiumTagAccent[]): number {

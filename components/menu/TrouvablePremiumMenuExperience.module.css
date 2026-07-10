@@ -3152,6 +3152,9 @@
 }
 
 .reviewStars {
+  --review-star-active: #c98f16;
+  --review-star-active-shadow: rgba(201, 143, 22, 0.38);
+  --review-star-inactive: rgba(255, 255, 255, 0.24);
   display: flex;
   justify-content: center;
   gap: 18px;
@@ -3160,7 +3163,7 @@
 .reviewStars button {
   border: 0;
   background: transparent;
-  color: rgba(255, 255, 255, 0.18);
+  color: var(--review-star-inactive);
   cursor: pointer;
   font-size: 48px;
   line-height: 1;
@@ -3177,9 +3180,14 @@
   transform: scale(0.94);
 }
 
+.reviewStars button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--review-star-active) 70%, transparent);
+  outline-offset: 4px;
+}
+
 .reviewStars button[aria-pressed="true"] {
-  color: #e4c842;
-  filter: drop-shadow(0 0 12px rgba(228, 200, 66, 0.28));
+  color: var(--review-star-active);
+  filter: drop-shadow(0 0 13px var(--review-star-active-shadow));
 }
 
 .reviewTextarea {
@@ -3750,7 +3758,15 @@
 }
 
 .page[data-user-theme="light"] .reviewStars button {
-  color: rgba(35, 26, 13, 0.22);
+  --review-star-active: #9f6900;
+  --review-star-active-shadow: rgba(159, 105, 0, 0.34);
+  --review-star-inactive: rgba(35, 26, 13, 0.26);
+  color: var(--review-star-inactive);
+}
+
+.page[data-user-theme="light"] .reviewStars button[aria-pressed="true"] {
+  color: var(--review-star-active);
+  filter: drop-shadow(0 1px 4px var(--review-star-active-shadow));
 }
 
 .page[data-user-theme="light"] .reviewTextarea textarea::placeholder {
