@@ -196,8 +196,11 @@ export function createLocalAdminPreviewAccess(input: {
   if (expiresAt === null) return null;
   return {
     ok: true,
-    qrId: "local-preview",
+    sessionKind: "local-preview",
+    assurance: "signed-loopback-preview",
+    qrId: null,
     restaurantId: input.restaurantId,
-    expiresAt
+    expiresAt,
+    capabilities: ["dashboard:read"]
   };
 }

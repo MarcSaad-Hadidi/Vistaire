@@ -205,10 +205,17 @@ test("admin authorization accepts exact and legacy active admin targets", async 
       await requireAdminRestaurantAccess("dashboard:read", dependencies),
       {
         ok: true,
+        sessionKind: "qr",
+        assurance: "live-admin-qr",
         qrId: "qr-1",
         restaurantId: "rest-1",
-        expiresAt: now + 28_800
+        expiresAt: now + 28_800,
+        capabilities: ["dashboard:read", "dish:availability:write"]
       }
+    );
+    assert.equal(
+      (await requireAdminRestaurantAccess("dish:availability:write", dependencies)).ok,
+      true
     );
   }
 });
