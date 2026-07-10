@@ -1,0 +1,69 @@
+name: Admin restaurant E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-restaurant-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  admin-restaurant-e2e:
+    name: Admin restaurant E2E (manual controlled preview)
+    runs-on: ubuntu-latest
+    environment: admin-e2e
+
+    steps:
+      - name: Require the trusted default branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::This secret-bearing workflow must be dispatched from the trusted main branch."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Validate controlled preview fixture contract
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
+          VISTAIRE_ADMIN_E2E_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_ADMIN_E2E_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
+        run: node scripts/admin-e2e-fixture-contract.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run required live admin dashboard checks
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_SKIP_WEB_SERVER: "1"
+          PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_REQUIRE_ADMIN_E2E: "1"
+          VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
+          VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
+        run: npx playwright test e2e/admin-restaurant-dashboard.spec.ts
