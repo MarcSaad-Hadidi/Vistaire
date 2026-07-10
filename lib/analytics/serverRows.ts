@@ -104,8 +104,9 @@ export async function readAnalyticsEventsForPeriod<T extends AnyRow>(args: {
   for (let offset = 0; offset < maxRows; offset += pageSize) {
     let query = admin.client
       .from("analytics_events")
-      .select("*")
+      .select("id,restaurant_id,menu_id,dish_id,session_id,event_name,source,dish_slug,category_slug,search_query,filter_name,cta_name,created_at")
       .eq("restaurant_id", restaurantId)
+      .eq("source", "production")
       .gte("created_at", fromIso)
       .lt("created_at", toIso)
       .order("created_at", { ascending: true })
