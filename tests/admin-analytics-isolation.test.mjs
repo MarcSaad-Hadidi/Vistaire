@@ -24,20 +24,21 @@ test("restaurant insights scope every table in the database and use real menu id
     ["restaurants", "id"],
     ["menu_categories", "restaurant_id"],
     ["menu_dishes", "restaurant_id"],
-    ["restaurant_daily_analytics", "restaurant_id"],
     ["restaurant_dish_analytics", "restaurant_id"],
     ["restaurant_search_analytics", "restaurant_id"],
-    ["restaurant_category_analytics", "restaurant_id"],
-    ["analytics_events", "restaurant_id"]
+    ["restaurant_category_analytics", "restaurant_id"]
   ]) {
     assert.match(
       source,
       new RegExp(
-        `readSupabaseRowsByColumn\\(\\s*["']${table}["'],\\s*["']${column}["'],\\s*restaurantId`
+        `readSupabaseRowsByColumn\\(\\s*["']${table}["'],\\s*["']${column}["'],\\s*(?:restaurantId|scopedRestaurantId)`
       ),
       `${table} must be scoped with ${column} before its limit`
     );
   }
+
+  assert.match(source, /readRestaurantDailyAnalyticsForPeriod\(\{\s*restaurantId:/);
+  assert.match(source, /readAnalyticsEventsForPeriod\(\{\s*restaurantId:/);
 
   assert.doesNotMatch(source, /filterRowsByRestaurantId/);
   assert.match(source, /generatedFor:\s*restaurantName/);
@@ -52,7 +53,7 @@ test("production analytics never substitute Maison Elyse preview data", async ()
 
   assert.match(
     fallbackSection,
-    /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*restaurantId\s*===\s*DEMO_RESTAURANT_ID[\s\S]*getDemoAdminInsights\(\)/
+    /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*(?:restaurantId|scopedRestaurantId)\s*===\s*DEMO_RESTAURANT_ID[\s\S]*getDemoAdminInsights\(\)/
   );
   assert.match(fallbackSection, /source:\s*["']empty["']/);
   assert.doesNotMatch(
@@ -67,7 +68,7 @@ test("admin dashboard loader receives one trusted restaurant id for every data r
 
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId\)/);
   assert.doesNotMatch(page, /searchParams|restaurantId\s*=/);
-  assert.match(loader, /getRestaurantInsights\(restaurantId\)/);
+  assert.match(loader, /getRestaurantInsights\(restaurantId,\s*selectedMenu\?\.id\)/);
   assert.match(
     loader,
     /readSupabaseRowsByColumn\(\s*["']restaurants["'],\s*["']id["'],\s*restaurantId/

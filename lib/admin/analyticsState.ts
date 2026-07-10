@@ -1,16 +1,15 @@
 export type AdminAnalyticsSource = "real" | "partial" | "empty" | "preview";
 
 export type AdminAnalyticsState<TInsights> =
+  | { kind: "real"; note: string; insights: TInsights }
   | {
-      kind: "real";
+      kind: "partial";
+      title: string;
+      message: string;
       note: string;
       insights: TInsights;
     }
-  | {
-      kind: "partial" | "empty" | "preview";
-      title: string;
-      message: string;
-    };
+  | { kind: "empty" | "preview"; title: string; message: string };
 
 export function buildAdminAnalyticsState<TInsights>(result: {
   source: AdminAnalyticsSource;
@@ -18,11 +17,7 @@ export function buildAdminAnalyticsState<TInsights>(result: {
   insights: TInsights;
 }): AdminAnalyticsState<TInsights> {
   if (result.source === "real") {
-    return {
-      kind: "real",
-      note: result.note,
-      insights: result.insights
-    };
+    return { kind: "real", note: result.note, insights: result.insights };
   }
 
   if (result.source === "partial") {
@@ -30,7 +25,9 @@ export function buildAdminAnalyticsState<TInsights>(result: {
       kind: "partial",
       title: "Données en cours de consolidation",
       message:
-        "Quelques signaux réels sont présents. Les tendances apparaîtront lorsque l’activité sera suffisante."
+        "Données réelles — échantillon encore limité. Les tendances seront plus fiables avec davantage de consultations.",
+      note: result.note,
+      insights: result.insights
     };
   }
 

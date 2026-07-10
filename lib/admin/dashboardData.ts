@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin/analyticsState";
 import {
   buildAdminMenuReadiness,
+  selectAdminDashboardMenu,
   type AdminMenuCategory,
   type AdminMenuDish,
   type AdminMenuReadiness
@@ -91,7 +92,8 @@ export async function loadAdminDashboardData(
     return { ok: false, reason: "restaurant-not-found" };
   }
 
-  const [categoryResult, dishResult, insightsResult] = await Promise.all([
+  const [menuResult, categoryResult, dishResult] = await Promise.all([
+    readSupabaseRowsByColumn("menus", "restaurant_id", restaurantId, 100),
     readSupabaseRowsByColumn(
       "menu_categories",
       "restaurant_id",
@@ -103,11 +105,20 @@ export async function loadAdminDashboardData(
       "restaurant_id",
       restaurantId,
       500
-    ),
-    getRestaurantInsights(restaurantId)
+    )
   ]);
-  const categoryRows = categoryResult.ok ? categoryResult.rows : [];
-  const dishRows = dishResult.ok ? dishResult.rows : [];
+  const selectedMenu = selectAdminDashboardMenu(menuResult.ok ? menuResult.rows : []);
+  const insightsResult = await getRestaurantInsights(restaurantId, selectedMenu?.id);
+  const categoryRows = selectedMenu
+    ? (categoryResult.ok ? categoryResult.rows : []).filter(
+        (row) => getString(row, ["menu_id"], "") === selectedMenu.id
+      )
+    : [];
+  const dishRows = selectedMenu
+    ? (dishResult.ok ? dishResult.rows : []).filter(
+        (row) => getString(row, ["menu_id"], "") === selectedMenu.id
+      )
+    : [];
   const menu = buildRelationalSupabasePublicMenu({
     slug: getString(restaurantRow, ["slug"], ""),
     restaurantRow,
