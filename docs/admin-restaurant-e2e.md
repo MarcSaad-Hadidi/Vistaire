@@ -34,8 +34,9 @@ Secrets obligatoires :
 - `VISTAIRE_ADMIN_E2E_QR_TOKEN` : QR admin actif A.
 - `VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN` : QR admin actif B.
 - `VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN` : QR admin suspendu.
+- `VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN` : QR de fixture dédiée de repli/diagnostic, jamais Trouvable.
 
-Le preflight exige trois tokens non vides, distincts et opaques ; il rejette les marqueurs `trouvable`, `demo` et `production`. Il vérifie aussi que les noms A/B sont exactement ceux des fixtures non clientes et que l’URL ne cible pas un domaine Vistaire de production.
+Le preflight exige quatre tokens non vides, distincts et opaques ; il rejette les marqueurs `trouvable`, `demo` et `production`. Il vérifie aussi que les noms A/B sont exactement ceux des fixtures non clientes et que l’URL ne cible pas un domaine Vistaire de production.
 
 ## Preuve fournie par le spec
 
