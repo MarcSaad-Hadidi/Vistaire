@@ -75,7 +75,7 @@ export function AdminDishWorklist({ dishes }: { dishes: AdminMenuDish[] }) {
         <input id="admin-dish-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 rounded-xl border border-white/15 bg-black/20 px-4 text-cream outline-none focus-visible:ring-2 focus-visible:ring-champagne" />
       </label>
 
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-2" aria-label="Filtrer les plats">
+      <div className="mt-5 flex flex-wrap gap-2 pb-2" aria-label="Filtrer les plats">
         {FILTERS.map((item) => (
           <button
             key={item.id}

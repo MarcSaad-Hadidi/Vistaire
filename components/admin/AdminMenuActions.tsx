@@ -5,15 +5,18 @@ import { useState } from "react";
 
 export function AdminMenuActions({ menuPath }: { menuPath: string }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   async function copyMenuLink() {
     const url = new URL(menuPath, window.location.origin).toString();
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      setCopyError(false);
       window.setTimeout(() => setCopied(false), 2_000);
     } catch {
       setCopied(false);
+      setCopyError(true);
     }
   }
 
@@ -41,6 +44,7 @@ export function AdminMenuActions({ menuPath }: { menuPath: string }) {
           Déconnexion
         </button>
       </form>
+      {copyError ? <p role="alert">Impossible de copier le lien. Ouvrez le menu puis copiez son adresse.</p> : null}
     </div>
   );
 }
