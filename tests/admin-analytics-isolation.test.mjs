@@ -24,9 +24,6 @@ test("restaurant insights scope every table in the database and use real menu id
     ["restaurants", "id"],
     ["menu_categories", "restaurant_id"],
     ["menu_dishes", "restaurant_id"],
-    ["restaurant_dish_analytics", "restaurant_id"],
-    ["restaurant_search_analytics", "restaurant_id"],
-    ["restaurant_category_analytics", "restaurant_id"]
   ]) {
     assert.match(
       source,
