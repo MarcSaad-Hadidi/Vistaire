@@ -1,6 +1,5 @@
 import {
   inferOwnerQrTargetKind,
-  isOwnerQrResolvedTargetPathAllowed,
   isOwnerQrTargetPathAllowed,
   sanitizeOwnerQrTargetPath,
   type OwnerQrTargetKind
@@ -29,12 +28,14 @@ export function resolveQrRowMetadata(
   expectedPath?: string
 ): QrResolution {
   const targetPath = sanitizeOwnerQrTargetPath(row.targetPath);
-  if (!row.qrId || row.status !== "active" || !targetPath) return { ok: false };
+  if (!row.qrId.trim() || row.status !== "active" || !targetPath) {
+    return { ok: false };
+  }
   if (expectedPath && targetPath !== expectedPath) return { ok: false };
 
   const targetKind = row.targetKind ?? inferOwnerQrTargetKind(targetPath);
-  if (targetKind === "admin" && !row.restaurantId) return { ok: false };
-  if (!isOwnerQrResolvedTargetPathAllowed(targetKind, targetPath)) {
+  if (targetKind === "admin" && !row.restaurantId.trim()) return { ok: false };
+  if (!isOwnerQrTargetPathAllowed(targetKind, targetPath)) {
     return { ok: false };
   }
   return {
@@ -42,6 +43,32 @@ export function resolveQrRowMetadata(
     qrId: row.qrId,
     restaurantId: row.restaurantId,
     targetKind,
+    targetPath
+  };
+}
+
+export function resolveLegacyMenuQrScan(
+  row: Omit<QrRowMetadata, "targetKind">,
+  expectedPath: string
+): QrResolution {
+  const targetPath = sanitizeOwnerQrTargetPath(row.targetPath);
+  const normalizedExpectedPath = sanitizeOwnerQrTargetPath(expectedPath);
+  if (
+    !row.qrId.trim() ||
+    row.status !== "active" ||
+    !targetPath ||
+    !normalizedExpectedPath ||
+    targetPath !== normalizedExpectedPath ||
+    !isOwnerQrTargetPathAllowed("menu", targetPath)
+  ) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    qrId: row.qrId,
+    restaurantId: row.restaurantId,
+    targetKind: "menu",
     targetPath
   };
 }

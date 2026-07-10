@@ -125,8 +125,13 @@ table and `pg_catalog.now()`, revokes execution from `public`, `anon`, and
 retains its original `search_path = public` declaration.
 
 The application fallback to the older `resolve_qr_code_scan` RPC remains
-menu-only. Its runtime compatibility handling is intentionally deferred to lot
-2; this schema-only migration does not change that fallback.
+menu-only. It is attempted only when the metadata RPC is unavailable (Postgres
+`42883`, PostgREST `PGRST202`, or an equivalent function/schema-cache miss).
+Other metadata RPC errors fail closed. The legacy result must match an active
+row id and its stored path, and that path must be exactly `/demo` or start with
+`/menu/`. Legacy `/admin`, `/admin/*`, `/owner`, and `/owner/*` paths never
+resolve through this compatibility branch. The fallback select intentionally
+does not request `target_kind`, so it remains compatible with the older schema.
 
 ## Environment
 
@@ -151,3 +156,16 @@ signed token (HMAC-signed, dev/build only):
 
 If Supabase is configured but the `qr_codes` insert fails, the API returns an
 error instead of claiming production persistence.
+
+## Supabase incident references
+
+QR create and update failures caused by Supabase return a stable error code and
+a non-predictable incident reference in the user-facing message. Configuration
+absence can enable the signed fallback only for a valid menu QR; admin QR
+creation always requires a non-empty restaurant id and persistent storage.
+
+Server logs record the same incident id with a stable QR operation/code and
+either the Supabase `code`, `message`, `details`, and `hint` fields or a
+configuration reason. Raw QR tokens and `token_hash` values are never included
+in these incident objects; token-shaped values in Supabase text are redacted.
+Normal lookup misses are not logged as incidents.
