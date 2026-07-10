@@ -43,6 +43,50 @@ begin
 end;
 $$;
 
+-- Reject unknown kinds and mismatched kind/path pairs before any data update.
+do $$
+begin
+  if exists (
+    select 1
+    from public.qr_codes
+    where (target_kind is not null and target_kind not in ('menu', 'admin'))
+      or (
+        target_kind = 'menu'
+        and not (
+          target_path = '/demo'
+          or target_path like '/menu/%'
+        )
+      )
+      or (
+        target_kind = 'admin'
+        and not (
+          target_path = '/admin'
+          or target_path like '/admin/%'
+          or target_path like '/admin?%'
+          or target_path = '/owner'
+          or target_path like '/owner/%'
+          or target_path like '/owner?%'
+        )
+      )
+      or (
+        target_kind is null
+        and not (
+          target_path = '/demo'
+          or target_path like '/menu/%'
+          or target_path = '/admin'
+          or target_path like '/admin/%'
+          or target_path like '/admin?%'
+          or target_path = '/owner'
+          or target_path like '/owner/%'
+          or target_path like '/owner?%'
+        )
+      )
+  ) then
+    raise exception 'Cannot harden QR schema: unknown or incoherent target_kind/target_path values';
+  end if;
+end;
+$$;
+
 -- Backfills must not make historical QR rows look freshly updated. The trigger
 -- is restored before commit; a failed transaction restores it automatically.
 do $$
@@ -63,12 +107,18 @@ update public.qr_codes
 set
   target_kind = 'admin',
   target_path = '/admin'
-where target_path = '/admin'
-  or target_path like '/admin/%'
-  or target_path like '/admin?%'
-  or target_path = '/owner'
-  or target_path like '/owner/%'
-  or target_path like '/owner?%';
+where target_kind = 'admin'
+  or (
+    target_kind is null
+    and (
+      target_path = '/admin'
+      or target_path like '/admin/%'
+      or target_path like '/admin?%'
+      or target_path = '/owner'
+      or target_path like '/owner/%'
+      or target_path like '/owner?%'
+    )
+  );
 
 update public.qr_codes
 set target_kind = 'menu'
@@ -92,27 +142,8 @@ begin
 end;
 $$;
 
--- Refuse unknown kinds and mismatched kind/path pairs instead of guessing.
-do $$
-begin
-  if exists (
-    select 1
-    from public.qr_codes
-    where target_kind is null
-      or target_kind not in ('menu', 'admin')
-      or (target_kind = 'admin' and target_path <> '/admin')
-      or (
-        target_kind = 'menu'
-        and not (
-          target_path = '/demo'
-          or target_path like '/menu/%'
-        )
-      )
-  ) then
-    raise exception 'Cannot harden QR schema: unknown or incoherent target_kind/target_path values';
-  end if;
-end;
-$$;
+alter table public.qr_codes
+  drop constraint if exists qr_codes_target_kind_check;
 
 alter table public.qr_codes
   drop constraint if exists qr_codes_target_kind_values_check;

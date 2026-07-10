@@ -74,11 +74,17 @@ change. The commands above remain manual operator steps.
 ## Target hardening and legacy rows
 
 `20260709180000_admin_qr_access.sql` makes `target_kind` required and
-limits it to `menu` or `admin`. Existing `/admin`, `/admin/*`, `/admin?*`,
-`/owner`, `/owner/*`, and `/owner?*` destinations are classified as `admin` and
-canonicalized to `target_path = '/admin'`. A missing kind is backfilled as
-`menu` only for known menu paths: exactly `/demo` or `/menu/*`. Unknown or
-kind/path-incoherent rows raise an exception instead of being guessed as menu.
+limits it to `menu` or `admin`. Rows already classified as `admin`, plus rows
+with no kind whose destination is `/admin`, `/admin/*`, `/admin?*`, `/owner`,
+`/owner/*`, or `/owner?*`, are canonicalized to `target_path = '/admin'`. A
+missing kind is backfilled as `menu` only for known menu paths: exactly `/demo`
+or `/menu/*`.
+
+Before the first update, the migration rejects non-null kinds outside
+`menu`/`admin`, explicit menu rows with non-menu paths, explicit admin rows with
+paths outside the historical admin family, and kind-less rows with unknown
+paths (including `/demo?...`). It never promotes an explicitly `menu` or unknown
+row to `admin`.
 
 Every admin QR must include `restaurant_id`. Before any backfill, the migration
 checks both stored `target_kind = 'admin'` values and every legacy admin path.
@@ -93,7 +99,8 @@ restaurant foreign-key constraints are replaced with their canonical
 definitions and fully validated. Admin paths must be exactly `/admin`; menu
 paths must be exactly `/demo` or `/menu/*`. The FK uses `ON DELETE CASCADE`,
 matching the restaurant hard-delete workflow and also protecting direct
-database deletes.
+database deletes. The obsolete nullable `qr_codes_target_kind_check`
+constraint is removed before the canonical required-kind constraint is added.
 
 The backfill preserves every existing row along with `token_hash`,
 `token_preview`, `style_json`, `status`, scan counters, scan timestamps, and

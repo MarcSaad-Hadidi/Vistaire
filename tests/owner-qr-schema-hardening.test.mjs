@@ -67,7 +67,7 @@ test("QR hardening fails before backfill when restaurant_id has no parent row", 
 test("QR hardening backfills kinds and canonicalizes every legacy admin route", () => {
   assert.match(
     normalizedSql,
-    /update public\.qr_codes set target_kind = 'admin', target_path = '\/admin' where target_path = '\/admin' or target_path like '\/admin\/%' or target_path like '\/admin\?%' or target_path = '\/owner' or target_path like '\/owner\/%' or target_path like '\/owner\?%'/
+    /update public\.qr_codes set target_kind = 'admin', target_path = '\/admin' where target_kind = 'admin' or \( target_kind is null and \( target_path = '\/admin' or target_path like '\/admin\/%' or target_path like '\/admin\?%' or target_path = '\/owner' or target_path like '\/owner\/%' or target_path like '\/owner\?%' \) \)/
   );
   assert.match(
     normalizedSql,
@@ -75,20 +75,24 @@ test("QR hardening backfills kinds and canonicalizes every legacy admin route", 
   );
 });
 
-test("QR hardening rejects unknown or kind-incoherent targets after explicit backfills", () => {
+test("QR hardening rejects unknown or kind-incoherent targets before every update", () => {
   assert.match(
     normalizedSql,
-    /target_kind is null or target_kind not in \('menu', 'admin'\) or \(target_kind = 'admin' and target_path <> '\/admin'\) or \( target_kind = 'menu' and not \( target_path = '\/demo' or target_path like '\/menu\/%' \) \)/
+    /target_kind is not null and target_kind not in \('menu', 'admin'\)[\s\S]*target_kind = 'menu' and not \( target_path = '\/demo' or target_path like '\/menu\/%' \)[\s\S]*target_kind = 'admin' and not \( target_path = '\/admin' or target_path like '\/admin\/%' or target_path like '\/admin\?%' or target_path = '\/owner' or target_path like '\/owner\/%' or target_path like '\/owner\?%' \)[\s\S]*target_kind is null and not \( target_path = '\/demo' or target_path like '\/menu\/%' or target_path = '\/admin' or target_path like '\/admin\/%' or target_path like '\/admin\?%' or target_path = '\/owner' or target_path like '\/owner\/%' or target_path like '\/owner\?%' \)/
   );
   assert.match(
     normalizedSql,
     /raise exception '[^']*target_kind[^']*target_path[^']*'/
   );
 
-  const menuBackfill = normalizedSql.indexOf("update public.qr_codes set target_kind = 'menu'");
+  assert.doesNotMatch(normalizedSql, /target_path like '\/demo\?%'/);
+
   const consistencyFailure = normalizedSql.indexOf("target_kind/target_path");
-  assert.ok(menuBackfill >= 0);
-  assert.ok(menuBackfill < consistencyFailure);
+  const disableTrigger = normalizedSql.indexOf("disable trigger qr_codes_set_updated_at");
+  const firstUpdate = normalizedSql.indexOf("update public.qr_codes");
+  assert.ok(consistencyFailure >= 0);
+  assert.ok(consistencyFailure < disableTrigger, "consistency preflight must precede trigger changes");
+  assert.ok(consistencyFailure < firstUpdate, "consistency preflight must precede every update");
 });
 
 test("QR hardening preserves historical timestamps while running its backfills", () => {
@@ -168,6 +172,15 @@ test("QR hardening replaces every canonical constraint after all preflights", ()
   const lastPreflightFailure = normalizedSql.lastIndexOf("raise exception");
   assert.ok(lastPreflightFailure >= 0);
   assert.ok(lastPreflightFailure < firstDrop, "all invariant checks must precede constraint replacement");
+
+  const legacyDrop = normalizedSql.indexOf(
+    "drop constraint if exists qr_codes_target_kind_check"
+  );
+  const canonicalKindAdd = normalizedSql.indexOf(
+    "add constraint qr_codes_target_kind_values_check"
+  );
+  assert.ok(legacyDrop >= 0, "the historical nullable target_kind constraint must be removed");
+  assert.ok(legacyDrop < canonicalKindAdd, "legacy constraint removal must precede canonical kind constraint");
 
   for (const constraintName of constraintNames) {
     const drop = normalizedSql.indexOf(`drop constraint if exists ${constraintName}`);
