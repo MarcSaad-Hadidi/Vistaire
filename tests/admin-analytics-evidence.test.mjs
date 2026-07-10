@@ -16,7 +16,17 @@ test("complete zero and small samples remain distinct and comparisons avoid divi
   const zero = buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: true, eventCount: 0 });
   assert.equal(zero.kind, "insufficient");
   assert.equal(zero.reason, "no-relevant-events");
-  const limited = buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: true, eventCount: 3, metrics: [{ id: "opens", value: 3, baseline: 0 }] });
+  const limited = buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: true, eventCount: 5, metrics: [{ id: "opens", value: 3, baseline: 0 }] });
   assert.equal(limited.completeness, "limited-sample");
   assert.equal(limited.metrics[0].changeRate, null);
+});
+
+test("final real state carries the complete evidence contract and thresholds", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const state = buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: true, eventCount: 25, metrics: [] });
+  assert.equal(state.kind, "real");
+  for (const key of ["freshness", "coverage", "metrics", "activitySeries", "categoryBreakdown", "topDishes", "searches", "immersive", "funnel", "comparison"]) assert.ok(key in state, key);
+  const small = buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: true, eventCount: 2 });
+  assert.equal(small.kind, "insufficient");
+  assert.equal(small.reason, "sample-too-small");
 });

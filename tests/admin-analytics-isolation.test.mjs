@@ -106,14 +106,14 @@ test("admin dashboard loader receives one trusted restaurant id for every data r
 
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId\)/);
   assert.doesNotMatch(page, /searchParams|restaurantId\s*=/);
-  assert.match(loader, /getRestaurantInsights\(\s*restaurantId,\s*selectedMenu\?\.id\s*\)/);
+  assert.match(loader, /readEvents\(\{ restaurantId, menuId: selectedMenu\.id/);
   assert.match(
     loader,
-    /readSupabaseRowsByColumn\(\s*["']restaurants["'],\s*["']id["'],\s*restaurantId/
+    /table:\s*["']restaurants["'][\s\S]*?filters:\s*\{\s*id:\s*restaurantId/
   );
   assert.match(
     loader,
-    /readSupabaseRowsByColumn\(\s*["']menu_dishes["'],\s*["']restaurant_id["'],\s*restaurantId/
+    /table:\s*["']menu_dishes["'][\s\S]*?filters,\s*orderBy/
   );
 });
 
@@ -142,8 +142,8 @@ test("admin dashboard fails closed when the scoped menu lookup fails", async () 
     "../lib/admin/dashboardData.ts"
   );
   const calls = [];
-  const result = await loadAdminDashboardDataWithDependencies("restaurant-1", {
-    readRows: async (table) => {
+  const result = await loadAdminDashboardDataWithDependencies("restaurant-1", "7d", {
+    readRows: async ({ table }) => {
       calls.push(table);
       if (table === "restaurants") {
         return { ok: true, rows: [{ id: "restaurant-1", name: "Chez Vistaire" }] };
@@ -153,10 +153,11 @@ test("admin dashboard fails closed when the scoped menu lookup fails", async () 
       }
       throw new Error(`unexpected downstream read: ${table}`);
     },
-    readInsights: async () => {
+    readEvents: async () => {
       calls.push("analytics");
       throw new Error("analytics must not be read after a failed menu lookup");
-    }
+    },
+    now: () => new Date("2026-07-10T00:00:00.000Z")
   });
 
   assert.deepEqual(result, { ok: false, reason: "menu-lookup-failed" });

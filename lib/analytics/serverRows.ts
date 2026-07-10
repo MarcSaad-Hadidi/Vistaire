@@ -70,6 +70,24 @@ export async function readSupabaseRowsByColumn<T extends AnyRow>(
   return { ok: true, rows: (data ?? []) as T[] };
 }
 
+export async function readSupabaseRowsByFilters<T extends AnyRow>(args: {
+  table: string;
+  columns: string;
+  filters: Record<string, string>;
+  limit: number;
+  orderBy: string;
+}): Promise<DataReadResult<T>> {
+  const { table, columns, filters, limit, orderBy } = args;
+  if (Object.values(filters).some((value) => !value.trim())) return { ok: false, error: "Scoped reads require identifiers.", rows: [] };
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return { ok: false, error: admin.reason, rows: [] };
+  let query = admin.client.from(table).select(columns);
+  for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
+  const { data, error } = await query.order(orderBy, { ascending: true }).limit(limit);
+  if (error) return { ok: false, error: error.message, rows: [] };
+  return { ok: true, rows: (data ?? []) as unknown as T[] };
+}
+
 /**
  * Reads one restaurant's event stream in a bounded, deterministic window.
  * The explicit order and pagination avoid the arbitrary first 1,000 rows

@@ -151,48 +151,21 @@ test("admin dashboard exposes only menu reading and dish availability", async ()
   assert.doesNotMatch(combined, /(?:create|delete|remove|upload)(?:Dish|Media|Restaurant)/i);
 });
 
-test("preview analytics suppress all presentation numbers", async () => {
+test("unproven instrumentation suppresses presentation numbers", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
-  const state = buildAdminAnalyticsState({
-    source: "preview",
-    note: "Lecture de présentation",
-    insights: {
-      summary: [
-        { id: "menu-opens", label: "Ouvertures", value: "987654" },
-        { id: "dish-views", label: "Vues", value: "123456" }
-      ],
-      topDishes: [{ dish: { id: "demo", name: "Plat démo" }, views: 777777 }]
-    }
-  });
-
-  assert.equal(state.kind, "preview");
-  assert.doesNotMatch(JSON.stringify(state), /987654|123456|777777|Plat démo/);
+  const observationWindow = { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" };
+  const state = buildAdminAnalyticsState({ observationWindow });
+  assert.equal(state.kind, "insufficient");
+  assert.equal(state.reason, "instrumentation-unproven");
 });
 
-test("analytics evidence states distinguish real, partial, empty and preview data", async () => {
+test("analytics evidence states distinguish complete, partial and insufficient reads", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
-  const insights = {
-    generatedFor: "Le Rivage",
-    summary: [],
-    topDishes: []
-  };
-
-  assert.equal(
-    buildAdminAnalyticsState({ source: "real", note: "", insights }).kind,
-    "real"
-  );
-  assert.equal(
-    buildAdminAnalyticsState({ source: "partial", note: "", insights }).kind,
-    "partial"
-  );
-  assert.equal(
-    buildAdminAnalyticsState({ source: "empty", note: "", insights }).kind,
-    "empty"
-  );
-  assert.equal(
-    buildAdminAnalyticsState({ source: "preview", note: "", insights }).kind,
-    "preview"
-  );
+  const observationWindow = { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" };
+  assert.equal(buildAdminAnalyticsState({ observationWindow, instrumentationProven: true, eventCount: 20 }).kind, "real");
+  assert.equal(buildAdminAnalyticsState({ observationWindow, partialSource: true }).completeness, "partial-source");
+  assert.equal(buildAdminAnalyticsState({ observationWindow, instrumentationProven: true, eventCount: 0 }).reason, "no-relevant-events");
+  assert.equal(buildAdminAnalyticsState({ observationWindow, instrumentationProven: true, eventCount: 2 }).reason, "sample-too-small");
 });
 
 test("admin page and loader delegate fallback handling to the analytics state boundary", async () => {

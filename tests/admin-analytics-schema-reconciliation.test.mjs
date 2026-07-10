@@ -20,6 +20,17 @@ test("analytics reconciliation freezes sixteen columns and nine indexes", async 
   for (const column of ["id", "restaurant_id", "menu_id", "dish_id", "session_id", "event_name", "source", "dish_slug", "category_slug", "search_query", "filter_name", "cta_name", "viewport", "user_agent", "metadata", "created_at"]) {
     assert.match(sql, new RegExp(`\\b${column}\\b`));
   }
-  assert.equal((sql.match(/create (?:unique )?index if not exists/gi) ?? []).length, 9);
+  assert.equal(new Set(sql.match(/analytics_events_(?:restaurant_id|menu_id|dish_id|session_id|event_name|source|created_at|restaurant_created_at|dashboard_scope)_idx/g)).size, 9);
   assert.match(sql, /vistaire_no_direct_public_access/i);
+});
+
+test("existing catalog objects are compared rather than accepted by name", async () => {
+  const sql = await readFile(migration, "utf8");
+  for (const catalog of ["pg_attribute", "pg_attrdef", "pg_constraint", "pg_indexes", "pg_policies", "pg_class", "pg_roles", "information_schema.table_privileges"]) {
+    assert.match(sql, new RegExp(catalog.replace(".", "\\."), "i"), catalog);
+  }
+  assert.match(sql, /pg_get_constraintdef/i);
+  assert.match(sql, /pg_get_indexdef/i);
+  assert.doesNotMatch(sql, /create (?:unique )?index if not exists/i);
+  assert.match(sql, /incompatible (?:column|constraint|index|owner|policy|grant|rls)/i);
 });
