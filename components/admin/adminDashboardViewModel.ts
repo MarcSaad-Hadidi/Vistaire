@@ -24,14 +24,3 @@ export function buildAnalyticsPresentation(state: TargetAnalyticsState) {
 }
 
 function assertNever(value: never): never { throw new Error(`État analytics non pris en charge: ${String(value)}`); }
-
-type Presentation = ReturnType<typeof buildAnalyticsPresentation>;
-const escapeHtml = (value: unknown) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
-export function renderAnalyticsDom(p: Presentation): string {
-  switch (p.kind) {
-    case "real": return `<section data-state="real"><p>${escapeHtml(p.observationWindow.label ?? `${p.observationWindow.startedAt} — ${p.observationWindow.endedAt} UTC`)}</p><p>Dernière mise à jour: <time>${escapeHtml(p.lastUpdatedAt ?? "Non disponible")}</time> · ${p.freshness}</p><div class="bars">${p.activity.map(point => `<span data-bar-value="${point.value}">${escapeHtml(point.label)}</span>`).join("")}</div><table><tbody>${p.activity.map(point => `<tr><th>${escapeHtml(point.label)}</th><td>${point.value}</td></tr>`).join("")}</tbody></table></section>`;
-    case "insufficient": return `<section role="status" data-reason="${p.reason}"><strong>${p.title}</strong><ul>${p.missingEvidence.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>`;
-    case "unavailable": return `<section role="alert" data-reason="${p.reason}"><strong>${escapeHtml(p.title)}</strong><p>${escapeHtml(p.explanation)}</p></section>`;
-    default: return assertNever(p);
-  }
-}

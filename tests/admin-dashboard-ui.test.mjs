@@ -1,8 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+import ts from "typescript";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const read = (path) => readFile(path, "utf8");
+async function loadAnalyticsPanel() {
+  let source = await read("components/admin/AdminAnalyticsPanel.tsx");
+  source = source.replace(/import[^;]+adminDashboardViewModel[^;]+;\s*/s, "").replace(/import styles[^;]+;\s*/, "const styles = { metrics: 'metrics', chart: 'chart', evidence: 'evidence' };\n").replace(/import analyticsStyles[^;]+;\s*/, "const analyticsStyles = { bars: 'bars', bar: 'bar', barFill: 'barFill' };\n");
+  const javascript = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const require = createRequire(import.meta.url);
+  const reactUrl = pathToFileURL(require.resolve("react")).href;
+  const viewModelUrl = pathToFileURL("components/admin/adminDashboardViewModel.ts").href;
+  const loaded = await import(`data:text/javascript;base64,${Buffer.from(`import React from '${reactUrl}'; import { buildAnalyticsPresentation } from '${viewModelUrl}'; ${javascript}`).toString("base64")}`);
+  return loaded.AdminAnalyticsPanel;
+}
 
 test("admin has a private dedicated shell without marketing or heavy media", async () => {
   const [layout, page, dashboard, css] = await Promise.all([
@@ -29,8 +44,8 @@ test("page strictly allowlists server ranges and discloses UTC timezone", async 
 });
 
 test("dashboard exposes evidence semantics, chart alternatives and worklist controls", async () => {
-  const [dashboard, worklist, viewModel] = await Promise.all([read("components/admin/AdminRestaurantDashboard.tsx"), read("components/admin/AdminDishWorklist.tsx"), read("components/admin/adminDashboardViewModel.ts")]);
-  const source = `${dashboard}\n${worklist}\n${viewModel}`;
+  const [dashboard, worklist, viewModel, panel] = await Promise.all([read("components/admin/AdminRestaurantDashboard.tsx"), read("components/admin/AdminDishWorklist.tsx"), read("components/admin/adminDashboardViewModel.ts"), read("components/admin/AdminAnalyticsPanel.tsx")]);
+  const source = `${dashboard}\n${worklist}\n${viewModel}\n${panel}`;
   assert.match(source, /Donn.es insuffisantes|Donn.e insuffisante/);
   assert.match(source, /Non mesur/);
   assert.match(source, /aria-labelledby/);
@@ -45,7 +60,7 @@ test("dashboard exposes evidence semantics, chart alternatives and worklist cont
 });
 
 test("analytics presentation exhaustively preserves real, insufficient and unavailable evidence", async () => {
-  const { buildAnalyticsPresentation, renderAnalyticsDom } = await import("../components/admin/adminDashboardViewModel.ts");
+  const { buildAnalyticsPresentation } = await import("../components/admin/adminDashboardViewModel.ts");
   const window = { label: "7 jours — UTC", startedAt: "2026-07-03", endedAt: "2026-07-10" };
   const real = buildAnalyticsPresentation({ kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { provenance: "production" }, metrics: [{ id: "opens", label: "Ouvertures", value: 23, unit: "consultations" }], activitySeries: [{ label: "9 juil.", value: 8 }, { label: "10 juil.", value: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null });
   assert.equal(real.kind, "real");
@@ -57,18 +72,21 @@ test("analytics presentation exhaustively preserves real, insufficient and unava
   const unavailable = buildAnalyticsPresentation({ kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true });
   assert.equal(unavailable.explanation, "La lecture complète n’a pas abouti.");
   assert.equal(unavailable.retryable, true);
-  const realDom = renderAnalyticsDom(real);
+  const Panel = await loadAnalyticsPanel();
+  const realDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { provenance: "production" }, metrics: [{ id: "opens", label: "Ouvertures", value: 23, unit: "consultations" }], activitySeries: [{ label: "9 juil.", value: 8 }, { label: "10 juil.", value: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null } }));
   assert.match(realDom, /7 jours — UTC/);
   assert.match(realDom, /2026-07-10T12:00:00Z/);
-  assert.match(realDom, /data-bar-value="8"/);
+  assert.match(realDom, /class="bar"[\s\S]*class="barFill"/);
   assert.match(realDom, /<table[\s\S]*9 juil\.[\s\S]*8/);
-  assert.match(renderAnalyticsDom(insufficient), /sample-too-small[\s\S]*20 sessions nécessaires/);
-  assert.match(renderAnalyticsDom(unavailable), /role="alert"[\s\S]*Lecture interrompue/);
+  const insufficientDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", observationWindow: window, availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] } }));
+  const unavailableDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true } }));
+  assert.match(insufficientDom, /sample-too-small[\s\S]*20 sessions nécessaires/);
+  assert.match(unavailableDom, /role="alert"[\s\S]*Lecture interrompue/);
 });
 
 test("activity bars have concrete responsive CSS", async () => {
-  const [dashboard, css] = await Promise.all([read("components/admin/AdminRestaurantDashboard.tsx"), read("components/admin/AdminAnalytics.module.css")]);
-  assert.match(dashboard, /analyticsStyles\.bars/);
+  const [panel, css] = await Promise.all([read("components/admin/AdminAnalyticsPanel.tsx"), read("components/admin/AdminAnalytics.module.css")]);
+  assert.match(panel, /analyticsStyles\.bars/);
   assert.match(css, /\.bars\s*\{[^}]*height:/s);
   assert.match(css, /align-items:\s*flex-end/);
   assert.match(css, /\.barFill\s*\{[^}]*display:\s*block/s);
