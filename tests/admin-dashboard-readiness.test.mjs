@@ -219,10 +219,8 @@ test("admin page loads only the authorized restaurant and renders the dashboard 
   assert.match(page, /if\s*\(!result\.ok\)/);
   assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
-  assert.match(
-    dashboard,
-    /analytics\.kind === "real"\s*\?\s*<AdminRealAnalytics[\s\S]*:\s*<AdminAnalyticsEvidenceState/
-  );
+  assert.match(dashboard, /analytics\.kind === "real" \|\| data\.analytics\.kind === "partial"/);
+  assert.match(dashboard, /Données réelles — échantillon encore limité/);
   const evidenceBranch = dashboard.split(/AdminAnalyticsEvidenceState/)[1] ?? "";
   assert.doesNotMatch(
     evidenceBranch,

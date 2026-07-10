@@ -38,7 +38,7 @@ function AdminRealAnalytics({ insights }: { insights: DemoAdminInsights }) {
 function AdminAnalyticsEvidenceState({
   analytics
 }: {
-  analytics: Exclude<AdminAnalyticsState<DemoAdminInsights>, { kind: "real" }>;
+  analytics: Exclude<AdminAnalyticsState<DemoAdminInsights>, { kind: "real" | "partial" }>;
 }) {
   return (
     <div className="rounded-[13px] border border-white/[0.12] bg-black/[0.09] p-5 sm:p-6">
@@ -106,7 +106,18 @@ export function AdminRestaurantDashboard({ data }: { data: AdminDashboardData })
           </section>
 
           <section className={`${styles.card} ${styles.adminFullPanel}`}>
-            {data.analytics.kind === "real" ? <AdminRealAnalytics insights={data.analytics.insights} /> : <AdminAnalyticsEvidenceState analytics={data.analytics} />}
+            {data.analytics.kind === "real" || data.analytics.kind === "partial" ? (
+              <div className="grid gap-4">
+                {data.analytics.kind === "partial" ? (
+                  <p className="rounded-[13px] border border-champagne/25 bg-black/[0.09] px-4 py-3 text-sm text-[#d6c4a8]">
+                    Données réelles — échantillon encore limité. Les tendances seront plus fiables avec davantage de consultations.
+                  </p>
+                ) : null}
+                <AdminRealAnalytics insights={data.analytics.insights} />
+              </div>
+            ) : (
+              <AdminAnalyticsEvidenceState analytics={data.analytics} />
+            )}
           </section>
 
           <section className={`${styles.card} ${styles.adminFullPanel}`}>
