@@ -15,6 +15,14 @@ function requireAdminFixture(value: string | undefined, name: string) {
   expect(value, `${name} must be configured for required admin E2E`).toBeTruthy();
 }
 
+function requireAdminPreviewUrl() {
+  const value = process.env.PLAYWRIGHT_BASE_URL;
+  expect(value, "VISTAIRE_ADMIN_E2E_BASE_URL must be configured for required admin E2E").toBeTruthy();
+  expect(new URL(value as string).protocol, "Admin E2E must use an HTTPS preview URL").toBe(
+    "https:"
+  );
+}
+
 async function enableOwnerBypass(context: BrowserContext, baseURL: string) {
   await context.addCookies([
     {
@@ -67,6 +75,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 test("required admin E2E fixtures are never silently skipped", () => {
   if (!REQUIRE_ADMIN_E2E) return;
 
+  requireAdminPreviewUrl();
   requireAdminFixture(ADMIN_E2E_QR_TOKEN, "VISTAIRE_ADMIN_E2E_QR_TOKEN");
   requireAdminFixture(
     ADMIN_E2E_RESTAURANT_NAME,
@@ -214,7 +223,10 @@ test("authorized admin filters dishes and persists then restores availability", 
     }
     await expect(page.getByRole("link", { name: /Ouvrir menu client/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Copier.*menu/i })).toBeVisible();
-    await expect(page.locator("form:visible")).toHaveCount(0);
+    const visibleForms = page.locator("form:visible");
+    await expect(visibleForms).toHaveCount(1);
+    await expect(visibleForms.first()).toHaveAttribute("action", "/admin/logout");
+    await expect(visibleForms.first()).toHaveAttribute("method", "post");
     const accessibleActions = await page
       .locator('button:visible, a[href]:visible')
       .evaluateAll((items) =>
