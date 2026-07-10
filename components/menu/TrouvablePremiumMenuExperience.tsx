@@ -13,6 +13,10 @@ import {
   type PointerEvent
 } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import {
+  getPublicMenuAnalyticsContext,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
@@ -541,6 +545,22 @@ export function TrouvablePremiumMenuExperience({
     }),
     [query, selectedLocale]
   );
+
+  useEffect(() => {
+    trackPublicMenuEvent(menu, { eventName: "menu_opened" });
+  }, [menu]);
+
+  useEffect(() => {
+    const query = search.trim();
+    if (query.length < 2) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      trackPublicMenuEvent(menu, {
+        eventName: "search_used",
+        searchQuery: query
+      });
+    }, 700);
+    return () => window.clearTimeout(timeoutId);
+  }, [menu, search]);
 
   const categories = useMemo(
     () => sortTrouvablePublicMenuCategories(getVisiblePublicMenuCategories(menu.dishes)),
@@ -1124,6 +1144,10 @@ export function TrouvablePremiumMenuExperience({
 }
 
   function toggleQuickFilter(filterId: QuickFilterId) {
+    trackPublicMenuEvent(menu, {
+      eventName: "filter_used",
+      filterName: filterId
+    });
     if (filterId === "all") {
       setActiveFilters([]);
       return;
@@ -1180,6 +1204,11 @@ export function TrouvablePremiumMenuExperience({
     setShowDetailModelViewer(false);
     setShowArBrowserHelp(false);
     setSelectedDish(dish);
+    trackPublicMenuEvent(menu, {
+      eventName: "dish_opened",
+      dishSlug: dish.slug,
+      categorySlug: dish.categorySlug
+    });
     openSheet("dish");
   }
 
@@ -1739,6 +1768,7 @@ export function TrouvablePremiumMenuExperience({
                 onClick={() => {
                   trackGoogleReviewClick({
                     dishSlug: reviewDish?.slug,
+                    menuId: menu.menuId,
                     restaurantId: menu.restaurantId,
                     source: menu.source
                   });
@@ -1923,7 +1953,16 @@ export function TrouvablePremiumMenuExperience({
                   aria-expanded={showDetailModelViewer}
                   onClick={() => {
                     setShowArBrowserHelp(false);
-                    setShowDetailModelViewer((isVisible) => !isVisible);
+                    setShowDetailModelViewer((isVisible) => {
+                      if (!isVisible && selectedDish) {
+                        trackPublicMenuEvent(menu, {
+                          eventName: "dish_3d_clicked",
+                          dishSlug: selectedDish.slug,
+                          categorySlug: selectedDish.categorySlug
+                        });
+                      }
+                      return !isVisible;
+                    });
                   }}
                 >
                   {copy.threeD}
@@ -1940,6 +1979,7 @@ export function TrouvablePremiumMenuExperience({
                   {ModelViewerComponent ? (
                     <ModelViewerComponent
                       dish={modelViewerDishFromPublicDish(selectedDish)}
+                      analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
                       minimalChrome
                       quietChrome
                       copy={{
@@ -2289,6 +2329,7 @@ export function TrouvablePremiumMenuExperience({
         googleReview={menu.googleReview}
         locale={selectedLocale}
         localizedUiCopy={menu.localizedUiCopy}
+        menuId={menu.menuId}
         onReviewRequest={openRestaurantReviewSheet}
         restaurantId={menu.restaurantId}
         restaurantName={menu.name}

@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { readBoundedJsonBody } from "@/lib/admin/requestBody";
+import { validateAnalyticsEventContext } from "@/lib/analytics/context";
 import { insertAnalyticsEvent } from "@/lib/analytics/eventStore";
 import { validateAnalyticsEvent } from "@/lib/analytics/validation";
 import type { AnalyticsApiResponse } from "@/lib/analytics/types";
@@ -9,29 +11,40 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 16_000;
 
 export async function POST(request: NextRequest) {
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_BODY_BYTES) {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (contentType !== "application/json") {
+    return NextResponse.json<AnalyticsApiResponse>(
+      { ok: false, error: "Analytics payload must be JSON." },
+      { status: 415 }
+    );
+  }
+  const bodyResult = await readBoundedJsonBody(request, MAX_BODY_BYTES);
+  if (!bodyResult.ok && bodyResult.reason === "too-large") {
     return NextResponse.json<AnalyticsApiResponse>(
       { ok: false, error: "Analytics payload is too large." },
       { status: 413 }
     );
   }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  if (!bodyResult.ok) {
     return NextResponse.json<AnalyticsApiResponse>(
       { ok: false, error: "Invalid JSON payload." },
       { status: 400 }
     );
   }
 
-  const validation = validateAnalyticsEvent(body);
+  const validation = validateAnalyticsEvent(bodyResult.value);
   if (!validation.ok) {
     return NextResponse.json<AnalyticsApiResponse>(
       { ok: false, error: validation.error },
       { status: 400 }
+    );
+  }
+
+  const context = await validateAnalyticsEventContext(validation.payload);
+  if (!context.ok) {
+    return NextResponse.json<AnalyticsApiResponse>(
+      { ok: false, error: context.error },
+      { status: context.status }
     );
   }
 

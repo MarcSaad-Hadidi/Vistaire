@@ -28,7 +28,8 @@ import {
 import {
   buildPeriodAnalytics,
   hasPeriodActivity,
-  resolveAnalyticsSourceHealth
+  resolveAnalyticsSourceHealth,
+  sortSearchRowsByCount
 } from "@/lib/analytics/insightsCore.mjs";
 
 export type RestaurantInsightsResult = {
@@ -144,7 +145,7 @@ export function buildRealInsights(args: {
     const immersiveInteractions = count(row, ["immersive_interaction_count", "dish_3d_clicked_count", "dish_ar_clicked_count", "immersive_interactions"]);
     return { rank: index + 1, dish, category, views, averageTime: "Non suivi", immersiveInteractions, interestScore: calculateDishInterestScore({ views, immersiveInteractions, maxRawScore: Math.max(1, ...all.map((item) => count(item, ["dish_opened_count", "dish_views"]))) }), interestLevel: getInterestLevelFromScore(calculateDishInterestScore({ views, immersiveInteractions, maxRawScore: Math.max(1, ...all.map((item) => count(item, ["dish_opened_count", "dish_views"]))) })) };
   });
-  const searchInsights = enrichSearchInsights(searchRows.map((row) => ({ term: getString(row, ["search_query", "term"], "Recherche"), count: count(row, ["search_count", "count"]), trend: "Stable" as SearchTrend, interpretation: getSearchInterpretation(getString(row, ["search_query", "term"], "Recherche")) })).filter((row) => row.count > 0));
+  const searchInsights = enrichSearchInsights(sortSearchRowsByCount(searchRows).map((row) => ({ term: getString(row, ["search_query", "term"], "Recherche"), count: count(row, ["search_count", "count"]), trend: "Stable" as SearchTrend, interpretation: getSearchInterpretation(getString(row, ["search_query", "term"], "Recherche")) })).filter((row) => row.count > 0));
   const topCategory = [...categoryRows].sort((a, b) => count(b, ["category_viewed_count", "views"]) - count(a, ["category_viewed_count", "views"]))[0];
   const topDishName = topDishes[0] ? compactName(topDishes[0].dish.name) : "Pas encore assez de données";
   const topCategoryName = topCategory ? getString(topCategory, ["category_name", "name", "category_slug"], "Carte") : "Pas encore assez de données";

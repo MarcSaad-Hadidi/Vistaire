@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -405,8 +406,20 @@ export function PublicMenuRenderer({
   const showCategoryCards =
     config.navigation.style !== "tabs" || resolvedActiveTab === HOME_TAB_ID;
 
+  useEffect(() => {
+    if (mode !== "public") return;
+    trackPublicMenuEvent(menu, { eventName: "menu_opened" });
+  }, [menu, mode]);
+
   function openDish(dish: PublicMenuDish) {
     setSelectedDish(dish);
+    if (mode === "public") {
+      trackPublicMenuEvent(menu, {
+        eventName: "dish_opened",
+        dishSlug: dish.slug,
+        categorySlug: dish.categorySlug
+      });
+    }
     onDishOpen?.(dish);
   }
 
@@ -608,6 +621,12 @@ export function PublicMenuRenderer({
               onClick={() => {
                 setActiveTab(tab.id);
                 setSelectedDish(null);
+                if (mode === "public" && tab.id !== ALL_TAB_ID && tab.id !== HOME_TAB_ID) {
+                  trackPublicMenuEvent(menu, {
+                    eventName: "category_viewed",
+                    categorySlug: tab.id
+                  });
+                }
               }}
             >
               <span>{tab.label}</span>
@@ -629,8 +648,15 @@ export function PublicMenuRenderer({
             className={styles.filterSelect}
             value={menuFilter}
             onChange={(event) => {
-              setMenuFilter(event.target.value as MenuFilterId);
+              const nextFilter = event.target.value as MenuFilterId;
+              setMenuFilter(nextFilter);
               setSelectedDish(null);
+              if (mode === "public") {
+                trackPublicMenuEvent(menu, {
+                  eventName: "filter_used",
+                  filterName: nextFilter
+                });
+              }
             }}
           >
             {MENU_FILTERS.map((filter) => (
@@ -1192,6 +1218,7 @@ export function PublicMenuRenderer({
           googleReview={menu.googleReview}
           locale={googleReviewLocale}
           localizedUiCopy={menu.localizedUiCopy}
+          menuId={menu.menuId}
           restaurantId={menu.restaurantId}
           restaurantName={menu.name}
           source={menu.source}

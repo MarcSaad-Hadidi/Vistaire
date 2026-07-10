@@ -3,7 +3,7 @@
 import type {
   AnalyticsEventName,
   AnalyticsEventPayload
-} from "@/lib/analytics/types";
+} from "./types.ts";
 
 type TrackMenuEventInput = Partial<
   Omit<AnalyticsEventPayload, "eventName" | "sessionId" | "source">
@@ -19,7 +19,21 @@ const DEMO_RESTAURANT_ID =
 const DEMO_MENU_ID =
   process.env.NEXT_PUBLIC_DEMO_MENU_ID ??
   "22222222-2222-2222-2222-222222222222";
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const recentEvents = new Map<string, number>();
+
+export type PublicMenuAnalyticsContext = {
+  restaurantId: string;
+  menuId: string;
+  source: "production";
+};
+
+type PublicMenuAnalyticsInput = {
+  restaurantId: string;
+  menuId?: string;
+  source: "supabase" | "demo";
+};
 
 function createSessionId(): string {
   const cryptoApi = globalThis.crypto;
@@ -75,7 +89,19 @@ function getViewport(): AnalyticsEventPayload["viewport"] {
 
 export function trackMenuEvent(input: TrackMenuEventInput): void {
   if (typeof window === "undefined") return;
+  const source = input.source ?? "demo";
+  const restaurantId =
+    input.restaurantId ?? (source === "demo" ? DEMO_RESTAURANT_ID : undefined);
+  const menuId = input.menuId ?? (source === "demo" ? DEMO_MENU_ID : undefined);
+  if (!restaurantId || (source === "production" && !menuId)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[Vistaire analytics] missing relational menu context");
+    }
+    return;
+  }
   const dedupeKey = [
+    restaurantId,
+    menuId,
     input.eventName,
     input.dishSlug,
     input.categorySlug,
@@ -90,10 +116,10 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
 
   const payload: AnalyticsEventPayload = {
     eventName: input.eventName,
-    restaurantId: input.restaurantId ?? DEMO_RESTAURANT_ID,
-    menuId: input.menuId ?? DEMO_MENU_ID,
+    restaurantId,
+    menuId,
     sessionId: getSessionId(),
-    source: input.source ?? "demo",
+    source,
     dishSlug: input.dishSlug,
     categorySlug: input.categorySlug,
     searchQuery: input.searchQuery,
@@ -113,4 +139,32 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
       console.debug("[Vistaire analytics] event skipped", error);
     }
   });
+}
+
+export function getPublicMenuAnalyticsContext(
+  menu: PublicMenuAnalyticsInput
+): PublicMenuAnalyticsContext | null {
+  if (
+    menu.source !== "supabase" ||
+    !UUID_PATTERN.test(menu.restaurantId) ||
+    !menu.menuId ||
+    !UUID_PATTERN.test(menu.menuId)
+  ) {
+    return null;
+  }
+
+  return {
+    restaurantId: menu.restaurantId,
+    menuId: menu.menuId,
+    source: "production"
+  };
+}
+
+export function trackPublicMenuEvent(
+  menu: PublicMenuAnalyticsInput,
+  input: Omit<TrackMenuEventInput, "restaurantId" | "menuId" | "source">
+): void {
+  const context = getPublicMenuAnalyticsContext(menu);
+  if (!context) return;
+  trackMenuEvent({ ...input, ...context });
 }

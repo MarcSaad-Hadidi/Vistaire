@@ -9,7 +9,10 @@ import {
   useState,
   type CSSProperties
 } from "react";
-import { trackMenuEvent } from "@/lib/analytics/client";
+import {
+  trackMenuEvent,
+  type PublicMenuAnalyticsContext
+} from "@/lib/analytics/client";
 import {
   buildDemoDish3dManifest,
   selectImmersiveVariant,
@@ -140,6 +143,7 @@ export type DishModelViewerProps = {
   onReturnToDish?: () => void;
   onArFallbackNeeded?: (reason: string) => void;
   onArFallbackCleared?: () => void;
+  analyticsContext?: PublicMenuAnalyticsContext;
 };
 
 function resolveModelViewerCopy(copy?: DishModelViewerCopy): ResolvedDishModelViewerCopy {
@@ -512,7 +516,8 @@ export function DishModelViewer({
   copy: customCopy,
   onReturnToDish,
   onArFallbackNeeded,
-  onArFallbackCleared
+  onArFallbackCleared,
+  analyticsContext
 }: DishModelViewerProps) {
   const copy = resolveModelViewerCopy(customCopy);
   const titleId = useId();
@@ -742,6 +747,7 @@ export function DishModelViewer({
     window.setTimeout(() => {
       try {
         trackMenuEvent({
+          ...analyticsContext,
           eventName: "dish_ar_clicked",
           dishSlug: dish.slug,
           categorySlug: dish.categorySlug
@@ -750,7 +756,7 @@ export function DishModelViewer({
         // Analytics must never block Safari Quick Look navigation.
       }
     }, 0);
-  }, [dish.categorySlug, dish.slug]);
+  }, [analyticsContext, dish.categorySlug, dish.slug]);
 
   const handleModelViewerArClick = useCallback(() => {
     trackArIntent();

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
+import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
@@ -653,6 +654,10 @@ export function MaisonElyseQrMenu({
     () => Boolean(queryLocale)
   );
   const activeMenu = localizedMenus?.[selectedLocale] ?? menu;
+  useEffect(() => {
+    if (displayMode !== "public") return;
+    trackPublicMenuEvent(activeMenu, { eventName: "menu_opened" });
+  }, [activeMenu, displayMode]);
   const copy = MENU_COPY[selectedLocale];
   const activeQuery = useMemo(
     () =>
@@ -1042,6 +1047,7 @@ export function MaisonElyseQrMenu({
         googleReview={activeMenu.googleReview}
         locale={selectedLocale}
         localizedUiCopy={activeMenu.localizedUiCopy}
+        menuId={activeMenu.menuId}
         restaurantId={activeMenu.restaurantId}
         restaurantName={activeMenu.name}
         source={activeMenu.source}

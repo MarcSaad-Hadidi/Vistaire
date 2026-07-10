@@ -22,6 +22,10 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import {
+  getPublicMenuAnalyticsContext,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   TROUVABLE_CURRENCY_STORAGE_KEY,
@@ -173,6 +177,14 @@ export function TrouvableDishDetailExperience({
     }),
     [query, selectedLocale]
   );
+
+  useEffect(() => {
+    trackPublicMenuEvent(menu, {
+      eventName: "dish_opened",
+      dishSlug: activeDish.slug,
+      categorySlug: activeDish.categorySlug
+    });
+  }, [activeDish.categorySlug, activeDish.slug, menu]);
   const menuHref = buildPublicMenuPath(menu.slug, localizedQuery);
   const activeCategoryKey = activeDish.categoryId || activeDish.category;
   const sectionDishes = useMemo(
@@ -520,7 +532,18 @@ export function TrouvableDishDetailExperience({
               className={styles.modelCta}
               aria-controls="trouvable-public-model"
               aria-expanded={showModelViewer}
-              onClick={() => setShowModelViewer((isVisible) => !isVisible)}
+              onClick={() =>
+                setShowModelViewer((isVisible) => {
+                  if (!isVisible) {
+                    trackPublicMenuEvent(menu, {
+                      eventName: "dish_3d_clicked",
+                      dishSlug: activeDish.slug,
+                      categorySlug: activeDish.categorySlug
+                    });
+                  }
+                  return !isVisible;
+                })
+              }
             >
               {copy.threeD}
             </button>
@@ -535,9 +558,10 @@ export function TrouvableDishDetailExperience({
                 id="trouvable-public-model"
                 data-no-dish-swipe="true"
               >
-                {ModelViewerComponent ? (
-                  <ModelViewerComponent
-                    dish={modelViewerDishFromPublicDish(activeDish)}
+                  {ModelViewerComponent ? (
+                    <ModelViewerComponent
+                      dish={modelViewerDishFromPublicDish(activeDish)}
+                      analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
                     minimalChrome
                     quietChrome
                     copy={{
@@ -643,6 +667,7 @@ export function TrouvableDishDetailExperience({
                   onClick={() =>
                     trackGoogleReviewClick({
                       dishSlug: activeDish.slug,
+                      menuId: menu.menuId,
                       restaurantId: menu.restaurantId,
                       source: menu.source
                     })

@@ -100,3 +100,17 @@ test("analytics source health marks read errors and truncation partial", async (
   assert.equal(resolveAnalyticsSourceHealth({ hasActivity: false, eventReadOk: true, eventTruncated: false, dailyReadOk: true }), "empty");
   assert.equal(resolveAnalyticsSourceHealth({ hasActivity: true, eventReadOk: true, eventTruncated: false, dailyReadOk: true }), "real");
 });
+
+test("search insights are ordered by observed count before display", async () => {
+  const { sortSearchRowsByCount } = await import("../lib/analytics/insightsCore.mjs");
+  const rows = [
+    { search_query: "early", search_count: 1 },
+    { search_query: "popular", search_count: 4 },
+    { search_query: "middle", search_count: 2 }
+  ];
+
+  assert.deepEqual(
+    sortSearchRowsByCount(rows).map((row) => row.search_query),
+    ["popular", "middle", "early"]
+  );
+});

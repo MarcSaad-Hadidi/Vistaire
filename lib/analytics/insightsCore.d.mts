@@ -21,6 +21,9 @@ export function buildPeriodAnalytics(input: {
   eventRows?: Record<string, unknown>[];
 }): PeriodAnalytics;
 export function hasPeriodActivity(metrics: PeriodMetrics): boolean;
+export function sortSearchRowsByCount(
+  rows: Record<string, unknown>[]
+): Record<string, unknown>[];
 export function resolveAnalyticsSourceHealth(input: {
   hasActivity: boolean;
   eventReadOk: boolean;
