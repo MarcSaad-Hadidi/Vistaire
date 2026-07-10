@@ -38,3 +38,20 @@ node --test tests/admin-access-session.test.mjs tests/admin-access-security.test
 ```
 
 Observed result: 90 passed, 0 failed, 0 skipped. Node emitted existing `MODULE_TYPELESS_PACKAGE_JSON` performance warnings for directly imported TypeScript modules; no test failed because of them.
+
+## Baseline `/admin` route weight
+
+Method: fresh `npm run build` on baseline commit `29aaa9b`, then sum the
+`/admin/page` entry files listed by
+`.next/server/app/admin/page_client-reference-manifest.js`. These are raw
+on-disk bytes, not compressed transfer sizes. The eagerly rendered background
+asset is reported separately.
+
+- client entry JavaScript: 88,749 bytes;
+- entry CSS (global plus admin preview module): 100,036 bytes;
+- eager `Framer/PhotoRestoComplet5.png` background: 2,281,014 bytes;
+- build result: successful with Next.js 16.2.6/Turbopack.
+
+The final comparison must repeat this exact method on the integrated commit and
+must report browser Network transfer totals separately because caching and
+compression make them a different measurement.
