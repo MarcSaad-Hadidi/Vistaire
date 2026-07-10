@@ -126,12 +126,16 @@ retains its original `search_path = public` declaration.
 
 The application fallback to the older `resolve_qr_code_scan` RPC remains
 menu-only. It is attempted only when the metadata RPC is unavailable (Postgres
-`42883`, PostgREST `PGRST202`, or an equivalent function/schema-cache miss).
-Other metadata RPC errors fail closed. The legacy result must match an active
-row id and its stored path, and that path must be exactly `/demo` or start with
-`/menu/`. Legacy `/admin`, `/admin/*`, `/owner`, and `/owner/*` paths never
-resolve through this compatibility branch. The fallback select intentionally
-does not request `target_kind`, so it remains compatible with the older schema.
+`42883` or PostgREST `PGRST202`). When Supabase provides a different non-empty
+error code, resolution fails closed regardless of the message. Without an error
+code, the message must explicitly identify `resolve_qr_code_scan_metadata` as
+the missing function (including the standard schema-cache not-found message);
+a generic schema-cache message is not enough. The legacy result must match an
+active row id and its stored path, and that path must be exactly `/demo` or
+start with `/menu/`. Legacy `/admin`, `/admin/*`, `/owner`, and `/owner/*`
+paths never resolve through this compatibility branch. The fallback select
+intentionally does not request `target_kind`, so it remains compatible with the
+older schema.
 
 ## Environment
 
@@ -168,4 +172,5 @@ Server logs record the same incident id with a stable QR operation/code and
 either the Supabase `code`, `message`, `details`, and `hint` fields or a
 configuration reason. Raw QR tokens and `token_hash` values are never included
 in these incident objects; token-shaped values in Supabase text are redacted.
-Normal lookup misses are not logged as incidents.
+This includes opaque base64url values as short as 32 characters. Normal lookup
+misses are not logged as incidents.

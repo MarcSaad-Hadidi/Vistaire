@@ -25,12 +25,14 @@ import {
 import {
   buildQrSupabaseFailure,
   createOwnerQrCodeWithDependencies,
+  redactQrIncidentLogText,
   type CreateOwnerQrCodeArgs,
   type QrPersistenceResult,
   type QrSupabaseFailure,
   type QrSupabaseFailureCode
 } from "@/lib/owner/qrCreationCore";
 import {
+  isQrMetadataRpcUnavailable,
   resolveLegacyMenuQrScan,
   resolveQrRowMetadata,
   resolveSignedMenuFallback,
@@ -42,7 +44,6 @@ import {
   sanitizeOwnerQrTargetPath
 } from "@/lib/owner/menuUrlCore";
 import type {
-  CreateOwnerQrCodeResult,
   OwnerQrCodeRecord,
   OwnerQrCodeStatus,
   OwnerQrStyle
@@ -82,15 +83,6 @@ type QrIncidentInput = {
   | { configReason: string; supabaseError?: never }
 );
 
-function redactQrLogText(value: string | null | undefined): string | null {
-  if (!value) return null;
-  return value
-    .replace(/\b(?:p_)?token_hash\b/gi, "[redacted-field]")
-    .replace(/\bs1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted-token]")
-    .replace(/\b[A-Fa-f0-9]{64}\b/g, "[redacted-hash]")
-    .replace(/\b[A-Za-z0-9_-]{40,}\b/g, "[redacted-token]");
-}
-
 function logQrSupabaseIncident(input: QrIncidentInput): string {
   const incidentId = randomUUID();
   const cause = input.supabaseError
@@ -98,10 +90,10 @@ function logQrSupabaseIncident(input: QrIncidentInput): string {
         supabase: {
           code: input.supabaseError.code ?? null,
           message:
-            redactQrLogText(input.supabaseError.message) ??
+            redactQrIncidentLogText(input.supabaseError.message) ??
             "Unknown Supabase error.",
-          details: redactQrLogText(input.supabaseError.details),
-          hint: redactQrLogText(input.supabaseError.hint)
+          details: redactQrIncidentLogText(input.supabaseError.details),
+          hint: redactQrIncidentLogText(input.supabaseError.hint)
         }
       }
     : {
@@ -296,7 +288,7 @@ async function persistOwnerQrCode(
 
 export async function createOwnerQrCode(
   args: CreateOwnerQrCodeArgs
-): Promise<CreateOwnerQrCodeResult> {
+): Promise<QrPersistenceResult> {
   return createOwnerQrCodeWithDependencies(args, {
     persistQrCode: persistOwnerQrCode,
     createSignedMenuFallback: ({ targetPath, restaurantId }) => {
@@ -399,15 +391,6 @@ function resolutionFromRow(row: AnyRow): QrResolution {
   );
 }
 
-function isRpcUnavailable(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return (
-    error.code === "42883" ||
-    error.code === "PGRST202" ||
-    /function.*(not found|does not exist)|schema cache/i.test(error.message ?? "")
-  );
-}
-
 /** Resolves a QR and returns the live persisted identity used for authorization. */
 export async function resolveQrToken(token: string): Promise<QrResolution> {
   if (!token || token.length > 800) return { ok: false };
@@ -441,7 +424,7 @@ async function resolvePersistedQrToken(
       p_token_hash: tokenHash
     });
     if (error) {
-      if (!isRpcUnavailable(error)) {
+      if (!isQrMetadataRpcUnavailable(error)) {
         logQrSupabaseIncident({
           operation: "resolve-metadata",
           code: "QR_RESOLVE_METADATA_FAILED",

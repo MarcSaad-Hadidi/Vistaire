@@ -23,6 +23,24 @@ type QrRowMetadata = {
   targetPath: string;
 };
 
+export function isQrMetadataRpcUnavailable(
+  error: { code?: string | null; message?: string | null } | null
+): boolean {
+  if (!error) return false;
+  const code = error.code?.trim();
+  if (code) return code === "42883" || code === "PGRST202";
+
+  const message = error.message ?? "";
+  return (
+    /(?:function\s+)?(?:public\.)?resolve_qr_code_scan_metadata(?:\s*\([^)]*\))?[\s\S]{0,80}(?:does not exist|not found)/i.test(
+      message
+    ) ||
+    /(?:could not find|not found)[\s\S]{0,80}(?:the\s+)?function\s+(?:public\.)?resolve_qr_code_scan_metadata(?:\s*\([^)]*\))?[\s\S]{0,100}schema cache/i.test(
+      message
+    )
+  );
+}
+
 export function resolveQrRowMetadata(
   row: QrRowMetadata,
   expectedPath?: string

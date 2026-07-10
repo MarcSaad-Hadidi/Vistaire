@@ -65,10 +65,21 @@ export function buildQrSupabaseFailure(args: {
   };
 }
 
+export function redactQrIncidentLogText(
+  value: string | null | undefined
+): string | null {
+  if (!value) return null;
+  return value
+    .replace(/\b(?:p_)?token_hash\b/gi, "[redacted-field]")
+    .replace(/\bs1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted-token]")
+    .replace(/\b[A-Fa-f0-9]{64}\b/g, "[redacted-hash]")
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[redacted-token]");
+}
+
 export async function createOwnerQrCodeWithDependencies(
   args: CreateOwnerQrCodeArgs,
   dependencies: CreationDependencies
-): Promise<CreateOwnerQrCodeResult> {
+): Promise<QrPersistenceResult> {
   const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath);
   if (targetKind === "admin" && !args.restaurantId.trim()) {
     return {

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 const loadCreationCore = () => import("../lib/owner/qrCreationCore.ts");
@@ -52,6 +53,64 @@ test("structured Supabase failures expose a stable code and incident reference",
   assert.match(failure.error, /Reference incident : incident-create-123/);
   assert.doesNotMatch(failure.error, /duplicate key|supabase|token_hash/i);
   assert.equal("fallbackEligible" in failure, false);
+});
+
+test("structured failures survive the public creation boundaries", async () => {
+  const { buildQrSupabaseFailure, createOwnerQrCodeWithDependencies } =
+    await loadCreationCore();
+  const failure = buildQrSupabaseFailure({
+    code: "QR_CREATE_INSERT_FAILED",
+    incidentId: "incident-boundary-123"
+  });
+  const result = await createOwnerQrCodeWithDependencies(
+    {
+      restaurantId: "rest-a",
+      targetKind: "menu",
+      targetPath: "/menu/restaurant-a",
+      label: "QR menu"
+    },
+    {
+      persistQrCode: async () => failure,
+      createSignedMenuFallback: () => "must-not-be-signed"
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "QR_CREATE_INSERT_FAILED");
+  assert.equal(result.incidentId, "incident-boundary-123");
+
+  const creationSource = (
+    await readFile("lib/owner/qrCreationCore.ts", "utf8")
+  ).replace(/\r\n/g, "\n");
+  const storeSource = (await readFile("lib/owner/qrStore.ts", "utf8")).replace(
+    /\r\n/g,
+    "\n"
+  );
+  assert.match(
+    creationSource,
+    /export async function createOwnerQrCodeWithDependencies\([\s\S]*?\): Promise<QrPersistenceResult> \{/
+  );
+  assert.match(
+    storeSource,
+    /export async function createOwnerQrCode\([\s\S]*?\): Promise<QrPersistenceResult> \{/
+  );
+});
+
+test("QR incident redaction removes opaque 32-character tokens and hashes", async () => {
+  const { redactQrIncidentLogText } = await loadCreationCore();
+  const rawToken = randomBytes(24).toString("base64url");
+  const rawHash = "a".repeat(64);
+  const redacted = redactQrIncidentLogText(
+    `Key (token_hash)=(${rawHash}); token=${rawToken}`
+  );
+
+  assert.equal(typeof redacted, "string");
+  assert.equal(rawToken.length, 32);
+  assert.doesNotMatch(redacted, new RegExp(rawToken));
+  assert.doesNotMatch(redacted, new RegExp(rawHash));
+  assert.doesNotMatch(redacted, /token_hash/i);
+  assert.match(redacted, /\[redacted-(?:field|hash|token)\]/);
+  assert.equal(redactQrIncidentLogText(null), null);
 });
 
 test("menu fallback runs only for a structured eligible persistence failure", async () => {
@@ -131,6 +190,46 @@ test("metadata resolution accepts only canonical admin paths with a restaurant",
   );
 });
 
+test("metadata RPC fallback recognizes only stable codes or the exact missing function", async () => {
+  const { isQrMetadataRpcUnavailable } = await loadResolutionCore();
+
+  for (const error of [
+    { code: "42883", message: "generic database error" },
+    { code: "PGRST202", message: "generic PostgREST error" },
+    {
+      message:
+        "function public.resolve_qr_code_scan_metadata(text) does not exist"
+    },
+    {
+      message:
+        "Could not find the function public.resolve_qr_code_scan_metadata(p_token_hash) in the schema cache"
+    }
+  ]) {
+    assert.equal(isQrMetadataRpcUnavailable(error), true, JSON.stringify(error));
+  }
+
+  for (const error of [
+    null,
+    { message: "schema cache is stale" },
+    {
+      message:
+        "Could not find the function public.resolve_another_function in the schema cache"
+    },
+    {
+      code: "XX000",
+      message:
+        "Could not find the function public.resolve_qr_code_scan_metadata in the schema cache"
+    },
+    {
+      code: "23505",
+      message:
+        "function public.resolve_qr_code_scan_metadata(text) does not exist"
+    }
+  ]) {
+    assert.equal(isQrMetadataRpcUnavailable(error), false, JSON.stringify(error));
+  }
+});
+
 test("legacy scan resolution is strictly menu-only and forces menu metadata", async () => {
   const { resolveLegacyMenuQrScan } = await loadResolutionCore();
 
@@ -204,11 +303,13 @@ test("qrStore uses structured incident logging for every Supabase QR error path"
     /supabase:\s*\{[\s\S]*?code:[\s\S]*?message:[\s\S]*?details:[\s\S]*?hint:/
   );
   assert.match(source, /config:\s*\{\s*reason:/);
-  assert.match(source, /function redactQrLogText\(/);
+  assert.match(source, /redactQrIncidentLogText/);
   for (const field of ["message", "details", "hint"]) {
     assert.match(
       source,
-      new RegExp(`${field}:\\s*redactQrLogText\\(input\\.supabaseError\\.${field}\\)`),
+      new RegExp(
+        `${field}:\\s*redactQrIncidentLogText\\(input\\.supabaseError\\.${field}\\)`
+      ),
       `${field} is redacted before logging`
     );
   }
@@ -258,7 +359,7 @@ test("qrStore falls back to the legacy RPC only for metadata unavailability", as
   const metadataBranch = source.slice(metadataStart, legacyStart);
   assert.match(
     metadataBranch,
-    /if \(!isRpcUnavailable\(error\)\) \{[\s\S]*?logQrSupabaseIncident\([\s\S]*?return \{ ok: false \};[\s\S]*?metadataRpcUnavailable = true;/
+    /if \(!isQrMetadataRpcUnavailable\(error\)\) \{[\s\S]*?logQrSupabaseIncident\([\s\S]*?return \{ ok: false \};[\s\S]*?metadataRpcUnavailable = true;/
   );
   assert.match(metadataBranch, /if \(!row\) continue;/);
 
