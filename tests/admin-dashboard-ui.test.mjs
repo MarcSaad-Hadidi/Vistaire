@@ -27,7 +27,7 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
   ]);
   const source = `${layout}\n${page}\n${dashboard}`;
   assert.match(layout, /index:\s*false/);
-  assert.match(layout, /follow:\s*false/);
+  assert.match(layout, /follow:\s*true/);
   assert.match(layout, /noarchive:\s*true/);
   assert.match(source, /AdminDashboard\.module\.css/);
   assert.doesNotMatch(source, /VistaireRestaurateurDashboardPreview|next\/image|PhotoResto|AdminAssistant|\/api\/owner|model-viewer|\.glb|\.usdz|<canvas/i);
