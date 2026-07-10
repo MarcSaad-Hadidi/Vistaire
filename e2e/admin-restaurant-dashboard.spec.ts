@@ -225,6 +225,7 @@ test("authorized admin filters dishes and persists then restores availability", 
     const allowedActions = [
       /^Ouvrir menu client$/i,
       /^Copier(?: le)? lien (?:du )?menu$/i,
+      /^Déconnexion$/i,
       /^(?:Tous|Disponibles|Indisponibles|Prix manquant|Description manquante|Photo manquante|3D\/AR)$/,
       /^Rendre .+ (?:disponible|indisponible)$/i
     ];
@@ -381,13 +382,12 @@ test("admin logout removes the restaurant session", async ({ page }) => {
   expect(cookies.find((cookie) => cookie.name === "vistaire_admin_access")).toBeUndefined();
 });
 
-test("fallback analytics show only the insufficient evidence state", async ({ page }) => {
+test("partial analytics retain real metrics without demo contamination", async ({ page }) => {
   test.skip(!ADMIN_E2E_FALLBACK_QR_TOKEN, "requires the fallback analytics QR fixture");
   await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_FALLBACK_QR_TOKEN ?? "")}`, {
     waitUntil: "networkidle"
   });
-  await expect(page.getByText(/Pas encore assez d'activité réelle/i)).toBeVisible();
-  await expect(page.getByText(/Données insuffisantes/i)).toBeVisible();
+  await expect(page.getByText(/Données réelles — échantillon encore limité/i)).toBeVisible();
   await expect(page.getByText(/Maison Elyse|Homard bleu|Lecture de présentation/i)).toHaveCount(0);
   await expect(page.getByText(/987654|123456|777777/)).toHaveCount(0);
 });

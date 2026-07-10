@@ -54,12 +54,42 @@ function nextCalendarDay(day: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+function previousCalendarDays(day: string, days: number): string {
+  const date = new Date(`${day}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function startOfLocalDayIso(day: string, timeZone: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  const provisional = new Date(Date.UTC(year, month - 1, date));
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(provisional);
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((item) => item.type === type)?.value ?? 0);
+  const observed = Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute"), part("second"));
+  return new Date(provisional.getTime() + (Date.UTC(year, month - 1, date) - observed)).toISOString();
+}
+
 export function getAnalyticsPeriod(now = new Date(), timeZone = DEFAULT_RESTAURANT_TIME_ZONE) {
-  const toIso = now.toISOString();
-  const fromIso = new Date(now.getTime() - ANALYTICS_WINDOW_DAYS * 86_400_000).toISOString();
   const format = new Intl.DateTimeFormat("fr-CA", { timeZone, day: "numeric", month: "short" });
-  const toDay = localDate(new Date(toIso), timeZone);
-  return { fromIso, toIso, fromDay: localDate(new Date(fromIso), timeZone), toDay: nextCalendarDay(toDay), label: `${format.format(new Date(fromIso))} au ${format.format(now)}` };
+  const currentDay = localDate(now, timeZone);
+  const fromDay = previousCalendarDays(currentDay, ANALYTICS_WINDOW_DAYS - 1);
+  const toDay = nextCalendarDay(currentDay);
+  return {
+    fromIso: startOfLocalDayIso(fromDay, timeZone),
+    toIso: startOfLocalDayIso(toDay, timeZone),
+    fromDay,
+    toDay,
+    label: `${format.format(new Date(`${fromDay}T12:00:00.000Z`))} au ${format.format(now)}`
+  };
 }
 
 function count(row: AnyRow, keys: string[]) { return getNumber(row, keys, 0); }
@@ -133,9 +163,9 @@ export function buildRealInsights(args: {
   const fromEvents = buildRowsFromEvents(args.eventRows);
   const menuOpens = args.dailyRows.reduce((sum, row) => sum + count(row, ["menu_opened_count", "menu_opens", "menu_opened"]), 0) || args.eventRows.filter((row) => eventName(row) === "menu_opened").length;
   const sessions = args.dailyRows.reduce((sum, row) => sum + count(row, ["unique_sessions", "session_count"]), 0) || new Set(args.eventRows.map((row) => getString(row, ["session_id"], "")).filter(Boolean)).size;
-  const dishRows = fromEvents.dishes;
-  const searchRows = fromEvents.searches;
-  const categoryRows = fromEvents.categories;
+  const dishRows = fromEvents.dishes.length > 0 ? fromEvents.dishes : args.dishRows;
+  const searchRows = fromEvents.searches.length > 0 ? fromEvents.searches : args.searchRows;
+  const categoryRows = fromEvents.categories.length > 0 ? fromEvents.categories : args.categoryRows;
   const dishViews = args.dailyRows.reduce((sum, row) => sum + count(row, ["dish_opened_count", "dish_views", "dish_opened"]), 0) || dishRows.reduce((sum, row) => sum + count(row, ["dish_opened_count", "dish_views", "dish_opened"]), 0);
   const searches = args.dailyRows.reduce((sum, row) => sum + count(row, ["search_used_count", "search_count", "searches"]), 0) || searchRows.reduce((sum, row) => sum + count(row, ["search_count", "count"]), 0);
   const filters = args.dailyRows.reduce((sum, row) => sum + count(row, ["filter_used_count", "filter_count", "filters"]), 0) || args.eventRows.filter((row) => eventName(row) === "filter_used").length;

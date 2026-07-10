@@ -2,7 +2,7 @@
 
 Les scénarios critiques de `e2e/admin-restaurant-dashboard.spec.ts` se lancent en lecture locale sans fixture QR, mais les scénarios réels sont alors explicitement signalés comme ignorés. Ils ne sont jamais une preuve de déploiement.
 
-Pour la validation contrôlée du PR, activer l’environnement GitHub `admin-e2e` avec la variable `VISTAIRE_ADMIN_E2E_ENABLED=true`. Le job **Admin restaurant E2E (controlled preview)** devient alors obligatoire et fixe `VISTAIRE_REQUIRE_ADMIN_E2E=1`. Toute fixture manquante fait échouer le job avant que les scénarios QR ne puissent être ignorés.
+Le job GitHub **Admin restaurant E2E (controlled preview)** est requis et fixe `VISTAIRE_REQUIRE_ADMIN_E2E=1`. L’environnement GitHub `admin-e2e` doit fournir les fixtures preview dédiées. Toute fixture manquante fait échouer le job avant que les scénarios QR ne puissent être ignorés.
 
 Utiliser uniquement une preview Vistaire contrôlée, jamais la production, dans `VISTAIRE_ADMIN_E2E_BASE_URL`. Cette preview doit déjà contenir la migration QR et les secrets de session correspondant au projet Vistaire.
 

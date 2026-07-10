@@ -54,9 +54,8 @@ jobs:
   admin-restaurant-e2e:
     name: Admin restaurant E2E (controlled preview)
     needs: app-ci
-    # This is deliberately opt-in: it performs a real, reverted availability mutation
-    # against a dedicated preview fixture, never against production by default.
-    if: vars.VISTAIRE_ADMIN_E2E_ENABLED == 'true'
+    # This performs a real, reverted availability mutation against a dedicated
+    # preview fixture. Missing fixtures fail this required job; they never skip it.
     runs-on: ubuntu-latest
     environment: admin-e2e
 

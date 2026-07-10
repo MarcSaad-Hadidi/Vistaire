@@ -33,6 +33,14 @@ export function AdminMenuActions({ menuPath }: { menuPath: string }) {
       >
         {copied ? "Lien copié" : "Copier le lien menu"}
       </button>
+      <form action="/admin/logout" method="post">
+        <button
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 bg-transparent px-5 text-sm font-semibold text-cream transition hover:border-white/50 hover:bg-black/10"
+          type="submit"
+        >
+          Déconnexion
+        </button>
+      </form>
     </div>
   );
 }
