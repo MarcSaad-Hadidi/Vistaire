@@ -42,7 +42,10 @@ export type AdminDashboardLoadResult =
   | { ok: true; data: AdminDashboardData }
   | {
       ok: false;
-      reason: "restaurant-lookup-failed" | "restaurant-not-found";
+      reason:
+        | "restaurant-lookup-failed"
+        | "restaurant-not-found"
+        | "menu-lookup-failed";
     };
 
 function toAdminDish(dish: PublicMenuDish): AdminMenuDish {
@@ -92,8 +95,17 @@ export async function loadAdminDashboardData(
     return { ok: false, reason: "restaurant-not-found" };
   }
 
-  const [menuResult, categoryResult, dishResult] = await Promise.all([
-    readSupabaseRowsByColumn("menus", "restaurant_id", restaurantId, 100),
+  const menuResult = await readSupabaseRowsByColumn(
+    "menus",
+    "restaurant_id",
+    restaurantId,
+    100
+  );
+  if (!menuResult.ok) {
+    return { ok: false, reason: "menu-lookup-failed" };
+  }
+
+  const [categoryResult, dishResult] = await Promise.all([
     readSupabaseRowsByColumn(
       "menu_categories",
       "restaurant_id",
@@ -107,7 +119,7 @@ export async function loadAdminDashboardData(
       500
     )
   ]);
-  const selectedMenu = selectAdminDashboardMenu(menuResult.ok ? menuResult.rows : []);
+  const selectedMenu = selectAdminDashboardMenu(menuResult.rows);
   const insightsResult = await getRestaurantInsights(restaurantId, selectedMenu?.id);
   const categoryRows = selectedMenu
     ? (categoryResult.ok ? categoryResult.rows : []).filter(

@@ -2,7 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { readBoundedJsonBody } from "@/lib/admin/requestBody";
 import { validateAnalyticsEventContext } from "@/lib/analytics/context";
 import { insertAnalyticsEvent } from "@/lib/analytics/eventStore";
-import { validateAnalyticsEvent } from "@/lib/analytics/validation";
+import {
+  isConfiguredDemoAnalyticsPayload,
+  validateAnalyticsEvent
+} from "@/lib/analytics/validation";
 import type { AnalyticsApiResponse } from "@/lib/analytics/types";
 
 export const runtime = "nodejs";
@@ -40,12 +43,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const context = await validateAnalyticsEventContext(validation.payload);
-  if (!context.ok) {
-    return NextResponse.json<AnalyticsApiResponse>(
-      { ok: false, error: context.error },
-      { status: context.status }
-    );
+  if (!isConfiguredDemoAnalyticsPayload(validation.payload)) {
+    const context = await validateAnalyticsEventContext(validation.payload);
+    if (!context.ok) {
+      return NextResponse.json<AnalyticsApiResponse>(
+        { ok: false, error: context.error },
+        { status: context.status }
+      );
+    }
   }
 
   const userAgent = request.headers.get("user-agent") ?? "";

@@ -95,3 +95,14 @@ test("admin dashboard fails closed before menu reads when the restaurant lookup 
       page.indexOf("<AdminRestaurantDashboard")
   );
 });
+
+test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  const menuRead = loader.indexOf('const menuResult = await readSupabaseRowsByColumn(\n    "menus"');
+  const menuGuard = loader.indexOf("if (!menuResult.ok)");
+  const categoryRead = loader.indexOf('readSupabaseRowsByColumn(\n      "menu_categories"');
+
+  assert.ok(menuRead >= 0);
+  assert.ok(menuGuard > menuRead && menuGuard < categoryRead);
+  assert.match(loader, /reason:\s*["']menu-lookup-failed["']/);
+});

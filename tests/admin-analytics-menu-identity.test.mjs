@@ -218,6 +218,37 @@ test("analytics route bounds JSON and validates relational context before insert
   assert.match(route, /status:\s*context\.status/);
 });
 
+test("demo analytics bypass is restricted to the configured demo identity", async () => {
+  const { isConfiguredDemoAnalyticsPayload } = await import("../lib/analytics/validation.ts");
+  const demoPayload = {
+    eventName: "menu_opened",
+    restaurantId: "11111111-1111-1111-1111-111111111111",
+    menuId: "22222222-2222-2222-2222-222222222222",
+    sessionId: "session-demo",
+    source: "demo"
+  };
+
+  assert.equal(isConfiguredDemoAnalyticsPayload(demoPayload), true);
+  assert.equal(
+    isConfiguredDemoAnalyticsPayload({
+      ...demoPayload,
+      restaurantId: RESTAURANT_A,
+      menuId: MENU_A
+    }),
+    false
+  );
+  assert.equal(
+    isConfiguredDemoAnalyticsPayload({ ...demoPayload, source: "production" }),
+    false
+  );
+
+  const route = await readFile("app/api/analytics/events/route.ts", "utf8");
+  assert.match(
+    route,
+    /if \(!isConfiguredDemoAnalyticsPayload\(validation\.payload\)\) \{\s*const context = await validateAnalyticsEventContext\(validation\.payload\)/
+  );
+});
+
 test("public menu review tracking forwards the relational menu id", async () => {
   const [tracking, client, card, renderer, trouvable, dish] = await Promise.all([
     readFile("components/menu/googleReviewTracking.ts", "utf8"),
