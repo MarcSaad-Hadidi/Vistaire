@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { Locale } from "@/lib/i18n";
@@ -12,6 +12,10 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
+import {
+  getPublicMenuAnalyticsContext,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import styles from "./MaisonElyseDishDetail.module.css";
 
 const MODEL_VIEWER_ID = "maison-elyse-dish-model-viewer";
@@ -322,6 +326,7 @@ export function MaisonElyseDishDetail({
 }: MaisonElyseDishDetailProps) {
   const copy = DETAIL_COPY[locale];
   const [showModelViewer, setShowModelViewer] = useState(false);
+  const analyticsContext = getPublicMenuAnalyticsContext(menu);
   const menuHref = buildFullMenuHref(menu, query);
   const restaurantName = cleanDisplayText(menu.name) || "Maison Élyse";
   const dishName = cleanDisplayText(dish.name);
@@ -342,6 +347,14 @@ export function MaisonElyseDishDetail({
     : has3d
       ? copy.show3d
       : copy.openAr;
+
+  useEffect(() => {
+    trackPublicMenuEvent(menu, {
+      eventName: "dish_opened",
+      dishSlug: dish.slug,
+      categorySlug: dish.category
+    });
+  }, [dish.category, dish.slug, menu]);
 
   function toggleModelViewer() {
     setShowModelViewer((isVisible) => {
@@ -440,6 +453,7 @@ export function MaisonElyseDishDetail({
               <div className={styles.modelStage} id={MODEL_VIEWER_ID}>
                 {showModelViewer ? (
                   <LazyDishModelViewer
+                    analyticsContext={analyticsContext ?? undefined}
                     dish={modelViewerDishFromPublicDish(dish)}
                     minimalChrome
                     quietChrome
