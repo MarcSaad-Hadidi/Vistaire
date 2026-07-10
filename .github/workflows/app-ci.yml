@@ -57,10 +57,9 @@ jobs:
   admin-restaurant-e2e:
     name: Admin restaurant E2E (controlled preview)
     needs: app-ci
-    # This performs a real, reverted availability mutation against a dedicated
-    # preview fixture. It is enabled only after its protected environment has
-    # configured a dedicated preview URL and QR fixtures.
-    if: vars.VISTAIRE_ADMIN_E2E_ENABLED == 'true'
+    # Always materialize this check. Missing protected configuration must fail
+    # the job instead of turning the critical E2E proof into a green skip.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     environment: admin-e2e
 
@@ -73,6 +72,25 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Fail closed when App CI is not green
+        run: |
+          if [ "${{ needs.app-ci.result }}" != "success" ]; then
+            echo "::error::App CI result was ${{ needs.app-ci.result }}; controlled admin E2E cannot be skipped."
+            exit 1
+          fi
+
+      - name: Validate controlled preview fixture contract
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
+          VISTAIRE_ADMIN_E2E_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_ADMIN_E2E_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
+        run: node scripts/admin-e2e-fixture-contract.mjs
 
       - name: Install dependencies
         run: npm ci
@@ -91,5 +109,4 @@ jobs:
           VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
           VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
-          VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
         run: npx playwright test e2e/admin-restaurant-dashboard.spec.ts

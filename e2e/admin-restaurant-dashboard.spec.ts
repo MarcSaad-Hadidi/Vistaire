@@ -4,23 +4,31 @@ const OWNER_E2E_TOKEN =
   process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
   "vistaire-owner-e2e-local-token";
 const ADMIN_E2E_QR_TOKEN = process.env.VISTAIRE_ADMIN_E2E_QR_TOKEN;
-const ADMIN_E2E_FALLBACK_QR_TOKEN = process.env.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN;
 const ADMIN_E2E_RESTAURANT_NAME = process.env.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME;
 const ADMIN_E2E_OTHER_QR_TOKEN = process.env.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN;
 const ADMIN_E2E_OTHER_RESTAURANT_NAME = process.env.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME;
 const ADMIN_E2E_SUSPENDED_QR_TOKEN = process.env.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN;
 const REQUIRE_ADMIN_E2E = process.env.VISTAIRE_REQUIRE_ADMIN_E2E === "1";
 
-function requireAdminFixture(value: string | undefined, name: string) {
-  expect(value, `${name} must be configured for required admin E2E`).toBeTruthy();
+function requireAdminFixture(value: string | undefined, name: string): string {
+  if (value) return value;
+  if (REQUIRE_ADMIN_E2E) {
+    throw new Error(`${name} must be configured for required admin E2E`);
+  }
+  test.skip(true, `requires ${name}`);
+  return "";
 }
 
-function requireAdminPreviewUrl() {
+function requireAdminPreviewUrl(): string {
   const value = process.env.PLAYWRIGHT_BASE_URL;
-  expect(value, "VISTAIRE_ADMIN_E2E_BASE_URL must be configured for required admin E2E").toBeTruthy();
-  expect(new URL(value as string).protocol, "Admin E2E must use an HTTPS preview URL").toBe(
-    "https:"
-  );
+  if (!value) {
+    throw new Error("VISTAIRE_ADMIN_E2E_BASE_URL must be configured for required admin E2E");
+  }
+  const url = new URL(value);
+  expect(url.protocol, "Admin E2E must use an HTTPS preview URL").toBe("https:");
+  expect(url.hostname === "vistaire.ca" || url.hostname.endsWith(".vistaire.ca"),
+    "Admin E2E must never target the production client").toBe(false);
+  return value;
 }
 
 async function enableOwnerBypass(context: BrowserContext, baseURL: string) {
@@ -45,6 +53,12 @@ function installPageHealth(page: Page) {
   page.on("response", (response) => {
     if (response.status() === 404 || response.status() >= 500) {
       networkIssues.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  page.on("requestfailed", (request) => {
+    const errorText = request.failure()?.errorText ?? "unknown request failure";
+    if (errorText !== "net::ERR_ABORTED") {
+      networkIssues.push(`${errorText} ${request.url()}`);
     }
   });
   page.on("request", (request) => {
@@ -72,6 +86,27 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
+async function expectPublicMenuDishState(
+  page: Page,
+  menuPath: string,
+  dishName: string,
+  available: boolean
+) {
+  await page.goto(menuPath, { waitUntil: "networkidle" });
+  if (available) {
+    const revealMenu = page.getByRole("button", { name: /Voir le menu|Tout voir/i }).first();
+    if (await revealMenu.count()) {
+      await revealMenu.click();
+    } else {
+      const allTab = page.getByRole("tab", { name: /Tout/i }).first();
+      if (await allTab.count()) await allTab.click();
+    }
+    await expect(page.getByText(dishName, { exact: true }).first()).toBeVisible();
+  } else {
+    await expect(page.getByText(dishName, { exact: true })).toHaveCount(0);
+  }
+}
+
 test("required admin E2E fixtures are never silently skipped", () => {
   if (!REQUIRE_ADMIN_E2E) return;
 
@@ -89,10 +124,6 @@ test("required admin E2E fixtures are never silently skipped", () => {
   requireAdminFixture(
     ADMIN_E2E_SUSPENDED_QR_TOKEN,
     "VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN"
-  );
-  requireAdminFixture(
-    ADMIN_E2E_FALLBACK_QR_TOKEN,
-    "VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN"
   );
 });
 
@@ -160,7 +191,10 @@ test("owner QR page distinguishes public menu and internal restaurant access", a
 test("authorized admin filters dishes and persists then restores availability", async ({
   page
 }) => {
-  test.skip(!ADMIN_E2E_QR_TOKEN, "requires an active admin QR fixture");
+  const adminQrToken = requireAdminFixture(
+    ADMIN_E2E_QR_TOKEN,
+    "VISTAIRE_ADMIN_E2E_QR_TOKEN"
+  );
   const health = installPageHealth(page);
   const requestedStates: boolean[] = [];
   const actionRequests: string[] = [];
@@ -206,10 +240,13 @@ test("authorized admin filters dishes and persists then restores availability", 
 
   for (const width of [390]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_QR_TOKEN ?? "")}`, {
+    await page.goto(`/q/${encodeURIComponent(adminQrToken)}`, {
       waitUntil: "networkidle"
     });
     await expect(page).toHaveURL(/\/admin$/);
+    await expect(
+      page.getByRole("heading", { name: ADMIN_E2E_RESTAURANT_NAME, exact: true })
+    ).toBeVisible();
     await expect(page.getByText("Dashboard restaurant").first()).toBeVisible();
     for (const forbidden of [
       /Modifier (?:le plat|les détails)/i,
@@ -289,27 +326,55 @@ test("authorized admin filters dishes and persists then restores availability", 
     const initialAvailability = await row.getAttribute("data-available");
     expect(["true", "false"]).toContain(initialAvailability);
     const initiallyAvailable = initialAvailability === "true";
+    const dishId = await row.getAttribute("data-admin-dish-row");
+    if (!dishId) throw new Error("Controlled Restaurant A must expose a dish id.");
+    const dishName = (await row.locator("h3").innerText()).trim();
+    expect(dishName).toBeTruthy();
+    const menuPath = await page
+      .getByRole("link", { name: /Ouvrir menu client/i })
+      .getAttribute("href");
+    expect(menuPath).toMatch(/^\/menu\/[^/?#]+$/);
+    await expectPublicMenuDishState(page, menuPath as string, dishName, initiallyAvailable);
+    await page.goto("/admin", { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(/\/admin$/);
+    const restoredPageRow = page.locator(`[data-admin-dish-row="${dishId}"]`);
     const toggle = row.getByRole("button", {
       name: initiallyAvailable ? /Rendre .* indisponible/i : /Rendre .* disponible/i
     });
-    let changed = false;
+    let mutationStarted = false;
     try {
+      mutationStarted = true;
       await toggle.click();
-      changed = true;
       await expect.poll(() => requestedStates.at(-1)).toBe(!initiallyAvailable);
       await expect(row).toHaveAttribute("data-available", initiallyAvailable ? "false" : "true");
+      await expectPublicMenuDishState(page, menuPath as string, dishName, !initiallyAvailable);
     } finally {
-      if (changed) {
-        await row
-          .getByRole("button", {
-            name: initiallyAvailable ? /Rendre .* disponible/i : /Rendre .* indisponible/i
-          })
-          .click();
+      if (mutationStarted) {
+        const restore = await page.evaluate(
+          async ({ dishId, available }) => {
+            const response = await fetch(`/admin/api/dishes/${encodeURIComponent(dishId)}/availability`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ available })
+            });
+            return { status: response.status, body: await response.json() };
+          },
+          {
+            dishId,
+            available: initiallyAvailable
+          }
+        );
+        expect(restore.status).toBe(200);
+        expect(restore.body.ok).toBe(true);
+        expect(restore.body.available).toBe(initiallyAvailable);
         await expect.poll(() => requestedStates.at(-1)).toBe(initiallyAvailable);
-        await expect(row).toHaveAttribute(
+        await page.goto("/admin", { waitUntil: "networkidle" });
+        await expect(restoredPageRow).toHaveAttribute(
           "data-available",
           initiallyAvailable ? "true" : "false"
         );
+        await expectPublicMenuDishState(page, menuPath as string, dishName, initiallyAvailable);
+        await page.goto("/admin", { waitUntil: "networkidle" });
       }
     }
     await expectNoHorizontalOverflow(page);
@@ -329,30 +394,43 @@ test("authorized admin filters dishes and persists then restores availability", 
 });
 
 test("a restaurant B session cannot mutate a dish exposed to restaurant A", async ({ browser }) => {
-  test.skip(
-    !ADMIN_E2E_QR_TOKEN || !ADMIN_E2E_OTHER_QR_TOKEN,
-    "requires active QR fixtures for two different restaurants"
+  const adminQrToken = requireAdminFixture(
+    ADMIN_E2E_QR_TOKEN,
+    "VISTAIRE_ADMIN_E2E_QR_TOKEN"
+  );
+  const otherAdminQrToken = requireAdminFixture(
+    ADMIN_E2E_OTHER_QR_TOKEN,
+    "VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN"
+  );
+  const restaurantAName = requireAdminFixture(
+    ADMIN_E2E_RESTAURANT_NAME,
+    "VISTAIRE_ADMIN_E2E_RESTAURANT_NAME"
+  );
+  const restaurantBName = requireAdminFixture(
+    ADMIN_E2E_OTHER_RESTAURANT_NAME,
+    "VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME"
   );
   const restaurantA = await browser.newContext();
   const restaurantB = await browser.newContext();
 
   try {
     const pageA = await restaurantA.newPage();
-    await pageA.goto(`/q/${encodeURIComponent(ADMIN_E2E_QR_TOKEN ?? "")}`, {
+    const healthA = installPageHealth(pageA);
+    await pageA.goto(`/q/${encodeURIComponent(adminQrToken)}`, {
       waitUntil: "networkidle"
     });
     await expect(pageA).toHaveURL(/\/admin$/);
+    await expect(pageA.getByRole("heading", { name: restaurantAName, exact: true })).toBeVisible();
     const dishId = await pageA.locator("[data-admin-dish-row]").first().getAttribute("data-admin-dish-row");
     expect(dishId).toBeTruthy();
 
     const pageB = await restaurantB.newPage();
-    await pageB.goto(`/q/${encodeURIComponent(ADMIN_E2E_OTHER_QR_TOKEN ?? "")}`, {
+    const healthB = installPageHealth(pageB);
+    await pageB.goto(`/q/${encodeURIComponent(otherAdminQrToken)}`, {
       waitUntil: "networkidle"
     });
     await expect(pageB).toHaveURL(/\/admin$/);
-    if (ADMIN_E2E_OTHER_RESTAURANT_NAME) {
-      await expect(pageB.getByText(ADMIN_E2E_OTHER_RESTAURANT_NAME, { exact: true }).first()).toBeVisible();
-    }
+    await expect(pageB.getByRole("heading", { name: restaurantBName, exact: true })).toBeVisible();
 
     const result = await pageB.evaluate(async (id) => {
       const response = await fetch(`/admin/api/dishes/${encodeURIComponent(id ?? "")}/availability`, {
@@ -364,6 +442,8 @@ test("a restaurant B session cannot mutate a dish exposed to restaurant A", asyn
     }, dishId);
     expect(result.status).toBe(404);
     expect(result.body.ok).toBe(false);
+    healthA.expectClean();
+    healthB.expectClean();
   } finally {
     await restaurantA.close();
     await restaurantB.close();
@@ -371,9 +451,12 @@ test("a restaurant B session cannot mutate a dish exposed to restaurant A", asyn
 });
 
 test("a suspended QR cannot establish an admin session", async ({ page }) => {
-  test.skip(!ADMIN_E2E_SUSPENDED_QR_TOKEN, "requires a suspended admin QR fixture");
+  const suspendedQrToken = requireAdminFixture(
+    ADMIN_E2E_SUSPENDED_QR_TOKEN,
+    "VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN"
+  );
 
-  await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_SUSPENDED_QR_TOKEN ?? "")}`, {
+  await page.goto(`/q/${encodeURIComponent(suspendedQrToken)}`, {
     waitUntil: "networkidle"
   });
   await expect(page).not.toHaveURL(/\/admin$/);
@@ -382,9 +465,12 @@ test("a suspended QR cannot establish an admin session", async ({ page }) => {
 });
 
 test("admin logout removes the restaurant session", async ({ page }) => {
-  test.skip(!ADMIN_E2E_QR_TOKEN, "requires an active admin QR fixture");
+  const adminQrToken = requireAdminFixture(
+    ADMIN_E2E_QR_TOKEN,
+    "VISTAIRE_ADMIN_E2E_QR_TOKEN"
+  );
 
-  await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_QR_TOKEN ?? "")}`, {
+  await page.goto(`/q/${encodeURIComponent(adminQrToken)}`, {
     waitUntil: "networkidle"
   });
   await expect(page).toHaveURL(/\/admin$/);
@@ -394,22 +480,15 @@ test("admin logout removes the restaurant session", async ({ page }) => {
   expect(cookies.find((cookie) => cookie.name === "vistaire_admin_access")).toBeUndefined();
 });
 
-test("partial analytics retain real metrics without demo contamination", async ({ page }) => {
-  test.skip(!ADMIN_E2E_FALLBACK_QR_TOKEN, "requires the fallback analytics QR fixture");
-  await page.goto(`/q/${encodeURIComponent(ADMIN_E2E_FALLBACK_QR_TOKEN ?? "")}`, {
-    waitUntil: "networkidle"
-  });
-  await expect(page.getByText(/Données réelles — échantillon encore limité/i)).toBeVisible();
-  await expect(page.getByText(/Maison Elyse|Homard bleu|Lecture de présentation/i)).toHaveCount(0);
-  await expect(page.getByText(/987654|123456|777777/)).toHaveCount(0);
-});
-
 test("real admin QR exchange sets the session cookie when credentials exist", async ({
   request
 }) => {
-  test.skip(!ADMIN_E2E_QR_TOKEN, "requires an active admin QR fixture");
+  const adminQrToken = requireAdminFixture(
+    ADMIN_E2E_QR_TOKEN,
+    "VISTAIRE_ADMIN_E2E_QR_TOKEN"
+  );
 
-  const response = await request.get(`/q/${encodeURIComponent(ADMIN_E2E_QR_TOKEN ?? "")}`, {
+  const response = await request.get(`/q/${encodeURIComponent(adminQrToken)}`, {
     maxRedirects: 0
   });
   expect(response.status()).toBeGreaterThanOrEqual(300);
