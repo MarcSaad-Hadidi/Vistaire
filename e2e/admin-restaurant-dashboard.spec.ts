@@ -388,8 +388,8 @@ test("admin logout removes the restaurant session", async ({ page }) => {
     waitUntil: "networkidle"
   });
   await expect(page).toHaveURL(/\/admin$/);
-  await page.getByRole("button", { name: /DÃ©connexion|Se dÃ©connecter/i }).click();
-  await expect(page.getByRole("heading", { name: "AccÃ¨s dashboard restaurant requis" })).toBeVisible();
+  await page.getByRole("button", { name: /Déconnexion|Se déconnecter/i }).click();
+  await expect(page.getByRole("heading", { name: "Accès dashboard restaurant requis" })).toBeVisible();
   const cookies = await page.context().cookies();
   expect(cookies.find((cookie) => cookie.name === "vistaire_admin_access")).toBeUndefined();
 });

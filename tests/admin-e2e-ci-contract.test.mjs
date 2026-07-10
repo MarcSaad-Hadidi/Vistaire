@@ -47,3 +47,11 @@ test("admin E2E guide is UTF-8 French and describes the opt-in live proof honest
   assert.match(guide, /VISTAIRE_ADMIN_E2E_ENABLED=true/);
   assert.match(guide, /ne constitue pas une preuve de validation live/i);
 });
+
+test("admin E2E specification contains no mojibake", async () => {
+  const spec = await source("e2e/admin-restaurant-dashboard.spec.ts");
+
+  assert.doesNotMatch(spec, /(?:Ãƒ.|Ã¢â‚¬â„¢|Ã¢â‚¬Å“|Ã¢â‚¬|DÃ©connexion|AccÃ¨s)/);
+  assert.match(spec, /Déconnexion/);
+  assert.match(spec, /Accès dashboard restaurant requis/);
+});
