@@ -43,8 +43,8 @@ test("production access form delegates to the existing q exchange without cookie
   const route = await readFile("app/admin/access/route.ts", "utf8");
   const page = await readFile("app/admin/page.tsx", "utf8");
 
-  assert.match(route, /extractAdminQrToken/);
-  assert.match(route, /request\.formData\(\)/);
+  assert.match(route, /parseAdminQrAccessRequest/);
+  assert.doesNotMatch(route, /request\.formData\(\)/);
   assert.match(route, /encodeURIComponent\(token\)/);
   assert.match(route, /status:\s*303/);
   assert.doesNotMatch(route, /cookies\.set|vistaire_admin_access/);

@@ -1,16 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { extractAdminQrToken } from "@/lib/admin/qrAccessInputCore";
+import { parseAdminQrAccessRequest } from "@/lib/admin/qrAccessInputCore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const formData = await request.formData();
-  const input = formData.get("qrAccess");
-  const token =
-    typeof input === "string"
-      ? extractAdminQrToken(input, request.nextUrl.origin)
-      : null;
+  const token = await parseAdminQrAccessRequest(request, request.nextUrl.origin);
   const targetPath = token
     ? `/q/${encodeURIComponent(token)}`
     : "/q/invalid";

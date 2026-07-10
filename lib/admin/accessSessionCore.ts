@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const ADMIN_ACCESS_TTL_SECONDS = 8 * 60 * 60;
+export const ADMIN_ACCESS_COOKIE_NAME = "vistaire_admin_access";
 
 const MIN_SECRET_BYTES = 32;
 const PAYLOAD_KEYS = ["exp", "qrId", "restaurantId", "v"];
@@ -11,6 +12,27 @@ export type AdminAccessPayloadV1 = {
   restaurantId: string;
   exp: number;
 };
+
+export function getAdminAccessCookieOptions(nodeEnv: string | undefined) {
+  return {
+    httpOnly: true as const,
+    secure: nodeEnv === "production",
+    sameSite: "lax" as const,
+    path: "/admin" as const,
+    maxAge: ADMIN_ACCESS_TTL_SECONDS
+  };
+}
+
+export function getExpiredAdminAccessCookieOptions(nodeEnv: string | undefined) {
+  return {
+    httpOnly: true as const,
+    secure: nodeEnv === "production",
+    sameSite: "lax" as const,
+    path: "/admin" as const,
+    maxAge: 0,
+    expires: new Date(0)
+  };
+}
 
 function isStrongSecret(secret: string): boolean {
   return Buffer.byteLength(secret, "utf8") >= MIN_SECRET_BYTES;

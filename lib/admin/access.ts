@@ -2,8 +2,8 @@ import "server-only";
 
 import { cookies, headers } from "next/headers";
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
-import { inferOwnerQrTargetKind } from "@/lib/owner/menuUrlCore";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
+import { ADMIN_ACCESS_COOKIE_NAME } from "@/lib/admin/accessSessionCore";
 import {
   createLocalAdminPreviewAccess,
   LOCAL_ADMIN_PREVIEW_COOKIE
@@ -24,11 +24,9 @@ export type {
   LiveQrAccessRow
 } from "@/lib/admin/accessCore";
 
-const ADMIN_ACCESS_COOKIE = "vistaire_admin_access";
-
 async function readCookieValue(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  return cookieStore.get(ADMIN_ACCESS_COOKIE)?.value;
+  return cookieStore.get(ADMIN_ACCESS_COOKIE_NAME)?.value;
 }
 
 async function readLiveQrCode(qrId: string): Promise<LiveQrAccessRow | null> {
@@ -49,7 +47,7 @@ async function readLiveQrCode(qrId: string): Promise<LiveQrAccessRow | null> {
   const targetKind =
     storedKind === "menu" || storedKind === "admin"
       ? storedKind
-      : inferOwnerQrTargetKind(targetPath);
+      : null;
   return {
     id: typeof data.id === "string" ? data.id : "",
     restaurantId:
