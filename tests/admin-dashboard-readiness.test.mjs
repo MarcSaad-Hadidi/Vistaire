@@ -97,6 +97,7 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
   assert.match(page, /Accès dashboard restaurant requis/);
   assert.match(page, /Scannez le QR admin interne de votre restaurant\./);
   assert.doesNotMatch(page, /getDemoRestaurantId|searchParams/);
+  assert.doesNotMatch(page, /href=["']\/owner\//);
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /noarchive:\s*true/);
 });

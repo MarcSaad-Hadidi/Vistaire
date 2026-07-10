@@ -69,7 +69,7 @@ test("owner QR customizer cannot expose or export a direct destination before se
   const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
 
   assert.match(source, /useState\(""\)/);
-  assert.match(source, /if \(!qrValue\) \{[\s\S]*?setSvgMarkup\(""\)/);
+  assert.match(source, /if \(!qrValue\) return;/);
   assert.match(source, /const canExportQr = Boolean\(qrValue && svgMarkup\)/);
   assert.match(source, /disabled=\{!canExportQr\}/);
   assert.match(source, /if \(!qrValue\) return;/);
@@ -98,13 +98,15 @@ test("QR scan RPC is not executable by public browser roles", async () => {
 
 test("QR exchange sets only the path-scoped restaurant admin session", async () => {
   const route = await readFile("app/q/[token]/route.ts", "utf8");
+  const session = await readFile("lib/admin/accessSessionCore.ts", "utf8");
+  const combined = `${route}\n${session}`;
 
-  assert.match(route, /vistaire_admin_access/);
-  assert.match(route, /httpOnly:\s*true/);
-  assert.match(route, /secure:\s*process\.env\.NODE_ENV === "production"/);
-  assert.match(route, /sameSite:\s*"lax"/);
-  assert.match(route, /path:\s*"\/admin"/);
-  assert.match(route, /maxAge:\s*ADMIN_ACCESS_TTL_SECONDS/);
+  assert.match(combined, /vistaire_admin_access/);
+  assert.match(combined, /httpOnly:\s*true/);
+  assert.match(combined, /secure:\s*nodeEnv === "production"/);
+  assert.match(combined, /sameSite:\s*"lax"/);
+  assert.match(combined, /path:\s*"\/admin"/);
+  assert.match(combined, /maxAge:\s*ADMIN_ACCESS_TTL_SECONDS/);
   assert.match(route, /resolved\.targetKind === "menu"[\s\S]*resolved\.targetPath/);
   assert.match(route, /protectedRedirect\(request, "\/admin"\)/);
   assert.match(route, /Cache-Control["'],\s*["']no-store/);

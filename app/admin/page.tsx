@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AdminRestaurantDashboard } from "@/components/admin/AdminRestaurantDashboard";
 import styles from "@/components/vistaire-preview/VistaireRestaurateurDashboardPreview.module.css";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
@@ -40,13 +39,6 @@ export default async function AdminPage() {
                     Accéder au dashboard
                   </button>
                 </form>
-                <Link
-                  className={styles.secondaryButton}
-                  href="/owner/qr-codes"
-                  prefetch={false}
-                >
-                  Générer ou gérer le QR admin
-                </Link>
                 {process.env.NODE_ENV !== "production" ? (
                   <form action="/admin/preview" method="post">
                     <button className={styles.primaryButton} type="submit">

@@ -51,5 +51,5 @@ test("production access form delegates to the existing q exchange without cookie
   assert.match(page, /Code ou lien QR admin/);
   assert.match(page, /action="\/admin\/access"/);
   assert.match(page, /Accéder au dashboard/);
-  assert.match(page, /href="\/owner\/qr-codes"/);
+  assert.doesNotMatch(page, /href="\/owner\//);
 });
