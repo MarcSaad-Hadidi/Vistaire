@@ -74,6 +74,7 @@ do $security$ declare actual text; begin
  if exists(select 1 from pg_class c cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a join pg_roles grantee on grantee.oid=a.grantee where c.oid='public.analytics_events'::regclass and grantee.rolname in ('anon','authenticated')) then raise exception 'incompatible grant browser role catalog'; end if;
  if (select array_agg(privilege_type order by privilege_type)::text from information_schema.table_privileges where table_schema='public' and table_name='analytics_events' and grantee='service_role') <> '{DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE}' then raise exception 'incompatible grant service_role'; end if;
  if exists(select 1 from pg_class c cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a join pg_roles grantee on grantee.oid=a.grantee where c.oid='public.analytics_events'::regclass and grantee.rolname not in ('postgres','service_role')) then raise exception 'unexpected grant on analytics_events'; end if;
- if exists(select 1 from pg_default_acl d cross join lateral aclexplode(d.defaclacl) a join pg_roles grantee on grantee.oid=a.grantee where d.defaclnamespace='public'::regnamespace and d.defaclobjtype='r' and grantee.rolname in ('anon','authenticated','service_role')) then raise exception 'unexpected default privilege for analytics_events roles'; end if;
+ -- Default ACLs are schema/owner-wide Supabase settings, not privileges on this
+ -- existing table. The explicit relacl checks above are authoritative here.
 end $security$;
 commit;

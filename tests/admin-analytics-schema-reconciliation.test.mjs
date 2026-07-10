@@ -43,12 +43,11 @@ test("existing catalog objects are compared rather than accepted by name", async
   assert.match(sql, /incompatible (?:column|constraint|index|owner|policy|grant|rls)/i);
 });
 
-test("catalog reconciliation rejects extra objects and checks default privileges", async () => {
+test("catalog reconciliation rejects extra table-specific objects", async () => {
   const sql = await readFile(migration, "utf8");
   assert.match(sql, /unexpected constraint/i);
   assert.match(sql, /unexpected index/i);
   assert.match(sql, /unexpected policy/i);
   assert.match(sql, /unexpected grant/i);
-  assert.match(sql, /pg_default_acl/i);
-  assert.match(sql, /unexpected default privilege/i);
+  assert.match(sql, /relacl\/aclexplode/i);
 });
