@@ -8,6 +8,7 @@ import {
   createLocalAdminPreviewAccess,
   LOCAL_ADMIN_PREVIEW_COOKIE
 } from "@/lib/admin/localPreviewCore";
+import { getLocalAdminPreviewSecret } from "@/lib/admin/localPreviewSecret";
 import {
   requireAdminRestaurantAccess as requireAdminRestaurantAccessCore,
   type AdminAccessDependencies,
@@ -70,12 +71,14 @@ export async function requireAdminRestaurantAccess(
     dependencies.now === undefined;
   if (usesDefaultAccess && process.env.NODE_ENV !== "production") {
     const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
+    const previewSecret = getLocalAdminPreviewSecret();
     const previewAccess = createLocalAdminPreviewAccess({
       nodeEnv: process.env.NODE_ENV,
       hostname: requestHeaders.get("host") ?? "",
       capability,
       cookieValue: cookieStore.get(LOCAL_ADMIN_PREVIEW_COOKIE)?.value,
-      restaurantId: getDemoRestaurantId()
+      restaurantId: getDemoRestaurantId(),
+      secret: previewSecret ?? ""
     });
     if (previewAccess) return previewAccess;
   }

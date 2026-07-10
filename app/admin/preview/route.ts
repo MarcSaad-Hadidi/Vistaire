@@ -1,15 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createLocalAdminPreviewGrant } from "@/lib/admin/localPreviewCore";
+import {
+  createLocalAdminPreviewGrant,
+  deriveLocalPreviewRequestOrigin
+} from "@/lib/admin/localPreviewCore";
+import { getLocalAdminPreviewSecret } from "@/lib/admin/localPreviewSecret";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const requestOrigin = deriveLocalPreviewRequestOrigin({
+    nodeEnv: process.env.NODE_ENV,
+    host: request.headers.get("host"),
+    requestProtocol: request.nextUrl.protocol
+  });
+  const secret = getLocalAdminPreviewSecret();
   const grant = createLocalAdminPreviewGrant({
     nodeEnv: process.env.NODE_ENV,
-    hostname: request.nextUrl.hostname,
     origin: request.headers.get("origin"),
-    requestOrigin: request.nextUrl.origin
+    requestOrigin: requestOrigin ?? "",
+    secret: secret ?? ""
   });
   if (!grant.ok) {
     return new NextResponse(null, {
