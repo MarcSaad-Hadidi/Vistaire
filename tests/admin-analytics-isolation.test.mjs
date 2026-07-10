@@ -1,6 +1,47 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { registerHooks } from "node:module";
+import { sep } from "node:path";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
+
+const projectRootUrl = pathToFileURL(`${process.cwd()}${sep}`).href;
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return { url: "data:text/javascript,export%20default%20undefined", shortCircuit: true };
+    }
+    if (specifier.startsWith("@/")) {
+      const baseUrl = new URL(specifier.slice(2), projectRootUrl);
+      for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
+        const url = new URL(`${baseUrl.href}${extension}`);
+        if (existsSync(url)) {
+          return { url: url.href, shortCircuit: true };
+        }
+      }
+    }
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    if (url.endsWith(".ts") || url.endsWith(".tsx")) {
+      return {
+        format: "module",
+        source: ts.transpileModule(readFileSync(new URL(url), "utf8"), {
+          compilerOptions: {
+            jsx: ts.JsxEmit.ReactJSX,
+            module: ts.ModuleKind.ESNext,
+            target: ts.ScriptTarget.ES2022
+          }
+        }).outputText,
+        shortCircuit: true
+      };
+    }
+    return nextLoad(url, context);
+  }
+});
 
 test("restaurant-scoped Supabase reads filter before applying limits", async () => {
   const source = await readFile("lib/analytics/serverRows.ts", "utf8");
@@ -65,7 +106,7 @@ test("admin dashboard loader receives one trusted restaurant id for every data r
 
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId\)/);
   assert.doesNotMatch(page, /searchParams|restaurantId\s*=/);
-  assert.match(loader, /getRestaurantInsights\(restaurantId,\s*selectedMenu\?\.id\)/);
+  assert.match(loader, /getRestaurantInsights\(\s*restaurantId,\s*selectedMenu\?\.id\s*\)/);
   assert.match(
     loader,
     /readSupabaseRowsByColumn\(\s*["']restaurants["'],\s*["']id["'],\s*restaurantId/
@@ -97,12 +138,27 @@ test("admin dashboard fails closed before menu reads when the restaurant lookup 
 });
 
 test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
-  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
-  const menuRead = loader.indexOf('const menuResult = await readSupabaseRowsByColumn(\n    "menus"');
-  const menuGuard = loader.indexOf("if (!menuResult.ok)");
-  const categoryRead = loader.indexOf('readSupabaseRowsByColumn(\n      "menu_categories"');
+  const { loadAdminDashboardDataWithDependencies } = await import(
+    "../lib/admin/dashboardData.ts"
+  );
+  const calls = [];
+  const result = await loadAdminDashboardDataWithDependencies("restaurant-1", {
+    readRows: async (table) => {
+      calls.push(table);
+      if (table === "restaurants") {
+        return { ok: true, rows: [{ id: "restaurant-1", name: "Chez Vistaire" }] };
+      }
+      if (table === "menus") {
+        return { ok: false, rows: [] };
+      }
+      throw new Error(`unexpected downstream read: ${table}`);
+    },
+    readInsights: async () => {
+      calls.push("analytics");
+      throw new Error("analytics must not be read after a failed menu lookup");
+    }
+  });
 
-  assert.ok(menuRead >= 0);
-  assert.ok(menuGuard > menuRead && menuGuard < categoryRead);
-  assert.match(loader, /reason:\s*["']menu-lookup-failed["']/);
+  assert.deepEqual(result, { ok: false, reason: "menu-lookup-failed" });
+  assert.deepEqual(calls, ["restaurants", "menus"]);
 });

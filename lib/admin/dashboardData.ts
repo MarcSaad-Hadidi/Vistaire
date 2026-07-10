@@ -48,6 +48,11 @@ export type AdminDashboardLoadResult =
         | "menu-lookup-failed";
     };
 
+type AdminDashboardReadDependencies = {
+  readRows: typeof readSupabaseRowsByColumn;
+  readInsights: typeof getRestaurantInsights;
+};
+
 function toAdminDish(dish: PublicMenuDish): AdminMenuDish {
   return {
     id: dish.id,
@@ -81,6 +86,20 @@ function toAdminCategory(row: AnyRow, index: number): AdminMenuCategory {
 export async function loadAdminDashboardData(
   restaurantId: string
 ): Promise<AdminDashboardLoadResult> {
+  return loadAdminDashboardDataWithDependencies(restaurantId, {
+    readRows: readSupabaseRowsByColumn,
+    readInsights: getRestaurantInsights
+  });
+}
+
+export async function loadAdminDashboardDataWithDependencies(
+  restaurantId: string,
+  dependencies: AdminDashboardReadDependencies
+): Promise<AdminDashboardLoadResult> {
+  const {
+    readRows: readSupabaseRowsByColumn,
+    readInsights: getRestaurantInsights
+  } = dependencies;
   const restaurantResult = await readSupabaseRowsByColumn(
     "restaurants",
     "id",
@@ -120,7 +139,10 @@ export async function loadAdminDashboardData(
     )
   ]);
   const selectedMenu = selectAdminDashboardMenu(menuResult.rows);
-  const insightsResult = await getRestaurantInsights(restaurantId, selectedMenu?.id);
+  const insightsResult = await getRestaurantInsights(
+    restaurantId,
+    selectedMenu?.id
+  );
   const categoryRows = selectedMenu
     ? (categoryResult.ok ? categoryResult.rows : []).filter(
         (row) => getString(row, ["menu_id"], "") === selectedMenu.id
