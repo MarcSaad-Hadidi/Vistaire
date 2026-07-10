@@ -18,7 +18,7 @@ test("partial analytics retain the real insight payload", async () => {
 });
 
 test("analytics recognize the current Vistaire aggregate column names", async () => {
-  const source = await readFile("lib/analytics/insights.ts", "utf8");
+  const source = await readFile("lib/analytics/insightsCore.mjs", "utf8");
 
   for (const column of [
     "menu_opened_count",
@@ -60,4 +60,43 @@ test("dashboard selects one restaurant menu before reading categories and dishes
   assert.match(source, /selectAdminDashboardMenu/);
   assert.match(source, /readSupabaseRowsByColumn\(\s*["']menus["'],\s*["']restaurant_id["'],\s*restaurantId/);
   assert.match(source, /\.filter\([\s\S]*?menu_id[\s\S]*?selectedMenu\.id/);
+});
+
+test("a zero in the 30-day window never falls back to all-time search rows", async () => {
+  const { buildPeriodAnalytics } = await import("../lib/analytics/insightsCore.mjs");
+  const period = buildPeriodAnalytics({
+    dailyRows: [{ menu_opened_count: 1, search_used_count: 0 }],
+    eventRows: [],
+    // These are legacy all-time rows and deliberately have no input slot.
+  });
+
+  assert.equal(period.metrics.searches, 0);
+  assert.deepEqual(period.searchRows, []);
+});
+
+test("period metrics retain zero values and use current aggregate columns", async () => {
+  const { buildPeriodAnalytics } = await import("../lib/analytics/insightsCore.mjs");
+  const period = buildPeriodAnalytics({
+    dailyRows: [{
+      menu_opened_count: 2,
+      dish_opened_count: 278,
+      search_used_count: 0,
+      immersive_interaction_count: 169,
+      unique_sessions: 7
+    }],
+    eventRows: []
+  });
+
+  assert.equal(period.metrics.dishViews, 278);
+  assert.equal(period.metrics.searches, 0);
+  assert.equal(period.metrics.immersive, 169);
+});
+
+test("analytics source health marks read errors and truncation partial", async () => {
+  const { resolveAnalyticsSourceHealth } = await import("../lib/analytics/insightsCore.mjs");
+
+  assert.equal(resolveAnalyticsSourceHealth({ hasActivity: true, eventReadOk: false, eventTruncated: false, dailyReadOk: true }), "partial");
+  assert.equal(resolveAnalyticsSourceHealth({ hasActivity: true, eventReadOk: true, eventTruncated: true, dailyReadOk: true }), "partial");
+  assert.equal(resolveAnalyticsSourceHealth({ hasActivity: false, eventReadOk: true, eventTruncated: false, dailyReadOk: true }), "empty");
+  assert.equal(resolveAnalyticsSourceHealth({ hasActivity: true, eventReadOk: true, eventTruncated: false, dailyReadOk: true }), "real");
 });
