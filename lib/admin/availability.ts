@@ -1,4 +1,5 @@
 export type AvailabilityUpdateInput = {
+  qrId: string;
   restaurantId: string;
   dishId: string;
   available: boolean;
@@ -15,7 +16,7 @@ export type AvailabilityUpdateResult =
 
 type AvailabilityDependencies = {
   requireAccess: () => Promise<
-    | { ok: true; restaurantId: string }
+    | { ok: true; qrId: string | null; restaurantId: string }
     | { ok: false; reason?: string }
   >;
   updateAvailability: (
@@ -24,6 +25,7 @@ type AvailabilityDependencies = {
 };
 
 const MAX_BODY_BYTES = 1_024;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function json(body: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -80,12 +82,12 @@ export async function handleAdminAvailabilityRequest(
   }
 
   const access = await dependencies.requireAccess();
-  if (!access.ok) {
+  if (!access.ok || !access.qrId) {
     return json({ ok: false, error: "Accès admin requis." }, 401);
   }
 
   const { dishId } = await params;
-  if (!dishId || dishId.length > 160) {
+  if (!UUID_PATTERN.test(dishId)) {
     return json({ ok: false, error: "Plat invalide." }, 400);
   }
 
@@ -102,6 +104,7 @@ export async function handleAdminAvailabilityRequest(
   }
 
   const updated = await dependencies.updateAvailability({
+    qrId: access.qrId,
     restaurantId: access.restaurantId,
     dishId,
     available: parsed.available

@@ -74,8 +74,10 @@ test("availability request handler uses only session scope and cannot target que
   const dependencies = {
     requireAccess: async () => ({
       ok: true,
-      qrId: "qr-a",
-      restaurantId: "restaurant-a",
+      sessionKind: "qr",
+      assurance: "live-admin-qr",
+      qrId: "11111111-1111-4111-8111-111111111111",
+      restaurantId: "22222222-2222-4222-8222-222222222222",
       expiresAt: new Date("2026-07-09T20:00:00.000Z")
     }),
     updateAvailability: async (input) => {
@@ -91,22 +93,23 @@ test("availability request handler uses only session scope and cannot target que
 
   const queryAttack = await handleAdminAvailabilityRequest(
     new Request(
-      "http://localhost/admin/api/dishes/dish-a/availability?restaurantId=restaurant-b",
+      "http://localhost/admin/api/dishes/33333333-3333-4333-8333-333333333333/availability?restaurantId=restaurant-b",
       {
         method: "PATCH",
         headers: { "content-type": "application/json", origin: "http://localhost" },
         body: JSON.stringify({ available: false })
       }
     ),
-    Promise.resolve({ dishId: "dish-a" }),
+    Promise.resolve({ dishId: "33333333-3333-4333-8333-333333333333" }),
     dependencies
   );
   assert.equal(queryAttack.status, 200);
   assert.equal(queryAttack.headers.get("cache-control"), "no-store");
   assert.deepEqual(updateCalls, [
     {
-      restaurantId: "restaurant-a",
-      dishId: "dish-a",
+      qrId: "11111111-1111-4111-8111-111111111111",
+      restaurantId: "22222222-2222-4222-8222-222222222222",
+      dishId: "33333333-3333-4333-8333-333333333333",
       available: false
     }
   ]);
@@ -125,7 +128,7 @@ test("availability request handler uses only session scope and cannot target que
   assert.equal(JSON.stringify(updateCalls).includes("restaurant-b"), false);
 });
 
-test("availability route derives scope from admin access and updates only availability metadata", async () => {
+test("availability route invokes the atomic RPC with access-derived QR and restaurant scope", async () => {
   const route = await readFile(
     "app/admin/api/dishes/[dishId]/availability/route.ts",
     "utf8"
@@ -134,6 +137,7 @@ test("availability route derives scope from admin access and updates only availa
   const contract = `${route}\n${core}`;
 
   assert.match(route, /requireAdminRestaurantAccess\("dish:availability:write"\)/);
+  assert.match(core, /qrId:\s*access\.qrId/);
   assert.match(core, /restaurantId:\s*access\.restaurantId/);
   assert.match(route, /dishId/);
   assert.match(contract, /application\/json/);
@@ -144,22 +148,39 @@ test("availability route derives scope from admin access and updates only availa
   assert.doesNotMatch(contract, /request\.text\(\)/);
   assert.match(contract, /cache-control["']?\s*:\s*["']no-store["']/i);
   assert.doesNotMatch(route, /body\.restaurantId|input\.restaurantId/);
-  const updatePayload = route.match(/\.update\(\{([\s\S]*?)\}\)/)?.[1] ?? "";
-  assert.match(updatePayload, /is_available\s*:\s*available/);
-  assert.match(updatePayload, /updated_at\s*:/);
-  assert.doesNotMatch(updatePayload, /restaurant|name|slug|price|metadata/i);
-  const dishUpdate = route.split('.from("menu_dishes")')[1] ?? "";
-  const idScope = dishUpdate.indexOf('.eq("id", dishId)');
-  const restaurantScope = dishUpdate.indexOf(
-    '.eq("restaurant_id", restaurantId)'
+  assert.match(route, /\.rpc\("set_admin_dish_availability",\s*\{/);
+  assert.match(route, /p_qr_id:\s*qrId/);
+  assert.match(route, /p_restaurant_id:\s*restaurantId/);
+  assert.match(route, /p_dish_id:\s*dishId/);
+  assert.match(route, /p_available:\s*available/);
+  assert.doesNotMatch(route, /\.from\("menu_dishes"\)\s*\.update/);
+  assert.doesNotMatch(route, /selectAdminDashboardMenu/);
+});
+
+test("missing availability RPC fails closed as a controlled 503 without fallback", async () => {
+  const { handleAdminAvailabilityRequest } = await loadAvailability();
+  const response = await handleAdminAvailabilityRequest(
+    new Request("http://localhost/admin/api/dishes/33333333-3333-4333-8333-333333333333/availability", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ available: false })
+    }),
+    Promise.resolve({ dishId: "33333333-3333-4333-8333-333333333333" }),
+    {
+      requireAccess: async () => ({
+        ok: true,
+        sessionKind: "qr",
+        assurance: "live-admin-qr",
+        qrId: "11111111-1111-4111-8111-111111111111",
+        restaurantId: "22222222-2222-4222-8222-222222222222",
+        expiresAt: 1,
+        capabilities: ["dashboard:read", "dish:availability:write"]
+      }),
+      updateAvailability: async () => ({ ok: false, status: 503 })
+    }
   );
-  assert.ok(idScope >= 0);
-  assert.ok(restaurantScope > idScope);
-  const menuScope = dishUpdate.indexOf('.eq("menu_id", menuId)');
-  assert.ok(menuScope > restaurantScope);
-  assert.match(route, /from\("menus"\)[\s\S]*?\.eq\("restaurant_id", restaurantId\)/);
-  assert.match(route, /selectAdminDashboardMenu/);
-  assert.doesNotMatch(route, /set_admin_dish_availability|\.rpc\(/);
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
 test("successful availability changes revalidate admin and public menu paths", async () => {
@@ -178,5 +199,10 @@ test("successful availability changes revalidate admin and public menu paths", a
   assert.match(control, /Rendre \$\{dishName\} indisponible/);
   assert.match(control, /Rendre \$\{dishName\} disponible/);
   assert.match(control, /JSON\.stringify\(\{ available: nextAvailable \}\)/);
+  assert.match(control, /requestSequence/);
+  assert.match(control, /latestRequest/);
+  assert.match(control, /setAvailable\(nextAvailable\)[\s\S]*?fetch\(/);
+  assert.match(control, /setAvailable\(previousAvailable\)/);
+  assert.match(control, /aria-live=["']assertive["']/);
   assert.doesNotMatch(control, /restaurantId/);
 });

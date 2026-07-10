@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState } from "react";
 
 type AvailabilityResponse = {
   ok: boolean;
@@ -23,36 +23,52 @@ export function AdminDishAvailabilityControl({
   const router = useRouter();
   const [available, setAvailable] = useState(initialAvailable);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const requestSequence = useRef(0);
+  const latestRequest = useRef(0);
 
-  function updateAvailability() {
+  async function updateAvailability() {
+    if (isPending) return;
+    const previousAvailable = available;
     const nextAvailable = !available;
+    const requestId = ++requestSequence.current;
+    latestRequest.current = requestId;
     setError(null);
-    startTransition(async () => {
-      try {
-        const response = await fetch(
-          `/admin/api/dishes/${encodeURIComponent(dishId)}/availability`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ available: nextAvailable })
-          }
-        );
-        const result = (await response.json()) as AvailabilityResponse;
-        if (!response.ok || !result.ok || result.available !== nextAvailable) {
-          setError(
-            result.error ?? "La disponibilité n’a pas pu être mise à jour."
-          );
-          return;
+    setSuccess(null);
+    setAvailable(nextAvailable);
+    setIsPending(true);
+    try {
+      const response = await fetch(
+        `/admin/api/dishes/${encodeURIComponent(dishId)}/availability`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ available: nextAvailable })
         }
-
-        setAvailable(nextAvailable);
-        onAvailabilityChange?.(nextAvailable);
-        router.refresh();
-      } catch {
-        setError("La disponibilité n’a pas pu être mise à jour.");
+      );
+      const result = (await response.json()) as AvailabilityResponse;
+      if (latestRequest.current !== requestId) return;
+      if (!response.ok || !result.ok || result.available !== nextAvailable) {
+        setAvailable(previousAvailable);
+        setError(
+          result.error ?? "La disponibilité n’a pas pu être mise à jour."
+        );
+        return;
       }
-    });
+
+      setSuccess(
+        nextAvailable ? `${dishName} est disponible.` : `${dishName} est indisponible.`
+      );
+      onAvailabilityChange?.(nextAvailable);
+      router.refresh();
+    } catch {
+      if (latestRequest.current !== requestId) return;
+      setAvailable(previousAvailable);
+      setError("La disponibilité n’a pas pu être mise à jour.");
+    } finally {
+      if (latestRequest.current === requestId) setIsPending(false);
+    }
   }
 
   return (
@@ -75,8 +91,13 @@ export function AdminDishAvailabilityControl({
             : "Rendre disponible"}
       </button>
       {error ? (
-        <p aria-live="polite" className="mt-2 text-xs leading-relaxed text-[#efb6a8]">
+        <p aria-live="assertive" className="mt-2 text-xs leading-relaxed text-[#efb6a8]">
           {error}
+        </p>
+      ) : null}
+      {success ? (
+        <p aria-live="polite" className="sr-only">
+          {success}
         </p>
       ) : null}
     </div>

@@ -5,7 +5,6 @@ import {
   handleAdminAvailabilityRequest,
   type AvailabilityUpdateResult
 } from "@/lib/admin/availability";
-import { selectAdminDashboardMenu } from "@/lib/admin/menuReadiness";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
@@ -13,10 +12,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function updateDishAvailability({
+  qrId,
   restaurantId,
   dishId,
   available
 }: {
+  qrId: string;
   restaurantId: string;
   dishId: string;
   available: boolean;
@@ -24,46 +25,31 @@ async function updateDishAvailability({
   const admin = getSupabaseAdminClient();
   if (!admin.ok) return { ok: false, status: 503 };
 
-  const menus = await admin.client
-    .from("menus")
-    .select("id,status,is_primary,updated_at")
-    .eq("restaurant_id", restaurantId)
-    .order("updated_at", { ascending: false })
-    .order("id", { ascending: true })
-    .limit(50);
-  if (menus.error) return { ok: false, status: 503 };
-  const selectedMenu = selectAdminDashboardMenu(menus.data ?? []);
-  if (!selectedMenu) return { ok: false, status: 404 };
-  const menuId = selectedMenu.id;
-
-  const updatedAt = new Date().toISOString();
   const { data, error } = await admin.client
-    .from("menu_dishes")
-    .update({
-      is_available: available,
-      updated_at: updatedAt
+    .rpc("set_admin_dish_availability", {
+      p_qr_id: qrId,
+      p_restaurant_id: restaurantId,
+      p_dish_id: dishId,
+      p_available: available
     })
-    .eq("id", dishId)
-    .eq("restaurant_id", restaurantId)
-    .eq("menu_id", menuId)
-    .select("id,slug,is_available")
     .maybeSingle();
 
   if (error) return { ok: false, status: 503 };
   if (!data) return { ok: false, status: 404 };
+  const row = data as Record<string, unknown>;
 
   revalidatePath("/admin");
   await revalidateOwnerMenuMutationPaths({
     client: admin.client,
     restaurantId,
-    dishSlug: typeof data.slug === "string" ? data.slug : ""
+    dishSlug: typeof row.dish_slug === "string" ? row.dish_slug : ""
   });
 
   return {
     ok: true,
-    dishId: typeof data.id === "string" ? data.id : dishId,
-    dishSlug: typeof data.slug === "string" ? data.slug : "",
-    available: data.is_available === true
+    dishId: typeof row.dish_id === "string" ? row.dish_id : dishId,
+    dishSlug: typeof row.dish_slug === "string" ? row.dish_slug : "",
+    available: row.is_available === true
   };
 }
 
