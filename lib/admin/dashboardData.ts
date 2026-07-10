@@ -38,7 +38,7 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const filters = { restaurant_id: restaurantId, menu_id: selectedMenu.id };
   const [categoriesResult, dishesResult] = await Promise.all([
     dependencies.readRows({ table: "menu_categories", columns: "id,restaurant_id,menu_id,name,slug,display_order", filters, orderBy: "display_order", limit: 250 }),
-    dependencies.readRows({ table: "menu_dishes", columns: "id,restaurant_id,menu_id,category_id,name,slug,description,price_cents,image_url,thumbnail_url,model_3d_url,web_model_3d_url,ar_model_3d_url,ar_usdz_url,is_available,display_order", filters, orderBy: "display_order", limit: 500 })
+    dependencies.readRows({ table: "menu_dishes", columns: "id,restaurant_id,menu_id,category_id,name,slug,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,metadata,created_at", filters, orderBy: "created_at", limit: 500 })
   ]);
   const categoryRows = categoriesResult.ok ? categoriesResult.rows : [];
   const dishRows = dishesResult.ok ? dishesResult.rows : [];

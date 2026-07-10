@@ -16,12 +16,17 @@ test("dashboard loader exposes the approved nested range contract without demo a
 
 test("dashboard reads explicit fields and scopes selected menu in the database", async () => {
   const reader = await readFile("lib/analytics/serverRows.ts", "utf8");
+  const dashboard = await readFile("lib/admin/dashboardData.ts", "utf8");
+  const dishRead = dashboard.split("\n").find((line) => line.includes('table: "menu_dishes"')) ?? "";
   const scoped = reader.slice(reader.indexOf("export async function readSupabaseRowsByFilters"));
   assert.match(reader, /readSupabaseRowsByFilters/);
   assert.match(reader, /\.select\(columns\)/);
   assert.match(reader, /for \(const \[column, value\] of Object\.entries\(filters\)\)/);
   assert.match(reader, /query = query\.eq\(column, value\)/);
   assert.ok(scoped.indexOf("query = query.eq(column, value)") < scoped.indexOf(".limit(limit)"));
+  assert.match(dishRead, /short_description,description,price_cents,currency,image_url/);
+  assert.match(dishRead, /has_immersive_view,metadata,created_at/);
+  assert.doesNotMatch(dishRead, /thumbnail_url|model_3d_url|display_order/);
 });
 
 test("range parser remains exported for UI-owned page wiring", async () => {
