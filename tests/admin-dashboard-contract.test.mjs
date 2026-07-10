@@ -29,3 +29,10 @@ test("range parser remains exported for UI-owned page wiring", async () => {
   assert.match(range, /export function parseAdminDashboardRange/);
   assert.match(range, /value === "today-utc" \|\| value === "7d" \|\| value === "30d"/);
 });
+
+test("admin page search params parser exposes range only", async () => {
+  const { parseAdminPageSearchParams } = await import("../lib/admin/pageSearchParams.ts");
+  assert.equal(parseAdminPageSearchParams({ range: "30d", restaurantId: "attacker" }), "30d");
+  assert.equal(parseAdminPageSearchParams({ range: ["30d"] }), "7d");
+  assert.equal(parseAdminPageSearchParams({ restaurantId: "attacker" }), "7d");
+});

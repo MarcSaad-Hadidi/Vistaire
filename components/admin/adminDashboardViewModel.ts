@@ -1,21 +1,21 @@
-export type ObservationWindow = { label?: string; startedAt?: string; endedAt?: string; startInclusive?: string; endExclusive?: string };
-export type Metric = { id: string; label?: string; value: number; unit?: string; changeRate?: number | null };
-export type ActivityPoint = { label?: string; value?: number; bucket?: string; count?: number; unit?: string };
-export type Evidence = unknown;
+import type { AdminAnalyticsState } from "@/lib/admin/analyticsState";
 
-export type TargetAnalyticsState =
-  | { kind: "real"; completeness: "complete" | "limited-sample"; observationWindow: ObservationWindow; lastUpdatedAt: string | null; freshness: "fresh" | "delayed" | "stale"; coverage: { provenance?: string; source?: string; menuOpened?: boolean; dishOpened?: boolean }; metrics: Metric[]; activitySeries: ActivityPoint[]; categoryBreakdown: unknown[]; topDishes: unknown[]; searches: unknown[]; immersive: unknown[]; funnel: unknown; comparison: unknown }
-  | { kind: "insufficient"; reason: "no-relevant-events" | "sample-too-small" | "instrumentation-unproven"; completeness: "complete" | "limited-sample"; observationWindow: ObservationWindow; availableEvidence: Evidence[]; missingEvidence: string[] }
-  | { kind: "unavailable"; reason: "configuration" | "database" | "query"; completeness: "truncated" | "partial-source"; title: string; explanation: string; retryable: boolean };
+export type RealAdminAnalyticsState = Extract<AdminAnalyticsState, { kind: "real" }>;
+export type InsufficientAdminAnalyticsState = Extract<AdminAnalyticsState, { kind: "insufficient" }>;
+export type UnavailableAdminAnalyticsState = Extract<AdminAnalyticsState, { kind: "unavailable" }>;
 
-export function buildAnalyticsPresentation(state: TargetAnalyticsState) {
+const metricLabels: Record<RealAdminAnalyticsState["metrics"][number]["id"], string> = {
+  "menu-opens": "Ouvertures du menu",
+  "dish-opens": "Consultations de plats"
+};
+
+export function buildAnalyticsPresentation(state: AdminAnalyticsState) {
   switch (state.kind) {
     case "real": {
-      const activity = state.activitySeries.map((point) => ({ label: point.label ?? point.bucket ?? "Période", value: point.value ?? point.count ?? 0, unit: point.unit }));
-      const metrics = state.metrics.map((metric) => ({ ...metric, label: metric.label ?? metric.id, unit: metric.unit ?? "événements" }));
+      const metrics = state.metrics.map((metric) => ({ ...metric, label: metricLabels[metric.id] ?? metric.id, unit: "événements" }));
+      const activity = state.activitySeries.map((point) => ({ label: point.bucket, value: point.count }));
       const total = activity.reduce((sum, point) => sum + point.value, 0);
-      const unit = state.activitySeries.find((point) => point.unit)?.unit ?? "événements";
-      return { kind: "real" as const, completeness: state.completeness, metrics, activity, observationWindow: state.observationWindow, summary: `${total} ${unit} sur la période.`, provenance: state.coverage.provenance ?? state.coverage.source ?? "production", lastUpdatedAt: state.lastUpdatedAt, freshness: state.freshness };
+      return { kind: "real" as const, state, completeness: state.completeness, metrics, activity, observationWindow: state.observationWindow, summary: `${total} événements sur la période.`, lastUpdatedAt: state.lastUpdatedAt, freshness: state.freshness };
     }
     case "insufficient":
       return { kind: "insufficient" as const, reason: state.reason, completeness: state.completeness, title: "Donnée insuffisante", availableEvidence: state.availableEvidence, missingEvidence: state.missingEvidence };

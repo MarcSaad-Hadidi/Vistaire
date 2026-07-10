@@ -105,8 +105,8 @@ test("admin dashboard loader receives one trusted restaurant id for every data r
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
 
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
-  assert.match(page, /parseAdminDashboardRange\(\(await searchParams\)\?\.range\)/);
-  assert.doesNotMatch(page, /\(await searchParams\)\?\.(?:restaurantId|restaurant)|restaurantId\s*=/);
+  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
+  assert.doesNotMatch(page, /searchParams\?\.|searchParams\[|restaurantId\s*=/);
   assert.match(loader, /readEvents\(\{ restaurantId, menuId: selectedMenu\.id/);
   assert.match(
     loader,

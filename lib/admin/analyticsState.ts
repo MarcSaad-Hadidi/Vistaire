@@ -3,9 +3,10 @@ import { addComparisonEvidence, type AdminRawMetric } from "./analyticsEvidence.
 
 type EventRow = Record<string, unknown>;
 type Ranked = { slug: string; count: number };
+export type AdminEvidence = { label: string; value: string | number };
 export type AdminAnalyticsState =
  | { kind:"real"; completeness:"complete"|"limited-sample"; observationWindow:AdminObservationWindow; lastUpdatedAt:string|null; freshness:"fresh"|"delayed"|"stale"; coverage:{menuOpened:boolean;dishOpened:boolean}; metrics:ReturnType<typeof addComparisonEvidence>[]; activitySeries:{bucket:string;count:number}[]; categoryBreakdown:Ranked[]; topDishes:Ranked[]; searches:{term:string;count:number}[]; immersive:{name:string;count:number}[]; funnel:{kind:"unsupported"}|{kind:"measured";sessions:number;dishOpened:number;rate:number}; comparison:null|Record<string,unknown> }
- | { kind:"insufficient"; reason:"no-relevant-events"|"sample-too-small"|"instrumentation-unproven"; completeness:"complete"|"limited-sample"; observationWindow:AdminObservationWindow; availableEvidence:unknown[]; missingEvidence:string[] }
+ | { kind:"insufficient"; reason:"no-relevant-events"|"sample-too-small"|"instrumentation-unproven"; completeness:"complete"|"limited-sample"; observationWindow:AdminObservationWindow; availableEvidence:AdminEvidence[]; missingEvidence:string[] }
  | { kind:"unavailable"; reason:"configuration"|"database"|"query"; completeness:"truncated"|"partial-source"; title:string; explanation:string; retryable:boolean };
 export type AdminAnalyticsInput={observationWindow:AdminObservationWindow;events?:EventRow[];instrumentationProven?:boolean;eventCount?:number;databaseError?:boolean;queryError?:boolean;truncated?:boolean;partialSource?:boolean;lastUpdatedAt?:string|null;metrics?:AdminRawMetric[]};
 const text=(row:EventRow,key:string)=>typeof row[key]==="string"?(row[key] as string):"";

@@ -169,8 +169,8 @@ test("admin authorization derives restaurant scope from the cookie only", async 
     adminPage.indexOf('requireAdminRestaurantAccess("dashboard:read")') <
       adminPage.indexOf("loadAdminDashboardData(access.restaurantId, range)")
   );
-  assert.match(adminPage, /parseAdminDashboardRange\(\(await searchParams\)\?\.range\)/);
-  assert.doesNotMatch(adminPage, /\(await searchParams\)\?\.(?:restaurantId|restaurant)|\(await searchParams\)\?\[['"]restaurantId['"]\]/);
+  assert.match(adminPage, /parseAdminPageSearchParams\(await searchParams\)/);
+  assert.doesNotMatch(adminPage, /searchParams\?\.|searchParams\[/);
   assert.doesNotMatch(adminPage, /getDemoRestaurantId/);
 });
 

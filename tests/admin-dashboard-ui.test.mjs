@@ -35,10 +35,12 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
 });
 
 test("page strictly allowlists server ranges and discloses UTC timezone", async () => {
-  const [page, dashboard] = await Promise.all([read("app/admin/page.tsx"), read("components/admin/AdminRestaurantDashboard.tsx")]);
-  assert.match(page, /parseAdminDashboardRange\(\(await searchParams\)\?\.range\)/);
+  const [page, parser, dashboard] = await Promise.all([read("app/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("components/admin/AdminRestaurantDashboard.tsx")]);
+  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
-  assert.doesNotMatch(page, /\(await searchParams\)\?\.(?:restaurantId|restaurant)|as\s+RangeLoader/);
+  assert.match(parser, /Pick<[^>]+["']range["']/);
+  assert.doesNotMatch(parser, /restaurantId|restaurant_id|slug/);
+  assert.doesNotMatch(page, /searchParams\?\.|searchParams\[|as\s+RangeLoader/);
   assert.match(dashboard, /Aujourd.hui[^\n]*UTC|Fen.tre glissante[^\n]*UTC/);
   assert.match(dashboard, /fuseau horaire[^\n]*pas configur/i);
 });
@@ -61,27 +63,36 @@ test("dashboard exposes evidence semantics, chart alternatives and worklist cont
 
 test("analytics presentation exhaustively preserves real, insufficient and unavailable evidence", async () => {
   const { buildAnalyticsPresentation } = await import("../components/admin/adminDashboardViewModel.ts");
-  const window = { label: "7 jours — UTC", startedAt: "2026-07-03", endedAt: "2026-07-10" };
-  const real = buildAnalyticsPresentation({ kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { provenance: "production" }, metrics: [{ id: "opens", label: "Ouvertures", value: 23, unit: "consultations" }], activitySeries: [{ label: "9 juil.", value: 8 }, { label: "10 juil.", value: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null });
+  const window = { range: "7d", startInclusive: "2026-07-03T12:00:00Z", endExclusive: "2026-07-10T12:00:00Z", comparisonStartInclusive: "2026-06-26T12:00:00Z", comparisonEndExclusive: "2026-07-03T12:00:00Z" };
+  const realState = { kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { menuOpened: true, dishOpened: true }, metrics: [{ id: "menu-opens", value: 23, changeRate: null }], activitySeries: [{ bucket: "2026-07-09", count: 8 }, { bucket: "2026-07-10", count: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null };
+  const real = buildAnalyticsPresentation(realState);
   assert.equal(real.kind, "real");
   assert.deepEqual(real.activity.map((point) => point.value), [8, 15]);
   assert.match(real.summary, /23/);
-  assert.match(real.provenance, /production/i);
   const insufficient = buildAnalyticsPresentation({ kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", observationWindow: window, availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] });
   assert.deepEqual(insufficient, { kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", title: "Donnée insuffisante", availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] });
   const unavailable = buildAnalyticsPresentation({ kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true });
   assert.equal(unavailable.explanation, "La lecture complète n’a pas abouti.");
   assert.equal(unavailable.retryable, true);
   const Panel = await loadAnalyticsPanel();
-  const realDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { provenance: "production" }, metrics: [{ id: "opens", label: "Ouvertures", value: 23, unit: "consultations" }], activitySeries: [{ label: "9 juil.", value: 8 }, { label: "10 juil.", value: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null } }));
-  assert.match(realDom, /7 jours — UTC/);
+  const realDom = renderToStaticMarkup(React.createElement(Panel, { state: realState }));
+  assert.match(realDom, /2026-07-03T12:00:00Z/);
   assert.match(realDom, /2026-07-10T12:00:00Z/);
   assert.match(realDom, /class="bar"[\s\S]*class="barFill"/);
-  assert.match(realDom, /<table[\s\S]*9 juil\.[\s\S]*8/);
+  assert.match(realDom, /<table[\s\S]*2026-07-09[\s\S]*8/);
   const insufficientDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", observationWindow: window, availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] } }));
   const unavailableDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true } }));
   assert.match(insufficientDom, /sample-too-small[\s\S]*20 sessions nécessaires/);
   assert.match(unavailableDom, /role="alert"[\s\S]*Lecture interrompue/);
+});
+
+test("analytics UI consumes only the canonical server union without fallback values", async () => {
+  const [viewModel, panel] = await Promise.all([read("components/admin/adminDashboardViewModel.ts"), read("components/admin/AdminAnalyticsPanel.tsx")]);
+  const source = `${viewModel}\n${panel}`;
+  assert.match(viewModel, /import type \{ AdminAnalyticsState \}/);
+  assert.match(viewModel, /Extract<AdminAnalyticsState/);
+  assert.match(panel, /import type \{ AdminAnalyticsState \}/);
+  assert.doesNotMatch(source, /TargetAnalyticsState|\?\?\s*0|\?\?\s*["']production["']|\bas\s+\{/);
 });
 
 test("activity bars have concrete responsive CSS", async () => {
