@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import type { AdminRecommendation } from "@/lib/demoAdminInsights";
 
 type AdminAssistantProps = {
-  restaurantId: string;
   dailySummary: string;
   recommendations: AdminRecommendation[];
 };
@@ -22,16 +21,12 @@ const SUGGESTED_QUESTIONS = [
   "Quels plats reçoivent moins d'attention aujourd'hui ?"
 ];
 
-async function requestAssistantAnswer(args: {
-  restaurantId: string;
-  mode: "question";
-  question: string;
-}): Promise<AssistantResponse> {
+async function requestAssistantAnswer(question: string): Promise<AssistantResponse> {
   try {
-    const response = await fetch("/api/admin/assistant", {
+    const response = await fetch("/admin/api/assistant", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(args)
+      body: JSON.stringify({ mode: "question", question })
     });
     const contentType = response.headers.get("content-type") ?? "";
     const data = contentType.includes("application/json")
@@ -56,7 +51,6 @@ async function requestAssistantAnswer(args: {
 }
 
 export function AdminAssistant({
-  restaurantId,
   dailySummary,
   recommendations
 }: AdminAssistantProps) {
@@ -79,11 +73,7 @@ export function AdminAssistant({
 
     setNotice(null);
     startTransition(async () => {
-      const result = await requestAssistantAnswer({
-        restaurantId,
-        mode: "question",
-        question: cleanQuestion
-      });
+      const result = await requestAssistantAnswer(cleanQuestion);
 
       if (result.ok && result.answer) {
         setAnswer(result.answer);

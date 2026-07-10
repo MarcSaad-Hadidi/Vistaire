@@ -3,6 +3,50 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const loadAvailability = () => import("../lib/admin/availability.ts");
+const loadRequestBody = () => import("../lib/admin/requestBody.ts");
+
+test("bounded JSON reader rejects declared and chunked oversized bodies", async () => {
+  const { readBoundedJsonBody } = await loadRequestBody();
+  const declared = new Request("http://localhost/admin/api/test", {
+    method: "POST",
+    headers: { "content-length": "2048" },
+    body: "{}"
+  });
+  assert.deepEqual(await readBoundedJsonBody(declared, 1024), {
+    ok: false,
+    reason: "too-large"
+  });
+
+  const encoder = new TextEncoder();
+  const chunks = [encoder.encode("{"), new Uint8Array(700), new Uint8Array(700)];
+  const chunked = new Request("http://localhost/admin/api/test", {
+    method: "POST",
+    body: new ReadableStream({
+      pull(controller) {
+        const chunk = chunks.shift();
+        if (chunk) controller.enqueue(chunk);
+        else controller.close();
+      }
+    }),
+    duplex: "half"
+  });
+  assert.deepEqual(await readBoundedJsonBody(chunked, 1024), {
+    ok: false,
+    reason: "too-large"
+  });
+});
+
+test("bounded JSON reader parses a valid body within the byte budget", async () => {
+  const { readBoundedJsonBody } = await loadRequestBody();
+  const request = new Request("http://localhost/admin/api/test", {
+    method: "POST",
+    body: JSON.stringify({ available: true })
+  });
+  assert.deepEqual(await readBoundedJsonBody(request, 1024), {
+    ok: true,
+    value: { available: true }
+  });
+});
 
 test("availability input accepts exactly one boolean final-state field", async () => {
   const { parseAvailabilityInput } = await loadAvailability();
@@ -26,7 +70,7 @@ test("availability input accepts exactly one boolean final-state field", async (
 
 test("availability request handler uses only session scope and cannot target query or body restaurant ids", async () => {
   const { handleAdminAvailabilityRequest } = await loadAvailability();
-  const rpcCalls = [];
+  const updateCalls = [];
   const dependencies = {
     requireAccess: async () => ({
       ok: true,
@@ -34,9 +78,14 @@ test("availability request handler uses only session scope and cannot target que
       restaurantId: "restaurant-a",
       expiresAt: new Date("2026-07-09T20:00:00.000Z")
     }),
-    callAvailabilityRpc: async (input) => {
-      rpcCalls.push(input);
-      return { ok: true, dishId: input.dishId, available: input.available };
+    updateAvailability: async (input) => {
+      updateCalls.push(input);
+      return {
+        ok: true,
+        dishId: input.dishId,
+        dishSlug: "plat-a",
+        available: input.available
+      };
     }
   };
 
@@ -53,9 +102,9 @@ test("availability request handler uses only session scope and cannot target que
     dependencies
   );
   assert.equal(queryAttack.status, 200);
-  assert.deepEqual(rpcCalls, [
+  assert.equal(queryAttack.headers.get("cache-control"), "no-store");
+  assert.deepEqual(updateCalls, [
     {
-      qrId: "qr-a",
       restaurantId: "restaurant-a",
       dishId: "dish-a",
       available: false
@@ -72,64 +121,62 @@ test("availability request handler uses only session scope and cannot target que
     dependencies
   );
   assert.equal(bodyAttack.status, 400);
-  assert.equal(rpcCalls.length, 1);
-  assert.equal(JSON.stringify(rpcCalls).includes("restaurant-b"), false);
+  assert.equal(updateCalls.length, 1);
+  assert.equal(JSON.stringify(updateCalls).includes("restaurant-b"), false);
 });
 
-test("availability route derives scope from admin access and calls only the atomic RPC", async () => {
+test("availability route derives scope from admin access and updates only availability metadata", async () => {
   const route = await readFile(
     "app/admin/api/dishes/[dishId]/availability/route.ts",
     "utf8"
   );
+  const core = await readFile("lib/admin/availability.ts", "utf8");
+  const contract = `${route}\n${core}`;
 
   assert.match(route, /requireAdminRestaurantAccess\("dish:availability:write"\)/);
-  assert.match(route, /set_admin_dish_availability/);
-  assert.match(route, /access\.qrId/);
-  assert.match(route, /access\.restaurantId/);
+  assert.match(core, /restaurantId:\s*access\.restaurantId/);
   assert.match(route, /dishId/);
-  assert.match(route, /application\/json/);
-  assert.match(route, /1_?024|1024/);
-  assert.match(route, /Sec-Fetch-Site/i);
-  assert.match(route, /Origin/);
+  assert.match(contract, /application\/json/);
+  assert.match(contract, /1_?024|1024/);
+  assert.match(contract, /Sec-Fetch-Site/i);
+  assert.match(contract, /Origin/);
+  assert.match(contract, /readBoundedJsonBody/);
+  assert.doesNotMatch(contract, /request\.text\(\)/);
+  assert.match(contract, /cache-control["']?\s*:\s*["']no-store["']/i);
   assert.doesNotMatch(route, /body\.restaurantId|input\.restaurantId/);
-  assert.doesNotMatch(route, /\.from\(["']menu_dishes["']\)\s*\.update/);
-  const patchBody = route.match(
-    /export async function PATCH\([\s\S]*?\n}/
-  )?.[0] ?? "";
-  assert.match(
-    patchBody,
-    /return\s+handleAdminAvailabilityRequest\(request,\s*params,\s*\{[\s\S]*requireAccess:[\s\S]*callAvailabilityRpc:[\s\S]*}\s*\);/
+  const updatePayload = route.match(/\.update\(\{([\s\S]*?)\}\)/)?.[1] ?? "";
+  assert.match(updatePayload, /is_available\s*:\s*available/);
+  assert.match(updatePayload, /updated_at\s*:/);
+  assert.doesNotMatch(updatePayload, /restaurant|name|slug|price|metadata/i);
+  const dishUpdate = route.split('.from("menu_dishes")')[1] ?? "";
+  const idScope = dishUpdate.indexOf('.eq("id", dishId)');
+  const restaurantScope = dishUpdate.indexOf(
+    '.eq("restaurant_id", restaurantId)'
   );
-});
-
-test("availability SQL atomically scopes the one allowed dish field to an active admin QR", async () => {
-  const migration = await readFile(
-    "supabase/migrations/20260709181000_admin_dish_availability.sql",
-    "utf8"
-  );
-  const updateStatement =
-    migration.match(/update\s+public\.menu_dishes[\s\S]*?;/i)?.[0] ?? "";
-  const setClause = updateStatement.match(/\bset\b([\s\S]*?)\bfrom\b/i)?.[1] ?? "";
-
-  assert.match(updateStatement, /qr_codes/i);
-  assert.match(updateStatement, /qr\.id\s*=\s*p_qr_id/i);
-  assert.match(updateStatement, /qr\.restaurant_id\s*=\s*p_restaurant_id/i);
-  assert.match(updateStatement, /qr\.status\s*=\s*'active'/i);
-  assert.match(updateStatement, /qr\.target_kind\s*=\s*'admin'/i);
-  assert.match(updateStatement, /dish\.restaurant_id\s*=\s*p_restaurant_id/i);
-  assert.match(setClause, /^\s*(?:dish\.)?is_available\s*=\s*p_available\s*$/i);
-  assert.match(migration, /security definer/i);
-  assert.match(migration, /revoke execute[\s\S]*from public, anon, authenticated/i);
-  assert.match(migration, /grant execute[\s\S]*to service_role/i);
+  assert.ok(idScope >= 0);
+  assert.ok(restaurantScope > idScope);
+  const menuScope = dishUpdate.indexOf('.eq("menu_id", menuId)');
+  assert.ok(menuScope > restaurantScope);
+  assert.match(route, /from\("menus"\)[\s\S]*?\.eq\("restaurant_id", restaurantId\)/);
+  assert.match(route, /selectAdminDashboardMenu/);
+  assert.doesNotMatch(route, /set_admin_dish_availability|\.rpc\(/);
 });
 
 test("successful availability changes revalidate admin and public menu paths", async () => {
   const revalidation = await readFile("lib/owner/menuMutationRevalidation.ts", "utf8");
+  const route = await readFile(
+    "app/admin/api/dishes/[dishId]/availability/route.ts",
+    "utf8"
+  );
   const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
 
-  assert.match(revalidation, /revalidatePath\(["']\/admin["']\)/);
+  assert.match(route, /revalidatePath\(["']\/admin["']\)/);
+  assert.match(route, /revalidateOwnerMenuMutationPaths/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}`/);
+  assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}\/dishes\/\$\{dishSlug\}`/);
   assert.match(control, /router\.refresh\(\)/);
   assert.match(control, /Rendre \$\{dishName\} indisponible/);
   assert.match(control, /Rendre \$\{dishName\} disponible/);
+  assert.match(control, /JSON\.stringify\(\{ available: nextAvailable \}\)/);
+  assert.doesNotMatch(control, /restaurantId/);
 });

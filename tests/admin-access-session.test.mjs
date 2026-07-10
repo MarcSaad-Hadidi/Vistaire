@@ -156,7 +156,7 @@ test("admin authorization derives restaurant scope from the cookie only", async 
   const accessCore = await readFile("lib/admin/accessCore.ts", "utf8");
   const adminPage = await readFile("app/admin/page.tsx", "utf8");
 
-  assert.match(access, /vistaire_admin_access/);
+  assert.match(access, /ADMIN_ACCESS_COOKIE_NAME/);
   assert.match(access, /VISTAIRE_ADMIN_SESSION_SECRET/);
   assert.match(access, /target_kind|targetKind/);
   assert.match(access, /status/);
@@ -164,10 +164,10 @@ test("admin authorization derives restaurant scope from the cookie only", async 
   assert.match(adminPage, /requireAdminRestaurantAccess\("dashboard:read"\)/);
   assert.match(adminPage, /Accès dashboard restaurant requis/);
   assert.match(adminPage, /Scannez le QR admin interne de votre restaurant\./);
-  assert.match(adminPage, /getRestaurantInsights\(access\.restaurantId\)/);
+  assert.match(adminPage, /loadAdminDashboardData\(access\.restaurantId\)/);
   assert.ok(
     adminPage.indexOf('requireAdminRestaurantAccess("dashboard:read")') <
-      adminPage.indexOf("getRestaurantInsights(access.restaurantId)")
+      adminPage.indexOf("loadAdminDashboardData(access.restaurantId)")
   );
   assert.doesNotMatch(adminPage, /searchParams/);
   assert.doesNotMatch(adminPage, /getDemoRestaurantId/);
@@ -292,4 +292,71 @@ test("admin authorization fails closed for reader, secret, and expiry errors", a
     await requireAdminRestaurantAccess("dashboard:read", expired),
     { ok: false, reason: "session" }
   );
+});
+
+test("admin authorization allowlists capabilities before reading session state", async () => {
+  const { ADMIN_CAPABILITIES, requireAdminRestaurantAccess } =
+    await loadAdminAccess();
+  const dependencies = await createAccessFixture();
+  const readCookieValue = dependencies.getCookieValue;
+  let cookieReads = 0;
+  dependencies.getCookieValue = () => {
+    cookieReads += 1;
+    return readCookieValue();
+  };
+
+  assert.deepEqual(ADMIN_CAPABILITIES, [
+    "dashboard:read",
+    "dish:availability:write"
+  ]);
+  assert.deepEqual(
+    await requireAdminRestaurantAccess("unlisted:write", dependencies),
+    { ok: false, reason: "capability" }
+  );
+  assert.equal(cookieReads, 0);
+});
+
+test("admin session secret enforces the 32-byte boundary", async () => {
+  const { createAdminAccessToken, verifyAdminAccessToken } =
+    await loadAccessSessionCore();
+  const input = { qrId: "qr-1", restaurantId: "rest-1", now };
+  const thirtyTwoBytes = "x".repeat(32);
+  const utf8Secret = "é".repeat(16);
+
+  assert.throws(() => createAdminAccessToken(input, "x".repeat(31)), /secret/i);
+  assert.ok(createAdminAccessToken(input, thirtyTwoBytes));
+  const utf8Token = createAdminAccessToken(input, utf8Secret);
+  assert.deepEqual(verifyAdminAccessToken(utf8Token, utf8Secret, now + 1), {
+    v: 1,
+    qrId: "qr-1",
+    restaurantId: "rest-1",
+    exp: now + 28_800
+  });
+});
+
+test("admin authorization revalidates the live QR on every access", async () => {
+  const { requireAdminRestaurantAccess } = await loadAdminAccess();
+  let reads = 0;
+  const dependencies = await createAccessFixture({
+    readQrCode: async () => {
+      reads += 1;
+      return {
+        id: "qr-1",
+        restaurantId: "rest-1",
+        targetKind: "admin",
+        targetPath: "/admin",
+        status: reads === 1 ? "active" : "paused"
+      };
+    }
+  });
+
+  assert.equal(
+    (await requireAdminRestaurantAccess("dashboard:read", dependencies)).ok,
+    true
+  );
+  assert.deepEqual(
+    await requireAdminRestaurantAccess("dashboard:read", dependencies),
+    { ok: false, reason: "revoked" }
+  );
+  assert.equal(reads, 2);
 });

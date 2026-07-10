@@ -2,13 +2,17 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
-export type DataSourceStatus = "supabase" | "fallback";
+export type DataSourceStatus = "real" | "partial" | "empty" | "preview";
 
 export type DataReadResult<T> =
   | { ok: true; rows: T[] }
   | { ok: false; error: string; rows: [] };
 
 export type AnyRow = Record<string, unknown>;
+
+export type PeriodReadResult<T> = DataReadResult<T> & {
+  truncated: boolean;
+};
 
 function logServerDataError(scope: string, error: unknown) {
   if (process.env.NODE_ENV === "production") {
@@ -34,6 +38,114 @@ export async function readSupabaseRows<T extends AnyRow>(
     return { ok: false, error: error.message, rows: [] };
   }
 
+  return { ok: true, rows: (data ?? []) as T[] };
+}
+
+export async function readSupabaseRowsByColumn<T extends AnyRow>(
+  table: string,
+  column: string,
+  value: string,
+  limit = 500
+): Promise<DataReadResult<T>> {
+  if (!value.trim()) {
+    return { ok: false, error: "A scoped data read requires an identifier.", rows: [] };
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return { ok: false, error: admin.reason, rows: [] };
+  }
+
+  const { data, error } = await admin.client
+    .from(table)
+    .select("*")
+    .eq(column, value)
+    .limit(limit);
+
+  if (error) {
+    logServerDataError(`read scoped ${table}`, error.message);
+    return { ok: false, error: error.message, rows: [] };
+  }
+
+  return { ok: true, rows: (data ?? []) as T[] };
+}
+
+/**
+ * Reads one restaurant's event stream in a bounded, deterministic window.
+ * The explicit order and pagination avoid the arbitrary first 1,000 rows
+ * returned by PostgREST when a restaurant has a busy service.
+ */
+export async function readAnalyticsEventsForPeriod<T extends AnyRow>(args: {
+  restaurantId: string;
+  fromIso: string;
+  toIso: string;
+  menuId?: string;
+  pageSize?: number;
+  maxRows?: number;
+}): Promise<PeriodReadResult<T>> {
+  const { restaurantId, fromIso, toIso } = args;
+  const pageSize = Math.max(1, Math.min(args.pageSize ?? 1_000, 1_000));
+  const maxRows = Math.max(pageSize, args.maxRows ?? 10_000);
+  if (!restaurantId.trim()) {
+    return {
+      ok: false,
+      error: "A scoped data read requires an identifier.",
+      rows: [],
+      truncated: false
+    };
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return { ok: false, error: admin.reason, rows: [], truncated: false };
+  }
+
+  const rows: T[] = [];
+  for (let offset = 0; offset < maxRows; offset += pageSize) {
+    let query = admin.client
+      .from("analytics_events")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .gte("created_at", fromIso)
+      .lt("created_at", toIso)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (args.menuId) query = query.eq("menu_id", args.menuId);
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+
+    if (error) {
+      logServerDataError("read analytics_events period", error.message);
+      return { ok: false, error: error.message, rows: [], truncated: false };
+    }
+
+    const page = (data ?? []) as T[];
+    rows.push(...page);
+    if (page.length < pageSize) {
+      return { ok: true, rows, truncated: false };
+    }
+  }
+
+  return { ok: true, rows, truncated: true };
+}
+
+export async function readRestaurantDailyAnalyticsForPeriod<T extends AnyRow>(args: {
+  restaurantId: string;
+  fromDay: string;
+  toDay: string;
+}): Promise<DataReadResult<T>> {
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return { ok: false, error: admin.reason, rows: [] };
+  const { data, error } = await admin.client
+    .from("restaurant_daily_analytics")
+    .select("*")
+    .eq("restaurant_id", args.restaurantId)
+    .gte("day", args.fromDay)
+    .lt("day", args.toDay)
+    .order("day", { ascending: true });
+  if (error) {
+    logServerDataError("read restaurant_daily_analytics period", error.message);
+    return { ok: false, error: error.message, rows: [] };
+  }
   return { ok: true, rows: (data ?? []) as T[] };
 }
 

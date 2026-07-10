@@ -42,6 +42,9 @@ jobs:
       - name: SEO hardening tests
         run: npm run test:seo
 
+      - name: Admin and owner QR tests
+        run: npm run test:admin
+
       - name: Build
         run: npm run build
 

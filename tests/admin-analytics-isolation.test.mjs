@@ -1,0 +1,108 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+test("restaurant-scoped Supabase reads filter before applying limits", async () => {
+  const source = await readFile("lib/analytics/serverRows.ts", "utf8");
+  const scopedReader =
+    source.match(
+      /export async function readSupabaseRowsByColumn[\s\S]*?\n}/
+    )?.[0] ?? "";
+
+  assert.match(scopedReader, /\.eq\(column, value\)/);
+  assert.match(scopedReader, /\.limit\(limit\)/);
+  assert.ok(
+    scopedReader.indexOf(".eq(column, value)") <
+      scopedReader.indexOf(".limit(limit)")
+  );
+});
+
+test("restaurant insights scope every table in the database and use real menu identity", async () => {
+  const source = await readFile("lib/analytics/insights.ts", "utf8");
+
+  for (const [table, column] of [
+    ["restaurants", "id"],
+    ["menu_categories", "restaurant_id"],
+    ["menu_dishes", "restaurant_id"],
+  ]) {
+    assert.match(
+      source,
+      new RegExp(
+        `readSupabaseRowsByColumn\\(\\s*["']${table}["'],\\s*["']${column}["'],\\s*(?:restaurantId|scopedRestaurantId)`
+      ),
+      `${table} must be scoped with ${column} before its limit`
+    );
+  }
+
+  assert.match(source, /readRestaurantDailyAnalyticsForPeriod\(\{\s*restaurantId:/);
+  assert.match(source, /readAnalyticsEventsForPeriod\(\{\s*restaurantId:/);
+
+  assert.doesNotMatch(source, /filterRowsByRestaurantId/);
+  assert.match(source, /generatedFor:\s*restaurantName/);
+  assert.match(source, /menuDishRows/);
+  assert.match(source, /menuCategoryRows/);
+  assert.doesNotMatch(source, /generatedFor:\s*["']Maison Élyse["']/);
+});
+
+test("production analytics never substitute Maison Elyse preview data", async () => {
+  const source = await readFile("lib/analytics/insights.ts", "utf8");
+  const fallbackSection = source.slice(source.indexOf("export async function getRestaurantInsights"));
+
+  assert.match(
+    fallbackSection,
+    /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*(?:restaurantId|scopedRestaurantId)\s*===\s*DEMO_RESTAURANT_ID[\s\S]*getDemoAdminInsights\(\)/
+  );
+  assert.match(fallbackSection, /source:\s*["']empty["']/);
+  assert.doesNotMatch(
+    fallbackSection,
+    /return\s*\{\s*insights:\s*getDemoAdminInsights\(\),\s*source:\s*["'](?:fallback|empty)["']/
+  );
+});
+
+test("admin dashboard loader receives one trusted restaurant id for every data read", async () => {
+  const page = await readFile("app/admin/page.tsx", "utf8");
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+
+  assert.match(page, /loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.doesNotMatch(page, /searchParams|restaurantId\s*=/);
+  assert.match(loader, /getRestaurantInsights\(restaurantId,\s*selectedMenu\?\.id\)/);
+  assert.match(
+    loader,
+    /readSupabaseRowsByColumn\(\s*["']restaurants["'],\s*["']id["'],\s*restaurantId/
+  );
+  assert.match(
+    loader,
+    /readSupabaseRowsByColumn\(\s*["']menu_dishes["'],\s*["']restaurant_id["'],\s*restaurantId/
+  );
+});
+
+test("admin dashboard fails closed before menu reads when the restaurant lookup fails", async () => {
+  const page = await readFile("app/admin/page.tsx", "utf8");
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  const restaurantRead = loader.indexOf("const restaurantResult");
+  const failedGuard = loader.indexOf("if (!restaurantResult.ok)");
+  const missingGuard = loader.indexOf("if (!restaurantRow)");
+  const dishRead = loader.indexOf('"menu_dishes"');
+
+  assert.ok(restaurantRead >= 0);
+  assert.ok(failedGuard > restaurantRead && failedGuard < dishRead);
+  assert.ok(missingGuard > failedGuard && missingGuard < dishRead);
+  assert.doesNotMatch(loader, /Votre restaurant/);
+  assert.match(loader, /reason:\s*["']restaurant-(?:lookup-failed|not-found)["']/);
+  assert.match(page, /if\s*\(!result\.ok\)/);
+  assert.ok(
+    page.indexOf("if (!result.ok)") <
+      page.indexOf("<AdminRestaurantDashboard")
+  );
+});
+
+test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  const menuRead = loader.indexOf('const menuResult = await readSupabaseRowsByColumn(\n    "menus"');
+  const menuGuard = loader.indexOf("if (!menuResult.ok)");
+  const categoryRead = loader.indexOf('readSupabaseRowsByColumn(\n      "menu_categories"');
+
+  assert.ok(menuRead >= 0);
+  assert.ok(menuGuard > menuRead && menuGuard < categoryRead);
+  assert.match(loader, /reason:\s*["']menu-lookup-failed["']/);
+});

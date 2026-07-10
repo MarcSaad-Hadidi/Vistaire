@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import {
@@ -22,11 +23,18 @@ import {
   verifySignedQrToken
 } from "@/lib/owner/qrTokens";
 import {
+  buildQrSupabaseFailure,
+  classifyQrCreatePersistenceFailure,
   createOwnerQrCodeWithDependencies,
+  redactQrIncidentLogText,
   type CreateOwnerQrCodeArgs,
-  type QrPersistenceResult
+  type QrPersistenceResult,
+  type QrSupabaseFailure,
+  type QrSupabaseFailureCode
 } from "@/lib/owner/qrCreationCore";
 import {
+  isQrMetadataRpcUnavailable,
+  resolveLegacyMenuQrScan,
   resolveQrRowMetadata,
   resolveSignedMenuFallback,
   type QrResolution
@@ -37,13 +45,70 @@ import {
   sanitizeOwnerQrTargetPath
 } from "@/lib/owner/menuUrlCore";
 import type {
-  CreateOwnerQrCodeResult,
   OwnerQrCodeRecord,
   OwnerQrCodeStatus,
   OwnerQrStyle
 } from "@/lib/owner/types";
 
 const QR_TABLE = "qr_codes";
+
+type QrIncidentCode =
+  | QrSupabaseFailureCode
+  | "QR_MARK_RESTAURANT_READY_FAILED"
+  | "QR_RESOLVE_METADATA_FAILED"
+  | "QR_RESOLVE_LEGACY_RPC_FAILED"
+  | "QR_RESOLVE_LEGACY_SELECT_FAILED";
+
+type QrIncidentOperation =
+  | "create-config"
+  | "create-insert"
+  | "update-config"
+  | "update"
+  | "mark-restaurant-ready"
+  | "resolve-metadata"
+  | "resolve-legacy-rpc"
+  | "resolve-legacy-select";
+
+type QrSupabaseError = {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+};
+
+type QrIncidentInput = {
+  operation: QrIncidentOperation;
+  code: QrIncidentCode;
+} & (
+  | { supabaseError: QrSupabaseError; configReason?: never }
+  | { configReason: string; supabaseError?: never }
+);
+
+function logQrSupabaseIncident(input: QrIncidentInput): string {
+  const incidentId = randomUUID();
+  const cause = input.supabaseError
+    ? {
+        supabase: {
+          code: input.supabaseError.code ?? null,
+          message:
+            redactQrIncidentLogText(input.supabaseError.message) ??
+            "Unknown Supabase error.",
+          details: redactQrIncidentLogText(input.supabaseError.details),
+          hint: redactQrIncidentLogText(input.supabaseError.hint)
+        }
+      }
+    : {
+        config: { reason: input.configReason }
+      };
+
+  console.error("[Vistaire owner] QR Supabase incident", {
+    incidentId,
+    operation: input.operation,
+    code: input.code,
+    ...cause
+  });
+  return incidentId;
+}
 
 const QR_STATUS_VALUES = new Set<OwnerQrCodeStatus>([
   "active",
@@ -55,6 +120,13 @@ function normalizeStatus(value: string): OwnerQrCodeStatus {
   return QR_STATUS_VALUES.has(value as OwnerQrCodeStatus)
     ? (value as OwnerQrCodeStatus)
     : "archived";
+}
+
+function isSupabaseMiss(error: QrSupabaseError): boolean {
+  return (
+    error.code === "PGRST116" &&
+    /\b0 rows?\b/i.test(error.details ?? "")
+  );
 }
 
 function parseStyle(value: unknown): OwnerQrStyle {
@@ -108,7 +180,11 @@ async function markRestaurantQrReady(
     .eq(idCol, restaurantId);
 
   if (error) {
-    console.warn("[Vistaire owner] mark restaurant qr_ready failed", error.message);
+    logQrSupabaseIncident({
+      operation: "mark-restaurant-ready",
+      code: "QR_MARK_RESTAURANT_READY_FAILED",
+      supabaseError: error
+    });
   }
 }
 
@@ -180,12 +256,16 @@ async function persistOwnerQrCode(
       .single();
 
     if (error) {
-      console.error("[Vistaire owner] create qr_code failed", error.message);
-      return {
-        ok: false,
-        error:
-          "Le QR n'a pas pu etre enregistre. Verifiez que la table qr_codes existe (voir docs/owner-qr-schema.md)."
-      };
+      const code = classifyQrCreatePersistenceFailure(error);
+      const incidentId = logQrSupabaseIncident({
+        operation: "create-insert",
+        code,
+        supabaseError: error
+      });
+      return buildQrSupabaseFailure({
+        code,
+        incidentId
+      });
     }
 
     const record = mapQrRow((data ?? insertRow) as AnyRow);
@@ -196,16 +276,21 @@ async function persistOwnerQrCode(
     return { ok: true, record, token, persisted: true };
   }
 
-  return {
-    ok: false,
-    error: "Le QR n'a pas pu etre enregistre : Supabase persistant est requis.",
-    fallbackEligible: true
-  };
+  const incidentId = logQrSupabaseIncident({
+    operation: "create-config",
+    code: "QR_CREATE_CONFIG_UNAVAILABLE",
+    configReason: admin.reason
+  });
+  return buildQrSupabaseFailure({
+    code: "QR_CREATE_CONFIG_UNAVAILABLE",
+    incidentId,
+    ...(targetKind === "menu" ? { fallbackEligible: true as const } : {})
+  });
 }
 
 export async function createOwnerQrCode(
   args: CreateOwnerQrCodeArgs
-): Promise<CreateOwnerQrCodeResult> {
+): Promise<QrPersistenceResult> {
   return createOwnerQrCodeWithDependencies(args, {
     persistQrCode: persistOwnerQrCode,
     createSignedMenuFallback: ({ targetPath, restaurantId }) => {
@@ -227,14 +312,18 @@ export async function createOwnerQrCode(
 export async function updateOwnerQrCode(
   id: string,
   patch: { status?: OwnerQrCodeStatus; style?: unknown; label?: string }
-): Promise<{ ok: true; record: OwnerQrCodeRecord } | { ok: false; error: string }> {
+): Promise<{ ok: true; record: OwnerQrCodeRecord } | QrSupabaseFailure | { ok: false; error: string }> {
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
-    return {
-      ok: false,
-      error:
-        "Mise a jour QR non persistee : Supabase n'est pas configure (table qr_codes requise)."
-    };
+    const incidentId = logQrSupabaseIncident({
+      operation: "update-config",
+      code: "QR_UPDATE_CONFIG_UNAVAILABLE",
+      configReason: admin.reason
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_UPDATE_CONFIG_UNAVAILABLE",
+      incidentId
+    });
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -255,6 +344,17 @@ export async function updateOwnerQrCode(
     .select("*")
     .single();
 
+  if (error && !isSupabaseMiss(error)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "update",
+      code: "QR_UPDATE_FAILED",
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_UPDATE_FAILED",
+      incidentId
+    });
+  }
   if (error || !data) {
     return { ok: false, error: "QR introuvable ou non modifiable." };
   }
@@ -269,7 +369,7 @@ function firstRpcRow(data: unknown): AnyRow | null {
   return data && typeof data === "object" ? (data as AnyRow) : null;
 }
 
-function resolutionFromRow(row: AnyRow, expectedPath?: string): QrResolution {
+function resolutionFromRow(row: AnyRow): QrResolution {
   const qrId = getString(row, ["qr_id", "id", "qrId"], "");
   const restaurantId = getString(
     row,
@@ -289,17 +389,7 @@ function resolutionFromRow(row: AnyRow, expectedPath?: string): QrResolution {
       status: getString(row, ["status"], ""),
       targetKind,
       targetPath
-    },
-    expectedPath
-  );
-}
-
-function isRpcUnavailable(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return (
-    error.code === "42883" ||
-    error.code === "PGRST202" ||
-    /function.*(not found|does not exist)|schema cache/i.test(error.message ?? "")
+    }
   );
 }
 
@@ -336,7 +426,14 @@ async function resolvePersistedQrToken(
       p_token_hash: tokenHash
     });
     if (error) {
-      if (!isRpcUnavailable(error)) return { ok: false };
+      if (!isQrMetadataRpcUnavailable(error)) {
+        logQrSupabaseIncident({
+          operation: "resolve-metadata",
+          code: "QR_RESOLVE_METADATA_FAILED",
+          supabaseError: error
+        });
+        return { ok: false };
+      }
       metadataRpcUnavailable = true;
       break;
     }
@@ -350,10 +447,16 @@ async function resolvePersistedQrToken(
     const { data, error } = await client.rpc("resolve_qr_code_scan", {
       p_token_hash: tokenHash
     });
-    if (error) return { ok: false };
+    if (error) {
+      logQrSupabaseIncident({
+        operation: "resolve-legacy-rpc",
+        code: "QR_RESOLVE_LEGACY_RPC_FAILED",
+        supabaseError: error
+      });
+      return { ok: false };
+    }
     if (!data) continue;
-    const targetPath = sanitizeOwnerQrTargetPath(String(data));
-    if (!targetPath) return { ok: false };
+    const expectedPath = String(data);
 
     const { data: row, error: selectError } = await client
       .from(QR_TABLE)
@@ -361,8 +464,28 @@ async function resolvePersistedQrToken(
       .eq("token_hash", tokenHash)
       .limit(1)
       .maybeSingle();
-    if (selectError || !row) return { ok: false };
-    return resolutionFromRow(row as AnyRow, targetPath);
+    if (selectError) {
+      logQrSupabaseIncident({
+        operation: "resolve-legacy-select",
+        code: "QR_RESOLVE_LEGACY_SELECT_FAILED",
+        supabaseError: selectError
+      });
+      return { ok: false };
+    }
+    if (!row) return { ok: false };
+    return resolveLegacyMenuQrScan(
+      {
+        qrId: getString(row as AnyRow, ["id"], ""),
+        restaurantId: getString(
+          row as AnyRow,
+          ["restaurant_id", "restaurantId"],
+          ""
+        ),
+        status: getString(row as AnyRow, ["status"], ""),
+        targetPath: getString(row as AnyRow, ["target_path", "targetPath"], "")
+      },
+      expectedPath
+    );
   }
   return { ok: false };
 }

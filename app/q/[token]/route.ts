@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  ADMIN_ACCESS_TTL_SECONDS,
-  createAdminAccessToken
+  ADMIN_ACCESS_COOKIE_NAME,
+  createAdminAccessToken,
+  getAdminAccessCookieOptions
 } from "@/lib/admin/accessSessionCore";
 import { resolveQrToken } from "@/lib/owner/qrStore";
 
@@ -35,13 +36,11 @@ export async function GET(request: NextRequest, context: QrRouteContext) {
       secret
     );
     const response = protectedRedirect(request, "/admin");
-    response.cookies.set("vistaire_admin_access", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/admin",
-      maxAge: ADMIN_ACCESS_TTL_SECONDS
-    });
+    response.cookies.set(
+      ADMIN_ACCESS_COOKIE_NAME,
+      accessToken,
+      getAdminAccessCookieOptions(process.env.NODE_ENV)
+    );
     return response;
   } catch {
     return protectedRedirect(request, "/q/invalid");

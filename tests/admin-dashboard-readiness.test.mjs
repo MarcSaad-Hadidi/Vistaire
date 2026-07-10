@@ -89,6 +89,40 @@ test("empty menus have a finite zero score and a concrete setup action", async (
   assert.ok(summary.actions.length > 0);
 });
 
+test("admin menu selection chooses one deterministic editable menu without mixing drafts", async () => {
+  const { selectAdminDashboardMenu } = await loadMenuReadiness();
+  const selected = selectAdminDashboardMenu([
+    { id: "draft-primary", status: "draft", is_primary: true, updated_at: "2026-07-10T10:00:00.000Z" },
+    { id: "published-secondary-old", status: "published", is_primary: false, updated_at: "2026-07-08T10:00:00.000Z" },
+    { id: "published-secondary-new", status: "published", is_primary: false, updated_at: "2026-07-09T10:00:00.000Z" },
+    { id: "published-primary", status: "published", is_primary: true, updated_at: "2026-07-01T10:00:00.000Z" },
+    { id: "archived-primary", status: "archived", is_primary: true, updated_at: "2026-07-11T10:00:00.000Z" }
+  ]);
+
+  assert.deepEqual(selected, {
+    id: "published-primary",
+    status: "published"
+  });
+
+  assert.deepEqual(
+    selectAdminDashboardMenu([
+      { id: "published-b", status: "published", is_primary: false, updated_at: "2026-07-09T10:00:00.000Z" },
+      { id: "published-a", status: "published", is_primary: false, updated_at: "2026-07-09T10:00:00.000Z" },
+      { id: "draft-primary", status: "draft", is_primary: true }
+    ]),
+    { id: "published-a", status: "published" }
+  );
+
+  assert.deepEqual(
+    selectAdminDashboardMenu([
+      { id: "archived", status: "archived", is_primary: true },
+      { id: "draft-primary", status: "draft", is_primary: true }
+    ]),
+    { id: "draft-primary", status: "draft" }
+  );
+  assert.equal(selectAdminDashboardMenu([{ id: "draft", status: "draft" }]), null);
+});
+
 test("admin dashboard stays locked without a QR session and remains noindex", async () => {
   const page = await readFile("app/admin/page.tsx", "utf8");
   const layout = await readFile("app/admin/layout.tsx", "utf8");
@@ -97,6 +131,7 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
   assert.match(page, /Accès dashboard restaurant requis/);
   assert.match(page, /Scannez le QR admin interne de votre restaurant\./);
   assert.doesNotMatch(page, /getDemoRestaurantId|searchParams/);
+  assert.doesNotMatch(page, /href=["']\/owner\//);
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /noarchive:\s*true/);
 });
@@ -116,10 +151,10 @@ test("admin dashboard exposes only menu reading and dish availability", async ()
   assert.doesNotMatch(combined, /(?:create|delete|remove|upload)(?:Dish|Media|Restaurant)/i);
 });
 
-test("fallback analytics suppress all presentation numbers", async () => {
+test("preview analytics suppress all presentation numbers", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const state = buildAdminAnalyticsState({
-    source: "fallback",
+    source: "preview",
     note: "Lecture de présentation",
     insights: {
       summary: [
@@ -130,8 +165,34 @@ test("fallback analytics suppress all presentation numbers", async () => {
     }
   });
 
-  assert.equal(state.kind, "insufficient");
+  assert.equal(state.kind, "preview");
   assert.doesNotMatch(JSON.stringify(state), /987654|123456|777777|Plat démo/);
+});
+
+test("analytics evidence states distinguish real, partial, empty and preview data", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const insights = {
+    generatedFor: "Le Rivage",
+    summary: [],
+    topDishes: []
+  };
+
+  assert.equal(
+    buildAdminAnalyticsState({ source: "real", note: "", insights }).kind,
+    "real"
+  );
+  assert.equal(
+    buildAdminAnalyticsState({ source: "partial", note: "", insights }).kind,
+    "partial"
+  );
+  assert.equal(
+    buildAdminAnalyticsState({ source: "empty", note: "", insights }).kind,
+    "empty"
+  );
+  assert.equal(
+    buildAdminAnalyticsState({ source: "preview", note: "", insights }).kind,
+    "preview"
+  );
 });
 
 test("admin page and loader delegate fallback handling to the analytics state boundary", async () => {
@@ -139,9 +200,9 @@ test("admin page and loader delegate fallback handling to the analytics state bo
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
   const combined = `${page}\n${loader}`;
 
-  assert.match(loader, /import\s*\{\s*buildAdminAnalyticsState\s*\}/);
+  assert.match(loader, /import\s*\{[\s\S]*?buildAdminAnalyticsState[\s\S]*?\}\s*from\s*["']@\/lib\/admin\/analyticsState["']/);
   assert.match(loader, /analytics:\s*buildAdminAnalyticsState\(/);
-  assert.doesNotMatch(page, /getDemoRestaurantId|getDemoAdminInsights|source\s*===\s*["']fallback/);
+  assert.doesNotMatch(page, /getDemoRestaurantId|getDemoAdminInsights|source\s*===\s*["']preview/);
   assert.doesNotMatch(page, /@\/lib\/analytics\/insights/);
   assert.doesNotMatch(combined, /insights\.summary|insights\.topDishes/);
 });
@@ -154,13 +215,12 @@ test("admin page loads only the authorized restaurant and renders the dashboard 
   );
 
   assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
-  assert.match(page, /const\s+data\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
-  assert.match(page, /<AdminRestaurantDashboard\s+data=\{data\}\s*\/>/);
+  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.match(page, /if\s*\(!result\.ok\)/);
+  assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
-  assert.match(
-    dashboard,
-    /analytics\.kind === "real"\s*\?\s*<AdminRealAnalytics[\s\S]*:\s*<AdminAnalyticsEvidenceState/
-  );
+  assert.match(dashboard, /analytics\.kind === "real" \|\| data\.analytics\.kind === "partial"/);
+  assert.match(dashboard, /Données réelles — échantillon encore limité/);
   const evidenceBranch = dashboard.split(/AdminAnalyticsEvidenceState/)[1] ?? "";
   assert.doesNotMatch(
     evidenceBranch,

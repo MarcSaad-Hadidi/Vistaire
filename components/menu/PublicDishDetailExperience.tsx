@@ -12,6 +12,10 @@ import {
   type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import {
+  getPublicMenuAnalyticsContext,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
@@ -172,6 +176,15 @@ export function PublicDishDetailExperience({
   const showBuilderModelStatus =
     mode === "builder-preview" && (hasBuilder3dStatus || hasBuilderArStatus);
   const publicModelButtonLabel = showModelViewer ? "Masquer la 3D" : "Voir en 3D";
+
+  useEffect(() => {
+    if (mode !== "public") return;
+    trackPublicMenuEvent(menu, {
+      eventName: "dish_opened",
+      dishSlug: dish.slug,
+      categorySlug: dish.categorySlug
+    });
+  }, [dish.categorySlug, dish.slug, menu, mode]);
 
   useEffect(() => {
     if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
@@ -351,7 +364,16 @@ export function PublicDishDetailExperience({
                         aria-controls="public-dish-model-viewer"
                         aria-expanded={showModelViewer}
                         onClick={() =>
-                          setShowModelViewer((isVisible) => !isVisible)
+                          setShowModelViewer((isVisible) => {
+                            if (!isVisible) {
+                              trackPublicMenuEvent(menu, {
+                                eventName: "dish_3d_clicked",
+                                dishSlug: dish.slug,
+                                categorySlug: dish.categorySlug
+                              });
+                            }
+                            return !isVisible;
+                          })
                         }
                       >
                         {publicModelButtonLabel}
@@ -390,6 +412,7 @@ export function PublicDishDetailExperience({
                             dish.modelStatus
                           ].join(":")}
                           dish={modelViewerDishFromPublicDish(dish)}
+                          analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
                           minimalChrome
                           quietChrome
                           onReturnToDish={() => setShowModelViewer(false)}

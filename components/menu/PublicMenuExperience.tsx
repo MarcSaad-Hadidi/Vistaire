@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -149,6 +150,10 @@ export function PublicMenuExperience({
         .slice(0, 3),
     [menu.dishes]
   );
+
+  useEffect(() => {
+    trackPublicMenuEvent(menu, { eventName: "menu_opened" });
+  }, [menu]);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {

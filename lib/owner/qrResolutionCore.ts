@@ -1,6 +1,5 @@
 import {
   inferOwnerQrTargetKind,
-  isOwnerQrResolvedTargetPathAllowed,
   isOwnerQrTargetPathAllowed,
   sanitizeOwnerQrTargetPath,
   type OwnerQrTargetKind
@@ -24,17 +23,37 @@ type QrRowMetadata = {
   targetPath: string;
 };
 
+export function isQrMetadataRpcUnavailable(
+  error: { code?: string | null; message?: string | null } | null
+): boolean {
+  if (!error) return false;
+  const code = error.code?.trim();
+  if (code) return code === "42883" || code === "PGRST202";
+
+  const message = error.message ?? "";
+  return (
+    /(?:function\s+)?(?:public\.)?resolve_qr_code_scan_metadata(?:\s*\([^)]*\))?[\s\S]{0,80}(?:does not exist|not found)/i.test(
+      message
+    ) ||
+    /(?:could not find|not found)[\s\S]{0,80}(?:the\s+)?function\s+(?:public\.)?resolve_qr_code_scan_metadata(?:\s*\([^)]*\))?[\s\S]{0,100}schema cache/i.test(
+      message
+    )
+  );
+}
+
 export function resolveQrRowMetadata(
   row: QrRowMetadata,
   expectedPath?: string
 ): QrResolution {
   const targetPath = sanitizeOwnerQrTargetPath(row.targetPath);
-  if (!row.qrId || row.status !== "active" || !targetPath) return { ok: false };
+  if (!row.qrId.trim() || row.status !== "active" || !targetPath) {
+    return { ok: false };
+  }
   if (expectedPath && targetPath !== expectedPath) return { ok: false };
 
   const targetKind = row.targetKind ?? inferOwnerQrTargetKind(targetPath);
-  if (targetKind === "admin" && !row.restaurantId) return { ok: false };
-  if (!isOwnerQrResolvedTargetPathAllowed(targetKind, targetPath)) {
+  if (targetKind === "admin" && !row.restaurantId.trim()) return { ok: false };
+  if (!isOwnerQrTargetPathAllowed(targetKind, targetPath)) {
     return { ok: false };
   }
   return {
@@ -42,6 +61,32 @@ export function resolveQrRowMetadata(
     qrId: row.qrId,
     restaurantId: row.restaurantId,
     targetKind,
+    targetPath
+  };
+}
+
+export function resolveLegacyMenuQrScan(
+  row: Omit<QrRowMetadata, "targetKind">,
+  expectedPath: string
+): QrResolution {
+  const targetPath = sanitizeOwnerQrTargetPath(row.targetPath);
+  const normalizedExpectedPath = sanitizeOwnerQrTargetPath(expectedPath);
+  if (
+    !row.qrId.trim() ||
+    row.status !== "active" ||
+    !targetPath ||
+    !normalizedExpectedPath ||
+    targetPath !== normalizedExpectedPath ||
+    !isOwnerQrTargetPathAllowed("menu", targetPath)
+  ) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    qrId: row.qrId,
+    restaurantId: row.restaurantId,
+    targetKind: "menu",
     targetPath
   };
 }

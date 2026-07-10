@@ -1,12 +1,24 @@
 import { verifyAdminAccessToken } from "./accessSessionCore.ts";
 import { isOwnerQrResolvedTargetPathAllowed } from "../owner/menuUrlCore.ts";
 
-export type AdminCapability = "dashboard:read" | "dish:availability:write";
+export const ADMIN_CAPABILITIES = [
+  "dashboard:read",
+  "dish:availability:write"
+] as const;
+
+export type AdminCapability = (typeof ADMIN_CAPABILITIES)[number];
+
+export function isAdminCapability(value: unknown): value is AdminCapability {
+  return (
+    typeof value === "string" &&
+    (ADMIN_CAPABILITIES as readonly string[]).includes(value)
+  );
+}
 
 export type LiveQrAccessRow = {
   id: string;
   restaurantId: string;
-  targetKind: "menu" | "admin";
+  targetKind: "menu" | "admin" | null;
   targetPath: string;
   status: string;
 };
@@ -25,12 +37,18 @@ export type AdminRestaurantAccessResult =
       restaurantId: string;
       expiresAt: number;
     }
-  | { ok: false; reason: "configuration" | "session" | "revoked" };
+  | {
+      ok: false;
+      reason: "capability" | "configuration" | "session" | "revoked";
+    };
 
 export async function requireAdminRestaurantAccess(
-  _capability: AdminCapability,
+  capability: AdminCapability,
   dependencies: AdminAccessDependencies
 ): Promise<AdminRestaurantAccessResult> {
+  if (!isAdminCapability(capability)) {
+    return { ok: false, reason: "capability" };
+  }
   if (
     !dependencies.secret ||
     !dependencies.getCookieValue ||

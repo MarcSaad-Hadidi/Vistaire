@@ -1,6 +1,9 @@
 "use client";
 
-import { trackMenuEvent } from "@/lib/analytics/client";
+import {
+  trackMenuEvent,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import type { PublicMenu } from "@/lib/menu/publicMenuCore";
 
 const UUID_PATTERN =
@@ -8,25 +11,28 @@ const UUID_PATTERN =
 
 type TrackGoogleReviewClickInput = {
   dishSlug?: string;
+  menuId?: string;
   restaurantId: string;
   source: PublicMenu["source"];
 };
 
 export function trackGoogleReviewClick({
   dishSlug,
+  menuId,
   restaurantId,
   source
 }: TrackGoogleReviewClickInput): void {
   if (!UUID_PATTERN.test(restaurantId)) return;
 
-  trackMenuEvent({
-    eventName: "cta_clicked",
-    restaurantId,
-    source: source === "supabase" ? "production" : "demo",
+  const input = {
+    eventName: "cta_clicked" as const,
     ctaName: "google_review",
     dishSlug,
-    metadata: {
-      destination: "google_review"
-    }
-  });
+    metadata: { destination: "google_review" }
+  };
+  if (source === "supabase") {
+    trackPublicMenuEvent({ restaurantId, menuId, source }, input);
+    return;
+  }
+  trackMenuEvent({ ...input, restaurantId, menuId, source: "demo" });
 }

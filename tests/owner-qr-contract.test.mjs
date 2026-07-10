@@ -13,6 +13,14 @@ test("owner QR API accepts an explicit target kind and returns target metadata",
   assert.match(source, /targetKind: created\.record\.targetKind/);
 });
 
+test("owner QR API returns structured persistence diagnostics without database text", async () => {
+  const source = await readFile("app/api/owner/qr-codes/route.ts", "utf8");
+
+  assert.match(source, /code: created\.code/);
+  assert.match(source, /incidentId: created\.incidentId/);
+  assert.doesNotMatch(source, /error\.message|error\.details|error\.hint/);
+});
+
 test("owner QR manager exposes restaurant, QR type, destination, and safety badges", async () => {
   const manager = await readFile("components/owner/OwnerQrManager.tsx", "utf8");
   const customizer = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
@@ -65,6 +73,20 @@ test("owner QR customizer saves target kind and displays persistence details", a
   assert.match(source, /non persiste/);
 });
 
+test("owner QR customizer cannot expose or export a direct destination before secure creation", async () => {
+  const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
+
+  assert.match(source, /useState\(""\)/);
+  assert.match(source, /if \(!qrValue\) return;/);
+  assert.match(source, /const canExportQr = Boolean\(qrValue && svgMarkup\)/);
+  assert.match(source, /disabled=\{!canExportQr\}/);
+  assert.match(source, /if \(!qrValue\) return;/);
+  assert.match(source, /isOpaqueQrRedirect/);
+  assert.doesNotMatch(source, /useState\(targetDisplayUrl\)/);
+  assert.doesNotMatch(source, /il ne contient aucun identifiant ni secret/i);
+  assert.match(source, /jeton d.accès/i);
+});
+
 test("QR scan RPC is not executable by public browser roles", async () => {
   const migration = await readFile(
     "supabase/migrations/0002_qr_resolve_scan_rpc.sql",
@@ -84,13 +106,15 @@ test("QR scan RPC is not executable by public browser roles", async () => {
 
 test("QR exchange sets only the path-scoped restaurant admin session", async () => {
   const route = await readFile("app/q/[token]/route.ts", "utf8");
+  const session = await readFile("lib/admin/accessSessionCore.ts", "utf8");
+  const combined = `${route}\n${session}`;
 
-  assert.match(route, /vistaire_admin_access/);
-  assert.match(route, /httpOnly:\s*true/);
-  assert.match(route, /secure:\s*process\.env\.NODE_ENV === "production"/);
-  assert.match(route, /sameSite:\s*"lax"/);
-  assert.match(route, /path:\s*"\/admin"/);
-  assert.match(route, /maxAge:\s*ADMIN_ACCESS_TTL_SECONDS/);
+  assert.match(combined, /vistaire_admin_access/);
+  assert.match(combined, /httpOnly:\s*true/);
+  assert.match(combined, /secure:\s*nodeEnv === "production"/);
+  assert.match(combined, /sameSite:\s*"lax"/);
+  assert.match(combined, /path:\s*"\/admin"/);
+  assert.match(combined, /maxAge:\s*ADMIN_ACCESS_TTL_SECONDS/);
   assert.match(route, /resolved\.targetKind === "menu"[\s\S]*resolved\.targetPath/);
   assert.match(route, /protectedRedirect\(request, "\/admin"\)/);
   assert.match(route, /Cache-Control["'],\s*["']no-store/);

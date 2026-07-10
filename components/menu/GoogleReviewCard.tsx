@@ -16,6 +16,7 @@ type GoogleReviewCardProps = {
   locale?: string;
   localizedUiCopy?: Record<string, unknown>;
   onReviewRequest?: () => void;
+  menuId?: string;
   restaurantId: string;
   restaurantName: string;
   showNote?: boolean;
@@ -59,6 +60,7 @@ export function GoogleReviewCard({
   googleReview,
   locale = "fr",
   localizedUiCopy,
+  menuId,
   onReviewRequest,
   restaurantId,
   restaurantName,
@@ -101,6 +103,7 @@ export function GoogleReviewCard({
   function trackOutboundClick() {
     trackGoogleReviewClick({
       restaurantId,
+      menuId,
       source
     });
   }

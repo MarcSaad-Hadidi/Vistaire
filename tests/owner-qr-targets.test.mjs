@@ -128,7 +128,7 @@ test("signed QR fallback is dev-gated and menu-target validated", async () => {
   assert.match(storeSource, /canUseSignedQrFallback/);
   assert.match(storeSource, /isOwnerQrTargetPathAllowed\("menu", targetPath\)/);
   const createOwnerQrCodeBody = storeSource.match(
-    /export async function createOwnerQrCode\([\s\S]*?\n}\n\nexport async function updateOwnerQrCode/
+    /export async function createOwnerQrCode\([\s\S]*?\r?\n}\r?\n\r?\nexport async function updateOwnerQrCode/
   )?.[0] ?? "";
   assert.match(
     createOwnerQrCodeBody,
