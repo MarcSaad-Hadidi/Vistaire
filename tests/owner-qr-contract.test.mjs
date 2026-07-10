@@ -65,6 +65,20 @@ test("owner QR customizer saves target kind and displays persistence details", a
   assert.match(source, /non persiste/);
 });
 
+test("owner QR customizer cannot expose or export a direct destination before secure creation", async () => {
+  const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
+
+  assert.match(source, /useState\(""\)/);
+  assert.match(source, /if \(!qrValue\) \{[\s\S]*?setSvgMarkup\(""\)/);
+  assert.match(source, /const canExportQr = Boolean\(qrValue && svgMarkup\)/);
+  assert.match(source, /disabled=\{!canExportQr\}/);
+  assert.match(source, /if \(!qrValue\) return;/);
+  assert.match(source, /isOpaqueQrRedirect/);
+  assert.doesNotMatch(source, /useState\(targetDisplayUrl\)/);
+  assert.doesNotMatch(source, /il ne contient aucun identifiant ni secret/i);
+  assert.match(source, /jeton d.accès/i);
+});
+
 test("QR scan RPC is not executable by public browser roles", async () => {
   const migration = await readFile(
     "supabase/migrations/0002_qr_resolve_scan_rpc.sql",

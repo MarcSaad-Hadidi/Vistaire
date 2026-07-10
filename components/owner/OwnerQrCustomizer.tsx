@@ -54,6 +54,20 @@ function escapeXml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function isOpaqueQrRedirect(value: string): boolean {
+  try {
+    const url = new URL(value, "https://vistaire.local");
+    return (
+      (url.protocol === "https:" || url.protocol === "http:") &&
+      /^\/q\/[A-Za-z0-9._~-]+$/.test(url.pathname) &&
+      !url.search &&
+      !url.hash
+    );
+  } catch {
+    return false;
+  }
+}
+
 function injectLogo(svg: string, style: OwnerQrStyle): string {
   if (style.logoMode === "none") return svg;
   const viewBoxMatch = svg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
@@ -109,7 +123,7 @@ export function OwnerQrCustomizer({
     ...initialQrStyle
   }));
   const [svgMarkup, setSvgMarkup] = useState("");
-  const [qrValue, setQrValue] = useState(targetDisplayUrl);
+  const [qrValue, setQrValue] = useState("");
   const [tokenPreview, setTokenPreview] = useState("");
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
@@ -121,6 +135,7 @@ export function OwnerQrCustomizer({
     () => targetDisplayUrl || targetPath,
     [targetDisplayUrl, targetPath]
   );
+  const canExportQr = Boolean(qrValue && svgMarkup);
 
   const qrValueForBrowser = useCallback((value: string): string => {
     if (!value.startsWith("/") || typeof window === "undefined") return value;
@@ -128,6 +143,7 @@ export function OwnerQrCustomizer({
   }, []);
 
   useEffect(() => {
+    if (!qrValue) return;
     let active = true;
     async function render() {
       try {
@@ -173,6 +189,7 @@ export function OwnerQrCustomizer({
   }
 
   async function copyUrl() {
+    if (!qrValue) return;
     try {
       await navigator.clipboard.writeText(qrValueForBrowser(qrValue));
       setCopyState("copied");
@@ -182,13 +199,13 @@ export function OwnerQrCustomizer({
   }
 
   function downloadSvg() {
-    if (!svgMarkup) return;
+    if (!canExportQr) return;
     const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
     triggerDownload(URL.createObjectURL(blob), `vistaire-qr-${fileSlug}.svg`);
   }
 
   function downloadPng() {
-    if (!svgMarkup) return;
+    if (!canExportQr) return;
     const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const image = new Image();
@@ -243,7 +260,15 @@ export function OwnerQrCustomizer({
         persisted?: boolean;
         record?: OwnerQrCodeRecord;
       };
-      if (!response.ok || !payload.ok || !payload.redirectUrl) {
+      const persisted = Boolean(payload.persisted);
+      if (
+        !response.ok ||
+        !payload.ok ||
+        !payload.redirectUrl ||
+        !isOpaqueQrRedirect(payload.redirectUrl) ||
+        payload.targetKind !== targetKind ||
+        (targetKind === "admin" && !persisted)
+      ) {
         setSaveState({
           kind: "error",
           message: payload.error || "Sauvegarde QR impossible."
@@ -254,7 +279,7 @@ export function OwnerQrCustomizer({
       setTokenPreview(payload.token ? `${payload.token.slice(0, 6)}...` : "");
       setSaveState({
         kind: "saved",
-        persisted: Boolean(payload.persisted),
+        persisted,
         redirectUrl: payload.redirectUrl,
         targetPath: payload.targetPath || payload.record?.targetPath || targetPath,
         targetKind: payload.targetKind || payload.record?.targetKind || targetKind,
@@ -280,7 +305,7 @@ export function OwnerQrCustomizer({
           )}
         </div>
         <div className={styles.qrUrlBox}>
-          <strong>URL QR :</strong> {qrValue}
+          <strong>URL QR :</strong> {qrValue || "À générer après sauvegarde"}
           {tokenPreview ? ` - token ${tokenPreview}` : ""}
         </div>
         <div className={styles.qrUrlBox}>
@@ -292,7 +317,9 @@ export function OwnerQrCustomizer({
         {targetKind === "admin" ? (
           <p className={styles.qrWarning}>
             Interne restaurant. Ne pas imprimer pour les clients. Ce QR ouvre le
-            dashboard restaurant protege ; il ne contient aucun identifiant ni secret.
+            dashboard restaurant protégé. Son jeton d’accès est confidentiel :
+            toute personne qui le photographie peut ouvrir une session tant que le QR
+            reste actif.
           </p>
         ) : null}
         {lowContrast ? (
@@ -403,14 +430,19 @@ export function OwnerQrCustomizer({
         />
 
         <div className={styles.qrExportRow}>
-          <button type="button" className={styles.btn} onClick={copyUrl}>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={copyUrl}
+            disabled={!canExportQr}
+          >
             {copyState === "copied" ? "URL copiee" : "Copier URL QR"}
           </button>
           <button
             type="button"
             className={styles.btn}
             onClick={downloadSvg}
-            disabled={!svgMarkup}
+            disabled={!canExportQr}
           >
             Telecharger SVG
           </button>
@@ -418,7 +450,7 @@ export function OwnerQrCustomizer({
             type="button"
             className={styles.btn}
             onClick={downloadPng}
-            disabled={!svgMarkup}
+            disabled={!canExportQr}
           >
             Telecharger PNG
           </button>
