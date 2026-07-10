@@ -164,3 +164,36 @@ test("admin dashboard fails closed when the scoped menu lookup fails", async () 
   assert.deepEqual(result, { ok: false, reason: "menu-lookup-failed" });
   assert.deepEqual(calls, ["restaurants", "menus"]);
 });
+
+test("Maison Elysee preview receives complete fictional analytics", async () => {
+  const { loadAdminDashboardDataWithDependencies } = await import(
+    "../lib/admin/dashboardData.ts"
+  );
+  const result = await loadAdminDashboardDataWithDependencies(
+    "11111111-1111-1111-1111-111111111111",
+    "7d",
+    {
+      readRows: async ({ table }) => {
+        if (table === "restaurants") return { ok: true, rows: [{ id: "11111111-1111-1111-1111-111111111111", name: "Maison Élysée", slug: "maison-elysee" }] };
+        if (table === "menus") return { ok: true, rows: [{ id: "menu-demo", status: "published", is_primary: true }] };
+        if (table === "menu_categories") return { ok: true, rows: [{ id: "cat-1", menu_id: "menu-demo", name: "Signatures", slug: "signatures" }] };
+        if (table === "menu_dishes") return { ok: true, rows: [{ id: "dish-1", menu_id: "menu-demo", category_id: "cat-1", name: "Homard bleu", slug: "homard-bleu", price_cents: 10400, is_available: true }] };
+        throw new Error(`unexpected table: ${table}`);
+      },
+      readEvents: async () => ({ ok: true, rows: [], truncated: false }),
+      now: () => new Date("2026-07-10T12:00:00.000Z")
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.analytics.kind, "real");
+  assert.equal(result.data.analytics.completeness, "complete");
+  assert.ok(result.data.analytics.activitySeries.length >= 2);
+  assert.ok(result.data.analytics.topDishes.length >= 1);
+  assert.equal(result.data.analytics.funnel.kind, "measured");
+});
+
+test("Maison Elysee fictional analytics are disabled in production", async () => {
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  assert.match(loader, /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*MAISON_ELYSEE_DEMO_ID/);
+});

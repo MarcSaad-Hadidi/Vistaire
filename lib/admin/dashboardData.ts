@@ -5,6 +5,7 @@ import { getNullableString, getString, readAnalyticsEventsForPeriod, readSupabas
 import { buildAdminAnalyticsState, type AdminAnalyticsState } from "@/lib/admin/analyticsState";
 import { resolveAdminObservationWindow, type AdminDashboardRange } from "@/lib/admin/dashboardRange";
 import { buildAdminMenuReadiness, selectAdminDashboardMenu, type AdminMenuCategory, type AdminMenuDish, type AdminMenuReadiness } from "@/lib/admin/menuReadiness";
+import { buildMaisonElyseeDemoEvents, MAISON_ELYSEE_DEMO_ID } from "@/lib/admin/demoAnalyticsEvents";
 
 export type AdminDashboardData = {
   restaurant: { id: string; name: string; slug: string; location: string | null; cuisineType: string | null; timezone: null; publicMenuPath: string };
@@ -47,7 +48,9 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const dishes = menu.dishes.map(toDish);
   const window = resolveAdminObservationWindow(range, dependencies.now());
   const events = await dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.startInclusive, toIso: window.endExclusive });
-  const eventRows = events.ok ? events.rows : [];
+  const eventRows = process.env.NODE_ENV !== "production" && restaurantId === MAISON_ELYSEE_DEMO_ID && events.ok && events.rows.length === 0
+    ? buildMaisonElyseeDemoEvents({ dishes, categories, endExclusive: window.endExclusive })
+    : events.ok ? events.rows : [];
   const lastUpdatedAt = eventRows.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
   const readiness = buildAdminMenuReadiness(categories, dishes);
   const publicMenuPath = `/menu/${menu.slug}`;
