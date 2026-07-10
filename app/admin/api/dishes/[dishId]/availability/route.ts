@@ -5,6 +5,7 @@ import {
   handleAdminAvailabilityRequest,
   type AvailabilityUpdateResult
 } from "@/lib/admin/availability";
+import { selectAdminDashboardMenu } from "@/lib/admin/menuReadiness";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
@@ -22,6 +23,19 @@ async function updateDishAvailability({
 }): Promise<AvailabilityUpdateResult> {
   const admin = getSupabaseAdminClient();
   if (!admin.ok) return { ok: false, status: 503 };
+
+  const menus = await admin.client
+    .from("menus")
+    .select("id,status,is_primary,updated_at")
+    .eq("restaurant_id", restaurantId)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(50);
+  if (menus.error) return { ok: false, status: 503 };
+  const selectedMenu = selectAdminDashboardMenu(menus.data ?? []);
+  if (!selectedMenu) return { ok: false, status: 404 };
+  const menuId = selectedMenu.id;
+
   const updatedAt = new Date().toISOString();
   const { data, error } = await admin.client
     .from("menu_dishes")
@@ -31,6 +45,7 @@ async function updateDishAvailability({
     })
     .eq("id", dishId)
     .eq("restaurant_id", restaurantId)
+    .eq("menu_id", menuId)
     .select("id,slug,is_available")
     .maybeSingle();
 

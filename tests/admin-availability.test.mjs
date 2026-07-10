@@ -148,12 +148,17 @@ test("availability route derives scope from admin access and updates only availa
   assert.match(updatePayload, /is_available\s*:\s*available/);
   assert.match(updatePayload, /updated_at\s*:/);
   assert.doesNotMatch(updatePayload, /restaurant|name|slug|price|metadata/i);
-  const idScope = route.indexOf('.eq("id", dishId)');
-  const restaurantScope = route.indexOf(
+  const dishUpdate = route.split('.from("menu_dishes")')[1] ?? "";
+  const idScope = dishUpdate.indexOf('.eq("id", dishId)');
+  const restaurantScope = dishUpdate.indexOf(
     '.eq("restaurant_id", restaurantId)'
   );
   assert.ok(idScope >= 0);
   assert.ok(restaurantScope > idScope);
+  const menuScope = dishUpdate.indexOf('.eq("menu_id", menuId)');
+  assert.ok(menuScope > restaurantScope);
+  assert.match(route, /from\("menus"\)[\s\S]*?\.eq\("restaurant_id", restaurantId\)/);
+  assert.match(route, /selectAdminDashboardMenu/);
   assert.doesNotMatch(route, /set_admin_dish_availability|\.rpc\(/);
 });
 

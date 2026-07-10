@@ -89,6 +89,40 @@ test("empty menus have a finite zero score and a concrete setup action", async (
   assert.ok(summary.actions.length > 0);
 });
 
+test("admin menu selection chooses one deterministic editable menu without mixing drafts", async () => {
+  const { selectAdminDashboardMenu } = await loadMenuReadiness();
+  const selected = selectAdminDashboardMenu([
+    { id: "draft-primary", status: "draft", is_primary: true, updated_at: "2026-07-10T10:00:00.000Z" },
+    { id: "published-secondary-old", status: "published", is_primary: false, updated_at: "2026-07-08T10:00:00.000Z" },
+    { id: "published-secondary-new", status: "published", is_primary: false, updated_at: "2026-07-09T10:00:00.000Z" },
+    { id: "published-primary", status: "published", is_primary: true, updated_at: "2026-07-01T10:00:00.000Z" },
+    { id: "archived-primary", status: "archived", is_primary: true, updated_at: "2026-07-11T10:00:00.000Z" }
+  ]);
+
+  assert.deepEqual(selected, {
+    id: "published-primary",
+    status: "published"
+  });
+
+  assert.deepEqual(
+    selectAdminDashboardMenu([
+      { id: "published-b", status: "published", is_primary: false, updated_at: "2026-07-09T10:00:00.000Z" },
+      { id: "published-a", status: "published", is_primary: false, updated_at: "2026-07-09T10:00:00.000Z" },
+      { id: "draft-primary", status: "draft", is_primary: true }
+    ]),
+    { id: "published-a", status: "published" }
+  );
+
+  assert.deepEqual(
+    selectAdminDashboardMenu([
+      { id: "archived", status: "archived", is_primary: true },
+      { id: "draft-primary", status: "draft", is_primary: true }
+    ]),
+    { id: "draft-primary", status: "draft" }
+  );
+  assert.equal(selectAdminDashboardMenu([{ id: "draft", status: "draft" }]), null);
+});
+
 test("admin dashboard stays locked without a QR session and remains noindex", async () => {
   const page = await readFile("app/admin/page.tsx", "utf8");
   const layout = await readFile("app/admin/layout.tsx", "utf8");
