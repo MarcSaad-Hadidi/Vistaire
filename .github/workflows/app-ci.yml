@@ -50,3 +50,42 @@ jobs:
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:seo:e2e
+
+  admin-restaurant-e2e:
+    name: Admin restaurant E2E (controlled preview)
+    needs: app-ci
+    # This is deliberately opt-in: it performs a real, reverted availability mutation
+    # against a dedicated preview fixture, never against production by default.
+    if: vars.VISTAIRE_ADMIN_E2E_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: admin-e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run required live admin dashboard checks
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_SKIP_WEB_SERVER: "1"
+          PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_REQUIRE_ADMIN_E2E: "1"
+          VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
+          VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
+          VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
+        run: npx playwright test e2e/admin-restaurant-dashboard.spec.ts
