@@ -13,6 +13,14 @@ test("owner QR API accepts an explicit target kind and returns target metadata",
   assert.match(source, /targetKind: created\.record\.targetKind/);
 });
 
+test("owner QR API returns structured persistence diagnostics without database text", async () => {
+  const source = await readFile("app/api/owner/qr-codes/route.ts", "utf8");
+
+  assert.match(source, /code: created\.code/);
+  assert.match(source, /incidentId: created\.incidentId/);
+  assert.doesNotMatch(source, /error\.message|error\.details|error\.hint/);
+});
+
 test("owner QR manager exposes restaurant, QR type, destination, and safety badges", async () => {
   const manager = await readFile("components/owner/OwnerQrManager.tsx", "utf8");
   const customizer = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");

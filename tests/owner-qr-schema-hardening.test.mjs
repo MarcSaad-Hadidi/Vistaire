@@ -230,3 +230,14 @@ test("metadata scan RPC remains one atomic privileged update", () => {
     /grant execute on function public\.resolve_qr_code_scan_metadata\(text\) to service_role/
   );
 });
+
+test("QR hardening keeps the legacy scan resolver service-role only", () => {
+  assert.match(
+    normalizedSql,
+    /revoke execute on function public\.resolve_qr_code_scan\(text\) from public, anon, authenticated/
+  );
+  assert.match(
+    normalizedSql,
+    /grant execute on function public\.resolve_qr_code_scan\(text\) to service_role/
+  );
+});

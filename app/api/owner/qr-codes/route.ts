@@ -66,7 +66,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!created.ok) {
-    return NextResponse.json({ ok: false, error: created.error }, { status: 503 });
+    const diagnostic =
+      "code" in created && "incidentId" in created
+        ? { code: created.code, incidentId: created.incidentId }
+        : {};
+    return NextResponse.json(
+      { ok: false, error: created.error, ...diagnostic },
+      { status: 503 }
+    );
   }
 
   // The raw token is returned ONCE so the client can render/encode the QR.

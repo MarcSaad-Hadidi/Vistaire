@@ -55,6 +55,22 @@ test("structured Supabase failures expose a stable code and incident reference",
   assert.equal("fallbackEligible" in failure, false);
 });
 
+test("QR creation maps actionable Supabase schema and ownership failures without exposing database text", async () => {
+  const { classifyQrCreatePersistenceFailure } = await loadCreationCore();
+
+  const cases = [
+    [{ code: "42703", message: 'column "target_kind" does not exist' }, "QR_CREATE_TARGET_KIND_MISSING"],
+    [{ code: "42P01", message: 'relation "qr_codes" does not exist' }, "QR_CREATE_SCHEMA_MIGRATION_REQUIRED"],
+    [{ code: "23503", message: "foreign key violation" }, "QR_CREATE_RESTAURANT_NOT_FOUND"],
+    [{ code: "42501", message: "permission denied" }, "QR_CREATE_SERVICE_ROLE_INCOMPATIBLE"],
+    [{ code: "XX000", message: "unexpected database error" }, "QR_CREATE_INSERT_FAILED"]
+  ];
+
+  for (const [error, expected] of cases) {
+    assert.equal(classifyQrCreatePersistenceFailure(error), expected);
+  }
+});
+
 test("structured failures survive the public creation boundaries", async () => {
   const { buildQrSupabaseFailure, createOwnerQrCodeWithDependencies } =
     await loadCreationCore();
@@ -316,7 +332,6 @@ test("qrStore uses structured incident logging for every Supabase QR error path"
 
   for (const code of [
     "QR_CREATE_CONFIG_UNAVAILABLE",
-    "QR_CREATE_INSERT_FAILED",
     "QR_UPDATE_CONFIG_UNAVAILABLE",
     "QR_UPDATE_FAILED",
     "QR_MARK_RESTAURANT_READY_FAILED",
@@ -326,6 +341,7 @@ test("qrStore uses structured incident logging for every Supabase QR error path"
   ]) {
     assert.match(source, new RegExp(`code: "${code}"`), code);
   }
+  assert.match(source, /classifyQrCreatePersistenceFailure\(error\)/);
 
   const incidentCalls = [
     ...source.matchAll(/logQrSupabaseIncident\(\{([\s\S]*?)\n\s*\}\);/g)

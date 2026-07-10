@@ -24,6 +24,7 @@ import {
 } from "@/lib/owner/qrTokens";
 import {
   buildQrSupabaseFailure,
+  classifyQrCreatePersistenceFailure,
   createOwnerQrCodeWithDependencies,
   redactQrIncidentLogText,
   type CreateOwnerQrCodeArgs,
@@ -255,13 +256,14 @@ async function persistOwnerQrCode(
       .single();
 
     if (error) {
+      const code = classifyQrCreatePersistenceFailure(error);
       const incidentId = logQrSupabaseIncident({
         operation: "create-insert",
-        code: "QR_CREATE_INSERT_FAILED",
+        code,
         supabaseError: error
       });
       return buildQrSupabaseFailure({
-        code: "QR_CREATE_INSERT_FAILED",
+        code,
         incidentId
       });
     }

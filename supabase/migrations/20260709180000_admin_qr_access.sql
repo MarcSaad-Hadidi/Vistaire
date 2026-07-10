@@ -233,6 +233,14 @@ $$;
 comment on function public.resolve_qr_code_scan_metadata(text) is
   'Atomically records an active QR scan and returns live QR identity and target metadata.';
 
+-- The legacy resolver remains temporarily for menu-only compatibility while
+-- older deployments catch up, but it must never become a browser-callable
+-- SECURITY DEFINER endpoint.
+revoke execute on function public.resolve_qr_code_scan(text)
+  from public, anon, authenticated;
+grant execute on function public.resolve_qr_code_scan(text)
+  to service_role;
+
 revoke execute on function public.resolve_qr_code_scan_metadata(text)
   from public, anon, authenticated;
 grant execute on function public.resolve_qr_code_scan_metadata(text)
