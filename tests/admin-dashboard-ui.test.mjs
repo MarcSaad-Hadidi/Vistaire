@@ -45,7 +45,7 @@ test("dashboard exposes evidence semantics, chart alternatives and worklist cont
 });
 
 test("analytics presentation exhaustively preserves real, insufficient and unavailable evidence", async () => {
-  const { buildAnalyticsPresentation } = await import("../components/admin/adminDashboardViewModel.ts");
+  const { buildAnalyticsPresentation, renderAnalyticsDom } = await import("../components/admin/adminDashboardViewModel.ts");
   const window = { label: "7 jours — UTC", startedAt: "2026-07-03", endedAt: "2026-07-10" };
   const real = buildAnalyticsPresentation({ kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { provenance: "production" }, metrics: [{ id: "opens", label: "Ouvertures", value: 23, unit: "consultations" }], activitySeries: [{ label: "9 juil.", value: 8 }, { label: "10 juil.", value: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null });
   assert.equal(real.kind, "real");
@@ -57,6 +57,22 @@ test("analytics presentation exhaustively preserves real, insufficient and unava
   const unavailable = buildAnalyticsPresentation({ kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true });
   assert.equal(unavailable.explanation, "La lecture complète n’a pas abouti.");
   assert.equal(unavailable.retryable, true);
+  const realDom = renderAnalyticsDom(real);
+  assert.match(realDom, /7 jours — UTC/);
+  assert.match(realDom, /2026-07-10T12:00:00Z/);
+  assert.match(realDom, /data-bar-value="8"/);
+  assert.match(realDom, /<table[\s\S]*9 juil\.[\s\S]*8/);
+  assert.match(renderAnalyticsDom(insufficient), /sample-too-small[\s\S]*20 sessions nécessaires/);
+  assert.match(renderAnalyticsDom(unavailable), /role="alert"[\s\S]*Lecture interrompue/);
+});
+
+test("activity bars have concrete responsive CSS", async () => {
+  const [dashboard, css] = await Promise.all([read("components/admin/AdminRestaurantDashboard.tsx"), read("components/admin/AdminAnalytics.module.css")]);
+  assert.match(dashboard, /analyticsStyles\.bars/);
+  assert.match(css, /\.bars\s*\{[^}]*height:/s);
+  assert.match(css, /align-items:\s*flex-end/);
+  assert.match(css, /\.barFill\s*\{[^}]*display:\s*block/s);
+  assert.doesNotMatch(css, /animation|transition/);
 });
 
 test("clipboard failures have a visible live alert", async () => {
