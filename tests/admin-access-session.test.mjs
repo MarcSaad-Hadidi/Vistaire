@@ -178,7 +178,7 @@ test("admin access wrapper preserves the server-only boundary", async () => {
   const core = await readFile("lib/admin/accessCore.ts", "utf8");
 
   assert.match(access, /^import "server-only";/);
-  assert.match(access, /import \{ cookies \} from "next\/headers"/);
+  assert.match(access, /import \{ cookies, headers \} from "next\/headers"/);
   assert.match(access, /getSupabaseAdminClient/);
   assert.match(access, /requireAdminRestaurantAccessCore/);
   assert.doesNotMatch(core, /server-only|next\/headers|supabase/i);
