@@ -241,3 +241,37 @@ test("insights review fixes lock bottom proportions, heatmap orientation and evi
     assert.match(source, /reducedMotion/);
   }
 });
+
+test("heatmap renders one normalized 16 by 7 matrix for visual and exact values", async () => {
+  let source = await read("components/admin/insights/AdminHeatmap.tsx");
+  source = source
+    .replace(/import type[^;]+;\s*/, "")
+    .replace(/import \{ AdminEvidenceState \}[^;]+;\s*/, "")
+    .replace(/import styles[^;]+;\s*/, "const styles = new Proxy({}, { get: (_, key) => String(key) });\n")
+    .replace("export function AdminHeatmap", "function AdminHeatmap")
+    .concat("\nexport { AdminHeatmap };");
+  const javascript = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const require = createRequire(import.meta.url);
+  const reactUrl = pathToFileURL(require.resolve("react")).href;
+  const loadedHeatmap = await import(`data:text/javascript;base64,${Buffer.from(`import React from '${reactUrl}'; const AdminEvidenceState=({kind,reason})=>React.createElement('div',{'data-kind':kind},reason); ${javascript}`).toString("base64")}`);
+  const supported = renderToStaticMarkup(React.createElement(loadedHeatmap.AdminHeatmap, { evidence: { kind: "supported", data: [{ weekdayUtc: 1, hourUtc: 9, count: 4 }] } }));
+  assert.equal((supported.match(/<i /g) ?? []).length, 112);
+  assert.equal((supported.match(/<tr>/g) ?? []).length, 113);
+  assert.match(supported, /Lun[\s\S]*9:00[\s\S]*4/);
+  for (const evidence of [{ kind: "insufficient", reason: "sample-too-small" }, { kind: "unavailable", reason: "source-incomplete" }]) {
+    const dom = renderToStaticMarkup(React.createElement(loadedHeatmap.AdminHeatmap, { evidence }));
+    assert.match(dom, new RegExp(`data-kind="${evidence.kind}"[\\s\\S]*${evidence.reason}`));
+  }
+});
+
+test("admin E2E contracts fail closed and measure two-dimensional touch targets", async () => {
+  const sources = await Promise.all([read("e2e/admin-dashboard.spec.ts"), read("e2e/admin-insights.spec.ts")]);
+  for (const source of sources) {
+    assert.match(source, /VISTAIRE_REQUIRE_ADMIN_E2E/);
+    assert.match(source, /function requireAdminFixture/);
+    assert.match(source, /throw new Error/);
+    assert.match(source, /requestfailed/);
+    assert.match(source, /box\.width\)\.toBeGreaterThanOrEqual\(44\)/);
+    assert.match(source, /box\.height\)\.toBeGreaterThanOrEqual\(44\)/);
+  }
+});
