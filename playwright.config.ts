@@ -18,6 +18,8 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL,
+    locale: "fr-CA",
+    timezoneId: "America/Toronto",
     screenshot: "only-on-failure",
     trace: "on-first-retry",
     video: "off"

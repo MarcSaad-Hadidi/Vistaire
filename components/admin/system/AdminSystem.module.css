@@ -94,3 +94,10 @@
 @media (prefers-reduced-motion: reduce) {
   .adminRoot *, .adminRoot *::before, .adminRoot *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+@media (max-width: 700px) {
+  .kpi { min-height: 79px; padding: 10px; gap: 10px; }
+  .kpiIcon { flex-basis: 44px; width: 44px; height: 44px; }
+  .kpiValue { font-size: 28px; }
+  .kpiDetail { margin-top: 3px; }
+}

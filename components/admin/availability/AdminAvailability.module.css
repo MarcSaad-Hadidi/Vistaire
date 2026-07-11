@@ -39,3 +39,5 @@
   .row > span { justify-self: start; }
   .row > div:last-child { grid-column: 3; grid-row: 1 / span 2; justify-self: end; }
 }
+
+@media (min-width: 701px) { .page { margin-top: -17px; } }
