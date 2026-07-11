@@ -2,19 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("partial analytics retain the real insight payload", async () => {
+test("partial analytics never masquerade as real", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
-  const insights = { generatedFor: "Trouvable", summary: [{ id: "menu-opens", value: "3" }] };
-
   const state = buildAdminAnalyticsState({
-    source: "partial",
-    note: "Données réelles — échantillon encore limité.",
-    insights
+    observationWindow: { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" },
+    partialSource: true
   });
 
-  assert.equal(state.kind, "partial");
-  assert.deepEqual(state.insights, insights);
-  assert.match(state.message, /Données réelles/i);
+  assert.equal(state.kind, "unavailable");
+  assert.equal(state.completeness, "partial-source");
 });
 
 test("analytics recognize the current Vistaire aggregate column names", async () => {
@@ -58,8 +54,8 @@ test("dashboard selects one restaurant menu before reading categories and dishes
   const source = await readFile("lib/admin/dashboardData.ts", "utf8");
 
   assert.match(source, /selectAdminDashboardMenu/);
-  assert.match(source, /readSupabaseRowsByColumn\(\s*["']menus["'],\s*["']restaurant_id["'],\s*restaurantId/);
-  assert.match(source, /\.filter\([\s\S]*?menu_id[\s\S]*?selectedMenu\.id/);
+  assert.match(source, /table:\s*["']menus["'][\s\S]*?filters:\s*\{\s*restaurant_id:\s*restaurantId/);
+  assert.match(source, /const filters = \{ restaurant_id: restaurantId, menu_id: selectedMenu\.id \}/);
 });
 
 test("a zero in the 30-day window never falls back to all-time search rows", async () => {

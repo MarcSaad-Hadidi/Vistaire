@@ -1,0 +1,2 @@
+import styles from "@/components/admin/AdminDashboard.module.css";
+export default function Loading() { return <main className={styles.page} aria-busy="true" aria-label="Chargement du dashboard"><div className={styles.skeletonHeader}/><div className={styles.skeletonGrid}>{Array.from({length:4},(_,i)=><div className={styles.skeletonCard} key={i}/>)}</div><div className={styles.skeletonPanel}/></main>; }

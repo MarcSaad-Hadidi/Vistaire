@@ -70,6 +70,24 @@ export async function readSupabaseRowsByColumn<T extends AnyRow>(
   return { ok: true, rows: (data ?? []) as T[] };
 }
 
+export async function readSupabaseRowsByFilters<T extends AnyRow>(args: {
+  table: string;
+  columns: string;
+  filters: Record<string, string>;
+  limit: number;
+  orderBy: string;
+}): Promise<DataReadResult<T>> {
+  const { table, columns, filters, limit, orderBy } = args;
+  if (Object.values(filters).some((value) => !value.trim())) return { ok: false, error: "Scoped reads require identifiers.", rows: [] };
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return { ok: false, error: admin.reason, rows: [] };
+  let query = admin.client.from(table).select(columns);
+  for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
+  const { data, error } = await query.order(orderBy, { ascending: true }).limit(limit);
+  if (error) return { ok: false, error: error.message, rows: [] };
+  return { ok: true, rows: (data ?? []) as unknown as T[] };
+}
+
 /**
  * Reads one restaurant's event stream in a bounded, deterministic window.
  * The explicit order and pagination avoid the arbitrary first 1,000 rows
@@ -104,8 +122,9 @@ export async function readAnalyticsEventsForPeriod<T extends AnyRow>(args: {
   for (let offset = 0; offset < maxRows; offset += pageSize) {
     let query = admin.client
       .from("analytics_events")
-      .select("*")
+      .select("id,restaurant_id,menu_id,dish_id,session_id,event_name,source,dish_slug,category_slug,search_query,filter_name,cta_name,created_at")
       .eq("restaurant_id", restaurantId)
+      .eq("source", "production")
       .gte("created_at", fromIso)
       .lt("created_at", toIso)
       .order("created_at", { ascending: true })

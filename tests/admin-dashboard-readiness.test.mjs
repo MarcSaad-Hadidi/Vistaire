@@ -130,7 +130,8 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
   assert.match(page, /requireAdminRestaurantAccess\("dashboard:read"\)/);
   assert.match(page, /Accès dashboard restaurant requis/);
   assert.match(page, /Scannez le QR admin interne de votre restaurant\./);
-  assert.doesNotMatch(page, /getDemoRestaurantId|searchParams/);
+  assert.doesNotMatch(page, /getDemoRestaurantId|searchParams\?\.|searchParams\[/);
+  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
   assert.doesNotMatch(page, /href=["']\/owner\//);
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /noarchive:\s*true/);
@@ -151,48 +152,21 @@ test("admin dashboard exposes only menu reading and dish availability", async ()
   assert.doesNotMatch(combined, /(?:create|delete|remove|upload)(?:Dish|Media|Restaurant)/i);
 });
 
-test("preview analytics suppress all presentation numbers", async () => {
+test("unproven instrumentation suppresses presentation numbers", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
-  const state = buildAdminAnalyticsState({
-    source: "preview",
-    note: "Lecture de présentation",
-    insights: {
-      summary: [
-        { id: "menu-opens", label: "Ouvertures", value: "987654" },
-        { id: "dish-views", label: "Vues", value: "123456" }
-      ],
-      topDishes: [{ dish: { id: "demo", name: "Plat démo" }, views: 777777 }]
-    }
-  });
-
-  assert.equal(state.kind, "preview");
-  assert.doesNotMatch(JSON.stringify(state), /987654|123456|777777|Plat démo/);
+  const observationWindow = { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" };
+  const state = buildAdminAnalyticsState({ observationWindow });
+  assert.equal(state.kind, "insufficient");
+  assert.equal(state.reason, "instrumentation-unproven");
 });
 
-test("analytics evidence states distinguish real, partial, empty and preview data", async () => {
+test("analytics evidence states distinguish complete, partial and insufficient reads", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
-  const insights = {
-    generatedFor: "Le Rivage",
-    summary: [],
-    topDishes: []
-  };
-
-  assert.equal(
-    buildAdminAnalyticsState({ source: "real", note: "", insights }).kind,
-    "real"
-  );
-  assert.equal(
-    buildAdminAnalyticsState({ source: "partial", note: "", insights }).kind,
-    "partial"
-  );
-  assert.equal(
-    buildAdminAnalyticsState({ source: "empty", note: "", insights }).kind,
-    "empty"
-  );
-  assert.equal(
-    buildAdminAnalyticsState({ source: "preview", note: "", insights }).kind,
-    "preview"
-  );
+  const observationWindow = { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" };
+  assert.equal(buildAdminAnalyticsState({ observationWindow, instrumentationProven: true, eventCount: 20 }).kind, "real");
+  assert.equal(buildAdminAnalyticsState({ observationWindow, partialSource: true }).completeness, "partial-source");
+  assert.equal(buildAdminAnalyticsState({ observationWindow, instrumentationProven: true, eventCount: 0 }).reason, "no-relevant-events");
+  assert.equal(buildAdminAnalyticsState({ observationWindow, instrumentationProven: true, eventCount: 2 }).reason, "sample-too-small");
 });
 
 test("admin page and loader delegate fallback handling to the analytics state boundary", async () => {
@@ -215,15 +189,12 @@ test("admin page loads only the authorized restaurant and renders the dashboard 
   );
 
   assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
-  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId\)/);
+  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(page, /if\s*\(!result\.ok\)/);
-  assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s*\/>/);
+  assert.match(page, /<AdminRestaurantDashboard\s+data=\{result\.data\}\s+range=\{range\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
-  assert.match(dashboard, /analytics\.kind === "real" \|\| data\.analytics\.kind === "partial"/);
-  assert.match(dashboard, /Données réelles — échantillon encore limité/);
-  const evidenceBranch = dashboard.split(/AdminAnalyticsEvidenceState/)[1] ?? "";
-  assert.doesNotMatch(
-    evidenceBranch,
-    /AdminServiceActivity|AdminTopDishes|AdminSearchInsights|AdminEngagementFunnel/
-  );
+  assert.match(dashboard, /data\.menu/);
+  assert.match(dashboard, /data\.restaurant\.publicMenuPath/);
+  assert.match(dashboard, /state=\{data\.analytics\}/);
+  assert.doesNotMatch(dashboard, /adaptDashboardData|ViewData|data\.dishes|data\.readiness|data\.restaurant\.menuPath|case\s*["'](?:partial|empty|preview)/);
 });

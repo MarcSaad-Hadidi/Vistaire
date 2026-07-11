@@ -44,6 +44,7 @@ function matchesFilter(dish: AdminMenuDish, filter: DishFilter): boolean {
 
 export function AdminDishWorklist({ dishes }: { dishes: AdminMenuDish[] }) {
   const [filter, setFilter] = useState<DishFilter>("all");
+  const [query, setQuery] = useState("");
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const currentDishes = useMemo(
     () =>
@@ -53,7 +54,7 @@ export function AdminDishWorklist({ dishes }: { dishes: AdminMenuDish[] }) {
       })),
     [availability, dishes]
   );
-  const visibleDishes = currentDishes.filter((dish) => matchesFilter(dish, filter));
+  const visibleDishes = currentDishes.filter((dish) => matchesFilter(dish, filter) && `${dish.name} ${dish.category}`.toLocaleLowerCase("fr").includes(query.trim().toLocaleLowerCase("fr")));
 
   return (
     <section aria-labelledby="admin-dishes-title">
@@ -69,7 +70,12 @@ export function AdminDishWorklist({ dishes }: { dishes: AdminMenuDish[] }) {
         <p className="text-sm text-[#b9aa95]">{dishes.length} plat{dishes.length > 1 ? "s" : ""}</p>
       </div>
 
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-2" aria-label="Filtrer les plats">
+      <label className="mt-5 grid gap-2 text-sm text-[#d8c9b4]" htmlFor="admin-dish-search">
+        Rechercher un plat ou une catégorie
+        <input id="admin-dish-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 rounded-xl border border-white/15 bg-black/20 px-4 text-cream outline-none focus-visible:ring-2 focus-visible:ring-champagne" />
+      </label>
+
+      <div className="mt-5 flex flex-wrap gap-2 pb-2" aria-label="Filtrer les plats">
         {FILTERS.map((item) => (
           <button
             key={item.id}
@@ -130,8 +136,9 @@ export function AdminDishWorklist({ dishes }: { dishes: AdminMenuDish[] }) {
         })}
       </div>
 
+      <p className="sr-only" aria-live="polite">{visibleDishes.length} résultat{visibleDishes.length > 1 ? "s" : ""} affiché{visibleDishes.length > 1 ? "s" : ""}.</p>
       {visibleDishes.length === 0 ? (
-        <p className="mt-4 rounded-[13px] border border-white/10 bg-black/[0.08] p-4 text-sm text-[#b9aa95]">
+        <p role="status" aria-live="polite" className="mt-4 rounded-[13px] border border-white/10 bg-black/[0.08] p-4 text-sm text-[#b9aa95]">
           Aucun plat ne correspond à ce filtre.
         </p>
       ) : null}

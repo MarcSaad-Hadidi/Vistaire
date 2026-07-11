@@ -33,9 +33,12 @@ export type AdminAccessDependencies = {
 export type AdminRestaurantAccessResult =
   | {
       ok: true;
-      qrId: string;
+      sessionKind: "qr" | "local-preview";
+      assurance: "live-admin-qr" | "signed-loopback-preview";
+      qrId: string | null;
       restaurantId: string;
       expiresAt: number;
+      capabilities: readonly AdminCapability[];
     }
   | {
       ok: false;
@@ -79,11 +82,22 @@ export async function requireAdminRestaurantAccess(
       return { ok: false, reason: "revoked" };
     }
 
+    const capabilities: readonly AdminCapability[] =
+      qr.targetPath === "/admin"
+        ? ADMIN_CAPABILITIES
+        : ["dashboard:read"];
+    if (!capabilities.includes(capability)) {
+      return { ok: false, reason: "capability" };
+    }
+
     return {
       ok: true,
+      sessionKind: "qr",
+      assurance: "live-admin-qr",
       qrId: payload.qrId,
       restaurantId: payload.restaurantId,
-      expiresAt: payload.exp
+      expiresAt: payload.exp,
+      capabilities
     };
   } catch {
     return { ok: false, reason: "configuration" };

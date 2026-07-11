@@ -1,6 +1,47 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { registerHooks } from "node:module";
+import { sep } from "node:path";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
+
+const projectRootUrl = pathToFileURL(`${process.cwd()}${sep}`).href;
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return { url: "data:text/javascript,export%20default%20undefined", shortCircuit: true };
+    }
+    if (specifier.startsWith("@/")) {
+      const baseUrl = new URL(specifier.slice(2), projectRootUrl);
+      for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
+        const url = new URL(`${baseUrl.href}${extension}`);
+        if (existsSync(url)) {
+          return { url: url.href, shortCircuit: true };
+        }
+      }
+    }
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    if (url.endsWith(".ts") || url.endsWith(".tsx")) {
+      return {
+        format: "module",
+        source: ts.transpileModule(readFileSync(new URL(url), "utf8"), {
+          compilerOptions: {
+            jsx: ts.JsxEmit.ReactJSX,
+            module: ts.ModuleKind.ESNext,
+            target: ts.ScriptTarget.ES2022
+          }
+        }).outputText,
+        shortCircuit: true
+      };
+    }
+    return nextLoad(url, context);
+  }
+});
 
 test("restaurant-scoped Supabase reads filter before applying limits", async () => {
   const source = await readFile("lib/analytics/serverRows.ts", "utf8");
@@ -63,16 +104,17 @@ test("admin dashboard loader receives one trusted restaurant id for every data r
   const page = await readFile("app/admin/page.tsx", "utf8");
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
 
-  assert.match(page, /loadAdminDashboardData\(access\.restaurantId\)/);
-  assert.doesNotMatch(page, /searchParams|restaurantId\s*=/);
-  assert.match(loader, /getRestaurantInsights\(restaurantId,\s*selectedMenu\?\.id\)/);
+  assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
+  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
+  assert.doesNotMatch(page, /searchParams\?\.|searchParams\[|restaurantId\s*=/);
+  assert.match(loader, /readEvents\(\{ restaurantId, menuId: selectedMenu\.id/);
   assert.match(
     loader,
-    /readSupabaseRowsByColumn\(\s*["']restaurants["'],\s*["']id["'],\s*restaurantId/
+    /table:\s*["']restaurants["'][\s\S]*?filters:\s*\{\s*id:\s*restaurantId/
   );
   assert.match(
     loader,
-    /readSupabaseRowsByColumn\(\s*["']menu_dishes["'],\s*["']restaurant_id["'],\s*restaurantId/
+    /table:\s*["']menu_dishes["'][\s\S]*?filters,\s*orderBy/
   );
 });
 
@@ -97,12 +139,61 @@ test("admin dashboard fails closed before menu reads when the restaurant lookup 
 });
 
 test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
-  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
-  const menuRead = loader.indexOf('const menuResult = await readSupabaseRowsByColumn(\n    "menus"');
-  const menuGuard = loader.indexOf("if (!menuResult.ok)");
-  const categoryRead = loader.indexOf('readSupabaseRowsByColumn(\n      "menu_categories"');
+  const { loadAdminDashboardDataWithDependencies } = await import(
+    "../lib/admin/dashboardData.ts"
+  );
+  const calls = [];
+  const result = await loadAdminDashboardDataWithDependencies("restaurant-1", "7d", {
+    readRows: async ({ table }) => {
+      calls.push(table);
+      if (table === "restaurants") {
+        return { ok: true, rows: [{ id: "restaurant-1", name: "Chez Vistaire" }] };
+      }
+      if (table === "menus") {
+        return { ok: false, rows: [] };
+      }
+      throw new Error(`unexpected downstream read: ${table}`);
+    },
+    readEvents: async () => {
+      calls.push("analytics");
+      throw new Error("analytics must not be read after a failed menu lookup");
+    },
+    now: () => new Date("2026-07-10T00:00:00.000Z")
+  });
 
-  assert.ok(menuRead >= 0);
-  assert.ok(menuGuard > menuRead && menuGuard < categoryRead);
-  assert.match(loader, /reason:\s*["']menu-lookup-failed["']/);
+  assert.deepEqual(result, { ok: false, reason: "menu-lookup-failed" });
+  assert.deepEqual(calls, ["restaurants", "menus"]);
+});
+
+test("Maison Elysee preview receives complete fictional analytics", async () => {
+  const { loadAdminDashboardDataWithDependencies } = await import(
+    "../lib/admin/dashboardData.ts"
+  );
+  const result = await loadAdminDashboardDataWithDependencies(
+    "11111111-1111-1111-1111-111111111111",
+    "7d",
+    {
+      readRows: async ({ table }) => {
+        if (table === "restaurants") return { ok: true, rows: [{ id: "11111111-1111-1111-1111-111111111111", name: "Maison Élysée", slug: "maison-elysee" }] };
+        if (table === "menus") return { ok: true, rows: [{ id: "menu-demo", status: "published", is_primary: true }] };
+        if (table === "menu_categories") return { ok: true, rows: [{ id: "cat-1", menu_id: "menu-demo", name: "Signatures", slug: "signatures" }] };
+        if (table === "menu_dishes") return { ok: true, rows: [{ id: "dish-1", menu_id: "menu-demo", category_id: "cat-1", name: "Homard bleu", slug: "homard-bleu", price_cents: 10400, is_available: true }] };
+        throw new Error(`unexpected table: ${table}`);
+      },
+      readEvents: async () => ({ ok: true, rows: [], truncated: false }),
+      now: () => new Date("2026-07-10T12:00:00.000Z")
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.analytics.kind, "real");
+  assert.equal(result.data.analytics.completeness, "complete");
+  assert.ok(result.data.analytics.activitySeries.length >= 2);
+  assert.ok(result.data.analytics.topDishes.length >= 1);
+  assert.equal(result.data.analytics.funnel.kind, "measured");
+});
+
+test("Maison Elysee fictional analytics are disabled in production", async () => {
+  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  assert.match(loader, /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*MAISON_ELYSEE_DEMO_ID/);
 });

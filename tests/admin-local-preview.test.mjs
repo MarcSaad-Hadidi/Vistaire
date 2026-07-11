@@ -45,9 +45,12 @@ test("development preview grants a signed short-lived path-scoped cookie", async
     }),
     {
       ok: true,
-      qrId: "local-preview",
+      sessionKind: "local-preview",
+      assurance: "signed-loopback-preview",
+      qrId: null,
       restaurantId: "demo-rest",
-      expiresAt: 4_600
+      expiresAt: 4_600,
+      capabilities: ["dashboard:read"]
     }
   );
 });
@@ -179,9 +182,12 @@ test("preview access rejects forged, expired, and wrong-secret grants", async ()
     createLocalAdminPreviewAccess({ ...base, hostname: "[::1]:3000", now: 1_001 }),
     {
       ok: true,
-      qrId: "local-preview",
+      sessionKind: "local-preview",
+      assurance: "signed-loopback-preview",
+      qrId: null,
       restaurantId: "demo-rest",
-      expiresAt: 4_600
+      expiresAt: 4_600,
+      capabilities: ["dashboard:read"]
     }
   );
   assert.equal(

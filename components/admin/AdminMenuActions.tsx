@@ -5,22 +5,25 @@ import { useState } from "react";
 
 export function AdminMenuActions({ menuPath }: { menuPath: string }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   async function copyMenuLink() {
     const url = new URL(menuPath, window.location.origin).toString();
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      setCopyError(false);
       window.setTimeout(() => setCopied(false), 2_000);
     } catch {
       setCopied(false);
+      setCopyError(true);
     }
   }
 
   return (
-    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+    <div className="flex flex-col gap-3 sm:flex-row" aria-live="polite">
       <Link
-        className="inline-flex min-h-11 items-center justify-center rounded-full bg-champagne px-5 text-sm font-semibold text-[#24160d] transition hover:bg-[#f0d9a9]"
+        className="inline-flex min-h-11 items-center justify-center rounded-full bg-champagne px-5 text-sm font-semibold text-[#24160d] transition hover:bg-[#f0d9a9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         href={menuPath}
         prefetch={false}
       >
@@ -41,6 +44,7 @@ export function AdminMenuActions({ menuPath }: { menuPath: string }) {
           Déconnexion
         </button>
       </form>
+      {copyError ? <p role="alert">Impossible de copier le lien. Ouvrez le menu puis copiez son adresse.</p> : null}
     </div>
   );
 }
