@@ -235,7 +235,6 @@ test("successful availability changes revalidate admin and public menu paths", a
   const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
   const mutation = await readFile("components/admin/availability/availabilityMutation.ts", "utf8");
   const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
-  const thumbnail = await readFile("components/admin/AdminDishThumbnail.tsx", "utf8");
   const clientContract = `${control}\n${mutation}\n${list}`;
   assert.match(route, /revalidatePath\(["']\/admin["']\)/);
   assert.match(route, /revalidateOwnerMenuMutationPaths/);
@@ -280,12 +279,13 @@ test("availability route preserves server scope and shared restaurant shell", as
 
 test("availability list renders measured rows, imagery, status and toggle feedback", async () => {
   const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
+  const thumbnail = await readFile("components/admin/AdminDishThumbnail.tsx", "utf8");
   const css = await readFile("components/admin/availability/AdminAvailability.module.css", "utf8");
   const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
 
   assert.match(list, /thumbnailUrl|imageUrl/);
-  assert.match(list, /priority=\{index===0\}/);
-  assert.match(thumbnail, /priority\?:boolean/);
+  assert.match(list, /priority=\{index\s*===\s*0\}/);
+  assert.match(thumbnail, /priority\?\s*:\s*boolean/);
   assert.match(list, /AdminStatusBadge/);
   assert.match(control, /AdminToggle/);
   assert.match(list, /AdminToast/);
