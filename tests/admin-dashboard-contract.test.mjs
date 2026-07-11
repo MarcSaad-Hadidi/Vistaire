@@ -41,3 +41,11 @@ test("admin page search params parser exposes range only", async () => {
   assert.equal(parseAdminPageSearchParams({ range: ["30d"] }), "7d");
   assert.equal(parseAdminPageSearchParams({ restaurantId: "attacker" }), "7d");
 });
+
+test("dashboard analytics reads both compatible periods and partitions them without synthetic fallback", async () => {
+  const source = await readFile("lib/admin/dashboardData.ts", "utf8");
+  assert.match(source, /fromIso:\s*window\.comparisonStartInclusive/);
+  assert.match(source, /previousEvents/);
+  assert.match(source, /currentEvents/);
+  assert.doesNotMatch(source, /buildMaisonElyseeDemoEvents/);
+});

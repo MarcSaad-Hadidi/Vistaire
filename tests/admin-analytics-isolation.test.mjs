@@ -165,7 +165,7 @@ test("admin dashboard fails closed when the scoped menu lookup fails", async () 
   assert.deepEqual(calls, ["restaurants", "menus"]);
 });
 
-test("Maison Elysee preview receives complete fictional analytics", async () => {
+test("Maison Elysee preview does not substitute fictional analytics", async () => {
   const { loadAdminDashboardDataWithDependencies } = await import(
     "../lib/admin/dashboardData.ts"
   );
@@ -186,14 +186,11 @@ test("Maison Elysee preview receives complete fictional analytics", async () => 
   );
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.analytics.kind, "real");
-  assert.equal(result.data.analytics.completeness, "complete");
-  assert.ok(result.data.analytics.activitySeries.length >= 2);
-  assert.ok(result.data.analytics.topDishes.length >= 1);
-  assert.equal(result.data.analytics.funnel.kind, "measured");
+  assert.equal(result.data.analytics.kind, "insufficient");
+  assert.equal(result.data.analytics.reason, "instrumentation-unproven");
 });
 
-test("Maison Elysee fictional analytics are disabled in production", async () => {
+test("dashboard loader contains no fictional analytics fallback", async () => {
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
-  assert.match(loader, /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*MAISON_ELYSEE_DEMO_ID/);
+  assert.doesNotMatch(loader, /buildMaisonElyseeDemoEvents|MAISON_ELYSEE_DEMO_ID/);
 });

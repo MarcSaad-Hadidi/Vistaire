@@ -5,7 +5,6 @@ import { getNullableString, getString, readAnalyticsEventsForPeriod, readSupabas
 import { buildAdminAnalyticsState, type AdminAnalyticsState } from "@/lib/admin/analyticsState";
 import { resolveAdminObservationWindow, type AdminDashboardRange } from "@/lib/admin/dashboardRange";
 import { buildAdminMenuReadiness, selectAdminDashboardMenu, type AdminMenuCategory, type AdminMenuDish, type AdminMenuReadiness } from "@/lib/admin/menuReadiness";
-import { buildMaisonElyseeDemoEvents, MAISON_ELYSEE_DEMO_ID } from "@/lib/admin/demoAnalyticsEvents";
 
 export type AdminDashboardData = {
   restaurant: { id: string; name: string; slug: string; location: string | null; cuisineType: string | null; timezone: null; publicMenuPath: string };
@@ -47,12 +46,12 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const categories = categoryRows.map(toCategory);
   const dishes = menu.dishes.map(toDish);
   const window = resolveAdminObservationWindow(range, dependencies.now());
-  const events = await dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.startInclusive, toIso: window.endExclusive });
-  const eventRows = process.env.NODE_ENV !== "production" && restaurantId === MAISON_ELYSEE_DEMO_ID && events.ok && events.rows.length === 0
-    ? buildMaisonElyseeDemoEvents({ dishes, categories, endExclusive: window.endExclusive })
-    : events.ok ? events.rows : [];
-  const lastUpdatedAt = eventRows.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
+  const events = await dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.comparisonStartInclusive, toIso: window.endExclusive });
+  const eventRows = events.ok ? events.rows : [];
+  const currentEvents = eventRows.filter((row) => { const value = getNullableString(row, ["created_at"]); return value !== null && value >= window.startInclusive && value < window.endExclusive; });
+  const previousEvents = eventRows.filter((row) => { const value = getNullableString(row, ["created_at"]); return value !== null && value >= window.comparisonStartInclusive && value < window.comparisonEndExclusive; });
+  const lastUpdatedAt = currentEvents.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
   const readiness = buildAdminMenuReadiness(categories, dishes);
   const publicMenuPath = `/menu/${menu.slug}`;
-  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, events:eventRows, lastUpdatedAt, databaseError: !events.ok, truncated: events.ok && events.truncated, partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
+  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, events:currentEvents, previousEvents, selectedMenuCategorySlugs:categories.map((category)=>category.slug), lastUpdatedAt, databaseError: !events.ok, truncated: events.ok && events.truncated, partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
 }

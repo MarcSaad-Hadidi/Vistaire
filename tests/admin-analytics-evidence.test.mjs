@@ -56,3 +56,64 @@ test("analytics aggregates obey independent evidence thresholds", async () => {
   assert.deepEqual(state.searches, [{ term: "saumon", count: 3 }]);
   assert.equal(state.funnel.kind, "measured");
 });
+
+test("panel evidence derives compatible current and previous UTC days", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const panels = buildAdminAnalyticsPanels({
+    currentEvents: [
+      { event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" },
+      { event_name: "dish_opened", created_at: "2026-07-10T11:00:00.000Z", dish_slug: "sole", category_slug: "plats" }
+    ],
+    previousEvents: [
+      { event_name: "menu_opened", created_at: "2026-07-03T10:00:00.000Z" },
+      { event_name: "dish_opened", created_at: "2026-07-03T11:00:00.000Z", dish_slug: "sole", category_slug: "plats" }
+    ],
+    currentDurationMs: 86_400_000,
+    previousDurationMs: 86_400_000
+  });
+  assert.equal(panels.dailyComparison.kind, "supported");
+  assert.deepEqual(panels.dailyComparison.data.current, [{ day: "2026-07-10", count: 2 }]);
+  assert.deepEqual(panels.dailyComparison.data.previous, [{ day: "2026-07-03", count: 2 }]);
+});
+
+test("panel evidence exposes UTC heatmap, category and service windows without inferred timezone", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const panels = buildAdminAnalyticsPanels({
+    currentEvents: [
+      { event_name: "menu_opened", created_at: "2026-07-06T12:15:00.000Z" },
+      { event_name: "dish_opened", created_at: "2026-07-06T19:30:00.000Z", dish_slug: "sole", category_slug: "plats" }
+    ],
+    previousEvents: [], currentDurationMs: 1, previousDurationMs: 1
+  });
+  assert.deepEqual(panels.hourWeekday, { kind: "supported", data: [{ weekdayUtc: 1, hourUtc: 12, count: 1 }, { weekdayUtc: 1, hourUtc: 19, count: 1 }] });
+  assert.equal(panels.serviceWindows.kind, "supported");
+  assert.equal(panels.serviceWindows.data.timezone, "UTC");
+  assert.deepEqual(panels.serviceWindows.data.windows.filter((item) => item.count), [
+    { id: "lunch", label: "Déjeuner (UTC)", startHourUtc: 11, endHourUtc: 15, count: 1 },
+    { id: "dinner", label: "Dîner (UTC)", startHourUtc: 18, endHourUtc: 24, count: 1 }
+  ]);
+  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 1 }] });
+});
+
+test("single buckets are supported while absent and incomplete sources stay explicit", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const single = buildAdminAnalyticsPanels({ currentEvents: [{ event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" }], previousEvents: [], currentDurationMs: 1, previousDurationMs: 1 });
+  assert.equal(single.currentDaily.kind, "supported");
+  assert.equal(single.dailyComparison.kind, "insufficient");
+  assert.equal(single.categories.kind, "insufficient");
+  const unavailable = buildAdminAnalyticsPanels({ currentEvents: [], previousEvents: [], currentDurationMs: 1, previousDurationMs: 1, sourceComplete: false });
+  for (const panel of Object.values(unavailable)) assert.equal(panel.kind, "unavailable");
+});
+
+test("category evidence is joined to the selected menu allowlist", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const panels = buildAdminAnalyticsPanels({
+    currentEvents: [
+      { event_name: "dish_opened", created_at: "2026-07-10T10:00:00.000Z", category_slug: "plats" },
+      { event_name: "dish_opened", created_at: "2026-07-10T11:00:00.000Z", category_slug: "ancienne-carte" }
+    ],
+    previousEvents: [], currentDurationMs: 1, previousDurationMs: 1,
+    selectedMenuCategorySlugs: ["plats"]
+  });
+  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 1 }] });
+});

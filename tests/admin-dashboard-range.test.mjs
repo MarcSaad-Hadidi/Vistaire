@@ -20,3 +20,11 @@ test("observation windows use exact UTC inclusive/exclusive bounds", async () =>
   assert.equal(seven.startInclusive, "2026-07-03T15:42:30.000Z");
   assert.equal(seven.comparisonStartInclusive, "2026-06-26T15:42:30.000Z");
 });
+
+test("current and previous observation periods always have matching durations", async () => {
+  const { resolveAdminObservationWindow } = await import("../lib/admin/dashboardRange.ts");
+  for (const range of ["today-utc", "7d", "30d"]) {
+    const value = resolveAdminObservationWindow(range, new Date("2026-07-10T15:42:30.000Z"));
+    assert.equal(Date.parse(value.endExclusive) - Date.parse(value.startInclusive), Date.parse(value.comparisonEndExclusive) - Date.parse(value.comparisonStartInclusive));
+  }
+});
