@@ -14,7 +14,7 @@
 .filters button { border: 0; border-radius: 999px; color: var(--admin-muted); background: transparent; cursor: pointer; }
 .filters button[aria-pressed="true"] { color: #17130d; background: var(--admin-accent); }
 .list { padding: 0 25px 21px; }
-.row { display: grid; min-height: 81px; grid-template-columns: 160px minmax(260px, 1fr) 180px 200px 64px; align-items: center; gap: 27px; padding: 4px 11px; border-top: 1px solid var(--admin-border-soft); }
+.row { display: grid; min-height: 116px; grid-template-columns: 160px minmax(260px, 1fr) 180px 200px 64px; align-items: center; gap: 27px; padding: 5px 11px; border-top: 1px solid var(--admin-border-soft); }
 .image { position: relative; width: 160px; height: 72px; overflow: hidden; border-radius: 9px; background: var(--admin-surface-raised); }
 .image img { object-fit: cover; }
 .identity { min-width: 0; }
@@ -41,4 +41,4 @@
 }
 
 @media (min-width: 701px) { .page { margin-top: -17px; } }
-@media (min-width: 701px) { .row { min-height: 86px; } }
+@media (min-width: 701px) { .row { min-height: 116px; } }

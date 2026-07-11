@@ -287,7 +287,7 @@ test("availability list renders measured rows, imagery, status and toggle feedba
   assert.match(control, /AdminToggle/);
   assert.match(list, /AdminToast/);
   assert.match(css, /grid-template-columns:\s*160px/);
-  assert.match(css, /min-height:\s*81px/);
+  assert.match(css, /min-height:\s*116px/);
   assert.match(css, /@media \(max-width:\s*700px\)/);
   assert.match(css, /overflow-x:\s*clip/);
 });

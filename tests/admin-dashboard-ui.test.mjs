@@ -219,7 +219,7 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   assert.match(heatmap, /<table/);
   assert.match(comparison, /<svg[\s\S]*<title>[\s\S]*<desc>[\s\S]*<table/);
   assert.match(source, /AdminEvidenceState/);
-  assert.match(insights, /Plats les plus consult.s/);
+  assert.match(insights, /Top plats consultés/);
   assert.doesNotMatch(insights, /Plats favoris/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
   for (const area of ["activity", "comparison", "heatmap", "dishes", "searches", "categories", "service", "summary", "recommendations"]) {
@@ -286,4 +286,28 @@ test("admin E2E contracts fail closed and measure two-dimensional touch targets"
     assert.match(source, /box\.width\)\.toBeGreaterThanOrEqual\(44\)/);
     assert.match(source, /box\.height\)\.toBeGreaterThanOrEqual\(44\)/);
   }
+});
+
+test("PR150 pages expose complete premium analytics without silent truncation", async () => {
+  const [overview, overviewCss, insights, insightsCss, availability, icons] = await Promise.all([
+    read("components/admin/overview/AdminOverview.tsx"),
+    read("components/admin/overview/AdminOverview.module.css"),
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/insights/AdminInsights.module.css"),
+    read("components/admin/availability/AdminAvailabilityList.tsx"),
+    read("components/admin/system/AdminIcons.tsx")
+  ]);
+  assert.match(overview, /Voir les statistiques détaillées/);
+  assert.match(overview, /metricSeries/);
+  assert.match(overview, /MenuOpenIcon/);
+  assert.match(overview, /DishViewsIcon/);
+  assert.match(overview, /SearchIcon/);
+  assert.match(overview, /ImmersiveIcon/);
+  assert.match(overview, /AvailableDishIcon/);
+  assert.doesNotMatch(`${overview}\n${insights}\n${overviewCss}\n${insightsCss}`, /\.slice\(|nth-child\([^)]*n\s*\+/);
+  assert.doesNotMatch(`${overview}\n${insights}`, /readiness\.counts\.withImmersive/);
+  assert.doesNotMatch(insights, /(?:Ã‰|É)v.nements observ.s|label="P.riode"/);
+  for (const title of ["Activité du menu sur la période", "Comparaison des périodes", "Moments d’activité", "Top plats consultés", "Top recherches", "Répartition par catégorie", "Répartition par moment de service", "Résumé de la période", "Insights clés"]) assert.match(insights, new RegExp(title));
+  assert.match(availability, /AdminDishThumbnail/);
+  assert.match(icons, /export function MenuOpenIcon/);
 });

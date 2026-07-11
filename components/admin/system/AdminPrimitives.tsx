@@ -17,7 +17,8 @@ export function AdminKpiCard({ label, value, detail, icon, trend, className }: C
 
 export function AdminEvidenceState({ kind, title, reason }: { kind: "insufficient" | "unavailable"; title?: string; reason: string }) {
   const unavailable = kind === "unavailable";
-  return <div className={styles.evidence} role={unavailable ? "alert" : "status"}>{unavailable ? <AlertIcon /> : <InfoIcon />}<div><strong>{title ?? (unavailable ? "Données indisponibles" : "Données insuffisantes")}</strong><p>{reason}</p></div></div>;
+  const copy: Record<string,string> = { "incompatible-or-empty-period":"La période précédente ne contient pas encore assez de données comparables.", "no-category-evidence":"Les consultations par catégorie apparaîtront avec davantage d’activité.", "no-dish-ranking-evidence":"Le classement apparaîtra dès qu’un volume suffisant de consultations sera observé.", "no-search-evidence":"Les termes apparaîtront lorsqu’ils atteindront le seuil de confidentialité.", "source-incomplete":"La source est momentanément incomplète. Réessayez dans quelques instants.", "no-current-events":"Aucune activité n’a encore été observée sur cette période.", "no-timestamped-events":"Les événements horodatés sont insuffisants pour cette visualisation.", "no-evidence":"Davantage d’activité est nécessaire pour afficher cette analyse." };
+  return <div className={styles.evidence} role={unavailable ? "alert" : "status"}>{unavailable ? <AlertIcon /> : <InfoIcon />}<div><strong>{title ?? (unavailable ? "Données indisponibles" : "Données insuffisantes")}</strong><p>{copy[reason] ?? "Cette analyse sera disponible lorsque les données nécessaires auront été observées."}</p></div></div>;
 }
 
 export function AdminStatusBadge({ tone = "neutral", children }: { tone?: "available" | "unavailable" | "neutral" | "accent"; children: ReactNode }) {

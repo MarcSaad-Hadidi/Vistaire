@@ -37,3 +37,19 @@ test("overview navigates and remains usable at 390 and 430", async ({ page }) =>
   await expect(page).toHaveURL(/\/admin\/insights/);
   healthy();
 });
+
+test("overview has visible detailed insights CTA", async ({ page }) => {
+  const token = requireAdminFixture(process.env.VISTAIRE_ADMIN_E2E_QR_TOKEN, "VISTAIRE_ADMIN_E2E_QR_TOKEN");
+  await page.goto(`/q/${encodeURIComponent(token)}`, { waitUntil: "networkidle" });
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/admin", { waitUntil: "networkidle" });
+    const cta = page.getByRole("link", { name: "Voir les statistiques détaillées" });
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute("href", "/admin/insights");
+    await cta.focus();
+    await expect(cta).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/admin\/insights/);
+  }
+});

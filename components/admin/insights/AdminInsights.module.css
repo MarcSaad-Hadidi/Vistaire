@@ -6,4 +6,4 @@
 @media(max-width:900px){.insightsHeader{height:44px}.insightsHeader nav{position:static;margin-left:auto}}
 .srBack{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(min-width:901px){.kpis{margin-bottom:19px;transform:translateY(9px)}.kpis>article{min-height:120px}.grid{grid-template-columns:392fr 319fr 416fr 402fr}.categories{width:calc(100% - 47px)}.service{width:calc(100% + 47px);margin-left:-47px}}
-.bottomGrid>.summary,.bottomGrid>.recommendations{grid-area:auto}.service .bars li:nth-child(n+4),.dishes .bars li:nth-child(n+4){display:none}
+.bottomGrid>.summary,.bottomGrid>.recommendations{grid-area:auto}.summaryMetrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.summaryMetrics span{display:flex;flex-direction:column;color:var(--admin-muted);font-size:11px}.summaryMetrics strong{margin-top:8px;color:var(--admin-text);font-family:var(--admin-display);font-size:22px;font-weight:400}.insightsList{display:grid;gap:7px;margin:0;padding-left:18px;color:var(--admin-muted);font-size:12px;line-height:1.35}.insightsHeader>p span{color:var(--admin-muted);font-family:var(--admin-ui);font-size:12px}
