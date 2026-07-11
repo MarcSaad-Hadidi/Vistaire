@@ -187,6 +187,16 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
+function slugify(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
 function categoryLabel(category: string, locale: Locale): string {
   const cleaned = cleanDisplayText(category);
   const normalized = normalizeText(cleaned);
@@ -267,7 +277,7 @@ function modelViewerDishFromPublicDish(
 ): DishModelViewerProps["dish"] {
   return {
     slug: dish.slug,
-    categorySlug: dish.category,
+    categorySlug: dish.categorySlug ?? slugify(dish.category),
     name: dish.name,
     model3dUrl: dish.model3dUrl,
     webModel3dUrl: dish.webModel3dUrl,
@@ -352,9 +362,9 @@ export function MaisonElyseDishDetail({
     trackPublicMenuEvent(menu, {
       eventName: "dish_opened",
       dishSlug: dish.slug,
-      categorySlug: dish.category
+      categorySlug: dish.categorySlug ?? slugify(dish.category)
     });
-  }, [dish.category, dish.slug, menu]);
+  }, [dish.category, dish.categorySlug, dish.slug, menu]);
 
   function toggleModelViewer() {
     setShowModelViewer((isVisible) => {

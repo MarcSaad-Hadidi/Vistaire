@@ -7,6 +7,8 @@ test("Maison Elyse detail preserves relational analytics for dish and immersive 
   assert.match(source, /getPublicMenuAnalyticsContext\(menu\)/);
   assert.match(source, /trackPublicMenuEvent\(menu,[\s\S]*eventName:\s*"dish_opened"/);
   assert.match(source, /analyticsContext=\{analyticsContext \?\? undefined\}/);
+  assert.match(source, /categorySlug:\s*dish\.categorySlug\s*\?\?\s*slugify\(dish\.category\)/);
+  assert.match(source, /function slugify\([\s\S]*normalize\("NFD"\)[\s\S]*replace\(\/\[\^a-z0-9\]\+\/g,\s*"-"\)/);
 });
 
 test("generic and Trouvable renderers keep production context on immersive viewers", async () => {

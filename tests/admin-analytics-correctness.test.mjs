@@ -13,6 +13,41 @@ test("partial analytics never masquerade as real", async () => {
   assert.equal(state.completeness, "partial-source");
 });
 
+test("a real one-bucket activity series remains visible", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const observationWindow = { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" };
+  const events = [
+    { event_name: "menu_opened", created_at: "2026-07-10T10:00:00Z" },
+    { event_name: "menu_opened", created_at: "2026-07-10T10:01:00Z" },
+    { event_name: "menu_opened", created_at: "2026-07-10T10:02:00Z" },
+    { event_name: "menu_opened", created_at: "2026-07-10T10:03:00Z" },
+    { event_name: "dish_opened", created_at: "2026-07-10T10:04:00Z" }
+  ];
+
+  const state = buildAdminAnalyticsState({ observationWindow, events });
+
+  assert.equal(state.kind, "real");
+  assert.deepEqual(state.activitySeries, [{ bucket: "2026-07-10", count: 5 }]);
+});
+
+test("funnel conversion requires a finite dish timestamp", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const observationWindow = { range: "7d", startInclusive: "a", endExclusive: "b", comparisonStartInclusive: "c", comparisonEndExclusive: "a" };
+  const events = Array.from({ length: 20 }, (_, index) => ({
+    event_name: "menu_opened",
+    session_id: `session-${index}`,
+    created_at: "2026-07-10T10:00:00Z"
+  }));
+  events.push({ event_name: "dish_opened", session_id: "other-session", created_at: "2026-07-10T10:01:00Z" });
+
+  const state = buildAdminAnalyticsState({ observationWindow, events });
+
+  assert.equal(state.kind, "real");
+  assert.equal(state.funnel.kind, "measured");
+  assert.equal(state.funnel.dishOpened, 0);
+  assert.equal(state.funnel.rate, 0);
+});
+
 test("analytics recognize the current Vistaire aggregate column names", async () => {
   const source = await readFile("lib/analytics/insightsCore.mjs", "utf8");
 
