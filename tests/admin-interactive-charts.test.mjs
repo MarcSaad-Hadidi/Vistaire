@@ -11,6 +11,8 @@ import {
   formatChartDateUtc,
   interactionReducer,
   motionDuration,
+  normalizeComparisonSeries,
+  normalizeDonutData,
 } from "../components/admin/charts/index.ts";
 
 test("line geometry keeps zero ranges finite and clamps points to the plot", () => {
@@ -71,6 +73,33 @@ test("interaction reducer supports roving keys, pinning, escape and outside dism
   assert.deepEqual(state, { active: null, pinned: false });
 });
 
+test("heatmap keyboard navigation moves by columns and closes on blur or Tab", () => {
+  const grid = { active: 33, pinned: false };
+  assert.deepEqual(interactionReducer(grid, { type: "key", key: "ArrowUp", count: 112, columns: 16 }), { active: 17, pinned: false });
+  assert.deepEqual(interactionReducer(grid, { type: "key", key: "ArrowDown", count: 112, columns: 16 }), { active: 49, pinned: false });
+  assert.deepEqual(interactionReducer({ active: 5, pinned: true }, { type: "blur" }), { active: null, pinned: false });
+  assert.deepEqual(interactionReducer({ active: 5, pinned: true }, { type: "key", key: "Tab", count: 112 }), { active: null, pinned: false });
+});
+
+test("comparison rejects label mismatch instead of inventing or hiding values", () => {
+  const aligned = normalizeComparisonSeries([
+    { label: "Actuelle", values: [{ label: "Lun", value: 3 }, { label: "Mar", value: 4 }] },
+    { label: "Précédente", values: [{ label: "Lun", value: 2 }, { label: "Mar", value: 5 }] },
+  ]);
+  assert.equal(aligned.kind, "aligned");
+  const mismatch = normalizeComparisonSeries([
+    { label: "Actuelle", values: [{ label: "Lun", value: 3 }] },
+    { label: "Précédente", values: [{ label: "Lun", value: 2 }, { label: "Mar", value: 5 }] },
+  ]);
+  assert.deepEqual(mismatch, { kind: "misaligned", reason: "Les séries doivent partager exactement les mêmes repères, dans le même ordre." });
+});
+
+test("donut normalization explicitly excludes non-positive values from visual and exact data", () => {
+  assert.deepEqual(normalizeDonutData([{ label: "Midi", value: 4 }, { label: "Soir", value: 0 }, { label: "Invalide", value: -2 }]), {
+    included: [{ label: "Midi", value: 4 }], excluded: [{ label: "Soir", value: 0 }, { label: "Invalide", value: -2 }],
+  });
+});
+
 test("reduced motion turns chart animation contracts instant", () => {
   assert.equal(motionDuration(true, 320), 0);
   assert.equal(motionDuration(false, 120), 180);
@@ -92,7 +121,23 @@ test("interactive islands expose complete semantics and bounded responsive SVG c
   assert.match(source, /End/);
   assert.match(source, /Enter/);
   assert.match(source, /prefers-reduced-motion/);
+  assert.match(source, /aria-describedby=.*tooltip/);
+  assert.match(source, /onBlur=/);
+  assert.match(source, /role="row"/);
+  assert.match(source, /aria-rowcount/);
+  assert.match(source, /aria-colcount/);
+  assert.match(source, /aria-rowindex/);
+  assert.match(source, /aria-colindex/);
   assert.doesNotMatch(source, /setInterval|requestAnimationFrame\([^)]*requestAnimationFrame/);
+});
+
+test("heatmap contract is a semantic 16 by 7 grid with 112 cells", async () => {
+  const source = await readFile("components/admin/charts/InteractiveHeatmap.tsx", "utf8");
+  assert.equal(buildHeatmapCells([], 7, 16).length, 112);
+  assert.match(source, /useChartInteraction\(cells\.length, columns\)/);
+  assert.match(source, /rowLabels\.map/);
+  assert.match(source, /role="row"/);
+  assert.match(source, /role="gridcell"/);
 });
 
 test("admin metric icons have distinct path signatures", async () => {

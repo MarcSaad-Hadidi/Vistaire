@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useReducer, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { interactionReducer, type InteractionAction } from "./interaction";
 
 export function useReducedMotion() {
@@ -14,7 +14,7 @@ export function useReducedMotion() {
   return reduced;
 }
 
-export function useChartInteraction(count: number) {
+export function useChartInteraction(count: number, columns = 1) {
   const [state, dispatch] = useReducer(interactionReducer, { active: null, pinned: false });
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -30,8 +30,12 @@ export function useChartInteraction(count: number) {
   const send = (action: InteractionAction) => dispatch(action);
   const onKeyDown = (event: KeyboardEvent<SVGElement>) => {
     const controlled = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Enter", " ", "Escape"];
+    if (event.key === "Tab") { dispatch({ type: "key", key: event.key, count, columns }); return; }
     if (!controlled.includes(event.key)) return;
-    event.preventDefault(); dispatch({ type: "key", key: event.key, count });
+    event.preventDefault(); dispatch({ type: "key", key: event.key, count, columns });
   };
-  return { ...state, rootRef, send, onKeyDown };
+  const onBlur = (event: FocusEvent<SVGElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) dispatch({ type: "blur" });
+  };
+  return { ...state, rootRef, send, onKeyDown, onBlur };
 }
