@@ -54,7 +54,30 @@ test("metric series carry compatible current and previous points with timestamp 
       }
     }
   }
-  assert.deepEqual(state.metricSeries.menuOpened.previous, [{ bucket: "2026-06-27", value: 1, timestampLabel: "27 juin" }]);
+  assert.equal(state.metricSeries.menuOpened.previous.length, 7);
+  assert.deepEqual(state.metricSeries.menuOpened.previous[1], { bucket: "2026-06-27", value: 1, timestampLabel: "27 juin" });
+});
+
+test("seven-day metric series are dense, aligned and retain zero buckets", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const state = buildAdminAnalyticsState({
+    observationWindow,
+    events: [
+      ...Array.from({ length: 5 }, () => ({ event_name: "menu_opened", created_at: "2026-07-03T12:00:00.000Z" })),
+      { event_name: "dish_opened", created_at: "2026-07-09T11:59:59.999Z" }
+    ],
+    previousEvents: [{ event_name: "search_used", created_at: "2026-06-28T12:00:00.000Z" }],
+    analyticsScope: scope
+  });
+  assert.equal(state.kind, "real");
+  for (const series of Object.values(state.metricSeries)) {
+    assert.equal(series.current.length, 7, series.id);
+    assert.equal(series.previous.length, 7, series.id);
+    assert.deepEqual(series.current.map((point) => point.bucket), ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09"]);
+    assert.ok(series.current.some((point) => point.value === 0), series.id);
+  }
+  assert.deepEqual(state.metricSeries.searches.previous.map((point) => point.value), [0, 0, 1, 0, 0, 0, 0]);
+  assert.deepEqual(state.metricSeries.immersive.current.map((point) => point.value), [0, 0, 0, 0, 0, 0, 0]);
 });
 
 test("category labels come from the selected menu and service labels do not repeat UTC", async () => {
@@ -79,13 +102,28 @@ test("search privacy rejects common direct identifiers", async () => {
 
 test("visual fixture is a full distinct menu with previous evidence and scoped filtering", async () => {
   const fixture = await readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8");
-  assert.match(fixture, /dishData\.length\s*<\s*12/);
-  assert.doesNotMatch(fixture, /images\/demo\/dishes\/\$\{key\}\.png/);
+  assert.match(fixture, /buildAdminVisualFixtureTables/);
   assert.match(fixture, /addPeriod\("previous"/);
   assert.match(fixture, /searchParams/);
   assert.match(fixture, /restaurant_id/);
   assert.match(fixture, /menu_id/);
   assert.match(fixture, /source/);
-  assert.match(fixture, /is_available/);
-  assert.match(fixture, /foreign/);
+});
+
+test("visual fixture menu is structurally identical to canonical Maison Elysee data", async () => {
+  const [{ buildAdminVisualFixtureTables }, { getAllDishes, getCategories }] = await Promise.all([
+    import("../e2e/support/adminVisualFixtureData.ts"),
+    import("../lib/demoMenuData.ts")
+  ]);
+  const tables = buildAdminVisualFixtureTables();
+  const canonicalDishes = getAllDishes().map(({ slug, name, image, categorySlug, isAvailable }) => ({ slug, name, image_url: image, category_id: categorySlug, is_available: isAvailable }));
+  const fixtureDishes = tables.menu_dishes.filter((dish) => dish.restaurant_id === tables.restaurantId && dish.menu_id === tables.menuId).map(({ slug, name, image_url, category_id, is_available }) => ({ slug, name, image_url, category_id, is_available }));
+  assert.equal(fixtureDishes.length, 12);
+  assert.deepEqual(fixtureDishes, canonicalDishes);
+  assert.deepEqual(
+    tables.menu_categories.filter((category) => category.restaurant_id === tables.restaurantId && category.menu_id === tables.menuId).map(({ slug, name }) => ({ slug, name })),
+    getCategories().map(({ slug, name }) => ({ slug, name }))
+  );
+  assert.ok(tables.menu_dishes.some((dish) => dish.restaurant_id === "foreign-restaurant"));
+  assert.ok(fixtureDishes.every((dish) => dish.slug !== "foreign"));
 });

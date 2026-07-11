@@ -1,41 +1,10 @@
 import http from "node:http";
+import { buildAdminVisualFixtureTables } from "./adminVisualFixtureData.ts";
 
-const restaurantId = "11111111-1111-1111-1111-111111111111";
-const menuId = "menu-maison-elysee";
-const categoryData = [
-  ["cat-entrees", "Entrées", "entrees"],
-  ["cat-signatures", "Plats signatures", "plats-signatures"],
-  ["cat-principaux", "Plats principaux", "plats-principaux"],
-  ["cat-desserts", "Desserts", "desserts"]
-];
-const categories = categoryData.map(([id, name, slug], index) => ({ id, name, slug, display_order: index + 1, restaurant_id: restaurantId, menu_id: menuId }));
-const dishData = [
-  ["ravioles", "cat-entrees", "Ravioles de chèvre frais", "ravioles-romarin", 3400, true],
-  ["tartare", "cat-entrees", "Tartare de saumon", "tartare-saumon", 4200, true],
-  ["veloute", "cat-entrees", "Velouté de saison", "veloute-saison", 2800, true],
-  ["homard", "cat-signatures", "Homard bleu", "homard-bisque", 10400, true],
-  ["canette", "cat-signatures", "Canette rôtie", "canette-figues", 9600, false],
-  ["boeuf", "cat-signatures", "Bœuf du Québec", "boeuf-quebec", 8800, true],
-  ["risotto", "cat-principaux", "Risotto aux cèpes", "risotto-cepes", 5400, true],
-  ["sole", "cat-principaux", "Sole meunière", "sole-meuniere", 7200, true],
-  ["agneau", "cat-principaux", "Agneau braisé", "agneau-braise", 6800, false],
-  ["chocolat", "cat-desserts", "Chocolat grand cru", "chocolat-grand-cru", 2200, true],
-  ["pavlova", "cat-desserts", "Pavlova aux fruits", "pavlova-fruits", 2100, true],
-  ["fromages", "cat-desserts", "Fromages du Québec", "fromages-quebec", 2400, true]
-];
-if (dishData.length < 12) throw new Error("The full-menu fixture must contain at least 12 dishes");
-const dishImages = [
-  "ravioles-chevre-miel-monteregie.png", "tartare-saumon-label-rouge.png", "bar-de-ligne-artichaut-citron.png",
-  "homard-bleu-bisque-fenouil.png", "canette-rotie-figues-epices.png", "pave-boeuf-mature-bordelaise.png",
-  "risotto-cepes-parmesan.png", "maison-elyse-n1.png", "negroni-vieilli-fut.png",
-  "souffle-chocolat-grand-cru.png", "tarte-citron-basilic-pourpre.png", "elixir-bergamote-earl-grey.png"
-];
-const dishes = dishData.map(([key, category_id, name, slug, price_cents, is_available], index) => ({
-  id: `dish-${key}`, category_id, name, slug, price_cents, is_available,
-  image_url: `/images/demo/dishes/${dishImages[index]}`, restaurant_id: restaurantId, menu_id: menuId,
-  currency: "CAD", short_description: "", description: "", is_signature: index >= 3 && index <= 5,
-  is_recommended: index < 4, has_immersive_view: index % 4 === 0, metadata: {}, created_at: `2026-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`
-}));
+const fixture = buildAdminVisualFixtureTables();
+const { restaurantId, menuId } = fixture;
+const categories = fixture.menu_categories.filter((item) => item.restaurant_id === restaurantId);
+const dishes = fixture.menu_dishes.filter((item) => item.restaurant_id === restaurantId);
 
 const events = [];
 function addPeriod(prefix, year, month, startDay, count) {
@@ -55,13 +24,12 @@ function addPeriod(prefix, year, month, startDay, count) {
 addPeriod("previous", 2026, 5, 26, 35);
 addPeriod("current", 2026, 6, 3, 70);
 
-const foreign = { restaurant_id: "foreign-restaurant", menu_id: "foreign-menu", source: "demo" };
 const tables = {
-  restaurants: [{ id: restaurantId, name: "Maison Élysée", slug: "maison-elysee", city: "Montréal", cuisine_type: "Cuisine française contemporaine" }, { id: foreign.restaurant_id, name: "Foreign" }],
-  menus: [{ id: menuId, restaurant_id: restaurantId, status: "published", is_primary: true, updated_at: "2026-07-10T10:24:00Z" }, { id: foreign.menu_id, restaurant_id: foreign.restaurant_id, status: "published" }],
-  menu_categories: [...categories, { id: "foreign-category", name: "Foreign", slug: "foreign", ...foreign }],
-  menu_dishes: [...dishes, { id: "foreign-dish", name: "Foreign", slug: "foreign", category_id: "foreign-category", is_available: true, ...foreign }],
-  analytics_events: [...events, { id: "foreign-event", event_name: "menu_opened", created_at: "2026-07-09T12:00:00Z", ...foreign }]
+  restaurants: fixture.restaurants,
+  menus: fixture.menus,
+  menu_categories: fixture.menu_categories,
+  menu_dishes: fixture.menu_dishes,
+  analytics_events: [...events, { id: "foreign-event", event_name: "menu_opened", created_at: "2026-07-09T12:00:00Z", ...fixture.foreign }]
 };
 
 function filteredRows(request) {
