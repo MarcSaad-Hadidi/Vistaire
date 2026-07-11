@@ -47,4 +47,14 @@
 
 The raw score increased on overview when the mandatory real dish thumbnails and donut were introduced. Visual overlay inspection confirms that this is photo/content delta rather than a regression in the measured outer geometry. The source references contain different plated-food pixels and reference counts; those pixels are intentionally not copied into production data.
 
+## Final QA correction pass — 2026-07-11
+
+- Browser-plugin control was attempted first and returned `No browser is available`; repository Playwright was used as the permitted fallback.
+- A real 320 px overflow (`scrollWidth=332`, `clientWidth=320`) came from the three-option metric selector. Compact flex sizing now produces `320/320`; all three routes pass at 320, 360, 375, 390, 430, 1280×720, 1440×900, 1672×941 and 1920×1080.
+- The Insights activity, comparison and heatmap wrappers still rendered legacy static SVG/div output. They now consume the shared interactive line, comparison and semantic 7×16 heatmap islands. Hover, exact tooltip, roving focus, arrows, Home/End, Enter/Space/Escape, touch pin/unpin and outside dismissal are exercised in `e2e/admin-chart-interactions.spec.ts`.
+- Line-chart points retain their small visible mark but expose an SVG hit stroke equivalent to the required touch target. Synthetic keyboard clicks are suppressed after the handled keydown so Enter/Space cannot double-toggle.
+- The complete mobile ranking remains available in an explicit internal scroller rather than being silently truncated. This makes the first availability card visible above the fixed navigation at 390×903.
+- The official masked mobile diagnostic improved from `28.75167%` to `25.92751%` differing pixels (threshold 20/255). This is an objective `2.82416` percentage-point improvement, but remains a non-pass against the 1% source-reference gate; no pixel-perfect claim is made.
+- The internal 390×903 regression baseline was regenerated only after the above intentional geometry correction and passed on a fresh run.
+
 The versioned `scripts/admin-visual-compare.mjs` implements the official mobile crop and a 24px rounded-corner exclusion mask. The fresh masked result is `28.75167%` against the required `1%` reference-fidelity threshold, so this command intentionally exits non-zero and remains an explicit non-pass. It never substitutes for the approved internal regression baseline. Artifacts are written outside Git. The 390×903 Playwright test asserts that the first availability card — image, name, status and 44px link-toggle — is entirely above the fixed navigation. Six unique keyboard focus steps, the targeted results live region, the mobile navigation ARIA snapshot and effective reduced-motion styles on controls/chart elements are checked in Chromium.

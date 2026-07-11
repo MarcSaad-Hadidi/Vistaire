@@ -3,7 +3,9 @@ import { getAllDishes, getCategories } from "../../lib/demoMenuData.ts";
 export const ADMIN_VISUAL_RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
 export const ADMIN_VISUAL_MENU_ID = "menu-maison-elysee";
 
-export function buildAdminVisualFixtureTables() {
+export type AdminVisualFixtureScenario = "pixel-reference" | "full-menu";
+
+export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: { scenario?: AdminVisualFixtureScenario } = {}) {
   const restaurantId = ADMIN_VISUAL_RESTAURANT_ID;
   const menuId = ADMIN_VISUAL_MENU_ID;
   const menu_categories = getCategories().map((category, index) => ({
@@ -21,7 +23,9 @@ export function buildAdminVisualFixtureTables() {
     slug: dish.slug,
     price_cents: Math.round(dish.price * 100),
     image_url: dish.image,
-    is_available: dish.isAvailable,
+    // Full-menu QA deliberately covers both final states without altering the
+    // canonical pixel-reference fixture or production/demo menu data.
+    is_available: scenario === "full-menu" ? index % 5 !== 3 : dish.isAvailable,
     restaurant_id: restaurantId,
     menu_id: menuId,
     currency: "CAD",

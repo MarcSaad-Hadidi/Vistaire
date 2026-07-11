@@ -116,6 +116,7 @@ test("visual fixture menu is structurally identical to canonical Maison Elysee d
     import("../lib/demoMenuData.ts")
   ]);
   const tables = buildAdminVisualFixtureTables();
+  const fullMenuTables = buildAdminVisualFixtureTables({ scenario: "full-menu" });
   const canonicalDishes = getAllDishes().map(({ slug, name, image, categorySlug, isAvailable }) => ({ slug, name, image_url: image, category_id: categorySlug, is_available: isAvailable }));
   const fixtureDishes = tables.menu_dishes.filter((dish) => dish.restaurant_id === tables.restaurantId && dish.menu_id === tables.menuId).map(({ slug, name, image_url, category_id, is_available }) => ({ slug, name, image_url, category_id, is_available }));
   assert.equal(fixtureDishes.length, 12);
@@ -126,4 +127,9 @@ test("visual fixture menu is structurally identical to canonical Maison Elysee d
   );
   assert.ok(tables.menu_dishes.some((dish) => dish.restaurant_id === "foreign-restaurant"));
   assert.ok(fixtureDishes.every((dish) => dish.slug !== "foreign"));
+  const fullMenuDishes = fullMenuTables.menu_dishes.filter((dish) => dish.restaurant_id === fullMenuTables.restaurantId && dish.menu_id === fullMenuTables.menuId);
+  assert.equal(fullMenuDishes.length, 12);
+  assert.ok(fullMenuDishes.some((dish) => dish.is_available));
+  assert.ok(fullMenuDishes.some((dish) => !dish.is_available));
+  assert.deepEqual(fullMenuDishes.map((dish) => dish.id), fixtureDishes.map((dish) => tables.menu_dishes.find((candidate) => candidate.slug === dish.slug)?.id));
 });

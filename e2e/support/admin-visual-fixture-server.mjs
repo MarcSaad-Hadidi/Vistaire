@@ -1,7 +1,7 @@
 import http from "node:http";
 import { buildAdminVisualFixtureTables } from "./adminVisualFixtureData.ts";
 
-const fixture = buildAdminVisualFixtureTables();
+const fixture = buildAdminVisualFixtureTables({ scenario: process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO === "full-menu" ? "full-menu" : "pixel-reference" });
 const { restaurantId, menuId } = fixture;
 const categories = fixture.menu_categories.filter((item) => item.restaurant_id === restaurantId);
 const dishes = fixture.menu_dishes.filter((item) => item.restaurant_id === restaurantId);

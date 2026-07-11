@@ -191,8 +191,8 @@ test("overview composes honest evidence panels with accessible exact values", as
   assert.match(source, /AdminShell/);
   assert.match(source, /href="\/admin\/insights"/);
   assert.match(source, /href="\/admin\/availability"/);
-  assert.match(activity, /<svg[\s\S]*<title>[\s\S]*<desc>/);
-  assert.match(activity, /<table/);
+  assert.match(activity, /InteractiveLineChart/);
+  assert.match(activity, /title="Activit.+ du menu"/);
   assert.match(source, /AdminEvidenceState/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
   assert.match(css, /grid-template-areas/);
@@ -216,8 +216,8 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(source, /AdminShell/);
   assert.match(source, /href="\/admin"/);
-  assert.match(heatmap, /<table/);
-  assert.match(comparison, /<svg[\s\S]*<title>[\s\S]*<desc>[\s\S]*<table/);
+  assert.match(heatmap, /InteractiveHeatmap/);
+  assert.match(comparison, /ComparisonLineChart/);
   assert.match(source, /AdminEvidenceState/);
   assert.match(insights, /Top plats consultés/);
   assert.doesNotMatch(insights, /Plats favoris/);
@@ -240,9 +240,9 @@ test("insights review fixes lock bottom proportions, heatmap orientation and evi
   assert.match(css, /\.bottomGrid\s*\{[^}]*grid-template-columns:\s*911fr\s+639fr/s);
   assert.match(css, /\.heatmap\s*\{[^}]*grid-template-columns:\s*repeat\(16,/s);
   assert.match(css, /\.heatmap\s*\{[^}]*grid-template-rows:\s*repeat\(7,/s);
-  assert.match(heatmap, /hours\.map[\s\S]*days\.map/);
-  assert.match(heatmap, /className=\{styles\.hourLabels\}/);
-  assert.match(heatmap, /className=\{styles\.dayLabels\}/);
+  assert.match(heatmap, /days\.flatMap[\s\S]*hours\.map/);
+  assert.match(heatmap, /rowLabels=\{days\}/);
+  assert.match(heatmap, /columnLabels=\{hours\.map/);
   assert.doesNotMatch(overview, /Données de (?:service|catégorie) insuffisantes/);
   assert.doesNotMatch(insights, /Pas assez de données/);
   for (const source of [overviewE2e, insightsE2e]) {
@@ -254,26 +254,17 @@ test("insights review fixes lock bottom proportions, heatmap orientation and evi
   }
 });
 
-test("heatmap renders one normalized 16 by 7 matrix for visual and exact values", async () => {
-  let source = await read("components/admin/insights/AdminHeatmap.tsx");
-  source = source
-    .replace(/import type[^;]+;\s*/, "")
-    .replace(/import \{ AdminEvidenceState \}[^;]+;\s*/, "")
-    .replace(/import styles[^;]+;\s*/, "const styles = new Proxy({}, { get: (_, key) => String(key) });\n")
-    .replace("export function AdminHeatmap", "function AdminHeatmap")
-    .concat("\nexport { AdminHeatmap };");
-  const javascript = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const require = createRequire(import.meta.url);
-  const reactUrl = pathToFileURL(require.resolve("react")).href;
-  const loadedHeatmap = await import(`data:text/javascript;base64,${Buffer.from(`import React from '${reactUrl}'; const AdminEvidenceState=({kind,reason})=>React.createElement('div',{'data-kind':kind},reason); ${javascript}`).toString("base64")}`);
-  const supported = renderToStaticMarkup(React.createElement(loadedHeatmap.AdminHeatmap, { evidence: { kind: "supported", data: [{ weekdayUtc: 1, hourUtc: 9, count: 4 }] } }));
-  assert.equal((supported.match(/<i /g) ?? []).length, 112);
-  assert.equal((supported.match(/<tr>/g) ?? []).length, 113);
-  assert.match(supported, /Lun[\s\S]*9:00[\s\S]*4/);
-  for (const evidence of [{ kind: "insufficient", reason: "sample-too-small" }, { kind: "unavailable", reason: "source-incomplete" }]) {
-    const dom = renderToStaticMarkup(React.createElement(loadedHeatmap.AdminHeatmap, { evidence }));
-    assert.match(dom, new RegExp(`data-kind="${evidence.kind}"[\\s\\S]*${evidence.reason}`));
-  }
+test("heatmap delegates one normalized 16 by 7 matrix to the interactive exact-value primitive", async () => {
+  const [heatmap, primitive] = await Promise.all([
+    read("components/admin/insights/AdminHeatmap.tsx"),
+    read("components/admin/charts/InteractiveHeatmap.tsx")
+  ]);
+  assert.match(heatmap, /Array\.from\(\{ length: 16 \}/);
+  assert.match(heatmap, /days\.flatMap[\s\S]*hours\.map/);
+  assert.match(heatmap, /lookup\.get\(`\$\{row\}:\$\{hour\}`\) \?\? 0/);
+  assert.match(primitive, /role="grid"/);
+  assert.match(primitive, /exactValues=\{cells\.map/);
+  assert.match(primitive, /role="gridcell"/);
 });
 
 test("admin E2E contracts fail closed and measure two-dimensional touch targets", async () => {

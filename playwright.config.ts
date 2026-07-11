@@ -6,6 +6,8 @@ const startCommand = "node ./node_modules/next/dist/bin/next start";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
+const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
+const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3000"}`;
 const ownerE2eToken =
   process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
@@ -39,14 +41,14 @@ export default defineConfig({
     ? {
         webServer: adminVisualFixture ? [{
           command: "node e2e/support/admin-visual-fixture-server.mjs",
-          url: "http://127.0.0.1:3110/rest/v1/restaurants",
+          url: `${adminVisualFixtureOrigin}/rest/v1/restaurants`,
           reuseExistingServer,
           timeout: 30_000
         }, {
           command: fixtureStartCommand,
           env: {
             ...process.env,
-            NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:3110",
+            NEXT_PUBLIC_SUPABASE_URL: adminVisualFixtureOrigin,
             SUPABASE_SERVICE_ROLE_KEY: "visual-fixture-service-role-key",
             NEXT_PUBLIC_DEMO_RESTAURANT_ID: "11111111-1111-1111-1111-111111111111",
             VISTAIRE_ADMIN_VISUAL_NOW: "2026-07-10T12:00:00.000Z",
