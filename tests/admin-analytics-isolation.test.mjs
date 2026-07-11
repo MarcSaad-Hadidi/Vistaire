@@ -134,7 +134,7 @@ test("admin dashboard fails closed before menu reads when the restaurant lookup 
   assert.match(page, /if\s*\(!result\.ok\)/);
   assert.ok(
     page.indexOf("if (!result.ok)") <
-      page.indexOf("<AdminRestaurantDashboard")
+      page.indexOf("<AdminOverview")
   );
 });
 
