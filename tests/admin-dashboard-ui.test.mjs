@@ -215,3 +215,29 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   }
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
+
+test("insights review fixes lock bottom proportions, heatmap orientation and evidence fidelity", async () => {
+  const [overview, insights, heatmap, css, overviewE2e, insightsE2e] = await Promise.all([
+    read("components/admin/overview/AdminOverview.tsx"),
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/insights/AdminHeatmap.tsx"),
+    read("components/admin/insights/AdminInsights.module.css"),
+    read("e2e/admin-dashboard.spec.ts"),
+    read("e2e/admin-insights.spec.ts")
+  ]);
+  assert.match(css, /\.bottomGrid\s*\{[^}]*grid-template-columns:\s*911fr\s+639fr/s);
+  assert.match(css, /\.heatmap\s*\{[^}]*grid-template-columns:\s*repeat\(16,/s);
+  assert.match(css, /\.heatmap\s*\{[^}]*grid-template-rows:\s*repeat\(7,/s);
+  assert.match(heatmap, /hours\.map[\s\S]*days\.map/);
+  assert.match(heatmap, /className=\{styles\.hourLabels\}/);
+  assert.match(heatmap, /className=\{styles\.dayLabels\}/);
+  assert.doesNotMatch(overview, /Données de (?:service|catégorie) insuffisantes/);
+  assert.doesNotMatch(insights, /Pas assez de données/);
+  for (const source of [overviewE2e, insightsE2e]) {
+    assert.match(source, /390[\s\S]*430/);
+    assert.match(source, /scrollWidth/);
+    assert.match(source, /console/);
+    assert.match(source, /\.glb\|usdz\|mp4/);
+    assert.match(source, /reducedMotion/);
+  }
+});
