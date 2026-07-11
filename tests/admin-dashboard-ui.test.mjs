@@ -311,3 +311,16 @@ test("PR150 pages expose complete premium analytics without silent truncation", 
   assert.match(availability, /AdminDishThumbnail/);
   assert.match(icons, /export function MenuOpenIcon/);
 });
+
+test("insights summary excludes availability and evidence copy never leaks internal reasons", async () => {
+  const [insights, primitives, thumbnailCss] = await Promise.all([
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/AdminDishThumbnail.module.css")
+  ]);
+  assert.match(insights, /eventMetricIds/);
+  assert.doesNotMatch(insights, /metrics\.reduce/);
+  for (const reason of ["incompatible-scope", "configuration", "database", "query", "no-relevant-events", "sample-too-small", "instrumentation-unproven", "incompatible-or-empty-period", "source-incomplete"]) assert.match(primitives, new RegExp(`"${reason}"\\s*:`));
+  assert.match(thumbnailCss, /\.compact\{[^}]*width:64px[^}]*flex-basis:64px/s);
+  assert.match(thumbnailCss, /@media\(max-width:700px\)\{\.frame:not\(\.compact\)/);
+});
