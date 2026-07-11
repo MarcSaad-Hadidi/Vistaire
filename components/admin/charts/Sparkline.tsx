@@ -1,0 +1,2 @@
+import { buildLineGeometry } from "./geometry";
+export function Sparkline({values,label="Tendance"}:{values:number[];label?:string}){const {points}=buildLineGeometry(values,{width:120,height:36,padding:3});return <svg viewBox="0 0 120 36" role="img" aria-label={label}><polyline fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" points={points.map(p=>`${p.x},${p.y}`).join(" ")}/></svg>}
