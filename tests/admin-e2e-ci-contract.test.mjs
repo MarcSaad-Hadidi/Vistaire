@@ -99,6 +99,19 @@ test("admin E2E guide is UTF-8 French and describes the manual live proof honest
   assert.match(guide, /ne constitue pas une preuve de validation live/i);
 });
 
+test("full-menu parity has a dedicated non-skipping package gate", async () => {
+  const [packageJson, runner, spec] = await Promise.all([
+    readFile("package.json", "utf8"),
+    readFile("scripts/run-admin-full-menu-e2e.mjs", "utf8"),
+    readFile("e2e/admin-chart-interactions.spec.ts", "utf8"),
+  ]);
+  assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
+  assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
+  assert.match(runner, /--grep", "full-menu fixture"/);
+  assert.match(spec, /toHaveCount\(12\)/);
+  assert.match(spec, /data-available="false"/);
+});
+
 test("admin E2E specification contains no mojibake", async () => {
   const spec = await source("e2e/admin-restaurant-dashboard.spec.ts");
 

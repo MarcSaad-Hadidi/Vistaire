@@ -41,6 +41,7 @@
     "test:smoke": "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts",
     "test:seo": "node --test tests/bilingual-seo.test.mjs tests/seo-foundation.test.mjs tests/seo-geo-pages.test.mjs tests/seo-pillar-animations.test.mjs tests/seo-public-content.test.mjs",
     "test:admin": "node scripts/run-admin-tests.mjs",
+    "test:admin:full-menu": "node scripts/run-admin-full-menu-e2e.mjs",
     "test:seo:e2e": "node scripts/run-playwright-e2e.mjs e2e/seo-smoke.spec.ts",
     "test:qa": "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts e2e/landing-scroll.spec.ts",
     "test:e2e": "node scripts/run-playwright-e2e.mjs",

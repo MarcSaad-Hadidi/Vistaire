@@ -17,18 +17,25 @@ export function useReducedMotion() {
 export function useChartInteraction(count: number, columns = 1) {
   const [state, dispatch] = useReducer(interactionReducer, { active: null, pinned: false });
   const rootRef = useRef<HTMLDivElement>(null);
+  const suppressNextKeyboardClick = useRef(false);
+  const suppressionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const suppressSyntheticKeyboardClick = (event: MouseEvent) => {
       // Enter/Space is handled by onKeyDown. Browsers may subsequently emit a
-      // detail=0 click for focused SVG marks, which would otherwise toggle twice.
-      if (event.detail !== 0) return;
+      // detail=0 click for that focused SVG mark, which would otherwise toggle
+      // twice. Ordinary programmatic/assistive clicks remain untouched.
+      if (!suppressNextKeyboardClick.current || event.detail !== 0 || event.target !== document.activeElement) return;
+      suppressNextKeyboardClick.current = false;
       event.preventDefault();
       event.stopPropagation();
     };
     root.addEventListener("click", suppressSyntheticKeyboardClick, true);
-    return () => root.removeEventListener("click", suppressSyntheticKeyboardClick, true);
+    return () => {
+      root.removeEventListener("click", suppressSyntheticKeyboardClick, true);
+      if (suppressionTimer.current) clearTimeout(suppressionTimer.current);
+    };
   }, []);
   useEffect(() => {
     if (!state.pinned) return;
@@ -45,7 +52,13 @@ export function useChartInteraction(count: number, columns = 1) {
     const controlled = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Enter", " ", "Escape"];
     if (event.key === "Tab") { dispatch({ type: "key", key: event.key, count, columns }); return; }
     if (!controlled.includes(event.key)) return;
-    event.preventDefault(); dispatch({ type: "key", key: event.key, count, columns });
+    event.preventDefault();
+    if ((event.key === "Enter" || event.key === " ") && state.active !== null) {
+      suppressNextKeyboardClick.current = true;
+      if (suppressionTimer.current) clearTimeout(suppressionTimer.current);
+      suppressionTimer.current = setTimeout(() => { suppressNextKeyboardClick.current = false; }, 0);
+    }
+    dispatch({ type: "key", key: event.key, count, columns });
   };
   const onBlur = (event: FocusEvent<SVGElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) dispatch({ type: "blur" });

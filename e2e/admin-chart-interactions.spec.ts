@@ -26,11 +26,16 @@ async function exerciseChart(chart: Locator) {
   const exactCells = await chart.locator("tbody tr").first().locator("th,td").allTextContents();
   await expect(tooltip).toContainText(exactCells[0]);
   await expect(tooltip).toContainText(exactCells.at(-1)!);
+  await first.evaluate((element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
+  await expect(tooltip).toBeVisible();
+  await first.evaluate((element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
+  await expect(tooltip).toBeHidden();
+  await first.focus();
+  await expect(tooltip).toBeVisible();
   const firstTooltip = await tooltip.innerText();
   await second.focus();
   await expect.poll(() => tooltip.innerText()).not.toBe(firstTooltip);
 
-  await second.focus();
   await first.focus();
   await expect(first).toBeFocused();
   await first.press("ArrowRight");

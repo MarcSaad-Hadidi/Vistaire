@@ -32,7 +32,8 @@
 
 ## Remaining fidelity gaps
 
-- The source-reference 1% release target is not met: the masked comparison is a non-pass at `28.75167%`.
+- Historical pre-final-QA result: the masked comparison was a non-pass at `28.75167%`.
+- Final authoritative result (2026-07-11): `25.92751%`; the source-reference 1% release target remains unmet.
 - The separate internal Playwright mobile regression baseline is approved at 1% regression tolerance and threshold 0.08; it does not assert source-reference fidelity.
 - Real iPhone/Android device behavior and production analytics sufficiency were not tested.
 
@@ -57,4 +58,4 @@ The raw score increased on overview when the mandatory real dish thumbnails and 
 - The official masked mobile diagnostic improved from `28.75167%` to `25.92751%` differing pixels (threshold 20/255). This is an objective `2.82416` percentage-point improvement, but remains a non-pass against the 1% source-reference gate; no pixel-perfect claim is made.
 - The internal 390×903 regression baseline was regenerated only after the above intentional geometry correction and passed on a fresh run.
 
-The versioned `scripts/admin-visual-compare.mjs` implements the official mobile crop and a 24px rounded-corner exclusion mask. The fresh masked result is `28.75167%` against the required `1%` reference-fidelity threshold, so this command intentionally exits non-zero and remains an explicit non-pass. It never substitutes for the approved internal regression baseline. Artifacts are written outside Git. The 390×903 Playwright test asserts that the first availability card — image, name, status and 44px link-toggle — is entirely above the fixed navigation. Six unique keyboard focus steps, the targeted results live region, the mobile navigation ARIA snapshot and effective reduced-motion styles on controls/chart elements are checked in Chromium.
+The versioned `scripts/admin-visual-compare.mjs` implements the official mobile crop and a 24px rounded-corner exclusion mask. Its historical pre-final-QA result was `28.75167%`; the final authoritative result is `25.92751%` against the required `1%` reference-fidelity threshold. This remains an explicit non-pass and never substitutes for the approved internal regression baseline. Artifacts are written outside Git. The 390×903 Playwright test asserts that the first availability card — image, name, status and 44px link-toggle — is entirely above the fixed navigation. Six unique keyboard focus steps, the targeted results live region, the mobile navigation ARIA snapshot and effective reduced-motion styles on controls/chart elements are checked in Chromium.
