@@ -4,6 +4,7 @@ export type AdminPanelEvidence<T> =
   | { kind: "unavailable"; reason: string };
 
 type EventRow = Record<string, unknown>;
+export type AdminAnalyticsPanelScope = { restaurantId: string; menuId: string; source: "production"; metricDefinition: "all-events-v1" };
 type DailyPoint = { day: string; count: number };
 type Ranked = { slug: string; count: number };
 type SearchTerm = { term: string; count: number };
@@ -19,7 +20,7 @@ export type AdminAnalyticsPanels = {
 };
 
 type ServiceWindow = { id: string; label: string; startHourUtc: number; endHourUtc: number; count: number };
-type Input = { currentEvents: EventRow[]; previousEvents: EventRow[]; currentDurationMs: number; previousDurationMs: number; selectedMenuCategorySlugs?: string[]; sourceComplete?: boolean };
+type Input = { currentEvents: EventRow[]; previousEvents: EventRow[]; currentDurationMs: number; previousDurationMs: number; currentScope: AdminAnalyticsPanelScope | null; previousScope: AdminAnalyticsPanelScope | null; selectedMenuCategorySlugs?: string[]; sourceComplete?: boolean };
 
 const stringValue = (row: EventRow, key: string) => typeof row[key] === "string" ? row[key] as string : "";
 function unavailable<T>(): AdminPanelEvidence<T> { return { kind: "unavailable", reason: "source-incomplete" }; }
@@ -38,6 +39,22 @@ function validDate(row: EventRow): Date | null {
 
 function daily(events: EventRow[]): DailyPoint[] {
   return countBy(events.map((row) => validDate(row)?.toISOString().slice(0, 10) ?? "")).map(({ slug, count }) => ({ day: slug, count })).sort((a, b) => a.day.localeCompare(b.day));
+}
+
+export function partitionAdminAnalyticsEvents<T extends EventRow>(events: T[], window: { comparisonStartInclusive: string; comparisonEndExclusive: string; startInclusive: string; endExclusive: string }): { currentEvents: T[]; previousEvents: T[] } {
+  const comparisonStart = Date.parse(window.comparisonStartInclusive);
+  const comparisonEnd = Date.parse(window.comparisonEndExclusive);
+  const currentStart = Date.parse(window.startInclusive);
+  const currentEnd = Date.parse(window.endExclusive);
+  const timestamp = (row: T) => Date.parse(stringValue(row, "created_at"));
+  return {
+    currentEvents: events.filter((row) => { const value = timestamp(row); return Number.isFinite(value) && value >= currentStart && value < currentEnd; }),
+    previousEvents: events.filter((row) => { const value = timestamp(row); return Number.isFinite(value) && value >= comparisonStart && value < comparisonEnd; })
+  };
+}
+
+function scopesMatch(current: AdminAnalyticsPanelScope | null | undefined, previous: AdminAnalyticsPanelScope | null | undefined): boolean {
+  return Boolean(current && previous && current.restaurantId === previous.restaurantId && current.menuId === previous.menuId && current.source === previous.source && current.metricDefinition === previous.metricDefinition);
 }
 
 const serviceDefinitions = [
@@ -72,7 +89,7 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
   const serviceWindows = serviceDefinitions.map((definition) => ({ ...definition, count: input.currentEvents.reduce((count, row) => { const hour = validDate(row)?.getUTCHours(); return count + (hour !== undefined && hour >= definition.startHourUtc && hour < definition.endHourUtc ? 1 : 0); }, 0) }));
   return {
     currentDaily: evidence(current, "no-current-events"),
-    dailyComparison: input.currentDurationMs === input.previousDurationMs && current.length && previous.length ? { kind: "supported", data: { current, previous } } : { kind: "insufficient", reason: "incompatible-or-empty-period" },
+    dailyComparison: !scopesMatch(input.currentScope, input.previousScope) ? { kind: "unavailable", reason: "incompatible-scope" } : input.currentDurationMs === input.previousDurationMs && current.length && previous.length ? { kind: "supported", data: { current, previous } } : { kind: "insufficient", reason: "incompatible-or-empty-period" },
     hourWeekday: evidence(hourWeekday, "no-timestamped-events"),
     categories: evidence(countBy(dishEvents.map((row) => stringValue(row, "category_slug")).filter((slug) => !selectedCategories || selectedCategories.has(slug))), "no-category-evidence"),
     serviceWindows: input.currentEvents.some(validDate) ? { kind: "supported", data: { timezone: "UTC", windows: serviceWindows } } : { kind: "insufficient", reason: "no-timestamped-events" },

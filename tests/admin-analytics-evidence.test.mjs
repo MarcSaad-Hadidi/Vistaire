@@ -59,6 +59,7 @@ test("analytics aggregates obey independent evidence thresholds", async () => {
 
 test("panel evidence derives compatible current and previous UTC days", async () => {
   const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const scope = { restaurantId: "r1", menuId: "m1", source: "production", metricDefinition: "all-events-v1" };
   const panels = buildAdminAnalyticsPanels({
     currentEvents: [
       { event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" },
@@ -69,7 +70,9 @@ test("panel evidence derives compatible current and previous UTC days", async ()
       { event_name: "dish_opened", created_at: "2026-07-03T11:00:00.000Z", dish_slug: "sole", category_slug: "plats" }
     ],
     currentDurationMs: 86_400_000,
-    previousDurationMs: 86_400_000
+    previousDurationMs: 86_400_000,
+    currentScope: scope,
+    previousScope: scope
   });
   assert.equal(panels.dailyComparison.kind, "supported");
   assert.deepEqual(panels.dailyComparison.data.current, [{ day: "2026-07-10", count: 2 }]);
@@ -97,11 +100,12 @@ test("panel evidence exposes UTC heatmap, category and service windows without i
 
 test("single buckets are supported while absent and incomplete sources stay explicit", async () => {
   const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
-  const single = buildAdminAnalyticsPanels({ currentEvents: [{ event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" }], previousEvents: [], currentDurationMs: 1, previousDurationMs: 1 });
+  const scope = { restaurantId: "r1", menuId: "m1", source: "production", metricDefinition: "all-events-v1" };
+  const single = buildAdminAnalyticsPanels({ currentEvents: [{ event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" }], previousEvents: [], currentDurationMs: 1, previousDurationMs: 1, currentScope: scope, previousScope: scope });
   assert.equal(single.currentDaily.kind, "supported");
   assert.equal(single.dailyComparison.kind, "insufficient");
   assert.equal(single.categories.kind, "insufficient");
-  const unavailable = buildAdminAnalyticsPanels({ currentEvents: [], previousEvents: [], currentDurationMs: 1, previousDurationMs: 1, sourceComplete: false });
+  const unavailable = buildAdminAnalyticsPanels({ currentEvents: [], previousEvents: [], currentDurationMs: 1, previousDurationMs: 1, currentScope: scope, previousScope: scope, sourceComplete: false });
   for (const panel of Object.values(unavailable)) assert.equal(panel.kind, "unavailable");
 });
 
@@ -116,4 +120,20 @@ test("category evidence is joined to the selected menu allowlist", async () => {
     selectedMenuCategorySlugs: ["plats"]
   });
   assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 1 }] });
+});
+
+test("panel comparison fails closed when restaurant, menu, source or metric scope differs", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const event = { event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" };
+  const currentScope = { restaurantId: "r1", menuId: "m1", source: "production", metricDefinition: "all-events-v1" };
+  for (const previousScope of [
+    { ...currentScope, restaurantId: "r2" },
+    { ...currentScope, menuId: "m2" },
+    { ...currentScope, source: "demo" },
+    { ...currentScope, metricDefinition: "menu-opens-v1" }
+  ]) {
+    const panels = buildAdminAnalyticsPanels({ currentEvents: [event], previousEvents: [event], currentDurationMs: 1, previousDurationMs: 1, currentScope, previousScope });
+    assert.equal(panels.dailyComparison.kind, "unavailable");
+    assert.equal(panels.dailyComparison.reason, "incompatible-scope");
+  }
 });

@@ -28,3 +28,24 @@ test("current and previous observation periods always have matching durations", 
     assert.equal(Date.parse(value.endExclusive) - Date.parse(value.startInclusive), Date.parse(value.comparisonEndExclusive) - Date.parse(value.comparisonStartInclusive));
   }
 });
+
+test("analytics partition compares parsed instants at exact inclusive and exclusive bounds", async () => {
+  const { partitionAdminAnalyticsEvents } = await import("../lib/admin/analyticsPresentation.ts");
+  const observationWindow = {
+    range: "7d",
+    comparisonStartInclusive: "2026-07-01T00:00:00.250Z",
+    comparisonEndExclusive: "2026-07-02T00:00:00.250Z",
+    startInclusive: "2026-07-02T00:00:00.250Z",
+    endExclusive: "2026-07-03T00:00:00.250Z"
+  };
+  const rows = [
+    { id: "previous-start", created_at: "2026-07-01T00:00:00.250+00:00" },
+    { id: "current-start", created_at: "2026-07-02T00:00:00.250+00:00" },
+    { id: "current-last-ms", created_at: "2026-07-03T00:00:00.249Z" },
+    { id: "exclusive-end", created_at: "2026-07-03T00:00:00.250+00:00" },
+    { id: "invalid", created_at: "not-a-date" }
+  ];
+  const result = partitionAdminAnalyticsEvents(rows, observationWindow);
+  assert.deepEqual(result.previousEvents.map((row) => row.id), ["previous-start"]);
+  assert.deepEqual(result.currentEvents.map((row) => row.id), ["current-start", "current-last-ms"]);
+});
