@@ -1,3 +1,5 @@
+import { ADMIN_ANALYTICS_THRESHOLDS } from "./analyticsThresholds.ts";
+
 export type AdminPanelEvidence<T> =
   | { kind: "supported"; data: T }
   | { kind: "insufficient"; reason: string }
@@ -85,15 +87,17 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
   }).sort((a, b) => a.weekdayUtc - b.weekdayUtc || a.hourUtc - b.hourUtc);
   const dishEvents = input.currentEvents.filter((row) => stringValue(row, "event_name") === "dish_opened");
   const selectedCategories = input.selectedMenuCategorySlugs ? new Set(input.selectedMenuCategorySlugs) : null;
-  const searches = countBy(input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used").map((row) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA")).filter((term) => term && !/@|\d{4,}/.test(term))).map(({ slug: term, count }) => ({ term, count }));
+  const searches = countBy(input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used").map((row) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA")).filter((term) => term && !/@|\d{4,}/.test(term))).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount).map(({ slug: term, count }) => ({ term, count }));
+  const hasRankingSample = dishEvents.length >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents;
+  const rankedItems = (values: string[]) => hasRankingSample ? countBy(values).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedItemCount) : [];
   const serviceWindows = serviceDefinitions.map((definition) => ({ ...definition, count: input.currentEvents.reduce((count, row) => { const hour = validDate(row)?.getUTCHours(); return count + (hour !== undefined && hour >= definition.startHourUtc && hour < definition.endHourUtc ? 1 : 0); }, 0) }));
   return {
     currentDaily: evidence(current, "no-current-events"),
     dailyComparison: !scopesMatch(input.currentScope, input.previousScope) ? { kind: "unavailable", reason: "incompatible-scope" } : input.currentDurationMs === input.previousDurationMs && current.length && previous.length ? { kind: "supported", data: { current, previous } } : { kind: "insufficient", reason: "incompatible-or-empty-period" },
     hourWeekday: evidence(hourWeekday, "no-timestamped-events"),
-    categories: evidence(countBy(dishEvents.map((row) => stringValue(row, "category_slug")).filter((slug) => !selectedCategories || selectedCategories.has(slug))), "no-category-evidence"),
+    categories: evidence(rankedItems(dishEvents.map((row) => stringValue(row, "category_slug")).filter((slug) => !selectedCategories || selectedCategories.has(slug))), "no-category-evidence"),
     serviceWindows: input.currentEvents.some(validDate) ? { kind: "supported", data: { timezone: "UTC", windows: serviceWindows } } : { kind: "insufficient", reason: "no-timestamped-events" },
-    ranking: evidence(countBy(dishEvents.map((row) => stringValue(row, "dish_slug"))), "no-dish-ranking-evidence"),
+    ranking: evidence(rankedItems(dishEvents.map((row) => stringValue(row, "dish_slug"))), "no-dish-ranking-evidence"),
     searches: evidence(searches, "no-search-evidence")
   };
 }

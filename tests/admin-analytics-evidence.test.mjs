@@ -95,7 +95,7 @@ test("panel evidence exposes UTC heatmap, category and service windows without i
     { id: "lunch", label: "Déjeuner (UTC)", startHourUtc: 11, endHourUtc: 15, count: 1 },
     { id: "dinner", label: "Dîner (UTC)", startHourUtc: 18, endHourUtc: 24, count: 1 }
   ]);
-  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 1 }] });
+  assert.deepEqual(panels.categories, { kind: "insufficient", reason: "no-category-evidence" });
 });
 
 test("single buckets are supported while absent and incomplete sources stay explicit", async () => {
@@ -112,14 +112,61 @@ test("single buckets are supported while absent and incomplete sources stay expl
 test("category evidence is joined to the selected menu allowlist", async () => {
   const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
   const panels = buildAdminAnalyticsPanels({
-    currentEvents: [
-      { event_name: "dish_opened", created_at: "2026-07-10T10:00:00.000Z", category_slug: "plats" },
-      { event_name: "dish_opened", created_at: "2026-07-10T11:00:00.000Z", category_slug: "ancienne-carte" }
-    ],
+    currentEvents: Array.from({ length: 20 }, (_, index) => ({
+      event_name: "dish_opened",
+      created_at: `2026-07-10T10:${String(index).padStart(2, "0")}:00.000Z`,
+      category_slug: index < 5 ? "plats" : "ancienne-carte"
+    })),
     previousEvents: [], currentDurationMs: 1, previousDurationMs: 1,
     selectedMenuCategorySlugs: ["plats"]
   });
-  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 1 }] });
+  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 5 }] });
+});
+
+test("panel searches require three normalized occurrences", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  for (const occurrenceCount of [1, 2]) {
+    const panels = buildAdminAnalyticsPanels({
+      currentEvents: Array.from({ length: occurrenceCount }, (_, index) => ({
+        event_name: "search_used",
+        created_at: `2026-07-10T10:0${index}:00.000Z`,
+        search_query: " Saumon "
+      })),
+      previousEvents: [], currentDurationMs: 1, previousDurationMs: 1
+    });
+    assert.deepEqual(panels.searches, { kind: "insufficient", reason: "no-search-evidence" });
+  }
+});
+
+test("panel dish and category rankings require twenty dish opens", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const panels = buildAdminAnalyticsPanels({
+    currentEvents: Array.from({ length: 19 }, (_, index) => ({
+      event_name: "dish_opened",
+      created_at: `2026-07-10T10:${String(index).padStart(2, "0")}:00.000Z`,
+      dish_slug: "sole",
+      category_slug: "plats"
+    })),
+    previousEvents: [], currentDurationMs: 1, previousDurationMs: 1,
+    selectedMenuCategorySlugs: ["plats"]
+  });
+  assert.deepEqual(panels.ranking, { kind: "insufficient", reason: "no-dish-ranking-evidence" });
+  assert.deepEqual(panels.categories, { kind: "insufficient", reason: "no-category-evidence" });
+});
+
+test("panel rankings display only items with at least five opens", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const currentEvents = Array.from({ length: 20 }, (_, index) => ({
+    event_name: "dish_opened",
+    created_at: `2026-07-10T10:${String(index).padStart(2, "0")}:00.000Z`,
+    dish_slug: index < 5 ? "sole" : `hidden-${index}`,
+    category_slug: index < 5 ? "plats" : `hidden-${index}`
+  }));
+  const panels = buildAdminAnalyticsPanels({
+    currentEvents, previousEvents: [], currentDurationMs: 1, previousDurationMs: 1
+  });
+  assert.deepEqual(panels.ranking, { kind: "supported", data: [{ slug: "sole", count: 5 }] });
+  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 5 }] });
 });
 
 test("panel comparison fails closed when restaurant, menu, source or metric scope differs", async () => {

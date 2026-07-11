@@ -219,6 +219,8 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   assert.match(heatmap, /<table/);
   assert.match(comparison, /<svg[\s\S]*<title>[\s\S]*<desc>[\s\S]*<table/);
   assert.match(source, /AdminEvidenceState/);
+  assert.match(insights, /Plats les plus consult.s/);
+  assert.doesNotMatch(insights, /Plats favoris/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
   for (const area of ["activity", "comparison", "heatmap", "dishes", "searches", "categories", "service", "summary", "recommendations"]) {
     assert.match(css, new RegExp(`grid-area:\\s*${area}`));
