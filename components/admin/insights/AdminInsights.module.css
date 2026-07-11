@@ -2,3 +2,8 @@
 @media(max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.bottomGrid{display:flex;flex-direction:column}.grid>section,.bottomGrid>section{min-height:215px}.insightsHeader{align-items:flex-start;flex-direction:column;gap:12px}.action{display:none}.heatmapWrap{height:185px}}
 @media(prefers-reduced-motion:reduce){.comparisonChart polyline,.heatmap i{animation:none!important;transition:none!important}}
 .insightsHeader h2{margin:5px 0 0;font-family:var(--admin-display);font-size:31px;font-weight:400}.insightsHeader>div>a{display:inline-flex;min-width:44px;min-height:44px;align-items:center}.insightsHeader nav a{min-height:44px}.hourLabels,.dayLabels{font-size:12px}.heatmapWrap{grid-template-columns:34px 1fr;grid-template-rows:20px 1fr}
+.insightsHeader{height:0;margin:0}.insightsHeader nav{position:absolute;top:91px;right:0}.grid>section.heatmap{display:block;grid-area:heatmap;grid-column:auto;grid-row:auto}.insightsHeader+section{margin-top:0}
+@media(max-width:900px){.insightsHeader{height:44px}.insightsHeader nav{position:static;margin-left:auto}}
+.srBack{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media(min-width:901px){.kpis{margin-bottom:19px;transform:translateY(9px)}.kpis>article{min-height:120px}.grid{grid-template-columns:392fr 319fr 416fr 402fr}.categories{width:calc(100% - 47px)}.service{width:calc(100% + 47px);margin-left:-47px}}
+.grid>section{overflow:hidden}.bottomGrid>.summary,.bottomGrid>.recommendations{grid-area:auto}

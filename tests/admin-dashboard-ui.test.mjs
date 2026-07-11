@@ -167,6 +167,16 @@ test("admin compact controls preserve 44px hit areas and direct tooltip semantic
   assert.doesNotMatch(primitives, /label\.toLowerCase\(\)/);
 });
 
+test("shared admin shell exposes the approved menu actions on every route", async () => {
+  const shell = await readFile("components/admin/system/AdminShell.tsx", "utf8");
+  const menuActions = await readFile("components/admin/AdminMenuActions.tsx", "utf8");
+  for (const label of ["Ouvrir le menu client", "Copier le lien du menu", "Déconnexion"]) {
+    assert.match(menuActions, new RegExp(label));
+  }
+  assert.match(shell, /<AdminMenuActions menuPath=\{menuPath\}/);
+  assert.doesNotMatch(shell, /actions\?:\s*ReactNode/);
+});
+
 test("overview composes honest evidence panels with accessible exact values", async () => {
   const [page, overview, activity, top, strip, css] = await Promise.all([
     read("app/admin/page.tsx"),

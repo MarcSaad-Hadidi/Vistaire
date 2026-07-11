@@ -41,3 +41,4 @@
 }
 
 @media (min-width: 701px) { .page { margin-top: -17px; } }
+@media (min-width: 701px) { .row { min-height: 86px; } }

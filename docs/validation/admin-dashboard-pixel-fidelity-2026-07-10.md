@@ -34,3 +34,14 @@
 - Header wording/actions and detailed insights panel composition differ materially from the references and require product-component work, not further blind CSS offsets.
 - The mobile alpha corner/reflection mask is documented but not implemented in the coarse comparison script.
 - Real iPhone/Android device behavior and production analytics sufficiency were not tested.
+
+## Structural integration loops after component rewrite
+
+| Screen | Loop | Measured geometry / required repair | Raw diagnostic |
+| --- | --- | --- | ---: |
+| Overview desktop | 3 | KPI `y=219,h=132`; panels `y=363`; KPI order restored; service donut and five ranked thumbnails added | 19.05% |
+| Availability desktop | 3 | Panel/search/first row aligned at `y=215/357/415`; row rhythm changed to 86px; visible/hidden copy restored | 10.88% |
+| Insights desktop | 3 | KPI/rows aligned to `y=140/270/539/763`; heatmap collision repaired; 722/416/402 first-row and 392/319/369/450 second-row proportions restored | 16.35% |
+| Overview mobile | 3 | Four-KPI order, ranked thumbnails, compressed chart and fixed navigation verified at 390 and 430 | 26.89% |
+
+The raw score increased on overview when the mandatory real dish thumbnails and donut were introduced. Visual overlay inspection confirms that this is photo/content delta rather than a regression in the measured outer geometry. The source references contain different plated-food pixels and reference counts; those pixels are intentionally not copied into production data. No masked percentage is asserted because the experimental edge metric did not produce a valid stable comparison. The evidence therefore records native coordinates plus the conservative raw score.
