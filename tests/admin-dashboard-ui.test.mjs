@@ -109,3 +109,42 @@ test("clipboard failures have a visible live alert", async () => {
   assert.match(actions, /role="alert"/);
   assert.match(actions, /Impossible de copier/);
 });
+
+test("admin visual system is scoped, locally typeset and accessible", async () => {
+  const [shell, nav, primitives, icons, css, layout, loading] = await Promise.all([
+    read("components/admin/system/AdminShell.tsx"),
+    read("components/admin/system/AdminNav.tsx"),
+    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminIcons.tsx"),
+    read("components/admin/system/AdminSystem.module.css"),
+    read("app/admin/layout.tsx"),
+    read("app/admin/loading.tsx")
+  ]);
+  const source = `${shell}\n${nav}\n${primitives}\n${icons}\n${layout}\n${loading}`;
+
+  assert.match(shell, /<main/);
+  assert.match(nav, /<nav[^>]+aria-label=/);
+  assert.match(nav, /Vue d.ensemble/);
+  assert.match(nav, /Disponibilit.s/);
+  assert.match(nav, /Analyses/);
+  assert.match(nav, /D.connexion/);
+  assert.doesNotMatch(source, /Param.tres|Assistant|\/owner|sidebar/i);
+
+  assert.match(css, /\.adminRoot\s*\{/);
+  for (const token of ["--admin-bg", "--admin-surface", "--admin-border", "--admin-accent", "--admin-text", "--admin-space-2"]) {
+    assert.match(css, new RegExp(token));
+  }
+  assert.match(css, /@font-face[\s\S]*BT Suave[\s\S]*btsuave-regular\.otf/);
+  assert.match(css, /@font-face[\s\S]*Neue Montreal[\s\S]*NeueMontreal-Regular\.otf/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+
+  for (const primitive of ["AdminPanel", "AdminKpiCard", "AdminEvidenceState", "AdminStatusBadge", "AdminTabs", "AdminTooltip", "AdminToggle", "AdminToast", "AdminSkeleton"]) {
+    assert.match(primitives, new RegExp(`export function ${primitive}`));
+  }
+  assert.match(primitives, /role="status"/);
+  assert.match(primitives, /role="alert"/);
+  assert.match(primitives, /aria-describedby/);
+  assert.match(primitives, /aria-checked/);
+  assert.match(loading, /aria-busy="true"/);
+});
