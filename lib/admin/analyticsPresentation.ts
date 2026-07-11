@@ -8,7 +8,7 @@ export type AdminPanelEvidence<T> =
 type EventRow = Record<string, unknown>;
 export type AdminAnalyticsPanelScope = { restaurantId: string; menuId: string; source: "production"; metricDefinition: "all-events-v1" };
 type DailyPoint = { day: string; count: number };
-type Ranked = { slug: string; count: number };
+type Ranked = { slug: string; count: number; label?: string };
 type SearchTerm = { term: string; count: number };
 
 export type AdminAnalyticsPanels = {
@@ -22,7 +22,7 @@ export type AdminAnalyticsPanels = {
 };
 
 type ServiceWindow = { id: string; label: string; startHourUtc: number; endHourUtc: number; count: number };
-type Input = { currentEvents: EventRow[]; previousEvents: EventRow[]; currentDurationMs: number; previousDurationMs: number; currentScope: AdminAnalyticsPanelScope | null; previousScope: AdminAnalyticsPanelScope | null; selectedMenuCategorySlugs?: string[]; sourceComplete?: boolean };
+type Input = { currentEvents: EventRow[]; previousEvents: EventRow[]; currentDurationMs: number; previousDurationMs: number; currentScope?: AdminAnalyticsPanelScope | null; previousScope?: AdminAnalyticsPanelScope | null; selectedMenuCategorySlugs?: string[]; selectedMenuCategories?: { slug: string; label: string }[]; sourceComplete?: boolean };
 
 const stringValue = (row: EventRow, key: string) => typeof row[key] === "string" ? row[key] as string : "";
 function unavailable<T>(): AdminPanelEvidence<T> { return { kind: "unavailable", reason: "source-incomplete" }; }
@@ -60,12 +60,19 @@ function scopesMatch(current: AdminAnalyticsPanelScope | null | undefined, previ
 }
 
 const serviceDefinitions = [
-  { id: "overnight", label: "Nuit (UTC)", startHourUtc: 0, endHourUtc: 5 },
-  { id: "breakfast", label: "Matin (UTC)", startHourUtc: 5, endHourUtc: 11 },
-  { id: "lunch", label: "Déjeuner (UTC)", startHourUtc: 11, endHourUtc: 15 },
-  { id: "afternoon", label: "Après-midi (UTC)", startHourUtc: 15, endHourUtc: 18 },
-  { id: "dinner", label: "Dîner (UTC)", startHourUtc: 18, endHourUtc: 24 }
+  { id: "overnight", label: "Nuit", startHourUtc: 0, endHourUtc: 5 },
+  { id: "breakfast", label: "Matin", startHourUtc: 5, endHourUtc: 11 },
+  { id: "lunch", label: "Déjeuner", startHourUtc: 11, endHourUtc: 15 },
+  { id: "afternoon", label: "Après-midi", startHourUtc: 15, endHourUtc: 18 },
+  { id: "dinner", label: "Dîner", startHourUtc: 18, endHourUtc: 24 }
 ] as const;
+
+export function isPrivacySafeAdminSearchTerm(value: string): boolean {
+  const term = value.trim();
+  if (!term || term.length > 80) return false;
+  if (/@|https?:\/\/|www\.|\b\d{1,3}(?:\.\d{1,3}){3}\b/i.test(term)) return false;
+  return term.replace(/\D/g, "").length < 7;
+}
 
 export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
   if (input.sourceComplete === false) return {
@@ -86,8 +93,9 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
     return { weekdayUtc, hourUtc, count };
   }).sort((a, b) => a.weekdayUtc - b.weekdayUtc || a.hourUtc - b.hourUtc);
   const dishEvents = input.currentEvents.filter((row) => stringValue(row, "event_name") === "dish_opened");
-  const selectedCategories = input.selectedMenuCategorySlugs ? new Set(input.selectedMenuCategorySlugs) : null;
-  const searches = countBy(input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used").map((row) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA")).filter((term) => term && !/@|\d{4,}/.test(term))).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount).map(({ slug: term, count }) => ({ term, count }));
+  const categoryLabels = new Map(input.selectedMenuCategories?.map(({ slug, label }) => [slug, label]) ?? []);
+  const selectedCategories = input.selectedMenuCategories ? new Set(categoryLabels.keys()) : input.selectedMenuCategorySlugs ? new Set(input.selectedMenuCategorySlugs) : null;
+  const searches = countBy(input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used").map((row) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA")).filter(isPrivacySafeAdminSearchTerm)).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount).map(({ slug: term, count }) => ({ term, count }));
   const hasRankingSample = dishEvents.length >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents;
   const rankedItems = (values: string[]) => hasRankingSample ? countBy(values).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedItemCount) : [];
   const serviceWindows = serviceDefinitions.map((definition) => ({ ...definition, count: input.currentEvents.reduce((count, row) => { const hour = validDate(row)?.getUTCHours(); return count + (hour !== undefined && hour >= definition.startHourUtc && hour < definition.endHourUtc ? 1 : 0); }, 0) }));
@@ -95,7 +103,7 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
     currentDaily: evidence(current, "no-current-events"),
     dailyComparison: !scopesMatch(input.currentScope, input.previousScope) ? { kind: "unavailable", reason: "incompatible-scope" } : input.currentDurationMs === input.previousDurationMs && current.length && previous.length ? { kind: "supported", data: { current, previous } } : { kind: "insufficient", reason: "incompatible-or-empty-period" },
     hourWeekday: evidence(hourWeekday, "no-timestamped-events"),
-    categories: evidence(rankedItems(dishEvents.map((row) => stringValue(row, "category_slug")).filter((slug) => !selectedCategories || selectedCategories.has(slug))), "no-category-evidence"),
+    categories: evidence(rankedItems(dishEvents.map((row) => stringValue(row, "category_slug")).filter((slug) => !selectedCategories || selectedCategories.has(slug))).map((item) => categoryLabels.has(item.slug) ? { ...item, label: categoryLabels.get(item.slug)! } : item), "no-category-evidence"),
     serviceWindows: input.currentEvents.some(validDate) ? { kind: "supported", data: { timezone: "UTC", windows: serviceWindows } } : { kind: "insufficient", reason: "no-timestamped-events" },
     ranking: evidence(rankedItems(dishEvents.map((row) => stringValue(row, "dish_slug"))), "no-dish-ranking-evidence"),
     searches: evidence(searches, "no-search-evidence")
