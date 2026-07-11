@@ -6,4 +6,4 @@
 @media(max-width:900px){.insightsHeader{height:44px}.insightsHeader nav{position:static;margin-left:auto}}
 .srBack{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(min-width:901px){.kpis{margin-bottom:19px;transform:translateY(9px)}.kpis>article{min-height:120px}.grid{grid-template-columns:392fr 319fr 416fr 402fr}.categories{width:calc(100% - 47px)}.service{width:calc(100% + 47px);margin-left:-47px}}
-.grid>section{overflow:hidden}.bottomGrid>.summary,.bottomGrid>.recommendations{grid-area:auto}
+.bottomGrid>.summary,.bottomGrid>.recommendations{grid-area:auto}.service .bars li:nth-child(n+4),.dishes .bars li:nth-child(n+4){display:none}

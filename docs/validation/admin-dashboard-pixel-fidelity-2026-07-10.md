@@ -8,6 +8,8 @@
 - Mobile reference comparison: source crop `x=139,y=69,w=663,h=1535`, resized to 390 × 903. Phone hardware and rounded-corner reflections are excluded conceptually; the coarse metric below does not yet implement an alpha corner mask.
 - Data: an external, read-only PostgREST fixture server bound to loopback for QA. No production write and no synthetic production fallback.
 - Diff metric: fraction of pixels whose maximum RGB channel delta exceeds 20/255. This is a coarse diagnostic, not Playwright snapshot approval.
+- Fresh self-hosted command: `$env:VISTAIRE_ADMIN_VISUAL_FIXTURE='1'; $env:PLAYWRIGHT_BASE_URL='http://127.0.0.1:3120'; npx playwright test e2e/admin-visual.spec.ts --project=chromium`. Playwright launches both the versioned loopback fixture and a development-mode Next server; no external database or manual server is required.
+- The intentional mobile baseline is checked at 1% regression tolerance and per-pixel threshold 0.08. It protects the accepted application render; it does not claim 1% similarity to the source composite.
 
 ## Compare/correct ledger
 
@@ -45,3 +47,5 @@
 | Overview mobile | 3 | Four-KPI order, ranked thumbnails, compressed chart and fixed navigation verified at 390 and 430 | 26.89% |
 
 The raw score increased on overview when the mandatory real dish thumbnails and donut were introduced. Visual overlay inspection confirms that this is photo/content delta rather than a regression in the measured outer geometry. The source references contain different plated-food pixels and reference counts; those pixels are intentionally not copied into production data. No masked percentage is asserted because the experimental edge metric did not produce a valid stable comparison. The evidence therefore records native coordinates plus the conservative raw score.
+
+The versioned `scripts/admin-visual-compare.mjs` implements the official mobile crop and a 24px rounded-corner exclusion mask. The fresh masked result is `27.22%` against a documented conservative blocking ceiling of `30%`; artifacts are written outside Git. The 390×903 Playwright test also asserts that the availability section begins above the fixed navigation. Keyboard focus, the polite live region and the effective reduced-motion transition duration are checked in Chromium.

@@ -78,6 +78,27 @@ test.describe("admin deterministic visual contract", () => {
     await page.setViewportSize({ width: 390, height: 903 });
     await page.goto("/admin", { waitUntil: "networkidle" });
     await stabilize(page);
+    const availability = page.getByRole("heading", { name: "Disponibilité des plats" }).locator("..").locator("..");
+    const mobileNav = page.getByRole("navigation", { name: "Navigation du restaurant" });
+    const availabilityBox = await availability.boundingBox();
+    const navBox = await mobileNav.boundingBox();
+    expect(availabilityBox?.y ?? Infinity).toBeLessThan(navBox?.y ?? 0);
     await capture(page, "overview-mobile-reference");
+    await expect(page).toHaveScreenshot("overview-mobile-390.png", { animations: "disabled", maxDiffPixelRatio: 0.01, threshold: 0.08 });
+  });
+
+  test("keyboard, live region and reduced motion remain effective", async ({ page }) => {
+    await enterLocalPreview(page);
+    await page.setViewportSize({ width: 390, height: 903 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/admin/availability", { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    await expect(page.locator(":focus-visible")).toHaveCount(1);
+    await expect(page.locator('[aria-live="polite"]')).not.toHaveCount(0);
+    const motion = await page.locator("[class*=adminRoot]").evaluate((root) => {
+      const child = root.querySelector("button, a");
+      return child ? getComputedStyle(child).transitionDuration : "missing";
+    });
+    expect(motion).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/);
   });
 });
