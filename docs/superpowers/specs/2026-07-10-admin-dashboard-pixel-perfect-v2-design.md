@@ -100,6 +100,47 @@ These repairs stay narrow and do not alter public menu visuals or owner behavior
 
 Primary measured targets: warm near-black `#0d0c0b`, card surfaces near `#151412`, 1px warm borders near `#332d26`, champagne accent near `#d2aa67`, cream text near `#e7e4de`, 14–17px panel radii, 46–50px pills, and an 8px spacing base. Existing Vistaire fonts are used after computed-metric comparison; no external font is added.
 
+The audited local font pair is mandatory for the first fidelity pass: `BT Suave` regular/medium from `/fonts/vistaire-preview/` for display text and `Neue Montreal` regular/bold for UI text. A fallback may render only while those local files fail to load; font substitution is not an aesthetic option.
+
+### Measured visual sheets
+
+All coordinates below are source-image pixels in `x,y,w,h`, with ±1–3px tolerance for anti-aliased edges and ±3–8px for rasterized glyph bounds. They are starting constraints for the first implementation, then overlays determine the final values.
+
+**01 overview desktop — 1672×941**
+
+- content: `68,0,1530,941`; header identity at x68, H1 y52 with 55–58px display type; actions `936,39,227,52` and `1176,39,238,52`; tabs `68,152,419,46`;
+- KPI row y219–351: `68,219,302,132`, `381,219,292,132`, `683,219,292,132`, `985,219,289,132`, `1285,219,311,132`; 10–12px gaps and 58px icon circles;
+- analytics: activity `68,363,668,359`, top dishes `746,363,430,359`, moment `1185,363,413,174`, category `1185,547,413,175`;
+- activity plot x116–703/y484–687, seven points, 2px champagne line and subtle area fill; donut approximately 100px outer/64px inner; category bars up to 215×9px;
+- availability strip `68,735,1530,199`, five cards with 8px gaps and approximately 91×112px images.
+
+**02 availability desktop — 1672×941**
+
+- shared content/header/tabs geometry; main panel `68,215,1525,649` with 15px radius;
+- summary header y215–343; KPI cards `695,235,269,89`, `978,235,269,89`, `1261,235,288,89`;
+- search `94,357,546,46`; segmented control `928,361,637,40`;
+- rows x94–1565 at y415, 501, 587, 674 and 760 with 81–82px heights; image x105, 160×72; name x292; price x905; status x1162; toggle center x1478;
+- toast `610,864,429,59`; dish names and prices use 18–22px display type.
+
+**03 overview mobile composite — 941×1672**
+
+- application screen crop: `139,69,663,1535`; for a 390px implementation the scale is 1.700 and the comparison target is approximately 390×903 CSS px;
+- the curved corners/reflections are excluded with a documented alpha mask because the phone composite is not a rectangular browser screenshot;
+- crop-relative application blocks: tabs source `155,302,606,56`; KPI cards `155,379,297,134`, `463,379,297,134`, `155,526,297,134`, `463,526,297,134`; activity `155,673,605,310`; top dishes `155,998,605,272`; availability `155,1285,605,189`; bottom navigation source `138,1487,665,119`;
+- only four KPI cards appear; 3D/AR is not added on mobile;
+- the unsupported settings item is the one required visible deviation and becomes a three-destination navigation for overview, availability and insights. Logout remains the circular header action;
+- 44px accessibility is achieved with invisible hit-area expansion where the visible reference control is smaller, not by visibly enlarging or moving the control.
+
+**04 insights desktop — 1672×941**
+
+- content x56–1616; compact H1 46–49px; date control `483,91,190,37`; actions `1022,36,199,43` and `1234,36,205,43`;
+- KPI row y140–260: x56/w319, x386/w298, x695/w291, x998/w296, x1305/w311;
+- first row: activity `56,270,722,260`, comparison `788,270,416,260`, heatmap `1214,270,402,260`; heatmap grid approximately x1267–1595/y334–499, 16×7 cells;
+- second row: top dishes `56,539,392,215`, searches `459,539,319,215`, category `788,539,369,215`, service `1166,539,450,215`;
+- bottom: summary `56,763,911,151`, insights `977,763,639,151`; chart lines 1.5–2px and points 6–7px.
+
+Texture is reproduced with lightweight CSS gradients/noise calibrated by diff; the reference PNG is never used as an application background. Long real values use measured wrapping/truncation rules that preserve card geometry. Visual fixtures are isolated to deterministic test/preview execution and cannot enter a production build.
+
 ### Overview
 
 Desktop follows reference 01: header/actions, two-tab navigation, five supported KPI positions, activity panel, top dishes, service/category panels, and an availability strip. Mobile follows reference 03's reading order, but omits the decorative phone hardware and replaces the fake settings destination. At 390/430px the critical order is restaurant identity, tabs, four priority KPIs, activity, top dishes, and availability.
@@ -137,6 +178,8 @@ No new chart dependency, background PNG, GLB, USDZ, video, canvas, or continuous
 - Geometry target: material edges within 2px at native desktop size.
 - Initial convergence ceiling: 2% differing pixels; release target 1% with per-pixel threshold 0.08, excluding documented photo/font-antialias masks only.
 - Keep only approved Playwright baselines; remove debug captures, overlays, traces, and reports.
+- Each screen receives at least two compare/correct iterations; a single approximate comparison cannot pass the gate.
+- The final evidence ledger includes source, render, overlay, diff, viewport, mismatch category, repair, and the exact reason for every intentional remainder.
 
 ## 11. Worktree ownership
 

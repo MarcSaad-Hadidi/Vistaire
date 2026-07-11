@@ -77,6 +77,7 @@
 - [ ] Add structural tests for scoped tokens, semantic landmarks, two desktop tabs, real mobile destinations, focus styles, evidence states, reduced motion, and no owner/settings/assistant links.
 - [ ] Run `node --test tests/admin-dashboard-ui.test.mjs`; expect failure because the new primitives do not exist.
 - [ ] Implement the shell and primitives using scoped CSS variables measured from the references and existing Vistaire fonts.
+- [ ] Load the existing `BT Suave` display and `Neue Montreal` UI files from `/fonts/vistaire-preview/`; verify both in computed styles before accepting typography.
 - [ ] Keep the shell server-renderable; split copy/logout interactions only where client APIs require them.
 - [ ] Run UI tests, lint, and typecheck; expect success.
 - [ ] Commit with `feat(admin): add premium dashboard visual system`.
@@ -164,9 +165,9 @@
 - Produces: deterministic screenshots, overlay/diff ledger, viewport/accessibility evidence.
 
 - [ ] Configure deterministic locale, timezone, clock, data fixture, font wait, DPR, and animation disablement for screenshots.
-- [ ] Document the useful-screen crop of `03-overview-mobile.png`; never compare application pixels to iPhone hardware pixels.
+- [ ] Version the useful-screen crop contract `x=139,y=69,w=663,h=1535` plus an exclusion mask for rounded corners/reflections; never compare application pixels to iPhone hardware pixels.
 - [ ] Capture 1672×941 overview, availability and insights plus 390×844 and 430×932 overview.
-- [ ] Generate 50% overlays and pixel diffs outside tracked source, record material mismatches, fix P0/P1 geometry/copy/type/color/icon issues, and repeat.
+- [ ] Generate 50% overlays and pixel diffs outside tracked source, record position/size/color/type/spacing/radius/chart/alignment mismatches, fix them, and run at least two compare/correct iterations per screen.
 - [ ] Verify keyboard, focus order, live regions, accessibility tree, reduced motion, touch targets, and `scrollWidth === clientWidth`.
 - [ ] Approve only intentional baselines; remove temporary screenshots, overlays, reports, traces, and video.
 - [ ] Commit with `test(admin): add visual and mobile regression coverage`.
