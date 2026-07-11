@@ -166,3 +166,52 @@ test("admin compact controls preserve 44px hit areas and direct tooltip semantic
   assert.doesNotMatch(primitives, /tooltipTrigger[^>]+tabIndex=/);
   assert.doesNotMatch(primitives, /label\.toLowerCase\(\)/);
 });
+
+test("overview composes honest evidence panels with accessible exact values", async () => {
+  const [page, overview, activity, top, strip, css] = await Promise.all([
+    read("app/admin/page.tsx"),
+    read("components/admin/overview/AdminOverview.tsx"),
+    read("components/admin/overview/AdminActivityChart.tsx"),
+    read("components/admin/overview/AdminTopDishes.tsx"),
+    read("components/admin/overview/AdminAvailabilityStrip.tsx"),
+    read("components/admin/overview/AdminOverview.module.css")
+  ]);
+  const source = `${page}\n${overview}\n${activity}\n${top}\n${strip}`;
+  assert.match(page, /<AdminOverview/);
+  assert.match(source, /AdminShell/);
+  assert.match(source, /href="\/admin\/insights"/);
+  assert.match(source, /href="\/admin\/availability"/);
+  assert.match(activity, /<svg[\s\S]*<title>[\s\S]*<desc>/);
+  assert.match(activity, /<table/);
+  assert.match(source, /AdminEvidenceState/);
+  assert.doesNotMatch(source, /getDemo|Math\.random/);
+  assert.match(css, /grid-template-areas/);
+  assert.match(css, /@media\s*\(max-width:\s*700px\)/);
+  assert.match(css, /\.kpis[^}]*grid-template-columns:\s*repeat\(2/s);
+  assert.match(css, /\.kpiImmersive[^}]*display:\s*none/s);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+});
+
+test("insights renders nine truthful panels with non-hover exact alternatives", async () => {
+  const [page, insights, heatmap, comparison, breakdowns, css] = await Promise.all([
+    read("app/admin/insights/page.tsx"),
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/insights/AdminHeatmap.tsx"),
+    read("components/admin/insights/AdminComparisonChart.tsx"),
+    read("components/admin/insights/AdminBreakdowns.tsx"),
+    read("components/admin/insights/AdminInsights.module.css")
+  ]);
+  const source = `${page}\n${insights}\n${heatmap}\n${comparison}\n${breakdowns}`;
+  assert.match(page, /requireAdminRestaurantAccess\("dashboard:read"\)/);
+  assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
+  assert.match(source, /AdminShell/);
+  assert.match(source, /href="\/admin"/);
+  assert.match(heatmap, /<table/);
+  assert.match(comparison, /<svg[\s\S]*<title>[\s\S]*<desc>[\s\S]*<table/);
+  assert.match(source, /AdminEvidenceState/);
+  assert.doesNotMatch(source, /getDemo|Math\.random/);
+  for (const area of ["activity", "comparison", "heatmap", "dishes", "searches", "categories", "service", "summary", "recommendations"]) {
+    assert.match(css, new RegExp(`grid-area:\\s*${area}`));
+  }
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+});
