@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const loadAvailability = () => import("../lib/admin/availability.ts");
 const loadRequestBody = () => import("../lib/admin/requestBody.ts");
+const loadMutation = () => import("../components/admin/availability/availabilityMutation.ts");
 
 test("bounded JSON reader rejects declared and chunked oversized bodies", async () => {
   const { readBoundedJsonBody } = await loadRequestBody();
@@ -230,27 +231,26 @@ test("missing availability RPC fails closed as a controlled 503 without fallback
 
 test("successful availability changes revalidate admin and public menu paths", async () => {
   const revalidation = await readFile("lib/owner/menuMutationRevalidation.ts", "utf8");
-  const route = await readFile(
-    "app/admin/api/dishes/[dishId]/availability/route.ts",
-    "utf8"
-  );
+  const route = await readFile("app/admin/api/dishes/[dishId]/availability/route.ts", "utf8");
   const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
-
+  const mutation = await readFile("components/admin/availability/availabilityMutation.ts", "utf8");
+  const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
+  const clientContract = `${control}\n${mutation}\n${list}`;
   assert.match(route, /revalidatePath\(["']\/admin["']\)/);
   assert.match(route, /revalidateOwnerMenuMutationPaths/);
   assert.match(route, /preserveAvailabilityResultAfterRevalidation/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}`/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}\/dishes\/\$\{dishSlug\}`/);
-  assert.match(control, /router\.refresh\(\)/);
+  assert.match(clientContract, /router\.refresh\(\)/);
   assert.match(control, /Rendre \$\{dishName\} indisponible/);
   assert.match(control, /Rendre \$\{dishName\} disponible/);
-  assert.match(control, /JSON\.stringify\(\{ available: nextAvailable \}\)/);
-  assert.match(control, /requestSequence/);
-  assert.match(control, /latestRequest/);
-  assert.match(control, /setAvailable\(nextAvailable\)[\s\S]*?fetch\(/);
-  assert.match(control, /setAvailable\(previousAvailable\)/);
-  assert.match(control, /aria-live=["']assertive["']/);
-  assert.doesNotMatch(control, /restaurantId/);
+  assert.match(clientContract, /JSON\.stringify\(\{ available: nextAvailable \}\)/);
+  assert.match(clientContract, /sequence/);
+  assert.match(clientContract, /requestId/);
+  assert.match(clientContract, /setAvailable\(nextAvailable\)[\s\S]*?fetcher/);
+  assert.match(clientContract, /setAvailable\(input\.available\)/);
+  assert.match(clientContract, /AdminToast/);
+  assert.doesNotMatch(clientContract, /restaurantId/);
 });
 
 test("focused availability page exposes only search and final-state filters", async () => {
@@ -285,9 +285,78 @@ test("availability list renders measured rows, imagery, status and toggle feedba
   assert.match(list, /thumbnailUrl|imageUrl/);
   assert.match(list, /AdminStatusBadge/);
   assert.match(control, /AdminToggle/);
-  assert.match(control, /AdminToast/);
+  assert.match(list, /AdminToast/);
   assert.match(css, /grid-template-columns:\s*160px/);
   assert.match(css, /min-height:\s*81px/);
   assert.match(css, /@media \(max-width:\s*700px\)/);
   assert.match(css, /overflow-x:\s*clip/);
+});
+
+test("availability mutation is optimistic, sends no restaurant id, refreshes, and reports success", async () => {
+  const { createAvailabilityMutation } = await loadMutation();
+  const states = [];
+  const feedback = [];
+  let refreshed = 0;
+  const mutation = createAvailabilityMutation({
+    fetcher: async (_url, init) => {
+      assert.deepEqual(JSON.parse(init.body), { available: false });
+      assert.equal(init.body.includes("restaurantId"), false);
+      return { ok: true, json: async () => ({ ok: true, available: false }) };
+    },
+    setAvailable: (value) => states.push(value),
+    setFeedback: (value) => feedback.push(value),
+    refresh: () => { refreshed += 1; }
+  });
+  assert.equal(await mutation.run({ dishId: "dish-1", dishName: "Turbot", available: true }), "success");
+  assert.deepEqual(states, [false]);
+  assert.equal(feedback.at(-1).message, "Turbot est indisponible.");
+  assert.equal(refreshed, 1);
+});
+
+test("availability mutation rolls back errors and suppresses synchronous double activation", async () => {
+  const { createAvailabilityMutation } = await loadMutation();
+  let release;
+  let calls = 0;
+  const states = [];
+  const feedback = [];
+  const mutation = createAvailabilityMutation({
+    fetcher: async () => { calls += 1; return new Promise((resolve) => { release = resolve; }); },
+    setAvailable: (value) => states.push(value),
+    setFeedback: (value) => feedback.push(value),
+    refresh: () => assert.fail("failed mutations must not refresh")
+  });
+  const first = mutation.run({ dishId: "dish-1", dishName: "Turbot", available: true });
+  assert.equal(await mutation.run({ dishId: "dish-1", dishName: "Turbot", available: true }), "ignored");
+  assert.equal(calls, 1);
+  release({ ok: false, json: async () => ({ ok: false, error: "Service indisponible" }) });
+  assert.equal(await first, "error");
+  assert.deepEqual(states, [false, true]);
+  assert.deepEqual(feedback.at(-1), { tone: "error", message: "Service indisponible" });
+});
+
+test("stale availability responses cannot refresh or replace durable feedback", async () => {
+  const { createAvailabilityMutation } = await loadMutation();
+  let release;
+  const feedback = [];
+  let refreshed = 0;
+  const mutation = createAvailabilityMutation({
+    fetcher: async () => new Promise((resolve) => { release = resolve; }),
+    setAvailable: () => {},
+    setFeedback: (value) => feedback.push(value),
+    refresh: () => { refreshed += 1; }
+  });
+  const pending = mutation.run({ dishId: "dish-1", dishName: "Turbot", available: true });
+  mutation.invalidate();
+  release({ ok: true, json: async () => ({ ok: true, available: false }) });
+  assert.equal(await pending, "stale");
+  assert.equal(refreshed, 0);
+  assert.deepEqual(feedback, [{ tone: null, message: null }]);
+});
+
+test("availability overrides yield to refreshed server truth", async () => {
+  const { resolveAvailability } = await loadMutation();
+  const optimistic = { base: true, value: false };
+  assert.equal(resolveAvailability(true, optimistic), false);
+  assert.equal(resolveAvailability(false, optimistic), false);
+  assert.equal(resolveAvailability(true, { base: false, value: true }), true);
 });
