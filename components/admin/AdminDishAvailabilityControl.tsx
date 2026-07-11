@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminToggle } from "@/components/admin/system/AdminPrimitives";
 import { createAvailabilityMutation, type AvailabilityFeedback } from "@/components/admin/availability/availabilityMutation";
 
@@ -17,6 +17,7 @@ export function AdminDishAvailabilityControl({ dishId, dishName, initialAvailabl
     committed: (nextAvailable) => onAvailabilityChange?.(nextAvailable),
     refresh: () => router.refresh()
   }));
+  useEffect(() => () => mutation.invalidate(), [mutation]);
   const updateAvailability = () => mutation.run({ dishId, dishName, available });
   return <div data-admin-availability-slot className="min-w-0"><AdminToggle checked={available} label={available ? `Rendre ${dishName} indisponible` : `Rendre ${dishName} disponible`} disabled={isPending} onClick={updateAvailability} /></div>;
 }

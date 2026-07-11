@@ -360,3 +360,28 @@ test("availability overrides yield to refreshed server truth", async () => {
   assert.equal(resolveAvailability(false, optimistic), false);
   assert.equal(resolveAvailability(true, { base: false, value: true }), true);
 });
+
+test("availability control cleanup invalidates an in-flight response before side effects", async () => {
+  const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
+  assert.match(control, /useEffect\(\(\) => \(\) => mutation\.invalidate\(\), \[mutation\]\)/);
+
+  const { createAvailabilityMutation } = await loadMutation();
+  let release;
+  const committed = [];
+  const feedback = [];
+  let refreshed = 0;
+  const mutation = createAvailabilityMutation({
+    fetcher: async () => new Promise((resolve) => { release = resolve; }),
+    setAvailable: () => {},
+    setFeedback: (value) => feedback.push(value),
+    committed: (value) => committed.push(value),
+    refresh: () => { refreshed += 1; }
+  });
+  const pending = mutation.run({ dishId: "dish-1", dishName: "Turbot", available: true });
+  mutation.invalidate();
+  release({ ok: true, json: async () => ({ ok: true, available: false }) });
+  assert.equal(await pending, "stale");
+  assert.deepEqual(committed, []);
+  assert.deepEqual(feedback, [{ tone: null, message: null }]);
+  assert.equal(refreshed, 0);
+});
