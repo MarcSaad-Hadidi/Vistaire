@@ -422,7 +422,7 @@ test.describe("Vistaire MVP smoke", () => {
     health.expectClean();
   });
 
-  test("admin preview stays public and renders restaurant insight content", async ({
+  test("admin rejects restaurant query bypass and preserves QR access entry", async ({
     page
   }) => {
     const health = installPageHealth(page);
@@ -435,14 +435,11 @@ test.describe("Vistaire MVP smoke", () => {
     );
 
     await expect(page).toHaveURL(/\/admin(?:\?|$)/);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /Les signaux essentiels/i })
+      page.getByRole("heading", { level: 1, name: /Accès dashboard restaurant requis/i })
     ).toBeVisible();
-    await expect(page.getByText(/Assistant Vistaire/i)).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /Explorer le menu client/i })
-    ).toHaveAttribute("href", "/demo");
+    await expect(page.getByLabel(/Code ou lien QR admin/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Accéder au dashboard/i })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     health.expectClean();
   });
