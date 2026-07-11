@@ -5,6 +5,7 @@ import { getNullableString, getString, readAnalyticsEventsForPeriod, readSupabas
 import { buildAdminAnalyticsState, type AdminAnalyticsState } from "@/lib/admin/analyticsState";
 import { partitionAdminAnalyticsEvents } from "@/lib/admin/analyticsPresentation";
 import { resolveAdminObservationWindow, type AdminDashboardRange } from "@/lib/admin/dashboardRange";
+import { resolveAdminDashboardNow } from "@/lib/admin/dashboardClock";
 import { buildAdminMenuReadiness, selectAdminDashboardMenu, type AdminMenuCategory, type AdminMenuDish, type AdminMenuReadiness } from "@/lib/admin/menuReadiness";
 
 export type AdminDashboardData = {
@@ -24,7 +25,7 @@ const toDish = (dish: PublicMenuDish): AdminMenuDish => ({ id: dish.id, slug: di
 const toCategory = (row: AnyRow, index: number): AdminMenuCategory => ({ id: getString(row, ["id"], `category-${index}`), label: getString(row, ["name", "label"], "Carte"), slug: getString(row, ["slug"], `categorie-${index}`) });
 
 export async function loadAdminDashboardData(restaurantId: string, range: AdminDashboardRange = "7d"): Promise<AdminDashboardLoadResult> {
-  return loadAdminDashboardDataWithDependencies(restaurantId, range, { readRows: readSupabaseRowsByFilters, readEvents: readAnalyticsEventsForPeriod, now: () => new Date() });
+  return loadAdminDashboardDataWithDependencies(restaurantId, range, { readRows: readSupabaseRowsByFilters, readEvents: readAnalyticsEventsForPeriod, now: () => resolveAdminDashboardNow(process.env.NODE_ENV, process.env.VISTAIRE_ADMIN_VISUAL_NOW, new Date()) });
 }
 
 export async function loadAdminDashboardDataWithDependencies(restaurantId: string, range: AdminDashboardRange, dependencies: Dependencies): Promise<AdminDashboardLoadResult> {

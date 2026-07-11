@@ -79,10 +79,17 @@ test.describe("admin deterministic visual contract", () => {
     await page.goto("/admin", { waitUntil: "networkidle" });
     await stabilize(page);
     const availability = page.getByRole("heading", { name: "Disponibilité des plats" }).locator("..").locator("..");
+    const firstAvailabilityCard = page.locator("[data-overview-availability-card]").first();
     const mobileNav = page.getByRole("navigation", { name: "Navigation du restaurant" });
     const availabilityBox = await availability.boundingBox();
     const navBox = await mobileNav.boundingBox();
     expect(availabilityBox?.y ?? Infinity).toBeLessThan(navBox?.y ?? 0);
+    await expect(firstAvailabilityCard.locator("img")).toBeVisible();
+    await expect(firstAvailabilityCard.locator("strong").first()).toBeVisible();
+    await expect(firstAvailabilityCard.getByText(/Disponible|Indisponible/)).toBeVisible();
+    await expect(firstAvailabilityCard.getByRole("link", { name: /Gérer la disponibilité/ })).toBeVisible();
+    const cardBox = await firstAvailabilityCard.boundingBox();
+    expect((cardBox?.y ?? Infinity) + (cardBox?.height ?? Infinity)).toBeLessThanOrEqual(navBox?.y ?? 0);
     await capture(page, "overview-mobile-reference");
     await expect(page).toHaveScreenshot("overview-mobile-390.png", { animations: "disabled", maxDiffPixelRatio: 0.01, threshold: 0.08 });
   });
@@ -92,13 +99,13 @@ test.describe("admin deterministic visual contract", () => {
     await page.setViewportSize({ width: 390, height: 903 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/admin/availability", { waitUntil: "networkidle" });
-    await page.keyboard.press("Tab");
-    await expect(page.locator(":focus-visible")).toHaveCount(1);
-    await expect(page.locator('[aria-live="polite"]')).not.toHaveCount(0);
-    const motion = await page.locator("[class*=adminRoot]").evaluate((root) => {
-      const child = root.querySelector("button, a");
-      return child ? getComputedStyle(child).transitionDuration : "missing";
-    });
-    expect(motion).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/);
+    const focusOrder: string[] = [];
+    for (let index=0; index<6; index+=1) { await page.keyboard.press("Tab"); const focused=page.locator(":focus-visible"); await expect(focused).toHaveCount(1); focusOrder.push(await focused.evaluate((element)=>`${element.tagName}:${element.getAttribute("aria-label")||element.textContent?.trim()}`)); }
+    expect(new Set(focusOrder).size).toBe(focusOrder.length);
+    await expect(page.locator('p[aria-live="polite"]')).toContainText(/résultat/);
+    const navigationSnapshot=await page.getByRole("navigation",{name:"Navigation du restaurant"}).ariaSnapshot();
+    expect(navigationSnapshot).toContain("Vue d’ensemble"); expect(navigationSnapshot).toContain("Disponibilités"); expect(navigationSnapshot).toContain("Analyses");
+    const motion = await page.locator("[class*=adminRoot]").evaluate((root) => [...root.querySelectorAll("button,a,svg polyline")].slice(0,20).map((element)=>({animation:getComputedStyle(element).animationDuration,transition:getComputedStyle(element).transitionDuration})));
+    for(const value of motion){expect(value.animation).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/);expect(value.transition).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/)}
   });
 });

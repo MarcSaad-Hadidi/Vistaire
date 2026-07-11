@@ -49,6 +49,7 @@ export default defineConfig({
             NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:3110",
             SUPABASE_SERVICE_ROLE_KEY: "visual-fixture-service-role-key",
             NEXT_PUBLIC_DEMO_RESTAURANT_ID: "11111111-1111-1111-1111-111111111111",
+            VISTAIRE_ADMIN_VISUAL_NOW: "2026-07-10T12:00:00.000Z",
             VISTAIRE_OWNER_E2E_AUTH_BYPASS: "1",
             VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: ownerE2eToken,
             VISTAIRE_OWNER_E2E_EMAIL: "owner-e2e@localhost",
