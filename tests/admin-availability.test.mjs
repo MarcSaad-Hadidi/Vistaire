@@ -252,3 +252,42 @@ test("successful availability changes revalidate admin and public menu paths", a
   assert.match(control, /aria-live=["']assertive["']/);
   assert.doesNotMatch(control, /restaurantId/);
 });
+
+test("focused availability page exposes only search and final-state filters", async () => {
+  const page = await readFile("components/admin/availability/AdminAvailabilityPage.tsx", "utf8");
+  const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
+  const contract = `${page}\n${list}`;
+
+  assert.match(contract, /Rechercher un plat/);
+  assert.match(contract, /Tous/);
+  assert.match(contract, /Disponibles/);
+  assert.match(contract, /Indisponibles/);
+  assert.doesNotMatch(contract, /Prix manquant|Description manquante|Photo manquante|3D\/AR/);
+  assert.doesNotMatch(contract, /Modifier|Exporter|readiness|Prêt/);
+});
+
+test("availability route preserves server scope and shared restaurant shell", async () => {
+  const route = await readFile("app/admin/availability/page.tsx", "utf8");
+  const page = await readFile("components/admin/availability/AdminAvailabilityPage.tsx", "utf8");
+
+  assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);
+  assert.match(route, /loadAdminDashboardData\(access\.restaurantId/);
+  assert.match(page, /AdminShell/);
+  assert.match(page, /active="availability"/);
+  assert.doesNotMatch(`${route}\n${page}`, /restaurantId\s*[:=]\s*[{"']/);
+});
+
+test("availability list renders measured rows, imagery, status and toggle feedback", async () => {
+  const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
+  const css = await readFile("components/admin/availability/AdminAvailability.module.css", "utf8");
+  const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
+
+  assert.match(list, /thumbnailUrl|imageUrl/);
+  assert.match(list, /AdminStatusBadge/);
+  assert.match(control, /AdminToggle/);
+  assert.match(control, /AdminToast/);
+  assert.match(css, /grid-template-columns:\s*160px/);
+  assert.match(css, /min-height:\s*81px/);
+  assert.match(css, /@media \(max-width:\s*700px\)/);
+  assert.match(css, /overflow-x:\s*clip/);
+});
