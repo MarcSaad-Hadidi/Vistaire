@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { cloneElement, useId } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { AlertIcon, InfoIcon } from "./AdminIcons";
 import styles from "./AdminSystem.module.css";
 
@@ -27,9 +28,11 @@ export function AdminTabs({ active, className }: { active: "overview" | "availab
   return <nav className={classes(styles.tabs, className)} aria-label="Sections principales"><Link href="/admin" aria-current={active === "overview" ? "page" : undefined}>Vue d’ensemble</Link><Link href="/admin/availability" aria-current={active === "availability" ? "page" : undefined}>Disponibilités</Link></nav>;
 }
 
-export function AdminTooltip({ label, children }: { label: string; children: ReactNode }) {
-  const id = `admin-tip-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-  return <span className={styles.tooltip}><span className={styles.tooltipTrigger} tabIndex={0} aria-describedby={id}>{children}</span><span className={styles.tooltipBubble} id={id} role="tooltip">{label}</span></span>;
+export function AdminTooltip({ label, children }: { label: string; children: ReactElement<{ "aria-describedby"?: string }> }) {
+  const reactId = useId();
+  const id = `admin-tip-${reactId}`;
+  const describedBy = [children.props["aria-describedby"], id].filter(Boolean).join(" ");
+  return <span className={styles.tooltip}>{cloneElement(children, { "aria-describedby": describedBy })}<span className={styles.tooltipBubble} id={id} role="tooltip">{label}</span></span>;
 }
 
 export function AdminToggle({ checked, label, ...props }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "role"> & { checked: boolean; label: string }) {

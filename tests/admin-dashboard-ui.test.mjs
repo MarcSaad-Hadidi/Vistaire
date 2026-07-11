@@ -148,3 +148,21 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
   assert.match(primitives, /aria-checked/);
   assert.match(loading, /aria-busy="true"/);
 });
+
+test("admin compact controls preserve 44px hit areas and direct tooltip semantics", async () => {
+  const [primitives, css] = await Promise.all([
+    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminSystem.module.css")
+  ]);
+
+  assert.match(css, /\.tabs a::before\s*\{[^}]*inset:\s*-3px\s+0/s);
+  assert.match(css, /\.toggle\s*\{[^}]*height:\s*44px/s);
+  assert.match(css, /\.toggle::before\s*\{[^}]*height:\s*28px/s);
+  assert.match(css, /\.mobileNav a\s*\{[^}]*font-size:\s*12px/s);
+
+  assert.match(primitives, /useId\(\)/);
+  assert.match(primitives, /cloneElement/);
+  assert.match(primitives, /aria-describedby/);
+  assert.doesNotMatch(primitives, /tooltipTrigger[^>]+tabIndex=/);
+  assert.doesNotMatch(primitives, /label\.toLowerCase\(\)/);
+});

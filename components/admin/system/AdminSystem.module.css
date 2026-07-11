@@ -34,7 +34,8 @@
 .kpiDetail { margin: 7px 0 0; color: var(--admin-muted); font-size: 12px; }
 .kpiTrend { align-self: flex-end; margin-left: auto; }
 .tabs { display: inline-grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); min-height: 46px; margin-bottom: 20px; padding: 4px; border: 1px solid var(--admin-border); border-radius: 999px; background: #11100e; }
-.tabs a { display: grid; min-height: 38px; padding: 0 22px; place-items: center; border-radius: 999px; color: var(--admin-muted); font-size: 13px; text-decoration: none; }
+.tabs a { position: relative; display: grid; min-height: 38px; padding: 0 22px; place-items: center; border-radius: 999px; color: var(--admin-muted); font-size: 13px; text-decoration: none; }
+.tabs a::before { position: absolute; content: ""; inset: -3px 0; }
 .tabs a[aria-current="page"] { color: #17130d; background: var(--admin-accent); box-shadow: 0 4px 18px rgba(210,170,103,.18); }
 .badge { display: inline-flex; align-items: center; min-height: 26px; padding: 3px 10px; border: 1px solid var(--admin-border); border-radius: 999px; color: var(--admin-muted); font-size: 11px; font-weight: 700; }
 .badge_available { border-color: rgba(142,170,121,.32); color: #b6cba6; background: rgba(142,170,121,.1); }
@@ -46,9 +47,10 @@
 .evidence p { margin: 3px 0 0; font-size: 13px; }
 .iconButton { display: grid; width: 48px; height: 48px; padding: 0; place-items: center; border: 1px solid var(--admin-border); border-radius: 50%; color: var(--admin-text); background: var(--admin-surface); cursor: pointer; }
 .iconButton svg { width: 19px; height: 19px; }
-.toggle { position: relative; width: 48px; height: 28px; padding: 0; border: 1px solid var(--admin-border); border-radius: 999px; background: #292620; cursor: pointer; }
-.toggle span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--admin-muted); transition: transform 220ms ease, background 220ms ease; }
-.toggle[aria-checked="true"] { border-color: var(--admin-accent); background: var(--admin-accent-soft); }
+.toggle { position: relative; width: 48px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.toggle::before { position: absolute; top: 8px; left: 0; width: 48px; height: 28px; border: 1px solid var(--admin-border); border-radius: 999px; background: #292620; content: ""; }
+.toggle span { position: absolute; top: 12px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--admin-muted); transition: transform 220ms ease, background 220ms ease; }
+.toggle[aria-checked="true"]::before { border-color: var(--admin-accent); background: var(--admin-accent-soft); }
 .toggle[aria-checked="true"] span { background: var(--admin-accent); transform: translateX(20px); }
 .tooltip { position: relative; display: inline-flex; }
 .tooltipTrigger { display: inline-flex; }
@@ -65,7 +67,7 @@
 .loadingCard { height: 132px; }
 .loadingPanel { height: 360px; margin-top: 12px; }
 .mobileNav { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; display: none; min-height: 76px; grid-template-columns: repeat(3, 1fr); padding: 7px max(10px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); border-top: 1px solid var(--admin-border); background: rgba(15,14,12,.96); backdrop-filter: blur(18px); }
-.mobileNav a { display: flex; min-width: 0; min-height: 54px; align-items: center; justify-content: center; flex-direction: column; gap: 4px; border-radius: 12px; color: var(--admin-muted); font-size: 10px; text-align: center; text-decoration: none; }
+.mobileNav a { display: flex; min-width: 0; min-height: 54px; align-items: center; justify-content: center; flex-direction: column; gap: 4px; border-radius: 12px; color: var(--admin-muted); font-size: 12px; text-align: center; text-decoration: none; }
 .mobileNav a[aria-current="page"] { color: var(--admin-accent); background: rgba(210,170,103,.07); }
 .mobileNav svg { width: 20px; height: 20px; }
 .adminRoot :focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 3px; }
@@ -92,4 +94,3 @@
 @media (prefers-reduced-motion: reduce) {
   .adminRoot *, .adminRoot *::before, .adminRoot *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
-
