@@ -12,6 +12,27 @@ const observationWindow = {
 
 const scope = { restaurantId: "r1", menuId: "m1", source: "production", metricDefinition: "all-events-v1" };
 
+test("pixel-reference fixture preserves exact totals with shaped visual evidence", async () => {
+  const { buildAdminVisualFixtureTables } = await import("../e2e/support/adminVisualFixtureData.ts");
+  const { analytics_events: events } = buildAdminVisualFixtureTables();
+  const current = events.filter((event) => event.id?.startsWith("current-") && event.created_at >= observationWindow.startInclusive && event.created_at < observationWindow.endExclusive);
+  const totals = Object.fromEntries(
+    ["menu_opened", "dish_opened", "search_used"].map((name) => [name, current.filter((event) => event.event_name === name).length])
+  );
+  totals.immersive = current.filter((event) => event.event_name === "dish_3d_clicked" || event.event_name === "dish_ar_clicked").length;
+  assert.deepEqual(totals, { menu_opened: 1286, dish_opened: 3742, search_used: 562, immersive: 412 });
+
+  const dishEvents = current.filter((event) => event.event_name === "dish_opened");
+  const searchEvents = current.filter((event) => event.event_name === "search_used");
+  assert.ok(new Set(dishEvents.map((event) => event.dish_id).reduce((counts, id) => counts.set(id, (counts.get(id) ?? 0) + 1), new Map()).values()).size >= 5);
+  assert.ok(new Set(searchEvents.map((event) => event.search_query).reduce((counts, query) => counts.set(query, (counts.get(query) ?? 0) + 1), new Map()).values()).size >= 4);
+  assert.ok(new Set(current.filter((event) => event.event_name === "menu_opened").reduce((counts, event) => {
+    const day = event.created_at.slice(0, 10);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+    return counts;
+  }, new Map()).values()).size >= 5);
+});
+
 test("real analytics exposes exact raw KPIs independently from privacy breakdowns", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const events = [

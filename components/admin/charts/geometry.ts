@@ -81,7 +81,11 @@ export function buildBandGeometry(values: number[], options: PlotSize & { gap?: 
 }
 
 export function polarPoint(cx: number, cy: number, radius: number, angle: number) {
-  return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+  const coordinate = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
+  return {
+    x: coordinate(cx + Math.cos(angle) * radius),
+    y: coordinate(cy + Math.sin(angle) * radius),
+  };
 }
 
 export function buildDonutSegments(values: number[], outerRadius: number, innerRadius: number) {

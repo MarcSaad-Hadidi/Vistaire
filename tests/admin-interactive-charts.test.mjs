@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildBandGeometry,
   buildDonutSegments,
+  donutPath,
   buildHeatmapCells,
   buildLineDomain,
   buildLineGeometry,
@@ -16,6 +17,14 @@ import {
   normalizeComparisonSeries,
   normalizeDonutData,
 } from "../components/admin/charts/index.ts";
+
+test("donut paths use hydration-stable bounded coordinates", () => {
+  const segments = buildDonutSegments([1932, 1292, 333, 185], 88, 54);
+  for (const segment of segments) {
+    const path = donutPath(segment, 110, 110);
+    assert.doesNotMatch(path, /\.\d{7,}/, "SVG coordinates should be normalized before server rendering");
+  }
+});
 
 test("line geometry pads flat domains and clamps points to the plot", () => {
   const flat = buildLineGeometry([4, 4, 4], { width: 300, height: 120, padding: 12 });

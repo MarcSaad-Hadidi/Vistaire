@@ -12,6 +12,24 @@ const periodTotals = {
 
 const searchTerms = ["homard bleu", "risotto cèpes", "sole meunière", "tartare de saumon", "dessert chocolat", "menu végétarien"];
 
+const dishWeights = [18, 16, 14, 12, 10, 9, 7, 5, 4, 2, 2, 1];
+const searchWeights = [31, 24, 18, 13, 9, 5];
+const currentDayWeights = [11, 14, 18, 21, 17, 12, 7];
+const previousDayWeights = [9, 13, 16, 20, 19, 14, 9];
+const serviceHours = [12, 13, 19, 20, 14, 18, 21, 11, 15, 17];
+const serviceWeights = [7, 13, 18, 17, 10, 14, 9, 3, 5, 4];
+
+function weightedIndex(index: number, weights: readonly number[]): number {
+  const cycle = weights.reduce((total, weight) => total + weight, 0);
+  const cursor = index % cycle;
+  let boundary = 0;
+  for (let candidate = 0; candidate < weights.length; candidate++) {
+    boundary += weights[candidate];
+    if (cursor < boundary) return candidate;
+  }
+  return weights.length - 1;
+}
+
 export function filterAdminVisualFixtureRows<T extends Record<string, unknown>>(rows: T[], filters: Iterable<[string, string]>): T[] {
   let filtered = rows;
   for (const [column, raw] of filters) {
@@ -71,7 +89,13 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
   const analytics_events: Record<string, string>[] = [];
   const addEvents = (period: keyof typeof periodTotals, startDay: number, month: number) => {
     const totals = periodTotals[period];
-    const timestamp = (index: number) => new Date(Date.UTC(2026, month, startDay + (index % 7), 13 + (index % 10), index % 60)).toISOString();
+    const dayWeights = period === "current" ? currentDayWeights : previousDayWeights;
+    const timestamp = (index: number) => {
+      const dayIndex = weightedIndex(index, dayWeights);
+      const serviceHour = serviceHours[weightedIndex(index * 37 + Math.floor(index / 7), serviceWeights)];
+      const hour = dayIndex === 0 ? Math.max(12, serviceHour) : serviceHour;
+      return new Date(Date.UTC(2026, month, startDay + dayIndex, hour, index % 60)).toISOString();
+    };
     const common = (eventName: string, index: number) => ({
       id: `${period}-${eventName}-${index}`,
       restaurant_id: restaurantId,
@@ -83,13 +107,13 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     });
     for (let index = 0; index < totals.menu_opened; index++) analytics_events.push(common("menu_opened", index));
     for (let index = 0; index < totals.dish_opened; index++) {
-      const dish = menu_dishes[index % menu_dishes.length];
+      const dish = menu_dishes[weightedIndex(index, dishWeights)];
       const category = menu_categories.find((candidate) => candidate.id === dish.category_id)!;
       analytics_events.push({ ...common("dish_opened", index), dish_id: dish.id, dish_slug: dish.slug, category_slug: category.slug });
     }
-    for (let index = 0; index < totals.search_used; index++) analytics_events.push({ ...common("search_used", index), search_query: searchTerms[index % searchTerms.length] });
+    for (let index = 0; index < totals.search_used; index++) analytics_events.push({ ...common("search_used", index), search_query: searchTerms[weightedIndex(index, searchWeights)] });
     for (let index = 0; index < totals.immersive; index++) {
-      const dish = menu_dishes[index % menu_dishes.length];
+      const dish = menu_dishes[weightedIndex(index, dishWeights)];
       analytics_events.push({ ...common(index % 2 === 0 ? "dish_3d_clicked" : "dish_ar_clicked", index), dish_id: dish.id, dish_slug: dish.slug });
     }
   };

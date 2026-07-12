@@ -68,7 +68,7 @@ export function InteractiveDonut({
       return <li key={`${item.label}:${index}`}>
       <i aria-hidden="true" style={{ "--legend-color": visual.color, "--legend-detail": visual.swatch } as React.CSSProperties} />
       <span>{item.label}</span>
-      {detailed ? <strong>{text(item.value)} <small data-chart-percentage>{percentage(item.value)}</small></strong> : null}
+      {detailed ? <strong>{formatChartValue(item.value)} <small data-chart-percentage>{percentage(item.value)}</small></strong> : null}
     </li>;
     })}</ul>}
     plot={(ids) => <svg
