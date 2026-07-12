@@ -34,6 +34,28 @@ test("real analytics exposes exact raw KPIs independently from privacy breakdown
   assert.deepEqual(state.searches, []);
 });
 
+test("event KPI comparisons use exact previous-period counts while availability has no invented baseline", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const make = (event_name, count, period) => Array.from({ length: count }, (_, index) => ({
+    event_name,
+    created_at: period === "current" ? `2026-07-04T${String(12 + (index % 8)).padStart(2, "0")}:00:00.000Z` : `2026-06-27T${String(12 + (index % 8)).padStart(2, "0")}:00:00.000Z`
+  }));
+  const state = buildAdminAnalyticsState({
+    observationWindow,
+    events: [...make("menu_opened", 10, "current"), ...make("dish_opened", 8, "current"), ...make("search_used", 6, "current"), ...make("dish_3d_clicked", 4, "current")],
+    previousEvents: [...make("menu_opened", 8, "previous"), ...make("dish_opened", 10, "previous"), ...make("search_used", 3, "previous"), ...make("dish_3d_clicked", 2, "previous")],
+    analyticsScope: scope,
+    availableDishCount: 9
+  });
+  assert.equal(state.kind, "real");
+  const metrics = Object.fromEntries(state.metrics.map((metric) => [metric.id, metric]));
+  assert.deepEqual(metrics["menu-opens"], { id: "menu-opens", value: 10, baseline: 8, changeRate: 0.25 });
+  assert.deepEqual(metrics["dish-opens"], { id: "dish-opens", value: 8, baseline: 10, changeRate: -0.2 });
+  assert.deepEqual(metrics.searches, { id: "searches", value: 6, baseline: 3, changeRate: 1 });
+  assert.deepEqual(metrics.immersive, { id: "immersive", value: 4, baseline: 2, changeRate: 1 });
+  assert.deepEqual(metrics["available-dishes"], { id: "available-dishes", value: 9, changeRate: null });
+});
+
 test("metric series carry compatible current and previous points with timestamp labels", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const current = [
@@ -89,7 +111,50 @@ test("category labels come from the selected menu and service labels do not repe
   });
   assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", label: "Plats principaux", count: 20 }] });
   assert.equal(panels.serviceWindows.kind, "supported");
+  assert.deepEqual(panels.serviceWindows.data.windows.map(({ label }) => label), ["Nuit", "Matin", "Midi", "Après-midi", "Soirée"]);
   assert.ok(panels.serviceWindows.data.windows.every((item) => !item.label.includes("UTC")));
+});
+
+test("daily panels and publishable searches retain dense aligned evidence", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const currentEvents = [
+    { event_name: "menu_opened", created_at: "2026-07-03T12:00:00.000Z" },
+    ...Array.from({ length: 3 }, (_, index) => ({ event_name: "search_used", search_query: " sole ", created_at: `2026-07-09T${13 + index}:00:00.000Z` }))
+  ];
+  const previousEvents = [
+    { event_name: "menu_opened", created_at: "2026-06-26T12:00:00.000Z" },
+    ...Array.from({ length: 2 }, (_, index) => ({ event_name: "search_used", search_query: "sole", created_at: `2026-06-28T0${index + 1}:00:00.000Z` }))
+  ];
+  const panels = buildAdminAnalyticsPanels({
+    currentEvents,
+    previousEvents,
+    currentDurationMs: 7 * 86_400_000,
+    previousDurationMs: 7 * 86_400_000,
+    currentScope: scope,
+    previousScope: scope,
+    currentPeriod: { startInclusive: observationWindow.startInclusive, endExclusive: observationWindow.endExclusive, bucketCount: 7 },
+    previousPeriod: { startInclusive: observationWindow.comparisonStartInclusive, endExclusive: observationWindow.comparisonEndExclusive, bucketCount: 7 }
+  });
+  assert.equal(panels.currentDaily.kind, "supported");
+  assert.deepEqual(panels.currentDaily.data.map(({ count }) => count), [1, 0, 0, 0, 0, 0, 3]);
+  assert.equal(panels.dailyComparison.kind, "supported");
+  assert.equal(panels.dailyComparison.data.current.length, 7);
+  assert.equal(panels.dailyComparison.data.previous.length, 7);
+  assert.deepEqual(panels.searches, { kind: "supported", data: [{
+    term: "sole",
+    count: 3,
+    previousCount: 2,
+    changeRate: 0.5,
+    daily: [0, 0, 0, 0, 0, 0, 3]
+  }] });
+});
+
+test("premium analytics copy maps internal freshness and evidence reasons deterministically", async () => {
+  const { adminEvidenceReasonCopy, adminFreshnessCopy } = await import("../lib/admin/analyticsPresentationCopy.ts");
+  assert.deepEqual(["fresh", "delayed", "stale"].map(adminFreshnessCopy), ["Données à jour", "Mise à jour différée", "Données anciennes"]);
+  assert.equal(adminEvidenceReasonCopy("incompatible-scope"), "La comparaison n’est pas disponible pour ce périmètre.");
+  assert.equal(adminEvidenceReasonCopy("source-incomplete"), "La lecture des données est incomplète.");
+  assert.equal(adminEvidenceReasonCopy("unknown-internal-code"), "Les données ne permettent pas encore d’afficher cette analyse.");
 });
 
 test("search privacy rejects common direct identifiers", async () => {
@@ -101,13 +166,16 @@ test("search privacy rejects common direct identifiers", async () => {
 });
 
 test("visual fixture is a full distinct menu with previous evidence and scoped filtering", async () => {
-  const fixture = await readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8");
-  assert.match(fixture, /buildAdminVisualFixtureTables/);
-  assert.match(fixture, /addPeriod\("previous"/);
-  assert.match(fixture, /searchParams/);
-  assert.match(fixture, /restaurant_id/);
-  assert.match(fixture, /menu_id/);
-  assert.match(fixture, /source/);
+  const [server, data] = await Promise.all([
+    readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8"),
+    readFile("e2e/support/adminVisualFixtureData.ts", "utf8")
+  ]);
+  assert.match(server, /buildAdminVisualFixtureTables/);
+  assert.match(data, /addEvents\("previous"/);
+  assert.match(server, /searchParams/);
+  assert.match(data, /restaurant_id/);
+  assert.match(data, /menu_id/);
+  assert.match(data, /source/);
 });
 
 test("visual fixture menu is structurally identical to canonical Maison Elysee data", async () => {
@@ -132,4 +200,45 @@ test("visual fixture menu is structurally identical to canonical Maison Elysee d
   assert.ok(fullMenuDishes.some((dish) => dish.is_available));
   assert.ok(fullMenuDishes.some((dish) => !dish.is_available));
   assert.deepEqual(fullMenuDishes.map((dish) => dish.id), fixtureDishes.map((dish) => tables.menu_dishes.find((candidate) => candidate.slug === dish.slug)?.id));
+});
+
+test("pixel fixture carries exact coherent current and previous analytics below the per-read cap", async () => {
+  const { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows } = await import("../e2e/support/adminVisualFixtureData.ts");
+  const tables = buildAdminVisualFixtureTables();
+  const scoped = tables.analytics_events.filter((row) => row.restaurant_id === tables.restaurantId && row.menu_id === tables.menuId && row.source === "production");
+  const periods = {
+    current: scoped.filter((row) => row.created_at >= "2026-07-03T12:00:00.000Z" && row.created_at < "2026-07-10T12:00:00.000Z"),
+    previous: scoped.filter((row) => row.created_at >= "2026-06-26T12:00:00.000Z" && row.created_at < "2026-07-03T12:00:00.000Z")
+  };
+  const count = (rows, names) => rows.filter((row) => names.includes(row.event_name)).length;
+  assert.deepEqual({
+    menu: count(periods.current, ["menu_opened"]),
+    dish: count(periods.current, ["dish_opened"]),
+    search: count(periods.current, ["search_used"]),
+    immersive: count(periods.current, ["dish_3d_clicked", "dish_ar_clicked"])
+  }, { menu: 1286, dish: 3742, search: 562, immersive: 412 });
+  assert.deepEqual({
+    menu: count(periods.previous, ["menu_opened"]),
+    dish: count(periods.previous, ["dish_opened"]),
+    search: count(periods.previous, ["search_used"]),
+    immersive: count(periods.previous, ["dish_3d_clicked", "dish_ar_clicked"])
+  }, { menu: 1090, dish: 3018, search: 502, immersive: 315 });
+  assert.ok(periods.current.length < 10_000);
+  assert.ok(periods.previous.length < 10_000);
+  assert.ok(new Set(periods.current.filter((row) => row.event_name === "search_used").map((row) => row.search_query)).size >= 5);
+  assert.ok(tables.analytics_events.some((row) => row.restaurant_id === "foreign-restaurant"));
+  assert.ok(tables.analytics_events.some((row) => row.restaurant_id === tables.restaurantId && row.menu_id === "foreign-menu"));
+  assert.equal(scoped.some((row) => row.id === "foreign-menu-event"), false);
+  const boundaryScoped = filterAdminVisualFixtureRows(tables.analytics_events, [
+    ["restaurant_id", `eq.${tables.restaurantId}`],
+    ["menu_id", `eq.${tables.menuId}`],
+    ["source", "eq.production"],
+    ["created_at", "gte.2026-07-03T12:00:00.000Z"],
+    ["created_at", "lt.2026-07-10T12:00:00.000Z"]
+  ]);
+  assert.equal(boundaryScoped.length, periods.current.length);
+  assert.equal(boundaryScoped.some((row) => row.id === "foreign-event" || row.id === "foreign-menu-event"), false);
+  const server = await readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8");
+  assert.match(server, /request\.headers\.range/);
+  assert.match(server, /rows\.slice\(rangeStart,\s*rangeEnd\s*\+\s*1\)/);
 });

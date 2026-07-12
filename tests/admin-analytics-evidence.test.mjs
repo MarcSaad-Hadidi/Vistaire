@@ -92,8 +92,8 @@ test("panel evidence exposes UTC heatmap, category and service windows without i
   assert.equal(panels.serviceWindows.kind, "supported");
   assert.equal(panels.serviceWindows.data.timezone, "UTC");
   assert.deepEqual(panels.serviceWindows.data.windows.filter((item) => item.count), [
-    { id: "lunch", label: "Déjeuner", startHourUtc: 11, endHourUtc: 15, count: 1 },
-    { id: "dinner", label: "Dîner", startHourUtc: 18, endHourUtc: 24, count: 1 }
+    { id: "lunch", label: "Midi", startHourUtc: 11, endHourUtc: 15, count: 1 },
+    { id: "dinner", label: "Soirée", startHourUtc: 18, endHourUtc: 24, count: 1 }
   ]);
   assert.deepEqual(panels.categories, { kind: "insufficient", reason: "no-category-evidence" });
 });

@@ -9,7 +9,8 @@ type EventRow = Record<string, unknown>;
 export type AdminAnalyticsPanelScope = { restaurantId: string; menuId: string; source: "production"; metricDefinition: "all-events-v1" };
 type DailyPoint = { day: string; count: number };
 type Ranked = { slug: string; count: number; label?: string };
-type SearchTerm = { term: string; count: number };
+type SearchTerm = { term: string; count: number; previousCount: number; changeRate: number | null; daily: number[] };
+type DensePeriod = { startInclusive: string; endExclusive: string; bucketCount: number };
 
 export type AdminAnalyticsPanels = {
   currentDaily: AdminPanelEvidence<DailyPoint[]>;
@@ -22,7 +23,7 @@ export type AdminAnalyticsPanels = {
 };
 
 type ServiceWindow = { id: string; label: string; startHourUtc: number; endHourUtc: number; count: number };
-type Input = { currentEvents: EventRow[]; previousEvents: EventRow[]; currentDurationMs: number; previousDurationMs: number; currentScope?: AdminAnalyticsPanelScope | null; previousScope?: AdminAnalyticsPanelScope | null; selectedMenuCategorySlugs?: string[]; selectedMenuCategories?: { slug: string; label: string }[]; sourceComplete?: boolean };
+type Input = { currentEvents: EventRow[]; previousEvents: EventRow[]; currentDurationMs: number; previousDurationMs: number; currentPeriod?: DensePeriod; previousPeriod?: DensePeriod; currentScope?: AdminAnalyticsPanelScope | null; previousScope?: AdminAnalyticsPanelScope | null; selectedMenuCategorySlugs?: string[]; selectedMenuCategories?: { slug: string; label: string }[]; sourceComplete?: boolean };
 
 const stringValue = (row: EventRow, key: string) => typeof row[key] === "string" ? row[key] as string : "";
 function unavailable<T>(): AdminPanelEvidence<T> { return { kind: "unavailable", reason: "source-incomplete" }; }
@@ -41,6 +42,22 @@ function validDate(row: EventRow): Date | null {
 
 function daily(events: EventRow[]): DailyPoint[] {
   return countBy(events.map((row) => validDate(row)?.toISOString().slice(0, 10) ?? "")).map(({ slug, count }) => ({ day: slug, count })).sort((a, b) => a.day.localeCompare(b.day));
+}
+
+function denseDaily(events: EventRow[], period?: DensePeriod): DailyPoint[] {
+  if (!period) return daily(events);
+  const start = Date.parse(period.startInclusive);
+  const end = Date.parse(period.endExclusive);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || period.bucketCount < 1) return [];
+  const duration = (end - start) / period.bucketCount;
+  const counts = Array.from({ length: period.bucketCount }, () => 0);
+  for (const row of events) {
+    const timestamp = validDate(row)?.getTime();
+    if (timestamp === undefined) continue;
+    const index = Math.floor((timestamp - start) / duration);
+    if (index >= 0 && index < counts.length) counts[index] += 1;
+  }
+  return counts.map((count, index) => ({ day: new Date(start + index * duration).toISOString().slice(0, 10), count }));
 }
 
 export function partitionAdminAnalyticsEvents<T extends EventRow>(events: T[], window: { comparisonStartInclusive: string; comparisonEndExclusive: string; startInclusive: string; endExclusive: string }): { currentEvents: T[]; previousEvents: T[] } {
@@ -62,9 +79,9 @@ function scopesMatch(current: AdminAnalyticsPanelScope | null | undefined, previ
 const serviceDefinitions = [
   { id: "overnight", label: "Nuit", startHourUtc: 0, endHourUtc: 5 },
   { id: "breakfast", label: "Matin", startHourUtc: 5, endHourUtc: 11 },
-  { id: "lunch", label: "Déjeuner", startHourUtc: 11, endHourUtc: 15 },
+  { id: "lunch", label: "Midi", startHourUtc: 11, endHourUtc: 15 },
   { id: "afternoon", label: "Après-midi", startHourUtc: 15, endHourUtc: 18 },
-  { id: "dinner", label: "Dîner", startHourUtc: 18, endHourUtc: 24 }
+  { id: "dinner", label: "Soirée", startHourUtc: 18, endHourUtc: 24 }
 ] as const;
 
 export function isPrivacySafeAdminSearchTerm(value: string): boolean {
@@ -79,8 +96,8 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
     currentDaily: unavailable(), dailyComparison: unavailable(), hourWeekday: unavailable(), categories: unavailable(),
     serviceWindows: unavailable(), ranking: unavailable(), searches: unavailable()
   };
-  const current = daily(input.currentEvents);
-  const previous = daily(input.previousEvents);
+  const current = denseDaily(input.currentEvents, input.currentPeriod);
+  const previous = denseDaily(input.previousEvents, input.previousPeriod);
   const heatmapCounts = new Map<string, number>();
   for (const row of input.currentEvents) {
     const date = validDate(row);
@@ -95,7 +112,21 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
   const dishEvents = input.currentEvents.filter((row) => stringValue(row, "event_name") === "dish_opened");
   const categoryLabels = new Map(input.selectedMenuCategories?.map(({ slug, label }) => [slug, label]) ?? []);
   const selectedCategories = input.selectedMenuCategories ? new Set(categoryLabels.keys()) : input.selectedMenuCategorySlugs ? new Set(input.selectedMenuCategorySlugs) : null;
-  const searches = countBy(input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used").map((row) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA")).filter(isPrivacySafeAdminSearchTerm)).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount).map(({ slug: term, count }) => ({ term, count }));
+  const normalizedSearchTerm = (row: EventRow) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA");
+  const currentSearchEvents = input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used" && isPrivacySafeAdminSearchTerm(normalizedSearchTerm(row)));
+  const previousSearchCounts = new Map(countBy(input.previousEvents.filter((row) => stringValue(row, "event_name") === "search_used").map(normalizedSearchTerm).filter(isPrivacySafeAdminSearchTerm)).map(({ slug, count }) => [slug, count]));
+  const searches = countBy(currentSearchEvents.map(normalizedSearchTerm))
+    .filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount)
+    .map(({ slug: term, count }) => {
+      const previousCount = previousSearchCounts.get(term) ?? 0;
+      return {
+        term,
+        count,
+        previousCount,
+        changeRate: previousCount > 0 ? (count - previousCount) / previousCount : null,
+        daily: denseDaily(currentSearchEvents.filter((row) => normalizedSearchTerm(row) === term), input.currentPeriod).map((point) => point.count)
+      };
+    });
   const hasRankingSample = dishEvents.length >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents;
   const rankedItems = (values: string[]) => hasRankingSample ? countBy(values).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedItemCount) : [];
   const serviceWindows = serviceDefinitions.map((definition) => ({ ...definition, count: input.currentEvents.reduce((count, row) => { const hour = validDate(row)?.getUTCHours(); return count + (hour !== undefined && hour >= definition.startHourUtc && hour < definition.endHourUtc ? 1 : 0); }, 0) }));

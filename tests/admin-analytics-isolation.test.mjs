@@ -190,6 +190,37 @@ test("Maison Elysee preview does not substitute fictional analytics", async () =
   assert.equal(result.data.analytics.reason, "instrumentation-unproven");
 });
 
+test("dashboard reads current and previous periods independently and fails closed if either read truncates", async () => {
+  const { loadAdminDashboardDataWithDependencies } = await import("../lib/admin/dashboardData.ts");
+  const periods = [];
+  const result = await loadAdminDashboardDataWithDependencies("restaurant-1", "7d", {
+    readRows: async ({ table }) => {
+      if (table === "restaurants") return { ok: true, rows: [{ id: "restaurant-1", name: "Chez Vistaire", slug: "chez-vistaire" }] };
+      if (table === "menus") return { ok: true, rows: [{ id: "menu-1", status: "published", is_primary: true }] };
+      if (table === "menu_categories") return { ok: true, rows: [] };
+      if (table === "menu_dishes") return { ok: true, rows: [] };
+      throw new Error(`unexpected table: ${table}`);
+    },
+    readEvents: async (args) => {
+      periods.push(args);
+      return { ok: true, rows: [], truncated: args.fromIso === "2026-06-26T00:00:00.000Z" };
+    },
+    now: () => new Date("2026-07-10T00:00:00.000Z")
+  });
+  assert.equal(periods.length, 2);
+  assert.deepEqual(periods.map(({ restaurantId, menuId }) => ({ restaurantId, menuId })), [
+    { restaurantId: "restaurant-1", menuId: "menu-1" },
+    { restaurantId: "restaurant-1", menuId: "menu-1" }
+  ]);
+  assert.deepEqual(periods.map(({ fromIso, toIso }) => [fromIso, toIso]), [
+    ["2026-07-03T00:00:00.000Z", "2026-07-10T00:00:00.000Z"],
+    ["2026-06-26T00:00:00.000Z", "2026-07-03T00:00:00.000Z"]
+  ]);
+  assert.equal(result.ok, true);
+  assert.equal(result.data.analytics.kind, "unavailable");
+  assert.equal(result.data.analytics.completeness, "truncated");
+});
+
 test("dashboard loader contains no fictional analytics fallback", async () => {
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
   assert.doesNotMatch(loader, /buildMaisonElyseeDemoEvents|MAISON_ELYSEE_DEMO_ID/);
