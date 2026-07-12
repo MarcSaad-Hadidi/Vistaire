@@ -60,6 +60,16 @@ function denseDaily(events: EventRow[], period?: DensePeriod): DailyPoint[] {
   return counts.map((count, index) => ({ day: new Date(start + index * duration).toISOString().slice(0, 10), count }));
 }
 
+function hasValidEventInPeriod(events: EventRow[], period?: DensePeriod): boolean {
+  if (!period) return events.some(validDate);
+  const start = Date.parse(period.startInclusive);
+  const end = Date.parse(period.endExclusive);
+  return Number.isFinite(start) && Number.isFinite(end) && events.some((row) => {
+    const timestamp = validDate(row)?.getTime();
+    return timestamp !== undefined && timestamp >= start && timestamp < end;
+  });
+}
+
 export function partitionAdminAnalyticsEvents<T extends EventRow>(events: T[], window: { comparisonStartInclusive: string; comparisonEndExclusive: string; startInclusive: string; endExclusive: string }): { currentEvents: T[]; previousEvents: T[] } {
   const comparisonStart = Date.parse(window.comparisonStartInclusive);
   const comparisonEnd = Date.parse(window.comparisonEndExclusive);
@@ -88,7 +98,24 @@ export function isPrivacySafeAdminSearchTerm(value: string): boolean {
   const term = value.trim();
   if (!term || term.length > 80) return false;
   if (/@|https?:\/\/|www\.|\b\d{1,3}(?:\.\d{1,3}){3}\b/i.test(term)) return false;
+  if (/\b(?:nom|prénom|adresse)\s*:/i.test(term)) return false;
+  if (/^\d{1,6}\s+(?:rue|avenue|boulevard|chemin|route|place|rang)\b/i.test(term)) return false;
   return term.replace(/\D/g, "").length < 7;
+}
+
+export function countAdminSearchTermEvidence(events: EventRow[]): { term: string; count: number; distinctSessions: number }[] {
+  const evidence = new Map<string, { count: number; sessions: Set<string> }>();
+  for (const row of events) {
+    if (stringValue(row, "event_name") !== "search_used") continue;
+    const term = stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA");
+    if (!isPrivacySafeAdminSearchTerm(term)) continue;
+    const item = evidence.get(term) ?? { count: 0, sessions: new Set<string>() };
+    item.count += 1;
+    const sessionId = stringValue(row, "session_id").trim();
+    if (sessionId) item.sessions.add(sessionId);
+    evidence.set(term, item);
+  }
+  return [...evidence].map(([term, item]) => ({ term, count: item.count, distinctSessions: item.sessions.size })).sort((a, b) => b.count - a.count || a.term.localeCompare(b.term));
 }
 
 export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
@@ -115,9 +142,9 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
   const normalizedSearchTerm = (row: EventRow) => stringValue(row, "search_query").trim().toLocaleLowerCase("fr-CA");
   const currentSearchEvents = input.currentEvents.filter((row) => stringValue(row, "event_name") === "search_used" && isPrivacySafeAdminSearchTerm(normalizedSearchTerm(row)));
   const previousSearchCounts = new Map(countBy(input.previousEvents.filter((row) => stringValue(row, "event_name") === "search_used").map(normalizedSearchTerm).filter(isPrivacySafeAdminSearchTerm)).map(({ slug, count }) => [slug, count]));
-  const searches = countBy(currentSearchEvents.map(normalizedSearchTerm))
-    .filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount)
-    .map(({ slug: term, count }) => {
+  const searches = countAdminSearchTermEvidence(input.currentEvents)
+    .filter(({ distinctSessions }) => distinctSessions >= ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount)
+    .map(({ term, count }) => {
       const previousCount = previousSearchCounts.get(term) ?? 0;
       return {
         term,
@@ -128,11 +155,11 @@ export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
       };
     });
   const hasRankingSample = dishEvents.length >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents;
-  const rankedItems = (values: string[]) => hasRankingSample ? countBy(values).filter(({ count }) => count >= ADMIN_ANALYTICS_THRESHOLDS.minimumRankedItemCount) : [];
+  const rankedItems = (values: string[]) => hasRankingSample ? countBy(values) : [];
   const serviceWindows = serviceDefinitions.map((definition) => ({ ...definition, count: input.currentEvents.reduce((count, row) => { const hour = validDate(row)?.getUTCHours(); return count + (hour !== undefined && hour >= definition.startHourUtc && hour < definition.endHourUtc ? 1 : 0); }, 0) }));
   return {
     currentDaily: evidence(current, "no-current-events"),
-    dailyComparison: !scopesMatch(input.currentScope, input.previousScope) ? { kind: "unavailable", reason: "incompatible-scope" } : input.currentDurationMs === input.previousDurationMs && current.length && previous.length ? { kind: "supported", data: { current, previous } } : { kind: "insufficient", reason: "incompatible-or-empty-period" },
+    dailyComparison: !scopesMatch(input.currentScope, input.previousScope) ? { kind: "unavailable", reason: "incompatible-scope" } : input.currentDurationMs === input.previousDurationMs && current.length && previous.length && hasValidEventInPeriod(input.previousEvents, input.previousPeriod) ? { kind: "supported", data: { current, previous } } : { kind: "insufficient", reason: "incompatible-or-empty-period" },
     hourWeekday: evidence(hourWeekday, "no-timestamped-events"),
     categories: evidence(rankedItems(dishEvents.map((row) => stringValue(row, "category_slug")).filter((slug) => !selectedCategories || selectedCategories.has(slug))).map((item) => categoryLabels.has(item.slug) ? { ...item, label: categoryLabels.get(item.slug)! } : item), "no-category-evidence"),
     serviceWindows: input.currentEvents.some(validDate) ? { kind: "supported", data: { timezone: "UTC", windows: serviceWindows } } : { kind: "insufficient", reason: "no-timestamped-events" },

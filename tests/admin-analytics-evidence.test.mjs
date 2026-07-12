@@ -109,6 +109,42 @@ test("single buckets are supported while absent and incomplete sources stay expl
   for (const panel of Object.values(unavailable)) assert.equal(panel.kind, "unavailable");
 });
 
+test("dense comparison stays insufficient without valid previous in-window evidence", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const scope = { restaurantId: "r1", menuId: "m1", source: "production", metricDefinition: "all-events-v1" };
+  const base = {
+    currentEvents: [{ event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" }],
+    currentDurationMs: 86_400_000,
+    previousDurationMs: 86_400_000,
+    currentScope: scope,
+    previousScope: scope,
+    currentPeriod: { startInclusive: "2026-07-10T00:00:00.000Z", endExclusive: "2026-07-11T00:00:00.000Z", bucketCount: 1 },
+    previousPeriod: { startInclusive: "2026-07-09T00:00:00.000Z", endExclusive: "2026-07-10T00:00:00.000Z", bucketCount: 1 }
+  };
+  for (const previousEvents of [[], [{ event_name: "menu_opened", created_at: "invalid" }], [{ event_name: "menu_opened", created_at: "2026-07-08T10:00:00.000Z" }]]) {
+    const panels = buildAdminAnalyticsPanels({ ...base, previousEvents });
+    assert.deepEqual(panels.dailyComparison, { kind: "insufficient", reason: "incompatible-or-empty-period" });
+  }
+});
+
+test("valid ranking samples retain every exact dish and category count", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const counts = [8, 5, 3, 2, 1, 1];
+  const currentEvents = counts.flatMap((count, item) => Array.from({ length: count }, (_, index) => ({
+    event_name: "dish_opened",
+    created_at: `2026-07-10T10:${String(item * 8 + index).padStart(2, "0")}:00.000Z`,
+    dish_slug: `dish-${item + 1}`,
+    category_slug: `category-${item + 1}`
+  })));
+  const panels = buildAdminAnalyticsPanels({ currentEvents, previousEvents: [], currentDurationMs: 1, previousDurationMs: 1 });
+  assert.equal(panels.ranking.kind, "supported");
+  assert.equal(panels.categories.kind, "supported");
+  assert.deepEqual(panels.ranking.data.map(({ count }) => count), counts);
+  assert.deepEqual(panels.categories.data.map(({ count }) => count), counts);
+  assert.equal(panels.ranking.data.reduce((sum, item) => sum + item.count, 0), 20);
+  assert.equal(panels.categories.data.reduce((sum, item) => sum + item.count, 0), 20);
+});
+
 test("category evidence is joined to the selected menu allowlist", async () => {
   const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
   const panels = buildAdminAnalyticsPanels({
@@ -154,7 +190,7 @@ test("panel dish and category rankings require twenty dish opens", async () => {
   assert.deepEqual(panels.categories, { kind: "insufficient", reason: "no-category-evidence" });
 });
 
-test("panel rankings display only items with at least five opens", async () => {
+test("panel rankings retain low-count items after the overall sample qualifies", async () => {
   const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
   const currentEvents = Array.from({ length: 20 }, (_, index) => ({
     event_name: "dish_opened",
@@ -165,8 +201,12 @@ test("panel rankings display only items with at least five opens", async () => {
   const panels = buildAdminAnalyticsPanels({
     currentEvents, previousEvents: [], currentDurationMs: 1, previousDurationMs: 1
   });
-  assert.deepEqual(panels.ranking, { kind: "supported", data: [{ slug: "sole", count: 5 }] });
-  assert.deepEqual(panels.categories, { kind: "supported", data: [{ slug: "plats", count: 5 }] });
+  assert.equal(panels.ranking.kind, "supported");
+  assert.equal(panels.categories.kind, "supported");
+  assert.equal(panels.ranking.data.length, 16);
+  assert.equal(panels.categories.data.length, 16);
+  assert.equal(panels.ranking.data.reduce((sum, item) => sum + item.count, 0), 20);
+  assert.equal(panels.categories.data.reduce((sum, item) => sum + item.count, 0), 20);
 });
 
 test("panel comparison fails closed when restaurant, menu, source or metric scope differs", async () => {

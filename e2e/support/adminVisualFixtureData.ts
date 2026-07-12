@@ -25,6 +25,15 @@ export function filterAdminVisualFixtureRows<T extends Record<string, unknown>>(
   return filtered;
 }
 
+export function paginateAdminVisualFixtureRows<T>(rows: T[], rangeHeader: string | undefined): { rows: T[]; contentRange: string } {
+  const rangeMatch = /^(\d+)-(\d+)$/.exec(rangeHeader ?? "");
+  const rangeStart = rangeMatch ? Number(rangeMatch[1]) : 0;
+  const rangeEnd = rangeMatch ? Number(rangeMatch[2]) : Math.max(0, rows.length - 1);
+  const page = rows.slice(rangeStart, rangeEnd + 1);
+  const contentRange = rows.length ? `${rangeStart}-${Math.max(rangeStart, rangeStart + page.length - 1)}/${rows.length}` : "*/0";
+  return { rows: page, contentRange };
+}
+
 export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: { scenario?: AdminVisualFixtureScenario } = {}) {
   const restaurantId = ADMIN_VISUAL_RESTAURANT_ID;
   const menuId = ADMIN_VISUAL_MENU_ID;

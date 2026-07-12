@@ -119,7 +119,7 @@ test("daily panels and publishable searches retain dense aligned evidence", asyn
   const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
   const currentEvents = [
     { event_name: "menu_opened", created_at: "2026-07-03T12:00:00.000Z" },
-    ...Array.from({ length: 3 }, (_, index) => ({ event_name: "search_used", search_query: " sole ", created_at: `2026-07-09T${13 + index}:00:00.000Z` }))
+    ...Array.from({ length: 3 }, (_, index) => ({ event_name: "search_used", search_query: " sole ", session_id: `current-search-${index}`, created_at: `2026-07-09T${13 + index}:00:00.000Z` }))
   ];
   const previousEvents = [
     { event_name: "menu_opened", created_at: "2026-06-26T12:00:00.000Z" },
@@ -151,18 +151,55 @@ test("daily panels and publishable searches retain dense aligned evidence", asyn
 
 test("premium analytics copy maps internal freshness and evidence reasons deterministically", async () => {
   const { adminEvidenceReasonCopy, adminFreshnessCopy } = await import("../lib/admin/analyticsPresentationCopy.ts");
-  assert.deepEqual(["fresh", "delayed", "stale"].map(adminFreshnessCopy), ["Données à jour", "Mise à jour différée", "Données anciennes"]);
+  assert.deepEqual(["fresh", "delayed", "stale"].map(adminFreshnessCopy), ["À jour", "Mise à jour retardée", "Données à actualiser"]);
   assert.equal(adminEvidenceReasonCopy("incompatible-scope"), "La comparaison n’est pas disponible pour ce périmètre.");
-  assert.equal(adminEvidenceReasonCopy("source-incomplete"), "La lecture des données est incomplète.");
+  assert.equal(adminEvidenceReasonCopy("incompatible-or-empty-period"), "La période précédente ne contient pas encore assez de données comparables.");
+  assert.equal(adminEvidenceReasonCopy("no-category-evidence"), "Les consultations par catégorie apparaîtront après davantage d’activité.");
+  assert.equal(adminEvidenceReasonCopy("no-search-evidence"), "Aucune tendance de recherche fiable n’est encore disponible.");
+  assert.equal(adminEvidenceReasonCopy("source-incomplete"), "Les données sont temporairement incomplètes.");
+  assert.equal(adminEvidenceReasonCopy("no-dish-ranking-evidence"), "Le classement des plats apparaîtra après davantage de consultations.");
   assert.equal(adminEvidenceReasonCopy("unknown-internal-code"), "Les données ne permettent pas encore d’afficher cette analyse.");
 });
 
 test("search privacy rejects common direct identifiers", async () => {
   const { isPrivacySafeAdminSearchTerm } = await import("../lib/admin/analyticsPresentation.ts");
-  for (const unsafe of ["john@example.com", "+1 (514) 555-0199", "https://example.com/a", "4111 1111 1111 1111", "192.168.0.1", "Jean Dupont 5145550199"]) {
+  for (const unsafe of ["john@example.com", "+1 (514) 555-0199", "https://example.com/a", "4111 1111 1111 1111", "192.168.0.1", "Jean Dupont 5145550199", "nom: Jean Dupont", "123 rue Sainte-Catherine", "adresse: 10 avenue du Parc"]) {
     assert.equal(isPrivacySafeAdminSearchTerm(unsafe), false, unsafe);
   }
   assert.equal(isPrivacySafeAdminSearchTerm("tartare saumon"), true);
+});
+
+test("search publication requires three distinct non-empty sessions per normalized term", async () => {
+  const { buildAdminAnalyticsPanels } = await import("../lib/admin/analyticsPresentation.ts");
+  const events = [
+    ...Array.from({ length: 8 }, (_, index) => ({ event_name: "search_used", search_query: index % 2 ? " Sole " : "sole", session_id: "same-visitor", created_at: `2026-07-04T10:0${index}:00.000Z` })),
+    { event_name: "search_used", search_query: "homard", session_id: "visitor-1", created_at: "2026-07-04T11:00:00.000Z" },
+    { event_name: "search_used", search_query: "Homard", session_id: "visitor-2", created_at: "2026-07-04T11:01:00.000Z" },
+    { event_name: "search_used", search_query: " homard ", session_id: "visitor-3", created_at: "2026-07-04T11:02:00.000Z" },
+    { event_name: "search_used", search_query: "homard", session_id: "", created_at: "2026-07-04T11:03:00.000Z" }
+  ];
+  const panels = buildAdminAnalyticsPanels({ currentEvents: events, previousEvents: [], currentDurationMs: 1, previousDurationMs: 1 });
+  assert.deepEqual(panels.searches, { kind: "supported", data: [{ term: "homard", count: 4, previousCount: 0, changeRate: null, daily: [4] }] });
+});
+
+test("legacy real-state rankings retain the full exact low-count remainder", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const counts = [8, 5, 3, 2, 1, 1];
+  const dishEvents = counts.flatMap((count, item) => Array.from({ length: count }, (_, index) => ({
+    event_name: "dish_opened",
+    created_at: `2026-07-04T${String(12 + item).padStart(2, "0")}:${String(index).padStart(2, "0")}:00.000Z`,
+    dish_slug: `dish-${item + 1}`,
+    category_slug: `category-${item + 1}`
+  })));
+  const state = buildAdminAnalyticsState({
+    observationWindow,
+    events: [...Array.from({ length: 5 }, (_, index) => ({ event_name: "menu_opened", created_at: `2026-07-04T10:0${index}:00.000Z` })), ...dishEvents],
+    previousEvents: [],
+    analyticsScope: scope
+  });
+  assert.equal(state.kind, "real");
+  assert.deepEqual(state.topDishes.map(({ count }) => count), counts);
+  assert.deepEqual(state.categoryBreakdown.map(({ count }) => count), counts);
 });
 
 test("visual fixture is a full distinct menu with previous evidence and scoped filtering", async () => {
@@ -203,7 +240,7 @@ test("visual fixture menu is structurally identical to canonical Maison Elysee d
 });
 
 test("pixel fixture carries exact coherent current and previous analytics below the per-read cap", async () => {
-  const { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows } = await import("../e2e/support/adminVisualFixtureData.ts");
+  const { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows, paginateAdminVisualFixtureRows } = await import("../e2e/support/adminVisualFixtureData.ts");
   const tables = buildAdminVisualFixtureTables();
   const scoped = tables.analytics_events.filter((row) => row.restaurant_id === tables.restaurantId && row.menu_id === tables.menuId && row.source === "production");
   const periods = {
@@ -225,7 +262,10 @@ test("pixel fixture carries exact coherent current and previous analytics below 
   }, { menu: 1090, dish: 3018, search: 502, immersive: 315 });
   assert.ok(periods.current.length < 10_000);
   assert.ok(periods.previous.length < 10_000);
-  assert.ok(new Set(periods.current.filter((row) => row.event_name === "search_used").map((row) => row.search_query)).size >= 5);
+  const currentSearches = periods.current.filter((row) => row.event_name === "search_used");
+  assert.ok(new Set(currentSearches.map((row) => row.search_query)).size >= 5);
+  const sessionsByTerm = Map.groupBy(currentSearches, (row) => row.search_query);
+  assert.ok([...sessionsByTerm.values()].every((rows) => new Set(rows.map((row) => row.session_id).filter(Boolean)).size >= 3));
   assert.ok(tables.analytics_events.some((row) => row.restaurant_id === "foreign-restaurant"));
   assert.ok(tables.analytics_events.some((row) => row.restaurant_id === tables.restaurantId && row.menu_id === "foreign-menu"));
   assert.equal(scoped.some((row) => row.id === "foreign-menu-event"), false);
@@ -240,5 +280,18 @@ test("pixel fixture carries exact coherent current and previous analytics below 
   assert.equal(boundaryScoped.some((row) => row.id === "foreign-event" || row.id === "foreign-menu-event"), false);
   const server = await readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8");
   assert.match(server, /request\.headers\.range/);
-  assert.match(server, /rows\.slice\(rangeStart,\s*rangeEnd\s*\+\s*1\)/);
+  assert.match(server, /paginateAdminVisualFixtureRows/);
+  const first = paginateAdminVisualFixtureRows(boundaryScoped, "0-999");
+  const second = paginateAdminVisualFixtureRows(boundaryScoped, "1000-1999");
+  const tail = paginateAdminVisualFixtureRows(boundaryScoped, "6000-6999");
+  assert.equal(first.contentRange, "0-999/6002");
+  assert.equal(second.contentRange, "1000-1999/6002");
+  assert.equal(tail.contentRange, "6000-6001/6002");
+  assert.equal(first.rows.length, 1000);
+  assert.equal(second.rows.length, 1000);
+  assert.equal(tail.rows.length, 2);
+  assert.equal(new Set([...first.rows, ...second.rows]).size, 2000);
+  const reconstructed = Array.from({ length: 7 }, (_, page) => paginateAdminVisualFixtureRows(boundaryScoped, `${page * 1000}-${page * 1000 + 999}`).rows).flat();
+  assert.deepEqual(reconstructed, boundaryScoped);
+  assert.deepEqual(buildAdminVisualFixtureTables(), tables);
 });

@@ -1,5 +1,5 @@
 import http from "node:http";
-import { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows } from "./adminVisualFixtureData.ts";
+import { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows, paginateAdminVisualFixtureRows } from "./adminVisualFixtureData.ts";
 
 const fixture = buildAdminVisualFixtureTables({ scenario: process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO === "full-menu" ? "full-menu" : "pixel-reference" });
 const tables = {
@@ -19,11 +19,7 @@ function filteredRows(request) {
 const port = Number(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT || 3110);
 http.createServer((request, response) => {
   const rows = filteredRows(request);
-  const rangeMatch = /^(\d+)-(\d+)$/.exec(request.headers.range ?? "");
-  const rangeStart = rangeMatch ? Number(rangeMatch[1]) : 0;
-  const rangeEnd = rangeMatch ? Number(rangeMatch[2]) : Math.max(0, rows.length - 1);
-  const page = rows.slice(rangeStart, rangeEnd + 1);
-  const contentRange = rows.length ? `${rangeStart}-${Math.max(rangeStart, rangeStart + page.length - 1)}/${rows.length}` : "*/0";
-  response.writeHead(200, { "content-type": "application/json", "content-range": contentRange, "cache-control": "no-store" });
-  response.end(JSON.stringify(page));
+  const page = paginateAdminVisualFixtureRows(rows, request.headers.range);
+  response.writeHead(200, { "content-type": "application/json", "content-range": page.contentRange, "cache-control": "no-store" });
+  response.end(JSON.stringify(page.rows));
 }).listen(port, "127.0.0.1", () => console.log(`admin visual fixture ready on ${port}`));

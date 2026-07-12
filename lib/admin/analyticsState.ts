@@ -1,6 +1,6 @@
 import type { AdminObservationWindow } from "./dashboardRange.ts";
 import { addComparisonEvidence, type AdminRawMetric } from "./analyticsEvidence.ts";
-import { buildAdminAnalyticsPanels, isPrivacySafeAdminSearchTerm, type AdminAnalyticsPanels, type AdminAnalyticsPanelScope } from "./analyticsPresentation.ts";
+import { buildAdminAnalyticsPanels, countAdminSearchTermEvidence, type AdminAnalyticsPanels, type AdminAnalyticsPanelScope } from "./analyticsPresentation.ts";
 import { ADMIN_ANALYTICS_THRESHOLDS } from "./analyticsThresholds.ts";
 
 type EventRow = Record<string, unknown>;
@@ -33,9 +33,9 @@ export function buildAdminAnalyticsState(input:AdminAnalyticsInput):AdminAnalyti
  const proven=input.events?menuCount>0&&dishCount>0:Boolean(input.instrumentationProven); const relevant=input.events?menuCount+dishCount:(input.eventCount??0);
  if(!proven||relevant===0||relevant<ADMIN_ANALYTICS_THRESHOLDS.minimumRelevantEvents)return{kind:"insufficient",reason:!proven?"instrumentation-unproven":relevant===0?"no-relevant-events":"sample-too-small",completeness:relevant>0?"limited-sample":"complete",observationWindow:input.observationWindow,availableEvidence:[],missingEvidence:!proven?["menu_opened","dish_opened"]:[]};
  const buckets=counts(events.map(row=>text(row,"created_at").slice(0,10))).map(({slug,count})=>({bucket:slug,count})).sort((a,b)=>a.bucket.localeCompare(b.bucket));
- const rankedDishes=dishCount>=ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents?counts(events.filter(row=>text(row,"event_name")==="dish_opened").map(row=>text(row,"dish_slug"))).filter(item=>item.count>=ADMIN_ANALYTICS_THRESHOLDS.minimumRankedItemCount):[];
- const categories=dishCount>=ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents?counts(events.filter(row=>text(row,"event_name")==="dish_opened").map(row=>text(row,"category_slug"))).filter(item=>item.count>=ADMIN_ANALYTICS_THRESHOLDS.minimumRankedItemCount):[];
- const searchCounts=counts(events.filter(row=>text(row,"event_name")==="search_used").map(row=>text(row,"search_query").trim().toLocaleLowerCase("fr-CA")).filter(isPrivacySafeAdminSearchTerm)).filter(item=>item.count>=ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount).map(({slug,count})=>({term:slug,count}));
+ const rankedDishes=dishCount>=ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents?counts(events.filter(row=>text(row,"event_name")==="dish_opened").map(row=>text(row,"dish_slug"))):[];
+ const categories=dishCount>=ADMIN_ANALYTICS_THRESHOLDS.minimumRankedDishEvents?counts(events.filter(row=>text(row,"event_name")==="dish_opened").map(row=>text(row,"category_slug"))):[];
+ const searchCounts=countAdminSearchTermEvidence(events).filter(item=>item.distinctSessions>=ADMIN_ANALYTICS_THRESHOLDS.minimumSearchTermCount).map(({term,count})=>({term,count}));
  const immersive=["dish_3d_clicked","dish_ar_clicked"].map(name=>({name,count:names.filter(value=>value===name).length}));
  const sessions=new Map<string,{menu:number;dish:number}>(); events.forEach((row,index)=>{const id=text(row,"session_id");if(!id)return;const state=sessions.get(id)??{menu:Infinity,dish:Infinity};if(text(row,"event_name")==="menu_opened")state.menu=Math.min(state.menu,index);if(text(row,"event_name")==="dish_opened")state.dish=Math.min(state.dish,index);sessions.set(id,state)}); const qualifying=[...sessions.values()].filter(s=>Number.isFinite(s.menu)); const converted=qualifying.filter(s=>Number.isFinite(s.dish)&&s.menu<s.dish).length;
  const last=input.lastUpdatedAt??events.map(row=>text(row,"created_at")).sort().at(-1)??null; const age=last?Date.now()-new Date(last).getTime():Infinity;
