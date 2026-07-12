@@ -513,6 +513,9 @@
 .exactTable {
   top: 0;
   left: 0;
+  display: block !important;
+  max-width: 1px !important;
+  table-layout: fixed !important;
 }
 
 @keyframes chartReveal {

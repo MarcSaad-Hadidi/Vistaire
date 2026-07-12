@@ -25,10 +25,12 @@ export function filterAdminVisualFixtureRows<T extends Record<string, unknown>>(
   return filtered;
 }
 
-export function paginateAdminVisualFixtureRows<T>(rows: T[], rangeHeader: string | undefined): { rows: T[]; contentRange: string } {
+export function paginateAdminVisualFixtureRows<T>(rows: T[], rangeHeader: string | undefined, query: { offset?: string | null; limit?: string | null } = {}): { rows: T[]; contentRange: string } {
   const rangeMatch = /^(\d+)-(\d+)$/.exec(rangeHeader ?? "");
-  const rangeStart = rangeMatch ? Number(rangeMatch[1]) : 0;
-  const rangeEnd = rangeMatch ? Number(rangeMatch[2]) : Math.max(0, rows.length - 1);
+  const queryOffset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
+  const queryLimit = Math.max(0, Number.parseInt(query.limit ?? "0", 10) || 0);
+  const rangeStart = rangeMatch ? Number(rangeMatch[1]) : queryOffset;
+  const rangeEnd = rangeMatch ? Number(rangeMatch[2]) : queryLimit > 0 ? rangeStart + queryLimit - 1 : Math.max(0, rows.length - 1);
   const page = rows.slice(rangeStart, rangeEnd + 1);
   const contentRange = rows.length ? `${rangeStart}-${Math.max(rangeStart, rangeStart + page.length - 1)}/${rows.length}` : "*/0";
   return { rows: page, contentRange };

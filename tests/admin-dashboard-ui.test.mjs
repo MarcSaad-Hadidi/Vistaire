@@ -222,13 +222,13 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   assert.match(insights, /Top plats consultés/);
   assert.doesNotMatch(insights, /Plats favoris/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
-  for (const area of ["activity", "comparison", "heatmap", "dishes", "searches", "categories", "service", "summary", "recommendations"]) {
-    assert.match(css, new RegExp(`grid-area:\\s*${area}`));
-  }
+  assert.equal((insights.match(/data-insights-panel/g) ?? []).length, 9);
+  assert.match(css, /\.primaryGrid[^}]*grid-template-columns:[^}]*722fr[^}]*416fr[^}]*402fr/s);
+  assert.match(css, /\.secondaryGrid[^}]*grid-template-columns:[^}]*392fr[^}]*319fr[^}]*369fr[^}]*450fr/s);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
-test("insights review fixes lock bottom proportions, heatmap orientation and evidence fidelity", async () => {
+test("insights review fixes lock bottom proportions, complete heatmap orientation and evidence fidelity", async () => {
   const [overview, insights, heatmap, css, overviewE2e, insightsE2e] = await Promise.all([
     read("components/admin/overview/AdminOverview.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
@@ -237,9 +237,9 @@ test("insights review fixes lock bottom proportions, heatmap orientation and evi
     read("e2e/admin-dashboard.spec.ts"),
     read("e2e/admin-insights.spec.ts")
   ]);
-  assert.match(css, /\.bottomGrid\s*\{[^}]*grid-template-columns:\s*911fr\s+639fr/s);
-  assert.match(css, /\.heatmap\s*\{[^}]*grid-template-columns:\s*repeat\(16,/s);
-  assert.match(css, /\.heatmap\s*\{[^}]*grid-template-rows:\s*repeat\(7,/s);
+  assert.match(css, /\.bottomGrid\s*\{[^}]*grid-template-columns:\s*minmax\(0,911fr\)\s+minmax\(0,639fr\)/s);
+  assert.match(heatmap, /Array\.from\(\{ length: 24 \}/);
+  assert.match(heatmap, /const days = \["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"\]/);
   assert.match(heatmap, /days\.flatMap[\s\S]*hours\.map/);
   assert.match(heatmap, /rowLabels=\{days\}/);
   assert.match(heatmap, /columnLabels=\{hours\.map/);
@@ -254,17 +254,46 @@ test("insights review fixes lock bottom proportions, heatmap orientation and evi
   }
 });
 
-test("heatmap delegates one normalized 16 by 7 matrix to the interactive exact-value primitive", async () => {
+test("heatmap delegates one normalized Monday-first 24 by 7 matrix to the interactive exact-value primitive", async () => {
   const [heatmap, primitive] = await Promise.all([
     read("components/admin/insights/AdminHeatmap.tsx"),
     read("components/admin/charts/InteractiveHeatmap.tsx")
   ]);
-  assert.match(heatmap, /Array\.from\(\{ length: 16 \}/);
+  assert.match(heatmap, /Array\.from\(\{ length: 24 \}/);
+  assert.match(heatmap, /\[1,\s*2,\s*3,\s*4,\s*5,\s*6,\s*0\]/);
   assert.match(heatmap, /days\.flatMap[\s\S]*hours\.map/);
-  assert.match(heatmap, /lookup\.get\(`\$\{row\}:\$\{hour\}`\) \?\? 0/);
+  assert.match(heatmap, /lookup\.get\(`\$\{weekdayOrder\[row\]\}:\$\{hour\}`\) \?\? 0/);
   assert.match(primitive, /role="grid"/);
   assert.match(primitive, /exactValues=\{cells\.map/);
   assert.match(primitive, /role="gridcell"/);
+});
+
+test("PR150 insights fidelity uses normal flow, premium copy, controlled top-five views and detailed charts", async () => {
+  const [page, heatmap, breakdowns, rows, css, primitives] = await Promise.all([
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/insights/AdminHeatmap.tsx"),
+    read("components/admin/insights/AdminBreakdowns.tsx"),
+    read("components/admin/insights/InsightsRows.tsx"),
+    read("components/admin/insights/AdminInsights.module.css"),
+    read("components/admin/system/AdminPrimitives.tsx")
+  ]);
+  assert.doesNotMatch(css, /(?:^|[;{])height:\s*0(?:[;}])|margin-(?:top|left):\s*-|transform:\s*translate/);
+  assert.doesNotMatch(css, /position:\s*absolute[^}]*top:\s*91px/s);
+  assert.match(css, /grid-template-columns:\s*minmax\(0,\s*722fr\)\s+minmax\(0,\s*416fr\)\s+minmax\(0,\s*402fr\)/);
+  assert.match(page, /adminFreshnessCopy/);
+  assert.match(primitives, /adminEvidenceReasonCopy/);
+  assert.match(page, /metricSeries/);
+  assert.match(page, /changeRate/);
+  assert.match(breakdowns, /slice\(0,\s*5\)/);
+  assert.match(rows, /AdminDishThumbnail/);
+  assert.match(breakdowns, /InteractiveDonut/);
+  assert.match(rows, /Sparkline/);
+  assert.match(page, /Heures affich(?:Ã©|é)es en UTC/);
+  assert.doesNotMatch(heatmap, /Heures affich(?:Ã©|é)es en UTC/);
+  assert.doesNotMatch(`${page}\n${heatmap}`, /(?:PÃ©riode sÃ©lectionnÃ©e|Période sélectionnée)\s*[Â··]\s*UTC/);
+  assert.match(page, /data-insights-kpi/);
+  assert.match(page, /data-insights-summary/);
+  assert.match(page, /data-insights-key-insights/);
 });
 
 test("admin E2E contracts fail closed and measure two-dimensional touch targets", async () => {
@@ -279,12 +308,15 @@ test("admin E2E contracts fail closed and measure two-dimensional touch targets"
   }
 });
 
-test("PR150 pages expose complete premium analytics without silent truncation", async () => {
-  const [overview, overviewCss, insights, insightsCss, availability, icons] = await Promise.all([
+test("PR150 pages expose complete premium analytics with controlled visible rankings and exact alternatives", async () => {
+  const [overview, overviewCss, insights, insightsCss, activity, comparison, breakdowns, availability, icons] = await Promise.all([
     read("components/admin/overview/AdminOverview.tsx"),
     read("components/admin/overview/AdminOverview.module.css"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/insights/AdminInsights.module.css"),
+    read("components/admin/insights/InsightsActivityChart.tsx"),
+    read("components/admin/insights/AdminComparisonChart.tsx"),
+    read("components/admin/insights/AdminBreakdowns.tsx"),
     read("components/admin/availability/AdminAvailabilityList.tsx"),
     read("components/admin/system/AdminIcons.tsx")
   ]);
@@ -295,23 +327,63 @@ test("PR150 pages expose complete premium analytics without silent truncation", 
   assert.match(overview, /SearchIcon/);
   assert.match(overview, /ImmersiveIcon/);
   assert.match(overview, /AvailableDishIcon/);
-  assert.doesNotMatch(`${overview}\n${insights}\n${overviewCss}\n${insightsCss}`, /\.slice\(|nth-child\([^)]*n\s*\+/);
+  assert.doesNotMatch(`${overview}\n${overviewCss}\n${insightsCss}`, /nth-child\([^)]*n\s*\+/);
+  assert.match(breakdowns, /slice\(0,\s*5\)/);
+  assert.match(breakdowns, /ExactTable rows=\{rows\}/);
   assert.doesNotMatch(`${overview}\n${insights}`, /readiness\.counts\.withImmersive/);
   assert.doesNotMatch(insights, /(?:Ã‰|É)v.nements observ.s|label="P.riode"/);
-  for (const title of ["Activité du menu sur la période", "Comparaison des périodes", "Moments d’activité", "Top plats consultés", "Top recherches", "Répartition par catégorie", "Répartition par moment de service", "Résumé de la période", "Insights clés"]) assert.match(insights, new RegExp(title));
+  const insightsSurface = `${insights}\n${activity}\n${comparison}\n${breakdowns}`;
+  for (const title of ["Activité du menu sur la période", "Comparaison des périodes", "Moments d’activité", "Top plats consultés", "Top recherches", "Répartition par catégorie", "Répartition par moment de service", "Résumé de la période", "Insights clés"]) assert.match(insightsSurface, new RegExp(title));
   assert.match(availability, /AdminDishThumbnail/);
   assert.match(icons, /export function MenuOpenIcon/);
 });
 
-test("insights summary excludes availability and evidence copy never leaks internal reasons", async () => {
-  const [insights, primitives, thumbnailCss] = await Promise.all([
+test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {
+  const [insights, primitives, presentationCopy, thumbnailCss] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/system/AdminPrimitives.tsx"),
+    read("lib/admin/analyticsPresentationCopy.ts"),
     read("components/admin/AdminDishThumbnail.module.css")
   ]);
-  assert.match(insights, /eventMetricIds/);
+  assert.match(insights, /eventIds/);
   assert.doesNotMatch(insights, /metrics\.reduce/);
-  for (const reason of ["incompatible-scope", "configuration", "database", "query", "no-relevant-events", "sample-too-small", "instrumentation-unproven", "incompatible-or-empty-period", "source-incomplete"]) assert.match(primitives, new RegExp(`"${reason}"\\s*:`));
+  assert.match(primitives, /adminEvidenceReasonCopy\(reason\)/);
+  for (const reason of ["incompatible-scope", "configuration", "database", "query", "no-relevant-events", "sample-too-small", "instrumentation-unproven", "incompatible-or-empty-period", "source-incomplete"]) assert.match(presentationCopy, new RegExp(`(?:"${reason}"|${reason})\\s*:`));
   assert.match(thumbnailCss, /\.compact\{[^}]*width:64px[^}]*flex-basis:64px/s);
   assert.match(thumbnailCss, /@media\(max-width:700px\)\{\.frame:not\(\.compact\)/);
+});
+
+test("insights comparison preserves both calendar dates behind every aligned day", async () => {
+  const comparison = await read("components/admin/insights/AdminComparisonChart.tsx");
+  assert.match(comparison, /label:\s*`J\$\{index \+ 1\}`/);
+  assert.match(comparison, /detail:\s*`Jour \$\{index \+ 1\} · actuelle \$\{current \? shortDay\(current\.day\)[\s\S]*pr.c.dente \$\{previous \? shortDay\(previous\.day\)/);
+  assert.equal((comparison.match(/label:\s*alignedPoints\[index\]\.label,\s*detail:\s*alignedPoints\[index\]\.detail/g) ?? []).length, 2);
+});
+
+test("insights never exposes internal menu identifiers as presentation labels", async () => {
+  const [page, breakdowns] = await Promise.all([
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/insights/AdminBreakdowns.tsx")
+  ]);
+  assert.match(page, /Plat du menu/);
+  assert.match(breakdowns, /Plat du menu/);
+  assert.match(breakdowns, /Cat.gorie du menu/);
+  assert.doesNotMatch(page, /\?\?\s*bestDish\.slug/);
+  assert.doesNotMatch(breakdowns, /\?\?\s*row\.slug/);
+});
+
+test("search expansion is conditional and reveals additional visible rows", async () => {
+  const breakdowns = await read("components/admin/insights/AdminBreakdowns.tsx");
+  assert.match(breakdowns, /evidence\.data\.length\s*>\s*5/);
+  assert.match(breakdowns, /InsightsSearchRows rows=\{evidence\.data\.slice\(5\)\}/);
+  assert.doesNotMatch(breakdowns, /liste compl.te est disponible dans le tableau accessible/);
+});
+
+test("UTC disclosure has one visible owner and is not repeated by the heatmap description", async () => {
+  const [page, heatmap] = await Promise.all([
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/insights/AdminHeatmap.tsx")
+  ]);
+  assert.match(page, /Heures affich.es en UTC/);
+  assert.doesNotMatch(heatmap, /Heures affich.es en UTC/);
 });

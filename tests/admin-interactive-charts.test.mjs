@@ -185,6 +185,10 @@ test("line and comparison charts share readable Cartesian axes and grid", async 
   assert.match(line, /data-chart-crosshair/);
   assert.match(line, /data-chart-point/);
   assert.match(comparison, /delta=\{delta\}/);
+  assert.match(comparison, /value\.detail\s*\?\?\s*value\.label/);
+  assert.match(comparison, /datum\.detail\s*\?\?\s*datum\.label/);
+  assert.match(comparison, /series\[0\]\.values\[active\]\.detail\s*\?\?/);
+  assert.match(comparison, /CartesianAxes labels=\{series\[0\]\.values\.map\(\(\{ label \}\) => label\)\}/);
   assert.match(frame, /data-chart-delta/);
 });
 
@@ -227,9 +231,9 @@ test("chart motion stays progressive, bounded and fully disabled when reduced", 
   for (const source of [line, comparison, heatmap, donut]) assert.match(source, /data-chart-animation-key/);
 });
 
-test("heatmap contract is a semantic 16 by 7 grid with 112 cells", async () => {
+test("heatmap contract supports a semantic 24 by 7 grid with 168 cells", async () => {
   const source = await readFile("components/admin/charts/InteractiveHeatmap.tsx", "utf8");
-  assert.equal(buildHeatmapCells([], 7, 16).length, 112);
+  assert.equal(buildHeatmapCells([], 7, 24).length, 168);
   assert.match(source, /useChartInteraction\(cells\.length, columns\)/);
   assert.match(source, /rowLabels\.map/);
   assert.match(source, /role="row"/);

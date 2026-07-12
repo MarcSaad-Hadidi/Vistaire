@@ -69,7 +69,7 @@ export function ChartFrame({
         <h3 className={styles.frameTitle}>{title}</h3>
         {subtitle ? <p className={styles.frameSubtitle}>{subtitle}</p> : null}
       </div>
-      {chrome ? <div className={styles.chartChrome}>{renderSlot(chrome, ids)}</div> : null}
+      {chrome ? <div className={styles.chartChrome} data-chart-chrome>{renderSlot(chrome, ids)}</div> : null}
     </header>
     <p id={ids.details} className={styles.srOnly}>{description}. {period}. Unité: {unit}. {summary}</p>
     {legend ? <div className={styles.legendSlot}>{renderSlot(legend, ids)}</div> : null}

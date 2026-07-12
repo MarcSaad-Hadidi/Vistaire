@@ -10,16 +10,16 @@ const tables = {
   analytics_events: fixture.analytics_events
 };
 
-function filteredRows(request) {
-  const url = new URL(request.url, "http://localhost");
+function filteredRows(url) {
   const table = url.pathname.split("/").filter(Boolean).pop();
   return filterAdminVisualFixtureRows(tables[table] ?? [], url.searchParams);
 }
 
 const port = Number(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT || 3110);
 http.createServer((request, response) => {
-  const rows = filteredRows(request);
-  const page = paginateAdminVisualFixtureRows(rows, request.headers.range);
+  const url = new URL(request.url, "http://localhost");
+  const rows = filteredRows(url);
+  const page = paginateAdminVisualFixtureRows(rows, request.headers.range, { offset: url.searchParams.get("offset"), limit: url.searchParams.get("limit") });
   response.writeHead(200, { "content-type": "application/json", "content-range": page.contentRange, "cache-control": "no-store" });
   response.end(JSON.stringify(page.rows));
 }).listen(port, "127.0.0.1", () => console.log(`admin visual fixture ready on ${port}`));

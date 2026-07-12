@@ -47,7 +47,7 @@ function AlignedComparison({
   const previousValue = active === null ? null : series[1].values[active].value;
   const difference = currentValue === null || previousValue === null ? null : currentValue - previousValue;
   const delta = difference === null ? undefined : `Écart ${difference > 0 ? "+" : difference < 0 ? "−" : ""}${text(Math.abs(difference))}`;
-  const animationKey = `${title}:${period}:${series.map((item) => `${item.label}:${item.values.map(({ label, value }) => `${label}:${value}`).join("|")}`).join("/")}`;
+  const animationKey = `${title}:${period}:${series.map((item) => `${item.label}:${item.values.map(({ label, detail, value }) => `${label}:${detail ?? ""}:${value}`).join("|")}`).join("/")}`;
   const hitRegions = buildMidpointHitRegions(
     geometries[0].map(({ x }) => x),
     CARTESIAN_PLOT.left,
@@ -65,7 +65,7 @@ function AlignedComparison({
     period={period}
     unit={unit}
     summary={summary}
-    exactValues={series.flatMap((item) => item.values.map((value) => ({ label: value.label, series: item.label, value: text(value.value) })))}
+    exactValues={series.flatMap((item) => item.values.map((value) => ({ label: value.detail ?? value.label, series: item.label, value: text(value.value) })))}
     chrome={variant === "detailed" ? <><span>{period}</span><span>{unit}</span></> : undefined}
     legend={<ul className={styles.legend} data-chart-legend>{series.map((item, index) => <li key={item.label}>
       <i className={index === 0 ? styles.legendCurrent : styles.legendPrevious} aria-hidden="true" />
@@ -122,6 +122,7 @@ function AlignedComparison({
       />
       {series[0].values.map((datum, index) => {
         const region = hitRegions[index];
+        const detail = datum.detail ?? datum.label;
         return <rect
           key={`${datum.label}:${index}`}
           className={`${styles.mark} ${styles.columnHit}`}
@@ -130,7 +131,7 @@ function AlignedComparison({
           width={region.width}
           height={plotHeight}
           tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
-          aria-label={`${datum.label}, ${series.map((item) => `${item.label}: ${text(item.values[index].value)}`).join(", ")}`}
+          aria-label={`${detail}, ${series.map((item) => `${item.label}: ${text(item.values[index].value)}`).join(", ")}`}
           aria-describedby={ids.tooltip}
           onFocus={() => interaction.send({ type: "focus", index })}
           onPointerEnter={() => interaction.send({ type: "hover", index })}
@@ -142,7 +143,7 @@ function AlignedComparison({
     tooltip={(ids) => <MetricTooltip
       id={ids.tooltip}
       visible={active !== null}
-      label={active === null ? "" : series[0].values[active].label}
+      label={active === null ? "" : series[0].values[active].detail ?? series[0].values[active].label}
       values={active === null ? undefined : series.map((item, index) => ({ label: item.label, value: text(item.values[active].value), tone: index === 0 ? "accent" : "muted" }))}
       delta={delta}
       x={activeX === null ? 50 : activeX / CARTESIAN_PLOT.width * 100}
