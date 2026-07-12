@@ -1,21 +1,69 @@
 export type PlotSize = { width: number; height: number; padding?: number };
 
-export function buildLineGeometry(values: number[], size: PlotSize) {
+export type LineDomain = { min: number; max: number };
+
+export function buildLineDomain(values: number[]): LineDomain {
+  const finite = values.filter(Number.isFinite);
+  if (finite.length === 0) return { min: 0, max: 1 };
+
+  const first = finite[0];
+  if (finite.every((value) => value === first)) {
+    const padding = Math.max(1, Math.abs(first) * 0.15);
+    return { min: first >= 0 ? Math.max(0, first - padding) : first - padding, max: first + padding };
+  }
+
+  return {
+    min: Math.min(0, ...finite),
+    max: Math.max(0, ...finite),
+  };
+}
+
+export function buildMidpointHitRegions(points: number[], start: number, end: number) {
+  return points.map((x, index) => {
+    const regionStart = index === 0 ? start : (points[index - 1] + x) / 2;
+    const regionEnd = index === points.length - 1 ? end : (x + points[index + 1]) / 2;
+    return { x: regionStart, width: Math.max(0, regionEnd - regionStart) };
+  });
+}
+
+export function buildLineGeometry(values: number[], size: PlotSize, requestedDomain?: LineDomain) {
   const padding = size.padding ?? 0;
   const usableWidth = Math.max(0, size.width - padding * 2);
   const usableHeight = Math.max(0, size.height - padding * 2);
-  const finite = values.map((value) => Number.isFinite(value) ? value : 0);
-  const min = Math.min(...finite, 0);
-  const max = Math.max(...finite, 0);
-  const flat = finite.length > 0 && finite.every((value) => value === finite[0]);
+  const fallbackDomain = buildLineDomain(values);
+  const domain = requestedDomain && Number.isFinite(requestedDomain.min) && Number.isFinite(requestedDomain.max) && requestedDomain.max > requestedDomain.min
+    ? requestedDomain
+    : fallbackDomain;
+  const min = domain.min;
+  const max = domain.max;
   const range = max - min || 1;
   return {
     min, max,
-    points: finite.map((value, index) => ({
-      x: padding + (finite.length < 2 ? usableWidth / 2 : index * usableWidth / (finite.length - 1)),
-      y: flat ? padding + usableHeight / 2 : padding + (max - value) / range * usableHeight,
+    points: values.map((rawValue, index) => ({
+      x: padding + (values.length < 2 ? usableWidth / 2 : index * usableWidth / (values.length - 1)),
+      y: padding + (max - Math.min(max, Math.max(min, Number.isFinite(rawValue) ? rawValue : min))) / range * usableHeight,
     })),
   };
+}
+
+export function buildLinearTicks(domain: LineDomain, count = 4) {
+  const safeCount = Math.max(2, Math.floor(count));
+  const step = (domain.max - domain.min) / (safeCount - 1);
+  return Array.from({ length: safeCount }, (_, index) => domain.min + step * index);
+}
+
+export function selectAxisLabelIndexes(count: number, maximum = 7) {
+  if (count <= 0) return [];
+  if (count <= maximum) return Array.from({ length: count }, (_, index) => index);
+  const step = (count - 1) / Math.max(1, maximum - 1);
+  return Array.from(new Set(Array.from({ length: maximum }, (_, index) => Math.round(index * step))));
+}
+
+export function buildAreaPath(points: Array<{ x: number; y: number }>, baseline: number) {
+  if (points.length === 0) return "";
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `M ${first.x} ${baseline} L ${points.map((point) => `${point.x} ${point.y}`).join(" L ")} L ${last.x} ${baseline} Z`;
 }
 
 export function buildBandGeometry(values: number[], options: PlotSize & { gap?: number }) {

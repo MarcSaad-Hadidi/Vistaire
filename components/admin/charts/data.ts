@@ -8,7 +8,7 @@ export function normalizeComparisonSeries(series: ChartSeries[]): { kind: "align
 
 export function normalizeDonutData(data: ChartDatum[]) {
   return {
-    included: data.filter(({ value }) => Number.isFinite(value) && value > 0),
-    excluded: data.filter(({ value }) => !Number.isFinite(value) || value <= 0),
+    included: data.filter(({ value }) => Number.isFinite(value) && value >= 0),
+    excluded: data.filter(({ value }) => !Number.isFinite(value) || value < 0),
   };
 }

@@ -23,9 +23,11 @@ async function exerciseChart(chart: Locator) {
   await first.hover();
   const tooltip = chart.locator("output[data-visible=true]");
   await expect(tooltip).toBeVisible();
-  const exactCells = await chart.locator("tbody tr").first().locator("th,td").allTextContents();
-  await expect(tooltip).toContainText(exactCells[0]);
-  await expect(tooltip).toContainText(exactCells.at(-1)!);
+  const [tooltipText, exactRows] = await Promise.all([
+    tooltip.innerText(),
+    chart.locator("tbody tr").evaluateAll((rows) => rows.map((row) => Array.from(row.querySelectorAll("th,td"), (cell) => cell.textContent ?? ""))),
+  ]);
+  expect(exactRows.some((cells) => tooltipText.includes(cells[0]) && tooltipText.includes(cells.at(-1)!))).toBe(true);
   await first.evaluate((element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
   await expect(tooltip).toBeVisible();
   await first.evaluate((element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
@@ -58,6 +60,37 @@ async function exerciseChart(chart: Locator) {
   await expect(tooltip).toBeHidden();
 }
 
+async function expectTooltipInsidePlot(chart: Locator, mark: Locator, viewportWidth: number) {
+  await chart.scrollIntoViewIfNeeded();
+  await mark.hover();
+  const tooltip = chart.locator("output[data-visible=true]");
+  const plot = chart.locator("[data-chart-plot-stack]");
+  await expect(tooltip).toBeVisible();
+  const [tooltipBox, plotBox] = await Promise.all([tooltip.boundingBox(), plot.boundingBox()]);
+  expect(tooltipBox).not.toBeNull();
+  expect(plotBox).not.toBeNull();
+  expect(tooltipBox!.x).toBeGreaterThanOrEqual(plotBox!.x - 1);
+  expect(tooltipBox!.y).toBeGreaterThanOrEqual(plotBox!.y - 1);
+  expect(tooltipBox!.x + tooltipBox!.width).toBeLessThanOrEqual(plotBox!.x + plotBox!.width + 1);
+  expect(tooltipBox!.y + tooltipBox!.height).toBeLessThanOrEqual(plotBox!.y + plotBox!.height + 1);
+  expect(tooltipBox!.x).toBeGreaterThanOrEqual(0);
+  expect(tooltipBox!.x + tooltipBox!.width).toBeLessThanOrEqual(viewportWidth);
+}
+
+async function expectReadableNonIntersectingLabels(axis: Locator, direction: "horizontal" | "vertical") {
+  const boxes = (await axis.locator("text").evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }).filter(({ width, height }) => width > 0 && height > 0))).sort((a, b) => direction === "horizontal" ? a.x - b.x : a.y - b.y);
+  expect(boxes.length).toBeGreaterThan(1);
+  for (const box of boxes) expect(box.height).toBeGreaterThanOrEqual(10);
+  for (let index = 1; index < boxes.length; index += 1) {
+    const previous = boxes[index - 1];
+    if (direction === "horizontal") expect(previous.x + previous.width).toBeLessThanOrEqual(boxes[index].x + 1);
+    else expect(previous.y + previous.height).toBeLessThanOrEqual(boxes[index].y + 1);
+  }
+}
+
 test("all rendered admin charts expose exact mouse and keyboard interactions", async ({ page }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
@@ -68,9 +101,105 @@ test("all rendered admin charts expose exact mouse and keyboard interactions", a
     await page.goto(route, { waitUntil: "networkidle" });
     const charts = page.locator('svg[role="group"], svg[role="grid"]');
     expect(await charts.count()).toBeGreaterThan(0);
-    for (let index = 0; index < await charts.count(); index += 1) await exerciseChart(charts.nth(index).locator(".."));
+    for (let index = 0; index < await charts.count(); index += 1) {
+      await exerciseChart(charts.nth(index).locator("xpath=ancestor::*[@data-chart-frame][1]"));
+    }
   }
   expect(errors).toEqual([]);
+});
+
+test("chart fixtures render readable axes, bounded tooltips, legends and active comparison detail", async ({ page }) => {
+  test.setTimeout(120_000);
+  await enterPreview(page);
+  await page.goto("/admin/insights", { waitUntil: "networkidle" });
+
+  const line = page.locator('[data-chart-kind="line"]').first();
+  await expect(line.locator('[data-chart-axis="x"]')).toBeVisible();
+  await expect(line.locator('[data-chart-axis="y"]')).toBeVisible();
+  await expect(line.locator("[data-chart-grid]").first()).toHaveCSS("stroke-width", "1px");
+  await expect(line.locator("[data-chart-area]")).toBeVisible();
+  await line.locator("[data-chart-point]").first().hover();
+  await expect(line.locator("[data-chart-crosshair]")).toHaveAttribute("data-visible", "true");
+
+  const comparison = page.locator('[data-chart-kind="comparison"]').first();
+  await expect(comparison.locator("[data-chart-legend]")).toBeVisible();
+  await comparison.locator("[tabindex]").first().hover();
+  await expect(comparison.locator("[data-chart-delta]")).toBeVisible();
+  const hitBoxes = await comparison.locator('svg[role="group"] rect[tabindex]').evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, width: rect.width };
+  }));
+  for (let index = 1; index < hitBoxes.length; index += 1) {
+    expect(hitBoxes[index - 1].x + hitBoxes[index - 1].width).toBeLessThanOrEqual(hitBoxes[index].x + 0.5);
+  }
+
+  const heatmap = page.locator('[data-chart-kind="heatmap"]').first();
+  await expect(heatmap.locator('[data-chart-axis="hours"]')).toBeVisible();
+  await expect(heatmap.locator('[data-chart-axis="rows"]')).toBeVisible();
+  await expect(heatmap.locator("[data-chart-heat-legend]")).toHaveText("Faible → Forte");
+  const technicalCopy = await page.getByText(/hachures|valeurs exclues|trait plein/i).evaluateAll((elements) => elements.filter((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.visibility !== "hidden" && style.display !== "none" && rect.width > 1 && rect.height > 1
+      && !element.closest('[class*="srOnly"]') && !element.closest("svg");
+  }).length);
+  expect(technicalCopy).toBe(0);
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/admin/insights", { waitUntil: "networkidle" });
+    for (const chart of await page.locator("[data-chart-frame]").all()) {
+      const marks = chart.locator("[tabindex]");
+      if (await marks.count()) {
+        await expectTooltipInsidePlot(chart, marks.first(), viewport.width);
+        await expectTooltipInsidePlot(chart, marks.last(), viewport.width);
+      }
+    }
+    const mobileLine = page.locator('[data-chart-kind="line"]').first();
+    await expectReadableNonIntersectingLabels(mobileLine.locator('[data-chart-axis="x"]'), "horizontal");
+    const mobileComparison = page.locator('[data-chart-kind="comparison"]').first();
+    await expectReadableNonIntersectingLabels(mobileComparison.locator('[data-chart-axis="x"]'), "horizontal");
+    const mobileHeatmap = page.locator('[data-chart-kind="heatmap"]').first();
+    await expectReadableNonIntersectingLabels(mobileHeatmap.locator('[data-chart-axis="hours"]'), "horizontal");
+    await expectReadableNonIntersectingLabels(mobileHeatmap.locator('[data-chart-axis="rows"]'), "vertical");
+
+    await page.goto("/admin", { waitUntil: "networkidle" });
+    const donut = page.locator('[data-chart-frame][data-chart-kind="donut"]');
+    const donutMarks = donut.locator("[tabindex]");
+    await expectTooltipInsidePlot(donut, donutMarks.first(), viewport.width);
+    await expectTooltipInsidePlot(donut, donutMarks.last(), viewport.width);
+  }
+});
+
+test("chart data changes replay one bounded animation and then settle", async ({ page }) => {
+  await enterPreview(page);
+  await page.goto("/admin", { waitUntil: "networkidle" });
+  const chart = page.locator('[data-chart-kind="line"]').first();
+  const before = await chart.locator("[data-chart-animation-key]").getAttribute("data-chart-animation-key");
+  await page.getByRole("button", { name: "Consultations" }).click();
+  const geometry = chart.locator("[data-chart-animation-key]");
+  await expect(geometry).not.toHaveAttribute("data-chart-animation-key", before!);
+  const timings = await geometry.evaluate((element) => element.getAnimations({ subtree: true }).map((animation) => {
+    const timing = animation.effect?.getTiming();
+    return { duration: Number(timing?.duration ?? 0), iterations: Number(timing?.iterations ?? 0) };
+  }));
+  expect(timings.length).toBeGreaterThan(0);
+  expect(timings.every(({ duration, iterations }) => duration >= 180 && duration <= 420 && iterations === 1)).toBe(true);
+  await expect.poll(() => geometry.evaluate((element) => element.getAnimations({ subtree: true }).filter(({ playState }) => playState !== "finished").length)).toBe(0);
+});
+
+test.describe("reduced chart motion", () => {
+  test("data changes do not animate", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await enterPreview(page);
+    await page.goto("/admin", { waitUntil: "networkidle" });
+    const chart = page.locator('svg[data-chart-kind="line"]').first();
+    await expect(chart).toHaveAttribute("data-reduced-motion", "true");
+    await page.getByRole("button", { name: "Consultations" }).click();
+    const geometry = chart.locator("[data-chart-animation-key]");
+    await expect(geometry).toBeAttached();
+    expect(await geometry.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
+  });
 });
 
 test("overview detailed-insights CTA works at desktop and mobile sizes", async ({ page }) => {

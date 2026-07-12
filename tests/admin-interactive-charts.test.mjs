@@ -6,7 +6,9 @@ import {
   buildBandGeometry,
   buildDonutSegments,
   buildHeatmapCells,
+  buildLineDomain,
   buildLineGeometry,
+  buildMidpointHitRegions,
   chartId,
   formatChartDateUtc,
   interactionReducer,
@@ -15,13 +17,30 @@ import {
   normalizeDonutData,
 } from "../components/admin/charts/index.ts";
 
-test("line geometry keeps zero ranges finite and clamps points to the plot", () => {
+test("line geometry pads flat domains and clamps points to the plot", () => {
   const flat = buildLineGeometry([4, 4, 4], { width: 300, height: 120, padding: 12 });
   assert.equal(flat.points.length, 3);
   assert.ok(flat.points.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y)));
   assert.deepEqual(flat.points.map(({ y }) => y), [60, 60, 60]);
+  assert.ok(flat.min < 4, "flat domains need breathing room below the value");
+  assert.ok(flat.max > 4, "flat domains need breathing room above the value");
   const varied = buildLineGeometry([-5, 20], { width: 100, height: 50, padding: 5 });
   assert.deepEqual(varied.points, [{ x: 5, y: 45 }, { x: 95, y: 5 }]);
+});
+
+test("flat nonnegative line domains never pad below zero", () => {
+  assert.deepEqual(buildLineDomain([0, 0]), { min: 0, max: 1 });
+  assert.deepEqual(buildLineDomain([0.25, 0.25]), { min: 0, max: 1.25 });
+});
+
+test("comparison midpoint hit regions meet without overlapping", () => {
+  const regions = buildMidpointHitRegions([52, 194.5, 337, 479.5, 622], 52, 622);
+  assert.equal(regions[0].x, 52);
+  assert.equal(regions.at(-1).x + regions.at(-1).width, 622);
+  for (let index = 1; index < regions.length; index += 1) {
+    const previousEnd = regions[index - 1].x + regions[index - 1].width;
+    assert.equal(previousEnd, regions[index].x);
+  }
 });
 
 test("band geometry uses a bounded gap and non-negative bars", () => {
@@ -94,10 +113,11 @@ test("comparison rejects label mismatch instead of inventing or hiding values", 
   assert.deepEqual(mismatch, { kind: "misaligned", reason: "Les séries doivent partager exactement les mêmes repères, dans le même ordre." });
 });
 
-test("donut normalization explicitly excludes non-positive values from visual and exact data", () => {
+test("donut normalization retains finite zero values for exact data without drawing an arc", () => {
   assert.deepEqual(normalizeDonutData([{ label: "Midi", value: 4 }, { label: "Soir", value: 0 }, { label: "Invalide", value: -2 }]), {
-    included: [{ label: "Midi", value: 4 }], excluded: [{ label: "Soir", value: 0 }, { label: "Invalide", value: -2 }],
+    included: [{ label: "Midi", value: 4 }, { label: "Soir", value: 0 }], excluded: [{ label: "Invalide", value: -2 }],
   });
+  assert.deepEqual(buildDonutSegments([4, 0], 50, 20).map(({ index }) => index), [0]);
 });
 
 test("reduced motion turns chart animation contracts instant", () => {
@@ -129,6 +149,82 @@ test("interactive islands expose complete semantics and bounded responsive SVG c
   assert.match(source, /aria-rowindex/);
   assert.match(source, /aria-colindex/);
   assert.doesNotMatch(source, /setInterval|requestAnimationFrame\([^)]*requestAnimationFrame/);
+});
+
+test("chart frame composes axes, plot and tooltip in one positioned plot stack", async () => {
+  const source = await readFile("components/admin/charts/ChartFrame.tsx", "utf8");
+  for (const token of [
+    '"compact"', '"detailed"', "subtitle", "legend", "chrome", "plot", "axes", "tooltip", "footer",
+    "exactTable", "summary",
+  ]) assert.match(source, new RegExp(token));
+  assert.match(source, /data-variant=/);
+  assert.match(source, /styles\.frameTitle/);
+  assert.match(source, /styles\.frameSubtitle/);
+  assert.match(source, /styles\.plotStack/);
+  assert.match(source, /data-chart-plot-stack/);
+  assert.match(source, /renderSlot\(axes, ids\)[\s\S]*renderSlot\(plot, ids\)[\s\S]*renderSlot\(tooltip, ids\)/);
+  assert.doesNotMatch(source, /styles\.axesSlot/);
+});
+
+test("line and comparison charts share readable Cartesian axes and grid", async () => {
+  const [line, comparison, axes, frame] = await Promise.all([
+    readFile("components/admin/charts/InteractiveLineChart.tsx", "utf8"),
+    readFile("components/admin/charts/ComparisonLineChart.tsx", "utf8"),
+    readFile("components/admin/charts/CartesianAxes.tsx", "utf8").catch(() => ""),
+    readFile("components/admin/charts/ChartFrame.tsx", "utf8"),
+  ]);
+  assert.match(line, /CartesianAxes/);
+  assert.match(comparison, /CartesianAxes/);
+  assert.match(line, /axes=\{\(ids\)/);
+  assert.match(comparison, /axes=\{\(ids\)/);
+  assert.match(axes, /data-chart-axis="x"/);
+  assert.match(axes, /data-chart-axis="y"/);
+  assert.match(axes, /data-chart-grid/);
+  assert.match(axes, /<text/);
+  assert.match(line, /data-chart-area/);
+  assert.match(line, /data-chart-crosshair/);
+  assert.match(line, /data-chart-point/);
+  assert.match(comparison, /delta=\{delta\}/);
+  assert.match(frame, /data-chart-delta/);
+});
+
+test("heatmap exposes row and hour axes plus a visible low-to-high scale", async () => {
+  const source = await readFile("components/admin/charts/InteractiveHeatmap.tsx", "utf8");
+  assert.match(source, /data-chart-axis="hours"/);
+  assert.match(source, /data-chart-axis="rows"/);
+  assert.match(source, /data-chart-heat-legend/);
+  assert.match(source, />Faible → Forte</);
+  assert.doesNotMatch(source, /Élevée/);
+  assert.doesNotMatch(source, /UTC/);
+});
+
+test("donut density modes keep exact values without exposing implementation jargon", async () => {
+  const source = await readFile("components/admin/charts/InteractiveDonut.tsx", "utf8");
+  assert.match(source, /variant\s*=\s*"compact"/);
+  assert.match(source, /variant === "detailed"/);
+  assert.match(source, /data-chart-percentage/);
+  assert.match(source, /styles\.donutCompact/);
+  assert.match(source, /styles\.donutDetailed/);
+  assert.match(source, /donutVisuals/);
+  assert.match(source, /visual\.swatch/);
+  assert.match(source, /visual\.path/);
+  assert.match(source, /normalized\.included\.map/);
+  assert.doesNotMatch(source, /plein|hachures|points|valeurs? exclues?|exclu du donut/i);
+});
+
+test("chart motion stays progressive, bounded and fully disabled when reduced", async () => {
+  const [css, line, comparison, heatmap, donut] = await Promise.all([
+    readFile("components/admin/charts/Charts.module.css", "utf8"),
+    readFile("components/admin/charts/InteractiveLineChart.tsx", "utf8"),
+    readFile("components/admin/charts/ComparisonLineChart.tsx", "utf8"),
+    readFile("components/admin/charts/InteractiveHeatmap.tsx", "utf8"),
+    readFile("components/admin/charts/InteractiveDonut.tsx", "utf8"),
+  ]);
+  assert.match(css, /animation-delay:calc\(var\(--chart-index/);
+  assert.match(css, /180ms|220ms|280ms|320ms|360ms|420ms/);
+  assert.doesNotMatch(css, /infinite/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)[\s\S]*animation:none!important[\s\S]*transition:none!important/);
+  for (const source of [line, comparison, heatmap, donut]) assert.match(source, /data-chart-animation-key/);
 });
 
 test("heatmap contract is a semantic 16 by 7 grid with 112 cells", async () => {

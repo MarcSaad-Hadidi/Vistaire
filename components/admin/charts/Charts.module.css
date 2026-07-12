@@ -1,4 +1,591 @@
-.frame{position:relative;min-width:0;width:100%;touch-action:pan-y}.svg{display:block;width:100%;height:auto;overflow:visible}.grid{stroke:var(--admin-border-soft,#332d26);stroke-width:1;vector-effect:non-scaling-stroke}.line{fill:none;stroke:var(--admin-accent,#d2aa67);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1000;animation:chartReveal 320ms ease-out both}.lineSecondary{stroke:#8e867b;stroke-dasharray:5 4}.area{fill:url(#chart-area);opacity:.16}.mark{outline:none;cursor:pointer;transition:opacity 220ms ease,transform 220ms ease;transform-box:fill-box;transform-origin:center}.mark:focus-visible{filter:drop-shadow(0 0 3px var(--admin-accent,#d2aa67));stroke:#fff;stroke-width:2}.mark[data-muted=true]{opacity:.38}.mark[data-active=true]{transform:scale(1.16)}.tooltip{position:absolute;z-index:2;left:var(--tooltip-x);top:var(--tooltip-y);max-width:min(190px,80%);padding:7px 9px;border:1px solid var(--admin-border,#332d26);border-radius:8px;color:var(--admin-text,#e7e4de);background:#171411;box-shadow:0 8px 22px #0008;font-size:11px;line-height:1.3;pointer-events:none;opacity:0;transform:translate(-50%,calc(-100% - 8px));transition:opacity 180ms ease}.tooltip[data-visible=true]{opacity:1}.tooltip strong{display:block;margin-top:2px;color:var(--admin-accent,#d2aa67)}.bar{fill:var(--admin-accent,#d2aa67);transform-origin:center bottom;animation:barReveal 280ms ease-out both}.donutSegment{stroke:#151412;stroke-width:1;vector-effect:non-scaling-stroke}.heatCell{stroke:#151412;stroke-width:1;fill:color-mix(in srgb,var(--admin-accent,#d2aa67) calc(var(--intensity)*85%),#29251f)}.legend{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 0;padding:0;list-style:none;font-size:11px}.legend i{display:inline-block;width:10px;height:3px;margin-right:5px;background:var(--legend-color);vertical-align:middle}.srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.exactTable{left:0;top:0}@keyframes chartReveal{from{stroke-dashoffset:1000;opacity:.25}to{stroke-dashoffset:0;opacity:1}}@keyframes barReveal{from{transform:scaleY(0);opacity:.3}to{transform:scaleY(1);opacity:1}}@media(prefers-reduced-motion:reduce){.line,.bar,.mark,.tooltip{animation:none!important;transition:none!important}}
-/* Line-chart points keep a restrained 12px mark while exposing a touch-sized hit stroke. */
-circle.mark{pointer-events:all;stroke:transparent;stroke-width:64px}
-circle.mark:focus-visible{stroke:#fff;stroke-width:2}
+.frame {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  width: 100%;
+  color: var(--admin-text, #e7e4de);
+  touch-action: pan-y;
+}
+
+.frameCompact {
+  --chart-heading-size: 13px;
+  --chart-subtitle-size: 11px;
+  --chart-plot-gap: 8px;
+}
+
+.frameDetailed {
+  --chart-heading-size: 16px;
+  --chart-subtitle-size: 12px;
+  --chart-plot-gap: 12px;
+}
+
+.frameHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: var(--chart-plot-gap);
+}
+
+.frameHeading {
+  min-width: 0;
+}
+
+.frameTitle {
+  margin: 0;
+  color: var(--admin-text, #e7e4de);
+  font-size: var(--chart-heading-size);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.frameSubtitle {
+  margin: 3px 0 0;
+  color: var(--admin-text-muted, #a9a39a);
+  font-size: var(--chart-subtitle-size);
+  line-height: 1.45;
+}
+
+.chartChrome {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: var(--admin-text-muted, #a9a39a);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.chartChrome span {
+  padding: 4px 6px;
+  border: 1px solid var(--admin-border-soft, #332d26);
+  border-radius: 4px;
+  background: #1c1915;
+}
+
+.legendSlot,
+.chartFooter {
+  min-width: 0;
+}
+
+.plotStack {
+  position: relative;
+  min-width: 0;
+}
+
+.axesOverlay {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+}
+
+.plotStack > svg:not(.axesOverlay) {
+  position: relative;
+  z-index: 1;
+}
+
+.chartFooter {
+  margin-top: 8px;
+  color: var(--admin-text-muted, #a9a39a);
+  font-size: 11px;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.cartesianSvg {
+  aspect-ratio: 640 / 260;
+  min-height: 150px;
+}
+
+.frameDetailed .cartesianSvg {
+  min-height: 210px;
+}
+
+.cartesianAxes text,
+.heatAxes text {
+  fill: var(--admin-text-muted, #a9a39a);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.cartesianAxes [data-chart-grid] {
+  stroke: var(--admin-border-soft, #332d26);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.axisLine {
+  stroke: #554c41;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.line {
+  fill: none;
+  stroke: var(--admin-accent, #d2aa67);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  animation: chartReveal 320ms ease-out both;
+}
+
+.lineCurrent {
+  stroke: var(--admin-accent, #d2aa67);
+}
+
+.lineSecondary {
+  stroke: #8e867b;
+  stroke-width: 1.75;
+  stroke-dasharray: 0.018 0.014;
+}
+
+.area {
+  pointer-events: none;
+  opacity: 0;
+  animation: areaReveal 280ms ease-out 80ms both;
+}
+
+.crosshair {
+  pointer-events: none;
+  stroke: #ddd4c5;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.crosshair[data-visible="true"] {
+  opacity: 0.72;
+}
+
+.mark {
+  outline: none;
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 220ms ease, transform 220ms ease, filter 180ms ease;
+  animation-delay:calc(var(--chart-index, 0) * 18ms);
+}
+
+.mark:focus-visible {
+  filter: drop-shadow(0 0 3px var(--admin-accent, #d2aa67));
+}
+
+.mark[data-muted="true"] {
+  opacity: 0.38;
+}
+
+.mark[data-active="true"] {
+  transform: scale(1.16);
+}
+
+.pointHit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.pointVisual {
+  fill: #171411;
+  stroke: var(--admin-accent, #d2aa67);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  transition: fill 180ms ease, stroke-width 180ms ease;
+}
+
+.mark[data-active="true"] .pointVisual,
+.mark:focus-visible .pointVisual {
+  fill: var(--admin-accent, #d2aa67);
+  stroke: #fff8ec;
+}
+
+.seriesPoint {
+  vector-effect: non-scaling-stroke;
+  opacity: 0.72;
+  transition: opacity 180ms ease, r 180ms ease;
+}
+
+.seriesPointCurrent {
+  fill: var(--admin-accent, #d2aa67);
+}
+
+.seriesPointPrevious {
+  fill: #8e867b;
+}
+
+.seriesPoint[data-active="true"] {
+  opacity: 1;
+  r: 5px;
+}
+
+.columnHit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.columnHit:focus-visible {
+  fill: rgb(210 170 103 / 8%);
+  stroke: var(--admin-accent, #d2aa67);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  margin: 4px 0 2px;
+  padding: 0;
+  list-style: none;
+  color: var(--admin-text-muted, #a9a39a);
+  font-size: 11px;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  display: block;
+  width: 16px;
+  height: 3px;
+}
+
+.legendCurrent {
+  background: var(--admin-accent, #d2aa67);
+}
+
+.legendPrevious {
+  background: repeating-linear-gradient(90deg, #8e867b 0 4px, transparent 4px 7px);
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  left: var(--tooltip-x);
+  top: var(--tooltip-y);
+  display: grid;
+  gap: 3px;
+  width: max-content;
+  max-width: min(210px, calc(100% - 16px));
+  padding: 8px 10px;
+  border: 1px solid var(--admin-border, #453c32);
+  border-radius: 6px;
+  color: var(--admin-text, #e7e4de);
+  background: #171411;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 55%);
+  font-size: 11px;
+  line-height: 1.3;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, calc(-100% - 8px));
+  transition: opacity 180ms ease;
+}
+
+.tooltip[data-horizontal="start"] {
+  transform: translate(0, calc(-100% - 8px));
+}
+
+.tooltip[data-horizontal="end"] {
+  transform: translate(-100%, calc(-100% - 8px));
+}
+
+.tooltip[data-vertical="below"] {
+  transform: translate(-50%, 8px);
+}
+
+.tooltip[data-horizontal="start"][data-vertical="below"] {
+  transform: translate(0, 8px);
+}
+
+.tooltip[data-horizontal="end"][data-vertical="below"] {
+  transform: translate(-100%, 8px);
+}
+
+.tooltip[data-visible="true"] {
+  opacity: 1;
+}
+
+.tooltipLabel {
+  color: #fff8ec;
+  font-weight: 600;
+}
+
+.tooltip > strong,
+.tooltipValue strong {
+  color: var(--admin-accent, #d2aa67);
+  font-size: 12px;
+}
+
+.tooltipValue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.tooltipValue small {
+  overflow: hidden;
+  color: var(--admin-text-muted, #a9a39a);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tooltipValue[data-tone="muted"] strong {
+  color: #b9b1a7;
+}
+
+.tooltipDelta {
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--admin-border-soft, #332d26);
+  color: #d8d1c6;
+  font-size: 10px;
+}
+
+.bar {
+  fill: var(--admin-accent, #d2aa67);
+  transform-origin: center bottom;
+  animation: barReveal 280ms ease-out both;
+  animation-delay:calc(var(--chart-index, 0) * 18ms);
+}
+
+.heatmapFrame .legendSlot {
+  display: flex;
+  justify-content: flex-end;
+  margin: -2px 0 3px;
+}
+
+.heatmapSvg {
+  aspect-ratio: 640 / 240;
+  min-height: 150px;
+}
+
+.heatCell {
+  stroke: #151412;
+  stroke-width: 1;
+  fill: color-mix(in srgb, var(--admin-accent, #d2aa67) calc(var(--intensity) * 86%), #29251f);
+  vector-effect: non-scaling-stroke;
+  animation: cellReveal 220ms ease-out both;
+}
+
+.heatCell:focus-visible {
+  stroke: #fff8ec;
+  stroke-width: 2;
+}
+
+.heatLegend {
+  display: inline-grid;
+  grid-template-columns: auto 72px;
+  align-items: center;
+  gap: 6px;
+  color: var(--admin-text-muted, #a9a39a);
+  font-size: 10px;
+}
+
+.heatLegend i {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #29251f, var(--admin-accent, #d2aa67));
+}
+
+.donutFrame {
+  display: grid;
+  grid-template-columns: minmax(0, var(--donut-size)) minmax(0, 1fr);
+  grid-template-areas:
+    "header header"
+    "plot legend";
+  column-gap: 14px;
+  align-items: center;
+}
+
+.donutCompact {
+  --donut-size: 140px;
+}
+
+.donutDetailed {
+  --donut-size: 220px;
+  column-gap: 22px;
+}
+
+.donutFrame .frameHeader {
+  grid-area: header;
+  width: 100%;
+}
+
+.donutFrame .legendSlot {
+  grid-area: legend;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.donutFrame .plotStack {
+  grid-area: plot;
+  width: min(100%, var(--donut-size));
+  justify-self: center;
+}
+
+.donutSvg {
+  width: min(100%, var(--donut-size));
+}
+
+.donutSegment {
+  stroke: #151412;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  animation: segmentReveal 280ms ease-out both;
+}
+
+.donutSegment:focus-visible {
+  stroke: #fff8ec;
+  stroke-width: 2;
+}
+
+.donutLegend {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+
+.donutLegend li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+}
+
+.donutLegend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background-color: var(--legend-color);
+  background-image: var(--legend-detail);
+}
+
+.donutLegend span {
+  overflow: hidden;
+  color: var(--admin-text-muted, #a9a39a);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donutLegend strong {
+  grid-column: 2;
+  color: var(--admin-text, #e7e4de);
+  font-weight: 600;
+}
+
+.donutLegend small {
+  margin-left: 4px;
+  color: var(--admin-accent, #d2aa67);
+  font-weight: 500;
+}
+
+.srOnly {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.exactTable {
+  top: 0;
+  left: 0;
+}
+
+@keyframes chartReveal {
+  from { stroke-dashoffset: 1; opacity: 0.25; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes areaReveal {
+  from { opacity: 0; }
+  to { opacity: 0.9; }
+}
+
+@keyframes barReveal {
+  from { transform: scaleY(0); opacity: 0.3; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes cellReveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes segmentReveal {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 430px) {
+  .frameHeader {
+    gap: 8px;
+  }
+
+  .frameDetailed .chartChrome {
+    display: none;
+  }
+
+  .cartesianSvg,
+  .frameDetailed .cartesianSvg,
+  .heatmapSvg {
+    min-height: 138px;
+  }
+
+  .cartesianAxes text,
+  .heatAxes text {
+    font-size: 22px;
+  }
+
+  .cartesianAxes [data-chart-axis="x"] text:not(:first-of-type):not(:last-of-type) {
+    display: none;
+  }
+
+  .donutDetailed {
+    --donut-size: 164px;
+    column-gap: 10px;
+  }
+
+  .donutLegend {
+    gap: 5px;
+    font-size: 10px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .line,
+  .area,
+  .bar,
+  .mark,
+  .seriesPoint,
+  .crosshair,
+  .tooltip,
+  .heatCell,
+  .donutSegment {
+    animation:none!important;
+    transition:none!important;
+  }
+}
