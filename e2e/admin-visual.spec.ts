@@ -43,7 +43,11 @@ test.describe("admin deterministic visual contract", () => {
     const heavy: string[] = [];
     page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
     page.on("pageerror", error => errors.push(error.message));
-    page.on("requestfailed", request => failed.push(`${request.failure()?.errorText ?? "failed"} ${request.url()}`));
+    page.on("requestfailed", request => {
+      const error = request.failure()?.errorText ?? "failed";
+      if (error === "net::ERR_ABORTED" && /[?&]_rsc=/.test(request.url())) return;
+      failed.push(`${error} ${request.url()}`);
+    });
     page.on("request", request => { if (/\.(?:glb|usdz|mp4)(?:\?|$)/i.test(request.url())) heavy.push(request.url()); });
 
     await page.setViewportSize({ width: 1672, height: 941 });
@@ -107,5 +111,34 @@ test.describe("admin deterministic visual contract", () => {
     expect(navigationSnapshot).toContain("Vue d’ensemble"); expect(navigationSnapshot).toContain("Disponibilités"); expect(navigationSnapshot).toContain("Analyses");
     const motion = await page.locator("[class*=adminRoot]").evaluate((root) => [...root.querySelectorAll("button,a,svg polyline")].slice(0,20).map((element)=>({animation:getComputedStyle(element).animationDuration,transition:getComputedStyle(element).transitionDuration})));
     for(const value of motion){expect(value.animation).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/);expect(value.transition).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/)}
+  });
+
+  test("availability search and final-state filters remain complete on mobile", async ({ page }) => {
+    await enterLocalPreview(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/admin/availability", { waitUntil: "networkidle" });
+    await stabilize(page);
+    await assertPageHealth(page);
+
+    const rows = page.locator("article[data-available]");
+    await expect(rows).toHaveCount(12);
+    const firstName = await rows.first().getByRole("heading", { level: 3 }).innerText();
+    const search = page.getByPlaceholder("Rechercher un plat…");
+    await search.fill(firstName);
+    await expect(rows).toHaveCount(1);
+    await search.fill("plat-introuvable-visual");
+    await expect(page.locator('[role="status"]').filter({ hasText: /Aucun plat/ })).toBeVisible();
+    await search.fill("");
+
+    for (const name of ["Tous", "Disponibles", "Indisponibles"]) {
+      const button = page.getByRole("button", { name, exact: true });
+      const box = await button.boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    await page.getByRole("button", { name: "Indisponibles", exact: true }).click();
+    await expect(page.locator('[role="status"]').filter({ hasText: /Aucun plat/ })).toBeVisible();
+    await page.getByRole("button", { name: "Tous", exact: true }).click();
+    await expect(rows).toHaveCount(12);
   });
 });

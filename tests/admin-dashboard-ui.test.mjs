@@ -268,6 +268,21 @@ test("heatmap delegates one normalized Monday-first 24 by 7 matrix to the intera
   assert.match(primitive, /role="gridcell"/);
 });
 
+test("overview reference layout keeps every desktop panel self-contained", async () => {
+  const [overview, top, strip, css] = await Promise.all([
+    read("components/admin/overview/AdminOverview.tsx"),
+    read("components/admin/overview/AdminTopDishes.tsx"),
+    read("components/admin/overview/AdminAvailabilityStrip.tsx"),
+    read("components/admin/overview/AdminOverview.module.css")
+  ]);
+  assert.match(overview, /headerStatus=/);
+  assert.match(top, /evidence\.data\.slice\(0,\s*5\)/);
+  assert.match(strip, /dishes\.slice\(0,\s*5\)/);
+  assert.doesNotMatch(css, /margin[^:]*:\s*-|max-height|overflow-[xy]:\s*(?:auto|scroll)|grid-auto-flow:\s*column/);
+  assert.match(css, /\.overviewGrid\s*\{[^}]*grid-template-areas:[^}]*activity top moment[^}]*activity top category[^}]*availability availability availability/s);
+  assert.match(css, /\.moment\s+:global\(\[data-chart-frame\]>header\)/);
+});
+
 test("PR150 insights fidelity uses normal flow, premium copy, controlled top-five views and detailed charts", async () => {
   const [page, heatmap, breakdowns, rows, css, primitives] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
