@@ -103,7 +103,7 @@ export function MetricTooltip({ id, label, value, values, delta, x, y, visible }
     id={id}
     className={styles.tooltip}
     data-visible={visible}
-    data-horizontal={x < 25 ? "start" : x > 75 ? "end" : "center"}
+    data-horizontal={x < 34 ? "start" : x > 66 ? "end" : "center"}
     data-vertical={y < 34 ? "below" : "above"}
     aria-hidden={!visible}
     aria-live="polite"

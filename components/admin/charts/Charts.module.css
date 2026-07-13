@@ -151,7 +151,7 @@
 
 .area {
   pointer-events: none;
-  opacity: 0;
+  opacity: 0.9;
   animation: areaReveal 280ms ease-out 80ms both;
 }
 
@@ -295,11 +295,14 @@
 }
 
 .tooltip[data-horizontal="start"] {
+  left: 8px;
   transform: translate(0, calc(-100% - 8px));
 }
 
 .tooltip[data-horizontal="end"] {
-  transform: translate(-100%, calc(-100% - 8px));
+  right: 8px;
+  left: auto;
+  transform: translate(0, calc(-100% - 8px));
 }
 
 .tooltip[data-vertical="below"] {
@@ -307,11 +310,14 @@
 }
 
 .tooltip[data-horizontal="start"][data-vertical="below"] {
+  left: 8px;
   transform: translate(0, 8px);
 }
 
 .tooltip[data-horizontal="end"][data-vertical="below"] {
-  transform: translate(-100%, 8px);
+  right: 8px;
+  left: auto;
+  transform: translate(0, 8px);
 }
 
 .tooltip[data-visible="true"] {

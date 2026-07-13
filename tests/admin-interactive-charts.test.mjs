@@ -175,6 +175,11 @@ test("chart frame composes axes, plot and tooltip in one positioned plot stack",
   assert.doesNotMatch(source, /styles\.axesSlot/);
 });
 
+test("chart tooltips switch edge alignment before their content can escape the plot", async () => {
+  const frame = await readFile("components/admin/charts/ChartFrame.tsx", "utf8");
+  assert.match(frame, /x < 34 \? "start" : x > 66 \? "end"/);
+});
+
 test("line and comparison charts share readable Cartesian axes and grid", async () => {
   const [line, comparison, axes, frame] = await Promise.all([
     readFile("components/admin/charts/InteractiveLineChart.tsx", "utf8"),
@@ -237,6 +242,7 @@ test("chart motion stays progressive, bounded and fully disabled when reduced", 
   assert.match(css, /180ms|220ms|280ms|320ms|360ms|420ms/);
   assert.doesNotMatch(css, /infinite/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)[\s\S]*animation:none!important[\s\S]*transition:none!important/);
+  assert.match(css, /\.area\s*\{[^}]*opacity:\s*0\.9/s);
   for (const source of [line, comparison, heatmap, donut]) assert.match(source, /data-chart-animation-key/);
 });
 

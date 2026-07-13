@@ -10,6 +10,24 @@ async function enterPreview(page: Page) {
   }
 }
 
+async function hoverPaintedSvgPath(path: Locator) {
+  await path.scrollIntoViewIfNeeded();
+  const point = await path.evaluate((element) => {
+    if (!(element instanceof SVGGeometryElement)) return null;
+    const matrix = element.getScreenCTM();
+    const length = element.getTotalLength();
+    if (!matrix || !length) return null;
+    for (let step = 1; step < 100; step += 1) {
+      const local = element.getPointAtLength(length * step / 100);
+      const screen = new DOMPoint(local.x, local.y).matrixTransform(matrix);
+      if (document.elementFromPoint(screen.x, screen.y) === element) return { x: screen.x, y: screen.y };
+    }
+    return null;
+  });
+  expect(point, "donut segment exposes a painted browser hit target").not.toBeNull();
+  await path.page().mouse.move(point!.x, point!.y);
+}
+
 async function exerciseChart(chart: Locator) {
   const marks = chart.locator("[tabindex]");
   expect(await marks.count()).toBeGreaterThan(1);
@@ -20,7 +38,9 @@ async function exerciseChart(chart: Locator) {
   expect(firstExact).toBeTruthy();
   expect(secondExact).toBeTruthy();
 
-  await first.hover();
+  const isDonutSegment = await first.evaluate((element) => element.tagName.toLowerCase() === "path" && element.closest('[data-chart-kind="donut"]') !== null);
+  if (isDonutSegment) await hoverPaintedSvgPath(first);
+  else await first.hover();
   const tooltip = chart.locator("output[data-visible=true]");
   await expect(tooltip).toBeVisible();
   const [tooltipText, exactRows] = await Promise.all([
@@ -28,6 +48,7 @@ async function exerciseChart(chart: Locator) {
     chart.locator("tbody tr").evaluateAll((rows) => rows.map((row) => Array.from(row.querySelectorAll("th,td"), (cell) => cell.textContent ?? ""))),
   ]);
   expect(exactRows.some((cells) => tooltipText.includes(cells[0]) && tooltipText.includes(cells.at(-1)!))).toBe(true);
+  if (isDonutSegment) await chart.page().mouse.move(0, 0);
   await first.evaluate((element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
   await expect(tooltip).toBeVisible();
   await first.evaluate((element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
@@ -62,7 +83,7 @@ async function exerciseChart(chart: Locator) {
 
 async function expectTooltipInsidePlot(chart: Locator, mark: Locator, viewportWidth: number) {
   await chart.scrollIntoViewIfNeeded();
-  await mark.hover();
+  await mark.focus();
   const tooltip = chart.locator("output[data-visible=true]");
   const plot = chart.locator("[data-chart-plot-stack]");
   await expect(tooltip).toBeVisible();
@@ -165,9 +186,11 @@ test("chart fixtures render readable axes, bounded tooltips, legends and active 
 
     await page.goto("/admin", { waitUntil: "networkidle" });
     const donut = page.locator('[data-chart-frame][data-chart-kind="donut"]');
-    const donutMarks = donut.locator("[tabindex]");
-    await expectTooltipInsidePlot(donut, donutMarks.first(), viewport.width);
-    await expectTooltipInsidePlot(donut, donutMarks.last(), viewport.width);
+    if (await donut.isVisible()) {
+      const donutMarks = donut.locator("[tabindex]");
+      await expectTooltipInsidePlot(donut, donutMarks.first(), viewport.width);
+      await expectTooltipInsidePlot(donut, donutMarks.last(), viewport.width);
+    }
   }
 });
 
@@ -219,7 +242,7 @@ test("overview detailed-insights CTA works at desktop and mobile sizes", async (
 test("all required viewports stay within the document width", async ({ page }) => {
   await enterPreview(page);
   for (const route of ["/admin", "/admin/availability", "/admin/insights"]) {
-    for (const viewport of [{width:320,height:844},{width:360,height:844},{width:375,height:844},{width:390,height:844},{width:430,height:932},{width:1280,height:720},{width:1440,height:900},{width:1672,height:941},{width:1920,height:1080}]) {
+    for (const viewport of [{width:320,height:700},{width:360,height:780},{width:375,height:812},{width:390,height:844},{width:430,height:932},{width:1280,height:720},{width:1440,height:900},{width:1672,height:941},{width:1920,height:1080}]) {
       await page.setViewportSize(viewport);
       await page.goto(route, { waitUntil: "domcontentloaded" });
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

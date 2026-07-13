@@ -101,7 +101,9 @@
 
 .categoryBars { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .categoryBars li { display: grid; grid-template-columns: minmax(0,1fr) 42px; gap: 2px 8px; align-items: center; font-size: 10px; line-height: 1.1; }
-.categoryBars strong { text-align: right; }
+.categoryBars li > span { grid-area: 1 / 1; }
+.categoryBars li > i { grid-area: 2 / 1 / 3 / 3; }
+.categoryBars strong { grid-area: 1 / 2; text-align: right; }
 
 .dishStrip { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
 .dishStrip article { display: flex; min-width: 0; align-items: center; gap: 10px; }
@@ -119,10 +121,11 @@
   .kpis { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
   .kpiImmersive { display: none; }
   .overviewGrid { display: flex; flex-direction: column; gap: 3px; }
-  .overviewGrid > .activity,.overviewGrid > .top { height: auto; min-height: 0; padding: 12px; overflow: visible; }
+  .overviewGrid > .activity { height: auto; min-height: 0; padding: 8px 12px; overflow: visible; }
+  .overviewGrid > .top { height: auto; min-height: 0; padding: 12px; overflow: visible; }
   .overviewGrid > .availability { height: auto; min-height: 0; padding: 10px; overflow: visible; }
   .moment,.category { display: none; }
-  .insightsCta { min-height: 36px; padding-inline: 10px; font-size: 10px; }
+  .insightsCta { min-height: 44px; padding-inline: 10px; font-size: 10px; }
   .metricSelector { display: none; }
   .activity :global([data-chart-plot-stack]),.activity :global([data-chart-plot-stack]>svg) { height: 58px; }
   .ranking li[data-mobile-secondary="true"],.dishStrip article[data-mobile-secondary="true"] { display: none; }

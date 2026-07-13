@@ -1,61 +1,70 @@
-# Admin dashboard pixel-fidelity ledger — 2026-07-10
+# PR 150 - Ledger de fidelite visuelle admin
 
-## Deterministic protocol
+Derniere mise a jour: 2026-07-12
 
-- References: external files in `E:\Projet perso\vistaire-admin-references`; none are committed.
-- Desktop viewport: 1672 × 941, DPR 1, `fr-CA`, `America/Toronto`, reduced motion, fonts awaited.
-- Mobile release viewports: 390 × 844 and 430 × 932; overflow also checked at 320, 360 and 375 px.
-- Mobile reference comparison: source crop `x=139,y=69,w=663,h=1535`, resized to 390 × 903. The versioned comparator applies a 24px rounded-corner exclusion mask for phone hardware and reflections.
-- Data: the versioned, read-only PostgREST fixture in `e2e/support/admin-visual-fixture-server.mjs`, self-hosted on loopback by Playwright. No production write and no synthetic production fallback.
-- Diff metric: fraction of pixels whose maximum RGB channel delta exceeds 20/255. This is a coarse diagnostic, not Playwright snapshot approval.
-- Fresh self-hosted command: `$env:VISTAIRE_ADMIN_VISUAL_FIXTURE='1'; $env:PLAYWRIGHT_BASE_URL='http://127.0.0.1:3120'; npx playwright test e2e/admin-visual.spec.ts --project=chromium`. Playwright launches both the versioned loopback fixture and a development-mode Next server; no external database or manual server is required.
-- The intentional mobile baseline is checked at 1% regression tolerance and per-pixel threshold 0.08. It protects the accepted application render; it does not claim 1% similarity to the source composite.
+## Protocole deterministe
 
-## Compare/correct ledger
+- References officielles externes: `E:\Projet perso\vistaire-admin-references`.
+- Desktop: 1672 x 941, DPR 1, `fr-CA`, `America/Toronto`, polices attendues avant capture.
+- Mobile produit: 390 x 844 et 430 x 932; le composite officiel est recadre en `x=139,y=69,w=663,h=1535`, puis redimensionne en 390 x 903 avec un masque de coins de 24 px.
+- Fixture: serveur PostgREST local versionne, scenario `pixel-reference`; aucune ecriture Supabase de production.
+- Diff brut: fraction de pixels dont le delta RGB maximal depasse 20/255. Ce diagnostic inclut les photos, glyphes, donnees exactes et antialiasing; il ne remplace pas les tests de geometrie.
+- Captures finales: `%TEMP%\vistaire-pr150-final-visual`.
+- Overlays, diffs et crops: `%TEMP%\vistaire-pr150-final-compare`.
 
-| Screen | Iteration 1 | Repair | Iteration 2 | Status |
-| --- | ---: | --- | ---: | --- |
-| Overview desktop | 18.77% | Moved the analytics/KPI stack 8 px and restored reference header copy | 18.42% | Geometry improved; release target not met |
-| Availability desktop | 11.29% | Moved the main panel 17 px upward and restored reference header copy | 10.85% | Geometry improved; release target not met |
-| Insights desktop | 18.85% | Restored reference header copy | 18.97% | Copy is correct; glyph changes raise the unmasked coarse score |
-| Overview mobile crop | 26.01% | Removed unsupported period copy; calibrated KPI 79 px, activity 182 px, following panels 160/111 px; restored header copy | 26.27% | Geometry visibly improved; coarse metric is dominated by content/type/photo/hardware pixels |
+## Resultats avant / apres
 
-## Functional defects found during visual QA
+| Ecran | Diagnostic historique | Diagnostic final | Evolution | Geometrie finale | Statut |
+| --- | ---: | ---: | ---: | --- | --- |
+| Overview desktop | 19.05 % | 16.08 % | -2.97 pts | KPI `y=221,h=132`; rangee principale `y=365,h=359`; disponibilite `y=734,h=199` | Structure conforme; diff brut > 1 % |
+| Availability desktop | 10.88 % | 12.45 % | +1.57 pts | panneau `y=215`; controles `y=357`; lignes 80 px, six visibles dans le viewport | Structure conforme; hausse due aux icones, badges et donnees exactes |
+| Insights desktop | 18.97 % | 15.41 % | -3.56 pts | KPI `y=142,h=120`; rangees `y=272/541/780`; proportions 722/416/402, 392/319/369/450 | Structure et neuf panneaux conformes; diff brut > 1 % |
+| Overview mobile masque | 28.75 % | 25.85 % | -2.90 pts | quatre KPI, trois apercus et premiere carte au-dessus de la navigation fixe | Regression interne approuvee; diff officiel > 1 % |
 
-- The activity SVG rendered a `<title>` child inside every `<circle>`, producing a repeatable React hydration mismatch. Points are now childless; the chart title, description and exact-value table retain the accessible alternative.
-- The Browser-plugin connection returned `No browser is available`; the approved Playwright fallback performed the real Chromium checks.
+## Corrections de cause racine
 
-## Evidence paths (temporary, not tracked)
+- Header Insights remis dans le flux normal; suppression des hauteurs nulles, marges negatives et translations de compensation.
+- Grilles Insights calculees par contenu avec neuf panneaux, top 5 controles et aucun scroller analytics interne.
+- `ChartFrame` separe axes, plot, tooltip, legende, resume et tableau exact; variantes compactes et detaillees.
+- Courbes avec axes, grille, zone finale visible meme sans animation, points, crosshair et domaine stable.
+- Donuts detailles bornes a leur cellule; legende courte pour le donut Overview; aucune legende technique visible.
+- Tooltips ancres a 8 px des bords et testes dans les plots aux largeurs 390 et 430.
+- Heatmap semantique 7 x 24 avec axes, legende, clavier 2D et cellules exactes.
+- Overview: cinq plats, cinq cartes disponibilite, categorie en deux lignes explicites et aucun debordement.
+- Availability: lignes de 80 px, miniatures 160 x 72, compteurs, recherche et trois filtres uniquement; mutation securisee inchangee.
+- Fixture pixel-reference ponderee, non aleatoire, avec totaux exacts 1286 / 3742 / 562 / 412 et comparaison precedente compatible.
 
-- Renders: `%TEMP%\vistaire-admin-visual-qa\*.png`
-- 50% overlays and pixel diffs: `%TEMP%\vistaire-admin-visual-compare\*.png`
+## Preuves de layout et interaction
 
-## Remaining fidelity gaps
+- Header: bounding boxes sans intersection entre identite, actions, statut, periode et KPI.
+- Insights: `scrollHeight <= clientHeight + tolerance` et `scrollWidth <= clientWidth + tolerance` pour les panneaux principaux.
+- Tooltips: bornes du plot et du viewport controlees.
+- Viewports sans overflow document: 320 x 700, 360 x 780, 375 x 812, 390 x 844, 430 x 932, 1280 x 720, 1440 x 900, 1672 x 941 et 1920 x 1080.
+- Interactions: hover/pointer, focus, fleches, Home/End, Enter/Espace, Escape, tap, second tap, clic externe et reduced motion.
+- Crops Insights: KPI, activite, comparaison, heatmap, top plats, recherches, categories, service et resume/insights.
 
-- Historical pre-final-QA result: the masked comparison was a non-pass at `28.75167%`.
-- Final authoritative result (2026-07-11): `25.92751%`; the source-reference 1% release target remains unmet.
-- The separate internal Playwright mobile regression baseline is approved at 1% regression tolerance and threshold 0.08; it does not assert source-reference fidelity.
-- Real iPhone/Android device behavior and production analytics sufficiency were not tested.
+## Artefacts regenerables
 
-## Structural integration loops after component rewrite
+- `overview-desktop-overlay.png` / `overview-desktop-diff.png`
+- `availability-desktop-overlay.png` / `availability-desktop-diff.png`
+- `insights-desktop-overlay.png` / `insights-desktop-diff.png`
+- `mobile/overview-mobile-masked-overlay.png` / `mobile/overview-mobile-masked-diff.png`
+- `insights-kpis.png`, `insights-activity.png`, `insights-comparison.png`, `insights-heatmap.png`, `insights-topDishes.png`, `insights-searches.png`, `insights-categories.png`, `insights-service.png`, `insights-summaryInsights.png`
 
-| Screen | Loop | Measured geometry / required repair | Raw diagnostic |
-| --- | --- | --- | ---: |
-| Overview desktop | 3 | KPI `y=219,h=132`; panels `y=363`; KPI order restored; service donut and five ranked thumbnails added | 19.05% |
-| Availability desktop | 3 | Panel/search/first row aligned at `y=215/357/415`; row rhythm changed to 86px; visible/hidden copy restored | 10.88% |
-| Insights desktop | 3 | KPI/rows aligned to `y=140/270/539/763`; heatmap collision repaired; 722/416/402 first-row and 392/319/369/450 second-row proportions restored | 16.35% |
-| Overview mobile | 3 | Four-KPI order, ranked thumbnails, compressed chart and fixed navigation verified at 390 and 430 | 26.89% |
+## Performance observee
 
-The raw score increased on overview when the mandatory real dish thumbnails and donut were introduced. Visual overlay inspection confirms that this is photo/content delta rather than a regression in the measured outer geometry. The source references contain different plated-food pixels and reference counts; those pixels are intentionally not copied into production data.
+Mesure Chromium locale sur `/admin/insights` en mode developpement Webpack, avec la fixture pixel-reference:
 
-## Final QA correction pass — 2026-07-11
+- CLS: `0.000291`.
+- Navigation: `1106 ms`; DOMContentLoaded: `492 ms`; load: `1106 ms`.
+- Rafraichissement visuel: `60.7 FPS`; changement de metrique sur deux frames: `358 ms`.
+- Interaction clic de type INP: `176 ms` (indicatif, penalise par le runtime de developpement).
+- Taches longues observees: `59 ms`, `325 ms`, `151 ms`.
+- Heap JS: `91.7 MB`; scripts decodes: `12.9 MB`; CSS decode: `177 KB`.
+- Aucun chargement GLB, USDZ ou MP4 sur la route admin.
 
-- Browser-plugin control was attempted first and returned `No browser is available`; repository Playwright was used as the permitted fallback.
-- A real 320 px overflow (`scrollWidth=332`, `clientWidth=320`) came from the three-option metric selector. Compact flex sizing now produces `320/320`; all three routes pass at 320, 360, 375, 390, 430, 1280×720, 1440×900, 1672×941 and 1920×1080.
-- The Insights activity, comparison and heatmap wrappers still rendered legacy static SVG/div output. They now consume the shared interactive line, comparison and semantic 7×16 heatmap islands. Hover, exact tooltip, roving focus, arrows, Home/End, Enter/Space/Escape, touch pin/unpin and outside dismissal are exercised in `e2e/admin-chart-interactions.spec.ts`.
-- Line-chart points retain their small visible mark but expose an SVG hit stroke equivalent to the required touch target. Synthetic keyboard clicks are suppressed after the handled keydown so Enter/Space cannot double-toggle.
-- The complete mobile ranking remains available in an explicit internal scroller rather than being silently truncated. This makes the first availability card visible above the fixed navigation at 390×903.
-- The official masked mobile diagnostic improved from `28.75167%` to `25.92751%` differing pixels (threshold 20/255). This is an objective `2.82416` percentage-point improvement, but remains a non-pass against the 1% source-reference gate; no pixel-perfect claim is made.
-- The internal 390×903 regression baseline was regenerated only after the above intentional geometry correction and passed on a fresh run.
+Ces volumes de scripts et les taches longues ne representent pas un bundle de production: ils incluent le client HMR et l'instrumentation de developpement. Une mesure production locale authentifiee n'a pas ete possible sans contourner le garde de securite QR; ce garde a ete conserve. Le build de production reste la preuve de compilation, mais aucun score Lighthouse production n'est revendique.
 
-The versioned `scripts/admin-visual-compare.mjs` implements the official mobile crop and a 24px rounded-corner exclusion mask. Its historical pre-final-QA result was `28.75167%`; the final authoritative result is `25.92751%` against the required `1%` reference-fidelity threshold. This remains an explicit non-pass and never substitutes for the approved internal regression baseline. Artifacts are written outside Git. The 390×903 Playwright test asserts that the first availability card — image, name, status and 44px link-toggle — is entirely above the fixed navigation. Six unique keyboard focus steps, the targeted results live region, the mobile navigation ARIA snapshot and effective reduced-motion styles on controls/chart elements are checked in Chromium.
+## Ecart restant et decision PR
+
+Le seuil indicatif de 1 % contre les pixels officiels n'est pas atteint. Les principaux ecarts restants sont les photos de plats reelles, le menu de 12 plats impose par la parite, les comptes exacts de la fixture, la typographie rasterisee et certaines compositions internes plus denses. Les tests fonctionnels, de geometrie et de non-overflow sont verts, mais aucune affirmation "pixel-perfect a 1 %" n'est faite. Le PR reste en brouillon; il n'est ni merge, ni deploye, ni marque ready.

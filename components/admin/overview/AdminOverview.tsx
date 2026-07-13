@@ -8,6 +8,7 @@ import { AdminEvidenceState, AdminKpiCard, AdminPanel } from "../system/AdminPri
 import { AdminAvailabilityStrip } from "./AdminAvailabilityStrip";
 import { AdminTopDishes } from "./AdminTopDishes";
 import { AdminMetricLineChart } from "./AdminMetricLineChart";
+import { buildServicePreview } from "./servicePreview";
 import styles from "./AdminOverview.module.css";
 
 const number = new Intl.NumberFormat("fr-CA");
@@ -21,11 +22,7 @@ export function AdminOverview({ data, range }: { data: AdminDashboardData; range
   const series = analytics.kind === "real" ? analytics.metricSeries : null;
   const categories = panels?.categories;
   const services = panels?.serviceWindows;
-  const servicePreview = services?.kind === "supported" ? [
-    { label: "Déjeuner", value: services.data.windows.filter((item) => item.id === "morning" || item.id === "midday").reduce((sum, item) => sum + item.count, 0) },
-    { label: "Après-midi", value: services.data.windows.find((item) => item.id === "afternoon")?.count ?? 0 },
-    { label: "Dîner", value: services.data.windows.filter((item) => item.id === "evening" || item.id === "night").reduce((sum, item) => sum + item.count, 0) },
-  ] : null;
+  const servicePreview = services?.kind === "supported" ? buildServicePreview(services.data.windows) : null;
   const serviceFallback = services?.kind === "supported" ? fallback : services ?? fallback;
   const change = (id: string) => {
     const rate = metric(id)?.changeRate;

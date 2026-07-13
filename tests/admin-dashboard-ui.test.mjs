@@ -276,11 +276,30 @@ test("overview reference layout keeps every desktop panel self-contained", async
     read("components/admin/overview/AdminOverview.module.css")
   ]);
   assert.match(overview, /headerStatus=/);
+  assert.match(overview, /buildServicePreview\(services\.data\.windows\)/);
   assert.match(top, /evidence\.data\.slice\(0,\s*5\)/);
   assert.match(strip, /dishes\.slice\(0,\s*5\)/);
   assert.doesNotMatch(css, /margin[^:]*:\s*-|max-height|overflow-[xy]:\s*(?:auto|scroll)|grid-auto-flow:\s*column/);
   assert.match(css, /\.overviewGrid\s*\{[^}]*grid-template-areas:[^}]*activity top moment[^}]*activity top category[^}]*availability availability availability/s);
   assert.match(css, /\.moment\s+:global\(\[data-chart-frame\]>header\)/);
+});
+
+test("overview service preview preserves every service-window count exactly once", async () => {
+  const { buildServicePreview } = await import("../components/admin/overview/servicePreview.ts");
+  const windows = [
+    { id: "breakfast", count: 11 },
+    { id: "lunch", count: 23 },
+    { id: "afternoon", count: 17 },
+    { id: "dinner", count: 29 },
+    { id: "overnight", count: 5 },
+  ];
+  const preview = buildServicePreview(windows);
+  assert.deepEqual(preview, [
+    { label: "Déjeuner", value: 34 },
+    { label: "Après-midi", value: 17 },
+    { label: "Dîner", value: 34 },
+  ]);
+  assert.equal(preview.reduce((sum, item) => sum + item.value, 0), windows.reduce((sum, item) => sum + item.count, 0));
 });
 
 test("PR150 insights fidelity uses normal flow, premium copy, controlled top-five views and detailed charts", async () => {
