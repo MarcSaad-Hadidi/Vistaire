@@ -559,7 +559,13 @@ function DishCard({
   );
 
   return (
-    <li className={styles.dishItem}>
+    <li
+      className={styles.dishItem}
+      data-public-menu-dish
+      data-dish-id={dish.id}
+      data-category-id={dish.categorySlug ?? dish.categoryId ?? dish.category}
+      data-available={dish.available}
+    >
       {onSelectDish ? (
         <button
           aria-label={ariaLabel}
