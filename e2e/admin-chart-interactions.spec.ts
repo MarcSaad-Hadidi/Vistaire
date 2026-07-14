@@ -312,6 +312,7 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
 
   await page.goto("/menu/maison-elyse", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Voir toute la carte", exact: true }).click();
   const publicRows = page.locator("[data-public-menu-dish]");
   await expect(publicRows).toHaveCount(12);
   const publicDishes = await publicRows.evaluateAll((elements) => elements.map((element) => ({
