@@ -311,7 +311,7 @@ test("full-menu admin parity matches the public menu including unavailable dishe
     available: element.getAttribute("data-available"),
   })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
 
-  await page.goto("/menu/maison-elysee", { waitUntil: "networkidle" });
+  await page.goto("/menu/maison-elyse", { waitUntil: "networkidle" });
   const publicRows = page.locator("[data-public-menu-dish]");
   await expect(publicRows).toHaveCount(12);
   const publicDishes = await publicRows.evaluateAll((elements) => elements.map((element) => ({
