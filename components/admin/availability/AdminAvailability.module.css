@@ -34,9 +34,8 @@
 @media (max-width: 700px) {
   .page { border: 0; background: transparent; }
   .summary { min-height: 0; padding: 18px; border: 1px solid var(--admin-border); border-radius: 15px; background: var(--admin-surface); }
-  .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .metrics article { min-width: 0; min-height: 78px; grid-template-columns: minmax(0,1fr); padding: 12px 8px; }
-  .metrics article > i { display: none; }
+  .metrics { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .metrics article { min-width: 0; min-height: 78px; grid-template-columns: 48px minmax(0,1fr); padding: 12px; }
   .metrics span { overflow-wrap: anywhere; font-size: 9px; } .metrics strong { font-size: 25px; }
   .controls { align-items: stretch; flex-direction: column; gap: 10px; padding: 14px 0; }
   .controls label, .filters { width: 100%; max-width: none; }

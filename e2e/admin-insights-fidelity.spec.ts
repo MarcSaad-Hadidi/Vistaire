@@ -1,11 +1,18 @@
 import { expect, type Browser, type Locator, type Page, test } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+
+const visualOutputDir = process.env.VISTAIRE_INSIGHTS_VISUAL_OUTPUT_DIR ?? process.env.VISTAIRE_VISUAL_OUTPUT_DIR;
+const panelCaptureNames = ["activity", "comparison", "heatmap", "top-dishes", "top-searches", "categories", "service", "summary", "key-insights"];
 
 async function enterPreview(page: Page) {
   await page.goto("/admin", { waitUntil: "networkidle" });
-  const preview = page.getByRole("button", { name: /Ouvrir la pr.visualisation locale/ });
+  const preview = page.getByRole("button", { name: "Ouvrir la prévisualisation locale" });
   if (await preview.isVisible()) {
     await preview.click();
-    await page.waitForURL(/\/admin$/);
+    await expect(preview).toBeHidden({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/admin$/);
+    await page.waitForLoadState("networkidle");
   }
   await page.goto("/admin/insights", { waitUntil: "networkidle" });
   await page.evaluate(() => document.fonts.ready);
@@ -104,6 +111,7 @@ test("Insights desktop follows the reference composition without clipping or run
   await enterPreview(page);
   await expect(page.getByRole("heading", { name: /Maison/ })).toBeVisible();
   await expect(page.locator("[data-insights-kpi]")).toHaveCount(5);
+  await expect(page.locator("[data-insights-panel]")).toHaveCount(9);
   await expect(page.locator("[data-insights-dish-row]:visible")).toHaveCount(5);
   await expect(page.locator("[data-insights-search-row]:visible")).toHaveCount(5);
   await expect(page.locator('svg[data-chart-kind="line"]')).toHaveCount(1);
@@ -124,7 +132,28 @@ test("Insights desktop follows the reference composition without clipping or run
   expect(intersects(header[0], kpis[0])).toBe(false);
   const iconSignatures = await page.locator("[data-insights-kpi] [data-kpi-icon] svg").evaluateAll((icons) => icons.map((icon) => icon.innerHTML));
   expect(new Set(iconSignatures).size).toBe(5);
+  if (visualOutputDir) {
+    await mkdir(visualOutputDir, { recursive: true });
+    await page.screenshot({ path: path.join(visualOutputDir, "insights-full-page.png"), fullPage: true });
+    const panels = page.locator("[data-insights-panel]");
+    for (const [index, name] of panelCaptureNames.entries()) await panels.nth(index).screenshot({ path: path.join(visualOutputDir, `insights-panel-${index + 1}-${name}.png`) });
+  }
   assertRuntime();
+});
+
+test("Insights KPI and ranking bars expose restrained entry motion", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as Window & { __adminMotionEvents?: Array<{ animationName: string; marker: string | null }> }).__adminMotionEvents = [];
+    document.addEventListener("animationstart", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const marker = target.getAttribute("data-chart-animated") ?? (target.hasAttribute("data-insights-kpi") ? "insights-kpi" : null);
+      if (marker) (window as unknown as Window & { __adminMotionEvents: Array<{ animationName: string; marker: string | null }> }).__adminMotionEvents.push({ animationName: event.animationName, marker });
+    });
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await enterPreview(page);
+  await expect.poll(() => page.evaluate(() => (window as Window & { __adminMotionEvents?: Array<{ marker: string | null }> }).__adminMotionEvents?.map(({ marker }) => marker) ?? [])).toEqual(expect.arrayContaining(["insights-kpi", "insights-rank-bar"]));
 });
 
 test("Insights charts expose exact hover, keyboard, and metric-switch behavior", async ({ page }) => {
@@ -181,10 +210,12 @@ test("Insights search disclosure reveals real additional rows", async ({ page })
   const assertRuntime = watchRuntime(page);
   await enterPreview(page);
   await expect(page.locator("[data-insights-search-row]:visible")).toHaveCount(5);
+  const exactSearchCount = await page.getByRole("table", { name: "Liste exacte de toutes les recherches" }).locator("tbody tr").count();
+  expect(exactSearchCount).toBeGreaterThan(5);
   const disclosure = page.getByText("Voir toutes les recherches", { exact: true });
   await expect(disclosure).toBeVisible();
   await disclosure.click();
-  await expect(page.locator("[data-insights-search-row]:visible")).toHaveCount(6);
+  await expect(page.locator("[data-insights-search-row]:visible")).toHaveCount(exactSearchCount);
   await expect(page.locator("[data-insights-search-extra]")).toContainText("menu végétarien");
   assertRuntime();
 });

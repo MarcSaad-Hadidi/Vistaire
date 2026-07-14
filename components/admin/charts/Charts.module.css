@@ -70,6 +70,51 @@
   min-width: 0;
 }
 
+.sparkline {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.sparkline svg {
+  display: block;
+}
+
+.sparklineLine {
+  stroke-dasharray: 1;
+  animation: sparklineReveal 260ms ease-out both;
+}
+
+.sparkline[data-interactive] svg {
+  border-radius: 3px;
+  outline: none;
+}
+
+.sparkline[data-interactive] svg:focus-visible {
+  box-shadow: 0 0 0 2px var(--admin-accent, #d2aa67);
+}
+
+.sparklineTooltip {
+  position: absolute;
+  z-index: 8;
+  right: 0;
+  bottom: calc(100% + 4px);
+  width: max-content;
+  max-width: 210px;
+  padding: 6px 8px;
+  border: 1px solid var(--admin-border, #453c32);
+  border-radius: 5px;
+  color: var(--admin-text, #e7e4de);
+  background: #171411;
+  font-size: 10px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sparklineTooltip[data-visible="true"] {
+  opacity: 1;
+}
+
 .plotStack {
   position: relative;
   min-width: 0;
@@ -482,7 +527,6 @@
   height: 9px;
   border-radius: 2px;
   background-color: var(--legend-color);
-  background-image: var(--legend-detail);
 }
 
 .donutLegend span {
@@ -549,14 +593,18 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes sparklineReveal {
+  from { stroke-dashoffset: 1; opacity: 0.35; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
 @media (max-width: 430px) {
   .frameHeader {
     gap: 8px;
   }
 
-  .frameDetailed .chartChrome {
-    display: none;
-  }
+  .frameDetailed .frameHeader { flex-wrap: wrap; }
+  .frameDetailed .chartChrome { flex-wrap: wrap; }
 
   .cartesianSvg,
   .frameDetailed .cartesianSvg,
@@ -567,10 +615,6 @@
   .cartesianAxes text,
   .heatAxes text {
     font-size: 22px;
-  }
-
-  .cartesianAxes [data-chart-axis="x"] text:not(:first-of-type):not(:last-of-type) {
-    display: none;
   }
 
   .donutDetailed {
@@ -596,5 +640,9 @@
   .donutSegment {
     animation:none!important;
     transition:none!important;
+  }
+
+  .sparklineLine {
+    animation:none!important;
   }
 }

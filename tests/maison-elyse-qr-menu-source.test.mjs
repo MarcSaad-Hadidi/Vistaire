@@ -37,6 +37,16 @@ test("Maison Elyse demo public menu can be built with localized sample data", as
   assert.match(source, /getPublicMenuBySlug\([\s\S]*locale: Locale \| string = DEFAULT_LOCALE/);
   assert.match(source, /const resolvedLocale = normalizeLocale\(locale\)/);
   assert.match(source, /return demoMenu\(slug, resolvedLocale\)/);
+  assert.match(source, /dependencies\.readRows<PublicMenuRow>\(\{ table: "restaurants"[\s\S]*filters: \{ slug \}[\s\S]*limit: 1/);
+  for (const table of ["menus", "menu_categories", "menu_dishes", "menu_ui_configs"]) {
+    assert.match(source, new RegExp(`table: "${table}"[\\s\\S]*?filters: \\{ restaurant_id: restaurantId \\}`));
+  }
+  assert.match(source, /dependencies\.nodeEnv === "production"/);
+  assert.doesNotMatch(source, /readSupabaseRows\(/);
+  assert.doesNotMatch(source, /if \(slug === "maison-elyse"\) \{\s*return demoMenu\(slug, resolvedLocale\);\s*\}\s*\n\s*const restaurantsResult/);
+  assert.doesNotMatch(source, /if \(restaurantId === getDemoRestaurantId\(\)\) \{\s*return demoMenu/);
+  assert.match(source, /isDemoRestaurant && !primaryMenu && !hasScopedDishRows[\s\S]*return localDemo\(\)/);
+  assert.equal((source.match(/includeUnavailableDishes: true/g) ?? []).length, 2);
 });
 
 test("Maison Elyse dish detail is dedicated while generic public details remain intact", async () => {

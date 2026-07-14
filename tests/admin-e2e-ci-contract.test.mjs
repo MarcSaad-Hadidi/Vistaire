@@ -107,9 +107,20 @@ test("full-menu parity has a dedicated non-skipping package gate", async () => {
   ]);
   assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
   assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
-  assert.match(runner, /--grep", "full-menu fixture"/);
+  const grep = runner.match(/--grep", "([^"]+)"/)?.[1];
+  assert.equal(grep, "full-menu admin parity");
+  assert.match(spec, new RegExp(`test\\("${grep.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}`));
   assert.match(spec, /toHaveCount\(12\)/);
   assert.match(spec, /data-available="false"/);
+});
+
+test("official visual audit covers all four external references", async () => {
+  const source = await readFile("scripts/admin-visual-audit.mjs", "utf8");
+  for (const file of ["01-overview-desktop.png", "02-availability-desktop.png", "03-overview-mobile.png", "04-insights-desktop.png"]) assert.match(source, new RegExp(file.replaceAll(".", "\\.")));
+  assert.match(source, /changedRatio/);
+  assert.match(source, /-overlay\.png/);
+  assert.match(source, /-diff\.png/);
+  assert.match(source, /process\.exitCode = 1/);
 });
 
 test("admin E2E specification contains no mojibake", async () => {

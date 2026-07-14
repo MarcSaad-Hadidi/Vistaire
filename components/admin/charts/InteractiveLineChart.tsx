@@ -2,7 +2,7 @@
 
 import { CartesianAxes, CARTESIAN_PLOT } from "./CartesianAxes";
 import { ChartFrame, MetricTooltip } from "./ChartFrame";
-import { buildAreaPath, buildLineDomain, buildLineGeometry } from "./geometry";
+import { buildAreaPath, buildLineGeometry, buildNiceLineDomain, isStableSeries } from "./geometry";
 import { formatChartValue } from "./formatters";
 import { useChartInteraction, useReducedMotion } from "./useChartInteraction";
 import type { AccessibleChartProps, ChartDatum } from "./types";
@@ -26,7 +26,9 @@ export function InteractiveLineChart({
   const interaction = useChartInteraction(data.length);
   const reduced = useReducedMotion();
   const values = data.map(({ value }) => value);
-  const domain = buildLineDomain(values);
+  const stable = isStableSeries(values);
+  const resolvedSummary = stable ? `${summary} Activité stable sur cette période.` : summary;
+  const domain = buildNiceLineDomain(values);
   const rawGeometry = buildLineGeometry(values, { width: plotWidth, height: plotHeight }, domain);
   const points = rawGeometry.points.map((point) => ({ x: point.x + CARTESIAN_PLOT.left, y: point.y + CARTESIAN_PLOT.top }));
   const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit);
@@ -47,7 +49,7 @@ export function InteractiveLineChart({
     description={description}
     period={period}
     unit={unit}
-    summary={summary}
+    summary={resolvedSummary}
     exactValues={data.map((datum) => ({ label: datum.label, value: text(datum.value) }))}
     chrome={variant === "detailed" ? <><span>{period}</span><span>{unit}</span></> : undefined}
     axes={(ids) => <svg
@@ -57,7 +59,7 @@ export function InteractiveLineChart({
       focusable="false"
       data-axis-owner={ids.title}
     >
-      <CartesianAxes labels={data.map(({ label }) => label)} domain={domain} valueFormatter={axisText} maximumXLabels={5} />
+      <CartesianAxes labels={data.map(({ label }) => label)} domain={domain} valueFormatter={axisText} maximumXLabels={7} />
     </svg>}
     plot={(ids) => <svg
       className={`${styles.svg} ${styles.cartesianSvg}`}
@@ -79,8 +81,8 @@ export function InteractiveLineChart({
         </linearGradient>
       </defs>
       <g key={animationKey} data-chart-animation-key={animationKey}>
-        {points.length ? <path data-chart-area className={styles.area} d={buildAreaPath(points, plotBottom)} fill={`url(#${ids.title}-area)`} /> : null}
-        {linePath ? <path className={styles.line} d={linePath} pathLength="1" /> : null}
+        {points.length ? <path data-chart-area data-chart-animated="area" className={styles.area} d={buildAreaPath(points, plotBottom)} fill={`url(#${ids.title}-area)`} /> : null}
+        {linePath ? <path data-chart-animated="line" className={styles.line} d={linePath} pathLength="1" /> : null}
       </g>
       <line
         data-chart-crosshair
@@ -118,5 +120,6 @@ export function InteractiveLineChart({
       x={activePoint ? activePoint.x / CARTESIAN_PLOT.width * 100 : 50}
       y={activePoint ? activePoint.y / CARTESIAN_PLOT.height * 100 : 50}
     />}
+    footer={stable ? <span data-chart-stable>Activité stable sur cette période.</span> : undefined}
   />;
 }

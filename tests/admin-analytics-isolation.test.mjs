@@ -23,6 +23,13 @@ registerHooks({
         }
       }
     }
+    if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
+      const baseUrl = new URL(specifier, context.parentURL);
+      for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
+        const url = new URL(`${baseUrl.href}${extension}`);
+        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+      }
+    }
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -138,6 +145,42 @@ test("admin dashboard fails closed before menu reads when the restaurant lookup 
   );
 });
 
+test("public menus scope every Supabase read and keep local demos out of production", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const calls = [];
+  const scoped = await getPublicMenuBySlug("chez-vistaire", "fr", {
+    nodeEnv: "production",
+    readRows: async (args) => {
+      calls.push(args);
+      if (args.table === "restaurants") return { ok: true, rows: [{ id: "restaurant-1", slug: "chez-vistaire", name: "Chez Vistaire" }] };
+      return { ok: true, rows: [] };
+    }
+  });
+  assert.ok(scoped);
+  assert.deepEqual(calls[0].filters, { slug: "chez-vistaire" });
+  assert.equal(calls[0].limit, 1);
+  assert.deepEqual(calls.slice(1).map(({ table, filters }) => ({ table, filters })), [
+    { table: "menus", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_categories", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_dishes", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1" } }
+  ]);
+
+  const unavailable = async () => ({ ok: false, error: "database unavailable", rows: [] });
+  assert.equal(await getPublicMenuBySlug("maison-elyse", "fr", { nodeEnv: "production", readRows: unavailable }), null);
+  assert.ok(await getPublicMenuBySlug("maison-elyse", "fr", { nodeEnv: "development", readRows: unavailable }));
+
+  const failedCore = await getPublicMenuBySlug("chez-vistaire", "fr", {
+    nodeEnv: "production",
+    readRows: async (args) => args.table === "restaurants"
+      ? { ok: true, rows: [{ id: "restaurant-1", slug: "chez-vistaire", name: "Chez Vistaire" }] }
+      : args.table === "menu_dishes"
+        ? { ok: false, error: "dish read failed", rows: [] }
+        : { ok: true, rows: [] }
+  });
+  assert.equal(failedCore, null);
+});
+
 test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
   const { loadAdminDashboardDataWithDependencies } = await import(
     "../lib/admin/dashboardData.ts"
@@ -169,6 +212,7 @@ test("Maison Elysee preview does not substitute fictional analytics", async () =
   const { loadAdminDashboardDataWithDependencies } = await import(
     "../lib/admin/dashboardData.ts"
   );
+  let nowCalls = 0;
   const result = await loadAdminDashboardDataWithDependencies(
     "11111111-1111-1111-1111-111111111111",
     "7d",
@@ -181,13 +225,14 @@ test("Maison Elysee preview does not substitute fictional analytics", async () =
         throw new Error(`unexpected table: ${table}`);
       },
       readEvents: async () => ({ ok: true, rows: [], truncated: false }),
-      now: () => new Date("2026-07-10T12:00:00.000Z")
+      now: () => { nowCalls += 1; return new Date("2026-07-10T12:00:00.000Z"); }
     }
   );
 
   assert.equal(result.ok, true);
   assert.equal(result.data.analytics.kind, "insufficient");
   assert.equal(result.data.analytics.reason, "instrumentation-unproven");
+  assert.equal(nowCalls, 1);
 });
 
 test("dashboard reads current and previous periods independently and fails closed if either read truncates", async () => {
@@ -212,6 +257,7 @@ test("dashboard reads current and previous periods independently and fails close
     { restaurantId: "restaurant-1", menuId: "menu-1" },
     { restaurantId: "restaurant-1", menuId: "menu-1" }
   ]);
+  assert.deepEqual(periods.map(({ maxRows }) => maxRows), [12_000, 12_000]);
   assert.deepEqual(periods.map(({ fromIso, toIso }) => [fromIso, toIso]), [
     ["2026-07-03T00:00:00.000Z", "2026-07-10T00:00:00.000Z"],
     ["2026-06-26T00:00:00.000Z", "2026-07-03T00:00:00.000Z"]

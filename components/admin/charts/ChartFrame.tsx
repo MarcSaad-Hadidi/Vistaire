@@ -104,7 +104,7 @@ export function MetricTooltip({ id, label, value, values, delta, x, y, visible }
     className={styles.tooltip}
     data-visible={visible}
     data-horizontal={x < 34 ? "start" : x > 66 ? "end" : "center"}
-    data-vertical={y < 34 ? "below" : "above"}
+    data-vertical={y < 40 ? "below" : "above"}
     aria-hidden={!visible}
     aria-live="polite"
     style={{ "--tooltip-x": `${Math.min(94, Math.max(6, x))}%`, "--tooltip-y": `${Math.min(88, Math.max(8, y))}%` } as CSSProperties}

@@ -9,12 +9,12 @@ import type { AccessibleChartProps, ChartDatum } from "./types";
 import styles from "./Charts.module.css";
 
 const donutVisuals = [
-  { color: "#d2aa67", path: "", swatch: "none" },
-  { color: "#8e867b", path: "M0 0v8M4 0v8", swatch: "repeating-linear-gradient(90deg, transparent 0 2px, #171411 2px 3px)" },
-  { color: "#6f8f77", path: "M0 2h8M0 6h8", swatch: "repeating-linear-gradient(0deg, transparent 0 2px, #171411 2px 3px)" },
-  { color: "#b97862", path: "M0 0 8 8M8 0 0 8", swatch: "repeating-linear-gradient(45deg, transparent 0 2px, #171411 2px 3px)" },
-  { color: "#7f7196", path: "M2 2h1v1H2zM6 6h1v1H6z", swatch: "radial-gradient(circle at center, #171411 0 1px, transparent 1.5px)" },
-  { color: "#b99a84", path: "M4 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6", swatch: "radial-gradient(circle at center, transparent 0 2px, #171411 2.5px 3px, transparent 3.5px)" },
+  { color: "#e0b968" },
+  { color: "#b38d4d" },
+  { color: "#8b7042" },
+  { color: "#67573b" },
+  { color: "#4b4438" },
+  { color: "#302e2a" },
 ] as const;
 
 export function InteractiveDonut({
@@ -66,7 +66,7 @@ export function InteractiveDonut({
     legend={<ul className={styles.donutLegend} data-chart-legend>{normalized.included.map((item, index) => {
       const visual = donutVisuals[index % donutVisuals.length];
       return <li key={`${item.label}:${index}`}>
-      <i aria-hidden="true" style={{ "--legend-color": visual.color, "--legend-detail": visual.swatch } as React.CSSProperties} />
+      <i aria-hidden="true" style={{ "--legend-color": visual.color } as React.CSSProperties} />
       <span>{item.label}</span>
       {detailed ? <strong>{formatChartValue(item.value)} <small data-chart-percentage>{percentage(item.value)}</small></strong> : null}
     </li>;
@@ -84,19 +84,16 @@ export function InteractiveDonut({
     >
       <title id={ids.title}>{title}</title>
       <desc id={ids.description}>{description}. Chaque catégorie est identifiée par son libellé et sa valeur exacte. {summary}</desc>
-      <defs>{donutVisuals.map((visual, index) => <pattern id={`${ids.title}-fill-${index}`} key={visual.color} width="8" height="8" patternUnits="userSpaceOnUse">
-        <rect width="8" height="8" fill={visual.color} />
-        {visual.path ? <path d={visual.path} stroke="#171411" strokeWidth="1.15" fill="none" /> : null}
-      </pattern>)}</defs>
       <g key={animationKey} data-chart-animation-key={animationKey}>
       {segments.map((item, index) => {
         const segmentDatum = normalized.included[item.index];
         return <path
           key={`${segmentDatum.label}:${item.index}`}
+          data-chart-animated="donut-segment"
           className={`${styles.mark} ${styles.donutSegment}`}
           style={{ "--chart-index": index } as React.CSSProperties}
           d={donutPath(item, center.x, center.y)}
-          fill={`url(#${ids.title}-fill-${item.index % donutVisuals.length})`}
+          fill={donutVisuals[item.index % donutVisuals.length].color}
           tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
           aria-label={`${segmentDatum.label}, ${text(segmentDatum.value)}, ${percentage(segmentDatum.value)}, catégorie ${index + 1} sur ${segments.length}`}
           aria-describedby={ids.tooltip}

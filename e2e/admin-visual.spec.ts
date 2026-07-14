@@ -8,7 +8,8 @@ async function enterLocalPreview(page: Page) {
   const preview = page.getByRole("button", { name: "Ouvrir la prévisualisation locale" });
   if (await preview.isVisible()) {
     await preview.click();
-    await page.waitForURL(/\/admin$/);
+    await expect(preview).toBeHidden({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/admin$/);
     await page.waitForLoadState("networkidle");
   }
   await expect(page.getByRole("heading", { name: "Maison Élysée", exact: true })).toBeVisible();
@@ -29,9 +30,9 @@ async function assertPageHealth(page: Page) {
   await expect(page.locator("body")).not.toContainText("Internal Server Error");
 }
 
-async function capture(page: Page, name: string) {
+async function capture(page: Page, name: string, fullPage = false) {
   if (!outputDir) return;
-  await page.screenshot({ path: path.join(outputDir, `${name}.png`), fullPage: false });
+  await page.screenshot({ path: path.join(outputDir, `${name}.png`), fullPage });
 }
 
 test.describe("admin deterministic visual contract", () => {
@@ -56,6 +57,22 @@ test.describe("admin deterministic visual contract", () => {
       await page.goto(route, { waitUntil: "networkidle" });
       await stabilize(page);
       await assertPageHealth(page);
+      if (route === "/admin") {
+        const momentPanel = page.locator('[data-overview-panel="moment"]');
+        const donutPlot = momentPanel.locator("[data-chart-plot-stack]");
+        const [panelBox, plotBox] = await Promise.all([momentPanel.boundingBox(), donutPlot.boundingBox()]);
+        expect((plotBox?.y ?? Infinity) + (plotBox?.height ?? Infinity)).toBeLessThanOrEqual(
+          (panelBox?.y ?? 0) + (panelBox?.height ?? 0) - 1
+        );
+        const dimensions = await momentPanel.evaluate((element) => ({
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth
+        }));
+        expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight + 1);
+        expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+      }
       await capture(page, name);
     }
     expect(errors).toEqual([]);
@@ -71,31 +88,91 @@ test.describe("admin deterministic visual contract", () => {
       await stabilize(page);
       await assertPageHealth(page);
       const navigation = page.getByRole("navigation", { name: "Navigation du restaurant" });
+      const desktopTabs = page.getByRole("navigation", { name: "Sections principales" });
       await expect(navigation).toBeVisible();
+      await expect(desktopTabs).toBeHidden();
+      await expect(navigation.locator("a")).toHaveCount(3);
       for (const link of await navigation.locator("a:visible").all()) {
         const box = await link.boundingBox();
         expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
         expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
       }
-      if (width === 390 || width === 430) await capture(page, `overview-mobile-${width}`);
+      const kpis = page.locator("[data-overview-kpis] > article");
+      const ranking = page.locator("[data-overview-ranking] > li");
+      const availabilityCards = page.locator("[data-overview-availability-card]");
+      await expect(kpis).toHaveCount(5);
+      await expect(ranking).toHaveCount(5);
+      await expect(availabilityCards).toHaveCount(5);
+      for (const item of [...await kpis.all(), ...await ranking.all(), ...await availabilityCards.all()]) await expect(item).toBeVisible();
+
+      const activity = page.locator('[data-overview-panel="activity"]');
+      const moment = page.locator('[data-overview-panel="moment"]');
+      const category = page.locator('[data-overview-panel="category"]');
+      await expect(moment).toBeVisible();
+      await expect(category).toBeVisible();
+      await expect(activity.locator('[aria-label="Métrique affichée"] button')).toHaveCount(3);
+      await expect(page.getByRole("link", { name: "Gérer les disponibilités" })).toBeVisible();
+      const activityPlot = activity.locator("[data-chart-plot-stack]");
+      expect((await activityPlot.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(168);
+
+      const donutPlot = moment.locator("[data-chart-plot-stack]");
+      const donutLegend = moment.locator("[data-chart-legend]");
+      const donutPlotBox = await donutPlot.boundingBox();
+      const donutLegendBox = await donutLegend.boundingBox();
+      expect(donutLegendBox?.y ?? 0).toBeGreaterThanOrEqual((donutPlotBox?.y ?? 0) + (donutPlotBox?.height ?? 0) - 1);
+
+      for (const panel of await page.locator("[data-overview-panel]").all()) {
+        const dimensions = await panel.evaluate((element) => ({ clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+        expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight + 1);
+        expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+      }
+
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const lastCardBox = await availabilityCards.last().boundingBox();
+      const navBox = await navigation.boundingBox();
+      expect((lastCardBox?.y ?? Infinity) + (lastCardBox?.height ?? Infinity)).toBeLessThanOrEqual(navBox?.y ?? 0);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      if (width === 390 || width === 430) {
+        await capture(page, `overview-mobile-${width}`);
+        await capture(page, `overview-mobile-${width}-full`, true);
+      }
+      if (width === 390) await expect(page).toHaveScreenshot("overview-mobile-390.png", { animations: "disabled", maxDiffPixelRatio: 0.01, threshold: 0.08 });
     }
-    await page.setViewportSize({ width: 390, height: 903 });
-    await page.goto("/admin", { waitUntil: "networkidle" });
-    await stabilize(page);
-    const availability = page.getByRole("heading", { name: "Disponibilité des plats" }).locator("..").locator("..");
-    const firstAvailabilityCard = page.locator("[data-overview-availability-card]").first();
-    const mobileNav = page.getByRole("navigation", { name: "Navigation du restaurant" });
-    const availabilityBox = await availability.boundingBox();
-    const navBox = await mobileNav.boundingBox();
-    expect(availabilityBox?.y ?? Infinity).toBeLessThan(navBox?.y ?? 0);
-    await expect(firstAvailabilityCard.locator("img")).toBeVisible();
-    await expect(firstAvailabilityCard.locator("strong").first()).toBeVisible();
-    await expect(firstAvailabilityCard.getByText(/Disponible|Indisponible/)).toBeVisible();
-    await expect(firstAvailabilityCard.getByRole("link", { name: /Gérer la disponibilité/ })).toBeVisible();
-    const cardBox = await firstAvailabilityCard.boundingBox();
-    expect((cardBox?.y ?? Infinity) + (cardBox?.height ?? Infinity)).toBeLessThanOrEqual(navBox?.y ?? 0);
-    await capture(page, "overview-mobile-reference");
-    await expect(page).toHaveScreenshot("overview-mobile-390.png", { animations: "disabled", maxDiffPixelRatio: 0.01, threshold: 0.08 });
+  });
+
+  test("mobile navigation keeps every admin route reachable without duplicate top tabs", async ({ page }) => {
+    await enterLocalPreview(page);
+    for (const width of [390, 430]) {
+      await page.setViewportSize({ width, height: width === 430 ? 932 : 844 });
+      for (const [route, currentLabel] of [["/admin", "Vue d’ensemble"], ["/admin/availability", "Disponibilités"], ["/admin/insights", "Analyses"]] as const) {
+        await page.goto(route, { waitUntil: "networkidle" });
+        await stabilize(page);
+        await assertPageHealth(page);
+
+        const topTabs = page.getByRole("navigation", { name: "Sections principales" });
+        const mobileNavigation = page.getByRole("navigation", { name: "Navigation du restaurant" });
+        await expect(topTabs).toBeHidden();
+        await expect(mobileNavigation).toBeVisible();
+        await expect(mobileNavigation.locator("a")).toHaveCount(3);
+        await expect(mobileNavigation.getByRole("link", { name: currentLabel, exact: true })).toHaveAttribute("aria-current", "page");
+        await expect(page.locator("[data-admin-subtitle]")).toBeVisible();
+        await expect(page.getByRole("link", { name: "Ouvrir le menu client", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Copier le lien du menu", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Déconnexion", exact: true })).toBeVisible();
+        if (route === "/admin/availability") {
+          const metricIcons = page.locator("[data-availability-metric-icon]");
+          await expect(metricIcons).toHaveCount(3);
+          for (const icon of await metricIcons.all()) await expect(icon).toBeVisible();
+        }
+        if (route === "/admin/insights") {
+          await expect(page.locator("[data-insights-kpi]")).toHaveCount(5);
+          const trends = page.locator("[data-kpi-trend]");
+          await expect(trends).toHaveCount(4);
+          for (const trend of await trends.all()) await expect(trend).toBeVisible();
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth));
+      }
+    }
   });
 
   test("keyboard, live region and reduced motion remain effective", async ({ page }) => {
@@ -121,7 +198,7 @@ test.describe("admin deterministic visual contract", () => {
     await assertPageHealth(page);
 
     const rows = page.locator("article[data-available]");
-    await expect(rows).toHaveCount(12);
+    await expect(rows).toHaveCount(34);
     const firstName = await rows.first().getByRole("heading", { level: 3 }).innerText();
     const search = page.getByPlaceholder("Rechercher un plat…");
     await search.fill(firstName);
@@ -137,8 +214,33 @@ test.describe("admin deterministic visual contract", () => {
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
     await page.getByRole("button", { name: "Indisponibles", exact: true }).click();
-    await expect(page.locator('[role="status"]').filter({ hasText: /Aucun plat/ })).toBeVisible();
+    await expect(rows).toHaveCount(8);
     await page.getByRole("button", { name: "Tous", exact: true }).click();
-    await expect(rows).toHaveCount(12);
+    await expect(rows).toHaveCount(34);
+  });
+
+  test("availability thumbnails preserve a stable dish crop across desktop and mobile ratios", async ({ page }) => {
+    await enterLocalPreview(page);
+    await page.setViewportSize({ width: 1672, height: 941 });
+    await page.goto("/admin/availability", { waitUntil: "networkidle" });
+    const thumbnail = page.locator("[data-admin-dish-thumbnail] img").first();
+    await expect(thumbnail).toBeVisible();
+    const desktop = await thumbnail.evaluate((image) => {
+      const rect = image.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, fit: getComputedStyle(image).objectFit, naturalWidth: (image as HTMLImageElement).naturalWidth, naturalHeight: (image as HTMLImageElement).naturalHeight };
+    });
+    expect(desktop.fit).toBe("cover");
+    expect(desktop.naturalWidth).toBeGreaterThan(0);
+    expect(desktop.naturalHeight).toBeGreaterThan(0);
+    expect(desktop.width / desktop.height).toBeGreaterThan(2);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobile = await thumbnail.evaluate((image) => {
+      const rect = image.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, fit: getComputedStyle(image).objectFit };
+    });
+    expect(mobile.fit).toBe("cover");
+    expect(mobile.width / mobile.height).toBeGreaterThan(1);
+    expect(mobile.width / mobile.height).toBeLessThan(1.3);
   });
 });

@@ -10,6 +10,8 @@ import {
   buildLineDomain,
   buildLineGeometry,
   buildMidpointHitRegions,
+  buildNiceLineDomain,
+  isStableSeries,
   chartId,
   formatChartDateUtc,
   interactionReducer,
@@ -40,6 +42,19 @@ test("line geometry pads flat domains and clamps points to the plot", () => {
 test("flat nonnegative line domains never pad below zero", () => {
   assert.deepEqual(buildLineDomain([0, 0]), { min: 0, max: 1 });
   assert.deepEqual(buildLineDomain([0.25, 0.25]), { min: 0, max: 1.25 });
+});
+
+test("stable activity is identified without inventing variation", () => {
+  assert.equal(isStableSeries([4, 4, 4]), true);
+  assert.equal(isStableSeries([0, 0]), true);
+  assert.equal(isStableSeries([4]), false, "one observation is not a stable trend");
+  assert.equal(isStableSeries([4, 5, 4]), false);
+  assert.equal(isStableSeries([4, Number.NaN, 4]), false);
+});
+
+test("varied chart domains use round readable grid ticks", () => {
+  assert.deepEqual(buildNiceLineDomain([0, 272]), { min: 0, max: 300 });
+  assert.deepEqual(buildNiceLineDomain([90, 1256]), { min: 0, max: 1500 });
 });
 
 test("comparison midpoint hit regions meet without overlapping", () => {
@@ -224,8 +239,8 @@ test("donut density modes keep exact values without exposing implementation jarg
   assert.match(source, /styles\.donutCompact/);
   assert.match(source, /styles\.donutDetailed/);
   assert.match(source, /donutVisuals/);
-  assert.match(source, /visual\.swatch/);
-  assert.match(source, /visual\.path/);
+  assert.match(source, /fill=\{donutVisuals\[item\.index % donutVisuals\.length\]\.color\}/);
+  assert.doesNotMatch(source, /<pattern|repeating-linear-gradient|radial-gradient/);
   assert.match(source, /normalized\.included\.map/);
   assert.doesNotMatch(source, /plein|hachures|points|valeurs? exclues?|exclu du donut/i);
 });

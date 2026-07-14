@@ -20,6 +20,8 @@ type Dependencies = {
   now: () => Date;
 };
 
+const ADMIN_DASHBOARD_MAX_EVENTS_PER_WINDOW = 12_000;
+
 const toDish = (dish: PublicMenuDish): AdminMenuDish => ({ id: dish.id, slug: dish.slug, name: dish.name, category: dish.category, ...(dish.categorySlug ? { categorySlug: dish.categorySlug } : {}), description: dish.description, priceLabel: dish.priceLabel, priceCents: dish.priceCents, imageUrl: dish.imageUrl, thumbnailUrl: dish.thumbnailUrl, hasPhoto: dish.hasPhoto, photoStatus: dish.photoStatus, hasImmersive: dish.hasImmersive, has3d: dish.has3d, hasAr: dish.hasAr, available: dish.available });
 const toCategory = (row: AnyRow, index: number): AdminMenuCategory => ({ id: getString(row, ["id"], `category-${index}`), label: getString(row, ["name", "label"], "Carte"), slug: getString(row, ["slug"], `categorie-${index}`) });
 
@@ -46,15 +48,16 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const menu = buildRelationalSupabasePublicMenu({ slug: getString(restaurantRow, ["slug"]), restaurantRow, categoryRows, dishRows, includeUnavailableDishes: true });
   const categories = categoryRows.map(toCategory);
   const dishes = menu.dishes.map(toDish);
-  const window = resolveAdminObservationWindow(range, dependencies.now());
+  const observedAt = dependencies.now();
+  const window = resolveAdminObservationWindow(range, observedAt);
   const [currentEventRead, previousEventRead] = await Promise.all([
-    dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.startInclusive, toIso: window.endExclusive }),
-    dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.comparisonStartInclusive, toIso: window.comparisonEndExclusive })
+    dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.startInclusive, toIso: window.endExclusive, maxRows: ADMIN_DASHBOARD_MAX_EVENTS_PER_WINDOW }),
+    dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.comparisonStartInclusive, toIso: window.comparisonEndExclusive, maxRows: ADMIN_DASHBOARD_MAX_EVENTS_PER_WINDOW })
   ]);
   const currentEvents = currentEventRead.ok ? currentEventRead.rows : [];
   const previousEvents = previousEventRead.ok ? previousEventRead.rows : [];
   const lastUpdatedAt = currentEvents.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
   const readiness = buildAdminMenuReadiness(categories, dishes);
   const publicMenuPath = `/menu/${menu.slug}`;
-  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
+  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
 }

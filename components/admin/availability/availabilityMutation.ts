@@ -1,6 +1,7 @@
 export type AvailabilityFeedback = { tone: "success" | "error" | null; message: string | null };
 export type AvailabilityOverride = { base: boolean; value: boolean };
 export const resolveAvailability = (serverValue: boolean, override?: AvailabilityOverride) => override?.base === serverValue ? override.value : serverValue;
+export const resolveAvailabilityForSource = <T>(serverValue: boolean, source: T, overrideSource: T, override?: AvailabilityOverride) => source === overrideSource ? resolveAvailability(serverValue, override) : serverValue;
 
 type ResponseLike = { ok: boolean; json(): Promise<{ ok: boolean; available?: boolean; error?: string }> };
 type Dependencies = {

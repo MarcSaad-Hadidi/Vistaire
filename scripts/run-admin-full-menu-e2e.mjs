@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 const result = spawnSync(process.execPath, [
   "node_modules/@playwright/test/cli.js", "test", "e2e/admin-chart-interactions.spec.ts",
-  "--project=chromium", "--grep", "full-menu fixture",
+  "--project=chromium", "--grep", "full-menu admin parity",
 ], {
   cwd: process.cwd(),
   env: {

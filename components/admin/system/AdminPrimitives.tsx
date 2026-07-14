@@ -11,21 +11,21 @@ export function AdminPanel({ title, eyebrow, action, children, className, ...pro
   return <section className={classes(styles.panel, className)} {...props}>{title || eyebrow || action ? <header className={styles.panelHeader}><div>{eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}{title ? <h2 className={styles.panelTitle}>{title}</h2> : null}</div>{action}</header> : null}{children}</section>;
 }
 
-export function AdminKpiCard({ label, value, detail, icon, trend, definition, className, ...props }: HTMLAttributes<HTMLElement> & { label: string; value: ReactNode; detail?: ReactNode; icon?: ReactNode; trend?: ReactNode; definition?: string }) {
-  return <article className={classes(styles.kpi, className)} {...props}>{icon ? <span className={styles.kpiIcon} data-kpi-icon>{icon}</span> : null}<div className={styles.kpiContent}><p className={styles.kpiLabel}>{label}{definition?<AdminTooltip label={definition}><button className={styles.definitionButton} type="button" aria-label={`Définition de ${label}`}><InfoIcon/></button></AdminTooltip>:null}</p><p className={styles.kpiValue}>{value}</p>{detail ? <p className={styles.kpiDetail}>{detail}</p> : null}</div>{trend ? <div className={styles.kpiTrend}>{trend}</div> : null}</article>;
+export function AdminKpiCard({ label, value, detail, icon, trend, definition, evidence, className, ...props }: HTMLAttributes<HTMLElement> & { label: string; value: ReactNode; detail?: ReactNode; icon?: ReactNode; trend?: ReactNode; definition?: string; evidence?: { kind: "insufficient" | "unavailable"; reason: string } }) {
+  return <article className={classes(styles.kpi, className)} data-evidence-kind={evidence?.kind} {...props}>{icon ? <span className={styles.kpiIcon} data-kpi-icon>{icon}</span> : null}<div className={styles.kpiContent}><p className={styles.kpiLabel}>{label}{definition?<AdminTooltip label={definition}><button className={styles.definitionButton} type="button" aria-label={`Définition de ${label}`}><InfoIcon/></button></AdminTooltip>:null}</p><p className={styles.kpiValue}>{value}</p>{evidence ? <p className={styles.kpiEvidence} role="status">{adminEvidenceReasonCopy(evidence.reason)}</p> : detail ? <p className={styles.kpiDetail}>{detail}</p> : null}</div>{!evidence && trend ? <div className={styles.kpiTrend}>{trend}</div> : null}</article>;
 }
 
 export function AdminEvidenceState({ kind, title, reason }: { kind: "insufficient" | "unavailable"; title?: string; reason: string }) {
   const unavailable = kind === "unavailable";
-  return <div className={styles.evidence} role={unavailable ? "alert" : "status"}>{unavailable ? <AlertIcon /> : <InfoIcon />}<div><strong>{title ?? (unavailable ? "Données indisponibles" : "Données insuffisantes")}</strong><p>{adminEvidenceReasonCopy(reason)}</p></div></div>;
+  return <div className={styles.evidence} role="status">{unavailable ? <AlertIcon /> : <InfoIcon />}<div><strong>{title ?? (unavailable ? "Données indisponibles" : "Données insuffisantes")}</strong><p>{adminEvidenceReasonCopy(reason)}</p></div></div>;
 }
 
 export function AdminStatusBadge({ tone = "neutral", children }: { tone?: "available" | "unavailable" | "neutral" | "accent"; children: ReactNode }) {
   return <span className={classes(styles.badge, styles[`badge_${tone}`])}>{children}</span>;
 }
 
-export function AdminTabs({ active, className }: { active: "overview" | "availability"; className?: string }) {
-  return <nav className={classes(styles.tabs, className)} aria-label="Sections principales"><Link href="/admin" aria-current={active === "overview" ? "page" : undefined}>Vue d’ensemble</Link><Link href="/admin/availability" aria-current={active === "availability" ? "page" : undefined}>Disponibilités</Link></nav>;
+export function AdminTabs({ active, className }: { active: "overview" | "availability" | "insights"; className?: string }) {
+  return <nav className={classes(styles.tabs, className)} aria-label="Sections principales"><Link href="/admin" aria-current={active === "overview" ? "page" : undefined}>Vue d’ensemble</Link><Link href="/admin/availability" aria-current={active === "availability" ? "page" : undefined}>Disponibilités</Link><Link href="/admin/insights" aria-current={active === "insights" ? "page" : undefined}>Analyses</Link></nav>;
 }
 
 export function AdminTooltip({ label, children }: { label: string; children: ReactElement<{ "aria-describedby"?: string }> }) {

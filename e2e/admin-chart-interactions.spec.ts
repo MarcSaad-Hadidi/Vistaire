@@ -5,7 +5,8 @@ async function enterPreview(page: Page) {
   const preview = page.getByRole("button", { name: "Ouvrir la prévisualisation locale" });
   if (await preview.isVisible()) {
     await preview.click();
-    await page.waitForURL(/\/admin$/);
+    await expect(preview).toBeHidden({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/admin$/);
     await page.waitForLoadState("networkidle");
   }
 }
@@ -26,6 +27,33 @@ async function hoverPaintedSvgPath(path: Locator) {
   });
   expect(point, "donut segment exposes a painted browser hit target").not.toBeNull();
   await path.page().mouse.move(point!.x, point!.y);
+}
+
+async function tapInteractiveMark(mark: Locator) {
+  await mark.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
+  const point = await mark.evaluate((element) => {
+    if (element instanceof SVGGeometryElement && element.tagName.toLowerCase() === "path") {
+      const matrix = element.getScreenCTM();
+      const length = element.getTotalLength();
+      if (matrix && length) {
+        for (let step = 1; step < 100; step += 1) {
+          const local = element.getPointAtLength(length * step / 100);
+          const screen = new DOMPoint(local.x, local.y).matrixTransform(matrix);
+          if (document.elementFromPoint(screen.x, screen.y) === element) {
+            return { x: screen.x, y: screen.y };
+          }
+        }
+      }
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const candidate = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const hit = document.elementFromPoint(candidate.x, candidate.y);
+    return hit && (hit === element || element.contains(hit)) ? candidate : null;
+  });
+  expect(point, "chart mark exposes a browser hit target").not.toBeNull();
+  await mark.page().touchscreen.tap(point!.x, point!.y);
 }
 
 async function exerciseChart(chart: Locator) {
@@ -250,11 +278,11 @@ test("all required viewports stay within the document width", async ({ page }) =
   }
 });
 
-test("full-menu fixture preserves all 12 scoped dishes and both availability states", async ({ page }) => {
+test("full-menu admin parity matches the public menu including unavailable dishes", async ({ page }) => {
   test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
   await enterPreview(page);
   await page.goto("/admin/availability", { waitUntil: "networkidle" });
-  const rows = page.locator("article[data-available]");
+  const rows = page.locator("[data-admin-menu-dish]");
   await expect(rows).toHaveCount(12);
   expect(await page.locator('article[data-available="true"]').count()).toBeGreaterThan(0);
   expect(await page.locator('article[data-available="false"]').count()).toBeGreaterThan(0);
@@ -262,24 +290,93 @@ test("full-menu fixture preserves all 12 scoped dishes and both availability sta
   expect(new Set(names).size).toBe(12);
   const categories = await rows.locator("h3 + p").allTextContents();
   expect(new Set(categories).size).toBeGreaterThanOrEqual(4);
+  const adminDishes = await rows.evaluateAll((elements) => elements.map((element) => ({
+    id: element.getAttribute("data-dish-id"),
+    categoryId: element.getAttribute("data-category-id"),
+    available: element.getAttribute("data-available"),
+  })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
+
+  await page.goto("/menu/maison-elysee", { waitUntil: "networkidle" });
+  const publicRows = page.locator("[data-public-menu-dish]");
+  await expect(publicRows).toHaveCount(12);
+  const publicDishes = await publicRows.evaluateAll((elements) => elements.map((element) => ({
+    id: element.getAttribute("data-dish-id"),
+    categoryId: element.getAttribute("data-category-id"),
+    available: element.getAttribute("data-available"),
+  })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
+  expect(publicDishes).toEqual(adminDishes);
+});
+
+test("period changes replace chart evidence and replay bounded animations", async ({ page }) => {
+  await page.addInitScript(() => {
+    const runtime = window as typeof window & { __chartAnimationEvidence?: Array<{ duration: number; iterations: number }> };
+    runtime.__chartAnimationEvidence = [];
+    document.addEventListener("animationstart", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.matches("[data-chart-animated]")) return;
+      for (const animation of target.getAnimations()) {
+        const timing = animation.effect?.getTiming();
+        const duration = Number(timing?.duration ?? 0);
+        const iterations = Number(timing?.iterations ?? 0);
+        if (duration > 0) runtime.__chartAnimationEvidence?.push({ duration, iterations });
+      }
+    }, true);
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await enterPreview(page);
+  await page.goto("/admin/insights?range=7d", { waitUntil: "networkidle" });
+  const keysBefore = await page.locator("[data-chart-animation-key]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-chart-animation-key")));
+  await page.evaluate(() => {
+    (window as typeof window & { __chartAnimationEvidence?: unknown[] }).__chartAnimationEvidence = [];
+  });
+  await page.getByRole("link", { name: "30 j", exact: true }).click();
+  await expect(page).toHaveURL(/range=30d/);
+  await expect(page.getByRole("link", { name: "30 j", exact: true })).toHaveAttribute("aria-current", "page");
+  const keysAfter = await page.locator("[data-chart-animation-key]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-chart-animation-key")));
+  expect(keysAfter).not.toEqual(keysBefore);
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __chartAnimationEvidence?: unknown[] }).__chartAnimationEvidence?.length ?? 0)).toBeGreaterThan(0);
+  const animations = await page.evaluate(() => (window as typeof window & { __chartAnimationEvidence?: Array<{ duration: number; iterations: number }> }).__chartAnimationEvidence ?? []);
+  expect(animations.length).toBeGreaterThan(0);
+  expect(animations.every(({ duration, iterations }) => duration >= 180 && duration <= 420 && iterations === 1)).toBe(true);
+});
+
+test("reduced motion disables every animated chart family without removing geometry", async ({ page }) => {
+  await enterPreview(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/admin/insights", { waitUntil: "networkidle" });
+  const animated = page.locator("[data-chart-animated]");
+  expect(await animated.count()).toBeGreaterThan(20);
+  const states = await animated.evaluateAll((elements) => elements.map((element) => ({
+    animation: getComputedStyle(element).animationDuration,
+    transition: getComputedStyle(element).transitionDuration,
+    box: element.getBoundingClientRect().toJSON(),
+  })));
+  expect(states.every((state) => /^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/.test(state.animation))).toBe(true);
+  expect(states.every((state) => state.box.width > 0 || state.box.height > 0)).toBe(true);
 });
 
 test.describe("touch chart contract", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
-  test("tap pins, second tap closes, and outside tap dismisses", async ({ page }) => {
+  test("every insights chart supports tap, second tap, and outside dismissal", async ({ page }) => {
     await enterPreview(page);
     await page.goto("/admin/insights", { waitUntil: "networkidle" });
-    const mark = page.locator('svg[role="group"] [tabindex], svg[role="grid"] [tabindex]').first();
-    const chart = mark.locator("xpath=ancestor::div[1]");
-    const tooltip = chart.locator("output[data-visible=true]");
-    await expect(mark).toBeAttached();
-    await mark.tap({ force: true });
-    await expect(tooltip).toBeVisible();
-    await mark.tap({ force: true });
-    await expect(tooltip).toBeHidden();
-    await mark.tap({ force: true });
-    await expect(tooltip).toBeVisible();
-    await page.locator("h1").tap();
-    await expect(tooltip).toBeHidden();
+    const charts = page.locator('[data-chart-frame]:has(svg[role="group"] [tabindex], svg[role="grid"] [tabindex])');
+    const chartCount = await charts.count();
+    expect(chartCount).toBe(5);
+    for (let index = 0; index < chartCount; index += 1) {
+      const chart = charts.nth(index);
+      const marks = chart.locator('svg[role="group"] [tabindex], svg[role="grid"] [tabindex]');
+      expect(await marks.count()).toBeGreaterThan(0);
+      const mark = marks.first();
+      const tooltip = chart.locator("output[data-visible=true]");
+      await tapInteractiveMark(mark);
+      await expect(tooltip).toBeVisible();
+      await tapInteractiveMark(mark);
+      await expect(tooltip).toBeHidden();
+      await tapInteractiveMark(mark);
+      await expect(tooltip).toBeVisible();
+      await page.locator("h1").tap();
+      await expect(tooltip).toBeHidden();
+    }
   });
 });

@@ -509,7 +509,7 @@ export function PublicMenuRenderer({
     );
 
     return (
-      <li key={dish.id} className={styles.dishItem}>
+      <li key={dish.id} className={styles.dishItem} data-public-menu-dish data-dish-id={dish.id} data-category-id={dish.categorySlug ?? dish.categoryId ?? dish.category} data-available={dish.available}>
         {mode === "public" && dishOpenMode === "route" ? (
           <Link
             aria-label={`${dish.name}. Voir la fiche plat.`}

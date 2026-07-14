@@ -3,7 +3,7 @@
 import { CartesianAxes, CARTESIAN_PLOT } from "./CartesianAxes";
 import { ChartFrame, MetricTooltip } from "./ChartFrame";
 import { normalizeComparisonSeries } from "./data";
-import { buildLineDomain, buildLineGeometry, buildMidpointHitRegions } from "./geometry";
+import { buildLineGeometry, buildMidpointHitRegions, buildNiceLineDomain } from "./geometry";
 import { formatChartValue } from "./formatters";
 import { useChartInteraction, useReducedMotion } from "./useChartInteraction";
 import type { AccessibleChartProps, ChartSeries } from "./types";
@@ -34,7 +34,7 @@ function AlignedComparison({
   const interaction = useChartInteraction(count);
   const reduced = useReducedMotion();
   const allValues = series.flatMap((item) => item.values.map(({ value }) => value));
-  const domain = buildLineDomain(allValues);
+  const domain = buildNiceLineDomain(allValues);
   const geometries = series.map((item) => {
     const geometry = buildLineGeometry(item.values.map(({ value }) => value), { width: plotWidth, height: plotHeight }, domain);
     return geometry.points.map((point) => ({ x: point.x + CARTESIAN_PLOT.left, y: point.y + CARTESIAN_PLOT.top }));
@@ -78,7 +78,7 @@ function AlignedComparison({
       focusable="false"
       data-axis-owner={ids.title}
     >
-      <CartesianAxes labels={series[0].values.map(({ label }) => label)} domain={domain} valueFormatter={axisText} maximumXLabels={5} />
+      <CartesianAxes labels={series[0].values.map(({ label }) => label)} domain={domain} valueFormatter={axisText} maximumXLabels={7} />
     </svg>}
     plot={(ids) => <svg
       className={`${styles.svg} ${styles.cartesianSvg}`}
@@ -98,7 +98,7 @@ function AlignedComparison({
         const points = geometries[seriesIndex];
         const path = points.length ? `M ${points.map((point) => `${point.x} ${point.y}`).join(" L ")}` : "";
         return <g key={item.label} data-chart-series={seriesIndex === 0 ? "current" : "previous"}>
-          {path ? <path className={`${styles.line} ${seriesIndex === 0 ? styles.lineCurrent : styles.lineSecondary}`} d={path} pathLength="1" /> : null}
+          {path ? <path data-chart-animated="comparison-line" className={`${styles.line} ${seriesIndex === 0 ? styles.lineCurrent : styles.lineSecondary}`} d={path} pathLength="1" /> : null}
           {points.map((point, index) => <circle
             key={`${item.label}:${item.values[index].label}:${index}`}
             className={`${styles.seriesPoint} ${seriesIndex === 0 ? styles.seriesPointCurrent : styles.seriesPointPrevious}`}

@@ -10,12 +10,13 @@ const periodTotals = {
   previous: { menu_opened: 1090, dish_opened: 3018, search_used: 502, immersive: 315 }
 } as const;
 
-const searchTerms = ["homard bleu", "risotto cèpes", "sole meunière", "tartare de saumon", "dessert chocolat", "menu végétarien"];
+const searchTerms = ["homard bleu", "risotto cèpes", "tartare saumon", "ravioles chèvre", "canette figues", "sole meunière", "dessert chocolat", "menu végétarien", "cocktail maison"];
 
-const dishWeights = [18, 16, 14, 12, 10, 9, 7, 5, 4, 2, 2, 1];
-const searchWeights = [31, 24, 18, 13, 9, 5];
-const currentDayWeights = [11, 14, 18, 21, 17, 12, 7];
-const previousDayWeights = [9, 13, 16, 20, 19, 14, 9];
+const fullMenuDishWeights = [18, 16, 14, 12, 10, 9, 7, 5, 4, 2, 2, 1];
+const pixelDishWeights = [812, 652, 498, 381, 412, 35, ...Array.from({ length: 28 }, () => 34)];
+const searchWeights = [128, 96, 74, 62, 51, 40, 38, 37, 36];
+const currentDayWeights = [5, 12, 11, 17, 20, 23, 12];
+const previousDayWeights = [6, 11, 12, 17, 20, 22, 12];
 const serviceHours = [12, 13, 19, 20, 14, 18, 21, 11, 15, 17];
 const serviceWeights = [7, 13, 18, 17, 10, 14, 9, 3, 5, 4];
 
@@ -65,7 +66,22 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     restaurant_id: restaurantId,
     menu_id: menuId
   }));
-  const menu_dishes = getAllDishes().map((dish, index) => ({
+  const canonicalDishes = getAllDishes();
+  const pixelExtras = Array.from({ length: 22 }, (_, extraIndex) => {
+    const source = canonicalDishes[extraIndex % canonicalDishes.length];
+    const position = canonicalDishes.length + extraIndex;
+    return {
+      ...source,
+      id: `pixel-dish-${position + 1}`,
+      slug: `creation-saisonniere-${position + 1}`,
+      name: `Création saisonnière ${position + 1}`,
+      categorySlug: "cocktails",
+      price: 24 + extraIndex,
+    };
+  });
+  const fixtureDishes = scenario === "pixel-reference" ? [...canonicalDishes, ...pixelExtras] : canonicalDishes;
+  const pixelUnavailable = new Set([3, 8, 12, 16, 20, 24, 28, 32]);
+  const menu_dishes = fixtureDishes.map((dish, index) => ({
     id: dish.id,
     category_id: dish.categorySlug,
     name: dish.name,
@@ -74,7 +90,7 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     image_url: dish.image,
     // Full-menu QA deliberately covers both final states without altering the
     // canonical pixel-reference fixture or production/demo menu data.
-    is_available: scenario === "full-menu" ? index % 5 !== 3 : dish.isAvailable,
+    is_available: scenario === "full-menu" ? index % 5 !== 3 : !pixelUnavailable.has(index),
     restaurant_id: restaurantId,
     menu_id: menuId,
     currency: "CAD",
@@ -87,6 +103,7 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     created_at: `2026-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`
   }));
   const analytics_events: Record<string, string>[] = [];
+  const dishWeights = scenario === "pixel-reference" ? pixelDishWeights : fullMenuDishWeights;
   const addEvents = (period: keyof typeof periodTotals, startDay: number, month: number) => {
     const totals = periodTotals[period];
     const dayWeights = period === "current" ? currentDayWeights : previousDayWeights;

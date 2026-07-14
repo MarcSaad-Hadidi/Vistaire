@@ -55,6 +55,18 @@ test("real analytics exposes exact raw KPIs independently from privacy breakdown
   assert.deepEqual(state.searches, []);
 });
 
+test("freshness boundaries use the injected observation clock", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const events = [
+    ...Array.from({ length: 5 }, () => ({ event_name: "menu_opened", created_at: "2026-07-10T10:00:00.000Z" })),
+    ...Array.from({ length: 4 }, () => ({ event_name: "dish_opened", created_at: "2026-07-10T10:00:00.000Z" }))
+  ];
+  const freshnessAt = (observedAt) => buildAdminAnalyticsState({ observationWindow, observedAt, events, lastUpdatedAt: "2026-07-10T10:00:00.000Z" }).freshness;
+  assert.equal(freshnessAt("2026-07-10T11:00:00.000Z"), "fresh");
+  assert.equal(freshnessAt("2026-07-11T10:00:00.000Z"), "delayed");
+  assert.equal(freshnessAt("2026-07-11T10:00:00.001Z"), "stale");
+});
+
 test("event KPI comparisons use exact previous-period counts while availability has no invented baseline", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const make = (event_name, count, period) => Array.from({ length: count }, (_, index) => ({
@@ -236,7 +248,7 @@ test("visual fixture is a full distinct menu with previous evidence and scoped f
   assert.match(data, /source/);
 });
 
-test("visual fixture menu is structurally identical to canonical Maison Elysee data", async () => {
+test("pixel and full-menu fixtures keep distinct, deliberate menu densities", async () => {
   const [{ buildAdminVisualFixtureTables }, { getAllDishes, getCategories }] = await Promise.all([
     import("../e2e/support/adminVisualFixtureData.ts"),
     import("../lib/demoMenuData.ts")
@@ -245,8 +257,9 @@ test("visual fixture menu is structurally identical to canonical Maison Elysee d
   const fullMenuTables = buildAdminVisualFixtureTables({ scenario: "full-menu" });
   const canonicalDishes = getAllDishes().map(({ slug, name, image, categorySlug, isAvailable }) => ({ slug, name, image_url: image, category_id: categorySlug, is_available: isAvailable }));
   const fixtureDishes = tables.menu_dishes.filter((dish) => dish.restaurant_id === tables.restaurantId && dish.menu_id === tables.menuId).map(({ slug, name, image_url, category_id, is_available }) => ({ slug, name, image_url, category_id, is_available }));
-  assert.equal(fixtureDishes.length, 12);
-  assert.deepEqual(fixtureDishes, canonicalDishes);
+  assert.equal(fixtureDishes.length, 34);
+  assert.deepEqual(fixtureDishes.slice(0, canonicalDishes.length).map(({ slug, name, image_url, category_id }) => ({ slug, name, image_url, category_id })), canonicalDishes.map(({ slug, name, image_url, category_id }) => ({ slug, name, image_url, category_id })));
+  assert.equal(fixtureDishes.filter((dish) => dish.is_available).length, 26);
   assert.deepEqual(
     tables.menu_categories.filter((category) => category.restaurant_id === tables.restaurantId && category.menu_id === tables.menuId).map(({ slug, name }) => ({ slug, name })),
     getCategories().map(({ slug, name }) => ({ slug, name }))
@@ -257,7 +270,7 @@ test("visual fixture menu is structurally identical to canonical Maison Elysee d
   assert.equal(fullMenuDishes.length, 12);
   assert.ok(fullMenuDishes.some((dish) => dish.is_available));
   assert.ok(fullMenuDishes.some((dish) => !dish.is_available));
-  assert.deepEqual(fullMenuDishes.map((dish) => dish.id), fixtureDishes.map((dish) => tables.menu_dishes.find((candidate) => candidate.slug === dish.slug)?.id));
+  assert.deepEqual(fullMenuDishes.map((dish) => dish.id), tables.menu_dishes.filter((dish) => canonicalDishes.some((candidate) => candidate.slug === dish.slug)).map((dish) => dish.id));
 });
 
 test("pixel fixture carries exact coherent current and previous analytics below the per-read cap", async () => {
@@ -283,6 +296,7 @@ test("pixel fixture carries exact coherent current and previous analytics below 
   }, { menu: 1090, dish: 3018, search: 502, immersive: 315 });
   assert.ok(periods.current.length < 10_000);
   assert.ok(periods.previous.length < 10_000);
+  assert.ok(periods.current.length + periods.previous.length < 12_000);
   const currentSearches = periods.current.filter((row) => row.event_name === "search_used");
   assert.ok(new Set(currentSearches.map((row) => row.search_query)).size >= 5);
   const sessionsByTerm = Map.groupBy(currentSearches, (row) => row.search_query);

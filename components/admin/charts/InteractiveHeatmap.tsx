@@ -36,7 +36,7 @@ export function InteractiveHeatmap({
   const cell = active === null ? null : cells[active];
   const cellWidth = (width - left - right) / Math.max(1, columns);
   const cellHeight = (height - top - bottom) / Math.max(1, rowLabels.length);
-  const hourIndexes = selectAxisLabelIndexes(columnLabels.length, 8);
+  const hourIndexes = columnLabels.length === 24 ? [0, 3, 6, 9, 12, 15, 18, 21] : selectAxisLabelIndexes(columnLabels.length, 8);
   const cellX = (column: number) => left + column * cellWidth;
   const cellY = (row: number) => top + row * cellHeight;
   const animationKey = `${title}:${period}:${cells.map(({ row, column, value }) => `${row}:${column}:${value}`).join("|")}`;
@@ -91,6 +91,7 @@ export function InteractiveHeatmap({
           return <rect
             key={`${item.row}:${item.column}`}
             role="gridcell"
+            data-chart-animated="heat-cell"
             className={`${styles.mark} ${styles.heatCell}`}
             style={{ "--intensity": item.intensity, "--chart-index": index % Math.max(1, columns) } as React.CSSProperties}
             x={cellX(item.column) + 2}

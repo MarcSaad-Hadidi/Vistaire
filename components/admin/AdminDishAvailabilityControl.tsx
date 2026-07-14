@@ -19,5 +19,5 @@ export function AdminDishAvailabilityControl({ dishId, dishName, initialAvailabl
   }));
   useEffect(() => () => mutation.invalidate(), [mutation]);
   const updateAvailability = () => mutation.run({ dishId, dishName, available });
-  return <div data-admin-availability-slot className="flex min-w-0 flex-col items-center"><AdminToggle checked={available} label={available ? `Rendre ${dishName} indisponible` : `Rendre ${dishName} disponible`} disabled={isPending} onClick={updateAvailability} /><span className="whitespace-nowrap text-[11px] text-[#918b82]">{available ? "Visible sur le menu" : "Masqué du menu"}</span></div>;
+  return <div data-admin-availability-slot className="flex min-w-0 flex-col items-center"><AdminToggle checked={available} label={available ? `Rendre ${dishName} indisponible` : `Rendre ${dishName} disponible`} disabled={isPending} onClick={updateAvailability} /><span className="whitespace-nowrap text-[11px] text-[#918b82]">{available ? "Visible sur le menu" : "Affiché comme indisponible"}</span></div>;
 }

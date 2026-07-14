@@ -159,6 +159,7 @@ test("admin compact controls preserve 44px hit areas and direct tooltip semantic
   assert.match(css, /\.toggle\s*\{[^}]*height:\s*44px/s);
   assert.match(css, /\.toggle::before\s*\{[^}]*height:\s*28px/s);
   assert.match(css, /\.mobileNav a\s*\{[^}]*font-size:\s*12px/s);
+  assert.match(css, /@media\s*\(max-width:\s*700px\)[\s\S]*?\.tabs\s*\{[^}]*display:\s*none/s);
 
   assert.match(primitives, /useId\(\)/);
   assert.match(primitives, /cloneElement/);
@@ -174,6 +175,7 @@ test("shared admin shell exposes the approved menu actions on every route", asyn
     assert.match(menuActions, new RegExp(label));
   }
   assert.match(shell, /<AdminMenuActions menuPath=\{menuPath\}/);
+  assert.match(shell, /<AdminTabs active=\{active\}/);
   assert.doesNotMatch(shell, /actions\?:\s*ReactNode/);
 });
 
@@ -198,7 +200,10 @@ test("overview composes honest evidence panels with accessible exact values", as
   assert.match(css, /grid-template-areas/);
   assert.match(css, /@media\s*\(max-width:\s*700px\)/);
   assert.match(css, /\.kpis[^}]*grid-template-columns:\s*repeat\(2/s);
-  assert.match(css, /\.kpiImmersive[^}]*display:\s*none/s);
+  assert.doesNotMatch(css, /@media\(max-width:700px\)[\s\S]*\.kpiImmersive\s*\{\s*display:\s*none/);
+  assert.doesNotMatch(css, /data-mobile-secondary|data-narrow-secondary/);
+  assert.match(overview, /data-overview-kpis/);
+  assert.match(top, /data-overview-ranking/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
@@ -303,13 +308,15 @@ test("overview service preview preserves every service-window count exactly once
 });
 
 test("PR150 insights fidelity uses normal flow, premium copy, controlled top-five views and detailed charts", async () => {
-  const [page, heatmap, breakdowns, rows, css, primitives] = await Promise.all([
+  const [page, heatmap, breakdowns, rows, css, primitives, sparkline, chartCss] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/insights/AdminHeatmap.tsx"),
     read("components/admin/insights/AdminBreakdowns.tsx"),
     read("components/admin/insights/InsightsRows.tsx"),
     read("components/admin/insights/AdminInsights.module.css"),
-    read("components/admin/system/AdminPrimitives.tsx")
+    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/charts/Sparkline.tsx"),
+    read("components/admin/charts/Charts.module.css")
   ]);
   assert.doesNotMatch(css, /(?:^|[;{])height:\s*0(?:[;}])|margin-(?:top|left):\s*-|transform:\s*translate/);
   assert.doesNotMatch(css, /position:\s*absolute[^}]*top:\s*91px/s);
@@ -328,6 +335,12 @@ test("PR150 insights fidelity uses normal flow, premium copy, controlled top-fiv
   assert.match(page, /data-insights-kpi/);
   assert.match(page, /data-insights-summary/);
   assert.match(page, /data-insights-key-insights/);
+  assert.match(page, /analytics\.kind === "real" \? <div className=\{styles\.summaryMetrics\}/);
+  assert.match(page, /insights\.length >= 2/);
+  assert.match(primitives, /evidence\?: \{ kind: "insufficient" \| "unavailable"; reason: string \}/);
+  assert.match(sparkline, /interactive/);
+  assert.match(sparkline, /role="tooltip"/);
+  assert.match(chartCss, /@keyframes sparklineReveal/);
 });
 
 test("admin E2E contracts fail closed and measure two-dimensional touch targets", async () => {
@@ -369,7 +382,22 @@ test("PR150 pages expose complete premium analytics with controlled visible rank
   const insightsSurface = `${insights}\n${activity}\n${comparison}\n${breakdowns}`;
   for (const title of ["Activité du menu sur la période", "Comparaison des périodes", "Moments d’activité", "Top plats consultés", "Top recherches", "Répartition par catégorie", "Répartition par moment de service", "Résumé de la période", "Insights clés"]) assert.match(insightsSurface, new RegExp(title));
   assert.match(availability, /AdminDishThumbnail/);
+  assert.match(availability, /dish\.priceLabel/);
+  assert.match(availability, /data-admin-menu-dish/);
   assert.match(icons, /export function MenuOpenIcon/);
+});
+
+test("full-menu parity exposes the same stable identity fields on admin and public dishes", async () => {
+  const [admin, publicMenu, e2e] = await Promise.all([
+    read("components/admin/availability/AdminAvailabilityList.tsx"),
+    read("components/menu/PublicMenuRenderer.tsx"),
+    read("e2e/admin-chart-interactions.spec.ts"),
+  ]);
+  for (const attribute of ["data-dish-id", "data-category-id", "data-available"]) {
+    assert.match(admin, new RegExp(attribute));
+    assert.match(publicMenu, new RegExp(attribute));
+  }
+  assert.match(e2e, /expect\(publicDishes\)\.toEqual\(adminDishes\)/);
 });
 
 test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {

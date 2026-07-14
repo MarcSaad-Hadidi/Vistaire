@@ -2,6 +2,25 @@ export type PlotSize = { width: number; height: number; padding?: number };
 
 export type LineDomain = { min: number; max: number };
 
+export function isStableSeries(values: number[]) {
+  return values.length > 1 && values.every(Number.isFinite) && values.every((value) => value === values[0]);
+}
+
+export function buildNiceLineDomain(values: number[], tickCount = 4): LineDomain {
+  const domain = buildLineDomain(values);
+  if (isStableSeries(values)) return domain;
+  const span = domain.max - domain.min;
+  if (!Number.isFinite(span) || span <= 0) return domain;
+  const roughStep = span / Math.max(1, tickCount - 1);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  const step = factor * magnitude;
+  const min = domain.min >= 0 ? 0 : Math.floor(domain.min / step) * step;
+  const max = Math.ceil(domain.max / step) * step;
+  return { min, max: max > min ? max : min + step };
+}
+
 export function buildLineDomain(values: number[]): LineDomain {
   const finite = values.filter(Number.isFinite);
   if (finite.length === 0) return { min: 0, max: 1 };

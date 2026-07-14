@@ -21,7 +21,7 @@ const rangeLabel = (start: string, end: string) => `${day.format(new Date(start)
 const trendCopy = (rate: number | null) => rate === null ? "Sans base comparable" : `${rate >= 0 ? "↗" : "↘"} ${Math.abs(Math.round(rate * 100))} % vs période précédente`;
 
 function Trend({ rate, values }: { rate: number | null; values: number[] }) {
-  return <div className={styles.kpiTrendContent} data-tone={rate !== null && rate < 0 ? "down" : "up"}><span>{trendCopy(rate)}</span>{values.length > 1 ? <Sparkline values={values} label="Tendance quotidienne"/> : null}</div>;
+  return <div className={styles.kpiTrendContent} data-kpi-trend data-tone={rate !== null && rate < 0 ? "down" : "up"}><span>{trendCopy(rate)}</span>{values.length > 1 ? <Sparkline values={values} label="Tendance quotidienne" interactive/> : null}</div>;
 }
 
 export function AdminInsightsPage({ data, range }: { data: AdminDashboardData; range: AdminDashboardRange }) {
@@ -43,6 +43,8 @@ export function AdminInsightsPage({ data, range }: { data: AdminDashboardData; r
   if (bestDish) insights.push(`${dishes.get(bestDish.slug)?.name ?? bestDish.label ?? "Plat du menu"} reste le plat le plus consulté avec ${number.format(bestDish.count)} consultations.`);
   if ((metric("immersive")?.value ?? 0) > 0) insights.push(`Les expériences 3D/AR ont généré ${number.format(metric("immersive")!.value)} interactions.`);
   if (bestService) insights.push(`${bestService.label} concentre le plus d’activité avec ${number.format(bestService.count)} interactions.`);
+  if (analytics.kind === "real" && insights.length < 2) insights.push(`${number.format(data.menu.readiness.counts.available)} plats sur ${number.format(data.menu.readiness.counts.dishes)} sont actuellement disponibles.`);
+  if (analytics.kind === "real" && insights.length < 2) insights.push(`${number.format(eventTotal)} interactions mesurées composent le résumé de cette période.`);
 
   const window = analytics.kind === "real" || analytics.kind === "insufficient" ? analytics.observationWindow : null;
   const headerDetails: ReactNode = window ? <div className={styles.rangeDetails}>
@@ -56,14 +58,14 @@ export function AdminInsightsPage({ data, range }: { data: AdminDashboardData; r
 
   const kpi = (id: string, label: string, icon: ReactNode, definition: string, seriesId?: "menuOpened" | "dishOpened" | "searches" | "immersive") => {
     const item = metric(id);
-    return <AdminKpiCard data-insights-kpi label={label} value={item ? number.format(item.value) : "—"} icon={icon} definition={definition} trend={item && seriesId && series ? <Trend rate={item.changeRate} values={series[seriesId].current.map((point) => point.value)}/> : undefined}/>;
+    return <AdminKpiCard data-insights-kpi label={label} value={item ? number.format(item.value) : "—"} icon={icon} definition={definition} evidence={item ? undefined : fallback} trend={item && seriesId && series ? <Trend rate={item.changeRate} values={series[seriesId].current.map((point) => point.value)}/> : undefined}/>;
   };
 
   return <AdminShell restaurantName={data.restaurant.name} menuPath={data.restaurant.publicMenuPath} active="insights" headerDetails={headerDetails} headerStatus={headerStatus}>
     <Link className={styles.srBack} href="/admin">Retour au tableau de bord</Link>
     <section className={styles.kpis} data-insights-kpis aria-label="Indicateurs analytiques">
-      {kpi("menu-opens", "Ouvertures du menu", <MenuOpenIcon/>, "Nombre exact d’ouvertures du menu public.", "menuOpened")}
-      {kpi("dish-opens", "Consultations de plats", <DishViewsIcon/>, "Nombre exact de fiches de plats consultées.", "dishOpened")}
+      {kpi("menu-opens", "Ouvertures du menu", <DishViewsIcon/>, "Nombre exact d’ouvertures du menu public.", "menuOpened")}
+      {kpi("dish-opens", "Consultations de plats", <MenuOpenIcon/>, "Nombre exact de fiches de plats consultées.", "dishOpened")}
       {kpi("searches", "Recherches", <SearchIcon/>, "Nombre exact de recherches effectuées dans le menu.", "searches")}
       {kpi("immersive", "Interactions 3D/AR", <ImmersiveIcon/>, "Ouvertures exactes des expériences 3D et AR.", "immersive")}
       <AdminKpiCard data-insights-kpi label="Plats disponibles" value={`${data.menu.readiness.counts.available} / ${data.menu.readiness.counts.dishes}`} detail={`${Math.round(data.menu.readiness.counts.available / Math.max(1, data.menu.readiness.counts.dishes) * 100)} % du menu`} icon={<AvailableDishIcon/>} definition="Plats actuellement visibles comme disponibles dans le menu."/>
@@ -81,8 +83,8 @@ export function AdminInsightsPage({ data, range }: { data: AdminDashboardData; r
       <AdminPanel className={styles.service} data-insights-panel><AdminServiceBreakdown evidence={panels?.serviceWindows ?? fallback}/></AdminPanel>
     </div>
     <div className={styles.bottomGrid}>
-      <AdminPanel className={styles.summary} data-insights-panel data-insights-summary title="Résumé de la période"><div className={styles.summaryMetrics}>{eventIds.map((id) => <span key={id}>{id === "menu-opens" ? "Ouvertures" : id === "dish-opens" ? "Consultations" : id === "searches" ? "Recherches" : "3D/AR"}<strong>{number.format(metric(id)?.value ?? 0)}</strong></span>)}<span>Plats au menu<strong>{data.menu.readiness.counts.dishes}</strong></span><span>Fraîcheur<strong>{analytics.kind === "real" ? adminFreshnessCopy(analytics.freshness) : "Non disponible"}</strong></span><span>Couverture<strong>{coverage} / 2 mesures</strong></span><span>Comparaison<strong>{panels?.dailyComparison.kind === "supported" ? "Disponible" : "À venir"}</strong></span><span>Total suivi<strong>{number.format(eventTotal)}</strong></span></div></AdminPanel>
-      <AdminPanel className={styles.recommendations} data-insights-panel data-insights-key-insights title="Insights clés">{insights.length ? <ul className={styles.insightsList}>{insights.slice(0, 4).map((insight) => <li key={insight}>{insight}</li>)}</ul> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
+      <AdminPanel className={styles.summary} data-insights-panel data-insights-summary title="Résumé de la période">{analytics.kind === "real" ? <div className={styles.summaryMetrics}>{eventIds.map((id) => <span key={id}>{id === "menu-opens" ? "Ouvertures" : id === "dish-opens" ? "Consultations" : id === "searches" ? "Recherches" : "3D/AR"}<strong>{number.format(metric(id)!.value)}</strong></span>)}<span>Plats au menu<strong>{data.menu.readiness.counts.dishes}</strong></span><span>Fraîcheur<strong>{adminFreshnessCopy(analytics.freshness)}</strong></span><span>Couverture<strong>{coverage} / 2 mesures</strong></span><span>Comparaison<strong>{panels?.dailyComparison.kind === "supported" ? "Disponible" : "À venir"}</strong></span><span>Total suivi<strong>{number.format(eventTotal)}</strong></span></div> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
+      <AdminPanel className={styles.recommendations} data-insights-panel data-insights-key-insights title="Insights clés">{insights.length >= 2 ? <ul className={styles.insightsList}>{insights.slice(0, 4).map((insight) => <li key={insight}>{insight}</li>)}</ul> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
     </div>
   </AdminShell>;
 }

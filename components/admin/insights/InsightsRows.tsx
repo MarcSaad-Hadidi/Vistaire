@@ -14,7 +14,7 @@ export function InsightsDishRows({ rows }: { rows: DishRow[] }) {
   const maximum = Math.max(1, ...rows.map((row) => row.count));
   return <ol className={styles.dishRows}>{rows.map((row, index) => <li key={row.id} data-insights-dish-row>
     <button type="button" onClick={() => setActive(active === row.id ? null : row.id)} onBlur={() => setActive(null)} aria-describedby={`dish-tip-${row.id}`}>
-      <span className={styles.rank}>{index + 1}</span><AdminDishThumbnail name={row.label} imageUrl={row.imageUrl} thumbnailUrl={row.thumbnailUrl} compact sizes="42px"/><span className={styles.rowMain}><strong>{row.label}</strong><i style={{ "--value": `${row.count / maximum * 100}%` } as React.CSSProperties}/></span><b>{row.count}</b>
+      <span className={styles.rank}>{index + 1}</span><AdminDishThumbnail name={row.label} imageUrl={row.imageUrl} thumbnailUrl={row.thumbnailUrl} compact sizes="42px"/><span className={styles.rowMain}><strong>{row.label}</strong><i data-chart-animated="insights-rank-bar" style={{ "--value": `${row.count / maximum * 100}%` } as React.CSSProperties}/></span><b>{row.count}</b>
     </button>
     <output id={`dish-tip-${row.id}`} className={styles.rowTooltip} data-visible={active === row.id}>{row.label} · {row.count} consultations · rang {index + 1}</output>
   </li>)}</ol>;

@@ -3,7 +3,7 @@ import "server-only";
 import {
   getBoolean,
   getString,
-  readSupabaseRows
+  readSupabaseRowsByFilters
 } from "@/lib/analytics/serverRows";
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
 import {
@@ -458,55 +458,67 @@ function findLegacyMenuLanguages(
   return configJson.menuLanguages ?? configJson.menu_languages;
 }
 
+type PublicMenuDependencies = {
+  readRows: typeof readSupabaseRowsByFilters;
+  nodeEnv: string | undefined;
+};
+
 export async function getPublicMenuBySlug(
   rawSlug: string,
-  locale: Locale | string = DEFAULT_LOCALE
+  locale: Locale | string = DEFAULT_LOCALE,
+  dependencies: PublicMenuDependencies = { readRows: readSupabaseRowsByFilters, nodeEnv: process.env.NODE_ENV }
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
   const resolvedLocale = normalizeLocale(locale);
   if (!slug) return null;
 
-  if (slug === "maison-elyse") {
-    return demoMenu(slug, resolvedLocale);
-  }
-
-  const restaurantsResult = await readSupabaseRows("restaurants", 200);
-  if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
-    if (slug === "trouvable") {
-      return trouvableDemoMenu(slug, locale);
-    }
+  const localDemo = () => {
+    if (dependencies.nodeEnv === "production") return null;
+    if (slug === "maison-elyse") return demoMenu(slug, resolvedLocale);
+    if (slug === "trouvable") return trouvableDemoMenu(slug, locale);
     return null;
+  };
+
+  const restaurantsResult = await dependencies.readRows<PublicMenuRow>({ table: "restaurants", columns: "*", filters: { slug }, orderBy: "id", limit: 1 });
+  if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
+    return localDemo();
   }
 
   const match = restaurantsResult.rows.find((row) => getPublicMenuRowSlug(row) === slug);
-  if (!match) return null;
+  if (!match) return localDemo();
 
   const restaurantId = getString(match, ["id", "restaurant_id"], "");
-  if (restaurantId === getDemoRestaurantId()) {
-    return demoMenu(slug, resolvedLocale);
-  }
+  if (!restaurantId) return null;
+  const isDemoRestaurant = restaurantId === getDemoRestaurantId();
 
   const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
-    readSupabaseRows<PublicMenuRow>("menus", 500),
-    readSupabaseRows<PublicMenuRow>("menu_categories", 1_000),
-    readSupabaseRows<PublicMenuRow>("menu_dishes", 1_000),
-    readSupabaseRows<PublicMenuRow>("menu_ui_configs", 1_000)
+    dependencies.readRows<PublicMenuRow>({ table: "menus", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500 }),
+    dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "display_order", limit: 1_000 }),
+    dependencies.readRows<PublicMenuRow>({ table: "menu_dishes", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 }),
+    dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
   ]);
-  const primaryMenu = menusResult.ok ? findPrimaryMenu(menusResult.rows, restaurantId) : null;
+  if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) return localDemo();
+  const primaryMenu = findPrimaryMenu(menusResult.rows, restaurantId);
   const legacyMenuLanguages = uiConfigsResult.ok
     ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
     : undefined;
   const legacyPublicMenuSettings = uiConfigsResult.ok
     ? publicMenuSettingsFallbackFromUiConfigRows(uiConfigsResult.rows, restaurantId) ?? undefined
     : undefined;
+  const hasScopedDishRows = dishesResult.rows.length > 0;
+
+  if (isDemoRestaurant && !primaryMenu && !hasScopedDishRows) {
+    return localDemo();
+  }
 
   if (primaryMenu) {
     const menu = buildRelationalSupabasePublicMenu({
       slug,
       restaurantRow: match,
       menuRow: primaryMenu,
-      categoryRows: categoriesResult.ok ? categoriesResult.rows : [],
-      dishRows: dishesResult.ok ? dishesResult.rows : [],
+      categoryRows: categoriesResult.rows,
+      dishRows: dishesResult.rows,
+      includeUnavailableDishes: true,
       legacyPublicMenuSettings,
       legacyMenuLanguages
     });
@@ -516,8 +528,8 @@ export async function getPublicMenuBySlug(
   const menu = buildSupabasePublicMenu(
     slug,
     match,
-    dishesResult.ok ? dishesResult.rows : [],
-    { legacyPublicMenuSettings, legacyMenuLanguages }
+    dishesResult.rows,
+    { includeUnavailableDishes: true, legacyPublicMenuSettings, legacyMenuLanguages }
   );
   return applyStoredPublicMenuTranslations(menu, locale);
 }

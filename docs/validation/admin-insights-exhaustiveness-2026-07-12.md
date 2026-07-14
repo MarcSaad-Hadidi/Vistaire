@@ -1,6 +1,6 @@
 # PR 150 - Matrice d'exhaustivite Insights
 
-Date: 2026-07-12
+Date: 2026-07-13
 Route: `/admin/insights`
 Reference: `04-insights-desktop.png`, 1672 x 941, DPR 1
 
@@ -9,13 +9,13 @@ Reference: `04-insights-desktop.png`, 1672 x 941, DPR 1
 - `R/I/U`: etats reel, insuffisant et indisponible.
 - `H/F/T`: souris, focus clavier et tactile.
 - Les dimensions sont celles de la fixture `pixel-reference` a 1672 x 941.
-- Les captures et crops sont regeneres dans `%TEMP%\vistaire-pr150-final-visual` et `%TEMP%\vistaire-pr150-final-compare`; ils ne sont pas suivis par Git.
+- Les captures et diffs sont regeneres dans `%TEMP%\vistaire-pr150-completion-visual` et `%TEMP%\vistaire-pr150-completion-compare`; ils ne sont pas suivis par Git.
 
 ## Matrice des 20 elements
 
 | # | Element | Composant et source | R / I / U | Desktop et responsive | H / F / T, tooltip | Animation et reduced motion | Overflow, overlap et preuve visuelle |
 | ---: | --- | --- | --- | --- | --- | --- | --- |
-| 1 | KPI Ouvertures | `AdminInsightsPage`; `metrics.menu-opens`, somme exacte `menu_opened` | Valeur et variation / tiret et explication / etat centralise | Carte 120 px; grille 5, puis 3, puis 2 colonnes | Definition au focus; sparkline informative | Entree 280 ms; sparkline sans boucle; instantane en reduced motion | Contenu borne; crop `insights-kpis.png` |
+| 1 | KPI Ouvertures | `AdminInsightsPage`; `metrics.menu-opens`, somme exacte `menu_opened` | Valeur et variation / tiret et explication / etat centralise | Carte 120 px; grille 5, puis 3, puis 2 colonnes | Definition et sparkline interactive avec valeur exacte | Entree 280 ms; sparkline sans boucle; instantane en reduced motion | Contenu borne; capture desktop complete |
 | 2 | KPI Consultations | `AdminInsightsPage`; `metrics.dish-opens`, somme exacte `dish_opened` | Idem | Carte 120 px; meme grille | Idem | Idem | Idem |
 | 3 | KPI Recherches | `AdminInsightsPage`; total brut `search_used`, independant du seuil de publication | Idem | Carte 120 px; meme grille | Idem | Idem | Idem |
 | 4 | KPI 3D/AR | `AdminInsightsPage`; `dish_3d_clicked + dish_ar_clicked` | Idem | Carte 120 px; meme grille | Idem | Idem | Idem |
@@ -30,7 +30,7 @@ Reference: `04-insights-desktop.png`, 1672 x 941, DPR 1
 | 13 | Repartition service | `AdminServiceBreakdown`; cinq fenetres UTC | Nuit, Matin, Midi, Apres-midi, Soiree / preuve / indisponible | 450 x 215; legende sous le donut mobile | H/F/T, valeur et pourcentage, liste exacte | Idem donut | Mention UTC unique; crop `insights-service.png` |
 | 14 | Resume de la periode | `AdminInsightsPage`; metriques, fraicheur, couverture, comparaison | Valeurs tracables / libelles neutres / indisponible | 911 x 151; une colonne mobile | Lecture et tableau de donnees visible | Entree de panneau; reduced motion instantane | Grille interne sans scroll; crop `insights-summaryInsights.png` |
 | 15 | Insights cles | `AdminInsightsPage`; regles deterministes sur metriques visibles | 2 a 4 conclusions / etat de preuve / indisponible | 639 x 151; une colonne mobile | Lecture clavier standard | Entree de panneau uniquement | Aucune interpretation IA; crop resume/insights |
-| 16 | Selecteur 24 h / 7 j / 30 j | `AdminInsightsPage`; `AdminDashboardRange` allowliste serveur | Periode active / meme etat de page / meme erreur centralisee | Header en flux; pleine largeur mobile | Liens clavier, `aria-current` | Navigation/recalcul reel, pas d'animation permanente | Aucun chevauchement header/KPI; capture globale |
+| 16 | Selecteurs de route et de periode | `AdminTabs`, `AdminNav`, `AdminInsightsPage`; routes admin et `AdminDashboardRange` allowlistees | Route et periode actives / meme etat de page / meme erreur centralisee | Trois onglets desktop; barre du bas mobile; periode dans le header | Liens clavier, `aria-current`; aucun doublon mobile | Navigation/recalcul reel; 7 j vers 30 j rejoue une animation bornee | Insights n'est jamais une impasse; aucun chevauchement header/KPI |
 | 17 | Fraicheur | `adminFreshnessCopy`; `analytics.freshness` | A jour / Mise a jour retardee / Donnees a actualiser | Header et resume | Lecture accessible | Aucun compteur anime | Aucun token `fresh/delayed/stale` visible |
 | 18 | Etats insuffisants | `AdminEvidenceState`; `adminEvidenceReasonCopy` | N/A / phrases francaises par raison / N/A | Remplace le contenu sans changer la cellule | `role=status` et texte lisible | Pas d'animation trompeuse | Contrats Node et rendu statique verifies |
 | 19 | Etats indisponibles | `AdminEvidenceState`; mapping centralise | N/A / N/A / explication et retry selon contrat | Remplace le contenu sans debordement | `role=alert` quand necessaire | Pas d'animation trompeuse | Aucun code interne ou slug visible |
@@ -42,7 +42,10 @@ Reference: `04-insights-desktop.png`, 1672 x 941, DPR 1
 - `npx playwright test e2e/admin-chart-interactions.spec.ts --workers=1`
 - `npx playwright test e2e/admin-insights-fidelity.spec.ts --workers=1`
 - `npx playwright test e2e/admin-visual.spec.ts --workers=1`
+- `npm run test:admin:full-menu` ou le scenario cible `full-menu admin parity` avec la fixture dediee.
 - Viewports: 320 x 700, 360 x 780, 375 x 812, 390 x 844, 430 x 932, 1280 x 720, 1440 x 900, 1672 x 941 et 1920 x 1080.
+
+Derniers resultats locaux: interactions `9 passed, 1 skipped`; fidelity Insights `7 passed`; visual `6 passed`; parite full-menu `1 passed`; contrats de structure admin `25 passed`.
 
 ## Conclusion
 

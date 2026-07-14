@@ -361,12 +361,15 @@ test("stale availability responses cannot refresh or replace durable feedback", 
   assert.deepEqual(feedback, [{ tone: null, message: null }]);
 });
 
-test("availability overrides yield to refreshed server truth", async () => {
-  const { resolveAvailability } = await loadMutation();
+test("availability overrides are discarded when a refreshed server payload becomes authoritative", async () => {
+  const { resolveAvailabilityForSource } = await loadMutation();
+  const firstPayload = [{ id: "dish-1", available: true }];
+  const committedPayload = [{ id: "dish-1", available: false }];
+  const concurrentPayload = [{ id: "dish-1", available: true }];
   const optimistic = { base: true, value: false };
-  assert.equal(resolveAvailability(true, optimistic), false);
-  assert.equal(resolveAvailability(false, optimistic), false);
-  assert.equal(resolveAvailability(true, { base: false, value: true }), true);
+  assert.equal(resolveAvailabilityForSource(true, firstPayload, firstPayload, optimistic), false);
+  assert.equal(resolveAvailabilityForSource(false, committedPayload, firstPayload, optimistic), false);
+  assert.equal(resolveAvailabilityForSource(true, concurrentPayload, firstPayload, optimistic), true);
 });
 
 test("availability control cleanup invalidates an in-flight response before side effects", async () => {
