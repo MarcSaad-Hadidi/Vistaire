@@ -11,7 +11,7 @@ type Search = { term: string; count: number; previousCount: number; changeRate: 
 type Service = { timezone: "UTC"; windows: { id: string; label: string; count: number }[] };
 
 function ExactTable({ rows, label }: { rows: { label: string; count: number }[]; label: string }) {
-  return <table className={styles.exactTable}><caption>{label}</caption><thead><tr><th>Élément</th><th>Interactions</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.label}:${index}`}><th>{row.label}</th><td>{row.count}</td></tr>)}</tbody></table>;
+  return <div className={styles.exactTable}><table><caption>{label}</caption><thead><tr><th>Élément</th><th>Interactions</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.label}:${index}`}><th>{row.label}</th><td>{row.count}</td></tr>)}</tbody></table></div>;
 }
 
 export function AdminRankedBreakdown({ evidence, dishes = new Map() }: { evidence: AdminPanelEvidence<Ranked[]>; dishes?: Map<string, AdminMenuDish> }) {

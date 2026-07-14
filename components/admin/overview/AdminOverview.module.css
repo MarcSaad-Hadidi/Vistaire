@@ -80,6 +80,7 @@
 .ranking strong { overflow: hidden; font-family: var(--admin-display); font-size: 14px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .ranking span { color: var(--admin-muted); font-size: 10px; }
 .ranking i,.categoryBars i { grid-column: 1/-1; height: 3px; border-radius: 9px; background: linear-gradient(90deg,var(--admin-accent) var(--value),var(--admin-border-soft) var(--value)); transform-origin: left; animation: overviewBarEnter 360ms ease-out both; }
+.categoryBars i { height: 9px; }
 
 .moment :global([data-chart-frame]>header) {
   position: absolute !important;
@@ -105,6 +106,9 @@
 .categoryBars li > span { grid-area: 1 / 1; }
 .categoryBars li > i { grid-area: 2 / 1 / 3 / 3; }
 .categoryBars strong { grid-area: 1 / 2; text-align: right; }
+.exactTable { position: absolute !important; left: -10000px !important; display: block !important; contain: strict !important; width: 1px !important; max-width: 1px !important; height: 1px !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; table-layout: fixed !important; }
+.exactTable table { width: 1px !important; max-width: 1px !important; table-layout: fixed !important; }
+.exactTable * { max-width: 1px !important; padding: 0 !important; overflow: hidden !important; white-space: normal !important; word-break: break-all !important; }
 
 .dishStrip { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
 .dishStrip article { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 7px; border: 1px solid var(--admin-border-soft); border-radius: 9px; background: rgba(255,255,255,.01); }

@@ -96,11 +96,13 @@ export function InteractiveLineChart({
       {points.map((point, index) => <g
         key={`${data[index].label}:${index}`}
         className={styles.mark}
+        role="button"
         data-chart-point
         data-active={activeIndex === index}
         data-muted={activeIndex !== null && activeIndex !== index}
         style={{ "--chart-index": index } as React.CSSProperties}
         tabIndex={activeIndex === index || (activeIndex === null && index === 0) ? 0 : -1}
+        aria-pressed={interaction.pinned && activeIndex === index}
         aria-label={`${data[index].label}, ${text(data[index].value)}`}
         aria-describedby={ids.tooltip}
         onFocus={() => interaction.send({ type: "focus", index })}

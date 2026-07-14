@@ -21,9 +21,7 @@ export function InsightsDishRows({ rows }: { rows: DishRow[] }) {
 }
 
 export function InsightsSearchRows({ rows }: { rows: SearchRow[] }) {
-  const [active, setActive] = useState<string | null>(null);
   return <ol className={styles.searchRows}>{rows.map((row) => <li key={row.term} data-insights-search-row>
-    <button type="button" onClick={() => setActive(active === row.term ? null : row.term)} onBlur={() => setActive(null)} aria-describedby={`search-tip-${row.term}`}><span>{row.term}</span><Sparkline values={row.daily} label={`Tendance de ${row.term}`}/><strong>{row.count}</strong><small className={styles.srOnly}>{change(row.changeRate)}</small></button>
-    <output id={`search-tip-${row.term}`} className={styles.rowTooltip} data-visible={active === row.term}>{row.term} · {row.count} recherches · {change(row.changeRate)}</output>
+    <span className={styles.searchTerm}>{row.term}</span><Sparkline values={row.daily} label={`Tendance de ${row.term}`} interactive/><strong>{row.count}</strong><small className={styles.searchChange}>{change(row.changeRate)}</small>
   </li>)}</ol>;
 }

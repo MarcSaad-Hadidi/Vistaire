@@ -16,10 +16,10 @@ Derniere mise a jour: 2026-07-13
 
 | Ecran | Diagnostic historique | Diagnostic final | Evolution | Geometrie finale | Statut |
 | --- | ---: | ---: | ---: | --- | --- |
-| Overview desktop | 19.05 % | 15.28 % | -3.77 pts | KPI, activite, classements et disponibilite tiennent dans 1672 x 941 | Structure conforme; diff brut > 1 % |
+| Overview desktop | 19.05 % | 15.38 % | -3.67 pts | KPI, activite, classements et disponibilite tiennent dans 1672 x 941 | Structure conforme; diff brut > 1 % |
 | Availability desktop | 10.88 % | 12.06 % | +1.18 pts | panneau, controles et lignes restent bornes dans le viewport | Structure conforme; ecart lie aux icones, badges, densite et donnees exactes |
-| Insights desktop | 18.97 % | 15.34 % | -3.63 pts | cinq KPI et neuf panneaux tiennent entierement dans 1672 x 941, sans intersection ni scroller interne | Structure et contenu conformes; diff brut > 1 % |
-| Overview mobile masque | 28.75 % | 27.15 % | -1.60 pts | cinq KPI et tous les panneaux restent accessibles au-dessus de la navigation fixe | Reference non equivalente au contrat produit; diff > 1 % |
+| Insights desktop | 18.97 % | 15.68 % | -3.29 pts | cinq KPI et neuf panneaux tiennent entierement dans 1672 x 941, sans intersection ni scroller interne | Structure et contenu conformes; diff brut > 1 % |
+| Overview mobile masque | 28.75 % | 27.16 % | -1.59 pts | cinq KPI et tous les panneaux restent accessibles au-dessus de la navigation fixe | Reference non equivalente au contrat produit; diff > 1 % |
 
 ## Corrections de cause racine
 
@@ -34,7 +34,8 @@ Derniere mise a jour: 2026-07-13
 - Navigation: trois onglets visibles sur desktop, dont Analyses; sur mobile ces onglets sont masques et les trois routes restent accessibles uniquement par la barre fixe du bas.
 - Navigation Insights: les trois onglets partagent la hauteur naturelle du header a 1672 px; aux largeurs intermediaires ils reprennent une rangee dediee, sans position absolue ni chevauchement.
 - Tablette: a 768 px, le header Insights empile identite, actions et onglets; ses KPI passent a deux colonnes et les KPI Overview a trois colonnes, sans contenu rogne.
-- Insights: la rangee secondaire retrouve sa hauteur de 215 px; les variations de recherche restent disponibles dans le tooltip et le texte accessible sans doubler la hauteur visible des lignes.
+- Insights: la rangee secondaire reste bornee; les variations de recherche sont visibles et leurs sparklines sont utilisables a la souris, au clavier et au tactile.
+- Donuts Insights: la legende conserve valeur, unite et pourcentage; entre 1181 et 1400 px, le plot se compacte pour laisser les libelles visibles sans scroll interne.
 - Availability: lignes de 80 px, miniatures 160 x 72, colonnes prix/statut/action recalees sur grand desktop, compteurs, recherche et trois filtres uniquement; mutation securisee inchangee.
 - Categories Overview: parts exactes du total affichees en pourcentage, avec comptes bruts conserves dans le libelle accessible.
 - Fixture pixel-reference ponderee, non aleatoire, avec 34 plats, 26 disponibles, totaux exacts 1286 / 3742 / 562 / 412 et comparaison precedente compatible.
@@ -49,7 +50,7 @@ Derniere mise a jour: 2026-07-13
 - Viewports sans overflow document: 320 x 700, 360 x 780, 375 x 812, 390 x 844, 430 x 932, 768 x 1024, 1280 x 720, 1440 x 900, 1672 x 941 et 1920 x 1080.
 - Interactions: hover/pointer, focus, fleches, Home/End, Enter/Espace, Escape, tap reel sur les cinq familles Insights, second tap, clic externe et reduced motion.
 - Changement de periode: 7 j vers 30 j remplace les cles de preuve, rejoue une animation unique de 180 a 420 ms, puis se stabilise.
-- Parite full-menu: 12 identifiants, categories et statuts admin/public identiques, y compris les plats indisponibles.
+- Parite full-menu: 12 identifiants, categories et statuts admin/public identiques, y compris les plats indisponibles; les plats d'un autre menu du meme restaurant et d'un autre restaurant sont explicitement exclus.
 - Crops Insights: KPI, activite, comparaison, heatmap, top plats, recherches, categories, service et resume/insights.
 
 ## Artefacts regenerables
@@ -58,7 +59,10 @@ Derniere mise a jour: 2026-07-13
 - `availability-desktop-overlay.png` / `availability-desktop-diff.png`
 - `insights-desktop-overlay.png` / `insights-desktop-diff.png`
 - `overview-mobile-overlay.png` / `overview-mobile-diff.png`
-- `insights-kpis.png`, `insights-activity.png`, `insights-comparison.png`, `insights-heatmap.png`, `insights-topDishes.png`, `insights-searches.png`, `insights-categories.png`, `insights-service.png`, `insights-summaryInsights.png`
+- `insights-full-page.png`, `insights-kpis.png`
+- `insights-panel-1-activity.png`, `insights-panel-2-comparison.png`, `insights-panel-3-heatmap.png`
+- `insights-panel-4-top-dishes.png`, `insights-panel-5-top-searches.png`, `insights-panel-6-categories.png`
+- `insights-panel-7-service.png`, `insights-panel-8-summary.png`, `insights-panel-9-key-insights.png`
 
 ## Performance observee
 

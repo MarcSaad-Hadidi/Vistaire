@@ -288,6 +288,8 @@ test("pixel and full-menu fixtures keep distinct, deliberate menu densities", as
   assert.equal(fullMenuDishes.length, 12);
   assert.ok(fullMenuDishes.some((dish) => dish.is_available));
   assert.ok(fullMenuDishes.some((dish) => !dish.is_available));
+  assert.ok(fullMenuTables.menu_dishes.some((dish) => dish.restaurant_id === fullMenuTables.restaurantId && dish.menu_id === "other-menu-same-restaurant"));
+  assert.ok(fullMenuDishes.every((dish) => dish.id !== "other-menu-dish"));
   assert.deepEqual(fullMenuDishes.map((dish) => dish.id), tables.menu_dishes.filter((dish) => canonicalDishes.some((candidate) => candidate.slug === dish.slug)).map((dish) => dish.id));
 });
 

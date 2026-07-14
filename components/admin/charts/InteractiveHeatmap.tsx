@@ -100,6 +100,7 @@ export function InteractiveHeatmap({
             height={Math.max(1, cellHeight - 4)}
             rx="3"
             tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
+            aria-selected={interaction.pinned && active === index}
             aria-rowindex={item.row + 1}
             aria-colindex={item.column + 1}
             aria-label={`${rowLabel}, ${columnLabels[item.column]}, ${text(item.value)}`}

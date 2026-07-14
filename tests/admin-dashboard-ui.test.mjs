@@ -439,10 +439,29 @@ test("insights never exposes internal menu identifiers as presentation labels", 
 });
 
 test("search expansion is conditional and reveals additional visible rows", async () => {
-  const breakdowns = await read("components/admin/insights/AdminBreakdowns.tsx");
+  const [breakdowns, rows] = await Promise.all([
+    read("components/admin/insights/AdminBreakdowns.tsx"),
+    read("components/admin/insights/InsightsRows.tsx")
+  ]);
   assert.match(breakdowns, /evidence\.data\.length\s*>\s*5/);
   assert.match(breakdowns, /InsightsSearchRows rows=\{evidence\.data\.slice\(5\)\}/);
   assert.doesNotMatch(breakdowns, /liste compl.te est disponible dans le tableau accessible/);
+  assert.match(rows, /className=\{styles\.searchChange\}/);
+  assert.match(rows, /Sparkline values=\{row\.daily\}[\s\S]*interactive/);
+  assert.doesNotMatch(rows, /className=\{styles\.srOnly\}>\{change\(row\.changeRate\)\}/);
+});
+
+test("unavailable evidence is assertive while insufficient evidence stays polite", async () => {
+  const primitives = await read("components/admin/system/AdminPrimitives.tsx");
+  assert.match(primitives, /role=\{evidence\.kind === "unavailable" \? "alert" : "status"\}/);
+  assert.match(primitives, /role=\{unavailable \? "alert" : "status"\}/);
+});
+
+test("insights summary presents a real comparison value when aligned evidence exists", async () => {
+  const insights = await read("components/admin/insights/AdminInsightsPage.tsx");
+  assert.match(insights, /comparisonSummary/);
+  assert.match(insights, /% ouvertures/);
+  assert.doesNotMatch(insights, /Comparaison<strong>\{panels\?\.dailyComparison\.kind === "supported" \? "Disponible"/);
 });
 
 test("UTC disclosure has one visible owner and is not repeated by the heatmap description", async () => {
@@ -452,4 +471,38 @@ test("UTC disclosure has one visible owner and is not repeated by the heatmap de
   ]);
   assert.match(page, /Heures affich.es en UTC/);
   assert.doesNotMatch(heatmap, /Heures affich.es en UTC/);
+});
+
+test("interactive analytics expose unique names and explicit selection semantics", async () => {
+  const [page, line, comparison, donut, heatmap] = await Promise.all([
+    read("components/admin/insights/AdminInsightsPage.tsx"),
+    read("components/admin/charts/InteractiveLineChart.tsx"),
+    read("components/admin/charts/ComparisonLineChart.tsx"),
+    read("components/admin/charts/InteractiveDonut.tsx"),
+    read("components/admin/charts/InteractiveHeatmap.tsx")
+  ]);
+  assert.match(page, /label=\{`Tendance quotidienne de \$\{label\}`\}/);
+  for (const source of [line, comparison, donut]) {
+    assert.match(source, /role="button"/);
+    assert.match(source, /aria-pressed=/);
+  }
+  assert.match(heatmap, /aria-selected=/);
+});
+
+test("overview groups overflow categories and keeps the exact source available", async () => {
+  const [overview, css] = await Promise.all([
+    read("components/admin/overview/AdminOverview.tsx"),
+    read("components/admin/overview/AdminOverview.module.css")
+  ]);
+  assert.match(overview, /categoryPreview/);
+  assert.match(overview, /label: "Autres"/);
+  assert.match(overview, /Détail exact de l’activité par catégorie/);
+  assert.match(css, /\.exactTable/);
+});
+
+test("detailed donut legends include the visible unit", async () => {
+  const donut = await read("components/admin/charts/InteractiveDonut.tsx");
+  assert.match(donut, /<strong>\{visibleText\(item\.value\)\}/);
+  assert.match(donut, /visibleText = .*text\(value\)\.replace\(\/\\u00a0\/g, " "\)/);
+  assert.doesNotMatch(donut, /<strong>\{formatChartValue\(item\.value\)\}/);
 });

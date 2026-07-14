@@ -139,6 +139,9 @@ test("Insights desktop follows the reference composition without clipping or run
   expect(panelBoxes.at(-1)!.bottom).toBeLessThanOrEqual(viewport!.height + 1);
   const iconSignatures = await page.locator("[data-insights-kpi] [data-kpi-icon] svg").evaluateAll((icons) => icons.map((icon) => icon.innerHTML));
   expect(new Set(iconSignatures).size).toBe(5);
+  const kpiTrendNames = await page.locator('[data-insights-kpi] svg[role="button"]').evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")));
+  expect(kpiTrendNames).toHaveLength(4);
+  expect(new Set(kpiTrendNames).size).toBe(4);
   if (visualOutputDir) {
     await mkdir(visualOutputDir, { recursive: true });
     await page.screenshot({ path: path.join(visualOutputDir, "insights-full-page.png"), fullPage: true });
@@ -194,10 +197,18 @@ test("Insights charts expose exact hover, keyboard, and metric-switch behavior",
   await expect(dishRow.locator("output")).toContainText(/consultations · rang 1/);
   await expectViewportContained(page, dishRow.locator("output"));
   const searchRow = page.locator("[data-insights-search-row]").first();
-  await searchRow.getByRole("button").hover();
+  await expect(searchRow.locator("small")).toBeVisible();
+  await expect(searchRow.locator("small")).toContainText(/%|Nouvelle tendance/);
+  const searchSparkline = searchRow.getByRole("button", { name: /Tendance de/ });
+  await searchSparkline.hover();
   await expect(searchRow.locator("output")).toBeVisible();
-  await expect(searchRow.locator("output")).toContainText(/recherches/);
+  await expect(searchRow.locator("output")).toContainText(/dernière valeur/);
   await expectViewportContained(page, searchRow.locator("output"));
+  await searchSparkline.focus();
+  await page.keyboard.press("Enter");
+  await expect(searchSparkline).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(searchSparkline).toHaveAttribute("aria-pressed", "false");
 
   const firstPoint = lineFrame.locator("[data-chart-point]").first();
   await firstPoint.focus();
@@ -233,7 +244,16 @@ test("Insights mobile reading path has no horizontal overflow, clipping, or over
   for (const width of [320, 360, 375, 390, 430]) {
     await page.setViewportSize({ width, height: width === 430 ? 932 : 844 });
     await enterPreview(page);
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    const overflow = await page.evaluate(() => ({
+      delta: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      offenders: [...document.querySelectorAll<HTMLElement>("body *")].flatMap((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        if (element.closest('[class*="srOnly"], [class*="exactTable"]') || style.display === "none" || style.visibility === "hidden" || rect.width <= 1 || rect.height <= 1 || (rect.left >= -1 && rect.right <= document.documentElement.clientWidth + 1)) return [];
+        return [`${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${element.className && typeof element.className === "string" ? `.${element.className.split(/\s+/).join(".")}` : ""} [${Math.round(rect.left)}, ${Math.round(rect.right)}]`];
+      }).slice(0, 12),
+    }));
+    expect(overflow, "mobile elements must stay within the viewport").toEqual({ delta: 0, offenders: [] });
     const panelBoxes = await boxes(page.locator("[data-insights-panel]"));
     for (let index = 1; index < panelBoxes.length; index += 1) expect(panelBoxes[index].y).toBeGreaterThanOrEqual(panelBoxes[index - 1].bottom - 1);
     await expectPanelContainment(page);

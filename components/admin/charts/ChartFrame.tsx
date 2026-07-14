@@ -79,11 +79,11 @@ export function ChartFrame({
       {renderSlot(tooltip, ids)}
     </div>
     {footer ? <footer className={styles.chartFooter}>{renderSlot(footer, ids)}</footer> : null}
-    <table className={`${styles.srOnly} ${styles.exactTable}`}>
+    <div className={`${styles.srOnly} ${styles.exactTable}`}><table>
       <caption>Valeurs exactes — {title}</caption>
       <thead><tr><th>Repère</th><th>Série</th><th>Valeur ({unit})</th></tr></thead>
       <tbody>{exactValues.map((item, index) => <tr key={`${item.series}:${item.label}:${index}`}><th>{item.label}</th><td>{item.series ?? title}</td><td>{item.value}</td></tr>)}</tbody>
-    </table>
+    </table></div>
   </div>;
 }
 

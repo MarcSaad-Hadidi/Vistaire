@@ -97,6 +97,7 @@
 .sparklineTooltip {
   position: absolute;
   z-index: 8;
+  display: none;
   right: 0;
   bottom: calc(100% + 4px);
   width: max-content;
@@ -112,6 +113,7 @@
 }
 
 .sparklineTooltip[data-visible="true"] {
+  display: block;
   opacity: 1;
 }
 
@@ -538,8 +540,10 @@
 
 .donutLegend strong {
   grid-column: 2;
+  min-width: 0;
   color: var(--admin-text, #e7e4de);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .donutLegend small {
@@ -562,10 +566,24 @@
 
 .exactTable {
   top: 0;
-  left: 0;
+  left: -10000px !important;
   display: block !important;
   max-width: 1px !important;
   table-layout: fixed !important;
+}
+
+.exactTable table {
+  width: 1px !important;
+  max-width: 1px !important;
+  table-layout: fixed !important;
+}
+
+.exactTable * {
+  max-width: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  word-break: break-all !important;
 }
 
 @keyframes chartReveal {

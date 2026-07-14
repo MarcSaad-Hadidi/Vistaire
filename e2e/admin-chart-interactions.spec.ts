@@ -310,6 +310,8 @@ test("full-menu admin parity matches the public menu including unavailable dishe
     categoryId: element.getAttribute("data-category-id"),
     available: element.getAttribute("data-available"),
   })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
+  expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "other-menu-dish" }));
+  expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "foreign-dish" }));
 
   await page.goto("/menu/maison-elyse", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Voir toute la carte", exact: true }).click();
@@ -320,6 +322,8 @@ test("full-menu admin parity matches the public menu including unavailable dishe
     categoryId: element.getAttribute("data-category-id"),
     available: element.getAttribute("data-available"),
   })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
+  expect(publicDishes).not.toContainEqual(expect.objectContaining({ id: "other-menu-dish" }));
+  expect(publicDishes).not.toContainEqual(expect.objectContaining({ id: "foreign-dish" }));
   expect(publicDishes).toEqual(adminDishes);
 });
 

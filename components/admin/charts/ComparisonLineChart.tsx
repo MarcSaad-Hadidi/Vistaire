@@ -126,11 +126,13 @@ function AlignedComparison({
         return <rect
           key={`${datum.label}:${index}`}
           className={`${styles.mark} ${styles.columnHit}`}
+          role="button"
           x={region.x}
           y={CARTESIAN_PLOT.top}
           width={region.width}
           height={plotHeight}
           tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
+          aria-pressed={interaction.pinned && active === index}
           aria-label={`${detail}, ${series.map((item) => `${item.label}: ${text(item.values[index].value)}`).join(", ")}`}
           aria-describedby={ids.tooltip}
           onFocus={() => interaction.send({ type: "focus", index })}

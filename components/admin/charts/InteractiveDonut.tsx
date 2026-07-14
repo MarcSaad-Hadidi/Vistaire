@@ -38,6 +38,7 @@ export function InteractiveDonut({
   const interaction = useChartInteraction(segments.length);
   const reduced = useReducedMotion();
   const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit);
+  const visibleText = (value: number) => text(value).replace(/\u00a0/g, " ");
   const total = normalized.included.reduce((sum, item) => sum + item.value, 0);
   const percentage = (value: number) => `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(total > 0 && value > 0 ? value / total * 100 : 0)} %`;
   const active = interaction.active;
@@ -68,7 +69,7 @@ export function InteractiveDonut({
       return <li key={`${item.label}:${index}`}>
       <i aria-hidden="true" style={{ "--legend-color": visual.color } as React.CSSProperties} />
       <span>{item.label}</span>
-      {detailed ? <strong>{formatChartValue(item.value)} <small data-chart-percentage>{percentage(item.value)}</small></strong> : null}
+      {detailed ? <strong>{visibleText(item.value)} <small data-chart-percentage>{percentage(item.value)}</small></strong> : null}
     </li>;
     })}</ul>}
     plot={(ids) => <svg
@@ -91,10 +92,12 @@ export function InteractiveDonut({
           key={`${segmentDatum.label}:${item.index}`}
           data-chart-animated="donut-segment"
           className={`${styles.mark} ${styles.donutSegment}`}
+          role="button"
           style={{ "--chart-index": index } as React.CSSProperties}
           d={donutPath(item, center.x, center.y)}
           fill={donutVisuals[item.index % donutVisuals.length].color}
           tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
+          aria-pressed={interaction.pinned && active === index}
           aria-label={`${segmentDatum.label}, ${text(segmentDatum.value)}, ${percentage(segmentDatum.value)}, catégorie ${index + 1} sur ${segments.length}`}
           aria-describedby={ids.tooltip}
           onFocus={() => interaction.send({ type: "focus", index })}

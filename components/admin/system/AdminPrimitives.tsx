@@ -12,12 +12,12 @@ export function AdminPanel({ title, eyebrow, action, children, className, ...pro
 }
 
 export function AdminKpiCard({ label, value, detail, icon, trend, definition, evidence, className, ...props }: HTMLAttributes<HTMLElement> & { label: string; value: ReactNode; detail?: ReactNode; icon?: ReactNode; trend?: ReactNode; definition?: string; evidence?: { kind: "insufficient" | "unavailable"; reason: string } }) {
-  return <article className={classes(styles.kpi, className)} data-evidence-kind={evidence?.kind} {...props}>{icon ? <span className={styles.kpiIcon} data-kpi-icon>{icon}</span> : null}<div className={styles.kpiContent}><p className={styles.kpiLabel}>{label}{definition?<AdminTooltip label={definition}><button className={styles.definitionButton} type="button" aria-label={`Définition de ${label}`}><InfoIcon/></button></AdminTooltip>:null}</p><p className={styles.kpiValue}>{value}</p>{evidence ? <p className={styles.kpiEvidence} role="status">{adminEvidenceReasonCopy(evidence.reason)}</p> : detail ? <p className={styles.kpiDetail}>{detail}</p> : null}</div>{!evidence && trend ? <div className={styles.kpiTrend}>{trend}</div> : null}</article>;
+  return <article className={classes(styles.kpi, className)} data-evidence-kind={evidence?.kind} {...props}>{icon ? <span className={styles.kpiIcon} data-kpi-icon>{icon}</span> : null}<div className={styles.kpiContent}><p className={styles.kpiLabel}>{label}{definition?<AdminTooltip label={definition}><button className={styles.definitionButton} type="button" aria-label={`Définition de ${label}`}><InfoIcon/></button></AdminTooltip>:null}</p><p className={styles.kpiValue}>{value}</p>{evidence ? <p className={styles.kpiEvidence} role={evidence.kind === "unavailable" ? "alert" : "status"}>{adminEvidenceReasonCopy(evidence.reason)}</p> : detail ? <p className={styles.kpiDetail}>{detail}</p> : null}</div>{!evidence && trend ? <div className={styles.kpiTrend}>{trend}</div> : null}</article>;
 }
 
 export function AdminEvidenceState({ kind, title, reason }: { kind: "insufficient" | "unavailable"; title?: string; reason: string }) {
   const unavailable = kind === "unavailable";
-  return <div className={styles.evidence} role="status">{unavailable ? <AlertIcon /> : <InfoIcon />}<div><strong>{title ?? (unavailable ? "Données indisponibles" : "Données insuffisantes")}</strong><p>{adminEvidenceReasonCopy(reason)}</p></div></div>;
+  return <div className={styles.evidence} role={unavailable ? "alert" : "status"}>{unavailable ? <AlertIcon /> : <InfoIcon />}<div><strong>{title ?? (unavailable ? "Données indisponibles" : "Données insuffisantes")}</strong><p>{adminEvidenceReasonCopy(reason)}</p></div></div>;
 }
 
 export function AdminStatusBadge({ tone = "neutral", children }: { tone?: "available" | "unavailable" | "neutral" | "accent"; children: ReactNode }) {

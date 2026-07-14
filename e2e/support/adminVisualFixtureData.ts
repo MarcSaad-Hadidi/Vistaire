@@ -3,6 +3,7 @@ import { getAllDishes, getCategories } from "../../lib/demoMenuData.ts";
 export const ADMIN_VISUAL_RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
 export const ADMIN_VISUAL_MENU_ID = "menu-maison-elysee";
 export const ADMIN_VISUAL_QR_ID = "15000000-0000-0000-0000-000000000150";
+export const ADMIN_VISUAL_OTHER_MENU_ID = "other-menu-same-restaurant";
 
 export type AdminVisualFixtureScenario = "pixel-reference" | "full-menu";
 
@@ -154,10 +155,10 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     restaurantId,
     menuId,
     restaurants: [{ id: restaurantId, name: "Maison Élysée", slug: "maison-elyse", city: "Montréal", cuisine_type: "Cuisine française contemporaine" }, { id: foreign.restaurant_id, name: "Foreign" }],
-    menus: [{ id: menuId, restaurant_id: restaurantId, status: "published", is_primary: true, updated_at: "2026-07-10T10:24:00Z" }, { id: foreign.menu_id, restaurant_id: foreign.restaurant_id, status: "published" }],
+    menus: [{ id: menuId, restaurant_id: restaurantId, status: "published", is_primary: true, updated_at: "2026-07-10T10:24:00Z" }, { id: ADMIN_VISUAL_OTHER_MENU_ID, restaurant_id: restaurantId, status: "draft", is_primary: false }, { id: foreign.menu_id, restaurant_id: foreign.restaurant_id, status: "published" }],
     qr_codes: [{ id: ADMIN_VISUAL_QR_ID, restaurant_id: restaurantId, target_kind: "admin", target_path: "/admin", status: "active" }],
-    menu_categories: [...menu_categories, { id: "foreign-category", name: "Foreign", slug: "foreign", display_order: 999, ...foreign }],
-    menu_dishes: [...menu_dishes, { id: "foreign-dish", name: "Foreign", slug: "foreign", category_id: "foreign-category", image_url: "", is_available: true, ...foreign }],
+    menu_categories: [...menu_categories, { id: "other-menu-category", name: "Autre menu", slug: "other-menu", display_order: 1, restaurant_id: restaurantId, menu_id: ADMIN_VISUAL_OTHER_MENU_ID }, { id: "foreign-category", name: "Foreign", slug: "foreign", display_order: 999, ...foreign }],
+    menu_dishes: [...menu_dishes, { id: "other-menu-dish", name: "Plat d’un autre menu", slug: "other-menu-dish", category_id: "other-menu-category", image_url: "", is_available: true, restaurant_id: restaurantId, menu_id: ADMIN_VISUAL_OTHER_MENU_ID }, { id: "foreign-dish", name: "Foreign", slug: "foreign", category_id: "foreign-category", image_url: "", is_available: true, ...foreign }],
     analytics_events,
     foreign
   };
