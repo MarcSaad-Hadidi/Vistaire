@@ -46,7 +46,7 @@ Reference: `04-insights-desktop.png`, 1672 x 941, DPR 1
 - `npm run test:admin:full-menu` ou le scenario cible `full-menu admin parity` avec la fixture dediee.
 - Viewports: 320 x 700, 360 x 780, 375 x 812, 390 x 844, 430 x 932, 1280 x 720, 1440 x 900, 1672 x 941 et 1920 x 1080.
 
-Derniers resultats locaux: contrats admin `248 passed`; interactions `9 passed, 1 skipped`; fidelity Insights `7 passed`; visual `6 passed` plus le scenario desktop cible `1 passed`; matrice responsive `1 passed`; smoke menu public `2 passed`; performance production `1 passed`.
+Derniers resultats locaux: contrats admin `248 passed`; interactions `9 passed, 1 skipped`; fidelity Insights `7 passed`; visual `6 passed` plus le scenario desktop cible `1 passed`; matrice responsive `1 passed`; parite full-menu `1 passed`; smoke menu public `2 passed`; performance production `1 passed`; typecheck et build de 62 pages passes dans un worktree propre.
 
 ## Conclusion
 
