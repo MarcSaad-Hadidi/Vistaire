@@ -21,6 +21,7 @@ export function AdminOverview({ data, range }: { data: AdminDashboardData; range
   const dishMap = new Map(data.menu.dishes.map((dish) => [dish.slug, { name: dish.name, image: dish.thumbnailUrl || dish.imageUrl }]));
   const series = analytics.kind === "real" ? analytics.metricSeries : null;
   const categories = panels?.categories;
+  const categoryTotal = categories?.kind === "supported" ? categories.data.reduce((sum, item) => sum + item.count, 0) : 0;
   const services = panels?.serviceWindows;
   const servicePreview = services?.kind === "supported" ? buildServicePreview(services.data.windows) : null;
   const serviceFallback = services?.kind === "supported" ? fallback : services ?? fallback;
@@ -45,7 +46,11 @@ export function AdminOverview({ data, range }: { data: AdminDashboardData; range
       <AdminPanel className={styles.activity} data-overview-panel="activity" title="Activité du menu" action={<Link className={styles.insightsCta} href="/admin/insights">Voir les statistiques détaillées</Link>}>{series ? <AdminMetricLineChart series={series} period={range}/> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
       <AdminPanel className={styles.top} data-overview-panel="ranking" title="Top plats consultés"><AdminTopDishes evidence={panels?.ranking ?? fallback} dishes={dishMap}/></AdminPanel>
       <AdminPanel className={styles.moment} data-overview-panel="moment" title="Activité par moment" eyebrow="Heures affichées en UTC">{servicePreview ? <InteractiveDonut data={servicePreview} title="Activité par moment" description="Répartition sur les trois moments de service" period={range} unit="interactions" summary="Déjeuner, après-midi et dîner couvrent toutes les interactions de la période."/> : <AdminEvidenceState kind={serviceFallback.kind} reason={serviceFallback.reason}/>}</AdminPanel>
-      <AdminPanel className={styles.category} data-overview-panel="category" title="Activité par catégorie">{categories?.kind === "supported" ? <ul className={styles.categoryBars}>{categories.data.slice(0, 4).map((item) => <li key={item.slug}><span>{item.label ?? "Catégorie du menu"}</span><i data-chart-animated="category-bar" style={{ "--value": `${item.count / Math.max(...categories.data.map((candidate) => candidate.count), 1) * 100}%` } as React.CSSProperties}/><strong>{item.count}</strong></li>)}</ul> : <AdminEvidenceState kind={(categories ?? fallback).kind as "insufficient" | "unavailable"} reason={(categories ?? fallback).reason}/>}</AdminPanel>
+      <AdminPanel className={styles.category} data-overview-panel="category" title="Activité par catégorie">{categories?.kind === "supported" ? <ul className={styles.categoryBars}>{categories.data.slice(0, 4).map((item) => {
+        const share = Math.round(item.count / Math.max(categoryTotal, 1) * 100);
+        const label = item.label ?? "Catégorie du menu";
+        return <li key={item.slug} aria-label={`${label} : ${number.format(item.count)} interactions, ${share} %`}><span>{label}</span><i aria-hidden="true" data-chart-animated="category-bar" style={{ "--value": `${share}%` } as React.CSSProperties}/><strong>{share} %</strong></li>;
+      })}</ul> : <AdminEvidenceState kind={(categories ?? fallback).kind as "insufficient" | "unavailable"} reason={(categories ?? fallback).reason}/>}</AdminPanel>
       <AdminPanel className={styles.availability} data-overview-panel="availability" title="Disponibilité des plats" action={<Link className={styles.stripLink} href="/admin/availability">Gérer les disponibilités</Link>}><AdminAvailabilityStrip dishes={data.menu.dishes}/></AdminPanel>
     </div>
   </AdminShell>;

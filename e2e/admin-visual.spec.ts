@@ -44,6 +44,21 @@ async function expectContained(page: Page, selector: string) {
   expect(violations, `${selector} must not scroll internally`).toEqual([]);
 }
 
+async function expectVisibleContentContained(page: Page, selector: string) {
+  const violations = await page.locator(selector).evaluateAll((elements) => elements.flatMap((element, index) => {
+    const bounds = element.getBoundingClientRect();
+    const overflowing = [...element.querySelectorAll<HTMLElement>("*")].some((child) => {
+      const style = getComputedStyle(child);
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0 || style.position === "fixed") return false;
+      const rect = child.getBoundingClientRect();
+      if (rect.width <= 1.5 && rect.height <= 1.5) return false;
+      return rect.left < bounds.left - 2 || rect.right > bounds.right + 2 || rect.top < bounds.top - 2 || rect.bottom > bounds.bottom + 2;
+    });
+    return overflowing ? [index] : [];
+  }));
+  expect(violations, `${selector} visible content must remain inside its card`).toEqual([]);
+}
+
 async function expectNonIntersecting(page: Page, selector: string) {
   const overlaps = await page.locator(selector).evaluateAll((elements) => {
     const boxes = elements.map((element, index) => ({ index, rect: element.getBoundingClientRect() })).filter(({ rect }) => rect.width > 1 && rect.height > 1);
@@ -283,7 +298,7 @@ test.describe("admin deterministic visual contract", () => {
     await enterLocalPreview(page);
     const viewports = [
       { width: 320, height: 700 }, { width: 360, height: 780 }, { width: 375, height: 812 },
-      { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 720 },
+      { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }, { width: 1280, height: 720 },
       { width: 1440, height: 900 }, { width: 1672, height: 941 }, { width: 1920, height: 1080 }
     ];
     const routes = ["/admin", "/admin/availability", "/admin/insights"] as const;
@@ -300,11 +315,13 @@ test.describe("admin deterministic visual contract", () => {
 
         let finalContent = page.locator("main").last();
         if (route === "/admin") {
+          await expectContained(page, "[data-overview-kpis] > article");
           await expectContained(page, "[data-overview-panel]");
           await expectNonIntersecting(page, "[data-overview-panel]");
           await expectNonIntersecting(page, "[data-overview-kpis] > article");
           finalContent = page.locator('[data-overview-panel="availability"]');
         } else if (route === "/admin/insights") {
+          await expectVisibleContentContained(page, "[data-insights-kpi]");
           await expectContained(page, "[data-insights-panel]");
           await expectNonIntersecting(page, "[data-insights-panel]");
           await expectNonIntersecting(page, "[data-insights-kpi]");

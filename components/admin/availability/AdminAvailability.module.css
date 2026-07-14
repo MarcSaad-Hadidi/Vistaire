@@ -28,8 +28,12 @@
 .identity { min-width: 0; }
 .identity h3, .price { margin: 0; font-family: var(--admin-display); font-size: 20px; font-weight: 400; }
 .identity h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.identity p { margin: 3px 0 0; color: var(--admin-muted); font-size: 12px; }
+.identity p { margin: 3px 0 0; color: var(--admin-accent); font-size: 12px; }
 .empty { margin: 0 25px 25px; padding: 28px; border: 1px dashed var(--admin-border); border-radius: 12px; color: var(--admin-muted); text-align: center; }
+@media (min-width: 1580px) {
+  .row { grid-template-columns: 160px 586px 230px 160px minmax(170px, 1fr); }
+  .row > :global([data-admin-availability-slot]) { width: 170px; justify-self: end; }
+}
 @media (max-width: 900px) { .summary { align-items: stretch; flex-direction: column; } .metrics { width: 100%; } .row { grid-template-columns: 120px minmax(0, 1fr) auto; } .row :global([data-admin-dish-thumbnail]) { width: 120px; flex-basis: 120px; } .price { grid-column: 2; } }
 @media (max-width: 700px) {
   .page { border: 0; background: transparent; }

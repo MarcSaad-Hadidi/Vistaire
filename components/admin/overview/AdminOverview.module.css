@@ -147,6 +147,19 @@
   .dishStrip article span { font-size:10px; }
   .stripLink { display: inline-flex; min-height: 44px; }
 }
+@media(max-width:1180px) and (min-width:701px) {
+  .kpis { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .overviewGrid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    grid-template-rows: auto;
+    grid-template-areas:
+      "activity activity"
+      "top moment"
+      "category category"
+      "availability availability";
+  }
+  .dishStrip { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
 @media(max-width:340px) { .metricSelector button { font-size: 11px; } }
 @keyframes overviewEnter { from { opacity: 0; } to { opacity: 1; } }
 @keyframes overviewBarEnter { from { opacity: .4; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }

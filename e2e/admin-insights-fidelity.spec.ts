@@ -126,10 +126,17 @@ test("Insights desktop follows the reference composition without clipping or run
   expect(await page.getByText(/fresh|delayed|stale|no-evidence|sample-too-small|source-incomplete/i).count()).toBe(0);
 
   await expectPanelContainment(page);
+  const desktopTabs = page.getByRole("navigation", { name: "Sections principales" });
+  await expect(desktopTabs).toBeVisible();
+  await expect(page.locator("[data-insights-header]").getByRole("navigation", { name: "Sections principales" })).toHaveCount(1);
   const panelBoxes = await boxes(page.locator("[data-insights-panel]"));
   for (let left = 0; left < panelBoxes.length; left += 1) for (let right = left + 1; right < panelBoxes.length; right += 1) expect(intersects(panelBoxes[left], panelBoxes[right])).toBe(false);
   const [header, kpis] = await Promise.all([boxes(page.locator("[data-insights-header]")), boxes(page.locator("[data-insights-kpis]"))]);
   expect(intersects(header[0], kpis[0])).toBe(false);
+  expect(kpis[0].y).toBeLessThanOrEqual(150);
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  expect(panelBoxes.at(-1)!.bottom).toBeLessThanOrEqual(viewport!.height + 1);
   const iconSignatures = await page.locator("[data-insights-kpi] [data-kpi-icon] svg").evaluateAll((icons) => icons.map((icon) => icon.innerHTML));
   expect(new Set(iconSignatures).size).toBe(5);
   if (visualOutputDir) {
