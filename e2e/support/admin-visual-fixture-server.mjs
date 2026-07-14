@@ -4,6 +4,7 @@ import { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows, paginateAd
 const fixture = buildAdminVisualFixtureTables({ scenario: process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO === "full-menu" ? "full-menu" : "pixel-reference" });
 const tables = {
   restaurants: fixture.restaurants,
+  qr_codes: fixture.qr_codes,
   menus: fixture.menus,
   menu_categories: fixture.menu_categories,
   menu_dishes: fixture.menu_dishes,

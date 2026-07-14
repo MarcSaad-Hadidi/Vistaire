@@ -64,8 +64,8 @@ export function AdminInsightsPage({ data, range }: { data: AdminDashboardData; r
   return <AdminShell restaurantName={data.restaurant.name} menuPath={data.restaurant.publicMenuPath} active="insights" headerDetails={headerDetails} headerStatus={headerStatus}>
     <Link className={styles.srBack} href="/admin">Retour au tableau de bord</Link>
     <section className={styles.kpis} data-insights-kpis aria-label="Indicateurs analytiques">
-      {kpi("menu-opens", "Ouvertures du menu", <DishViewsIcon/>, "Nombre exact d’ouvertures du menu public.", "menuOpened")}
-      {kpi("dish-opens", "Consultations de plats", <MenuOpenIcon/>, "Nombre exact de fiches de plats consultées.", "dishOpened")}
+      {kpi("menu-opens", "Ouvertures du menu", <MenuOpenIcon/>, "Nombre exact d’ouvertures du menu public.", "menuOpened")}
+      {kpi("dish-opens", "Consultations de plats", <DishViewsIcon/>, "Nombre exact de fiches de plats consultées.", "dishOpened")}
       {kpi("searches", "Recherches", <SearchIcon/>, "Nombre exact de recherches effectuées dans le menu.", "searches")}
       {kpi("immersive", "Interactions 3D/AR", <ImmersiveIcon/>, "Ouvertures exactes des expériences 3D et AR.", "immersive")}
       <AdminKpiCard data-insights-kpi label="Plats disponibles" value={`${data.menu.readiness.counts.available} / ${data.menu.readiness.counts.dishes}`} detail={`${Math.round(data.menu.readiness.counts.available / Math.max(1, data.menu.readiness.counts.dishes) * 100)} % du menu`} icon={<AvailableDishIcon/>} definition="Plats actuellement visibles comme disponibles dans le menu."/>

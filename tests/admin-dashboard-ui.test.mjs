@@ -371,6 +371,10 @@ test("PR150 pages expose complete premium analytics with controlled visible rank
   assert.match(overview, /metricSeries/);
   assert.match(overview, /MenuOpenIcon/);
   assert.match(overview, /DishViewsIcon/);
+  assert.match(overview, /label="Ouvertures du menu"[\s\S]*?icon=\{<MenuOpenIcon\/>\}/);
+  assert.match(overview, /label="Consultations de plats"[\s\S]*?icon=\{<DishViewsIcon\/>\}/);
+  assert.match(insights, /kpi\("menu-opens", "Ouvertures du menu", <MenuOpenIcon\/>/);
+  assert.match(insights, /kpi\("dish-opens", "Consultations de plats", <DishViewsIcon\/>/);
   assert.match(overview, /SearchIcon/);
   assert.match(overview, /ImmersiveIcon/);
   assert.match(overview, /AvailableDishIcon/);

@@ -115,12 +115,18 @@ test("full-menu parity has a dedicated non-skipping package gate", async () => {
 });
 
 test("official visual audit covers all four external references", async () => {
-  const source = await readFile("scripts/admin-visual-audit.mjs", "utf8");
-  for (const file of ["01-overview-desktop.png", "02-availability-desktop.png", "03-overview-mobile.png", "04-insights-desktop.png"]) assert.match(source, new RegExp(file.replaceAll(".", "\\.")));
-  assert.match(source, /changedRatio/);
-  assert.match(source, /-overlay\.png/);
-  assert.match(source, /-diff\.png/);
-  assert.match(source, /process\.exitCode = 1/);
+  const [audit, visualSpec, insightsSpec] = await Promise.all([
+    readFile("scripts/admin-visual-audit.mjs", "utf8"),
+    readFile("e2e/admin-visual.spec.ts", "utf8"),
+    readFile("e2e/admin-insights-fidelity.spec.ts", "utf8"),
+  ]);
+  for (const file of ["01-overview-desktop.png", "02-availability-desktop.png", "03-overview-mobile.png", "04-insights-desktop.png"]) assert.match(audit, new RegExp(file.replaceAll(".", "\\.")));
+  assert.match(audit, /changedRatio/);
+  assert.match(audit, /-overlay\.png/);
+  assert.match(audit, /-diff\.png/);
+  assert.match(audit, /process\.exitCode = 1/);
+  assert.match(visualSpec, /overview-mobile-reference/);
+  assert.match(insightsSpec, /insights-kpis\.png/);
 });
 
 test("admin E2E specification contains no mojibake", async () => {

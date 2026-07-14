@@ -2,6 +2,7 @@ import { getAllDishes, getCategories } from "../../lib/demoMenuData.ts";
 
 export const ADMIN_VISUAL_RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
 export const ADMIN_VISUAL_MENU_ID = "menu-maison-elysee";
+export const ADMIN_VISUAL_QR_ID = "15000000-0000-0000-0000-000000000150";
 
 export type AdminVisualFixtureScenario = "pixel-reference" | "full-menu";
 
@@ -99,7 +100,17 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     is_signature: dish.isSignature,
     is_recommended: dish.isRecommended,
     has_immersive_view: Boolean(dish.model3dUrl || dish.usdzUrl),
-    metadata: {},
+    model3d_url: dish.model3dUrl,
+    web_model_3d_url: dish.webModel3dUrl ?? dish.model3dUrl,
+    ar_model_3d_url: dish.arModel3dUrl ?? dish.model3dUrl,
+    usdz_url: dish.usdzUrl,
+    ar_usdz_url: dish.arUsdzUrl ?? dish.usdzUrl,
+    ingredients: dish.ingredients,
+    allergens: dish.allergens,
+    options: dish.options,
+    metadata: {
+      chefNote: dish.chefRecommendation
+    },
     created_at: `2026-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`
   }));
   const analytics_events: Record<string, string>[] = [];
@@ -142,8 +153,9 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
   return {
     restaurantId,
     menuId,
-    restaurants: [{ id: restaurantId, name: "Maison Élysée", slug: "maison-elysee", city: "Montréal", cuisine_type: "Cuisine française contemporaine" }, { id: foreign.restaurant_id, name: "Foreign" }],
+    restaurants: [{ id: restaurantId, name: "Maison Élysée", slug: "maison-elyse", city: "Montréal", cuisine_type: "Cuisine française contemporaine" }, { id: foreign.restaurant_id, name: "Foreign" }],
     menus: [{ id: menuId, restaurant_id: restaurantId, status: "published", is_primary: true, updated_at: "2026-07-10T10:24:00Z" }, { id: foreign.menu_id, restaurant_id: foreign.restaurant_id, status: "published" }],
+    qr_codes: [{ id: ADMIN_VISUAL_QR_ID, restaurant_id: restaurantId, target_kind: "admin", target_path: "/admin", status: "active" }],
     menu_categories: [...menu_categories, { id: "foreign-category", name: "Foreign", slug: "foreign", display_order: 999, ...foreign }],
     menu_dishes: [...menu_dishes, { id: "foreign-dish", name: "Foreign", slug: "foreign", category_id: "foreign-category", image_url: "", is_available: true, ...foreign }],
     analytics_events,

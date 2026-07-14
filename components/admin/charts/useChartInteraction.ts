@@ -14,9 +14,9 @@ export function useReducedMotion() {
   return reduced;
 }
 
-export function useChartInteraction(count: number, columns = 1) {
+export function useChartInteraction<T extends HTMLElement = HTMLDivElement>(count: number, columns = 1) {
   const [state, dispatch] = useReducer(interactionReducer, { active: null, pinned: false });
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<T>(null);
   const suppressNextKeyboardClick = useRef(false);
   const suppressionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {

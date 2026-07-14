@@ -175,6 +175,14 @@ test("interactive islands expose complete semantics and bounded responsive SVG c
   assert.doesNotMatch(source, /setInterval|requestAnimationFrame\([^)]*requestAnimationFrame/);
 });
 
+test("interactive KPI sparklines reuse the complete chart interaction contract", async () => {
+  const source = await readFile("components/admin/charts/Sparkline.tsx", "utf8");
+  assert.match(source, /useChartInteraction<HTMLSpanElement>\(interactive \? 1 : 0\)/);
+  assert.match(source, /onKeyDown=\{onKeyDown\}/);
+  assert.match(source, /send\(\{ type: "activate", index: 0 \}\)/);
+  assert.match(source, /active !== null/);
+});
+
 test("chart frame composes axes, plot and tooltip in one positioned plot stack", async () => {
   const source = await readFile("components/admin/charts/ChartFrame.tsx", "utf8");
   for (const token of [

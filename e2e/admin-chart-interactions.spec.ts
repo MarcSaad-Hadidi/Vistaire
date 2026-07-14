@@ -153,6 +153,21 @@ test("all rendered admin charts expose exact mouse and keyboard interactions", a
     for (let index = 0; index < await charts.count(); index += 1) {
       await exerciseChart(charts.nth(index).locator("xpath=ancestor::*[@data-chart-frame][1]"));
     }
+    if (route === "/admin/insights") {
+      const sparklines = page.locator('[data-kpi-trend] [data-interactive="true"]');
+      await expect(sparklines).toHaveCount(4);
+      for (const sparkline of await sparklines.all()) {
+        const mark = sparkline.locator('svg[role="button"]');
+        const tooltip = sparkline.locator("output[data-visible=true]");
+        await mark.focus();
+        await expect(tooltip).toBeVisible();
+        await mark.press("Enter");
+        await expect(mark).toHaveAttribute("aria-pressed", "true");
+        await mark.press("Escape");
+        await expect(tooltip).toBeHidden();
+        await expect(mark).toHaveAttribute("aria-pressed", "false");
+      }
+    }
   }
   expect(errors).toEqual([]);
 });
@@ -369,6 +384,21 @@ test.describe("touch chart contract", () => {
       expect(await marks.count()).toBeGreaterThan(0);
       const mark = marks.first();
       const tooltip = chart.locator("output[data-visible=true]");
+      await tapInteractiveMark(mark);
+      await expect(tooltip).toBeVisible();
+      await tapInteractiveMark(mark);
+      await expect(tooltip).toBeHidden();
+      await tapInteractiveMark(mark);
+      await expect(tooltip).toBeVisible();
+      await page.locator("h1").tap();
+      await expect(tooltip).toBeHidden();
+    }
+
+    const sparklines = page.locator('[data-kpi-trend] [data-interactive="true"]');
+    await expect(sparklines).toHaveCount(4);
+    for (const sparkline of await sparklines.all()) {
+      const mark = sparkline.locator('svg[role="button"]');
+      const tooltip = sparkline.locator("output[data-visible=true]");
       await tapInteractiveMark(mark);
       await expect(tooltip).toBeVisible();
       await tapInteractiveMark(mark);

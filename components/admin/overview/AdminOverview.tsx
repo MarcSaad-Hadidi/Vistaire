@@ -35,8 +35,8 @@ export function AdminOverview({ data, range }: { data: AdminDashboardData; range
 
   return <AdminShell restaurantName={data.restaurant.name} menuPath={data.restaurant.publicMenuPath} active="overview" headerStatus={headerStatus}>
     <section className={styles.kpis} data-overview-kpis aria-label="Indicateurs clés">
-      <AdminKpiCard label="Ouvertures du menu" value={metric("menu-opens") ? number.format(metric("menu-opens")!.value) : "—"} detail={metric("menu-opens") ? change("menu-opens") : undefined} evidence={evidence("menu-opens")} icon={<DishViewsIcon/>}/>
-      <AdminKpiCard label="Consultations de plats" value={metric("dish-opens") ? number.format(metric("dish-opens")!.value) : "—"} detail={metric("dish-opens") ? change("dish-opens") : undefined} evidence={evidence("dish-opens")} icon={<MenuOpenIcon/>}/>
+      <AdminKpiCard label="Ouvertures du menu" value={metric("menu-opens") ? number.format(metric("menu-opens")!.value) : "—"} detail={metric("menu-opens") ? change("menu-opens") : undefined} evidence={evidence("menu-opens")} icon={<MenuOpenIcon/>}/>
+      <AdminKpiCard label="Consultations de plats" value={metric("dish-opens") ? number.format(metric("dish-opens")!.value) : "—"} detail={metric("dish-opens") ? change("dish-opens") : undefined} evidence={evidence("dish-opens")} icon={<DishViewsIcon/>}/>
       <AdminKpiCard label="Recherches" value={metric("searches") ? number.format(metric("searches")!.value) : "—"} detail={metric("searches") ? change("searches") : undefined} evidence={evidence("searches")} icon={<SearchIcon/>}/>
       <AdminKpiCard className={styles.kpiImmersive} label="Interactions 3D/AR" value={metric("immersive") ? number.format(metric("immersive")!.value) : "—"} detail={metric("immersive") ? change("immersive") : undefined} evidence={evidence("immersive")} icon={<ImmersiveIcon/>}/>
       <AdminKpiCard label="Plats disponibles" value={`${data.menu.readiness.counts.available} / ${data.menu.readiness.counts.dishes}`} detail={`${Math.round(data.menu.readiness.counts.available / Math.max(1, data.menu.readiness.counts.dishes) * 100)} % du menu`} icon={<AvailableDishIcon/>}/>

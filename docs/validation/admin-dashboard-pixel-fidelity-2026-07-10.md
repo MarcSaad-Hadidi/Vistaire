@@ -9,17 +9,17 @@ Derniere mise a jour: 2026-07-13
 - Mobile produit: 390 x 844 et 430 x 932; le composite officiel est recadre en `x=139,y=69,w=663,h=1535`, puis redimensionne en 390 x 903 avec un masque de coins de 24 px.
 - Fixture: serveur PostgREST local versionne, scenario `pixel-reference`; aucune ecriture Supabase de production.
 - Diff brut: fraction de pixels dont le delta RGB maximal depasse 20/255. Ce diagnostic inclut les photos, glyphes, donnees exactes et antialiasing; il ne remplace pas les tests de geometrie.
-- Captures finales: `%TEMP%\vistaire-pr150-completion-visual`.
-- Overlays et diffs: `%TEMP%\vistaire-pr150-completion-compare`.
+- Captures finales regenerables: `%TEMP%\vistaire-pr150-current-visual`.
+- Overlays et diffs regenerables: `%TEMP%\vistaire-pr150-current-compare`.
 
 ## Resultats avant / apres
 
 | Ecran | Diagnostic historique | Diagnostic final | Evolution | Geometrie finale | Statut |
 | --- | ---: | ---: | ---: | --- | --- |
-| Overview desktop | 19.05 % | 15.31 % | -3.74 pts | KPI, activite, classements et disponibilite tiennent dans 1672 x 941 | Structure conforme; diff brut > 1 % |
-| Availability desktop | 10.88 % | 12.42 % | +1.54 pts | panneau, controles et lignes restent bornes dans le viewport | Structure conforme; ecart lie aux icones, badges et donnees exactes |
-| Insights desktop | 18.97 % | 14.98 % | -3.99 pts | cinq KPI et neuf panneaux sans intersection ni scroller interne | Structure conforme; diff brut > 1 % |
-| Overview mobile masque | 28.75 % | 26.82 % | -1.93 pts | cinq KPI, cinq classements et cinq cartes restent accessibles au-dessus de la navigation fixe | Protocole officiel non equivalent; diff > 1 % |
+| Overview desktop | 19.05 % | 15.35 % | -3.70 pts | KPI, activite, classements et disponibilite tiennent dans 1672 x 941 | Structure conforme; diff brut > 1 % |
+| Availability desktop | 10.88 % | 12.30 % | +1.42 pts | panneau, controles et lignes restent bornes dans le viewport | Structure conforme; ecart lie aux icones, badges, densite et donnees exactes |
+| Insights desktop | 18.97 % | 17.45 % | -1.52 pts | cinq KPI et neuf panneaux sans intersection ni scroller interne | Structure et contenu conformes; diff brut > 1 % |
+| Overview mobile masque | 28.75 % | 27.15 % | -1.60 pts | cinq KPI et tous les panneaux restent accessibles au-dessus de la navigation fixe | Reference non equivalente au contrat produit; diff > 1 % |
 
 ## Corrections de cause racine
 
@@ -58,18 +58,18 @@ Derniere mise a jour: 2026-07-13
 
 ## Performance observee
 
-Mesure Chromium locale sur `/admin/insights` en mode developpement Webpack, avec la fixture pixel-reference:
+Mesure Chromium locale sur `/admin/insights` depuis un vrai build de production, avec session admin signee et QR actif de la fixture `pixel-reference`:
 
-- CLS: `0.000291`.
-- Navigation: `1106 ms`; DOMContentLoaded: `492 ms`; load: `1106 ms`.
-- Rafraichissement visuel: `60.7 FPS`; changement de metrique sur deux frames: `358 ms`.
-- Interaction clic de type INP: `176 ms` (indicatif, penalise par le runtime de developpement).
-- Taches longues observees: `59 ms`, `325 ms`, `151 ms`.
-- Heap JS: `91.7 MB`; scripts decodes: `12.9 MB`; CSS decode: `177 KB`.
-- Aucun chargement GLB, USDZ ou MP4 sur la route admin.
+- CLS: `0.0544`.
+- Taches longues superieures ou egales a 50 ms: `0`.
+- Frames apres interactions: p95 `16.8 ms`, soit un rythme proche de 60 FPS.
+- Delta de layouts: `64`; delta de recalculs de style: `85` apres douze interactions de graphiques et quatre sparklines.
+- Heap JS: `8.84 MB`.
+- Scripts: `11` requetes, `586 582` octets decodes.
+- Aucun chargement GLB, USDZ, MP4 ou video sur la route admin.
 
-Ces volumes de scripts et les taches longues ne representent pas un bundle de production: ils incluent le client HMR et l'instrumentation de developpement. Une mesure production locale authentifiee n'a pas ete possible sans contourner le garde de securite QR; ce garde a ete conserve. Le build de production reste la preuve de compilation, mais aucun score Lighthouse production n'est revendique.
+Le test `e2e/admin-performance.spec.ts` echoue volontairement sur la limite JS lorsqu'il est dirige vers le serveur Webpack de developpement (environ 13 MB avec HMR), mais passe sur le build de production. La session de mesure est produite avec le meme secret de test que le serveur et un QR actif scope a la fixture; aucun garde de securite de production n'est contourne.
 
 ## Ecart restant et decision PR
 
-Le seuil indicatif de 1 % contre les pixels officiels n'est pas atteint. Les principaux ecarts restants sont les photos de plats, les 34 plats necessaires a la densite Availability, les comptes exacts de la fixture, la typographie rasterisee et le protocole mobile officiel qui inclut le cadre iPhone et le chrome systeme. Les tests fonctionnels, de geometrie et de non-overflow sont verts, mais aucune affirmation "pixel-perfect a 1 %" n'est faite. Le PR reste en brouillon; il n'est ni merge, ni deploye, ni marque ready.
+Le seuil indicatif de 1 % contre les pixels officiels n'est pas atteint. Les principaux ecarts restants sont les photos de plats, les 34 plats necessaires a la densite Availability, les comptes exacts de la fixture, la typographie rasterisee et le protocole mobile officiel. Cette reference mobile montre des onglets superieurs et quatre destinations basses, tandis que le contrat produit valide demande de masquer ces onglets et de conserver les trois routes dans la barre basse. Les references desktop montrent aussi deux onglets ou aucun onglet Insights, alors que le produit en demande trois. Les tests fonctionnels, de geometrie et de non-overflow sont verts, mais aucune affirmation "pixel-perfect a 1 %" n'est faite. Le PR reste en brouillon; il n'est ni merge, ni deploye, ni marque ready.

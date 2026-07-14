@@ -135,6 +135,7 @@ test("Insights desktop follows the reference composition without clipping or run
   if (visualOutputDir) {
     await mkdir(visualOutputDir, { recursive: true });
     await page.screenshot({ path: path.join(visualOutputDir, "insights-full-page.png"), fullPage: true });
+    await page.locator("[data-insights-kpis]").screenshot({ path: path.join(visualOutputDir, "insights-kpis.png") });
     const panels = page.locator("[data-insights-panel]");
     for (const [index, name] of panelCaptureNames.entries()) await panels.nth(index).screenshot({ path: path.join(visualOutputDir, `insights-panel-${index + 1}-${name}.png`) });
   }

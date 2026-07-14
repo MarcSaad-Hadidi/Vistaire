@@ -33,6 +33,24 @@ test("pixel-reference fixture preserves exact totals with shaped visual evidence
   }, new Map()).values()).size >= 5);
 });
 
+test("admin visual fixture exposes one scoped live QR for production-mode QA", async () => {
+  const { ADMIN_VISUAL_QR_ID, buildAdminVisualFixtureTables } = await import("../e2e/support/adminVisualFixtureData.ts");
+  const tables = buildAdminVisualFixtureTables();
+  assert.deepEqual(tables.qr_codes, [{
+    id: ADMIN_VISUAL_QR_ID,
+    restaurant_id: tables.restaurantId,
+    target_kind: "admin",
+    target_path: "/admin",
+    status: "active",
+  }]);
+  assert.equal(tables.restaurants.find((restaurant) => restaurant.id === tables.restaurantId)?.slug, "maison-elyse");
+  const immersiveDish = tables.menu_dishes.find((dish) => dish.restaurant_id === tables.restaurantId && dish.has_immersive_view);
+  assert.ok(immersiveDish?.web_model_3d_url);
+  assert.ok(immersiveDish?.ar_usdz_url);
+  const server = await readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8");
+  assert.match(server, /qr_codes:\s*fixture\.qr_codes/);
+});
+
 test("real analytics exposes exact raw KPIs independently from privacy breakdowns", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const events = [

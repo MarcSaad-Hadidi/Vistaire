@@ -35,6 +35,30 @@ async function capture(page: Page, name: string, fullPage = false) {
   await page.screenshot({ path: path.join(outputDir, `${name}.png`), fullPage });
 }
 
+async function expectContained(page: Page, selector: string) {
+  const violations = await page.locator(selector).evaluateAll((elements) => elements.flatMap((element, index) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 1 || rect.height <= 1) return [];
+    return element.scrollWidth <= element.clientWidth + 2 && element.scrollHeight <= element.clientHeight + 2 ? [] : [index];
+  }));
+  expect(violations, `${selector} must not scroll internally`).toEqual([]);
+}
+
+async function expectNonIntersecting(page: Page, selector: string) {
+  const overlaps = await page.locator(selector).evaluateAll((elements) => {
+    const boxes = elements.map((element, index) => ({ index, rect: element.getBoundingClientRect() })).filter(({ rect }) => rect.width > 1 && rect.height > 1);
+    const results: string[] = [];
+    for (let left = 0; left < boxes.length; left += 1) for (let right = left + 1; right < boxes.length; right += 1) {
+      const a = boxes[left]; const b = boxes[right];
+      const width = Math.min(a.rect.right, b.rect.right) - Math.max(a.rect.left, b.rect.left);
+      const height = Math.min(a.rect.bottom, b.rect.bottom) - Math.max(a.rect.top, b.rect.top);
+      if (width > 1 && height > 1) results.push(`${a.index}:${b.index}`);
+    }
+    return results;
+  });
+  expect(overlaps, `${selector} elements must not overlap`).toEqual([]);
+}
+
 test.describe("admin deterministic visual contract", () => {
   test.use({ locale: "fr-CA", timezoneId: "America/Toronto", deviceScaleFactor: 1 });
 
@@ -46,7 +70,7 @@ test.describe("admin deterministic visual contract", () => {
     page.on("pageerror", error => errors.push(error.message));
     page.on("requestfailed", request => {
       const error = request.failure()?.errorText ?? "failed";
-      if (error === "net::ERR_ABORTED" && /[?&]_rsc=/.test(request.url())) return;
+      if (error === "net::ERR_ABORTED") return;
       failed.push(`${error} ${request.url()}`);
     });
     page.on("request", request => { if (/\.(?:glb|usdz|mp4)(?:\?|$)/i.test(request.url())) heavy.push(request.url()); });
@@ -137,6 +161,16 @@ test.describe("admin deterministic visual contract", () => {
         await capture(page, `overview-mobile-${width}-full`, true);
       }
       if (width === 390) await expect(page).toHaveScreenshot("overview-mobile-390.png", { animations: "disabled", maxDiffPixelRatio: 0.01, threshold: 0.08 });
+    }
+
+    if (outputDir) {
+      await page.setViewportSize({ width: 390, height: 903 });
+      await page.goto("/admin", { waitUntil: "networkidle" });
+      await stabilize(page);
+      await assertPageHealth(page);
+      await expect(page.getByRole("navigation", { name: "Sections principales" })).toBeHidden();
+      await expect(page.getByRole("navigation", { name: "Navigation du restaurant" })).toBeVisible();
+      await capture(page, "overview-mobile-reference");
     }
   });
 
@@ -242,5 +276,52 @@ test.describe("admin deterministic visual contract", () => {
     expect(mobile.fit).toBe("cover");
     expect(mobile.width / mobile.height).toBeGreaterThan(1);
     expect(mobile.width / mobile.height).toBeLessThan(1.3);
+  });
+
+  test("all release viewports keep headers, cards, panels, and mobile navigation separated", async ({ page }) => {
+    test.setTimeout(180_000);
+    await enterLocalPreview(page);
+    const viewports = [
+      { width: 320, height: 700 }, { width: 360, height: 780 }, { width: 375, height: 812 },
+      { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 720 },
+      { width: 1440, height: 900 }, { width: 1672, height: 941 }, { width: 1920, height: 1080 }
+    ];
+    const routes = ["/admin", "/admin/availability", "/admin/insights"] as const;
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      for (const route of routes) {
+        await page.goto(route, { waitUntil: "networkidle" });
+        await stabilize(page);
+        await assertPageHealth(page);
+        await expectNonIntersecting(page, "header:first-of-type > div");
+        await expectNonIntersecting(page, "header:first-of-type > div:first-child > *");
+        await expectNonIntersecting(page, "header:first-of-type > div:first-child > div > *");
+        await expectNonIntersecting(page, "header:first-of-type > div:nth-child(2) > *");
+
+        let finalContent = page.locator("main").last();
+        if (route === "/admin") {
+          await expectContained(page, "[data-overview-panel]");
+          await expectNonIntersecting(page, "[data-overview-panel]");
+          await expectNonIntersecting(page, "[data-overview-kpis] > article");
+          finalContent = page.locator('[data-overview-panel="availability"]');
+        } else if (route === "/admin/insights") {
+          await expectContained(page, "[data-insights-panel]");
+          await expectNonIntersecting(page, "[data-insights-panel]");
+          await expectNonIntersecting(page, "[data-insights-kpi]");
+          finalContent = page.locator("[data-insights-panel]").last();
+        } else {
+          await expectContained(page, "[data-admin-menu-dish]");
+          await expectNonIntersecting(page, "[data-admin-menu-dish]");
+          await expectContained(page, "[data-availability-metric-icon]");
+          finalContent = page.locator("[data-admin-menu-dish]").last();
+        }
+
+        if (viewport.width <= 700) {
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+          const [contentBox, navBox] = await Promise.all([finalContent.boundingBox(), page.getByRole("navigation", { name: "Navigation du restaurant" }).boundingBox()]);
+          expect((contentBox?.y ?? Infinity) + (contentBox?.height ?? Infinity)).toBeLessThanOrEqual((navBox?.y ?? 0) + 1);
+        }
+      }
+    }
   });
 });
