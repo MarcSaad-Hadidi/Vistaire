@@ -28,9 +28,9 @@ test("public Trouvable menu is centralized in a targeted premium experience", as
 test("public /menu/trouvable reads Supabase before the local Trouvable demo fallback", async () => {
   const source = await readFile(publicMenuPath, "utf8");
   const supabaseReadIndex = source.indexOf(
-    'const restaurantsResult = await readSupabaseRows("restaurants", 200);'
+    'const restaurantsResult = await dependencies.readRows<PublicMenuRow>'
   );
-  const fallbackIndex = source.indexOf("return trouvableDemoMenu(slug, locale);");
+  const fallbackIndex = source.indexOf("return localDemo();", supabaseReadIndex);
 
   assert.ok(supabaseReadIndex > 0, "Trouvable must reach the Supabase restaurant read");
   assert.ok(
@@ -42,6 +42,10 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   assert.match(source, /name:\s*dish\.nameFr/);
   assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
+  assert.match(source, /dependencies\.nodeEnv === "production"/);
+  assert.match(source, /filters: \{ slug \}/);
+  assert.match(source, /filters: \{ restaurant_id: restaurantId \}/);
+  assert.doesNotMatch(source, /readSupabaseRows\(/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
 });
@@ -54,7 +58,7 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.usdz/);
   assert.match(source, /showDetailModelViewer/);
   assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
-  assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => !isVisible\)/);
+  assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => \{[\s\S]*?return !isVisible;/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.match(source, /loadingTitle:\s*copy\.modelPreparing/);
   assert.match(source, /\.\.\.copy\.modelViewer/);

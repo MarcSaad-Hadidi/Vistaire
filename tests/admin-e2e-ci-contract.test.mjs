@@ -52,6 +52,14 @@ test("App CI keeps blocking checks and excludes the live admin E2E", async () =>
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
+test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {
+  const workflow = await source(".github/workflows/codeql.yml");
+
+  assert.match(workflow, /uses:\s*github\/codeql-action\/analyze@v4/);
+  assert.match(workflow, /upload:\s*never/);
+  assert.doesNotMatch(workflow, /continue-on-error/);
+});
+
 test("controlled admin E2E is manual, environment-bound, and fail-closed", async () => {
   const workflow = await source(".github/workflows/admin-restaurant-e2e.yml");
 
@@ -97,6 +105,52 @@ test("admin E2E guide is UTF-8 French and describes the manual live proof honest
   assert.match(guide, /VISTAIRE_ADMIN_E2E_ENABLED=true/);
   assert.match(guide, /non bloquant/i);
   assert.match(guide, /ne constitue pas une preuve de validation live/i);
+});
+
+test("full-menu parity has a dedicated non-skipping package gate", async () => {
+  const [packageJson, runner, spec] = await Promise.all([
+    readFile("package.json", "utf8"),
+    readFile("scripts/run-admin-full-menu-e2e.mjs", "utf8"),
+    readFile("e2e/admin-chart-interactions.spec.ts", "utf8"),
+  ]);
+  assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
+  assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
+  const grep = runner.match(/--grep", "([^"]+)"/)?.[1];
+  assert.equal(grep, "full-menu admin parity");
+  assert.match(spec, new RegExp(`test\\("${grep.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}`));
+  assert.match(spec, /toHaveCount\(12\)/);
+  assert.match(spec, /data-available="false"/);
+});
+
+test("default E2E isolates fixture-only admin specs", async () => {
+  const config = await source("playwright.config.ts");
+
+  for (const spec of [
+    "admin-chart-interactions.spec.ts",
+    "admin-insights-fidelity.spec.ts",
+    "admin-visual.spec.ts"
+  ]) {
+    assert.match(config, new RegExp(spec.replaceAll(".", "\\.")));
+  }
+  assert.match(config, /const fixtureOnlyTestIgnore/);
+  assert.match(config, /testIgnore:\s*fixtureOnlyTestIgnore/);
+  assert.match(config, /VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET/);
+  assert.match(config, /admin-performance\.spec\.ts/);
+});
+
+test("official visual audit covers all four external references", async () => {
+  const [audit, visualSpec, insightsSpec] = await Promise.all([
+    readFile("scripts/admin-visual-audit.mjs", "utf8"),
+    readFile("e2e/admin-visual.spec.ts", "utf8"),
+    readFile("e2e/admin-insights-fidelity.spec.ts", "utf8"),
+  ]);
+  for (const file of ["01-overview-desktop.png", "02-availability-desktop.png", "03-overview-mobile.png", "04-insights-desktop.png"]) assert.match(audit, new RegExp(file.replaceAll(".", "\\.")));
+  assert.match(audit, /changedRatio/);
+  assert.match(audit, /-overlay\.png/);
+  assert.match(audit, /-diff\.png/);
+  assert.match(audit, /process\.exitCode = 1/);
+  assert.match(visualSpec, /overview-mobile-reference/);
+  assert.match(insightsSpec, /insights-kpis\.png/);
 });
 
 test("admin E2E specification contains no mojibake", async () => {

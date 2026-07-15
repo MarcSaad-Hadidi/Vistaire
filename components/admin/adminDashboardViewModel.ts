@@ -15,7 +15,7 @@ export function buildAnalyticsPresentation(state: AdminAnalyticsState) {
       const metrics = state.metrics.map((metric) => ({ ...metric, label: metricLabels[metric.id] ?? metric.id, unit: "événements" }));
       const activity = state.activitySeries.map((point) => ({ label: point.bucket, value: point.count }));
       const total = activity.reduce((sum, point) => sum + point.value, 0);
-      return { kind: "real" as const, state, completeness: state.completeness, metrics, activity, observationWindow: state.observationWindow, summary: `${total} événements sur la période.`, lastUpdatedAt: state.lastUpdatedAt, freshness: state.freshness };
+      return { kind: "real" as const, state, panels: state.panels, completeness: state.completeness, metrics, activity, observationWindow: state.observationWindow, summary: `${total} événements sur la période.`, lastUpdatedAt: state.lastUpdatedAt, freshness: state.freshness };
     }
     case "insufficient":
       return { kind: "insufficient" as const, reason: state.reason, completeness: state.completeness, title: "Donnée insuffisante", availableEvidence: state.availableEvidence, missingEvidence: state.missingEvidence };

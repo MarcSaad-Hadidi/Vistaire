@@ -5,8 +5,12 @@ import { readFile } from "node:fs/promises";
 test("Maison Elyse detail preserves relational analytics for dish and immersive events", async () => {
   const source = await readFile("components/menu/MaisonElyseDishDetail.tsx", "utf8");
   assert.match(source, /getPublicMenuAnalyticsContext\(menu\)/);
-  assert.match(source, /trackPublicMenuEvent\(menu,[\s\S]*eventName:\s*"dish_opened"/);
+  assert.match(
+    source,
+    /trackPublicMenuEvent\(menu,\s*\{\s*eventName:\s*"dish_opened",\s*dishSlug:\s*dish\.slug,\s*categorySlug:\s*dish\.categorySlug\s*\?\?\s*slugify\(dish\.category\)\s*\}\)/
+  );
   assert.match(source, /analyticsContext=\{analyticsContext \?\? undefined\}/);
+  assert.match(source, /function slugify\([\s\S]*normalize\("NFD"\)[\s\S]*replace\(\/\[\^a-z0-9\]\+\/g,\s*"-"\)/);
 });
 
 test("generic and Trouvable renderers keep production context on immersive viewers", async () => {

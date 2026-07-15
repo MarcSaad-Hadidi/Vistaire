@@ -190,7 +190,7 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(page.getByRole("dialog", { name: "La carte" })).toBeVisible();
     await page.getByRole("button", { name: /Toute la carte/i }).click();
     await expect(page.getByText("LA COLLECTION")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    await expect(page.getByRole("heading", { exact: true, name: "LA CARTE" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Entrées" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Plats signatures" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Desserts" })).toBeVisible();
@@ -217,7 +217,7 @@ test.describe("Maison Elyse public QR menu", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: /Homard bleu/i })).toBeVisible();
     await expect(page.getByRole("img", { name: /Image du plat Homard bleu/i })).toBeVisible();
-    await expect(page.getByText("$104")).toBeVisible();
+    await expect(page.getByText(/104\s*\$/)).toBeVisible();
     await expect(page.getByText("PLATS SIGNATURES")).toBeVisible();
     await expect(page.getByRole("heading", { name: /Ingr.dients/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Allerg.nes/i })).toBeVisible();
@@ -226,13 +226,13 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(
       page
         .getByRole("navigation", { name: "Navigation fiche plat" })
-        .getByText("Maison Élyse")
+        .getByText(/Maison Élys(?:e|ée)/)
     ).toBeVisible();
     await expect(page.getByText(/Maison Ã/)).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Retour . la carte/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Retour . la carte/i })).toHaveAttribute(
       "href",
-      "/menu/maison-elyse?lang=fr&table=12&zone=terrasse&view=carte"
+      "/menu/maison-elyse?lang=fr-CA&table=12&zone=terrasse&view=carte"
     );
     await expect(page.getByRole("navigation", { name: "Actions du plat" })).toHaveCount(0);
     await expect(

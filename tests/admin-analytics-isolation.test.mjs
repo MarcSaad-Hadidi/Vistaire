@@ -23,6 +23,13 @@ registerHooks({
         }
       }
     }
+    if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
+      const baseUrl = new URL(specifier, context.parentURL);
+      for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
+        const url = new URL(`${baseUrl.href}${extension}`);
+        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+      }
+    }
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -134,8 +141,85 @@ test("admin dashboard fails closed before menu reads when the restaurant lookup 
   assert.match(page, /if\s*\(!result\.ok\)/);
   assert.ok(
     page.indexOf("if (!result.ok)") <
-      page.indexOf("<AdminRestaurantDashboard")
+      page.indexOf("<AdminOverview")
   );
+});
+
+test("public menus scope every Supabase read and keep local demos out of production", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const calls = [];
+  const scoped = await getPublicMenuBySlug("chez-vistaire", "fr", {
+    nodeEnv: "production",
+    readRows: async (args) => {
+      calls.push(args);
+      if (args.table === "restaurants") return { ok: true, rows: [{ id: "restaurant-1", slug: "chez-vistaire", name: "Chez Vistaire" }] };
+      return { ok: true, rows: [] };
+    }
+  });
+  assert.ok(scoped);
+  assert.deepEqual(calls[0].filters, { slug: "chez-vistaire" });
+  assert.equal(calls[0].limit, 1);
+  assert.deepEqual(calls.slice(1).map(({ table, filters }) => ({ table, filters })), [
+    { table: "menus", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_categories", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_dishes", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_dishes", filters: { restaurant_slug: "chez-vistaire" } }
+  ]);
+
+  const unavailable = async () => ({ ok: false, error: "database unavailable", rows: [] });
+  assert.equal(await getPublicMenuBySlug("maison-elyse", "fr", { nodeEnv: "production", readRows: unavailable }), null);
+  assert.ok(await getPublicMenuBySlug("maison-elyse", "fr", { nodeEnv: "development", readRows: unavailable }));
+
+  const failedCore = await getPublicMenuBySlug("chez-vistaire", "fr", {
+    nodeEnv: "production",
+    readRows: async (args) => args.table === "restaurants"
+      ? { ok: true, rows: [{ id: "restaurant-1", slug: "chez-vistaire", name: "Chez Vistaire" }] }
+      : args.table === "menu_dishes"
+        ? { ok: false, error: "dish read failed", rows: [] }
+        : { ok: true, rows: [] }
+  });
+  assert.equal(failedCore, null);
+});
+
+test("public menus preserve legacy dishes scoped only by restaurant slug", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const dishFilters = [];
+  const menu = await getPublicMenuBySlug("chez-vistaire", "fr", {
+    nodeEnv: "production",
+    readRows: async (args) => {
+      if (args.table === "restaurants") {
+        return {
+          ok: true,
+          rows: [{ id: "restaurant-1", slug: "chez-vistaire", name: "Chez Vistaire" }]
+        };
+      }
+      if (args.table === "menu_dishes") {
+        dishFilters.push(args.filters);
+        return args.filters.restaurant_id
+          ? { ok: true, rows: [] }
+          : {
+              ok: true,
+              rows: [{
+                id: "legacy-dish-1",
+                restaurant_slug: "chez-vistaire",
+                name: "Plat historique",
+                slug: "plat-historique",
+                price_cents: 2400,
+                is_available: true
+              }]
+            };
+      }
+      return { ok: true, rows: [] };
+    }
+  });
+
+  assert.ok(menu);
+  assert.deepEqual(menu.dishes.map(({ id }) => id), ["legacy-dish-1"]);
+  assert.deepEqual(dishFilters, [
+    { restaurant_id: "restaurant-1" },
+    { restaurant_slug: "chez-vistaire" }
+  ]);
 });
 
 test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
@@ -165,10 +249,11 @@ test("admin dashboard fails closed when the scoped menu lookup fails", async () 
   assert.deepEqual(calls, ["restaurants", "menus"]);
 });
 
-test("Maison Elysee preview receives complete fictional analytics", async () => {
+test("Maison Elysee preview does not substitute fictional analytics", async () => {
   const { loadAdminDashboardDataWithDependencies } = await import(
     "../lib/admin/dashboardData.ts"
   );
+  let nowCalls = 0;
   const result = await loadAdminDashboardDataWithDependencies(
     "11111111-1111-1111-1111-111111111111",
     "7d",
@@ -181,19 +266,49 @@ test("Maison Elysee preview receives complete fictional analytics", async () => 
         throw new Error(`unexpected table: ${table}`);
       },
       readEvents: async () => ({ ok: true, rows: [], truncated: false }),
-      now: () => new Date("2026-07-10T12:00:00.000Z")
+      now: () => { nowCalls += 1; return new Date("2026-07-10T12:00:00.000Z"); }
     }
   );
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.analytics.kind, "real");
-  assert.equal(result.data.analytics.completeness, "complete");
-  assert.ok(result.data.analytics.activitySeries.length >= 2);
-  assert.ok(result.data.analytics.topDishes.length >= 1);
-  assert.equal(result.data.analytics.funnel.kind, "measured");
+  assert.equal(result.data.analytics.kind, "insufficient");
+  assert.equal(result.data.analytics.reason, "instrumentation-unproven");
+  assert.equal(nowCalls, 1);
 });
 
-test("Maison Elysee fictional analytics are disabled in production", async () => {
+test("dashboard reads current and previous periods independently and fails closed if either read truncates", async () => {
+  const { loadAdminDashboardDataWithDependencies } = await import("../lib/admin/dashboardData.ts");
+  const periods = [];
+  const result = await loadAdminDashboardDataWithDependencies("restaurant-1", "7d", {
+    readRows: async ({ table }) => {
+      if (table === "restaurants") return { ok: true, rows: [{ id: "restaurant-1", name: "Chez Vistaire", slug: "chez-vistaire" }] };
+      if (table === "menus") return { ok: true, rows: [{ id: "menu-1", status: "published", is_primary: true }] };
+      if (table === "menu_categories") return { ok: true, rows: [] };
+      if (table === "menu_dishes") return { ok: true, rows: [] };
+      throw new Error(`unexpected table: ${table}`);
+    },
+    readEvents: async (args) => {
+      periods.push(args);
+      return { ok: true, rows: [], truncated: args.fromIso === "2026-06-26T00:00:00.000Z" };
+    },
+    now: () => new Date("2026-07-10T00:00:00.000Z")
+  });
+  assert.equal(periods.length, 2);
+  assert.deepEqual(periods.map(({ restaurantId, menuId }) => ({ restaurantId, menuId })), [
+    { restaurantId: "restaurant-1", menuId: "menu-1" },
+    { restaurantId: "restaurant-1", menuId: "menu-1" }
+  ]);
+  assert.deepEqual(periods.map(({ maxRows }) => maxRows), [12_000, 12_000]);
+  assert.deepEqual(periods.map(({ fromIso, toIso }) => [fromIso, toIso]), [
+    ["2026-07-03T00:00:00.000Z", "2026-07-10T00:00:00.000Z"],
+    ["2026-06-26T00:00:00.000Z", "2026-07-03T00:00:00.000Z"]
+  ]);
+  assert.equal(result.ok, true);
+  assert.equal(result.data.analytics.kind, "unavailable");
+  assert.equal(result.data.analytics.completeness, "truncated");
+});
+
+test("dashboard loader contains no fictional analytics fallback", async () => {
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
-  assert.match(loader, /process\.env\.NODE_ENV\s*!==\s*["']production["'][\s\S]*MAISON_ELYSEE_DEMO_ID/);
+  assert.doesNotMatch(loader, /buildMaisonElyseeDemoEvents|MAISON_ELYSEE_DEMO_ID/);
 });

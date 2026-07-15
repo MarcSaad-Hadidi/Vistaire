@@ -41,3 +41,19 @@ test("admin page search params parser exposes range only", async () => {
   assert.equal(parseAdminPageSearchParams({ range: ["30d"] }), "7d");
   assert.equal(parseAdminPageSearchParams({ restaurantId: "attacker" }), "7d");
 });
+
+test("visual clock override is deterministic and impossible in production", async () => {
+  const { resolveAdminDashboardNow } = await import("../lib/admin/dashboardClock.ts");
+  const fallback = new Date("2030-01-01T00:00:00.000Z");
+  assert.equal(resolveAdminDashboardNow("test", "2026-07-10T12:00:00.000Z", fallback).toISOString(), "2026-07-10T12:00:00.000Z");
+  assert.equal(resolveAdminDashboardNow("production", "2026-07-10T12:00:00.000Z", fallback), fallback);
+  assert.equal(resolveAdminDashboardNow("test", "invalid", fallback), fallback);
+});
+
+test("dashboard analytics reads both compatible periods and partitions them without synthetic fallback", async () => {
+  const source = await readFile("lib/admin/dashboardData.ts", "utf8");
+  assert.match(source, /fromIso:\s*window\.comparisonStartInclusive/);
+  assert.match(source, /previousEvents/);
+  assert.match(source, /currentEvents/);
+  assert.doesNotMatch(source, /buildMaisonElyseeDemoEvents/);
+});
