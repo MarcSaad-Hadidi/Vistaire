@@ -499,13 +499,24 @@ export async function getPublicMenuBySlug(
   ]);
   if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) return localDemo();
   const primaryMenu = findPrimaryMenu(menusResult.rows, restaurantId);
+  let dishRows = dishesResult.rows;
+  if (!primaryMenu && dishRows.length === 0) {
+    const legacyDishesResult = await dependencies.readRows<PublicMenuRow>({
+      table: "menu_dishes",
+      columns: "*",
+      filters: { restaurant_slug: slug },
+      orderBy: "id",
+      limit: 1_000
+    });
+    if (legacyDishesResult.ok) dishRows = legacyDishesResult.rows;
+  }
   const legacyMenuLanguages = uiConfigsResult.ok
     ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
     : undefined;
   const legacyPublicMenuSettings = uiConfigsResult.ok
     ? publicMenuSettingsFallbackFromUiConfigRows(uiConfigsResult.rows, restaurantId) ?? undefined
     : undefined;
-  const hasScopedDishRows = dishesResult.rows.length > 0;
+  const hasScopedDishRows = dishRows.length > 0;
 
   if (isDemoRestaurant && !primaryMenu && !hasScopedDishRows) {
     return localDemo();
@@ -517,7 +528,7 @@ export async function getPublicMenuBySlug(
       restaurantRow: match,
       menuRow: primaryMenu,
       categoryRows: categoriesResult.rows,
-      dishRows: dishesResult.rows,
+      dishRows,
       includeUnavailableDishes: true,
       legacyPublicMenuSettings,
       legacyMenuLanguages
@@ -528,7 +539,7 @@ export async function getPublicMenuBySlug(
   const menu = buildSupabasePublicMenu(
     slug,
     match,
-    dishesResult.rows,
+    dishRows,
     { includeUnavailableDishes: true, legacyPublicMenuSettings, legacyMenuLanguages }
   );
   return applyStoredPublicMenuTranslations(menu, locale);

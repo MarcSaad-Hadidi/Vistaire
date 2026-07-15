@@ -12,9 +12,20 @@ const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --hostna
 const ownerE2eToken =
   process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
   "vistaire-owner-e2e-local-token";
+const fixtureOnlyTestIgnore = adminVisualFixture
+  ? []
+  : [
+      "**/admin-chart-interactions.spec.ts",
+      "**/admin-insights-fidelity.spec.ts",
+      "**/admin-visual.spec.ts",
+      ...(process.env.VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET
+        ? []
+        : ["**/admin-performance.spec.ts"])
+    ];
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: fixtureOnlyTestIgnore,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

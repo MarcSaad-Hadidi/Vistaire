@@ -52,6 +52,14 @@ test("App CI keeps blocking checks and excludes the live admin E2E", async () =>
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
+test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {
+  const workflow = await source(".github/workflows/codeql.yml");
+
+  assert.match(workflow, /uses:\s*github\/codeql-action\/analyze@v4/);
+  assert.match(workflow, /upload:\s*never/);
+  assert.doesNotMatch(workflow, /continue-on-error/);
+});
+
 test("controlled admin E2E is manual, environment-bound, and fail-closed", async () => {
   const workflow = await source(".github/workflows/admin-restaurant-e2e.yml");
 
@@ -112,6 +120,22 @@ test("full-menu parity has a dedicated non-skipping package gate", async () => {
   assert.match(spec, new RegExp(`test\\("${grep.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}`));
   assert.match(spec, /toHaveCount\(12\)/);
   assert.match(spec, /data-available="false"/);
+});
+
+test("default E2E isolates fixture-only admin specs", async () => {
+  const config = await source("playwright.config.ts");
+
+  for (const spec of [
+    "admin-chart-interactions.spec.ts",
+    "admin-insights-fidelity.spec.ts",
+    "admin-visual.spec.ts"
+  ]) {
+    assert.match(config, new RegExp(spec.replaceAll(".", "\\.")));
+  }
+  assert.match(config, /const fixtureOnlyTestIgnore/);
+  assert.match(config, /testIgnore:\s*fixtureOnlyTestIgnore/);
+  assert.match(config, /VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET/);
+  assert.match(config, /admin-performance\.spec\.ts/);
 });
 
 test("official visual audit covers all four external references", async () => {

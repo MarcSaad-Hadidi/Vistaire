@@ -163,7 +163,8 @@ test("public menus scope every Supabase read and keep local demos out of product
     { table: "menus", filters: { restaurant_id: "restaurant-1" } },
     { table: "menu_categories", filters: { restaurant_id: "restaurant-1" } },
     { table: "menu_dishes", filters: { restaurant_id: "restaurant-1" } },
-    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1" } }
+    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_dishes", filters: { restaurant_slug: "chez-vistaire" } }
   ]);
 
   const unavailable = async () => ({ ok: false, error: "database unavailable", rows: [] });
@@ -179,6 +180,46 @@ test("public menus scope every Supabase read and keep local demos out of product
         : { ok: true, rows: [] }
   });
   assert.equal(failedCore, null);
+});
+
+test("public menus preserve legacy dishes scoped only by restaurant slug", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const dishFilters = [];
+  const menu = await getPublicMenuBySlug("chez-vistaire", "fr", {
+    nodeEnv: "production",
+    readRows: async (args) => {
+      if (args.table === "restaurants") {
+        return {
+          ok: true,
+          rows: [{ id: "restaurant-1", slug: "chez-vistaire", name: "Chez Vistaire" }]
+        };
+      }
+      if (args.table === "menu_dishes") {
+        dishFilters.push(args.filters);
+        return args.filters.restaurant_id
+          ? { ok: true, rows: [] }
+          : {
+              ok: true,
+              rows: [{
+                id: "legacy-dish-1",
+                restaurant_slug: "chez-vistaire",
+                name: "Plat historique",
+                slug: "plat-historique",
+                price_cents: 2400,
+                is_available: true
+              }]
+            };
+      }
+      return { ok: true, rows: [] };
+    }
+  });
+
+  assert.ok(menu);
+  assert.deepEqual(menu.dishes.map(({ id }) => id), ["legacy-dish-1"]);
+  assert.deepEqual(dishFilters, [
+    { restaurant_id: "restaurant-1" },
+    { restaurant_slug: "chez-vistaire" }
+  ]);
 });
 
 test("admin dashboard fails closed when the scoped menu lookup fails", async () => {
