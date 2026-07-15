@@ -5,6 +5,7 @@ import {
   getAdminAccessCookieOptions
 } from "@/lib/admin/accessSessionCore";
 import { resolveQrToken } from "@/lib/owner/qrStore";
+import { logQrResolutionFailure } from "@/lib/owner/qrDiagnostics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,15 +21,34 @@ function protectedRedirect(request: NextRequest, targetPath: string): NextRespon
 
 export async function GET(request: NextRequest, context: QrRouteContext) {
   const { token } = await context.params;
+  const diagnosticContext = {
+    token,
+    requestUrl: request.url,
+    environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown"
+  };
   const resolved = await resolveQrToken(token);
-  if (!resolved.ok) return protectedRedirect(request, "/q/invalid");
+  if (!resolved.ok) {
+    logQrResolutionFailure({
+      ...diagnosticContext,
+      lookupResult: "missed",
+      failureReason: "not-found-or-inactive"
+    });
+    return protectedRedirect(request, "/q/invalid");
+  }
 
   if (resolved.targetKind === "menu") {
     return protectedRedirect(request, resolved.targetPath);
   }
 
   const secret = process.env.VISTAIRE_ADMIN_SESSION_SECRET;
-  if (!secret) return protectedRedirect(request, "/q/invalid");
+  if (!secret) {
+    logQrResolutionFailure({
+      ...diagnosticContext,
+      lookupResult: "matched",
+      failureReason: "admin-session-secret-missing"
+    });
+    return protectedRedirect(request, "/q/invalid");
+  }
 
   try {
     const accessToken = createAdminAccessToken(
@@ -43,6 +63,11 @@ export async function GET(request: NextRequest, context: QrRouteContext) {
     );
     return response;
   } catch {
+    logQrResolutionFailure({
+      ...diagnosticContext,
+      lookupResult: "matched",
+      failureReason: "admin-session-creation-failed"
+    });
     return protectedRedirect(request, "/q/invalid");
   }
 }

@@ -6,22 +6,25 @@ const startCommand = "node ./node_modules/next/dist/bin/next start";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
+const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
+const qrFixtureOrigin = "http://127.0.0.1:55432";
 const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3000"}`;
 const ownerE2eToken =
   process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
   "vistaire-owner-e2e-local-token";
-const fixtureOnlyTestIgnore = adminVisualFixture
-  ? []
-  : [
+const fixtureOnlyTestIgnore = [
+  ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",
       "**/admin-insights-fidelity.spec.ts",
       "**/admin-visual.spec.ts",
       ...(process.env.VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET
         ? []
         : ["**/admin-performance.spec.ts"])
-    ];
+    ]),
+  ...(qrFixture ? [] : ["**/admin-qr-resolution.spec.ts"])
+];
 
 export default defineConfig({
   testDir: "./e2e",
@@ -68,6 +71,26 @@ export default defineConfig({
             VISTAIRE_OWNER_E2E_EMAIL: "owner-e2e@localhost",
             VISTAIRE_OWNER_3D_JOBS_FALLBACK: "1",
             VISTAIRE_OWNER_3D_RESTAURANT_SLUGS: "*"
+          },
+          url: baseURL,
+          reuseExistingServer,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+          timeout: 120_000
+        }] : qrFixture ? [{
+          command: "node e2e/support/qr-supabase-fixture-server.mjs",
+          url: `${qrFixtureOrigin}/fixture/state`,
+          reuseExistingServer,
+          timeout: 30_000
+        }, {
+          command: startCommand,
+          env: {
+            ...process.env,
+            NEXT_PUBLIC_SUPABASE_URL: qrFixtureOrigin,
+            SUPABASE_SERVICE_ROLE_KEY: "qr-fixture-service-role-key",
+            VISTAIRE_ADMIN_SESSION_SECRET:
+              "qr-fixture-admin-session-secret-at-least-32-bytes",
+            VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+            VISTAIRE_QR_DIAGNOSTICS: "1"
           },
           url: baseURL,
           reuseExistingServer,

@@ -369,8 +369,17 @@ test("qrStore falls back to the legacy RPC only for metadata unavailability", as
     'client.rpc("resolve_qr_code_scan_metadata"'
   );
   const legacyStart = source.indexOf('client.rpc("resolve_qr_code_scan"');
+  const legacySelectStart = source.indexOf(
+    '.select("id, restaurant_id, target_kind, target_path, status")',
+    metadataStart
+  );
   assert.notEqual(metadataStart, -1);
   assert.notEqual(legacyStart, -1);
+  assert.notEqual(legacySelectStart, -1);
+  assert.ok(
+    legacySelectStart < legacyStart,
+    "legacy metadata must be validated before the scan counter RPC runs"
+  );
 
   const metadataBranch = source.slice(metadataStart, legacyStart);
   assert.match(
@@ -379,18 +388,18 @@ test("qrStore falls back to the legacy RPC only for metadata unavailability", as
   );
   assert.match(metadataBranch, /if \(!row\) continue;/);
 
-  const legacyBranch = source.slice(legacyStart);
+  const legacyBranch = source.slice(legacySelectStart);
   assert.match(
     legacyBranch,
-    /\.select\("id, restaurant_id, target_path, status"\)/
+    /\.select\("id, restaurant_id, target_kind, target_path, status"\)/
   );
-  assert.doesNotMatch(
+  assert.match(
     legacyBranch,
     /\.select\("[^"]*target_kind[^"]*"\)/
   );
-  assert.match(legacyBranch, /return resolveLegacyMenuQrScan\(/);
+  assert.match(legacyBranch, /return resolveLegacyQrScan\(/);
   assert.match(
     legacyBranch,
-    /if \(selectError\) \{[\s\S]*?logQrSupabaseIncident\([\s\S]*?return \{ ok: false \};[\s\S]*?if \(!row\) return \{ ok: false \};/
+    /if \(selectError\) \{[\s\S]*?logQrSupabaseIncident\([\s\S]*?return \{ ok: false \};[\s\S]*?if \(!row\) continue;/
   );
 });
