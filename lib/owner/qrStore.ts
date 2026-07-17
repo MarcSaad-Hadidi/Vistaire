@@ -34,7 +34,7 @@ import {
 } from "@/lib/owner/qrCreationCore";
 import {
   isQrMetadataRpcUnavailable,
-  resolveLegacyMenuQrScan,
+  resolveLegacyQrScan,
   resolveQrRowMetadata,
   resolveSignedMenuFallback,
   type QrResolution
@@ -47,7 +47,8 @@ import {
 import type {
   OwnerQrCodeRecord,
   OwnerQrCodeStatus,
-  OwnerQrStyle
+  OwnerQrStyle,
+  OwnerQrTargetKind
 } from "@/lib/owner/types";
 
 const QR_TABLE = "qr_codes";
@@ -444,23 +445,9 @@ async function resolvePersistedQrToken(
   if (!metadataRpcUnavailable) return { ok: false };
 
   for (const tokenHash of tokenHashes) {
-    const { data, error } = await client.rpc("resolve_qr_code_scan", {
-      p_token_hash: tokenHash
-    });
-    if (error) {
-      logQrSupabaseIncident({
-        operation: "resolve-legacy-rpc",
-        code: "QR_RESOLVE_LEGACY_RPC_FAILED",
-        supabaseError: error
-      });
-      return { ok: false };
-    }
-    if (!data) continue;
-    const expectedPath = String(data);
-
     const { data: row, error: selectError } = await client
       .from(QR_TABLE)
-      .select("id, restaurant_id, target_path, status")
+      .select("id, restaurant_id, target_kind, target_path, status")
       .eq("token_hash", tokenHash)
       .limit(1)
       .maybeSingle();
@@ -472,20 +459,42 @@ async function resolvePersistedQrToken(
       });
       return { ok: false };
     }
-    if (!row) return { ok: false };
-    return resolveLegacyMenuQrScan(
-      {
-        qrId: getString(row as AnyRow, ["id"], ""),
-        restaurantId: getString(
-          row as AnyRow,
-          ["restaurant_id", "restaurantId"],
-          ""
-        ),
-        status: getString(row as AnyRow, ["status"], ""),
-        targetPath: getString(row as AnyRow, ["target_path", "targetPath"], "")
-      },
-      expectedPath
+    if (!row) continue;
+    const rawTargetKind = getString(
+      row as AnyRow,
+      ["target_kind", "targetKind"],
+      ""
     );
+    if (rawTargetKind !== "menu" && rawTargetKind !== "admin") {
+      return { ok: false };
+    }
+    const targetKind: OwnerQrTargetKind = rawTargetKind;
+    const metadata = {
+      qrId: getString(row as AnyRow, ["id"], ""),
+      restaurantId: getString(
+        row as AnyRow,
+        ["restaurant_id", "restaurantId"],
+        ""
+      ),
+      status: getString(row as AnyRow, ["status"], ""),
+      targetKind,
+      targetPath: getString(row as AnyRow, ["target_path", "targetPath"], "")
+    };
+    if (!resolveQrRowMetadata(metadata).ok) return { ok: false };
+
+    const { data, error } = await client.rpc("resolve_qr_code_scan", {
+      p_token_hash: tokenHash
+    });
+    if (error) {
+      logQrSupabaseIncident({
+        operation: "resolve-legacy-rpc",
+        code: "QR_RESOLVE_LEGACY_RPC_FAILED",
+        supabaseError: error
+      });
+      return { ok: false };
+    }
+    if (!data) return { ok: false };
+    return resolveLegacyQrScan(metadata, String(data));
   }
   return { ok: false };
 }

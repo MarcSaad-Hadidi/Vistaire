@@ -69,26 +69,16 @@ export function resolveLegacyMenuQrScan(
   row: Omit<QrRowMetadata, "targetKind">,
   expectedPath: string
 ): QrResolution {
-  const targetPath = sanitizeOwnerQrTargetPath(row.targetPath);
-  const normalizedExpectedPath = sanitizeOwnerQrTargetPath(expectedPath);
-  if (
-    !row.qrId.trim() ||
-    row.status !== "active" ||
-    !targetPath ||
-    !normalizedExpectedPath ||
-    targetPath !== normalizedExpectedPath ||
-    !isOwnerQrTargetPathAllowed("menu", targetPath)
-  ) {
-    return { ok: false };
-  }
+  return resolveLegacyQrScan({ ...row, targetKind: "menu" }, expectedPath);
+}
 
-  return {
-    ok: true,
-    qrId: row.qrId,
-    restaurantId: row.restaurantId,
-    targetKind: "menu",
-    targetPath
-  };
+export function resolveLegacyQrScan(
+  row: QrRowMetadata & { targetKind: OwnerQrTargetKind },
+  expectedPath: string
+): QrResolution {
+  const normalizedExpectedPath = sanitizeOwnerQrTargetPath(expectedPath);
+  if (!normalizedExpectedPath) return { ok: false };
+  return resolveQrRowMetadata(row, normalizedExpectedPath);
 }
 
 export function resolveSignedMenuFallback(input: {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSupabaseProjectIdentity } from "./projectIdentity";
 
 type SupabaseAdminClientResult =
   | { ok: true; client: SupabaseClient }
@@ -16,6 +17,14 @@ export function getSupabaseAdminClient(): SupabaseAdminClientResult {
       reason:
         "Supabase server credentials are missing. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
     };
+  }
+
+  const projectIdentity = validateSupabaseProjectIdentity({
+    supabaseUrl,
+    expectedProjectRef: process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF
+  });
+  if (!projectIdentity.ok) {
+    return { ok: false, reason: projectIdentity.reason };
   }
 
   return {
