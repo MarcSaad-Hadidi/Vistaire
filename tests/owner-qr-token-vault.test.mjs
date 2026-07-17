@@ -87,6 +87,23 @@ function restoreEnvironment() {
   }
 }
 
+function captureError(operation) {
+  try {
+    operation();
+  } catch (error) {
+    return error;
+  }
+  assert.fail("Expected operation to throw");
+}
+
+function assertVaultError(error, expectedCode) {
+  assert.equal(error?.name, "QrTokenVaultError");
+  assert.equal(error?.code, expectedCode);
+  assert.equal(typeof error?.message, "string");
+  assert.match(error.message, /vault/i);
+  assert.equal("cause" in error, false);
+}
+
 test.after(restoreEnvironment);
 
 const loadVault = () => import("../lib/owner/qrTokenVault.ts");
@@ -242,6 +259,89 @@ test("strictly rejects malformed configuration and envelope encodings", async ()
         binding
       ),
     /vault/i
+  );
+});
+
+test("exposes configuration-missing for unavailable or unusable key material", async () => {
+  const {
+    QrTokenVaultError,
+    decryptQrToken,
+    encryptQrToken
+  } = await loadVault();
+  assert.equal(typeof QrTokenVaultError, "function");
+
+  const key = encodedKey();
+  setKeyRing("v1", { v1: key });
+  const envelope = encryptQrToken("configuration-classification-token", binding);
+
+  delete process.env[ACTIVE_VERSION_ENV];
+  assertVaultError(
+    captureError(() => encryptQrToken("new-token", binding)),
+    "configuration-missing"
+  );
+  assertVaultError(
+    captureError(() => decryptQrToken(envelope, binding)),
+    "configuration-missing"
+  );
+
+  process.env[ACTIVE_VERSION_ENV] = "v1";
+  process.env[KEY_RING_ENV] = "not-json";
+  assertVaultError(
+    captureError(() => decryptQrToken(envelope, binding)),
+    "configuration-missing"
+  );
+
+  setKeyRing("v2", { v2: encodedKey() });
+  assertVaultError(
+    captureError(() => decryptQrToken(envelope, binding)),
+    "configuration-missing"
+  );
+});
+
+test("exposes token-unrecoverable for invalid authenticated envelopes", async () => {
+  const { decryptQrToken, encryptQrToken } = await loadVault();
+  const key = encodedKey();
+  setKeyRing("v1", { v1: key });
+  const envelope = encryptQrToken("unrecoverable-token", binding);
+  const alteredCiphertext = Buffer.from(envelope.ciphertext, "base64url");
+  alteredCiphertext[0] ^= 0x01;
+
+  for (const operation of [
+    () =>
+      decryptQrToken(
+        { ...envelope, ciphertext: alteredCiphertext.toString("base64url") },
+        binding
+      ),
+    () => decryptQrToken(envelope, { ...binding, purposeKey: "wrong" }),
+    () =>
+      decryptQrToken(
+        { ...envelope, nonce: randomBytes(11).toString("base64url") },
+        binding
+      )
+  ]) {
+    assertVaultError(captureError(operation), "token-unrecoverable");
+  }
+
+  setKeyRing("v1", { v1: encodedKey() });
+  assertVaultError(
+    captureError(() => decryptQrToken(envelope, binding)),
+    "token-unrecoverable"
+  );
+});
+
+test("exposes encryption-failed for invalid encryption inputs", async () => {
+  const { encryptQrToken } = await loadVault();
+  setKeyRing("v1", { v1: encodedKey() });
+
+  assertVaultError(
+    captureError(() => encryptQrToken("", binding)),
+    "encryption-failed"
+  );
+  assertVaultError(
+    captureError(() =>
+      encryptQrToken("token", { ...binding, purposeKey: "" })
+    ),
+    "encryption-failed"
   );
 });
 
