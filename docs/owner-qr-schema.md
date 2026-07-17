@@ -145,7 +145,38 @@ older schema.
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only access to `qr_codes` (already used) |
 | `VISTAIRE_QR_TOKEN_SECRET` | Optional. Peppers the token hash and signs the dev fallback token. Set this in production. |
 | `VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS` | Optional comma-separated legacy QR hash secrets retained during rotation. |
+| `VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` | Server-only version used to encrypt new recoverable canonical QR tokens. |
+| `VISTAIRE_QR_TOKEN_KEY_RING` | Server-only JSON object mapping every retained version to one base64url-encoded 32-byte AES key. |
 | `VISTAIRE_ADMIN_SESSION_SECRET` | Dedicated secret (at least 32 bytes) for eight-hour restaurant admin sessions. |
+
+### Canonical token vault
+
+Both vault variables are required for canonical QR encryption and decryption.
+They must never use a `NEXT_PUBLIC_` prefix or be exposed to client code.
+
+`VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` is one identifier matching
+`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`. `VISTAIRE_QR_TOKEN_KEY_RING` is a
+canonical single-line JSON object with no whitespace or duplicate versions:
+
+```text
+{"<version-1>":"<base64url key without padding>","<version-2>":"<base64url key without padding>"}
+```
+
+Every decoded key must be exactly 32 bytes. Generate each key independently
+with:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+To rotate, generate a new 32-byte key, add it under a new version while
+retaining every version still referenced by a stored QR envelope, then set
+`VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` to the new version in the same
+deployment configuration. New envelopes use the active version; old envelopes
+continue to decrypt through their explicit version. Never remove an old entry
+until no stored envelope references it. Missing versions, malformed JSON,
+non-canonical base64url, and keys of any other decoded length fail closed; the
+vault has no fallback key.
 
 ## Fallback behaviour (no DB yet)
 
