@@ -84,9 +84,12 @@ export type OwnerQrCodeRecord = {
   restaurantId: string;
   label: string;
   targetKind: OwnerQrTargetKind;
+  purposeKey: string;
+  isCanonical: boolean;
+  recoverable: boolean;
   tokenPreview: string;
   targetPath: string;
-  redirectUrl: string;
+  redirectUrl?: string;
   status: OwnerQrCodeStatus;
   scanCount: number;
   lastScannedAt: string | null;
@@ -100,10 +103,39 @@ export type CreateOwnerQrCodeResult =
   | {
       ok: true;
       record: OwnerQrCodeRecord;
-      token: string;
+      created: boolean;
       persisted: boolean;
     }
   | { ok: false; error: string };
+
+export type OwnerQrCanonicalRead = {
+  found: boolean;
+  recoverable: boolean;
+  record: OwnerQrCodeRecord | null;
+};
+
+export type OwnerQrCanonicalError = {
+  ok: false;
+  error: string;
+  code: "canonical-unrecoverable";
+};
+
+export type CanonicalQrMutationResult =
+  | {
+      ok: true;
+      created: boolean;
+      persisted: true;
+      record: OwnerQrCodeRecord;
+    }
+  | OwnerQrCanonicalError;
+
+export type CanonicalQrRotationResult =
+  | {
+      ok: true;
+      previous: OwnerQrCodeRecord;
+      current: OwnerQrCodeRecord;
+    }
+  | OwnerQrCanonicalError;
 
 export type OwnerAiPriority = {
   id: string;

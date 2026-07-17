@@ -6,15 +6,11 @@ import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import {
   getNumber,
   getString,
-  getSupabaseTableColumns,
-  pickColumn,
   type AnyRow
 } from "@/lib/analytics/serverRows";
 import { buildQrRedirectUrl } from "@/lib/owner/menuUrls";
 import { DEFAULT_OWNER_QR_STYLE, normalizeOwnerQrStyle } from "@/lib/owner/qrStyle";
 import {
-  createSignedQrToken,
-  canUseSignedQrFallback,
   generateQrToken,
   hashQrTokenForStorage,
   isSignedQrToken,
@@ -25,10 +21,8 @@ import {
 import {
   buildQrSupabaseFailure,
   classifyQrCreatePersistenceFailure,
-  createOwnerQrCodeWithDependencies,
   redactQrIncidentLogText,
   type CreateOwnerQrCodeArgs,
-  type QrPersistenceResult,
   type QrSupabaseFailure,
   type QrSupabaseFailureCode
 } from "@/lib/owner/qrCreationCore";
@@ -45,8 +39,12 @@ import {
   sanitizeOwnerQrTargetPath
 } from "@/lib/owner/menuUrlCore";
 import type {
+  CanonicalQrMutationResult,
+  CanonicalQrRotationResult,
   OwnerQrCodeRecord,
   OwnerQrCodeStatus,
+  OwnerQrCanonicalError,
+  OwnerQrCanonicalRead,
   OwnerQrStyle,
   OwnerQrTargetKind
 } from "@/lib/owner/types";
@@ -58,14 +56,19 @@ type QrIncidentCode =
   | "QR_MARK_RESTAURANT_READY_FAILED"
   | "QR_RESOLVE_METADATA_FAILED"
   | "QR_RESOLVE_LEGACY_RPC_FAILED"
-  | "QR_RESOLVE_LEGACY_SELECT_FAILED";
+  | "QR_RESOLVE_LEGACY_SELECT_FAILED"
+  | "QR_CANONICAL_READ_FAILED"
+  | "QR_CANONICAL_RPC_FAILED"
+  | "QR_CANONICAL_ROTATE_FAILED";
 
 type QrIncidentOperation =
   | "create-config"
   | "create-insert"
   | "update-config"
   | "update"
-  | "mark-restaurant-ready"
+  | "canonical-read"
+  | "canonical-get-or-create"
+  | "canonical-rotate"
   | "resolve-metadata"
   | "resolve-legacy-rpc"
   | "resolve-legacy-select";
@@ -152,43 +155,6 @@ export function buildActiveQrRestaurantIds(rows: AnyRow[]): Set<string> {
   return ids;
 }
 
-async function markRestaurantQrReady(
-  client: SupabaseClient,
-  restaurantId: string
-): Promise<void> {
-  if (!restaurantId) return;
-
-  const columns = await getSupabaseTableColumns("restaurants");
-  const update: Record<string, unknown> = {};
-  const now = new Date().toISOString();
-
-  const qrReadyCol = columns.size > 0 ? pickColumn(columns, ["qr_ready", "qrReady"]) : "qr_ready";
-  if (qrReadyCol) update[qrReadyCol] = true;
-
-  const generatedCol = columns.size > 0
-    ? pickColumn(columns, ["qr_generated_at", "qrGeneratedAt", "qr_deployed_at"])
-    : "qr_generated_at";
-  if (generatedCol) update[generatedCol] = now;
-
-  if (Object.keys(update).length === 0) return;
-
-  const idCol = columns.size > 0 ? pickColumn(columns, ["id", "restaurant_id"]) : "id";
-  if (!idCol) return;
-
-  const { error } = await client
-    .from("restaurants")
-    .update(update)
-    .eq(idCol, restaurantId);
-
-  if (error) {
-    logQrSupabaseIncident({
-      operation: "mark-restaurant-ready",
-      code: "QR_MARK_RESTAURANT_READY_FAILED",
-      supabaseError: error
-    });
-  }
-}
-
 function mapQrRow(row: AnyRow): OwnerQrCodeRecord {
   const id = getString(row, ["id"], "");
   const token = getString(row, ["token_preview", "tokenPreview"], "");
@@ -204,9 +170,11 @@ function mapQrRow(row: AnyRow): OwnerQrCodeRecord {
           : inferOwnerQrTargetKind(
               getString(row, ["target_path", "targetPath"], "/")
             ),
+    purposeKey: getString(row, ["purpose_key", "purposeKey"], "default"),
+    isCanonical: row.is_canonical === true || row.isCanonical === true,
+    recoverable: false,
     tokenPreview: token,
     targetPath: getString(row, ["target_path", "targetPath"], "/"),
-    redirectUrl: "",
     status: normalizeStatus(getString(row, ["status"], "")),
     scanCount: getNumber(row, ["scan_count", "scanCount"], 0),
     lastScannedAt:
@@ -218,102 +186,251 @@ function mapQrRow(row: AnyRow): OwnerQrCodeRecord {
   };
 }
 
-async function persistOwnerQrCode(
-  args: CreateOwnerQrCodeArgs
-): Promise<QrPersistenceResult> {
+function isMissingLegacyTargetKind(error: QrSupabaseError): boolean {
+  if (error.code !== "42703") return false;
+  const text = `${error.message ?? ""}\n${error.details ?? ""}\n${error.hint ?? ""}`;
+  return /(?:\bcolumn\s+["']?target_kind["']?|\btarget_kind\s+column\b)[\s\S]{0,80}\bdoes not exist\b/i.test(
+    text
+  );
+}
+
+const CANONICAL_COLUMNS = [
+  "id",
+  "restaurant_id",
+  "label",
+  "target_kind",
+  "purpose_key",
+  "is_canonical",
+  "token_preview",
+  "token_ciphertext",
+  "token_nonce",
+  "token_key_version",
+  "target_path",
+  "status",
+  "scan_count",
+  "last_scanned_at",
+  "style_json",
+  "created_at",
+  "updated_at"
+].join(", ");
+
+const CANONICAL_UNRECOVERABLE: OwnerQrCanonicalError = {
+  ok: false,
+  code: "canonical-unrecoverable",
+  error: "Le QR canonique existe mais son URL ne peut pas etre recuperee."
+};
+
+function normalizePurposeKey(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  return normalized || "default";
+}
+
+function vaultEnvelope(row: AnyRow) {
+  const ciphertext = getString(
+    row,
+    ["token_ciphertext", "tokenCiphertext"],
+    ""
+  );
+  const nonce = getString(row, ["token_nonce", "tokenNonce"], "");
+  const keyVersion = getString(
+    row,
+    ["token_key_version", "tokenKeyVersion"],
+    ""
+  );
+  if (!ciphertext || !nonce || !keyVersion) return null;
+  return { ciphertext, nonce, keyVersion };
+}
+
+async function recoverCanonicalRecord(
+  row: AnyRow
+): Promise<OwnerQrCodeRecord | null> {
+  const record = mapQrRow(row);
+  const envelope = vaultEnvelope(row);
+  if (!envelope || !record.id || !record.restaurantId || !record.isCanonical) {
+    return null;
+  }
+  try {
+    const { decryptQrToken } = await import("@/lib/owner/qrTokenVault");
+    const token = decryptQrToken(envelope, {
+      qrId: record.id,
+      restaurantId: record.restaurantId,
+      targetKind: record.targetKind,
+      purposeKey: record.purposeKey
+    });
+    record.recoverable = true;
+    record.redirectUrl = buildQrRedirectUrl(token);
+    return record;
+  } catch {
+    return null;
+  }
+}
+
+function canonicalConfigFailure(
+  operation: "canonical-read" | "canonical-get-or-create" | "canonical-rotate",
+  reason: string
+): QrSupabaseFailure {
+  const code =
+    operation === "canonical-read"
+      ? "QR_CANONICAL_READ_FAILED"
+      : operation === "canonical-rotate"
+        ? "QR_CANONICAL_ROTATE_FAILED"
+        : "QR_CANONICAL_RPC_FAILED";
+  const incidentId = logQrSupabaseIncident({
+    operation,
+    code,
+    configReason: reason
+  });
+  return buildQrSupabaseFailure({ code, incidentId });
+}
+
+export async function getOwnerCanonicalQrCode(args: {
+  restaurantId: string;
+  targetKind: OwnerQrTargetKind;
+  purposeKey: string;
+}): Promise<OwnerQrCanonicalRead | QrSupabaseFailure> {
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return canonicalConfigFailure("canonical-read", admin.reason);
+
+  const purposeKey = normalizePurposeKey(args.purposeKey);
+  const { data, error } = await admin.client
+    .from(QR_TABLE)
+    .select(CANONICAL_COLUMNS)
+    .eq("restaurant_id", args.restaurantId)
+    .eq("target_kind", args.targetKind)
+    .eq("purpose_key", purposeKey)
+    .eq("is_canonical", true)
+    .maybeSingle();
+
+  if (error && !isSupabaseMiss(error)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "canonical-read",
+      code: "QR_CANONICAL_READ_FAILED",
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_CANONICAL_READ_FAILED",
+      incidentId
+    });
+  }
+  if (!data) return { found: false, recoverable: false, record: null };
+
+  const row = data as unknown as AnyRow;
+  const mapped = mapQrRow(row);
+  const recovered = await recoverCanonicalRecord(row);
+  return {
+    found: true,
+    recoverable: Boolean(recovered),
+    record: recovered ?? mapped
+  };
+}
+
+export async function getOrCreateOwnerQrCode(
+  args: CreateOwnerQrCodeArgs & { purposeKey: string }
+): Promise<CanonicalQrMutationResult | QrSupabaseFailure | { ok: false; error: string }> {
   const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath);
   const targetPath = sanitizeOwnerQrTargetPath(args.targetPath);
-  if (!targetPath) {
-    return { ok: false, error: "Chemin de destination invalide." };
+  if (
+    !args.restaurantId.trim() ||
+    !targetPath ||
+    !isOwnerQrTargetPathAllowed(targetKind, targetPath)
+  ) {
+    return { ok: false, error: "Destination QR invalide ou incompatible." };
   }
-  if (!isOwnerQrTargetPathAllowed(targetKind, targetPath)) {
-    return { ok: false, error: "Destination QR incompatible avec le type choisi." };
-  }
-
-  const style = normalizeOwnerQrStyle(args.style);
-  const label = (args.label || "QR menu").trim().slice(0, 120);
-  const admin = getSupabaseAdminClient();
-
-  // Persistent path: real qr_codes row, raw token returned once, only the hash stored.
-  if (admin.ok) {
-    const token = generateQrToken();
-    const tokenHash = hashQrTokenForStorage(token);
-    const insertRow = {
-      restaurant_id: args.restaurantId || null,
-      label,
-      token_hash: tokenHash,
-      token_preview: tokenPreview(token),
-      target_kind: targetKind,
-      target_path: targetPath,
-      style_json: style,
-      status: "active",
-      scan_count: 0
-    };
-
-    const { data, error } = await admin.client
-      .from(QR_TABLE)
-      .insert(insertRow)
-      .select("*")
-      .single();
-
-    if (error) {
-      const code = classifyQrCreatePersistenceFailure(error);
-      const incidentId = logQrSupabaseIncident({
-        operation: "create-insert",
-        code,
-        supabaseError: error
-      });
-      return buildQrSupabaseFailure({
-        code,
-        incidentId
-      });
+  const purposeKey = normalizePurposeKey(args.purposeKey);
+  const existing = await getOwnerCanonicalQrCode({
+    restaurantId: args.restaurantId,
+    targetKind,
+    purposeKey
+  });
+  if ("ok" in existing) return existing;
+  if (existing.found) {
+    if (!existing.recoverable || !existing.record?.redirectUrl) {
+      return CANONICAL_UNRECOVERABLE;
     }
-
-    const record = mapQrRow((data ?? insertRow) as AnyRow);
-    record.style = style;
-    record.targetKind = targetKind;
-    record.redirectUrl = buildQrRedirectUrl(token);
-    await markRestaurantQrReady(admin.client, args.restaurantId);
-    return { ok: true, record, token, persisted: true };
+    return {
+      ok: true,
+      created: false,
+      persisted: true,
+      record: existing.record
+    };
   }
 
-  const incidentId = logQrSupabaseIncident({
-    operation: "create-config",
-    code: "QR_CREATE_CONFIG_UNAVAILABLE",
-    configReason: admin.reason
-  });
-  return buildQrSupabaseFailure({
-    code: "QR_CREATE_CONFIG_UNAVAILABLE",
-    incidentId,
-    ...(targetKind === "menu" ? { fallbackEligible: true as const } : {})
-  });
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    return canonicalConfigFailure("canonical-get-or-create", admin.reason);
+  }
+  const id = randomUUID();
+  const token = generateQrToken();
+  const binding = {
+    qrId: id,
+    restaurantId: args.restaurantId,
+    targetKind,
+    purposeKey
+  };
+  let envelope;
+  try {
+    const { encryptQrToken } = await import("@/lib/owner/qrTokenVault");
+    envelope = encryptQrToken(token, binding);
+  } catch {
+    return canonicalConfigFailure(
+      "canonical-get-or-create",
+      "QR token vault unavailable."
+    );
+  }
+
+  const { data, error } = await admin.client.rpc(
+    "owner_get_or_create_canonical_qr",
+    {
+      p_id: id,
+      p_restaurant_id: args.restaurantId,
+      p_label: (args.label || "QR menu").trim().slice(0, 120),
+      p_target_kind: targetKind,
+      p_purpose_key: purposeKey,
+      p_target_path: targetPath,
+      p_token_hash: hashQrTokenForStorage(token),
+      p_token_preview: tokenPreview(token),
+      p_token_ciphertext: envelope.ciphertext,
+      p_token_nonce: envelope.nonce,
+      p_token_key_version: envelope.keyVersion,
+      p_style_json: normalizeOwnerQrStyle(args.style)
+    }
+  );
+  if (error) {
+    const code = classifyQrCreatePersistenceFailure(error);
+    const incidentId = logQrSupabaseIncident({
+      operation: "canonical-get-or-create",
+      code,
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({ code, incidentId });
+  }
+
+  const row = firstRpcRow(data);
+  const record = row
+    ? await recoverCanonicalRecord({ ...row, is_canonical: true })
+    : null;
+  if (!record) return CANONICAL_UNRECOVERABLE;
+  return {
+    ok: true,
+    created: row?.created === true,
+    persisted: true,
+    record
+  };
 }
 
 export async function createOwnerQrCode(
-  args: CreateOwnerQrCodeArgs
-): Promise<QrPersistenceResult> {
-  return createOwnerQrCodeWithDependencies(args, {
-    persistQrCode: persistOwnerQrCode,
-    createSignedMenuFallback: ({ targetPath, restaurantId }) => {
-      if (
-        !canUseSignedQrFallback() ||
-        !isOwnerQrTargetPathAllowed("menu", targetPath)
-      ) {
-        return {
-          ok: false,
-          error:
-            "Le QR fallback signe requiert une destination menu valide et une configuration autorisee."
-        };
-      }
-      return createSignedQrToken({ targetPath, restaurantId });
-    }
+  args: CreateOwnerQrCodeArgs & { purposeKey?: string }
+) {
+  return getOrCreateOwnerQrCode({
+    ...args,
+    purposeKey: args.purposeKey ?? "default"
   });
 }
 
 export async function updateOwnerQrCode(
   id: string,
-  patch: { status?: OwnerQrCodeStatus; style?: unknown; label?: string }
-): Promise<{ ok: true; record: OwnerQrCodeRecord } | QrSupabaseFailure | { ok: false; error: string }> {
+  patch: { style?: unknown; label?: string }
+): Promise<{ ok: true; record: OwnerQrCodeRecord } | OwnerQrCanonicalError | QrSupabaseFailure | { ok: false; error: string }> {
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
     const incidentId = logQrSupabaseIncident({
@@ -327,21 +444,36 @@ export async function updateOwnerQrCode(
     });
   }
 
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.status && QR_STATUS_VALUES.has(patch.status)) {
-    update.status = patch.status;
+  const { data: currentRow, error: readError } = await admin.client
+    .from(QR_TABLE)
+    .select(CANONICAL_COLUMNS)
+    .eq("id", id)
+    .eq("is_canonical", true)
+    .maybeSingle();
+  if (readError || !currentRow) {
+    return { ok: false, error: "QR canonique introuvable." };
   }
+  const current = await recoverCanonicalRecord(
+    currentRow as unknown as AnyRow
+  );
+  if (!current) return CANONICAL_UNRECOVERABLE;
+
+  const update: Record<string, unknown> = {};
   if (patch.style !== undefined) {
     update.style_json = normalizeOwnerQrStyle(patch.style);
   }
   if (typeof patch.label === "string" && patch.label.trim()) {
     update.label = patch.label.trim().slice(0, 120);
   }
+  if (Object.keys(update).length === 0) {
+    return { ok: false, error: "Une etiquette ou un style non vide est requis." };
+  }
 
   const { data, error } = await admin.client
     .from(QR_TABLE)
     .update(update)
     .eq("id", id)
+    .eq("is_canonical", true)
     .select("*")
     .single();
 
@@ -360,7 +492,102 @@ export async function updateOwnerQrCode(
     return { ok: false, error: "QR introuvable ou non modifiable." };
   }
 
-  return { ok: true, record: mapQrRow(data as AnyRow) };
+  const record = await recoverCanonicalRecord(data as AnyRow);
+  return record ? { ok: true, record } : CANONICAL_UNRECOVERABLE;
+}
+
+export async function rotateOwnerQrCode(
+  id: string,
+  args: { confirmed: true }
+): Promise<CanonicalQrRotationResult | QrSupabaseFailure | { ok: false; error: string }> {
+  if (args.confirmed !== true) {
+    return { ok: false, error: "Confirmation de rotation requise." };
+  }
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) return canonicalConfigFailure("canonical-rotate", admin.reason);
+
+  const { data: previousRow, error: readError } = await admin.client
+    .from(QR_TABLE)
+    .select(CANONICAL_COLUMNS)
+    .eq("id", id)
+    .eq("is_canonical", true)
+    .maybeSingle();
+  if (readError || !previousRow) {
+    return { ok: false, error: "QR canonique introuvable." };
+  }
+
+  const previousData = previousRow as unknown as AnyRow;
+  const previous = mapQrRow(previousData);
+  const newId = randomUUID();
+  const token = generateQrToken();
+  const binding = {
+    qrId: newId,
+    restaurantId: previous.restaurantId,
+    targetKind: previous.targetKind,
+    purposeKey: previous.purposeKey
+  };
+  let envelope;
+  try {
+    const { encryptQrToken } = await import("@/lib/owner/qrTokenVault");
+    envelope = encryptQrToken(token, binding);
+  } catch {
+    return canonicalConfigFailure("canonical-rotate", "QR token vault unavailable.");
+  }
+
+  const { data, error } = await admin.client.rpc("owner_rotate_canonical_qr", {
+    p_previous_id: id,
+    p_new_id: newId,
+    p_restaurant_id: previous.restaurantId,
+    p_target_kind: previous.targetKind,
+    p_purpose_key: previous.purposeKey,
+    p_label: previous.label,
+    p_target_path: previous.targetPath,
+    p_token_hash: hashQrTokenForStorage(token),
+    p_token_preview: tokenPreview(token),
+    p_token_ciphertext: envelope.ciphertext,
+    p_token_nonce: envelope.nonce,
+    p_token_key_version: envelope.keyVersion,
+    p_style_json: previous.style,
+    p_confirm: true
+  });
+  if (error) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "canonical-rotate",
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      incidentId
+    });
+  }
+
+  const rows = Array.isArray(data) ? data : [data];
+  const currentRow =
+    rows.find(
+      (row) => getString(row as unknown as AnyRow, ["id"], "") === newId
+    ) ??
+    rows.find(
+      (row) => (row as unknown as AnyRow)?.is_canonical === true
+    ) ??
+    firstRpcRow(data);
+  const current = currentRow
+    ? await recoverCanonicalRecord({
+        ...(currentRow as unknown as AnyRow),
+        is_canonical: true
+      })
+    : null;
+  if (!current) return CANONICAL_UNRECOVERABLE;
+  previous.isCanonical = false;
+  const recoveredPrevious = await recoverCanonicalRecord({
+    ...previousData,
+    is_canonical: true
+  });
+  if (recoveredPrevious) {
+    previous.recoverable = true;
+  }
+  delete previous.redirectUrl;
+  return { ok: true, previous, current };
 }
 
 export type { QrResolution } from "@/lib/owner/qrResolutionCore";
@@ -445,12 +672,26 @@ async function resolvePersistedQrToken(
   if (!metadataRpcUnavailable) return { ok: false };
 
   for (const tokenHash of tokenHashes) {
-    const { data: row, error: selectError } = await client
+    const initial = await client
       .from(QR_TABLE)
       .select("id, restaurant_id, target_kind, target_path, status")
       .eq("token_hash", tokenHash)
       .limit(1)
       .maybeSingle();
+    let row: AnyRow | null = initial.data as unknown as AnyRow | null;
+    let selectError = initial.error;
+    let oldSchemaWithoutTargetKind = false;
+    if (selectError && isMissingLegacyTargetKind(selectError)) {
+      oldSchemaWithoutTargetKind = true;
+      const retry = await client
+        .from(QR_TABLE)
+        .select("id, restaurant_id, target_path, status")
+        .eq("token_hash", tokenHash)
+        .limit(1)
+        .maybeSingle();
+      row = retry.data as unknown as AnyRow | null;
+      selectError = retry.error;
+    }
     if (selectError) {
       logQrSupabaseIncident({
         operation: "resolve-legacy-select",
@@ -460,25 +701,23 @@ async function resolvePersistedQrToken(
       return { ok: false };
     }
     if (!row) continue;
-    const rawTargetKind = getString(
-      row as AnyRow,
-      ["target_kind", "targetKind"],
-      ""
-    );
+    const rawTargetKind = oldSchemaWithoutTargetKind
+      ? "menu"
+      : getString(row, ["target_kind", "targetKind"], "");
     if (rawTargetKind !== "menu" && rawTargetKind !== "admin") {
       return { ok: false };
     }
     const targetKind: OwnerQrTargetKind = rawTargetKind;
     const metadata = {
-      qrId: getString(row as AnyRow, ["id"], ""),
+      qrId: getString(row, ["id"], ""),
       restaurantId: getString(
-        row as AnyRow,
+        row,
         ["restaurant_id", "restaurantId"],
         ""
       ),
-      status: getString(row as AnyRow, ["status"], ""),
+      status: getString(row, ["status"], ""),
       targetKind,
-      targetPath: getString(row as AnyRow, ["target_path", "targetPath"], "")
+      targetPath: getString(row, ["target_path", "targetPath"], "")
     };
     if (!resolveQrRowMetadata(metadata).ok) return { ok: false };
 

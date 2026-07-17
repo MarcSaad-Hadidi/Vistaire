@@ -8,10 +8,56 @@ import {
   sanitizeOwnerQrTargetPath,
   type OwnerQrTargetKind
 } from "@/lib/owner/menuUrlCore";
-import { createOwnerQrCode } from "@/lib/owner/qrStore";
+import {
+  getOrCreateOwnerQrCode,
+  getOwnerCanonicalQrCode
+} from "@/lib/owner/qrStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0"
+};
+
+function failureStatus(result: object): number {
+  return "code" in result && result.code === "canonical-unrecoverable" ? 409 : 503;
+}
+
+export async function GET(request: NextRequest) {
+  const owner = await requireVistaireOwnerApi();
+  if (!owner.ok) return owner.response;
+
+  const url = new URL(request.url);
+  const restaurantId = (url.searchParams.get("restaurantId") ?? "").slice(0, 80);
+  const targetKind = url.searchParams.get("targetKind");
+  const purposeKey = url.searchParams.get("purposeKey") ?? "default";
+  if (
+    !restaurantId ||
+    (targetKind !== "menu" && targetKind !== "admin")
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "Restaurant et type QR requis." },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const read = await getOwnerCanonicalQrCode({
+    restaurantId,
+    targetKind,
+    purposeKey
+  });
+  if ("ok" in read && read.ok === false) {
+    return NextResponse.json(
+      { ok: false, error: read.error, code: read.code, incidentId: read.incidentId },
+      { status: 503, headers: NO_STORE_HEADERS }
+    );
+  }
+  return NextResponse.json(
+    { ok: true, ...read },
+    { headers: NO_STORE_HEADERS }
+  );
+}
 
 export async function POST(request: NextRequest) {
   const owner = await requireVistaireOwnerApi();
@@ -44,9 +90,12 @@ export async function POST(request: NextRequest) {
     candidate.targetKind === "menu" || candidate.targetKind === "admin"
       ? candidate.targetKind
       : null;
+  const purposeKey =
+    typeof candidate.purposeKey === "string" ? candidate.purposeKey : "default";
   const sanitizedTargetPath = sanitizeOwnerQrTargetPath(targetPath);
 
   if (
+    !restaurantId ||
     !targetKind ||
     !sanitizedTargetPath ||
     !isOwnerQrTargetPathAllowed(targetKind, sanitizedTargetPath)
@@ -57,10 +106,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const created = await createOwnerQrCode({
+  const created = await getOrCreateOwnerQrCode({
     restaurantId,
     label,
     targetKind,
+    purposeKey,
     targetPath: sanitizedTargetPath,
     style: candidate.style
   });
@@ -71,22 +121,26 @@ export async function POST(request: NextRequest) {
         ? { code: created.code, incidentId: created.incidentId }
         : {};
     return NextResponse.json(
-      { ok: false, error: created.error, ...diagnostic },
-      { status: 503 }
+      {
+        ok: false,
+        error: created.error,
+        ...("code" in created ? { code: created.code } : {}),
+        ...diagnostic
+      },
+      { status: failureStatus(created) }
     );
   }
 
-  // The raw token is returned ONCE so the client can render/encode the QR.
   return NextResponse.json(
     {
       ok: true,
-      token: created.token,
+      created: created.created,
       redirectUrl: created.record.redirectUrl,
       targetPath: created.record.targetPath,
       targetKind: created.record.targetKind,
       persisted: created.persisted,
       record: created.record
     },
-    { status: 201 }
+    { status: created.created ? 201 : 200 }
   );
 }

@@ -4,12 +4,11 @@ import {
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
 import { updateOwnerQrCode } from "@/lib/owner/qrStore";
-import type { OwnerQrCodeStatus } from "@/lib/owner/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STATUS_VALUES: OwnerQrCodeStatus[] = ["active", "paused", "archived"];
+const PATCH_ALLOWED_KEYS = new Set(["label", "style"]);
 
 export async function PATCH(
   request: NextRequest,
@@ -33,21 +32,45 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "JSON invalide." }, { status: 400 });
   }
 
-  const candidate = (body ?? {}) as Record<string, unknown>;
-  const status =
-    typeof candidate.status === "string" &&
-    STATUS_VALUES.includes(candidate.status as OwnerQrCodeStatus)
-      ? (candidate.status as OwnerQrCodeStatus)
-      : undefined;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json(
+      { ok: false, error: "Formulaire invalide." },
+      { status: 400 }
+    );
+  }
+  const candidate = body as Record<string, unknown>;
+  const keys = Object.keys(candidate);
+  if (
+    Object.keys(candidate).length === 0 ||
+    keys.some((key) => !PATCH_ALLOWED_KEYS.has(key)) ||
+    (candidate.label !== undefined &&
+      (typeof candidate.label !== "string" || !candidate.label.trim())) ||
+    (candidate.style !== undefined &&
+      (!candidate.style ||
+        typeof candidate.style !== "object" ||
+        Array.isArray(candidate.style) ||
+        Object.keys(candidate.style).length === 0))
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "Seuls label et style non vides sont acceptes." },
+      { status: 400 }
+    );
+  }
 
   const updated = await updateOwnerQrCode(id, {
-    ...(status ? { status } : {}),
     ...(candidate.style !== undefined ? { style: candidate.style } : {}),
     ...(typeof candidate.label === "string" ? { label: candidate.label } : {})
   });
 
   if (!updated.ok) {
-    return NextResponse.json({ ok: false, error: updated.error }, { status: 503 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: updated.error,
+        ...("code" in updated ? { code: updated.code } : {})
+      },
+      { status: "code" in updated && updated.code === "canonical-unrecoverable" ? 409 : 503 }
+    );
   }
 
   return NextResponse.json({ ok: true, record: updated.record });
