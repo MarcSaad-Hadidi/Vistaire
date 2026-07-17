@@ -475,20 +475,42 @@ begin
   values (
     p_new_id,
     p_restaurant_id,
-    pg_catalog.btrim(p_label),
+    v_previous.label,
     v_target_kind,
     v_purpose_key,
-    p_target_path,
+    v_previous.target_path,
     p_token_hash,
     p_token_preview,
     p_token_ciphertext,
     p_token_nonce,
     p_token_key_version,
-    p_style_json,
+    v_previous.style_json,
     'active',
     true
   )
   returning * into v_current;
+
+  return query
+  select
+    'previous',
+    false,
+    v_previous.id,
+    v_previous.restaurant_id,
+    v_previous.label,
+    v_previous.target_kind,
+    v_previous.purpose_key,
+    v_previous.target_path,
+    v_previous.token_hash,
+    v_previous.token_preview,
+    v_previous.token_ciphertext,
+    v_previous.token_nonce,
+    v_previous.token_key_version,
+    v_previous.style_json,
+    v_previous.status,
+    v_previous.scan_count,
+    v_previous.last_scanned_at,
+    v_previous.created_at,
+    v_previous.updated_at;
 
   return query
   select

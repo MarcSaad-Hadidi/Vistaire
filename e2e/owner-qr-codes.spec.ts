@@ -68,12 +68,27 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
   const health = installPageHealth(page);
-  await page.route("**/api/owner/qr-codes", async (route) => {
+  await page.route("**/api/owner/qr-codes**", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          found: false,
+          recoverable: false,
+          record: null
+        })
+      });
+      return;
+    }
     const body = route.request().postDataJSON() as {
       targetKind?: string;
       targetPath?: string;
       label?: string;
       restaurantId?: string;
+      purposeKey?: string;
+      style?: Record<string, unknown>;
     };
     const targetKind = body.targetKind === "admin" ? "admin" : "menu";
     const targetPath =
@@ -86,18 +101,22 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
-        token: `e2e-${targetKind}-token`,
         redirectUrl: `/q/e2e-${targetKind}-token`,
         targetPath,
         targetKind,
-        persisted: false,
+        persisted: true,
         record: {
           id: `e2e-${targetKind}`,
           restaurantId: body.restaurantId ?? "e2e-restaurant",
           label: body.label ?? "QR e2e",
           targetKind,
+          purposeKey: body.purposeKey ?? "default",
           targetPath,
-          redirectUrl: `/q/e2e-${targetKind}-token`
+          redirectUrl: `/q/e2e-${targetKind}-token`,
+          persisted: true,
+          recoverable: true,
+          tokenPreview: "…token",
+          style: body.style ?? {}
         }
       })
     });
@@ -108,7 +127,9 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
 
   await expect(page.locator("select").first()).toBeVisible();
   await expect(page.getByRole("button", { name: /QR menu public/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /QR admin owner/i })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /QR dashboard restaurant/i })
+  ).toBeVisible();
   await expect(page.getByText("Destination exacte")).toBeVisible();
   await expect(page.getByText("Logo au centre")).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -123,13 +144,13 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
   await page.getByRole("button", { name: /Sauvegarder \/ Generer QR/i }).click();
   await expect(page.getByRole("status")).toContainText(/non persiste|QR securise enregistre/);
 
-  await page.getByRole("button", { name: /QR admin owner/i }).click();
-  await expect(page.getByText("Interne owner - protege").first()).toBeVisible();
-  await expect(page.getByText("/owner/restaurants/").first()).toBeVisible();
+  await page.getByRole("button", { name: /QR dashboard restaurant/i }).click();
+  await expect(page.getByText("Interne restaurant").first()).toBeVisible();
+  await expect(page.getByText("/admin", { exact: true }).first()).toBeVisible();
   await page.locator("select").nth(1).selectOption("none");
   await page.getByRole("button", { name: /Sauvegarder \/ Generer QR/i }).click();
   await expect(page.getByRole("status")).toContainText(
-    /Type admin; destination \/owner\/restaurants/
+    /Type admin; destination \/admin/
   );
 
   for (const width of [390, 430]) {

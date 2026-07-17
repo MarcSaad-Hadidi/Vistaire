@@ -119,20 +119,23 @@ test("keeps logo QR styles scannable with high error correction", () => {
   );
 });
 
-test("signed QR fallback is dev-gated and menu-target validated", async () => {
+test("signed fallback remains dev-gated but canonical creation never uses it", async () => {
   const tokenSource = await readFile("lib/owner/qrTokens.ts", "utf8");
   const storeSource = await readFile("lib/owner/qrStore.ts", "utf8");
 
   assert.match(tokenSource, /canUseSignedQrFallback/);
   assert.match(tokenSource, /process\.env\.NODE_ENV !== "production"/);
-  assert.match(storeSource, /canUseSignedQrFallback/);
-  assert.match(storeSource, /isOwnerQrTargetPathAllowed\("menu", targetPath\)/);
+  assert.doesNotMatch(storeSource, /canUseSignedQrFallback/);
+  assert.match(
+    storeSource,
+    /isOwnerQrTargetPathAllowed\(targetKind, targetPath\)/
+  );
   const createOwnerQrCodeBody = storeSource.match(
     /export async function createOwnerQrCode\([\s\S]*?\r?\n}\r?\n\r?\nexport async function updateOwnerQrCode/
   )?.[0] ?? "";
   assert.match(
     createOwnerQrCodeBody,
-    /return\s+createOwnerQrCodeWithDependencies\(args,\s*\{[\s\S]*persistQrCode:[\s\S]*createSignedMenuFallback:/
+    /return getOrCreateOwnerQrCode\(\{[\s\S]*purposeKey: args\.purposeKey \?\? "default"/
   );
 });
 

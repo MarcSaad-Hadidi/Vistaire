@@ -11,6 +11,8 @@ test("canonical store consumes the planned vault and RPC interfaces without secr
 
   assert.match(store, /\bencryptQrToken\b/);
   assert.match(store, /\bdecryptQrToken\b/);
+  assert.match(store, /configuration-missing/);
+  assert.match(store, /token-unrecoverable/);
   assert.match(store, /owner_get_or_create_canonical_qr/);
   assert.match(store, /owner_rotate_canonical_qr/);
   assert.doesNotMatch(store, /\.upsert\s*\(/);
@@ -66,7 +68,7 @@ test("owner rotation is a distinct confirmed mutation", () => {
   assert.match(route, /candidate\.confirmed\s*!==\s*true/);
   assert.match(route, /rotateOwnerQrCode/);
   assert.doesNotMatch(route, /\btoken\s*:/);
-  assert.match(store, /delete previous\.redirectUrl/);
+  assert.match(store, /delete previousResponse\.redirectUrl/);
 });
 
 test("canonical public types expose recovery and never expose a raw token result", () => {

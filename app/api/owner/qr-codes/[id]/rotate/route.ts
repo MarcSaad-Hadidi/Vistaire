@@ -42,23 +42,29 @@ export async function POST(
 
   const rotated = await rotateOwnerQrCode(id, { confirmed: true });
   if (!rotated.ok) {
+    const status =
+      "code" in rotated && rotated.code === "canonical-unrecoverable"
+        ? 409
+        : "code" in rotated && rotated.code === "not-found"
+          ? 404
+          : "code" in rotated && rotated.code === "invalid-input"
+            ? 400
+            : 503;
     return NextResponse.json(
       {
         ok: false,
         error: rotated.error,
         ...("code" in rotated ? { code: rotated.code } : {})
       },
-      {
-        status:
-          "code" in rotated && rotated.code === "canonical-unrecoverable"
-            ? 409
-            : 503
-      }
+      { status }
     );
   }
-  return NextResponse.json({
-    ok: true,
-    previous: rotated.previous,
-    current: rotated.current
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      previous: rotated.previous,
+      current: rotated.current
+    },
+    { status: 201 }
+  );
 }

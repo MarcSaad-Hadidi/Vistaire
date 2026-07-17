@@ -120,6 +120,12 @@ export type OwnerQrCanonicalError = {
   code: "canonical-unrecoverable";
 };
 
+export type OwnerQrRequestError = {
+  ok: false;
+  error: string;
+  code: "not-found" | "invalid-input";
+};
+
 export type CanonicalQrMutationResult =
   | {
       ok: true;

@@ -23,6 +23,7 @@ import {
   classifyQrCreatePersistenceFailure,
   redactQrIncidentLogText,
   type CreateOwnerQrCodeArgs,
+  type QrPersistenceResult,
   type QrSupabaseFailure,
   type QrSupabaseFailureCode
 } from "@/lib/owner/qrCreationCore";
@@ -45,6 +46,7 @@ import type {
   OwnerQrCodeStatus,
   OwnerQrCanonicalError,
   OwnerQrCanonicalRead,
+  OwnerQrRequestError,
   OwnerQrStyle,
   OwnerQrTargetKind
 } from "@/lib/owner/types";
@@ -243,11 +245,17 @@ function vaultEnvelope(row: AnyRow) {
 
 async function recoverCanonicalRecord(
   row: AnyRow
-): Promise<OwnerQrCodeRecord | null> {
+): Promise<
+  | { ok: true; record: OwnerQrCodeRecord }
+  | {
+      ok: false;
+      code: "configuration-missing" | "token-unrecoverable";
+    }
+> {
   const record = mapQrRow(row);
   const envelope = vaultEnvelope(row);
   if (!envelope || !record.id || !record.restaurantId || !record.isCanonical) {
-    return null;
+    return { ok: false, code: "token-unrecoverable" };
   }
   try {
     const { decryptQrToken } = await import("@/lib/owner/qrTokenVault");
@@ -259,9 +267,18 @@ async function recoverCanonicalRecord(
     });
     record.recoverable = true;
     record.redirectUrl = buildQrRedirectUrl(token);
-    return record;
-  } catch {
-    return null;
+    return { ok: true, record };
+  } catch (error) {
+    return {
+      ok: false,
+      code:
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "configuration-missing"
+          ? "configuration-missing"
+          : "token-unrecoverable"
+    };
   }
 }
 
@@ -317,10 +334,16 @@ export async function getOwnerCanonicalQrCode(args: {
   const row = data as unknown as AnyRow;
   const mapped = mapQrRow(row);
   const recovered = await recoverCanonicalRecord(row);
+  if (!recovered.ok && recovered.code === "configuration-missing") {
+    return canonicalConfigFailure(
+      "canonical-read",
+      "QR token vault configuration is unavailable."
+    );
+  }
   return {
     found: true,
-    recoverable: Boolean(recovered),
-    record: recovered ?? mapped
+    recoverable: recovered.ok,
+    record: recovered.ok ? recovered.record : mapped
   };
 }
 
@@ -371,10 +394,15 @@ export async function getOrCreateOwnerQrCode(
   try {
     const { encryptQrToken } = await import("@/lib/owner/qrTokenVault");
     envelope = encryptQrToken(token, binding);
-  } catch {
+  } catch (error) {
     return canonicalConfigFailure(
       "canonical-get-or-create",
-      "QR token vault unavailable."
+      error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "configuration-missing"
+        ? "QR token vault configuration is unavailable."
+        : "QR token vault encryption failed."
     );
   }
 
@@ -406,21 +434,29 @@ export async function getOrCreateOwnerQrCode(
   }
 
   const row = firstRpcRow(data);
-  const record = row
+  const recovered = row
     ? await recoverCanonicalRecord({ ...row, is_canonical: true })
     : null;
-  if (!record) return CANONICAL_UNRECOVERABLE;
+  if (!recovered) return CANONICAL_UNRECOVERABLE;
+  if (!recovered.ok) {
+    return recovered.code === "configuration-missing"
+      ? canonicalConfigFailure(
+          "canonical-get-or-create",
+          "QR token vault configuration is unavailable."
+        )
+      : CANONICAL_UNRECOVERABLE;
+  }
   return {
     ok: true,
     created: row?.created === true,
     persisted: true,
-    record
+    record: recovered.record
   };
 }
 
 export async function createOwnerQrCode(
   args: CreateOwnerQrCodeArgs & { purposeKey?: string }
-) {
+): Promise<QrPersistenceResult> {
   return getOrCreateOwnerQrCode({
     ...args,
     purposeKey: args.purposeKey ?? "default"
@@ -430,7 +466,7 @@ export async function createOwnerQrCode(
 export async function updateOwnerQrCode(
   id: string,
   patch: { style?: unknown; label?: string }
-): Promise<{ ok: true; record: OwnerQrCodeRecord } | OwnerQrCanonicalError | QrSupabaseFailure | { ok: false; error: string }> {
+): Promise<{ ok: true; record: OwnerQrCodeRecord } | OwnerQrCanonicalError | OwnerQrRequestError | QrSupabaseFailure> {
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
     const incidentId = logQrSupabaseIncident({
@@ -450,13 +486,28 @@ export async function updateOwnerQrCode(
     .eq("id", id)
     .eq("is_canonical", true)
     .maybeSingle();
-  if (readError || !currentRow) {
-    return { ok: false, error: "QR canonique introuvable." };
+  if (readError && !isSupabaseMiss(readError)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "update",
+      code: "QR_UPDATE_FAILED",
+      supabaseError: readError
+    });
+    return buildQrSupabaseFailure({ code: "QR_UPDATE_FAILED", incidentId });
+  }
+  if (!currentRow) {
+    return { ok: false, code: "not-found", error: "QR canonique introuvable." };
   }
   const current = await recoverCanonicalRecord(
     currentRow as unknown as AnyRow
   );
-  if (!current) return CANONICAL_UNRECOVERABLE;
+  if (!current.ok) {
+    return current.code === "configuration-missing"
+      ? canonicalConfigFailure(
+          "canonical-read",
+          "QR token vault configuration is unavailable."
+        )
+      : CANONICAL_UNRECOVERABLE;
+  }
 
   const update: Record<string, unknown> = {};
   if (patch.style !== undefined) {
@@ -466,7 +517,11 @@ export async function updateOwnerQrCode(
     update.label = patch.label.trim().slice(0, 120);
   }
   if (Object.keys(update).length === 0) {
-    return { ok: false, error: "Une etiquette ou un style non vide est requis." };
+    return {
+      ok: false,
+      code: "invalid-input",
+      error: "Une etiquette ou un style non vide est requis."
+    };
   }
 
   const { data, error } = await admin.client
@@ -489,19 +544,35 @@ export async function updateOwnerQrCode(
     });
   }
   if (error || !data) {
-    return { ok: false, error: "QR introuvable ou non modifiable." };
+    return {
+      ok: false,
+      code: "not-found",
+      error: "QR introuvable ou non modifiable."
+    };
   }
 
   const record = await recoverCanonicalRecord(data as AnyRow);
-  return record ? { ok: true, record } : CANONICAL_UNRECOVERABLE;
+  if (!record.ok) {
+    return record.code === "configuration-missing"
+      ? canonicalConfigFailure(
+          "canonical-read",
+          "QR token vault configuration is unavailable."
+        )
+      : CANONICAL_UNRECOVERABLE;
+  }
+  return { ok: true, record: record.record };
 }
 
 export async function rotateOwnerQrCode(
   id: string,
   args: { confirmed: true }
-): Promise<CanonicalQrRotationResult | QrSupabaseFailure | { ok: false; error: string }> {
+): Promise<CanonicalQrRotationResult | OwnerQrRequestError | QrSupabaseFailure> {
   if (args.confirmed !== true) {
-    return { ok: false, error: "Confirmation de rotation requise." };
+    return {
+      ok: false,
+      code: "invalid-input",
+      error: "Confirmation de rotation requise."
+    };
   }
   const admin = getSupabaseAdminClient();
   if (!admin.ok) return canonicalConfigFailure("canonical-rotate", admin.reason);
@@ -512,8 +583,19 @@ export async function rotateOwnerQrCode(
     .eq("id", id)
     .eq("is_canonical", true)
     .maybeSingle();
-  if (readError || !previousRow) {
-    return { ok: false, error: "QR canonique introuvable." };
+  if (readError && !isSupabaseMiss(readError)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "canonical-rotate",
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      supabaseError: readError
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      incidentId
+    });
+  }
+  if (!previousRow) {
+    return { ok: false, code: "not-found", error: "QR canonique introuvable." };
   }
 
   const previousData = previousRow as unknown as AnyRow;
@@ -530,8 +612,16 @@ export async function rotateOwnerQrCode(
   try {
     const { encryptQrToken } = await import("@/lib/owner/qrTokenVault");
     envelope = encryptQrToken(token, binding);
-  } catch {
-    return canonicalConfigFailure("canonical-rotate", "QR token vault unavailable.");
+  } catch (error) {
+    return canonicalConfigFailure(
+      "canonical-rotate",
+      error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "configuration-missing"
+        ? "QR token vault configuration is unavailable."
+        : "QR token vault encryption failed."
+    );
   }
 
   const { data, error } = await admin.client.rpc("owner_rotate_canonical_qr", {
@@ -578,16 +668,33 @@ export async function rotateOwnerQrCode(
       })
     : null;
   if (!current) return CANONICAL_UNRECOVERABLE;
-  previous.isCanonical = false;
+  if (!current.ok) {
+    return current.code === "configuration-missing"
+      ? canonicalConfigFailure(
+          "canonical-rotate",
+          "QR token vault configuration is unavailable."
+        )
+      : CANONICAL_UNRECOVERABLE;
+  }
+  const previousResultRow = rows.find(
+    (row) => getString(row as unknown as AnyRow, ["id"], "") === id
+  );
+  const previousResponseData = previousResultRow
+    ? (previousResultRow as unknown as AnyRow)
+    : previousData;
+  const previousResponse = mapQrRow({
+    ...previousResponseData,
+    is_canonical: false
+  });
   const recoveredPrevious = await recoverCanonicalRecord({
-    ...previousData,
+    ...previousResponseData,
     is_canonical: true
   });
-  if (recoveredPrevious) {
-    previous.recoverable = true;
+  if (recoveredPrevious.ok) {
+    previousResponse.recoverable = true;
   }
-  delete previous.redirectUrl;
-  return { ok: true, previous, current };
+  delete previousResponse.redirectUrl;
+  return { ok: true, previous: previousResponse, current: current.record };
 }
 
 export type { QrResolution } from "@/lib/owner/qrResolutionCore";

@@ -404,12 +404,28 @@ export function createQrSupabaseFixture(options = {}) {
       };
     }
 
+    if (typeof options.beforeCanonicalRotation === "function") {
+      options.beforeCanonicalRotation(previous);
+    }
     previous.is_canonical = false;
     const inserted = insertCanonicalCandidate({
       ...params,
-      p_id: params.p_new_id
+      p_id: params.p_new_id,
+      p_label: previous.label,
+      p_target_path: previous.target_path,
+      p_style_json: previous.style_json
     });
-    return inserted;
+    if (inserted.error) return inserted;
+    return {
+      data: [
+        {
+          ...canonicalRpcRow(previous, false),
+          result_status: "previous"
+        },
+        ...inserted.data
+      ],
+      error: null
+    };
   }
 
   function matchingRows(filters) {
@@ -765,9 +781,17 @@ export function createQrSupabaseFixture(options = {}) {
         ...candidateParams(candidate),
         p_confirm: confirm
       });
-      return ownerResult(response);
+      if (response.error) return ownerResult(response);
+      return ownerResult({
+        ...response,
+        data: response.data.filter((row) => row.id === candidate.id)
+      });
     },
     install() {
+      process.env.VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION = "test-v1";
+      process.env.VISTAIRE_QR_TOKEN_KEY_RING = JSON.stringify({
+        "test-v1": Buffer.alloc(32, 7).toString("base64url")
+      });
       globalThis.__OWNER_QR_TEST_ADMIN__ = { ok: true, client };
     },
     sanitizedRows() {
@@ -815,7 +839,7 @@ function findNode(node, predicate) {
   return null;
 }
 
-export function createOwnerQrCustomizerHarness() {
+export function createOwnerQrCustomizerHarness(options = {}) {
   const source = readFileSync(
     new URL("../../components/owner/OwnerQrCustomizer.tsx", import.meta.url),
     "utf8"
@@ -831,11 +855,38 @@ export function createOwnerQrCustomizerHarness() {
   }).outputText;
 
   const states = [];
+  const refs = [];
+  const effects = [];
   let cursor = 0;
+  let refCursor = 0;
+  let effectCursor = 0;
   const react = {
     useCallback: (fn) => fn,
-    useEffect: () => {},
+    useEffect(fn, dependencies) {
+      const index = effectCursor++;
+      const previous = effects[index];
+      const changed =
+        !previous ||
+        !dependencies ||
+        !previous.dependencies ||
+        dependencies.length !== previous.dependencies.length ||
+        dependencies.some(
+          (dependency, dependencyIndex) =>
+            !Object.is(dependency, previous.dependencies[dependencyIndex])
+        );
+      effects[index] = {
+        callback: fn,
+        cleanup: previous?.cleanup,
+        dependencies,
+        pending: changed || previous?.pending === true
+      };
+    },
     useMemo: (fn) => fn(),
+    useRef(initial) {
+      const index = refCursor++;
+      if (!(index in refs)) refs[index] = { current: initial };
+      return refs[index];
+    },
     useState(initial) {
       const index = cursor++;
       if (!(index in states)) {
@@ -875,6 +926,7 @@ export function createOwnerQrCustomizerHarness() {
     OWNER_QR_PRESETS: [],
     QR_MIN_SAFE_CONTRAST: 4.5,
     monogramFromName: () => "V",
+    normalizeOwnerQrStyle: (value) => ({ ...defaultStyle, ...value }),
     qrContrastRatio: () => 10
   };
   const compiledModule = { exports: {} };
@@ -885,6 +937,7 @@ export function createOwnerQrCustomizerHarness() {
     Image: class {},
     JSON,
     URL,
+    URLSearchParams,
     console,
     exports: compiledModule.exports,
     fetch: async (url, init) => {
@@ -897,14 +950,31 @@ export function createOwnerQrCustomizerHarness() {
       return {
         ok: true,
         async json() {
+          if (method === "GET") {
+            const record = options.canonicalRecord ?? null;
+            return {
+              ok: true,
+              found: Boolean(record),
+              recoverable: Boolean(record),
+              record
+            };
+          }
           if (method === "PATCH") {
             return {
               ok: true,
               record: {
                 id: "qr-observable-1",
-                redirectUrl: "",
+                redirectUrl: "/q/opaque-fixture-token",
                 targetPath: "/admin",
-                targetKind: "admin"
+                targetKind: "admin",
+                purposeKey: "default",
+                persisted: true,
+                recoverable: true,
+                tokenPreview: "…token",
+                style: {
+                  ...defaultStyle,
+                  foregroundColor: "#222222"
+                }
               }
             };
           }
@@ -919,7 +989,12 @@ export function createOwnerQrCustomizerHarness() {
               id: "qr-observable-1",
               redirectUrl: "/q/opaque-fixture-token",
               targetPath: "/admin",
-              targetKind: "admin"
+              targetKind: "admin",
+              purposeKey: "default",
+              persisted: true,
+              recoverable: true,
+              tokenPreview: "…token",
+              style: defaultStyle
             }
           };
         }
@@ -955,7 +1030,21 @@ export function createOwnerQrCustomizerHarness() {
 
   function render() {
     cursor = 0;
+    refCursor = 0;
+    effectCursor = 0;
     return Component(props);
+  }
+
+  async function flushEffects() {
+    render();
+    for (const effect of effects) {
+      if (!effect?.pending) continue;
+      if (typeof effect.cleanup === "function") effect.cleanup();
+      effect.pending = false;
+      effect.cleanup = effect.callback();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    render();
   }
 
   return {
@@ -963,16 +1052,21 @@ export function createOwnerQrCustomizerHarness() {
     renderedText() {
       return flattenText(render());
     },
+    async load() {
+      await flushEffects();
+    },
     async save() {
       const tree = render();
       const button = findNode(
         tree,
         (node) =>
           node.type === "button" &&
-          /Sauvegarder|Sauvegarde/.test(flattenText(node))
+          /Sauvegarder|Sauvegarde|Chargement du QR/.test(flattenText(node))
       );
       if (!button) throw new Error("Save button was not rendered.");
+      if (button.props.disabled) return false;
       await button.props.onClick();
+      return true;
     },
     changeForeground(value) {
       const tree = render();

@@ -330,7 +330,7 @@ async function createThroughCurrentStore(fixture) {
   return createOwnerQrCode(consumerArgs);
 }
 
-test("[CONSUMER RED] repeated store POST returns the same id and URL with no raw token field", async () => {
+test("[CONSUMER] repeated store POST returns the same id and URL with no raw token field", async () => {
   const fixture = createQrSupabaseFixture();
   const first = await createThroughCurrentStore(fixture);
   const second = await createThroughCurrentStore(fixture);
@@ -340,7 +340,7 @@ test("[CONSUMER RED] repeated store POST returns the same id and URL with no raw
   assert.equal("token" in second, false);
 });
 
-test("[CONSUMER RED] GET reload is implemented and performs no Supabase mutation", async () => {
+test("[CONSUMER] GET reload is implemented and performs no Supabase mutation", async () => {
   const fixture = createQrSupabaseFixture();
   fixture.install();
   const route = await loadQrPostRoute();
@@ -364,7 +364,7 @@ test("[CONSUMER RED] GET reload is implemented and performs no Supabase mutation
   );
 });
 
-test("[CONSUMER RED] POST reports an unrecoverable canonical without mutation", async () => {
+test("[CONSUMER] POST reports an unrecoverable canonical without mutation", async () => {
   const fixture = createQrSupabaseFixture();
   fixture.seedQr({
     id: "qr-consumer-unrecoverable",
@@ -392,13 +392,80 @@ test("[CONSUMER RED] POST reports an unrecoverable canonical without mutation", 
   assert.deepEqual(fixture.snapshotRows(), before);
 });
 
-test("[CONSUMER RED] PATCH style preserves the recovered URL and canonical vault fields", async () => {
+test("POST rejects a whitespace restaurant id as invalid input", async () => {
+  const fixture = createQrSupabaseFixture();
+  fixture.install();
+  const { POST } = await loadQrPostRoute();
+  const response = await POST(
+    new Request("https://fixture.invalid/api/owner/qr-codes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...consumerArgs, restaurantId: "   " })
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(fixture.rows.length, 0);
+  assert.equal(fixture.rpcCallCount("owner_get_or_create_canonical_qr"), 0);
+});
+
+test("GET reports missing vault configuration without mutating the canonical", async () => {
+  const fixture = createQrSupabaseFixture();
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
+  const before = fixture.snapshotRows();
+  delete process.env.VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION;
+  delete process.env.VISTAIRE_QR_TOKEN_KEY_RING;
+
+  const route = await loadQrPostRoute();
+  const response = await route.GET(
+    new Request(
+      "https://fixture.invalid/api/owner/qr-codes?restaurantId=restaurant-fixture&targetKind=admin&purposeKey=default"
+    )
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(payload.code, "QR_CANONICAL_READ_FAILED");
+  assert.deepEqual(fixture.snapshotRows(), before);
+});
+
+test("a non-empty tampered ciphertext fails authentication and POST stays closed", async () => {
+  const fixture = createQrSupabaseFixture();
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
+  const row = fixture.rows.find((candidateRow) => candidateRow.id === created.record.id);
+  assert.ok(row);
+  const originalCiphertext = row.token_ciphertext;
+  const finalCharacter = originalCiphertext.at(-1);
+  row.token_ciphertext = `${originalCiphertext.slice(0, -1)}${
+    finalCharacter === "A" ? "B" : "A"
+  }`;
+  const before = fixture.snapshotRows();
+
+  const { POST } = await loadQrPostRoute();
+  const response = await POST(
+    new Request("https://fixture.invalid/api/owner/qr-codes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(consumerArgs)
+    })
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.code, "canonical-unrecoverable");
+  assert.equal("token" in payload, false);
+  assert.deepEqual(fixture.snapshotRows(), before);
+});
+
+test("[CONSUMER] PATCH style preserves the recovered URL and canonical vault fields", async () => {
   const fixture = createQrSupabaseFixture();
   seedHistory(fixture, 1);
   seedHistory(fixture, 2);
   const historyBefore = historyRows(fixture);
-  const created = await fixture.getOrCreateCanonical(candidate(0));
-  fixture.install();
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
   const before = structuredClone(
     fixture.rows.find((row) => row.id === created.record.id)
   );
@@ -431,13 +498,13 @@ test("[CONSUMER RED] PATCH style preserves the recovered URL and canonical vault
   assert.deepEqual(historyRows(fixture), historyBefore);
 });
 
-test("[CONSUMER RED] rotate route requires confirmation and preserves the old active QR", async () => {
+test("[CONSUMER] rotate route requires confirmation and preserves the old active QR", async () => {
   const fixture = createQrSupabaseFixture();
   seedHistory(fixture, 1);
   seedHistory(fixture, 2);
   const historyBefore = historyRows(fixture);
-  const created = await fixture.getOrCreateCanonical(candidate(0));
-  fixture.install();
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
   const before = fixture.snapshotRows();
   const oldBefore = structuredClone(
     fixture.rows.find((row) => row.id === created.record.id)
@@ -450,7 +517,7 @@ test("[CONSUMER RED] rotate route requires confirmation and preserves the old ac
     new Request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirm: false })
+      body: JSON.stringify({ confirmed: false })
     }),
     { params: Promise.resolve({ id: created.record.id }) }
   );
@@ -461,7 +528,7 @@ test("[CONSUMER RED] rotate route requires confirmation and preserves the old ac
     new Request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirm: true })
+      body: JSON.stringify({ confirmed: true })
     }),
     { params: Promise.resolve({ id: created.record.id }) }
   );
@@ -469,7 +536,7 @@ test("[CONSUMER RED] rotate route requires confirmation and preserves the old ac
   const old = fixture.rows.find((row) => row.id === created.record.id);
 
   assert.equal(confirmed.status, 201);
-  assert.notEqual(payload.record.id, created.record.id);
+  assert.notEqual(payload.current.id, created.record.id);
   assert.equal(old.is_canonical, false);
   for (const [field, value] of Object.entries(oldBefore)) {
     if (field === "is_canonical") continue;
@@ -486,24 +553,34 @@ test("[CONSUMER RED] rotate route requires confirmation and preserves the old ac
   assert.equal("token" in payload, false);
 });
 
-test("[CONSUMER RED] twenty real POST handlers converge on the database canonical", async () => {
+test("[CONSUMER] twenty real POST handlers converge on the database canonical", async () => {
   const fixture = createQrSupabaseFixture({
     canonicalConcurrencyParticipants: 20
   });
   fixture.install();
   const { POST } = await loadQrPostRoute();
+  const loggedErrors = [];
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    loggedErrors.push(args);
+  };
 
-  const responses = await Promise.all(
-    Array.from({ length: 20 }, () =>
-      POST(
-        new Request("https://fixture.invalid/api/owner/qr-codes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(consumerArgs)
-        })
+  let responses;
+  try {
+    responses = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        POST(
+          new Request("https://fixture.invalid/api/owner/qr-codes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(consumerArgs)
+          })
+        )
       )
-    )
-  );
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
   const payloads = await Promise.all(responses.map((response) => response.json()));
 
   assert.deepEqual(
@@ -512,4 +589,57 @@ test("[CONSUMER RED] twenty real POST handlers converge on the database canonica
   );
   assert.equal(payloads.every((payload) => !("token" in payload)), true);
   assert.equal(fixture.rows.filter((row) => row.is_canonical).length, 1);
+  assert.deepEqual(loggedErrors, [], "successful losers must not log candidate secrets");
+});
+
+test("rotation response and new canonical use the style reread under the database lock", async () => {
+  const fixture = createQrSupabaseFixture({
+    beforeCanonicalRotation(row) {
+      row.label = "Label concurrent";
+      row.style_json = {
+        ...row.style_json,
+        foregroundColor: "#333333"
+      };
+      row.updated_at = "2026-07-17T12:00:02.000Z";
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
+  fixture.install();
+  const { rotateOwnerQrCode } = await loadQrStore();
+
+  const rotated = await rotateOwnerQrCode(created.record.id, { confirmed: true });
+
+  assert.equal(rotated.ok, true);
+  assert.equal(rotated.previous.label, "Label concurrent");
+  assert.equal(rotated.previous.style.foregroundColor, "#333333");
+  assert.equal(rotated.current.label, "Label concurrent");
+  assert.equal(rotated.current.style.foregroundColor, "#333333");
+});
+
+test("PATCH and rotation expose an absent canonical as 404, not a dependency outage", async () => {
+  const fixture = createQrSupabaseFixture();
+  fixture.install();
+  const { PATCH } = await loadQrPatchRoute();
+  const { POST: rotate } = await loadQrRotateRoute();
+
+  const patchResponse = await PATCH(
+    new Request("https://fixture.invalid/api/owner/qr-codes/missing", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ style })
+    }),
+    { params: Promise.resolve({ id: "missing" }) }
+  );
+  const rotateResponse = await rotate(
+    new Request("https://fixture.invalid/api/owner/qr-codes/missing/rotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmed: true })
+    }),
+    { params: Promise.resolve({ id: "missing" }) }
+  );
+
+  assert.equal(patchResponse.status, 404);
+  assert.equal(rotateResponse.status, 404);
 });

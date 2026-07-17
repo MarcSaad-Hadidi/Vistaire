@@ -110,7 +110,7 @@ test("H control: an explicit incoherent target_kind is rejected before the legac
   assert.equal(fixture.scanCount(id), 0);
 });
 
-test("H control: a real missing target_kind projection returns 42703 and never calls the old RPC", async () => {
+test("H control: a real missing target_kind projection retries safely and increments once", async () => {
   const token = "fixture-old-schema-control";
   const id = "qr-old-schema-control";
   const fixture = createQrSupabaseFixture({
@@ -132,12 +132,18 @@ test("H control: a real missing target_kind projection returns 42703 and never c
     (call) => call.method === "error" && call.code === "42703"
   );
 
-  assert.deepEqual(result, { ok: false });
+  assert.deepEqual(result, {
+    ok: true,
+    qrId: id,
+    restaurantId: "restaurant-fixture",
+    targetKind: "menu",
+    targetPath: "/menu/legacy"
+  });
   assert.ok(schemaError, "the fixture must model a database projection error");
   assert.match(schemaError.columns, /\btarget_kind\b/);
-  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 0);
-  assert.equal(fixture.scanCount(id), 0);
-  assert.equal(incidents.length, 1);
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 1);
+  assert.equal(fixture.scanCount(id), 1);
+  assert.equal(incidents.length, 0);
 });
 
 test("[RED: H] after 42703, an old-schema menu row must retry the legacy projection then increment once", async () => {

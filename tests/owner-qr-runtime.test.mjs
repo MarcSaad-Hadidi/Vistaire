@@ -331,15 +331,20 @@ test("qrStore uses structured incident logging for every Supabase QR error path"
   }
 
   for (const code of [
-    "QR_CREATE_CONFIG_UNAVAILABLE",
     "QR_UPDATE_CONFIG_UNAVAILABLE",
     "QR_UPDATE_FAILED",
-    "QR_MARK_RESTAURANT_READY_FAILED",
     "QR_RESOLVE_METADATA_FAILED",
     "QR_RESOLVE_LEGACY_RPC_FAILED",
     "QR_RESOLVE_LEGACY_SELECT_FAILED"
   ]) {
     assert.match(source, new RegExp(`code: "${code}"`), code);
+  }
+  for (const code of [
+    "QR_CANONICAL_READ_FAILED",
+    "QR_CANONICAL_RPC_FAILED",
+    "QR_CANONICAL_ROTATE_FAILED"
+  ]) {
+    assert.match(source, new RegExp(`"${code}"`), code);
   }
   assert.match(source, /classifyQrCreatePersistenceFailure\(error\)/);
 

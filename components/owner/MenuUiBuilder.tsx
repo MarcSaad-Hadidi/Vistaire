@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import {
@@ -107,6 +107,17 @@ type QrPayload = {
   targetKind: OwnerQrTargetKind;
   persisted: boolean;
   record?: unknown;
+};
+
+type QrReadPayload = {
+  ok: true;
+  found: boolean;
+  recoverable: boolean;
+  record?: {
+    redirectUrl?: string;
+    targetPath: string;
+    persisted: boolean;
+  } | null;
 };
 
 type AdvisorPayload = {
@@ -395,6 +406,7 @@ export function MenuUiBuilder({
     targetPath: string;
     persisted: boolean;
   } | null>(null);
+  const qrGenerationRequest = useRef<AbortController | null>(null);
   const [advisorState, setAdvisorState] = useState<AdvisorState>("idle");
   const [advisorRecommendation, setAdvisorRecommendation] =
     useState<MenuStyleAdvisorRecommendation | null>(null);
@@ -486,6 +498,8 @@ export function MenuUiBuilder({
   useEffect(() => {
     if (!selectedRestaurant?.id) return;
     const controller = new AbortController();
+    qrGenerationRequest.current?.abort();
+    qrGenerationRequest.current = null;
 
     async function load() {
       setLoadState("loading");
@@ -499,13 +513,22 @@ export function MenuUiBuilder({
 
       try {
         const id = encodeURIComponent(selectedRestaurant.id);
-        const [menuResponse, configResponse] = await Promise.all([
+        const qrQuery = new URLSearchParams({
+          restaurantId: selectedRestaurant.id,
+          targetKind: "menu",
+          purposeKey: "default"
+        });
+        const [menuResponse, configResponse, qrResponse] = await Promise.all([
           fetch(`/api/owner/menu-data?restaurantId=${id}`, {
             signal: controller.signal
           }),
           fetch(`/api/owner/menu-ui-config?restaurantId=${id}`, {
             signal: controller.signal
-          })
+          }),
+          fetch(`/api/owner/qr-codes?${qrQuery}`, {
+            cache: "no-store",
+            signal: controller.signal
+          }).catch(() => null)
         ]);
         const menuPayload = (await menuResponse.json()) as
           | MenuDataPayload
@@ -513,6 +536,9 @@ export function MenuUiBuilder({
         const configPayload = (await configResponse.json()) as
           | ConfigPayload
           | ApiFailure;
+        const qrPayload = qrResponse
+          ? ((await qrResponse.json()) as QrReadPayload | ApiFailure)
+          : null;
 
         if (!controller.signal.aborted) {
           if (menuResponse.ok && menuPayload.ok) {
@@ -529,6 +555,19 @@ export function MenuUiBuilder({
             setConfig(configPayload.config);
             setConfigStatus(configPayload.status);
           }
+          if (
+            qrResponse?.ok &&
+            qrPayload?.ok &&
+            qrPayload.found &&
+            qrPayload.recoverable &&
+            qrPayload.record?.redirectUrl
+          ) {
+            setQrState({
+              redirectUrl: qrPayload.record.redirectUrl,
+              targetPath: qrPayload.record.targetPath,
+              persisted: qrPayload.record.persisted
+            });
+          }
           setLoadState("ready");
         }
       } catch {
@@ -541,7 +580,11 @@ export function MenuUiBuilder({
     }
 
     void load();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      qrGenerationRequest.current?.abort();
+      qrGenerationRequest.current = null;
+    };
   }, [selectedRestaurant]);
 
   function updateConfig(patch: Partial<MenuUiConfig>) {
@@ -701,24 +744,31 @@ export function MenuUiBuilder({
   }
 
   async function generateQr() {
-    if (!selectedRestaurant) return;
+    if (!selectedRestaurant || qrState) return;
+    qrGenerationRequest.current?.abort();
+    const controller = new AbortController();
+    qrGenerationRequest.current = controller;
+    const restaurant = selectedRestaurant;
+    const menuPath = publicMenuPath;
     setErrorMessage("");
     try {
       const response = await fetch("/api/owner/qr-codes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
-          restaurantId: selectedRestaurant.id,
-          label: `QR menu - ${selectedRestaurant.name}`,
+          restaurantId: restaurant.id,
+          label: `QR menu - ${restaurant.name}`,
           targetKind: "menu",
-          targetPath: publicMenuPath,
+          targetPath: menuPath,
           style: {
             ...DEFAULT_OWNER_QR_STYLE,
-            logoText: monogramFromName(selectedRestaurant.name)
+            logoText: monogramFromName(restaurant.name)
           }
         })
       });
       const payload = (await response.json()) as QrPayload | ApiFailure;
+      if (controller.signal.aborted) return;
       if (!response.ok || !payload.ok) {
         setErrorMessage(
           payload.ok
@@ -733,7 +783,13 @@ export function MenuUiBuilder({
         persisted: payload.persisted
       });
     } catch {
-      setErrorMessage("Erreur reseau pendant la generation QR.");
+      if (!controller.signal.aborted) {
+        setErrorMessage("Erreur reseau pendant la generation QR.");
+      }
+    } finally {
+      if (qrGenerationRequest.current === controller) {
+        qrGenerationRequest.current = null;
+      }
     }
   }
 

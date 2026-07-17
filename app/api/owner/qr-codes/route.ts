@@ -21,7 +21,11 @@ const NO_STORE_HEADERS = {
 };
 
 function failureStatus(result: object): number {
-  return "code" in result && result.code === "canonical-unrecoverable" ? 409 : 503;
+  if (!("code" in result)) return 503;
+  if (result.code === "canonical-unrecoverable") return 409;
+  if (result.code === "invalid-input") return 400;
+  if (result.code === "QR_CREATE_RESTAURANT_NOT_FOUND") return 404;
+  return 503;
 }
 
 export async function GET(request: NextRequest) {
@@ -82,7 +86,9 @@ export async function POST(request: NextRequest) {
 
   const candidate = body as Record<string, unknown>;
   const restaurantId =
-    typeof candidate.restaurantId === "string" ? candidate.restaurantId.slice(0, 80) : "";
+    typeof candidate.restaurantId === "string"
+      ? candidate.restaurantId.trim().slice(0, 80)
+      : "";
   const label = typeof candidate.label === "string" ? candidate.label : "QR menu";
   const targetPath =
     typeof candidate.targetPath === "string" ? candidate.targetPath : "";

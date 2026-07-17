@@ -8,7 +8,7 @@ test("owner QR API accepts an explicit target kind and returns target metadata",
   assert.match(source, /targetKind/);
   assert.match(source, /candidate\.targetKind === "menu"/);
   assert.match(source, /candidate\.targetKind === "admin"/);
-  assert.match(source, /createOwnerQrCode\(\{[\s\S]*targetKind/s);
+  assert.match(source, /getOrCreateOwnerQrCode\(\{[\s\S]*targetKind/s);
   assert.match(source, /targetPath: created\.record\.targetPath/);
   assert.match(source, /targetKind: created\.record\.targetKind/);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import {
   DEFAULT_OWNER_QR_STYLE,
@@ -11,6 +11,7 @@ import {
   OWNER_QR_PRESETS,
   QR_MIN_SAFE_CONTRAST,
   monogramFromName,
+  normalizeOwnerQrStyle,
   qrContrastRatio
 } from "@/lib/owner/qrStyle";
 import type {
@@ -45,6 +46,8 @@ type SaveState =
       record?: OwnerQrCodeRecord;
     }
   | { kind: "error"; message: string };
+
+type CanonicalLoadState = "loading" | "ready" | "error";
 
 function escapeXml(value: string): string {
   return value
@@ -126,9 +129,19 @@ export function OwnerQrCustomizer({
   const [qrValue, setQrValue] = useState("");
   const [tokenPreview, setTokenPreview] = useState("");
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+  const [canonicalRecord, setCanonicalRecord] =
+    useState<OwnerQrCodeRecord | null>(null);
+  const [canonicalLoadState, setCanonicalLoadState] =
+    useState<CanonicalLoadState>("loading");
+  const [savedStyleFingerprint, setSavedStyleFingerprint] = useState("");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const styleTouchedDuringLoad = useRef(false);
 
   const contrast = useMemo(() => qrContrastRatio(style), [style]);
+  const styleFingerprint = useMemo(
+    () => JSON.stringify(normalizeOwnerQrStyle(style)),
+    [style]
+  );
   const lowContrast = contrast > 0 && contrast < QR_MIN_SAFE_CONTRAST;
   const fileSlug = restaurantSlug || "restaurant";
   const exactDestinationUrl = useMemo(
@@ -168,7 +181,94 @@ export function OwnerQrCustomizer({
     };
   }, [qrValue, qrValueForBrowser, style]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadCanonicalQr() {
+      styleTouchedDuringLoad.current = false;
+      setCanonicalLoadState("loading");
+      setCanonicalRecord(null);
+      setSavedStyleFingerprint("");
+      setQrValue("");
+      setTokenPreview("");
+      try {
+        const query = new URLSearchParams({
+          restaurantId,
+          targetKind,
+          purposeKey: "default"
+        });
+        const response = await fetch(`/api/owner/qr-codes?${query}`, {
+          cache: "no-store"
+        });
+        const payload = (await response.json()) as {
+          ok: boolean;
+          found?: boolean;
+          recoverable?: boolean;
+          record?: OwnerQrCodeRecord | null;
+        };
+        if (!active) return;
+        if (!response.ok || !payload.ok) {
+          setCanonicalLoadState("error");
+          setSaveState({
+            kind: "error",
+            message: "Chargement du QR canonique impossible."
+          });
+          return;
+        }
+        if (!payload.found) {
+          setCanonicalLoadState("ready");
+          return;
+        }
+        const record = payload.record;
+        if (!record) {
+          setCanonicalLoadState("error");
+          setSaveState({
+            kind: "error",
+            message: "Reponse QR canonique invalide."
+          });
+          return;
+        }
+        setCanonicalRecord(record);
+        if (!styleTouchedDuringLoad.current) {
+          setStyle(record.style);
+        }
+        setSavedStyleFingerprint(
+          JSON.stringify(normalizeOwnerQrStyle(record.style))
+        );
+        setTokenPreview(record.tokenPreview);
+        if (
+          payload.recoverable &&
+          record.redirectUrl &&
+          isOpaqueQrRedirect(record.redirectUrl)
+        ) {
+          setQrValue(record.redirectUrl);
+          setSaveState({
+            kind: "saved",
+            persisted: record.persisted,
+            redirectUrl: record.redirectUrl,
+            targetPath: record.targetPath,
+            targetKind: record.targetKind,
+            record
+          });
+        }
+        setCanonicalLoadState("ready");
+      } catch {
+        if (active) {
+          setCanonicalLoadState("error");
+          setSaveState({
+            kind: "error",
+            message: "Erreur reseau pendant le chargement du QR."
+          });
+        }
+      }
+    }
+    void loadCanonicalQr();
+    return () => {
+      active = false;
+    };
+  }, [restaurantId, targetKind]);
+
   const update = useCallback((patch: Partial<OwnerQrStyle>) => {
+    styleTouchedDuringLoad.current = true;
     setStyle((prev) => {
       const next = { ...prev, ...patch };
       if (next.logoMode !== "none") next.errorCorrectionLevel = "H";
@@ -182,6 +282,7 @@ export function OwnerQrCustomizer({
   }
 
   function reset() {
+    styleTouchedDuringLoad.current = true;
     setStyle({
       ...DEFAULT_OWNER_QR_STYLE,
       logoText: monogramFromName(restaurantName)
@@ -237,36 +338,54 @@ export function OwnerQrCustomizer({
   }
 
   async function saveStyle() {
+    if (canonicalLoadState !== "ready") {
+      return;
+    }
+    if (canonicalRecord && savedStyleFingerprint === styleFingerprint) {
+      return;
+    }
     setSaveState({ kind: "saving" });
     try {
-      const response = await fetch("/api/owner/qr-codes", {
-        method: "POST",
+      const isUpdate = Boolean(canonicalRecord?.id);
+      const response = await fetch(
+        isUpdate
+          ? `/api/owner/qr-codes/${canonicalRecord?.id}`
+          : "/api/owner/qr-codes",
+        {
+        method: isUpdate ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          restaurantId,
-          label: targetLabel,
-          targetKind,
-          targetPath,
-          style: { ...style, updatedAt: new Date().toISOString() }
-        })
+        body: JSON.stringify(
+          isUpdate
+            ? { style: normalizeOwnerQrStyle(style) }
+            : {
+                restaurantId,
+                label: targetLabel,
+                targetKind,
+                purposeKey: "default",
+                targetPath,
+                style: normalizeOwnerQrStyle(style)
+              }
+        )
       });
       const payload = (await response.json()) as {
         ok: boolean;
         error?: string;
-        token?: string;
         redirectUrl?: string;
         targetPath?: string;
         targetKind?: OwnerQrTargetKind;
         persisted?: boolean;
         record?: OwnerQrCodeRecord;
       };
-      const persisted = Boolean(payload.persisted);
+      const record = payload.record;
+      const redirectUrl = payload.redirectUrl ?? record?.redirectUrl;
+      const persisted = Boolean(payload.persisted ?? record?.persisted);
       if (
         !response.ok ||
         !payload.ok ||
-        !payload.redirectUrl ||
-        !isOpaqueQrRedirect(payload.redirectUrl) ||
-        payload.targetKind !== targetKind ||
+        !record ||
+        !redirectUrl ||
+        !isOpaqueQrRedirect(redirectUrl) ||
+        (payload.targetKind ?? record.targetKind) !== targetKind ||
         (targetKind === "admin" && !persisted)
       ) {
         setSaveState({
@@ -275,15 +394,17 @@ export function OwnerQrCustomizer({
         });
         return;
       }
-      setQrValue(payload.redirectUrl);
-      setTokenPreview(payload.token ? `${payload.token.slice(0, 6)}...` : "");
+      setCanonicalRecord(record);
+      setSavedStyleFingerprint(styleFingerprint);
+      setQrValue(redirectUrl);
+      setTokenPreview(record.tokenPreview || "");
       setSaveState({
         kind: "saved",
         persisted,
-        redirectUrl: payload.redirectUrl,
-        targetPath: payload.targetPath || payload.record?.targetPath || targetPath,
-        targetKind: payload.targetKind || payload.record?.targetKind || targetKind,
-        record: payload.record
+        redirectUrl,
+        targetPath: payload.targetPath || record.targetPath || targetPath,
+        targetKind: payload.targetKind || record.targetKind || targetKind,
+        record
       });
     } catch {
       setSaveState({ kind: "error", message: "Erreur reseau pendant la sauvegarde." });
@@ -461,9 +582,13 @@ export function OwnerQrCustomizer({
             type="button"
             className={styles.btnPrimary}
             onClick={saveStyle}
-            disabled={saveState.kind === "saving"}
+            disabled={
+              saveState.kind === "saving" || canonicalLoadState !== "ready"
+            }
           >
-            {saveState.kind === "saving"
+            {canonicalLoadState === "loading"
+              ? "Chargement du QR..."
+              : saveState.kind === "saving"
               ? "Sauvegarde..."
               : "Sauvegarder / Generer QR"}
           </button>

@@ -187,6 +187,18 @@ test("rotation requires confirmation and mutates only the old canonical flag", (
     normalized,
     /insert into public\.qr_codes[\s\S]*'active'[\s\S]*true/
   );
+  assert.match(
+    normalized,
+    /values \( p_new_id, p_restaurant_id, v_previous\.label, v_target_kind, v_purpose_key, v_previous\.target_path, p_token_hash, p_token_preview, p_token_ciphertext, p_token_nonce, p_token_key_version, v_previous\.style_json, 'active', true \)/
+  );
+  assert.match(
+    normalized,
+    /return query select 'previous', false, v_previous\.id[\s\S]*return query select 'canonical', true, v_current\.id/
+  );
+  assert.doesNotMatch(
+    normalized,
+    /values \( p_new_id, p_restaurant_id, (?:pg_catalog\.btrim\()?p_label/
+  );
   assert.doesNotMatch(normalized, /\bdo update\b|\bupsert\b/);
 });
 

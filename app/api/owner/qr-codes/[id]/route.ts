@@ -63,13 +63,21 @@ export async function PATCH(
   });
 
   if (!updated.ok) {
+    const status =
+      "code" in updated && updated.code === "canonical-unrecoverable"
+        ? 409
+        : "code" in updated && updated.code === "not-found"
+          ? 404
+          : "code" in updated && updated.code === "invalid-input"
+            ? 400
+            : 503;
     return NextResponse.json(
       {
         ok: false,
         error: updated.error,
         ...("code" in updated ? { code: updated.code } : {})
       },
-      { status: "code" in updated && updated.code === "canonical-unrecoverable" ? 409 : 503 }
+      { status }
     );
   }
 
