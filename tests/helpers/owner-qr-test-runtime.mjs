@@ -163,6 +163,10 @@ export async function loadQrPatchRoute() {
   return import("../../app/api/owner/qr-codes/[id]/route.ts");
 }
 
+export async function loadQrRotateRoute() {
+  return import("../../app/api/owner/qr-codes/[id]/rotate/route.ts");
+}
+
 function storedHash(token) {
   return `sha256:${createHash("sha256").update(token, "utf8").digest("hex")}`;
 }
@@ -192,20 +196,29 @@ export function createPromiseBarrier(participants = 2) {
 export function createQrSupabaseFixture(options = {}) {
   const rows = [];
   const calls = [];
+  const recoveredUrls = new Map();
+  const canonicalBatches = new Map();
   let sequence = 0;
   const uniqueConstraints = [["token_hash"]];
 
   function seedQr({ token, ...row }) {
+    const tokenHash = row.token_hash ?? storedHash(token);
+    const tokenPreview = row.token_preview ?? preview(token);
     const seeded = {
       id: row.id ?? `qr-seed-${++sequence}`,
       restaurant_id: row.restaurant_id ?? "restaurant-fixture",
       label: row.label ?? "QR fixture",
-      token_hash: storedHash(token),
-      token_preview: preview(token),
+      token_hash: tokenHash,
+      token_preview: tokenPreview,
       target_kind: row.target_kind,
+      purpose_key: row.purpose_key ?? null,
       target_path: row.target_path ?? "/admin",
       style_json: row.style_json ?? {},
       status: row.status ?? "active",
+      is_canonical: row.is_canonical ?? false,
+      token_ciphertext: row.token_ciphertext ?? null,
+      token_nonce: row.token_nonce ?? null,
+      token_key_version: row.token_key_version ?? null,
       scan_count: row.scan_count ?? 0,
       last_scanned_at: row.last_scanned_at ?? null,
       created_at: row.created_at ?? "2026-07-17T12:00:00.000Z",
@@ -213,7 +226,190 @@ export function createQrSupabaseFixture(options = {}) {
     };
     if (row.omit_target_kind) delete seeded.target_kind;
     rows.push(seeded);
+    if (typeof row.redirect_url === "string") {
+      recoveredUrls.set(seeded.id, row.redirect_url);
+    }
     return seeded.id;
+  }
+
+  function canonicalSlot(params) {
+    return {
+      restaurantId: params.p_restaurant_id,
+      targetKind: String(params.p_target_kind ?? "").trim().toLowerCase(),
+      purposeKey: String(params.p_purpose_key ?? "default").trim().toLowerCase()
+    };
+  }
+
+  function canonicalForSlot(params) {
+    const slot = canonicalSlot(params);
+    return rows.find(
+      (row) =>
+        row.restaurant_id === slot.restaurantId &&
+        row.target_kind === slot.targetKind &&
+        row.purpose_key === slot.purposeKey &&
+        row.is_canonical === true
+    );
+  }
+
+  function hasCompleteEnvelope(row) {
+    return (
+      typeof row?.token_ciphertext === "string" &&
+      row.token_ciphertext.trim().length > 0 &&
+      typeof row?.token_nonce === "string" &&
+      row.token_nonce.trim().length > 0 &&
+      typeof row?.token_key_version === "string" &&
+      row.token_key_version.trim().length > 0
+    );
+  }
+
+  function canonicalRpcRow(row, created) {
+    return {
+      result_status: hasCompleteEnvelope(row)
+        ? "canonical"
+        : "canonical-unrecoverable",
+      created,
+      ...structuredClone(row)
+    };
+  }
+
+  function canonicalCandidateError(params) {
+    const requiredText = [
+      params.p_id,
+      params.p_restaurant_id,
+      params.p_token_hash,
+      params.p_token_ciphertext,
+      params.p_token_nonce,
+      params.p_token_key_version
+    ];
+    if (
+      requiredText.some(
+        (value) => typeof value !== "string" || value.trim().length === 0
+      )
+    ) {
+      return {
+        data: null,
+        error: { code: "22023", message: "canonical QR candidate is incomplete" }
+      };
+    }
+    return null;
+  }
+
+  function insertCanonicalCandidate(params) {
+    const invalid = canonicalCandidateError(params);
+    if (invalid) return invalid;
+    if (rows.some((row) => row.id === params.p_id || row.token_hash === params.p_token_hash)) {
+      return {
+        data: null,
+        error: { code: "23505", message: "canonical QR token collision" }
+      };
+    }
+    const slot = canonicalSlot(params);
+    const now = "2026-07-17T12:00:00.000Z";
+    const row = {
+      id: params.p_id,
+      restaurant_id: slot.restaurantId,
+      label: params.p_label,
+      target_kind: slot.targetKind,
+      purpose_key: slot.purposeKey,
+      target_path: params.p_target_path,
+      token_hash: params.p_token_hash,
+      token_preview: params.p_token_preview,
+      token_ciphertext: params.p_token_ciphertext,
+      token_nonce: params.p_token_nonce,
+      token_key_version: params.p_token_key_version,
+      style_json: structuredClone(params.p_style_json ?? {}),
+      status: "active",
+      is_canonical: true,
+      scan_count: 0,
+      last_scanned_at: null,
+      created_at: now,
+      updated_at: now
+    };
+    rows.push(row);
+    if (typeof params.p_redirect_url === "string") {
+      recoveredUrls.set(row.id, params.p_redirect_url);
+    }
+    return { data: [canonicalRpcRow(row, true)], error: null };
+  }
+
+  function handleCanonicalGetOrCreate(params) {
+    const existing = canonicalForSlot(params);
+    if (existing) {
+      return Promise.resolve({
+        data: [canonicalRpcRow(existing, false)],
+        error: null
+      });
+    }
+
+    const participants = options.canonicalConcurrencyParticipants ?? 1;
+    if (participants === 1) {
+      return Promise.resolve(insertCanonicalCandidate(params));
+    }
+
+    const slot = canonicalSlot(params);
+    const key = `${slot.restaurantId}:${slot.targetKind}:${slot.purposeKey}`;
+    const batch = canonicalBatches.get(key) ?? [];
+    canonicalBatches.set(key, batch);
+    return new Promise((resolve) => {
+      batch.push({ params, resolve });
+      if (batch.length !== participants) return;
+
+      canonicalBatches.delete(key);
+      const ordered = [...batch].sort((left, right) =>
+        String(left.params.p_id).localeCompare(String(right.params.p_id))
+      );
+      const winner = ordered[0];
+      const inserted = insertCanonicalCandidate(winner.params);
+      if (inserted.error) {
+        for (const entry of batch) entry.resolve(inserted);
+        return;
+      }
+      const persisted = canonicalForSlot(winner.params);
+      for (const entry of batch) {
+        entry.resolve({
+          data: [canonicalRpcRow(persisted, entry === winner)],
+          error: null
+        });
+      }
+    });
+  }
+
+  function handleCanonicalRotation(params) {
+    if (params.p_confirm !== true) {
+      return {
+        data: null,
+        error: { code: "22023", message: "rotation confirmation required" }
+      };
+    }
+    const previous = canonicalForSlot(params);
+    if (!previous || previous.id !== params.p_previous_id) {
+      return {
+        data: null,
+        error: { code: "P0002", message: "canonical QR was not found" }
+      };
+    }
+    const invalid = canonicalCandidateError({
+      ...params,
+      p_id: params.p_new_id
+    });
+    if (invalid) return invalid;
+    if (
+      rows.some(
+        (row) => row.id === params.p_new_id || row.token_hash === params.p_token_hash
+      )
+    ) {
+      return {
+        data: null,
+        error: { code: "23505", message: "canonical QR token collision" }
+      };
+    }
+
+    previous.is_canonical = false;
+    const inserted = insertCanonicalCandidate({
+      ...params,
+      p_id: params.p_new_id
+    });
+    return inserted;
   }
 
   function matchingRows(filters) {
@@ -423,6 +619,14 @@ export function createQrSupabaseFixture(options = {}) {
       calls.push({ method: "rpc", name });
       const row = rows.find((candidate) => candidate.token_hash === params.p_token_hash);
 
+      if (name === "owner_get_or_create_canonical_qr") {
+        return handleCanonicalGetOrCreate(params);
+      }
+
+      if (name === "owner_rotate_canonical_qr") {
+        return handleCanonicalRotation(params);
+      }
+
       if (name === "resolve_qr_code_scan_metadata") {
         if (options.metadataUnavailable) {
           return {
@@ -461,11 +665,108 @@ export function createQrSupabaseFixture(options = {}) {
     }
   };
 
+  function candidateParams(candidate) {
+    return {
+      p_id: candidate.id,
+      p_restaurant_id: candidate.restaurantId,
+      p_label: candidate.label ?? "QR dashboard restaurant",
+      p_target_kind: candidate.targetKind ?? "admin",
+      p_purpose_key: candidate.purposeKey ?? "default",
+      p_target_path: candidate.targetPath ?? "/admin",
+      p_token_hash: candidate.tokenHash,
+      p_token_preview: candidate.tokenPreview,
+      p_token_ciphertext: candidate.tokenCiphertext,
+      p_token_nonce: candidate.tokenNonce,
+      p_token_key_version: candidate.tokenKeyVersion,
+      p_style_json: structuredClone(candidate.style ?? {}),
+      p_redirect_url: candidate.redirectUrl
+    };
+  }
+
+  function ownerResult(response) {
+    if (response.error) {
+      return {
+        ok: false,
+        error: response.error.message,
+        code: response.error.code
+      };
+    }
+    const row = response.data[0];
+    return {
+      ok: true,
+      created: row.created,
+      resultStatus: row.result_status,
+      record: {
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        targetKind: row.target_kind,
+        purposeKey: row.purpose_key,
+        targetPath: row.target_path,
+        status: row.status,
+        isCanonical: row.is_canonical,
+        fingerprint: row.token_hash,
+        tokenPreview: row.token_preview,
+        redirectUrl:
+          row.result_status === "canonical"
+            ? recoveredUrls.get(row.id) ?? ""
+            : "",
+        style: structuredClone(row.style_json)
+      }
+    };
+  }
+
   return {
     client,
     calls,
     rows,
     seedQr,
+    snapshotRows() {
+      return structuredClone(rows);
+    },
+    readCanonical(slot) {
+      calls.push({ method: "canonical-read" });
+      const row = canonicalForSlot({
+        p_restaurant_id: slot.restaurantId,
+        p_target_kind: slot.targetKind,
+        p_purpose_key: slot.purposeKey
+      });
+      if (!row) return { ok: true, record: null };
+      return ownerResult({
+        data: [canonicalRpcRow(row, false)],
+        error: null
+      });
+    },
+    async getOrCreateCanonical(candidate) {
+      const response = await client.rpc(
+        "owner_get_or_create_canonical_qr",
+        candidateParams(candidate)
+      );
+      return ownerResult(response);
+    },
+    updateCanonicalStyle(id, style) {
+      calls.push({
+        method: "canonical-update",
+        id,
+        keys: ["style_json"]
+      });
+      const row = rows.find((candidate) => candidate.id === id);
+      if (!row) return { ok: false, error: "canonical QR was not found" };
+      row.style_json = structuredClone(style);
+      row.updated_at = "2026-07-17T12:00:02.000Z";
+      return ownerResult({
+        data: [canonicalRpcRow(row, false)],
+        error: null
+      });
+    },
+    async rotateCanonical(previousId, candidate, confirm) {
+      const response = await client.rpc("owner_rotate_canonical_qr", {
+        p_previous_id: previousId,
+        p_new_id: candidate.id,
+        ...candidateParams(candidate),
+        p_confirm: confirm
+      });
+      return ownerResult(response);
+    },
     install() {
       globalThis.__OWNER_QR_TEST_ADMIN__ = { ok: true, client };
     },
@@ -576,7 +877,7 @@ export function createOwnerQrCustomizerHarness() {
     monogramFromName: () => "V",
     qrContrastRatio: () => 10
   };
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   const requests = [];
   const context = vm.createContext({
     Blob,
@@ -585,7 +886,7 @@ export function createOwnerQrCustomizerHarness() {
     JSON,
     URL,
     console,
-    exports: module.exports,
+    exports: compiledModule.exports,
     fetch: async (url, init) => {
       const method = init?.method ?? "GET";
       requests.push({
@@ -624,7 +925,7 @@ export function createOwnerQrCustomizerHarness() {
         }
       };
     },
-    module,
+    module: compiledModule,
     navigator: { clipboard: { writeText: async () => {} } },
     require(specifier) {
       if (specifier === "react") return react;
@@ -639,7 +940,7 @@ export function createOwnerQrCustomizerHarness() {
     window: { location: { origin: "https://fixture.invalid" } }
   });
   vm.runInContext(compiled, context, { filename: "OwnerQrCustomizer.compiled.cjs" });
-  const Component = module.exports.OwnerQrCustomizer;
+  const Component = compiledModule.exports.OwnerQrCustomizer;
   const props = {
     restaurantId: "restaurant-fixture",
     restaurantName: "Restaurant Fixture",
