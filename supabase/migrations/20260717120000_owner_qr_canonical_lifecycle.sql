@@ -1,7 +1,7 @@
 begin;
 
 alter table public.qr_codes
-  add column if not exists purpose_key text;
+  add column if not exists purpose_key text not null default 'default';
 
 alter table public.qr_codes
   add column if not exists is_canonical boolean not null default false;
@@ -14,6 +14,26 @@ alter table public.qr_codes
 
 alter table public.qr_codes
   add column if not exists token_key_version text;
+
+alter table public.qr_codes
+  add column if not exists supersedes_qr_code_id uuid;
+
+alter table public.qr_codes
+  add column if not exists rotated_at timestamptz;
+
+do $$
+begin
+  if exists (
+    select 1
+    from public.qr_codes
+    where status = 'revoked'
+      and is_canonical = true
+  ) then
+    raise exception
+      'Cannot install canonical QR lifecycle: a revoked QR is marked canonical';
+  end if;
+end;
+$$;
 
 do $$
 begin
@@ -54,8 +74,11 @@ begin
         )
         or (
           token_ciphertext is not null
+          and pg_catalog.btrim(token_ciphertext) <> ''
           and token_nonce is not null
+          and pg_catalog.btrim(token_nonce) <> ''
           and token_key_version is not null
+          and pg_catalog.btrim(token_key_version) <> ''
         )
       );
   end if;
@@ -74,7 +97,45 @@ begin
       add constraint qr_codes_canonical_slot_complete_check
       check (
         not is_canonical
-        or (restaurant_id is not null and purpose_key is not null)
+        or (
+          restaurant_id is not null
+          and purpose_key is not null
+          and status not in ('archived', 'revoked')
+        )
+      );
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_catalog.pg_constraint
+    where conrelid = 'public.qr_codes'::pg_catalog.regclass
+      and conname = 'qr_codes_supersedes_qr_code_id_fkey'
+  ) then
+    alter table public.qr_codes
+      add constraint qr_codes_supersedes_qr_code_id_fkey
+      foreign key (supersedes_qr_code_id)
+      references public.qr_codes (id);
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_catalog.pg_constraint
+    where conrelid = 'public.qr_codes'::pg_catalog.regclass
+      and conname = 'qr_codes_supersedes_qr_code_id_not_self_check'
+  ) then
+    alter table public.qr_codes
+      add constraint qr_codes_supersedes_qr_code_id_not_self_check
+      check (
+        supersedes_qr_code_id is null
+        or supersedes_qr_code_id <> id
       );
   end if;
 end;
@@ -89,6 +150,12 @@ alter table public.qr_codes
 alter table public.qr_codes
   validate constraint qr_codes_canonical_slot_complete_check;
 
+alter table public.qr_codes
+  validate constraint qr_codes_supersedes_qr_code_id_fkey;
+
+alter table public.qr_codes
+  validate constraint qr_codes_supersedes_qr_code_id_not_self_check;
+
 create unique index if not exists qr_codes_canonical_slot_key
   on public.qr_codes (restaurant_id, target_kind, purpose_key)
   where is_canonical = true;
@@ -102,9 +169,9 @@ set search_path = ''
 as $$
 begin
   if (
-    pg_catalog.to_jsonb(new) - array['is_canonical', 'updated_at']
+    pg_catalog.to_jsonb(new) - array['is_canonical', 'rotated_at', 'updated_at']
   ) is not distinct from (
-    pg_catalog.to_jsonb(old) - array['is_canonical', 'updated_at']
+    pg_catalog.to_jsonb(old) - array['is_canonical', 'rotated_at', 'updated_at']
   ) then
     new.updated_at = old.updated_at;
   else
@@ -449,7 +516,9 @@ begin
   end if;
 
   update public.qr_codes as qr
-  set is_canonical = false
+  set
+    is_canonical = false,
+    rotated_at = pg_catalog.now()
   where qr.id = p_previous_id
     and qr.restaurant_id = p_restaurant_id
     and qr.target_kind = v_target_kind
@@ -470,7 +539,8 @@ begin
     token_key_version,
     style_json,
     status,
-    is_canonical
+    is_canonical,
+    supersedes_qr_code_id
   )
   values (
     p_new_id,
@@ -486,7 +556,8 @@ begin
     p_token_key_version,
     v_previous.style_json,
     'active',
-    true
+    true,
+    p_previous_id
   )
   returning * into v_current;
 
@@ -536,6 +607,54 @@ begin
 end;
 $$;
 
+create or replace function public.resolve_qr_code_scan_metadata(p_token_hash text)
+returns table (
+  qr_id uuid,
+  restaurant_id uuid,
+  target_kind text,
+  target_path text,
+  status text
+)
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.qr_codes as qr
+  set
+    scan_count = qr.scan_count + 1,
+    last_scanned_at = pg_catalog.now()
+  where qr.token_hash = p_token_hash
+    and qr.status = 'active'
+    and (
+      (
+        qr.target_kind = 'menu'
+        and (
+          qr.target_path = '/demo'
+          or qr.target_path like '/menu/%'
+        )
+      )
+      or (
+        qr.target_kind = 'admin'
+        and qr.restaurant_id is not null
+        and qr.target_path = '/admin'
+      )
+    )
+  returning
+    qr.id as qr_id,
+    qr.restaurant_id,
+    qr.target_kind,
+    qr.target_path,
+    qr.status;
+$$;
+
+alter table public.qr_codes enable row level security;
+
+revoke all on table public.qr_codes
+  from public, anon, authenticated;
+
+grant select, insert, update, delete on table public.qr_codes
+  to service_role;
+
 revoke execute on function public.owner_get_or_create_canonical_qr(
   uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb
 ) from public, anon, authenticated;
@@ -551,5 +670,11 @@ revoke execute on function public.owner_rotate_canonical_qr(
 grant execute on function public.owner_rotate_canonical_qr(
   uuid, uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb, boolean
 ) to service_role;
+
+revoke execute on function public.resolve_qr_code_scan_metadata(text)
+  from public, anon, authenticated;
+
+grant execute on function public.resolve_qr_code_scan_metadata(text)
+  to service_role;
 
 commit;

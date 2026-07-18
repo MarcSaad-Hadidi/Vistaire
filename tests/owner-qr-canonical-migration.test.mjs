@@ -26,11 +26,13 @@ test("canonical migration is additive, transactional, and never backfills histor
   assert.match(normalizedSql, /^begin;/);
   assert.match(normalizedSql, /commit;$/);
   for (const column of [
-    "purpose_key text",
+    "purpose_key text not null default 'default'",
     "is_canonical boolean not null default false",
     "token_ciphertext text",
     "token_nonce text",
-    "token_key_version text"
+    "token_key_version text",
+    "supersedes_qr_code_id uuid",
+    "rotated_at timestamptz"
   ]) {
     assert.match(
       normalizedSql,
@@ -55,6 +57,32 @@ test("canonical migration is additive, transactional, and never backfills histor
   );
 });
 
+test("legacy rows stay non-canonical and historical duplicates remain legal", () => {
+  const schemaSql = normalizedSql.split(
+    "create or replace function public.owner_get_or_create_canonical_qr"
+  )[0];
+
+  assert.match(
+    schemaSql,
+    /add column if not exists purpose_key text not null default 'default'/
+  );
+  assert.match(
+    schemaSql,
+    /add column if not exists is_canonical boolean not null default false/
+  );
+  assert.doesNotMatch(schemaSql, /\bupdate\s+public\.qr_codes\b/);
+
+  const canonicalIndex = schemaSql.match(
+    /create unique index if not exists qr_codes_canonical_slot_key[\s\S]*?;/
+  )?.[0];
+  assert.ok(canonicalIndex);
+  assert.match(canonicalIndex, /where is_canonical = true/);
+  assert.doesNotMatch(
+    canonicalIndex,
+    /where\s+(?:is_canonical\s*=\s*false|purpose_key\s*=\s*'default')/
+  );
+});
+
 test("canonical slot authority is status-independent and purpose is normalized", () => {
   assert.match(
     normalizedSql,
@@ -71,7 +99,7 @@ test("canonical slot authority is status-independent and purpose is normalized",
   );
   assert.match(
     normalizedSql,
-    /add constraint qr_codes_canonical_slot_complete_check check \( not is_canonical or \(restaurant_id is not null and purpose_key is not null\) \)/
+    /add constraint qr_codes_canonical_slot_complete_check check \( not is_canonical or \( restaurant_id is not null and purpose_key is not null and status not in \('archived', 'revoked'\) \) \)/
   );
   assert.match(
     normalizedSql,
@@ -79,10 +107,33 @@ test("canonical slot authority is status-independent and purpose is normalized",
   );
 });
 
+test("revoked history is analyzed but never rewritten", () => {
+  const schemaSql = normalizedSql.split(
+    "create or replace function public.owner_get_or_create_canonical_qr"
+  )[0];
+
+  assert.match(
+    schemaSql,
+    /if exists \( select 1 from public\.qr_codes where status = 'revoked' and is_canonical = true \) then raise exception/
+  );
+  assert.doesNotMatch(
+    schemaSql,
+    /update\s+public\.qr_codes[\s\S]*status\s*=/
+  );
+});
+
 test("vault envelope is either entirely null or entirely complete", () => {
   assert.match(
     normalizedSql,
-    /add constraint qr_codes_token_envelope_all_or_none_check check \( \( token_ciphertext is null and token_nonce is null and token_key_version is null \) or \( token_ciphertext is not null and token_nonce is not null and token_key_version is not null \) \)/
+    /add column if not exists token_key_version text/
+  );
+  assert.doesNotMatch(
+    normalizedSql,
+    /add column if not exists token_key_version smallint/
+  );
+  assert.match(
+    normalizedSql,
+    /add constraint qr_codes_token_envelope_all_or_none_check check \( \( token_ciphertext is null and token_nonce is null and token_key_version is null \) or \( token_ciphertext is not null and pg_catalog\.btrim\(token_ciphertext\) <> '' and token_nonce is not null and pg_catalog\.btrim\(token_nonce\) <> '' and token_key_version is not null and pg_catalog\.btrim\(token_key_version\) <> '' \) \)/
   );
   assert.match(
     normalizedSql,
@@ -91,6 +142,19 @@ test("vault envelope is either entirely null or entirely complete", () => {
 });
 
 test("canonical RPCs are locked down to the service role", () => {
+  assert.match(
+    normalizedSql,
+    /alter table public\.qr_codes enable row level security/
+  );
+  assert.match(
+    normalizedSql,
+    /revoke all on table public\.qr_codes from public, anon, authenticated/
+  );
+  assert.match(
+    normalizedSql,
+    /grant select, insert, update, delete on table public\.qr_codes to service_role/
+  );
+
   for (const name of [
     "owner_get_or_create_canonical_qr",
     "owner_rotate_canonical_qr"
@@ -114,6 +178,29 @@ test("canonical RPCs are locked down to the service role", () => {
       )
     );
   }
+});
+
+test("metadata resolution validates coherent metadata before incrementing", () => {
+  const fn = extractFunction("resolve_qr_code_scan_metadata");
+  const normalized = fn.replace(/\s+/g, " ").toLowerCase();
+
+  assert.notEqual(fn, "", "canonical migration must harden the metadata resolver");
+  assert.equal(
+    (normalized.match(/\bupdate public\.qr_codes\b/g) ?? []).length,
+    1
+  );
+  assert.match(
+    normalized,
+    /where qr\.token_hash = p_token_hash and qr\.status = 'active' and \( \( qr\.target_kind = 'menu' and \( qr\.target_path = '\/demo' or qr\.target_path like '\/menu\/%' \) \) or \( qr\.target_kind = 'admin' and qr\.restaurant_id is not null and qr\.target_path = '\/admin' \) \) returning/
+  );
+  assert.match(
+    normalizedSql,
+    /revoke execute on function public\.resolve_qr_code_scan_metadata\(text\) from public, anon, authenticated/
+  );
+  assert.match(
+    normalizedSql,
+    /grant execute on function public\.resolve_qr_code_scan_metadata\(text\) to service_role/
+  );
 });
 
 test("both RPCs serialize the same normalized canonical slot", () => {
@@ -166,14 +253,14 @@ test("get-or-create rereads under lock and never overwrites a winner", () => {
   );
 });
 
-test("rotation requires confirmation and mutates only the old canonical flag", () => {
+test("rotation records lineage and time while preserving old secrets and status", () => {
   const fn = extractFunction("owner_rotate_canonical_qr");
   const normalized = fn.replace(/\s+/g, " ").toLowerCase();
 
   assert.match(normalized, /if p_confirm is distinct from true then/);
   assert.match(
     normalized,
-    /update public\.qr_codes as qr set is_canonical = false where qr\.id = p_previous_id and qr\.restaurant_id = p_restaurant_id and qr\.target_kind = v_target_kind and qr\.purpose_key = v_purpose_key and qr\.is_canonical = true/
+    /update public\.qr_codes as qr set is_canonical = false, rotated_at = pg_catalog\.now\(\) where qr\.id = p_previous_id and qr\.restaurant_id = p_restaurant_id and qr\.target_kind = v_target_kind and qr\.purpose_key = v_purpose_key and qr\.is_canonical = true/
   );
   const oldUpdate = normalized.match(
     /update public\.qr_codes as qr set[\s\S]*?where qr\.id = p_previous_id/
@@ -181,7 +268,7 @@ test("rotation requires confirmation and mutates only the old canonical flag", (
   assert.ok(oldUpdate);
   assert.doesNotMatch(
     oldUpdate,
-    /\b(?:status|token_hash|token_preview|token_ciphertext|token_nonce|token_key_version|scan_count|last_scanned_at|style_json|target_kind|target_path|created_at|updated_at)\s*=/
+    /\b(?:status|token_hash|token_preview|token_ciphertext|token_nonce|token_key_version|scan_count|last_scanned_at|style_json|target_kind|target_path|created_at|updated_at|supersedes_qr_code_id)\s*=/
   );
   assert.match(
     normalized,
@@ -189,7 +276,11 @@ test("rotation requires confirmation and mutates only the old canonical flag", (
   );
   assert.match(
     normalized,
-    /values \( p_new_id, p_restaurant_id, v_previous\.label, v_target_kind, v_purpose_key, v_previous\.target_path, p_token_hash, p_token_preview, p_token_ciphertext, p_token_nonce, p_token_key_version, v_previous\.style_json, 'active', true \)/
+    /values \( p_new_id, p_restaurant_id, v_previous\.label, v_target_kind, v_purpose_key, v_previous\.target_path, p_token_hash, p_token_preview, p_token_ciphertext, p_token_nonce, p_token_key_version, v_previous\.style_json, 'active', true, p_previous_id \)/
+  );
+  assert.match(
+    normalized,
+    /status, is_canonical, supersedes_qr_code_id \) values/
   );
   assert.match(
     normalized,
@@ -205,6 +296,6 @@ test("rotation requires confirmation and mutates only the old canonical flag", (
 test("canonical-only rotation preserves updated_at despite the legacy trigger", () => {
   assert.match(
     normalizedSql,
-    /if \( pg_catalog\.to_jsonb\(new\) - array\['is_canonical', 'updated_at'\] \) is not distinct from \( pg_catalog\.to_jsonb\(old\) - array\['is_canonical', 'updated_at'\] \) then new\.updated_at = old\.updated_at; else new\.updated_at = pg_catalog\.now\(\); end if/
+    /if \( pg_catalog\.to_jsonb\(new\) - array\['is_canonical', 'rotated_at', 'updated_at'\] \) is not distinct from \( pg_catalog\.to_jsonb\(old\) - array\['is_canonical', 'rotated_at', 'updated_at'\] \) then new\.updated_at = old\.updated_at; else new\.updated_at = pg_catalog\.now\(\); end if/
   );
 });
