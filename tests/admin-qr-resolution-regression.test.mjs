@@ -1,11 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 
 const loadUrls = () => import("../lib/owner/menuUrlCore.ts");
 const loadResolution = () => import("../lib/owner/qrResolutionCore.ts");
 const loadDiagnostics = () => import("../lib/owner/qrDiagnostics.ts");
 const loadSupabaseProject = () => import("../utils/supabase/projectIdentity.ts");
+
+test("the generic invalid QR destination is a concrete page, not the dynamic token route", async () => {
+  const source = await readFile(
+    new URL("../app/q/invalid/page.tsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /QR introuvable ou désactivé/);
+  assert.match(source, /index:\s*false/);
+  assert.doesNotMatch(source, /searchParams|params|token/i);
+});
 
 function runServerTokenProbe(source) {
   return JSON.parse(

@@ -5,6 +5,7 @@ const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
+const sensitiveAdminE2E = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
 const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
@@ -31,15 +32,16 @@ export default defineConfig({
   testIgnore: fixtureOnlyTestIgnore,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: sensitiveAdminE2E ? 0 : process.env.CI ? 1 : 0,
+  preserveOutput: sensitiveAdminE2E ? "never" : "failures-only",
   workers: 1,
   reporter: "list",
   use: {
     baseURL,
     locale: "fr-CA",
     timezoneId: "America/Toronto",
-    screenshot: "only-on-failure",
-    trace: "on-first-retry",
+    screenshot: sensitiveAdminE2E ? "off" : "only-on-failure",
+    trace: sensitiveAdminE2E ? "off" : "on-first-retry",
     video: "off"
   },
   projects: [
