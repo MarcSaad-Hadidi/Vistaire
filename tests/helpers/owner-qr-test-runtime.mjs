@@ -23,6 +23,7 @@ function dependencyRequire() {
 
 const requireDependency = dependencyRequire();
 const ts = requireDependency("typescript");
+const NEXT_SERVER_URL = pathToFileURL(requireDependency.resolve("next/server")).href;
 
 const ROOT_URL = pathToFileURL(`${path.resolve(process.cwd())}${path.sep}`).href;
 const ADMIN_STUB_URL = "qr-test:admin";
@@ -74,7 +75,7 @@ registerHooks({
     }
     if (specifier === "next/server") {
       return {
-        url: pathToFileURL(requireDependency.resolve(specifier)).href,
+        url: NEXT_SERVER_URL,
         shortCircuit: true
       };
     }
