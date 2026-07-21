@@ -46,24 +46,32 @@ function installPageHealth(page: Page) {
   const networkIssues: string[] = [];
   const immersiveRequests: string[] = [];
 
+  function redactSensitivePath(rawUrl: string): string {
+    try {
+      return new URL(rawUrl).pathname.replace(/^\/q\/[^/]+/, "/q/[redacted]");
+    } catch {
+      return "[invalid-url]";
+    }
+  }
+
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
+    if (message.type() === "error") errors.push("console:error");
   });
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", () => errors.push("page:error"));
   page.on("response", (response) => {
     if (response.status() === 404 || response.status() >= 500) {
-      networkIssues.push(`${response.status()} ${response.url()}`);
+      networkIssues.push(`${response.status()} ${redactSensitivePath(response.url())}`);
     }
   });
   page.on("requestfailed", (request) => {
     const errorText = request.failure()?.errorText ?? "unknown request failure";
     if (errorText !== "net::ERR_ABORTED") {
-      networkIssues.push(`${errorText} ${request.url()}`);
+      networkIssues.push(`request-failed ${redactSensitivePath(request.url())}`);
     }
   });
   page.on("request", (request) => {
     if (/\.(?:glb|usdz)(?:$|[?#])/i.test(request.url())) {
-      immersiveRequests.push(request.url());
+      immersiveRequests.push(`immersive ${redactSensitivePath(request.url())}`);
     }
   });
 
@@ -107,7 +115,7 @@ async function expectPublicMenuDishState(
   }
 }
 
-test("required admin E2E fixtures are never silently skipped", () => {
+test("required admin E2E fixtures are never silently skipped @admin-e2e-live", () => {
   if (!REQUIRE_ADMIN_E2E) return;
 
   requireAdminPreviewUrl();
@@ -127,7 +135,7 @@ test("required admin E2E fixtures are never silently skipped", () => {
   );
 });
 
-test("direct admin access stays locked at 390 and 430 pixels", async ({ page }) => {
+test("direct admin access stays locked at 390 and 430 pixels @admin-e2e-live", async ({ page }) => {
   const health = installPageHealth(page);
 
   for (const width of [390, 430]) {
@@ -188,7 +196,7 @@ test("owner QR page distinguishes public menu and internal restaurant access", a
   health.expectClean();
 });
 
-test("authorized admin filters dishes and persists then restores availability", async ({
+test("authorized admin filters dishes and persists then restores availability @admin-e2e-live", async ({
   page
 }) => {
   const adminQrToken = requireAdminFixture(
@@ -393,7 +401,7 @@ test("authorized admin filters dishes and persists then restores availability", 
   health.expectClean();
 });
 
-test("a restaurant B session cannot mutate a dish exposed to restaurant A", async ({ browser }) => {
+test("a restaurant B session cannot mutate a dish exposed to restaurant A @admin-e2e-live", async ({ browser }) => {
   const adminQrToken = requireAdminFixture(
     ADMIN_E2E_QR_TOKEN,
     "VISTAIRE_ADMIN_E2E_QR_TOKEN"
@@ -450,7 +458,7 @@ test("a restaurant B session cannot mutate a dish exposed to restaurant A", asyn
   }
 });
 
-test("a suspended QR cannot establish an admin session", async ({ page }) => {
+test("a suspended QR cannot establish an admin session @admin-e2e-live", async ({ page }) => {
   const suspendedQrToken = requireAdminFixture(
     ADMIN_E2E_SUSPENDED_QR_TOKEN,
     "VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN"
@@ -461,10 +469,10 @@ test("a suspended QR cannot establish an admin session", async ({ page }) => {
   });
   await expect(page).not.toHaveURL(/\/admin$/);
   const cookies = await page.context().cookies();
-  expect(cookies.find((cookie) => cookie.name === "vistaire_admin_access")).toBeUndefined();
+  expect(cookies.some((cookie) => cookie.name === "vistaire_admin_access")).toBe(false);
 });
 
-test("admin logout removes the restaurant session", async ({ page }) => {
+test("admin logout removes the restaurant session @admin-e2e-live", async ({ page }) => {
   const adminQrToken = requireAdminFixture(
     ADMIN_E2E_QR_TOKEN,
     "VISTAIRE_ADMIN_E2E_QR_TOKEN"
@@ -477,10 +485,10 @@ test("admin logout removes the restaurant session", async ({ page }) => {
   await page.getByRole("button", { name: /Déconnexion|Se déconnecter/i }).click();
   await expect(page.getByRole("heading", { name: "Accès dashboard restaurant requis" })).toBeVisible();
   const cookies = await page.context().cookies();
-  expect(cookies.find((cookie) => cookie.name === "vistaire_admin_access")).toBeUndefined();
+  expect(cookies.some((cookie) => cookie.name === "vistaire_admin_access")).toBe(false);
 });
 
-test("real admin QR exchange sets the session cookie when credentials exist", async ({
+test("real admin QR exchange sets the session cookie when credentials exist @admin-e2e-live", async ({
   request
 }) => {
   const adminQrToken = requireAdminFixture(
@@ -494,5 +502,7 @@ test("real admin QR exchange sets the session cookie when credentials exist", as
   expect(response.status()).toBeGreaterThanOrEqual(300);
   expect(response.status()).toBeLessThan(400);
   expect(response.headers().location).toBe("/admin");
-  expect(response.headers()["set-cookie"]).toContain("vistaire_admin_access=");
+  const hasAdminSessionCookie =
+    response.headers()["set-cookie"]?.includes("vistaire_admin_access=") ?? false;
+  expect(hasAdminSessionCookie, "QR exchange must set the admin session cookie").toBe(true);
 });
