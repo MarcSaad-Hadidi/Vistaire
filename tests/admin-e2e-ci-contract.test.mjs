@@ -54,10 +54,11 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   );
 });
 
-test("App CI keeps blocking checks and excludes the live admin E2E", async () => {
-  const [workflow, packageJson] = await Promise.all([
+test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smoke available locally", async () => {
+  const [workflow, packageJson, fullSmoke] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
-    source("package.json")
+    source("package.json"),
+    source("e2e/mvp-smoke.spec.ts")
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
@@ -89,7 +90,6 @@ test("App CI keeps blocking checks and excludes the live admin E2E", async () =>
     "npm run test:seo",
     "npm run test:admin",
     "npm run build",
-    "npm run test:smoke",
     "npm run test:smoke:bootstrap",
     "npm run test:seo:e2e"
   ]) {
@@ -97,9 +97,11 @@ test("App CI keeps blocking checks and excludes the live admin E2E", async () =>
   }
   assert.ok(
     workflow.indexOf("run: npm run test:qr:functional") < workflow.indexOf("run: npm run build") &&
-      workflow.indexOf("run: npm run build") < workflow.indexOf("run: npm run test:smoke"),
-    "QR functional tests must run before the build and smoke must run after it"
+      workflow.indexOf("run: npm run build") < workflow.indexOf("run: npm run test:smoke:bootstrap"),
+    "QR functional tests must run before the build and hermetic smoke must run after it"
   );
+  assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
+  assert.doesNotMatch(fullSmoke, /test\.skip/);
   assert.match(workflow, /image:\s*postgres:17/);
   assert.match(workflow, /PGDATABASE:\s*vistaire_qr_ci/);
   assert.doesNotMatch(workflow, /admin-restaurant-e2e|admin-e2e|VISTAIRE_ADMIN_E2E/);

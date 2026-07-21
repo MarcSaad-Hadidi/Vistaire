@@ -92,12 +92,6 @@ jobs:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:smoke:bootstrap
 
-      - name: Application smoke e2e
-        timeout-minutes: 5
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:smoke
-
       - name: SEO smoke e2e
         timeout-minutes: 5
         env:

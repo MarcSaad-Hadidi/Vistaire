@@ -47,7 +47,7 @@ test("the retained PostgreSQL fixture uses the versioned rotation RPC", async ()
   );
 });
 
-test("App CI supplies PostgreSQL 17 and runs every blocking QR gate", async () => {
+test("App CI supplies PostgreSQL 17 and uses the hermetic bootstrap smoke gate", async () => {
   const workflow = await source(".github/workflows/app-ci.yml");
   assert.match(workflow, /image:\s*postgres:17(?:\s|$)/);
   for (const command of [
@@ -59,8 +59,9 @@ test("App CI supplies PostgreSQL 17 and runs every blocking QR gate", async () =
     "npm run test:qr:postgres",
     "npm run test:qr:functional",
     "npm run build",
-    "npm run test:smoke"
+    "npm run test:smoke:bootstrap"
   ]) {
     assert.match(workflow, new RegExp(`run:\\s*${command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`));
   }
+  assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
 });
