@@ -68,6 +68,53 @@ test("rotation applies pause, persists one audit event, and replays the same ope
   assert.doesNotMatch(event.request_fingerprint, /sha256:|ciphertext|nonce|test-v1/);
 });
 
+test("rotation rejects a replay whose successor is no longer the active canonical", async (t) => {
+  const fixture = createQrSupabaseFixture();
+  const firstCanonical = await createCanonical(fixture, t);
+  const { POST } = await loadQrRotateRoute();
+
+  async function rotate(id, body) {
+    const response = await POST(
+      new Request(`https://fixture.invalid/api/owner/qr-codes/${id}/rotate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      }),
+      { params: Promise.resolve({ id }) }
+    );
+    return { response, payload: await response.json() };
+  }
+
+  const firstArgs = {
+    confirmed: true,
+    idempotencyKey: "12121212-1212-4121-8121-121212121212",
+    previousDisposition: "keep-active",
+    expectedConfigVersion: firstCanonical.configVersion
+  };
+  const first = await rotate(firstCanonical.id, firstArgs);
+  assert.equal(first.response.status, 201);
+
+  const second = await rotate(first.payload.current.id, {
+    confirmed: true,
+    idempotencyKey: "34343434-3434-4343-8343-343434343434",
+    previousDisposition: "revoke",
+    expectedConfigVersion: first.payload.current.configVersion
+  });
+  assert.equal(second.response.status, 201);
+
+  const lateReplay = await rotate(firstCanonical.id, firstArgs);
+  assert.equal(lateReplay.response.status, 409);
+  assert.equal(lateReplay.payload.code, "config-version-conflict");
+  assert.equal("redirectUrl" in lateReplay.payload, false);
+  assert.doesNotMatch(JSON.stringify(lateReplay.payload), /\/q\//);
+
+  const formerSuccessor = fixture.rows.find(
+    (row) => row.id === first.payload.current.id
+  );
+  assert.equal(formerSuccessor.is_canonical, false);
+  assert.equal(formerSuccessor.status, "revoked");
+});
+
 test("rotation audit failure rolls back predecessor, successor, and event state", async (t) => {
   const fixture = createQrSupabaseFixture({
     rotationAuditError: { code: "XX000", message: "audit insert failed" }
@@ -255,6 +302,49 @@ test("status handler executes replay-safe pause, resume, and revoke through life
   assert.deepEqual(
     fixture.lifecycleEvents.map((event) => event.action),
     ["pause", "resume", "revoke"]
+  );
+});
+
+test("status handler rejects replay after a later lifecycle transition", async (t) => {
+  const fixture = createQrSupabaseFixture();
+  const canonical = await createCanonical(fixture, t);
+  const { POST } = await loadQrStatusRoute();
+  const url = `https://fixture.invalid/api/owner/qr-codes/${canonical.id}/status`;
+
+  async function mutate(action, expectedConfigVersion, idempotencyKey) {
+    const response = await POST(
+      new Request(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, expectedConfigVersion, idempotencyKey })
+      }),
+      { params: Promise.resolve({ id: canonical.id }) }
+    );
+    return { response, payload: await response.json() };
+  }
+
+  const pauseKey = "56565656-5656-4565-8565-565656565656";
+  const paused = await mutate("pause", canonical.configVersion, pauseKey);
+  assert.equal(paused.response.status, 200);
+  const resumed = await mutate(
+    "resume",
+    paused.payload.record.configVersion,
+    "78787878-7878-4787-8787-787878787878"
+  );
+  assert.equal(resumed.response.status, 200);
+
+  const latePauseReplay = await mutate(
+    "pause",
+    canonical.configVersion,
+    pauseKey
+  );
+  assert.equal(latePauseReplay.response.status, 409);
+  assert.equal(latePauseReplay.payload.code, "config-version-conflict");
+  const currentRow = fixture.rows.find((row) => row.id === canonical.id);
+  assert.equal(currentRow.status, "active");
+  assert.equal(
+    currentRow.config_version,
+    resumed.payload.record.configVersion
   );
 });
 

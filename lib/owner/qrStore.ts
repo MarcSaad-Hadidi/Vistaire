@@ -208,6 +208,7 @@ const CANONICAL_COLUMNS = [
   "target_path",
   "status",
   "config_version",
+  "supersedes_qr_code_id",
   "scan_count",
   "last_scanned_at",
   "style_json",
@@ -856,9 +857,26 @@ async function recoverCompletedRotation(
       incidentId
     });
   }
+  const currentData = currentRead.data as unknown as AnyRow;
+  if (
+    currentData.is_canonical !== true ||
+    getString(currentData, ["status"], "") !== "active" ||
+    getNumber(currentData, ["config_version"], 0) !==
+      args.expectedConfigVersion + 1 ||
+    getString(
+      currentData,
+      ["supersedes_qr_code_id", "supersedesQrCodeId"],
+      ""
+    ) !== args.previousId
+  ) {
+    return {
+      ok: false,
+      code: "config-version-conflict",
+      error: "Le resultat de cette rotation a ete remplace. Rechargez avant de reessayer."
+    };
+  }
   const recovered = await recoverCanonicalRecord({
-    ...(currentRead.data as unknown as AnyRow),
-    is_canonical: true
+    ...currentData
   });
   if (!recovered.ok) return CANONICAL_UNRECOVERABLE;
   const previous = mapQrRow(previousRead.data as unknown as AnyRow);
@@ -1349,7 +1367,32 @@ export async function transitionOwnerQrLifecycle(
     });
     return buildQrSupabaseFailure({ code: "QR_LIFECYCLE_FAILED", incidentId });
   }
-  return { ok: true, record: mapInventoryRow(inventoryRow as unknown as AnyRow) };
+  const inventoryRecord = mapInventoryRow(inventoryRow as unknown as AnyRow);
+  if (getString(row, ["result_status"], "") === "idempotent") {
+    const expectedStatus =
+      args.action === "pause"
+        ? "paused"
+        : args.action === "resume"
+          ? "active"
+          : args.action === "archive"
+            ? "archived"
+            : "revoked";
+    const shouldRemainCanonical =
+      args.action === "pause" || args.action === "resume";
+    if (
+      inventoryRecord.configVersion !== args.expectedConfigVersion + 1 ||
+      inventoryRecord.status !== expectedStatus ||
+      inventoryRecord.isCanonical !== shouldRemainCanonical
+    ) {
+      return {
+        ok: false,
+        code: "config-version-conflict",
+        error: "Le resultat de cette operation a ete remplace. Rechargez avant de reessayer.",
+        current: inventoryRecord
+      };
+    }
+  }
+  return { ok: true, record: inventoryRecord };
 }
 
 export type { QrResolution } from "@/lib/owner/qrResolutionCore";

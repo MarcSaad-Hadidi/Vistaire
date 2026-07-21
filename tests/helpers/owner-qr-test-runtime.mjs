@@ -460,6 +460,20 @@ export function createQrSupabaseFixture(options = {}) {
           error: { code: "P0002", message: "rotation replay rows were not found" }
         };
       }
+      if (
+        replayCurrent.is_canonical !== true ||
+        replayCurrent.status !== "active" ||
+        replayCurrent.config_version !== params.p_expected_config_version + 1 ||
+        replayCurrent.supersedes_qr_code_id !== replayPrevious.id
+      ) {
+        return {
+          data: null,
+          error: {
+            code: "40001",
+            message: "QR rotation replay is no longer the current canonical result"
+          }
+        };
+      }
       return {
         data: [
           { ...canonicalRpcRow(replayPrevious, false), result_status: "previous" },
@@ -623,6 +637,28 @@ export function createQrSupabaseFixture(options = {}) {
           error: {
             code: "22023",
             message: `QR ${clearCanonical ? "clear" : "lifecycle"} idempotency key was reused`
+          }
+        };
+      }
+      const expectedReplayStatus =
+        action === "pause"
+          ? "paused"
+          : action === "resume"
+            ? "active"
+            : action === "archive"
+              ? "archived"
+              : "revoked";
+      const expectedCanonical = action === "pause" || action === "resume";
+      if (
+        row.config_version !== params.p_expected_config_version + 1 ||
+        row.status !== expectedReplayStatus ||
+        row.is_canonical !== expectedCanonical
+      ) {
+        return {
+          data: null,
+          error: {
+            code: "40001",
+            message: "QR lifecycle replay is no longer the current result"
           }
         };
       }
