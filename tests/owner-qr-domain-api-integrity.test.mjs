@@ -84,8 +84,13 @@ test("the allowlisted status endpoint aligns lifecycle actions with DB RPCs and 
   for (const action of ["pause", "resume", "archive", "revoke"]) {
     assert.match(handler, new RegExp(`"${action}"`));
   }
+  for (const field of ["action", "expectedConfigVersion", "idempotencyKey"]) {
+    assert.match(handler, new RegExp(field));
+  }
   assert.match(route, /handleQrLifecycleMutation/);
   assert.match(handler, /ACTIONS\.has/);
+  assert.match(store, /p_expected_config_version:\s*args\.expectedConfigVersion/);
+  assert.match(store, /p_operation_id:\s*args\.idempotencyKey/);
   assert.match(store, /owner_set_canonical_qr_lifecycle/);
   assert.match(store, /owner_clear_canonical_qr/);
   assert.doesNotMatch(store, /\.delete\s*\(/);

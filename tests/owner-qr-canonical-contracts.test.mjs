@@ -315,8 +315,10 @@ test("[FIXTURE 9/9] confirmed rotation alone replaces the canonical and leaves t
   assert.equal(rotated.record.redirectUrl, "/q/canonical-01");
   assert.equal(oldAfter.is_canonical, false);
   assert.equal(oldAfter.status, "active");
+  assert.equal(oldAfter.config_version, oldBefore.config_version + 1);
+  assert.equal(oldAfter.rotated_at, "2026-07-17T12:00:03.000Z");
   for (const [field, value] of Object.entries(oldBefore)) {
-    if (field === "is_canonical") continue;
+    if (["is_canonical", "config_version", "rotated_at"].includes(field)) continue;
     assert.deepEqual(oldAfter[field], value, field);
   }
   assert.deepEqual(historyRows(fixture), historyBefore);
@@ -559,8 +561,11 @@ test("[CONSUMER] rotate route requires confirmation and preserves the old active
   assert.equal(confirmed.status, 201);
   assert.notEqual(payload.current.id, created.record.id);
   assert.equal(old.is_canonical, false);
+  assert.equal(old.status, "active");
+  assert.equal(old.config_version, oldBefore.config_version + 1);
+  assert.equal(old.rotated_at, "2026-07-17T12:00:03.000Z");
   for (const [field, value] of Object.entries(oldBefore)) {
-    if (field === "is_canonical") continue;
+    if (["is_canonical", "config_version", "rotated_at"].includes(field)) continue;
     assert.deepEqual(old[field], value, field);
   }
   assert.deepEqual(historyRows(fixture), historyBefore);

@@ -140,7 +140,11 @@ export type OwnerQrRequestError = {
 export type OwnerQrInventoryRecord = Omit<
   OwnerQrCodeRecord,
   "recoverable" | "redirectUrl" | "tokenPreview"
->;
+> & {
+  supersedesQrCodeId: string | null;
+  rotatedAt: string | null;
+  revokedAt: string | null;
+};
 
 export type CanonicalQrMutationResult =
   | {

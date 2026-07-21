@@ -13,6 +13,8 @@ const ACTIONS = new Set<OwnerQrLifecycleAction>([
   "archive",
   "revoke"
 ]);
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function noStore(response: Response): Response {
   response.headers.set("Cache-Control", NO_STORE_HEADERS["Cache-Control"]);
@@ -44,9 +46,13 @@ export async function handleQrLifecycleMutation(
     !id ||
     !candidate ||
     Array.isArray(candidate) ||
-    Object.keys(candidate).length !== 1 ||
+    Object.keys(candidate).length !== 3 ||
     typeof candidate.action !== "string" ||
-    !ACTIONS.has(candidate.action as OwnerQrLifecycleAction)
+    !ACTIONS.has(candidate.action as OwnerQrLifecycleAction) ||
+    !Number.isSafeInteger(candidate.expectedConfigVersion) ||
+    Number(candidate.expectedConfigVersion) < 1 ||
+    typeof candidate.idempotencyKey !== "string" ||
+    !UUID_PATTERN.test(candidate.idempotencyKey)
   ) {
     return qrJson(
       { ok: false, code: "invalid-input", error: "Action QR invalide." },
@@ -55,7 +61,9 @@ export async function handleQrLifecycleMutation(
   }
   const action = candidate.action as OwnerQrLifecycleAction;
   const result = await transitionOwnerQrLifecycle(id, {
-    action
+    action,
+    expectedConfigVersion: Number(candidate.expectedConfigVersion),
+    idempotencyKey: candidate.idempotencyKey as string
   });
   if (!result.ok) {
     const status =
@@ -72,6 +80,7 @@ export async function handleQrLifecycleMutation(
         ok: false,
         code: result.code,
         error: result.error,
+        ...( "current" in result ? { current: result.current } : {}),
         ...( "incidentId" in result ? { incidentId: result.incidentId } : {})
       },
       status

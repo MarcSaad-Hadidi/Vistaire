@@ -172,12 +172,31 @@ export async function loadQrRetargetRoute() {
   return import("../../app/api/owner/qr-codes/[id]/retarget/route.ts");
 }
 
+export async function loadQrInventoryRoute() {
+  return import("../../app/api/owner/qr-codes/inventory/route.ts");
+}
+
+export async function loadQrStatusRoute() {
+  return import("../../app/api/owner/qr-codes/[id]/status/route.ts");
+}
+
 function storedHash(token) {
   return `sha256:${createHash("sha256").update(token, "utf8").digest("hex")}`;
 }
 
 function preview(token) {
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 export function createPromiseBarrier(participants = 2) {
@@ -200,10 +219,12 @@ export function createPromiseBarrier(participants = 2) {
 
 export function createQrSupabaseFixture(options = {}) {
   const rows = [];
+  const lifecycleEvents = [];
   const calls = [];
   const recoveredUrls = new Map();
   const canonicalBatches = new Map();
   let sequence = 0;
+  let eventSequence = 0;
   let beforeQrUpdateCalled = false;
   const uniqueConstraints = [["token_hash"]];
 
@@ -223,6 +244,9 @@ export function createQrSupabaseFixture(options = {}) {
       status: row.status ?? "active",
       config_version: row.config_version ?? 1,
       is_canonical: row.is_canonical ?? false,
+      supersedes_qr_code_id: row.supersedes_qr_code_id ?? null,
+      rotated_at: row.rotated_at ?? null,
+      revoked_at: row.revoked_at ?? null,
       token_ciphertext: row.token_ciphertext ?? null,
       token_nonce: row.token_nonce ?? null,
       token_key_version: row.token_key_version ?? null,
@@ -326,8 +350,11 @@ export function createQrSupabaseFixture(options = {}) {
       token_key_version: params.p_token_key_version,
       style_json: structuredClone(params.p_style_json ?? {}),
       status: "active",
-      config_version: 1,
+      config_version: params.p_config_version ?? 1,
       is_canonical: true,
+      supersedes_qr_code_id: params.p_supersedes_qr_code_id ?? null,
+      revoked_at: null,
+      rotated_at: null,
       scan_count: 0,
       last_scanned_at: null,
       created_at: now,
@@ -389,11 +416,88 @@ export function createQrSupabaseFixture(options = {}) {
         error: { code: "22023", message: "rotation confirmation required" }
       };
     }
+    const requestFingerprint = createHash("sha256").update(stableJson([
+      params.p_previous_id,
+      params.p_new_id,
+      params.p_restaurant_id,
+      String(params.p_target_kind ?? "").trim().toLowerCase(),
+      String(params.p_purpose_key ?? "").trim().toLowerCase(),
+      String(params.p_label ?? "").trim(),
+      params.p_target_path,
+      params.p_token_hash,
+      params.p_token_preview,
+      params.p_token_ciphertext,
+      params.p_token_nonce,
+      params.p_token_key_version,
+      params.p_style_json,
+      params.p_confirm,
+      params.p_disposition,
+      params.p_expected_config_version
+    ]), "utf8").digest("hex");
+    const existingEvent = lifecycleEvents.find(
+      (event) => event.operation_id === params.p_rotation_request_id
+    );
+    if (existingEvent) {
+      if (
+        existingEvent.action !== "rotate" ||
+        existingEvent.request_fingerprint !== requestFingerprint
+      ) {
+        return {
+          data: null,
+          error: {
+            code: "22023",
+            message: "QR rotation request id was reused with a different payload"
+          }
+        };
+      }
+      const replayPrevious = rows.find((row) => row.id === existingEvent.qr_code_id);
+      const replayCurrent = rows.find(
+        (row) => row.id === existingEvent.successor_qr_code_id
+      );
+      if (!replayPrevious || !replayCurrent) {
+        return {
+          data: null,
+          error: { code: "P0002", message: "rotation replay rows were not found" }
+        };
+      }
+      return {
+        data: [
+          { ...canonicalRpcRow(replayPrevious, false), result_status: "previous" },
+          { ...canonicalRpcRow(replayCurrent, false), result_status: "canonical" }
+        ],
+        error: null
+      };
+    }
+
     const previous = canonicalForSlot(params);
     if (!previous || previous.id !== params.p_previous_id) {
       return {
         data: null,
         error: { code: "P0002", message: "canonical QR was not found" }
+      };
+    }
+    if (previous.config_version !== params.p_expected_config_version) {
+      return {
+        data: null,
+        error: { code: "40001", message: "stale QR config_version" }
+      };
+    }
+    if (!["active", "paused"].includes(previous.status)) {
+      return {
+        data: null,
+        error: { code: "55000", message: "canonical QR state cannot be rotated" }
+      };
+    }
+    if (!["keep-active", "pause", "revoke"].includes(params.p_disposition)) {
+      return {
+        data: null,
+        error: { code: "22023", message: "QR rotation disposition is invalid" }
+      };
+    }
+    if (!params.p_rotation_request_id) {
+      return {
+        data: null,
+        error: { code: "22023", message: "QR rotation request id is required" }
       };
     }
     const invalid = canonicalCandidateError({
@@ -415,15 +519,56 @@ export function createQrSupabaseFixture(options = {}) {
     if (typeof options.beforeCanonicalRotation === "function") {
       options.beforeCanonicalRotation(previous);
     }
+    const previousSnapshot = structuredClone(previous);
+    const previousStatus = previous.status;
     previous.is_canonical = false;
+    previous.status = {
+      "keep-active": "active",
+      pause: "paused",
+      revoke: "revoked"
+    }[params.p_disposition];
+    previous.revoked_at =
+      params.p_disposition === "revoke" ? "2026-07-17T12:00:03.000Z" : null;
+    previous.rotated_at = "2026-07-17T12:00:03.000Z";
+    previous.config_version += 1;
     const inserted = insertCanonicalCandidate({
       ...params,
       p_id: params.p_new_id,
       p_label: previous.label,
       p_target_path: previous.target_path,
-      p_style_json: previous.style_json
+      p_style_json: previous.style_json,
+      p_config_version: params.p_expected_config_version + 1,
+      p_supersedes_qr_code_id: previous.id
     });
-    if (inserted.error) return inserted;
+    if (inserted.error) {
+      Object.assign(previous, previousSnapshot);
+      return inserted;
+    }
+    const current = rows.find((row) => row.id === params.p_new_id);
+    if (options.rotationAuditError) {
+      Object.assign(previous, previousSnapshot);
+      rows.splice(rows.indexOf(current), 1);
+      recoveredUrls.delete(params.p_new_id);
+      return {
+        data: null,
+        error: structuredClone(options.rotationAuditError)
+      };
+    }
+    lifecycleEvents.push({
+      id: `qr-event-${++eventSequence}`,
+      operation_id: params.p_rotation_request_id,
+      restaurant_id: params.p_restaurant_id,
+      qr_code_id: previous.id,
+      successor_qr_code_id: current.id,
+      action: "rotate",
+      disposition: params.p_disposition,
+      previous_status: previousStatus,
+      new_status: previous.status,
+      request_fingerprint: requestFingerprint,
+      previous_config_version: params.p_expected_config_version,
+      new_config_version: previous.config_version,
+      occurred_at: "2026-07-17T12:00:03.000Z"
+    });
     return {
       data: [
         {
@@ -436,8 +581,135 @@ export function createQrSupabaseFixture(options = {}) {
     };
   }
 
-  function matchingRows(filters) {
-    return rows.filter((row) =>
+  function lifecycleRpcRow(row, resultStatus) {
+    return {
+      result_status: resultStatus,
+      id: row.id,
+      status: row.status,
+      is_canonical: row.is_canonical,
+      revoked_at: row.revoked_at ?? null,
+      rotated_at: row.rotated_at ?? null,
+      supersedes_qr_code_id: row.supersedes_qr_code_id ?? null,
+      config_version: row.config_version
+    };
+  }
+
+  function handleLifecycleMutation(params, clearCanonical) {
+    const action = clearCanonical ? params.p_disposition : params.p_action;
+    const operationId = params.p_operation_id;
+    const row = rows.find(
+      (candidate) =>
+        candidate.id === params.p_qr_code_id &&
+        candidate.restaurant_id === params.p_restaurant_id
+    );
+    if (!row) {
+      return {
+        data: null,
+        error: { code: "P0002", message: "canonical QR was not found" }
+      };
+    }
+    const existingEvent = lifecycleEvents.find(
+      (event) => event.operation_id === operationId
+    );
+    if (existingEvent) {
+      if (
+        existingEvent.qr_code_id !== params.p_qr_code_id ||
+        existingEvent.restaurant_id !== params.p_restaurant_id ||
+        existingEvent.action !== action ||
+        existingEvent.previous_config_version !== params.p_expected_config_version
+      ) {
+        return {
+          data: null,
+          error: {
+            code: "22023",
+            message: `QR ${clearCanonical ? "clear" : "lifecycle"} idempotency key was reused`
+          }
+        };
+      }
+      return { data: [lifecycleRpcRow(row, "idempotent")], error: null };
+    }
+    if (
+      !operationId ||
+      !Number.isSafeInteger(params.p_expected_config_version) ||
+      params.p_expected_config_version < 1
+    ) {
+      return {
+        data: null,
+        error: { code: "22023", message: "QR lifecycle identity and version are required" }
+      };
+    }
+    if (!row.is_canonical) {
+      return {
+        data: null,
+        error: { code: "P0002", message: "canonical QR was not found" }
+      };
+    }
+    if (row.config_version !== params.p_expected_config_version) {
+      return {
+        data: null,
+        error: { code: "40001", message: "stale QR config_version" }
+      };
+    }
+
+    const allowed = clearCanonical
+      ? ["archive", "revoke"].includes(action) && ["active", "paused"].includes(row.status)
+      : (action === "pause" && row.status === "active") ||
+        (action === "resume" && row.status === "paused") ||
+        (action === "revoke" && ["active", "paused"].includes(row.status));
+    if (!allowed) {
+      return {
+        data: null,
+        error: {
+          code: "55000",
+          message: clearCanonical
+            ? "invalid QR clear transition"
+            : "invalid_lifecycle_transition"
+        }
+      };
+    }
+
+    const rowSnapshot = structuredClone(row);
+    const previousStatus = row.status;
+    row.status =
+      action === "pause"
+        ? "paused"
+        : action === "resume"
+          ? "active"
+          : action === "archive"
+            ? "archived"
+            : "revoked";
+    if (["archive", "revoke"].includes(action)) row.is_canonical = false;
+    row.revoked_at =
+      action === "revoke" ? "2026-07-17T12:00:03.000Z" : null;
+    row.config_version += 1;
+    row.updated_at = "2026-07-17T12:00:03.000Z";
+    if (options.lifecycleAuditError) {
+      Object.assign(row, rowSnapshot);
+      return {
+        data: null,
+        error: structuredClone(options.lifecycleAuditError)
+      };
+    }
+    lifecycleEvents.push({
+      id: `qr-event-${++eventSequence}`,
+      operation_id: operationId,
+      restaurant_id: row.restaurant_id,
+      qr_code_id: row.id,
+      successor_qr_code_id: null,
+      action,
+      disposition: null,
+      previous_status: previousStatus,
+      new_status: row.status,
+      request_fingerprint: null,
+      previous_config_version: params.p_expected_config_version,
+      new_config_version: row.config_version,
+      occurred_at: "2026-07-17T12:00:03.000Z"
+    });
+    return { data: [lifecycleRpcRow(row, "applied")], error: null };
+  }
+
+  function matchingRows(filters, source = rows) {
+    return source.filter((row) =>
       filters.every(({ column, value }) => row[column] === value)
     );
   }
@@ -458,6 +730,7 @@ export function createQrSupabaseFixture(options = {}) {
       this.columns = "*";
       this.filters = [];
       this.limitCount = null;
+      this.orderBy = [];
     }
 
     insert(value) {
@@ -503,6 +776,21 @@ export function createQrSupabaseFixture(options = {}) {
     limit(count) {
       this.limitCount = count;
       calls.push({ table: this.table, method: "limit", count });
+      return this;
+    }
+
+    order(column, config = {}) {
+      const order = {
+        column,
+        ascending: config.ascending !== false
+      };
+      this.orderBy.push(order);
+      calls.push({
+        table: this.table,
+        method: "order",
+        column,
+        ascending: order.ascending
+      });
       return this;
     }
 
@@ -623,8 +911,24 @@ export function createQrSupabaseFixture(options = {}) {
           error: structuredClone(options.safeInventoryReadError)
         };
       }
-      const found = matchingRows(this.filters);
-      const limited = this.limitCount === null ? found : found.slice(0, this.limitCount);
+      const source =
+        this.table === "qr_code_lifecycle_events" ? lifecycleEvents : rows;
+      const found = matchingRows(this.filters, source);
+      const ordered = this.orderBy.length
+        ? [...found].sort((left, right) => {
+            for (const order of this.orderBy) {
+              const comparison = String(left[order.column] ?? "").localeCompare(
+                String(right[order.column] ?? "")
+              );
+              if (comparison !== 0) {
+                return order.ascending ? comparison : -comparison;
+              }
+            }
+            return 0;
+          })
+        : found;
+      const limited =
+        this.limitCount === null ? ordered : ordered.slice(0, this.limitCount);
       const data = limited.map((row) => projectRow(row, this.columns));
       return { data, error: null };
     }
@@ -674,6 +978,14 @@ export function createQrSupabaseFixture(options = {}) {
 
       if (name === "owner_rotate_canonical_qr") {
         return handleCanonicalRotation(params);
+      }
+
+      if (name === "owner_set_canonical_qr_lifecycle") {
+        return handleLifecycleMutation(params, false);
+      }
+
+      if (name === "owner_clear_canonical_qr") {
+        return handleLifecycleMutation(params, true);
       }
 
       if (name === "resolve_qr_code_scan_metadata") {
@@ -753,6 +1065,7 @@ export function createQrSupabaseFixture(options = {}) {
         targetPath: row.target_path,
         status: row.status,
         isCanonical: row.is_canonical,
+        configVersion: row.config_version,
         fingerprint: row.token_hash,
         tokenPreview: row.token_preview,
         redirectUrl:
@@ -768,6 +1081,7 @@ export function createQrSupabaseFixture(options = {}) {
     client,
     calls,
     rows,
+    lifecycleEvents,
     seedQr,
     snapshotRows() {
       return structuredClone(rows);
@@ -808,11 +1122,17 @@ export function createQrSupabaseFixture(options = {}) {
       });
     },
     async rotateCanonical(previousId, candidate, confirm) {
+      const previous = rows.find((row) => row.id === previousId);
       const response = await client.rpc("owner_rotate_canonical_qr", {
         p_previous_id: previousId,
         p_new_id: candidate.id,
         ...candidateParams(candidate),
-        p_confirm: confirm
+        p_confirm: confirm,
+        p_disposition: candidate.previousDisposition ?? "keep-active",
+        p_rotation_request_id:
+          candidate.idempotencyKey ?? `fixture-rotation-${candidate.id}`,
+        p_expected_config_version:
+          candidate.expectedConfigVersion ?? previous?.config_version ?? 1
       });
       if (response.error) return ownerResult(response);
       return ownerResult({
@@ -821,11 +1141,36 @@ export function createQrSupabaseFixture(options = {}) {
       });
     },
     install() {
+      const previousActiveVersion =
+        process.env.VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION;
+      const previousKeyRing = process.env.VISTAIRE_QR_TOKEN_KEY_RING;
+      const hadAdmin = Object.prototype.hasOwnProperty.call(
+        globalThis,
+        "__OWNER_QR_TEST_ADMIN__"
+      );
+      const previousAdmin = globalThis.__OWNER_QR_TEST_ADMIN__;
       process.env.VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION = "test-v1";
       process.env.VISTAIRE_QR_TOKEN_KEY_RING = JSON.stringify({
         "test-v1": Buffer.alloc(32, 7).toString("base64url")
       });
       globalThis.__OWNER_QR_TEST_ADMIN__ = { ok: true, client };
+      let disposed = false;
+      return () => {
+        if (disposed) return;
+        disposed = true;
+        if (previousActiveVersion === undefined) {
+          delete process.env.VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION;
+        } else {
+          process.env.VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION = previousActiveVersion;
+        }
+        if (previousKeyRing === undefined) {
+          delete process.env.VISTAIRE_QR_TOKEN_KEY_RING;
+        } else {
+          process.env.VISTAIRE_QR_TOKEN_KEY_RING = previousKeyRing;
+        }
+        if (hadAdmin) globalThis.__OWNER_QR_TEST_ADMIN__ = previousAdmin;
+        else delete globalThis.__OWNER_QR_TEST_ADMIN__;
+      };
     },
     sanitizedRows() {
       return rows.map((row) => ({
