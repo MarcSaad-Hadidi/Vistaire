@@ -59,6 +59,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Maison Elyse media tests
+        run: npm run test:maison-elyse-media
+
       - name: QR Node tests
         run: npm run test:qr:node
 

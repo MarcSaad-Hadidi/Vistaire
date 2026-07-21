@@ -180,7 +180,7 @@ function cleanRecipe(value: unknown): UsdzOptimizationRecipe | null {
   return isUsdzOptimizationRecipe(normalized) ? normalized : null;
 }
 
-function cleanPhysicalScale(value: unknown) {
+export function cleanPhysicalScale(value: unknown) {
   if (!isRecord(value)) return undefined;
   return {
     status: typeof value.status === "string" ? value.status : "unknown",
@@ -209,7 +209,7 @@ function cleanPhysicalScale(value: unknown) {
 
 type CleanPhysicalScale = ReturnType<typeof cleanPhysicalScale>;
 
-function assertPhysicalScalePublishable(value: CleanPhysicalScale): asserts value is NonNullable<CleanPhysicalScale> {
+export function assertPhysicalScalePublishable(value: CleanPhysicalScale): asserts value is NonNullable<CleanPhysicalScale> {
   if (!value) {
     throw new Error("Rapport USDZ invalide: physicalScale requis.");
   }

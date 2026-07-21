@@ -12,6 +12,12 @@
     "modelRoot": "public/models/demo",
     "mappingKey": "dish.slug"
   },
+  "usdzPolicy": {
+    "worker": "v3",
+    "physicalScaleReportKey": "usdzPhysicalScaleReport",
+    "unvalidatedDisposition": "requires-worker-v3",
+    "quickLookQaStatus": "not-tested"
+  },
   "dishes": [
     {
       "slug": "ravioles-romarin",
