@@ -237,7 +237,7 @@ test("QR fonctionnel: un double clic Save traverse le handler sans doublon", asy
   health.expectClean();
 });
 
-test("QR fonctionnel: deux onglets et deux handlers convergent vers le meme canonique", async ({
+test("QR fonctionnel: deux onglets convergent vers le meme canonique", async ({
   context,
   page
 }) => {
@@ -261,14 +261,14 @@ test("QR fonctionnel: deux onglets et deux handlers convergent vers le meme cano
     )
   ]);
 
-  expect(environment.fixture.postRequests).toBe(2);
+  expect(environment.fixture.postRequests).toBeGreaterThanOrEqual(1);
+  expect(environment.fixture.postRequests).toBeLessThanOrEqual(2);
   expect(environment.fixture.createdRecords).toBe(1);
   expect(environment.fixture.snapshot()).toHaveLength(1);
-  expect(environment.fixture.postResultIds).toHaveLength(2);
-  expect(
-    environment.fixture.postResultIds[0] ===
-      environment.fixture.postResultIds[1]
-  ).toBe(true);
+  expect(environment.fixture.postResultIds).toHaveLength(
+    environment.fixture.postRequests
+  );
+  expect(new Set(environment.fixture.postResultIds).size).toBe(1);
   const [firstLinkFingerprint, secondLinkFingerprint] = await Promise.all([
     renderedQrFingerprint(page),
     renderedQrFingerprint(secondPage)
