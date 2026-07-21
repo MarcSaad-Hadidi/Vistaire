@@ -60,25 +60,75 @@ test("CodeQL keeps analysis failures blocking without uploading SARIF", async ()
   assert.doesNotMatch(workflow, /continue-on-error/);
 });
 
-test("controlled admin E2E is manual, environment-bound, and fail-closed", async () => {
+test("controlled admin E2E runs only trusted main code against an exact Preview", async () => {
   const workflow = await source(".github/workflows/admin-restaurant-e2e.yml");
 
-  assert.match(workflow, /^on:\s*\n\s+workflow_dispatch:\s*$/m);
+  assert.match(workflow, /^on:\s*\n\s+workflow_dispatch:/m);
   assert.doesNotMatch(workflow, /^\s{2}(?:pull_request|push):/m);
+  assert.doesNotMatch(workflow, /pull_request_target/);
   assert.match(workflow, /environment:\s*admin-e2e/);
-  assert.match(workflow, /name: Admin restaurant E2E \(manual controlled preview\)/);
-  assert.match(workflow, /if: github\.ref != ['"]refs\/heads\/main['"]/);
-  assert.doesNotMatch(workflow, /if: github\.ref !==/);
-  assert.doesNotMatch(workflow, /name: Admin restaurant E2E \(controlled preview\)/);
-  assert.match(workflow, /ref: main/);
-  assert.match(workflow, /node scripts\/admin-e2e-fixture-contract\.mjs/);
+  assert.match(workflow, /GITHUB_REF.*refs\/heads\/main/);
+  assert.match(workflow, /MarcSaad-Hadidi\/Vistaire/);
+  assert.doesNotMatch(workflow, /git ls-remote/);
+  assert.equal(workflow.match(/api\.github\.com\/repos\/\$EXPECTED_REPOSITORY\/git\/ref\/heads/g)?.length, 2);
+  assert.equal(workflow.match(/GITHUB_TOKEN:\s*\$\{\{\s*(?:secrets\.GITHUB_TOKEN|github\.token)\s*\}\}/g)?.length, 2);
+  assert.equal(
+    workflow.match(/echo "::add-mask::\$GITHUB_TOKEN"[\s\S]*?curl --fail --silent --show-error/g)?.length,
+    2,
+    "each GitHub bearer token must be explicitly masked before curl uses it"
+  );
+  assert.match(workflow, /REMOTE_SHA.*TARGET_SHA/s);
+  assert.equal(
+    workflow.match(/ref:\s*\$\{\{\s*github\.sha\s*\}\}/g)?.length,
+    1,
+    "the only checkout must pin the trusted workflow-dispatch commit"
+  );
+  assert.doesNotMatch(workflow, /ref:\s*(?:main|master)\s*$/m);
+  assert.doesNotMatch(workflow, /path:\s*candidate/);
+  assert.doesNotMatch(workflow, /working-directory:\s*candidate/);
+  assert.doesNotMatch(workflow, /ref:\s*\$\{\{\s*inputs\.sha\s*\}\}/);
+  assert.match(workflow, /node scripts\/admin-e2e-trusted-preflight\.mjs/);
   assert.match(workflow, /VISTAIRE_REQUIRE_ADMIN_E2E:\s*["']1["']/);
-  assert.match(workflow, /npx playwright install --with-deps chromium/);
-  assert.match(workflow, /npx playwright test e2e\/admin-restaurant-dashboard\.spec\.ts/);
+  assert.match(workflow, /VISTAIRE_ADMIN_E2E_SENSITIVE:\s*["']1["']/);
+  assert.doesNotMatch(workflow, /VISTAIRE_ADMIN_E2E_PRODUCTION_SUPABASE_PROJECT_REF/);
+  assert.match(workflow, /VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF/);
+  assert.match(workflow, /npx --no-install playwright install --with-deps chromium/);
+  assert.match(workflow, /npx --no-install playwright test e2e\/admin-restaurant-dashboard\.spec\.ts/);
+  assert.match(workflow, /::add-mask::/);
+  assert.match(workflow, /persist-credentials:\s*false/g);
+  assert.equal(
+    workflow.match(/^\s*uses:\s*[\w-]+\/[\w-]+@[0-9a-f]{40}\s*#/gm)?.length,
+    workflow.match(/^\s*uses:/gm)?.length,
+    "every action must be pinned to an immutable full SHA with a readable version comment"
+  );
+  assert.doesNotMatch(workflow, /uses:\s*[^\n]+@(?:main|master|latest|v\d+)(?:\s|$)/);
+  assert.doesNotMatch(workflow, /permissions:[\s\S]*?\bwrite\b/);
+  assert.match(workflow, /timeout-minutes:\s*5/);
+  assert.match(workflow, /timeout-minutes:\s*20/);
+  assert.match(workflow, /cancel-in-progress:\s*false/);
+  assert.doesNotMatch(workflow, /upload-artifact|download-artifact/);
+  assert.match(workflow, /--grep\s+["']@admin-e2e-live["']/);
+  assert.doesNotMatch(workflow, /VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN/);
+
+  for (const input of [
+    "expected_preview_host",
+    "expected_vercel_project_id",
+    "expected_team_id",
+    "expected_repository",
+    "expected_branch",
+    "expected_commit_sha",
+    "expected_supabase_project_ref",
+    "base_url"
+  ]) {
+    assert.match(workflow, new RegExp(`^\\s{6}${input}:`, "m"));
+  }
 
   for (const name of [
     "VISTAIRE_ADMIN_E2E_ENABLED",
     "VISTAIRE_ADMIN_E2E_BASE_URL",
+    "VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA",
+    "VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH",
+    "VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF",
     "VISTAIRE_ADMIN_E2E_RESTAURANT_NAME",
     "VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME",
     "VISTAIRE_ADMIN_E2E_QR_TOKEN",
@@ -90,10 +140,53 @@ test("controlled admin E2E is manual, environment-bound, and fail-closed", async
   }
 
   assert.ok(
-    workflow.indexOf("node scripts/admin-e2e-fixture-contract.mjs") <
-      workflow.indexOf("npx playwright test e2e/admin-restaurant-dashboard.spec.ts"),
-    "fixture validation must fail before live browser scenarios"
+    workflow.indexOf("node scripts/admin-e2e-trusted-preflight.mjs") <
+      workflow.indexOf("npx --no-install playwright test e2e/admin-restaurant-dashboard.spec.ts"),
+    "trusted preflight must fail before live browser scenarios"
   );
+});
+
+test("trusted live spec excludes owner bypass and redacts session-cookie assertions", async () => {
+  const spec = await source("e2e/admin-restaurant-dashboard.spec.ts");
+  const ownerTest = spec.match(/test\("owner QR page[\s\S]*?\n}\);/)?.[0] ?? "";
+
+  assert.doesNotMatch(ownerTest, /@admin-e2e-live/);
+  assert.match(spec, /test\("[^"]*@admin-e2e-live/);
+  assert.doesNotMatch(spec, /headers\(\)\["set-cookie"\]\)\.toContain/);
+  assert.match(spec, /headers\(\)\["set-cookie"\]\?\.includes\("vistaire_admin_access="\)/);
+  assert.doesNotMatch(spec, /cookies\.find\([\s\S]*?\)\.toBeUndefined\(\)/);
+  assert.doesNotMatch(spec, /errors\.push\(message\.text\(\)\)/);
+  assert.doesNotMatch(spec, /networkIssues\.push\(`[^`]*\$\{(?:response|request)\.url\(\)\}/);
+  assert.match(spec, /redactSensitivePath/);
+});
+
+test("trusted workflow masks secrets before use and always removes sensitive output", async () => {
+  const workflow = await source(".github/workflows/admin-restaurant-e2e.yml");
+  const maskIndex = workflow.indexOf('echo "::add-mask::$secret_value"');
+  const preflightIndex = workflow.indexOf("node scripts/admin-e2e-trusted-preflight.mjs");
+  const browserIndex = workflow.indexOf("npx --no-install playwright test");
+
+  assert.ok(maskIndex >= 0 && maskIndex < preflightIndex && preflightIndex < browserIndex);
+  const secretValidationIndex = workflow.indexOf('[[ ! "$secret_value" =~ ^[A-Za-z0-9_-]{16,}$ ]]');
+  assert.ok(secretValidationIndex >= 0 && secretValidationIndex < maskIndex);
+  assert.match(workflow, /if:\s*always\(\)/);
+  assert.match(workflow, /rm -rf -- test-results playwright-report blob-report/);
+  assert.doesNotMatch(workflow, /set -x/);
+});
+
+test("bootstrap runbook blocks first use until admin-e2e protections exist", async () => {
+  const guide = await source("docs/admin-restaurant-e2e.md");
+
+  for (const requirement of [
+    /required reviewer/i,
+    /branches autoris[ée]es/i,
+    /wildcard/i,
+    /bypass administrateur/i,
+    /rotation.*suppression.*fixtures/is,
+    /ne pas lancer.*protection/is
+  ]) {
+    assert.match(guide, requirement);
+  }
 });
 
 test("admin E2E guide is UTF-8 French and describes the manual live proof honestly", async () => {

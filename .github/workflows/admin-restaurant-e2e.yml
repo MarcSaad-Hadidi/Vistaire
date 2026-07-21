@@ -2,40 +2,148 @@ name: Admin restaurant E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_preview_host:
+        description: Exact Vercel Preview hostname
+        required: true
+        type: string
+      expected_vercel_project_id:
+        description: Expected Vercel project ID
+        required: true
+        type: string
+      expected_team_id:
+        description: Expected Vercel team ID
+        required: true
+        type: string
+      expected_repository:
+        description: Expected owner/repository
+        required: true
+        type: string
+      expected_branch:
+        description: Repository-owned non-production branch deployed to Preview
+        required: true
+        type: string
+      expected_commit_sha:
+        description: Exact lowercase 40-character commit SHA deployed to Preview
+        required: true
+        type: string
+      expected_supabase_project_ref:
+        description: Dedicated Preview Supabase project ref
+        required: true
+        type: string
+      base_url:
+        description: Exact credential-free HTTPS Preview origin
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: admin-restaurant-e2e-${{ github.ref }}
+  group: admin-restaurant-e2e
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  admin-restaurant-e2e:
-    name: Admin restaurant E2E (manual controlled preview)
+  validate-selection:
+    name: Validate trusted repository branch and SHA
     runs-on: ubuntu-latest
-    environment: admin-e2e
-
+    timeout-minutes: 5
     steps:
-      - name: Require the trusted default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require trusted main dispatch context
+        env:
+          EXPECTED_REPOSITORY: ${{ inputs.expected_repository }}
+          REPOSITORY_IS_FORK: ${{ github.event.repository.fork }}
         run: |
-          echo "::error::This secret-bearing workflow must be dispatched from the trusted main branch."
-          exit 1
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::This workflow must be dispatched from trusted main."
+            exit 1
+          fi
+          if [[ "$EXPECTED_REPOSITORY" != "MarcSaad-Hadidi/Vistaire" || "$GITHUB_REPOSITORY" != "$EXPECTED_REPOSITORY" || "$REPOSITORY_IS_FORK" != "false" ]]; then
+            echo "::error::Only the trusted, non-fork Vistaire repository is allowed."
+            exit 1
+          fi
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Validate repository-owned branch head
+        env:
+          EXPECTED_REPOSITORY: ${{ inputs.expected_repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ inputs.expected_branch }}
+          TARGET_SHA: ${{ inputs.expected_commit_sha }}
+        run: |
+          set -euo pipefail
+          if ! git check-ref-format --branch "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "::error::branch must be a valid Git branch name."
+            exit 1
+          fi
+          if [[ "$TARGET_BRANCH" =~ ^(main|master|production)$ ]]; then
+            echo "::error::branch must be non-production."
+            exit 1
+          fi
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::sha must be a lowercase full Git commit SHA."
+            exit 1
+          fi
+          echo "::add-mask::$GITHUB_TOKEN"
+          ENCODED_BRANCH="$(jq -rn --arg branch "$TARGET_BRANCH" '$branch | @uri')"
+          REMOTE_SHA="$(curl --fail --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$EXPECTED_REPOSITORY/git/ref/heads/$ENCODED_BRANCH" \
+            | jq -er '.object.sha')"
+          if [[ "$REMOTE_SHA" != "$TARGET_SHA" ]]; then
+            echo "::error::sha must be the exact selected branch head."
+            exit 1
+          fi
+
+  admin-restaurant-e2e:
+    name: Trusted harness against approved Preview
+    needs: validate-selection
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: admin-e2e
+    steps:
+      - name: Checkout trusted main harness only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: main
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
 
-      - name: Mask controlled QR values
-        shell: bash
+      - name: Revalidate branch head after environment approval
+        env:
+          EXPECTED_REPOSITORY: ${{ inputs.expected_repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ inputs.expected_branch }}
+          TARGET_SHA: ${{ inputs.expected_commit_sha }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$GITHUB_TOKEN"
+          ENCODED_BRANCH="$(jq -rn --arg branch "$TARGET_BRANCH" '$branch | @uri')"
+          REMOTE_SHA="$(curl --fail --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$EXPECTED_REPOSITORY/git/ref/heads/$ENCODED_BRANCH" \
+            | jq -er '.object.sha')"
+          if [[ "$REMOTE_SHA" != "$TARGET_SHA" ]]; then
+            echo "::error::sha must still be the exact selected branch head after approval."
+            exit 1
+          fi
+
+      - name: Mask all sensitive fixture values
         env:
           VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN }}
           VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
@@ -43,44 +151,53 @@ jobs:
           VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
         run: |
-          echo "::add-mask::$VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN"
-          echo "::add-mask::$VISTAIRE_ADMIN_E2E_QR_TOKEN"
-          echo "::add-mask::$VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN"
-          echo "::add-mask::$VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN"
-          echo "::add-mask::$VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN"
+          set -euo pipefail
+          for secret_name in \
+            VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN \
+            VISTAIRE_ADMIN_E2E_QR_TOKEN \
+            VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN \
+            VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN \
+            VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN; do
+            secret_value="${!secret_name:-}"
+            if [[ ! "$secret_value" =~ ^[A-Za-z0-9_-]{16,}$ ]]; then
+              echo "::error::A required admin-e2e secret is missing or malformed."
+              exit 1
+            fi
+            echo "::add-mask::$secret_value"
+          done
 
-      - name: Validate controlled preview fixture contract
+      - name: Validate exact Preview and controlled fixture contract
         env:
-          PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
           VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
-          VISTAIRE_ADMIN_E2E_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
-          VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST: ${{ vars.VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST }}
-          VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID: ${{ vars.VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID }}
-          VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID: ${{ vars.VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID }}
-          VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH: ${{ vars.VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH }}
-          VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA: ${{ vars.VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA }}
+          VISTAIRE_ADMIN_E2E_BASE_URL: ${{ inputs.base_url }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST: ${{ inputs.expected_preview_host }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_REPOSITORY: ${{ inputs.expected_repository }}
+          VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID: ${{ inputs.expected_team_id }}
+          VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID: ${{ inputs.expected_vercel_project_id }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH: ${{ inputs.expected_branch }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA: ${{ inputs.expected_commit_sha }}
           VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN }}
-          VISTAIRE_ADMIN_E2E_SUPABASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_SUPABASE_URL }}
-          VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF }}
+          VISTAIRE_ADMIN_E2E_SUPABASE_URL: https://${{ inputs.expected_supabase_project_ref }}.supabase.co
+          VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF: ${{ inputs.expected_supabase_project_ref }}
           VISTAIRE_ADMIN_E2E_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME }}
           VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
           VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
-        run: node scripts/admin-e2e-fixture-contract.mjs
+        run: node scripts/admin-e2e-trusted-preflight.mjs
 
-      - name: Install dependencies
+      - name: Install trusted dependencies
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx --no-install playwright install --with-deps chromium
 
-      - name: Run required live admin dashboard checks
-        timeout-minutes: 10
+      - name: Run trusted admin checks against Preview
         env:
           PLAYWRIGHT_SKIP_WEB_SERVER: "1"
-          PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
           VISTAIRE_ADMIN_E2E_SENSITIVE: "1"
           VISTAIRE_REQUIRE_ADMIN_E2E: "1"
           VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
@@ -89,5 +206,10 @@ jobs:
           VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
           VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
-          VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
-        run: npx playwright test e2e/admin-restaurant-dashboard.spec.ts
+        run: npx --no-install playwright test e2e/admin-restaurant-dashboard.spec.ts --grep "@admin-e2e-live"
+
+      - name: Remove sensitive test output
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -rf -- test-results playwright-report blob-report
