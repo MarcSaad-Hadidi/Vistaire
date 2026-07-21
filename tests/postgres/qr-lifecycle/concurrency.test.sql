@@ -12,13 +12,18 @@ declare
   v_query text;
   v_payload text;
   v_previous_id uuid;
+  v_connection text := pg_catalog.format(
+    'dbname=%L user=%L',
+    current_database(),
+    current_user
+  );
 begin
   begin
     for v_worker in 1..20 loop
       v_name := pg_catalog.format('create_%s', pg_catalog.lpad(v_worker::text, 2, '0'));
       perform public.dblink_connect(
         v_name,
-        'dbname=postgres user=postgres password=postgres host=127.0.0.1'
+        v_connection
       );
       v_id := ('50000000-0000-4000-8000-' || pg_catalog.lpad(v_worker::text, 12, '0'))::uuid;
       v_query := pg_catalog.format(
@@ -56,7 +61,7 @@ begin
       v_name := pg_catalog.format('rotate_%s', pg_catalog.lpad(v_worker::text, 2, '0'));
       perform public.dblink_connect(
         v_name,
-        'dbname=postgres user=postgres password=postgres host=127.0.0.1'
+        v_connection
       );
       v_query := pg_catalog.format(
         $query$select pg_catalog.jsonb_agg(pg_catalog.to_jsonb(result) order by result.result_status)::text
