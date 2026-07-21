@@ -746,6 +746,10 @@ begin
 end;
 $$;
 
+drop function if exists public.owner_rotate_canonical_qr(
+  uuid, uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb, boolean
+);
+
 create or replace function public.owner_rotate_canonical_qr(
   p_previous_id uuid,
   p_new_id uuid,
@@ -909,88 +913,6 @@ begin
   return query select 'canonical', true, v_current.id, v_current.status,
     v_current.is_canonical, v_current.revoked_at, v_current.config_version,
     v_current.supersedes_qr_code_id;
-end;
-$$;
-
--- Compatibility overload for the current server caller. The authoritative
--- rotation implementation above remains explicit and idempotent; this wrapper
--- maps the historical call to keep-active without weakening that implementation.
-create or replace function public.owner_rotate_canonical_qr(
-  p_previous_id uuid,
-  p_new_id uuid,
-  p_restaurant_id uuid,
-  p_target_kind text,
-  p_purpose_key text,
-  p_label text,
-  p_target_path text,
-  p_token_hash text,
-  p_token_preview text,
-  p_token_ciphertext text,
-  p_token_nonce text,
-  p_token_key_version text,
-  p_style_json jsonb,
-  p_confirm boolean
-)
-returns table (
-  result_status text,
-  created boolean,
-  id uuid,
-  restaurant_id uuid,
-  label text,
-  target_kind text,
-  purpose_key text,
-  target_path text,
-  token_hash text,
-  token_preview text,
-  token_ciphertext text,
-  token_nonce text,
-  token_key_version text,
-  style_json jsonb,
-  status text,
-  scan_count integer,
-  last_scanned_at timestamptz,
-  created_at timestamptz,
-  updated_at timestamptz
-)
-language plpgsql
-security definer
-set search_path = ''
-as $$
-#variable_conflict use_column
-declare
-  v_previous public.qr_codes%rowtype;
-  v_current public.qr_codes%rowtype;
-begin
-  select qr.* into v_previous
-  from public.qr_codes as qr
-  where qr.id = p_previous_id;
-  if not found then
-    raise exception using errcode = 'P0002', message = 'canonical QR to rotate was not found';
-  end if;
-
-  perform * from public.owner_rotate_canonical_qr(
-    p_previous_id, p_new_id, p_restaurant_id, p_target_kind, p_purpose_key,
-    p_label, p_target_path, p_token_hash, p_token_preview,
-    p_token_ciphertext, p_token_nonce, p_token_key_version, p_style_json,
-    p_confirm, 'keep-active', pg_catalog.gen_random_uuid(),
-    v_previous.config_version
-  );
-
-  select qr.* into v_previous from public.qr_codes as qr where qr.id = p_previous_id;
-  select qr.* into v_current from public.qr_codes as qr where qr.id = p_new_id;
-
-  return query select 'previous', false, v_previous.id, v_previous.restaurant_id,
-    v_previous.label, v_previous.target_kind, v_previous.purpose_key,
-    v_previous.target_path, v_previous.token_hash, v_previous.token_preview,
-    v_previous.token_ciphertext, v_previous.token_nonce, v_previous.token_key_version,
-    v_previous.style_json, v_previous.status, v_previous.scan_count,
-    v_previous.last_scanned_at, v_previous.created_at, v_previous.updated_at;
-  return query select 'canonical', true, v_current.id, v_current.restaurant_id,
-    v_current.label, v_current.target_kind, v_current.purpose_key,
-    v_current.target_path, v_current.token_hash, v_current.token_preview,
-    v_current.token_ciphertext, v_current.token_nonce, v_current.token_key_version,
-    v_current.style_json, v_current.status, v_current.scan_count,
-    v_current.last_scanned_at, v_current.created_at, v_current.updated_at;
 end;
 $$;
 
@@ -1285,14 +1207,6 @@ revoke execute on function public.owner_get_or_create_canonical_qr(
 
 grant execute on function public.owner_get_or_create_canonical_qr(
   uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb
-) to service_role;
-
-revoke execute on function public.owner_rotate_canonical_qr(
-  uuid, uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb, boolean
-) from public, anon, authenticated;
-
-grant execute on function public.owner_rotate_canonical_qr(
-  uuid, uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb, boolean
 ) to service_role;
 
 revoke execute on function public.owner_rotate_canonical_qr(

@@ -64,7 +64,6 @@ declare
 begin
   foreach v_signature in array array[
     'public.owner_get_or_create_canonical_qr(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)',
-    'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean)',
     'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean,text,uuid,integer)',
     'public.owner_set_canonical_qr_lifecycle(uuid,uuid,text,integer,uuid)',
     'public.owner_clear_canonical_qr(uuid,uuid,text,integer,uuid)',
@@ -96,6 +95,50 @@ begin
   end loop;
 end;
 $$;
+
+select qr_test.assert_true(
+  pg_catalog.to_regprocedure(
+    'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean)'
+  ) is null
+  and (
+    select pg_catalog.count(*) = 1
+    from pg_catalog.pg_proc as fn
+    join pg_catalog.pg_namespace as namespace on namespace.oid = fn.pronamespace
+    where namespace.nspname = 'public'
+      and fn.proname = 'owner_rotate_canonical_qr'
+  ),
+  'only the explicit disposition/idempotency/version rotation signature may exist'
+);
+
+set role service_role;
+do $$
+declare
+  v_before bigint;
+  v_after bigint;
+begin
+  select pg_catalog.count(*) into v_before from public.qr_codes;
+  begin
+    execute $legacy$
+      select * from public.owner_rotate_canonical_qr(
+        '60000000-0000-4000-8000-000000000001'::uuid,
+        '60000000-0000-4000-8000-000000000002'::uuid,
+        '10000000-0000-4000-8000-000000000001'::uuid,
+        'admin', 'legacy-forbidden', 'Legacy forbidden', '/admin',
+        'legacy-forbidden-hash', 'legacy', 'cipher', 'nonce', 'v1', '{}'::jsonb,
+        true
+      )
+    $legacy$;
+  exception when undefined_function then
+    select pg_catalog.count(*) into v_after from public.qr_codes;
+    if v_after <> v_before then
+      raise exception 'legacy rotation failure mutated QR rows';
+    end if;
+    return;
+  end;
+  raise exception 'legacy rotation unexpectedly remained callable';
+end;
+$$;
+reset role;
 
 select qr_test.assert_raises(
   $$insert into public.qr_codes (
