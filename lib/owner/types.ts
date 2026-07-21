@@ -77,17 +77,26 @@ export type OwnerQrStyle = {
   updatedAt?: string;
 };
 
-export type OwnerQrCodeStatus = "active" | "paused" | "archived";
+export type OwnerQrCodeStatus = "active" | "paused" | "archived" | "revoked";
+export type OwnerQrLifecycleAction = "pause" | "resume" | "archive" | "revoke";
+export type OwnerQrRotationDisposition =
+  | "keep-active"
+  | "pause"
+  | "revoke";
 
 export type OwnerQrCodeRecord = {
   id: string;
   restaurantId: string;
   label: string;
   targetKind: OwnerQrTargetKind;
+  purposeKey: string;
+  isCanonical: boolean;
+  recoverable: boolean;
   tokenPreview: string;
   targetPath: string;
-  redirectUrl: string;
+  redirectUrl?: string;
   status: OwnerQrCodeStatus;
+  configVersion: number;
   scanCount: number;
   lastScannedAt: string | null;
   style: OwnerQrStyle;
@@ -100,10 +109,59 @@ export type CreateOwnerQrCodeResult =
   | {
       ok: true;
       record: OwnerQrCodeRecord;
-      token: string;
+      created: boolean;
       persisted: boolean;
     }
   | { ok: false; error: string };
+
+export type OwnerQrCanonicalRead = {
+  found: boolean;
+  recoverable: boolean;
+  record: OwnerQrCodeRecord | null;
+};
+
+export type OwnerQrCanonicalError = {
+  ok: false;
+  error: string;
+  code: "canonical-unrecoverable";
+};
+
+export type OwnerQrRequestError = {
+  ok: false;
+  error: string;
+  code:
+    | "not-found"
+    | "invalid-input"
+    | "config-version-conflict"
+    | "idempotency-conflict";
+  current?: OwnerQrInventoryRecord;
+};
+
+export type OwnerQrInventoryRecord = Omit<
+  OwnerQrCodeRecord,
+  "recoverable" | "redirectUrl" | "tokenPreview"
+> & {
+  supersedesQrCodeId: string | null;
+  rotatedAt: string | null;
+  revokedAt: string | null;
+};
+
+export type CanonicalQrMutationResult =
+  | {
+      ok: true;
+      created: boolean;
+      persisted: true;
+      record: OwnerQrCodeRecord;
+    }
+  | OwnerQrCanonicalError;
+
+export type CanonicalQrRotationResult =
+  | {
+      ok: true;
+      previous: OwnerQrCodeRecord;
+      current: OwnerQrCodeRecord;
+    }
+  | OwnerQrCanonicalError;
 
 export type OwnerAiPriority = {
   id: string;

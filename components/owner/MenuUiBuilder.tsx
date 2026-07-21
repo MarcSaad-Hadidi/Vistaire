@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import {
@@ -109,6 +109,71 @@ type QrPayload = {
   record?: unknown;
 };
 
+type BuilderQrRecord = {
+  redirectUrl?: string;
+  targetPath: string;
+  persisted: boolean;
+};
+
+type QrReadPayload = {
+  ok: true;
+  found: boolean;
+  recoverable: boolean;
+  canonical?: BuilderQrRecord | null;
+  record?: BuilderQrRecord | null;
+};
+
+type QrAvailability =
+  | "loading"
+  | "absent"
+  | "creating"
+  | "available"
+  | "unrecoverable"
+  | "failed";
+
+function isOpaqueQrRedirect(value: string): boolean {
+  return /^\/q\/[A-Za-z0-9._~-]+$/.test(value);
+}
+
+function qrPreviewCopy(state: QrAvailability): {
+  badge: string;
+  message: string;
+  detail: string;
+} {
+  switch (state) {
+    case "loading":
+      return {
+        badge: "Chargement",
+        message: "Verification du QR menu en cours",
+        detail: "Le parcours sera disponible apres verification."
+      };
+    case "creating":
+      return {
+        badge: "Creation",
+        message: "Creation securisee du QR en cours",
+        detail: "Aucune adresse n'est affichee avant confirmation."
+      };
+    case "unrecoverable":
+      return {
+        badge: "Inaccessible",
+        message: "Le QR existant ne peut pas etre recupere",
+        detail: "Rechargez la page avant toute action."
+      };
+    case "failed":
+      return {
+        badge: "Indisponible",
+        message: "Etat du QR indisponible",
+        detail: "Rechargez la page pour verifier le QR existant."
+      };
+    default:
+      return {
+        badge: "Absent",
+        message: "Aucun QR actif a previsualiser",
+        detail: "Creez un QR pour tester le parcours."
+      };
+  }
+}
+
 type AdvisorPayload = {
   ok: true;
   source: "mistral" | "rules";
@@ -137,6 +202,7 @@ type QuickImportResult = {
 type ApiFailure = {
   ok: false;
   error?: string;
+  code?: string;
 };
 
 const PREVIEW_DEVICES: Array<{
@@ -395,6 +461,9 @@ export function MenuUiBuilder({
     targetPath: string;
     persisted: boolean;
   } | null>(null);
+  const [qrAvailability, setQrAvailability] =
+    useState<QrAvailability>("loading");
+  const qrGenerationRequest = useRef<AbortController | null>(null);
   const [advisorState, setAdvisorState] = useState<AdvisorState>("idle");
   const [advisorRecommendation, setAdvisorRecommendation] =
     useState<MenuStyleAdvisorRecommendation | null>(null);
@@ -486,6 +555,8 @@ export function MenuUiBuilder({
   useEffect(() => {
     if (!selectedRestaurant?.id) return;
     const controller = new AbortController();
+    qrGenerationRequest.current?.abort();
+    qrGenerationRequest.current = null;
 
     async function load() {
       setLoadState("loading");
@@ -493,19 +564,29 @@ export function MenuUiBuilder({
       setLocalDraft(null);
       setQuickImportText("");
       setQrState(null);
+      setQrAvailability("loading");
       setConfig(menuUiConfigForRestaurant(selectedRestaurant));
       setPendingVariation(null);
       setConfigStatus("draft");
 
       try {
         const id = encodeURIComponent(selectedRestaurant.id);
-        const [menuResponse, configResponse] = await Promise.all([
+        const qrQuery = new URLSearchParams({
+          restaurantId: selectedRestaurant.id,
+          targetKind: "menu",
+          purposeKey: "default"
+        });
+        const [menuResponse, configResponse, qrResponse] = await Promise.all([
           fetch(`/api/owner/menu-data?restaurantId=${id}`, {
             signal: controller.signal
           }),
           fetch(`/api/owner/menu-ui-config?restaurantId=${id}`, {
             signal: controller.signal
-          })
+          }),
+          fetch(`/api/owner/qr-codes?${qrQuery}`, {
+            cache: "no-store",
+            signal: controller.signal
+          }).catch(() => null)
         ]);
         const menuPayload = (await menuResponse.json()) as
           | MenuDataPayload
@@ -513,6 +594,12 @@ export function MenuUiBuilder({
         const configPayload = (await configResponse.json()) as
           | ConfigPayload
           | ApiFailure;
+        const qrPayload = qrResponse
+          ? ((await qrResponse.json()) as QrReadPayload | ApiFailure)
+          : null;
+        const canonicalQr = qrPayload?.ok
+          ? qrPayload.canonical ?? qrPayload.record
+          : null;
 
         if (!controller.signal.aborted) {
           if (menuResponse.ok && menuPayload.ok) {
@@ -529,6 +616,27 @@ export function MenuUiBuilder({
             setConfig(configPayload.config);
             setConfigStatus(configPayload.status);
           }
+          if (
+            qrResponse?.ok &&
+            qrPayload?.ok &&
+            qrPayload.found &&
+            qrPayload.recoverable &&
+            canonicalQr?.redirectUrl &&
+            isOpaqueQrRedirect(canonicalQr.redirectUrl)
+          ) {
+            setQrState({
+              redirectUrl: canonicalQr.redirectUrl,
+              targetPath: canonicalQr.targetPath,
+              persisted: canonicalQr.persisted
+            });
+            setQrAvailability("available");
+          } else if (qrResponse?.ok && qrPayload?.ok && qrPayload.found) {
+            setQrAvailability("unrecoverable");
+          } else if (qrResponse?.ok && qrPayload?.ok) {
+            setQrAvailability("absent");
+          } else {
+            setQrAvailability("failed");
+          }
           setLoadState("ready");
         }
       } catch {
@@ -541,7 +649,11 @@ export function MenuUiBuilder({
     }
 
     void load();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      qrGenerationRequest.current?.abort();
+      qrGenerationRequest.current = null;
+    };
   }, [selectedRestaurant]);
 
   function updateConfig(patch: Partial<MenuUiConfig>) {
@@ -701,25 +813,37 @@ export function MenuUiBuilder({
   }
 
   async function generateQr() {
-    if (!selectedRestaurant) return;
+    if (!selectedRestaurant || qrState) return;
+    if (qrAvailability !== "absent") return;
+    qrGenerationRequest.current?.abort();
+    const controller = new AbortController();
+    qrGenerationRequest.current = controller;
+    const restaurant = selectedRestaurant;
     setErrorMessage("");
+    setQrAvailability("creating");
     try {
       const response = await fetch("/api/owner/qr-codes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
-          restaurantId: selectedRestaurant.id,
-          label: `QR menu - ${selectedRestaurant.name}`,
+          restaurantId: restaurant.id,
+          label: `QR menu - ${restaurant.name}`,
           targetKind: "menu",
-          targetPath: publicMenuPath,
           style: {
             ...DEFAULT_OWNER_QR_STYLE,
-            logoText: monogramFromName(selectedRestaurant.name)
+            logoText: monogramFromName(restaurant.name)
           }
         })
       });
       const payload = (await response.json()) as QrPayload | ApiFailure;
+      if (controller.signal.aborted) return;
       if (!response.ok || !payload.ok) {
+        setQrAvailability(
+          !payload.ok && payload.code === "canonical-unrecoverable"
+            ? "unrecoverable"
+            : "failed"
+        );
         setErrorMessage(
           payload.ok
             ? "Generation QR impossible."
@@ -727,13 +851,30 @@ export function MenuUiBuilder({
         );
         return;
       }
+      if (
+        payload.targetKind !== "menu" ||
+        !isOpaqueQrRedirect(payload.redirectUrl) ||
+        !payload.targetPath
+      ) {
+        setQrAvailability("failed");
+        setErrorMessage("La reponse QR recue est invalide. Rechargez la page.");
+        return;
+      }
       setQrState({
         redirectUrl: payload.redirectUrl,
         targetPath: payload.targetPath,
         persisted: payload.persisted
       });
+      setQrAvailability("available");
     } catch {
-      setErrorMessage("Erreur reseau pendant la generation QR.");
+      if (!controller.signal.aborted) {
+        setQrAvailability("failed");
+        setErrorMessage("Erreur reseau pendant la generation QR.");
+      }
+    } finally {
+      if (qrGenerationRequest.current === controller) {
+        qrGenerationRequest.current = null;
+      }
     }
   }
 
@@ -2532,20 +2673,50 @@ export function MenuUiBuilder({
             >
               Ouvrir menu public
             </a>
-            <button type="button" className={styles.secondaryButton} onClick={generateQr}>
-              Generer QR menu
-            </button>
-            <a
+            <button
+              type="button"
               className={styles.secondaryButton}
-              href={qrState?.redirectUrl ?? "#"}
-              target={qrState ? "_blank" : undefined}
-              rel={qrState ? "noreferrer" : undefined}
-              onClick={(event) => {
-                if (!qrState) event.preventDefault();
-              }}
+              onClick={generateQr}
+              disabled={
+                qrAvailability === "loading" ||
+                qrAvailability === "creating" ||
+                qrAvailability === "available" ||
+                qrAvailability === "unrecoverable" ||
+                qrAvailability === "failed"
+              }
+              aria-describedby="menu-builder-qr-status"
             >
-              Tester scan QR
-            </a>
+              {qrAvailability === "loading"
+                ? "Chargement du QR..."
+                : qrAvailability === "creating"
+                  ? "Creation du QR..."
+                : qrAvailability === "available"
+                    ? "QR menu actif"
+                    : qrAvailability === "unrecoverable"
+                      ? "QR inaccessible"
+                      : qrAvailability === "failed"
+                        ? "Etat QR indisponible"
+                        : "Creer le QR menu"}
+            </button>
+            {qrState ? (
+              <a
+                className={styles.secondaryButton}
+                href={qrState.redirectUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Tester scan QR
+              </a>
+            ) : (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                disabled
+                aria-describedby="menu-builder-qr-status"
+              >
+                Tester scan QR
+              </button>
+            )}
           </div>
 
           {qrState ? (
@@ -2556,8 +2727,21 @@ export function MenuUiBuilder({
             </div>
           ) : null}
 
-          <p className={styles.saveStatus} aria-live="polite">
+          <p
+            id="menu-builder-qr-status"
+            className={styles.saveStatus}
+            aria-live="polite"
+          >
             {statusLabel(saveState)}
+            {qrAvailability === "absent"
+              ? " Aucun QR menu n'existe encore."
+              : qrAvailability === "creating"
+                ? " Creation securisee du QR en cours."
+                : qrAvailability === "unrecoverable"
+                  ? " Le QR existant ne peut pas etre recupere. Rechargez avant toute action."
+                  : qrAvailability === "failed"
+                    ? " Etat du QR indisponible."
+                    : ""}
             {errorMessage ? ` ${errorMessage}` : ""}
           </p>
         </section>
@@ -2617,9 +2801,15 @@ export function MenuUiBuilder({
               />
             ) : previewMode === "qr-flow" ? (
               <div className={styles.qrFlowPreview}>
-                <span>QR</span>
-                <strong>{qrState?.redirectUrl ?? "/q/<token>"}</strong>
-                <p>{qrState?.targetPath ?? publicMenuPath}</p>
+                <span>
+                  {qrState ? "QR actif" : qrPreviewCopy(qrAvailability).badge}
+                </span>
+                <strong>
+                  {qrState?.redirectUrl ?? qrPreviewCopy(qrAvailability).message}
+                </strong>
+                <p>
+                  {qrState?.targetPath ?? qrPreviewCopy(qrAvailability).detail}
+                </p>
                 <PublicMenuRenderer
                   menu={labMenu}
                   config={previewConfig}

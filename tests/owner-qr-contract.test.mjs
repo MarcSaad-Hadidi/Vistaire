@@ -8,7 +8,7 @@ test("owner QR API accepts an explicit target kind and returns target metadata",
   assert.match(source, /targetKind/);
   assert.match(source, /candidate\.targetKind === "menu"/);
   assert.match(source, /candidate\.targetKind === "admin"/);
-  assert.match(source, /createOwnerQrCode\(\{[\s\S]*targetKind/s);
+  assert.match(source, /getOrCreateOwnerQrCode\(\{[\s\S]*targetKind/s);
   assert.match(source, /targetPath: created\.record\.targetPath/);
   assert.match(source, /targetKind: created\.record\.targetKind/);
 });
@@ -69,8 +69,8 @@ test("owner QR customizer saves target kind and displays persistence details", a
   assert.match(source, /targetPath/);
   assert.match(source, /persisted/);
   assert.match(source, /record\?:/);
-  assert.match(source, /QR securise enregistre/);
-  assert.match(source, /non persiste/);
+  assert.match(source, /QR sécurisé créé et enregistré/);
+  assert.match(source, /if \(targetKind === "admin" && !persisted\) return null;/);
 });
 
 test("owner QR customizer cannot expose or export a direct destination before secure creation", async () => {
@@ -78,8 +78,11 @@ test("owner QR customizer cannot expose or export a direct destination before se
 
   assert.match(source, /useState\(""\)/);
   assert.match(source, /if \(!qrValue\) return;/);
-  assert.match(source, /const canExportQr = Boolean\(qrValue && svgMarkup\)/);
-  assert.match(source, /disabled=\{!canExportQr\}/);
+  assert.match(
+    source,
+    /const canExportQr = Boolean\(\s*qrValue &&\s*svgMarkup &&\s*canonicalRecord\?\.isCanonical === true &&\s*canonicalRecord\?\.status === "active"\s*\);/
+  );
+  assert.match(source, /disabled=\{!canExportQr \|\| mutationBusy\}/);
   assert.match(source, /if \(!qrValue\) return;/);
   assert.match(source, /isOpaqueQrRedirect/);
   assert.doesNotMatch(source, /useState\(targetDisplayUrl\)/);

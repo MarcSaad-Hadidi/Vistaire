@@ -47,12 +47,21 @@ const server = createServer(async (request, response) => {
   if (url.pathname === "/fixture/state") {
     return json(response, 200, Object.fromEntries(scanCounts));
   }
-  if (url.pathname === "/rest/v1/rpc/resolve_qr_code_scan_metadata") {
-    return json(response, 404, {
-      code: "PGRST202",
-      message:
-        "Could not find the function public.resolve_qr_code_scan_metadata(p_token_hash) in the schema cache"
-    });
+  if (
+    request.method === "POST" &&
+    url.pathname === "/rest/v1/rpc/resolve_qr_code_scan_metadata"
+  ) {
+    const { p_token_hash: hash } = await readJson(request);
+    const row = rows.get(hash);
+    if (!row || row.status !== "active") return json(response, 200, []);
+    scanCounts.set(hash, (scanCounts.get(hash) ?? 0) + 1);
+    return json(response, 200, [{
+      qr_id: row.id,
+      restaurant_id: row.restaurant_id,
+      target_kind: row.target_kind,
+      target_path: row.target_path,
+      status: row.status
+    }]);
   }
   if (request.method === "GET" && url.pathname === "/rest/v1/qr_codes") {
     const filter = url.searchParams.get("token_hash") ?? "";

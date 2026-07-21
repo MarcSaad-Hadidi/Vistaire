@@ -67,6 +67,25 @@ export function hashQrTokenForStorage(token: string): string {
   return `sha256:${createHash("sha256").update(token).digest("hex")}`;
 }
 
+export function isValidOpaqueQrToken(token: unknown): token is string {
+  if (typeof token !== "string" || !/^[A-Za-z0-9_-]{32}$/.test(token)) {
+    return false;
+  }
+  const decoded = Buffer.from(token, "base64url");
+  return decoded.length === 24 && decoded.toString("base64url") === token;
+}
+
+export function qrTokenMatchesStorageHash(
+  token: string,
+  storedHash: string
+): boolean {
+  const calculated = Buffer.from(hashQrTokenForStorage(token), "utf8");
+  const stored = Buffer.from(storedHash, "utf8");
+  return (
+    calculated.length === stored.length && timingSafeEqual(calculated, stored)
+  );
+}
+
 function configuredPreviousLegacySecrets(env: NodeJS.ProcessEnv): string[] {
   return [
     env.VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS,

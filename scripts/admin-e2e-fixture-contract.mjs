@@ -31,6 +31,9 @@ function parsePreviewUrl(value, name) {
   if (url.username || url.password) {
     fail(`${name} must not contain URL credentials.`);
   }
+  if (url.pathname !== "/" || url.search || url.hash) {
+    fail(`${name} must be an origin without a path, query, or fragment.`);
+  }
 
   const hostname = url.hostname.toLowerCase();
   if (
@@ -46,6 +49,114 @@ function parsePreviewUrl(value, name) {
   return url;
 }
 
+function validateVercelPreviewHost(url, env) {
+  const expectedHost = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST"
+  ).toLowerCase();
+  if (
+    expectedHost.includes("://") ||
+    expectedHost.includes("/") ||
+    !expectedHost.endsWith(".vercel.app") ||
+    !expectedHost.includes("-git-") ||
+    /-git-(?:main|master|production)(?:-|\.vercel\.app$)/.test(expectedHost)
+  ) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST must be an exact Vercel branch preview hostname."
+    );
+  }
+  if (url.hostname.toLowerCase() !== expectedHost) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_BASE_URL must match the expected Vercel preview hostname."
+    );
+  }
+  return expectedHost;
+}
+
+function validateSupabasePreviewProject(env) {
+  const expectedProjectRef = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF"
+  ).toLowerCase();
+  if (!/^[a-z0-9]{8,64}$/.test(expectedProjectRef)) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF must be a valid project ref."
+    );
+  }
+
+  let url;
+  try {
+    url = new URL(requiredFrom(env, "VISTAIRE_ADMIN_E2E_SUPABASE_URL"));
+  } catch {
+    fail("VISTAIRE_ADMIN_E2E_SUPABASE_URL must be a valid HTTPS project URL.");
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash ||
+    url.hostname.toLowerCase() !== `${expectedProjectRef}.supabase.co`
+  ) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_SUPABASE_URL must match the expected dedicated preview project."
+    );
+  }
+  return expectedProjectRef;
+}
+
+function validateVercelApiInputs(env) {
+  const vercelTeamId = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID"
+  );
+  const vercelProjectId = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID"
+  );
+  const gitBranch = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH"
+  );
+  const commitSha = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA"
+  ).toLowerCase();
+  const apiToken = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN"
+  );
+  if (!/^team_[A-Za-z0-9]+$/.test(vercelTeamId)) {
+    fail("VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID must be a valid Vercel team id.");
+  }
+  if (!/^prj_[A-Za-z0-9]+$/.test(vercelProjectId)) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID must be a valid Vercel project id."
+    );
+  }
+  if (
+    gitBranch.trim() !== gitBranch ||
+    !gitBranch ||
+    /^(?:main|master|production)$/i.test(gitBranch)
+  ) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH must be non-production."
+    );
+  }
+  if (!/^[a-f0-9]{40}$/.test(commitSha)) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA must be a full Git commit SHA."
+    );
+  }
+  if (apiToken.length < 16 || /\s/.test(apiToken)) {
+    fail(
+      "VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN must be one opaque read-only token."
+    );
+  }
+  return { vercelTeamId, vercelProjectId, gitBranch, commitSha };
+}
+
 export function validateControlledAdminE2EContract(env = process.env) {
   if (env.VISTAIRE_ADMIN_E2E_ENABLED !== "true") {
     fail("VISTAIRE_ADMIN_E2E_ENABLED must be exactly true.");
@@ -55,6 +166,10 @@ export function validateControlledAdminE2EContract(env = process.env) {
     requiredFrom(env, "VISTAIRE_ADMIN_E2E_BASE_URL"),
     "VISTAIRE_ADMIN_E2E_BASE_URL"
   );
+  const vercelHost = validateVercelPreviewHost(baseUrl, env);
+  const supabaseProjectRef = validateSupabasePreviewProject(env);
+  const { vercelTeamId, vercelProjectId, gitBranch, commitSha } =
+    validateVercelApiInputs(env);
   const playwrightBaseUrl = env.PLAYWRIGHT_BASE_URL;
   if (playwrightBaseUrl) {
     const playwrightUrl = parsePreviewUrl(playwrightBaseUrl, "PLAYWRIGHT_BASE_URL");
@@ -82,9 +197,112 @@ export function validateControlledAdminE2EContract(env = process.env) {
 
   return {
     baseOrigin: baseUrl.origin,
+    vercelHost,
+    vercelTeamId,
+    vercelProjectId,
+    gitBranch,
+    commitSha,
+    supabaseProjectRef,
     restaurantA,
     restaurantB,
     secretNames: [...REQUIRED_SECRET_NAMES]
+  };
+}
+
+function deploymentEnvValue(metadata, key) {
+  if (Array.isArray(metadata.env)) {
+    const entry = metadata.env.find((candidate) => candidate?.key === key);
+    return typeof entry?.value === "string" ? entry.value : undefined;
+  }
+  if (metadata.env && typeof metadata.env === "object") {
+    const value = metadata.env[key];
+    return typeof value === "string" ? value : undefined;
+  }
+  return undefined;
+}
+
+export async function verifyControlledAdminE2ERemoteIdentity(
+  contract,
+  env = process.env,
+  fetchDeployment = fetch
+) {
+  const apiToken = requiredFrom(
+    env,
+    "VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN"
+  );
+  const endpoint = new URL(
+    `https://api.vercel.com/v13/deployments/${encodeURIComponent(contract.vercelHost)}`
+  );
+  endpoint.searchParams.set("teamId", contract.vercelTeamId);
+  endpoint.searchParams.set("withGitRepoInfo", "true");
+
+  let response;
+  try {
+    response = await fetchDeployment(endpoint, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${apiToken}`
+      }
+    });
+  } catch {
+    fail("Vercel deployment identity lookup failed.");
+  }
+  if (!response?.ok) {
+    fail(
+      `Vercel deployment identity lookup returned HTTP ${response?.status ?? "unknown"}.`
+    );
+  }
+
+  let metadata;
+  try {
+    metadata = await response.json();
+  } catch {
+    fail("Vercel deployment identity response was invalid.");
+  }
+  const targetIsPreview =
+    Object.hasOwn(metadata, "target") &&
+    (metadata.target === null || metadata.target === "preview");
+  if (!targetIsPreview || metadata.readyState !== "READY") {
+    fail("The controlled URL must resolve to a READY Vercel Preview deployment.");
+  }
+
+  const projectId = metadata.projectId ?? metadata.project?.id;
+  const gitBranch =
+    metadata.meta?.githubCommitRef ?? metadata.gitSource?.ref;
+  const commitSha =
+    metadata.meta?.githubCommitSha ?? metadata.gitSource?.sha;
+  if (
+    projectId !== contract.vercelProjectId ||
+    gitBranch !== contract.gitBranch
+  ) {
+    fail("Vercel deployment project or Git branch identity does not match.");
+  }
+  if (commitSha?.toLowerCase() !== contract.commitSha) {
+    fail("Vercel deployment commit identity does not match.");
+  }
+
+  const deployedSupabaseUrl = deploymentEnvValue(
+    metadata,
+    "NEXT_PUBLIC_SUPABASE_URL"
+  );
+  const deployedSupabaseProjectRef = deploymentEnvValue(
+    metadata,
+    "VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF"
+  );
+  if (
+    deployedSupabaseUrl !== env.VISTAIRE_ADMIN_E2E_SUPABASE_URL ||
+    deployedSupabaseProjectRef !== contract.supabaseProjectRef
+  ) {
+    fail("Vercel deployment Supabase binding does not match the preview fixture.");
+  }
+
+  return {
+    readyState: "READY",
+    target: "preview",
+    projectId,
+    gitBranch,
+    commitSha: commitSha.toLowerCase(),
+    supabaseProjectRef: deployedSupabaseProjectRef
   };
 }
 
@@ -108,18 +326,17 @@ function validateSecretFrom(env, name) {
   return value;
 }
 
-function run() {
+async function run() {
   const contract = validateControlledAdminE2EContract();
+  await verifyControlledAdminE2ERemoteIdentity(contract);
   console.log(
     `Controlled admin E2E contract valid for ${contract.restaurantA} and ${contract.restaurantB} at ${contract.baseOrigin}. QR values were not printed.`
   );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  try {
-    run();
-  } catch (error) {
+  run().catch((error) => {
     console.error(error instanceof Error ? error.message : "Admin E2E fixture contract failed.");
     process.exitCode = 1;
-  }
+  });
 }

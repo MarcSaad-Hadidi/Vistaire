@@ -25,29 +25,86 @@ test("required live E2E rejects a missing or non-HTTPS preview URL before browse
   assert.match(spec, /must use an HTTPS preview URL/);
 });
 
-test("App CI keeps blocking checks and excludes the live admin E2E", async () => {
-  const [workflow, packageJson] = await Promise.all([
+test("local Playwright smoke uses only synthetic Clerk fixture keys by default", async () => {
+  const [runner, config] = await Promise.all([
+    source("scripts/run-playwright-e2e.mjs"),
+    source("playwright.config.ts")
+  ]);
+
+  assert.match(runner, /LOCAL_E2E_CLERK_PUBLISHABLE_KEY/);
+  assert.match(runner, /pk_test_Y2xlcmsuZXhhbXBsZS5jb20k/);
+  assert.match(runner, /sk_test_Y2xlcmsuZXhhbXBsZS5jb20k/);
+  assert.match(runner, /NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:/);
+  assert.match(runner, /CLERK_SECRET_KEY:\s*LOCAL_E2E_CLERK_SECRET_KEY/);
+  assert.match(runner, /includes\("e2e\/ci-smoke\.spec\.ts"\)/);
+  assert.match(runner, /useLocalDemoServer \? "dev" : "start"/);
+  assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
+  assert.match(runner, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.doesNotMatch(runner, /vistaire-owner-e2e-local-token/);
+  assert.match(runner, /DEFAULT_BASE_URL = "http:\/\/127\.0\.0\.1:3000"/);
+  assert.match(runner, /"-H",\s*"127\.0\.0\.1"/);
+
+  assert.match(config, /import \{ randomBytes \} from "node:crypto"/);
+  assert.match(config, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.doesNotMatch(config, /vistaire-owner-e2e-local-token/);
+  assert.match(config, /next\/dist\/bin\/next start --hostname 127\.0\.0\.1/);
+  assert.match(config, /shouldStartWebServer\s*\?\s*randomBytes\(32\)/);
+  assert.match(
+    config,
+    /process\.env\.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN\s*=\s*ownerE2eToken/
+  );
+});
+
+test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smoke available locally", async () => {
+  const [workflow, packageJson, fullSmoke] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
-    source("package.json")
+    source("package.json"),
+    source("e2e/mvp-smoke.spec.ts")
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
   assert.equal(scripts["test:admin"], "node scripts/run-admin-tests.mjs");
+  assert.equal(
+    scripts["test:smoke"],
+    "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts"
+  );
+  assert.equal(
+    scripts["test:smoke:bootstrap"],
+    "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts"
+  );
+  assert.equal(scripts["test:qr:node"], "node scripts/run-qr-node-tests.mjs");
+  assert.equal(scripts["test:qr:postgres"], "node scripts/run-qr-postgres-tests.mjs");
+  assert.equal(scripts["test:qr:functional"], "node scripts/run-qr-functional-e2e.mjs");
+  assert.equal(
+    scripts["test:qr:all"],
+    "npm run test:qr:node && npm run test:qr:postgres && npm run test:qr:functional"
+  );
   for (const command of [
     "npm ci",
+    "npm run assets:check",
+    "npm run lfs:check",
     "npm run lint",
     "npm run typecheck",
+    "npm run test:qr:node",
+    "npm run test:qr:postgres",
+    "npm run test:qr:functional",
     "npm run test:seo",
     "npm run test:admin",
     "npm run build",
+    "npm run test:smoke:bootstrap",
     "npm run test:seo:e2e"
   ]) {
     assert.match(workflow, new RegExp(`run: ${command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`));
   }
   assert.ok(
-    workflow.indexOf("run: npm run test:admin") < workflow.indexOf("run: npm run build"),
-    "admin tests must run before the build"
+    workflow.indexOf("run: npm run test:qr:functional") < workflow.indexOf("run: npm run build") &&
+      workflow.indexOf("run: npm run build") < workflow.indexOf("run: npm run test:smoke:bootstrap"),
+    "QR functional tests must run before the build and hermetic smoke must run after it"
   );
+  assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
+  assert.doesNotMatch(fullSmoke, /test\.skip/);
+  assert.match(workflow, /image:\s*postgres:17/);
+  assert.match(workflow, /PGDATABASE:\s*vistaire_qr_ci/);
   assert.doesNotMatch(workflow, /admin-restaurant-e2e|admin-e2e|VISTAIRE_ADMIN_E2E/);
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });

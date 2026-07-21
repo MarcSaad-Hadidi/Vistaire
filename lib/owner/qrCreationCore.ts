@@ -12,7 +12,7 @@ import type {
 export type CreateOwnerQrCodeArgs = {
   restaurantId: string;
   label: string;
-  targetPath: string;
+  targetPath?: string;
   targetKind?: OwnerQrTargetKind;
   style?: unknown;
 };
@@ -35,6 +35,11 @@ export type QrSupabaseFailureCode =
   | "QR_CREATE_SERVICE_ROLE_INCOMPATIBLE"
   | "QR_CREATE_RESTAURANT_NOT_FOUND"
   | "QR_CREATE_INSERT_FAILED"
+  | "QR_CANONICAL_READ_FAILED"
+  | "QR_CANONICAL_RPC_FAILED"
+  | "QR_CANONICAL_ROTATE_FAILED"
+  | "QR_LIFECYCLE_FAILED"
+  | "QR_INVENTORY_FAILED"
   | "QR_UPDATE_CONFIG_UNAVAILABLE"
   | "QR_UPDATE_FAILED";
 
@@ -58,6 +63,16 @@ const QR_SUPABASE_FAILURE_MESSAGES: Record<QrSupabaseFailureCode, string> = {
   QR_CREATE_RESTAURANT_NOT_FOUND:
     "Le restaurant associe a ce QR est introuvable.",
   QR_CREATE_INSERT_FAILED: "Le QR n'a pas pu etre enregistre.",
+  QR_CANONICAL_READ_FAILED:
+    "Le QR canonique n'a pas pu etre lu.",
+  QR_CANONICAL_RPC_FAILED:
+    "Le QR canonique n'a pas pu etre cree ou recupere.",
+  QR_CANONICAL_ROTATE_FAILED:
+    "Le QR canonique n'a pas pu etre remplace.",
+  QR_LIFECYCLE_FAILED:
+    "Le changement de cycle de vie du QR n'a pas pu etre applique.",
+  QR_INVENTORY_FAILED:
+    "L'inventaire QR n'a pas pu etre charge.",
   QR_UPDATE_CONFIG_UNAVAILABLE:
     "Le stockage persistant requis pour modifier ce QR n'est pas disponible.",
   QR_UPDATE_FAILED: "Le QR n'a pas pu etre modifie."
@@ -110,6 +125,10 @@ export function redactQrIncidentLogText(
 ): string | null {
   if (!value) return null;
   return value
+    .replace(
+      /\b(?:p_)?(?:token_ciphertext|token_nonce|token_key_version)\b(?:\s*[:=]\s*["']?[A-Za-z0-9._-]+["']?)?/gi,
+      "[redacted-vault]"
+    )
     .replace(/\b(?:p_)?token_hash\b/gi, "[redacted-field]")
     .replace(/\bs1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted-token]")
     .replace(/\b[A-Fa-f0-9]{64}\b/g, "[redacted-hash]")
@@ -120,7 +139,7 @@ export async function createOwnerQrCodeWithDependencies(
   args: CreateOwnerQrCodeArgs,
   dependencies: CreationDependencies
 ): Promise<QrPersistenceResult> {
-  const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath);
+  const targetKind = args.targetKind ?? inferOwnerQrTargetKind(args.targetPath ?? "");
   if (targetKind === "admin" && !args.restaurantId.trim()) {
     return {
       ok: false,
@@ -145,10 +164,14 @@ export async function createOwnerQrCodeWithDependencies(
     restaurantId: args.restaurantId,
     label: args.label,
     targetKind: "menu",
+    purposeKey: "default",
+    isCanonical: false,
+    recoverable: true,
     tokenPreview: `${fallback.slice(0, 6)}...`,
-    targetPath: args.targetPath,
+    targetPath: args.targetPath ?? "/demo",
     redirectUrl: buildQrRedirectPath(fallback),
     status: "active",
+    configVersion: 1,
     scanCount: 0,
     lastScannedAt: null,
     style,
@@ -156,5 +179,13 @@ export async function createOwnerQrCodeWithDependencies(
     createdAt: now,
     updatedAt: now
   };
-  return { ok: true, record, token: fallback, persisted: false };
+  return {
+    ok: true,
+    record,
+    created: true,
+    persisted: false,
+    // Legacy internal fallback material. Canonical owner routes never call this
+    // helper and never serialize a standalone token.
+    token: fallback
+  } as QrPersistenceResult;
 }
