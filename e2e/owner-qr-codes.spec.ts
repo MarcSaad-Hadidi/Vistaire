@@ -160,7 +160,6 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
     }
     const body = route.request().postDataJSON() as {
       targetKind?: string;
-      targetPath?: string;
       label?: string;
       restaurantId?: string;
       purposeKey?: string;
@@ -172,14 +171,10 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
       "label",
       "targetKind",
       "purposeKey",
-      "targetPath",
       "style"
     ]);
     const targetKind = body.targetKind === "admin" ? "admin" : "menu";
-    const targetPath =
-      typeof body.targetPath === "string" && body.targetPath
-        ? body.targetPath
-        : "/menu/maison-elyse";
+    const targetPath = targetKind === "admin" ? "/admin" : "/menu/maison-elyse";
 
     await route.fulfill({
       status: 201,
@@ -266,6 +261,7 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
 }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
+  const health = installPageHealth(page);
 
   let current = lifecycleRecord();
   let history = [
@@ -557,6 +553,7 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   await expect(page.getByRole("dialog")).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.keyboard.press("Escape");
+  health.expectClean();
 });
 
 test("owner QR unrecoverable state never renders or exports a fabricated QR URL", async ({
@@ -565,6 +562,7 @@ test("owner QR unrecoverable state never renders or exports a fabricated QR URL"
 }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL ?? "http://localhost:3000");
   await enableOwnerBypass(context, baseURL);
+  const health = installPageHealth(page);
   const unrecoverable = {
     ...lifecycleRecord(),
     recoverable: false,
@@ -622,5 +620,6 @@ test("owner QR unrecoverable state never renders or exports a fabricated QR URL"
     page.getByRole("button", { name: "Créer une nouvelle version sécurisée" })
   ).toBeFocused();
   await expect(page.locator("[aria-label^='QR pour'] svg")).toHaveCount(0);
+  health.expectClean();
   await expect(page.getByText(/\/q\/<token>|À générer après sauvegarde/)).toHaveCount(0);
 });
