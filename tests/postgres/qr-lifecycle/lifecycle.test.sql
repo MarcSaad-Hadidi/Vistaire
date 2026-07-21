@@ -79,6 +79,13 @@ select * from public.owner_clear_canonical_qr(
   '10000000-0000-4000-8000-000000000001', 'archive', 1,
   '40000000-0000-4000-8000-000000000004'
 );
+-- Exact archive replay returns the immutable terminal result and never marks
+-- the historical row canonical again.
+select * from public.owner_clear_canonical_qr(
+  '30000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000001', 'archive', 1,
+  '40000000-0000-4000-8000-000000000004'
+);
 select * from public.owner_get_or_create_canonical_qr(
   '30000000-0000-4000-8000-000000000003',
   '10000000-0000-4000-8000-000000000001', 'Revoke', 'admin', 'revoke',
@@ -166,6 +173,32 @@ select qr_test.assert_true(
   public.resolve_qr_code_scan('rotate-keep-old') = '/admin',
   'keep-active predecessor remains resolvable while non-canonical'
 );
+
+-- Once B has itself rotated to C, replaying the earlier A -> B operation must
+-- conflict instead of representing B as active/canonical again.
+set role service_role;
+select * from public.owner_rotate_canonical_qr(
+  '31000000-0000-4000-8000-000000000002', '31000000-0000-4000-8000-000000000003',
+  '10000000-0000-4000-8000-000000000001', 'admin', 'rotate-keep', 'Rotate keep',
+  '/admin', 'rotate-keep-newest', 'newest', 'cipher-newest', 'nonce-newest', 'v1', '{"v":1}'::jsonb,
+  true, 'revoke', '41000000-0000-4000-8000-000000000002', 2
+);
+reset role;
+select qr_test.assert_raises(
+  $$select * from public.owner_rotate_canonical_qr(
+    '31000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000001', 'admin', 'rotate-keep', 'Rotate keep',
+    '/admin', 'rotate-keep-new', 'new', 'cipher-new', 'nonce-new', 'v1', '{"v":1}'::jsonb,
+    true, 'keep-active', '41000000-0000-4000-8000-000000000001', 1)$$,
+  '40001', 'stale A to B replay must not re-expose B as the canonical result'
+);
+select qr_test.assert_true(
+  (select status = 'revoked' and not is_canonical from public.qr_codes
+   where id = '31000000-0000-4000-8000-000000000002')
+  and (select status = 'active' and is_canonical from public.qr_codes
+       where id = '31000000-0000-4000-8000-000000000003'),
+  'stale replay leaves terminal B and current C unchanged'
+);
 select qr_test.assert_raises(
   $$select * from public.owner_rotate_canonical_qr(
     '31000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000099',
@@ -175,18 +208,22 @@ select qr_test.assert_raises(
   '22023', 'rotation request id reuse with different payload must conflict'
 );
 
--- Idempotency is audit-backed even after mutable runtime rows are deleted.
+-- Audit identity remains authoritative after mutable rows are deleted, but a
+-- stale result is never reconstructed as current.
 begin;
 set local role service_role;
-delete from public.qr_codes where id = '31000000-0000-4000-8000-000000000002';
+delete from public.qr_codes where id in (
+  '31000000-0000-4000-8000-000000000002',
+  '31000000-0000-4000-8000-000000000003'
+);
 reset role;
-select qr_test.assert_true(
-  (select count(*) = 2 from public.owner_rotate_canonical_qr(
+select qr_test.assert_raises(
+  $$select * from public.owner_rotate_canonical_qr(
     '31000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000002',
     '10000000-0000-4000-8000-000000000001', 'admin', 'rotate-keep', 'Rotate keep',
     '/admin', 'rotate-keep-new', 'new', 'cipher-new', 'nonce-new', 'v1', '{"v":1}'::jsonb,
-    true, 'keep-active', '41000000-0000-4000-8000-000000000001', 1)),
-  'exact rotation replay is reconstructed from immutable audit'
+    true, 'keep-active', '41000000-0000-4000-8000-000000000001', 1)$$,
+  '40001', 'deleted successor replay must fail closed'
 );
 select qr_test.assert_raises(
   $$select * from public.owner_rotate_canonical_qr(

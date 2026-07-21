@@ -130,13 +130,19 @@ alter table public.qr_codes
   validate constraint qr_codes_supersedes_qr_code_id_not_self_check;
 
 alter table public.qr_codes
+  drop constraint if exists qr_codes_purpose_key_format_check;
+alter table public.qr_codes
   add constraint qr_codes_purpose_key_format_check
   check (purpose_key ~ '^[a-z0-9][a-z0-9_-]{0,63}$');
 
 alter table public.qr_codes
+  drop constraint if exists qr_codes_config_version_check;
+alter table public.qr_codes
   add constraint qr_codes_config_version_check
   check (config_version > 0);
 
+alter table public.qr_codes
+  drop constraint if exists qr_codes_revoked_at_check;
 alter table public.qr_codes
   add constraint qr_codes_revoked_at_check
   check (
@@ -153,7 +159,7 @@ alter table public.qr_codes
 alter table public.qr_codes
   validate constraint qr_codes_revoked_at_check;
 
-create table public.qr_code_lifecycle_events (
+create table if not exists public.qr_code_lifecycle_events (
   operation_id uuid primary key,
   restaurant_id uuid not null,
   qr_code_id uuid not null,
@@ -179,13 +185,13 @@ create table public.qr_code_lifecycle_events (
     )
 );
 
-create index qr_code_lifecycle_events_qr_code_id_idx
+create index if not exists qr_code_lifecycle_events_qr_code_id_idx
   on public.qr_code_lifecycle_events (qr_code_id, occurred_at desc);
 
-create index qr_code_lifecycle_events_restaurant_id_idx
+create index if not exists qr_code_lifecycle_events_restaurant_id_idx
   on public.qr_code_lifecycle_events (restaurant_id, occurred_at desc);
 
-create index qr_code_lifecycle_events_successor_qr_code_id_idx
+create index if not exists qr_code_lifecycle_events_successor_qr_code_id_idx
   on public.qr_code_lifecycle_events (successor_qr_code_id)
   where successor_qr_code_id is not null;
 
@@ -843,11 +849,28 @@ begin
     then
       raise exception using errcode = '22023', message = 'QR rotation request id was reused with a different payload';
     end if;
+    select qr.* into v_current
+    from public.qr_codes as qr
+    where qr.id = v_event.successor_qr_code_id
+      and qr.restaurant_id = p_restaurant_id
+      and qr.target_kind = v_target_kind
+      and qr.purpose_key = v_purpose_key
+      and qr.is_canonical = true
+      and qr.status = 'active'
+      and qr.config_version = v_event.new_config_version
+      and qr.supersedes_qr_code_id = v_event.qr_code_id
+    for update;
+    if not found then
+      raise exception using
+        errcode = '40001',
+        message = 'QR rotation replay is no longer the current canonical result';
+    end if;
     return query select 'previous', false, v_event.qr_code_id, v_event.new_status,
       false, case when v_event.new_status = 'revoked' then v_event.occurred_at else null end,
       v_event.new_config_version, null::uuid;
-    return query select 'canonical', false, v_event.successor_qr_code_id, 'active',
-      true, null::timestamptz, v_event.new_config_version, v_event.qr_code_id;
+    return query select 'canonical', false, v_current.id, v_current.status,
+      v_current.is_canonical, v_current.revoked_at, v_current.config_version,
+      v_current.supersedes_qr_code_id;
     return;
   end if;
 
@@ -977,9 +1000,10 @@ begin
     then
       raise exception using errcode = '22023', message = 'QR lifecycle idempotency key was reused';
     end if;
-    select qr.* into v_current from public.qr_codes as qr where qr.id = p_qr_code_id;
-    return query select 'idempotent', v_current.id, v_current.status,
-      v_current.is_canonical, v_current.revoked_at, v_current.config_version;
+    return query select 'idempotent', v_event.qr_code_id, v_event.new_status,
+      v_event.new_status in ('active', 'paused'),
+      case when v_event.new_status = 'revoked' then v_event.occurred_at else null end,
+      v_event.new_config_version;
     return;
   end if;
 
@@ -1087,9 +1111,10 @@ begin
     then
       raise exception using errcode = '22023', message = 'QR clear idempotency key was reused';
     end if;
-    select qr.* into v_current from public.qr_codes as qr where qr.id = p_qr_code_id;
-    return query select 'idempotent', v_current.id, v_current.status,
-      v_current.is_canonical, v_current.revoked_at, v_current.config_version;
+    return query select 'idempotent', v_event.qr_code_id, v_event.new_status,
+      false,
+      case when v_event.new_status = 'revoked' then v_event.occurred_at else null end,
+      v_event.new_config_version;
     return;
   end if;
 
