@@ -15,13 +15,14 @@ import {
   type DishModelDeleteTarget
 } from "@/lib/owner/deleteDishModelAssets";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import {
+  isCanonicalUuid,
+  normalizeStorageSafeIdentifier
+} from "@/lib/owner/storageSafeIdentifier";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DishRow = {
   id: string;
@@ -31,10 +32,6 @@ type DishRow = {
   metadata: unknown;
   has_immersive_view?: boolean | null;
 };
-
-function validUuid(value: string): boolean {
-  return UUID_PATTERN.test(value);
-}
 
 function getString(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key];
@@ -57,8 +54,10 @@ export async function DELETE(
   const originError = requireSameOriginOwnerMutation(request);
   if (originError) return originError;
 
-  const { restaurantId, dishId } = await params;
-  if (!validUuid(restaurantId) || !validUuid(dishId)) {
+  const routeParams = await params;
+  const restaurantId = normalizeStorageSafeIdentifier(routeParams.restaurantId);
+  const dishId = routeParams.dishId;
+  if (!restaurantId || !isCanonicalUuid(dishId)) {
     return NextResponse.json(
       { ok: false, error: "Identifiants modele invalides." },
       { status: 400 }

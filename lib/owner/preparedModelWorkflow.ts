@@ -1,3 +1,8 @@
+import {
+  isCanonicalUuid,
+  normalizeStorageSafeIdentifier
+} from "./storageSafeIdentifier.ts";
+
 export type PreparedModelStatus =
   | "ready"
   | "web_ready_usdz_pending"
@@ -29,8 +34,6 @@ type PreparedModelPublicPathOptions = {
   assetVersion?: string;
 };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const JOB_ID_PATTERN = /^job_[a-z0-9._-]{8,80}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const ASSET_VERSION_PATTERN = /^[a-z0-9][a-z0-9._-]{3,96}$/i;
@@ -44,9 +47,16 @@ export function isPreparedGlbPipelineStep(value: unknown): boolean {
   return value === PREPARED_GLB_PIPELINE_STEP;
 }
 
+function storageRestaurantIdOrThrow(restaurantId: string): string {
+  const normalized = normalizeStorageSafeIdentifier(restaurantId);
+  if (!normalized) throw new Error("Identifiants modele invalides.");
+  return normalized;
+}
+
 export function buildPreparedModelStoragePath(args: PreparedModelStoragePathArgs): string {
+  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
   if (
-    !UUID_PATTERN.test(args.restaurantId) ||
+    !restaurantId ||
     !JOB_ID_PATTERN.test(args.jobId) ||
     !SHA256_PATTERN.test(args.sha256)
   ) {
@@ -55,7 +65,7 @@ export function buildPreparedModelStoragePath(args: PreparedModelStoragePathArgs
 
   return [
     "restaurants",
-    args.restaurantId,
+    restaurantId,
     "models",
     "staging",
     args.jobId,
@@ -87,10 +97,11 @@ export function buildPreparedModelWebStoragePath({
   dishSlug,
   assetVersion
 }: PreparedModelPublishedPathArgs): string {
-  if (!UUID_PATTERN.test(restaurantId) || !dishSlug || dishSlug.includes("..") || dishSlug.includes("\\")) {
+  const normalizedRestaurantId = storageRestaurantIdOrThrow(restaurantId);
+  if (!dishSlug || dishSlug.includes("..") || dishSlug.includes("\\")) {
     throw new Error("Identifiants modele invalides.");
   }
-  return ["restaurants", restaurantId, "models", "web", publishedFileName(dishSlug, ".glb", assetVersion)].join("/");
+  return ["restaurants", normalizedRestaurantId, "models", "web", publishedFileName(dishSlug, ".glb", assetVersion)].join("/");
 }
 
 export function buildPreparedModelArLiteStoragePath({
@@ -98,10 +109,11 @@ export function buildPreparedModelArLiteStoragePath({
   dishSlug,
   assetVersion
 }: PreparedModelPublishedPathArgs): string {
-  if (!UUID_PATTERN.test(restaurantId) || !dishSlug || dishSlug.includes("..") || dishSlug.includes("\\")) {
+  const normalizedRestaurantId = storageRestaurantIdOrThrow(restaurantId);
+  if (!dishSlug || dishSlug.includes("..") || dishSlug.includes("\\")) {
     throw new Error("Identifiants modele invalides.");
   }
-  return ["restaurants", restaurantId, "models", "ar-lite", publishedFileName(dishSlug, ".glb", assetVersion)].join("/");
+  return ["restaurants", normalizedRestaurantId, "models", "ar-lite", publishedFileName(dishSlug, ".glb", assetVersion)].join("/");
 }
 
 export function buildPreparedModelUsdzStoragePath({
@@ -109,17 +121,18 @@ export function buildPreparedModelUsdzStoragePath({
   dishSlug,
   assetVersion
 }: PreparedModelPublishedPathArgs): string {
-  if (!UUID_PATTERN.test(restaurantId) || !dishSlug || dishSlug.includes("..") || dishSlug.includes("\\")) {
+  const normalizedRestaurantId = storageRestaurantIdOrThrow(restaurantId);
+  if (!dishSlug || dishSlug.includes("..") || dishSlug.includes("\\")) {
     throw new Error("Identifiants modele invalides.");
   }
-  return ["restaurants", restaurantId, "models", "ar-ios", publishedFileName(dishSlug, ".usdz", assetVersion)].join("/");
+  return ["restaurants", normalizedRestaurantId, "models", "ar-ios", publishedFileName(dishSlug, ".usdz", assetVersion)].join("/");
 }
 
 export function buildPreparedModelPublicGlbPath(
   dishId: string,
   options: PreparedModelPublicPathOptions = {}
 ): string {
-  if (!UUID_PATTERN.test(dishId)) throw new Error("Identifiant plat invalide.");
+  if (!isCanonicalUuid(dishId)) throw new Error("Identifiant plat invalide.");
   return `/api/public/menu-dishes/${dishId}/model/glb${versionQuery(options.assetVersion)}`;
 }
 
@@ -127,7 +140,7 @@ export function buildPreparedModelPublicArLiteGlbPath(
   dishId: string,
   options: PreparedModelPublicPathOptions = {}
 ): string {
-  if (!UUID_PATTERN.test(dishId)) throw new Error("Identifiant plat invalide.");
+  if (!isCanonicalUuid(dishId)) throw new Error("Identifiant plat invalide.");
   return `/api/public/menu-dishes/${dishId}/model/glb?variant=ar-lite${versionQuery(options.assetVersion, "&")}`;
 }
 
@@ -135,7 +148,7 @@ export function buildPreparedModelPublicUsdzPath(
   dishId: string,
   options: PreparedModelPublicPathOptions = {}
 ): string {
-  if (!UUID_PATTERN.test(dishId)) throw new Error("Identifiant plat invalide.");
+  if (!isCanonicalUuid(dishId)) throw new Error("Identifiant plat invalide.");
   return `/api/public/menu-dishes/${dishId}/model/usdz${versionQuery(options.assetVersion)}`;
 }
 

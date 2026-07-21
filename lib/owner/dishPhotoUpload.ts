@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 
+import {
+  isCanonicalUuid,
+  normalizeStorageSafeIdentifier
+} from "./storageSafeIdentifier.ts";
+
 type DishPhotoFile = {
   name: string;
   type: string;
@@ -29,8 +34,6 @@ type DishPhotoMetadataInfo = {
   bytes: number;
 };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 
 const MIME_TO_EXTENSION = new Map<
@@ -142,17 +145,18 @@ export function buildDishPhotoStoragePath(args: {
   extension: "jpg" | "png" | "webp";
   sha256: string;
 }): string {
+  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
   if (
-    !UUID_PATTERN.test(args.restaurantId) ||
-    !UUID_PATTERN.test(args.dishId) ||
+    !restaurantId ||
+    !isCanonicalUuid(args.dishId) ||
     !SHA256_PATTERN.test(args.sha256)
   ) {
     throw new Error("Identifiants photo invalides.");
   }
-  const slug = slugify(args.dishSlug) || args.dishId;
+  const slug = slugify(args.dishSlug) || args.dishId.toLowerCase();
   return [
     "restaurants",
-    args.restaurantId,
+    restaurantId,
     "photos",
     "originals",
     `${slug}-${args.sha256.toLowerCase().slice(0, 12)}.${args.extension}`
@@ -160,7 +164,7 @@ export function buildDishPhotoStoragePath(args: {
 }
 
 export function buildDishPhotoPublicPath(dishId: string): string {
-  if (!UUID_PATTERN.test(dishId)) {
+  if (!isCanonicalUuid(dishId)) {
     throw new Error("Identifiant plat invalide.");
   }
   return `/api/public/menu-dishes/${dishId}/photo`;
