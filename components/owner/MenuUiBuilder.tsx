@@ -819,7 +819,6 @@ export function MenuUiBuilder({
     const controller = new AbortController();
     qrGenerationRequest.current = controller;
     const restaurant = selectedRestaurant;
-    const menuPath = publicMenuPath;
     setErrorMessage("");
     setQrAvailability("creating");
     try {
@@ -831,7 +830,6 @@ export function MenuUiBuilder({
           restaurantId: restaurant.id,
           label: `QR menu - ${restaurant.name}`,
           targetKind: "menu",
-          targetPath: menuPath,
           style: {
             ...DEFAULT_OWNER_QR_STYLE,
             logoText: monogramFromName(restaurant.name)

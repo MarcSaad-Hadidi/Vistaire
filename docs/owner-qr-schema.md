@@ -48,7 +48,7 @@ targets, styles, statuses, counters and timestamps are preserved.
 | `purpose_key`, `is_canonical` | canonical slot identity and current member |
 | `token_ciphertext`, `token_nonce`, `token_key_version` | complete AES-256-GCM recovery envelope, or all null for historical rows |
 | `supersedes_qr_code_id`, `rotated_at` | immutable rotation chain metadata |
-| `revoked_at`, `status_changed_at` | irreversible revocation time and latest lifecycle transition time |
+| `revoked_at` | irreversible revocation time |
 | `config_version` | positive owner-only optimistic-concurrency version; never public QR data |
 | `created_at`, `updated_at` | lifecycle timestamps |
 

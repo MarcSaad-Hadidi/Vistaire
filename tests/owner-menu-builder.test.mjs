@@ -48,8 +48,7 @@ test("menu builder saves drafts, publishes UI, and generates only public menu QR
   assert.match(source, /Publier UI/);
   assert.match(source, /\/api\/owner\/qr-codes/);
   assert.match(source, /targetKind:\s*"menu"/);
-  assert.match(source, /const menuPath = publicMenuPath/);
-  assert.match(source, /targetPath:\s*menuPath/);
+  assert.doesNotMatch(source, /targetPath:\s*(?:menuPath|publicMenuPath)/);
   assert.match(source, /if \(!selectedRestaurant \|\| qrState\) return/);
   assert.doesNotMatch(source, /targetKind:\s*"admin"/);
   assert.doesNotMatch(source, /targetPath:\s*publicMenuUrl/);

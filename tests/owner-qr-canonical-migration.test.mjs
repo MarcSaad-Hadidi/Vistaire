@@ -5,6 +5,7 @@ import test from "node:test";
 const migrationPath =
   "supabase/migrations/20260717120000_owner_qr_canonical_lifecycle.sql";
 const migration = await readFile(migrationPath, "utf8").catch(() => "");
+const preflight = await readFile("scripts/qr-environment-preflight.mjs", "utf8");
 const sql = migration
   .replace(/--.*$/gm, "")
   .replace(/\/\*[\s\S]*?\*\//g, "");
@@ -32,6 +33,10 @@ function extractLastFunction(name) {
   ];
   return matches.at(-1)?.[0] ?? "";
 }
+
+test("database preflight does not require columns absent from the candidate migration", () => {
+  assert.doesNotMatch(preflight, /status_changed_at/);
+});
 
 test("canonical migration is additive, transactional, and never backfills history", () => {
   assert.notEqual(migration, "", `Missing migration: ${migrationPath}`);

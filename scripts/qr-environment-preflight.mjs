@@ -14,7 +14,6 @@ const REQUIRED_CANONICAL_COLUMNS = [
   "supersedes_qr_code_id",
   "rotated_at",
   "revoked_at",
-  "status_changed_at",
   "config_version"
 ];
 const REQUIRED_CANONICAL_RPCS = [
@@ -339,7 +338,7 @@ export async function verifyQrDatabaseContract(
   const probeUrl = new URL("/rest/v1/qr_codes", contract.supabaseUrl);
   probeUrl.searchParams.set(
     "select",
-    "id,target_kind,purpose_key,is_canonical,token_key_version,supersedes_qr_code_id,rotated_at,revoked_at,status_changed_at,config_version"
+    "id,target_kind,purpose_key,is_canonical,token_key_version,supersedes_qr_code_id,rotated_at,revoked_at,config_version"
   );
   probeUrl.searchParams.set("limit", "0");
   let probe;
