@@ -94,3 +94,84 @@ test("GET hydration prevents a duplicate POST and routes later edits through PAT
     false
   );
 });
+
+test("lifecycle writes require the loaded version and send one UUID per user attempt", async () => {
+  const canonicalRecord = {
+    id: "qr-observable-1",
+    redirectUrl: "/q/opaque-fixture-token",
+    targetPath: "/admin",
+    targetKind: "admin",
+    purposeKey: "default",
+    persisted: true,
+    recoverable: true,
+    status: "active",
+    isCanonical: true,
+    configVersion: 7,
+    tokenPreview: "…token",
+    style: {
+      foregroundColor: "#111111",
+      backgroundColor: "#ffffff",
+      accentColor: "#c9a96e",
+      logoMode: "none",
+      logoText: "V",
+      logoImageUrl: "",
+      logoSizePercent: 18,
+      padding: 2,
+      errorCorrectionLevel: "H"
+    }
+  };
+  const uuids = [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000004"
+  ];
+  const harness = createOwnerQrCustomizerHarness({
+    canonicalRecord,
+    randomUUID: (sequence) => uuids[sequence - 1]
+  });
+
+  await harness.load();
+  for (const action of ["pause", "resume", "archive"]) {
+    assert.equal(await harness.status(action), true);
+  }
+
+  const statusRequests = harness.requests.filter((request) =>
+    request.url.endsWith("/status")
+  );
+  assert.deepEqual(
+    statusRequests.map((request) => request.body),
+    [
+      { action: "pause", expectedConfigVersion: 7, idempotencyKey: uuids[0] },
+      { action: "resume", expectedConfigVersion: 8, idempotencyKey: uuids[1] },
+      { action: "archive", expectedConfigVersion: 9, idempotencyKey: uuids[2] }
+    ]
+  );
+});
+
+test("lifecycle writes fail closed when the canonical version is absent", async () => {
+  const harness = createOwnerQrCustomizerHarness({
+    canonicalRecord: {
+      id: "qr-observable-1",
+      redirectUrl: "/q/opaque-fixture-token",
+      targetPath: "/admin",
+      targetKind: "admin",
+      purposeKey: "default",
+      persisted: true,
+      recoverable: true,
+      status: "active",
+      isCanonical: true,
+      tokenPreview: "…token",
+      style: {}
+    },
+    omitConfigVersion: true
+  });
+
+  await harness.load();
+  assert.equal(await harness.status("pause"), true);
+  assert.equal(
+    harness.requests.some((request) => request.url.endsWith("/status")),
+    false
+  );
+  assert.match(harness.renderedText(), /Version de configuration absente/);
+});

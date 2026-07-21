@@ -730,6 +730,15 @@ export function OwnerQrCustomizer({
 
   async function mutateStatus(action: StatusAction) {
     if (!canonicalRecord || mutationBusy) return;
+    if (configVersion === null) {
+      setOutcome({
+        kind: "error",
+        message: "Version de configuration absente. Rechargez avant l’action QR."
+      });
+      return;
+    }
+    const expectedConfigVersion = configVersion;
+    const idempotencyKey = crypto.randomUUID();
     setOperation("updating");
     setOutcome({ kind: "idle" });
     try {
@@ -738,12 +747,25 @@ export function OwnerQrCustomizer({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action })
+          body: JSON.stringify({
+            action,
+            expectedConfigVersion,
+            idempotencyKey
+          })
         }
       );
       const payload = (await response.json()) as QrApiPayload;
       if (!response.ok || !payload.ok) {
         handleMutationFailure(response, payload, "Action QR impossible.");
+        return;
+      }
+      const responseRecord = canonicalFromPayload(payload);
+      const nextConfigVersion = configVersionFromPayload(payload, responseRecord);
+      if (nextConfigVersion === null || nextConfigVersion <= expectedConfigVersion) {
+        setOutcome({
+          kind: "error",
+          message: "Version QR de réponse invalide. Rechargez avant toute autre action."
+        });
         return;
       }
       const record = applyCanonicalResponse(payload, { preserveKnownUrl: true });

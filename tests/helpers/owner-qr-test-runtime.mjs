@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createRequire, registerHooks } from "node:module";
@@ -1240,6 +1240,7 @@ export function createOwnerQrCustomizerHarness(options = {}) {
   let effectCursor = 0;
   const react = {
     useCallback: (fn) => fn,
+    useId: () => "owner-qr-test-id",
     useEffect(fn, dependencies) {
       const index = effectCursor++;
       const previous = effects[index];
@@ -1309,6 +1310,8 @@ export function createOwnerQrCustomizerHarness(options = {}) {
   };
   const compiledModule = { exports: {} };
   const requests = [];
+  let canonicalRecord = options.canonicalRecord ?? null;
+  let uuidSequence = 0;
   const context = vm.createContext({
     Blob,
     Date,
@@ -1317,6 +1320,12 @@ export function createOwnerQrCustomizerHarness(options = {}) {
     URL,
     URLSearchParams,
     console,
+    crypto: {
+      randomUUID() {
+        uuidSequence += 1;
+        return options.randomUUID?.(uuidSequence) ?? randomUUID();
+      }
+    },
     exports: compiledModule.exports,
     fetch: async (url, init) => {
       const method = init?.method ?? "GET";
@@ -1329,14 +1338,23 @@ export function createOwnerQrCustomizerHarness(options = {}) {
         ok: true,
         async json() {
           if (method === "GET") {
-            const record = options.canonicalRecord ?? null;
+            const record = canonicalRecord;
+            const configVersion = options.omitConfigVersion
+              ? undefined
+              : record
+                ? record.configVersion ?? 1
+                : undefined;
             return {
               ok: true,
               found: Boolean(record),
               recoverable: Boolean(record),
-              configVersion: record ? record.configVersion ?? 1 : undefined,
+              configVersion,
               record: record
-                ? { ...record, status: record.status ?? "active", configVersion: record.configVersion ?? 1 }
+                ? {
+                    ...record,
+                    status: record.status ?? "active",
+                    ...(configVersion === undefined ? {} : { configVersion })
+                  }
                 : null
             };
           }
@@ -1360,6 +1378,25 @@ export function createOwnerQrCustomizerHarness(options = {}) {
                   foregroundColor: "#222222"
                 }
               }
+            };
+          }
+          if (url.endsWith("/status")) {
+            const body = init?.body ? JSON.parse(init.body) : {};
+            const statusByAction = {
+              pause: "paused",
+              resume: "active",
+              archive: "archived",
+              revoke: "revoked"
+            };
+            canonicalRecord = {
+              ...canonicalRecord,
+              status: statusByAction[body.action],
+              configVersion: (canonicalRecord?.configVersion ?? 1) + 1
+            };
+            return {
+              ok: true,
+              record: canonicalRecord,
+              configVersion: canonicalRecord.configVersion
             };
           }
           return {
@@ -1468,6 +1505,34 @@ export function createOwnerQrCustomizerHarness(options = {}) {
       );
       if (!input) throw new Error("Foreground input was not rendered.");
       input.props.onChange({ target: { value } });
+    },
+    async status(action) {
+      const buttonPattern = {
+        pause: /Suspendre temporairement/,
+        resume: /activer/,
+        archive: /Archiver/,
+        revoke: /voquer d.finitivement/
+      }[action];
+      let tree = render();
+      const actionButton = findNode(
+        tree,
+        (node) => node.type === "button" && buttonPattern.test(flattenText(node))
+      );
+      if (!actionButton) throw new Error(`Lifecycle button was not rendered: ${action}`);
+      if (actionButton.props.disabled) return false;
+      await actionButton.props.onClick({ currentTarget: { focus() {} } });
+      if (action === "archive" || action === "revoke") {
+        tree = render();
+        const confirmButton = findNode(
+          tree,
+          (node) => node.type === "button" && /Confirmer/.test(flattenText(node))
+        );
+        if (!confirmButton) throw new Error(`Confirmation button was not rendered: ${action}`);
+        await confirmButton.props.onClick();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      render();
+      return true;
     }
   };
 }

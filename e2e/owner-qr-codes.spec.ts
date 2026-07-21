@@ -281,7 +281,8 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   let inventoryRequests = 0;
   let patchRequests = 0;
   let returnConflict = true;
-  const statusActions: string[] = [];
+  let returnStatusConflict = true;
+  const statusBodies: Record<string, unknown>[] = [];
   const rotationBodies: Record<string, unknown>[] = [];
 
   await page.route("**/api/owner/qr-codes**", async (route) => {
@@ -336,6 +337,10 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
       patchRequests += 1;
       if (returnConflict) {
         returnConflict = false;
+        current = {
+          ...current,
+          configVersion: current.configVersion + 1
+        };
         await route.fulfill({
           status: 409,
           contentType: "application/json",
@@ -343,7 +348,7 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
             ok: false,
             code: "stale-config",
             error: "Le QR a ete modifie ailleurs.",
-            configVersion: current.configVersion + 1
+            configVersion: current.configVersion
           })
         });
         return;
@@ -363,9 +368,32 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
 
     if (method === "POST" && url.pathname === `${idPath}/status`) {
       const body = request.postDataJSON() as Record<string, unknown>;
-      expectExactKeys(body, ["action"]);
+      expectExactKeys(body, ["action", "expectedConfigVersion", "idempotencyKey"]);
       expect(body.action).toMatch(/^(pause|resume|archive|revoke)$/);
-      statusActions.push(String(body.action));
+      expect(body.expectedConfigVersion).toBe(current.configVersion);
+      expect(body.idempotencyKey).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
+      statusBodies.push(body);
+      if (returnStatusConflict) {
+        returnStatusConflict = false;
+        current = {
+          ...current,
+          configVersion: current.configVersion + 1
+        };
+        await route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: false,
+            code: "stale-config",
+            error: "Le QR a ete modifie ailleurs.",
+            record: current,
+            configVersion: current.configVersion
+          })
+        });
+        return;
+      }
       const statusByAction: Record<string, LifecycleStatus> = {
         pause: "paused",
         resume: "active",
@@ -443,10 +471,16 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   expect(patchRequests).toBe(1);
 
   await page.getByRole("button", { name: "Suspendre temporairement" }).click();
+  await expect(page.getByRole("status")).toContainText(/chang|conflit/i);
+  await expect(page.getByRole("button", { name: "Recharger" })).toBeVisible();
+  const getsBeforeStatusReload = getRequests;
+  await page.getByRole("button", { name: "Recharger" }).click();
+  await expect.poll(() => getRequests).toBeGreaterThan(getsBeforeStatusReload);
+  await page.getByRole("button", { name: "Suspendre temporairement" }).click();
   await expect(page.getByRole("button", { name: "Réactiver" })).toBeVisible();
   await page.getByRole("button", { name: "Réactiver" }).click();
   await expect(page.getByRole("button", { name: "Suspendre temporairement" })).toBeVisible();
-  expect(statusActions).toEqual(["pause", "resume"]);
+  expect(statusBodies.map((body) => body.action)).toEqual(["pause", "pause", "resume"]);
 
   await page.getByRole("button", { name: "Archiver" }).click();
   const archiveDialog = page.getByRole("dialog");
@@ -454,7 +488,12 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   await archiveDialog.getByRole("button", { name: /Confirmer/i }).click();
   await expect(archiveDialog).toBeHidden();
   await expect(page.getByRole("status")).toContainText(/archiv/i);
-  expect(statusActions).toEqual(["pause", "resume", "archive"]);
+  expect(statusBodies.map((body) => body.action)).toEqual([
+    "pause",
+    "pause",
+    "resume",
+    "archive"
+  ]);
 
   current = { ...current, status: "active" };
   await page.reload({ waitUntil: "networkidle" });
@@ -464,7 +503,17 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   await revokeDialog.getByRole("button", { name: /Confirmer/i }).click();
   await expect(revokeDialog).toBeHidden();
   await expect(page.getByRole("status")).toContainText(/voqu/i);
-  expect(statusActions).toEqual(["pause", "resume", "archive", "revoke"]);
+  expect(statusBodies.map((body) => body.action)).toEqual([
+    "pause",
+    "pause",
+    "resume",
+    "archive",
+    "revoke"
+  ]);
+  expect(statusBodies.map((body) => body.expectedConfigVersion)).toEqual([2, 3, 4, 5, 6]);
+  expect(new Set(statusBodies.map((body) => body.idempotencyKey)).size).toBe(
+    statusBodies.length
+  );
 
   current = { ...current, status: "active" };
   await page.reload({ waitUntil: "networkidle" });
