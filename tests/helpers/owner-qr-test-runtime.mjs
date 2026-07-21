@@ -168,6 +168,10 @@ export async function loadQrRotateRoute() {
   return import("../../app/api/owner/qr-codes/[id]/rotate/route.ts");
 }
 
+export async function loadQrRetargetRoute() {
+  return import("../../app/api/owner/qr-codes/[id]/retarget/route.ts");
+}
+
 function storedHash(token) {
   return `sha256:${createHash("sha256").update(token, "utf8").digest("hex")}`;
 }
@@ -200,6 +204,7 @@ export function createQrSupabaseFixture(options = {}) {
   const recoveredUrls = new Map();
   const canonicalBatches = new Map();
   let sequence = 0;
+  let beforeQrUpdateCalled = false;
   const uniqueConstraints = [["token_hash"]];
 
   function seedQr({ token, ...row }) {
@@ -574,6 +579,13 @@ export function createQrSupabaseFixture(options = {}) {
       }
 
       if (this.operation.kind === "update") {
+        if (options.qrUpdateError) {
+          return { data: null, error: structuredClone(options.qrUpdateError) };
+        }
+        if (!beforeQrUpdateCalled && typeof options.beforeQrUpdate === "function") {
+          beforeQrUpdateCalled = true;
+          options.beforeQrUpdate(rows);
+        }
         const row = matchingRows(this.filters)[0];
         if (!row) {
           return {
@@ -598,6 +610,17 @@ export function createQrSupabaseFixture(options = {}) {
         return {
           data: null,
           error: { code: "42703", message: 'column "target_kind" does not exist' }
+        };
+      }
+      if (
+        options.safeInventoryReadError &&
+        this.table === "qr_codes" &&
+        /\bconfig_version\b/.test(this.columns) &&
+        !/\btoken_hash\b/.test(this.columns)
+      ) {
+        return {
+          data: null,
+          error: structuredClone(options.safeInventoryReadError)
         };
       }
       const found = matchingRows(this.filters);

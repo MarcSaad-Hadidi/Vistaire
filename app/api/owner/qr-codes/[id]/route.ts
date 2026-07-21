@@ -87,7 +87,10 @@ export async function PATCH(
       {
         ok: false,
         error: updated.error,
-        ...("code" in updated ? { code: updated.code } : {})
+        ...("code" in updated ? { code: updated.code } : {}),
+        ...("current" in updated && updated.current
+          ? { current: updated.current }
+          : {})
       },
       status
     );

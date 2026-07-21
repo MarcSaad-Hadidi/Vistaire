@@ -63,7 +63,8 @@ test("owner rotation is a distinct confirmed mutation", () => {
 
   assert.match(route, /candidate\.confirmed\s*!==\s*true/);
   assert.match(route, /idempotencyKey/);
-  assert.match(route, /disposition/);
+  assert.match(route, /previousDisposition/);
+  assert.doesNotMatch(route, /candidate\.disposition/);
   assert.match(route, /expectedConfigVersion/);
   assert.match(route, /rotateOwnerQrCode/);
   assert.doesNotMatch(route, /\btoken\s*:/);

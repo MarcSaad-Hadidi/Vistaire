@@ -582,7 +582,8 @@ export async function updateOwnerQrCode(
     return {
       ok: false,
       code: "config-version-conflict",
-      error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer."
+      error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer.",
+      current: mapInventoryRow(currentRow as unknown as AnyRow)
     };
   }
 
@@ -626,11 +627,7 @@ export async function updateOwnerQrCode(
   if (error && /config[_ -]version[_ -]conflict/i.test(
     `${error.message ?? ""}\n${error.details ?? ""}`
   )) {
-    return {
-      ok: false,
-      code: "config-version-conflict",
-      error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer."
-    };
+    return readSafeConfigVersionConflict(admin.client, id);
   }
   if (error && !isSupabaseMiss(error)) {
     const incidentId = logQrSupabaseIncident({
@@ -644,12 +641,8 @@ export async function updateOwnerQrCode(
     });
   }
   const updatedRow = data as unknown as AnyRow | null;
-  if (!error && !updatedRow) {
-    return {
-      ok: false,
-      code: "config-version-conflict",
-      error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer."
-    };
+  if ((error && isSupabaseMiss(error)) || (!error && !updatedRow)) {
+    return readSafeConfigVersionConflict(admin.client, id);
   }
   if (error || !updatedRow) {
     return {
@@ -674,12 +667,139 @@ export async function updateOwnerQrCode(
   return { ok: true, record: record.record };
 }
 
+export async function retargetOwnerQrCode(
+  id: string,
+  args: { expectedConfigVersion: number }
+): Promise<
+  | { ok: true; changed: boolean; record: OwnerQrCodeRecord }
+  | OwnerQrCanonicalError
+  | OwnerQrRequestError
+  | QrSupabaseFailure
+> {
+  if (
+    !id ||
+    !Number.isSafeInteger(args.expectedConfigVersion) ||
+    args.expectedConfigVersion < 1
+  ) {
+    return {
+      ok: false,
+      code: "invalid-input",
+      error: "Version de configuration invalide."
+    };
+  }
+  const admin = getSupabaseAdminClient();
+  if (!admin.ok) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "update-config",
+      code: "QR_UPDATE_CONFIG_UNAVAILABLE",
+      configReason: admin.reason
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_UPDATE_CONFIG_UNAVAILABLE",
+      incidentId
+    });
+  }
+  const { data: currentRow, error: readError } = await admin.client
+    .from(QR_TABLE)
+    .select(CANONICAL_COLUMNS)
+    .eq("id", id)
+    .eq("is_canonical", true)
+    .maybeSingle();
+  if (readError && !isSupabaseMiss(readError)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "update",
+      code: "QR_UPDATE_FAILED",
+      supabaseError: readError
+    });
+    return buildQrSupabaseFailure({ code: "QR_UPDATE_FAILED", incidentId });
+  }
+  if (!currentRow) {
+    return { ok: false, code: "not-found", error: "QR canonique introuvable." };
+  }
+  const currentData = currentRow as unknown as AnyRow;
+  const current = await recoverCanonicalRecord(currentData);
+  if (!current.ok) {
+    return current.code === "configuration-missing"
+      ? canonicalConfigFailure(
+          "canonical-read",
+          "QR token vault configuration is unavailable."
+        )
+      : CANONICAL_UNRECOVERABLE;
+  }
+  if (current.record.configVersion !== args.expectedConfigVersion) {
+    return {
+      ok: false,
+      code: "config-version-conflict",
+      error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer.",
+      current: mapInventoryRow(currentData)
+    };
+  }
+  const { data: restaurant, error: restaurantError } = await admin.client
+    .from("restaurants")
+    .select("id, slug")
+    .eq("id", current.record.restaurantId)
+    .maybeSingle();
+  const restaurantSlug = getString(
+    (restaurant ?? {}) as unknown as AnyRow,
+    ["slug"],
+    ""
+  );
+  if (restaurantError || !restaurant || !restaurantSlug) {
+    if (restaurantError && !isSupabaseMiss(restaurantError)) {
+      const incidentId = logQrSupabaseIncident({
+        operation: "update",
+        code: "QR_UPDATE_FAILED",
+        supabaseError: restaurantError
+      });
+      return buildQrSupabaseFailure({ code: "QR_UPDATE_FAILED", incidentId });
+    }
+    return { ok: false, code: "not-found", error: "Restaurant introuvable." };
+  }
+  const targetPath =
+    current.record.targetKind === "admin"
+      ? "/admin"
+      : buildPublicMenuPath(restaurantSlug);
+  if (targetPath === current.record.targetPath) {
+    return { ok: true, changed: false, record: current.record };
+  }
+  const { data, error } = await admin.client
+    .from(QR_TABLE)
+    .update({
+      target_path: targetPath,
+      config_version: args.expectedConfigVersion + 1
+    })
+    .eq("id", id)
+    .eq("is_canonical", true)
+    .eq("config_version", args.expectedConfigVersion)
+    .select(CANONICAL_COLUMNS)
+    .maybeSingle();
+  if (error && /config[_ -]version[_ -]conflict/i.test(
+    `${error.message ?? ""}\n${error.details ?? ""}`
+  )) {
+    return readSafeConfigVersionConflict(admin.client, id);
+  }
+  if (error && !isSupabaseMiss(error)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "update",
+      code: "QR_UPDATE_FAILED",
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({ code: "QR_UPDATE_FAILED", incidentId });
+  }
+  if ((error && isSupabaseMiss(error)) || !data) {
+    return readSafeConfigVersionConflict(admin.client, id);
+  }
+  const recovered = await recoverCanonicalRecord(data as unknown as AnyRow);
+  if (!recovered.ok) return CANONICAL_UNRECOVERABLE;
+  return { ok: true, changed: true, record: recovered.record };
+}
+
 async function recoverCompletedRotation(
   client: SupabaseClient,
   args: {
     previousId: string;
     idempotencyKey: string;
-    disposition: OwnerQrRotationDisposition;
+    previousDisposition: OwnerQrRotationDisposition;
     expectedConfigVersion: number;
   }
 ): Promise<
@@ -708,7 +828,7 @@ async function recoverCompletedRotation(
   if (
     getString(eventRow, ["action"], "") !== "rotate" ||
     getString(eventRow, ["qr_code_id"], "") !== args.previousId ||
-    getString(eventRow, ["disposition"], "") !== args.disposition ||
+    getString(eventRow, ["disposition"], "") !== args.previousDisposition ||
     getNumber(eventRow, ["previous_config_version"], 0) !==
       args.expectedConfigVersion
   ) {
@@ -752,7 +872,7 @@ export async function rotateOwnerQrCode(
   args: {
     confirmed: true;
     idempotencyKey: string;
-    disposition: OwnerQrRotationDisposition;
+    previousDisposition: OwnerQrRotationDisposition;
     expectedConfigVersion: number;
   }
 ): Promise<CanonicalQrRotationResult | OwnerQrRequestError | QrSupabaseFailure> {
@@ -762,7 +882,7 @@ export async function rotateOwnerQrCode(
       args.idempotencyKey
     ) ||
     !["keep-active", "pause", "revoke"].includes(
-      args.disposition
+      args.previousDisposition
     ) ||
     !Number.isSafeInteger(args.expectedConfigVersion) ||
     args.expectedConfigVersion < 1
@@ -779,7 +899,7 @@ export async function rotateOwnerQrCode(
   const completed = await recoverCompletedRotation(admin.client, {
     previousId: id,
     idempotencyKey: args.idempotencyKey,
-    disposition: args.disposition,
+    previousDisposition: args.previousDisposition,
     expectedConfigVersion: args.expectedConfigVersion
   });
   if (completed) return completed;
@@ -876,7 +996,7 @@ export async function rotateOwnerQrCode(
     p_new_id: newId,
     p_rotation_request_id: args.idempotencyKey,
     p_expected_config_version: args.expectedConfigVersion,
-    p_disposition: args.disposition,
+    p_disposition: args.previousDisposition,
     p_restaurant_id: previous.restaurantId,
     p_target_kind: previous.targetKind,
     p_purpose_key: "default",
@@ -894,7 +1014,7 @@ export async function rotateOwnerQrCode(
     const completedAfterRace = await recoverCompletedRotation(admin.client, {
       previousId: id,
       idempotencyKey: args.idempotencyKey,
-      disposition: args.disposition,
+      previousDisposition: args.previousDisposition,
       expectedConfigVersion: args.expectedConfigVersion
     });
     if (completedAfterRace) return completedAfterRace;
@@ -958,7 +1078,7 @@ export async function rotateOwnerQrCode(
   const completedResult = await recoverCompletedRotation(admin.client, {
     previousId: id,
     idempotencyKey: args.idempotencyKey,
-    disposition: args.disposition,
+    previousDisposition: args.previousDisposition,
     expectedConfigVersion: args.expectedConfigVersion
   });
   return completedResult ?? CANONICAL_UNRECOVERABLE;
@@ -1001,6 +1121,34 @@ const INVENTORY_COLUMNS = [
   "created_at",
   "updated_at"
 ].join(", ");
+
+async function readSafeConfigVersionConflict(
+  client: SupabaseClient,
+  id: string
+): Promise<OwnerQrRequestError | QrSupabaseFailure> {
+  const { data, error } = await client
+    .from(QR_TABLE)
+    .select(INVENTORY_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "update",
+      code: "QR_UPDATE_FAILED",
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({ code: "QR_UPDATE_FAILED", incidentId });
+  }
+  if (!data) {
+    return { ok: false, code: "not-found", error: "QR introuvable." };
+  }
+  return {
+    ok: false,
+    code: "config-version-conflict",
+    error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer.",
+    current: mapInventoryRow(data as unknown as AnyRow)
+  };
+}
 
 export async function listOwnerQrInventory(args: {
   restaurantId: string;

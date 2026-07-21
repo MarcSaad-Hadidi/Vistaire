@@ -48,17 +48,22 @@ export async function POST(
       candidate.idempotencyKey
     ) ||
     !["keep-active", "pause", "revoke"].includes(
-      String(candidate.disposition)
+      String(candidate.previousDisposition)
     ) ||
     !Number.isSafeInteger(candidate.expectedConfigVersion) ||
     Number(candidate.expectedConfigVersion) < 1 ||
     Object.keys(candidate).some(
       (key) =>
-        !["confirmed", "idempotencyKey", "disposition", "expectedConfigVersion"].includes(key)
+        ![
+          "confirmed",
+          "idempotencyKey",
+          "previousDisposition",
+          "expectedConfigVersion"
+        ].includes(key)
     )
   ) {
     return qrJson(
-      { ok: false, code: "invalid-input", error: "Confirmation, cle UUID, disposition et version sont requises." },
+      { ok: false, code: "invalid-input", error: "Confirmation, cle UUID, previousDisposition et version sont requises." },
       400
     );
   }
@@ -66,7 +71,10 @@ export async function POST(
   const rotated = await rotateOwnerQrCode(id, {
     confirmed: true,
     idempotencyKey: candidate.idempotencyKey,
-    disposition: candidate.disposition as "keep-active" | "pause" | "revoke",
+    previousDisposition: candidate.previousDisposition as
+      | "keep-active"
+      | "pause"
+      | "revoke",
     expectedConfigVersion: Number(candidate.expectedConfigVersion)
   });
   if (!rotated.ok) {

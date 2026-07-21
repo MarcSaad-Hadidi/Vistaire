@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
     "restaurantId",
     "label",
     "targetKind",
-    "targetPath",
     "purposeKey",
     "style"
   ]);

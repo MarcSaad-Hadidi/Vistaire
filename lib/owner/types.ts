@@ -134,6 +134,7 @@ export type OwnerQrRequestError = {
     | "invalid-input"
     | "config-version-conflict"
     | "idempotency-conflict";
+  current?: OwnerQrInventoryRecord;
 };
 
 export type OwnerQrInventoryRecord = Omit<
