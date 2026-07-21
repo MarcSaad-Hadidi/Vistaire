@@ -111,7 +111,8 @@ select qr_test.assert_true(
        from qr_test.concurrent_results where phase = 'create')
   and (select count(*) = 1 from public.qr_codes
        where restaurant_id = '10000000-0000-4000-8000-000000000002'
-         and target_kind = 'admin' and purpose_key = 'concurrent'),
+         and target_kind = 'admin' and purpose_key = 'concurrent'
+         and is_canonical),
   '20 simultaneous creations must elect exactly one canonical row'
 );
 

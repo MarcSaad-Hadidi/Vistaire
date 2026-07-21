@@ -20,4 +20,8 @@ test("the PostgreSQL harness retains twenty creates and two concurrent rotations
   assert.match(concurrencySql, /count\(\*\) = 20/);
   assert.match(concurrencySql, /for v_worker in 1\.\.2 loop/);
   assert.match(concurrencySql, /count\(\*\) = 2/);
+  assert.match(
+    concurrencySql,
+    /purpose_key = 'concurrent'\s+and is_canonical/
+  );
 });
