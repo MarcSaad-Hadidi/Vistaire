@@ -308,7 +308,10 @@ export function OwnerQrCustomizer({
     [targetDisplayUrl, targetPath]
   );
   const canExportQr = Boolean(
-    qrValue && svgMarkup && canonicalRecord?.status === "active"
+    qrValue &&
+      svgMarkup &&
+      canonicalRecord?.isCanonical === true &&
+      canonicalRecord?.status === "active"
   );
   const styleDirty = Boolean(
     canonicalRecord && savedStyleFingerprint !== styleFingerprint
