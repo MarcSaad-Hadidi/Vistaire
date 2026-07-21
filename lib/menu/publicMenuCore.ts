@@ -814,10 +814,10 @@ function mapDishRow(
   const modelAssetVersion = getString(metadata, ["modelAssetVersion", "model_asset_version"], "");
   const modelAssetSha256 = getString(metadata, ["modelAssetSha256", "model_asset_sha256"], "");
   const modelUpdatedAt = getString(metadata, ["modelUpdatedAt", "model_updated_at"], "");
-  const hasImmersiveFlag = getBoolean(row, ["has_immersive_view", "hasImmersiveView"]);
+  const storedModelStatus = getString(metadata, ["modelStatus", "model_status"], "");
   const isSignature = getBoolean(row, ["is_signature", "isSignature"]);
   const isRecommended = getBoolean(row, ["is_recommended", "isRecommended"]);
-  const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl || hasImmersiveFlag);
+  const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl);
   const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
   const hasAndroidAr = Boolean(arModel3dUrl);
   const hasAr = hasIosAr || hasAndroidAr;
@@ -853,7 +853,7 @@ function mapDishRow(
     thumbnailUrl,
     hasPhoto: Boolean(imageUrl),
     photoStatus:
-      getString(metadata, ["photoStatus", "photo_status"], "") === "ready" || imageUrl
+      imageUrl
         ? "ready"
         : getString(metadata, ["photoStatus", "photo_status"], "") === "planned"
           ? "planned"
@@ -917,17 +917,15 @@ function mapDishRow(
     usdzSourceStored,
     ...(quickLookQaStatus ? { quickLookQaStatus } : {}),
     modelStatus:
-      getString(metadata, ["modelStatus", "model_status"], "") === "ready"
-        ? "ready"
-        : getString(metadata, ["modelStatus", "model_status"], "") === "web_ready_usdz_pending"
+      !has3d && !hasAr
+        ? "missing"
+        : storedModelStatus === "web_ready_usdz_pending"
           ? "web_ready_usdz_pending"
-          : getString(metadata, ["modelStatus", "model_status"], "") === "pending_manual_usdz"
+          : storedModelStatus === "pending_manual_usdz"
             ? "pending_manual_usdz"
-            : getString(metadata, ["modelStatus", "model_status"], "") === "usdz_conversion_failed"
+            : storedModelStatus === "usdz_conversion_failed"
               ? "usdz_conversion_failed"
-              : has3d || hasAr
-                ? "ready"
-                : "missing",
+              : "ready",
     available: isDishAvailable(row),
     ...(isSignature ? { isSignature } : {}),
     ...(isRecommended ? { isRecommended } : {}),

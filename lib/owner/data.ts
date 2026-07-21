@@ -317,58 +317,98 @@ function getObject(row: AnyRow, candidates: string[]): AnyRow {
   return {};
 }
 
+function isSafeMediaReference(value: string): boolean {
+  if (!value || /[\u0000-\u001f\\]/.test(value) || value.includes("..")) return false;
+  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function hasSafeMediaReference(row: AnyRow, candidates: string[]): boolean {
+  return candidates.some((key) => isSafeMediaReference(getString(row, [key], "")));
+}
+
+function isSafeStoragePath(value: string, extension?: "glb" | "usdz"): boolean {
+  if (
+    !value ||
+    value.startsWith("/") ||
+    /[\u0000-\u001f\\]/.test(value) ||
+    value.includes("..")
+  ) {
+    return false;
+  }
+  return extension ? value.toLowerCase().endsWith(`.${extension}`) : true;
+}
+
+function hasSafeStoragePath(
+  row: AnyRow,
+  candidates: string[],
+  extension?: "glb" | "usdz"
+): boolean {
+  return candidates.some((key) =>
+    isSafeStoragePath(getString(row, [key], ""), extension)
+  );
+}
+
 function rowHasPhoto(row: AnyRow): boolean {
   const metadata = getObject(row, ["metadata", "meta"]);
   return (
-    getString(metadata, ["photoStatus", "photo_status"], "") === "ready" ||
-    getBoolean(row, ["has_photo", "hasPhoto", "photo_ready"], false) ||
-    Boolean(
-      getString(row, [
-        "image",
-        "image_url",
-        "imageUrl",
-        "photo_url",
-        "photoUrl",
-        "thumbnail_url"
-      ])
-    )
+    hasSafeMediaReference(row, [
+      "image",
+      "image_url",
+      "imageUrl",
+      "photo_url",
+      "photoUrl",
+      "thumbnail_url",
+      "thumbnailUrl"
+    ]) ||
+    hasSafeStoragePath(metadata, ["photoStoragePath", "photo_storage_path"])
   );
 }
 
 function rowHasImmersiveAsset(row: AnyRow): boolean {
   const metadata = getObject(row, ["metadata", "meta"]);
   return (
-    getBoolean(row, ["has_immersive_view", "hasImmersiveView"], false) ||
-    getString(metadata, ["modelStatus", "model_status"], "") === "ready" ||
-    getString(metadata, ["modelStatus", "model_status"], "") ===
-      "web_ready_usdz_pending" ||
-    getBoolean(row, ["has_3d", "has3d", "has_ar", "hasAr"], false) ||
-    Boolean(
-      getString(row, [
-        "model3d_url",
-        "model3dUrl",
-        "web_model_3d_url",
-        "webModel3dUrl",
-        "ar_model_3d_url",
-        "arModel3dUrl",
-        "usdz_url",
-        "usdzUrl"
-      ])
-    ) ||
-    Boolean(
-      getString(metadata, [
-        "model3dUrl",
-        "model3d_url",
-        "webModel3dUrl",
-        "web_model_3d_url",
-        "arModel3dUrl",
-        "ar_model_3d_url",
-        "arUsdzUrl",
-        "ar_usdz_url",
-        "usdzUrl",
-        "usdz_url"
-      ])
-    )
+    hasSafeMediaReference(row, [
+      "model3d_url",
+      "model3dUrl",
+      "web_model_3d_url",
+      "webModel3dUrl",
+      "ar_model_3d_url",
+      "arModel3dUrl",
+      "usdz_url",
+      "usdzUrl"
+    ]) ||
+    hasSafeMediaReference(metadata, [
+      "model3dUrl",
+      "model3d_url",
+      "webModel3dUrl",
+      "web_model_3d_url",
+      "arModel3dUrl",
+      "ar_model_3d_url",
+      "arUsdzUrl",
+      "ar_usdz_url",
+      "usdzUrl",
+      "usdz_url"
+    ]) ||
+    hasSafeStoragePath(metadata, [
+      "webModel3dStoragePath",
+      "web_model_3d_storage_path"
+    ], "glb") ||
+    hasSafeStoragePath(metadata, [
+      "arModel3dStoragePath",
+      "ar_model_3d_storage_path"
+    ], "glb") ||
+    hasSafeStoragePath(metadata, [
+      "arUsdzStoragePath",
+      "ar_usdz_storage_path",
+      "usdzStoragePath",
+      "usdz_storage_path"
+    ], "usdz")
   );
 }
 

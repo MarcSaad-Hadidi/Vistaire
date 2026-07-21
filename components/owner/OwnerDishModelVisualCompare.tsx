@@ -78,7 +78,7 @@ function CompareModelViewer({
       interaction-prompt="none"
       disable-tap
       camera-orbit={orbit}
-      loading="eager"
+      loading="lazy"
       reveal="auto"
     />
   );
