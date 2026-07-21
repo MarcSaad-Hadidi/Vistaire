@@ -3,6 +3,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { buildDishPhotoStoragePath } from "../../lib/owner/dishPhotoUpload.ts";
+import {
+  buildPreparedModelArLiteStoragePath,
+  buildPreparedModelUsdzStoragePath,
+  buildPreparedModelWebStoragePath
+} from "../../lib/owner/preparedModelWorkflow.ts";
+
 export const MAISON_ELYSE_RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
 export const MAISON_ELYSE_SLUG = "maison-elyse";
 export const MAISON_ELYSE_PROJECT_REF = "bkpewsjvxswqruwqljcy";
@@ -199,7 +206,13 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjectPa
     }
     const modelHashes = [dish.webGlb, dish.arLiteGlb, dish.usdzRuntime].filter(Boolean).map((asset) => asset.sha256.slice(0, 12));
     const version = `maison-elyse-${manifest.version}-${(modelHashes[0] ?? dish.photo.sha256).slice(0, 12)}`;
-    const photoPath = `restaurants/${MAISON_ELYSE_RESTAURANT_ID}/dishes/${row.id}/photo-${dish.photo.sha256}.${extensionFor(dish.photo)}`;
+    const photoPath = buildDishPhotoStoragePath({
+      restaurantId: MAISON_ELYSE_RESTAURANT_ID,
+      dishId: row.id,
+      dishSlug: slug,
+      extension: extensionFor(dish.photo),
+      sha256: dish.photo.sha256
+    });
     const photoObject = objectPlan({ bucket: PHOTO_BUCKET, path: photoPath, asset: dish.photo, inventory: local.photo, existingObjectPaths });
     storageObjects.push(photoObject);
     const metadata = safeMetadata(row.metadata);
@@ -211,7 +224,11 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjectPa
     metadata.photoBytes = dish.photo.bytes;
     const publishedModels = [];
     if (dish.webGlb) {
-      const path = `restaurants/${MAISON_ELYSE_RESTAURANT_ID}/dishes/${row.id}/web-${dish.webGlb.sha256}.glb`;
+      const path = buildPreparedModelWebStoragePath({
+        restaurantId: MAISON_ELYSE_RESTAURANT_ID,
+        dishSlug: slug,
+        assetVersion: version
+      });
       storageObjects.push(objectPlan({ bucket: MODEL_BUCKET, path, asset: dish.webGlb, inventory: local.webGlb, existingObjectPaths }));
       metadata.webModel3dStorageBucket = MODEL_BUCKET;
       metadata.webModel3dStoragePath = path;
@@ -222,7 +239,11 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjectPa
       publishedModels.push(dish.webGlb);
     }
     if (dish.arLiteGlb) {
-      const path = `restaurants/${MAISON_ELYSE_RESTAURANT_ID}/dishes/${row.id}/ar-lite-${dish.arLiteGlb.sha256}.glb`;
+      const path = buildPreparedModelArLiteStoragePath({
+        restaurantId: MAISON_ELYSE_RESTAURANT_ID,
+        dishSlug: slug,
+        assetVersion: version
+      });
       storageObjects.push(objectPlan({ bucket: MODEL_BUCKET, path, asset: dish.arLiteGlb, inventory: local.arLiteGlb, existingObjectPaths }));
       metadata.arModel3dStorageBucket = MODEL_BUCKET;
       metadata.arModel3dStoragePath = path;
@@ -232,7 +253,11 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjectPa
       publishedModels.push(dish.arLiteGlb);
     }
     if (dish.usdzRuntime) {
-      const path = `restaurants/${MAISON_ELYSE_RESTAURANT_ID}/dishes/${row.id}/ar-ios-${dish.usdzRuntime.sha256}.usdz`;
+      const path = buildPreparedModelUsdzStoragePath({
+        restaurantId: MAISON_ELYSE_RESTAURANT_ID,
+        dishSlug: slug,
+        assetVersion: version
+      });
       storageObjects.push(objectPlan({ bucket: MODEL_BUCKET, path, asset: dish.usdzRuntime, inventory: local.usdzRuntime, existingObjectPaths }));
       metadata.arUsdzStorageBucket = MODEL_BUCKET;
       metadata.arUsdzStoragePath = path;

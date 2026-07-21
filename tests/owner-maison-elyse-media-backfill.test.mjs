@@ -3,6 +3,15 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+  collectDishModelStorageTargets,
+  isSafeDishModelStoragePath
+} from "../lib/owner/deleteDishModelAssets.ts";
+import {
+  collectDishPhotoStorageTarget,
+  isSafeDishPhotoStoragePath
+} from "../lib/owner/dishMediaGarbageCollector.ts";
+
+import {
   ALLOWED_SLUGS,
   MAISON_ELYSE_RESTAURANT_ID,
   applyPlan,
@@ -41,12 +50,33 @@ test("local inventory reports twelve photos, missing models, and source-only USD
   assert.equal(inventory.bySlug["homard-bisque"].historicalPrimaryUsdz.disposition, "source-only");
 });
 
-test("plan uses hash-versioned UUID paths and reuses exact existing objects", () => {
+test("plan uses cleanup-compatible builder paths and reuses exact existing objects", () => {
   const inventory = buildLocalAssetInventory({ rootDir: ROOT, manifest });
   const row = { id: "84226092-1b25-4174-a635-50e2b8319580", restaurant_id: MAISON_ELYSE_RESTAURANT_ID, slug: "tartare-saumon", image_url: null, has_immersive_view: false, metadata: {} };
   const plan = createBackfillPlan({ manifest, inventory, rows: [row], existingObjectPaths: new Set() });
-  assert.match(plan.storageObjects[0].path, /restaurants\/11111111-1111-1111-1111-111111111111\/dishes\/84226092-1b25-4174-a635-50e2b8319580/);
-  assert.match(plan.storageObjects[0].path, /[a-f0-9]{64}/);
+  const metadata = plan.dishUpdates[0].patch.metadata;
+  const photoObject = plan.storageObjects.find((object) => object.bucket === "vistaire-media");
+  const modelObjects = plan.storageObjects.filter((object) => object.bucket === "vistaire-3d");
+
+  assert.ok(photoObject);
+  assert.equal(isSafeDishPhotoStoragePath(photoObject.path, MAISON_ELYSE_RESTAURANT_ID), true);
+  assert.deepEqual(
+    collectDishPhotoStorageTarget(metadata, MAISON_ELYSE_RESTAURANT_ID).targets.map((target) => target.path),
+    [photoObject.path]
+  );
+  assert.ok(photoObject.path.startsWith(`restaurants/${MAISON_ELYSE_RESTAURANT_ID}/photos/originals/`));
+
+  for (const object of modelObjects) {
+    const extension = object.path.endsWith(".usdz") ? ".usdz" : ".glb";
+    const folder = object.path.split("/")[3];
+    assert.equal(isSafeDishModelStoragePath(object.path, MAISON_ELYSE_RESTAURANT_ID, extension, [folder]), true);
+  }
+  const collectedModels = collectDishModelStorageTargets(metadata, MAISON_ELYSE_RESTAURANT_ID);
+  assert.deepEqual(collectedModels.skipped, []);
+  assert.deepEqual(
+    collectedModels.targets.map((target) => target.path).sort(),
+    modelObjects.map((object) => object.path).sort()
+  );
   assert.equal(plan.dishUpdates[0].patch.metadata.quickLookQaStatus, "not-tested");
   assert.equal(plan.dishUpdates[0].patch.metadata.usdzSourceStored, false);
   assert.equal(plan.storageObjects.some((object) => object.path.endsWith("homard-bisque.usdz")), false);
