@@ -533,6 +533,12 @@ export function createQrSupabaseFixture(options = {}) {
     if (typeof options.beforeCanonicalRotation === "function") {
       options.beforeCanonicalRotation(previous);
     }
+    if (!rows.includes(previous) || previous.is_canonical !== true) {
+      return {
+        data: null,
+        error: { code: "P0002", message: "canonical QR was not found" }
+      };
+    }
     const previousSnapshot = structuredClone(previous);
     const previousStatus = previous.status;
     previous.is_canonical = false;

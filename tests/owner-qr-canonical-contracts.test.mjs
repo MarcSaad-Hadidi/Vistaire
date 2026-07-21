@@ -648,6 +648,78 @@ test("rotation response and new canonical use the style reread under the databas
   assert.equal(rotated.current.style.foregroundColor, "#333333");
 });
 
+test("rotation HTTP classifies a P0002 race as a safe current 409", async () => {
+  const fixture = createQrSupabaseFixture({
+    beforeCanonicalRotation(row) {
+      row.is_canonical = false;
+      row.status = "active";
+      row.config_version += 1;
+      row.updated_at = "2026-07-17T12:00:02.000Z";
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { POST } = await loadQrRotateRoute();
+
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/rotate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmed: true,
+          idempotencyKey: "23232323-2323-4232-8232-232323232323",
+          previousDisposition: "keep-active",
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.code, "config-version-conflict");
+  assertSafeConflictRecord(payload.current);
+  assert.equal("redirectUrl" in payload.current, false);
+  assert.equal("tokenPreview" in payload.current, false);
+});
+
+test("rotation HTTP classifies a P0002 race with a deleted row as 404", async () => {
+  let fixture;
+  fixture = createQrSupabaseFixture({
+    beforeCanonicalRotation(row) {
+      fixture.rows.splice(fixture.rows.indexOf(row), 1);
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { POST } = await loadQrRotateRoute();
+
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/rotate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmed: true,
+          idempotencyKey: "24242424-2424-4242-8242-242424242424",
+          previousDisposition: "keep-active",
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(payload.code, "not-found");
+  assert.equal("current" in payload, false);
+});
+
 test("PATCH and rotation expose an absent canonical as 404, not a dependency outage", async () => {
   const fixture = createQrSupabaseFixture();
   fixture.install();

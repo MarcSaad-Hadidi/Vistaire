@@ -94,7 +94,8 @@ export async function POST(
       {
         ok: false,
         error: rotated.error,
-        ...("code" in rotated ? { code: rotated.code } : {})
+        ...("code" in rotated ? { code: rotated.code } : {}),
+        ...("current" in rotated ? { current: rotated.current } : {})
       },
       status
     );

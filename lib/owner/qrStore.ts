@@ -1037,8 +1037,12 @@ export async function rotateOwnerQrCode(
     });
     if (completedAfterRace) return completedAfterRace;
   }
+  const errorText = `${error?.message ?? ""}\n${error?.details ?? ""}`;
+  if (error && (error.code === "P0002" || /canonical QR.*not found/i.test(errorText))) {
+    return classifyRotationCanonicalMiss(admin.client, id);
+  }
   if (error && (error.code === "40001" || /stale[\s\S]*config_version/i.test(
-    `${error.message ?? ""}\n${error.details ?? ""}`
+    errorText
   ))) {
     return {
       ok: false,
@@ -1047,7 +1051,7 @@ export async function rotateOwnerQrCode(
     };
   }
   if (error && /(?:idempotenc(?:y|e)|request id)[\s\S]*(?:reused|conflict)/i.test(
-    `${error.message ?? ""}\n${error.details ?? ""}`
+    errorText
   )) {
     return {
       ok: false,
@@ -1164,6 +1168,37 @@ async function readSafeConfigVersionConflict(
       supabaseError: error
     });
     return buildQrSupabaseFailure({ code: "QR_UPDATE_FAILED", incidentId });
+  }
+  if (!data) {
+    return { ok: false, code: "not-found", error: "QR introuvable." };
+  }
+  return {
+    ok: false,
+    code: "config-version-conflict",
+    error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer.",
+    current: mapInventoryRow(data as unknown as AnyRow)
+  };
+}
+
+async function classifyRotationCanonicalMiss(
+  client: SupabaseClient,
+  id: string
+): Promise<OwnerQrRequestError | QrSupabaseFailure> {
+  const { data, error } = await client
+    .from(QR_TABLE)
+    .select(INVENTORY_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "canonical-rotate",
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      supabaseError: error
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      incidentId
+    });
   }
   if (!data) {
     return { ok: false, code: "not-found", error: "QR introuvable." };
