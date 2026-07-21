@@ -16,6 +16,20 @@ $$;
 
 create extension if not exists dblink;
 
+-- Plain PostgreSQL does not include Supabase Storage. This minimal fixture-only
+-- contract lets the real runtime-hardening migration seed its bucket metadata.
+create schema if not exists storage;
+
+create table if not exists storage.buckets (
+  id text primary key,
+  name text not null unique,
+  public boolean not null default false,
+  file_size_limit bigint,
+  allowed_mime_types text[],
+  created_at timestamptz not null default pg_catalog.now(),
+  updated_at timestamptz not null default pg_catalog.now()
+);
+
 create schema if not exists qr_test;
 
 create or replace function qr_test.assert_true(p_condition boolean, p_message text)

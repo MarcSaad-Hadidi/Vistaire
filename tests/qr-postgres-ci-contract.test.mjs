@@ -31,6 +31,16 @@ test("the PostgreSQL runner applies the production QR migrations with real psql"
   );
 });
 
+test("the PostgreSQL fixture supplies the minimal Supabase storage bucket contract", async () => {
+  const bootstrap = await source("tests/postgres/qr-lifecycle/bootstrap.sql");
+
+  assert.match(bootstrap, /create schema if not exists storage/);
+  assert.match(bootstrap, /create table if not exists storage\.buckets/);
+  for (const column of ["id", "name", "public", "file_size_limit", "allowed_mime_types", "updated_at"]) {
+    assert.match(bootstrap, new RegExp(`\\b${column}\\b`));
+  }
+});
+
 test("the retained PostgreSQL fixture uses the versioned rotation RPC", async () => {
   const fixture = await source("tests/fixtures/qr-postgres-assertions.sql");
   const modernSignature =
