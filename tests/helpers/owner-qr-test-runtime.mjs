@@ -989,7 +989,10 @@ export function createOwnerQrCustomizerHarness(options = {}) {
               ok: true,
               found: Boolean(record),
               recoverable: Boolean(record),
-              record
+              configVersion: record ? record.configVersion ?? 1 : undefined,
+              record: record
+                ? { ...record, status: record.status ?? "active", configVersion: record.configVersion ?? 1 }
+                : null
             };
           }
           if (method === "PATCH") {
@@ -1001,8 +1004,11 @@ export function createOwnerQrCustomizerHarness(options = {}) {
                 targetPath: "/admin",
                 targetKind: "admin",
                 purposeKey: "default",
+                status: "active",
+                isCanonical: true,
                 persisted: true,
                 recoverable: true,
+                configVersion: 2,
                 tokenPreview: "…token",
                 style: {
                   ...defaultStyle,
@@ -1024,8 +1030,11 @@ export function createOwnerQrCustomizerHarness(options = {}) {
               targetPath: "/admin",
               targetKind: "admin",
               purposeKey: "default",
+              status: "active",
+              isCanonical: true,
               persisted: true,
               recoverable: true,
+              configVersion: 1,
               tokenPreview: "…token",
               style: defaultStyle
             }
@@ -1045,7 +1054,11 @@ export function createOwnerQrCustomizerHarness(options = {}) {
       throw new Error(`Unexpected customizer dependency: ${specifier}`);
     },
     setTimeout,
-    window: { location: { origin: "https://fixture.invalid" } }
+    window: {
+      location: { origin: "https://fixture.invalid" },
+      setTimeout,
+      clearTimeout
+    }
   });
   vm.runInContext(compiled, context, { filename: "OwnerQrCustomizer.compiled.cjs" });
   const Component = compiledModule.exports.OwnerQrCustomizer;
@@ -1094,7 +1107,7 @@ export function createOwnerQrCustomizerHarness(options = {}) {
         tree,
         (node) =>
           node.type === "button" &&
-          /Sauvegarder|Sauvegarde|Chargement du QR/.test(flattenText(node))
+          /Créer le QR|Enregistrer le style|Création|Enregistrement/.test(flattenText(node))
       );
       if (!button) throw new Error("Save button was not rendered.");
       if (button.props.disabled) return false;

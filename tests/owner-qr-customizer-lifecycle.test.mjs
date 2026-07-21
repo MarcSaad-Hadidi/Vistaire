@@ -24,7 +24,7 @@ test("an unchanged owner QR Save makes no second mutation", async () => {
   assert.match(harness.renderedText(), /\/q\/opaque-fixture-token/);
 });
 
-test("a style-only owner QR Save PATCHes only style and preserves the URL", async () => {
+test("a style-only owner QR Save PATCHes style with its expected version and preserves the URL", async () => {
   const harness = createOwnerQrCustomizerHarness();
   await harness.load();
   await harness.save();
@@ -37,7 +37,8 @@ test("a style-only owner QR Save PATCHes only style and preserves the URL", asyn
   assert.equal(mutation.method, "PATCH");
   assert.equal(mutation.url, "/api/owner/qr-codes/qr-observable-1");
   assert.equal(mutation.body.style.foregroundColor, "#222222");
-  assert.deepEqual(Object.keys(mutation.body), ["style"]);
+  assert.equal(mutation.body.expectedConfigVersion, 1);
+  assert.deepEqual(Object.keys(mutation.body), ["style", "expectedConfigVersion"]);
   for (const forbidden of [
     "id",
     "restaurantId",
@@ -49,7 +50,7 @@ test("a style-only owner QR Save PATCHes only style and preserves the URL", asyn
   ]) {
     assert.equal(forbidden in mutation.body, false);
   }
-  assert.match(harness.renderedText(), /QR securise enregistre/);
+  assert.match(harness.renderedText(), /Style du QR enregistr/);
   assert.match(harness.renderedText(), /\/q\/opaque-fixture-token/);
   assert.doesNotMatch(harness.renderedText(), /Sauvegarde QR impossible/);
 });
@@ -87,6 +88,7 @@ test("GET hydration prevents a duplicate POST and routes later edits through PAT
   assert.equal(mutations.length, 1);
   assert.equal(mutations[0].method, "PATCH");
   assert.equal(mutations[0].body.style.foregroundColor, "#222222");
+  assert.equal(mutations[0].body.expectedConfigVersion, 1);
   assert.equal(
     harness.requests.some((request) => request.method === "POST"),
     false

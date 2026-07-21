@@ -109,16 +109,70 @@ type QrPayload = {
   record?: unknown;
 };
 
+type BuilderQrRecord = {
+  redirectUrl?: string;
+  targetPath: string;
+  persisted: boolean;
+};
+
 type QrReadPayload = {
   ok: true;
   found: boolean;
   recoverable: boolean;
-  record?: {
-    redirectUrl?: string;
-    targetPath: string;
-    persisted: boolean;
-  } | null;
+  canonical?: BuilderQrRecord | null;
+  record?: BuilderQrRecord | null;
 };
+
+type QrAvailability =
+  | "loading"
+  | "absent"
+  | "creating"
+  | "available"
+  | "unrecoverable"
+  | "failed";
+
+function isOpaqueQrRedirect(value: string): boolean {
+  return /^\/q\/[A-Za-z0-9._~-]+$/.test(value);
+}
+
+function qrPreviewCopy(state: QrAvailability): {
+  badge: string;
+  message: string;
+  detail: string;
+} {
+  switch (state) {
+    case "loading":
+      return {
+        badge: "Chargement",
+        message: "Verification du QR menu en cours",
+        detail: "Le parcours sera disponible apres verification."
+      };
+    case "creating":
+      return {
+        badge: "Creation",
+        message: "Creation securisee du QR en cours",
+        detail: "Aucune adresse n'est affichee avant confirmation."
+      };
+    case "unrecoverable":
+      return {
+        badge: "Inaccessible",
+        message: "Le QR existant ne peut pas etre recupere",
+        detail: "Rechargez la page avant toute action."
+      };
+    case "failed":
+      return {
+        badge: "Indisponible",
+        message: "Etat du QR indisponible",
+        detail: "Rechargez la page pour verifier le QR existant."
+      };
+    default:
+      return {
+        badge: "Absent",
+        message: "Aucun QR actif a previsualiser",
+        detail: "Creez un QR pour tester le parcours."
+      };
+  }
+}
 
 type AdvisorPayload = {
   ok: true;
@@ -148,6 +202,7 @@ type QuickImportResult = {
 type ApiFailure = {
   ok: false;
   error?: string;
+  code?: string;
 };
 
 const PREVIEW_DEVICES: Array<{
@@ -406,6 +461,8 @@ export function MenuUiBuilder({
     targetPath: string;
     persisted: boolean;
   } | null>(null);
+  const [qrAvailability, setQrAvailability] =
+    useState<QrAvailability>("loading");
   const qrGenerationRequest = useRef<AbortController | null>(null);
   const [advisorState, setAdvisorState] = useState<AdvisorState>("idle");
   const [advisorRecommendation, setAdvisorRecommendation] =
@@ -507,6 +564,7 @@ export function MenuUiBuilder({
       setLocalDraft(null);
       setQuickImportText("");
       setQrState(null);
+      setQrAvailability("loading");
       setConfig(menuUiConfigForRestaurant(selectedRestaurant));
       setPendingVariation(null);
       setConfigStatus("draft");
@@ -539,6 +597,9 @@ export function MenuUiBuilder({
         const qrPayload = qrResponse
           ? ((await qrResponse.json()) as QrReadPayload | ApiFailure)
           : null;
+        const canonicalQr = qrPayload?.ok
+          ? qrPayload.canonical ?? qrPayload.record
+          : null;
 
         if (!controller.signal.aborted) {
           if (menuResponse.ok && menuPayload.ok) {
@@ -560,13 +621,21 @@ export function MenuUiBuilder({
             qrPayload?.ok &&
             qrPayload.found &&
             qrPayload.recoverable &&
-            qrPayload.record?.redirectUrl
+            canonicalQr?.redirectUrl &&
+            isOpaqueQrRedirect(canonicalQr.redirectUrl)
           ) {
             setQrState({
-              redirectUrl: qrPayload.record.redirectUrl,
-              targetPath: qrPayload.record.targetPath,
-              persisted: qrPayload.record.persisted
+              redirectUrl: canonicalQr.redirectUrl,
+              targetPath: canonicalQr.targetPath,
+              persisted: canonicalQr.persisted
             });
+            setQrAvailability("available");
+          } else if (qrResponse?.ok && qrPayload?.ok && qrPayload.found) {
+            setQrAvailability("unrecoverable");
+          } else if (qrResponse?.ok && qrPayload?.ok) {
+            setQrAvailability("absent");
+          } else {
+            setQrAvailability("failed");
           }
           setLoadState("ready");
         }
@@ -745,12 +814,14 @@ export function MenuUiBuilder({
 
   async function generateQr() {
     if (!selectedRestaurant || qrState) return;
+    if (qrAvailability !== "absent") return;
     qrGenerationRequest.current?.abort();
     const controller = new AbortController();
     qrGenerationRequest.current = controller;
     const restaurant = selectedRestaurant;
     const menuPath = publicMenuPath;
     setErrorMessage("");
+    setQrAvailability("creating");
     try {
       const response = await fetch("/api/owner/qr-codes", {
         method: "POST",
@@ -770,6 +841,11 @@ export function MenuUiBuilder({
       const payload = (await response.json()) as QrPayload | ApiFailure;
       if (controller.signal.aborted) return;
       if (!response.ok || !payload.ok) {
+        setQrAvailability(
+          !payload.ok && payload.code === "canonical-unrecoverable"
+            ? "unrecoverable"
+            : "failed"
+        );
         setErrorMessage(
           payload.ok
             ? "Generation QR impossible."
@@ -777,13 +853,24 @@ export function MenuUiBuilder({
         );
         return;
       }
+      if (
+        payload.targetKind !== "menu" ||
+        !isOpaqueQrRedirect(payload.redirectUrl) ||
+        !payload.targetPath
+      ) {
+        setQrAvailability("failed");
+        setErrorMessage("La reponse QR recue est invalide. Rechargez la page.");
+        return;
+      }
       setQrState({
         redirectUrl: payload.redirectUrl,
         targetPath: payload.targetPath,
         persisted: payload.persisted
       });
+      setQrAvailability("available");
     } catch {
       if (!controller.signal.aborted) {
+        setQrAvailability("failed");
         setErrorMessage("Erreur reseau pendant la generation QR.");
       }
     } finally {
@@ -2588,20 +2675,50 @@ export function MenuUiBuilder({
             >
               Ouvrir menu public
             </a>
-            <button type="button" className={styles.secondaryButton} onClick={generateQr}>
-              Generer QR menu
-            </button>
-            <a
+            <button
+              type="button"
               className={styles.secondaryButton}
-              href={qrState?.redirectUrl ?? "#"}
-              target={qrState ? "_blank" : undefined}
-              rel={qrState ? "noreferrer" : undefined}
-              onClick={(event) => {
-                if (!qrState) event.preventDefault();
-              }}
+              onClick={generateQr}
+              disabled={
+                qrAvailability === "loading" ||
+                qrAvailability === "creating" ||
+                qrAvailability === "available" ||
+                qrAvailability === "unrecoverable" ||
+                qrAvailability === "failed"
+              }
+              aria-describedby="menu-builder-qr-status"
             >
-              Tester scan QR
-            </a>
+              {qrAvailability === "loading"
+                ? "Chargement du QR..."
+                : qrAvailability === "creating"
+                  ? "Creation du QR..."
+                : qrAvailability === "available"
+                    ? "QR menu actif"
+                    : qrAvailability === "unrecoverable"
+                      ? "QR inaccessible"
+                      : qrAvailability === "failed"
+                        ? "Etat QR indisponible"
+                        : "Creer le QR menu"}
+            </button>
+            {qrState ? (
+              <a
+                className={styles.secondaryButton}
+                href={qrState.redirectUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Tester scan QR
+              </a>
+            ) : (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                disabled
+                aria-describedby="menu-builder-qr-status"
+              >
+                Tester scan QR
+              </button>
+            )}
           </div>
 
           {qrState ? (
@@ -2612,8 +2729,21 @@ export function MenuUiBuilder({
             </div>
           ) : null}
 
-          <p className={styles.saveStatus} aria-live="polite">
+          <p
+            id="menu-builder-qr-status"
+            className={styles.saveStatus}
+            aria-live="polite"
+          >
             {statusLabel(saveState)}
+            {qrAvailability === "absent"
+              ? " Aucun QR menu n'existe encore."
+              : qrAvailability === "creating"
+                ? " Creation securisee du QR en cours."
+                : qrAvailability === "unrecoverable"
+                  ? " Le QR existant ne peut pas etre recupere. Rechargez avant toute action."
+                  : qrAvailability === "failed"
+                    ? " Etat du QR indisponible."
+                    : ""}
             {errorMessage ? ` ${errorMessage}` : ""}
           </p>
         </section>
@@ -2673,9 +2803,15 @@ export function MenuUiBuilder({
               />
             ) : previewMode === "qr-flow" ? (
               <div className={styles.qrFlowPreview}>
-                <span>QR</span>
-                <strong>{qrState?.redirectUrl ?? "/q/<token>"}</strong>
-                <p>{qrState?.targetPath ?? publicMenuPath}</p>
+                <span>
+                  {qrState ? "QR actif" : qrPreviewCopy(qrAvailability).badge}
+                </span>
+                <strong>
+                  {qrState?.redirectUrl ?? qrPreviewCopy(qrAvailability).message}
+                </strong>
+                <p>
+                  {qrState?.targetPath ?? qrPreviewCopy(qrAvailability).detail}
+                </p>
                 <PublicMenuRenderer
                   menu={labMenu}
                   config={previewConfig}
