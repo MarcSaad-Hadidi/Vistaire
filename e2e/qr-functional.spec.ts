@@ -41,13 +41,17 @@ async function openOwnerQr(page: Page) {
   await page.goto(`${QR_FUNCTIONAL_APP_ORIGIN}/owner/qr-codes`, {
     waitUntil: "domcontentloaded"
   });
-  await expect(
-    page.getByRole("button", { name: /Sauvegarder \/ Generer QR/i })
-  ).toBeEnabled();
+  await expect(createButton(page, "menu")).toBeEnabled();
 }
 
-function saveButton(page: Page) {
-  return page.getByRole("button", { name: /Sauvegarder \/ Generer QR/i });
+function createButton(page: Page, targetKind: "menu" | "admin") {
+  return page.getByRole("button", {
+    name: targetKind === "menu" ? "Créer le QR menu" : "Créer le QR admin"
+  });
+}
+
+function styleButton(page: Page) {
+  return page.getByRole("button", { name: "Enregistrer le style" });
 }
 
 function installPageHealth(page: Page) {
@@ -141,19 +145,21 @@ test("QR fonctionnel: creation, reload durable, Save idempotent et downloads con
   await enableOwnerBypass(context);
   await openOwnerQr(page);
 
-  await saveButton(page).click();
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await createButton(page, "menu").click();
+  await expect(page.getByRole("status")).toContainText(
+    "QR sécurisé créé et enregistré"
+  );
 
   const [svgDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Telecharger SVG" }).click()
+    page.getByRole("button", { name: "Télécharger SVG" }).click()
   ]);
   expect(svgDownload.suggestedFilename()).toMatch(/^vistaire-qr-.+\.svg$/);
   expect(await downloadLooksValid(svgDownload, "svg")).toBe(true);
 
   const [pngDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Telecharger PNG" }).click()
+    page.getByRole("button", { name: "Télécharger PNG" }).click()
   ]);
   expect(pngDownload.suggestedFilename()).toMatch(/^vistaire-qr-.+\.png$/);
   expect(await downloadLooksValid(pngDownload, "png")).toBe(true);
@@ -167,9 +173,11 @@ test("QR fonctionnel: creation, reload durable, Save idempotent et downloads con
   expect(environment.fixture.createdRecords).toBe(1);
 
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await expect(page.getByRole("status")).toContainText(
+    "QR actif. Le style enregistré est à jour."
+  );
   const reloadedRenderedFingerprint = await renderedQrFingerprint(page);
-  await saveButton(page).click();
+  await expect(styleButton(page)).toBeDisabled();
 
   expect(environment.fixture.postRequests).toBe(1);
   expect(environment.fixture.patchRequests).toBe(0);
@@ -186,13 +194,16 @@ test("QR fonctionnel: style PATCH-only persiste apres reload sans changer l'iden
   const health = installPageHealth(page);
   await enableOwnerBypass(context);
   await openOwnerQr(page);
-  await saveButton(page).click();
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await createButton(page, "menu").click();
+  await expect(page.getByRole("status")).toContainText(
+    "QR sécurisé créé et enregistré"
+  );
 
   const initial = environment.fixture.snapshot()[0];
   await page.getByLabel("Premier plan").fill("#222222");
-  await saveButton(page).click();
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await expect(styleButton(page)).toBeEnabled();
+  await styleButton(page).click();
+  await expect(page.getByRole("status")).toContainText("Style du QR enregistré");
 
   const updated = environment.fixture.snapshot()[0];
   expect(environment.fixture.patchRequests).toBe(1);
@@ -215,8 +226,10 @@ test("QR fonctionnel: un double clic Save traverse le handler sans doublon", asy
   await enableOwnerBypass(context);
   await openOwnerQr(page);
 
-  await saveButton(page).dblclick();
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await createButton(page, "menu").dblclick();
+  await expect(page.getByRole("status")).toContainText(
+    "QR sécurisé créé et enregistré"
+  );
 
   expect(environment.fixture.createdRecords).toBe(1);
   expect(environment.fixture.snapshot()).toHaveLength(1);
@@ -235,10 +248,17 @@ test("QR fonctionnel: deux onglets et deux handlers convergent vers le meme cano
   const secondHealth = installPageHealth(secondPage);
   await Promise.all([openOwnerQr(page), openOwnerQr(secondPage)]);
 
-  await Promise.all([saveButton(page).click(), saveButton(secondPage).click()]);
   await Promise.all([
-    expect(page.getByRole("status")).toContainText("QR securise enregistre"),
-    expect(secondPage.getByRole("status")).toContainText("QR securise enregistre")
+    createButton(page, "menu").click(),
+    createButton(secondPage, "menu").click()
+  ]);
+  await Promise.all([
+    expect(page.getByRole("status")).toContainText(
+      "QR sécurisé créé et enregistré"
+    ),
+    expect(secondPage.getByRole("status")).toContainText(
+      "QR sécurisé créé et enregistré"
+    )
   ]);
 
   expect(environment.fixture.postRequests).toBe(2);
@@ -266,9 +286,11 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
   await enableOwnerBypass(context);
   await openOwnerQr(page);
   await page.getByRole("button", { name: /QR dashboard restaurant/i }).click();
-  await expect(saveButton(page)).toBeEnabled();
-  await saveButton(page).click();
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await expect(createButton(page, "admin")).toBeEnabled();
+  await createButton(page, "admin").click();
+  await expect(page.getByRole("status")).toContainText(
+    "QR sécurisé créé et enregistré"
+  );
 
   const created = environment.fixture.snapshot()[0];
   expect(created.status).toBe("active");
@@ -340,15 +362,22 @@ test("QR fonctionnel: rotation API remplace le canonique et preserve l'ancien ac
   const health = installPageHealth(page);
   await enableOwnerBypass(context);
   await openOwnerQr(page);
-  await saveButton(page).click();
-  await expect(page.getByRole("status")).toContainText("QR securise enregistre");
+  await createButton(page, "menu").click();
+  await expect(page.getByRole("status")).toContainText(
+    "QR sécurisé créé et enregistré"
+  );
   const previous = environment.fixture.snapshot()[0];
 
-  const rotation = await page.evaluate(async (id) => {
+  const rotation = await page.evaluate(async ({ id, expectedConfigVersion }) => {
     const response = await fetch(`/api/owner/qr-codes/${encodeURIComponent(id)}/rotate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmed: true })
+      body: JSON.stringify({
+        confirmed: true,
+        idempotencyKey: crypto.randomUUID(),
+        previousDisposition: "keep-active",
+        expectedConfigVersion
+      })
     });
     const payload = await response.json();
     return {
@@ -356,7 +385,7 @@ test("QR fonctionnel: rotation API remplace le canonique et preserve l'ancien ac
       previousIdMatches: payload.previous?.id === id,
       currentDiffers: payload.current?.id !== id
     };
-  }, previous.id);
+  }, { id: previous.id, expectedConfigVersion: previous.configVersion });
 
   const rows = environment.fixture.snapshot();
   expect(rotation).toEqual({
@@ -383,7 +412,7 @@ test("QR fonctionnel: le customizer reste utilisable sans overflow a 390px et 43
     await page.setViewportSize({ width, height: 860 });
     await openOwnerQr(page);
     await expectNoHorizontalOverflow(page);
-    await expect(saveButton(page)).toBeVisible();
+    await expect(createButton(page, "menu")).toBeVisible();
   }
   health.expectClean();
 });

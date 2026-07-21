@@ -15,12 +15,14 @@ type QrRow = {
   token_nonce: string;
   token_key_version: string;
   target_path: string;
-  status: "active" | "paused" | "archived";
+  status: "active" | "paused" | "archived" | "revoked";
   scan_count: number;
   last_scanned_at: string | null;
   style_json: Record<string, unknown>;
   supersedes_qr_code_id: string | null;
   rotated_at: string | null;
+  revoked_at: string | null;
+  config_version: number;
   created_at: string;
   updated_at: string;
 };
@@ -34,6 +36,16 @@ type SafeQrSnapshot = {
   status: QrRow["status"];
   targetKind: QrRow["target_kind"];
   style: Record<string, unknown>;
+  configVersion: number;
+};
+
+type QrLifecycleEvent = {
+  operation_id: string;
+  qr_code_id: string;
+  successor_qr_code_id: string;
+  action: "rotate";
+  disposition: "keep-active" | "pause" | "revoke";
+  previous_config_version: number;
 };
 
 const RESTAURANT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -89,6 +101,7 @@ class LocalQrSupabase {
 
   private server: Server | null = null;
   private readonly rows: QrRow[] = [];
+  private readonly lifecycleEvents: QrLifecycleEvent[] = [];
   private readonly scopedAdminTables = new Set<string>();
 
   async start() {
@@ -114,6 +127,7 @@ class LocalQrSupabase {
 
   reset() {
     this.rows.length = 0;
+    this.lifecycleEvents.length = 0;
     this.postRequests = 0;
     this.patchRequests = 0;
     this.rotateRequests = 0;
@@ -139,7 +153,8 @@ class LocalQrSupabase {
       restaurantId: row.restaurant_id,
       status: row.status,
       targetKind: row.target_kind,
-      style: { ...row.style_json }
+      style: { ...row.style_json },
+      configVersion: row.config_version
     }));
   }
 
@@ -160,7 +175,8 @@ class LocalQrSupabase {
         ["restaurant_id", eq(url, "restaurant_id")],
         ["target_kind", eq(url, "target_kind")],
         ["purpose_key", eq(url, "purpose_key")],
-        ["is_canonical", eq(url, "is_canonical")]
+        ["is_canonical", eq(url, "is_canonical")],
+        ["config_version", eq(url, "config_version")]
       ];
       return filters.every(([key, value]) => {
         if (value === null) return true;
@@ -273,6 +289,21 @@ class LocalQrSupabase {
       }
       return json(response, 200, rows);
     }
+    if (
+      method === "GET" &&
+      url.pathname === "/rest/v1/qr_code_lifecycle_events"
+    ) {
+      const operationId = eq(url, "operation_id");
+      const rows = operationId
+        ? this.lifecycleEvents.filter((event) => event.operation_id === operationId)
+        : this.lifecycleEvents;
+      if (wantsObject(request)) {
+        return rows[0]
+          ? json(response, 200, rows[0])
+          : json(response, 406, { code: "PGRST116" });
+      }
+      return json(response, 200, rows);
+    }
     if (method === "PATCH" && url.pathname === "/rest/v1/qr_codes") {
       this.patchRequests += 1;
       const patch = await readJson(request);
@@ -282,6 +313,9 @@ class LocalQrSupabase {
           row.style_json = { ...(patch.style_json as Record<string, unknown>) };
         }
         if (typeof patch.label === "string") row.label = patch.label;
+        if (typeof patch.config_version === "number") {
+          row.config_version = patch.config_version;
+        }
         row.updated_at = new Date().toISOString();
       }
       const result = rows[0] ?? null;
@@ -350,14 +384,63 @@ class LocalQrSupabase {
         (row) => row.id === body.p_previous_id && row.is_canonical
       );
       if (!previous) return json(response, 200, []);
+      const expectedConfigVersion = Number(body.p_expected_config_version ?? 0);
+      const disposition = String(body.p_disposition ?? "") as
+        | "keep-active"
+        | "pause"
+        | "revoke";
+      if (
+        previous.config_version !== expectedConfigVersion ||
+        !["keep-active", "pause", "revoke"].includes(disposition)
+      ) {
+        return json(response, 400, {
+          code: "40001",
+          message: "stale QR config_version"
+        });
+      }
       previous.is_canonical = false;
       previous.rotated_at = new Date().toISOString();
+      previous.status =
+        disposition === "keep-active" ? "active" :
+        disposition === "pause" ? "paused" : "revoked";
+      previous.revoked_at = disposition === "revoke" ? new Date().toISOString() : null;
+      previous.config_version += 1;
       const current = this.rowFromRpc(body, {
         idKey: "p_new_id",
         supersedesId: previous.id
       });
+      current.config_version = expectedConfigVersion + 1;
       this.rows.push(current);
-      return json(response, 200, [previous, current]);
+      this.lifecycleEvents.push({
+        operation_id: String(body.p_rotation_request_id ?? ""),
+        qr_code_id: previous.id,
+        successor_qr_code_id: current.id,
+        action: "rotate",
+        disposition,
+        previous_config_version: expectedConfigVersion
+      });
+      return json(response, 200, [
+        {
+          result_status: "previous",
+          created: false,
+          id: previous.id,
+          status: previous.status,
+          is_canonical: false,
+          revoked_at: previous.revoked_at,
+          config_version: previous.config_version,
+          supersedes_qr_code_id: previous.supersedes_qr_code_id
+        },
+        {
+          result_status: "canonical",
+          created: true,
+          id: current.id,
+          status: current.status,
+          is_canonical: true,
+          revoked_at: null,
+          config_version: current.config_version,
+          supersedes_qr_code_id: previous.id
+        }
+      ]);
     }
     return json(response, 404, { code: "fixture_not_found" });
   }
@@ -389,6 +472,8 @@ class LocalQrSupabase {
           : {},
       supersedes_qr_code_id: options.supersedesId ?? null,
       rotated_at: null,
+      revoked_at: null,
+      config_version: 1,
       created_at: now,
       updated_at: now
     };

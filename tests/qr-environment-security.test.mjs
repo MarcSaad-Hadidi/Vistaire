@@ -536,3 +536,36 @@ test("the QR functional owner bypass uses a per-run in-memory capability", async
   assert.match(spec, /environment\.ownerBypassToken/);
   assert.doesNotMatch(spec, /qr-functional-owner-bypass/);
 });
+
+test("the QR functional gate follows the versioned owner UI and mutation contract", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const [fixture, spec] = await Promise.all([
+    readFile("e2e/qr-functional-fixture.ts", "utf8"),
+    readFile("e2e/qr-functional.spec.ts", "utf8")
+  ]);
+
+  for (const label of [
+    "Créer le QR menu",
+    "Créer le QR admin",
+    "Enregistrer le style",
+    "QR sécurisé créé et enregistré",
+    "Style du QR enregistré"
+  ]) {
+    assert.match(spec, new RegExp(label));
+  }
+  assert.doesNotMatch(spec, /Sauvegarder \/ Generer QR|QR securise enregistre/);
+  for (const field of [
+    "idempotencyKey",
+    "previousDisposition",
+    "expectedConfigVersion"
+  ]) {
+    assert.match(spec, new RegExp(field));
+  }
+  assert.match(spec, /crypto\.randomUUID\(\)/);
+
+  assert.match(fixture, /config_version:\s*number/);
+  assert.match(fixture, /revoked_at:\s*string \| null/);
+  assert.match(fixture, /p_expected_config_version/);
+  assert.match(fixture, /p_disposition/);
+  assert.match(fixture, /config_version \+= 1/);
+});
