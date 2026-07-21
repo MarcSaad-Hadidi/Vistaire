@@ -1,8 +1,9 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
-const startCommand = "node ./node_modules/next/dist/bin/next start";
+const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 const sensitiveAdminE2E = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
@@ -15,9 +16,11 @@ const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ??
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const qrFixtureOrigin = "http://127.0.0.1:55432";
 const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3000"}`;
-const ownerE2eToken =
-  process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
-  "vistaire-owner-e2e-local-token";
+const ownerE2eToken = shouldStartWebServer
+  ? randomBytes(32).toString("base64url")
+  : process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
+    randomBytes(32).toString("base64url");
+process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN = ownerE2eToken;
 const fixtureOnlyTestIgnore = [
   ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",

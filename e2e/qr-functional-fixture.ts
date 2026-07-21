@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 
@@ -417,6 +417,7 @@ async function waitForUrl(url: string, child?: ChildProcess, timeoutMs = 120_000
 export async function startQrFunctionalEnvironment() {
   const fixture = new LocalQrSupabase();
   await fixture.start();
+  const ownerBypassToken = randomBytes(32).toString("base64url");
 
   const keyRing = JSON.stringify({
     "fixture-v1": Buffer.alloc(32, 7).toString("base64url")
@@ -441,7 +442,7 @@ export async function startQrFunctionalEnvironment() {
         SUPABASE_SERVICE_ROLE_KEY: "qr-functional-local-service-role",
         VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
         VISTAIRE_OWNER_E2E_AUTH_BYPASS: "1",
-        VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: "qr-functional-owner-bypass",
+        VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: ownerBypassToken,
         VISTAIRE_OWNER_E2E_EMAIL: "qr-functional@localhost",
         VISTAIRE_ADMIN_SESSION_SECRET:
           "qr-functional-admin-session-secret-at-least-32-bytes",
@@ -470,6 +471,7 @@ export async function startQrFunctionalEnvironment() {
 
   return {
     fixture,
+    ownerBypassToken,
     async stop() {
       if (!next.killed) next.kill();
       await fixture.stop();

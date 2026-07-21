@@ -1,10 +1,13 @@
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import http from "node:http";
 
 const DEFAULT_BASE_URL = "http://localhost:3000";
-const OWNER_E2E_TOKEN =
-  process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
-  "vistaire-owner-e2e-local-token";
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
+const OWNER_E2E_TOKEN = skipWebServer
+  ? process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
+    randomBytes(32).toString("base64url")
+  : randomBytes(32).toString("base64url");
 const LOCAL_E2E_CLERK_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
   "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k";
@@ -15,7 +18,6 @@ const LOCAL_E2E_CLERK_SECRET_KEY =
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? DEFAULT_BASE_URL;
 const parsedBaseURL = new URL(baseURL);
 const playwrightArgs = ["./node_modules/@playwright/test/cli.js", "test", ...process.argv.slice(2)];
-const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
 const useLocalDemoServer = process.argv
   .slice(2)
   .includes("e2e/ci-smoke.spec.ts");
@@ -73,7 +75,9 @@ async function main() {
           "./node_modules/next/dist/bin/next",
           useLocalDemoServer ? "dev" : "start",
           "-p",
-          port
+          port,
+          "-H",
+          "127.0.0.1"
         ],
         {
           stdio: "inherit",

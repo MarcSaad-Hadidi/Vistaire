@@ -26,7 +26,10 @@ test("required live E2E rejects a missing or non-HTTPS preview URL before browse
 });
 
 test("local Playwright smoke uses only synthetic Clerk fixture keys by default", async () => {
-  const runner = await source("scripts/run-playwright-e2e.mjs");
+  const [runner, config] = await Promise.all([
+    source("scripts/run-playwright-e2e.mjs"),
+    source("playwright.config.ts")
+  ]);
 
   assert.match(runner, /LOCAL_E2E_CLERK_PUBLISHABLE_KEY/);
   assert.match(runner, /pk_test_Y2xlcmsuZXhhbXBsZS5jb20k/);
@@ -35,6 +38,20 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   assert.match(runner, /CLERK_SECRET_KEY:\s*LOCAL_E2E_CLERK_SECRET_KEY/);
   assert.match(runner, /includes\("e2e\/ci-smoke\.spec\.ts"\)/);
   assert.match(runner, /useLocalDemoServer \? "dev" : "start"/);
+  assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
+  assert.match(runner, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.doesNotMatch(runner, /vistaire-owner-e2e-local-token/);
+  assert.match(runner, /"-H",\s*"127\.0\.0\.1"/);
+
+  assert.match(config, /import \{ randomBytes \} from "node:crypto"/);
+  assert.match(config, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.doesNotMatch(config, /vistaire-owner-e2e-local-token/);
+  assert.match(config, /next\/dist\/bin\/next start --hostname 127\.0\.0\.1/);
+  assert.match(config, /shouldStartWebServer\s*\?\s*randomBytes\(32\)/);
+  assert.match(
+    config,
+    /process\.env\.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN\s*=\s*ownerE2eToken/
+  );
 });
 
 test("App CI keeps blocking checks and excludes the live admin E2E", async () => {

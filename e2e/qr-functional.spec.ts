@@ -4,8 +4,6 @@ import {
   startQrFunctionalEnvironment
 } from "./qr-functional-fixture";
 
-const OWNER_E2E_TOKEN = "qr-functional-owner-bypass";
-
 test.setTimeout(120_000);
 
 test.use({
@@ -33,7 +31,7 @@ async function enableOwnerBypass(context: BrowserContext) {
   await context.addCookies([
     {
       name: "__vistaire_owner_e2e",
-      value: OWNER_E2E_TOKEN,
+      value: environment.ownerBypassToken,
       url: QR_FUNCTIONAL_APP_ORIGIN
     }
   ]);

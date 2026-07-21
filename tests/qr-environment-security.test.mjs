@@ -522,3 +522,17 @@ test("QR Playwright runners force sensitive mode and remove generated output", a
     assert.match(runner, /rm\(path, \{ force: true, recursive: true \}\)/);
   }
 });
+
+test("the QR functional owner bypass uses a per-run in-memory capability", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const [fixture, spec] = await Promise.all([
+    readFile("e2e/qr-functional-fixture.ts", "utf8"),
+    readFile("e2e/qr-functional.spec.ts", "utf8")
+  ]);
+
+  assert.match(fixture, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.match(fixture, /ownerBypassToken/);
+  assert.doesNotMatch(fixture, /qr-functional-owner-bypass/);
+  assert.match(spec, /environment\.ownerBypassToken/);
+  assert.doesNotMatch(spec, /qr-functional-owner-bypass/);
+});
