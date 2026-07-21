@@ -694,7 +694,6 @@ export function OwnerQrCustomizer({
                   label: targetLabel,
                   targetKind,
                   purposeKey: "default",
-                  targetPath,
                   style: normalizeOwnerQrStyle(style)
                 }
           )

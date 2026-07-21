@@ -21,6 +21,23 @@ test("an unchanged owner QR Save makes no second mutation", async () => {
     "unchanged Save must not call POST or PATCH"
   );
   assert.equal(harness.requests[0].method, "GET");
+  const creation = harness.requests.find((request) => request.method === "POST");
+  assert.ok(creation);
+  assert.deepEqual(Object.keys(creation.body), [
+    "restaurantId",
+    "label",
+    "targetKind",
+    "purposeKey",
+    "style"
+  ]);
+  assert.equal(creation.body.restaurantId, "restaurant-fixture");
+  assert.equal(creation.body.label, "QR dashboard restaurant");
+  assert.equal(creation.body.targetKind, "admin");
+  assert.equal(creation.body.purposeKey, "default");
+  assert.equal(typeof creation.body.style, "object");
+  for (const forbidden of ["targetPath", "id", "token", "unknown"]) {
+    assert.equal(forbidden in creation.body, false);
+  }
   assert.match(harness.renderedText(), /\/q\/opaque-fixture-token/);
 });
 
