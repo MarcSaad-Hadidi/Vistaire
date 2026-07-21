@@ -11,6 +11,7 @@ export type QrTokenVaultBinding = {
   restaurantId: string;
   targetKind: "menu" | "admin";
   purposeKey: string;
+  tokenHash: string;
 };
 
 export type QrTokenEnvelope = {
@@ -47,6 +48,7 @@ const NONCE_LENGTH_BYTES = 12;
 const AUTH_TAG_LENGTH_BYTES = 16;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
+const CURRENT_ENVELOPE_PREFIX = "v2.";
 
 function fail(code: QrTokenVaultErrorCode): never {
   throw new QrTokenVaultError(code);
@@ -140,10 +142,10 @@ function readKeyRing(): {
   return { activeVersion, keys };
 }
 
-function serializeBinding(
+function validateBinding(
   binding: QrTokenVaultBinding,
   errorCode: QrTokenVaultErrorCode
-): Buffer {
+): void {
   if (
     typeof binding !== "object" ||
     binding === null ||
@@ -153,18 +155,39 @@ function serializeBinding(
     binding.restaurantId.length === 0 ||
     (binding.targetKind !== "menu" && binding.targetKind !== "admin") ||
     typeof binding.purposeKey !== "string" ||
-    binding.purposeKey.length === 0
+    binding.purposeKey !== "default" ||
+    typeof binding.tokenHash !== "string" ||
+    !/^sha256:[a-f0-9]{64}$/.test(binding.tokenHash)
   ) {
     fail(errorCode);
   }
+}
+
+function serializeBinding(
+  binding: QrTokenVaultBinding,
+  errorCode: QrTokenVaultErrorCode,
+  envelopeVersion: 1 | 2
+): Buffer {
+  validateBinding(binding, errorCode);
 
   return Buffer.from(
-    JSON.stringify({
-      qrId: binding.qrId,
-      restaurantId: binding.restaurantId,
-      targetKind: binding.targetKind,
-      purposeKey: binding.purposeKey
-    }),
+    JSON.stringify(
+      envelopeVersion === 2
+        ? {
+            envelopeVersion: 2,
+            qrId: binding.qrId,
+            restaurantId: binding.restaurantId,
+            targetKind: binding.targetKind,
+            purposeKey: binding.purposeKey,
+            tokenHash: binding.tokenHash
+          }
+        : {
+            qrId: binding.qrId,
+            restaurantId: binding.restaurantId,
+            targetKind: binding.targetKind,
+            purposeKey: binding.purposeKey
+          }
+    ),
     "utf8"
   );
 }
@@ -188,7 +211,7 @@ export function encryptQrToken(
     const cipher = createCipheriv("aes-256-gcm", key, nonce, {
       authTagLength: AUTH_TAG_LENGTH_BYTES
     });
-    cipher.setAAD(serializeBinding(binding, "encryption-failed"));
+    cipher.setAAD(serializeBinding(binding, "encryption-failed", 2));
 
     const encrypted = Buffer.concat([
       cipher.update(token, "utf8"),
@@ -197,7 +220,7 @@ export function encryptQrToken(
     const ciphertext = Buffer.concat([encrypted, cipher.getAuthTag()]);
 
     return {
-      ciphertext: ciphertext.toString("base64url"),
+      ciphertext: `${CURRENT_ENVELOPE_PREFIX}${ciphertext.toString("base64url")}`,
       nonce: nonce.toString("base64url"),
       keyVersion: activeVersion
     };
@@ -230,8 +253,14 @@ export function decryptQrToken(
       "token-unrecoverable",
       NONCE_LENGTH_BYTES
     );
+    const isCurrentEnvelope = envelope.ciphertext.startsWith(
+      CURRENT_ENVELOPE_PREFIX
+    );
+    const ciphertextPayload = isCurrentEnvelope
+      ? envelope.ciphertext.slice(CURRENT_ENVELOPE_PREFIX.length)
+      : envelope.ciphertext;
     const encodedCiphertext = decodeBase64url(
-      envelope.ciphertext,
+      ciphertextPayload,
       "token-unrecoverable"
     );
     if (encodedCiphertext.length <= AUTH_TAG_LENGTH_BYTES) {
@@ -248,7 +277,13 @@ export function decryptQrToken(
     const decipher = createDecipheriv("aes-256-gcm", key, nonce, {
       authTagLength: AUTH_TAG_LENGTH_BYTES
     });
-    decipher.setAAD(serializeBinding(binding, "token-unrecoverable"));
+    decipher.setAAD(
+      serializeBinding(
+        binding,
+        "token-unrecoverable",
+        isCurrentEnvelope ? 2 : 1
+      )
+    );
     decipher.setAuthTag(authTag);
 
     return Buffer.concat([

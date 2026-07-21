@@ -333,9 +333,7 @@ test("qrStore uses structured incident logging for every Supabase QR error path"
   for (const code of [
     "QR_UPDATE_CONFIG_UNAVAILABLE",
     "QR_UPDATE_FAILED",
-    "QR_RESOLVE_METADATA_FAILED",
-    "QR_RESOLVE_LEGACY_RPC_FAILED",
-    "QR_RESOLVE_LEGACY_SELECT_FAILED"
+    "QR_RESOLVE_METADATA_FAILED"
   ]) {
     assert.match(source, new RegExp(`code: "${code}"`), code);
   }
@@ -365,7 +363,7 @@ test("qrStore uses structured incident logging for every Supabase QR error path"
   );
 });
 
-test("qrStore falls back to the legacy RPC only for metadata unavailability", async () => {
+test("qrStore fails closed when the metadata RPC is unavailable", async () => {
   const source = (await readFile("lib/owner/qrStore.ts", "utf8")).replace(
     /\r\n/g,
     "\n"
@@ -373,38 +371,13 @@ test("qrStore falls back to the legacy RPC only for metadata unavailability", as
   const metadataStart = source.indexOf(
     'client.rpc("resolve_qr_code_scan_metadata"'
   );
-  const legacyStart = source.indexOf('client.rpc("resolve_qr_code_scan"');
-  const legacySelectStart = source.indexOf(
-    '.select("id, restaurant_id, target_kind, target_path, status")',
-    metadataStart
-  );
   assert.notEqual(metadataStart, -1);
-  assert.notEqual(legacyStart, -1);
-  assert.notEqual(legacySelectStart, -1);
-  assert.ok(
-    legacySelectStart < legacyStart,
-    "legacy metadata must be validated before the scan counter RPC runs"
-  );
-
-  const metadataBranch = source.slice(metadataStart, legacyStart);
+  const metadataBranch = source.slice(metadataStart);
   assert.match(
     metadataBranch,
-    /if \(!isQrMetadataRpcUnavailable\(error\)\) \{[\s\S]*?logQrSupabaseIncident\([\s\S]*?return \{ ok: false \};[\s\S]*?metadataRpcUnavailable = true;/
+    /if \(error\) \{[\s\S]*?code: "QR_RESOLVE_METADATA_FAILED"[\s\S]*?return \{ ok: false \};/
   );
   assert.match(metadataBranch, /if \(!row\) continue;/);
-
-  const legacyBranch = source.slice(legacySelectStart);
-  assert.match(
-    legacyBranch,
-    /\.select\("id, restaurant_id, target_kind, target_path, status"\)/
-  );
-  assert.match(
-    legacyBranch,
-    /\.select\("[^"]*target_kind[^"]*"\)/
-  );
-  assert.match(legacyBranch, /return resolveLegacyQrScan\(/);
-  assert.match(
-    legacyBranch,
-    /if \(selectError\) \{[\s\S]*?logQrSupabaseIncident\([\s\S]*?return \{ ok: false \};[\s\S]*?if \(!row\) continue;/
-  );
+  assert.doesNotMatch(metadataBranch, /resolve_qr_code_scan"/);
+  assert.doesNotMatch(metadataBranch, /resolveLegacyQrScan|resolve-legacy-select/);
 });

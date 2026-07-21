@@ -19,16 +19,16 @@ test("canonical store consumes the planned vault and RPC interfaces without secr
   assert.match(store, /canonical-unrecoverable/);
 });
 
-test("RPC winners are explicitly mapped as canonical before vault recovery", () => {
+test("RPC winners are reread with canonical integrity columns before vault recovery", () => {
   const store = source("lib/owner/qrStore.ts");
 
   assert.match(
     store,
-    /recoverCanonicalRecord\(\{\s*\.\.\.row,\s*is_canonical:\s*true\s*\}\)/
+    /winnerId[\s\S]*\.select\(CANONICAL_COLUMNS\)/
   );
   assert.match(
     store,
-    /recoverCanonicalRecord\(\{\s*\.\.\.\(currentRow as unknown as AnyRow\),\s*is_canonical:\s*true\s*\}\)/
+    /recoverCanonicalRecord\(\{[\s\S]*winnerRow as unknown as AnyRow[\s\S]*is_canonical:\s*true/
   );
 });
 
@@ -42,23 +42,19 @@ test("owner collection route provides read-only GET and stable POST status seman
   assert.match(route, /!restaurantId[\s\S]{0,120}!targetKind/);
 });
 
-test("owner PATCH rejects unknown or empty payloads and only forwards label/style", () => {
+test("owner PATCH rejects unknown payloads and requires config-version CAS", () => {
   const route = source("app/api/owner/qr-codes/[id]/route.ts");
   const store = source("lib/owner/qrStore.ts");
 
   assert.match(route, /PATCH_ALLOWED_KEYS/);
-  assert.match(route, /Object\.keys\(candidate\)\.length\s*===\s*0/);
+  assert.match(route, /expectedConfigVersion/);
+  assert.match(route, /Object\.keys\(candidate\)\.length\s*<\s*2/);
   assert.match(route, /Object\.keys\(candidate\.style\)\.length\s*===\s*0/);
   assert.doesNotMatch(route, /\bcandidate\.status\b/);
   assert.match(route, /\{\s*\.\.\.\(candidate\.style/);
   assert.match(route, /\.\.\.\(typeof candidate\.label/);
-  const recoveryIndex = store.indexOf("const current = await recoverCanonicalRecord");
-  const updateIndex = store.indexOf(".update(update)", recoveryIndex);
-  assert.ok(recoveryIndex >= 0 && updateIndex > recoveryIndex);
-  assert.match(
-    store.slice(updateIndex, updateIndex + 300),
-    /\.eq\("is_canonical", true\)/
-  );
+  assert.match(store, /config_version:\s*patch\.expectedConfigVersion \+ 1/);
+  assert.match(store, /\.eq\("config_version", patch\.expectedConfigVersion\)/);
 });
 
 test("owner rotation is a distinct confirmed mutation", () => {
@@ -66,9 +62,13 @@ test("owner rotation is a distinct confirmed mutation", () => {
   const store = source("lib/owner/qrStore.ts");
 
   assert.match(route, /candidate\.confirmed\s*!==\s*true/);
+  assert.match(route, /idempotencyKey/);
+  assert.match(route, /previousDisposition/);
+  assert.doesNotMatch(route, /candidate\.disposition/);
+  assert.match(route, /expectedConfigVersion/);
   assert.match(route, /rotateOwnerQrCode/);
   assert.doesNotMatch(route, /\btoken\s*:/);
-  assert.match(store, /delete previousResponse\.redirectUrl/);
+  assert.match(store, /recoverCompletedRotation/);
 });
 
 test("canonical public types expose recovery and never expose a raw token result", () => {

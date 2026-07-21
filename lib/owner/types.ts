@@ -77,7 +77,12 @@ export type OwnerQrStyle = {
   updatedAt?: string;
 };
 
-export type OwnerQrCodeStatus = "active" | "paused" | "archived";
+export type OwnerQrCodeStatus = "active" | "paused" | "archived" | "revoked";
+export type OwnerQrLifecycleAction = "pause" | "resume" | "archive" | "revoke";
+export type OwnerQrRotationDisposition =
+  | "keep-active"
+  | "pause"
+  | "revoke";
 
 export type OwnerQrCodeRecord = {
   id: string;
@@ -91,6 +96,7 @@ export type OwnerQrCodeRecord = {
   targetPath: string;
   redirectUrl?: string;
   status: OwnerQrCodeStatus;
+  configVersion: number;
   scanCount: number;
   lastScannedAt: string | null;
   style: OwnerQrStyle;
@@ -123,7 +129,21 @@ export type OwnerQrCanonicalError = {
 export type OwnerQrRequestError = {
   ok: false;
   error: string;
-  code: "not-found" | "invalid-input";
+  code:
+    | "not-found"
+    | "invalid-input"
+    | "config-version-conflict"
+    | "idempotency-conflict";
+  current?: OwnerQrInventoryRecord;
+};
+
+export type OwnerQrInventoryRecord = Omit<
+  OwnerQrCodeRecord,
+  "recoverable" | "redirectUrl" | "tokenPreview"
+> & {
+  supersedesQrCodeId: string | null;
+  rotatedAt: string | null;
+  revokedAt: string | null;
 };
 
 export type CanonicalQrMutationResult =

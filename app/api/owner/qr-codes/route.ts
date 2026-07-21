@@ -3,11 +3,7 @@ import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
-import {
-  isOwnerQrTargetPathAllowed,
-  sanitizeOwnerQrTargetPath,
-  type OwnerQrTargetKind
-} from "@/lib/owner/menuUrlCore";
+import type { OwnerQrTargetKind } from "@/lib/owner/menuUrlCore";
 import {
   getOrCreateOwnerQrCode,
   getOwnerCanonicalQrCode
@@ -20,6 +16,15 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0"
 };
 
+function noStore(response: Response): Response {
+  response.headers.set("Cache-Control", NO_STORE_HEADERS["Cache-Control"]);
+  return response;
+}
+
+function qrJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
+}
+
 function failureStatus(result: object): number {
   if (!("code" in result)) return 503;
   if (result.code === "canonical-unrecoverable") return 409;
@@ -30,7 +35,7 @@ function failureStatus(result: object): number {
 
 export async function GET(request: NextRequest) {
   const owner = await requireVistaireOwnerApi();
-  if (!owner.ok) return owner.response;
+  if (!owner.ok) return noStore(owner.response);
 
   const url = new URL(request.url);
   const restaurantId = (url.searchParams.get("restaurantId") ?? "").slice(0, 80);
@@ -38,11 +43,12 @@ export async function GET(request: NextRequest) {
   const purposeKey = url.searchParams.get("purposeKey") ?? "default";
   if (
     !restaurantId ||
-    (targetKind !== "menu" && targetKind !== "admin")
+    (targetKind !== "menu" && targetKind !== "admin") ||
+    purposeKey !== "default"
   ) {
-    return NextResponse.json(
-      { ok: false, error: "Restaurant et type QR requis." },
-      { status: 400, headers: NO_STORE_HEADERS }
+    return qrJson(
+      { ok: false, code: "invalid-input", error: "Restaurant, type et purpose QR invalides." },
+      400
     );
   }
 
@@ -52,36 +58,35 @@ export async function GET(request: NextRequest) {
     purposeKey
   });
   if ("ok" in read && read.ok === false) {
-    return NextResponse.json(
-      { ok: false, error: read.error, code: read.code, incidentId: read.incidentId },
-      { status: 503, headers: NO_STORE_HEADERS }
+    return qrJson(
+      {
+        ok: false,
+        error: read.error,
+        code: read.code,
+        ...("incidentId" in read ? { incidentId: read.incidentId } : {})
+      },
+      "incidentId" in read ? 503 : failureStatus(read)
     );
   }
-  return NextResponse.json(
-    { ok: true, ...read },
-    { headers: NO_STORE_HEADERS }
-  );
+  return qrJson({ ok: true, ...read });
 }
 
 export async function POST(request: NextRequest) {
   const owner = await requireVistaireOwnerApi();
-  if (!owner.ok) return owner.response;
+  if (!owner.ok) return noStore(owner.response);
 
   const originError = requireSameOriginOwnerMutation(request);
-  if (originError) return originError;
+  if (originError) return noStore(originError);
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "JSON invalide." }, { status: 400 });
+    return qrJson({ ok: false, code: "invalid-json", error: "JSON invalide." }, 400);
   }
 
   if (!body || typeof body !== "object") {
-    return NextResponse.json(
-      { ok: false, error: "Formulaire invalide." },
-      { status: 400 }
-    );
+    return qrJson({ ok: false, code: "invalid-input", error: "Formulaire invalide." }, 400);
   }
 
   const candidate = body as Record<string, unknown>;
@@ -90,25 +95,28 @@ export async function POST(request: NextRequest) {
       ? candidate.restaurantId.trim().slice(0, 80)
       : "";
   const label = typeof candidate.label === "string" ? candidate.label : "QR menu";
-  const targetPath =
-    typeof candidate.targetPath === "string" ? candidate.targetPath : "";
   const targetKind: OwnerQrTargetKind | null =
     candidate.targetKind === "menu" || candidate.targetKind === "admin"
       ? candidate.targetKind
       : null;
-  const purposeKey =
-    typeof candidate.purposeKey === "string" ? candidate.purposeKey : "default";
-  const sanitizedTargetPath = sanitizeOwnerQrTargetPath(targetPath);
+  const purposeKey = candidate.purposeKey ?? "default";
+  const allowedKeys = new Set([
+    "restaurantId",
+    "label",
+    "targetKind",
+    "purposeKey",
+    "style"
+  ]);
 
   if (
     !restaurantId ||
     !targetKind ||
-    !sanitizedTargetPath ||
-    !isOwnerQrTargetPathAllowed(targetKind, sanitizedTargetPath)
+    purposeKey !== "default" ||
+    Object.keys(candidate).some((key) => !allowedKeys.has(key))
   ) {
-    return NextResponse.json(
-      { ok: false, error: "Chemin de destination invalide." },
-      { status: 400 }
+    return qrJson(
+      { ok: false, code: "invalid-input", error: "Parametres QR invalides." },
+      400
     );
   }
 
@@ -117,7 +125,6 @@ export async function POST(request: NextRequest) {
     label,
     targetKind,
     purposeKey,
-    targetPath: sanitizedTargetPath,
     style: candidate.style
   });
 
@@ -126,18 +133,18 @@ export async function POST(request: NextRequest) {
       "code" in created && "incidentId" in created
         ? { code: created.code, incidentId: created.incidentId }
         : {};
-    return NextResponse.json(
+    return qrJson(
       {
         ok: false,
         error: created.error,
         ...("code" in created ? { code: created.code } : {}),
         ...diagnostic
       },
-      { status: failureStatus(created) }
+      failureStatus(created)
     );
   }
 
-  return NextResponse.json(
+  return qrJson(
     {
       ok: true,
       created: created.created,
@@ -147,6 +154,6 @@ export async function POST(request: NextRequest) {
       persisted: created.persisted,
       record: created.record
     },
-    { status: created.created ? 201 : 200 }
+    created.created ? 201 : 200
   );
 }

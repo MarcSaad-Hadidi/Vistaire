@@ -105,9 +105,10 @@ Les autres suites Playwright gardent leur comportement précédent.
 - la désactivation des artefacts pour le workflow secret-bearing ;
 - le masquage explicite des tokens avant tout call log Playwright.
 
-Les fixtures du test sont entièrement synthétiques et locales. La valeur
-`paused` correspond au statut réellement accepté par le schéma actuel ;
-`revoked` est seulement le motif applicatif renvoyé par le garde d’accès.
+Les fixtures du test sont entièrement synthétiques et locales. Au moment de cet
+audit, le schéma distant legacy accepte `active`, `paused` et `archived` ; le
+contrat candidat ultérieur ajoute `revoked` comme statut persistant irréversible.
+Cette distinction ne doit pas être projetée rétroactivement sur le schéma live.
 
 ## Risques résiduels et interdictions
 
@@ -127,3 +128,30 @@ Les fixtures du test sont entièrement synthétiques et locales. La valeur
 
 Ce lot ne déploie rien, n’applique aucune migration et ne configure aucun
 environnement distant.
+
+## Coordination live post-audit — 20 juillet 2026
+
+Les lectures distantes ultérieures ont confirmé, sans exposer d’identifiant
+complet ni de secret :
+
+- Supabase Vistaire utilise PostgreSQL 17.6 et reste au schéma QR legacy ; la
+  migration canonique `20260717120000_owner_qr_canonical_lifecycle.sql` est
+  absente ;
+- les agrégats sûrs Vistaire comptent 7 QR admin actifs et 1 QR menu actif ;
+- le projet Supabase nommé Trouvable est sans lien avec Vistaire et ne contient
+  pas `qr_codes` ;
+- la Preview PR 153 est `READY` pour la branche, le commit audité et le projet
+  attendus ; la Production est `READY` sur `main` au SHA audité antérieur ;
+- l’environnement GitHub `admin-e2e` n’a ni protection, reviewer, politique de
+  branche, secrets ni variables configurés ;
+- les protections/rulesets sont indisponibles (HTTP 403) sur le plan privé
+  actuel ; les required reviewers exigent une mise à niveau/configuration
+  externe.
+
+Conclusion : les docs et le preflight peuvent être prêts à revoir, mais le
+contrat DB/runtime lifecycle candidat n’est pas intégré sur le head audité. Le
+contrôle externe est **BLOCKED** et la QA live reste **NOT VERIFIED**. Le preflight doit échouer
+avant le navigateur tant que le provisioning explicite et les protections ne
+sont pas en place. Voir
+[`qr-environment-rollout-runbook.md`](qr-environment-rollout-runbook.md) ; aucune
+promotion ni aucun nettoyage historique ne doivent être automatiques.

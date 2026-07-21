@@ -21,6 +21,18 @@ function extractFunction(name) {
   );
 }
 
+function extractLastFunction(name) {
+  const matches = [
+    ...sql.matchAll(
+      new RegExp(
+        `create\\s+or\\s+replace\\s+function\\s+public\\.${name}\\s*\\([\\s\\S]*?\\$\\$\\s*;`,
+        "gi"
+      )
+    )
+  ];
+  return matches.at(-1)?.[0] ?? "";
+}
+
 test("canonical migration is additive, transactional, and never backfills history", () => {
   assert.notEqual(migration, "", `Missing migration: ${migrationPath}`);
   assert.match(normalizedSql, /^begin;/);
@@ -55,6 +67,37 @@ test("canonical migration is additive, transactional, and never backfills histor
     normalizedSql,
     /\bdrop\s+(?:table|column)\b/
   );
+});
+
+test("canonical migration can be applied twice without DDL collisions", () => {
+  assert.match(
+    normalizedSql,
+    /create table if not exists public\.qr_code_lifecycle_events/
+  );
+
+  for (const constraint of [
+    "qr_codes_purpose_key_format_check",
+    "qr_codes_config_version_check",
+    "qr_codes_revoked_at_check"
+  ]) {
+    assert.match(
+      normalizedSql,
+      new RegExp(
+        `drop constraint if exists ${constraint}; alter table public\\.qr_codes add constraint ${constraint}`
+      )
+    );
+  }
+
+  for (const index of [
+    "qr_code_lifecycle_events_qr_code_id_idx",
+    "qr_code_lifecycle_events_restaurant_id_idx",
+    "qr_code_lifecycle_events_successor_qr_code_id_idx"
+  ]) {
+    assert.match(
+      normalizedSql,
+      new RegExp(`create index if not exists ${index}`)
+    );
+  }
 });
 
 test("legacy rows stay non-canonical and historical duplicates remain legal", () => {
@@ -291,6 +334,60 @@ test("rotation records lineage and time while preserving old secrets and status"
     /values \( p_new_id, p_restaurant_id, (?:pg_catalog\.btrim\()?p_label/
   );
   assert.doesNotMatch(normalized, /\bdo update\b|\bupsert\b/);
+});
+
+test("rotation replay fails closed after its successor stops being the current canonical", () => {
+  const fn = extractLastFunction("owner_rotate_canonical_qr");
+  const normalized = fn.replace(/\s+/g, " ").toLowerCase();
+
+  assert.match(
+    normalized,
+    /if found then[\s\S]*select qr\.\* into v_current from public\.qr_codes as qr where qr\.id = v_event\.successor_qr_code_id[\s\S]*qr\.is_canonical = true[\s\S]*qr\.status = 'active'[\s\S]*qr\.config_version = v_event\.new_config_version[\s\S]*for update/
+  );
+  assert.match(
+    normalized,
+    /if not found then raise exception using errcode = '40001', message = 'qr rotation replay is no longer the current canonical result'/
+  );
+  assert.doesNotMatch(
+    normalized,
+    /return query select 'canonical', false, v_event\.successor_qr_code_id, 'active', true/
+  );
+});
+
+test("lifecycle replay reconstructs the immutable event result", () => {
+  const fn = extractFunction("owner_set_canonical_qr_lifecycle");
+  const normalized = fn.replace(/\s+/g, " ").toLowerCase();
+
+  assert.match(
+    normalized,
+    /return query select 'idempotent', v_event\.qr_code_id, v_event\.new_status, v_event\.new_status in \('active', 'paused'\), case when v_event\.new_status = 'revoked' then v_event\.occurred_at else null end, v_event\.new_config_version/
+  );
+  const replayBranch = normalized.match(
+    /if found then[\s\S]*?return; end if;/
+  )?.[0] ?? "";
+  assert.notEqual(replayBranch, "");
+  assert.doesNotMatch(
+    replayBranch,
+    /select qr\.\* into v_current from public\.qr_codes/
+  );
+});
+
+test("archive replay reconstructs a non-canonical immutable clear result", () => {
+  const fn = extractFunction("owner_clear_canonical_qr");
+  const normalized = fn.replace(/\s+/g, " ").toLowerCase();
+
+  assert.match(
+    normalized,
+    /return query select 'idempotent', v_event\.qr_code_id, v_event\.new_status, false, case when v_event\.new_status = 'revoked' then v_event\.occurred_at else null end, v_event\.new_config_version/
+  );
+  const replayBranch = normalized.match(
+    /if found then[\s\S]*?return; end if;/
+  )?.[0] ?? "";
+  assert.notEqual(replayBranch, "");
+  assert.doesNotMatch(
+    replayBranch,
+    /select qr\.\* into v_current from public\.qr_codes/
+  );
 });
 
 test("canonical-only rotation preserves updated_at despite the legacy trigger", () => {

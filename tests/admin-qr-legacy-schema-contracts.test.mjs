@@ -60,7 +60,7 @@ for (const scenario of [
     }
   }
 ]) {
-  test(`H control: PGRST202 fallback resolves ${scenario.name} when target_kind exists`, async () => {
+  test(`H control: PGRST202 fails closed for ${scenario.name} without a legacy fallback`, async () => {
     const fixture = createQrSupabaseFixture({ metadataUnavailable: true });
     fixture.seedQr({ token: scenario.token, ...scenario.row });
 
@@ -79,15 +79,12 @@ for (const scenario of [
         call.method === "rpc" && call.name === "resolve_qr_code_scan"
     );
 
-    assert.deepEqual(result, scenario.expected);
-    assert.equal(fixture.scanCount(scenario.row.id), 1);
-    assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 1);
+    assert.deepEqual(result, { ok: false });
+    assert.equal(fixture.scanCount(scenario.row.id), 0);
+    assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 0);
     assert.ok(metadataIndex >= 0);
-    assert.ok(selectIndex > metadataIndex);
-    assert.ok(
-      legacyRpcIndex > selectIndex,
-      "fallback must select and validate metadata before incrementing"
-    );
+    assert.equal(selectIndex, -1);
+    assert.equal(legacyRpcIndex, -1);
   });
 }
 
@@ -110,7 +107,7 @@ test("H control: an explicit incoherent target_kind is rejected before the legac
   assert.equal(fixture.scanCount(id), 0);
 });
 
-test("H control: a real missing target_kind projection retries safely and increments once", async () => {
+test("H control: missing metadata RPC never probes an old target_kind schema", async () => {
   const token = "fixture-old-schema-control";
   const id = "qr-old-schema-control";
   const fixture = createQrSupabaseFixture({
@@ -132,21 +129,14 @@ test("H control: a real missing target_kind projection retries safely and increm
     (call) => call.method === "error" && call.code === "42703"
   );
 
-  assert.deepEqual(result, {
-    ok: true,
-    qrId: id,
-    restaurantId: "restaurant-fixture",
-    targetKind: "menu",
-    targetPath: "/menu/legacy"
-  });
-  assert.ok(schemaError, "the fixture must model a database projection error");
-  assert.match(schemaError.columns, /\btarget_kind\b/);
-  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 1);
-  assert.equal(fixture.scanCount(id), 1);
-  assert.equal(incidents.length, 0);
+  assert.deepEqual(result, { ok: false });
+  assert.equal(schemaError, undefined);
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 0);
+  assert.equal(fixture.scanCount(id), 0);
+  assert.equal(incidents.length, 1);
 });
 
-test("[RED: H] after 42703, an old-schema menu row must retry the legacy projection then increment once", async () => {
+test("[H] old-schema menu rows remain uncounted until the metadata migration exists", async () => {
   const token = "fixture-old-schema-red";
   const id = "qr-old-schema-red";
   const fixture = createQrSupabaseFixture({
@@ -165,15 +155,9 @@ test("[RED: H] after 42703, an old-schema menu row must retry the legacy project
     resolveWithFixture(fixture, token)
   );
 
-  assert.deepEqual(result, {
-    ok: true,
-    qrId: id,
-    restaurantId: "restaurant-fixture",
-    targetKind: "menu",
-    targetPath: "/menu/legacy"
-  });
-  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 1);
-  assert.equal(fixture.scanCount(id), 1);
+  assert.deepEqual(result, { ok: false });
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 0);
+  assert.equal(fixture.scanCount(id), 0);
 });
 
 test("H control: an old-schema admin-like path stays invalid and uncounted", async () => {

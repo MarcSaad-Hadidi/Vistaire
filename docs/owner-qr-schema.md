@@ -1,207 +1,221 @@
-# Owner QR codes - schema & apply guide
+# Owner QR codes — schema, secrets and lifecycle
 
-The Vistaire owner QR system uses a dedicated `qr_codes` table so that every QR
-points at a secure, stable, non-guessable Vistaire URL:
-`https://vistaire.ca/q/<token>`.
+Vistaire stores persistent menu and restaurant-admin QR codes in
+`public.qr_codes`. A printed QR contains only an opaque URL of the form
+`https://<public-origin>/q/<token>`. The route resolves the token server-side
+and redirects only to an allowed internal target:
 
-The `/q/<token>` route resolves the token server-side, then redirects to one of
-two internal target kinds:
+- `menu`: `/demo` or `/menu/<restaurant-slug>`;
+- `admin`: exactly `/admin`, after exchange for an eight-hour HTTP-only session
+  scoped to the row's restaurant.
 
-- Menu QR: `/menu/<restaurant-slug>` for guests.
-- Restaurant dashboard QR: `/admin` for internal restaurant use.
+No QR contains a Supabase id, service-role key, admin-session secret or vault
+key. Secrets and recoverable tokens must not be logged.
 
-Admin QR codes exchange the opaque persistent QR token for an eight-hour,
-HTTP-only session scoped to the QR row's restaurant. The session is signed with
-the dedicated `VISTAIRE_ADMIN_SESSION_SECRET`, and every protected request
-revalidates the active admin QR row. They never contain credentials or service
-role keys.
+## Storage model
 
-## Why a table (and not the slug in the QR)
+The migrations must be considered in this order:
 
-- The QR must not expose Supabase ids or the raw slug as a security boundary.
-- Tokens are generated server-side with `crypto.randomBytes` (never `Math.random`).
-- Only the hash of the token is stored (`token_hash`); the raw token is returned
-  to the owner once, at creation, to render/download the QR.
-- The public `/q/[token]` route hashes the incoming token, matches `token_hash`,
-  checks `status = 'active'`, atomically increments `scan_count` via the
-  `resolve_qr_code_scan` RPC, and redirects only to a sanitized internal
-  `target_path`.
-- External destinations such as `https://...`, `http://...`, `//...`, and paths
-  containing backslashes are rejected before persistence and again on resolve.
+1. `0001_qr_codes.sql`: base table and statuses;
+2. `0002_qr_resolve_scan_rpc.sql`: atomic menu scan resolver;
+3. `0007_restaurants.sql`: `restaurants` table required by the QR foreign key;
+4. `20260709180000_admin_qr_access.sql`: required `target_kind`, canonical
+   admin/menu paths, restaurant FK and metadata resolver;
+5. the integrated candidate revision of the canonical lifecycle migration:
+   additive canonical slot, recoverable token envelope, persistent lifecycle,
+   operation-id idempotency and owner-only inventory support.
 
-## Table
+The numeric migration name alone is not evidence of this candidate revision.
+On the audited `8c6672d…` head, `20260717120000_owner_qr_canonical_lifecycle.sql`
+contains only the earlier canonical get-or-create/rotation contract; it does not
+contain persistent `revoked`, lifecycle timestamps, `config_version`, lifecycle
+RPCs or inventory. This docs/preflight branch is therefore **BLOCKED** for
+rollout until the separately reviewed DB and runtime candidate commits are
+integrated. Do not apply the older file expecting the contract below.
 
-See [`supabase/migrations/0001_qr_codes.sql`](../supabase/migrations/0001_qr_codes.sql).
+The last migration never promotes or rewrites a historical row. Existing rows
+remain noncanonical because `is_canonical` defaults to `false`; their hashes,
+targets, styles, statuses, counters and timestamps are preserved.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid | primary key |
-| `restaurant_id` | uuid | owning restaurant; FK to `restaurants(id)` with `ON DELETE CASCADE`, required for `admin` |
-| `label` | text | owner-facing label, for example `QR menu - Maison` or `QR admin - Maison` |
-| `token_hash` | text | unique; SHA-256 / HMAC-SHA256 of the token |
-| `token_preview` | text | first chars only, for the UI |
-| `target_path` | text | internal redirect target |
-| `target_kind` | text | `menu` \| `admin`; `NOT NULL` after the schema hardening migration |
-| `style_json` | jsonb | `OwnerQrStyle` snapshot |
-| `status` | text | `active` \| `paused` \| `archived` |
-| `scan_count` | integer | incremented on resolve |
-| `last_scanned_at` | timestamptz | last resolve time |
-| `created_at` / `updated_at` | timestamptz | timestamps (trigger keeps `updated_at`) |
-
-## How to apply
-
-This repo has no Supabase CLI wired in, so apply the migration manually:
-
-**Option A - Supabase SQL editor (recommended)**
-1. Open your Supabase project, then SQL Editor.
-2. Paste the contents of `supabase/migrations/0001_qr_codes.sql`, then run.
-3. Paste the contents of `supabase/migrations/0002_qr_resolve_scan_rpc.sql`, then run.
-4. Paste `supabase/migrations/20260709180000_admin_qr_access.sql`, then run.
-5. Re-running the admin QR migration is safe when stored rows satisfy its
-   invariants (`if not exists`, catalog guards, and `create or replace` are used
-   where needed). Invalid legacy rows raise an exception before data changes.
-
-**Option B - psql**
-```bash
-psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_qr_codes.sql
-psql "$SUPABASE_DB_URL" -f supabase/migrations/0002_qr_resolve_scan_rpc.sql
-psql "$SUPABASE_DB_URL" -f supabase/migrations/20260709180000_admin_qr_access.sql
-```
-
-No Supabase or production migration was applied as part of this repository
-change. The commands above remain manual operator steps.
-
-## Target hardening and legacy rows
-
-`20260709180000_admin_qr_access.sql` makes `target_kind` required and
-limits it to `menu` or `admin`. Rows already classified as `admin`, plus rows
-with no kind whose destination is `/admin`, `/admin/*`, `/admin?*`, `/owner`,
-`/owner/*`, or `/owner?*`, are canonicalized to `target_path = '/admin'`. A
-missing kind is backfilled as `menu` only for known menu paths: exactly `/demo`
-or `/menu/*`.
-
-Before the first update, the migration rejects non-null kinds outside
-`menu`/`admin`, explicit menu rows with non-menu paths, explicit admin rows with
-paths outside the historical admin family, and kind-less rows with unknown
-paths (including `/demo?...`). It never promotes an explicitly `menu` or unknown
-row to `admin`.
-
-Every admin QR must include `restaurant_id`. Before any backfill, the migration
-checks both stored `target_kind = 'admin'` values and every legacy admin path.
-It also rejects every non-null `restaurant_id` that has no matching
-`restaurants` row. Either problem raises a clear exception before any data
-update. An operator must identify the correct restaurant and remediate the row
-before re-running the migration; the migration deletes no row and invents no
-restaurant.
-
-On a remediated database, the kind, admin restaurant, admin path, menu path, and
-restaurant foreign-key constraints are replaced with their canonical
-definitions and fully validated. Admin paths must be exactly `/admin`; menu
-paths must be exactly `/demo` or `/menu/*`. The FK uses `ON DELETE CASCADE`,
-matching the restaurant hard-delete workflow and also protecting direct
-database deletes. The obsolete nullable `qr_codes_target_kind_check`
-constraint is removed before the canonical required-kind constraint is added.
-
-The backfill preserves every existing row along with `token_hash`,
-`token_preview`, `style_json`, `status`, scan counters, scan timestamps, and
-creation/update dates. The migration temporarily disables only the
-`qr_codes_set_updated_at` trigger around the two metadata backfills and restores
-it before commit so historical `updated_at` values remain unchanged.
-
-## Atomic scan counts
-
-Concurrent scans of the same QR must not lose events. Apply
-`0002_qr_resolve_scan_rpc.sql`, which defines `resolve_qr_code_scan(token_hash)`:
-a single `UPDATE ... SET scan_count = scan_count + 1 ... RETURNING target_path`.
-Without this RPC, redirects still work but scan counts are not incremented.
-
-The admin QR migration also defines
-`resolve_qr_code_scan_metadata(token_hash)`: one atomic `UPDATE` increments the
-counter, records `last_scanned_at`, and returns the QR id, restaurant, target
-kind, canonical path, and status. Both RPCs are `security definer` server-side
-operations. The metadata RPC uses an empty `search_path`, schema-qualifies the
-table and `pg_catalog.now()`, revokes execution from `public`, `anon`, and
-`authenticated`, and grants it only to `service_role`. The older menu-only RPC
-retains its original `search_path = public` declaration.
-
-The application fallback to the older `resolve_qr_code_scan` RPC remains
-menu-only. It is attempted only when the metadata RPC is unavailable (Postgres
-`42883` or PostgREST `PGRST202`). When Supabase provides a different non-empty
-error code, resolution fails closed regardless of the message. Without an error
-code, the message must explicitly identify `resolve_qr_code_scan_metadata` as
-the missing function (including the standard schema-cache not-found message);
-a generic schema-cache message is not enough. The legacy result must match an
-active row id and its stored path, and that path must be exactly `/demo` or
-start with `/menu/`. Legacy `/admin`, `/admin/*`, `/owner`, and `/owner/*`
-paths never resolve through this compatibility branch. The fallback select
-intentionally does not request `target_kind`, so it remains compatible with the
-older schema.
-
-## Environment
-
-| Variable | Purpose |
+| Column | Meaning |
 | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (already used) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only access to `qr_codes` (already used) |
-| `VISTAIRE_QR_TOKEN_SECRET` | Optional. Peppers the token hash and signs the dev fallback token. Set this in production. |
-| `VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS` | Optional comma-separated legacy QR hash secrets retained during rotation. |
-| `VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` | Server-only version used to encrypt new recoverable canonical QR tokens. |
-| `VISTAIRE_QR_TOKEN_KEY_RING` | Server-only JSON object mapping every retained version to one base64url-encoded 32-byte AES key. |
-| `VISTAIRE_ADMIN_SESSION_SECRET` | Dedicated secret (at least 32 bytes) for eight-hour restaurant admin sessions. |
+| `id`, `restaurant_id` | QR identity and owning restaurant |
+| `label`, `style_json` | owner-facing metadata |
+| `target_kind`, `target_path` | `menu`/allowed menu path or `admin`/`/admin` |
+| `token_hash`, `token_preview` | lookup hash and non-secret short preview |
+| `status` | candidate contract: `active`, `paused`, `archived` or `revoked` |
+| `scan_count`, `last_scanned_at` | atomic resolution counters |
+| `purpose_key`, `is_canonical` | canonical slot identity and current member |
+| `token_ciphertext`, `token_nonce`, `token_key_version` | complete AES-256-GCM recovery envelope, or all null for historical rows |
+| `supersedes_qr_code_id`, `rotated_at` | immutable rotation chain metadata |
+| `revoked_at`, `status_changed_at` | irreversible revocation time and latest lifecycle transition time |
+| `config_version` | positive owner-only optimistic-concurrency version; never public QR data |
+| `created_at`, `updated_at` | lifecycle timestamps |
 
-### Canonical token vault
+The candidate lifecycle persists all four statuses. Resolvers accept only
+`active`, so paused, archived and revoked rows are refused without physical
+deletion. `revoked` requires `revoked_at` and is irreversible. Every historical
+row remains evidence to preserve.
 
-Both vault variables are required for canonical QR encryption and decryption.
-They must never use a `NEXT_PUBLIC_` prefix or be exposed to client code.
+## Hashes and recoverable canonical tokens
 
-`VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` is one identifier matching
-`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`. `VISTAIRE_QR_TOKEN_KEY_RING` is a
-canonical single-line JSON object with no whitespace or duplicate versions:
+Resolution remains hash-based. New storage hashes use the versioned
+`sha256:<hex>` form. Legacy SHA-256 and up to four configured legacy HMAC
+peppers remain lookup candidates so historical printed QRs keep working during
+hash-secret rotation.
+
+The raw token of a new canonical QR is also encrypted server-side with
+AES-256-GCM. The authenticated binding is the QR id, restaurant id, target kind
+and purpose key. The database stores ciphertext plus authentication tag, a
+12-byte random nonce, and the explicit key version. This is encrypted,
+recoverable material—not a one-way hash—and it is returned only as an owner QR
+URL after successful authenticated decryption. A missing key version or an
+invalid/incomplete envelope fails closed as `canonical-unrecoverable`; the
+application must not silently create a replacement.
+
+Historical rows without envelopes remain resolvable by hash but cannot be
+recovered for owner re-download. They must not be backfilled with invented
+tokens or deleted.
+
+## Canonical slot and dispositions
+
+One canonical QR may exist for each normalized
+`restaurant_id + target_kind + purpose_key` slot. Reads never generate or
+persist a token. Get-or-create is concurrency-safe and returns the existing
+winner without overwriting secret columns.
+
+Rotation requires explicit confirmation and is atomic:
+
+1. the previous row becomes `is_canonical = false` and receives `rotated_at`;
+2. a new active, recoverable canonical row is inserted with
+   `supersedes_qr_code_id` pointing to the previous row;
+3. the previous row keeps its status, hash, encrypted envelope, URL, style and
+   scan history, and therefore remains active/resolvable by default.
+
+Rotation is explicit, idempotent through an operation id, guarded by the
+expected `config_version`, and requires a disposition for the previous row:
+
+- `keep-active`: previous QR stays active/resolvable but noncanonical;
+- `pause`: previous QR stays physically preserved and paused;
+- `revoke`: previous QR is irreversibly revoked with `revoked_at`.
+
+The successor is active and canonical, inherits the next configuration version
+and points to the previous row. Reusing an operation id with different inputs
+fails closed. Archive is not a rotation disposition.
+
+Lifecycle actions follow these invariants: pause preserves the canonical slot;
+resume returns a paused canonical to active; archive and revoke clear
+`is_canonical`; revoke cannot be resumed or reversed. Each accepted mutation
+increments `config_version` once and records a metadata-only lifecycle event.
+Owner inventory includes historical identity, lineage, status, timestamps and
+configuration version, but excludes raw tokens, hashes, previews, ciphertext,
+nonces and public redirect URLs.
+
+There is no automatic revocation, archival, deletion, promotion or historical
+cleanup. A rollback normally restores the previous application/environment
+configuration; it does not delete new or old QR rows. With `keep-active`, the
+old admin QR and its unexpired sessions remain valid. Rotation must not be
+described as revocation unless the explicit `revoke` disposition succeeded.
+
+## Server-only environment contract
+
+| Variable | Requirement |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | non-secret Supabase project origin; must match the expected ref |
+| `SUPABASE_SERVICE_ROLE_KEY` | server-only database access |
+| `VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF` | exact environment project ref checked by runtime/preflight |
+| `VISTAIRE_QR_TOKEN_SECRET` | server-only legacy hash pepper and signed dev fallback secret |
+| `VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS` | optional bounded legacy peppers retained during hash rotation |
+| `VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` | version used to encrypt new canonical envelopes |
+| `VISTAIRE_QR_TOKEN_KEY_RING` | canonical JSON mapping retained versions to independent 32-byte AES keys |
+| `VISTAIRE_ADMIN_SESSION_SECRET` | dedicated server-only secret of at least 32 UTF-8 bytes |
+
+Only the Supabase project URL is intentionally public. Never define a
+`NEXT_PUBLIC_` variant of the service role, QR token secret, active key version,
+key ring or admin-session secret. The publishable Supabase key is unrelated to
+the QR vault and does not replace the service role.
+
+The active version matches `[A-Za-z0-9][A-Za-z0-9._-]{0,63}`. The key ring is a
+single-line canonical JSON object with no whitespace or duplicate keys:
 
 ```text
-{"<version-1>":"<base64url key without padding>","<version-2>":"<base64url key without padding>"}
+{"<version>":"<base64url 32-byte key without padding>"}
 ```
 
-Every decoded key must be exactly 32 bytes. Generate each key independently
-with:
+Generate each key independently in an approved secret-handling terminal:
 
-```bash
+```powershell
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
 ```
 
-To rotate, generate a new 32-byte key, add it under a new version while
-retaining every version still referenced by a stored QR envelope, then set
-`VISTAIRE_QR_TOKEN_ACTIVE_KEY_VERSION` to the new version in the same
-deployment configuration. New envelopes use the active version; old envelopes
-continue to decrypt through their explicit version. Never remove an old entry
-until no stored envelope references it. Missing versions, malformed JSON,
-non-canonical base64url, and keys of any other decoded length fail closed; the
-vault has no fallback key.
+Never paste generated output into Git, tickets, chat, build logs or screenshots.
 
-## Fallback behaviour (no DB yet)
+## Key creation, escrow and rotation
 
-If Supabase is not configured, QR creation degrades gracefully to a stateless
-signed token (HMAC-signed, dev/build only):
+For each environment, two authorized operators should record the version,
+creation date, owner and change reference in the secret inventory. Store the
+key-ring value and admin-session secret in the environment's managed secret
+store. Maintain an independently access-controlled, encrypted escrow copy with
+a tested recovery owner. Preview and Production must use different Supabase
+projects, public origins, peppers, key rings and admin-session secrets.
 
-- A menu QR still works: `/q/<signed-token>` verifies the signature and redirects.
-- Nothing is persisted, so `scan_count`, `status`, and saved styles are not
-  available.
-- The owner UI clearly labels these menu QR codes as non persisted.
-- Admin/dashboard QR creation fails closed without persistent Supabase storage.
+To rotate the vault key:
 
-If Supabase is configured but the `qr_codes` insert fails, the API returns an
-error instead of claiming production persistence.
+1. inventory distinct non-null `token_key_version` values using an aggregate,
+   read-only query; never select ciphertext, nonce, hash or token;
+2. generate a new independent 32-byte key under a new version;
+3. add it to the existing ring without removing any referenced version;
+4. deploy the expanded ring first, then make the new version active in the same
+   controlled environment rollout;
+5. create and recover a non-client validation QR, then verify historical QR
+   recovery and resolution;
+6. retain every old key until a reviewed retention decision proves no stored
+   envelope references it and all required backups/rollback windows have ended.
 
-## Supabase incident references
+Rotating `VISTAIRE_QR_TOKEN_SECRET` is separate. Move the old pepper to
+`VISTAIRE_QR_TOKEN_PREVIOUS_SECRETS` before activating the new one. Keep no more
+than the four supported previous peppers and never remove one until every
+printed QR depending on it has an approved disposition. The runtime silently
+limits lookup to four previous peppers; a fifth retained value does not protect
+older QR hashes. This is a current code limitation to track, not permission to
+discard historical QRs.
 
-QR create and update failures caused by Supabase return a stable error code and
-a non-predictable incident reference in the user-facing message. Configuration
-absence can enable the signed fallback only for a valid menu QR; admin QR
-creation always requires a non-empty restaurant id and persistent storage.
+Loss of a referenced vault key makes those canonical tokens unrecoverable but
+does not stop hash-based scans. Freeze QR rotations, preserve all rows and
+restore the exact key version from escrow. If restoration is impossible, open
+an incident, inventory affected versions via aggregates, communicate the
+re-download limitation, and rotate only with explicit owner approval; do not
+delete or silently replace history.
 
-Server logs record the same incident id with a stable QR operation/code and
-either the Supabase `code`, `message`, `details`, and `hint` fields or a
-configuration reason. Raw QR tokens and `token_hash` values are never included
-in these incident objects; token-shaped values in Supabase text are redacted.
-This includes opaque base64url values as short as 32 characters. Normal lookup
-misses are not logged as incidents.
+If a service role, pepper, vault key or admin-session secret may be exposed,
+contain it in that environment only, preserve evidence without secret values,
+rotate the affected credential, expire sessions where applicable, validate
+historical resolution, and follow the rollback/runbook gates. Never copy a
+Production secret into Preview to accelerate recovery.
+
+## Fallback and resolver compatibility
+
+Without Supabase, local/dev menu QR creation may use a signed non-persistent
+fallback. It has no saved style, status or scan count. Production requires
+`VISTAIRE_QR_TOKEN_SECRET`; admin QR creation always fails closed without
+persistent storage.
+
+The metadata RPC is the canonical resolver and is executable only by
+`service_role`. The old resolver is a menu-only compatibility path for precise
+missing-function/old-schema cases. It must never resolve an admin-like target.
+Resolution and scan increment remain atomic for active rows.
+
+## Application and rollback boundary
+
+No repository command automatically applies migrations. Operators must follow
+[`docs/qa/qr-environment-rollout-runbook.md`](qa/qr-environment-rollout-runbook.md)
+and apply changes Preview-first through an approved database change mechanism.
+The preflight is read-only and cannot prove a migration was safely applied; it
+only verifies the resulting schema contract.
+
+Rollback is configuration/application-first. Do not down-migrate by dropping
+canonical columns, RPCs, indexes or rows while either deployed code or stored
+history may depend on them. If rolling the active vault version back, restore
+the former active version but keep the newer key in the ring for envelopes
+created during the rollout. Never run automatic cleanup against historical QR
+rows.

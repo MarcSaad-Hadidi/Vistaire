@@ -4,6 +4,7 @@ import {
   createQrSupabaseFixture,
   loadQrPatchRoute,
   loadQrPostRoute,
+  loadQrRetargetRoute,
   loadQrRotateRoute,
   loadQrStore
 } from "./helpers/owner-qr-test-runtime.mjs";
@@ -42,6 +43,21 @@ function candidate(ordinal, overrides = {}) {
     style: structuredClone(style),
     ...overrides
   };
+}
+
+function assertSafeConflictRecord(record) {
+  assert.ok(record);
+  for (const secret of [
+    "token",
+    "tokenHash",
+    "tokenPreview",
+    "tokenCiphertext",
+    "tokenNonce",
+    "tokenKeyVersion",
+    "redirectUrl"
+  ]) {
+    assert.equal(secret in record, false, secret);
+  }
 }
 
 function seedHistory(fixture, ordinal, overrides = {}) {
@@ -299,8 +315,10 @@ test("[FIXTURE 9/9] confirmed rotation alone replaces the canonical and leaves t
   assert.equal(rotated.record.redirectUrl, "/q/canonical-01");
   assert.equal(oldAfter.is_canonical, false);
   assert.equal(oldAfter.status, "active");
+  assert.equal(oldAfter.config_version, oldBefore.config_version + 1);
+  assert.equal(oldAfter.rotated_at, "2026-07-17T12:00:03.000Z");
   for (const [field, value] of Object.entries(oldBefore)) {
-    if (field === "is_canonical") continue;
+    if (["is_canonical", "config_version", "rotated_at"].includes(field)) continue;
     assert.deepEqual(oldAfter[field], value, field);
   }
   assert.deepEqual(historyRows(fixture), historyBefore);
@@ -320,14 +338,13 @@ const consumerArgs = {
   restaurantId: slot.restaurantId,
   label: "QR dashboard restaurant",
   targetKind: slot.targetKind,
-  targetPath: "/admin",
   style
 };
 
-async function createThroughCurrentStore(fixture) {
+async function createThroughCurrentStore(fixture, overrides = {}) {
   fixture.install();
   const { createOwnerQrCode } = await loadQrStore();
-  return createOwnerQrCode(consumerArgs);
+  return createOwnerQrCode({ ...consumerArgs, ...overrides });
 }
 
 test("[CONSUMER] repeated store POST returns the same id and URL with no raw token field", async () => {
@@ -477,7 +494,8 @@ test("[CONSUMER] PATCH style preserves the recovered URL and canonical vault fie
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          style: { ...style, foregroundColor: "#333333" }
+          style: { ...style, foregroundColor: "#333333" },
+          expectedConfigVersion: created.record.configVersion
         })
       }
     ),
@@ -491,7 +509,7 @@ test("[CONSUMER] PATCH style preserves the recovered URL and canonical vault fie
   assert.equal(payload.record.redirectUrl, created.record.redirectUrl);
   assert.equal("token" in payload, false);
   for (const [field, value] of Object.entries(before)) {
-    if (field === "style_json" || field === "updated_at") continue;
+    if (field === "style_json" || field === "updated_at" || field === "config_version") continue;
     assert.deepEqual(after[field], value, field);
   }
   assert.equal(after.style_json.foregroundColor, "#333333");
@@ -528,7 +546,12 @@ test("[CONSUMER] rotate route requires confirmation and preserves the old active
     new Request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmed: true })
+      body: JSON.stringify({
+        confirmed: true,
+        idempotencyKey: "11111111-1111-4111-8111-111111111111",
+        previousDisposition: "keep-active",
+        expectedConfigVersion: created.record.configVersion
+      })
     }),
     { params: Promise.resolve({ id: created.record.id }) }
   );
@@ -538,8 +561,11 @@ test("[CONSUMER] rotate route requires confirmation and preserves the old active
   assert.equal(confirmed.status, 201);
   assert.notEqual(payload.current.id, created.record.id);
   assert.equal(old.is_canonical, false);
+  assert.equal(old.status, "active");
+  assert.equal(old.config_version, oldBefore.config_version + 1);
+  assert.equal(old.rotated_at, "2026-07-17T12:00:03.000Z");
   for (const [field, value] of Object.entries(oldBefore)) {
-    if (field === "is_canonical") continue;
+    if (["is_canonical", "config_version", "rotated_at"].includes(field)) continue;
     assert.deepEqual(old[field], value, field);
   }
   assert.deepEqual(historyRows(fixture), historyBefore);
@@ -608,13 +634,90 @@ test("rotation response and new canonical use the style reread under the databas
   fixture.install();
   const { rotateOwnerQrCode } = await loadQrStore();
 
-  const rotated = await rotateOwnerQrCode(created.record.id, { confirmed: true });
+  const rotated = await rotateOwnerQrCode(created.record.id, {
+    confirmed: true,
+    idempotencyKey: "22222222-2222-4222-8222-222222222222",
+    previousDisposition: "keep-active",
+    expectedConfigVersion: created.record.configVersion
+  });
 
   assert.equal(rotated.ok, true);
   assert.equal(rotated.previous.label, "Label concurrent");
   assert.equal(rotated.previous.style.foregroundColor, "#333333");
   assert.equal(rotated.current.label, "Label concurrent");
   assert.equal(rotated.current.style.foregroundColor, "#333333");
+});
+
+test("rotation HTTP classifies a P0002 race as a safe current 409", async () => {
+  const fixture = createQrSupabaseFixture({
+    beforeCanonicalRotation(row) {
+      row.is_canonical = false;
+      row.status = "active";
+      row.config_version += 1;
+      row.updated_at = "2026-07-17T12:00:02.000Z";
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { POST } = await loadQrRotateRoute();
+
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/rotate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmed: true,
+          idempotencyKey: "23232323-2323-4232-8232-232323232323",
+          previousDisposition: "keep-active",
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.code, "config-version-conflict");
+  assertSafeConflictRecord(payload.current);
+  assert.equal("redirectUrl" in payload.current, false);
+  assert.equal("tokenPreview" in payload.current, false);
+});
+
+test("rotation HTTP classifies a P0002 race with a deleted row as 404", async () => {
+  let fixture;
+  fixture = createQrSupabaseFixture({
+    beforeCanonicalRotation(row) {
+      fixture.rows.splice(fixture.rows.indexOf(row), 1);
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { POST } = await loadQrRotateRoute();
+
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/rotate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmed: true,
+          idempotencyKey: "24242424-2424-4242-8242-242424242424",
+          previousDisposition: "keep-active",
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(payload.code, "not-found");
+  assert.equal("current" in payload, false);
 });
 
 test("PATCH and rotation expose an absent canonical as 404, not a dependency outage", async () => {
@@ -627,7 +730,7 @@ test("PATCH and rotation expose an absent canonical as 404, not a dependency out
     new Request("https://fixture.invalid/api/owner/qr-codes/missing", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style })
+      body: JSON.stringify({ style, expectedConfigVersion: 1 })
     }),
     { params: Promise.resolve({ id: "missing" }) }
   );
@@ -635,11 +738,371 @@ test("PATCH and rotation expose an absent canonical as 404, not a dependency out
     new Request("https://fixture.invalid/api/owner/qr-codes/missing/rotate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmed: true })
+      body: JSON.stringify({
+        confirmed: true,
+        idempotencyKey: "33333333-3333-4333-8333-333333333333",
+        previousDisposition: "keep-active",
+        expectedConfigVersion: 1
+      })
     }),
     { params: Promise.resolve({ id: "missing" }) }
   );
 
   assert.equal(patchResponse.status, 404);
   assert.equal(rotateResponse.status, 404);
+});
+
+test("POST rejects every client targetPath without creating a row", async () => {
+  const fixture = createQrSupabaseFixture();
+  fixture.install();
+  const { POST } = await loadQrPostRoute();
+  for (const targetPath of ["/admin", "/menu/forged", "https://evil.invalid/"]) {
+    const response = await POST(
+      new Request("https://fixture.invalid/api/owner/qr-codes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...consumerArgs, targetPath })
+      })
+    );
+    assert.equal(response.status, 400);
+  }
+  assert.equal(fixture.rows.length, 0);
+  assert.equal(fixture.rpcCallCount("owner_get_or_create_canonical_qr"), 0);
+});
+
+test("rotation refuses an integrity-invalid canonical before calling the RPC", async () => {
+  const fixture = createQrSupabaseFixture();
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
+  const row = fixture.rows.find((candidateRow) => candidateRow.id === created.record.id);
+  row.token_hash = `sha256:${"0".repeat(64)}`;
+  fixture.install();
+  const { rotateOwnerQrCode } = await loadQrStore();
+
+  const rotated = await rotateOwnerQrCode(created.record.id, {
+    confirmed: true,
+    idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    previousDisposition: "keep-active",
+    expectedConfigVersion: created.record.configVersion
+  });
+
+  assert.equal(rotated.ok, false);
+  assert.equal(rotated.code, "canonical-unrecoverable");
+  assert.equal(fixture.rpcCallCount("owner_rotate_canonical_qr"), 0);
+});
+
+test("QR resolution fails closed when the metadata RPC is unavailable", async () => {
+  const fixture = createQrSupabaseFixture({ metadataUnavailable: true });
+  const token = "A".repeat(32);
+  fixture.seedQr({ token, target_kind: "admin", target_path: "/admin" });
+  fixture.install();
+  const { resolveQrToken } = await loadQrStore();
+
+  const resolved = await resolveQrToken(token);
+
+  assert.deepEqual(resolved, { ok: false });
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan_metadata"), 1);
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 0);
+  assert.equal(
+    fixture.calls.some((call) => call.method === "from" && call.table === "qr_codes"),
+    false
+  );
+});
+
+test("retarget after a restaurant slug rename preserves QR identity and opaque URL", async () => {
+  const fixtureOptions = { restaurantSlug: "ancien-slug" };
+  const fixture = createQrSupabaseFixture(fixtureOptions);
+  fixture.install();
+  const { getOrCreateOwnerQrCode, retargetOwnerQrCode } = await loadQrStore();
+  const created = await getOrCreateOwnerQrCode({
+    restaurantId: slot.restaurantId,
+    label: "QR menu",
+    targetKind: "menu",
+    purposeKey: "default",
+    style
+  });
+  assert.equal(created.ok, true);
+  const before = structuredClone(
+    fixture.rows.find((row) => row.id === created.record.id)
+  );
+  fixtureOptions.restaurantSlug = "nouveau-slug";
+
+  const retargeted = await retargetOwnerQrCode(created.record.id, {
+    expectedConfigVersion: created.record.configVersion
+  });
+  const after = fixture.rows.find((row) => row.id === created.record.id);
+
+  assert.equal(retargeted.ok, true);
+  assert.equal(retargeted.changed, true);
+  assert.equal(retargeted.record.redirectUrl, created.record.redirectUrl);
+  assert.equal(after.target_path, "/menu/nouveau-slug");
+  assert.equal(after.config_version, before.config_version + 1);
+  for (const field of [
+    "id",
+    "token_hash",
+    "token_preview",
+    "token_ciphertext",
+    "token_nonce",
+    "token_key_version"
+  ]) {
+    assert.equal(after[field], before[field], field);
+  }
+});
+
+test("PATCH two-tab CAS conflict returns current safe metadata without overwriting", async () => {
+  const fixture = createQrSupabaseFixture();
+  const created = await createThroughCurrentStore(fixture);
+  const row = fixture.rows.find((candidateRow) => candidateRow.id === created.record.id);
+  row.config_version += 1;
+  row.label = "Label onglet concurrent";
+  const styleBefore = structuredClone(row.style_json);
+  fixture.install();
+  const { PATCH } = await loadQrPatchRoute();
+  const response = await PATCH(
+    new Request(`https://fixture.invalid/api/owner/qr-codes/${row.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        style: { ...style, foregroundColor: "#999999" },
+        expectedConfigVersion: created.record.configVersion
+      })
+    }),
+    { params: Promise.resolve({ id: row.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.code, "config-version-conflict");
+  assert.equal(payload.current.label, "Label onglet concurrent");
+  assert.equal(payload.current.configVersion, row.config_version);
+  assertSafeConflictRecord(payload.current);
+  assert.deepEqual(row.style_json, styleBefore);
+});
+
+test("PATCH update-race conflict rereads safe current metadata and does not overwrite", async () => {
+  const fixture = createQrSupabaseFixture({
+    beforeQrUpdate(rows) {
+      const row = rows.find((candidateRow) => candidateRow.is_canonical);
+      row.config_version += 1;
+      row.label = "Label gagne pendant update";
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { PATCH } = await loadQrPatchRoute();
+  const response = await PATCH(
+    new Request(`https://fixture.invalid/api/owner/qr-codes/${created.record.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: "Label perdant",
+        expectedConfigVersion: created.record.configVersion
+      })
+    }),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+  const row = fixture.rows.find((candidateRow) => candidateRow.id === created.record.id);
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.current.label, "Label gagne pendant update");
+  assertSafeConflictRecord(payload.current);
+  assert.equal(row.label, "Label gagne pendant update");
+});
+
+test("PATCH explicit config-version conflict rereads safe current metadata", async () => {
+  const fixture = createQrSupabaseFixture({
+    qrUpdateError: {
+      code: "40001",
+      message: "config_version_conflict"
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { PATCH } = await loadQrPatchRoute();
+  const response = await PATCH(
+    new Request(`https://fixture.invalid/api/owner/qr-codes/${created.record.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: "Label perdant",
+        expectedConfigVersion: created.record.configVersion
+      })
+    }),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.code, "config-version-conflict");
+  assertSafeConflictRecord(payload.current);
+});
+
+test("PATCH does not emit an incomplete 409 when safe conflict reread fails", async () => {
+  const fixture = createQrSupabaseFixture({
+    qrUpdateError: {
+      code: "40001",
+      message: "config_version_conflict"
+    },
+    safeInventoryReadError: {
+      code: "42703",
+      message: "inventory contract unavailable"
+    }
+  });
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { PATCH } = await loadQrPatchRoute();
+  const response = await PATCH(
+    new Request(`https://fixture.invalid/api/owner/qr-codes/${created.record.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: "Label perdant",
+        expectedConfigVersion: created.record.configVersion
+      })
+    }),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(payload.code, "QR_UPDATE_FAILED");
+  assert.equal("current" in payload, false);
+});
+
+test("retarget HTTP stale CAS returns the same safe current contract", async () => {
+  const fixtureOptions = { restaurantSlug: "slug-a" };
+  const fixture = createQrSupabaseFixture(fixtureOptions);
+  fixture.install();
+  const { getOrCreateOwnerQrCode } = await loadQrStore();
+  const created = await getOrCreateOwnerQrCode({
+    restaurantId: slot.restaurantId,
+    label: "QR menu",
+    targetKind: "menu",
+    purposeKey: "default",
+    style
+  });
+  const row = fixture.rows.find((candidateRow) => candidateRow.id === created.record.id);
+  row.config_version += 1;
+  fixtureOptions.restaurantSlug = "slug-b";
+
+  const { POST } = await loadQrRetargetRoute();
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${row.id}/retarget`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: row.id }) }
+  );
+  const result = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(result.code, "config-version-conflict");
+  assertSafeConflictRecord(result.current);
+  assert.equal(row.target_path, "/menu/slug-a");
+});
+
+test("retarget HTTP explicit DB conflict returns current safe metadata", async () => {
+  const fixtureOptions = {
+    restaurantSlug: "slug-a",
+    qrUpdateError: {
+      code: "40001",
+      message: "config_version_conflict"
+    }
+  };
+  const fixture = createQrSupabaseFixture(fixtureOptions);
+  const created = await createThroughCurrentStore(fixture, {
+    targetKind: "menu"
+  });
+  fixtureOptions.restaurantSlug = "slug-b";
+  fixture.install();
+  const { POST } = await loadQrRetargetRoute();
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/retarget`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(payload.code, "config-version-conflict");
+  assertSafeConflictRecord(payload.current);
+});
+
+test("retarget HTTP does not emit incomplete 409 when safe reread fails", async () => {
+  const fixtureOptions = {
+    restaurantSlug: "slug-a",
+    qrUpdateError: {
+      code: "40001",
+      message: "config_version_conflict"
+    },
+    safeInventoryReadError: {
+      code: "42703",
+      message: "inventory contract unavailable"
+    }
+  };
+  const fixture = createQrSupabaseFixture(fixtureOptions);
+  const created = await createThroughCurrentStore(fixture, {
+    targetKind: "menu"
+  });
+  fixtureOptions.restaurantSlug = "slug-b";
+  fixture.install();
+  const { POST } = await loadQrRetargetRoute();
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/retarget`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(payload.code, "QR_UPDATE_FAILED");
+  assert.equal("current" in payload, false);
+});
+
+test("rotate rejects the deprecated disposition field without an RPC call", async () => {
+  const fixture = createQrSupabaseFixture();
+  const created = await createThroughCurrentStore(fixture);
+  fixture.install();
+  const { POST } = await loadQrRotateRoute();
+  const response = await POST(
+    new Request(
+      `https://fixture.invalid/api/owner/qr-codes/${created.record.id}/rotate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmed: true,
+          idempotencyKey: "55555555-5555-4555-8555-555555555555",
+          disposition: "keep-active",
+          expectedConfigVersion: created.record.configVersion
+        })
+      }
+    ),
+    { params: Promise.resolve({ id: created.record.id }) }
+  );
+  assert.equal(response.status, 400);
+  assert.equal(fixture.rpcCallCount("owner_rotate_canonical_qr"), 0);
 });

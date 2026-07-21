@@ -477,11 +477,13 @@ test("secret-bearing admin E2E disables retries and all Playwright artifacts", a
   ]);
 
   assert.match(config, /VISTAIRE_ADMIN_E2E_SENSITIVE/);
-  assert.match(config, /sensitiveAdminE2E\s*\?\s*0\s*:/);
-  assert.match(config, /screenshot:\s*sensitiveAdminE2E\s*\?\s*"off"\s*:/);
-  assert.match(config, /trace:\s*sensitiveAdminE2E\s*\?\s*"off"\s*:/);
+  assert.match(config, /VISTAIRE_QR_E2E_SENSITIVE/);
+  assert.match(config, /const sensitiveE2E = sensitiveAdminE2E \|\| sensitiveQrE2E/);
+  assert.match(config, /retries:\s*sensitiveE2E\s*\?\s*0\s*:/);
+  assert.match(config, /screenshot:\s*sensitiveE2E\s*\?\s*"off"\s*:/);
+  assert.match(config, /trace:\s*sensitiveE2E\s*\?\s*"off"\s*:/);
   assert.match(config, /video:\s*"off"/);
-  assert.match(config, /preserveOutput:\s*sensitiveAdminE2E\s*\?\s*"never"\s*:/);
+  assert.match(config, /preserveOutput:\s*sensitiveE2E\s*\?\s*"never"\s*:/);
   assert.match(workflow, /VISTAIRE_ADMIN_E2E_SENSITIVE:\s*["']1["']/);
   for (const tokenName of [
     "VISTAIRE_ADMIN_E2E_QR_TOKEN",
@@ -501,4 +503,69 @@ test("secret-bearing admin E2E disables retries and all Playwright artifacts", a
       ),
     "QR values must be masked before Playwright can log a /q/<token> URL"
   );
+});
+
+test("QR Playwright runners force sensitive mode and remove generated output", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const [config, adminRunner, functionalRunner] = await Promise.all([
+    readFile("playwright.config.ts", "utf8"),
+    readFile("scripts/run-admin-qr-e2e.mjs", "utf8"),
+    readFile("scripts/run-qr-functional-e2e.mjs", "utf8")
+  ]);
+
+  assert.match(config, /VISTAIRE_QR_E2E_SENSITIVE/);
+  assert.match(config, /retries:\s*sensitiveE2E\s*\?\s*0/);
+  assert.match(config, /preserveOutput:\s*sensitiveE2E\s*\?\s*"never"/);
+  for (const runner of [adminRunner, functionalRunner]) {
+    assert.match(runner, /VISTAIRE_QR_E2E_SENSITIVE:\s*"1"/);
+    assert.match(runner, /\["test-results", "playwright-report"\]/);
+    assert.match(runner, /rm\(path, \{ force: true, recursive: true \}\)/);
+  }
+});
+
+test("the QR functional owner bypass uses a per-run in-memory capability", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const [fixture, spec] = await Promise.all([
+    readFile("e2e/qr-functional-fixture.ts", "utf8"),
+    readFile("e2e/qr-functional.spec.ts", "utf8")
+  ]);
+
+  assert.match(fixture, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.match(fixture, /ownerBypassToken/);
+  assert.doesNotMatch(fixture, /qr-functional-owner-bypass/);
+  assert.match(spec, /environment\.ownerBypassToken/);
+  assert.doesNotMatch(spec, /qr-functional-owner-bypass/);
+});
+
+test("the QR functional gate follows the versioned owner UI and mutation contract", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const [fixture, spec] = await Promise.all([
+    readFile("e2e/qr-functional-fixture.ts", "utf8"),
+    readFile("e2e/qr-functional.spec.ts", "utf8")
+  ]);
+
+  for (const label of [
+    "Créer le QR menu",
+    "Créer le QR admin",
+    "Enregistrer le style",
+    "QR sécurisé créé et enregistré",
+    "Style du QR enregistré"
+  ]) {
+    assert.match(spec, new RegExp(label));
+  }
+  assert.doesNotMatch(spec, /Sauvegarder \/ Generer QR|QR securise enregistre/);
+  for (const field of [
+    "idempotencyKey",
+    "previousDisposition",
+    "expectedConfigVersion"
+  ]) {
+    assert.match(spec, new RegExp(field));
+  }
+  assert.match(spec, /crypto\.randomUUID\(\)/);
+
+  assert.match(fixture, /config_version:\s*number/);
+  assert.match(fixture, /revoked_at:\s*string \| null/);
+  assert.match(fixture, /p_expected_config_version/);
+  assert.match(fixture, /p_disposition/);
+  assert.match(fixture, /config_version \+= 1/);
 });

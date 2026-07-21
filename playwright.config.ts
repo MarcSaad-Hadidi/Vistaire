@@ -1,20 +1,26 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
-const startCommand = "node ./node_modules/next/dist/bin/next start";
+const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 const adminE2eSensitive = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
+const sensitiveQrE2E = process.env.VISTAIRE_QR_E2E_SENSITIVE === "1";
+const sensitiveE2E = adminE2eSensitive || sensitiveQrE2E;
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
 const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
+const qrFunctionalFixture = process.env.VISTAIRE_QR_FUNCTIONAL === "1";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const qrFixtureOrigin = "http://127.0.0.1:55432";
 const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3000"}`;
-const ownerE2eToken =
-  process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
-  "vistaire-owner-e2e-local-token";
+const ownerE2eToken = shouldStartWebServer
+  ? randomBytes(32).toString("base64url")
+  : process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
+    randomBytes(32).toString("base64url");
+process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN = ownerE2eToken;
 const fixtureOnlyTestIgnore = [
   ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",
@@ -24,7 +30,8 @@ const fixtureOnlyTestIgnore = [
         ? []
         : ["**/admin-performance.spec.ts"])
     ]),
-  ...(qrFixture ? [] : ["**/admin-qr-resolution.spec.ts"])
+  ...(qrFixture ? [] : ["**/admin-qr-resolution.spec.ts"]),
+  ...(qrFunctionalFixture ? [] : ["**/qr-functional.spec.ts"])
 ];
 
 export default defineConfig({
@@ -32,16 +39,16 @@ export default defineConfig({
   testIgnore: fixtureOnlyTestIgnore,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: adminE2eSensitive ? 0 : process.env.CI ? 1 : 0,
+  retries: sensitiveE2E ? 0 : process.env.CI ? 1 : 0,
   workers: 1,
   reporter: "list",
-  preserveOutput: adminE2eSensitive ? "never" : "always",
+  preserveOutput: sensitiveE2E ? "never" : "always",
   use: {
     baseURL,
     locale: "fr-CA",
     timezoneId: "America/Toronto",
-    screenshot: adminE2eSensitive ? "off" : "only-on-failure",
-    trace: adminE2eSensitive ? "off" : "on-first-retry",
+    screenshot: sensitiveE2E ? "off" : "only-on-failure",
+    trace: sensitiveE2E ? "off" : "on-first-retry",
     video: "off"
   },
   projects: [
