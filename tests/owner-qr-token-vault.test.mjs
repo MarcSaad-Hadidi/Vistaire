@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire, registerHooks } from "node:module";
 import path from "node:path";
@@ -61,8 +61,17 @@ const binding = {
   qrId: "11111111-1111-4111-8111-111111111111",
   restaurantId: "22222222-2222-4222-8222-222222222222",
   targetKind: "menu",
-  purposeKey: "default"
+  purposeKey: "default",
+  tokenHash: `sha256:${createHash("sha256").update("binding-token").digest("hex")}`
 };
+
+function alterCiphertext(envelope, index) {
+  const prefix = "v2.";
+  assert.equal(envelope.ciphertext.startsWith(prefix), true);
+  const encoded = Buffer.from(envelope.ciphertext.slice(prefix.length), "base64url");
+  encoded[index < 0 ? encoded.length + index : index] ^= 0x01;
+  return `${prefix}${encoded.toString("base64url")}`;
+}
 
 function encodedKey(byteLength = 32) {
   return randomBytes(byteLength).toString("base64url");
@@ -135,15 +144,11 @@ test("rejects altered ciphertext and authentication tags", async () => {
   const { decryptQrToken, encryptQrToken } = await loadVault();
   setKeyRing("v1", { v1: encodedKey() });
   const envelope = encryptQrToken("authenticated-token", binding);
-  const encoded = Buffer.from(envelope.ciphertext, "base64url");
-
-  for (const index of [0, encoded.length - 1]) {
-    const altered = Buffer.from(encoded);
-    altered[index] ^= 0x01;
+  for (const index of [0, -1]) {
     assert.throws(
       () =>
         decryptQrToken(
-          { ...envelope, ciphertext: altered.toString("base64url") },
+          { ...envelope, ciphertext: alterCiphertext(envelope, index) },
           binding
         ),
       /vault/i
@@ -165,7 +170,8 @@ test("rejects the wrong key and every altered AAD binding field", async () => {
     { ...binding, qrId: `${binding.qrId}-other` },
     { ...binding, restaurantId: `${binding.restaurantId}-other` },
     { ...binding, targetKind: "admin" },
-    { ...binding, purposeKey: "other" }
+    { ...binding, purposeKey: "other" },
+    { ...binding, tokenHash: `sha256:${"0".repeat(64)}` }
   ]) {
     assert.throws(
       () => decryptQrToken(envelope, alteredBinding),
@@ -303,13 +309,10 @@ test("exposes token-unrecoverable for invalid authenticated envelopes", async ()
   const key = encodedKey();
   setKeyRing("v1", { v1: key });
   const envelope = encryptQrToken("unrecoverable-token", binding);
-  const alteredCiphertext = Buffer.from(envelope.ciphertext, "base64url");
-  alteredCiphertext[0] ^= 0x01;
-
   for (const operation of [
     () =>
       decryptQrToken(
-        { ...envelope, ciphertext: alteredCiphertext.toString("base64url") },
+        { ...envelope, ciphertext: alterCiphertext(envelope, 0) },
         binding
       ),
     () => decryptQrToken(envelope, { ...binding, purposeKey: "wrong" }),
@@ -327,6 +330,47 @@ test("exposes token-unrecoverable for invalid authenticated envelopes", async ()
     captureError(() => decryptQrToken(envelope, binding)),
     "token-unrecoverable"
   );
+});
+
+test("decrypts a legacy unprefixed v1 envelope but never downgrades a v2 envelope", async () => {
+  const { decryptQrToken, encryptQrToken } = await loadVault();
+  const key = randomBytes(32);
+  setKeyRing("v1", { v1: key.toString("base64url") });
+  const token = "legacy-binding-token";
+  const nonce = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, nonce);
+  cipher.setAAD(Buffer.from(JSON.stringify({
+    qrId: binding.qrId,
+    restaurantId: binding.restaurantId,
+    targetKind: binding.targetKind,
+    purposeKey: binding.purposeKey
+  })));
+  const encrypted = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  const legacyEnvelope = {
+    ciphertext: Buffer.concat([encrypted, cipher.getAuthTag()]).toString("base64url"),
+    nonce: nonce.toString("base64url"),
+    keyVersion: "v1"
+  };
+
+  assert.equal(decryptQrToken(legacyEnvelope, binding), token);
+  const current = encryptQrToken("current-binding-token", binding);
+  assert.throws(
+    () => decryptQrToken({ ...current, ciphertext: current.ciphertext.slice(3) }, binding),
+    /vault/i
+  );
+});
+
+test("validates exact opaque token format and compares storage hashes", async () => {
+  const { isValidOpaqueQrToken, qrTokenMatchesStorageHash, hashQrTokenForStorage } =
+    await import("../lib/owner/qrTokens.ts");
+  const token = randomBytes(24).toString("base64url");
+  assert.equal(token.length, 32);
+  assert.equal(isValidOpaqueQrToken(token), true);
+  assert.equal(qrTokenMatchesStorageHash(token, hashQrTokenForStorage(token)), true);
+  assert.equal(qrTokenMatchesStorageHash(token, `sha256:${"0".repeat(64)}`), false);
+  for (const invalid of [token.slice(1), `${token}A`, `${token.slice(0, -1)}=`, "é".repeat(32)]) {
+    assert.equal(isValidOpaqueQrToken(invalid), false);
+  }
 });
 
 test("exposes encryption-failed for invalid encryption inputs", async () => {

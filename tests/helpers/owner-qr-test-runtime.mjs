@@ -216,6 +216,7 @@ export function createQrSupabaseFixture(options = {}) {
       target_path: row.target_path ?? "/admin",
       style_json: row.style_json ?? {},
       status: row.status ?? "active",
+      config_version: row.config_version ?? 1,
       is_canonical: row.is_canonical ?? false,
       token_ciphertext: row.token_ciphertext ?? null,
       token_nonce: row.token_nonce ?? null,
@@ -320,6 +321,7 @@ export function createQrSupabaseFixture(options = {}) {
       token_key_version: params.p_token_key_version,
       style_json: structuredClone(params.p_style_json ?? {}),
       status: "active",
+      config_version: 1,
       is_canonical: true,
       scan_count: 0,
       last_scanned_at: null,
@@ -501,7 +503,14 @@ export function createQrSupabaseFixture(options = {}) {
 
     async execute() {
       if (this.table === "restaurants") {
-        return { data: null, error: null };
+        const id = this.filters.find((filter) => filter.column === "id")?.value;
+        const restaurant = id
+          ? { id, slug: options.restaurantSlug ?? "restaurant-fixture" }
+          : null;
+        return {
+          data: restaurant ? [projectRow(restaurant, this.columns)] : [],
+          error: null
+        };
       }
 
       if (this.operation.kind === "insert") {

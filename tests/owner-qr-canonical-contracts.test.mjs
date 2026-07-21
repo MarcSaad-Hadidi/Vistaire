@@ -477,7 +477,8 @@ test("[CONSUMER] PATCH style preserves the recovered URL and canonical vault fie
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          style: { ...style, foregroundColor: "#333333" }
+          style: { ...style, foregroundColor: "#333333" },
+          expectedConfigVersion: created.record.configVersion
         })
       }
     ),
@@ -491,7 +492,7 @@ test("[CONSUMER] PATCH style preserves the recovered URL and canonical vault fie
   assert.equal(payload.record.redirectUrl, created.record.redirectUrl);
   assert.equal("token" in payload, false);
   for (const [field, value] of Object.entries(before)) {
-    if (field === "style_json" || field === "updated_at") continue;
+    if (field === "style_json" || field === "updated_at" || field === "config_version") continue;
     assert.deepEqual(after[field], value, field);
   }
   assert.equal(after.style_json.foregroundColor, "#333333");
@@ -528,7 +529,12 @@ test("[CONSUMER] rotate route requires confirmation and preserves the old active
     new Request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmed: true })
+      body: JSON.stringify({
+        confirmed: true,
+        idempotencyKey: "11111111-1111-4111-8111-111111111111",
+        disposition: "keep-active",
+        expectedConfigVersion: created.record.configVersion
+      })
     }),
     { params: Promise.resolve({ id: created.record.id }) }
   );
@@ -608,7 +614,12 @@ test("rotation response and new canonical use the style reread under the databas
   fixture.install();
   const { rotateOwnerQrCode } = await loadQrStore();
 
-  const rotated = await rotateOwnerQrCode(created.record.id, { confirmed: true });
+  const rotated = await rotateOwnerQrCode(created.record.id, {
+    confirmed: true,
+    idempotencyKey: "22222222-2222-4222-8222-222222222222",
+    disposition: "keep-active",
+    expectedConfigVersion: created.record.configVersion
+  });
 
   assert.equal(rotated.ok, true);
   assert.equal(rotated.previous.label, "Label concurrent");
@@ -627,7 +638,7 @@ test("PATCH and rotation expose an absent canonical as 404, not a dependency out
     new Request("https://fixture.invalid/api/owner/qr-codes/missing", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style })
+      body: JSON.stringify({ style, expectedConfigVersion: 1 })
     }),
     { params: Promise.resolve({ id: "missing" }) }
   );
@@ -635,11 +646,55 @@ test("PATCH and rotation expose an absent canonical as 404, not a dependency out
     new Request("https://fixture.invalid/api/owner/qr-codes/missing/rotate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmed: true })
+      body: JSON.stringify({
+        confirmed: true,
+        idempotencyKey: "33333333-3333-4333-8333-333333333333",
+        disposition: "keep-active",
+        expectedConfigVersion: 1
+      })
     }),
     { params: Promise.resolve({ id: "missing" }) }
   );
 
   assert.equal(patchResponse.status, 404);
   assert.equal(rotateResponse.status, 404);
+});
+
+test("rotation refuses an integrity-invalid canonical before calling the RPC", async () => {
+  const fixture = createQrSupabaseFixture();
+  const created = await createThroughCurrentStore(fixture);
+  assert.equal(created.ok, true);
+  const row = fixture.rows.find((candidateRow) => candidateRow.id === created.record.id);
+  row.token_hash = `sha256:${"0".repeat(64)}`;
+  fixture.install();
+  const { rotateOwnerQrCode } = await loadQrStore();
+
+  const rotated = await rotateOwnerQrCode(created.record.id, {
+    confirmed: true,
+    idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    disposition: "keep-active",
+    expectedConfigVersion: created.record.configVersion
+  });
+
+  assert.equal(rotated.ok, false);
+  assert.equal(rotated.code, "canonical-unrecoverable");
+  assert.equal(fixture.rpcCallCount("owner_rotate_canonical_qr"), 0);
+});
+
+test("QR resolution fails closed when the metadata RPC is unavailable", async () => {
+  const fixture = createQrSupabaseFixture({ metadataUnavailable: true });
+  const token = "A".repeat(32);
+  fixture.seedQr({ token, target_kind: "admin", target_path: "/admin" });
+  fixture.install();
+  const { resolveQrToken } = await loadQrStore();
+
+  const resolved = await resolveQrToken(token);
+
+  assert.deepEqual(resolved, { ok: false });
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan_metadata"), 1);
+  assert.equal(fixture.rpcCallCount("resolve_qr_code_scan"), 0);
+  assert.equal(
+    fixture.calls.some((call) => call.method === "from" && call.table === "qr_codes"),
+    false
+  );
 });

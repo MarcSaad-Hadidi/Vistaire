@@ -8,63 +8,95 @@ import { rotateOwnerQrCode } from "@/lib/owner/qrStore";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const NO_STORE_HEADERS = { "Cache-Control": "private, no-store, max-age=0" };
+
+function noStore(response: Response): Response {
+  response.headers.set("Cache-Control", NO_STORE_HEADERS["Cache-Control"]);
+  return response;
+}
+
+function qrJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const owner = await requireVistaireOwnerApi();
-  if (!owner.ok) return owner.response;
+  if (!owner.ok) return noStore(owner.response);
 
   const originError = requireSameOriginOwnerMutation(request);
-  if (originError) return originError;
+  if (originError) return noStore(originError);
 
   const { id } = await params;
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "JSON invalide." }, { status: 400 });
+    return qrJson({ ok: false, code: "invalid-json", error: "JSON invalide." }, 400);
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json({ ok: false, error: "Formulaire invalide." }, { status: 400 });
+    return qrJson({ ok: false, code: "invalid-input", error: "Formulaire invalide." }, 400);
   }
   const candidate = body as Record<string, unknown>;
   if (
     !id ||
     candidate.confirmed !== true ||
-    Object.keys(candidate).some((key) => key !== "confirmed")
+    typeof candidate.idempotencyKey !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      candidate.idempotencyKey
+    ) ||
+    !["keep-active", "pause", "revoke"].includes(
+      String(candidate.disposition)
+    ) ||
+    !Number.isSafeInteger(candidate.expectedConfigVersion) ||
+    Number(candidate.expectedConfigVersion) < 1 ||
+    Object.keys(candidate).some(
+      (key) =>
+        !["confirmed", "idempotencyKey", "disposition", "expectedConfigVersion"].includes(key)
+    )
   ) {
-    return NextResponse.json(
-      { ok: false, error: "Confirmation explicite de rotation requise." },
-      { status: 400 }
+    return qrJson(
+      { ok: false, code: "invalid-input", error: "Confirmation, cle UUID, disposition et version sont requises." },
+      400
     );
   }
 
-  const rotated = await rotateOwnerQrCode(id, { confirmed: true });
+  const rotated = await rotateOwnerQrCode(id, {
+    confirmed: true,
+    idempotencyKey: candidate.idempotencyKey,
+    disposition: candidate.disposition as "keep-active" | "pause" | "revoke",
+    expectedConfigVersion: Number(candidate.expectedConfigVersion)
+  });
   if (!rotated.ok) {
     const status =
       "code" in rotated && rotated.code === "canonical-unrecoverable"
         ? 409
+        : "code" in rotated &&
+            (rotated.code === "config-version-conflict" ||
+              rotated.code === "idempotency-conflict")
+          ? 409
         : "code" in rotated && rotated.code === "not-found"
           ? 404
           : "code" in rotated && rotated.code === "invalid-input"
             ? 400
             : 503;
-    return NextResponse.json(
+    return qrJson(
       {
         ok: false,
         error: rotated.error,
         ...("code" in rotated ? { code: rotated.code } : {})
       },
-      { status }
+      status
     );
   }
-  return NextResponse.json(
+  return qrJson(
     {
       ok: true,
       previous: rotated.previous,
       current: rotated.current
     },
-    { status: 201 }
+    201
   );
 }
