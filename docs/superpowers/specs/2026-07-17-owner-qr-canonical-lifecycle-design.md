@@ -158,4 +158,3 @@ paths remain rejected.
   controls without weakening the approved invariants, owns any minimal UI
   integration separately, performs reviews and full validation, and does not
   merge, deploy, or apply migrations.
-

@@ -433,4 +433,3 @@ git diff --check
 
 Verify no secret, `.env`, heavy asset, production data change, merge, deploy, or
 migration application occurred.
-
