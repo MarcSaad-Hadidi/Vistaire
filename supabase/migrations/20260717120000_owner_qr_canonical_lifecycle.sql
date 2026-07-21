@@ -1133,7 +1133,7 @@ begin
   end if;
 
   update public.qr_codes as qr
-  set status = v_disposition,
+  set status = case when v_disposition = 'archive' then 'archived' else 'revoked' end,
       is_canonical = false,
       revoked_at = case when v_disposition = 'revoke' then pg_catalog.now() else null end,
       config_version = qr.config_version + 1

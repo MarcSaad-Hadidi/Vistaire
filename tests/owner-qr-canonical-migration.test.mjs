@@ -388,6 +388,10 @@ test("archive replay reconstructs a non-canonical immutable clear result", () =>
     replayBranch,
     /select qr\.\* into v_current from public\.qr_codes/
   );
+  assert.match(
+    normalized,
+    /set status = case when v_disposition = 'archive' then 'archived' else 'revoked' end,/
+  );
 });
 
 test("canonical-only rotation preserves updated_at despite the legacy trigger", () => {
