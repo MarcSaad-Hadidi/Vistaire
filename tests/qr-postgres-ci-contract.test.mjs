@@ -19,19 +19,32 @@ test("QR package scripts expose separate Node, PostgreSQL, functional, and aggre
 
 test("the PostgreSQL runner applies the production QR migrations with real psql", async () => {
   const runner = await source("scripts/run-qr-postgres-tests.mjs");
-  for (const migration of [
-    "0001_qr_codes.sql",
-    "0002_qr_resolve_scan_rpc.sql",
-    "0007_restaurants.sql",
-    "20260709180000_admin_qr_access.sql",
-    "20260717120000_owner_qr_canonical_lifecycle.sql"
-  ]) {
-    assert.match(runner, new RegExp(migration.replaceAll(".", "\\.")));
-  }
+  assert.match(runner, /20260717120000_owner_qr_canonical_lifecycle\.sql/);
   assert.match(runner, /spawnSync\("psql"/);
-  assert.match(runner, /Promise\.all/);
   assert.match(runner, /VISTAIRE_QR_POSTGRES_TEST/);
   assert.match(runner, /server_version_num/);
+  assert.match(runner, /tests\/postgres\/qr-lifecycle\/run\.sql/);
+  assert.ok(
+    runner.indexOf("tests/postgres/qr-lifecycle/run.sql") <
+      runner.lastIndexOf("20260717120000_owner_qr_canonical_lifecycle.sql"),
+    "the blocking SQL suite must run before the explicit rerun of the production migration"
+  );
+});
+
+test("the retained PostgreSQL fixture uses the versioned rotation RPC", async () => {
+  const fixture = await source("tests/fixtures/qr-postgres-assertions.sql");
+  const modernSignature =
+    "owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean,text,uuid,integer)";
+
+  assert.match(fixture, new RegExp(modernSignature.replace(/[()]/g, "\\$&")));
+  assert.doesNotMatch(
+    fixture,
+    /owner_rotate_canonical_qr\(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean\)/
+  );
+  assert.match(
+    fixture,
+    /true,\s*'keep-active',\s*'42000000-0000-4000-8000-000000000002',\s*1/
+  );
 });
 
 test("App CI supplies PostgreSQL 17 and runs every blocking QR gate", async () => {

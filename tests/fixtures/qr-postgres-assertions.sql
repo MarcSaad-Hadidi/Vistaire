@@ -29,7 +29,8 @@ select qr_test.assert(
     where (
       to_jsonb(qr) - array[
         'purpose_key', 'is_canonical', 'token_ciphertext', 'token_nonce',
-        'token_key_version', 'supersedes_qr_code_id', 'rotated_at'
+        'token_key_version', 'supersedes_qr_code_id', 'rotated_at',
+        'revoked_at', 'config_version'
       ]
     ) is distinct from before.payload
   ),
@@ -48,6 +49,8 @@ select qr_test.assert(
         or token_key_version is not null
         or supersedes_qr_code_id is not null
         or rotated_at is not null
+        or revoked_at is not null
+        or config_version <> 1
       )
   ),
   'new canonical columns must use non-destructive historical defaults'
@@ -83,7 +86,7 @@ select qr_test.assert(
   )
   and not has_function_privilege(
     'authenticated',
-    'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean)',
+    'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean,text,uuid,integer)',
     'EXECUTE'
   )
   and not has_function_privilege(
@@ -98,7 +101,7 @@ select qr_test.assert(
   )
   and has_function_privilege(
     'service_role',
-    'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean)',
+    'public.owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,text,jsonb,boolean,text,uuid,integer)',
     'EXECUTE'
   )
   and has_function_privilege(
@@ -224,7 +227,7 @@ begin
       'admin', 'rotation', 'Ignored', '/admin',
       'rotation-new-hash', 'new...hash', 'cipher-new', 'nonce-new', 'v1',
       '{"foregroundColor":"#000000"}'::jsonb,
-      false
+      false, 'keep-active', '42000000-0000-4000-8000-000000000001', 1
     );
     raise exception 'rotation without confirmation unexpectedly succeeded';
   exception when invalid_parameter_value then
@@ -244,7 +247,7 @@ begin
     'admin', 'rotation', 'Ignored', '/admin',
     'rotation-new-hash', 'new...hash', 'cipher-new', 'nonce-new', 'v1',
     '{"foregroundColor":"#000000"}'::jsonb,
-    true
+    true, 'keep-active', '42000000-0000-4000-8000-000000000002', 1
   )
   where result_status = 'canonical';
 
@@ -255,8 +258,8 @@ begin
 
   perform qr_test.assert(v_rotated.id = '40000000-0000-4000-8000-000000000003', 'rotation must install the requested id');
   perform qr_test.assert(
-    (v_previous_after - array['is_canonical', 'rotated_at'])
-      = (v_previous_before - array['is_canonical', 'rotated_at']),
+    (v_previous_after - array['is_canonical', 'rotated_at', 'config_version'])
+      = (v_previous_before - array['is_canonical', 'rotated_at', 'config_version']),
     'rotation must preserve every historical field except lifecycle markers'
   );
   perform qr_test.assert(

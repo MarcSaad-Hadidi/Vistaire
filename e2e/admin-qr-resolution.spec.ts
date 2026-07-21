@@ -12,7 +12,7 @@ async function scanCount(token: string) {
   return state[storageHash(token)] ?? 0;
 }
 
-test("active legacy admin QR creates a fresh scoped session and redirects to admin", async ({ browser }) => {
+test("active persisted admin QR creates a fresh scoped session and redirects to admin", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   const consoleErrors: string[] = [];
