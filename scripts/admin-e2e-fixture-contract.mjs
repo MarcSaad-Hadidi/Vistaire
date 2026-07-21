@@ -141,7 +141,7 @@ function validateVercelApiInputs(env) {
     /^(?:main|master|production)$/i.test(gitBranch)
   ) {
     fail(
-      "VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH must identify a non-production branch."
+      "VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH must be non-production."
     );
   }
   if (!/^[a-f0-9]{40}$/.test(commitSha)) {

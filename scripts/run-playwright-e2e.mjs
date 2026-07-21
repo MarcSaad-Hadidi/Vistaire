@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import http from "node:http";
 
-const DEFAULT_BASE_URL = "http://localhost:3000";
+const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
 const OWNER_E2E_TOKEN = skipWebServer
   ? process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??

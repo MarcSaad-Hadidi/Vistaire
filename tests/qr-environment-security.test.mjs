@@ -478,7 +478,7 @@ test("secret-bearing admin E2E disables retries and all Playwright artifacts", a
 
   assert.match(config, /VISTAIRE_ADMIN_E2E_SENSITIVE/);
   assert.match(config, /VISTAIRE_QR_E2E_SENSITIVE/);
-  assert.match(config, /const sensitiveE2E = sensitiveAdminE2E \|\| sensitiveQrE2E/);
+  assert.match(config, /const sensitiveE2E = adminE2eSensitive \|\| sensitiveQrE2E/);
   assert.match(config, /retries:\s*sensitiveE2E\s*\?\s*0\s*:/);
   assert.match(config, /screenshot:\s*sensitiveE2E\s*\?\s*"off"\s*:/);
   assert.match(config, /trace:\s*sensitiveE2E\s*\?\s*"off"\s*:/);
@@ -491,15 +491,13 @@ test("secret-bearing admin E2E disables retries and all Playwright artifacts", a
     "VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN",
     "VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN"
   ]) {
-    assert.match(
-      workflow,
-      new RegExp(`::add-mask::\\$${tokenName}`)
-    );
+    assert.match(workflow, new RegExp(`\\b${tokenName}\\b`));
   }
+  assert.match(workflow, /echo "::add-mask::\$secret_value"/);
   assert.ok(
-    workflow.indexOf("::add-mask::") <
+    workflow.indexOf('echo "::add-mask::$secret_value"') <
       workflow.indexOf(
-        "npx playwright test e2e/admin-restaurant-dashboard.spec.ts"
+        "npx --no-install playwright test e2e/admin-restaurant-dashboard.spec.ts"
       ),
     "QR values must be masked before Playwright can log a /q/<token> URL"
   );

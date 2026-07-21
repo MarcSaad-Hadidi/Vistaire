@@ -41,6 +41,7 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
   assert.match(runner, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.doesNotMatch(runner, /vistaire-owner-e2e-local-token/);
+  assert.match(runner, /DEFAULT_BASE_URL = "http:\/\/127\.0\.0\.1:3000"/);
   assert.match(runner, /"-H",\s*"127\.0\.0\.1"/);
 
   assert.match(config, /import \{ randomBytes \} from "node:crypto"/);
