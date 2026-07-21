@@ -235,14 +235,14 @@ test("owner QR page supports menu/admin targets, logo modes, save states, and mo
   await logoSelect.selectOption("imageUrl");
   await page.getByLabel("URL du logo").fill(`${baseURL}/icon.svg`);
   await expect(page.getByText("SVG reste recommande")).toBeVisible();
-  await page.getByRole("button", { name: "Créer le QR" }).click();
+  await page.getByRole("button", { name: "Créer le QR menu" }).click();
   await expect(page.getByRole("status")).toContainText(/actif|enregistr/i);
 
   await page.getByRole("button", { name: /QR dashboard restaurant/i }).click();
   await expect(page.getByText("Interne restaurant").first()).toBeVisible();
   await expect(page.getByText("/admin", { exact: true }).first()).toBeVisible();
   await page.locator("select").nth(1).selectOption("none");
-  await page.getByRole("button", { name: "Créer le QR" }).click();
+  await page.getByRole("button", { name: "Créer le QR admin" }).click();
   await expect(page.getByRole("status")).toContainText(
     /admin|destination \/admin/i
   );
@@ -390,14 +390,14 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
       expectExactKeys(body, [
         "confirmed",
         "idempotencyKey",
-        "disposition",
+        "previousDisposition",
         "expectedConfigVersion"
       ]);
       expect(body.confirmed).toBe(true);
       expect(body.idempotencyKey).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       );
-      expect(body.disposition).toBe("pause");
+      expect(body.previousDisposition).toBe("pause");
       expect(body.expectedConfigVersion).toBe(current.configVersion);
       rotationBodies.push(body);
       const previous = { ...current, status: "paused" as const, isCanonical: false };
@@ -442,10 +442,10 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   await expect.poll(() => inventoryRequests).toBeGreaterThan(inventoryBeforeReload);
   expect(patchRequests).toBe(1);
 
-  await page.getByRole("button", { name: "Mettre en pause" }).click();
-  await expect(page.getByRole("button", { name: "Reprendre" })).toBeVisible();
-  await page.getByRole("button", { name: "Reprendre" }).click();
-  await expect(page.getByRole("button", { name: "Mettre en pause" })).toBeVisible();
+  await page.getByRole("button", { name: "Suspendre temporairement" }).click();
+  await expect(page.getByRole("button", { name: "Réactiver" })).toBeVisible();
+  await page.getByRole("button", { name: "Réactiver" }).click();
+  await expect(page.getByRole("button", { name: "Suspendre temporairement" })).toBeVisible();
   expect(statusActions).toEqual(["pause", "resume"]);
 
   await page.getByRole("button", { name: "Archiver" }).click();
@@ -458,7 +458,7 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
 
   current = { ...current, status: "active" };
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Révoquer" }).click();
+  await page.getByRole("button", { name: "Révoquer définitivement" }).click();
   const revokeDialog = page.getByRole("dialog");
   await expect(revokeDialog).toHaveAttribute("aria-modal", "true");
   await revokeDialog.getByRole("button", { name: /Confirmer/i }).click();
@@ -469,7 +469,7 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   current = { ...current, status: "active" };
   await page.reload({ waitUntil: "networkidle" });
 
-  await page.getByRole("button", { name: "Faire pivoter le QR" }).click();
+  await page.getByRole("button", { name: "Régénérer le lien sécurisé" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAttribute("aria-modal", "true");
@@ -488,9 +488,9 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   ).toBe(true);
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("button", { name: "Faire pivoter le QR" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Régénérer le lien sécurisé" })).toBeFocused();
 
-  await page.getByRole("button", { name: "Faire pivoter le QR" }).click();
+  await page.getByRole("button", { name: "Régénérer le lien sécurisé" }).click();
   await dialog.getByLabel(/pause/i).check();
   await dialog.getByRole("button", { name: /Confirmer/i }).click();
   await expect(dialog).toBeHidden();
@@ -504,7 +504,7 @@ test("owner QR lifecycle enforces versioned writes, safe rotation, conflict relo
   await expect.poll(() => inventoryRequests).toBeGreaterThan(inventoryBeforeHistoryReload);
   await expect(page.getByText("En pause", { exact: true }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
-  await page.getByRole("button", { name: "Faire pivoter le QR" }).click();
+  await page.getByRole("button", { name: "Régénérer le lien sécurisé" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.keyboard.press("Escape");
@@ -558,6 +558,20 @@ test("owner QR unrecoverable state never renders or exports a fabricated QR URL"
   await expect(page.getByRole("button", { name: "Copier URL QR" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Télécharger SVG" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Télécharger PNG" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Créer une nouvelle version sécurisée" })
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Créer une nouvelle version sécurisée" })
+    .click();
+  const recoveryDialog = page.getByRole("dialog");
+  await expect(recoveryDialog).toHaveAttribute("aria-modal", "true");
+  await expect(recoveryDialog).toContainText("Disposition de l’ancien QR");
+  await page.keyboard.press("Escape");
+  await expect(recoveryDialog).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Créer une nouvelle version sécurisée" })
+  ).toBeFocused();
   await expect(page.locator("[aria-label^='QR pour'] svg")).toHaveCount(0);
   await expect(page.getByText(/\/q\/<token>|À générer après sauvegarde/)).toHaveCount(0);
 });

@@ -789,7 +789,7 @@ export function OwnerQrCustomizer({
           body: JSON.stringify({
             confirmed: true,
             idempotencyKey: crypto.randomUUID(),
-            disposition: previousDisposition,
+            previousDisposition,
             expectedConfigVersion: configVersion
           })
         }
@@ -851,12 +851,18 @@ export function OwnerQrCustomizer({
     }
   }
 
+  const createActionLabel =
+    targetKind === "menu" ? "Créer le QR menu" : "Créer le QR admin";
+  const rotationActionLabel =
+    machineState === "unrecoverable"
+      ? "Créer une nouvelle version sécurisée"
+      : "Régénérer le lien sécurisé";
   const dialogTitle =
     dialogAction === "rotate"
-      ? "Faire pivoter le QR"
+      ? rotationActionLabel
       : dialogAction === "archive"
         ? "Archiver le QR"
-        : "Révoquer le QR";
+        : "Révoquer définitivement";
   const dialogDescription =
     dialogAction === "rotate"
       ? "Un nouveau QR canonique sera créé. Choisissez explicitement le sort de l’ancien QR."
@@ -1073,7 +1079,7 @@ export function OwnerQrCustomizer({
               disabled={machineState !== "absent"}
               aria-describedby={machineState !== "absent" ? statusReasonId : undefined}
             >
-              {machineState === "creating" ? "Création…" : "Créer le QR"}
+              {machineState === "creating" ? "Création…" : createActionLabel}
             </button>
           ) : (
             <button
@@ -1105,7 +1111,7 @@ export function OwnerQrCustomizer({
                 onClick={(event) => openDialog("rotate", event.currentTarget)}
                 aria-describedby={statusReasonId}
               >
-                Faire pivoter le QR
+                {rotationActionLabel}
               </button>
             ) : null}
             {canonicalRecord.status === "active" ? (
@@ -1116,7 +1122,7 @@ export function OwnerQrCustomizer({
                 onClick={() => void mutateStatus("pause")}
                 aria-describedby={statusReasonId}
               >
-                Mettre en pause
+                Suspendre temporairement
               </button>
             ) : null}
             {canonicalRecord.status === "paused" ? (
@@ -1127,7 +1133,7 @@ export function OwnerQrCustomizer({
                 onClick={() => void mutateStatus("resume")}
                 aria-describedby={statusReasonId}
               >
-                Reprendre
+                Réactiver
               </button>
             ) : null}
             {canonicalRecord.status === "active" || canonicalRecord.status === "paused" ? (
@@ -1148,7 +1154,7 @@ export function OwnerQrCustomizer({
                   onClick={(event) => openDialog("revoke", event.currentTarget)}
                   aria-describedby={statusReasonId}
                 >
-                  Révoquer
+                  Révoquer définitivement
                 </button>
               </>
             ) : null}
