@@ -2,7 +2,7 @@
 
 Le job **Admin restaurant E2E (manual controlled preview)** est une preuve live manuelle et fail-closed. Il est déclenché uniquement avec `workflow_dispatch` depuis le workflow `Admin restaurant E2E`, dans l’environnement GitHub `admin-e2e`. Il ne s’exécute pas automatiquement sur les pull requests et ne bloque donc pas le CI normal.
 
-Le job doit utiliser une preview HTTPS contrôlée de Vistaire reliée à un projet Supabase/Vercel non client. Il ne doit jamais utiliser Trouvable, `www.vistaire.ca`, `vistaire.ca` ou des données de production. Le script `node scripts/admin-e2e-fixture-contract.mjs` valide ce contrat sans afficher les tokens et peut être relancé sans effet de bord.
+Le job doit utiliser une preview HTTPS contrôlée de Vistaire reliée à un projet Supabase/Vercel non client. Il ne doit jamais utiliser Trouvable, `www.vistaire.ca`, `vistaire.ca` ou des données de production. Le script `node scripts/admin-e2e-trusted-preflight.mjs` vérifie les identités authentifiées Vercel sans afficher les tokens et peut être relancé sans effet de bord.
 
 ## Fixtures obligatoires
 
@@ -23,14 +23,14 @@ Variable obligatoire :
 
 - `VISTAIRE_ADMIN_E2E_ENABLED=true`
 
-Variables non secrètes obligatoires :
+Variables non secrètes obligatoires dans l’environnement :
 
-- `VISTAIRE_ADMIN_E2E_BASE_URL` : URL HTTPS de la preview contrôlée, jamais l’origine de production.
 - `VISTAIRE_ADMIN_E2E_RESTAURANT_NAME` : `Vistaire E2E Restaurant A`.
 - `VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME` : `Vistaire E2E Restaurant B`.
 
 Secrets obligatoires :
 
+- `VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN` : jeton de lecture limité aux métadonnées du projet et des déploiements attendus.
 - `VISTAIRE_ADMIN_E2E_QR_TOKEN` : QR admin actif A.
 - `VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN` : QR admin actif B.
 - `VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN` : QR admin suspendu.
@@ -38,15 +38,30 @@ Secrets obligatoires :
 
 Le preflight exige quatre tokens non vides, distincts et opaques ; il rejette les marqueurs `trouvable`, `demo` et `production`. Il vérifie aussi que les noms A/B sont exactement ceux des fixtures non clientes et que l’URL ne cible pas un domaine Vistaire de production.
 
+Le déclenchement demande huit inputs non secrets : `expected_preview_host`, `expected_vercel_project_id`, `expected_team_id`, `expected_repository`, `expected_branch`, `expected_commit_sha`, `expected_supabase_project_ref` et `base_url`. Les secrets ne doivent jamais être copiés dans ces inputs. Le token API Vercel reste limité au preflight trusted. Les trois QR live sont contrôlés par le preflight puis transmis uniquement à Playwright ; le QR fallback est contrôlé par le preflight mais n’est jamais transmis au navigateur.
+
+L’API Vercel peut représenter un déploiement de branche non-Production par `target: "preview"` ou par `target: null`. Le preflight accepte uniquement ces deux formes comme Preview et refuse toute cible `production` ou tout alias Production.
+
+Avant toute première exécution, l’environnement `admin-e2e` doit satisfaire toutes les conditions suivantes :
+
+- au moins un **required reviewer** mainteneur ;
+- uniquement des branches autorisées explicitement, limitées à `main`, sans wildcard ;
+- politique de bypass administrateur documentée et, de préférence, désactivée ;
+- secrets exclusivement issus des fixtures isolées, jamais de token client ou Production ;
+- variables et inputs exacts relus par l’approbateur ;
+- rotation puis suppression des fixtures et secrets après la campagne.
+
+Ne pas lancer le workflow et ne pas provisionner ses secrets tant que ces protections ne sont pas en place.
+
 ## Lancer la preuve contrôlée
 
 Dans GitHub, ouvrir **Actions → Admin restaurant E2E → Run workflow**, sélectionner `main`, puis lancer le workflow. Le workflow refuse toute autre référence avant le checkout et vérifie toujours `main` au checkout. Ce garde-fou réduit le risque d’exécuter du code de pull request avec les secrets QR, mais la protection complète dépend aussi de la configuration GitHub de l’environnement : `admin-e2e` doit restreindre les branches/tags de déploiement à `main` et exiger l’approbation d’un mainteneur. Ces règles sont externes au dépôt et ne sont pas modifiées par ce PR.
 
-La vérification effectuée pour ce PR montre actuellement `protection_rules: []` et aucune `deployment_branch_policy` sur `admin-e2e`. Tant que l’administrateur du dépôt n’a pas ajouté ces protections, il ne faut pas provisionner ni utiliser de secrets QR réels. Le preflight valide ensuite l’environnement avant d’installer Chromium ou d’exécuter Playwright ; une variable ou un secret manquant, vide ou incohérent fait échouer le job explicitement. Il n’existe donc pas de réussite artificielle lorsque l’infrastructure externe n’est pas configurée.
+La vérification read-only effectuée le 21 juillet 2026 montre actuellement `protection_rules: []`, aucune `deployment_branch_policy`, `can_admins_bypass=true`, zéro secret et zéro variable sur `admin-e2e`. Tant que l’administrateur du dépôt n’a pas ajouté ces protections, il ne faut pas provisionner ni utiliser de secrets QR réels. Le preflight valide ensuite l’environnement avant d’installer Chromium ou d’exécuter Playwright ; une variable ou un secret manquant, vide ou incohérent fait échouer le job explicitement. Il n’existe donc pas de réussite artificielle lorsque l’infrastructure externe n’est pas configurée.
 
-Le workflow manuel peut aussi être lancé avec GitHub CLI :
+Après merge sur `main` et configuration humaine des protections, le workflow manuel peut aussi être préparé avec GitHub CLI en fournissant tous les inputs :
 
-`gh workflow run admin-restaurant-e2e.yml --ref main`
+`gh workflow run admin-restaurant-e2e.yml --ref main -f expected_preview_host=<preview>.vercel.app -f expected_vercel_project_id=prj_... -f expected_team_id=team_... -f expected_repository=MarcSaad-Hadidi/Vistaire -f expected_branch=<branche> -f expected_commit_sha=<sha-40> -f expected_supabase_project_ref=<ref-preview> -f base_url=https://<preview>.vercel.app`
 
 Le résultat `success` du workflow manuel est une preuve séparée de la CI automatique. La CI App conserve `npm ci`, lint, typecheck, tests SEO, `npm run test:admin`, build et smoke SEO ; ces contrôles restent les checks bloquants des pull requests. Le workflow live manuel est donc explicitement non bloquant pour les pull requests normales. Le bouton GitHub n’est disponible que lorsque ce workflow est présent sur la branche par défaut ; sa présence dans ce PR ne crée aucun check automatique.
 
@@ -67,4 +82,4 @@ Le spec vérifie :
 - absence de requêtes `.glb` et `.usdz` pendant ces parcours ;
 - absence de débordement horizontal sur les largeurs mobiles 390 et 430 px.
 
-Une exécution live n’est une preuve que si le job est `success`, sans test critique ignoré, et que la preview, les fixtures A/B, le QR suspendu, le toggle/restauration et le réseau sont visibles dans les logs/artifacts du run. Sans ces preuves, ce job ne constitue pas une preuve de validation live. Tant que l’environnement `admin-e2e`, la preview contrôlée et les fixtures dédiées ne sont pas configurés, le workflow manuel échoue au preflight ; cette absence ne bloque pas les pull requests normales, mais elle interdit de déclarer la validation live réussie.
+Une exécution live n’est une preuve que si le job est `success`, sans test critique ignoré, et que le résumé sûr confirme READY, Preview et les correspondances projet/repository/branche/SHA/Supabase. Aucun artefact contenant une URL QR n’est conservé. Sans ces conditions, le run ne constitue pas une preuve de validation live. Tant que l’environnement `admin-e2e`, la preview contrôlée et les fixtures dédiées ne sont pas configurés, le workflow manuel échoue au preflight ; cette absence ne bloque pas les pull requests normales, mais elle interdit de déclarer la validation live réussie.
