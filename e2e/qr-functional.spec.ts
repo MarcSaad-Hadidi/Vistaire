@@ -6,6 +6,8 @@ import {
 
 const OWNER_E2E_TOKEN = "qr-functional-owner-bypass";
 
+test.setTimeout(120_000);
+
 test.use({
   screenshot: "off",
   trace: "off",
@@ -15,6 +17,7 @@ test.use({
 let environment: Awaited<ReturnType<typeof startQrFunctionalEnvironment>>;
 
 test.beforeAll(async () => {
+  test.setTimeout(120_000);
   environment = await startQrFunctionalEnvironment();
 });
 
@@ -278,13 +281,16 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
   );
   await followRenderedQrWithoutExportingToken(page);
   await expect
-    .poll(async () => {
-      try {
-        return await page.evaluate(() => window.location.pathname === "/admin");
-      } catch {
-        return false;
-      }
-    })
+    .poll(
+      async () => {
+        try {
+          return await page.evaluate(() => window.location.pathname === "/admin");
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 30_000 }
+    )
     .toBe(true);
 
   const safeCookies = (await context.cookies()).map(
@@ -302,14 +308,15 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
   await expect
     .poll(() =>
       page.evaluate(() => ({
-        authorized: document.body.innerText.includes("Restaurant Fixture QR"),
-        accessRequired: document.body.innerText.includes(
+        authorized: (document.body?.innerText ?? "").includes("Restaurant Fixture QR"),
+        accessRequired: (document.body?.innerText ?? "").includes(
           "Accès dashboard restaurant requis"
         ),
-        dashboardUnavailable: document.body.innerText.includes(
+        dashboardUnavailable: (document.body?.innerText ?? "").includes(
           "Dashboard indisponible"
         )
-      }))
+      })),
+      { timeout: 30_000 }
     )
     .toEqual({
       authorized: true,

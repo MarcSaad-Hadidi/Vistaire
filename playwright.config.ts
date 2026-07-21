@@ -6,8 +6,11 @@ const startCommand = "node ./node_modules/next/dist/bin/next start";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 const sensitiveAdminE2E = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
+const sensitiveQrE2E = process.env.VISTAIRE_QR_E2E_SENSITIVE === "1";
+const sensitiveE2E = sensitiveAdminE2E || sensitiveQrE2E;
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
 const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
+const qrFunctionalFixture = process.env.VISTAIRE_QR_FUNCTIONAL === "1";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const qrFixtureOrigin = "http://127.0.0.1:55432";
@@ -24,7 +27,8 @@ const fixtureOnlyTestIgnore = [
         ? []
         : ["**/admin-performance.spec.ts"])
     ]),
-  ...(qrFixture ? [] : ["**/admin-qr-resolution.spec.ts"])
+  ...(qrFixture ? [] : ["**/admin-qr-resolution.spec.ts"]),
+  ...(qrFunctionalFixture ? [] : ["**/qr-functional.spec.ts"])
 ];
 
 export default defineConfig({
@@ -32,16 +36,16 @@ export default defineConfig({
   testIgnore: fixtureOnlyTestIgnore,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: sensitiveAdminE2E ? 0 : process.env.CI ? 1 : 0,
-  preserveOutput: sensitiveAdminE2E ? "never" : "failures-only",
+  retries: sensitiveE2E ? 0 : process.env.CI ? 1 : 0,
+  preserveOutput: sensitiveE2E ? "never" : "failures-only",
   workers: 1,
   reporter: "list",
   use: {
     baseURL,
     locale: "fr-CA",
     timezoneId: "America/Toronto",
-    screenshot: sensitiveAdminE2E ? "off" : "only-on-failure",
-    trace: sensitiveAdminE2E ? "off" : "on-first-retry",
+    screenshot: sensitiveE2E ? "off" : "only-on-failure",
+    trace: sensitiveE2E ? "off" : "on-first-retry",
     video: "off"
   },
   projects: [

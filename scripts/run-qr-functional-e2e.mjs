@@ -13,14 +13,15 @@ await cleanGeneratedOutput();
 
 const child = spawn(
   process.execPath,
-  ["./node_modules/@playwright/test/cli.js", "test", "e2e/admin-qr-resolution.spec.ts"],
+  ["./node_modules/@playwright/test/cli.js", "test", "e2e/qr-functional.spec.ts"],
   {
     stdio: "inherit",
     windowsHide: true,
     env: {
       ...process.env,
-      VISTAIRE_QR_FIXTURE: "1",
-      VISTAIRE_QR_E2E_SENSITIVE: "1"
+      PLAYWRIGHT_SKIP_WEB_SERVER: "1",
+      VISTAIRE_QR_E2E_SENSITIVE: "1",
+      VISTAIRE_QR_FUNCTIONAL: "1"
     }
   }
 );

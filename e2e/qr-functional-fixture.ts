@@ -425,7 +425,7 @@ export async function startQrFunctionalEnvironment() {
     process.execPath,
     [
       "./node_modules/next/dist/bin/next",
-      "start",
+      "dev",
       "-H",
       FIXTURE_HOST,
       "-p",

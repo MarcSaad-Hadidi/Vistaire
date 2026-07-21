@@ -17,6 +17,20 @@ jobs:
   app-ci:
     name: App CI
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: vistaire_qr_ci
+          POSTGRES_PASSWORD: vistaire_qr_ci_password
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vistaire_qr_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -33,11 +47,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check repository assets
+        run: npm run assets:check
+
+      - name: Check Git LFS policy
+        run: npm run lfs:check
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: QR Node tests
+        run: npm run test:qr:node
+
+      - name: QR PostgreSQL 17 tests
+        env:
+          PGDATABASE: vistaire_qr_ci
+          PGHOST: 127.0.0.1
+          PGPASSWORD: vistaire_qr_ci_password
+          PGPORT: "5432"
+          PGUSER: postgres
+        run: npm run test:qr:postgres
+
+      - name: QR functional Playwright tests
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:qr:functional
 
       - name: SEO hardening tests
         run: npm run test:seo
@@ -47,6 +85,18 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Bootstrap smoke e2e
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:smoke:bootstrap
+
+      - name: Application smoke e2e
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:smoke
 
       - name: SEO smoke e2e
         timeout-minutes: 5
