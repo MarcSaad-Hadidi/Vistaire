@@ -60,25 +60,40 @@ test("CodeQL keeps analysis failures blocking without uploading SARIF", async ()
   assert.doesNotMatch(workflow, /continue-on-error/);
 });
 
-test("controlled admin E2E is manual, environment-bound, and fail-closed", async () => {
+test("controlled admin E2E runs only trusted main code against an exact Preview", async () => {
   const workflow = await source(".github/workflows/admin-restaurant-e2e.yml");
 
-  assert.match(workflow, /^on:\s*\n\s+workflow_dispatch:\s*$/m);
+  assert.match(workflow, /^on:\s*\n\s+workflow_dispatch:/m);
   assert.doesNotMatch(workflow, /^\s{2}(?:pull_request|push):/m);
+  assert.doesNotMatch(workflow, /pull_request_target/);
   assert.match(workflow, /environment:\s*admin-e2e/);
-  assert.match(workflow, /name: Admin restaurant E2E \(manual controlled preview\)/);
-  assert.match(workflow, /if: github\.ref != ['"]refs\/heads\/main['"]/);
-  assert.doesNotMatch(workflow, /if: github\.ref !==/);
-  assert.doesNotMatch(workflow, /name: Admin restaurant E2E \(controlled preview\)/);
-  assert.match(workflow, /ref: main/);
-  assert.match(workflow, /node scripts\/admin-e2e-fixture-contract\.mjs/);
+  assert.match(workflow, /GITHUB_REF.*refs\/heads\/main/);
+  assert.match(workflow, /MarcSaad-Hadidi\/Vistaire/);
+  assert.match(workflow, /git ls-remote/);
+  assert.match(workflow, /REMOTE_SHA.*TARGET_SHA/s);
+  assert.equal(
+    workflow.match(/ref:\s*\$\{\{\s*github\.sha\s*\}\}/g)?.length,
+    2,
+    "both trusted checkouts must pin the workflow-dispatch commit"
+  );
+  assert.doesNotMatch(workflow, /ref:\s*(?:main|master)\s*$/m);
+  assert.doesNotMatch(workflow, /path:\s*candidate/);
+  assert.doesNotMatch(workflow, /working-directory:\s*candidate/);
+  assert.doesNotMatch(workflow, /ref:\s*\$\{\{\s*inputs\.sha\s*\}\}/);
+  assert.match(workflow, /node scripts\/admin-e2e-trusted-preflight\.mjs/);
   assert.match(workflow, /VISTAIRE_REQUIRE_ADMIN_E2E:\s*["']1["']/);
+  assert.match(workflow, /VISTAIRE_ADMIN_E2E_SENSITIVE:\s*["']1["']/);
+  assert.match(workflow, /VISTAIRE_ADMIN_E2E_PRODUCTION_SUPABASE_PROJECT_REF/);
   assert.match(workflow, /npx playwright install --with-deps chromium/);
   assert.match(workflow, /npx playwright test e2e\/admin-restaurant-dashboard\.spec\.ts/);
+  assert.doesNotMatch(workflow, /::add-mask::/);
 
   for (const name of [
     "VISTAIRE_ADMIN_E2E_ENABLED",
     "VISTAIRE_ADMIN_E2E_BASE_URL",
+    "VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA",
+    "VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH",
+    "VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF",
     "VISTAIRE_ADMIN_E2E_RESTAURANT_NAME",
     "VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME",
     "VISTAIRE_ADMIN_E2E_QR_TOKEN",
@@ -90,9 +105,9 @@ test("controlled admin E2E is manual, environment-bound, and fail-closed", async
   }
 
   assert.ok(
-    workflow.indexOf("node scripts/admin-e2e-fixture-contract.mjs") <
+    workflow.indexOf("node scripts/admin-e2e-trusted-preflight.mjs") <
       workflow.indexOf("npx playwright test e2e/admin-restaurant-dashboard.spec.ts"),
-    "fixture validation must fail before live browser scenarios"
+    "trusted preflight must fail before live browser scenarios"
   );
 });
 

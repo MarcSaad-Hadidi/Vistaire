@@ -2,6 +2,15 @@ name: Admin restaurant E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: Repository-owned non-production branch deployed to Preview
+        required: true
+        type: string
+      sha:
+        description: Exact lowercase 40-character commit SHA deployed to Preview
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -11,22 +20,69 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  admin-restaurant-e2e:
-    name: Admin restaurant E2E (manual controlled preview)
+  validate-selection:
+    name: Validate trusted repository branch and SHA
     runs-on: ubuntu-latest
-    environment: admin-e2e
-
     steps:
-      - name: Require the trusted default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require trusted main dispatch context
+        shell: bash
+        env:
+          REPOSITORY_IS_FORK: ${{ github.event.repository.fork }}
         run: |
-          echo "::error::This secret-bearing workflow must be dispatched from the trusted main branch."
-          exit 1
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::This workflow must be dispatched from trusted main."
+            exit 1
+          fi
+          if [[ "$GITHUB_REPOSITORY" != "MarcSaad-Hadidi/Vistaire" || "$REPOSITORY_IS_FORK" != "false" ]]; then
+            echo "::error::Only the trusted, non-fork Vistaire repository is allowed."
+            exit 1
+          fi
 
-      - name: Checkout
+      - name: Checkout trusted validator
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: true
+
+      - name: Validate repository-owned branch head
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ inputs.branch }}
+          TARGET_SHA: ${{ inputs.sha }}
+        run: |
+          if ! git check-ref-format --branch "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "::error::branch must be a valid Git branch name."
+            exit 1
+          fi
+          if [[ "$TARGET_BRANCH" =~ ^(main|master|production)$ ]]; then
+            echo "::error::branch must be non-production."
+            exit 1
+          fi
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::sha must be a lowercase full Git commit SHA."
+            exit 1
+          fi
+          REMOTE_SHA="$(git ls-remote --exit-code --refs origin "refs/heads/$TARGET_BRANCH" | awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }')"
+          if [[ "$REMOTE_SHA" != "$TARGET_SHA" ]]; then
+            echo "::error::sha must be the exact selected branch head."
+            exit 1
+          fi
+
+  admin-restaurant-e2e:
+    name: Trusted harness against approved Preview
+    needs: validate-selection
+    runs-on: ubuntu-latest
+    environment: admin-e2e
+    steps:
+      - name: Checkout trusted main harness only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,30 +90,40 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Validate controlled preview fixture contract
+      - name: Validate exact Preview and controlled fixture contract
         env:
           PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
           VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
           VISTAIRE_ADMIN_E2E_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST: ${{ vars.VISTAIRE_ADMIN_E2E_EXPECTED_VERCEL_HOST }}
+          VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID: ${{ vars.VISTAIRE_ADMIN_E2E_VERCEL_TEAM_ID }}
+          VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID: ${{ vars.VISTAIRE_ADMIN_E2E_VERCEL_PROJECT_ID }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_GIT_BRANCH: ${{ inputs.branch }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_COMMIT_SHA: ${{ inputs.sha }}
+          VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_VERCEL_API_TOKEN }}
+          VISTAIRE_ADMIN_E2E_SUPABASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_SUPABASE_URL }}
+          VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.VISTAIRE_ADMIN_E2E_EXPECTED_SUPABASE_PROJECT_REF }}
+          VISTAIRE_ADMIN_E2E_PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.VISTAIRE_ADMIN_E2E_PRODUCTION_SUPABASE_PROJECT_REF }}
           VISTAIRE_ADMIN_E2E_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_RESTAURANT_NAME }}
           VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME: ${{ vars.VISTAIRE_ADMIN_E2E_OTHER_RESTAURANT_NAME }}
           VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_OTHER_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_SUSPENDED_QR_TOKEN }}
           VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_FALLBACK_QR_TOKEN }}
-        run: node scripts/admin-e2e-fixture-contract.mjs
+        run: node scripts/admin-e2e-trusted-preflight.mjs
 
-      - name: Install dependencies
+      - name: Install trusted dependencies
         run: npm ci
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run required live admin dashboard checks
+      - name: Run trusted admin checks against Preview
         timeout-minutes: 10
         env:
           PLAYWRIGHT_SKIP_WEB_SERVER: "1"
           PLAYWRIGHT_BASE_URL: ${{ vars.VISTAIRE_ADMIN_E2E_BASE_URL }}
+          VISTAIRE_ADMIN_E2E_SENSITIVE: "1"
           VISTAIRE_REQUIRE_ADMIN_E2E: "1"
           VISTAIRE_ADMIN_E2E_ENABLED: ${{ vars.VISTAIRE_ADMIN_E2E_ENABLED }}
           VISTAIRE_ADMIN_E2E_QR_TOKEN: ${{ secrets.VISTAIRE_ADMIN_E2E_QR_TOKEN }}
