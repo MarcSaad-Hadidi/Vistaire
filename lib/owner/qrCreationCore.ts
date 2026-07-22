@@ -132,7 +132,10 @@ export function redactQrIncidentLogText(
     .replace(/\b(?:p_)?token_hash\b/gi, "[redacted-field]")
     .replace(/\bs1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted-token]")
     .replace(/\b[A-Fa-f0-9]{64}\b/g, "[redacted-hash]")
-    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[redacted-token]");
+    .replace(
+      /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/g,
+      "[redacted-token]"
+    );
 }
 
 export async function createOwnerQrCodeWithDependencies(

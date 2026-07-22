@@ -319,6 +319,8 @@ function trouvableDemoMenu(
   const activeLanguage = publicMenuLanguageCode(activePublicLocale);
   const isEnglish = activeLanguage === "en";
   const isGreek = activeLanguage === "el";
+  // The Playwright handoff spec opts into a tracked demo model without changing production data.
+  const e2eImmersiveFixture = process.env.VISTAIRE_E2E_TROUVABLE_3D === "1";
 
   return {
     restaurantId: "trouvable-demo",
@@ -345,67 +347,79 @@ function trouvableDemoMenu(
     },
     publicMenuStyleExplicit: true,
     source: "demo",
-    dishes: TROUVABLE_DISHES.map((dish) => ({
-      id: dish.slug,
-      slug: dish.slug,
-      name: dish.nameFr,
-      description: isGreek
-        ? dish.descriptionEl
-        : isEnglish
-          ? dish.descriptionEn
-          : dish.descriptionFr,
-      category: isGreek
-        ? dish.categoryEl
-        : isEnglish
-          ? dish.categoryEn
-          : dish.categoryFr,
-      priceLabel: `$${(dish.priceCents / 100).toFixed(0)}`,
-      priceCents: dish.priceCents,
-      priceCurrency: "CAD",
-      baseCurrency: "CAD",
-      displayPriceMode: "auto",
-      imageUrl: dish.imageUrl,
-      thumbnailUrl: dish.imageUrl,
-      hasPhoto: true,
-      photoStatus: "ready",
-      has3d: false,
-      hasAr: false,
-      hasIosAr: false,
-      hasAndroidAr: false,
-      model3dUrl: "",
-      webModel3dUrl: "",
-      webModel3dBytes: 0,
-      arModel3dUrl: "",
-      arModel3dBytes: 0,
-      usdzUrl: "",
-      arUsdzUrl: "",
-      arUsdzBytes: 0,
-      posterUrl: dish.imageUrl,
-      modelStatus: "missing",
-      hasImmersive: false,
-      available: true,
-      ingredients: isGreek
-        ? dish.ingredientsEl
-        : isEnglish
-          ? dish.ingredientsEn
-          : dish.ingredientsFr,
-      allergens: isGreek
-        ? dish.allergensEl
-        : isEnglish
-          ? dish.allergensEn
-          : dish.allergensFr,
-      options: isGreek
-        ? dish.optionsEl
-        : isEnglish
-          ? dish.optionsEn
-          : dish.optionsFr,
-      houseNote: isGreek
-        ? dish.houseNoteEl
-        : isEnglish
-          ? dish.houseNoteEn
-          : dish.houseNoteFr,
-      tags: isGreek ? dish.tagsEl : isEnglish ? dish.tagsEn : dish.tagsFr
-    }))
+    dishes: TROUVABLE_DISHES.map((dish) => {
+      const e2eImmersiveAssets =
+        e2eImmersiveFixture && dish.slug === "ravioles-chevre-miel-monteregie"
+          ? {
+              model3dUrl: "/models/demo/ravioles-chevre-miel-meshy.glb",
+              webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
+              arModel3dUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
+              arUsdzUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz"
+            }
+          : null;
+
+      return {
+        id: dish.slug,
+        slug: dish.slug,
+        name: dish.nameFr,
+        description: isGreek
+          ? dish.descriptionEl
+          : isEnglish
+            ? dish.descriptionEn
+            : dish.descriptionFr,
+        category: isGreek
+          ? dish.categoryEl
+          : isEnglish
+            ? dish.categoryEn
+            : dish.categoryFr,
+        priceLabel: `$${(dish.priceCents / 100).toFixed(0)}`,
+        priceCents: dish.priceCents,
+        priceCurrency: "CAD",
+        baseCurrency: "CAD",
+        displayPriceMode: "auto",
+        imageUrl: dish.imageUrl,
+        thumbnailUrl: dish.imageUrl,
+        hasPhoto: true,
+        photoStatus: "ready",
+        has3d: Boolean(e2eImmersiveAssets),
+        hasAr: Boolean(e2eImmersiveAssets),
+        hasIosAr: Boolean(e2eImmersiveAssets),
+        hasAndroidAr: Boolean(e2eImmersiveAssets),
+        model3dUrl: e2eImmersiveAssets?.model3dUrl ?? "",
+        webModel3dUrl: e2eImmersiveAssets?.webModel3dUrl ?? "",
+        webModel3dBytes: 0,
+        arModel3dUrl: e2eImmersiveAssets?.arModel3dUrl ?? "",
+        arModel3dBytes: 0,
+        usdzUrl: "",
+        arUsdzUrl: e2eImmersiveAssets?.arUsdzUrl ?? "",
+        arUsdzBytes: 0,
+        posterUrl: dish.imageUrl,
+        modelStatus: e2eImmersiveAssets ? "ready" : "missing",
+        hasImmersive: Boolean(e2eImmersiveAssets),
+        available: true,
+        ingredients: isGreek
+          ? dish.ingredientsEl
+          : isEnglish
+            ? dish.ingredientsEn
+            : dish.ingredientsFr,
+        allergens: isGreek
+          ? dish.allergensEl
+          : isEnglish
+            ? dish.allergensEn
+            : dish.allergensFr,
+        options: isGreek
+          ? dish.optionsEl
+          : isEnglish
+            ? dish.optionsEn
+            : dish.optionsFr,
+        houseNote: isGreek
+          ? dish.houseNoteEl
+          : isEnglish
+            ? dish.houseNoteEn
+            : dish.houseNoteFr,
+        tags: isGreek ? dish.tagsEl : isEnglish ? dish.tagsEn : dish.tagsFr
+      };
+    })
   };
 }
 
@@ -473,7 +487,12 @@ export async function getPublicMenuBySlug(
   if (!slug) return null;
 
   const localDemo = () => {
-    if (dependencies.nodeEnv === "production") return null;
+    if (
+      dependencies.nodeEnv === "production" &&
+      (slug !== "trouvable" || process.env.VISTAIRE_E2E_TROUVABLE_3D !== "1")
+    ) {
+      return null;
+    }
     if (slug === "maison-elyse") return demoMenu(slug, resolvedLocale);
     if (slug === "trouvable") return trouvableDemoMenu(slug, locale);
     return null;

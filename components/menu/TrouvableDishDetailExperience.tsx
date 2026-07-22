@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type PointerEvent
@@ -21,12 +22,20 @@ import {
   getGoogleReviewCta
 } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
-import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import type {
+  ArFallbackReason,
+  DishModelViewerProps
+} from "@/components/dish/DishModelViewer";
 import {
   getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import {
+  copyTextToClipboard,
+  detectArHandoffPlatform,
+  type ArHandoffPlatform
+} from "@/lib/menu/arBrowserHandoff";
 import {
   TROUVABLE_CURRENCY_STORAGE_KEY,
   TROUVABLE_LOCALE_STORAGE_KEY,
@@ -66,6 +75,7 @@ type TrouvableDishDetailExperienceProps = {
 };
 
 type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
+type ArCopyStatus = "idle" | "copying" | "success" | "error";
 type SwipeStart = {
   x: number;
   y: number;
@@ -73,6 +83,7 @@ type SwipeStart = {
   scrollTop: number;
 } | null;
 type DishDetailSubSheet = "details" | "review" | null;
+const AR_COPY_STATUS_RESET_MS = 4_000;
 
 function hasPublic3d(dish: PublicMenuDish): boolean {
   return (
@@ -100,6 +111,25 @@ function modelViewerDishFromPublicDish(
     imageObjectPosition: "center",
     imageObjectPositionDetail: "center"
   };
+}
+
+function BrowserHandoffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="3.5" y="4" width="17" height="16" rx="2" />
+      <path d="M3.5 8h17M7 6h.01M10 6h.01M13 6h.01" />
+      <path d="m8 14 2.2 2.2L16 10.4" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="8" y="8" width="11" height="12" rx="1.8" />
+      <path d="M16 8V5.8A1.8 1.8 0 0 0 14.2 4H5.8A1.8 1.8 0 0 0 4 5.8v10.4A1.8 1.8 0 0 0 5.8 18H8" />
+    </svg>
+  );
 }
 
 function isDishSwipeGuardedTarget(
@@ -164,6 +194,23 @@ export function TrouvableDishDetailExperience({
   const [ModelViewerComponent, setModelViewerComponent] =
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
+  const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
+  const [arHandoffPlatform] = useState<ArHandoffPlatform>(() => {
+    if (typeof navigator === "undefined") return "other";
+    const navigatorWithData = navigator as Navigator & {
+      userAgentData?: { platform?: string };
+    };
+    return detectArHandoffPlatform({
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      maxTouchPoints: navigator.maxTouchPoints,
+      userAgentDataPlatform: navigatorWithData.userAgentData?.platform
+    });
+  });
+  const [arCopyStatus, setArCopyStatus] = useState<ArCopyStatus>("idle");
+  const [manualDishUrl, setManualDishUrl] = useState("");
+  const manualDishUrlRef = useRef<HTMLInputElement | null>(null);
+  const arCopyResetTimeoutRef = useRef<number | null>(null);
   const { copy, resolution: copyResolution } = resolveTrouvableCopy(
     selectedLocale,
     menu.localizedUiCopy
@@ -176,6 +223,15 @@ export function TrouvableDishDetailExperience({
       lang: selectedLocale
     }),
     [query, selectedLocale]
+  );
+
+  useEffect(
+    () => () => {
+      if (arCopyResetTimeoutRef.current !== null) {
+        window.clearTimeout(arCopyResetTimeoutRef.current);
+      }
+    },
+    []
   );
 
   useEffect(() => {
@@ -210,6 +266,54 @@ export function TrouvableDishDetailExperience({
     activeDish.slug,
     localizedQuery
   );
+  const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
+  const arBrowserFallbackTitleId = `trouvable-ar-browser-fallback-${activeDish.slug}`;
+  const manualDishUrlId = `trouvable-ar-manual-url-${activeDish.slug}`;
+
+  const resetArHandoffState = useCallback(() => {
+    if (arCopyResetTimeoutRef.current !== null) {
+      window.clearTimeout(arCopyResetTimeoutRef.current);
+      arCopyResetTimeoutRef.current = null;
+    }
+    setShowArBrowserHelp(false);
+    setArCopyStatus("idle");
+    setManualDishUrl("");
+  }, []);
+
+  function selectManualDishUrl() {
+    const input = manualDishUrlRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    input.select();
+  }
+
+  async function copyDishUrl() {
+    if (arCopyStatus === "copying") return;
+    if (arCopyResetTimeoutRef.current !== null) {
+      window.clearTimeout(arCopyResetTimeoutRef.current);
+      arCopyResetTimeoutRef.current = null;
+    }
+
+    const absoluteDishUrl = new URL(
+      browserDishHref,
+      window.location.origin
+    ).toString();
+    setArCopyStatus("copying");
+    const copied = await copyTextToClipboard(absoluteDishUrl);
+
+    if (copied) {
+      setManualDishUrl("");
+      setArCopyStatus("success");
+      arCopyResetTimeoutRef.current = window.setTimeout(() => {
+        arCopyResetTimeoutRef.current = null;
+        setArCopyStatus("idle");
+      }, AR_COPY_STATUS_RESET_MS);
+      return;
+    }
+
+    setManualDishUrl(absoluteDishUrl);
+    setArCopyStatus("error");
+  }
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
 
   const replaceLocaleInUrl = useCallback(
@@ -228,12 +332,13 @@ export function TrouvableDishDetailExperience({
       setActiveDish(dish);
       setShowModelViewer(false);
       setActiveSubSheet(null);
+      resetArHandoffState();
       setReviewRating(0);
       setReviewText("");
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [dish]);
+  }, [dish, resetArHandoffState]);
 
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
@@ -327,6 +432,20 @@ export function TrouvableDishDetailExperience({
     };
   }, [ModelViewerComponent, modelViewerLoadFailed, showModelViewer]);
 
+  function toggleModelViewer() {
+    resetArHandoffState();
+    setShowModelViewer((isVisible) => {
+      if (!isVisible) {
+        trackPublicMenuEvent(menu, {
+          eventName: "dish_3d_clicked",
+          dishSlug: activeDish.slug,
+          categorySlug: activeDish.categorySlug
+        });
+      }
+      return !isVisible;
+    });
+  }
+
   function selectAdjacentDish(direction: 1 | -1) {
     if (sectionDishes.length < 2) return;
     const safeIndex = activeIndex >= 0 ? activeIndex : 0;
@@ -335,6 +454,7 @@ export function TrouvableDishDetailExperience({
     if (nextDish) {
       setActiveDish(nextDish);
       setShowModelViewer(false);
+      resetArHandoffState();
       setActiveSubSheet(null);
       setReviewRating(0);
       setReviewText("");
@@ -532,18 +652,7 @@ export function TrouvableDishDetailExperience({
               className={styles.modelCta}
               aria-controls="trouvable-public-model"
               aria-expanded={showModelViewer}
-              onClick={() =>
-                setShowModelViewer((isVisible) => {
-                  if (!isVisible) {
-                    trackPublicMenuEvent(menu, {
-                      eventName: "dish_3d_clicked",
-                      dishSlug: activeDish.slug,
-                      categorySlug: activeDish.categorySlug
-                    });
-                  }
-                  return !isVisible;
-                })
-              }
+              onClick={toggleModelViewer}
             >
               {copy.threeD}
             </button>
@@ -569,7 +678,18 @@ export function TrouvableDishDetailExperience({
                       ...copy.modelViewer,
                       modelAlt: copy.modelAlt
                     }}
-                    onReturnToDish={() => setShowModelViewer(false)}
+                    onReturnToDish={() => {
+                      setShowModelViewer(false);
+                      resetArHandoffState();
+                    }}
+                    onArFallbackNeeded={(reason: ArFallbackReason) => {
+                      if (reason === "missing-ios-usdz") {
+                        resetArHandoffState();
+                        return;
+                      }
+                      setShowArBrowserHelp(true);
+                    }}
+                    onArFallbackCleared={resetArHandoffState}
                   />
                 ) : modelViewerLoadFailed ? (
                   <div className={styles.modelLoading} role="status">
@@ -581,12 +701,64 @@ export function TrouvableDishDetailExperience({
                   </div>
                 )}
               </div>
-              <p className={styles.arBrowserHelp}>
-                {copy.arBrowserHelp}{" "}
-                <Link href={browserDishHref} target="_blank" rel="noopener noreferrer">
-                  {copy.arBrowserLink}
-                </Link>
-              </p>
+              {showArBrowserHelp ? (
+                <aside
+                  className={styles.arBrowserFallback}
+                  aria-labelledby={arBrowserFallbackTitleId}
+                  dir="auto"
+                >
+                  <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
+                    <BrowserHandoffIcon />
+                  </span>
+                  <div className={styles.arBrowserFallbackContent}>
+                    <h3 id={arBrowserFallbackTitleId}>{platformCopy.title}</h3>
+                    <p>{platformCopy.body}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.arCopyButton}
+                    onClick={() => void copyDishUrl()}
+                    disabled={arCopyStatus === "copying"}
+                  >
+                    <CopyIcon />
+                    {platformCopy.action}
+                  </button>
+                  {arCopyStatus === "success" ? (
+                    <p className={styles.arCopyStatus} role="status" aria-live="polite">
+                      {platformCopy.success}
+                    </p>
+                  ) : null}
+                  {arCopyStatus === "error" ? (
+                    <div className={styles.arManualCopy}>
+                      <p
+                        className={styles.arCopyStatus}
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        {copy.arBrowserFallback.copyError}
+                      </p>
+                      <label htmlFor={manualDishUrlId}>
+                        {copy.arBrowserFallback.manualCopyLabel}
+                      </label>
+                      <input
+                        ref={manualDishUrlRef}
+                        id={manualDishUrlId}
+                        type="url"
+                        readOnly
+                        value={manualDishUrl}
+                        onFocus={(event) => event.currentTarget.select()}
+                      />
+                      <button
+                        type="button"
+                        className={styles.arSelectLinkButton}
+                        onClick={selectManualDishUrl}
+                      >
+                        {copy.arBrowserFallback.selectLink}
+                      </button>
+                    </div>
+                  ) : null}
+                </aside>
+              ) : null}
             </>
           ) : null}
 

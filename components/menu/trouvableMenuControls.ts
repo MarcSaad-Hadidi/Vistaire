@@ -187,6 +187,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "Demander au serveur",
     available: "Disponible",
     backToMenu: "Retour au menu",
+    backToTop: "Retour en haut",
     categories: "CATÉGORIES",
     categoryAria: "Catégories",
     clearSearch: "Effacer",
@@ -289,9 +290,34 @@ export const TROUVABLE_COPY = {
         "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone."
     },
     modelUnavailable: "Vue 3D temporairement indisponible.",
-    arBrowserHelp:
-      "Si \"Afficher devant moi\" ne s'ouvre pas, ouvrez cette fiche dans Safari ou Chrome, puis relancez la 3D.",
-    arBrowserLink: "Ouvrir dans le navigateur",
+    arBrowserFallback: {
+      ios: {
+        title: "Ouvrez cette fiche dans Safari",
+        body:
+          "Ce navigateur intégré ne peut pas lancer la réalité augmentée. Copiez le lien de cette fiche, ouvrez Safari, puis collez-le dans la barre d'adresse.",
+        action: "Copier le lien pour Safari",
+        success: "Lien copié. Ouvrez Safari, puis collez-le dans la barre d'adresse."
+      },
+      android: {
+        title: "Ouvrez cette fiche dans Chrome",
+        body:
+          "Ce navigateur intégré ne peut pas lancer la réalité augmentée. Copiez le lien de cette fiche, ouvrez Chrome, puis collez-le dans la barre d'adresse.",
+        action: "Copier le lien pour Chrome",
+        success: "Lien copié. Ouvrez Chrome, puis collez-le dans la barre d'adresse."
+      },
+      other: {
+        title: "Réalité augmentée indisponible dans ce navigateur",
+        body:
+          "Copiez le lien de cette fiche, puis ouvrez-le dans le navigateur principal de votre appareil.",
+        action: "Copier le lien de la fiche",
+        success:
+          "Lien copié. Ouvrez votre navigateur principal, puis collez-le dans la barre d'adresse."
+      },
+      copyError:
+        "La copie automatique a échoué. Sélectionnez le lien ci-dessous et copiez-le manuellement.",
+      manualCopyLabel: "Lien de la fiche",
+      selectLink: "Sélectionner le lien"
+    },
     moreDetails: "Voir détails",
     viewDetails: "Voir détails",
     detailCompositionLabel: "Dans l'assiette",
@@ -378,6 +404,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "Ask waiter",
     available: "Available",
     backToMenu: "Back to menu",
+    backToTop: "Back to top",
     categories: "CATEGORIES",
     categoryAria: "Categories",
     clearSearch: "Clear",
@@ -479,9 +506,34 @@ export const TROUVABLE_COPY = {
         "To place the dish in your space, open this dish page in Safari on iPhone."
     },
     modelUnavailable: "3D view is temporarily unavailable.",
-    arBrowserHelp:
-      "If \"View in my space\" does not open, open this dish in Safari or Chrome, then launch 3D again.",
-    arBrowserLink: "Open in browser",
+    arBrowserFallback: {
+      ios: {
+        title: "Open this dish page in Safari",
+        body:
+          "This in-app browser cannot launch augmented reality. Copy this dish page link, open Safari, then paste it into the address bar.",
+        action: "Copy link for Safari",
+        success: "Link copied. Open Safari, then paste it into the address bar."
+      },
+      android: {
+        title: "Open this dish page in Chrome",
+        body:
+          "This in-app browser cannot launch augmented reality. Copy this dish page link, open Chrome, then paste it into the address bar.",
+        action: "Copy link for Chrome",
+        success: "Link copied. Open Chrome, then paste it into the address bar."
+      },
+      other: {
+        title: "Augmented reality unavailable in this browser",
+        body:
+          "Copy this dish page link, then open it in your device's main browser.",
+        action: "Copy dish page link",
+        success:
+          "Link copied. Open your main browser, then paste it into the address bar."
+      },
+      copyError:
+        "Automatic copying failed. Select the link below and copy it manually.",
+      manualCopyLabel: "Dish page link",
+      selectLink: "Select link"
+    },
     moreDetails: "View details",
     viewDetails: "View details",
     detailCompositionLabel: "In the dish",
@@ -568,6 +620,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "Pedir al camarero",
     available: "Disponible",
     backToMenu: "Volver al menu",
+    backToTop: "Volver arriba",
     categories: "CATEGORIAS",
     categoryAria: "Categorias",
     clearSearch: "Borrar",
@@ -670,9 +723,34 @@ export const TROUVABLE_COPY = {
         "Para colocar el plato delante de ti, abre esta ficha en Safari en iPhone."
     },
     modelUnavailable: "La vista 3D no esta disponible temporalmente.",
-    arBrowserHelp:
-      "Si \"Ver frente a mi\" no se abre, abre esta ficha en Safari o Chrome y vuelve a lanzar el 3D.",
-    arBrowserLink: "Abrir en el navegador",
+    arBrowserFallback: {
+      ios: {
+        title: "Abre esta ficha en Safari",
+        body:
+          "Este navegador integrado no puede iniciar la realidad aumentada. Copia el enlace de esta ficha, abre Safari y pégalo en la barra de direcciones.",
+        action: "Copiar enlace para Safari",
+        success: "Enlace copiado. Abre Safari y pégalo en la barra de direcciones."
+      },
+      android: {
+        title: "Abre esta ficha en Chrome",
+        body:
+          "Este navegador integrado no puede iniciar la realidad aumentada. Copia el enlace de esta ficha, abre Chrome y pégalo en la barra de direcciones.",
+        action: "Copiar enlace para Chrome",
+        success: "Enlace copiado. Abre Chrome y pégalo en la barra de direcciones."
+      },
+      other: {
+        title: "Realidad aumentada no disponible en este navegador",
+        body:
+          "Copia el enlace de esta ficha y ábrelo en el navegador principal de tu dispositivo.",
+        action: "Copiar enlace de la ficha",
+        success:
+          "Enlace copiado. Abre tu navegador principal y pégalo en la barra de direcciones."
+      },
+      copyError:
+        "La copia automática ha fallado. Selecciona el enlace de abajo y cópialo manualmente.",
+      manualCopyLabel: "Enlace de la ficha",
+      selectLink: "Seleccionar enlace"
+    },
     moreDetails: "Ver detalles",
     viewDetails: "Ver detalles",
     detailCompositionLabel: "En el plato",
@@ -759,6 +837,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "Chiedi al cameriere",
     available: "Disponibile",
     backToMenu: "Torna al menu",
+    backToTop: "Torna in alto",
     categories: "CATEGORIE",
     categoryAria: "Categorie",
     clearSearch: "Cancella",
@@ -861,9 +940,34 @@ export const TROUVABLE_COPY = {
         "Per posizionare il piatto davanti a te, apri questa scheda in Safari su iPhone."
     },
     modelUnavailable: "La vista 3D e temporaneamente non disponibile.",
-    arBrowserHelp:
-      "Se \"Vedi davanti a me\" non si apre, apri questa scheda in Safari o Chrome e rilancia il 3D.",
-    arBrowserLink: "Apri nel browser",
+    arBrowserFallback: {
+      ios: {
+        title: "Apri questa scheda in Safari",
+        body:
+          "Questo browser integrato non può avviare la realtà aumentata. Copia il link di questa scheda, apri Safari e incollalo nella barra degli indirizzi.",
+        action: "Copia il link per Safari",
+        success: "Link copiato. Apri Safari e incollalo nella barra degli indirizzi."
+      },
+      android: {
+        title: "Apri questa scheda in Chrome",
+        body:
+          "Questo browser integrato non può avviare la realtà aumentata. Copia il link di questa scheda, apri Chrome e incollalo nella barra degli indirizzi.",
+        action: "Copia il link per Chrome",
+        success: "Link copiato. Apri Chrome e incollalo nella barra degli indirizzi."
+      },
+      other: {
+        title: "Realtà aumentata non disponibile in questo browser",
+        body:
+          "Copia il link di questa scheda e aprilo nel browser principale del tuo dispositivo.",
+        action: "Copia il link della scheda",
+        success:
+          "Link copiato. Apri il browser principale e incollalo nella barra degli indirizzi."
+      },
+      copyError:
+        "La copia automatica non è riuscita. Seleziona il link qui sotto e copialo manualmente.",
+      manualCopyLabel: "Link della scheda",
+      selectLink: "Seleziona link"
+    },
     moreDetails: "Vedi dettagli",
     viewDetails: "Vedi dettagli",
     detailCompositionLabel: "Nel piatto",
@@ -950,6 +1054,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "Service fragen",
     available: "Verfügbar",
     backToMenu: "Zurück zum Menü",
+    backToTop: "Nach oben",
     categories: "KATEGORIEN",
     categoryAria: "Kategorien",
     clearSearch: "Löschen",
@@ -1052,9 +1157,34 @@ export const TROUVABLE_COPY = {
         "Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari auf dem iPhone."
     },
     modelUnavailable: "Die 3D-Ansicht ist vorübergehend nicht verfügbar.",
-    arBrowserHelp:
-      "Wenn \"In meinem Raum ansehen\" nicht geöffnet wird, öffnen Sie dieses Gericht in Safari oder Chrome und starten Sie 3D erneut.",
-    arBrowserLink: "Im Browser öffnen",
+    arBrowserFallback: {
+      ios: {
+        title: "Diese Gerichtseite in Safari öffnen",
+        body:
+          "Dieser integrierte Browser kann Augmented Reality nicht starten. Kopieren Sie den Link dieser Gerichtseite, öffnen Sie Safari und fügen Sie ihn in die Adresszeile ein.",
+        action: "Link für Safari kopieren",
+        success: "Link kopiert. Öffnen Sie Safari und fügen Sie ihn in die Adresszeile ein."
+      },
+      android: {
+        title: "Diese Gerichtseite in Chrome öffnen",
+        body:
+          "Dieser integrierte Browser kann Augmented Reality nicht starten. Kopieren Sie den Link dieser Gerichtseite, öffnen Sie Chrome und fügen Sie ihn in die Adresszeile ein.",
+        action: "Link für Chrome kopieren",
+        success: "Link kopiert. Öffnen Sie Chrome und fügen Sie ihn in die Adresszeile ein."
+      },
+      other: {
+        title: "Augmented Reality in diesem Browser nicht verfügbar",
+        body:
+          "Kopieren Sie den Link dieser Gerichtseite und öffnen Sie ihn im Hauptbrowser Ihres Geräts.",
+        action: "Link der Gerichtseite kopieren",
+        success:
+          "Link kopiert. Öffnen Sie Ihren Hauptbrowser und fügen Sie ihn in die Adresszeile ein."
+      },
+      copyError:
+        "Das automatische Kopieren ist fehlgeschlagen. Wählen Sie den Link unten aus und kopieren Sie ihn manuell.",
+      manualCopyLabel: "Link der Gerichtseite",
+      selectLink: "Link auswählen"
+    },
     moreDetails: "Details ansehen",
     viewDetails: "Details ansehen",
     detailCompositionLabel: "Im Gericht",
@@ -1141,6 +1271,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "Ρωτήστε τον σερβιτόρο",
     available: "Διαθέσιμο",
     backToMenu: "Επιστροφή στο μενού",
+    backToTop: "Επιστροφή στην κορυφή",
     categories: "ΚΑΤΗΓΟΡΙΕΣ",
     categoryAria: "Κατηγορίες",
     clearSearch: "Καθαρισμός",
@@ -1243,9 +1374,34 @@ export const TROUVABLE_COPY = {
         "Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari σε iPhone."
     },
     modelUnavailable: "Η προβολή 3D είναι προσωρινά μη διαθέσιμη.",
-    arBrowserHelp:
-      "Αν η επιλογή \"Προβολή στον χώρο μου\" δεν ανοίξει, ανοίξτε αυτό το πιάτο σε Safari ή Chrome και ξεκινήστε ξανά το 3D.",
-    arBrowserLink: "Άνοιγμα στο πρόγραμμα περιήγησης",
+    arBrowserFallback: {
+      ios: {
+        title: "Ανοίξτε αυτή την καρτέλα στο Safari",
+        body:
+          "Αυτό το ενσωματωμένο πρόγραμμα περιήγησης δεν μπορεί να ξεκινήσει την επαυξημένη πραγματικότητα. Αντιγράψτε τον σύνδεσμο, ανοίξτε το Safari και επικολλήστε τον στη γραμμή διεύθυνσης.",
+        action: "Αντιγραφή συνδέσμου για Safari",
+        success: "Ο σύνδεσμος αντιγράφηκε. Ανοίξτε το Safari και επικολλήστε τον στη γραμμή διεύθυνσης."
+      },
+      android: {
+        title: "Ανοίξτε αυτή την καρτέλα στο Chrome",
+        body:
+          "Αυτό το ενσωματωμένο πρόγραμμα περιήγησης δεν μπορεί να ξεκινήσει την επαυξημένη πραγματικότητα. Αντιγράψτε τον σύνδεσμο, ανοίξτε το Chrome και επικολλήστε τον στη γραμμή διεύθυνσης.",
+        action: "Αντιγραφή συνδέσμου για Chrome",
+        success: "Ο σύνδεσμος αντιγράφηκε. Ανοίξτε το Chrome και επικολλήστε τον στη γραμμή διεύθυνσης."
+      },
+      other: {
+        title: "Η επαυξημένη πραγματικότητα δεν είναι διαθέσιμη σε αυτό το πρόγραμμα περιήγησης",
+        body:
+          "Αντιγράψτε τον σύνδεσμο και ανοίξτε τον στο κύριο πρόγραμμα περιήγησης της συσκευής σας.",
+        action: "Αντιγραφή συνδέσμου πιάτου",
+        success:
+          "Ο σύνδεσμος αντιγράφηκε. Ανοίξτε το κύριο πρόγραμμα περιήγησης και επικολλήστε τον στη γραμμή διεύθυνσης."
+      },
+      copyError:
+        "Η αυτόματη αντιγραφή απέτυχε. Επιλέξτε τον σύνδεσμο παρακάτω και αντιγράψτε τον χειροκίνητα.",
+      manualCopyLabel: "Σύνδεσμος πιάτου",
+      selectLink: "Επιλογή συνδέσμου"
+    },
     moreDetails: "Δείτε λεπτομέρειες",
     viewDetails: "Δείτε λεπτομέρειες",
     detailCompositionLabel: "Στο πιάτο",
@@ -1332,6 +1488,7 @@ export const TROUVABLE_COPY = {
     askWaiter: "اطلب النادل",
     available: "متاح",
     backToMenu: "العودة إلى القائمة",
+    backToTop: "العودة إلى الأعلى",
     categories: "الفئات",
     categoryAria: "الفئات",
     clearSearch: "مسح",
@@ -1432,9 +1589,34 @@ export const TROUVABLE_COPY = {
         "لوضع الطبق أمامك، افتح هذه الصفحة في Safari على iPhone."
     },
     modelUnavailable: "عرض 3D غير متاح مؤقتا.",
-    arBrowserHelp:
-      "إذا لم يفتح \"اعرض أمامي\"، افتح هذه الصفحة في Safari أو Chrome ثم شغل 3D مرة أخرى.",
-    arBrowserLink: "فتح في المتصفح",
+    arBrowserFallback: {
+      ios: {
+        title: "افتح صفحة هذا الطبق في Safari",
+        body:
+          "لا يمكن لهذا المتصفح المضمّن تشغيل الواقع المعزز. انسخ رابط هذه الصفحة، وافتح Safari، ثم الصقه في شريط العنوان.",
+        action: "نسخ الرابط لـ Safari",
+        success: "تم نسخ الرابط. افتح Safari ثم الصقه في شريط العنوان."
+      },
+      android: {
+        title: "افتح صفحة هذا الطبق في Chrome",
+        body:
+          "لا يمكن لهذا المتصفح المضمّن تشغيل الواقع المعزز. انسخ رابط هذه الصفحة، وافتح Chrome، ثم الصقه في شريط العنوان.",
+        action: "نسخ الرابط لـ Chrome",
+        success: "تم نسخ الرابط. افتح Chrome ثم الصقه في شريط العنوان."
+      },
+      other: {
+        title: "الواقع المعزز غير متاح في هذا المتصفح",
+        body:
+          "انسخ رابط هذه الصفحة، ثم افتحه في المتصفح الرئيسي لجهازك.",
+        action: "نسخ رابط صفحة الطبق",
+        success:
+          "تم نسخ الرابط. افتح المتصفح الرئيسي ثم الصقه في شريط العنوان."
+      },
+      copyError:
+        "تعذر النسخ التلقائي. حدد الرابط أدناه وانسخه يدويا.",
+      manualCopyLabel: "رابط صفحة الطبق",
+      selectLink: "تحديد الرابط"
+    },
     moreDetails: "عرض التفاصيل",
     viewDetails: "عرض التفاصيل",
     detailCompositionLabel: "في الطبق",
@@ -1513,10 +1695,10 @@ export const TROUVABLE_COPY = {
 
 type WidenTrouvableCopyValue<T> = T extends (...args: infer Args) => infer Return
   ? (...args: Args) => Return
-  : T extends Record<string, string>
-    ? { [Key in keyof T]: string }
-    : T extends string
-      ? string
+  : T extends string
+    ? string
+    : T extends Record<string, unknown>
+      ? { [Key in keyof T]: WidenTrouvableCopyValue<T[Key]> }
       : T;
 
 export type TrouvableCopy = {
@@ -1533,7 +1715,6 @@ type LocalizedUiCopyBuckets = {
 type CopyLeafSpec = {
   path: string;
   key: keyof TrouvableCopy;
-  nestedKey?: string;
   kind: "string" | "function-template";
 };
 
@@ -1591,29 +1772,27 @@ const COPY_FUNCTION_TEMPLATE_PLACEHOLDERS: {
 
 function copyLeafSpecs(base: TrouvableCopy): CopyLeafSpec[] {
   const specs: CopyLeafSpec[] = [];
-  for (const [rawKey, value] of Object.entries(base)) {
-    const key = rawKey as keyof TrouvableCopy;
+
+  function visit(value: unknown, path: string, key: keyof TrouvableCopy) {
     if (typeof value === "string") {
-      specs.push({ key, kind: "string", path: rawKey });
-      continue;
+      specs.push({ key, kind: "string", path });
+      return;
     }
-    if (typeof value === "function" && COPY_FUNCTION_TEMPLATE_BUILDERS[key]) {
-      specs.push({ key, kind: "function-template", path: rawKey });
-      continue;
+    if (typeof value === "function" && path === key && COPY_FUNCTION_TEMPLATE_BUILDERS[key]) {
+      specs.push({ key, kind: "function-template", path });
+      return;
     }
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      for (const [nestedKey, nestedValue] of Object.entries(value)) {
-        if (typeof nestedValue === "string") {
-          specs.push({
-            key,
-            kind: "string",
-            nestedKey,
-            path: `${rawKey}.${nestedKey}`
-          });
-        }
-      }
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+
+    for (const [childKey, childValue] of Object.entries(value)) {
+      visit(childValue, `${path}.${childKey}`, key);
     }
   }
+
+  for (const [rawKey, value] of Object.entries(base)) {
+    visit(value, rawKey, rawKey as keyof TrouvableCopy);
+  }
+
   return specs;
 }
 
@@ -1648,20 +1827,30 @@ function sourceTemplateForCopyFunction(
   }
 }
 
+function getCopyPath(value: unknown, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return undefined;
+    }
+    return (current as Record<string, unknown>)[segment];
+  }, value);
+}
+
 function setCopyPackPath(
   target: Record<string, unknown>,
   path: string,
   value: string
 ) {
-  const [head, child] = path.split(".", 2);
-  if (!child) {
-    target[path] = value;
+  const [head, ...tail] = path.split(".");
+  if (tail.length === 0) {
+    target[head] = value;
     return;
   }
-  const parent = objectInput(target[head]);
+
+  const parent = { ...objectInput(target[head]) };
+  setCopyPackPath(parent, tail.join("."), value);
   target[head] = {
-    ...parent,
-    [child]: value
+    ...parent
   };
 }
 
@@ -1683,9 +1872,7 @@ export function getTrouvableUiCopyTranslationEntries(
   const sourceCopy = TROUVABLE_COPY[sourceCopyLocale];
 
   return TROUVABLE_COPY_LEAF_SPECS.map((spec) => {
-    const value = spec.nestedKey
-      ? objectInput(sourceCopy[spec.key])[spec.nestedKey]
-      : sourceCopy[spec.key];
+    const value = getCopyPath(sourceCopy, spec.path);
     const placeholders =
       spec.kind === "function-template"
         ? COPY_FUNCTION_TEMPLATE_PLACEHOLDERS[spec.key] ?? []
@@ -1771,6 +1958,70 @@ function builtInCopyLocaleForPublicLocale(
 
 export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLocale {
   return builtInCopyLocaleForPublicLocale(locale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
+}
+
+const TROUVABLE_GREETING_BRIDGES: Record<
+  TrouvableCopyLocale,
+  Record<TrouvableGreetingPeriod, string>
+> = {
+  fr: {
+    morning: "et bienvenue chez",
+    afternoon: "chez",
+    evening: "et bienvenue chez",
+    night: "et bienvenue chez"
+  },
+  en: {
+    morning: "and welcome to",
+    afternoon: "to",
+    evening: "and welcome to",
+    night: "and welcome to"
+  },
+  es: {
+    morning: "y bienvenido a",
+    afternoon: "a",
+    evening: "y bienvenido a",
+    night: "y bienvenido a"
+  },
+  it: {
+    morning: "e benvenuto da",
+    afternoon: "da",
+    evening: "e benvenuto da",
+    night: "e benvenuto da"
+  },
+  de: {
+    morning: "und willkommen bei",
+    afternoon: "bei",
+    evening: "und willkommen bei",
+    night: "und willkommen bei"
+  },
+  el: {
+    morning: "και καλώς ήρθατε στο",
+    afternoon: "στο",
+    evening: "και καλώς ήρθατε στο",
+    night: "και καλώς ήρθατε στο"
+  },
+  ar: {
+    morning: "وأهلاً بكم في",
+    afternoon: "في",
+    evening: "وأهلاً بكم في",
+    night: "وأهلاً بكم في"
+  }
+};
+
+export function getTrouvableGreetingPeriodForDate(
+  date: Date = new Date(),
+  timezone?: string
+): TrouvableGreetingPeriod {
+  return getGreetingPeriodForTime(date, timezone);
+}
+
+export function formatTrouvableGreetingLead(
+  greeting: string,
+  locale: TrouvableLocale,
+  period: TrouvableGreetingPeriod
+): string {
+  const bridge = TROUVABLE_GREETING_BRIDGES[getTrouvableCopyLocale(locale)][period];
+  return `${greeting} ${bridge}`;
 }
 
 export function getTrouvableTextDirection(_locale: TrouvableLocale): "ltr" | "rtl" {
@@ -1864,46 +2115,42 @@ function copyOverrideDiagnostics(value: unknown): {
   const coveredPaths = new Set<string>();
   const ignoredKeys = new Set<string>();
 
-  for (const [rawKey, rawValue] of Object.entries(input)) {
-    const key = rawKey as keyof TrouvableCopy;
-    const baseValue = TROUVABLE_COPY.en[key];
-    if (baseValue === undefined) {
-      if (!localizedUiCopyBucketKey(rawKey)) ignoredKeys.add(rawKey);
-      continue;
+  function visit(
+    rawValue: unknown,
+    baseValue: unknown,
+    path: string,
+    isRoot: boolean
+  ) {
+    if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
+      return;
     }
 
-    if (typeof baseValue === "string") {
-      if (typeof rawValue === "string" && rawValue.trim()) {
-        coveredPaths.add(rawKey);
-      } else {
-        ignoredKeys.add(rawKey);
-      }
-      continue;
-    }
+    const rawObject = objectInput(rawValue);
+    for (const [rawKey, nestedValue] of Object.entries(rawObject)) {
+      const nestedPath = path ? `${path}.${rawKey}` : rawKey;
+      const expectedValue = (baseValue as Record<string, unknown>)[rawKey];
 
-    if (typeof baseValue === "function") {
-      if (
-        COPY_FUNCTION_TEMPLATE_BUILDERS[key] &&
-        typeof rawValue === "string" &&
-        rawValue.trim()
-      ) {
-        coveredPaths.add(rawKey);
-      } else {
-        ignoredKeys.add(rawKey);
-      }
-      continue;
-    }
-
-    if (baseValue && typeof baseValue === "object" && !Array.isArray(baseValue)) {
-      const nestedInput = objectInput(rawValue);
-      if (Object.keys(nestedInput).length === 0) {
-        ignoredKeys.add(rawKey);
+      if (expectedValue === undefined) {
+        if (!(isRoot && localizedUiCopyBucketKey(rawKey))) {
+          ignoredKeys.add(nestedPath);
+        }
         continue;
       }
-      for (const [nestedKey, nestedValue] of Object.entries(nestedInput)) {
-        const nestedPath = `${rawKey}.${nestedKey}`;
+
+      if (typeof expectedValue === "string") {
+        if (typeof nestedValue === "string" && nestedValue.trim()) {
+          coveredPaths.add(nestedPath);
+        } else {
+          ignoredKeys.add(nestedPath);
+        }
+        continue;
+      }
+
+      if (typeof expectedValue === "function") {
+        const key = rawKey as keyof TrouvableCopy;
         if (
-          Object.prototype.hasOwnProperty.call(baseValue, nestedKey) &&
+          isRoot &&
+          COPY_FUNCTION_TEMPLATE_BUILDERS[key] &&
           typeof nestedValue === "string" &&
           nestedValue.trim()
         ) {
@@ -1911,12 +2158,23 @@ function copyOverrideDiagnostics(value: unknown): {
         } else {
           ignoredKeys.add(nestedPath);
         }
+        continue;
       }
-      continue;
-    }
 
-    ignoredKeys.add(rawKey);
+      if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
+        if (!nestedValue || typeof nestedValue !== "object" || Array.isArray(nestedValue)) {
+          ignoredKeys.add(nestedPath);
+          continue;
+        }
+        visit(nestedValue, expectedValue, nestedPath, false);
+        continue;
+      }
+
+      ignoredKeys.add(nestedPath);
+    }
   }
+
+  visit(input, TROUVABLE_COPY.en, "", true);
 
   return { coveredPaths, ignoredKeys };
 }
@@ -1943,20 +2201,51 @@ function hasFlatCopyOverride(uiCopy: unknown): boolean {
 }
 
 function copyNestedOverrides(value: unknown, base: TrouvableCopy): Partial<TrouvableCopy> {
-  const input = objectInput(value);
-  const overrides: Partial<TrouvableCopy> = {};
-  for (const [rawKey, baseValue] of Object.entries(base)) {
-    if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
-      continue;
+  function mergeNestedObject(
+    rawValue: unknown,
+    baseValue: unknown
+  ): Record<string, unknown> {
+    if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
+      return {};
     }
-    const nestedOverrides = stringOverrides(input[rawKey]);
-    if (Object.keys(nestedOverrides).length === 0) continue;
-    (overrides as Record<string, unknown>)[rawKey] = {
-      ...baseValue,
-      ...nestedOverrides
+
+    const input = objectInput(rawValue);
+    if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
+      return {};
+    }
+
+    const merged: Record<string, unknown> = {
+      ...(baseValue as Record<string, unknown>)
     };
+    for (const [rawKey, nextValue] of Object.entries(input)) {
+      const expectedValue = (baseValue as Record<string, unknown>)[rawKey];
+      if (expectedValue === undefined) continue;
+      if (typeof expectedValue === "string") {
+        if (typeof nextValue === "string" && nextValue.trim()) {
+          merged[rawKey] = nextValue;
+        }
+        continue;
+      }
+      if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
+        const nested = mergeNestedObject(nextValue, expectedValue);
+        if (Object.keys(nested).length > 0) merged[rawKey] = nested;
+      }
+    }
+    return merged;
   }
-  return overrides;
+
+  const input = objectInput(value);
+  const baseObject = base as Record<string, unknown>;
+  const overrides: Record<string, unknown> = {};
+  for (const [rawKey, nextValue] of Object.entries(input)) {
+    const expectedValue = baseObject[rawKey];
+    if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
+      const nested = mergeNestedObject(nextValue, expectedValue);
+      if (Object.keys(nested).length > 0) overrides[rawKey] = nested;
+    }
+  }
+
+  return overrides as Partial<TrouvableCopy>;
 }
 
 function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {

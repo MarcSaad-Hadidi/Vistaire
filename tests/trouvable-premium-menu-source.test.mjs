@@ -65,7 +65,10 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /modelAlt:\s*copy\.modelAlt/);
   assert.match(source, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
   assert.match(source, /buildPublicDishPath/);
-  assert.match(source, /prefetch=\{false\}/);
+  assert.match(source, /copyTextToClipboard/);
+  assert.match(source, /new URL\(/);
+  assert.match(source, /browserDishHref/);
+  assert.match(source, /window\.location\.origin/);
 });
 
 test("Trouvable AR browser help is hidden until a real fallback condition appears", async () => {
@@ -533,6 +536,30 @@ test("Trouvable menu tools stay sticky under the top bar with a single control s
   assert.match(css, /\.tools\[data-pinned="true"\]/);
   assert.match(css, /@keyframes toolsPinEnter/);
   assert.match(css, /\.toolsSentinel/);
+});
+
+test("Trouvable welcome copy places the restaurant connector before the name", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /getTrouvableGreetingPeriodForDate\([\s\S]*menu\.settings\.timezone/);
+  assert.match(source, /formatTrouvableGreetingLead\([\s\S]*greetingText[\s\S]*greetingPeriod/);
+  assert.match(source, /<p>\{greetingLead\}<\/p>/);
+  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+});
+
+test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {
+  const [source, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  assert.match(source, /<BackToTopIcon \/>[\s\S]*<span>\{copy\.backToTop\}<\/span>/);
+  assert.match(css, /\.backToTop[\s\S]*left:\s*50%[\s\S]*min-width:\s*188px[\s\S]*height:\s*46px/);
+  assert.match(css, /\.backToTop[\s\S]*border:\s*1px solid #f0d800[\s\S]*border-radius:\s*999px/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\] \.backToTop[\s\S]*background:\s*#fff9ef[\s\S]*color:\s*#8f6d14/
+  );
 });
 
 test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
