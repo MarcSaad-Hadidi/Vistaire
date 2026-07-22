@@ -17,14 +17,14 @@ select qr_test.assert_true(
   'first transaction must update the media row'
 );
 
-select dblink_connect(
-  'maison_elyse_concurrent',
-  'dbname=' || current_database()
-    || ' host=127.0.0.1 user=service_role password=vistoire_service_role_ci_password'
-);
+-- The harness client is postgres, so dblink can open the second local session
+-- without a password; the query itself still executes under service_role.
+set role postgres;
+select dblink_connect('maison_elyse_concurrent', 'dbname=' || current_database());
 select dblink_send_query(
   'maison_elyse_concurrent',
-  $$select result_status
+  $$set role service_role;
+    select result_status
       from public.owner_apply_maison_elyse_media(
         '11111111-1111-1111-1111-111111111111'::uuid,
         '84226092-1b25-4174-a635-50e2b8319580'::uuid,

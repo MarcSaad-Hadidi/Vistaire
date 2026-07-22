@@ -1,9 +1,6 @@
 \set ON_ERROR_STOP on
 \ir ../../../supabase/migrations/0013_create_owner_restaurant_with_menu.sql
 \ir ../../../supabase/migrations/20260721150000_maison_elyse_media_backfill_rpc.sql
--- The ephemeral CI database needs a password-authenticated service_role session
--- for the second dblink connection used by the row-lock concurrency test.
-alter role service_role login password 'vistoire_service_role_ci_password';
 grant usage on schema qr_test to service_role;
 grant execute on all functions in schema qr_test to service_role;
 \ir fixture.sql
