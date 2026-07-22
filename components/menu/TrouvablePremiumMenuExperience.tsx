@@ -622,6 +622,19 @@ export function TrouvablePremiumMenuExperience({
   );
 
   useEffect(() => {
+    if (arCopyStatus !== "error" || !manualDishUrl) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const input = manualDishUrlRef.current;
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.select();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [arCopyStatus, manualDishUrl]);
+
+  useEffect(() => {
     trackPublicMenuEvent(menu, { eventName: "menu_opened" });
   }, [menu]);
 

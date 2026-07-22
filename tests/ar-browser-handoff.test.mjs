@@ -127,6 +127,44 @@ test("clipboard helper reports success and failure without throwing", async () =
   assert.equal(await copyTextToClipboard("https://vistaire.ca/menu/trouvable", undefined), false);
 });
 
+test("clipboard helper falls back to the legacy document copy path", async () => {
+  let copiedText = "";
+  let removed = false;
+  const textarea = {
+    value: "",
+    style: {},
+    setAttribute() {},
+    select() {},
+    remove() {
+      removed = true;
+    }
+  };
+  const documentApi = {
+    body: {
+      appendChild(element) {
+        copiedText = element.value;
+      }
+    },
+    createElement() {
+      return textarea;
+    },
+    execCommand(command) {
+      return command === "copy";
+    }
+  };
+
+  assert.equal(
+    await copyTextToClipboard(
+      "https://vistaire.ca/menu/trouvable?dish=legacy",
+      undefined,
+      documentApi
+    ),
+    true
+  );
+  assert.equal(copiedText, "https://vistaire.ca/menu/trouvable?dish=legacy");
+  assert.equal(removed, true);
+});
+
 test("built-in AR fallback copy is complete for every supported locale", () => {
   const locales = ["fr", "en", "es", "it", "de", "el", "ar"];
   const platformKeys = ["ios", "android", "other"];
@@ -166,5 +204,7 @@ test("Trouvable keeps browser handoff separate from a generic 3D load failure", 
   assert.match(premium, /reason === "missing-ios-usdz"/);
   assert.match(standalone, /reason === "missing-ios-usdz"/);
   assert.match(viewer, /onArFallbackNeeded\?: \(reason: ArFallbackReason\)/);
+  assert.match(viewer, /copyTextToClipboard\(url\)/);
+  assert.doesNotMatch(viewer, /navigator\.clipboard\?\.writeText/);
   assert.match(premium, /setModelViewerLoadFailed\(true\)/);
 });
