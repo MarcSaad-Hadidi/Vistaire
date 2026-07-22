@@ -1960,6 +1960,70 @@ export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLo
   return builtInCopyLocaleForPublicLocale(locale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
 }
 
+const TROUVABLE_GREETING_BRIDGES: Record<
+  TrouvableCopyLocale,
+  Record<TrouvableGreetingPeriod, string>
+> = {
+  fr: {
+    morning: "et bienvenue chez",
+    afternoon: "chez",
+    evening: "et bienvenue chez",
+    night: "et bienvenue chez"
+  },
+  en: {
+    morning: "and welcome to",
+    afternoon: "to",
+    evening: "and welcome to",
+    night: "and welcome to"
+  },
+  es: {
+    morning: "y bienvenido a",
+    afternoon: "a",
+    evening: "y bienvenido a",
+    night: "y bienvenido a"
+  },
+  it: {
+    morning: "e benvenuto da",
+    afternoon: "da",
+    evening: "e benvenuto da",
+    night: "e benvenuto da"
+  },
+  de: {
+    morning: "und willkommen bei",
+    afternoon: "bei",
+    evening: "und willkommen bei",
+    night: "und willkommen bei"
+  },
+  el: {
+    morning: "και καλώς ήρθατε στο",
+    afternoon: "στο",
+    evening: "και καλώς ήρθατε στο",
+    night: "και καλώς ήρθατε στο"
+  },
+  ar: {
+    morning: "وأهلاً بكم في",
+    afternoon: "في",
+    evening: "وأهلاً بكم في",
+    night: "وأهلاً بكم في"
+  }
+};
+
+export function getTrouvableGreetingPeriodForDate(
+  date: Date = new Date(),
+  timezone?: string
+): TrouvableGreetingPeriod {
+  return getGreetingPeriodForTime(date, timezone);
+}
+
+export function formatTrouvableGreetingLead(
+  greeting: string,
+  locale: TrouvableLocale,
+  period: TrouvableGreetingPeriod
+): string {
+  const bridge = TROUVABLE_GREETING_BRIDGES[getTrouvableCopyLocale(locale)][period];
+  return `${greeting} ${bridge}`;
+}
+
 export function getTrouvableTextDirection(_locale: TrouvableLocale): "ltr" | "rtl" {
   void _locale;
   // Vistaire keeps the public menu chrome in the same visual order for every locale.

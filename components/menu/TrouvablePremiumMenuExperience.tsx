@@ -64,6 +64,8 @@ import {
   getTrouvableCurrencyOptionLabel,
   getTrouvableDishConvertedPriceCents,
   getTrouvableGreetingForDate,
+  formatTrouvableGreetingLead,
+  getTrouvableGreetingPeriodForDate,
   getTrouvableReadyLanguageOptions,
   getTrouvableLanguageShortCode,
   getTrouvableTextDirection,
@@ -560,6 +562,10 @@ export function TrouvablePremiumMenuExperience({
   );
   const textDirection = getTrouvableTextDirection(selectedLocale);
   useTrouvableDocumentLanguage(selectedLocale, textDirection);
+  const greetingPeriod = getTrouvableGreetingPeriodForDate(
+    new Date(),
+    menu.settings.timezone
+  );
   const greetingText = useSyncExternalStore(
     (onStoreChange) => {
       const intervalId = window.setInterval(onStoreChange, 60_000);
@@ -572,7 +578,12 @@ export function TrouvablePremiumMenuExperience({
         new Date(),
         menu.localizedUiCopy
       ),
-    () => copy.greeting.afternoon
+    () => copy.greeting[greetingPeriod]
+  );
+  const greetingLead = formatTrouvableGreetingLead(
+    greetingText,
+    selectedLocale,
+    greetingPeriod
   );
   const currencyOption = getTrouvableCurrencyOption(selectedCurrency);
   const currencyOptions = useMemo(
@@ -2353,7 +2364,7 @@ export function TrouvablePremiumMenuExperience({
       <section className={styles.hero} aria-labelledby="trouvable-hero-title">
         <HeroBotanicalOrnament />
         <div className={styles.heroText} dir={textDirection}>
-          <p>{greetingText}</p>
+          <p>{greetingLead}</p>
           <h1 id="trouvable-hero-title">{menu.name}</h1>
           <span>{copy.heroBlurb}</span>
         </div>

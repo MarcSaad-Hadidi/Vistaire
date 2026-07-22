@@ -10,6 +10,8 @@ import {
   getTrouvableCurrencyOption,
   getTrouvableCurrencyOptionLabel,
   getTrouvableGreetingForDate,
+  formatTrouvableGreetingLead,
+  getTrouvableGreetingPeriodForDate,
   getTrouvableGreeting,
   getTrouvableGreetingPeriod,
   getTrouvableLanguageOptions,
@@ -143,6 +145,49 @@ test("Trouvable greeting period follows local client time buckets", () => {
   assert.equal(
     getTrouvableGreeting("en", getTrouvableGreetingPeriod(new Date(2026, 5, 30, 2))),
     "Good evening"
+  );
+});
+
+test("Trouvable greeting uses natural venue phrasing by time period", () => {
+  assert.equal(
+    formatTrouvableGreetingLead(
+      "Bonjour",
+      "fr-CA",
+      getTrouvableGreetingPeriodForDate(new Date("2026-07-02T08:00:00.000Z"), "UTC")
+    ),
+    "Bonjour et bienvenue chez"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Bienvenue", "fr-CA", "afternoon"),
+    "Bienvenue chez"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Bonsoir", "fr-CA", "evening"),
+    "Bonsoir et bienvenue chez"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Good morning", "en-CA", "morning"),
+    "Good morning and welcome to"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Buenos días", "es-ES", "morning"),
+    "Buenos días y bienvenido a"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Buongiorno", "it-IT", "morning"),
+    "Buongiorno e benvenuto da"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Guten Morgen", "de-DE", "morning"),
+    "Guten Morgen und willkommen bei"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("Καλημέρα", "el-GR", "morning"),
+    "Καλημέρα και καλώς ήρθατε στο"
+  );
+  assert.equal(
+    formatTrouvableGreetingLead("صباح الخير", "ar", "morning"),
+    "صباح الخير وأهلاً بكم في"
   );
 });
 

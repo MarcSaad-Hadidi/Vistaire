@@ -538,6 +538,15 @@ test("Trouvable menu tools stay sticky under the top bar with a single control s
   assert.match(css, /\.toolsSentinel/);
 });
 
+test("Trouvable welcome copy places the restaurant connector before the name", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /getTrouvableGreetingPeriodForDate\([\s\S]*menu\.settings\.timezone/);
+  assert.match(source, /formatTrouvableGreetingLead\([\s\S]*greetingText[\s\S]*greetingPeriod/);
+  assert.match(source, /<p>\{greetingLead\}<\/p>/);
+  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+});
+
 test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {
   const [source, css] = await Promise.all([
     readFile(componentPath, "utf8"),
