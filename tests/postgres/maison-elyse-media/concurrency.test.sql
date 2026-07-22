@@ -21,10 +21,10 @@ select qr_test.assert_true(
 -- without a password; the query itself still executes under service_role.
 set role postgres;
 select dblink_connect('maison_elyse_concurrent', 'dbname=' || current_database());
+select dblink_exec('maison_elyse_concurrent', 'set role service_role');
 select dblink_send_query(
   'maison_elyse_concurrent',
-  $$set role service_role;
-    select result_status
+  $$select result_status
       from public.owner_apply_maison_elyse_media(
         '11111111-1111-1111-1111-111111111111'::uuid,
         '84226092-1b25-4174-a635-50e2b8319580'::uuid,
