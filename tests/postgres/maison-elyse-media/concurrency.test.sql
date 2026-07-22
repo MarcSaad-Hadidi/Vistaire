@@ -17,7 +17,11 @@ select qr_test.assert_true(
   'first transaction must update the media row'
 );
 
-select dblink_connect('maison_elyse_concurrent', 'dbname=' || current_database());
+select dblink_connect(
+  'maison_elyse_concurrent',
+  'dbname=' || current_database()
+    || ' host=127.0.0.1 user=service_role password=vistoire_service_role_ci_password'
+);
 select dblink_send_query(
   'maison_elyse_concurrent',
   $$select result_status
