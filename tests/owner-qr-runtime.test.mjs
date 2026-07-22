@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 const loadCreationCore = () => import("../lib/owner/qrCreationCore.ts");
@@ -114,15 +113,20 @@ test("structured failures survive the public creation boundaries", async () => {
 
 test("QR incident redaction removes opaque 32-character tokens and hashes", async () => {
   const { redactQrIncidentLogText } = await loadCreationCore();
-  const rawToken = randomBytes(24).toString("base64url");
+  const rawTokens = [
+    "-K7Y-VwVC_XDOXB73a0jNYE-HlfIEK8I",
+    `${"A".repeat(31)}-`
+  ];
   const rawHash = "a".repeat(64);
   const redacted = redactQrIncidentLogText(
-    `Key (token_hash)=(${rawHash}); token=${rawToken}`
+    `Key (token_hash)=(${rawHash}); tokens=${rawTokens.join(",")}`
   );
 
   assert.equal(typeof redacted, "string");
-  assert.equal(rawToken.length, 32);
-  assert.doesNotMatch(redacted, new RegExp(rawToken));
+  for (const rawToken of rawTokens) {
+    assert.equal(rawToken.length, 32);
+    assert.doesNotMatch(redacted, new RegExp(rawToken));
+  }
   assert.doesNotMatch(redacted, new RegExp(rawHash));
   assert.doesNotMatch(redacted, /token_hash/i);
   assert.match(redacted, /\[redacted-(?:field|hash|token)\]/);
