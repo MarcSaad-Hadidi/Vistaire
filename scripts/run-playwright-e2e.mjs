@@ -21,6 +21,11 @@ const playwrightArgs = ["./node_modules/@playwright/test/cli.js", "test", ...pro
 const useLocalDemoServer = process.argv
   .slice(2)
   .includes("e2e/ci-smoke.spec.ts");
+const useTrouvableImmersiveFixture = process.argv
+  .slice(2)
+  .some((argument) =>
+    argument.replaceAll("\\", "/").endsWith("e2e/trouvable-back-to-top-ar-handoff.spec.ts")
+  );
 
 function waitForServer(url, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
@@ -91,7 +96,10 @@ async function main() {
             VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: OWNER_E2E_TOKEN,
             VISTAIRE_OWNER_E2E_EMAIL: "owner-e2e@localhost",
             VISTAIRE_OWNER_3D_JOBS_FALLBACK: "1",
-            VISTAIRE_OWNER_3D_RESTAURANT_SLUGS: "*"
+            VISTAIRE_OWNER_3D_RESTAURANT_SLUGS: "*",
+            ...(useTrouvableImmersiveFixture
+              ? { VISTAIRE_E2E_TROUVABLE_3D: "1" }
+              : {})
           }
         }
       );

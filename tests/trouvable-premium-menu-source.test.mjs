@@ -65,7 +65,10 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /modelAlt:\s*copy\.modelAlt/);
   assert.match(source, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
   assert.match(source, /buildPublicDishPath/);
-  assert.match(source, /prefetch=\{false\}/);
+  assert.match(source, /copyTextToClipboard/);
+  assert.match(source, /new URL\(/);
+  assert.match(source, /browserDishHref/);
+  assert.match(source, /window\.location\.origin/);
 });
 
 test("Trouvable AR browser help is hidden until a real fallback condition appears", async () => {

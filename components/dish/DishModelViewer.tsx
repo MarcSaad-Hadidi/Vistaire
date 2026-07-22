@@ -79,6 +79,13 @@ export type DishModelViewerCopy = Partial<{
   modelAlt: (dishName: string) => string;
 }>;
 
+export type ArFallbackReason =
+  | "ar-status-failed"
+  | "activate-ar-failed"
+  | "ios-handoff"
+  | "android-fallback"
+  | "missing-ios-usdz";
+
 type ResolvedDishModelViewerCopy = Required<DishModelViewerCopy>;
 
 const DEFAULT_MODEL_VIEWER_COPY = {
@@ -141,7 +148,7 @@ export type DishModelViewerProps = {
   quietChrome?: boolean;
   copy?: DishModelViewerCopy;
   onReturnToDish?: () => void;
-  onArFallbackNeeded?: (reason: string) => void;
+  onArFallbackNeeded?: (reason: ArFallbackReason) => void;
   onArFallbackCleared?: () => void;
   analyticsContext?: PublicMenuAnalyticsContext;
 };

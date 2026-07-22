@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
@@ -12,7 +11,10 @@ import {
   type ComponentType,
   type PointerEvent
 } from "react";
-import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import type {
+  ArFallbackReason,
+  DishModelViewerProps
+} from "@/components/dish/DishModelViewer";
 import {
   getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
@@ -36,6 +38,11 @@ import {
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { useTransitionPresence } from "@/lib/useTransitionPresence";
+import {
+  copyTextToClipboard,
+  detectArHandoffPlatform,
+  type ArHandoffPlatform
+} from "@/lib/menu/arBrowserHandoff";
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
@@ -122,10 +129,12 @@ type SelectionItem = {
   quantity: number;
 };
 type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
+type ArCopyStatus = "idle" | "copying" | "success" | "error";
 
 const ALL_CATEGORY_ID = "all";
 // Kept slightly above the CSS sheet animation duration so the exit finishes before unmount.
 const SHEET_MOTION_MS = 260;
+const AR_COPY_STATUS_RESET_MS = 4_000;
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const MEAT_TERMS = [
@@ -426,6 +435,33 @@ function VistaireWord() {
   );
 }
 
+function BackToTopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 12.5 12 5l7 7.5M12 6v13" />
+    </svg>
+  );
+}
+
+function BrowserHandoffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="3.5" y="4" width="17" height="16" rx="2" />
+      <path d="M3.5 8h17M7 6h.01M10 6h.01M13 6h.01" />
+      <path d="m8 14 2.2 2.2L16 10.4" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="8" y="8" width="11" height="12" rx="1.8" />
+      <path d="M16 8V5.8A1.8 1.8 0 0 0 14.2 4H5.8A1.8 1.8 0 0 0 4 5.8v10.4A1.8 1.8 0 0 0 5.8 18H8" />
+    </svg>
+  );
+}
+
 export function TrouvablePremiumMenuExperience({
   menu,
   config,
@@ -445,6 +481,21 @@ export function TrouvablePremiumMenuExperience({
   const [dishSubSheet, setDishSubSheet] = useState<DishSubSheet>(null);
   const [showDetailModelViewer, setShowDetailModelViewer] = useState(false);
   const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
+  const [arHandoffPlatform] = useState<ArHandoffPlatform>(() => {
+    if (typeof navigator === "undefined") return "other";
+    const navigatorWithData = navigator as Navigator & {
+      userAgentData?: { platform?: string };
+    };
+    return detectArHandoffPlatform({
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      maxTouchPoints: navigator.maxTouchPoints,
+      userAgentDataPlatform: navigatorWithData.userAgentData?.platform
+    });
+  });
+  const [arCopyStatus, setArCopyStatus] = useState<ArCopyStatus>("idle");
+  const [manualDishUrl, setManualDishUrl] = useState("");
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [selection, setSelection] = useState<Map<string, SelectionItem>>(
     () => new Map()
   );
@@ -481,6 +532,10 @@ export function TrouvablePremiumMenuExperience({
   const waiterButtonRef = useRef<HTMLButtonElement | null>(null);
   const topBarRef = useRef<HTMLElement | null>(null);
   const toolsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const backToTopSentinelRef = useRef<HTMLDivElement | null>(null);
+  const pageTopRef = useRef<HTMLElement | null>(null);
+  const manualDishUrlRef = useRef<HTMLInputElement | null>(null);
+  const arCopyResetTimeoutRef = useRef<number | null>(null);
   const categoryRailRef = useRef<HTMLElement | null>(null);
   const [toolsPinned, setToolsPinned] = useState(false);
   const menuCategorySwipeRef = useRef<PointerSwipeStart | null>(null);
@@ -544,6 +599,15 @@ export function TrouvablePremiumMenuExperience({
       lang: selectedLocale
     }),
     [query, selectedLocale]
+  );
+
+  useEffect(
+    () => () => {
+      if (arCopyResetTimeoutRef.current !== null) {
+        window.clearTimeout(arCopyResetTimeoutRef.current);
+      }
+    },
+    []
   );
 
   useEffect(() => {
@@ -711,6 +775,33 @@ export function TrouvablePremiumMenuExperience({
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
   const viewLabel = viewMode === "grid" ? copy.viewGrid : copy.viewList;
 
+  const resetArHandoffState = useCallback(() => {
+    if (arCopyResetTimeoutRef.current !== null) {
+      window.clearTimeout(arCopyResetTimeoutRef.current);
+      arCopyResetTimeoutRef.current = null;
+    }
+    setShowArBrowserHelp(false);
+    setArCopyStatus("idle");
+    setManualDishUrl("");
+  }, []);
+
+  function selectManualDishUrl() {
+    const input = manualDishUrlRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    input.select();
+  }
+
+  const handleBackToTop = useCallback(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion ? "auto" : "smooth"
+    });
+    window.requestAnimationFrame(() => {
+      pageTopRef.current?.focus({ preventScroll: true });
+    });
+  }, [prefersReducedMotion]);
+
   const restoreFocus = useCallback(() => {
     window.setTimeout(() => {
       const previous = lastFocusRef.current;
@@ -737,8 +828,9 @@ export function TrouvablePremiumMenuExperience({
     // Only flip the logical state here. Dish/sub-sheet data stays mounted through the
     // closing animation and is cleared once the sheet has fully left the DOM (see effect below).
     setActiveSheet(null);
+    resetArHandoffState();
     restoreFocus();
-  }, [restoreFocus]);
+  }, [resetArHandoffState, restoreFocus]);
 
   const closeDishSubSheet = useCallback(() => {
     setDishSubSheet(null);
@@ -928,6 +1020,19 @@ export function TrouvablePremiumMenuExperience({
   }, []);
 
   useEffect(() => {
+    const sentinel = backToTopSentinelRef.current;
+    if (!sentinel || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry) return;
+      setShowBackToTop(!entry.isIntersecting);
+    });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (!activeSheet) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -1000,7 +1105,6 @@ export function TrouvablePremiumMenuExperience({
       .catch(() => {
         if (!cancelled) {
           setModelViewerLoadFailed(true);
-          setShowArBrowserHelp(true);
         }
       });
 
@@ -1010,8 +1114,7 @@ export function TrouvablePremiumMenuExperience({
   }, [ModelViewerComponent, modelViewerLoadFailed, showDetailModelViewer]);
 
   // Once the sheet layer has fully closed (past its exit animation), drop the dish-scoped
-  // state so a reopened sheet starts clean and the model viewer never lingers. Derived during
-  // render on the closed transition (React's previous-render pattern), avoiding a cascading effect.
+  // state so a reopened sheet starts clean and the model viewer never lingers.
   const [prevRenderedSheet, setPrevRenderedSheet] = useState(renderedSheet);
   if (renderedSheet !== prevRenderedSheet) {
     setPrevRenderedSheet(renderedSheet);
@@ -1019,7 +1122,6 @@ export function TrouvablePremiumMenuExperience({
       setSelectedDish(null);
       setDishSubSheet(null);
       setShowDetailModelViewer(false);
-      setShowArBrowserHelp(false);
     }
   }
 
@@ -1071,6 +1173,7 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function openRestaurantReviewSheet() {
+    resetArHandoffState();
     setSelectedDish(null);
     setReviewRating(0);
     setReviewText("");
@@ -1202,7 +1305,7 @@ export function TrouvablePremiumMenuExperience({
   function openDishDetail(dish: PublicMenuDish) {
     setDishSubSheet(null);
     setShowDetailModelViewer(false);
-    setShowArBrowserHelp(false);
+    resetArHandoffState();
     setSelectedDish(dish);
     trackPublicMenuEvent(menu, {
       eventName: "dish_opened",
@@ -1219,7 +1322,7 @@ export function TrouvablePremiumMenuExperience({
     const nextIndex = (safeIndex + direction + visibleDishes.length) % visibleDishes.length;
     setDishSubSheet(null);
     setShowDetailModelViewer(false);
-    setShowArBrowserHelp(false);
+    resetArHandoffState();
     setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
   }
 
@@ -1831,6 +1934,37 @@ export function TrouvablePremiumMenuExperience({
       selectedDish.slug,
       localizedQuery
     );
+    const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
+    const arBrowserFallbackTitleId = `trouvable-ar-browser-fallback-${selectedDish.slug}`;
+    const manualDishUrlId = `trouvable-ar-manual-url-${selectedDish.slug}`;
+
+    async function copyDishUrl() {
+      if (arCopyStatus === "copying") return;
+      if (arCopyResetTimeoutRef.current !== null) {
+        window.clearTimeout(arCopyResetTimeoutRef.current);
+        arCopyResetTimeoutRef.current = null;
+      }
+
+      const absoluteDishUrl = new URL(
+        browserDishHref,
+        window.location.origin
+      ).toString();
+      setArCopyStatus("copying");
+      const copied = await copyTextToClipboard(absoluteDishUrl);
+
+      if (copied) {
+        setManualDishUrl("");
+        setArCopyStatus("success");
+        arCopyResetTimeoutRef.current = window.setTimeout(() => {
+          arCopyResetTimeoutRef.current = null;
+          setArCopyStatus("idle");
+        }, AR_COPY_STATUS_RESET_MS);
+        return;
+      }
+
+      setManualDishUrl(absoluteDishUrl);
+      setArCopyStatus("error");
+    }
 
     return (
       <div
@@ -1952,7 +2086,7 @@ export function TrouvablePremiumMenuExperience({
                   aria-controls="trouvable-sheet-model"
                   aria-expanded={showDetailModelViewer}
                   onClick={() => {
-                    setShowArBrowserHelp(false);
+                    resetArHandoffState();
                     setShowDetailModelViewer((isVisible) => {
                       if (!isVisible && selectedDish) {
                         trackPublicMenuEvent(menu, {
@@ -1989,10 +2123,16 @@ export function TrouvablePremiumMenuExperience({
                       }}
                       onReturnToDish={() => {
                         setShowDetailModelViewer(false);
-                        setShowArBrowserHelp(false);
+                        resetArHandoffState();
                       }}
-                      onArFallbackNeeded={() => setShowArBrowserHelp(true)}
-                      onArFallbackCleared={() => setShowArBrowserHelp(false)}
+                      onArFallbackNeeded={(reason: ArFallbackReason) => {
+                        if (reason === "missing-ios-usdz") {
+                          resetArHandoffState();
+                          return;
+                        }
+                        setShowArBrowserHelp(true);
+                      }}
+                      onArFallbackCleared={resetArHandoffState}
                     />
                   ) : modelViewerLoadFailed ? (
                     <div className={styles.modelLoading} role="status">
@@ -2004,18 +2144,63 @@ export function TrouvablePremiumMenuExperience({
                     </div>
                   )}
                 </div>
-                {showArBrowserHelp || modelViewerLoadFailed ? (
-                  <p className={styles.arBrowserHelp}>
-                    {copy.arBrowserHelp}{" "}
-                    <Link
-                      href={browserDishHref}
-                      prefetch={false}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                {showArBrowserHelp ? (
+                  <aside
+                    className={styles.arBrowserFallback}
+                    aria-labelledby={arBrowserFallbackTitleId}
+                    dir="auto"
+                  >
+                    <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
+                      <BrowserHandoffIcon />
+                    </span>
+                    <div className={styles.arBrowserFallbackContent}>
+                      <h3 id={arBrowserFallbackTitleId}>{platformCopy.title}</h3>
+                      <p>{platformCopy.body}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.arCopyButton}
+                      onClick={() => void copyDishUrl()}
+                      disabled={arCopyStatus === "copying"}
                     >
-                      {copy.arBrowserLink}
-                    </Link>
-                  </p>
+                      <CopyIcon />
+                      {platformCopy.action}
+                    </button>
+                    {arCopyStatus === "success" ? (
+                      <p className={styles.arCopyStatus} role="status" aria-live="polite">
+                        {platformCopy.success}
+                      </p>
+                    ) : null}
+                    {arCopyStatus === "error" ? (
+                      <div className={styles.arManualCopy}>
+                        <p
+                          className={styles.arCopyStatus}
+                          role="alert"
+                          aria-live="assertive"
+                        >
+                          {copy.arBrowserFallback.copyError}
+                        </p>
+                        <label htmlFor={manualDishUrlId}>
+                          {copy.arBrowserFallback.manualCopyLabel}
+                        </label>
+                        <input
+                          ref={manualDishUrlRef}
+                          id={manualDishUrlId}
+                          type="url"
+                          readOnly
+                          value={manualDishUrl}
+                          onFocus={(event) => event.currentTarget.select()}
+                        />
+                        <button
+                          type="button"
+                          className={styles.arSelectLinkButton}
+                          onClick={selectManualDishUrl}
+                        >
+                          {copy.arBrowserFallback.selectLink}
+                        </button>
+                      </div>
+                    ) : null}
+                  </aside>
                 ) : null}
               </>
             ) : null}
@@ -2034,8 +2219,16 @@ export function TrouvablePremiumMenuExperience({
     );
   }
 
+  const canShowBackToTop =
+    showBackToTop &&
+    activeSheet === null &&
+    renderedSheet === null &&
+    !showDetailModelViewer;
+
   return (
     <main
+      ref={pageTopRef}
+      tabIndex={-1}
       className={`${styles.page} ${typographyClassName}`.trim()}
       lang={selectedLocale}
       data-text-direction={textDirection}
@@ -2083,6 +2276,11 @@ export function TrouvablePremiumMenuExperience({
       data-theme={config.theme}
       data-user-theme={selectedTheme}
     >
+      <div
+        ref={backToTopSentinelRef}
+        className={styles.backToTopSentinel}
+        aria-hidden="true"
+      />
       <header ref={topBarRef} className={styles.topBar}>
         <div className={styles.brandBlock}>
           <VistaireWord />
@@ -2324,6 +2522,19 @@ export function TrouvablePremiumMenuExperience({
       <div className={styles.statusRegion} aria-live="polite">
         {localMessage}
       </div>
+
+      <button
+        type="button"
+        className={styles.backToTop}
+        data-visible={canShowBackToTop ? "true" : "false"}
+        aria-label={copy.backToTop}
+        title={copy.backToTop}
+        aria-hidden={!canShowBackToTop}
+        tabIndex={canShowBackToTop ? 0 : -1}
+        onClick={handleBackToTop}
+      >
+        <BackToTopIcon />
+      </button>
 
       <GoogleReviewCard
         googleReview={menu.googleReview}

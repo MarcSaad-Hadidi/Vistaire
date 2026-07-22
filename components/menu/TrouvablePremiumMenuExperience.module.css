@@ -1645,6 +1645,89 @@
   visibility: hidden;
 }
 
+.backToTopSentinel {
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.backToTop {
+  position: fixed;
+  z-index: 15;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(env(safe-area-inset-bottom) + 18px);
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid rgba(35, 26, 13, 0.24);
+  border-radius: 50%;
+  background: #e8cf9b;
+  color: #17120b;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.94);
+  visibility: hidden;
+  transition:
+    opacity 200ms var(--vistaire-motion-ease),
+    transform 200ms var(--vistaire-motion-ease),
+    visibility 0s linear 200ms;
+}
+
+.backToTop[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.backToTop svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.backToTop:focus-visible,
+.arCopyButton:focus-visible,
+.arSelectLinkButton:focus-visible,
+.arManualCopy input:focus-visible {
+  outline: 3px solid rgba(243, 220, 117, 0.9);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .backToTop:hover {
+    background: #f3dc75;
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  .backToTop:hover::after {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    width: max-content;
+    max-width: 180px;
+    padding: 6px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background: #050505;
+    color: #fffaf0;
+    content: attr(title);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    pointer-events: none;
+  }
+}
+
 .tools {
   position: sticky;
   top: var(--trouvable-sticky-tools-top, 72px);
@@ -2333,25 +2416,154 @@
   line-height: 1.55;
 }
 
-.arBrowserHelp {
+.arBrowserFallback {
   width: min(100%, 860px);
+  min-height: 184px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px 12px;
   margin: -2px auto 0;
   border: 1px solid rgba(243, 220, 117, 0.3);
   border-radius: 18px;
   background: rgba(243, 220, 117, 0.08);
   color: rgba(255, 255, 255, 0.76);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.4;
-  padding: 12px 14px;
-  text-align: center;
+  padding: 14px;
 }
 
-.arBrowserHelp a {
+.arBrowserFallbackIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(243, 220, 117, 0.34);
+  border-radius: 12px;
+  background: rgba(243, 220, 117, 0.12);
   color: #f3dc75;
-  font-weight: 900;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+}
+
+.arBrowserFallbackIcon svg,
+.arCopyButton svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.arBrowserFallbackContent {
+  min-width: 0;
+}
+
+.arBrowserFallbackContent h3 {
+  margin: 0;
+  color: #fffaf0;
+  font-family: var(--trouvable-font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.arBrowserFallbackContent p {
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.arCopyButton {
+  grid-column: 2;
+  display: inline-flex;
+  min-width: min(100%, 230px);
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  justify-self: start;
+  border: 1px solid rgba(243, 220, 117, 0.5);
+  border-radius: 999px;
+  background: #e8cf9b;
+  color: #17120b;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 15px;
+  transition:
+    background 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.arCopyButton:hover {
+  background: #f3dc75;
+}
+
+.arCopyButton:active,
+.arSelectLinkButton:active {
+  transform: scale(0.98);
+}
+
+.arCopyButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.arCopyStatus {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #f3dc75;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.arManualCopy {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+}
+
+.arManualCopy label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.arManualCopy input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.36);
+  color: #fffaf0;
+  direction: ltr;
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.arSelectLinkButton {
+  min-height: 40px;
+  justify-self: start;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: transparent;
+  color: #f3dc75;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 13px;
+}
+
+.arBrowserFallback:dir(rtl) {
+  text-align: right;
+}
+
+.arBrowserFallback:dir(rtl) .arCopyButton,
+.arBrowserFallback:dir(rtl) .arSelectLinkButton {
+  justify-self: end;
 }
 
 .modelLoading {
@@ -2953,10 +3165,9 @@
     font-size: 16px;
   }
 
-  .arBrowserHelp {
+  .arBrowserFallback {
     max-width: 340px;
     border-radius: 14px;
-    font-size: 12px;
     padding: 10px 11px;
   }
 }
@@ -3780,14 +3991,51 @@
   color: rgba(35, 26, 13, 0.7);
 }
 
-.page[data-user-theme="light"] .arBrowserHelp {
+.page[data-user-theme="light"] .arBrowserFallback {
   border-color: rgba(143, 109, 20, 0.28);
   background: rgba(185, 145, 36, 0.12);
   color: rgba(35, 26, 13, 0.72);
 }
 
-.page[data-user-theme="light"] .arBrowserHelp a {
+.page[data-user-theme="light"] .arBrowserFallbackContent h3 {
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .arBrowserFallbackContent p,
+.page[data-user-theme="light"] .arManualCopy label {
+  color: rgba(35, 26, 13, 0.72);
+}
+
+.page[data-user-theme="light"] .arBrowserFallbackIcon {
+  border-color: rgba(143, 109, 20, 0.32);
+  background: rgba(185, 145, 36, 0.12);
   color: #6f530e;
+}
+
+.page[data-user-theme="light"] .arManualCopy input {
+  border-color: rgba(35, 26, 13, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  color: #17120b;
+}
+
+.page[data-user-theme="light"] .arSelectLinkButton {
+  border-color: rgba(35, 26, 13, 0.22);
+  color: #6f530e;
+}
+
+@media (max-width: 520px) {
+  .arBrowserFallback {
+    padding: 12px;
+  }
+
+  .arBrowserFallbackContent h3 {
+    font-size: 17px;
+  }
+
+  .arCopyButton {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 /* Premium tactile feedback. Transform/opacity only, and neutralised by the
