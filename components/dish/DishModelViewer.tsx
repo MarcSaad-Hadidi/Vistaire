@@ -28,6 +28,7 @@ import {
 } from "@/lib/arEnvironment";
 import { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
+import { copyTextToClipboard } from "@/lib/menu/arBrowserHandoff";
 
 export { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 
@@ -271,13 +272,7 @@ function getCurrentPageUrl(): string {
 
 async function copyPageLink(): Promise<boolean> {
   const url = getCurrentPageUrl();
-  if (!url || !navigator.clipboard?.writeText) return false;
-  try {
-    await navigator.clipboard.writeText(url);
-    return true;
-  } catch {
-    return false;
-  }
+  return url ? copyTextToClipboard(url) : false;
 }
 
 async function sharePageLink(dishName: string, text: string): Promise<boolean> {
