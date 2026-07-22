@@ -2534,6 +2534,7 @@ export function TrouvablePremiumMenuExperience({
         onClick={handleBackToTop}
       >
         <BackToTopIcon />
+        <span>{copy.backToTop}</span>
       </button>
 
       <GoogleReviewCard

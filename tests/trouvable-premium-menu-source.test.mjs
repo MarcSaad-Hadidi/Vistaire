@@ -538,6 +538,21 @@ test("Trouvable menu tools stay sticky under the top bar with a single control s
   assert.match(css, /\.toolsSentinel/);
 });
 
+test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {
+  const [source, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  assert.match(source, /<BackToTopIcon \/>[\s\S]*<span>\{copy\.backToTop\}<\/span>/);
+  assert.match(css, /\.backToTop[\s\S]*left:\s*50%[\s\S]*min-width:\s*188px[\s\S]*height:\s*46px/);
+  assert.match(css, /\.backToTop[\s\S]*border:\s*1px solid #f0d800[\s\S]*border-radius:\s*999px/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\] \.backToTop[\s\S]*background:\s*#fff9ef[\s\S]*color:\s*#8f6d14/
+  );
+});
+
 test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
   const page = await readFile(pagePath, "utf8");
   const dishPage = await readFile(dishPagePath, "utf8");
