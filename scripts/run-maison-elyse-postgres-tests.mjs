@@ -47,6 +47,6 @@ psql(["--file", path.join(root, "tests/postgres/qr-lifecycle/bootstrap.sql")]);
 psql(["--file", path.join(root, "supabase/migrations/0007_restaurants.sql")]);
 psql(["--file", path.join(root, "tests/postgres/maison-elyse-media/run.sql")]);
 // Reapplying the RPC is an explicit DDL rerun check for the production migration.
-psql(["--file", path.join(root, "supabase/migrations/20260721150000_maison_elyse_media_backfill_rpc.sql")]);
+psql(["--file", path.join(root, "supabase/migrations/20260722062916_maison_elyse_media_backfill_rpc.sql")]);
 
 console.log("Maison Elyse media PostgreSQL 17 migration, security, atomicity, CAS, and concurrency checks passed.");
