@@ -34,7 +34,7 @@ select dblink_send_query(
 );
 select pg_sleep(0.25);
 select qr_test.assert_true(
-  dblink_is_busy('maison_elyse_concurrent'),
+  dblink_is_busy('maison_elyse_concurrent') = 1,
   'second connection must wait while FOR UPDATE is held'
 );
 commit;
