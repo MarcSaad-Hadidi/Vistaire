@@ -362,6 +362,29 @@ test("Trouvable copy merges base and exact Greek UI buckets without order loss",
   assert.equal(copy.threeD, "\u03a0\u03a1\u039f\u0392\u039f\u039b\u0397 \u03a3\u0395 3D");
 });
 
+test("Trouvable partial nested AR overrides preserve sibling fallback copy", () => {
+  const baseFallback = TROUVABLE_COPY.fr.arBrowserFallback;
+  const copy = getTrouvableCopy("fr-CA", {
+    "fr-CA": {
+      arBrowserFallback: {
+        ios: {
+          title: "Ouvrez cette fiche dans Safari maintenant"
+        }
+      }
+    }
+  });
+
+  assert.equal(
+    copy.arBrowserFallback.ios.title,
+    "Ouvrez cette fiche dans Safari maintenant"
+  );
+  assert.equal(copy.arBrowserFallback.ios.body, baseFallback.ios.body);
+  assert.equal(copy.arBrowserFallback.ios.action, baseFallback.ios.action);
+  assert.deepEqual(copy.arBrowserFallback.android, baseFallback.android);
+  assert.deepEqual(copy.arBrowserFallback.other, baseFallback.other);
+  assert.equal(copy.arBrowserFallback.copyError, baseFallback.copyError);
+});
+
 test("Trouvable exact regional UI buckets do not become base-language fallbacks", () => {
   const { copy, resolution } = resolveTrouvableCopy("pt-PT", {
     pt: {

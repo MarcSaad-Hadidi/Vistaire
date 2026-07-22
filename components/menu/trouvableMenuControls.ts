@@ -2205,31 +2205,47 @@ function copyNestedOverrides(value: unknown, base: TrouvableCopy): Partial<Trouv
     rawValue: unknown,
     baseValue: unknown
   ): Record<string, unknown> {
+    if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
+      return {};
+    }
+
     const input = objectInput(rawValue);
     if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
       return {};
     }
 
-    const overrides: Record<string, unknown> = {};
-    for (const [rawKey, expectedValue] of Object.entries(
-      baseValue as Record<string, unknown>
-    )) {
-      const nextValue = input[rawKey];
+    const merged: Record<string, unknown> = {
+      ...(baseValue as Record<string, unknown>)
+    };
+    for (const [rawKey, nextValue] of Object.entries(input)) {
+      const expectedValue = (baseValue as Record<string, unknown>)[rawKey];
+      if (expectedValue === undefined) continue;
       if (typeof expectedValue === "string") {
         if (typeof nextValue === "string" && nextValue.trim()) {
-          overrides[rawKey] = nextValue;
+          merged[rawKey] = nextValue;
         }
         continue;
       }
       if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
         const nested = mergeNestedObject(nextValue, expectedValue);
-        if (Object.keys(nested).length > 0) overrides[rawKey] = nested;
+        if (Object.keys(nested).length > 0) merged[rawKey] = nested;
       }
     }
-    return overrides;
+    return merged;
   }
 
-  return mergeNestedObject(value, base) as Partial<TrouvableCopy>;
+  const input = objectInput(value);
+  const baseObject = base as Record<string, unknown>;
+  const overrides: Record<string, unknown> = {};
+  for (const [rawKey, nextValue] of Object.entries(input)) {
+    const expectedValue = baseObject[rawKey];
+    if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
+      const nested = mergeNestedObject(nextValue, expectedValue);
+      if (Object.keys(nested).length > 0) overrides[rawKey] = nested;
+    }
+  }
+
+  return overrides as Partial<TrouvableCopy>;
 }
 
 function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
