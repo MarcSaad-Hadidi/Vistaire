@@ -26,6 +26,8 @@ import {
 
 const JOB_TOKEN_VERSION = "v1";
 const DEFAULT_JOB_TOKEN_TTL_MS = 30 * 60 * 1000;
+export const USDZ_WORKER_REPORT_SCHEMA_VERSION = 1;
+export const USDZ_WORKER_VERSION = 3;
 
 type OwnerIdentity = {
   userId: string;
@@ -180,7 +182,7 @@ function cleanRecipe(value: unknown): UsdzOptimizationRecipe | null {
   return isUsdzOptimizationRecipe(normalized) ? normalized : null;
 }
 
-function cleanPhysicalScale(value: unknown) {
+export function cleanPhysicalScale(value: unknown) {
   if (!isRecord(value)) return undefined;
   return {
     status: typeof value.status === "string" ? value.status : "unknown",
@@ -209,7 +211,7 @@ function cleanPhysicalScale(value: unknown) {
 
 type CleanPhysicalScale = ReturnType<typeof cleanPhysicalScale>;
 
-function assertPhysicalScalePublishable(value: CleanPhysicalScale): asserts value is NonNullable<CleanPhysicalScale> {
+export function assertPhysicalScalePublishable(value: CleanPhysicalScale): asserts value is NonNullable<CleanPhysicalScale> {
   if (!value) {
     throw new Error("Rapport USDZ invalide: physicalScale requis.");
   }
@@ -229,6 +231,149 @@ function assertPhysicalScalePublishable(value: CleanPhysicalScale): asserts valu
   if (value.centeredX !== true || value.centeredY !== true || value.grounded !== true) {
     throw new Error("Rapport USDZ invalide: modele non centre ou non grounded.");
   }
+}
+
+export class UsdzWorkerReportValidationError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string, message: string) {
+    super(message);
+    this.name = "UsdzWorkerReportValidationError";
+    this.reason = reason;
+  }
+}
+
+export type UsdzWorkerReportExpectation = {
+  runtimeSha256?: string;
+  runtimeBytes?: number;
+  sourceSha256?: string;
+  sourceBytes?: number;
+  actualRuntimeSha256?: string;
+  actualRuntimeBytes?: number;
+  restaurantId?: string;
+  dishSlug?: string;
+};
+
+export function validateUsdzWorkerV3Report(
+  value: unknown,
+  expectation: UsdzWorkerReportExpectation = {}
+): {
+  report: Record<string, unknown>;
+  physicalScale: NonNullable<ReturnType<typeof cleanPhysicalScale>>;
+} {
+  if (!isRecord(value)) {
+    throw new UsdzWorkerReportValidationError("requires-worker-v3", "Rapport USDZ invalide: objet requis.");
+  }
+  if (value.reportSchemaVersion !== USDZ_WORKER_REPORT_SCHEMA_VERSION) {
+    throw new UsdzWorkerReportValidationError(
+      "unsupported-report-version",
+      "Rapport USDZ invalide: version de schema worker non supportee."
+    );
+  }
+  if (value.workerVersion !== USDZ_WORKER_VERSION) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: worker-v3 requis."
+    );
+  }
+  if (value.assetKey !== "usdzRuntime") {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: assetKey usdzRuntime requis."
+    );
+  }
+  if (expectation.restaurantId && value.restaurantId !== expectation.restaurantId) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: restaurantId incoherent."
+    );
+  }
+  if (expectation.dishSlug && value.dishSlug !== expectation.dishSlug) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: dishSlug incoherent."
+    );
+  }
+  if (value.sourceStored !== false) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: sourceStored doit rester false."
+    );
+  }
+  if (!cleanPositiveInt(value.sourceBytes)) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: sourceBytes requis."
+    );
+  }
+  const sourceSha256 = cleanSha256(value.sourceSha256);
+  if (value.sourceSha256 !== undefined && !sourceSha256) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: sourceSha256 malforme."
+    );
+  }
+  if (expectation.sourceSha256 && sourceSha256 !== expectation.sourceSha256.toLowerCase()) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: sourceSha256 incoherent."
+    );
+  }
+  if (expectation.sourceBytes && value.sourceBytes !== expectation.sourceBytes) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: sourceBytes incoherent."
+    );
+  }
+  const runtimeSha256 = cleanSha256(value.runtimeSha256);
+  if (!runtimeSha256 || (expectation.runtimeSha256 && runtimeSha256 !== expectation.runtimeSha256.toLowerCase())) {
+    throw new UsdzWorkerReportValidationError(
+      "runtime-hash-mismatch",
+      "Rapport USDZ invalide: runtimeSha256 incoherent."
+    );
+  }
+  const runtimeBytes = cleanPositiveInt(value.runtimeBytes);
+  if (!runtimeBytes || (expectation.runtimeBytes && runtimeBytes !== expectation.runtimeBytes)) {
+    throw new UsdzWorkerReportValidationError(
+      "runtime-size-mismatch",
+      "Rapport USDZ invalide: runtimeBytes incoherent."
+    );
+  }
+  if (expectation.actualRuntimeSha256 && runtimeSha256 !== expectation.actualRuntimeSha256.toLowerCase()) {
+    throw new UsdzWorkerReportValidationError(
+      "runtime-hash-mismatch",
+      "Rapport USDZ invalide: runtimeSha256 ne correspond pas aux octets uploades."
+    );
+  }
+  if (expectation.actualRuntimeBytes && runtimeBytes !== expectation.actualRuntimeBytes) {
+    throw new UsdzWorkerReportValidationError(
+      "runtime-size-mismatch",
+      "Rapport USDZ invalide: runtimeBytes ne correspond pas aux octets uploades."
+    );
+  }
+  if (!Array.isArray(value.fails)) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      "Rapport USDZ invalide: fails doit etre un tableau."
+    );
+  }
+  const reportFails = cleanStringArray(value.fails);
+  if (reportFails.length > 0) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      `Rapport USDZ invalide: ${reportFails.join("; ")}`
+    );
+  }
+  const physicalScale = cleanPhysicalScale(value.physicalScale);
+  try {
+    assertPhysicalScalePublishable(physicalScale);
+  } catch (error) {
+    throw new UsdzWorkerReportValidationError(
+      "requires-worker-v3",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+  return { report: value, physicalScale };
 }
 
 export function createUsdzRuntimeSignedAssetVersion(args: {
@@ -607,29 +752,34 @@ export async function completeUsdzRuntimeSignedUpload(args: {
     if (reportBytes.byteLength !== args.input.reportBytes) {
       throw new Error("Taille rapport Storage invalide.");
     }
-    if (sha256Hex(runtimeBytes) !== args.input.runtimeSha256) {
+    const actualRuntimeSha256 = sha256Hex(runtimeBytes);
+    if (actualRuntimeSha256 !== args.input.runtimeSha256) {
       throw new Error("SHA-256 runtime Storage invalide.");
     }
     const parsedReport = JSON.parse(reportBytes.toString("utf8")) as unknown;
-    if (!isRecord(parsedReport) || parsedReport.sourceStored !== false) {
-      throw new Error("Rapport USDZ invalide: sourceStored doit rester false.");
-    }
-    const reportFails = cleanStringArray(parsedReport.fails);
-    if (reportFails.length > 0) {
-      throw new Error(`Rapport USDZ invalide: ${reportFails.join("; ")}`);
-    }
-    const reportWarnings = cleanStringArray(parsedReport.warnings);
-    const reportCandidateAttempts = cleanCandidateAttempts(parsedReport.candidateAttempts);
-    const reportPhysicalScale = cleanPhysicalScale(parsedReport.physicalScale);
-    const reportRequestedProfile = cleanProfile(parsedReport.requestedProfile) ?? cleanProfile(parsedReport.profile);
+    const validatedReport = validateUsdzWorkerV3Report(parsedReport, {
+      runtimeSha256: args.input.runtimeSha256,
+      runtimeBytes: args.input.runtimeBytes,
+      sourceSha256: args.input.sourceSha256,
+      sourceBytes: args.input.sourceBytes,
+      actualRuntimeSha256,
+      actualRuntimeBytes: runtimeBytes.byteLength,
+      restaurantId: verified.claims.restaurantId,
+      dishSlug: verified.claims.dishSlug
+    });
+    const reportFails = cleanStringArray(validatedReport.report.fails);
+    const report = validatedReport.report;
+    const reportWarnings = cleanStringArray(report.warnings);
+    const reportCandidateAttempts = cleanCandidateAttempts(report.candidateAttempts);
+    const reportPhysicalScale = validatedReport.physicalScale;
+    const reportRequestedProfile = cleanProfile(report.requestedProfile) ?? cleanProfile(report.profile);
     const inputSelectedProfile = args.input.selectedProfile ?? args.input.profile;
-    const reportSelectedProfile = cleanProfile(parsedReport.selectedProfile) ?? reportRequestedProfile;
+    const reportSelectedProfile = cleanProfile(report.selectedProfile) ?? reportRequestedProfile;
     const inputSelectedRecipe = args.input.selectedRecipe ?? defaultUsdzOptimizationRecipe(inputSelectedProfile);
-    const reportSelectedRecipe =
-      cleanRecipe(parsedReport.selectedRecipe) ?? cleanRecipe(parsedReport.recipe);
-    const reportFallbackApplied = parsedReport.profileFallbackApplied === true;
+    const reportSelectedRecipe = cleanRecipe(report.selectedRecipe) ?? cleanRecipe(report.recipe);
+    const reportFallbackApplied = report.profileFallbackApplied === true;
     const inputFallbackApplied = args.input.profileFallbackApplied === true;
-    const reportRecipeFallbackApplied = parsedReport.recipeFallbackApplied === true;
+    const reportRecipeFallbackApplied = report.recipeFallbackApplied === true;
     const inputRecipeFallbackApplied = args.input.recipeFallbackApplied === true;
     if (reportRequestedProfile && reportRequestedProfile !== args.input.profile) {
       throw new Error("Rapport USDZ invalide: profil demande incoherent.");
@@ -678,20 +828,20 @@ export async function completeUsdzRuntimeSignedUpload(args: {
         recipeFallbackApplied: inputRecipeFallbackApplied,
         warnings: reportWarnings,
         fails: reportFails,
-        reductionPercent: cleanNumber(parsedReport.reductionPercent),
+        reductionPercent: cleanNumber(report.reductionPercent),
         geometryOptimization:
-          typeof parsedReport.geometryOptimization === "string"
-            ? parsedReport.geometryOptimization
+          typeof report.geometryOptimization === "string"
+            ? report.geometryOptimization
             : args.input.geometryOptimization,
-        triangleCountBefore: cleanPositiveInt(parsedReport.triangleCountBefore),
-        triangleCountAfter: cleanPositiveInt(parsedReport.triangleCountAfter),
-        geometryReductionPercent: cleanNumber(parsedReport.geometryReductionPercent),
+        triangleCountBefore: cleanPositiveInt(report.triangleCountBefore),
+        triangleCountAfter: cleanPositiveInt(report.triangleCountAfter),
+        geometryReductionPercent: cleanNumber(report.geometryReductionPercent),
         physicalScale: reportPhysicalScale,
-        textureCount: cleanPositiveInt(parsedReport.textureCount),
-        changedTextures: cleanPositiveInt(parsedReport.changedTextures),
+        textureCount: cleanPositiveInt(report.textureCount),
+        changedTextures: cleanPositiveInt(report.changedTextures),
         candidateAttempts: reportCandidateAttempts,
         attemptCount:
-          cleanPositiveInt(parsedReport.attemptCount) || reportCandidateAttempts.length,
+          cleanPositiveInt(report.attemptCount) || reportCandidateAttempts.length,
         source: {
           originalName: verified.claims.sourceOriginalName,
           bytes: args.input.sourceBytes,
@@ -740,15 +890,15 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       arUsdzUrl: String(patch.arUsdzUrl),
       usdzRuntimeBytes: runtimeBytes.byteLength,
       usdzSourceBytes: args.input.sourceBytes,
-      reductionPercent: cleanNumber(parsedReport.reductionPercent),
+      reductionPercent: cleanNumber(report.reductionPercent),
       profile: args.input.profile,
       selectedProfile: inputSelectedProfile,
       selectedRecipe: inputSelectedRecipe,
       profileFallbackApplied: inputFallbackApplied,
       recipeFallbackApplied: inputRecipeFallbackApplied,
       geometryOptimization:
-        typeof parsedReport.geometryOptimization === "string"
-          ? parsedReport.geometryOptimization
+        typeof report.geometryOptimization === "string"
+          ? report.geometryOptimization
           : args.input.geometryOptimization,
       physicalScale: reportPhysicalScale,
       warnings: reportWarnings,

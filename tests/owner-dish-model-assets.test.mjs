@@ -13,9 +13,15 @@ import {
   collectDishMediaStorageTargets,
   isSafeDishPhotoStoragePath
 } from "../lib/owner/dishMediaGarbageCollector.ts";
+import {
+  isCanonicalUuid,
+  isStorageSafeIdentifier,
+  normalizeStorageSafeIdentifier
+} from "../lib/owner/storageSafeIdentifier.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const otherRestaurantId = "22222222-3333-4444-8555-666666666666";
+const maisonElyseRestaurantId = "11111111-1111-1111-1111-111111111111";
 
 test("dish model storage collection keeps only safe paths for the restaurant", () => {
   const metadata = {
@@ -165,6 +171,56 @@ test("dish model path validation rejects traversal, encoded paths, wrong folders
   }
 });
 
+test("photo and model collectors accept the Maison Elyse legacy restaurant id", () => {
+  assert.equal(
+    isSafeDishPhotoStoragePath(
+      `restaurants/${maisonElyseRestaurantId}/photos/originals/tartare-saumon.jpg`,
+      maisonElyseRestaurantId
+    ),
+    true
+  );
+  assert.equal(
+    isSafeDishModelStoragePath(
+      `restaurants/${maisonElyseRestaurantId}/models/web/tartare-saumon.glb`,
+      maisonElyseRestaurantId,
+      ".glb",
+      ["web"]
+    ),
+    true
+  );
+});
+
+test("storage-safe identifier contract accepts safe UUID-shaped ids and rejects path input", () => {
+  assert.equal(
+    normalizeStorageSafeIdentifier("11111111-1111-1111-1111-111111111111"),
+    "11111111-1111-1111-1111-111111111111"
+  );
+  assert.equal(
+    normalizeStorageSafeIdentifier("AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE"),
+    "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+  );
+  assert.equal(isStorageSafeIdentifier(restaurantId), true);
+  assert.equal(isCanonicalUuid(restaurantId), true);
+  assert.equal(isCanonicalUuid("11111111-1111-1111-1111-111111111111"), false);
+
+  for (const unsafeIdentifier of [
+    "",
+    "../",
+    "restaurant/1",
+    "restaurant\\1",
+    "https://example.test/restaurant",
+    " 11111111-1111-1111-1111-111111111111",
+    "11111111-1111-1111-1111-111111111111 ",
+    "11111111-1111-1111-1111-111111111111%20",
+    "11111111-1111-1111-1111-11111111111",
+    "11111111-1111-1111-1111-1111111111111",
+    "dish-2"
+  ]) {
+    assert.equal(isStorageSafeIdentifier(unsafeIdentifier), false, unsafeIdentifier);
+    assert.equal(normalizeStorageSafeIdentifier(unsafeIdentifier), null, unsafeIdentifier);
+  }
+});
+
 test("cleanDishModelMetadata removes model fields and preserves dish/photo metadata", () => {
   const cleaned = cleanDishModelMetadata({
     description: "Assiette maison",
@@ -230,6 +286,9 @@ test("dish model DELETE route is guarded, scoped, and cleans only server-side mo
   assert.match(route, /runtime = "nodejs"/);
   assert.match(route, /requireVistaireOwnerApi\(\)/);
   assert.match(route, /requireSameOriginOwnerMutation\(request\)/);
+  assert.match(route, /normalizeStorageSafeIdentifier/);
+  assert.match(route, /isCanonicalUuid/);
+  assert.doesNotMatch(route, /const UUID_PATTERN/);
   assert.doesNotMatch(route, /requireOwner3dRestaurantAccess/);
   assert.doesNotMatch(uploadRoute, /requireOwner3dRestaurantAccess/);
   assert.doesNotMatch(publishRoute, /requireOwner3dRestaurantAccess/);

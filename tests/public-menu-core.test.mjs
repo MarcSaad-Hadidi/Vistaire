@@ -381,6 +381,36 @@ test("maps real photo and 3D/AR fields without inventing missing assets", () => 
   assert.equal(soupe.modelStatus, "missing");
 });
 
+test("ignores stale media flags and statuses when Supabase has no real asset", () => {
+  const dishId = "84226092-1b25-4174-a635-50e2b8319580";
+  const menu = buildSupabasePublicMenu(
+    "maison-elyse",
+    { ...restoMarc, id: maisonElyseId, slug: "maison-elyse" },
+    [
+      {
+        id: dishId,
+        restaurant_id: maisonElyseId,
+        slug: "tartare-saumon",
+        name: "Tartare de saumon",
+        has_immersive_view: true,
+        metadata: {
+          photoStatus: "ready",
+          modelStatus: "ready"
+        }
+      }
+    ]
+  );
+
+  const [dish] = menu.dishes;
+  assert.equal(dish.id, dishId);
+  assert.equal(dish.hasPhoto, false);
+  assert.equal(dish.photoStatus, "missing");
+  assert.equal(dish.has3d, false);
+  assert.equal(dish.hasAr, false);
+  assert.equal(dish.hasImmersive, false);
+  assert.equal(dish.modelStatus, "missing");
+});
+
 test("filters unavailable public dishes unless owner management opts in", () => {
   const rows = [
     {

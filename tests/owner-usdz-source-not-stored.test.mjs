@@ -158,10 +158,32 @@ function basePipelineArgs(adminClient, optimizer) {
 }
 
 function successOptimizer(runtimeBytes, { fails = [], optimizationApplied = true } = {}) {
-  return async ({ outputPath, reportPath }) => {
+  return async ({ outputPath, reportPath, sourcePath }) => {
     const { writeFileSync } = await import("node:fs");
     writeFileSync(outputPath, runtimeBytes);
-    writeFileSync(reportPath, JSON.stringify({ ok: true }));
+    writeFileSync(reportPath, JSON.stringify({
+      reportSchemaVersion: 1,
+      workerVersion: 3,
+      assetKey: "usdzRuntime",
+      restaurantId: RESTAURANT_ID,
+      dishSlug: "homard-grille",
+      sourceStored: false,
+      sourceBytes: readFileSync(sourcePath).byteLength,
+      sourceSha256: sha256Hex(readFileSync(sourcePath)),
+      runtimeBytes: runtimeBytes.byteLength,
+      runtimeSha256: sha256Hex(runtimeBytes),
+      physicalScale: {
+        status: "normalized",
+        dimension: "height",
+        minMeters: 0.1,
+        maxMeters: 0.2,
+        heightAfterMeters: 0.15,
+        centeredX: true,
+        centeredY: true,
+        grounded: true
+      },
+      fails
+    }));
     return {
       ok: true,
       runtimePath: outputPath,
@@ -935,12 +957,35 @@ test("complete rejects report JSON that does not prove sourceStored false", asyn
   });
   const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
   const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
+  const invalidReport = {
+    reportSchemaVersion: 1,
+    workerVersion: 3,
+    assetKey: "usdzRuntime",
+    restaurantId: RESTAURANT_ID,
+    dishSlug: "homard-grille",
+    sourceStored: true,
+    sourceBytes: 8000,
+    sourceSha256: "b".repeat(64),
+    runtimeBytes: runtimeBytes.byteLength,
+    runtimeSha256,
+    fails: [],
+    physicalScale: {
+      status: "normalized",
+      dimension: "height",
+      minMeters: 0.1,
+      maxMeters: 0.2,
+      heightAfterMeters: 0.15,
+      centeredX: true,
+      centeredY: true,
+      grounded: true
+    }
+  };
   const { client, removed } = mockAdminClient({
     download: async (path) => ({
       data: new Blob([
         path.endsWith(".usdz")
           ? runtimeBytes
-          : Buffer.from(JSON.stringify({ sourceStored: true }))
+          : Buffer.from(JSON.stringify(invalidReport))
       ]),
       error: null
     })
@@ -959,7 +1004,7 @@ test("complete rejects report JSON that does not prove sourceStored false", asyn
           sourceSha256: "b".repeat(64),
           runtimeBytes: runtimeBytes.byteLength,
           runtimeSha256,
-          reportBytes: Buffer.byteLength(JSON.stringify({ sourceStored: true })),
+          reportBytes: Buffer.byteLength(JSON.stringify(invalidReport)),
           geometryOptimization: "done",
           warnings: [],
           fails: [],
@@ -998,7 +1043,16 @@ test("complete rejects stale worker reports without physical scale metrics", asy
   const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
   const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
   const report = {
+    reportSchemaVersion: 1,
+    workerVersion: 3,
+    assetKey: "usdzRuntime",
+    restaurantId: RESTAURANT_ID,
+    dishSlug: "homard-grille",
     sourceStored: false,
+    sourceBytes: 8000,
+    sourceSha256: "b".repeat(64),
+    runtimeBytes: runtimeBytes.byteLength,
+    runtimeSha256,
     requestedProfile: "balanced",
     selectedProfile: "balanced",
     selectedRecipe: "balanced-max",
@@ -1172,7 +1226,16 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
   const runtimeStoragePath = `restaurants/${RESTAURANT_ID}/models/ar-ios/homard-grille-${version}.usdz`;
   const reportStoragePath = `restaurants/${RESTAURANT_ID}/models/manifests/homard-grille-${version}-usdz-report.json`;
   const report = {
+    reportSchemaVersion: 1,
+    workerVersion: 3,
+    assetKey: "usdzRuntime",
+    restaurantId: RESTAURANT_ID,
+    dishSlug: "homard-grille",
     sourceStored: false,
+    sourceBytes: 8000,
+    sourceSha256: "b".repeat(64),
+    runtimeBytes: runtimeBytes.byteLength,
+    runtimeSha256,
     requestedProfile: "balanced",
     selectedProfile: "balanced",
     selectedRecipe: "balanced-fit",

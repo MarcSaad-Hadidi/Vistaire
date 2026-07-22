@@ -1,8 +1,7 @@
+import { normalizeStorageSafeIdentifier } from "./storageSafeIdentifier.ts";
+
 export const DISH_MODEL_STORAGE_BUCKET = "vistaire-3d";
 export const DISH_MODEL_MISSING_STATUS = "missing";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DishModelExtension = ".glb" | ".usdz" | ".json";
 type DishModelFolder = "source" | "web" | "ar-lite" | "ar-ios" | "manifests" | "staging";
@@ -205,6 +204,9 @@ export const DISH_MODEL_METADATA_KEYS = [
   "model_asset_version",
   "modelAssetSha256",
   "model_asset_sha256",
+  "modelAssetSha256Format",
+  "model_asset_sha256_format",
+  "mediaBackfillRunId",
   "modelUpdatedAt",
   "model_updated_at",
   "modelCacheVersion",
@@ -273,12 +275,34 @@ export const DISH_MODEL_METADATA_KEYS = [
   "viewerGlbOriginalName",
   "viewerGlbUploadedAt",
   "usdzRuntimeStatus",
+  "usdzRuntimePendingReason",
   "usdzRuntimeStorageBucket",
   "usdzRuntimeStoragePath",
   "usdzRuntimeBytes",
   "usdzRuntimeSha256",
   "usdzRuntimeContentType",
   "usdzRuntimeUploadedAt",
+  "usdzPhysicalScaleStatus",
+  "usdzPhysicalScaleDishKind",
+  "usdzPhysicalScaleDimension",
+  "usdzPhysicalScaleTargetMeters",
+  "usdzPhysicalScaleMinMeters",
+  "usdzPhysicalScaleMaxMeters",
+  "usdzPhysicalScaleHeightBeforeMeters",
+  "usdzPhysicalScaleWidthBeforeMeters",
+  "usdzPhysicalScaleDepthBeforeMeters",
+  "usdzPhysicalScaleFootprintBeforeMeters",
+  "usdzPhysicalScaleHeightAfterMeters",
+  "usdzPhysicalScaleWidthAfterMeters",
+  "usdzPhysicalScaleDepthAfterMeters",
+  "usdzPhysicalScaleFootprintAfterMeters",
+  "usdzPhysicalScaleScaleFactor",
+  "usdzPhysicalScaleCenteredX",
+  "usdzPhysicalScaleCenteredY",
+  "usdzPhysicalScaleGrounded",
+  "usdzPhysicalScaleCenterOffsetBeforeMeters",
+  "usdzPhysicalScaleCenterOffsetAfterMeters",
+  "usdzPhysicalScaleWarnings",
   "usdzOptimizationRequestedProfile",
   "usdzOptimizationProfile",
   "usdzOptimizationSelectedRecipe",
@@ -537,7 +561,8 @@ export function isSafeDishModelStoragePath(
   allowedFolders?: readonly DishModelFolder[]
 ): boolean {
   const storagePath = path.trim();
-  if (!UUID_PATTERN.test(restaurantId)) return false;
+  const normalizedRestaurantId = normalizeStorageSafeIdentifier(restaurantId);
+  if (!normalizedRestaurantId) return false;
   if (!storagePath || storagePath !== path) return false;
   if (
     storagePath.startsWith("/") ||
@@ -560,7 +585,7 @@ export function isSafeDishModelStoragePath(
   if (
     segments.length < 5 ||
     segments[0] !== "restaurants" ||
-    segments[1] !== restaurantId ||
+    segments[1] !== normalizedRestaurantId ||
     segments[2] !== "models"
   ) {
     return false;

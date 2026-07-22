@@ -246,6 +246,7 @@ export function OwnerRestaurantMediaManager({
                           <OwnerDishModelUploader
                             restaurantId={restaurantId}
                             dishId={dish.id}
+                            dishSlug={dish.slug}
                             dishName={dish.name}
                             category={dish.category}
                             initialStatus={dish.modelStatus}

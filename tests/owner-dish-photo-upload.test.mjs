@@ -11,6 +11,7 @@ import {
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const dishId = "22222222-3333-4444-8555-666666666666";
+const maisonElyseRestaurantId = "11111111-1111-1111-1111-111111111111";
 
 const tinyPng = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489",
@@ -99,6 +100,44 @@ test("dish photo storage path and public path are generated from trusted ids", (
     buildDishPhotoPublicPath(dishId),
     `/api/public/menu-dishes/${dishId}/photo`
   );
+});
+
+test("dish photo storage accepts the Maison Elyse legacy restaurant id only as a safe storage segment", () => {
+  assert.equal(
+    buildDishPhotoStoragePath({
+      restaurantId: maisonElyseRestaurantId,
+      dishId,
+      dishSlug: "tartare-saumon",
+      extension: "jpg",
+      sha256: "a".repeat(64)
+    }),
+    `restaurants/${maisonElyseRestaurantId}/photos/originals/tartare-saumon-${"a".repeat(12)}.jpg`
+  );
+
+  for (const unsafeRestaurantId of [
+    "",
+    "../",
+    "restaurant/1",
+    "restaurant\\1",
+    "https://example.test/restaurant",
+    " 11111111-1111-1111-1111-111111111111",
+    "11111111-1111-1111-1111-111111111111 ",
+    "11111111-1111-1111-1111-111111111111%20",
+    "dish-2"
+  ]) {
+    assert.throws(
+      () =>
+        buildDishPhotoStoragePath({
+          restaurantId: unsafeRestaurantId,
+          dishId,
+          dishSlug: "tartare-saumon",
+          extension: "jpg",
+          sha256: "a".repeat(64)
+        }),
+      /Identifiants photo invalides/,
+      unsafeRestaurantId
+    );
+  }
 });
 
 test("dish photo metadata merge keeps existing fields and marks photo ready", () => {

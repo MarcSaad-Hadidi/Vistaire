@@ -7,11 +7,9 @@ import {
   type DishModelSkippedTarget,
   type DishModelStorageTarget
 } from "./deleteDishModelAssets.ts";
+import { normalizeStorageSafeIdentifier } from "./storageSafeIdentifier.ts";
 
 export const DISH_PHOTO_STORAGE_BUCKET = "vistaire-media";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DishPhotoExtension = ".jpg" | ".png" | ".webp";
 
@@ -68,7 +66,8 @@ function safePhotoFileName(value: string): boolean {
 
 export function isSafeDishPhotoStoragePath(path: string, restaurantId: string): boolean {
   const storagePath = path.trim();
-  if (!UUID_PATTERN.test(restaurantId)) return false;
+  const normalizedRestaurantId = normalizeStorageSafeIdentifier(restaurantId);
+  if (!normalizedRestaurantId) return false;
   if (!storagePath || storagePath !== path) return false;
   if (
     storagePath.startsWith("/") ||
@@ -90,7 +89,7 @@ export function isSafeDishPhotoStoragePath(path: string, restaurantId: string): 
   return (
     segments.length === 5 &&
     segments[0] === "restaurants" &&
-    segments[1] === restaurantId &&
+    segments[1] === normalizedRestaurantId &&
     segments[2] === "photos" &&
     segments[3] === "originals" &&
     safePhotoFileName(segments[4])

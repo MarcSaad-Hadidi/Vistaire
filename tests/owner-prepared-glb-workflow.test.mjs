@@ -15,6 +15,7 @@ import {
 import { isSafe3dAssetUrl } from "../lib/dish3dManifest.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
+const maisonElyseRestaurantId = "11111111-1111-1111-1111-111111111111";
 
 test("prepared GLB workflow uses explicit storage paths and metadata without optimization", () => {
   const storagePath = buildPreparedModelStoragePath({
@@ -115,6 +116,31 @@ test("prepared GLB workflow versions published storage paths and public URLs", (
         assetVersion: "../stale"
       }),
     /Identifiants modele invalides/
+  );
+});
+
+test("prepared GLB workflow accepts the Maison Elyse legacy restaurant id for Storage paths", () => {
+  assert.equal(
+    buildPreparedModelStoragePath({
+      restaurantId: maisonElyseRestaurantId,
+      jobId: "job_prepared_12345678",
+      sha256: "a".repeat(64)
+    }),
+    `restaurants/${maisonElyseRestaurantId}/models/staging/job_prepared_12345678/source.glb`
+  );
+  assert.equal(
+    buildPreparedModelWebStoragePath({
+      restaurantId: maisonElyseRestaurantId,
+      dishSlug: "tartare-saumon"
+    }),
+    `restaurants/${maisonElyseRestaurantId}/models/web/tartare-saumon.glb`
+  );
+  assert.equal(
+    buildPreparedModelUsdzStoragePath({
+      restaurantId: maisonElyseRestaurantId,
+      dishSlug: "tartare-saumon"
+    }),
+    `restaurants/${maisonElyseRestaurantId}/models/ar-ios/tartare-saumon.usdz`
   );
 });
 

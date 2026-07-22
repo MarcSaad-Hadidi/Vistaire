@@ -50,6 +50,8 @@ const RECIPE_CONFIG = JSON.parse(readFileSync(RECIPE_CONFIG_PATH, "utf8"));
 const PROFILE_ORDER = ["premium", "balanced", "light", "emergency"];
 const VALID_PROFILES = new Set(PROFILE_ORDER);
 const VALID_DISH_KINDS = new Set(["burger", "pizza", "plate", "bowl", "dessert", "drink", "platter", "fallback"]);
+const USDZ_REPORT_SCHEMA_VERSION = 1;
+const USDZ_WORKER_VERSION = 3;
 const DEFAULT_PROFILE_BUDGETS = Object.fromEntries(
   Object.entries(RECIPE_CONFIG.profiles).map(([profile, config]) => [
     profile,
@@ -596,6 +598,18 @@ async function main() {
     emitError(`Rapport illisible: ${error.message}`, "report-parse");
   }
 
+  report = {
+    ...report,
+    reportSchemaVersion: USDZ_REPORT_SCHEMA_VERSION,
+    workerVersion: USDZ_WORKER_VERSION,
+    sourceBytes,
+    sourceSha256,
+    runtimeBytes,
+    runtimeSha256,
+    sourceStored: false
+  };
+  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+
   const optimizationApplied = Boolean(report.optimizationApplied);
   if (report.geometryOptimization === "done") {
     const triangleCountBefore = Number(report.triangleCountBefore);
@@ -616,6 +630,8 @@ async function main() {
   process.stdout.write(
     `${JSON.stringify({
       ok: true,
+      reportSchemaVersion: USDZ_REPORT_SCHEMA_VERSION,
+      workerVersion: USDZ_WORKER_VERSION,
       profile: report.profile ?? profile,
       requestedProfile: report.requestedProfile ?? profile,
       selectedProfile: report.selectedProfile ?? chosen?.attempt?.profile ?? profile,

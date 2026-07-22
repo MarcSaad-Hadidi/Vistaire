@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-07-21-v1",
+  "restaurant": {
+    "slug": "maison-elyse",
+    "id": "11111111-1111-1111-1111-111111111111"
+  },
+  "supabaseProjectRef": "bkpewsjvxswqruwqljcy",
+  "source": {
+    "demoMenuData": "lib/demoMenuData.ts",
+    "imageRoot": "public/images/demo/dishes",
+    "modelRoot": "public/models/demo",
+    "mappingKey": "dish.slug"
+  },
+  "usdzPolicy": {
+    "worker": "v3",
+    "workerVersion": 3,
+    "reportSchemaVersion": 1,
+    "physicalScaleReportKey": "usdzPhysicalScaleReport",
+    "unvalidatedDisposition": "requires-worker-v3",
+    "quickLookQaStatus": "not-tested"
+  },
+  "dishes": [
+    {
+      "slug": "ravioles-romarin",
+      "knownSupabaseDishId": "fd64dc12-8bd2-4669-be63-51cf0d50b839",
+      "photo": { "path": "public/images/demo/dishes/ravioles-chevre-miel-monteregie.png", "bytes": 2233181, "sha256": "a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb", "bytes": 3332584, "sha256": "8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb", "bytes": 8112832, "sha256": "c95510dad02e5ca93f38ac4d8ac9355d063a107c418d3aed81a8cbb425c1eb4a", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz", "bytes": 3438515, "sha256": "9b34710b096d5841ad1d132f34e6e72d57f1d62947461e162dc33e587c01f46a", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "tartare-saumon",
+      "knownSupabaseDishId": "84226092-1b25-4174-a635-50e2b8319580",
+      "photo": { "path": "public/images/demo/dishes/tartare-saumon-label-rouge.png", "bytes": 2018000, "sha256": "5fbb5a11ffc421e702c6dc1be06cca0a8a372f8538a73da89f50c2db8de8fe33", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/tartare-saumon-meshopt-4b0b610c.glb", "bytes": 5091112, "sha256": "4b0b610c0ea76f646849f7b78daca6c29b57abe4538d223d823e43eebf3d6f01", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb", "bytes": 11786728, "sha256": "9528f0f25d208ed70538cb2ea4b4e71348c0f5d4970ca7e0afa08d06fa022880", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz", "bytes": 3612924, "sha256": "bc043640c6539705c516a25b135f8b3a6fd4479ea9ea83c375205943bb5a404b", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "homard-bisque",
+      "knownSupabaseDishId": "bc161964-424c-4397-aaa9-9ca79ec60bb3",
+      "photo": { "path": "public/images/demo/dishes/homard-bleu-bisque-fenouil.png", "bytes": 2119063, "sha256": "aeb340a2d2601a73ceaf84f74c9f9ee108101633e1295bd4272ca2dee93f67df", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/homard-bisque-meshopt-ee44bc60.glb", "bytes": 4955904, "sha256": "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb", "bytes": 8590900, "sha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz", "bytes": 2450572, "sha256": "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4", "contentType": "model/vnd.usdz+zip" },
+      "historicalPrimaryUsdz": { "path": "public/models/demo/homard-bisque.usdz", "bytes": 26352806, "sha256": "099ba9e974b7a63519f52b017198385a748e18845c59312e7490c28d4f88b18b", "contentType": "model/vnd.usdz+zip", "disposition": "source-only" }
+    },
+    {
+      "slug": "canette-aux-figues",
+      "knownSupabaseDishId": "ae796d1c-f385-4029-a483-3a25a607a120",
+      "photo": { "path": "public/images/demo/dishes/canette-rotie-figues-epices.png", "bytes": 2141869, "sha256": "aed86a739629c88413cb97c7540f9e55c2a3a94b480b5f7d6804cb455f28683f", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/canette-aux-figues-meshopt-d54f097e.glb", "bytes": 3434508, "sha256": "d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb", "bytes": 7801972, "sha256": "b004a8fa96c136a7da2b5dde2fbc20fb0fe971be284afb9f4e32bf47f5cdb7c9", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz", "bytes": 1786076, "sha256": "ee59fc87f9d82fd25ade110785902c5010067e04bb3d0d95daaa6cc7bda2e022", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "risotto-cepe",
+      "knownSupabaseDishId": "30453578-103d-4dca-bb05-27baf46eda3e",
+      "photo": { "path": "public/images/demo/dishes/risotto-cepes-parmesan.png", "bytes": 2027681, "sha256": "0acba2fcd4c622994a8374fb462ae72b50e12b67c3a3557e0154a5f18426db56", "contentType": "image/png" }
+    },
+    {
+      "slug": "bar-ligne",
+      "knownSupabaseDishId": "cb536464-6630-4747-b62c-7db3f31931ab",
+      "photo": { "path": "public/images/demo/dishes/bar-de-ligne-artichaut-citron.png", "bytes": 2036445, "sha256": "a7f8b6752a02db65059795f4e4757738325c59a0f2f7a16647ce2b7a81efd37f", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/bar-de-ligne-meshopt-e67c9019.glb", "bytes": 2690484, "sha256": "e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb", "bytes": 5557396, "sha256": "f3531ee5b367b2f7b173eeb53704c4c2163e7236e6891400626d555671d2ea5d", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz", "bytes": 1317457, "sha256": "609863e9d20b06e3cb346adf10419bfb6b2f7a0ce1dcd57f7ad5b7ffcc8e5fb6", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "pave-boeuf",
+      "knownSupabaseDishId": "f3340d44-b5ce-4aa8-b0bc-b2c27a0b3ef9",
+      "photo": { "path": "public/images/demo/dishes/pave-boeuf-mature-bordelaise.png", "bytes": 2053001, "sha256": "c01636dd89400008de560f7142d1ef710bcea89f58e3d22fe36db440b5cebec6", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/pave-boeuf-meshopt-9e10c3a6.glb", "bytes": 1774344, "sha256": "9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb", "bytes": 4499952, "sha256": "e575464722b7ef98822424506d3e0b1dbe8b830f38f5d689a30c36cfb1339cdd", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz", "bytes": 1043589, "sha256": "4c039567bf3311f9f1412ee865a875236087e01c98b51f27dadc21493e77fda4", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "souffle-chocolat",
+      "knownSupabaseDishId": "0a4dd209-945e-4e3a-9790-7f98442e1cda",
+      "photo": { "path": "public/images/demo/dishes/souffle-chocolat-grand-cru.png", "bytes": 2152403, "sha256": "213199a34ac01ca2a406726f599f2665ce01404a53fccfe857e7268775711b79", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb", "bytes": 1754380, "sha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb", "bytes": 4707036, "sha256": "97c97928890ebe926cc423d6607080777c29439292906e9d98faa174517751d5", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz", "bytes": 1736180, "sha256": "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "tarte-citron-basilic",
+      "knownSupabaseDishId": "27e388dc-971d-48c4-9340-a4a70cef0998",
+      "photo": { "path": "public/images/demo/dishes/tarte-citron-basilic-pourpre.png", "bytes": 1942481, "sha256": "da906d2c63712d1d57c705a97896b8732b50c25e2ee699d94dee96f67dd97e01", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb", "bytes": 2494476, "sha256": "2ab5b779e3122cb1090c3996825194d789e3102b83c9db693204a5d5026c1161", "contentType": "model/gltf-binary" },
+      "arLiteGlb": { "path": "public/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb", "bytes": 6255656, "sha256": "22e08f695fcc12b0659feb212d0fb9306500cfde915e99b993ceddd795cb39ff", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz", "bytes": 1455612, "sha256": "8ebcae39f73e46f501ebe23da4bdfe24dc9fbc8a4ec4eeb4ef3406ad0d0fa8f2", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "cocktail-maison-elyse",
+      "knownSupabaseDishId": "6069ca61-abcf-4c55-b389-f175f8203cea",
+      "photo": { "path": "public/images/demo/dishes/maison-elyse-n1.png", "bytes": 2024934, "sha256": "bd43df64b681125af7bbf54c8962f98895d25c585b13a91a9427372442ca6b00", "contentType": "image/png" },
+      "webGlb": { "path": "public/models/demo/maison-elyse-n1.glb", "bytes": 86380, "sha256": "7f12cd7bc6f47ec97f6cef3b65c453bbef537aa7c095289899c51782e48eebef", "contentType": "model/gltf-binary" },
+      "usdzRuntime": { "path": "public/models/demo/maison-elyse-n1.usdz", "bytes": 208984, "sha256": "0c3f6233e237cc27c26d0784927059ef0ea7ba15e83b92e9a472a3dd2961213a", "contentType": "model/vnd.usdz+zip" }
+    },
+    {
+      "slug": "negroni-fut",
+      "knownSupabaseDishId": "0be53f33-605f-4692-b00b-cf86239f1f2d",
+      "photo": { "path": "public/images/demo/dishes/negroni-vieilli-fut.png", "bytes": 2176592, "sha256": "e6b121c5fed493fd6b5647c1144e5b725b898125aac5ea1238588608fa8a763a", "contentType": "image/png" }
+    },
+    {
+      "slug": "mocktail-bergamote",
+      "knownSupabaseDishId": "0d2f6006-1ada-4813-9ff9-ea0912833f1b",
+      "photo": { "path": "public/images/demo/dishes/elixir-bergamote-earl-grey.png", "bytes": 2132099, "sha256": "efcb66d362789c7a63080456af9aeb067bd833d41d6632f004316059e2afa6ee", "contentType": "image/png" }
+    }
+  ],
+  "sourceOnlyAssets": [
+    {
+      "path": "public/models/demo/homard-bisque.usdz",
+      "reason": "USDZ master/source-only; 26,352,806 bytes exceeds the runtime budget and must never be uploaded"
+    }
+  ]
+}
