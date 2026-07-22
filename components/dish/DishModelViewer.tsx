@@ -395,7 +395,7 @@ function PremiumLoadingState({
 
   return (
     <div
-      className={`pointer-events-none absolute inset-0 z-20 isolate flex ${MODEL_FRAME_CLASS} flex-col justify-end overflow-hidden px-5 py-6 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`}
+      className="pointer-events-none absolute inset-0 z-20 isolate flex flex-col justify-end overflow-hidden rounded-xl px-5 py-6 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
       role="status"
       aria-live="polite"
       aria-busy="true"

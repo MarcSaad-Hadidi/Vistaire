@@ -49,3 +49,14 @@ test("model viewer shows a 3D size disclaimer inside the loaded viewer path", ()
     /<p className="mt-2 px-1 text-center text-\[0\.72rem\][\s\S]*\{copy\.sizeDisclaimer\}/
   );
 });
+
+test("model viewer loading copy fills the full frame instead of clipping at mobile height", () => {
+  assert.match(
+    modelViewerSource,
+    /className="pointer-events-none absolute inset-0 z-20 isolate flex flex-col justify-end overflow-hidden rounded-xl/
+  );
+  assert.doesNotMatch(
+    modelViewerSource,
+    /absolute inset-0 z-20 isolate flex \$\{MODEL_FRAME_CLASS\}/
+  );
+});
