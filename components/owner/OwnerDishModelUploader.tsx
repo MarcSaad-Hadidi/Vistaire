@@ -28,6 +28,7 @@ export type UsdzOptimizationProfileOption = "premium" | "balanced" | "light" | "
 type OwnerDishModelUploaderProps = {
   restaurantId: string;
   dishId: string;
+  dishSlug?: string;
   dishName?: string;
   category?: string;
   initialStatus?: string;
@@ -375,6 +376,7 @@ type DeleteTarget = "all" | "viewer-glb" | "usdz-runtime" | "report";
 export function OwnerDishModelUploader({
   restaurantId,
   dishId,
+  dishSlug = "",
   dishName,
   category,
   initialWebModel3dUrl = "",
@@ -626,6 +628,8 @@ export function OwnerDishModelUploader({
       category
     });
     formData.set("file", file);
+    formData.set("restaurantId", restaurantId);
+    formData.set("dishSlug", dishSlug);
     formData.set("profile", startPayload.profile || profile);
     formData.set("jobId", startPayload.jobId);
     formData.set("jobToken", startPayload.jobToken);

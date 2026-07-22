@@ -14,6 +14,8 @@
   },
   "usdzPolicy": {
     "worker": "v3",
+    "workerVersion": 3,
+    "reportSchemaVersion": 1,
     "physicalScaleReportKey": "usdzPhysicalScaleReport",
     "unvalidatedDisposition": "requires-worker-v3",
     "quickLookQaStatus": "not-tested"

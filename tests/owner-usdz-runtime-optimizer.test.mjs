@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -499,6 +500,13 @@ test("USDZ runtime optimizer produces a valid, smaller runtime with an honest re
     assert.equal(runtimeValidation.ok, true, JSON.stringify(runtimeValidation.fails));
 
     const parsedReport = JSON.parse(readFileSync(report, "utf8"));
+    assert.equal(parsedReport.reportSchemaVersion, 1);
+    assert.equal(parsedReport.workerVersion, 3);
+    assert.equal(parsedReport.sourceStored, false);
+    assert.equal(parsedReport.sourceBytes, readFileSync(source).byteLength);
+    assert.equal(parsedReport.sourceSha256, createHash("sha256").update(readFileSync(source)).digest("hex"));
+    assert.equal(parsedReport.runtimeBytes, readFileSync(runtime).byteLength);
+    assert.equal(parsedReport.runtimeSha256, createHash("sha256").update(readFileSync(runtime)).digest("hex"));
     assert.equal(parsedReport.geometryOptimization, "skipped");
     assert.equal(parsedReport.physicalScale.status, "normalized");
     assert.equal(parsedReport.physicalScale.heightAfterMeters, 0.15);

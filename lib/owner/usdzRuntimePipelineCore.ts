@@ -18,6 +18,7 @@ import {
   sha256Hex,
   type UsdzOptimizationProfile
 } from "./usdzRuntimeModel.ts";
+import { validateUsdzWorkerV3Report } from "./usdzRuntimeJsonFlow.ts";
 
 const PROJECT_ROOT = process.cwd();
 const CLI_RELATIVE_PATH = "scripts/owner/optimize-restaurant-usdz.mjs";
@@ -259,8 +260,48 @@ export async function runUsdzRuntimePipeline(
       throw new Error("Aucun runtime USDZ produit par le worker.");
     }
     const runtimeBytes = readFileSync(runtimePath);
-    const reportGenerated = existsSync(reportPath);
-    const reportBytes = reportGenerated ? readFileSync(reportPath) : Buffer.from("{}");
+    if (!existsSync(reportPath)) {
+      throw new Error("Rapport USDZ worker-v3 manquant.");
+    }
+    const runtimeSha256 = sha256Hex(runtimeBytes);
+    let reportValue: unknown;
+    try {
+      reportValue = JSON.parse(readFileSync(reportPath, "utf8"));
+    } catch {
+      throw new Error("Rapport USDZ worker-v3 illisible.");
+    }
+    if (!reportValue || typeof reportValue !== "object" || Array.isArray(reportValue)) {
+      throw new Error("Rapport USDZ worker-v3 invalide.");
+    }
+    const rawReport = reportValue as Record<string, unknown>;
+    if (rawReport.assetKey !== undefined && rawReport.assetKey !== "usdzRuntime") {
+      throw new Error("Rapport USDZ worker-v3 lie a un asset inattendu.");
+    }
+    if (rawReport.restaurantId !== undefined && rawReport.restaurantId !== args.restaurantId) {
+      throw new Error("Rapport USDZ worker-v3 lie a un restaurant inattendu.");
+    }
+    if (rawReport.dishSlug !== undefined && rawReport.dishSlug !== args.dishSlug) {
+      throw new Error("Rapport USDZ worker-v3 lie a un plat inattendu.");
+    }
+    const boundReport = {
+      ...rawReport,
+      assetKey: "usdzRuntime",
+      restaurantId: args.restaurantId,
+      dishSlug: args.dishSlug
+    };
+    writeFileSync(reportPath, `${JSON.stringify(boundReport, null, 2)}\n`);
+    const reportBytes = readFileSync(reportPath);
+    validateUsdzWorkerV3Report(boundReport, {
+      runtimeSha256,
+      runtimeBytes: runtimeBytes.byteLength,
+      sourceSha256,
+      sourceBytes: args.sourceBytes.byteLength,
+      actualRuntimeSha256: runtimeSha256,
+      actualRuntimeBytes: runtimeBytes.byteLength,
+      restaurantId: args.restaurantId,
+      dishSlug: args.dishSlug
+    });
+    const reportGenerated = true;
 
     // Prove the transient source is deleted BEFORE any Supabase upload. The
     // whole workspace is still removed in `finally`, but the gate must not pass

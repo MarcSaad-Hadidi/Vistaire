@@ -206,6 +206,7 @@ export const DISH_MODEL_METADATA_KEYS = [
   "model_asset_sha256",
   "modelAssetSha256Format",
   "model_asset_sha256_format",
+  "mediaBackfillRunId",
   "modelUpdatedAt",
   "model_updated_at",
   "modelCacheVersion",

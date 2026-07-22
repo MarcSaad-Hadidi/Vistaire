@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -11,8 +11,10 @@ import {
   buildPreparedModelWebStoragePath
 } from "../../lib/owner/preparedModelWorkflow.ts";
 import {
-  assertPhysicalScalePublishable,
-  cleanPhysicalScale
+  USDZ_WORKER_REPORT_SCHEMA_VERSION,
+  USDZ_WORKER_VERSION,
+  UsdzWorkerReportValidationError,
+  validateUsdzWorkerV3Report
 } from "../../lib/owner/usdzRuntimeJsonFlow.ts";
 
 export const MAISON_ELYSE_RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -44,6 +46,7 @@ const ASSET_KEYS = ["photo", "webGlb", "arLiteGlb", "usdzRuntime"];
 const PHYSICAL_SCALE_REPORT_KEY = "usdzPhysicalScaleReport";
 const USDZ_PENDING_STATUS = "pending_manual_usdz";
 const USDZ_PENDING_REASON = "requires-worker-v3";
+const MEDIA_BACKFILL_RUN_ID_KEY = "mediaBackfillRunId";
 const MODEL_ASSET_SHA256_FORMAT = "webGlb:<sha256>\narLiteGlb:<sha256>\nusdzRuntime:<sha256>";
 const USDZ_METADATA_KEYS = [
   "arUsdzUrl",
@@ -119,9 +122,11 @@ export function validateManifest(manifest) {
   if (manifest.source?.mappingKey !== "dish.slug") fail("manifest must map assets by dish.slug");
   if (
     manifest.usdzPolicy?.physicalScaleReportKey !== PHYSICAL_SCALE_REPORT_KEY ||
-    manifest.usdzPolicy?.unvalidatedDisposition !== USDZ_PENDING_REASON
+    manifest.usdzPolicy?.unvalidatedDisposition !== USDZ_PENDING_REASON ||
+    manifest.usdzPolicy?.reportSchemaVersion !== USDZ_WORKER_REPORT_SCHEMA_VERSION ||
+    manifest.usdzPolicy?.workerVersion !== USDZ_WORKER_VERSION
   ) {
-    fail("manifest USDZ policy must fail closed on missing worker-v3 reports");
+    fail("manifest USDZ policy must fail closed on unsupported worker-v3 reports");
   }
   if (!Array.isArray(manifest.dishes) || manifest.dishes.length !== ALLOWED_SLUGS.length) {
     fail("manifest must contain exactly the twelve allowlisted dishes");
@@ -186,40 +191,61 @@ function validateGlb(file) {
   if (externalUris.length) fail(`GLB has external URIs: ${externalUris.join(", ")}`);
 }
 
-export function validateUsdzPhysicalScaleReport(input, label = "USDZ physical-scale report") {
+function reportValidationError(reason, message) {
+  const error = new Error(message);
+  error.reportReason = reason;
+  return error;
+}
+
+export function validateUsdzPhysicalScaleReport(input, label = "USDZ physical-scale report", expectedRuntime, expectedSource, expectedIdentity) {
   let report = input;
   if (Buffer.isBuffer(input) || input instanceof Uint8Array) {
     try {
       report = JSON.parse(Buffer.from(input).toString("utf8"));
     } catch {
-      fail(`${label} is not valid JSON`);
+      throw reportValidationError("requires-worker-v3", `${label} is not valid JSON`);
     }
   } else if (typeof input === "string") {
     try {
       report = JSON.parse(input);
     } catch {
-      fail(`${label} is not valid JSON`);
+      throw reportValidationError("requires-worker-v3", `${label} is not valid JSON`);
     }
   }
-  if (!report || typeof report !== "object" || Array.isArray(report)) fail(`${label} must be an object`);
-  if (report.sourceStored !== false) fail(`${label} must declare sourceStored=false`);
-  if (Array.isArray(report.fails) && report.fails.length > 0) fail(`${label} contains worker failures`);
-  const physicalScale = cleanPhysicalScale(report.physicalScale);
   try {
-    assertPhysicalScalePublishable(physicalScale);
+    return validateUsdzWorkerV3Report(report, {
+      runtimeSha256: expectedRuntime?.sha256,
+      runtimeBytes: expectedRuntime?.bytes,
+      sourceSha256: expectedSource?.sha256,
+      sourceBytes: expectedSource?.bytes,
+      restaurantId: expectedIdentity?.restaurantId,
+      dishSlug: expectedIdentity?.dishSlug
+    });
   } catch (error) {
-    fail(`${label} failed the worker-v3 physical-scale gate: ${error instanceof Error ? error.message : String(error)}`);
+    const reason = error instanceof UsdzWorkerReportValidationError ? error.reason : "requires-worker-v3";
+    throw reportValidationError(reason, `${label}: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return { report, physicalScale };
 }
 
-function validatePhysicalScaleReportAsset(rootDir, asset) {
-  const inventory = assetBytes(rootDir, asset);
-  if (inventory.status === "absent") return inventory;
-  if (normalizeContentType(asset.contentType) !== "application/json") fail(`USDZ report content type is invalid for ${asset.path}`);
-  const file = readFileSync(inventory.absolute);
-  const validation = validateUsdzPhysicalScaleReport(file, asset.path);
-  return { ...inventory, ...validation };
+function validatePhysicalScaleReportAsset(rootDir, asset, expectedRuntime, expectedSource, expectedIdentity) {
+  if (!asset) return { status: "absent", reason: USDZ_PENDING_REASON };
+  try {
+    const inventory = assetBytes(rootDir, asset);
+    if (inventory.status === "absent") return { ...inventory, reason: USDZ_PENDING_REASON };
+    if (normalizeContentType(asset.contentType) !== "application/json") {
+      throw reportValidationError("requires-worker-v3", `USDZ report content type is invalid for ${asset.path}`);
+    }
+    const file = readFileSync(inventory.absolute);
+    const validation = validateUsdzPhysicalScaleReport(file, asset.path, expectedRuntime, expectedSource, expectedIdentity);
+    return { ...inventory, ...validation };
+  } catch (error) {
+    return {
+      status: "invalid",
+      path: asset.path,
+      reason: error?.reportReason ?? USDZ_PENDING_REASON,
+      validationError: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 function validateFileAsset(rootDir, asset) {
@@ -251,7 +277,7 @@ export function buildLocalAssetInventory({ rootDir = ROOT, manifest }) {
     webGlb: { ready: 0, absent: 0 },
     arLiteGlb: { ready: 0, absent: 0 },
     usdzRuntime: { ready: 0, absent: 0 },
-    usdzPhysicalScaleReport: { ready: 0, absent: 0 },
+    usdzPhysicalScaleReport: { ready: 0, absent: 0, invalid: 0 },
     usdzPublishable: { ready: 0, pending: 0 }
   };
   for (const dish of manifest.dishes) {
@@ -261,9 +287,13 @@ export function buildLocalAssetInventory({ rootDir = ROOT, manifest }) {
       entry[key] = value;
       summary[key][value.status] += 1;
     }
-    const physicalScaleReport = dish[PHYSICAL_SCALE_REPORT_KEY]
-      ? validatePhysicalScaleReportAsset(rootDir, dish[PHYSICAL_SCALE_REPORT_KEY])
-      : { status: "absent" };
+    const physicalScaleReport = validatePhysicalScaleReportAsset(
+      rootDir,
+      dish[PHYSICAL_SCALE_REPORT_KEY],
+      dish.usdzRuntime,
+      dish.historicalPrimaryUsdz,
+      { restaurantId: MAISON_ELYSE_RESTAURANT_ID, dishSlug: dish.slug }
+    );
     entry[PHYSICAL_SCALE_REPORT_KEY] = physicalScaleReport;
     if (dish.usdzRuntime) {
       summary.usdzPhysicalScaleReport[physicalScaleReport.status] += 1;
@@ -290,11 +320,18 @@ function safeMetadata(value) {
 function hasExistingModelMetadata(value) {
   const metadata = asObject(value);
   return DISH_MODEL_METADATA_KEYS.some((key) => {
+    if (key === MEDIA_BACKFILL_RUN_ID_KEY) return false;
     const current = metadata[key];
     if (current === undefined || current === null || current === "" || current === false) return false;
     if ((key === "modelStatus" || key === "model_status") && current === "missing") return false;
     return true;
   });
+}
+
+function withoutBackfillRunId(value) {
+  const metadata = safeMetadata(value);
+  delete metadata[MEDIA_BACKFILL_RUN_ID_KEY];
+  return metadata;
 }
 
 function existingObjectKey(bucket, path) {
@@ -475,6 +512,7 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjects,
     const photoObject = objectPlan({ bucket: PHOTO_BUCKET, path: photoPath, asset: dish.photo, inventory: local.photo, existingObjects: knownObjects });
     storageObjects.push(photoObject);
     const metadata = safeMetadata(row.metadata);
+    const existingRunId = typeof metadata[MEDIA_BACKFILL_RUN_ID_KEY] === "string" ? metadata[MEDIA_BACKFILL_RUN_ID_KEY] : "";
     clearUnpublishedUsdzMetadata(metadata);
     metadata.photoStatus = "ready";
     metadata.photoStorageBucket = PHOTO_BUCKET;
@@ -548,7 +586,7 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjects,
       metadata.usdzSourceStored = false;
     } else if (dish.usdzRuntime) {
       metadata.usdzRuntimeStatus = USDZ_PENDING_STATUS;
-      metadata.usdzRuntimePendingReason = USDZ_PENDING_REASON;
+      metadata.usdzRuntimePendingReason = physicalScaleReport?.reason ?? USDZ_PENDING_REASON;
       metadata.usdzSourceStored = false;
       metadata.quickLookQaStatus = "not-tested";
     }
@@ -575,9 +613,13 @@ export function createBackfillPlan({ manifest, inventory, rows, existingObjects,
       delete metadata.modelAssetSha256;
       delete metadata.modelAssetSha256Format;
     }
+    if (existingRunId) metadata[MEDIA_BACKFILL_RUN_ID_KEY] = existingRunId;
     metadata.mediaBackfillVersion = manifest.version;
     metadata.mediaBackfillSource = "demo-assets-by-slug";
-    if (hasExistingModelMetadata(row.metadata) && canonicalJson(row.metadata) !== canonicalJson(metadata)) {
+    if (
+      hasExistingModelMetadata(row.metadata) &&
+      canonicalJson(withoutBackfillRunId(row.metadata)) !== canonicalJson(withoutBackfillRunId(metadata))
+    ) {
       fail(`Existing model metadata conflicts with the Maison Elyse plan for ${row.restaurant_id}/${row.id}`);
     }
     dishUpdates.push({
@@ -623,13 +665,17 @@ function validateApplyGuards(args, manifest) {
 function errorDetails(error) {
   return {
     name: error instanceof Error ? error.name : "Error",
-    message: error instanceof Error ? error.message : String(error)
+    message: error instanceof Error ? error.message : String(error),
+    ...(error?.code ? { code: error.code } : {})
   };
 }
 
-function assertRestoredDish(result, row) {
+function assertRestoredDish(result, update) {
+  const row = update.row;
   if (!result || result.error) {
-    fail(`DB rollback failed for ${row.id}: ${result?.error?.message ?? "no response"}`);
+    const error = new Error(`DB rollback failed for ${row.id}: ${result?.error?.message ?? "no response"}`);
+    if (result?.error?.code) error.code = result.error.code;
+    throw error;
   }
   const data = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
   if (!data.some((item) => item?.id === row.id && item?.restaurant_id === row.restaurant_id)) {
@@ -649,25 +695,37 @@ function assertRemovedObject(result, object) {
   if (!treated) fail(`Storage rollback was not confirmed for ${object.bucket}/${object.path}`);
 }
 
-function createRollbackFailure(initialError, rollbackErrors) {
+function createRollbackFailure(initialError, rollbackErrors, rollbackReport) {
   const composite = new Error("Backfill apply failed and rollback was incomplete.", { cause: initialError });
   composite.name = "MaisonElyseBackfillRollbackError";
   composite.code = "BACKFILL_ROLLBACK_INCOMPLETE";
   composite.rollbackComplete = false;
   composite.initialError = errorDetails(initialError);
   composite.rollbackErrors = rollbackErrors;
+  composite.rollbackReport = rollbackReport;
   return composite;
 }
 
-function createBackfillUpdateError(message, mutationApplied) {
+function createBackfillUpdateError(message, mutationApplied, code = "BACKFILL_UPDATE_FAILED") {
   const error = new Error(message);
   error.backfillMutationApplied = mutationApplied;
+  error.code = code;
   return error;
 }
 
-export async function applyPlan({ adapter, plan }) {
+export async function applyPlan({ adapter, plan, runId = randomUUID() }) {
   const createdObjects = [];
   const updatedRows = [];
+  const applyUpdates = plan.dishUpdates.map((update) => ({
+    ...update,
+    patch: {
+      ...update.patch,
+      metadata: {
+        ...asObject(update.patch.metadata),
+        [MEDIA_BACKFILL_RUN_ID_KEY]: runId
+      }
+    }
+  }));
   if (plan.storageObjects.some((object) => object.action === "verify")) {
     fail("Apply refused: every existing Storage collision must be content-verified first.");
   }
@@ -677,7 +735,7 @@ export async function applyPlan({ adapter, plan }) {
       const result = await adapter.uploadObject(object);
       if (result?.created !== false) createdObjects.push(object);
     }
-    for (const update of plan.dishUpdates) {
+    for (const update of applyUpdates) {
       updatedRows.push(update);
       try {
         await adapter.updateDish(update);
@@ -688,36 +746,51 @@ export async function applyPlan({ adapter, plan }) {
     }
   } catch (error) {
     const rollbackErrors = [];
+    const rollbackReport = {
+      runId,
+      restoredRows: [],
+      rollbackConflicts: [],
+      databaseRestoreFailures: [],
+      removedObjects: [],
+      storageRemovalFailures: []
+    };
     for (const update of updatedRows.reverse()) {
       try {
-        const result = await adapter.restoreDish(update.row);
-        assertRestoredDish(result, update.row);
+        const result = await adapter.restoreDish(update);
+        assertRestoredDish(result, update);
+        rollbackReport.restoredRows.push(update.row.id);
       } catch (rollbackError) {
-        rollbackErrors.push({
+        const detail = {
           phase: "database-restore",
           restaurantId: update.row.restaurant_id,
           dishId: update.row.id,
           error: errorDetails(rollbackError)
-        });
+        };
+        if (rollbackError?.code === "BACKFILL_ROLLBACK_CONFLICT") rollbackReport.rollbackConflicts.push(detail);
+        else rollbackReport.databaseRestoreFailures.push(detail);
+        rollbackErrors.push(detail);
       }
     }
     for (const object of createdObjects.reverse()) {
       try {
         const result = await adapter.removeObject(object);
         assertRemovedObject(result, object);
+        rollbackReport.removedObjects.push({ bucket: object.bucket, path: object.path });
       } catch (rollbackError) {
-        rollbackErrors.push({
+        const detail = {
           phase: "storage-remove",
           bucket: object.bucket,
           path: object.path,
           error: errorDetails(rollbackError)
-        });
+        };
+        rollbackReport.storageRemovalFailures.push(detail);
+        rollbackErrors.push(detail);
       }
     }
-    if (rollbackErrors.length > 0) throw createRollbackFailure(error, rollbackErrors);
+    if (rollbackErrors.length > 0) throw createRollbackFailure(error, rollbackErrors, rollbackReport);
     throw error;
   }
-  return { createdObjects, updatedRows };
+  return { runId, createdObjects, updatedRows };
 }
 
 function planSummary(plan) {
@@ -743,14 +816,6 @@ function canonicalJson(value) {
     return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
   }
   return JSON.stringify(value ?? null);
-}
-
-function matchesDishMediaSnapshot(current, expected) {
-  return (
-    current?.image_url === (expected.image_url ?? null) &&
-    Boolean(current?.has_immersive_view) === Boolean(expected.has_immersive_view) &&
-    canonicalJson(asObject(current?.metadata)) === canonicalJson(asObject(expected.metadata))
-  );
 }
 
 async function createSupabaseAdapter() {
@@ -793,6 +858,47 @@ async function createSupabaseAdapter() {
   }
   await listPrefix(PHOTO_BUCKET, `restaurants/${MAISON_ELYSE_RESTAURANT_ID}`);
   await listPrefix(MODEL_BUCKET, `restaurants/${MAISON_ELYSE_RESTAURANT_ID}`);
+  function rpcPayload(update, expected, patch) {
+    return {
+      p_restaurant_id: update.row.restaurant_id,
+      p_dish_id: update.row.id,
+      p_expected_image_url: expected.image_url ?? null,
+      p_expected_has_immersive_view: Boolean(expected.has_immersive_view),
+      p_expected_metadata: asObject(expected.metadata),
+      p_image_url: patch.image_url ?? null,
+      p_has_immersive_view: Boolean(patch.has_immersive_view),
+      p_metadata: asObject(patch.metadata)
+    };
+  }
+  async function runMediaRpc(update, expected, patch, operation) {
+    const result = await client.rpc("owner_apply_maison_elyse_media", rpcPayload(update, expected, patch));
+    if (result.error) {
+      throw createBackfillUpdateError(
+        `${operation} RPC failed for ${update.slug}: ${result.error.message ?? "unknown error"}`,
+        true,
+        "BACKFILL_RPC_FAILED"
+      );
+    }
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (row?.result_status === "updated") {
+      return { data: [{ id: row.dish_id, restaurant_id: row.restaurant_id }], error: null };
+    }
+    if (row?.result_status === "conflict") {
+      throw createBackfillUpdateError(
+        `${operation} RPC conflict for ${update.row.restaurant_id}/${update.row.id}`,
+        false,
+        operation === "rollback" ? "BACKFILL_ROLLBACK_CONFLICT" : "BACKFILL_MEDIA_CONFLICT"
+      );
+    }
+    if (row?.result_status === "not_found") {
+      throw createBackfillUpdateError(
+        `${operation} RPC did not find ${update.row.restaurant_id}/${update.row.id}`,
+        false,
+        operation === "rollback" ? "BACKFILL_ROLLBACK_NOT_FOUND" : "BACKFILL_MEDIA_NOT_FOUND"
+      );
+    }
+    throw createBackfillUpdateError(`${operation} RPC returned an invalid result`, false, "BACKFILL_RPC_INVALID_RESULT");
+  }
   const adapter = {
     rows,
     existingObjects,
@@ -802,38 +908,10 @@ async function createSupabaseAdapter() {
       return { created: true };
     },
     async updateDish(update) {
-      const current = await client
-        .from("menu_dishes")
-        .select("id,restaurant_id,image_url,has_immersive_view,metadata")
-        .eq("id", update.row.id)
-        .eq("restaurant_id", MAISON_ELYSE_RESTAURANT_ID)
-        .maybeSingle();
-      if (current.error || !current.data) {
-        throw createBackfillUpdateError(`DB snapshot read failed for ${update.slug}`, false);
-      }
-      if (!matchesDishMediaSnapshot(current.data, update.row)) {
-        throw createBackfillUpdateError(`DB media snapshot conflict for ${update.row.restaurant_id}/${update.row.id}`, false);
-      }
-      const updated = await client
-        .from("menu_dishes")
-        .update(update.patch)
-        .eq("id", update.row.id)
-        .eq("restaurant_id", MAISON_ELYSE_RESTAURANT_ID)
-        .select("id,restaurant_id")
-        .maybeSingle();
-      if (updated.error || !updated.data || updated.data.id !== update.row.id || updated.data.restaurant_id !== update.row.restaurant_id) {
-        throw createBackfillUpdateError(`DB update failed for ${update.slug}`, true);
-      }
-      return updated;
+      return runMediaRpc(update, update.row, update.patch, "apply");
     },
-    async restoreDish(row) {
-      return client
-        .from("menu_dishes")
-        .update({ image_url: row.image_url, has_immersive_view: row.has_immersive_view, metadata: row.metadata })
-        .eq("id", row.id)
-        .eq("restaurant_id", row.restaurant_id)
-        .select("id,restaurant_id")
-        .maybeSingle();
+    async restoreDish(update) {
+      return runMediaRpc(update, update.patch, update.row, "rollback");
     },
     async removeObject(object) {
       return client.storage.from(object.bucket).remove([object.path]);
@@ -879,7 +957,7 @@ async function main() {
   }
   if (!adapter) fail("--apply requires a live, allowlisted Supabase adapter; --local-only cannot apply");
   const result = await applyPlan({ adapter, plan });
-  console.log(JSON.stringify({ mode: args.mode, supabaseMutated: true, verification, uploaded: result.createdObjects.length, updated: result.updatedRows.length, deletionCount: 0 }, null, 2));
+  console.log(JSON.stringify({ mode: args.mode, supabaseMutated: true, verification, runId: result.runId, uploaded: result.createdObjects.length, updated: result.updatedRows.length, deletionCount: 0 }, null, 2));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

@@ -30,6 +30,7 @@ const HOST = process.env.VISTAIRE_USDZ_WORKER_HOST || "127.0.0.1";
 const PORT = Number(process.env.VISTAIRE_USDZ_WORKER_PORT || 8787);
 const MAX_SOURCE_BYTES = Number(process.env.VISTAIRE_USDZ_WORKER_MAX_SOURCE_BYTES || 150 * 1024 * 1024);
 const WORKER_VERSION = 3;
+const REPORT_SCHEMA_VERSION = 1;
 const WORKER_CAPABILITIES = ["physicalScaleNormalization"];
 
 function allowedOrigins() {
@@ -74,6 +75,56 @@ function writeJson(res, status, payload, headers = {}) {
 
 function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function validateWorkerV3Report(report, expected) {
+  const reject = (reason, message) => {
+    const error = new Error(message);
+    error.reportReason = reason;
+    throw error;
+  };
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    reject("requires-worker-v3", "Rapport USDZ worker-v3 invalide.");
+  }
+  if (report.reportSchemaVersion !== REPORT_SCHEMA_VERSION) {
+    reject("unsupported-report-version", "Rapport USDZ worker-v3 avec schema non supporte.");
+  }
+  if (report.workerVersion !== WORKER_VERSION) {
+    reject("requires-worker-v3", "Rapport USDZ worker-v3 requis.");
+  }
+  if (report.assetKey !== "usdzRuntime" || report.restaurantId !== expected.restaurantId || report.dishSlug !== expected.dishSlug) {
+    reject("requires-worker-v3", "Rapport USDZ lie a une identite de plat incoherente.");
+  }
+  if (report.sourceStored !== false || report.sourceBytes !== expected.sourceBytes || report.sourceSha256 !== expected.sourceSha256) {
+    reject("requires-worker-v3", "Rapport USDZ source incoherent ou sourceStored non nul.");
+  }
+  if (report.runtimeSha256 !== expected.runtimeSha256) {
+    reject("runtime-hash-mismatch", "Rapport USDZ runtimeSha256 incoherent.");
+  }
+  if (report.runtimeBytes !== expected.runtimeBytes) {
+    reject("runtime-size-mismatch", "Rapport USDZ runtimeBytes incoherent.");
+  }
+  if (!Array.isArray(report.fails)) {
+    reject("requires-worker-v3", "Rapport USDZ fails doit etre un tableau.");
+  }
+  if (report.fails.length > 0) {
+    reject("requires-worker-v3", `Rapport USDZ avec erreurs worker: ${report.fails.join("; ")}`);
+  }
+  const physicalScale = report.physicalScale;
+  if (!physicalScale || !["normalized", "unchanged"].includes(physicalScale.status)) {
+    reject("requires-worker-v3", "Rapport USDZ physicalScale invalide.");
+  }
+  if (!["height", "footprint"].includes(physicalScale.dimension)) {
+    reject("requires-worker-v3", "Rapport USDZ dimension physicalScale invalide.");
+  }
+  const finalMeters = physicalScale.dimension === "height" ? physicalScale.heightAfterMeters : physicalScale.footprintAfterMeters;
+  if (!(physicalScale.minMeters > 0) || !(physicalScale.maxMeters >= physicalScale.minMeters) || !(finalMeters >= physicalScale.minMeters && finalMeters <= physicalScale.maxMeters)) {
+    reject("requires-worker-v3", "Rapport USDZ physicalScale hors bornes.");
+  }
+  if (physicalScale.centeredX !== true || physicalScale.centeredY !== true || physicalScale.grounded !== true) {
+    reject("requires-worker-v3", "Rapport USDZ modele non centre ou non grounded.");
+  }
+  return report;
 }
 
 class OptimizerRunError extends Error {
@@ -241,11 +292,13 @@ async function handleOptimize(req, res) {
 
     const requestedProfile = String(form.get("profile") || "balanced");
     const dishKind = String(form.get("dishKind") || "fallback");
+    const restaurantId = String(form.get("restaurantId") || "");
+    const dishSlug = String(form.get("dishSlug") || "");
     const jobId = String(form.get("jobId") || "");
     const jobToken = String(form.get("jobToken") || "");
     const prepareEndpoint = String(form.get("prepareUploadEndpoint") || "");
     const completeEndpoint = String(form.get("completeEndpoint") || "");
-    if (!apiBaseUrl || !jobId || !jobToken || !prepareEndpoint || !completeEndpoint) {
+    if (!apiBaseUrl || !restaurantId || !dishSlug || !jobId || !jobToken || !prepareEndpoint || !completeEndpoint) {
       throw new Error("Job USDZ local incomplet.");
     }
 
@@ -281,8 +334,40 @@ async function handleOptimize(req, res) {
     }
 
     const runtimeBytesBuffer = readFileSync(runtimePath);
-    const reportBytesBuffer = readFileSync(reportPath);
     const runtimeSha256 = sha256File(runtimePath);
+    let report;
+    try {
+      report = JSON.parse(readFileSync(reportPath, "utf8"));
+    } catch {
+      throw new Error("Rapport USDZ worker-v3 illisible.");
+    }
+    if (report && typeof report === "object" && !Array.isArray(report)) {
+      if (report.assetKey !== undefined && report.assetKey !== "usdzRuntime") {
+        throw new Error("Rapport USDZ lie a un asset inattendu.");
+      }
+      if (report.restaurantId !== undefined && report.restaurantId !== restaurantId) {
+        throw new Error("Rapport USDZ lie a un restaurant inattendu.");
+      }
+      if (report.dishSlug !== undefined && report.dishSlug !== dishSlug) {
+        throw new Error("Rapport USDZ lie a un plat inattendu.");
+      }
+    }
+    report = {
+      ...report,
+      assetKey: "usdzRuntime",
+      restaurantId,
+      dishSlug
+    };
+    writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+    const reportBytesBuffer = readFileSync(reportPath);
+    validateWorkerV3Report(report, {
+      restaurantId,
+      dishSlug,
+      sourceBytes,
+      sourceSha256,
+      runtimeBytes: runtimeBytesBuffer.byteLength,
+      runtimeSha256
+    });
     rmSync(sourcePath, { force: true });
 
     preparePayload = {
@@ -356,6 +441,7 @@ async function handleOptimize(req, res) {
         failureKind: diagnostics.failureKind,
         stage: diagnostics.stage,
         selectedCandidate: diagnostics.selectedCandidate ?? null,
+        reportReason: error?.reportReason,
         candidateAttempts: Array.isArray(diagnostics.attempts) ? diagnostics.attempts : [],
         attempts: Array.isArray(diagnostics.attempts) ? diagnostics.attempts : [],
         usdzSourceStored: false

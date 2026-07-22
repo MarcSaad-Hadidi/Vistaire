@@ -11,7 +11,9 @@ const REQUIRED_MEDIA_TESTS = [
   "tests/owner-dish-model-assets.test.mjs",
   "tests/owner-prepared-glb-workflow.test.mjs",
   "tests/owner-public-media-contract.test.mjs",
-  "tests/public-menu-core.test.mjs"
+  "tests/public-menu-core.test.mjs",
+  "tests/owner-usdz-source-not-stored.test.mjs",
+  "tests/owner-usdz-runtime-optimizer.test.mjs"
 ];
 
 test("Maison Elyse media tests are explicit and mandatory in App CI", () => {
@@ -29,4 +31,12 @@ test("Maison Elyse media tests are explicit and mandatory in App CI", () => {
   assert.ok(typecheckIndex >= 0, "App CI must run typecheck");
   assert.ok(mediaIndex > typecheckIndex, "Maison Elyse tests must run after typecheck");
   assert.ok(buildIndex > mediaIndex, "Maison Elyse tests must run before build");
+});
+
+test("Maison Elyse PostgreSQL 17 tests are explicit and run before build", () => {
+  assert.equal(packageJson.scripts?.["test:maison-elyse-postgres"], "node scripts/run-maison-elyse-postgres-tests.mjs");
+  assert.match(appCi, /name: Maison Elyse PostgreSQL 17 tests/);
+  assert.match(appCi, /run: npm run test:maison-elyse-postgres/);
+  assert.ok(appCi.indexOf("run: npm run test:maison-elyse-postgres") > appCi.indexOf("run: npm run test:maison-elyse-media"));
+  assert.ok(appCi.indexOf("run: npm run build") > appCi.indexOf("run: npm run test:maison-elyse-postgres"));
 });

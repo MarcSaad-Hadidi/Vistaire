@@ -62,6 +62,15 @@ jobs:
       - name: Maison Elyse media tests
         run: npm run test:maison-elyse-media
 
+      - name: Maison Elyse PostgreSQL 17 tests
+        env:
+          PGDATABASE: vistaire_qr_ci
+          PGHOST: 127.0.0.1
+          PGPASSWORD: vistaire_qr_ci_password
+          PGPORT: "5432"
+          PGUSER: postgres
+        run: npm run test:maison-elyse-postgres
+
       - name: QR Node tests
         run: npm run test:qr:node
 

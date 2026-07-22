@@ -69,10 +69,15 @@ export async function POST(
       warning: result.cleanup.errors[0]?.message
     });
   } catch (error) {
+    const reportReason =
+      error && typeof error === "object" && "reason" in error && typeof error.reason === "string"
+        ? error.reason
+        : undefined;
     return NextResponse.json(
       {
         ok: false,
         error: error instanceof Error ? error.message : "Finalisation USDZ impossible.",
+        ...(reportReason ? { reportReason } : {}),
         usdzSourceStored: false,
         uploaded: false
       },

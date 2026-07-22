@@ -20,6 +20,7 @@ but never recolored or lossily flattened into sRGB, to avoid the plastic look.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -115,7 +116,9 @@ class Report:
     profile: str
     recipe: str
     source_bytes: int
+    source_sha256: str = ""
     runtime_bytes: int = 0
+    runtime_sha256: str = ""
     geometry_optimization: str = "skipped"
     geometry_optimization_reason: str = (
         "Blender geometry pass was not required or not available; geometry is preserved."
@@ -159,12 +162,16 @@ def fail(report: Report | None, message: str, stage: str) -> None:
 
 def report_to_dict(report: Report) -> dict:
     return {
+        "reportSchemaVersion": 1,
+        "workerVersion": 3,
         "profile": report.profile,
         "recipe": report.recipe,
         "selectedRecipe": report.recipe,
         "profileRecipe": f"{report.profile}:{report.recipe}",
         "sourceBytes": report.source_bytes,
+        "sourceSha256": report.source_sha256,
         "runtimeBytes": report.runtime_bytes,
+        "runtimeSha256": report.runtime_sha256,
         "reductionPercent": (
             round((1 - report.runtime_bytes / report.source_bytes) * 100, 2)
             if report.source_bytes and report.runtime_bytes
@@ -209,6 +216,14 @@ def guard_output_path(output: Path) -> None:
         raise ValueError(f"Refus d'ecrire un runtime USDZ sous public/models: {resolved}")
     if ".git" in parts:
         raise ValueError(f"Refus d'ecrire un runtime USDZ dans un arbre git: {resolved}")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def env_int(name: str, fallback: int) -> int:
@@ -749,7 +764,12 @@ def optimize(
     if source_bytes <= 0:
         fail(None, "Source USDZ vide.", "source")
 
-    report = Report(profile=profile_slug, recipe=recipe, source_bytes=source_bytes)
+    report = Report(
+        profile=profile_slug,
+        recipe=recipe,
+        source_bytes=source_bytes,
+        source_sha256=sha256_file(source),
+    )
     report.target_triangles = int(profile["targetTriangles"])
     report.min_decimate_ratio = float(profile.get("minDecimateRatio", 0.05))
     report.max_decimate_passes = int(profile.get("maxDecimatePasses", 1))
@@ -882,6 +902,7 @@ def optimize(
             fail(report, f"Runtime USDZ illisible apres packaging: {output}", "verify")
 
         report.runtime_bytes = output.stat().st_size
+        report.runtime_sha256 = sha256_file(output)
         report.cleanup = {
             "sourceStored": False,
             "extractedWorkspaceRemoved": True,

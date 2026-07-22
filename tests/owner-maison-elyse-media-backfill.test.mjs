@@ -30,7 +30,16 @@ const ROOT = join(import.meta.dirname, "..");
 const manifest = loadManifest(join(ROOT, "scripts", "owner", "maison-elyse-media.manifest.json"));
 
 const validPhysicalScaleReport = {
+  reportSchemaVersion: 1,
+  workerVersion: 3,
+  assetKey: "usdzRuntime",
+  restaurantId: MAISON_ELYSE_RESTAURANT_ID,
+  dishSlug: "tartare-saumon",
   sourceStored: false,
+  sourceBytes: 100,
+  sourceSha256: "b".repeat(64),
+  runtimeBytes: 200,
+  runtimeSha256: "c".repeat(64),
   fails: [],
   physicalScale: {
     status: "normalized",
@@ -186,7 +195,7 @@ test("apply rollback removes only newly created objects and restores updated row
         throw error;
       }
     },
-    async restoreDish(row) { events.push(["restore", row.id]); return { data: { id: row.id, restaurant_id: row.restaurant_id }, error: null }; },
+    async restoreDish(update) { events.push(["restore", update.row.id]); return { data: { id: update.row.id, restaurant_id: update.row.restaurant_id }, error: null }; },
     async removeObject(object) { events.push(["remove", object.path]); return { data: [object.path], error: null }; }
   };
   await assert.rejects(() => applyPlan({ adapter, plan }), /db failure/);
@@ -213,7 +222,7 @@ test("rollback aggregates DB and Storage failures without touching reuse objects
       events.push(["update", update.row.id]);
       if (update.row.id === "dish-2") throw new Error("db failure after request");
     },
-    async restoreDish(row) { events.push(["restore", row.id]); return { data: null, error: { message: "restore unavailable" } }; },
+    async restoreDish(update) { events.push(["restore", update.row.id]); return { data: null, error: { message: "restore unavailable" } }; },
     async removeObject(object) { events.push(["remove", object.path]); return { data: null, error: { message: "remove unavailable" } }; }
   };
 
@@ -236,6 +245,48 @@ test("rollback aggregates DB and Storage failures without touching reuse objects
     ["remove", createdPath]
   ]);
   assert.equal(events.some(([, path]) => path === reusedPath), false);
+});
+
+test("apply uses a per-run metadata marker and preserves rollback conflicts", async () => {
+  const plan = {
+    storageObjects: [],
+    dishUpdates: [{
+      row: { id: "dish-1", restaurant_id: MAISON_ELYSE_RESTAURANT_ID, slug: "ravioles-romarin", image_url: null, has_immersive_view: false, metadata: {} },
+      patch: { image_url: "/photo", has_immersive_view: false, metadata: { mediaBackfillVersion: 1 } }
+    }, {
+      row: { id: "dish-2", restaurant_id: MAISON_ELYSE_RESTAURANT_ID, slug: "tartare-saumon", image_url: null, has_immersive_view: false, metadata: {} },
+      patch: { image_url: "/photo-2", has_immersive_view: false, metadata: {} }
+    }]
+  };
+  let applied;
+  const adapter = {
+    async updateDish(update) {
+      applied = applied ?? [];
+      applied.push(update);
+      if (update.row.id === "dish-2") {
+        const error = new Error("stop after first update");
+        error.backfillMutationApplied = false;
+        throw error;
+      }
+    },
+    async restoreDish(update) {
+      assert.equal(update.row.id, "dish-1");
+      const error = new Error("owner changed media");
+      error.code = "BACKFILL_ROLLBACK_CONFLICT";
+      throw error;
+    }
+  };
+  await assert.rejects(
+    () => applyPlan({ adapter, plan, runId: "run-test-123" }),
+    (error) => {
+      assert.equal(error.code, "BACKFILL_ROLLBACK_INCOMPLETE");
+      assert.equal(error.rollbackReport.runId, "run-test-123");
+      assert.equal(error.rollbackReport.rollbackConflicts.length, 1);
+      return true;
+    }
+  );
+  assert.equal(applied[0].patch.metadata.mediaBackfillRunId, "run-test-123");
+  assert.equal(plan.dishUpdates[0].patch.metadata.mediaBackfillRunId, undefined);
 });
 
 test("Storage reuse requires content metadata and refuses mismatches", () => {
@@ -287,7 +338,7 @@ test("Storage collisions without a listed SHA are downloaded and verified before
 });
 
 test("USDZ reports fail closed and only a valid worker-v3 report can publish", () => {
-  assert.throws(() => validateUsdzPhysicalScaleReport({ sourceStored: false }, "missing"), /physicalScale/i);
+  assert.throws(() => validateUsdzPhysicalScaleReport({ sourceStored: false }, "missing"), /schema|version|worker-v3/i);
   assert.throws(() => validateUsdzPhysicalScaleReport({ sourceStored: false, physicalScale: { ...validPhysicalScaleReport.physicalScale, heightAfterMeters: 0.3 } }, "out-of-bounds"), /bornes|bounds/i);
   assert.throws(() => validateUsdzPhysicalScaleReport({ sourceStored: false, physicalScale: { ...validPhysicalScaleReport.physicalScale, centeredX: false } }, "not-centered"), /centre|center/i);
   assert.throws(() => validateUsdzPhysicalScaleReport({ sourceStored: false, physicalScale: { ...validPhysicalScaleReport.physicalScale, grounded: false } }, "not-grounded"), /grounded/i);
@@ -306,6 +357,23 @@ test("USDZ reports fail closed and only a valid worker-v3 report can publish", (
     centerOffsetAfterMeters: 0,
     warnings: []
   });
+  const expectedRuntime = { bytes: 200, sha256: "c".repeat(64) };
+  const expectedSource = { bytes: 100, sha256: "b".repeat(64) };
+  const expectedIdentity = { restaurantId: MAISON_ELYSE_RESTAURANT_ID, dishSlug: "tartare-saumon" };
+  const assertReportReason = (report, reason) => {
+    assert.throws(
+      () => validateUsdzPhysicalScaleReport(report, "contract", expectedRuntime, expectedSource, expectedIdentity),
+      (error) => error.reportReason === reason
+    );
+  };
+  assertReportReason({ ...validPhysicalScaleReport, reportSchemaVersion: 2 }, "unsupported-report-version");
+  assertReportReason({ ...validPhysicalScaleReport, workerVersion: 2 }, "requires-worker-v3");
+  assertReportReason({ ...validPhysicalScaleReport, sourceStored: true }, "requires-worker-v3");
+  assertReportReason({ ...validPhysicalScaleReport, runtimeSha256: "d".repeat(64) }, "runtime-hash-mismatch");
+  assertReportReason({ ...validPhysicalScaleReport, runtimeBytes: 201 }, "runtime-size-mismatch");
+  assertReportReason({ ...validPhysicalScaleReport, sourceSha256: "e".repeat(64) }, "requires-worker-v3");
+  assertReportReason({ ...validPhysicalScaleReport, fails: ["worker failed"] }, "requires-worker-v3");
+  assertReportReason({ ...validPhysicalScaleReport, dishSlug: "other-dish" }, "requires-worker-v3");
 });
 
 test("valid USDZ report enables publication while the master stays excluded", () => {
