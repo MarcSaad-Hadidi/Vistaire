@@ -233,14 +233,19 @@ export type NormalizedAllergenData = {
 };
 
 export const ALLERGEN_FILTERS = [
-  { id: "gluten-free", allergenId: "gluten", labels: { fr: "Déclaré sans gluten", en: "Declared gluten-free" } },
-  { id: "dairy-free", allergenId: "dairy", labels: { fr: "Déclaré sans produits laitiers", en: "Declared dairy-free" } },
-  { id: "nut-free", allergenId: "tree_nuts", labels: { fr: "Déclaré sans fruits à coque", en: "Declared tree-nut-free" } },
-  { id: "shellfish-free", allergenId: "shellfish", labels: { fr: "Déclaré sans crustacés ni mollusques", en: "Declared shellfish-free" } },
-  { id: "egg-free", allergenId: "eggs", labels: { fr: "Déclaré sans œufs", en: "Declared egg-free" } },
-  { id: "sesame-free", allergenId: "sesame", labels: { fr: "Déclaré sans sésame", en: "Declared sesame-free" } },
-  { id: "soy-free", allergenId: "soy", labels: { fr: "Déclaré sans soja", en: "Declared soy-free" } },
-  { id: "fish-free", allergenId: "fish", labels: { fr: "Déclaré sans poisson", en: "Declared fish-free" } }
+  { id: "gluten-free", allergenId: "gluten", allergenIds: ["gluten"], labels: { fr: "Déclaré sans gluten", en: "Declared gluten-free" } },
+  { id: "dairy-free", allergenId: "dairy", allergenIds: ["dairy"], labels: { fr: "Déclaré sans produits laitiers", en: "Declared dairy-free" } },
+  { id: "nut-free", allergenId: "tree_nuts", allergenIds: ["tree_nuts"], labels: { fr: "Déclaré sans fruits à coque", en: "Declared tree-nut-free" } },
+  {
+    id: "shellfish-free",
+    allergenId: "shellfish",
+    allergenIds: ["crustaceans", "molluscs"],
+    labels: { fr: "Déclaré sans crustacés ni mollusques", en: "Declared shellfish-free" }
+  },
+  { id: "egg-free", allergenId: "eggs", allergenIds: ["eggs"], labels: { fr: "Déclaré sans œufs", en: "Declared egg-free" } },
+  { id: "sesame-free", allergenId: "sesame", allergenIds: ["sesame"], labels: { fr: "Déclaré sans sésame", en: "Declared sesame-free" } },
+  { id: "soy-free", allergenId: "soy", allergenIds: ["soy"], labels: { fr: "Déclaré sans soja", en: "Declared soy-free" } },
+  { id: "fish-free", allergenId: "fish", allergenIds: ["fish"], labels: { fr: "Déclaré sans poisson", en: "Declared fish-free" } }
 ] as const;
 
 export type AllergenFilterId = (typeof ALLERGEN_FILTERS)[number]["id"];
@@ -532,6 +537,18 @@ export function getAllergenStatus(
 
 export function matchesConfirmedFree(input: unknown, allergenId: AllergenId): boolean {
   return getAllergenStatus(input, allergenId) === "confirmed_free";
+}
+
+export function allergenIdsForFilter(filterId: string): AllergenId[] {
+  const filter = FILTER_BY_ID.get(filterId);
+  if (filter) return [...filter.allergenIds];
+  const legacyAllergenId = LEGACY_FILTER_ALLERGEN_IDS[filterId];
+  return legacyAllergenId ? [legacyAllergenId] : [];
+}
+
+export function matchesConfirmedFreeForFilter(input: unknown, filterId: string): boolean {
+  const allergenIds = allergenIdsForFilter(filterId);
+  return allergenIds.length > 0 && allergenIds.every((allergenId) => matchesConfirmedFree(input, allergenId));
 }
 
 export function allergenIdForFilter(filterId: string): AllergenId | null {

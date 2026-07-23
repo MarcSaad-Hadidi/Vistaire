@@ -15,8 +15,7 @@ import { useTransitionPresence } from "@/lib/useTransitionPresence";
 import { maisonElyseThemeStyle } from "@/lib/menu/maisonElyseTheme";
 import {
   ALLERGEN_FILTERS,
-  allergenIdForFilter,
-  matchesConfirmedFree,
+  matchesConfirmedFreeForFilter,
   type AllergenFilterId
 } from "@/lib/menu/allergens";
 import {
@@ -429,8 +428,7 @@ function dishMatchesFilter(dish: PublicMenuDish, filter: FilterId): boolean {
   if (filter === "immersive") return hasReal3d(dish) || hasRealAr(dish);
   if (filter === "available") return dish.available;
   if (isDietaryFilter(filter)) {
-    const allergenId = allergenIdForFilter(filter);
-    return allergenId ? matchesConfirmedFree(dish, allergenId) : false;
+    return matchesConfirmedFreeForFilter(dish, filter);
   }
   return true;
 }

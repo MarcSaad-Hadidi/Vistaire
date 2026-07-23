@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ALLERGEN_REGISTRY,
   getAllergenStatus,
+  matchesConfirmedFreeForFilter,
   matchesConfirmedFree,
   normalizeAllergenData,
   validateAllergenDeclarations
@@ -28,6 +29,50 @@ test("every supported allergen status is fail-closed for declared-free filtering
   assert.equal(matchesConfirmedFree({ allergens: ["Poisson"] }, "gluten"), false);
   assert.equal(matchesConfirmedFree({ allergens: ["Poisson"] }, "dairy"), false);
   assert.equal(matchesConfirmedFree({ allergens: ["Poisson"] }, "eggs"), false);
+});
+
+test("shellfish-free requires crustaceans and molluscs to be confirmed free", () => {
+  const base = {
+    allergenDeclarations: [
+      { allergenId: "crustaceans", status: "confirmed_free" },
+      { allergenId: "molluscs", status: "confirmed_free" }
+    ]
+  };
+
+  assert.equal(matchesConfirmedFreeForFilter(base, "shellfish-free"), true);
+  assert.equal(
+    matchesConfirmedFreeForFilter(
+      {
+        allergenDeclarations: [
+          ...base.allergenDeclarations.map((item) =>
+            item.allergenId === "crustaceans"
+              ? { ...item, status: "contains" }
+              : item
+          )
+        ]
+      },
+      "shellfish-free"
+    ),
+    false
+  );
+  assert.equal(
+    matchesConfirmedFreeForFilter(
+      {
+        allergenDeclarations: [
+          { allergenId: "crustaceans", status: "confirmed_free" }
+        ]
+      },
+      "shellfish-free"
+    ),
+    false
+  );
+  assert.equal(
+    matchesConfirmedFreeForFilter(
+      { allergenDeclarations: [{ allergenId: "shellfish", status: "confirmed_free" }] },
+      "shellfish-free"
+    ),
+    false
+  );
 });
 
 test("the canonical registry keeps distinct allergen families and stable ids", () => {
@@ -88,6 +133,9 @@ test("backend validation rejects unknown ids, statuses, duplicates, and oversize
   );
 
   for (const invalid of [
+    [{}],
+    [{ allergenId: null, status: "unknown" }],
+    [{ allergenId: "gluten", status: null }],
     [{ allergenId: "not-real", status: "unknown" }],
     [{ allergenId: "gluten", status: "not-a-status" }],
     [

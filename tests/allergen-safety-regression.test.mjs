@@ -43,6 +43,8 @@ test("migration is additive, idempotent, and never backfills confirmed-free", as
   assert.match(source, /validate_allergen_declarations/);
   assert.match(source, /unknown allergen id/);
   assert.match(source, /unknown allergen status/);
+  assert.match(source, /v_allergen_id is null/);
+  assert.match(source, /v_status is null/);
   assert.match(source, /duplicate allergen declaration/);
 });
 

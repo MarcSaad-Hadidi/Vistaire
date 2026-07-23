@@ -29,10 +29,11 @@ test("premium details sheet renders grouped dish metadata", async () => {
   assert.match(sheetSource, /dish\.description/);
   assert.match(sheetSource, /dish\.houseNote/);
   assert.match(sheetSource, /PremiumDishTagGroup/);
+  assert.match(sheetSource, /AllergenDisclosure/);
+  assert.match(sheetSource, /locale=\{locale\}/);
+  assert.match(sheetSource, /includeWarning=\{false\}/);
   assert.match(sheetSource, /copy\.detailCompositionLabel/);
-  assert.match(sheetSource, /copy\.detailAllergensLabel/);
   assert.match(sheetSource, /copy\.detailOptionsLabel/);
-  assert.match(sheetSource, /itemTitlePrefix=\{copy\.allergenTitlePrefix\}/);
   assert.match(tagsSource, /assignPremiumTagAccents/);
   assert.match(tagsSource, /chipAccent/);
   assert.match(tagsSource, /kind === "allergen"/);

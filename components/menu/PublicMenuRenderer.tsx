@@ -7,8 +7,7 @@ import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
 import {
   ALLERGEN_FILTERS,
-  allergenIdForFilter,
-  matchesConfirmedFree,
+  matchesConfirmedFreeForFilter,
   type AllergenFilterId
 } from "@/lib/menu/allergens";
 import {
@@ -22,7 +21,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { GoogleReviewCard } from "./GoogleReviewCard";
-import { AllergenWarning } from "./AllergenDisclosure";
+import { AllergenDisclosure, AllergenWarning } from "./AllergenDisclosure";
 import { PublicDishDetailExperience } from "./PublicDishDetailExperience";
 import styles from "./PublicMenuRenderer.module.css";
 
@@ -218,11 +217,7 @@ function dishMatchesQuickFilter(
   }
   if (filter === "available") return dish.available;
   if (filter === "immersive") return dish.hasImmersive || dish.has3d || dish.hasAr;
-  const allergenId = allergenIdForFilter(filter);
-  if (allergenId) {
-    return matchesConfirmedFree(dish, allergenId);
-  }
-  return true;
+  return matchesConfirmedFreeForFilter(dish, filter);
 }
 
 function DishVisual({
@@ -1038,16 +1033,11 @@ export function PublicMenuRenderer({
               </section>
             ) : null}
 
-            {selectedDish.allergens.length > 0 ? (
-              <section className={styles.detailList}>
-                <h4>Allergenes</h4>
-                <ul>
-                  {selectedDish.allergens.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            <AllergenDisclosure
+              dish={selectedDish}
+              locale={activeLocale}
+              includeWarning={false}
+            />
 
             {selectedDish.options.length > 0 ? (
               <section className={styles.detailList}>

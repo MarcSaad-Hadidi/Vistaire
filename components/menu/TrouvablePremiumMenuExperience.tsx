@@ -24,8 +24,8 @@ import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
-  matchesConfirmedFree,
-  type AllergenId
+  matchesConfirmedFreeForFilter,
+  type AllergenFilterId
 } from "@/lib/menu/allergens";
 import {
   getTrouvableCategoryIconKindForCategory,
@@ -179,16 +179,16 @@ const TROUVABLE_ALLERGEN_FILTER_IDS: Record<
     QuickFilterId,
     "all" | "veg" | "nonVeg" | "available" | "immersive" | "recommended"
   >,
-  AllergenId
+  AllergenFilterId
 > = {
-  glutenFree: "gluten",
-  dairyFree: "dairy",
-  nutFree: "tree_nuts",
-  shellfishFree: "shellfish",
-  eggFree: "eggs",
-  sesameFree: "sesame",
-  soyFree: "soy",
-  fishFree: "fish"
+  glutenFree: "gluten-free",
+  dairyFree: "dairy-free",
+  nutFree: "nut-free",
+  shellfishFree: "shellfish-free",
+  eggFree: "egg-free",
+  sesameFree: "sesame-free",
+  soyFree: "soy-free",
+  fishFree: "fish-free"
 };
 
 function normalizeText(value: string): string {
@@ -291,10 +291,10 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   if (filter === "available") return dish.available;
   if (filter === "immersive") return dish.has3d || dish.hasAr || dish.hasImmersive;
   if (filter === "recommended") return isRecommendedDish(dish);
-  const allergenId = TROUVABLE_ALLERGEN_FILTER_IDS[
+  const filterId = TROUVABLE_ALLERGEN_FILTER_IDS[
     filter as keyof typeof TROUVABLE_ALLERGEN_FILTER_IDS
   ];
-  if (allergenId) return matchesConfirmedFree(dish, allergenId);
+  if (filterId) return matchesConfirmedFreeForFilter(dish, filterId);
   return true;
 }
 

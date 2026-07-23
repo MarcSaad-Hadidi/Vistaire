@@ -29,7 +29,8 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /Image du plat à venir/);
   assert.match(source, /Retour au menu/);
   assert.match(source, /dish\.ingredients\.length/);
-  assert.match(source, /dish\.allergens\.length/);
+  assert.match(source, /AllergenDisclosure/);
+  assert.match(source, /<AllergenDisclosure dish=\{dish\} locale=\{locale\} \/>/);
   assert.match(source, /dish\.options\.length/);
   assert.match(source, /dish\.houseNote/);
   assert.match(source, /config\?: MenuUiConfig/);

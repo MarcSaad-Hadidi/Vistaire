@@ -112,6 +112,12 @@ begin
     end if;
     v_allergen_id := v_item ->> 'allergenId';
     v_status := v_item ->> 'status';
+    if v_allergen_id is null or v_allergen_id = '' then
+      raise exception 'allergen declaration allergenId is required';
+    end if;
+    if v_status is null or v_status = '' then
+      raise exception 'allergen declaration status is required';
+    end if;
     if v_allergen_id not in (
       'gluten', 'dairy', 'eggs', 'tree_nuts', 'crustaceans', 'shellfish',
       'molluscs', 'peanuts', 'sesame', 'soy', 'mustard', 'fish', 'sulfites'
