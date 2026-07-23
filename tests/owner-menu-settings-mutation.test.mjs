@@ -378,3 +378,36 @@ test("settings_json error detection only catches missing-column failures", () =>
     false
   );
 });
+
+test("switching settings to unique provisions server uniqueDesign in menu_ui_configs", async () => {
+  const client = menuSettingsClient();
+  const uniqueSettings = {
+    ...settings,
+    publicMenuStyle: "unique"
+  };
+
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings: uniqueSettings
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.storage, "settings_json");
+
+  const uiConfigWrite = client.calls.find(
+    (call) =>
+      call.table === "menu_ui_configs" &&
+      call.action === "update" &&
+      Object.hasOwn(call.row, "config_json")
+  );
+  assert.ok(uiConfigWrite);
+  assert.equal(uiConfigWrite.row.config_json.publicMenuSettings.publicMenuStyle, "unique");
+  assert.equal(uiConfigWrite.row.config_json.uniqueDesign?.mode, "unique");
+  assert.equal(uiConfigWrite.row.config_json.uniqueDesign?.status, "pending");
+  assert.equal(uiConfigWrite.row.config_json.uniqueDesign?.rendererKey, null);
+  assert.match(
+    uiConfigWrite.row.config_json.uniqueDesign?.designId ?? "",
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+});

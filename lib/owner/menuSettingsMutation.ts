@@ -198,6 +198,14 @@ export async function updateOwnerMenuSettings(args: {
     .single();
 
   if (!primary.error && primary.data) {
+    const uiSync = await saveSettingsToUiConfig({
+      client: args.client,
+      restaurantId: args.restaurantId,
+      settings
+    });
+    if (settings.publicMenuStyle === "unique" && !uiSync.ok) {
+      return uiSync;
+    }
     const normalized = publicMenuSettingsFromMenuRow(primary.data);
     return {
       ok: true,
@@ -272,6 +280,15 @@ export async function updateOwnerMenuSettings(args: {
       status: 503,
       error: "Settings menu impossibles a sauvegarder."
     };
+  }
+
+  const uiSync = await saveSettingsToUiConfig({
+    client: args.client,
+    restaurantId: args.restaurantId,
+    settings
+  });
+  if (settings.publicMenuStyle === "unique" && !uiSync.ok) {
+    return uiSync;
   }
 
   return {

@@ -4,6 +4,10 @@ import {
   serializePublicMenuSettings,
   type PublicMenuSettings
 } from "../menu/publicMenuSettings.ts";
+import {
+  createPendingUniqueMenuDesign,
+  normalizeUniqueMenuDesign
+} from "../menu/uniqueMenuDesign.ts";
 
 export type OwnerPublicMenuSettingsSource =
   | "settings_json"
@@ -284,10 +288,16 @@ export function mergePublicMenuSettingsIntoUiConfig(
     getLocalizedUiCopy(config) ??
     getLocalizedUiCopy(existingSettings);
   const publicMenuSettings = settingsWithLocalizedUiCopy(settings, localizedUiCopy);
+  const existingUniqueDesign = normalizeUniqueMenuDesign(config.uniqueDesign);
+  const uniqueDesign =
+    settings.publicMenuStyle === "unique"
+      ? existingUniqueDesign ?? createPendingUniqueMenuDesign()
+      : null;
 
   return {
     ...config,
-    [UI_CONFIG_SETTINGS_KEY]: publicMenuSettings
+    [UI_CONFIG_SETTINGS_KEY]: publicMenuSettings,
+    uniqueDesign
   };
 }
 
