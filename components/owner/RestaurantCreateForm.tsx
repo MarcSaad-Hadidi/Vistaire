@@ -2827,7 +2827,7 @@ function CreationSuccess({
   menuUrl: string;
 }) {
   const isUnique = state.publicMenuStyle === "unique";
-  const designStudioHref = `/owner/menu-builder?restaurantId=${encodeURIComponent(state.restaurant.id)}&restaurantSlug=${encodeURIComponent(state.restaurant.slug)}`;
+  const uniqueUiHref = `/owner/restaurants/${encodeURIComponent(state.restaurant.id)}/unique-ui`;
 
   return (
     <section className={styles.creationStage}>
@@ -2926,7 +2926,7 @@ function CreationSuccess({
               Voir le fallback public
             </Link>
             {isUnique ? (
-              <Link className={styles.btn} href={designStudioHref}>
+              <Link className={styles.btn} href={uniqueUiHref}>
                 Créer le UI unique
               </Link>
             ) : (

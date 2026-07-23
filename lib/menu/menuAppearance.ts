@@ -298,7 +298,7 @@ export function buildMenuUiConfigForRestaurant(args: {
     case "unique":
       theme = "fresh-homemade";
       blueprint = "classic-tabs";
-      welcomeSubtitle = "Carte professionnelle en attendant le design unique.";
+      welcomeSubtitle = "Découvrez la carte de notre restaurant.";
       break;
     default: {
       const _exhaustive: never = args.appearance.template;

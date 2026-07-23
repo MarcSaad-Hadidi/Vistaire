@@ -846,22 +846,62 @@ async function createRestaurantRecordWithRpc(
     };
   }
 
-  const uniqueDesign = normalizeUniqueMenuDesignFromPayload(
+  const expectedUniqueDesign = normalizeUniqueMenuDesignFromPayload(
     payload.ui_config?.config_json
   );
-  const isUniqueStyle =
-    payload.restaurant?.slug != null &&
-    publicMenuStyleFromPayload(payload) === "unique";
-  const uniqueDesignPersisted =
-    !isUniqueStyle ||
-    (Boolean(uniqueDesign?.designId) && isCanonicalUuid(uniqueDesign?.designId));
-  if (isUniqueStyle && !uniqueDesignPersisted) {
-    return {
-      ok: false,
-      status: 502,
-      error:
-        "Creation invalide : l'identite de design unique n'a pas ete persistee."
-    };
+  const isUniqueStyle = publicMenuStyleFromPayload(payload) === "unique";
+
+  let uniqueDesign: UniqueMenuDesign | null = null;
+  let uniqueDesignPersisted = !isUniqueStyle;
+
+  if (isUniqueStyle) {
+    const returnedDesign = normalizeUniqueMenuDesign(response.uniqueDesign);
+    const returnedId = getString(
+      response,
+      ["uniqueDesignId", "unique_design_id"],
+      returnedDesign?.designId ?? ""
+    );
+    const returnedStatus = getString(
+      response,
+      ["uniqueDesignStatus", "unique_design_status"],
+      returnedDesign?.status ?? ""
+    );
+    const publishedFallbackPersisted =
+      response.publishedFallbackPersisted === true;
+    const draftConfigPersisted = response.draftConfigPersisted === true;
+    const claimedPersisted = response.uniqueDesignPersisted === true;
+
+    uniqueDesign = returnedDesign;
+    const idsMatch =
+      Boolean(expectedUniqueDesign?.designId) &&
+      Boolean(uniqueDesign?.designId) &&
+      expectedUniqueDesign!.designId === uniqueDesign!.designId &&
+      returnedId === uniqueDesign!.designId;
+    const statusOk =
+      uniqueDesign?.status === "pending" &&
+      (returnedStatus === "" || returnedStatus === "pending");
+    const identityOk =
+      uniqueDesign != null &&
+      uniqueDesign.rendererKey == null &&
+      uniqueDesign.version === 1 &&
+      uniqueDesign.rendererVersion == null;
+
+    uniqueDesignPersisted =
+      claimedPersisted &&
+      publishedFallbackPersisted &&
+      draftConfigPersisted &&
+      idsMatch &&
+      statusOk &&
+      identityOk;
+
+    if (!uniqueDesignPersisted) {
+      return {
+        ok: false,
+        status: 502,
+        error:
+          "Creation invalide : l'identite de design unique n'a pas ete confirmée depuis la ligne persistee."
+      };
+    }
   }
 
   return {
@@ -1264,6 +1304,22 @@ export async function createRestaurantRecord(
       status: 503,
       error:
         "Creation impossible : Supabase n'est pas configure pour persister les restaurants."
+    };
+  }
+
+  const requestedStyle = normalizePublicMenuSettings(input.publicMenuSettings, {
+    legacyMenuLanguages: input.menuLanguages
+  }).publicMenuStyle;
+
+  if (
+    requestedStyle === "unique" &&
+    typeof dependencies.admin.client.rpc !== "function"
+  ) {
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "Creation unique impossible : la RPC transactionnelle Supabase est indisponible. Aucune donnee n'a ete ecrite."
     };
   }
 

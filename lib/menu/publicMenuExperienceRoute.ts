@@ -3,8 +3,7 @@ import type { PublicMenu } from "./publicMenuCore.ts";
 import type { PublicMenuStyle } from "./publicMenuSettings.ts";
 import type { UniqueMenuDesign } from "./uniqueMenuDesign.ts";
 import {
-  getUniqueMenuRenderer,
-  isRegisteredUniqueMenuRendererKey,
+  getUniqueMenuRendererForDesign,
   type UniqueMenuRendererEntry
 } from "./uniqueMenuRendererRegistry.ts";
 import {
@@ -24,6 +23,7 @@ export type ResolvedPublicMenuExperience = {
   style: PublicMenuStyle | null;
   uniqueDesign: UniqueMenuDesign | null;
   rendererKey: string | null;
+  rendererVersion: number | null;
   useGenericFallback: boolean;
   ownerDiagnostic?: string;
   renderer: UniqueMenuRendererEntry | null;
@@ -48,6 +48,7 @@ export function resolvePublicMenuExperience(
       style: "maison-elyse",
       uniqueDesign: null,
       rendererKey: null,
+      rendererVersion: null,
       useGenericFallback: false,
       renderer: null
     };
@@ -59,6 +60,7 @@ export function resolvePublicMenuExperience(
       style: "trouvable",
       uniqueDesign: null,
       rendererKey: null,
+      rendererVersion: null,
       useGenericFallback: false,
       renderer: null
     };
@@ -68,19 +70,36 @@ export function resolvePublicMenuExperience(
   if (style === "unique") {
     const design = config.uniqueDesign;
     const key = design?.rendererKey ?? null;
-    const registered =
-      design?.status === "published" &&
-      isRegisteredUniqueMenuRendererKey(key);
+    const bound =
+      design?.status === "published"
+        ? getUniqueMenuRendererForDesign(design.designId, key)
+        : null;
 
-    if (registered) {
-      return {
+    if (bound) {
+      const resolved: ResolvedPublicMenuExperience = {
         kind: "unique-registered",
         style: "unique",
         uniqueDesign: design,
         rendererKey: key,
+        rendererVersion: design?.rendererVersion ?? bound.version,
         useGenericFallback: false,
-        renderer: getUniqueMenuRenderer(key)
+        renderer: bound
       };
+      // Defensive: never render unique-registered without a concrete renderer.
+      if (!resolved.renderer) {
+        return {
+          kind: "generic",
+          style: "unique",
+          uniqueDesign: design,
+          rendererKey: key,
+          rendererVersion: design?.rendererVersion ?? null,
+          useGenericFallback: true,
+          ownerDiagnostic:
+            "unique-registered resolved without renderer; falling back to generic.",
+          renderer: null
+        };
+      }
+      return resolved;
     }
 
     return {
@@ -88,11 +107,11 @@ export function resolvePublicMenuExperience(
       style: "unique",
       uniqueDesign: design,
       rendererKey: key,
+      rendererVersion: design?.rendererVersion ?? null,
       useGenericFallback: true,
       ownerDiagnostic:
-        design?.status === "published" &&
-        !isRegisteredUniqueMenuRendererKey(key)
-          ? "Published unique design references an unregistered renderer key."
+        design?.status === "published" && key
+          ? "Published unique design references an unbound or incomplete renderer."
           : undefined,
       renderer: null
     };
@@ -103,6 +122,7 @@ export function resolvePublicMenuExperience(
     style,
     uniqueDesign: null,
     rendererKey: null,
+    rendererVersion: null,
     useGenericFallback: true,
     renderer: null
   };

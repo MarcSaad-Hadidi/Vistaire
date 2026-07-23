@@ -25,7 +25,7 @@ import {
   validateUniqueMenuDesign,
   type UniqueMenuDesign
 } from "./uniqueMenuDesign.ts";
-import { isRegisteredUniqueMenuRendererKey } from "./uniqueMenuRendererRegistry.ts";
+import { getUniqueMenuRendererForDesign } from "./uniqueMenuRendererRegistry.ts";
 
 export {
   MENU_CATEGORY_PRESENTATION_VALUES,
@@ -862,11 +862,15 @@ export function validateMenuUiConfig(
     }
     if (
       uniqueValidated.value.status === "published" &&
-      !isRegisteredUniqueMenuRendererKey(uniqueValidated.value.rendererKey)
+      !getUniqueMenuRendererForDesign(
+        uniqueValidated.value.designId,
+        uniqueValidated.value.rendererKey
+      )
     ) {
       return {
         ok: false,
-        error: "rendererKey unique non enregistre dans le registre statique."
+        error:
+          "rendererKey unique non enregistre pour ce designId, ou renderer incomplet."
       };
     }
   }

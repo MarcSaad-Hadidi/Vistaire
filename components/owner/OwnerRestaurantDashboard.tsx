@@ -20,6 +20,7 @@ type OwnerRestaurantDashboardProps = {
   uniqueUi?: {
     statusLabel: string;
     designStudioHref: string;
+    uniqueUiHref: string;
     publicMenuHref: string;
   } | null;
 };
@@ -101,7 +102,7 @@ export function OwnerRestaurantDashboard({
             {uniqueUi ? "Voir le fallback public" : "Voir comme client"}
           </a>
           {uniqueUi ? (
-            <Link className={styles.btn} href={uniqueUi.designStudioHref} prefetch={false}>
+            <Link className={styles.btn} href={uniqueUi.uniqueUiHref} prefetch={false}>
               Créer le UI unique
             </Link>
           ) : null}
@@ -231,7 +232,7 @@ export function OwnerRestaurantDashboard({
             title="UI unique"
             body="Composez le design réservé à ce restaurant. Le public voit un fallback professionnel tant que le UI n'est pas publié."
             meta={uniqueUi.statusLabel}
-            href={uniqueUi.designStudioHref}
+            href={uniqueUi.uniqueUiHref}
             action="Créer le UI unique"
           />
         ) : null}

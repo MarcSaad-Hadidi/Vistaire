@@ -92,7 +92,7 @@ test("unique creation payload generates distinct server designIds", async () => 
   async function runOnce(name, slug) {
     const rpc = async (_fn, args) => {
       captured.push(args.p_payload);
-      const designId = args.p_payload.ui_config.config_json.uniqueDesign.designId;
+      const design = args.p_payload.ui_config.config_json.uniqueDesign;
       return {
         data: {
           ok: true,
@@ -108,12 +108,20 @@ test("unique creation payload generates distinct server designIds", async () => 
             public_menu_url: `https://example.com/menu/${slug}`
           },
           uiConfigPersisted: true,
+          draftConfigPersisted: true,
+          publishedFallbackPersisted: true,
+          uniqueDesignPersisted: true,
+          uniqueDesignId: design.designId,
+          uniqueDesignStatus: "pending",
+          uniqueDesign: design,
+          publishedConfigId: crypto.randomUUID(),
+          draftConfigId: crypto.randomUUID(),
           menuPersisted: true,
           categoriesPersisted: true,
           dishesPersisted: true,
           persistedDishCount: 1,
           persistedCategoryCount: 1,
-          mediaBasePath: `restaurants/${designId}/photos/`,
+          mediaBasePath: `restaurants/${design.designId}/photos/`,
           warnings: []
         },
         error: null
@@ -222,5 +230,107 @@ test("no slug-based unique renderer switches in menu libs", async () => {
   );
   assert.doesNotMatch(routeHelper, /slug\s*===/);
   assert.doesNotMatch(registry, /import\s*\(\s*[`'"].*\$\{/);
-  assert.match(registry, /UNIQUE_MENU_RENDERERS/);
+  assert.match(registry, /PRODUCTION_UNIQUE_MENU_RENDERERS/);
+  assert.match(registry, /__setUniqueMenuRendererTestRegistry/);
+});
+
+test("unique creation without RPC writes nothing", async () => {
+  let inserted = false;
+  const result = await createRestaurantRecord(
+    uniqueWorkflowInput("No Rpc Unique", "no-rpc-unique"),
+    {
+      admin: {
+        ok: true,
+        client: {
+          from() {
+            inserted = true;
+            throw new Error("insert should not run");
+          }
+        }
+      },
+      getColumns: async () => new Set(["name", "slug"]),
+      env: { NEXT_PUBLIC_SITE_URL: "https://example.com" }
+    }
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(inserted, false);
+});
+
+test("RPC claiming persist with mismatched designId is rejected", async () => {
+  const result = await createRestaurantRecord(
+    uniqueWorkflowInput("Mismatch Unique", "mismatch-unique"),
+    {
+      admin: {
+        ok: true,
+        client: {
+          rpc: async (_fn, args) => {
+            const design = args.p_payload.ui_config.config_json.uniqueDesign;
+            return {
+              data: {
+                ok: true,
+                restaurant: {
+                  id: crypto.randomUUID(),
+                  name: "Mismatch Unique",
+                  slug: "mismatch-unique",
+                  status: "setup_needed",
+                  contact_email: "camille@example.com"
+                },
+                uiConfigPersisted: true,
+                draftConfigPersisted: true,
+                publishedFallbackPersisted: true,
+                uniqueDesignPersisted: true,
+                uniqueDesignId: "99999999-9999-4999-8999-999999999999",
+                uniqueDesignStatus: "pending",
+                uniqueDesign: {
+                  ...design,
+                  designId: "99999999-9999-4999-8999-999999999999"
+                },
+                menuPersisted: true,
+                categoriesPersisted: true,
+                dishesPersisted: true,
+                persistedDishCount: 1,
+                persistedCategoryCount: 1,
+                warnings: []
+              },
+              error: null
+            };
+          }
+        }
+      },
+      getColumns: async () => new Set(),
+      env: { NEXT_PUBLIC_SITE_URL: "https://example.com" }
+    }
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 502);
+});
+
+test("public unique welcome copy has no technical pending language", async () => {
+  const source = await readFile(
+    new URL("../lib/menu/menuAppearance.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(source, /Découvrez la carte de notre restaurant/);
+  assert.doesNotMatch(source, /en attendant le design/i);
+  assert.doesNotMatch(
+    source,
+    /welcomeSubtitle\s*=\s*"[^"]*(fallback|pending|renderer|designId)[^"]*"/i
+  );
+});
+
+test("owner unique-ui route and CTA exist", async () => {
+  const page = await readFile(
+    new URL(
+      "../app/owner/restaurants/[restaurantId]/unique-ui/page.tsx",
+      import.meta.url
+    ),
+    "utf8"
+  );
+  const dashboard = await readFile(
+    new URL("../components/owner/OwnerRestaurantDashboard.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(page, /OwnerUniqueMenuDesignPanel/);
+  assert.match(dashboard, /uniqueUiHref/);
 });

@@ -182,7 +182,7 @@ export function buildOwnerRestaurantPreparation(
   const previewHref = ownerRestaurantRoute(restaurant, "preview");
   const qrHref = ownerRestaurantRoute(restaurant, "qr");
   const settingsHref = ownerRestaurantRoute(restaurant, "settings");
-  const designStudioHref = `/owner/menu-builder?restaurantId=${encodeURIComponent(restaurant.id)}&restaurantSlug=${encodeURIComponent(restaurant.slug)}`;
+  const uniqueUiHref = `/owner/restaurants/${encodeURIComponent(restaurant.id)}/unique-ui`;
   const isUnique = options?.publicMenuStyle === "unique";
   const uniqueStatusLabel = uniqueMenuDesignOwnerStatusLabel(
     options?.uniqueDesignStatus
@@ -254,13 +254,14 @@ export function buildOwnerRestaurantPreparation(
           {
             id: "ui-unique",
             label: "Type de UI : Unique",
-            detail: "Design Studio : thème et blueprint à composer séparément.",
+            detail:
+              "Gérez le cycle de vie ici ; personnalisez le fallback dans le Design Studio.",
             status: uniqueStatusLabel,
             tone:
               options?.uniqueDesignStatus === "published"
                 ? ("ready" as const)
                 : ("warn" as const),
-            href: designStudioHref
+            href: uniqueUiHref
           }
         ]
       : []),
@@ -287,7 +288,7 @@ export function buildOwnerRestaurantPreparation(
       id: "preview",
       label: "Aperçu client vérifié",
       detail: isUnique
-        ? "Le public voit le fallback professionnel tant que le UI unique n'est pas publié."
+        ? "Vérifiez le menu public mobile avant impression ou publication."
         : "Ouvrez le rendu mobile avant impression ou publication.",
       status: "À vérifier",
       tone: "warn",
@@ -299,8 +300,8 @@ export function buildOwnerRestaurantPreparation(
   if (isUnique && options?.uniqueDesignStatus !== "published") {
     nextAction = {
       title: "Créer le UI unique",
-      body: "Une identité de design unique est en attente. Composez-la dans le Design Studio.",
-      href: designStudioHref,
+      body: "Une identité de design unique est en attente. Gérez son cycle de vie dans l'espace UI unique.",
+      href: uniqueUiHref,
       label: "Créer le UI unique"
     };
   } else if (summary.dishCount === 0) {

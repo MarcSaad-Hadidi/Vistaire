@@ -73,6 +73,7 @@ export default async function OwnerRestaurantDashboardPage({
                         ? "Archivé"
                         : "À construire",
               designStudioHref: `/owner/menu-builder?restaurantId=${encodeURIComponent(data.restaurant.id)}&restaurantSlug=${encodeURIComponent(data.restaurant.slug)}`,
+              uniqueUiHref: `/owner/restaurants/${encodeURIComponent(data.restaurant.id)}/unique-ui`,
               publicMenuHref: data.restaurant.publicMenuUrl
             }
           : null
