@@ -10,6 +10,7 @@ import type {
 } from "@/lib/owner/types";
 import {
   normalizePublicMenuSettings,
+  normalizePublicMenuStyle,
   publicMenuSettingsToLegacyMenuLanguages,
   serializePublicMenuSettings,
   validatePublicMenuSettingsInput,
@@ -21,6 +22,12 @@ import {
   type MenuAppearanceSelection
 } from "../menu/menuAppearance.ts";
 import {
+  createPendingUniqueMenuDesign,
+  normalizeUniqueMenuDesign,
+  type UniqueMenuDesign,
+  type UniqueMenuDesignStatus
+} from "../menu/uniqueMenuDesign.ts";
+import {
   normalizeDisplayPriceMode,
   parsePriceToCents
 } from "./price.ts";
@@ -30,6 +37,7 @@ import {
   validateAllergenDeclarations,
   type DishAllergenDeclaration
 } from "../menu/allergens.ts";
+import { isCanonicalUuid } from "./storageSafeIdentifier.ts";
 
 type SupabaseInsertError = {
   code?: string;
@@ -96,6 +104,9 @@ export type CreateRestaurantRecordResult =
       menuPersisted: boolean;
       uiConfigPersisted: boolean;
       menuAppearancePersisted: boolean;
+      uniqueDesignPersisted: boolean;
+      uniqueDesignId?: string;
+      uniqueDesignStatus?: UniqueMenuDesignStatus;
       categoriesPersisted: boolean;
       sectionsPersisted: boolean;
       dishesPersisted: boolean;
@@ -545,6 +556,50 @@ function hasCreationWorkflowPayload(candidate: Record<string, unknown>): boolean
   );
 }
 
+function hasClientUniqueIdentityFields(candidate: Record<string, unknown>): boolean {
+  return (
+    "uniqueDesign" in candidate ||
+    "uniqueDesignId" in candidate ||
+    "designId" in candidate ||
+    "rendererKey" in candidate ||
+    (candidate.menuAppearance != null &&
+      typeof candidate.menuAppearance === "object" &&
+      !Array.isArray(candidate.menuAppearance) &&
+      ("uniqueDesign" in (candidate.menuAppearance as object) ||
+        "designId" in (candidate.menuAppearance as object) ||
+        "rendererKey" in (candidate.menuAppearance as object)))
+  );
+}
+
+function normalizeUniqueMenuDesignFromPayload(
+  configJson: unknown
+): UniqueMenuDesign | null {
+  if (!configJson || typeof configJson !== "object" || Array.isArray(configJson)) {
+    return null;
+  }
+  return normalizeUniqueMenuDesign(
+    (configJson as Record<string, unknown>).uniqueDesign
+  );
+}
+
+function publicMenuStyleFromPayload(
+  payload: ReturnType<typeof buildTransactionalCreationPayload>
+): string {
+  const settings = payload.menu?.settings_json;
+  if (settings && typeof settings === "object" && !Array.isArray(settings)) {
+    return normalizePublicMenuStyle(
+      (settings as Record<string, unknown>).publicMenuStyle
+    );
+  }
+  const configJson = payload.ui_config?.config_json;
+  if (configJson && typeof configJson === "object" && !Array.isArray(configJson)) {
+    return normalizePublicMenuStyle(
+      (configJson as Record<string, unknown>).publicMenuStyle
+    );
+  }
+  return "trouvable";
+}
+
 function buildMediaBasePath(restaurantId: string): string {
   return `restaurants/${restaurantId}/photos/`;
 }
@@ -589,11 +644,16 @@ function buildTransactionalCreationPayload(
       themeMode: publicMenuSettings.defaultThemeMode
     }
   );
+  const uniqueDesign =
+    publicMenuSettings.publicMenuStyle === "unique"
+      ? createPendingUniqueMenuDesign()
+      : null;
   const menuUiConfig = buildMenuUiConfigForRestaurant({
     name: input.name,
     slug: normalizedSlug,
     appearance,
-    publicMenuSettings: serializePublicMenuSettings(publicMenuSettings)
+    publicMenuSettings: serializePublicMenuSettings(publicMenuSettings),
+    uniqueDesign
   });
   const menuLanguages = publicMenuSettingsToLegacyMenuLanguages(publicMenuSettings);
   const categorySlugs = new Set<string>();
@@ -786,6 +846,24 @@ async function createRestaurantRecordWithRpc(
     };
   }
 
+  const uniqueDesign = normalizeUniqueMenuDesignFromPayload(
+    payload.ui_config?.config_json
+  );
+  const isUniqueStyle =
+    payload.restaurant?.slug != null &&
+    publicMenuStyleFromPayload(payload) === "unique";
+  const uniqueDesignPersisted =
+    !isUniqueStyle ||
+    (Boolean(uniqueDesign?.designId) && isCanonicalUuid(uniqueDesign?.designId));
+  if (isUniqueStyle && !uniqueDesignPersisted) {
+    return {
+      ok: false,
+      status: 502,
+      error:
+        "Creation invalide : l'identite de design unique n'a pas ete persistee."
+    };
+  }
+
   return {
     ok: true,
     persisted: true,
@@ -796,12 +874,21 @@ async function createRestaurantRecordWithRpc(
       dishCount: persistedDishCount,
       photoDishCount,
       incompleteDishCount: Math.max(persistedDishCount - photoDishCount, 0),
-      nextAction: "Generer le QR menu"
+      nextAction: isUniqueStyle
+        ? "Creer le UI unique"
+        : "Generer le QR menu"
     },
     restaurantPersisted: true,
     menuPersisted: response.menuPersisted !== false,
     uiConfigPersisted,
     menuAppearancePersisted: uiConfigPersisted,
+    uniqueDesignPersisted,
+    ...(uniqueDesign?.designId
+      ? {
+          uniqueDesignId: uniqueDesign.designId,
+          uniqueDesignStatus: uniqueDesign.status
+        }
+      : {}),
     categoriesPersisted: response.categoriesPersisted !== false,
     sectionsPersisted: response.categoriesPersisted !== false,
     dishesPersisted: response.dishesPersisted !== false,
@@ -1067,6 +1154,13 @@ export function validateCreateRestaurantInput(
   }
 
   const candidate = input as Record<string, unknown>;
+  if (hasClientUniqueIdentityFields(candidate)) {
+    return {
+      ok: false,
+      error:
+        "Les champs designId, rendererKey et uniqueDesign sont generes cote serveur."
+    };
+  }
   const name = getString(candidate, ["name"], "").slice(0, 120);
   const slug = slugifyRestaurantSlug(getString(candidate, ["slug"], name)).slice(0, 80);
   const location = getString(candidate, ["location"], "").slice(0, 160);
@@ -1088,6 +1182,26 @@ export function validateCreateRestaurantInput(
     legacyMenuLanguages
   });
   if (!normalizedSettings.ok) return normalizedSettings;
+
+  if (
+    workflowPayload &&
+    candidate.menuAppearance &&
+    typeof candidate.menuAppearance === "object" &&
+    !Array.isArray(candidate.menuAppearance) &&
+    "template" in (candidate.menuAppearance as Record<string, unknown>)
+  ) {
+    const appearanceTemplate = normalizePublicMenuStyle(
+      (candidate.menuAppearance as Record<string, unknown>).template
+    );
+    if (appearanceTemplate !== normalizedSettings.value.publicMenuStyle) {
+      return {
+        ok: false,
+        error:
+          "Conflit entre publicMenuStyle et menuAppearance.template. Les deux doivent etre identiques."
+      };
+    }
+  }
+
   const menuAppearance = normalizeMenuAppearanceSelection(
     candidate.menuAppearance,
     {
@@ -1236,6 +1350,7 @@ export async function createRestaurantRecord(
   let menuPersisted = false;
   let uiConfigPersisted = false;
   let menuAppearancePersisted = false;
+  let fallbackUniqueDesign: UniqueMenuDesign | null = null;
   let menuRow: Record<string, unknown> | undefined;
 
   const mediaBasePathColumn = pickColumn(columns, RESTAURANT_MEDIA_BASE_PATH_COLUMNS);
@@ -1306,6 +1421,10 @@ export async function createRestaurantRecord(
       pickColumn(uiConfigColumns, ["restaurant_id", "restaurantId"])
     );
     if (hasUiConfigIdentityColumn) {
+      const uniqueDesign =
+        publicMenuSettings.publicMenuStyle === "unique"
+          ? createPendingUniqueMenuDesign()
+          : null;
       const uiConfig = buildMenuUiConfigForRestaurant({
         name: input.name,
         slug: restaurantSlug,
@@ -1313,7 +1432,8 @@ export async function createRestaurantRecord(
           template: publicMenuSettings.publicMenuStyle,
           themeMode: publicMenuSettings.defaultThemeMode
         }),
-        publicMenuSettings: serializePublicMenuSettings(publicMenuSettings)
+        publicMenuSettings: serializePublicMenuSettings(publicMenuSettings),
+        uniqueDesign
       });
       const uiConfigInsert: Record<string, unknown> = {};
       assignInsertValue(uiConfigInsert, uiConfigColumns, ["restaurant_id", "restaurantId"], restaurantId);
@@ -1334,6 +1454,12 @@ export async function createRestaurantRecord(
         uiConfigPersisted = !uiConfigError && Boolean(insertedUiConfig);
         menuAppearancePersisted = uiConfigPersisted;
         if (!uiConfigPersisted) warnings.push(MENU_UI_CONFIG_WARNING);
+        if (
+          publicMenuSettings.publicMenuStyle === "unique" &&
+          uiConfigPersisted
+        ) {
+          fallbackUniqueDesign = uniqueDesign;
+        }
       }
     }
   } catch {
@@ -1394,15 +1520,41 @@ export async function createRestaurantRecord(
     warnings.push(SECTION_DESCRIPTION_WARNING);
   }
 
+  const isUniqueStyle = publicMenuSettings.publicMenuStyle === "unique";
+  const uniqueDesignPersisted =
+    !isUniqueStyle ||
+    (uiConfigPersisted &&
+      Boolean(fallbackUniqueDesign?.designId) &&
+      isCanonicalUuid(fallbackUniqueDesign?.designId));
+
+  if (isUniqueStyle && !uniqueDesignPersisted) {
+    return {
+      ok: false,
+      status: 502,
+      error:
+        "Creation invalide : l'identite de design unique n'a pas ete persistee."
+    };
+  }
+
   return {
     ok: true,
     persisted: true,
     dataSource: "supabase",
-    restaurant,
+    restaurant: {
+      ...restaurant,
+      nextAction: isUniqueStyle ? "Creer le UI unique" : restaurant.nextAction
+    },
     restaurantPersisted: true,
     menuPersisted,
     uiConfigPersisted,
     menuAppearancePersisted,
+    uniqueDesignPersisted,
+    ...(fallbackUniqueDesign?.designId
+      ? {
+          uniqueDesignId: fallbackUniqueDesign.designId,
+          uniqueDesignStatus: fallbackUniqueDesign.status
+        }
+      : {}),
     categoriesPersisted: sectionsPersisted,
     sectionsPersisted,
     dishesPersisted,

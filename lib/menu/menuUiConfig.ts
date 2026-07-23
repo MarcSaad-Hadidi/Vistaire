@@ -20,6 +20,12 @@ import {
   type MenuHomeLayout,
   type MenuSectionOrder
 } from "./menuExperienceBlueprints.ts";
+import {
+  normalizeUniqueMenuDesign,
+  validateUniqueMenuDesign,
+  type UniqueMenuDesign
+} from "./uniqueMenuDesign.ts";
+import { isRegisteredUniqueMenuRendererKey } from "./uniqueMenuRendererRegistry.ts";
 
 export {
   MENU_CATEGORY_PRESENTATION_VALUES,
@@ -218,6 +224,12 @@ export type MenuUiConfig = {
   schemaVersion: 2;
   theme: MenuUiThemeId;
   custom: boolean;
+  /**
+   * Per-restaurant unique UI identity. null for shared templates
+   * (trouvable / maison-elyse). Kept in schemaVersion 2 as an optional
+   * additive field — legacy configs normalize to null.
+   */
+  uniqueDesign: UniqueMenuDesign | null;
   palette: MenuUiPalette;
   global: {
     backgroundStyle: MenuUiBackgroundStyle;
@@ -314,9 +326,10 @@ const UNSAFE_KEY_PATTERN =
 const UNSAFE_VALUE_PATTERN =
   /(sk_live_|sk_test_|service_role|bearer\s+[a-z0-9._-]{12,}|eyJ[a-z0-9_-]{12,})/i;
 
-export const DEFAULT_MENU_UI_CONFIG = buildConfigFromTheme(
-  "fresh-homemade"
-) as MenuUiConfig;
+export const DEFAULT_MENU_UI_CONFIG = {
+  ...buildConfigFromTheme("fresh-homemade"),
+  uniqueDesign: null
+} as MenuUiConfig;
 
 function includesValue<T extends readonly string[]>(
   values: T,
@@ -736,6 +749,7 @@ export function normalizeMenuUiConfig(input: unknown): MenuUiConfig {
     schemaVersion: 2,
     theme,
     custom: cleanBoolean(candidate.custom, base.custom),
+    uniqueDesign: normalizeUniqueMenuDesign(candidate.uniqueDesign),
     palette,
     global,
     typography,
@@ -837,6 +851,25 @@ export function validateMenuUiConfig(
   if (whitelistError) return { ok: false, error: whitelistError };
   const paletteError = invalidPaletteMessage(candidate);
   if (paletteError) return { ok: false, error: paletteError };
+
+  if (
+    candidate.uniqueDesign != null &&
+    candidate.uniqueDesign !== undefined
+  ) {
+    const uniqueValidated = validateUniqueMenuDesign(candidate.uniqueDesign);
+    if (!uniqueValidated.ok) {
+      return { ok: false, error: uniqueValidated.error };
+    }
+    if (
+      uniqueValidated.value.status === "published" &&
+      !isRegisteredUniqueMenuRendererKey(uniqueValidated.value.rendererKey)
+    ) {
+      return {
+        ok: false,
+        error: "rendererKey unique non enregistre dans le registre statique."
+      };
+    }
+  }
 
   return { ok: true, value: normalizeMenuUiConfig(candidate) };
 }

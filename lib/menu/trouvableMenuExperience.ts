@@ -1,10 +1,10 @@
-import { MAISON_ELYSE_PALETTE } from "@/lib/menu/menuThemePresets";
+import { MAISON_ELYSE_PALETTE } from "./menuThemePresets.ts";
 import {
   normalizeMenuUiConfig,
   type MenuUiConfig
-} from "@/lib/menu/menuUiConfig";
-import type { PublicMenuStyle } from "@/lib/menu/publicMenuSettings";
-import type { PublicMenu } from "@/lib/menu/publicMenuCore";
+} from "./menuUiConfig.ts";
+import type { PublicMenuStyle } from "./publicMenuSettings.ts";
+import type { PublicMenu } from "./publicMenuCore.ts";
 
 type PublicMenuStyleRouteInput = Pick<PublicMenu, "slug" | "name"> & {
   settings?: Pick<PublicMenu["settings"], "publicMenuStyle">;
@@ -40,6 +40,10 @@ export function isTrouvablePublicMenu(
   menu: PublicMenuStyleRouteInput
 ): boolean {
   return getPublicMenuExperienceStyle(menu) === "trouvable";
+}
+
+export function isUniquePublicMenu(menu: PublicMenuStyleRouteInput): boolean {
+  return getPublicMenuExperienceStyle(menu) === "unique";
 }
 
 export function resolvePublicMenuUiConfig(

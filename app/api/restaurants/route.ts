@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
       menuPersisted: created.menuPersisted,
       uiConfigPersisted: created.uiConfigPersisted,
       menuAppearancePersisted: created.menuAppearancePersisted,
+      uniqueDesignPersisted: created.uniqueDesignPersisted,
+      ...(created.uniqueDesignId
+        ? {
+            uniqueDesignId: created.uniqueDesignId,
+            uniqueDesignStatus: created.uniqueDesignStatus
+          }
+        : {}),
       categoriesPersisted: created.categoriesPersisted,
       sectionsPersisted: created.sectionsPersisted,
       dishesPersisted: created.dishesPersisted,

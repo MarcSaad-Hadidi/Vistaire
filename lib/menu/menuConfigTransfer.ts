@@ -61,7 +61,10 @@ const FORBIDDEN_IMPORT_KEYS = new Set([
   "availability",
   "photourl",
   "modelurl",
-  "description"
+  "description",
+  "uniquedesign",
+  "designid",
+  "rendererkey"
 ]);
 const FORBIDDEN_IMPORT_KEY_PATTERN =
   /(secret|password|token|bearer|service[_-]?role|api[_-]?key|signature)/i;

@@ -65,7 +65,11 @@ export type PublicMenuThemeMode = (typeof PUBLIC_MENU_THEME_MODES)[number];
 export const PUBLIC_MENU_PRICE_DISPLAY_MODES = ["auto", "integer", "decimal"] as const;
 export type PublicMenuPriceDisplayMode = (typeof PUBLIC_MENU_PRICE_DISPLAY_MODES)[number];
 
-export const PUBLIC_MENU_STYLE_OPTIONS = ["trouvable", "maison-elyse"] as const;
+export const PUBLIC_MENU_STYLE_OPTIONS = [
+  "trouvable",
+  "maison-elyse",
+  "unique"
+] as const;
 export type PublicMenuStyle = (typeof PUBLIC_MENU_STYLE_OPTIONS)[number];
 
 export type PublicMenuSettings = {
@@ -306,7 +310,9 @@ function normalizePriceDisplayMode(value: unknown): PublicMenuPriceDisplayMode {
 }
 
 export function normalizePublicMenuStyle(value: unknown): PublicMenuStyle {
-  return value === "maison-elyse" ? "maison-elyse" : "trouvable";
+  if (value === "maison-elyse") return "maison-elyse";
+  if (value === "unique") return "unique";
+  return "trouvable";
 }
 
 function legacyLanguagesToLocales(value: unknown): PublicMenuLocale[] | null {
