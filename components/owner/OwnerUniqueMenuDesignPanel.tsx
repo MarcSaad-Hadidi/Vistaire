@@ -63,8 +63,15 @@ export function OwnerUniqueMenuDesignPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const isUniqueStyle = style === "unique";
 
   async function runAction(action: UniqueMenuDesignAction) {
+    if (!isUniqueStyle) {
+      setError(
+        "Le restaurant n'est pas en style unique. Changez d'abord le style public."
+      );
+      return;
+    }
     if (!design && action !== "create-new") {
       setError("Identité unique manquante.");
       return;
@@ -92,6 +99,34 @@ export function OwnerUniqueMenuDesignPanel({
         uniqueDesign?: UniqueMenuDesign;
         availableRenderers?: RendererMeta[];
       };
+      if (response.status === 409) {
+        try {
+          const reloadResponse = await fetch(
+            `/api/owner/unique-menu-design?restaurantId=${encodeURIComponent(restaurantId)}`
+          );
+          const reloadPayload = (await reloadResponse.json()) as {
+            ok?: boolean;
+            uniqueDesign?: UniqueMenuDesign | null;
+            availableRenderers?: RendererMeta[];
+          };
+          if (reloadResponse.ok && reloadPayload.ok) {
+            setDesign(reloadPayload.uniqueDesign ?? null);
+            setRenderers(reloadPayload.availableRenderers ?? []);
+            if (reloadPayload.availableRenderers?.[0]?.key) {
+              setSelectedRendererKey(reloadPayload.availableRenderers[0].key);
+            }
+          }
+        } catch {
+          // Keep the concurrency message even if reload fails.
+        }
+        setError(
+          typeof payload.error === "string" &&
+            /divergente|concurrent/i.test(payload.error)
+            ? `${payload.error} État rechargé.`
+            : "Le design a été modifié dans une autre session. État rechargé."
+        );
+        return;
+      }
       if (!response.ok || !payload.ok || !payload.uniqueDesign) {
         setError(payload.error ?? "Action unique refusée.");
         return;
@@ -108,6 +143,7 @@ export function OwnerUniqueMenuDesignPanel({
 
   const status = design?.status ?? null;
   const hasRenderer = renderers.length > 0;
+  const actionsDisabled = busy || !isUniqueStyle;
 
   return (
     <div className={styles.restaurantOverviewGrid}>
@@ -120,8 +156,15 @@ export function OwnerUniqueMenuDesignPanel({
         </header>
         <p>
           Restaurant <strong>{restaurantName}</strong> · type UI unique
-          {style !== "unique" ? " (style actuel non unique)" : ""}.
+          {isUniqueStyle ? "" : " (style actuel non unique)"}.
         </p>
+        {!isUniqueStyle ? (
+          <p role="status">
+            Les actions du cycle de vie unique sont désactivées tant que le
+            style public n’est pas « unique ». Passez d’abord par les paramètres
+            du restaurant.
+          </p>
+        ) : null}
         <p>
           Statut : {uniqueMenuDesignOwnerStatusLabel(status)} · version{" "}
           {design?.version ?? "—"}
@@ -153,7 +196,7 @@ export function OwnerUniqueMenuDesignPanel({
         <header>
           <h2>Actions autorisées</h2>
         </header>
-        {!hasRenderer && status === "draft" ? (
+        {!hasRenderer && (status === "draft" || status === "ready") ? (
           <p role="status">
             Aucun renderer React n’est enregistré pour ce designId. Le bouton
             « Marquer prêt » reste désactivé jusqu’à un enregistrement
@@ -161,13 +204,13 @@ export function OwnerUniqueMenuDesignPanel({
           </p>
         ) : null}
 
-        {status === "draft" && hasRenderer ? (
+        {(status === "draft" || status === "ready") && hasRenderer ? (
           <label className={styles.field}>
             Renderer disponible
             <select
               value={selectedRendererKey}
               onChange={(event) => setSelectedRendererKey(event.target.value)}
-              disabled={busy}
+              disabled={actionsDisabled}
             >
               {renderers.map((entry) => (
                 <option key={entry.key} value={entry.key}>
@@ -183,17 +226,19 @@ export function OwnerUniqueMenuDesignPanel({
             <button
               type="button"
               className={`${styles.btnPrimary} ${styles.btn}`}
-              disabled={busy}
+              disabled={actionsDisabled}
               onClick={() => void runAction("start")}
             >
               Démarrer le développement
             </button>
           ) : null}
-          {status === "draft" ? (
+          {status === "draft" || status === "ready" ? (
             <button
               type="button"
               className={`${styles.btnPrimary} ${styles.btn}`}
-              disabled={busy || !hasRenderer || !selectedRendererKey}
+              disabled={
+                actionsDisabled || !hasRenderer || !selectedRendererKey
+              }
               onClick={() => void runAction("mark-ready")}
             >
               Marquer prêt
@@ -203,7 +248,7 @@ export function OwnerUniqueMenuDesignPanel({
             <button
               type="button"
               className={`${styles.btnPrimary} ${styles.btn}`}
-              disabled={busy}
+              disabled={actionsDisabled}
               onClick={() => void runAction("publish")}
             >
               Publier le UI unique
@@ -222,7 +267,7 @@ export function OwnerUniqueMenuDesignPanel({
               <button
                 type="button"
                 className={styles.btn}
-                disabled={busy}
+                disabled={actionsDisabled}
                 onClick={() => void runAction("archive")}
               >
                 Archiver
@@ -233,7 +278,7 @@ export function OwnerUniqueMenuDesignPanel({
             <button
               type="button"
               className={`${styles.btnPrimary} ${styles.btn}`}
-              disabled={busy}
+              disabled={actionsDisabled}
               onClick={() => void runAction("create-new")}
             >
               Créer une nouvelle identité unique
@@ -243,7 +288,7 @@ export function OwnerUniqueMenuDesignPanel({
             <button
               type="button"
               className={styles.btn}
-              disabled={busy}
+              disabled={actionsDisabled}
               onClick={() => void runAction("archive")}
             >
               Archiver

@@ -4,8 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import {
   mapMenuUiConfigRow,
-  normalizeMenuUiConfig,
-  serializeMenuUiConfig,
   type MenuUiConfig,
   type MenuUiConfigRow
 } from "@/lib/menu/menuUiConfig";
@@ -18,9 +16,10 @@ import {
 } from "@/lib/menu/uniqueMenuDesign";
 import {
   getRegisteredUniqueMenuRenderersForDesign,
-  getUniqueMenuRendererForDesign
+  getUniqueMenuRendererForDesign,
+  getUniqueMenuRendererForDesignVersion
 } from "@/lib/menu/uniqueMenuRendererRegistry";
-import { normalizePublicMenuStyle } from "@/lib/menu/publicMenuSettings";
+import { readPublicMenuSettingsWithFallbacks } from "@/lib/owner/publicMenuSettingsFallback";
 import { isCanonicalUuid } from "@/lib/owner/storageSafeIdentifier";
 
 const TABLE = "menu_ui_configs";
@@ -67,14 +66,15 @@ function missingAdmin(): UniqueMenuDesignLifecycleStoreResult {
   };
 }
 
-function readStyle(config: MenuUiConfig): string {
-  const extended = config as MenuUiConfig & {
-    publicMenuStyle?: unknown;
-    publicMenuSettings?: { publicMenuStyle?: unknown };
-  };
-  return normalizePublicMenuStyle(
-    extended.publicMenuSettings?.publicMenuStyle ?? extended.publicMenuStyle
-  );
+async function getCanonicalPublicMenuStyle(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<string> {
+  const settings = await readPublicMenuSettingsWithFallbacks({
+    client,
+    restaurantId
+  });
+  return settings.publicMenuStyle;
 }
 
 async function loadConfigRow(
@@ -94,33 +94,6 @@ async function loadConfigRow(
   if (error || !data) return null;
   const mapped = mapMenuUiConfigRow(data as MenuUiConfigRow);
   return { row: data as MenuUiConfigRow, config: mapped.config };
-}
-
-function withUniqueDesign(
-  config: MenuUiConfig,
-  uniqueDesign: UniqueMenuDesign | null
-): MenuUiConfig {
-  return normalizeMenuUiConfig({
-    ...config,
-    uniqueDesign
-  });
-}
-
-async function writeConfigUniqueDesign(
-  client: SupabaseClient,
-  rowId: string,
-  config: MenuUiConfig,
-  uniqueDesign: UniqueMenuDesign | null
-): Promise<boolean> {
-  const next = withUniqueDesign(config, uniqueDesign);
-  const { error } = await client
-    .from(TABLE)
-    .update({
-      config_json: serializeMenuUiConfig(next),
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", rowId);
-  return !error;
 }
 
 export async function getUniqueMenuDesignSnapshot(
@@ -150,11 +123,12 @@ export async function getUniqueMenuDesignSnapshot(
     };
   }
 
+  const style = await getCanonicalPublicMenuStyle(admin.client, restaurantId);
   const uniqueDesign = normalizeUniqueMenuDesign(config.uniqueDesign);
   return {
     ok: true,
     restaurantId,
-    style: readStyle(config),
+    style,
     uniqueDesign,
     availableRenderers: getRegisteredUniqueMenuRenderersForDesign(
       uniqueDesign?.designId
@@ -207,7 +181,11 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
     };
   }
 
-  if (readStyle(baseConfig) !== "unique" && action !== "create-new") {
+  const style = await getCanonicalPublicMenuStyle(
+    admin.client,
+    args.restaurantId
+  );
+  if (style !== "unique") {
     return {
       ok: false,
       status: 400,
@@ -263,16 +241,17 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
     if (!current) {
       return { ok: false, status: 404, error: "Identite unique introuvable." };
     }
-    const entry = getUniqueMenuRendererForDesign(
+    const entry = getUniqueMenuRendererForDesignVersion(
       current.designId,
-      current.rendererKey
+      current.rendererKey,
+      current.rendererVersion
     );
     if (!entry) {
       return {
         ok: false,
         status: 400,
         error:
-          "Publication refusee : renderer inconnu, incomplet ou non lie au designId."
+          "Publication refusee : renderer inconnu, incomplet, non lie au designId, ou version obsolete."
       };
     }
   }
@@ -312,7 +291,11 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
       p_design_id: designIdForRpc,
       p_expected_version: versionForRpc,
       p_action: action,
-      p_renderer_key: args.rendererKey ?? null
+      p_renderer_key: args.rendererKey ?? null,
+      p_renderer_version:
+        action === "mark-ready" && rendererVersion != null
+          ? rendererVersion
+          : null
     }
   );
 
@@ -349,44 +332,13 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
     };
   }
 
-  let uniqueDesign = normalizeUniqueMenuDesign(response.uniqueDesign);
+  const uniqueDesign = normalizeUniqueMenuDesign(response.uniqueDesign);
   if (!uniqueDesign) {
     return {
       ok: false,
       status: 502,
       error: "RPC unique a retourne une identite invalide."
     };
-  }
-
-  if (action === "mark-ready" && rendererVersion != null) {
-    uniqueDesign = {
-      ...uniqueDesign,
-      rendererVersion,
-      rendererKey: args.rendererKey ?? uniqueDesign.rendererKey
-    };
-    const draftWrite = draft
-      ? await writeConfigUniqueDesign(
-          admin.client,
-          String(draft.row.id),
-          draft.config,
-          uniqueDesign
-        )
-      : true;
-    const publishedWrite = published
-      ? await writeConfigUniqueDesign(
-          admin.client,
-          String(published.row.id),
-          published.config,
-          uniqueDesign
-        )
-      : true;
-    if ((draft && !draftWrite) || (published && !publishedWrite)) {
-      return {
-        ok: false,
-        status: 503,
-        error: "Persistance partielle du rendererVersion refusee."
-      };
-    }
   }
 
   const draftPersisted = response.draftPersisted === true;

@@ -4,6 +4,7 @@ import type { PublicMenuStyle } from "./publicMenuSettings.ts";
 import type { UniqueMenuDesign } from "./uniqueMenuDesign.ts";
 import {
   getUniqueMenuRendererForDesign,
+  getUniqueMenuRendererForDesignVersion,
   type UniqueMenuRendererEntry
 } from "./uniqueMenuRendererRegistry.ts";
 import {
@@ -70,9 +71,14 @@ export function resolvePublicMenuExperience(
   if (style === "unique") {
     const design = config.uniqueDesign;
     const key = design?.rendererKey ?? null;
+    const designVersion = design?.rendererVersion ?? null;
     const bound =
       design?.status === "published"
-        ? getUniqueMenuRendererForDesign(design.designId, key)
+        ? getUniqueMenuRendererForDesignVersion(
+            design.designId,
+            key,
+            designVersion
+          )
         : null;
 
     if (bound) {
@@ -81,7 +87,7 @@ export function resolvePublicMenuExperience(
         style: "unique",
         uniqueDesign: design,
         rendererKey: key,
-        rendererVersion: design?.rendererVersion ?? bound.version,
+        rendererVersion: designVersion ?? bound.version,
         useGenericFallback: false,
         renderer: bound
       };
@@ -92,7 +98,7 @@ export function resolvePublicMenuExperience(
           style: "unique",
           uniqueDesign: design,
           rendererKey: key,
-          rendererVersion: design?.rendererVersion ?? null,
+          rendererVersion: designVersion,
           useGenericFallback: true,
           ownerDiagnostic:
             "unique-registered resolved without renderer; falling back to generic.",
@@ -102,15 +108,26 @@ export function resolvePublicMenuExperience(
       return resolved;
     }
 
+    const keyBound =
+      design?.status === "published"
+        ? getUniqueMenuRendererForDesign(design.designId, key)
+        : null;
+    const versionMismatch = Boolean(
+      design?.status === "published" &&
+        keyBound &&
+        (designVersion == null || keyBound.version !== designVersion)
+    );
+
     return {
       kind: "generic",
       style: "unique",
       uniqueDesign: design,
       rendererKey: key,
-      rendererVersion: design?.rendererVersion ?? null,
+      rendererVersion: designVersion,
       useGenericFallback: true,
-      ownerDiagnostic:
-        design?.status === "published" && key
+      ownerDiagnostic: versionMismatch
+        ? "Published unique design references an obsolete renderer version; re-run mark-ready with the current registry version."
+        : design?.status === "published" && key
           ? "Published unique design references an unbound or incomplete renderer."
           : undefined,
       renderer: null

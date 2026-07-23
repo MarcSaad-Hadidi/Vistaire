@@ -120,6 +120,26 @@ export function getUniqueMenuRendererForDesign(
   return entry;
 }
 
+/**
+ * Accept a renderer only when designId, key, and exact version all match.
+ */
+export function getUniqueMenuRendererForDesignVersion(
+  designId: string | null | undefined,
+  rendererKey: string | null | undefined,
+  rendererVersion: number | null | undefined
+): UniqueMenuRendererEntry | null {
+  const entry = getUniqueMenuRendererForDesign(designId, rendererKey);
+  if (!entry) return null;
+  if (
+    typeof rendererVersion !== "number" ||
+    !Number.isInteger(rendererVersion) ||
+    entry.version !== rendererVersion
+  ) {
+    return null;
+  }
+  return entry;
+}
+
 export function getRegisteredUniqueMenuRenderersForDesign(
   designId: string | null | undefined
 ): UniqueMenuRendererPublicMeta[] {

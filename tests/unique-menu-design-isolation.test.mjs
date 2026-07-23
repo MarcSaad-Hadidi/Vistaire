@@ -334,3 +334,46 @@ test("owner unique-ui route and CTA exist", async () => {
   assert.match(page, /OwnerUniqueMenuDesignPanel/);
   assert.match(dashboard, /uniqueUiHref/);
 });
+
+test("unique store requires canonical unique style and RPC-only mark-ready", async () => {
+  const store = await readFile(
+    new URL("../lib/owner/uniqueMenuDesignStore.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(store, /readPublicMenuSettingsWithFallbacks/);
+  assert.match(store, /getCanonicalPublicMenuStyle/);
+  assert.match(store, /style !== "unique"/);
+  assert.match(store, /p_renderer_version/);
+  assert.match(store, /getUniqueMenuRendererForDesignVersion/);
+  assert.doesNotMatch(
+    store,
+    /\.from\(\s*TABLE\s*\)\s*\.update\(/
+  );
+  assert.doesNotMatch(store, /writeConfigUniqueDesign/);
+});
+
+test("owner panel disables lifecycle when style is not unique", async () => {
+  const panel = await readFile(
+    new URL(
+      "../components/owner/OwnerUniqueMenuDesignPanel.tsx",
+      import.meta.url
+    ),
+    "utf8"
+  );
+  assert.match(panel, /const isUniqueStyle = style === "unique"/);
+  assert.match(panel, /actionsDisabled/);
+  assert.match(panel, /response\.status === 409/);
+  assert.match(panel, /État rechargé/);
+});
+
+test("default unique Playwright does not mock lifecycle persistence success", async () => {
+  const e2e = await readFile(
+    new URL("../e2e/unique-menu-design.spec.ts", import.meta.url),
+    "utf8"
+  );
+  assert.doesNotMatch(
+    e2e,
+    /route\.fulfill[\s\S]*draftPersisted:\s*true/
+  );
+  assert.match(e2e, /VISTAIRE_UNIQUE_MENU_E2E_LIVE/);
+});

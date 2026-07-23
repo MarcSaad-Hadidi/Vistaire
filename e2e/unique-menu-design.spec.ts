@@ -4,6 +4,8 @@ const OWNER_E2E_TOKEN =
   process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
   "vistaire-owner-e2e-local-token";
 
+const LIVE_UNIQUE_E2E = process.env.VISTAIRE_UNIQUE_MENU_E2E_LIVE === "1";
+
 async function enableOwnerBypass(context: BrowserContext, baseURL: string) {
   await context.addCookies([
     {
@@ -49,7 +51,7 @@ function installPageHealth(page: Page) {
   };
 }
 
-test.describe("unique menu design mode", () => {
+test.describe("unique menu design mode — owner create UI", () => {
   test("owner create wizard exposes Nouveau UI unique at mobile and desktop", async ({
     context,
     page
@@ -74,71 +76,77 @@ test.describe("unique menu design mode", () => {
       ).toBeVisible();
     }
 
-    // Lifecycle API contract via owner bypass (no SSR restaurant fixture required).
-    await page.route("**/api/owner/unique-menu-design", async (route) => {
-      if (route.request().method() !== "POST") {
-        return route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            ok: true,
-            uniqueDesign: {
-              mode: "unique",
-              designId: "11111111-1111-4111-8111-111111111111",
-              status: "pending",
-              rendererKey: null,
-              rendererVersion: null,
-              version: 1,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            },
-            availableRenderers: []
-          })
-        });
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ok: true,
-          uniqueDesign: {
-            mode: "unique",
-            designId: "11111111-1111-4111-8111-111111111111",
-            status: "draft",
-            rendererKey: null,
-            rendererVersion: null,
-            version: 2,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          availableRenderers: [],
-          draftPersisted: true,
-          publishedPersisted: true
-        })
-      });
-    });
-
-    const apiResult = await page.evaluate(async () => {
-      const response = await fetch("/api/owner/unique-menu-design", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          restaurantId: "22222222-2222-4222-8222-222222222222",
-          action: "start",
-          expectedDesignId: "11111111-1111-4111-8111-111111111111",
-          expectedVersion: 1
-        })
-      });
-      return {
-        status: response.status,
-        body: await response.json()
-      };
-    });
-    expect(apiResult.status).toBe(200);
-    expect(apiResult.body.ok).toBe(true);
-    expect(apiResult.body.uniqueDesign?.status).toBe("draft");
-
     health.expectNo3dBeforeIntent();
+    health.expectClean();
+  });
+});
+
+/**
+ * Live integrated lifecycle (requires isolated Supabase + seeded restaurant).
+ * Not run in default App CI — set VISTAIRE_UNIQUE_MENU_E2E_LIVE=1 with fixture env.
+ */
+test.describe("unique menu design mode — live lifecycle", () => {
+  test.skip(
+    !LIVE_UNIQUE_E2E,
+    "Set VISTAIRE_UNIQUE_MENU_E2E_LIVE=1 with isolated Supabase fixture to run."
+  );
+
+  test("create unique restaurant, lifecycle, public menu/dish, archive fallback", async ({
+    context,
+    page
+  }, testInfo) => {
+    const baseURL = String(
+      testInfo.project.use.baseURL ?? "http://127.0.0.1:3000"
+    );
+    const fixtureSlug = process.env.VISTAIRE_UNIQUE_E2E_SLUG;
+    const fixtureRestaurantId = process.env.VISTAIRE_UNIQUE_E2E_RESTAURANT_ID;
+    const fixtureDesignId = process.env.VISTAIRE_UNIQUE_E2E_DESIGN_ID;
+    expect(fixtureSlug, "VISTAIRE_UNIQUE_E2E_SLUG required").toBeTruthy();
+    expect(
+      fixtureRestaurantId,
+      "VISTAIRE_UNIQUE_E2E_RESTAURANT_ID required"
+    ).toBeTruthy();
+    expect(fixtureDesignId, "VISTAIRE_UNIQUE_E2E_DESIGN_ID required").toBeTruthy();
+
+    await enableOwnerBypass(context, baseURL);
+    const health = installPageHealth(page);
+
+    // No route mocks: real API persistence must succeed.
+    for (const width of [390, 430, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/owner/restaurants/${fixtureRestaurantId}/unique-ui`, {
+        waitUntil: "networkidle"
+      });
+      await expect(page.getByText(/UI unique/i).first()).toBeVisible();
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/owner/restaurants/${fixtureRestaurantId}/unique-ui`, {
+      waitUntil: "networkidle"
+    });
+
+    const start = page.getByRole("button", {
+      name: /Démarrer le développement/i
+    });
+    if (await start.isVisible()) {
+      await start.click();
+      await expect(page.getByText(/draft|brouillon/i).first()).toBeVisible({
+        timeout: 15_000
+      });
+    }
+
+    await page.goto(`/menu/${fixtureSlug}`, { waitUntil: "networkidle" });
+    await expect(page.locator("body")).not.toContainText(/pending|designId|rendererKey/i);
+    health.expectNo3dBeforeIntent();
+
+    const dishLink = page.locator('a[href*="/dishes/"]').first();
+    if (await dishLink.count()) {
+      await dishLink.click();
+      await expect(page.locator("body")).not.toContainText(
+        /pending|designId|rendererKey|rendererVersion/i
+      );
+    }
+
     health.expectClean();
   });
 });

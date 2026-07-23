@@ -16,8 +16,40 @@ select qr_test.assert_true(
 );
 
 select qr_test.assert_true(
-  not has_function_privilege('authenticated', 'public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text)', 'EXECUTE'),
-  'authenticated cannot execute mutate_owner_unique_menu_design'
+  to_regprocedure('public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text, integer)') is not null,
+  'mutate_owner_unique_menu_design 6-arg signature must exist'
+);
+
+select qr_test.assert_true(
+  to_regprocedure('public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text)') is null,
+  'old 5-arg mutate_owner_unique_menu_design overload must be dropped'
+);
+
+select qr_test.assert_true(
+  has_function_privilege(
+    'service_role',
+    'public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text, integer)',
+    'EXECUTE'
+  ),
+  'service_role can execute mutate_owner_unique_menu_design (6-arg)'
+);
+
+select qr_test.assert_true(
+  not has_function_privilege(
+    'authenticated',
+    'public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text, integer)',
+    'EXECUTE'
+  ),
+  'authenticated cannot execute mutate_owner_unique_menu_design (6-arg)'
+);
+
+select qr_test.assert_true(
+  not has_function_privilege(
+    'anon',
+    'public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text, integer)',
+    'EXECUTE'
+  ),
+  'anon cannot execute mutate_owner_unique_menu_design (6-arg)'
 );
 
 do $$
@@ -125,6 +157,18 @@ begin
   where restaurant_id = v_restaurant_b and status = 'published';
 
   perform qr_test.assert_true(v_draft_a is not null and v_published_a is not null, 'A has draft+published');
+  perform qr_test.assert_true(v_draft_b is not null and v_published_b is not null, 'B has draft+published');
+  perform qr_test.assert_true(
+    exists (
+      select 1 from public.menu_ui_configs
+      where restaurant_id = v_restaurant_a and status = 'draft'
+    )
+    and exists (
+      select 1 from public.menu_ui_configs
+      where restaurant_id = v_restaurant_a and status = 'published'
+    ),
+    'A draft and published rows both exist after create'
+  );
   perform qr_test.assert_true(
     v_draft_a #>> '{uniqueDesign,designId}' = v_published_a #>> '{uniqueDesign,designId}',
     'A draft/published share designId'
@@ -169,7 +213,7 @@ begin
 
   -- Lifecycle pending → draft
   v_lifecycle := public.mutate_owner_unique_menu_design(
-    v_restaurant_a, v_design_a, 1, 'start', null
+    v_restaurant_a, v_design_a, 1, 'start', null, null
   );
   perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'true', 'start ok');
   perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,status}' = 'draft', 'status draft');
@@ -177,35 +221,147 @@ begin
 
   -- Stale version must 409
   v_lifecycle := public.mutate_owner_unique_menu_design(
-    v_restaurant_a, v_design_a, 1, 'mark-ready', 'test-renderer'
+    v_restaurant_a, v_design_a, 1, 'mark-ready', 'test-renderer', 1
   );
   perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'false', 'stale version rejected');
   perform qr_test.assert_true((v_lifecycle ->> 'status')::int = 409, '409 concurrency');
 
   v_lifecycle := public.mutate_owner_unique_menu_design(
-    v_restaurant_a, v_design_a, 2, 'mark-ready', 'test-renderer-a'
+    v_restaurant_a, v_design_a, 2, 'mark-ready', 'test-renderer-a', 1
   );
   perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'true', 'mark-ready ok');
   perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,status}' = 'ready', 'status ready');
+  perform qr_test.assert_true(
+    (v_lifecycle #>> '{uniqueDesign,rendererVersion}')::int = 1,
+    'mark-ready rendererVersion = 1'
+  );
+  perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,rendererKey}' = 'test-renderer-a', 'mark-ready rendererKey');
+  perform qr_test.assert_true((v_lifecycle ->> 'draftPersisted')::boolean, 'mark-ready draftPersisted');
+  perform qr_test.assert_true((v_lifecycle ->> 'publishedPersisted')::boolean, 'mark-ready publishedPersisted');
+
+  select config_json into v_draft_a from public.menu_ui_configs
+  where restaurant_id = v_restaurant_a and status = 'draft';
+  select config_json into v_published_a from public.menu_ui_configs
+  where restaurant_id = v_restaurant_a and status = 'published';
+  perform qr_test.assert_true(
+    v_draft_a -> 'uniqueDesign' = v_published_a -> 'uniqueDesign',
+    'mark-ready keeps draft uniqueDesign identical to published'
+  );
+  perform qr_test.assert_true(
+    v_draft_a #>> '{uniqueDesign,rendererKey}' = 'test-renderer-a'
+    and v_published_a #>> '{uniqueDesign,rendererKey}' = 'test-renderer-a'
+    and (v_draft_a #>> '{uniqueDesign,rendererVersion}')::int = 1
+    and (v_published_a #>> '{uniqueDesign,rendererVersion}')::int = 1,
+    'mark-ready renderer fields on both rows'
+  );
 
   v_lifecycle := public.mutate_owner_unique_menu_design(
-    v_restaurant_a, v_design_a, 3, 'publish', null
+    v_restaurant_a, v_design_a, 3, 'publish', null, null
   );
   perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'true', 'publish ok');
   perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,status}' = 'published', 'status published');
+  perform qr_test.assert_true(
+    (v_lifecycle #>> '{uniqueDesign,rendererVersion}')::int = 1,
+    'publish keeps rendererVersion = 1'
+  );
+
+  -- create-new must fail while design is still live (published).
+  v_lifecycle := public.mutate_owner_unique_menu_design(
+    v_restaurant_a, v_design_a, 4, 'create-new', null, null
+  );
+  perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'false', 'create-new rejected while published');
+  perform qr_test.assert_true((v_lifecycle ->> 'status')::int = 400, 'create-new live status 400');
 
   v_lifecycle := public.mutate_owner_unique_menu_design(
-    v_restaurant_a, v_design_a, 4, 'archive', null
+    v_restaurant_a, v_design_a, 4, 'archive', null, null
   );
   perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'true', 'archive ok');
   perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,status}' = 'archived', 'status archived');
 
-  -- Forced rollback via PL/pgSQL subtransaction: no net change to restaurant B.
+  -- After archive, create-new must succeed and mint a new pending designId on both rows.
+  v_lifecycle := public.mutate_owner_unique_menu_design(
+    v_restaurant_a, v_design_a, 5, 'create-new', null, null
+  );
+  perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'true', 'create-new after archive ok');
+  perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,status}' = 'pending', 'create-new pending');
+  perform qr_test.assert_true(
+    (v_lifecycle #>> '{uniqueDesign,designId}') is distinct from v_design_a::text,
+    'create-new mints new designId'
+  );
+  select config_json into v_draft_a from public.menu_ui_configs
+  where restaurant_id = v_restaurant_a and status = 'draft';
+  select config_json into v_published_a from public.menu_ui_configs
+  where restaurant_id = v_restaurant_a and status = 'published';
+  perform qr_test.assert_true(
+    v_draft_a #>> '{uniqueDesign,designId}' = v_published_a #>> '{uniqueDesign,designId}',
+    'create-new syncs designId on draft and published'
+  );
+
+  -- Divergent draft/published must fail closed before writes (restaurant B still pending).
+  update public.menu_ui_configs
+  set config_json = jsonb_set(
+    config_json,
+    '{uniqueDesign,version}',
+    '99'::jsonb,
+    true
+  )
+  where restaurant_id = v_restaurant_b and status = 'draft';
+
   select config_json into v_before_b from public.menu_ui_configs
   where restaurant_id = v_restaurant_b and status = 'draft';
+  select config_json into v_after_b from public.menu_ui_configs
+  where restaurant_id = v_restaurant_b and status = 'published';
+
+  v_lifecycle := public.mutate_owner_unique_menu_design(
+    v_restaurant_b, v_design_b, 1, 'start', null, null
+  );
+  perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'false', 'divergent identity rejected');
+  perform qr_test.assert_true((v_lifecycle ->> 'status')::int = 409, 'divergent identity 409');
+  perform qr_test.assert_true(
+    (select config_json from public.menu_ui_configs where restaurant_id = v_restaurant_b and status = 'draft')
+      = v_before_b,
+    'divergent start leaves draft unchanged'
+  );
+  perform qr_test.assert_true(
+    (select config_json from public.menu_ui_configs where restaurant_id = v_restaurant_b and status = 'published')
+      = v_after_b,
+    'divergent start leaves published unchanged'
+  );
+
+  -- Restore B sync, then missing published row must 400 without writing draft.
+  update public.menu_ui_configs
+  set config_json = jsonb_set(
+    config_json,
+    '{uniqueDesign,version}',
+    '1'::jsonb,
+    true
+  )
+  where restaurant_id = v_restaurant_b and status = 'draft';
+
+  delete from public.menu_ui_configs
+  where restaurant_id = v_restaurant_b and status = 'published';
+
+  select config_json into v_before_b from public.menu_ui_configs
+  where restaurant_id = v_restaurant_b and status = 'draft';
+
+  v_lifecycle := public.mutate_owner_unique_menu_design(
+    v_restaurant_b, v_design_b, 1, 'start', null, null
+  );
+  perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'false', 'missing published rejected');
+  perform qr_test.assert_true((v_lifecycle ->> 'status')::int = 400, 'missing published 400');
+  perform qr_test.assert_true(
+    (select config_json from public.menu_ui_configs where restaurant_id = v_restaurant_b and status = 'draft')
+      = v_before_b,
+    'missing published start leaves draft unchanged'
+  );
+
+  -- Forced rollback via PL/pgSQL subtransaction: no net change to restaurant A draft after create-new.
+  -- No SAVEPOINT — exception in nested BEGIN rolls back inner writes only.
+  select config_json into v_before_b from public.menu_ui_configs
+  where restaurant_id = v_restaurant_a and status = 'draft';
   begin
     perform public.mutate_owner_public_menu_settings_atomic(
-      v_restaurant_b,
+      v_restaurant_a,
       jsonb_build_object('publicMenuStyle', 'trouvable', 'probe', true),
       null
     );
@@ -215,8 +371,8 @@ begin
       null; -- nested block already rolled back
   end;
   select config_json into v_after_b from public.menu_ui_configs
-  where restaurant_id = v_restaurant_b and status = 'draft';
-  perform qr_test.assert_true(v_before_b = v_after_b, 'forced rollback leaves B draft unchanged');
+  where restaurant_id = v_restaurant_a and status = 'draft';
+  perform qr_test.assert_true(v_before_b = v_after_b, 'forced rollback leaves A draft unchanged');
 end;
 $$;
 

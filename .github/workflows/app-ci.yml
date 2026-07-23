@@ -71,12 +71,6 @@ jobs:
           PGUSER: postgres
         run: npm run test:unique-menu-design:postgres
 
-      - name: Unique menu Playwright tests
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:unique-menu-design:e2e
-
       - name: Maison Elyse media tests
         run: npm run test:maison-elyse-media
 
@@ -101,6 +95,15 @@ jobs:
           PGUSER: postgres
         run: npm run test:qr:postgres
 
+      - name: Build
+        run: npm run build
+
+      - name: Unique menu Playwright tests
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:unique-menu-design:e2e
+
       - name: QR functional Playwright tests
         timeout-minutes: 10
         env:
@@ -112,9 +115,6 @@ jobs:
 
       - name: Admin and owner QR tests
         run: npm run test:admin
-
-      - name: Build
-        run: npm run build
 
       - name: Bootstrap smoke e2e
         timeout-minutes: 5

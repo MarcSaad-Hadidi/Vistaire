@@ -18,6 +18,7 @@ import {
   assertNoDynamicUniqueRendererImport,
   getUniqueMenuRenderer,
   getUniqueMenuRendererForDesign,
+  getUniqueMenuRendererForDesignVersion,
   __setUniqueMenuRendererTestRegistry,
   isRegisteredUniqueMenuRendererKey
 } from "../lib/menu/uniqueMenuRendererRegistry.ts";
@@ -214,6 +215,31 @@ test("lifecycle transitions enforce allowlist and concurrency", () => {
     expectedVersion: started.value.version
   });
   assert.equal(skipPublish.ok, false);
+
+  const ready = applyUniqueMenuDesignLifecycleAction({
+    current: started.value,
+    action: "mark-ready",
+    expectedDesignId: started.value.designId,
+    expectedVersion: started.value.version,
+    rendererKey: "test-renderer",
+    rendererVersion: 2
+  });
+  assert.equal(ready.ok, true);
+  if (!ready.ok) return;
+  assert.equal(ready.value.rendererVersion, 2);
+  assert.equal(ready.value.rendererKey, "test-renderer");
+
+  const published = applyUniqueMenuDesignLifecycleAction({
+    current: ready.value,
+    action: "publish",
+    expectedDesignId: ready.value.designId,
+    expectedVersion: ready.value.version
+  });
+  assert.equal(published.ok, true);
+  if (!published.ok) return;
+  assert.equal(published.value.status, "published");
+  assert.equal(published.value.rendererVersion, 2);
+  assert.equal(published.value.rendererKey, "test-renderer");
 });
 
 test("registry binds renderer to designId and requires menu+dish", () => {
@@ -232,6 +258,13 @@ test("registry binds renderer to designId and requires menu+dish", () => {
   ]);
   try {
     assert.ok(getUniqueMenuRendererForDesign(designId, "fixture-unique-a"));
+    assert.ok(
+      getUniqueMenuRendererForDesignVersion(designId, "fixture-unique-a", 3)
+    );
+    assert.equal(
+      getUniqueMenuRendererForDesignVersion(designId, "fixture-unique-a", 2),
+      null
+    );
     assert.equal(
       getUniqueMenuRendererForDesign(
         "88888888-8888-4888-8888-888888888888",
@@ -265,7 +298,7 @@ test("registry binds renderer to designId and requires menu+dish", () => {
     );
     assert.equal(readyExperience.kind, "generic");
 
-    const publishedConfig = normalizeMenuUiConfig({
+    const publishedMatchingConfig = normalizeMenuUiConfig({
       ...readyConfig,
       uniqueDesign: {
         ...readyConfig.uniqueDesign,
@@ -273,17 +306,138 @@ test("registry binds renderer to designId and requires menu+dish", () => {
         version: 3
       }
     });
-    const publishedExperience = resolvePublicMenuExperience(
+    const publishedMatching = resolvePublicMenuExperience(
       {
         slug: "fixture",
         name: "Fixture",
         publicMenuStyleExplicit: true,
         settings: { publicMenuStyle: "unique" }
       },
-      publishedConfig
+      publishedMatchingConfig
     );
-    assert.equal(publishedExperience.kind, "unique-registered");
-    assert.equal(publishedExperience.renderer?.key, "fixture-unique-a");
+    assert.equal(publishedMatching.kind, "unique-registered");
+    assert.equal(publishedMatching.renderer?.key, "fixture-unique-a");
+    assert.equal(publishedMatching.rendererVersion, 3);
+
+    const publishedWrongVersionConfig = normalizeMenuUiConfig({
+      ...readyConfig,
+      uniqueDesign: {
+        ...readyConfig.uniqueDesign,
+        status: "published",
+        rendererVersion: 1,
+        version: 3
+      }
+    });
+    const publishedWrongVersion = resolvePublicMenuExperience(
+      {
+        slug: "fixture",
+        name: "Fixture",
+        publicMenuStyleExplicit: true,
+        settings: { publicMenuStyle: "unique" }
+      },
+      publishedWrongVersionConfig
+    );
+    assert.equal(publishedWrongVersion.kind, "generic");
+    assert.equal(publishedWrongVersion.useGenericFallback, true);
+    assert.equal(publishedWrongVersion.renderer, null);
+    assert.match(
+      publishedWrongVersion.ownerDiagnostic ?? "",
+      /obsolete renderer version/i
+    );
+  } finally {
+    __setUniqueMenuRendererTestRegistry(null);
+  }
+});
+
+test("published with matching rendererVersion uses unique-registered", () => {
+  const designId = "99999999-9999-4999-8999-999999999999";
+  const Menu = () => null;
+  const Dish = () => null;
+  __setUniqueMenuRendererTestRegistry([
+    {
+      key: "fixture-unique-b",
+      designId,
+      version: 5,
+      displayName: "Fixture B",
+      menu: Menu,
+      dishDetail: Dish
+    }
+  ]);
+  try {
+    const config = normalizeMenuUiConfig({
+      theme: "fresh-homemade",
+      uniqueDesign: {
+        mode: "unique",
+        designId,
+        status: "published",
+        rendererKey: "fixture-unique-b",
+        rendererVersion: 5,
+        version: 4,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    });
+    const experience = resolvePublicMenuExperience(
+      {
+        slug: "fixture-b",
+        name: "Fixture B",
+        publicMenuStyleExplicit: true,
+        settings: { publicMenuStyle: "unique" }
+      },
+      config
+    );
+    assert.equal(experience.kind, "unique-registered");
+    assert.equal(experience.renderer?.key, "fixture-unique-b");
+    assert.equal(experience.rendererVersion, 5);
+  } finally {
+    __setUniqueMenuRendererTestRegistry(null);
+  }
+});
+
+test("published with wrong rendererVersion falls back to generic", () => {
+  const designId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const Menu = () => null;
+  const Dish = () => null;
+  __setUniqueMenuRendererTestRegistry([
+    {
+      key: "fixture-unique-c",
+      designId,
+      version: 4,
+      displayName: "Fixture C",
+      menu: Menu,
+      dishDetail: Dish
+    }
+  ]);
+  try {
+    const config = normalizeMenuUiConfig({
+      theme: "fresh-homemade",
+      uniqueDesign: {
+        mode: "unique",
+        designId,
+        status: "published",
+        rendererKey: "fixture-unique-c",
+        rendererVersion: 2,
+        version: 3,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    });
+    const experience = resolvePublicMenuExperience(
+      {
+        slug: "fixture-c",
+        name: "Fixture C",
+        publicMenuStyleExplicit: true,
+        settings: { publicMenuStyle: "unique" }
+      },
+      config
+    );
+    assert.equal(experience.kind, "generic");
+    assert.equal(experience.useGenericFallback, true);
+    assert.equal(experience.renderer, null);
+    assert.match(
+      experience.ownerDiagnostic ?? "",
+      /obsolete renderer version.*mark-ready/i
+    );
   } finally {
     __setUniqueMenuRendererTestRegistry(null);
   }

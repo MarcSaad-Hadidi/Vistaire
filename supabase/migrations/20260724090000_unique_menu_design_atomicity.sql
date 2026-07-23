@@ -231,12 +231,16 @@ grant execute on function public.create_owner_restaurant_with_menu(jsonb)
   to service_role;
 
 -- Lifecycle CAS for unique design identity shared by draft + published configs.
+-- Drop the previous 5-arg overload before creating the 6-arg signature.
+drop function if exists public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text);
+
 create or replace function public.mutate_owner_unique_menu_design(
   p_restaurant_id uuid,
   p_design_id uuid,
   p_expected_version integer,
   p_action text,
-  p_renderer_key text default null
+  p_renderer_key text default null,
+  p_renderer_version integer default null
 )
 returns jsonb
 language plpgsql
@@ -246,12 +250,17 @@ as $$
 declare
   v_draft public.menu_ui_configs%rowtype;
   v_published public.menu_ui_configs%rowtype;
+  v_draft_design jsonb;
+  v_published_design jsonb;
   v_design jsonb;
   v_status text;
   v_version integer;
   v_now timestamptz := now();
   v_next jsonb;
   v_next_version integer;
+  v_row_count integer;
+  v_draft_persisted boolean := false;
+  v_published_persisted boolean := false;
 begin
   if p_action is null or p_action not in ('start', 'mark-ready', 'publish', 'archive', 'create-new') then
     return jsonb_build_object('ok', false, 'status', 400, 'error', 'Action unique non autorisee.');
@@ -271,19 +280,91 @@ begin
   limit 1
   for update;
 
-  if v_draft.id is null and v_published.id is null then
-    return jsonb_build_object('ok', false, 'status', 404, 'error', 'Configuration UI introuvable.');
+  if p_action <> 'create-new' then
+    -- Unique lifecycle mutations require both rows before any write.
+    if v_draft.id is null or v_published.id is null then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 400,
+        'error', 'Draft et published requis pour cette action unique.'
+      );
+    end if;
+
+    v_draft_design := coalesce(v_draft.config_json, '{}'::jsonb) -> 'uniqueDesign';
+    v_published_design := coalesce(v_published.config_json, '{}'::jsonb) -> 'uniqueDesign';
+
+    if jsonb_typeof(v_draft_design) <> 'object' or jsonb_typeof(v_published_design) <> 'object' then
+      return jsonb_build_object('ok', false, 'status', 404, 'error', 'Identite unique introuvable.');
+    end if;
+
+    -- Identity must match across draft and published before mutation.
+    if
+      coalesce(v_draft_design ->> 'designId', '') is distinct from coalesce(v_published_design ->> 'designId', '')
+      or coalesce(v_draft_design ->> 'version', '') is distinct from coalesce(v_published_design ->> 'version', '')
+      or coalesce(v_draft_design ->> 'status', '') is distinct from coalesce(v_published_design ->> 'status', '')
+      or coalesce(v_draft_design ->> 'rendererKey', '') is distinct from coalesce(v_published_design ->> 'rendererKey', '')
+      or coalesce(v_draft_design ->> 'rendererVersion', '') is distinct from coalesce(v_published_design ->> 'rendererVersion', '')
+    then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 409,
+        'error', 'Identite unique divergente entre draft et published.'
+      );
+    end if;
+
+    v_design := v_draft_design;
+  else
+    -- create-new requires both rows so a live published identity cannot be wiped alone.
+    if v_draft.id is null or v_published.id is null then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 400,
+        'error', 'Draft et published requis pour create-new.'
+      );
+    end if;
+
+    v_draft_design := coalesce(v_draft.config_json, '{}'::jsonb) -> 'uniqueDesign';
+    v_published_design := coalesce(v_published.config_json, '{}'::jsonb) -> 'uniqueDesign';
+
+    if jsonb_typeof(v_draft_design) = 'object'
+       and coalesce(v_draft_design ->> 'status', '') <> 'archived' then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 400,
+        'error', 'create-new exige un design archive.'
+      );
+    end if;
+
+    if jsonb_typeof(v_published_design) = 'object'
+       and coalesce(v_published_design ->> 'status', '') <> 'archived' then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 400,
+        'error', 'create-new exige un design archive sur draft et published.'
+      );
+    end if;
+
+    if jsonb_typeof(v_draft_design) = 'object'
+       and jsonb_typeof(v_published_design) = 'object' then
+      if
+        coalesce(v_draft_design ->> 'designId', '') is distinct from coalesce(v_published_design ->> 'designId', '')
+        or coalesce(v_draft_design ->> 'version', '') is distinct from coalesce(v_published_design ->> 'version', '')
+        or coalesce(v_draft_design ->> 'status', '') is distinct from coalesce(v_published_design ->> 'status', '')
+        or coalesce(v_draft_design ->> 'rendererKey', '') is distinct from coalesce(v_published_design ->> 'rendererKey', '')
+        or coalesce(v_draft_design ->> 'rendererVersion', '') is distinct from coalesce(v_published_design ->> 'rendererVersion', '')
+      then
+        return jsonb_build_object(
+          'ok', false,
+          'status', 409,
+          'error', 'Identite unique divergente entre draft et published.'
+        );
+      end if;
+    end if;
+
+    v_design := v_draft_design;
   end if;
 
-  v_design := coalesce(
-    coalesce(v_draft.config_json, '{}'::jsonb) -> 'uniqueDesign',
-    coalesce(v_published.config_json, '{}'::jsonb) -> 'uniqueDesign'
-  );
-
   if p_action = 'create-new' then
-    if jsonb_typeof(v_design) = 'object' and coalesce(v_design ->> 'status', '') <> 'archived' then
-      return jsonb_build_object('ok', false, 'status', 400, 'error', 'create-new exige un design archive.');
-    end if;
     v_next := jsonb_build_object(
       'mode', 'unique',
       'designId', gen_random_uuid()::text,
@@ -295,9 +376,6 @@ begin
       'updatedAt', to_char(v_now at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
     );
   else
-    if jsonb_typeof(v_design) <> 'object' then
-      return jsonb_build_object('ok', false, 'status', 404, 'error', 'Identite unique introuvable.');
-    end if;
     if coalesce(v_design ->> 'designId', '') <> p_design_id::text then
       return jsonb_build_object('ok', false, 'status', 409, 'error', 'designId concurrent.');
     end if;
@@ -322,21 +400,28 @@ begin
       end if;
       v_next := jsonb_set(v_next, '{status}', '"draft"'::jsonb, true);
     elsif p_action = 'mark-ready' then
-      if v_status <> 'draft' then
+      if v_status <> 'draft' and v_status <> 'ready' then
         return jsonb_build_object('ok', false, 'status', 400, 'error', 'Transition interdite vers ready.');
       end if;
       if p_renderer_key is null or length(trim(p_renderer_key)) < 2 then
         return jsonb_build_object('ok', false, 'status', 400, 'error', 'rendererKey requis.');
       end if;
-      -- Registry binding is enforced in the Node layer; SQL stores the key only after app validation.
+      if p_renderer_version is null or p_renderer_version < 1 then
+        return jsonb_build_object('ok', false, 'status', 400, 'error', 'rendererVersion requis (>= 1).');
+      end if;
+      -- Registry binding is enforced in the Node layer; SQL stores key+version after app validation.
       v_next := jsonb_set(v_next, '{status}', '"ready"'::jsonb, true);
       v_next := jsonb_set(v_next, '{rendererKey}', to_jsonb(p_renderer_key), true);
+      v_next := jsonb_set(v_next, '{rendererVersion}', to_jsonb(p_renderer_version), true);
     elsif p_action = 'publish' then
       if v_status <> 'ready' then
         return jsonb_build_object('ok', false, 'status', 400, 'error', 'Transition interdite vers published.');
       end if;
-      if coalesce(v_next ->> 'rendererKey', '') = '' then
+      if coalesce(v_design ->> 'rendererKey', '') = '' then
         return jsonb_build_object('ok', false, 'status', 400, 'error', 'Publication sans rendererKey.');
+      end if;
+      if coalesce((v_design ->> 'rendererVersion')::integer, 0) < 1 then
+        return jsonb_build_object('ok', false, 'status', 400, 'error', 'Publication sans rendererVersion.');
       end if;
       v_next := jsonb_set(v_next, '{status}', '"published"'::jsonb, true);
     elsif p_action = 'archive' then
@@ -360,9 +445,11 @@ begin
           and coalesce((config_json #>> '{uniqueDesign,version}')::integer, -1) = p_expected_version
         )
       );
-    if not found and p_action <> 'create-new' then
-      return jsonb_build_object('ok', false, 'status', 409, 'error', 'version concurrente (draft).');
+    get diagnostics v_row_count = row_count;
+    if v_row_count <> 1 then
+      raise exception 'mutate_owner_unique_menu_design: draft update expected 1 row, got %', v_row_count;
     end if;
+    v_draft_persisted := true;
   end if;
 
   if v_published.id is not null then
@@ -378,23 +465,69 @@ begin
           and coalesce((config_json #>> '{uniqueDesign,version}')::integer, -1) = p_expected_version
         )
       );
-    if not found and p_action <> 'create-new' and v_draft.id is null then
-      return jsonb_build_object('ok', false, 'status', 409, 'error', 'version concurrente (published).');
+    get diagnostics v_row_count = row_count;
+    if v_row_count <> 1 then
+      raise exception 'mutate_owner_unique_menu_design: published update expected 1 row, got %', v_row_count;
+    end if;
+    v_published_persisted := true;
+  end if;
+
+  -- For non-create-new both rows were required; for create-new update only existing rows.
+  if p_action <> 'create-new' and (not v_draft_persisted or not v_published_persisted) then
+    raise exception 'mutate_owner_unique_menu_design: required draft/published persist failed';
+  end if;
+
+  -- Re-read both rows and verify identity consistency after writes.
+  select * into v_draft
+  from public.menu_ui_configs
+  where restaurant_id = p_restaurant_id and status = 'draft'
+  order by updated_at desc
+  limit 1;
+
+  select * into v_published
+  from public.menu_ui_configs
+  where restaurant_id = p_restaurant_id and status = 'published'
+  order by updated_at desc
+  limit 1;
+
+  if p_action <> 'create-new' then
+    if v_draft.id is null or v_published.id is null then
+      raise exception 'mutate_owner_unique_menu_design: missing draft/published after update';
+    end if;
+  end if;
+
+  v_draft_design := coalesce(v_draft.config_json, '{}'::jsonb) -> 'uniqueDesign';
+  v_published_design := coalesce(v_published.config_json, '{}'::jsonb) -> 'uniqueDesign';
+
+  if v_draft.id is not null and v_published.id is not null then
+    if
+      coalesce(v_draft_design ->> 'designId', '') is distinct from coalesce(v_published_design ->> 'designId', '')
+      or coalesce(v_draft_design ->> 'version', '') is distinct from coalesce(v_published_design ->> 'version', '')
+      or coalesce(v_draft_design ->> 'status', '') is distinct from coalesce(v_published_design ->> 'status', '')
+      or coalesce(v_draft_design ->> 'rendererKey', '') is distinct from coalesce(v_published_design ->> 'rendererKey', '')
+      or coalesce(v_draft_design ->> 'rendererVersion', '') is distinct from coalesce(v_published_design ->> 'rendererVersion', '')
+    then
+      raise exception 'mutate_owner_unique_menu_design: post-update identity mismatch';
     end if;
   end if;
 
   return jsonb_build_object(
     'ok', true,
-    'uniqueDesign', v_next,
-    'draftPersisted', v_draft.id is not null,
-    'publishedPersisted', v_published.id is not null
+    'uniqueDesign', case
+      when v_draft.id is not null then v_draft_design
+      else v_published_design
+    end,
+    'draftPersisted', v_draft_persisted,
+    'publishedPersisted', v_published_persisted,
+    'draftConfigId', v_draft.id,
+    'publishedConfigId', v_published.id
   );
 end;
 $$;
 
-revoke execute on function public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text)
+revoke execute on function public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text, integer)
   from public, anon, authenticated;
-grant execute on function public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text)
+grant execute on function public.mutate_owner_unique_menu_design(uuid, uuid, integer, text, text, integer)
   to service_role;
 
 -- Atomic public menu style mutation for unique transitions.

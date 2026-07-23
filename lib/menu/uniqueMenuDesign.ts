@@ -53,7 +53,7 @@ const ALLOWED_TRANSITIONS: Record<
 > = {
   pending: ["draft", "archived"],
   draft: ["ready", "archived"],
-  ready: ["published", "archived"],
+  ready: ["ready", "published", "archived"],
   published: ["archived"],
   archived: []
 };
@@ -369,6 +369,17 @@ export function applyUniqueMenuDesignLifecycleAction(args: {
           ok: false,
           status: 400,
           error: "Publication impossible sans rendererKey."
+        };
+      }
+      if (
+        typeof current.rendererVersion !== "number" ||
+        !Number.isInteger(current.rendererVersion) ||
+        current.rendererVersion < 1
+      ) {
+        return {
+          ok: false,
+          status: 400,
+          error: "Publication impossible sans rendererVersion."
         };
       }
       return {
