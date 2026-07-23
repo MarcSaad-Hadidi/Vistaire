@@ -11,6 +11,7 @@ import {
   type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import {
   getPublicMenuAnalyticsContext,
@@ -45,6 +46,7 @@ type MaisonElyseDishDetailProps = {
   query?: PublicMenuContextQuery;
   displayMode?: "public" | "phone-preview";
   locale?: Locale;
+  config?: MenuUiConfig;
   onBackToMenu?: () => void;
 };
 
@@ -332,13 +334,14 @@ export function MaisonElyseDishDetail({
   query,
   displayMode = "public",
   locale = "fr",
+  config,
   onBackToMenu
 }: MaisonElyseDishDetailProps) {
   const copy = DETAIL_COPY[locale];
   const [showModelViewer, setShowModelViewer] = useState(false);
   const analyticsContext = getPublicMenuAnalyticsContext(menu);
   const menuHref = buildFullMenuHref(menu, query);
-  const restaurantName = cleanDisplayText(menu.name) || "Maison Élyse";
+  const restaurantName = cleanDisplayText(menu.name) || "Restaurant";
   const dishName = cleanDisplayText(dish.name);
   const dishDescription = cleanDisplayText(dish.description);
   const displayCategory = categoryLabel(dish.category, locale);
@@ -379,6 +382,23 @@ export function MaisonElyseDishDetail({
       className={`${styles.page} ${
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
+      style={
+        config
+          ? ({
+              "--menu-bg": config.palette.background,
+              "--menu-surface": config.palette.surface,
+              "--menu-text": config.palette.text,
+              "--menu-muted": config.palette.muted,
+              "--menu-accent": config.palette.accent,
+              "--menu-accent-2": config.palette.accent2,
+              "--menu-accent-3": config.palette.accent3,
+              "--menu-border": config.palette.border,
+              "--menu-success": config.palette.success,
+              "--menu-warning": config.palette.warning,
+              "--menu-danger": config.palette.danger
+            } as CSSProperties)
+          : undefined
+      }
     >
       <nav className={styles.topNav} aria-label={copy.topNavAria}>
         {onBackToMenu ? (

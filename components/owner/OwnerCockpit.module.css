@@ -708,6 +708,23 @@
   gap: 8px;
 }
 
+.inlineControlGroup {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.inlineControlGroup input[type="color"] {
+  width: 48px;
+  height: 42px;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 10px;
+  background: rgba(8, 6, 4, 0.34);
+  padding: 3px;
+  cursor: pointer;
+}
+
 .fieldHelp {
   color: rgba(255, 250, 240, 0.58);
   font-size: 12px;

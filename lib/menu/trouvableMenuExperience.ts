@@ -47,6 +47,8 @@ export function resolvePublicMenuUiConfig(
 ): MenuUiConfig {
   if (!isTrouvablePublicMenu(menu)) return config;
 
+  const isLegacyTrouvable = matchesMenuIdentity(menu, "trouvable");
+
   return normalizeMenuUiConfig({
     ...config,
     theme: "premium-gastronomic",
@@ -108,8 +110,12 @@ export function resolvePublicMenuUiConfig(
       ctaAr: "Voir devant moi"
     },
     welcomeEnabled: true,
-    welcomeTitle: "Trouvable",
-    welcomeSubtitle: "Cuisine maison, service a table et carte immersive.",
+    welcomeTitle: isLegacyTrouvable
+      ? "Trouvable"
+      : config.welcomeTitle || `Bienvenue chez ${menu.name}`,
+    welcomeSubtitle: isLegacyTrouvable
+      ? "Cuisine maison, service a table et carte immersive."
+      : config.welcomeSubtitle || "Une carte pensée pour être explorée à table.",
     motion: "soft",
     defaultView: "all",
     categoryNavigation: "sticky-pills",

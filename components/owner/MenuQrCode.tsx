@@ -7,6 +7,10 @@ type MenuQrCodeProps = {
   menuUrl: string;
   restaurantName: string;
   className?: string;
+  qrLabel?: string;
+  copyLabel?: string;
+  downloadLabel?: string;
+  fileNamePrefix?: string;
 };
 
 function qrFileSlug(value: string): string {
@@ -22,7 +26,11 @@ function qrFileSlug(value: string): string {
 export function MenuQrCode({
   menuUrl,
   restaurantName,
-  className = ""
+  className = "",
+  qrLabel = "Menu QR",
+  copyLabel = "Copier l'URL",
+  downloadLabel = "Télécharger QR",
+  fileNamePrefix = "vistaire-menu"
 }: MenuQrCodeProps) {
   const [qrState, setQrState] = useState({ url: "", svgMarkup: "" });
   const [status, setStatus] = useState<"idle" | "copied" | "downloaded" | "error">(
@@ -30,8 +38,8 @@ export function MenuQrCode({
   );
   const svgMarkup = qrState.url === menuUrl ? qrState.svgMarkup : "";
   const fileName = useMemo(
-    () => `vistaire-menu-${qrFileSlug(restaurantName) || "restaurant"}.svg`,
-    [restaurantName]
+    () => `${fileNamePrefix}-${qrFileSlug(restaurantName) || "restaurant"}.svg`,
+    [fileNamePrefix, restaurantName]
   );
 
   useEffect(() => {
@@ -96,7 +104,7 @@ export function MenuQrCode({
       <div className={styles.qrBox}>
         <div
           className={styles.qrCanvas}
-          aria-label={`Menu QR pour ${restaurantName}`}
+          aria-label={`${qrLabel} pour ${restaurantName}`}
           role="img"
         >
           {svgMarkup ? (
@@ -105,7 +113,7 @@ export function MenuQrCode({
             />
           ) : (
             <span>
-              Menu QR
+              {qrLabel}
             </span>
           )}
         </div>
@@ -121,7 +129,7 @@ export function MenuQrCode({
           onClick={copyMenuUrl}
           className={styles.qrButton}
         >
-          Copier l&apos;URL
+          {copyLabel}
         </button>
         <button
           type="button"
@@ -129,7 +137,7 @@ export function MenuQrCode({
           disabled={!svgMarkup}
           className={styles.qrButton}
         >
-          Télécharger QR
+          {downloadLabel}
         </button>
       </div>
 

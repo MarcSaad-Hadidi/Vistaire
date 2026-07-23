@@ -20,6 +20,7 @@ import {
   type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import styles from "./MaisonElyseQrMenu.module.css";
 
 const PhonePreviewDishDetail = dynamic(
@@ -49,6 +50,7 @@ type MaisonElyseQrMenuProps = {
   displayMode?: "public" | "phone-preview";
   locale?: Locale;
   localizedMenus?: Partial<Record<Locale, PublicMenu>>;
+  config?: MenuUiConfig;
   showGoogleReview?: boolean;
   startFullMenu?: boolean;
 };
@@ -353,6 +355,43 @@ function categoryEditorial(label: string, locale: Locale = "fr"): {
   };
 }
 
+function personalizeBranding<T>(value: T, restaurantName: string): T {
+  if (typeof value === "string") {
+    return value
+      .replaceAll("Maison Élyse", restaurantName)
+      .replaceAll("Maison Elyse", restaurantName) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => personalizeBranding(item, restaurantName)) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        personalizeBranding(item, restaurantName)
+      ])
+    ) as T;
+  }
+  return value;
+}
+
+function menuPaletteStyle(config?: MenuUiConfig): CSSProperties | undefined {
+  if (!config) return undefined;
+  return {
+    "--menu-bg": config.palette.background,
+    "--menu-surface": config.palette.surface,
+    "--menu-text": config.palette.text,
+    "--menu-muted": config.palette.muted,
+    "--menu-accent": config.palette.accent,
+    "--menu-accent-2": config.palette.accent2,
+    "--menu-accent-3": config.palette.accent3,
+    "--menu-border": config.palette.border,
+    "--menu-success": config.palette.success,
+    "--menu-warning": config.palette.warning,
+    "--menu-danger": config.palette.danger
+  } as CSSProperties;
+}
+
 function getFilterLabel(filter: FilterId, locale: Locale = "fr"): string {
   if (filter === "all") return MENU_COPY[locale].allMenu;
   return (
@@ -483,15 +522,20 @@ function CategoryCard({
   category,
   imageUrl,
   locale,
+  restaurantName,
   onSelect
 }: {
   category: PublicMenuCategory;
   imageUrl: string;
   locale: Locale;
+  restaurantName: string;
   onSelect: () => void;
 }) {
   const label = displayCategoryLabel(category.label, locale);
-  const editorial = categoryEditorial(category.label, locale);
+  const editorial = personalizeBranding(
+    categoryEditorial(category.label, locale),
+    restaurantName
+  );
 
   return (
     <button
@@ -608,7 +652,7 @@ function DishSection({
 }) {
   const sectionId = sectionDomId(title, locale);
   const headingId = `${sectionId}-heading`;
-  const editorial = categoryEditorial(title, locale);
+  const editorial = personalizeBranding(categoryEditorial(title, locale), menu.name);
 
   return (
     <section
@@ -643,6 +687,7 @@ export function MaisonElyseQrMenu({
   displayMode = "public",
   locale = "fr",
   localizedMenus,
+  config,
   menu,
   query,
   showGoogleReview = true,
@@ -660,11 +705,15 @@ export function MaisonElyseQrMenu({
     () => Boolean(queryLocale)
   );
   const activeMenu = localizedMenus?.[selectedLocale] ?? menu;
+  const restaurantDisplayName = activeMenu.name.trim() || "Restaurant";
   useEffect(() => {
     if (displayMode !== "public") return;
     trackPublicMenuEvent(activeMenu, { eventName: "menu_opened" });
   }, [activeMenu, displayMode]);
-  const copy = MENU_COPY[selectedLocale];
+  const copy = useMemo(
+    () => personalizeBranding(MENU_COPY[selectedLocale], restaurantDisplayName),
+    [restaurantDisplayName, selectedLocale]
+  );
   const activeQuery = useMemo(
     () =>
       shouldPersistLocaleInLinks
@@ -1186,6 +1235,7 @@ export function MaisonElyseQrMenu({
         displayMode="phone-preview"
         locale={selectedLocale}
         menu={activeMenu}
+        config={config}
         onBackToMenu={closeDishInPhonePreview}
         query={activeQuery}
       />
@@ -1198,11 +1248,12 @@ export function MaisonElyseQrMenu({
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
       data-display-mode={displayMode}
+      style={menuPaletteStyle(config)}
     >
       {!activeCategory ? (
         <>
           <div className={styles.guestToolbar}>
-            <span className={styles.guestToolbarName}>Maison Élyse</span>
+            <span className={styles.guestToolbarName}>{restaurantDisplayName}</span>
             {renderLanguageToggle()}
           </div>
           <section className={styles.hero} aria-labelledby="maison-elyse-heading">
@@ -1225,6 +1276,7 @@ export function MaisonElyseQrMenu({
                   imageUrl={categoryImages.get(category.id) ?? ""}
                   key={category.id}
                   locale={selectedLocale}
+                  restaurantName={restaurantDisplayName}
                   onSelect={() => openCategoryInFullMenu(category.id)}
                 />
               ))}
@@ -1269,7 +1321,7 @@ export function MaisonElyseQrMenu({
                 }
               >
                 <div className={styles.menuCoverTopbar}>
-                  <span className={styles.menuRestaurantName}>Maison Élyse</span>
+                  <span className={styles.menuRestaurantName}>{restaurantDisplayName}</span>
                   <div className={styles.menuTopbarActions}>
                     {renderLanguageToggle()}
                     <button

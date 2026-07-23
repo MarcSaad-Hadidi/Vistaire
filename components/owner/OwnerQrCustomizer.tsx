@@ -275,7 +275,6 @@ export function OwnerQrCustomizer({
   }));
   const [svgMarkup, setSvgMarkup] = useState("");
   const [qrValue, setQrValue] = useState("");
-  const [tokenPreview, setTokenPreview] = useState("");
   const [canonicalRecord, setCanonicalRecord] =
     useState<QrLifecycleRecord | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
@@ -307,6 +306,10 @@ export function OwnerQrCustomizer({
     () => targetDisplayUrl || targetPath,
     [targetDisplayUrl, targetPath]
   );
+  const safeDestinationUrl =
+    targetKind === "admin"
+      ? qrValue || "Indisponible — URL opaque non récupérable"
+      : exactDestinationUrl;
   const canExportQr = Boolean(
     qrValue &&
       svgMarkup &&
@@ -407,7 +410,6 @@ export function OwnerQrCustomizer({
     setHistory([]);
     setHistoryLoadState("loading");
     setQrValue("");
-    setTokenPreview("");
     try {
       const query = new URLSearchParams({
         restaurantId,
@@ -487,7 +489,6 @@ export function OwnerQrCustomizer({
       setSavedStyleFingerprint(
         JSON.stringify(normalizeOwnerQrStyle(record.style))
       );
-      setTokenPreview(record.tokenPreview || "");
       const recoverable = payload.recoverable ?? record.recoverable;
       if (
         recoverable &&
@@ -612,15 +613,9 @@ export function OwnerQrCustomizer({
         : false);
     if (recoverable && !nextQrValue) return null;
 
-    const nextTokenPreview =
-      record.tokenPreview ||
-      (options.preserveKnownUrl && canonicalRecord?.id === record.id
-        ? canonicalRecord.tokenPreview
-        : "");
     setCanonicalRecord({
       ...record,
-      recoverable: Boolean(recoverable),
-      tokenPreview: nextTokenPreview
+      recoverable: Boolean(recoverable)
     });
     setConfigVersion(configVersionFromPayload(payload, record));
     if (payload.history) {
@@ -642,7 +637,6 @@ export function OwnerQrCustomizer({
         ? nextQrValue
         : ""
     );
-    setTokenPreview(nextTokenPreview);
     return record;
   }
 
@@ -718,7 +712,9 @@ export function OwnerQrCustomizer({
         kind: "success",
         message: isUpdate
           ? "Style du QR enregistré."
-          : `QR sécurisé créé et enregistré. Type ${record.targetKind}; destination ${record.targetPath}.`
+          : record.targetKind === "admin"
+            ? "QR sécurisé créé et enregistré. URL opaque /q/... disponible."
+            : `QR sécurisé créé et enregistré. Type ${record.targetKind}; destination ${record.targetPath}.`
       });
     } catch {
       setOutcome({
@@ -923,10 +919,9 @@ export function OwnerQrCustomizer({
               : machineState === "archived" || machineState === "revoked"
                 ? "Masquée pour ce QR inactif"
                 : "Aucune URL créée"}
-          {tokenPreview ? ` - token ${tokenPreview}` : ""}
         </div>
         <div className={styles.qrUrlBox}>
-          <strong>Destination finale :</strong> {exactDestinationUrl}
+          <strong>Destination finale :</strong> {safeDestinationUrl}
         </div>
         <div className={styles.qrUrlBox}>
           <strong>Type :</strong> {targetLabel} - {targetBadgeLabel}

@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type ComponentType,
+  type CSSProperties,
   type PointerEvent
 } from "react";
 import type {
@@ -16,6 +17,7 @@ import type {
   PublicMenuContextQuery,
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import {
   buildPublicDishPath,
@@ -71,6 +73,7 @@ type TrouvableDishDetailExperienceProps = {
   context?: string;
   exchangeRates: MenuExchangeRates;
   query?: PublicMenuContextQuery;
+  config?: MenuUiConfig;
   typographyClassName?: string;
 };
 
@@ -165,6 +168,7 @@ export function TrouvableDishDetailExperience({
   context = "",
   exchangeRates,
   query,
+  config,
   typographyClassName = ""
 }: TrouvableDishDetailExperienceProps) {
   const router = useRouter();
@@ -527,6 +531,23 @@ export function TrouvableDishDetailExperience({
   return (
     <main
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
+      style={
+        config
+          ? ({
+              "--menu-bg": config.palette.background,
+              "--menu-surface": config.palette.surface,
+              "--menu-text": config.palette.text,
+              "--menu-muted": config.palette.muted,
+              "--menu-accent": config.palette.accent,
+              "--menu-accent-2": config.palette.accent2,
+              "--menu-accent-3": config.palette.accent3,
+              "--menu-border": config.palette.border,
+              "--menu-success": config.palette.success,
+              "--menu-warning": config.palette.warning,
+              "--menu-danger": config.palette.danger
+            } as CSSProperties)
+          : undefined
+      }
       lang={selectedLocale}
       data-text-direction={textDirection}
       data-user-theme={selectedTheme}
@@ -597,7 +618,7 @@ export function TrouvableDishDetailExperience({
         >
           ←
         </Link>
-        <span>TROUVABLE</span>
+        <span>{menu.name}</span>
       </nav>
 
       {sectionDishes.length > 1 ? (

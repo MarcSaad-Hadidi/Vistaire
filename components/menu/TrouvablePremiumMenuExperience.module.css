@@ -1724,6 +1724,19 @@
   }
 }
 
+/* New restaurant palettes are injected as semantic variables by the resolved config. */
+.page {
+  --trouvable-black: var(--menu-bg, #000);
+  --trouvable-ink: var(--menu-surface, #050505);
+  --trouvable-line: var(--menu-border, rgba(255, 255, 255, 0.16));
+  --trouvable-muted: var(--menu-muted, rgba(255, 255, 255, 0.66));
+  --trouvable-soft: color-mix(in srgb, var(--menu-surface, #ffffff) 24%, transparent);
+  --trouvable-gold: var(--menu-accent, #dec24b);
+  --trouvable-gold-2: var(--menu-accent-2, #f3dc75);
+  --trouvable-blue: var(--menu-accent-3, #74ddf2);
+  color: var(--menu-text, #fffaf0);
+}
+
 @media (max-width: 420px) {
   .backToTop {
     min-width: 182px;

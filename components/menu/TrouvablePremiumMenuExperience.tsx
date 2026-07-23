@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
   type ComponentType,
+  type CSSProperties,
   type PointerEvent
 } from "react";
 import type {
@@ -2299,6 +2300,21 @@ export function TrouvablePremiumMenuExperience({
       data-copy-ignored-keys={copyResolution.ignoredKeys.length}
       data-theme={config.theme}
       data-user-theme={selectedTheme}
+      style={
+        {
+          "--menu-bg": config.palette.background,
+          "--menu-surface": config.palette.surface,
+          "--menu-text": config.palette.text,
+          "--menu-muted": config.palette.muted,
+          "--menu-accent": config.palette.accent,
+          "--menu-accent-2": config.palette.accent2,
+          "--menu-accent-3": config.palette.accent3,
+          "--menu-border": config.palette.border,
+          "--menu-success": config.palette.success,
+          "--menu-warning": config.palette.warning,
+          "--menu-danger": config.palette.danger
+        } as CSSProperties
+      }
     >
       <div
         ref={backToTopSentinelRef}
