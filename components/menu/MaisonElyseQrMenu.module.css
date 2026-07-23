@@ -31,19 +31,19 @@
 }
 
 .page {
-  --elyse-bg: #050403;
-  --elyse-bg-soft: #0b0705;
-  --elyse-surface: #120c08;
-  --elyse-surface-soft: #191109;
-  --elyse-cream: #fff7ea;
-  --elyse-text: #f4ebdd;
-  --elyse-muted: #bfaf98;
-  --elyse-champagne: #e8cf9b;
-  --elyse-gold: #d2a45e;
-  --elyse-bronze: #8a6338;
-  --elyse-border: rgba(232, 207, 155, 0.2);
-  --elyse-border-strong: rgba(232, 207, 155, 0.42);
-  --elyse-overlay: rgba(5, 4, 3, 0.62);
+  --elyse-bg: var(--menu-bg, #050403);
+  --elyse-bg-soft: var(--menu-surface, #0b0705);
+  --elyse-surface: var(--menu-surface, #120c08);
+  --elyse-surface-soft: color-mix(in srgb, var(--menu-surface, #191109) 76%, var(--menu-bg, #050403));
+  --elyse-cream: var(--menu-text, #fff7ea);
+  --elyse-text: var(--menu-text, #f4ebdd);
+  --elyse-muted: var(--menu-muted, #bfaf98);
+  --elyse-champagne: var(--menu-accent, #e8cf9b);
+  --elyse-gold: var(--menu-accent-2, #d2a45e);
+  --elyse-bronze: var(--menu-accent-3, #8a6338);
+  --elyse-border: var(--menu-border, rgba(232, 207, 155, 0.2));
+  --elyse-border-strong: color-mix(in srgb, var(--menu-accent, #e8cf9b) 42%, transparent);
+  --elyse-overlay: color-mix(in srgb, var(--menu-bg, #050403) 62%, transparent);
   position: relative;
   min-height: 100svh;
   overflow-x: clip;
@@ -1178,5 +1178,123 @@
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* The owner phone is a real compact viewport even when the surrounding owner
+   dashboard is rendered on desktop. Container queries keep the public skin's
+   phone proportions instead of applying the dashboard viewport breakpoints. */
+@container (max-width: 420px) {
+  .page.phonePreview {
+    height: auto;
+    min-height: 650px;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .page.phonePreview.isMenuMode {
+    height: auto;
+    min-height: 650px;
+    overflow: visible;
+  }
+
+  .page.phonePreview.isMenuMode .sections,
+  .page.phonePreview .menuPanel,
+  .page.phonePreview .menuScrollArea {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .page.phonePreview .menuCover {
+    min-height: 258px;
+    padding: 18px 14px 30px;
+  }
+
+  .page.phonePreview .menuCoverTopbar {
+    right: 14px;
+    left: 14px;
+  }
+
+  .page.phonePreview .menuRestaurantName {
+    max-width: 145px;
+    font-size: 20px;
+  }
+
+  .page.phonePreview .menuCoverCopy h2 {
+    font-size: 42px;
+  }
+
+  .page.phonePreview .menuCoverCopy p {
+    max-width: 230px;
+    font-size: 12px;
+  }
+
+  .page.phonePreview .dishSectionHeader {
+    padding: 16px 12px 8px;
+  }
+
+  .page.phonePreview .dishSectionHeader h3 {
+    font-size: 30px;
+  }
+
+  .page.phonePreview .dishCard {
+    grid-template-columns: minmax(0, 1fr) 60px;
+    gap: 10px;
+    padding: 14px 12px;
+  }
+
+  .page.phonePreview .dishImage {
+    width: 60px;
+  }
+
+  .page.phonePreview .dishName {
+    font-size: 19px;
+  }
+
+  .page.phonePreview .dishDescription {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .page.phonePreview .bottomBar {
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+
+  .page.phonePreview .menuScrollArea {
+    padding-bottom: 14px;
+  }
+
+  .page.phonePreview .menuCover {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--elyse-bg) 30%, transparent),
+        color-mix(in srgb, var(--elyse-bg) 86%, transparent) 88%,
+        var(--elyse-bg)
+      ),
+      var(--menu-hero-image),
+      var(--elyse-bg-soft);
+  }
+
+  .page.phonePreview .categoryCard,
+  .page.phonePreview .menuTopbar,
+  .page.phonePreview .dishImage,
+  .page.phonePreview .badges span,
+  .page.phonePreview .empty,
+  .page.phonePreview .bottomBar,
+  .page.phonePreview .bottomSheet {
+    background: var(--elyse-surface);
+    border-color: var(--elyse-border);
+  }
+
+  .page.phonePreview .dishItem {
+    border-bottom-color: var(--elyse-border);
+  }
+
+  .page.phonePreview .sheetBackdrop {
+    position: absolute;
   }
 }

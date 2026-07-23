@@ -362,12 +362,13 @@ export function MaisonElyseDishDetail({
       : copy.openAr;
 
   useEffect(() => {
+    if (displayMode !== "public") return;
     trackPublicMenuEvent(menu, {
       eventName: "dish_opened",
       dishSlug: dish.slug,
       categorySlug: dish.categorySlug ?? slugify(dish.category)
     });
-  }, [dish.category, dish.categorySlug, dish.slug, menu]);
+  }, [displayMode, dish.category, dish.categorySlug, dish.slug, menu]);
 
   function toggleModelViewer() {
     setShowModelViewer((isVisible) => {
@@ -395,7 +396,18 @@ export function MaisonElyseDishDetail({
               "--menu-border": config.palette.border,
               "--menu-success": config.palette.success,
               "--menu-warning": config.palette.warning,
-              "--menu-danger": config.palette.danger
+              "--menu-danger": config.palette.danger,
+              "--elyse-bg": config.palette.background,
+              "--elyse-bg-soft": config.palette.surface,
+              "--elyse-surface": config.palette.surface,
+              "--elyse-surface-soft": config.palette.surface,
+              "--elyse-cream": config.palette.text,
+              "--elyse-text": config.palette.text,
+              "--elyse-muted": config.palette.muted,
+              "--elyse-champagne": config.palette.accent,
+              "--elyse-gold": config.palette.accent2,
+              "--elyse-border": config.palette.border,
+              "--elyse-border-strong": config.palette.accent
             } as CSSProperties)
           : undefined
       }

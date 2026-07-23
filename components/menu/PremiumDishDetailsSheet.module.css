@@ -262,3 +262,125 @@
 .overlay[data-user-theme="light"] .fallback {
   color: rgba(35, 26, 13, 0.56);
 }
+
+/* The detail sheet is also rendered inside the owner phone. Keep it inside
+   the phone viewport and consume the same resolved menu palette as the page. */
+.overlay {
+  background: color-mix(in srgb, var(--menu-bg, #000) 78%, transparent);
+}
+
+.sheet {
+  border-color: var(--menu-border, rgba(222, 194, 75, 0.28));
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--menu-accent, #dec24b) 10%, transparent),
+      transparent 42%
+    ),
+    var(--menu-surface, #050505);
+  color: var(--menu-text, #fff);
+}
+
+.close {
+  border-color: var(--menu-border, rgba(255, 255, 255, 0.18));
+  background: color-mix(in srgb, var(--menu-surface, #050505) 82%, transparent);
+  color: var(--menu-text, #fff);
+}
+
+.kicker,
+.houseNoteLabel {
+  color: var(--menu-accent, #dec24b);
+}
+
+.title {
+  color: var(--menu-text, #fff);
+}
+
+.description,
+.houseNoteText {
+  color: var(--menu-muted, rgba(255, 255, 255, 0.78));
+}
+
+.houseNote {
+  border-color: var(--menu-border, rgba(222, 194, 75, 0.24));
+  background: color-mix(in srgb, var(--menu-accent, #dec24b) 8%, var(--menu-surface, #050505));
+}
+
+.fallback,
+.label {
+  color: var(--menu-muted, rgba(255, 255, 255, 0.48));
+}
+
+:global([data-display-mode="phone-preview"]) .overlay {
+  position: absolute;
+  inset: 0;
+  align-items: flex-end;
+  padding: 10px;
+}
+
+:global([data-display-mode="phone-preview"]) .sheet {
+  width: 100%;
+  max-height: calc(100% - 10px);
+  border-radius: 22px 22px 0 0;
+  padding: 16px 14px 20px;
+}
+
+:global([data-display-mode="phone-preview"]) .close {
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+}
+
+:global([data-display-mode="phone-preview"]) .title {
+  font-size: 28px;
+}
+
+:global([data-display-mode="phone-preview"]) .description,
+:global([data-display-mode="phone-preview"]) .houseNoteText {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+:global([data-display-mode="phone-preview"]) .groups {
+  gap: 14px;
+}
+
+.overlay[data-user-theme="light"] .sheet {
+  border-color: var(--menu-border, rgba(143, 109, 20, 0.26));
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--menu-accent, #8f6d14) 12%, transparent),
+      transparent 42%
+    ),
+    var(--menu-surface, #fffdf9);
+  color: var(--menu-text, #211912);
+}
+
+.overlay[data-user-theme="light"] .close {
+  border-color: var(--menu-border, rgba(35, 26, 13, 0.18));
+  background: color-mix(in srgb, var(--menu-surface, #fffdf9) 88%, transparent);
+  color: var(--menu-text, #211912);
+}
+
+.overlay[data-user-theme="light"] .kicker,
+.overlay[data-user-theme="light"] .houseNoteLabel {
+  color: var(--menu-accent, #8f6d14);
+}
+
+.overlay[data-user-theme="light"] .title {
+  color: var(--menu-text, #211912);
+}
+
+.overlay[data-user-theme="light"] .description,
+.overlay[data-user-theme="light"] .houseNoteText,
+.overlay[data-user-theme="light"] .fallback,
+.overlay[data-user-theme="light"] .label {
+  color: var(--menu-muted, rgba(35, 26, 13, 0.72));
+}
+
+.overlay[data-user-theme="light"] .houseNote {
+  border-color: var(--menu-border, rgba(143, 109, 20, 0.22));
+  background: color-mix(in srgb, var(--menu-accent, #8f6d14) 8%, var(--menu-surface, #fffdf9));
+}

@@ -189,18 +189,26 @@ export function buildAccessibleMenuPalette(selection: Pick<MenuAppearanceSelecti
   warnings: string[];
 } {
   const isDark = selection.themeMode === "dark";
-  const background = isDark ? "#0d0a08" : "#fbf7ef";
-  const surface = isDark ? "#1a1310" : "#fffdf9";
+  const primary = normalizeHexColor(selection.primaryColor, "#e8cf9b");
+  const secondary = normalizeHexColor(selection.secondaryColor, "#c69252");
+  const backgroundBase = isDark ? "#0d0a08" : "#fbf7ef";
+  const surfaceBase = isDark ? "#1a1310" : "#fffdf9";
+  const background = isDark
+    ? mixHex(backgroundBase, primary, 0.16)
+    : mixHex(backgroundBase, secondary, 0.08);
+  const surface = isDark
+    ? mixHex(surfaceBase, primary, 0.12)
+    : mixHex(surfaceBase, secondary, 0.08);
   const text = isDark ? "#fff7ea" : "#211912";
   const mutedBase = isDark ? "#c7b9a8" : "#62574d";
-  const border = mixHex(background, normalizeHexColor(selection.secondaryColor, "#c69252"), isDark ? 0.34 : 0.24);
+  const border = mixHex(background, secondary, isDark ? 0.34 : 0.24);
   const accentResult = ensureContrast(
-    normalizeHexColor(selection.primaryColor, "#e8cf9b"),
+    primary,
     text,
     3
   );
   const accent2Result = ensureContrast(
-    normalizeHexColor(selection.secondaryColor, "#c69252"),
+    secondary,
     text,
     3
   );

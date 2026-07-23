@@ -11,6 +11,151 @@
   padding: 10px 12px 30px;
 }
 
+/* Light mode keeps the selected brand colors instead of falling back to the
+   legacy beige/gold skin. This block intentionally comes last so it wins over
+   the historical light-theme overrides above. */
+.page[data-user-theme="light"] {
+  --trouvable-black: var(--menu-bg, #fbf7ef);
+  --trouvable-ink: var(--menu-surface, #fffdf9);
+  --trouvable-line: var(--menu-border, rgba(35, 26, 13, 0.18));
+  --trouvable-muted: var(--menu-muted, rgba(35, 26, 13, 0.66));
+  --trouvable-gold: var(--menu-accent, #8f6d14);
+  --trouvable-gold-2: var(--menu-accent-2, #6f530e);
+  --trouvable-blue: var(--menu-accent-3, #4d6b86);
+  background: var(--trouvable-black);
+  color: var(--menu-text, #211912);
+}
+
+.page[data-user-theme="light"] .topBar,
+.page[data-user-theme="light"] .hero,
+.page[data-user-theme="light"] .menuPanel,
+.page[data-user-theme="light"] .categoryRail,
+.page[data-user-theme="light"] .dishCard,
+.page[data-user-theme="light"] .dishVisual,
+.page[data-user-theme="light"] .emptyState,
+.page[data-user-theme="light"] .sheet,
+.page[data-user-theme="light"] .selectionList li,
+.page[data-user-theme="light"] .sheetStatus,
+.page[data-user-theme="light"] .fieldLabel input,
+.page[data-user-theme="light"] .topicGroup label,
+.page[data-user-theme="light"] .detailVisual,
+.page[data-user-theme="light"] .detailList,
+.page[data-user-theme="light"] .houseNote {
+  background: var(--trouvable-black);
+  border-color: var(--trouvable-line);
+  color: var(--menu-text, #211912);
+}
+
+.page[data-user-theme="light"] .brandBlock strong,
+.page[data-user-theme="light"] .hero p,
+.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .sectionTitle,
+.page[data-user-theme="light"] .detailRestaurantName,
+.page[data-user-theme="light"] .detailNav span,
+.page[data-user-theme="light"] .dishArrow,
+.page[data-user-theme="light"] .categoryHeader > span:last-child,
+.page[data-user-theme="light"] .dishPrice,
+.page[data-user-theme="light"] .reviewTrigger span,
+.page[data-user-theme="light"] .categoryRail svg,
+.page[data-user-theme="light"] .backToTop {
+  color: var(--trouvable-gold);
+}
+
+.page[data-user-theme="light"] .brandBlock span,
+.page[data-user-theme="light"] .sheetHeader p,
+.page[data-user-theme="light"] .detailList h3,
+.page[data-user-theme="light"] .houseNote h3,
+.page[data-user-theme="light"] .fieldLabel,
+.page[data-user-theme="light"] .topicGroup legend,
+.page[data-user-theme="light"] .tableChip,
+.page[data-user-theme="light"] .categoryRail small,
+.page[data-user-theme="light"] .searchField span,
+.page[data-user-theme="light"] .resultStatus,
+.page[data-user-theme="light"] .statusRegion,
+.page[data-user-theme="light"] .detailPrice,
+.page[data-user-theme="light"] .dishTopline span,
+.page[data-user-theme="light"] .totalRow strong {
+  color: var(--trouvable-gold);
+}
+
+.page[data-user-theme="light"] .brandBlock small,
+.page[data-user-theme="light"] .hero span,
+.page[data-user-theme="light"] .dishCopy small,
+.page[data-user-theme="light"] .detailBody > p,
+.page[data-user-theme="light"] .localHint,
+.page[data-user-theme="light"] .sheetStatus,
+.page[data-user-theme="light"] .emptyState span,
+.page[data-user-theme="light"] .selectionList span,
+.page[data-user-theme="light"] .totalRow,
+.page[data-user-theme="light"] .houseNote p,
+.page[data-user-theme="light"] .categoryHeader > span:first-child,
+.page[data-user-theme="light"] .dishDescription {
+  color: var(--trouvable-muted);
+}
+
+.page[data-user-theme="light"] .topActions a,
+.page[data-user-theme="light"] .topActions button,
+.page[data-user-theme="light"] .tableChip,
+.page[data-user-theme="light"] .hero button,
+.page[data-user-theme="light"] .cardActions a,
+.page[data-user-theme="light"] .cardActions button,
+.page[data-user-theme="light"] .viewToggle button,
+.page[data-user-theme="light"] .filterTrigger,
+.page[data-user-theme="light"] .quickFilters button,
+.page[data-user-theme="light"] .primaryAction,
+.page[data-user-theme="light"] .detailActions a,
+.page[data-user-theme="light"] .detailActions button,
+.page[data-user-theme="light"] .emptyState button,
+.page[data-user-theme="light"] .iconButton,
+.page[data-user-theme="light"] .searchField button,
+.page[data-user-theme="light"] .quantityControls button,
+.page[data-user-theme="light"] .categoryRail button,
+.page[data-user-theme="light"] .searchField input {
+  background: var(--trouvable-ink);
+  border-color: var(--trouvable-line);
+  color: var(--menu-text, #211912);
+}
+
+.page[data-user-theme="light"] .hero button,
+.page[data-user-theme="light"] .primaryAction,
+.page[data-user-theme="light"] .filterTrigger,
+.page[data-user-theme="light"] .quickFilters button[aria-pressed="true"],
+.page[data-user-theme="light"] .viewToggle button[aria-pressed="true"],
+.page[data-user-theme="light"] .categoryRail button[aria-current="true"] {
+  background: var(--trouvable-gold);
+  border-color: var(--trouvable-gold);
+  color: var(--menu-text, #211912);
+}
+
+.page[data-user-theme="light"] .backToTop {
+  border-color: var(--trouvable-gold);
+  background: var(--trouvable-ink);
+  color: var(--trouvable-gold);
+}
+
+.page[data-user-theme="light"] .dishOverlay,
+.page[data-user-theme="light"] .reviewOverlay,
+.page[data-user-theme="light"] .stackedOverlay {
+  background: color-mix(in srgb, var(--menu-bg, #fbf7ef) 78%, transparent);
+}
+
+.phonePreview {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.phonePreview .topBar,
+.phonePreview .hero,
+.phonePreview .menuPanel {
+  max-width: none;
+}
+
+.phonePreview .topBar {
+  top: 0;
+}
+
 .topBar {
   position: sticky;
   top: 8px;
@@ -4093,4 +4238,725 @@
     transform: translateY(-2px);
     border-color: rgba(255, 255, 255, 0.28);
   }
+}
+
+/* Resolved owner palette: the reference skin keeps its composition, while the
+   semantic colors chosen in the owner builder drive every primary surface and
+   accent in the public component. */
+.page {
+  --trouvable-black: var(--menu-bg, #000);
+  --trouvable-ink: var(--menu-surface, #050505);
+  --trouvable-line: var(--menu-border, rgba(255, 255, 255, 0.16));
+  --trouvable-muted: var(--menu-muted, rgba(255, 255, 255, 0.66));
+  --trouvable-soft: color-mix(in srgb, var(--menu-surface, #ffffff) 24%, transparent);
+  --trouvable-gold: var(--menu-accent, #dec24b);
+  --trouvable-gold-2: var(--menu-accent-2, #f3dc75);
+  --trouvable-blue: var(--menu-accent-3, #74ddf2);
+  background: var(--trouvable-black);
+  color: var(--menu-text, #fffaf0);
+}
+
+.page .topBar,
+.page .hero,
+.page .menuPanel,
+.page .categoryRail,
+.page .dishCard,
+.page .dishVisual,
+.page .emptyState,
+.page .sheet,
+.page .selectionList li,
+.page .sheetStatus,
+.page .fieldLabel input,
+.page .topicGroup label,
+.page .detailVisual,
+.page .detailList,
+.page .houseNote {
+  background: var(--trouvable-black);
+  border-color: var(--trouvable-line);
+}
+
+.page .brandBlock span,
+.page .hero p,
+.page .sheetHeader p,
+.page .detailList h3,
+.page .houseNote h3,
+.page .fieldLabel,
+.page .topicGroup legend,
+.page .tableChip,
+.page .categoryRail small,
+.page .searchField span,
+.page .resultStatus,
+.page .statusRegion,
+.page .detailPrice,
+.page .dishTopline span,
+.page .totalRow strong {
+  color: var(--trouvable-gold);
+}
+
+.page .brandBlock strong,
+.page .hero h1,
+.page .sheetHeader h2,
+.page .dishTopline strong,
+.page .emptyState p,
+.page .selectionList strong,
+.page .quantityControls output,
+.page .sectionTitle {
+  color: var(--menu-text, #fffaf0);
+}
+
+.page .brandBlock small,
+.page .hero span,
+.page .dishCopy small,
+.page .detailBody > p,
+.page .localHint,
+.page .sheetStatus,
+.page .emptyState span,
+.page .selectionList span,
+.page .totalRow,
+.page .houseNote p,
+.page .categoryHeader > span:first-child,
+.page .dishDescription {
+  color: var(--trouvable-muted);
+}
+
+.page .topActions a,
+.page .topActions button,
+.page .tableChip,
+.page .hero button,
+.page .cardActions a,
+.page .cardActions button,
+.page .viewToggle button,
+.page .filterTrigger,
+.page .quickFilters button,
+.page .primaryAction,
+.page .detailActions a,
+.page .detailActions button,
+.page .emptyState button,
+.page .iconButton,
+.page .searchField button,
+.page .quantityControls button,
+.page .categoryRail button,
+.page .searchField input {
+  background: var(--trouvable-ink);
+  border-color: var(--trouvable-line);
+  color: var(--menu-text, #fffaf0);
+}
+
+.page .hero button,
+.page .primaryAction,
+.page .filterTrigger,
+.page .quickFilters button[aria-pressed="true"],
+.page .viewToggle button[aria-pressed="true"],
+.page .categoryRail button[aria-current="true"] {
+  background: var(--trouvable-gold);
+  border-color: var(--trouvable-gold);
+  color: var(--menu-text, #fffaf0);
+}
+
+.page .categoryRail svg,
+.page .categoryHeader > span:last-child,
+.page .dishPrice,
+.page .filterGlyph,
+.page .backToTop {
+  color: var(--trouvable-gold);
+}
+
+.page .backToTop {
+  border-color: var(--trouvable-gold);
+  background: var(--trouvable-ink);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--trouvable-gold) 12%, transparent),
+    0 10px 26px color-mix(in srgb, var(--trouvable-black) 42%, transparent);
+}
+
+.page .overlay {
+  background: color-mix(in srgb, var(--trouvable-black) 82%, transparent);
+}
+
+.page .badge,
+.page .badges span,
+.page .detailList li {
+  background: var(--trouvable-ink);
+  border-color: var(--trouvable-line);
+  color: var(--trouvable-muted);
+}
+
+@container (max-width: 420px) {
+  .page.phonePreview {
+    width: 100%;
+    height: auto;
+    min-height: 650px;
+    overflow-x: clip;
+    overflow-y: visible;
+    contain: none;
+    padding: 0 0 12px;
+  }
+
+  .page.phonePreview .topBar {
+    padding: 14px 14px 10px;
+  }
+
+  .page.phonePreview .topActions {
+    gap: 6px;
+  }
+
+  .page.phonePreview .topActions a,
+  .page.phonePreview .topActions button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 13px;
+  }
+
+  .page.phonePreview .hero {
+    padding: 26px 12px 24px;
+    overflow: clip;
+  }
+
+  .page.phonePreview .heroBotanical {
+    width: 124%;
+    max-width: none;
+  }
+
+  .page.phonePreview .hero p {
+    font-size: 15px;
+  }
+
+  .page.phonePreview .hero h1 {
+    font-size: 52px;
+  }
+
+  .page.phonePreview .categoryHeader,
+  .page.phonePreview .sectionTitle {
+    padding-inline: 14px;
+  }
+
+  .page.phonePreview .categoryHeader > span:first-child {
+    font-size: 12px;
+    letter-spacing: 0.24em;
+  }
+
+  .page.phonePreview .categoryHeader > span:last-child {
+    font-size: 14px;
+  }
+
+  .page.phonePreview .categoryHeader {
+    padding-bottom: 10px;
+  }
+
+  .page.phonePreview .categoryRail {
+    gap: 10px;
+    padding-bottom: 24px;
+    scroll-padding-inline: 14px;
+  }
+
+  .page.phonePreview .categoryRail button {
+    min-width: 108px;
+    min-height: 108px;
+    border-radius: 18px;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .page.phonePreview .categoryRail button:first-of-type {
+    margin-left: 14px;
+  }
+
+  .page.phonePreview .categoryRail button:last-of-type {
+    margin-right: 14px;
+  }
+
+  .page.phonePreview .categoryRail svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .page.phonePreview .sectionTitle {
+    margin-bottom: 14px;
+    font-size: 30px;
+  }
+
+  .page.phonePreview .tools {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-inline: 14px;
+  }
+
+  .page.phonePreview .searchField,
+  .page.phonePreview .quickFilters {
+    grid-column: 1 / -1;
+  }
+
+  .page.phonePreview .dishList {
+    gap: 10px;
+    padding-inline: 14px;
+  }
+
+  .page.phonePreview .dishCard {
+    min-height: 0;
+    border-radius: 16px;
+    padding: 9px;
+  }
+
+  .page.phonePreview .dishSummary {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .page.phonePreview .dishVisual {
+    width: 72px;
+    min-width: 0;
+    height: 72px;
+    border-radius: 14px;
+  }
+
+  .page.phonePreview .dishTopline strong {
+    font-size: 16px;
+  }
+
+  .page.phonePreview .dishCopy {
+    gap: 5px;
+  }
+
+  .page.phonePreview .dishCopy small,
+  .page.phonePreview .dishDescription {
+    font-size: 11px;
+  }
+
+  .page.phonePreview .dishPrice {
+    font-size: 18px;
+  }
+
+  .page.phonePreview .overlay {
+    position: absolute;
+    inset: 0;
+  }
+
+  .page.phonePreview .sheet {
+    width: 100%;
+    max-height: 100%;
+  }
+
+  .page.phonePreview .backToTop {
+    position: sticky;
+    right: auto;
+    bottom: 12px;
+    left: auto;
+    width: min(188px, calc(100% - 28px));
+    min-width: 0;
+    margin: 12px auto 0;
+    transform: translateY(8px) scale(0.96);
+  }
+
+  .page.phonePreview .backToTop[data-visible="true"] {
+    transform: translateY(0) scale(1);
+  }
+
+  .page.phonePreview {
+    position: static;
+  }
+
+  .page.phonePreview .overlay {
+    position: absolute;
+    inset: 0;
+    align-items: flex-end;
+    overflow: auto;
+    padding: 10px;
+  }
+
+  .page.phonePreview .overlay:not(.dishOverlay):not(.reviewOverlay) .sheet,
+  .page.phonePreview .stackedOverlay .sheet,
+  .page.phonePreview .stackedOverlay .reviewSheet {
+    width: 100%;
+    max-height: calc(100% - 10px);
+    border-radius: 22px 22px 0 0;
+    padding: 16px 14px 20px;
+  }
+
+  .page.phonePreview .sheetHeader h2 {
+    font-size: 26px;
+  }
+
+  .page.phonePreview .iconButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .page.phonePreview .selectionList li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page.phonePreview .quantityControls {
+    grid-template-columns: 36px 30px 36px;
+    justify-self: end;
+  }
+
+  .page.phonePreview .quantityControls button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .page.phonePreview .dishOverlay {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .page.phonePreview .detailSheet {
+    width: 100%;
+    min-height: 100%;
+    max-height: none;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    padding: 0 14px 24px;
+  }
+
+  .page.phonePreview .detailNav {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    min-height: 64px;
+    gap: 8px;
+  }
+
+  .page.phonePreview .detailNav span {
+    font-size: 15px;
+    letter-spacing: 0.22em;
+  }
+
+  .page.phonePreview .detailBack {
+    width: 42px;
+    height: 42px;
+    font-size: 24px;
+  }
+
+  .page.phonePreview .dishArrow {
+    position: absolute;
+    top: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
+  }
+
+  .page.phonePreview .dishArrowLeft {
+    left: 8px;
+  }
+
+  .page.phonePreview .dishArrowRight {
+    right: 8px;
+  }
+
+  .page.phonePreview .detailSheet .detailVisual {
+    min-height: 220px;
+    max-height: 280px;
+    aspect-ratio: 4 / 3;
+  }
+
+  .page.phonePreview .detailBody h1,
+  .page.phonePreview .detailBody .sheetHeader h2 {
+    font-size: 34px;
+  }
+
+  .page.phonePreview .detailBody > p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .page.phonePreview .detailList li,
+  .page.phonePreview .detailTagCloud li {
+    max-width: 100%;
+    font-size: 10px;
+    padding: 7px 10px;
+  }
+
+  .page.phonePreview .detailSheet .detailActions a,
+  .page.phonePreview .detailSheet .detailActions .modelCta {
+    min-height: 52px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+  }
+
+  .page.phonePreview .inlineModelViewer {
+    min-height: 220px;
+    border-radius: 18px;
+  }
+
+  .page.phonePreview .reviewOverlay {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .page.phonePreview .reviewSheet {
+    min-height: 100%;
+    max-height: none;
+    overflow: auto;
+    padding: 16px 14px 24px;
+  }
+
+  .page.phonePreview .reviewPanel {
+    gap: 18px;
+    border-radius: 22px 22px 0 0;
+    padding: 34px 14px 0;
+  }
+
+  .page.phonePreview .reviewPanel h2 {
+    font-size: 28px;
+  }
+}
+
+/* Final light-mode cascade: these rules are deliberately last because the
+   reference skin contains older, more specific light selectors above. */
+.page[data-user-theme="light"] {
+  background: var(--menu-bg, #fbf7ef) !important;
+  color: var(--menu-text, #211912) !important;
+}
+
+.page[data-user-theme="light"] .topBar,
+.page[data-user-theme="light"] .hero,
+.page[data-user-theme="light"] .menuPanel,
+.page[data-user-theme="light"] .categoryRail,
+.page[data-user-theme="light"] .dishCard,
+.page[data-user-theme="light"] .dishVisual,
+.page[data-user-theme="light"] .emptyState,
+.page[data-user-theme="light"] .sheet,
+.page[data-user-theme="light"] .selectionList li,
+.page[data-user-theme="light"] .sheetStatus,
+.page[data-user-theme="light"] .fieldLabel input,
+.page[data-user-theme="light"] .topicGroup label,
+.page[data-user-theme="light"] .detailVisual,
+.page[data-user-theme="light"] .detailList,
+.page[data-user-theme="light"] .houseNote {
+  background: var(--menu-bg, #fbf7ef) !important;
+  border-color: var(--menu-border, rgba(35, 26, 13, 0.18));
+  color: var(--menu-text, #211912) !important;
+}
+
+.page[data-user-theme="light"] .topActions a,
+.page[data-user-theme="light"] .topActions button,
+.page[data-user-theme="light"] .tableChip,
+.page[data-user-theme="light"] .cardActions a,
+.page[data-user-theme="light"] .cardActions button,
+.page[data-user-theme="light"] .viewToggle button,
+.page[data-user-theme="light"] .filterTrigger,
+.page[data-user-theme="light"] .quickFilters button,
+.page[data-user-theme="light"] .iconButton,
+.page[data-user-theme="light"] .searchField button,
+.page[data-user-theme="light"] .quantityControls button,
+.page[data-user-theme="light"] .categoryRail button,
+.page[data-user-theme="light"] .searchField input {
+  background: var(--menu-surface, #fffdf9) !important;
+  border-color: var(--menu-border, rgba(35, 26, 13, 0.18));
+  color: var(--menu-text, #211912) !important;
+}
+
+.page[data-user-theme="light"] .hero button,
+.page[data-user-theme="light"] .primaryAction,
+.page[data-user-theme="light"] .filterTrigger,
+.page[data-user-theme="light"] .quickFilters button[aria-pressed="true"],
+.page[data-user-theme="light"] .viewToggle button[aria-pressed="true"],
+.page[data-user-theme="light"] .categoryRail button[aria-current="true"],
+.page[data-user-theme="light"] .backToTop {
+  background: var(--menu-accent, #8f6d14) !important;
+  border-color: var(--menu-accent, #8f6d14);
+  color: var(--menu-text, #211912) !important;
+}
+
+.page[data-user-theme="light"] .brandBlock strong,
+.page[data-user-theme="light"] .hero p,
+.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .sectionTitle,
+.page[data-user-theme="light"] .detailRestaurantName,
+.page[data-user-theme="light"] .detailNav span,
+.page[data-user-theme="light"] .dishArrow,
+.page[data-user-theme="light"] .categoryHeader > span:last-child,
+.page[data-user-theme="light"] .dishPrice,
+.page[data-user-theme="light"] .reviewTrigger span,
+.page[data-user-theme="light"] .categoryRail svg {
+  color: var(--menu-accent, #8f6d14) !important;
+}
+
+.page[data-user-theme="light"] .brandBlock small,
+.page[data-user-theme="light"] .hero span,
+.page[data-user-theme="light"] .dishCopy small,
+.page[data-user-theme="light"] .detailBody > p,
+.page[data-user-theme="light"] .localHint,
+.page[data-user-theme="light"] .sheetStatus,
+.page[data-user-theme="light"] .emptyState span,
+.page[data-user-theme="light"] .selectionList span,
+.page[data-user-theme="light"] .totalRow,
+.page[data-user-theme="light"] .houseNote p,
+.page[data-user-theme="light"] .categoryHeader > span:first-child,
+.page[data-user-theme="light"] .dishDescription {
+  color: var(--menu-muted, #62574d) !important;
+}
+
+/* The light toggle is runtime state, so it must derive its surfaces from the
+   selected brand accents even when the saved/default palette started dark. */
+.page[data-user-theme="light"] {
+  --trouvable-light-bg: color-mix(
+    in srgb,
+    #fbf7ef 88%,
+    var(--menu-accent-2, #8f6d14)
+  );
+  --trouvable-light-surface: color-mix(
+    in srgb,
+    #fffdf9 90%,
+    var(--menu-accent-2, #8f6d14)
+  );
+  --trouvable-light-border: color-mix(
+    in srgb,
+    var(--menu-accent-2, #8f6d14) 28%,
+    transparent
+  );
+  --trouvable-light-text: #211912;
+  --trouvable-light-muted: color-mix(in srgb, #211912 66%, transparent);
+  background: var(--trouvable-light-bg) !important;
+  color: var(--trouvable-light-text) !important;
+}
+
+.page[data-user-theme="light"] .topBar,
+.page[data-user-theme="light"] .hero,
+.page[data-user-theme="light"] .menuPanel,
+.page[data-user-theme="light"] .categoryRail,
+.page[data-user-theme="light"] .dishOverlay,
+.page[data-user-theme="light"] .detailSheet,
+.page[data-user-theme="light"] .standaloneDetailPage,
+.page[data-user-theme="light"] .reviewOverlay,
+.page[data-user-theme="light"] .reviewSheet,
+.page[data-user-theme="light"] .detailsSubSheet {
+  background: var(--trouvable-light-bg) !important;
+  border-color: var(--trouvable-light-border) !important;
+  color: var(--trouvable-light-text) !important;
+}
+
+.page[data-user-theme="light"] .dishCard,
+.page[data-user-theme="light"] .dishVisual,
+.page[data-user-theme="light"] .emptyState,
+.page[data-user-theme="light"] .sheet,
+.page[data-user-theme="light"] .selectionList li,
+.page[data-user-theme="light"] .sheetStatus,
+.page[data-user-theme="light"] .fieldLabel input,
+.page[data-user-theme="light"] .topicGroup label,
+.page[data-user-theme="light"] .detailVisual,
+.page[data-user-theme="light"] .detailList,
+.page[data-user-theme="light"] .houseNote,
+.page[data-user-theme="light"] .reviewTextarea textarea {
+  background: var(--trouvable-light-surface) !important;
+  border-color: var(--trouvable-light-border) !important;
+  color: var(--trouvable-light-text) !important;
+}
+
+.page[data-user-theme="light"] .topActions a,
+.page[data-user-theme="light"] .topActions button,
+.page[data-user-theme="light"] .tableChip,
+.page[data-user-theme="light"] .cardActions a,
+.page[data-user-theme="light"] .cardActions button,
+.page[data-user-theme="light"] .viewToggle button,
+.page[data-user-theme="light"] .filterTrigger,
+.page[data-user-theme="light"] .quickFilters button,
+.page[data-user-theme="light"] .iconButton,
+.page[data-user-theme="light"] .searchField button,
+.page[data-user-theme="light"] .quantityControls button,
+.page[data-user-theme="light"] .categoryRail button,
+.page[data-user-theme="light"] .searchField input {
+  background: var(--trouvable-light-surface) !important;
+  border-color: var(--trouvable-light-border) !important;
+  color: var(--trouvable-light-text) !important;
+}
+
+.page[data-user-theme="light"] .hero button,
+.page[data-user-theme="light"] .primaryAction,
+.page[data-user-theme="light"] .filterTrigger,
+.page[data-user-theme="light"] .quickFilters button[aria-pressed="true"],
+.page[data-user-theme="light"] .viewToggle button[aria-pressed="true"],
+.page[data-user-theme="light"] .categoryRail button[aria-current="true"],
+.page[data-user-theme="light"] .backToTop {
+  background: var(--menu-accent, #8f6d14) !important;
+  border-color: var(--menu-accent, #8f6d14) !important;
+  color: var(--trouvable-light-text) !important;
+}
+
+.page[data-user-theme="light"] .brandBlock strong,
+.page[data-user-theme="light"] .hero p,
+.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .sectionTitle,
+.page[data-user-theme="light"] .detailRestaurantName,
+.page[data-user-theme="light"] .detailNav span,
+.page[data-user-theme="light"] .dishArrow,
+.page[data-user-theme="light"] .categoryHeader > span:last-child,
+.page[data-user-theme="light"] .dishPrice,
+.page[data-user-theme="light"] .reviewTrigger span,
+.page[data-user-theme="light"] .categoryRail svg,
+.page[data-user-theme="light"] .heroBotanical {
+  color: var(--menu-accent, #8f6d14) !important;
+}
+
+.page[data-user-theme="light"] .brandBlock small,
+.page[data-user-theme="light"] .hero span,
+.page[data-user-theme="light"] .dishCopy small,
+.page[data-user-theme="light"] .detailBody > p,
+.page[data-user-theme="light"] .localHint,
+.page[data-user-theme="light"] .sheetStatus,
+.page[data-user-theme="light"] .emptyState span,
+.page[data-user-theme="light"] .selectionList span,
+.page[data-user-theme="light"] .totalRow,
+.page[data-user-theme="light"] .houseNote p,
+.page[data-user-theme="light"] .categoryHeader > span:first-child,
+.page[data-user-theme="light"] .dishDescription,
+.page[data-user-theme="light"] .resultStatus,
+.page[data-user-theme="light"] .reviewNote,
+.page[data-user-theme="light"] .searchField input::placeholder {
+  color: var(--trouvable-light-muted) !important;
+}
+
+.page[data-user-theme="light"] .dishOverlay,
+.page[data-user-theme="light"] .reviewOverlay,
+.page[data-user-theme="light"] .stackedOverlay {
+  background: color-mix(in srgb, var(--trouvable-light-bg) 78%, transparent) !important;
+}
+
+/* Dark mode must also win over the persisted palette variables. Some public
+   demo palettes start with light surfaces, while the user can still select
+   the dark Trouvable presentation at runtime. Keep the chosen accents and
+   derive every neutral surface/text token from them. */
+.page[data-user-theme="dark"] {
+  --trouvable-dark-bg: color-mix(
+    in srgb,
+    #0b1016 88%,
+    var(--menu-accent-2, #c69252) 12%
+  );
+  --trouvable-dark-surface: color-mix(
+    in srgb,
+    #151b23 84%,
+    var(--menu-accent, #e8cf9b) 16%
+  );
+  --trouvable-dark-border: color-mix(
+    in srgb,
+    var(--menu-accent, #e8cf9b) 28%,
+    rgba(255, 255, 255, 0.16)
+  );
+  --trouvable-dark-text: #fff7ea;
+  --trouvable-dark-muted: color-mix(in srgb, #fff7ea 68%, transparent);
+  --menu-bg: var(--trouvable-dark-bg) !important;
+  --menu-surface: var(--trouvable-dark-surface) !important;
+  --menu-text: var(--trouvable-dark-text) !important;
+  --menu-muted: var(--trouvable-dark-muted) !important;
+  --menu-border: var(--trouvable-dark-border) !important;
+  --trouvable-black: var(--trouvable-dark-bg);
+  --trouvable-ink: var(--trouvable-dark-surface);
+  --trouvable-line: var(--trouvable-dark-border);
+  --trouvable-muted: var(--trouvable-dark-muted);
+  background: var(--trouvable-dark-bg) !important;
+  color: var(--trouvable-dark-text) !important;
+}
+
+/* Preserve the full touch target while the entry/exit scale transition runs. */
+.backToTop {
+  height: 48px;
+  min-height: 48px;
+}
+
+.page.phonePreview .backToTop {
+  height: 48px;
+  min-height: 48px;
 }

@@ -63,7 +63,7 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /loadingTitle:\s*copy\.modelPreparing/);
   assert.match(source, /\.\.\.copy\.modelViewer/);
   assert.match(source, /modelAlt:\s*copy\.modelAlt/);
-  assert.match(source, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
+  assert.match(source, /useTrouvableDocumentLanguage\(\s*selectedLocale,\s*textDirection/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /copyTextToClipboard/);
   assert.match(source, /new URL\(/);
@@ -101,6 +101,25 @@ test("Trouvable cutout PNG dishes render without added visual backgrounds", asyn
   assert.doesNotMatch(
     css,
     /\.page\[data-user-theme="light"\][\s\S]{0,220}\.dishVisual[\s\S]{0,120}background:\s*#000/
+  );
+});
+
+test("Trouvable runtime themes derive neutrals from the selected palette", async () => {
+  const css = await readFile(cssPath, "utf8");
+
+  assert.match(css, /\.page\[data-user-theme="light"\][\s\S]*--trouvable-light-bg/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\][\s\S]*background:\s*var\(--trouvable-light-bg\)\s*!important/
+  );
+  assert.match(css, /\.page\[data-user-theme="dark"\][\s\S]*--trouvable-dark-bg/);
+  assert.match(
+    css,
+    /\.page\[data-user-theme="dark"\][\s\S]*--menu-bg:\s*var\(--trouvable-dark-bg\)\s*!important/
+  );
+  assert.match(
+    css,
+    /\.page\[data-user-theme="dark"\][\s\S]*--menu-text:\s*var\(--trouvable-dark-text\)\s*!important/
   );
 });
 

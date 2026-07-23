@@ -89,6 +89,7 @@ type TrouvablePremiumMenuExperienceProps = {
   exchangeRates: MenuExchangeRates;
   query?: PublicMenuContextQuery;
   typographyClassName?: string;
+  displayMode?: "public" | "phone-preview";
 };
 
 type QuickFilterId =
@@ -471,7 +472,8 @@ export function TrouvablePremiumMenuExperience({
   context = "",
   exchangeRates,
   query,
-  typographyClassName = ""
+  typographyClassName = "",
+  displayMode = "public"
 }: TrouvablePremiumMenuExperienceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -562,7 +564,11 @@ export function TrouvablePremiumMenuExperience({
     menu.localizedUiCopy
   );
   const textDirection = getTrouvableTextDirection(selectedLocale);
-  useTrouvableDocumentLanguage(selectedLocale, textDirection);
+  useTrouvableDocumentLanguage(
+    selectedLocale,
+    textDirection,
+    displayMode === "public"
+  );
   const greetingPeriod = getTrouvableGreetingPeriodForDate(
     new Date(),
     menu.settings.timezone
@@ -636,10 +642,12 @@ export function TrouvablePremiumMenuExperience({
   }, [arCopyStatus, manualDishUrl]);
 
   useEffect(() => {
+    if (displayMode !== "public") return;
     trackPublicMenuEvent(menu, { eventName: "menu_opened" });
-  }, [menu]);
+  }, [displayMode, menu]);
 
   useEffect(() => {
+    if (displayMode !== "public") return undefined;
     const query = search.trim();
     if (query.length < 2) return undefined;
     const timeoutId = window.setTimeout(() => {
@@ -649,7 +657,7 @@ export function TrouvablePremiumMenuExperience({
       });
     }, 700);
     return () => window.clearTimeout(timeoutId);
-  }, [menu, search]);
+  }, [displayMode, menu, search]);
 
   const categories = useMemo(
     () => sortTrouvablePublicMenuCategories(getVisiblePublicMenuCategories(menu.dishes)),
@@ -818,14 +826,26 @@ export function TrouvablePremiumMenuExperience({
   }
 
   const handleBackToTop = useCallback(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: prefersReducedMotion ? "auto" : "smooth"
-    });
+    const phonePreviewScroller =
+      displayMode === "phone-preview"
+        ? pageTopRef.current?.closest('[data-display-mode="phone-preview"]')?.parentElement
+        : null;
+
+    if (phonePreviewScroller instanceof HTMLElement) {
+      phonePreviewScroller.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion ? "auto" : "smooth"
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion ? "auto" : "smooth"
+      });
+    }
     window.requestAnimationFrame(() => {
       pageTopRef.current?.focus({ preventScroll: true });
     });
-  }, [prefersReducedMotion]);
+  }, [displayMode, prefersReducedMotion]);
 
   const restoreFocus = useCallback(() => {
     window.setTimeout(() => {
@@ -881,16 +901,23 @@ export function TrouvablePremiumMenuExperience({
             menu.localizedUiCopy
           )
         : null;
-      const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
-      const storedCurrency = window.localStorage.getItem(
-        TROUVABLE_CURRENCY_STORAGE_KEY
-      );
-      const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
       const defaultLocale = normalizeTrouvableReadyLocaleForSettings(
         undefined,
         menu.settings,
         menu.localizedUiCopy
       );
+      if (displayMode !== "public") {
+        setSelectedLocale(queryLocale ?? defaultLocale);
+        setSelectedCurrency(normalizeTrouvableCurrency(undefined, menu.settings));
+        setSelectedTheme(normalizeTrouvableTheme(undefined, menu.settings));
+        setPreferencesLoaded(true);
+        return;
+      }
+      const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
+      const storedCurrency = window.localStorage.getItem(
+        TROUVABLE_CURRENCY_STORAGE_KEY
+      );
+      const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
       const activeServerLocale = normalizeTrouvableReadyLocaleForSettings(
         menu.activeLocale,
         menu.settings,
@@ -929,6 +956,7 @@ export function TrouvablePremiumMenuExperience({
 
     return () => window.cancelAnimationFrame(animationFrameId);
   }, [
+    displayMode,
     menu.activeLocale,
     menu.localizedUiCopy,
     menu.settings,
@@ -937,11 +965,11 @@ export function TrouvablePremiumMenuExperience({
   ]);
 
   useEffect(() => {
-    if (!preferencesLoaded) return;
+    if (displayMode !== "public" || !preferencesLoaded) return;
     window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, selectedLocale);
     window.localStorage.setItem(TROUVABLE_CURRENCY_STORAGE_KEY, selectedCurrency);
     window.localStorage.setItem(TROUVABLE_THEME_STORAGE_KEY, selectedTheme);
-  }, [preferencesLoaded, selectedCurrency, selectedLocale, selectedTheme]);
+  }, [displayMode, preferencesLoaded, selectedCurrency, selectedLocale, selectedTheme]);
 
   useEffect(() => {
     const rail = categoryRailRef.current;
@@ -1221,8 +1249,10 @@ export function TrouvablePremiumMenuExperience({
     );
     if (readyLocale !== nextLocale) return;
     setSelectedLocale(readyLocale);
-    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, readyLocale);
-    replaceLocaleInUrl(readyLocale);
+    if (displayMode === "public") {
+      window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, readyLocale);
+      replaceLocaleInUrl(readyLocale);
+    }
     setLocalMessage("");
     closeActiveSheet();
   }
@@ -1272,10 +1302,12 @@ export function TrouvablePremiumMenuExperience({
 }
 
   function toggleQuickFilter(filterId: QuickFilterId) {
-    trackPublicMenuEvent(menu, {
-      eventName: "filter_used",
-      filterName: filterId
-    });
+    if (displayMode === "public") {
+      trackPublicMenuEvent(menu, {
+        eventName: "filter_used",
+        filterName: filterId
+      });
+    }
     if (filterId === "all") {
       setActiveFilters([]);
       return;
@@ -1332,11 +1364,13 @@ export function TrouvablePremiumMenuExperience({
     setShowDetailModelViewer(false);
     resetArHandoffState();
     setSelectedDish(dish);
-    trackPublicMenuEvent(menu, {
-      eventName: "dish_opened",
-      dishSlug: dish.slug,
-      categorySlug: dish.categorySlug
-    });
+    if (displayMode === "public") {
+      trackPublicMenuEvent(menu, {
+        eventName: "dish_opened",
+        dishSlug: dish.slug,
+        categorySlug: dish.categorySlug
+      });
+    }
     openSheet("dish");
   }
 
@@ -2113,7 +2147,7 @@ export function TrouvablePremiumMenuExperience({
                   onClick={() => {
                     resetArHandoffState();
                     setShowDetailModelViewer((isVisible) => {
-                      if (!isVisible && selectedDish) {
+                      if (displayMode === "public" && !isVisible && selectedDish) {
                         trackPublicMenuEvent(menu, {
                           eventName: "dish_3d_clicked",
                           dishSlug: selectedDish.slug,
@@ -2254,8 +2288,11 @@ export function TrouvablePremiumMenuExperience({
     <main
       ref={pageTopRef}
       tabIndex={-1}
-      className={`${styles.page} ${typographyClassName}`.trim()}
+      className={`${styles.page} ${typographyClassName} ${
+        displayMode === "phone-preview" ? styles.phonePreview : ""
+      }`.trim()}
       lang={selectedLocale}
+      data-display-mode={displayMode}
       data-text-direction={textDirection}
       data-blueprint={config.experience.blueprint}
       data-copy-built-in-locale={copyResolution.builtInLocale}
@@ -2268,6 +2305,11 @@ export function TrouvablePremiumMenuExperience({
           : "false"
       }
       data-menu-translation-status={menu.translationStatus?.status ?? ""}
+      onSubmit={
+        displayMode === "phone-preview"
+          ? (event) => event.preventDefault()
+          : undefined
+      }
       data-menu-ready-locales={menu.settings.supportedLocales.join(",")}
       data-menu-blocked-locales={
         menu.translationLocales

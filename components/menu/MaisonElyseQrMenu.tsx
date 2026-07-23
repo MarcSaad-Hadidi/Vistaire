@@ -388,7 +388,20 @@ function menuPaletteStyle(config?: MenuUiConfig): CSSProperties | undefined {
     "--menu-border": config.palette.border,
     "--menu-success": config.palette.success,
     "--menu-warning": config.palette.warning,
-    "--menu-danger": config.palette.danger
+    "--menu-danger": config.palette.danger,
+    "--elyse-bg": config.palette.background,
+    "--elyse-bg-soft": config.palette.surface,
+    "--elyse-surface": config.palette.surface,
+    "--elyse-surface-soft": config.palette.surface,
+    "--elyse-cream": config.palette.text,
+    "--elyse-text": config.palette.text,
+    "--elyse-muted": config.palette.muted,
+    "--elyse-champagne": config.palette.accent,
+    "--elyse-gold": config.palette.accent2,
+    "--elyse-bronze": config.palette.accent3,
+    "--elyse-border": config.palette.border,
+    "--elyse-border-strong": config.palette.accent,
+    "--elyse-overlay": `color-mix(in srgb, ${config.palette.background} 62%, transparent)`
   } as CSSProperties;
 }
 
@@ -821,6 +834,7 @@ export function MaisonElyseQrMenu({
   }, []);
 
   useEffect(() => {
+    if (displayMode !== "public") return;
     const frameId = window.requestAnimationFrame(() => {
       const manualLocale = manualLocaleRef.current;
       if (manualLocale && queryLocale !== manualLocale) return;
@@ -854,9 +868,10 @@ export function MaisonElyseQrMenu({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [propLocale, queryLocale, resetLocaleDependentUi]);
+  }, [displayMode, propLocale, queryLocale, resetLocaleDependentUi]);
 
   useEffect(() => {
+    if (displayMode !== "public") return;
     if (queryLocale) return;
     if (selectedLocale === propLocale) return;
 
@@ -869,7 +884,7 @@ export function MaisonElyseQrMenu({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [propLocale, queryLocale, selectedLocale]);
+  }, [displayMode, propLocale, queryLocale, selectedLocale]);
 
   useEffect(() => {
     if (activeCategory !== ALL_CATEGORY_ID || !pendingSectionLabel) return;
@@ -987,6 +1002,7 @@ export function MaisonElyseQrMenu({
   }
 
   function writeLocaleToUrl(nextLocale: Locale) {
+    if (displayMode !== "public") return;
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set("lang", nextLocale);
     router.replace(
@@ -1001,10 +1017,12 @@ export function MaisonElyseQrMenu({
     setShouldPersistLocaleInLinks(true);
     resetLocaleDependentUi();
 
-    try {
-      window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, nextLocale);
-    } catch {
-      // The in-memory selection is enough for this session.
+    if (displayMode === "public") {
+      try {
+        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, nextLocale);
+      } catch {
+        // The in-memory selection is enough for this session.
+      }
     }
 
     writeLocaleToUrl(nextLocale);

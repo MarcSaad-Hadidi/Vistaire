@@ -31,18 +31,18 @@
 }
 
 .page {
-  --elyse-bg: #050403;
-  --elyse-bg-soft: #0b0705;
-  --elyse-surface: #120c08;
-  --elyse-surface-soft: #191109;
-  --elyse-cream: #fff7ea;
-  --elyse-text: #f4ebdd;
-  --elyse-muted: #bfaf98;
-  --elyse-champagne: #e8cf9b;
-  --elyse-gold: #d2a45e;
-  --elyse-bronze: #8a6338;
-  --elyse-border: rgba(232, 207, 155, 0.2);
-  --elyse-border-strong: rgba(232, 207, 155, 0.42);
+  --elyse-bg: var(--menu-bg, #050403);
+  --elyse-bg-soft: var(--menu-surface, #0b0705);
+  --elyse-surface: var(--menu-surface, #120c08);
+  --elyse-surface-soft: color-mix(in srgb, var(--menu-surface, #191109) 76%, var(--menu-bg, #050403));
+  --elyse-cream: var(--menu-text, #fff7ea);
+  --elyse-text: var(--menu-text, #f4ebdd);
+  --elyse-muted: var(--menu-muted, #bfaf98);
+  --elyse-champagne: var(--menu-accent, #e8cf9b);
+  --elyse-gold: var(--menu-accent-2, #d2a45e);
+  --elyse-bronze: var(--menu-accent-3, #8a6338);
+  --elyse-border: var(--menu-border, rgba(232, 207, 155, 0.2));
+  --elyse-border-strong: color-mix(in srgb, var(--menu-accent, #e8cf9b) 42%, transparent);
   min-height: 100svh;
   overflow-x: clip;
   background:
@@ -593,5 +593,80 @@
 @media (prefers-reduced-motion: reduce) {
   .page {
     scroll-behavior: auto;
+  }
+}
+
+@container (max-width: 420px) {
+  .page.phonePreview {
+    position: static;
+    height: auto;
+    min-height: 650px;
+    overflow: visible;
+    background: var(--elyse-bg);
+    padding: 0 0 24px;
+  }
+
+  .page.phonePreview .topNav {
+    position: sticky;
+    top: 0;
+    right: auto;
+    left: auto;
+    min-height: 48px;
+    border-color: var(--elyse-border);
+    background: var(--elyse-surface);
+    padding: 6px;
+  }
+
+  .page.phonePreview .topNav a,
+  .page.phonePreview .topNav button {
+    min-height: 34px;
+    padding-inline: 10px;
+  }
+
+  .page.phonePreview .topNav span {
+    max-width: 42%;
+    font-size: 14px;
+  }
+
+  .page.phonePreview .hero {
+    min-height: 250px;
+  }
+
+  .page.phonePreview .content {
+    width: calc(100% - 24px);
+    margin: -48px auto 0;
+    padding: 16px 14px 24px;
+  }
+
+  .page.phonePreview .heading h1 {
+    max-width: 12ch;
+    font-size: 34px;
+  }
+
+  .page.phonePreview .description,
+  .page.phonePreview .detailSections ul,
+  .page.phonePreview .detailSections p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .page.phonePreview .price {
+    font-size: 22px;
+  }
+
+  .page.phonePreview .modelPanel,
+  .page.phonePreview .detailSections li {
+    border-color: var(--elyse-border);
+    background: var(--elyse-surface);
+  }
+
+  .page.phonePreview .modelPanelHeader {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .page.phonePreview .primaryAction {
+    width: 100%;
+    justify-self: stretch;
   }
 }

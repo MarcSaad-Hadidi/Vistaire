@@ -112,3 +112,21 @@
 :global([data-user-theme="light"]) .label {
   color: #8f6d14;
 }
+
+/* Detail chips inherit the restaurant palette in both theme modes. */
+:global([data-display-mode="phone-preview"]) .chipAccent,
+:global([data-user-theme="light"]) .chipAccent {
+  border-color: var(--menu-accent, var(--tag-accent-border));
+  color: var(--menu-text, var(--tag-accent-text));
+  background: color-mix(
+    in srgb,
+    var(--menu-accent, var(--tag-accent-border)) 10%,
+    var(--menu-surface, transparent)
+  );
+  box-shadow: none;
+}
+
+:global([data-display-mode="phone-preview"]) .label,
+:global([data-user-theme="light"]) .label {
+  color: var(--menu-muted, #8f6d14);
+}
