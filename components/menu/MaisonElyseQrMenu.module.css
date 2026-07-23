@@ -659,9 +659,7 @@
   justify-self: center;
   overflow-y: auto;
   border: 1px solid rgba(201, 164, 92, 0.22);
-  background:
-    linear-gradient(180deg, rgba(17, 17, 17, 0.98), rgba(0, 0, 0, 0.98)),
-    var(--elyse-bg-soft);
+  background: var(--elyse-black);
   padding: 10px 14px calc(18px + env(safe-area-inset-bottom));
   box-shadow:
     0 -26px 70px rgba(0, 0, 0, 0.5),
@@ -1164,6 +1162,10 @@
   .page.phonePreview .bottomSheet {
     background: var(--elyse-surface);
     border-color: var(--elyse-border);
+  }
+
+  .page.phonePreview .bottomSheet {
+    background: var(--elyse-black);
   }
 
   .page.phonePreview .dishItem {
