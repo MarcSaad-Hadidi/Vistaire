@@ -50,6 +50,10 @@ if (serverVersion < 170000 || serverVersion >= 180000) {
 
 psql(["--file", path.join(root, "tests/postgres/qr-lifecycle/bootstrap.sql")]);
 psql(["--file", path.join(root, "supabase/migrations/0007_restaurants.sql")]);
+psql([
+  "--file",
+  path.join(root, "tests/postgres/unique-menu-design/schema-catchup.sql")
+]);
 psql(["--file", path.join(root, "supabase/migrations/0013_create_owner_restaurant_with_menu.sql")]);
 psql(["--file", path.join(root, "supabase/migrations/0008_menu_ui_configs.sql")]);
 psql([
