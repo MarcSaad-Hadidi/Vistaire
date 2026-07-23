@@ -58,6 +58,7 @@ import {
   resolveDishSwipeGesture
 } from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
+import { AllergenWarning } from "./AllergenDisclosure";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
@@ -659,6 +660,7 @@ export function TrouvableDishDetailExperience({
         <section className={styles.detailBody} aria-label={copy.moreDetails} dir={textDirection}>
           <p className={styles.detailRestaurantName}>{context || menu.name}</p>
           <h1 id="trouvable-dish-title">{activeDish.name}</h1>
+          <AllergenWarning locale={selectedLocale} />
           {activePrice ? (
             <strong className={styles.detailPrice}>{activePrice}</strong>
           ) : null}
@@ -812,6 +814,7 @@ export function TrouvableDishDetailExperience({
         <PremiumDishDetailsSheet
           dish={activeDish}
           copy={copy}
+          locale={selectedLocale}
           sheetId={moreDetailsId}
           titleId="trouvable-route-details-title"
           onClose={() => setActiveSubSheet(null)}

@@ -203,10 +203,6 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
     "Signature",
     "3D / AR",
     "Disponibles",
-    "Sans gluten",
-    "Sans lactose",
-    "Sans fruits à coque",
-    "Sans crustacés",
     "Réinitialiser",
     "Appliquer",
     "Aucun plat dans cette sélection"
@@ -219,8 +215,9 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.match(component, /Filtre actif/);
   assert.match(component, /Recommended/);
   assert.match(component, /Available/);
-  assert.match(component, /Gluten-free/);
-  assert.match(component, /Dairy-free/);
+  assert.match(component, /ALLERGEN_FILTERS/);
+  assert.match(component, /matchesConfirmedFree/);
+  assert.match(component, /AllergenWarning/);
   assert.match(component, /Filter the menu/);
   assert.match(component, /Active filter/);
   assert.doesNotMatch(component, /Tous les plats/);
@@ -229,10 +226,8 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.doesNotMatch(component, /plat disponible/);
   assert.doesNotMatch(component, /Sans lactose \/ laitiers/);
   assert.doesNotMatch(component, /Filtres précis/);
-  assert.match(component, /Sans œufs/);
-  assert.match(component, /Sans sésame/);
-  assert.match(component, /Sans soja/);
-  assert.match(component, /Sans poisson/);
+  assert.doesNotMatch(component, /Sans lactose/);
+  assert.doesNotMatch(component, /ALLERGEN_FILTER_TERMS/);
   assert.match(component, /GoogleReviewCard/);
   assert.match(component, /FILTER_OPTIONS/);
   assert.match(component, /activeSheet/);

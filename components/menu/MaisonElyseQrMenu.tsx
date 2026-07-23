@@ -6,12 +6,18 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
+import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { useTransitionPresence } from "@/lib/useTransitionPresence";
 import { maisonElyseThemeStyle } from "@/lib/menu/maisonElyseTheme";
+import {
+  ALLERGEN_FILTERS,
+  matchesConfirmedFreeForFilter,
+  type AllergenFilterId
+} from "@/lib/menu/allergens";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -61,26 +67,8 @@ type FilterId =
   | "signature"
   | "immersive"
   | "available"
-  | "gluten-free"
-  | "dairy-free"
-  | "nut-free"
-  | "shellfish-free"
-  | "egg-free"
-  | "sesame-free"
-  | "soy-free"
-  | "fish-free";
-
-type DietaryFilterId = Extract<
-  FilterId,
-  | "gluten-free"
-  | "dairy-free"
-  | "nut-free"
-  | "shellfish-free"
-  | "egg-free"
-  | "sesame-free"
-  | "soy-free"
-  | "fish-free"
->;
+  | AllergenFilterId;
+type DietaryFilterId = AllergenFilterId;
 
 type SheetId = "menu" | "filter" | "language" | null;
 
@@ -92,19 +80,18 @@ const LANGUAGE_OPTIONS: Array<{ id: Locale; label: string; shortLabel: string }>
   { id: "fr", label: "Français", shortLabel: "FR" },
   { id: "en", label: "English", shortLabel: "EN" }
 ];
+const ALLERGEN_FILTER_LABELS = Object.fromEntries(
+  ALLERGEN_FILTERS.map((filter) => [filter.id, filter.labels])
+) as Record<AllergenFilterId, Record<Locale, string>>;
 const FILTER_OPTIONS: Array<{ id: FilterId; labels: Record<Locale, string> }> = [
   { id: "signature", labels: { fr: "Signature", en: "Signature" } },
   { id: "recommended", labels: { fr: "Recommandés", en: "Recommended" } },
   { id: "immersive", labels: { fr: "3D / AR", en: "3D / AR" } },
   { id: "available", labels: { fr: "Disponibles", en: "Available" } },
-  { id: "gluten-free", labels: { fr: "Sans gluten", en: "Gluten-free" } },
-  { id: "dairy-free", labels: { fr: "Sans lactose", en: "Dairy-free" } },
-  { id: "nut-free", labels: { fr: "Sans fruits à coque", en: "Nut-free" } },
-  { id: "shellfish-free", labels: { fr: "Sans crustacés", en: "Shellfish-free" } },
-  { id: "egg-free", labels: { fr: "Sans œufs", en: "Egg-free" } },
-  { id: "sesame-free", labels: { fr: "Sans sésame", en: "Sesame-free" } },
-  { id: "soy-free", labels: { fr: "Sans soja", en: "Soy-free" } },
-  { id: "fish-free", labels: { fr: "Sans poisson", en: "Fish-free" } }
+  ...ALLERGEN_FILTERS.map((filter) => ({
+    id: filter.id as AllergenFilterId,
+    labels: ALLERGEN_FILTER_LABELS[filter.id]
+  }))
 ];
 const BACK_TO_TOP_SCROLL_THRESHOLD = 520;
 
@@ -200,28 +187,6 @@ const MENU_COPY: Record<
     sheetNavigation: "Navigation",
     unavailableBadge: "Unavailable",
   }
-};
-
-const ALLERGEN_FILTER_TERMS: Record<DietaryFilterId, string[]> = {
-  "gluten-free": ["gluten", "wheat", "ble"],
-  "dairy-free": [
-    "dairy",
-    "lait",
-    "lactose",
-    "milk",
-    "cream",
-    "creme",
-    "cheese",
-    "fromage",
-    "beurre",
-    "butter"
-  ],
-  "nut-free": ["nut", "nuts", "noix", "amande", "amandes", "noisette", "pistache"],
-  "shellfish-free": ["shellfish", "crustace", "crustaces", "homard", "crevette", "crabe"],
-  "egg-free": ["egg", "eggs", "oeuf", "oeufs"],
-  "sesame-free": ["sesame"],
-  "soy-free": ["soy", "soja"],
-  "fish-free": ["fish", "poisson", "thon", "saumon", "bar", "cabillaud"]
 };
 
 function normalizeText(value: string): string {
@@ -463,10 +428,7 @@ function dishMatchesFilter(dish: PublicMenuDish, filter: FilterId): boolean {
   if (filter === "immersive") return hasReal3d(dish) || hasRealAr(dish);
   if (filter === "available") return dish.available;
   if (isDietaryFilter(filter)) {
-    const allergenTokens = new Set(dish.allergens.flatMap(tokenize));
-    return !ALLERGEN_FILTER_TERMS[filter].some((term) =>
-      allergenTokens.has(normalizeText(term))
-    );
+    return matchesConfirmedFreeForFilter(dish, filter);
   }
   return true;
 }
@@ -1293,6 +1255,8 @@ export function MaisonElyseQrMenu({
                   <p>{copy.collectionBody}</p>
                 </div>
               </div>
+
+              <AllergenWarning locale={selectedLocale} />
 
               {hasActiveFilter ? (
                 <div className={styles.activeFilterNotice} role="status">

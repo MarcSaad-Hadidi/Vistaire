@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import type { TransitionPresenceState } from "@/lib/useTransitionPresence";
 import type { PublicMenuDish } from "@/lib/menu/publicMenuCore";
 import type { getTrouvableCopy } from "./trouvableMenuControls";
+import { AllergenDisclosure } from "./AllergenDisclosure";
 import {
   PremiumDishTagGroup,
   PremiumDishTagsFallback
@@ -23,6 +24,7 @@ type PremiumDishDetailsSheetProps = {
   className?: string;
   userTheme?: "dark" | "light";
   dataState?: TransitionPresenceState;
+  locale?: string;
 };
 
 export function PremiumDishDetailsSheet({
@@ -34,17 +36,19 @@ export function PremiumDishDetailsSheet({
   panelRef,
   className = "",
   userTheme = "dark",
-  dataState = "open"
+  dataState = "open",
+  locale = "fr"
 }: PremiumDishDetailsSheetProps) {
   const compositionId = `${sheetId}-composition-label`;
-  const allergenId = `${sheetId}-allergen-label`;
   const optionsId = `${sheetId}-options-label`;
   const houseNoteId = `${sheetId}-house-note-label`;
 
   const hasDescription = Boolean(dish.description.trim());
   const hasHouseNote = Boolean(dish.houseNote.trim());
   const hasIngredients = dish.ingredients.some((item) => item.trim());
-  const hasAllergens = dish.allergens.some((item) => item.trim());
+  const hasAllergens =
+    dish.allergens.some((item) => item.trim()) ||
+    (dish.allergenDeclarations?.length ?? 0) > 0;
   const hasOptions = dish.options.some((item) => item.trim());
   const hasStructuredContent =
     hasDescription ||
@@ -108,14 +112,7 @@ export function PremiumDishDetailsSheet({
             kind="ingredient"
             labelledById={compositionId}
           />
-          <PremiumDishTagGroup
-            label={copy.detailAllergensLabel}
-            items={dish.allergens}
-            kind="allergen"
-            labelledById={allergenId}
-            describedBy={hasAllergens ? allergenId : undefined}
-            itemTitlePrefix={copy.allergenTitlePrefix}
-          />
+          <AllergenDisclosure dish={dish} locale={locale} includeWarning={false} />
           <PremiumDishTagGroup
             label={copy.detailOptionsLabel}
             items={dish.options}

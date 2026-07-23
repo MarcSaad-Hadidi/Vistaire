@@ -139,6 +139,7 @@ export default async function PublicDishPage({
       config={resolvedConfig}
       context={context}
       dish={dish}
+      locale={activeLocale}
       menu={menu}
       query={menuQuery}
     />

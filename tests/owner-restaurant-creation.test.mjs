@@ -736,7 +736,7 @@ test("restaurant creation wizard keeps structure before dishes and style after d
   assert.doesNotMatch(source, /immersiveCandidate|3D|AR/);
   assert.match(source, /Description courte/);
   assert.match(source, /Ingredients principaux/);
-  assert.match(source, /Allergenes/);
+  assert.match(source, /allerg[eè]nes/i);
   assert.match(source, /Badges/);
   assert.match(source, /Options/);
   assert.match(source, /Note du chef/);

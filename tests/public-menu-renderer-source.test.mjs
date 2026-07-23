@@ -120,6 +120,31 @@ test("builder preview opens dish details as a full detail experience, not a comp
   assert.match(source, /onBack=\{\(\) => setSelectedDish\(null\)\}/);
 });
 
+test("generic public dish sheets render structured allergen declarations and active locale", async () => {
+  const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
+  const detailRouteSource = await readFile(
+    "app/menu/[slug]/dishes/[dishSlug]/page.tsx",
+    "utf8"
+  );
+
+  assert.match(
+    source,
+    /import \{[^}]*AllergenDisclosure[^}]*\} from "\.\/AllergenDisclosure"/
+  );
+  assert.match(
+    source,
+    /<AllergenDisclosure[\s\S]*dish=\{selectedDish\}[\s\S]*locale=\{activeLocale\}[\s\S]*includeWarning=\{false\}/
+  );
+  assert.ok(
+    (source.match(/locale=\{activeLocale\}/g) ?? []).length >= 2,
+    "public and builder detail experiences both receive the active locale"
+  );
+  assert.match(
+    detailRouteSource,
+    /<PublicDishDetailExperience[\s\S]*locale=\{activeLocale\}/
+  );
+});
+
 test("public menu CSS prevents letter-by-letter wrapping and fragile mobile grids", async () => {
   const css = await readFile("components/menu/PublicMenuRenderer.module.css", "utf8");
 

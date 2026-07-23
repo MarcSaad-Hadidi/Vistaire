@@ -1,5 +1,6 @@
 import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
 import type { MenuAppearanceSelection } from "@/lib/menu/menuAppearance";
+import type { DishAllergenDeclaration } from "@/lib/menu/allergens";
 
 export type OwnerRestaurantStatus =
   | "demo"
@@ -249,6 +250,7 @@ export type CreateRestaurantDishInput = {
   imageUrl?: string;
   ingredients?: string[];
   allergens?: string[];
+  allergenDeclarations?: DishAllergenDeclaration[];
   tags?: string[];
   options?: string[];
   chefNote?: string;

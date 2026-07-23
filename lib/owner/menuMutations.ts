@@ -16,6 +16,12 @@ import {
   collectDishMediaStorageTargets,
   deleteDishMediaStorageTargets
 } from "@/lib/owner/dishMediaGarbageCollector";
+import {
+  legacyAllergensFromDeclarations,
+  normalizeAllergenData,
+  validateAllergenDeclarations,
+  type DishAllergenDeclaration
+} from "@/lib/menu/allergens";
 
 type MenuMutationResult =
   | { ok: true; record: Record<string, unknown> }
@@ -102,6 +108,51 @@ function priceInput(value: unknown): string {
     .trim()
     .replace(/[^\d,.-]/g, "")
     .slice(0, 24);
+}
+
+function allergenInput(candidate: Record<string, unknown>): {
+  declarations: DishAllergenDeclaration[];
+  legacyValues: string[];
+  explicit: boolean;
+} | { error: string } {
+  const legacyValues = stringListInput(candidate.allergens);
+  const rawDeclarations = candidate.allergenDeclarations ?? candidate.allergen_declarations;
+  try {
+    const declarations =
+      rawDeclarations === undefined
+        ? normalizeAllergenData(undefined, legacyValues).declarations
+        : validateAllergenDeclarations(rawDeclarations);
+    return {
+      declarations,
+      legacyValues: legacyAllergensFromDeclarations(declarations, legacyValues),
+      explicit: rawDeclarations !== undefined
+    };
+  } catch {
+    return { error: "Declarations allergenes invalides." };
+  }
+}
+
+function persistedAllergenDeclarations(
+  data: ReturnType<typeof allergenInput>
+): DishAllergenDeclaration[] | null {
+  if ("error" in data) return null;
+  return data.explicit || data.declarations.length > 0 ? data.declarations : null;
+}
+
+function preserveExistingAllergenDeclarations(
+  data: ReturnType<typeof allergenInput>,
+  existing: unknown
+): DishAllergenDeclaration[] | null {
+  if ("error" in data) return null;
+  if (data.explicit) return data.declarations;
+  if (Array.isArray(existing)) {
+    try {
+      return validateAllergenDeclarations(existing);
+    } catch {
+      // A malformed legacy row remains fail-closed and requires owner review.
+    }
+  }
+  return persistedAllergenDeclarations(data);
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -550,7 +601,11 @@ export async function createOwnerMenuDish(args: {
   const categoryId = stringInput(candidate.categoryId ?? candidate.category_id, 80);
   const parsedPrice = parsePriceToCents(priceInput(candidate.price));
   const available = booleanInput(candidate.available, true);
-  const allergens = stringListInput(candidate.allergens);
+  const allergenData = allergenInput(candidate);
+  if ("error" in allergenData) {
+    return { ok: false, status: 400, error: allergenData.error };
+  }
+  const allergens = allergenData.legacyValues;
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
   if (!parsedPrice.ok) return { ok: false, status: 400, error: parsedPrice.error };
@@ -598,6 +653,7 @@ export async function createOwnerMenuDish(args: {
       is_available: available,
       has_immersive_view: false,
       allergens,
+      allergen_declarations: persistedAllergenDeclarations(allergenData),
       metadata: dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate)
     })
     .select("id,name,slug,category_id,price_cents,currency")
@@ -624,7 +680,11 @@ export async function updateOwnerMenuDish(args: {
   const categoryId = stringInput(candidate.categoryId ?? candidate.category_id, 80);
   const parsedPrice = parsePriceToCents(priceInput(candidate.price));
   const available = booleanInput(candidate.available, true);
-  const allergens = stringListInput(candidate.allergens);
+  const allergenData = allergenInput(candidate);
+  if ("error" in allergenData) {
+    return { ok: false, status: 400, error: allergenData.error };
+  }
+  const allergens = allergenData.legacyValues;
   if (!id) return { ok: false, status: 400, error: "Plat requis." };
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
@@ -632,7 +692,7 @@ export async function updateOwnerMenuDish(args: {
 
   const existing = await args.client
     .from("menu_dishes")
-    .select("id,menu_id,metadata")
+    .select("id,menu_id,metadata,allergen_declarations")
     .eq("id", id)
     .eq("restaurant_id", args.restaurantId)
     .maybeSingle();
@@ -681,6 +741,10 @@ export async function updateOwnerMenuDish(args: {
       currency: settings.baseCurrency,
       is_available: available,
       allergens,
+      allergen_declarations: preserveExistingAllergenDeclarations(
+        allergenData,
+        existing.data.allergen_declarations
+      ),
       metadata: dishMetadata(existing.data.metadata, parsedPrice, candidate),
       updated_at: new Date().toISOString()
     })

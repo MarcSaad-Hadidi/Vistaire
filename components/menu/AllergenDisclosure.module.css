@@ -1,0 +1,53 @@
+.warning,
+.disclosure {
+  margin-top: 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.warning {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.warning strong,
+.disclosure h2,
+.group dt {
+  font-weight: 700;
+}
+
+.warning p,
+.disclosure h2,
+.disclosure dl,
+.unknown {
+  margin: 0;
+}
+
+.warning p {
+  margin-top: 0.3rem;
+}
+
+.disclosure h2 {
+  font-size: 0.9rem;
+}
+
+.disclosure dl {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+.group {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.group dd {
+  margin: 0;
+}
+
+.unknown {
+  margin-top: 0.65rem;
+}

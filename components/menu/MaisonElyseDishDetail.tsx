@@ -6,6 +6,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { Locale } from "@/lib/i18n";
+import { AllergenDisclosure } from "./AllergenDisclosure";
 import {
   type PublicMenu,
   type PublicMenuContextQuery,
@@ -136,29 +137,6 @@ const DETAIL_COPY: Record<
   }
 };
 
-const ALLERGEN_LABELS: Record<Locale, Record<string, string>> = {
-  fr: {
-    dairy: "Lait",
-    eggs: "Oeufs",
-    fish: "Poisson",
-    gluten: "Gluten",
-    nuts: "Fruits à coque",
-    sesame: "Sésame",
-    shellfish: "Crustacés",
-    soy: "Soja"
-  },
-  en: {
-    dairy: "Dairy",
-    eggs: "Eggs",
-    fish: "Fish",
-    gluten: "Gluten",
-    nuts: "Tree nuts",
-    sesame: "Sesame",
-    shellfish: "Shellfish",
-    soy: "Soy"
-  }
-};
-
 function cleanDisplayText(value: string): string {
   return value
     .replaceAll("Ãƒâ€°", "É")
@@ -260,17 +238,11 @@ function dishBadges(dish: PublicMenuDish, locale: Locale): string[] {
 }
 
 function displayList(
-  items: string[],
-  locale: Locale,
-  type?: "allergens"
+  items: string[]
 ): string[] {
   return items
     .map((item) => {
-      const cleaned = cleanDisplayText(item);
-      if (type === "allergens") {
-        return ALLERGEN_LABELS[locale][normalizeText(cleaned)] ?? cleaned;
-      }
-      return cleaned;
+      return cleanDisplayText(item);
     })
     .filter(Boolean);
 }
@@ -350,9 +322,8 @@ export function MaisonElyseDishDetail({
   const hasAr = hasRealAr(dish);
   const canOpenImmersive = has3d || hasAr;
   const badges = dishBadges(dish, locale);
-  const ingredients = displayList(dish.ingredients, locale);
-  const allergens = displayList(dish.allergens, locale, "allergens");
-  const options = displayList(dish.options, locale);
+  const ingredients = displayList(dish.ingredients);
+  const options = displayList(dish.options);
   const houseNote = cleanDisplayText(dish.houseNote);
   const actionLabel = showModelViewer
     ? has3d
@@ -493,10 +464,7 @@ export function MaisonElyseDishDetail({
               <DetailList emptyText={copy.fallbackList} items={ingredients} />
             </section>
 
-            <section>
-              <h2>{copy.allergens}</h2>
-              <DetailList emptyText={copy.fallbackList} items={allergens} />
-            </section>
+            <AllergenDisclosure dish={dish} locale={locale} />
 
             <section>
               <h2>{copy.options}</h2>

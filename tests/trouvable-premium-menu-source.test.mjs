@@ -185,8 +185,8 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(controls, /it:\s*\{/);
   assert.match(controls, /ar:\s*\{/);
   assert.match(controls, /getTrouvableTextDirection/);
-  assert.match(controls, /Sans gluten/);
-  assert.match(controls, /\\u00e0 coque/);
+  assert.match(controls, /sans gluten/i);
+  assert.match(controls, /fruits à coque/i);
   assert.match(source, /openRestaurantReviewSheet/);
   assert.match(source, /openSheet\("experienceReview"\)/);
   assert.match(source, /copy\.reviewExperienceTitle/);
@@ -310,7 +310,8 @@ test("Trouvable details keep ingredients, allergens, options, and notes in the p
   assert.match(source, /PremiumDishDetailsSheet/);
   assert.match(detailSource, /PremiumDishDetailsSheet/);
   assert.match(sheetSource, /copy\.detailCompositionLabel/);
-  assert.match(sheetSource, /copy\.detailAllergensLabel/);
+  assert.match(sheetSource, /AllergenDisclosure/);
+  assert.match(sheetSource, /allergenDeclarations/);
   assert.match(sheetSource, /copy\.detailOptionsLabel/);
   assert.doesNotMatch(source, /copy\.ingredientsCount\(/);
   assert.match(source, /DishCard3dBadge/);

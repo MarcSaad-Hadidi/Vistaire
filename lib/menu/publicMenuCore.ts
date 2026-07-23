@@ -12,6 +12,10 @@ import {
   type PublicMenuPriceDisplayMode,
   type PublicMenuSettings
 } from "./publicMenuSettings.ts";
+import {
+  normalizeAllergenData,
+  type DishAllergenDeclaration
+} from "./allergens.ts";
 
 export type PublicMenuDish = {
   id: string;
@@ -100,6 +104,9 @@ export type PublicMenuDish = {
   isRecommended?: boolean;
   ingredients: string[];
   allergens: string[];
+  allergenDeclarations?: DishAllergenDeclaration[];
+  allergenLegacyValues?: string[];
+  allergenReviewRequired?: boolean;
   options: string[];
   houseNote: string;
   tags: string[];
@@ -470,6 +477,25 @@ function getStringListFromSources(
   return metadataList.length > 0 ? metadataList : getStringList(row, candidates);
 }
 
+function getAllergenDeclarationSource(
+  row: PublicMenuRow,
+  metadata: PublicMenuRow
+): unknown {
+  const keys = [
+    "allergen_declarations",
+    "allergenDeclarations",
+    "allergenDeclaration",
+    "allergen_declaration"
+  ];
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) return row[key];
+  }
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(metadata, key)) return metadata[key];
+  }
+  return undefined;
+}
+
 function mergeStringLists(...lists: string[][]): string[] {
   const seen = new Set<string>();
   const values: string[] = [];
@@ -817,6 +843,15 @@ function mapDishRow(
   const storedModelStatus = getString(metadata, ["modelStatus", "model_status"], "");
   const isSignature = getBoolean(row, ["is_signature", "isSignature"]);
   const isRecommended = getBoolean(row, ["is_recommended", "isRecommended"]);
+  const legacyAllergens = getStringListFromSources(row, metadata, [
+    "allergens",
+    "allergenes",
+    "allergen_list"
+  ]);
+  const allergenData = normalizeAllergenData(
+    getAllergenDeclarationSource(row, metadata),
+    legacyAllergens
+  );
   const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl);
   const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
   const hasAndroidAr = Boolean(arModel3dUrl);
@@ -930,7 +965,10 @@ function mapDishRow(
     ...(isSignature ? { isSignature } : {}),
     ...(isRecommended ? { isRecommended } : {}),
     ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
-    allergens: getStringListFromSources(row, metadata, ["allergens", "allergenes", "allergen_list"]),
+    allergens: legacyAllergens,
+    allergenDeclarations: allergenData.declarations,
+    allergenLegacyValues: allergenData.legacyValues,
+    allergenReviewRequired: allergenData.reviewRequired,
     options: mergeStringLists(
       getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
       getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),

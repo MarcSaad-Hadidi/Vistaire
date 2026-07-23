@@ -39,6 +39,15 @@ import type {
   OwnerRestaurant,
   OwnerRestaurantStatus
 } from "@/lib/owner/types";
+import {
+  ALLERGEN_REGISTRY,
+  allergenLabel,
+  getAllergenStatus,
+  legacyAllergensFromDeclarations,
+  normalizeAllergenData,
+  type AllergenStatus,
+  type DishAllergenDeclaration
+} from "@/lib/menu/allergens";
 import { OwnerMenuLivePreview } from "./OwnerMenuLivePreview";
 import type { DraftDish, DraftSection } from "./restaurantCreatePreviewTypes";
 
@@ -174,17 +183,6 @@ const publicMenuStyleOptions: Array<{
   }
 ];
 
-const allergenOptions = [
-  "Gluten",
-  "Produits laitiers",
-  "Oeufs",
-  "Poisson",
-  "Crustaces",
-  "Fruits a coque",
-  "Soya",
-  "Aucun connu"
-];
-
 const badgeOptions = [
   "Maison",
   "Signature",
@@ -203,6 +201,20 @@ const photoStatusOptions: Array<{
   { value: "planned", label: "A ajouter dans medias" },
   { value: "missing", label: "Sans photo" }
 ];
+
+const allergenStatusOptions: Array<{ value: AllergenStatus; label: string }> = [
+  { value: "unknown", label: "À confirmer" },
+  { value: "contains", label: "Contient" },
+  { value: "may_contain", label: "Peut contenir" },
+  { value: "confirmed_free", label: "Déclaré sans" }
+];
+
+function emptyAllergenDeclarations(): DishAllergenDeclaration[] {
+  return ALLERGEN_REGISTRY.map(({ id }) => ({
+    allergenId: id,
+    status: "unknown"
+  }));
+}
 
 function absoluteUrl(siteOrigin: string, path: string): string {
   try {
@@ -452,7 +464,9 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [dishImageUrl, setDishImageUrl] = useState("");
   const [dishIngredients, setDishIngredients] = useState("");
   const [dishOptions, setDishOptions] = useState("");
-  const [dishAllergens, setDishAllergens] = useState<string[]>([]);
+  const [dishAllergenDeclarations, setDishAllergenDeclarations] = useState<
+    DishAllergenDeclaration[]
+  >(emptyAllergenDeclarations);
   const [dishTags, setDishTags] = useState<string[]>([]);
   const [dishChefNote, setDishChefNote] = useState("");
   const [dishAvailable, setDishAvailable] = useState(true);
@@ -645,12 +659,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDefaultCurrency(currency);
   }
 
-  function toggleAllergen(value: string) {
-    setDishAllergens((current) => {
-      if (value === "Aucun connu") return current.includes(value) ? [] : [value];
-      if (current.includes(value)) return current.filter((item) => item !== value);
-      return [...current.filter((item) => item !== "Aucun connu"), value];
-    });
+  function updateAllergenStatus(allergenId: string, status: AllergenStatus) {
+    setDishAllergenDeclarations((current) =>
+      current.map((item) =>
+        item.allergenId === allergenId
+          ? { ...item, status }
+          : item
+      )
+    );
   }
 
   function toggleTag(value: string) {
@@ -671,7 +687,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDishImageUrl("");
     setDishIngredients("");
     setDishOptions("");
-    setDishAllergens([]);
+    setDishAllergenDeclarations(emptyAllergenDeclarations());
     setDishTags([]);
     setDishChefNote("");
     setDishAvailable(true);
@@ -688,7 +704,16 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDishImageUrl(dish.imageUrl);
     setDishIngredients(dish.ingredients.join(", "));
     setDishOptions(dish.options.join(", "));
-    setDishAllergens(dish.allergens);
+    const normalizedAllergens = normalizeAllergenData(
+      dish.allergenDeclarations,
+      dish.allergens
+    );
+    setDishAllergenDeclarations(
+      ALLERGEN_REGISTRY.map(({ id }) => ({
+        allergenId: id,
+        status: getAllergenStatus(normalizedAllergens, id)
+      }))
+    );
     setDishTags(dish.tags);
     setDishChefNote(dish.chefNote);
     setDishAvailable(dish.available);
@@ -736,7 +761,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       description,
       imageUrl,
       ingredients: splitList(dishIngredients),
-      allergens: dishAllergens,
+      allergens: legacyAllergensFromDeclarations(dishAllergenDeclarations),
+      allergenDeclarations: dishAllergenDeclarations,
       tags: dishTags,
       options: splitList(dishOptions),
       chefNote: dishChefNote.trim(),
@@ -910,6 +936,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             imageUrl: dish.imageUrl,
             ingredients: dish.ingredients,
             allergens: dish.allergens,
+            allergenDeclarations: dish.allergenDeclarations,
             tags: dish.tags,
             options: dish.options,
             chefNote: dish.chefNote,
@@ -1126,7 +1153,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             dishImageUrl={dishImageUrl}
             dishIngredients={dishIngredients}
             dishOptions={dishOptions}
-            dishAllergens={dishAllergens}
+            dishAllergenDeclarations={dishAllergenDeclarations}
             dishTags={dishTags}
             dishChefNote={dishChefNote}
             dishAvailable={dishAvailable}
@@ -1139,7 +1166,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onDishImageUrlChange={setDishImageUrl}
             onDishIngredientsChange={setDishIngredients}
             onDishOptionsChange={setDishOptions}
-            onToggleAllergen={toggleAllergen}
+            onAllergenStatusChange={updateAllergenStatus}
             onToggleTag={toggleTag}
             onDishChefNoteChange={setDishChefNote}
             onDishAvailableChange={setDishAvailable}
@@ -2237,7 +2264,7 @@ function DishesStep({
   dishImageUrl,
   dishIngredients,
   dishOptions,
-  dishAllergens,
+  dishAllergenDeclarations,
   dishTags,
   dishChefNote,
   dishAvailable,
@@ -2250,7 +2277,7 @@ function DishesStep({
   onDishImageUrlChange,
   onDishIngredientsChange,
   onDishOptionsChange,
-  onToggleAllergen,
+  onAllergenStatusChange,
   onToggleTag,
   onDishChefNoteChange,
   onDishAvailableChange,
@@ -2272,7 +2299,7 @@ function DishesStep({
   dishImageUrl: string;
   dishIngredients: string;
   dishOptions: string;
-  dishAllergens: string[];
+  dishAllergenDeclarations: DishAllergenDeclaration[];
   dishTags: string[];
   dishChefNote: string;
   dishAvailable: boolean;
@@ -2285,7 +2312,7 @@ function DishesStep({
   onDishImageUrlChange: (value: string) => void;
   onDishIngredientsChange: (value: string) => void;
   onDishOptionsChange: (value: string) => void;
-  onToggleAllergen: (value: string) => void;
+  onAllergenStatusChange: (allergenId: string, status: AllergenStatus) => void;
   onToggleTag: (value: string) => void;
   onDishChefNoteChange: (value: string) => void;
   onDishAvailableChange: (value: boolean) => void;
@@ -2400,12 +2427,42 @@ function DishesStep({
           </label>
         </div>
 
-        <ChoiceGroup
-          title="Allergenes"
-          options={allergenOptions}
-          selected={dishAllergens}
-          onToggle={onToggleAllergen}
-        />
+        <fieldset className={styles.formField}>
+          <legend>Déclarations allergènes</legend>
+          <p className={styles.cellSub}>
+            Chaque allergène doit avoir un statut explicite. Les statuts « À confirmer »
+            ne permettent jamais de passer un filtre sans allergène.
+          </p>
+          <p className={styles.cellSub}>
+            Ne sélectionnez « Déclaré sans » qu’après vérification de la recette, des sauces,
+            des fonds, des garnitures et des risques de contamination croisée.
+          </p>
+          <div className={styles.formGrid}>
+            {ALLERGEN_REGISTRY.map(({ id }) => {
+              const declaration = dishAllergenDeclarations.find(
+                (item) => item.allergenId === id
+              );
+              return (
+                <label key={id} className={styles.formField}>
+                  <span>{allergenLabel(id, "fr")}</span>
+                  <select
+                    className={styles.control}
+                    value={declaration?.status ?? "unknown"}
+                    onChange={(event) =>
+                      onAllergenStatusChange(id, event.target.value as AllergenStatus)
+                    }
+                  >
+                    {allergenStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
         <ChoiceGroup
           title="Badges"
           options={badgeOptions}

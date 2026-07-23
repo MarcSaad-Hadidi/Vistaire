@@ -18,8 +18,10 @@ import {
 } from "@/lib/analytics/client";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import type { Locale } from "@/lib/i18n";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
+import { AllergenDisclosure } from "./AllergenDisclosure";
 import styles from "./PublicDishDetailExperience.module.css";
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -35,6 +37,7 @@ type PublicDishDetailExperienceProps = {
   query?: PublicMenuContextQuery;
   mode?: "public" | "builder-preview";
   onBack?: () => void;
+  locale?: Locale;
 };
 
 type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
@@ -152,7 +155,8 @@ export function PublicDishDetailExperience({
   context = "",
   query,
   mode = "public",
-  onBack
+  onBack,
+  locale = "fr"
 }: PublicDishDetailExperienceProps) {
   const [showModelViewer, setShowModelViewer] = useState(false);
   const [ModelViewerComponent, setModelViewerComponent] =
@@ -309,12 +313,7 @@ export function PublicDishDetailExperience({
                 </section>
               ) : null}
 
-              {dish.allergens.length > 0 ? (
-                <section>
-                  <h2>Allergènes</h2>
-                  <DetailList items={dish.allergens} />
-                </section>
-              ) : null}
+              <AllergenDisclosure dish={dish} locale={locale} />
 
               {dish.options.length > 0 ? (
                 <section>

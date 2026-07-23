@@ -7,7 +7,7 @@ test("owner live dish editor sends public menu badge and filter fields", async (
 
   for (const field of [
     "ingredientsText",
-    "allergensText",
+    "allergenDeclarations",
     "tagsText",
     "optionsText",
     "chefNote"
@@ -17,7 +17,8 @@ test("owner live dish editor sends public menu badge and filter fields", async (
 
   assert.match(source, /extras.*accompagnements/i);
   assert.match(source, /ingredients:\s*splitDishList\(dishDraft\.ingredientsText\)/);
-  assert.match(source, /allergens:\s*splitDishList\(dishDraft\.allergensText\)/);
+  assert.match(source, /allergenDeclarations:\s*dishDraft\.allergenDeclarations/);
+  assert.doesNotMatch(source, /allergensText/);
   assert.match(source, /tags:\s*splitDishList\(dishDraft\.tagsText\)/);
   assert.match(source, /options:\s*splitDishList\(dishDraft\.optionsText\)/);
   assert.match(source, /chefNote:\s*dishDraft\.chefNote\.trim\(\)/);
