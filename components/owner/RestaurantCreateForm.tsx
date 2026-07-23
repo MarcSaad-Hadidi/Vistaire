@@ -2201,6 +2201,7 @@ function MenuAppearanceStep({
               </div>
               <div
                 className={styles.menuPhoneScreen}
+                data-phone-mockup-scroll
                 style={{ backgroundColor: appearancePalette.background, color: appearancePalette.text }}
               >
                 <OwnerMenuLivePreview

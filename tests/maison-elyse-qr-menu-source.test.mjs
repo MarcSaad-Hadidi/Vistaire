@@ -13,6 +13,7 @@ const dishDetailCssPath = "components/menu/MaisonElyseDishDetail.module.css";
 const demoShowcasePath = "components/vistaire-preview/DemoPhoneShowcase.tsx";
 const demoShowcaseCssPath =
   "components/vistaire-preview/DemoPhoneShowcase.module.css";
+const ownerCreateFormPath = "components/owner/RestaurantCreateForm.tsx";
 const publicMenuPath = "lib/menu/publicMenu.ts";
 const themePresetPath = "lib/menu/menuThemePresets.ts";
 const menuExperiencePath = "lib/menu/trouvableMenuExperience.ts";
@@ -173,6 +174,8 @@ test("Maison Elyse QR menu starts directly with the complete menu", async () => 
   assert.match(component, /FILTER_OPTIONS/);
   assert.match(component, /backToTop/);
   assert.match(component, /scrollToTop/);
+  assert.match(component, /closest<HTMLElement>\("\[data-phone-mockup-scroll\]"\)/);
+  assert.match(component, /getPhonePreviewScrollTarget/);
   assert.match(component, /menuCover/);
   assert.match(component, /bottomBar/);
   assert.match(component, /bottomSheet/);
@@ -249,14 +252,23 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
 });
 
 test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of the legacy preview UI", async () => {
-  const [demoPage, englishDemoPage, menuComponent, menuCss, showcase, showcaseCss] =
+  const [
+    demoPage,
+    englishDemoPage,
+    menuComponent,
+    menuCss,
+    showcase,
+    showcaseCss,
+    ownerCreateForm
+  ] =
     await Promise.all([
       readFile(demoPagePath, "utf8"),
       readFile(englishDemoPagePath, "utf8"),
       readFile(componentPath, "utf8"),
       readFile(cssPath, "utf8"),
       readFile(demoShowcasePath, "utf8"),
-      readFile(demoShowcaseCssPath, "utf8")
+      readFile(demoShowcaseCssPath, "utf8"),
+      readFile(ownerCreateFormPath, "utf8")
     ]);
 
   assert.match(demoPage, /DemoPhoneShowcase/);
@@ -283,6 +295,7 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
   assert.doesNotMatch(showcase, /startFullMenu/);
   assert.match(showcase, /data-testid="demo-phone-mockup"/);
   assert.match(showcase, /data-phone-mockup-scroll/);
+  assert.match(ownerCreateForm, /className=\{styles\.menuPhoneScreen\}[\s\S]*data-phone-mockup-scroll/);
   assert.doesNotMatch(showcase, /VistaireMenuPreview/);
   assert.doesNotMatch(showcase, /DishModelViewer/);
   assert.doesNotMatch(showcase, /D.mo interactive Vistaire/);

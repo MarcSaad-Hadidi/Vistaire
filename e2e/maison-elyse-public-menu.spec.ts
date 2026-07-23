@@ -238,6 +238,40 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
     await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expect(phoneViewport.getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })).toHaveCount(0);
+    const phoneBackToTop = phoneViewport.locator('[data-back-to-top="true"]');
+    await page.waitForTimeout(250);
+    await phoneViewport.evaluate((element) => {
+      const scrollTarget = element.scrollHeight - element.clientHeight > 520
+        ? element
+        : element.querySelector('[class*="menuScrollArea"]');
+      if (!(scrollTarget instanceof HTMLElement)) throw new Error("phone scroll target missing");
+      scrollTarget.scrollTo({ top: 900, behavior: "auto" });
+    });
+    await expect.poll(() => phoneViewport.evaluate((element) => {
+      const scrollTarget = element.scrollHeight - element.clientHeight > 520
+        ? element
+        : element.querySelector('[class*="menuScrollArea"]');
+      return scrollTarget instanceof HTMLElement ? scrollTarget.scrollTop : -1;
+    })).toBeGreaterThan(520);
+    await expect.poll(() => phoneBackToTop.getAttribute("data-visible")).toBe("true");
+    await expect.poll(async () => {
+      const [buttonBox, viewportBox] = await Promise.all([
+        phoneBackToTop.boundingBox(),
+        phoneViewport.boundingBox()
+      ]);
+      if (!buttonBox || !viewportBox) return false;
+      return (
+        buttonBox.y >= viewportBox.y &&
+        buttonBox.y + buttonBox.height <= viewportBox.y + viewportBox.height
+      );
+    }).toBe(true);
+    await phoneBackToTop.click();
+    await expect.poll(() => phoneViewport.evaluate((element) => {
+      const scrollTarget = element.scrollHeight - element.clientHeight > 520
+        ? element
+        : element.querySelector('[class*="menuScrollArea"]');
+      return scrollTarget instanceof HTMLElement ? scrollTarget.scrollTop : -1;
+    })).toBeLessThan(8);
     await phoneViewport.getByRole("button", { name: /Ravioles/i }).click();
     await expect(page).toHaveURL(/\/demo$/);
     await expect(phoneViewport.getByRole("heading", { level: 1, name: /Ravioles/i })).toBeVisible();

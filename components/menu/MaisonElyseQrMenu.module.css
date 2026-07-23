@@ -950,6 +950,10 @@
   transform: none;
 }
 
+[data-phone-mockup-scroll] > .phonePreview {
+  position: static;
+}
+
 .phonePreview .backToTop {
   position: absolute;
   right: auto;
