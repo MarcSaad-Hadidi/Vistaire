@@ -153,6 +153,34 @@ function ensureContrast(
   return { color: target, adjusted: true };
 }
 
+function ensureContrastAgainstSurfaces(
+  color: string,
+  surfaces: readonly string[],
+  minimum: number
+): { color: string; adjusted: boolean } {
+  if (surfaces.length === 0 || surfaces.every((surface) => contrastRatio(color, surface) >= minimum)) {
+    return { color, adjusted: false };
+  }
+
+  const target = surfaces.every((surface) => relativeLuminance(surface) > 0.5)
+    ? "#000000"
+    : surfaces.every((surface) => relativeLuminance(surface) <= 0.5)
+      ? "#ffffff"
+      : ["#000000", "#ffffff"].sort((first, second) => {
+          const firstContrast = Math.min(...surfaces.map((surface) => contrastRatio(first, surface)));
+          const secondContrast = Math.min(...surfaces.map((surface) => contrastRatio(second, surface)));
+          return secondContrast - firstContrast;
+        })[0];
+
+  for (let step = 1; step <= 12; step += 1) {
+    const candidate = mixHex(color, target, step / 14);
+    if (surfaces.every((surface) => contrastRatio(candidate, surface) >= minimum)) {
+      return { color: candidate, adjusted: true };
+    }
+  }
+  return { color: target, adjusted: true };
+}
+
 export function normalizeMenuAppearanceSelection(
   input: unknown,
   fallback: Partial<MenuAppearanceSelection> = {}
@@ -202,19 +230,24 @@ export function buildAccessibleMenuPalette(selection: Pick<MenuAppearanceSelecti
   const text = isDark ? "#fff7ea" : "#211912";
   const mutedBase = isDark ? "#c7b9a8" : "#62574d";
   const border = mixHex(background, secondary, isDark ? 0.34 : 0.24);
-  const accentResult = ensureContrast(
+  const accentResult = ensureContrastAgainstSurfaces(
     primary,
-    text,
+    [background, surface],
     3
   );
-  const accent2Result = ensureContrast(
+  const accent2Result = ensureContrastAgainstSurfaces(
     secondary,
-    text,
+    [background, surface],
+    3
+  );
+  const accent3Result = ensureContrastAgainstSurfaces(
+    mixHex(accentResult.color, accent2Result.color, 0.5),
+    [background, surface],
     3
   );
   const mutedResult = ensureContrast(mutedBase, background, 4.5);
   const warnings: string[] = [];
-  if (accentResult.adjusted || accent2Result.adjusted) {
+  if (accentResult.adjusted || accent2Result.adjusted || accent3Result.adjusted) {
     warnings.push("Les accents ont été légèrement ajustés pour rester lisibles sur le fond choisi.");
   }
   if (contrastRatio(text, background) < 4.5 || contrastRatio(text, surface) < 4.5) {
@@ -229,7 +262,7 @@ export function buildAccessibleMenuPalette(selection: Pick<MenuAppearanceSelecti
       muted: mutedResult.color,
       accent: accentResult.color,
       accent2: accent2Result.color,
-      accent3: mixHex(accentResult.color, accent2Result.color, 0.5),
+      accent3: accent3Result.color,
       border,
       success: isDark ? "#9bcaa2" : "#2f7b54",
       warning: isDark ? "#f0c56a" : "#8a5a00",

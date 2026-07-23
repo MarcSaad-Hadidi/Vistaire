@@ -121,6 +121,9 @@ test("Trouvable runtime themes derive neutrals from the selected palette", async
     css,
     /\.page\[data-user-theme="dark"\][\s\S]*--menu-text:\s*var\(--trouvable-dark-text\)\s*!important/
   );
+  assert.match(css, /--trouvable-gold:\s*var\(--menu-accent/);
+  assert.match(css, /--trouvable-light-bg:[\s\S]*var\(--menu-accent-2/);
+  assert.match(css, /--trouvable-light-surface:[\s\S]*var\(--menu-accent-2/);
 });
 
 test("Trouvable dish cards do not render inferred spicy markers", async () => {

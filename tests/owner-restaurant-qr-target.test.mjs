@@ -18,11 +18,16 @@ test("scoped QR page reads only the selected canonical target", () => {
   assert.match(pageSource, /purposeKey:\s*"default"/);
   assert.match(pageSource, /record\.redirectUrl/);
   assert.match(pageSource, /selectedQrDestination/);
+  assert.match(pageSource, /const selectedStatus = qrStatusLabel\(canonicalRecord, targetKind\)/);
+  assert.match(pageSource, /const selectedTone = qrStatusTone\(canonicalRecord, targetKind\)/);
+  assert.match(pageSource, /const selectedChecklist = preparation\.checklist\.map/);
+  assert.match(pageSource, /detail: selectedStatus/);
   assert.match(pageSource, /!usableCanonical/);
   assert.match(pageSource, /Aucun QR admin canonique actif/);
   assert.doesNotMatch(pageSource, /getOrCreateOwnerQrCode/);
   assert.doesNotMatch(pageSource, /targetPath/);
   assert.doesNotMatch(pageSource, /console\.(log|info|debug).*token/i);
+  assert.doesNotMatch(pageSource, /selectedStatus = targetKind === "menu"/);
 });
 
 test("QR target controls are real accessible pressed buttons", () => {

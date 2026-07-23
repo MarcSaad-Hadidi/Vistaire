@@ -108,16 +108,18 @@ export default async function OwnerRestaurantQrPage({
   )}&target=${targetKind}`;
   const selectedDestination = targetKind === "admin" ? adminDestination : publicDestination;
   const selectedQrDestination = targetKind === "admin" ? adminDestination : publicQrDestination;
-  const selectedStatus = targetKind === "menu" && !canonicalRecord
-    ? restaurant.qrStatusLabel
-    : qrStatusLabel(canonicalRecord, targetKind);
-  const selectedTone = targetKind === "menu" && !canonicalRecord
-    ? restaurant.qrStatus === "ready"
-      ? "ready"
-      : restaurant.qrStatus === "generable"
-        ? "warn"
-        : "danger"
-    : qrStatusTone(canonicalRecord, targetKind);
+  const selectedStatus = qrStatusLabel(canonicalRecord, targetKind);
+  const selectedTone = qrStatusTone(canonicalRecord, targetKind);
+  const selectedChecklist = preparation.checklist.map((item) =>
+    item.id === "qr"
+      ? {
+          ...item,
+          detail: selectedStatus,
+          status: usableCanonical ? "OK" : "À préparer",
+          tone: selectedTone
+        }
+      : item
+  );
 
   return (
     <>
@@ -229,7 +231,7 @@ export default async function OwnerRestaurantQrPage({
 
         <Panel title="Checklist avant publication">
           <div className={styles.checklist}>
-            {preparation.checklist
+            {selectedChecklist
               .filter((item) => ["profile", "dishes", "prices", "photos", "qr", "preview"].includes(item.id))
               .map((item) => (
                 <div key={item.id} className={styles.checkItem}>

@@ -25,7 +25,30 @@ test("builds a deterministic accessible palette from simple brand inputs", () =>
   assert.equal(first.palette.accent, first.palette.accent.toLowerCase());
   assert.ok(contrastRatio(first.palette.text, first.palette.background) >= 4.5);
   assert.ok(contrastRatio(first.palette.text, first.palette.surface) >= 4.5);
+  for (const accent of [first.palette.accent, first.palette.accent2, first.palette.accent3]) {
+    assert.ok(contrastRatio(accent, first.palette.background) >= 3);
+    assert.ok(contrastRatio(accent, first.palette.surface) >= 3);
+  }
   assert.equal(Object.keys(first.palette).length, 11);
+});
+
+test("keeps every built-in accent readable on its generated surfaces", () => {
+  for (const preset of MENU_APPEARANCE_PRESETS) {
+    const palette = buildAccessibleMenuPalette(
+      normalizeMenuAppearanceSelection({
+        template: "trouvable",
+        presetId: preset.id,
+        primaryColor: preset.primaryColor,
+        secondaryColor: preset.secondaryColor,
+        themeMode: preset.themeMode
+      })
+    ).palette;
+
+    for (const accent of [palette.accent, palette.accent2, palette.accent3]) {
+      assert.ok(contrastRatio(accent, palette.background) >= 3, `${preset.id} accent/background`);
+      assert.ok(contrastRatio(accent, palette.surface) >= 3, `${preset.id} accent/surface`);
+    }
+  }
 });
 
 test("does not mutate a preset and keeps restaurant configs isolated", () => {
