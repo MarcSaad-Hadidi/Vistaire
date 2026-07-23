@@ -197,11 +197,10 @@ begin
   perform qr_test.assert_true(v_lifecycle ->> 'ok' = 'true', 'archive ok');
   perform qr_test.assert_true(v_lifecycle #>> '{uniqueDesign,status}' = 'archived', 'status archived');
 
-  -- Forced rollback inside a savepoint: no net change to restaurant B configs.
+  -- Forced rollback via PL/pgSQL subtransaction: no net change to restaurant B.
   select config_json into v_before_b from public.menu_ui_configs
   where restaurant_id = v_restaurant_b and status = 'draft';
   begin
-    savepoint sp_unique_rollback;
     perform public.mutate_owner_public_menu_settings_atomic(
       v_restaurant_b,
       jsonb_build_object('publicMenuStyle', 'trouvable', 'probe', true),
@@ -210,7 +209,7 @@ begin
     raise exception 'forced rollback after unique settings mutation';
   exception
     when others then
-      rollback to savepoint sp_unique_rollback;
+      null; -- nested block already rolled back
   end;
   select config_json into v_after_b from public.menu_ui_configs
   where restaurant_id = v_restaurant_b and status = 'draft';
