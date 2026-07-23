@@ -42,6 +42,9 @@ begin
     'restaurant', jsonb_build_object(
       'name', 'Unique A',
       'slug', 'unique-a-pg',
+      'location', 'Montreal',
+      'city', 'Montreal',
+      'cuisine_type', 'Cuisine de saison',
       'status', 'setup_needed',
       'contact_name', 'A',
       'contact_email', 'a@example.com'
