@@ -85,6 +85,10 @@ type SubmitState =
       dishesPersisted: boolean;
       uiConfigPersisted: true;
       menuAppearancePersisted: true;
+      uniqueDesignPersisted: boolean;
+      uniqueDesignId?: string;
+      uniqueDesignStatus?: string;
+      publicMenuStyle: PublicMenuStyle;
       persistedDishCount: number;
       mediaBasePath: string;
       mediaBasePathPersisted: boolean;
@@ -169,7 +173,9 @@ const themeModeOptions: Array<{
 const publicMenuStyleOptions: Array<{
   value: PublicMenuStyle;
   label: string;
+  badge?: string;
   detail: string;
+  secondary?: string;
 }> = [
   {
     value: "trouvable",
@@ -180,6 +186,15 @@ const publicMenuStyleOptions: Array<{
     value: "maison-elyse",
     label: "Style Maison Elyse",
     detail: "Carte QR plus editoriale, accueil fort et navigation visuelle classique."
+  },
+  {
+    value: "unique",
+    label: "Nouveau UI unique",
+    badge: "SUR MESURE",
+    detail:
+      "Cree une nouvelle identite de design reservee a ce restaurant. Le UI sera developpe et publie separement, sans affecter les autres menus.",
+    secondary:
+      "Le restaurant sera cree avec un fallback professionnel pendant la construction du design."
   }
 ];
 
@@ -557,9 +572,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   }
 
   function resetAppearanceToTemplate() {
-    const preset = publicMenuStyle === "trouvable"
-      ? MENU_STYLE_PRESETS[0]
-      : MENU_STYLE_PRESETS.find((item) => item.id === "olive-beige") ?? MENU_STYLE_PRESETS[0];
+    const preset =
+      publicMenuStyle === "trouvable"
+        ? MENU_STYLE_PRESETS[0]
+        : publicMenuStyle === "unique"
+          ? MENU_STYLE_PRESETS.find((item) => item.id === "noir-champagne") ??
+            MENU_STYLE_PRESETS[0]
+          : MENU_STYLE_PRESETS.find((item) => item.id === "olive-beige") ??
+            MENU_STYLE_PRESETS[0];
     applyAppearancePreset(preset.id);
   }
 
@@ -955,6 +975,9 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         dishesPersisted?: boolean;
         uiConfigPersisted?: boolean;
         menuAppearancePersisted?: boolean;
+        uniqueDesignPersisted?: boolean;
+        uniqueDesignId?: string;
+        uniqueDesignStatus?: string;
         persistedDishCount?: number;
         mediaBasePath?: string;
         mediaBasePathPersisted?: boolean;
@@ -967,12 +990,20 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         throw new Error(result.error ?? "Creation impossible.");
       }
 
+      const selectedStyle = publicMenuStyle;
+      const uniqueDesignOk =
+        selectedStyle !== "unique" ||
+        (result.uniqueDesignPersisted === true &&
+          typeof result.uniqueDesignId === "string" &&
+          result.uniqueDesignId.length > 0);
+
       if (
         !result.persisted ||
         result.dataSource !== "supabase" ||
         !result.restaurantPersisted ||
         result.uiConfigPersisted !== true ||
-        result.menuAppearancePersisted !== true
+        result.menuAppearancePersisted !== true ||
+        !uniqueDesignOk
       ) {
         setState({
           status: "fallback",
@@ -984,7 +1015,10 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
 
       setState({
         status: "success",
-        message: "Restaurant cree dans Supabase.",
+        message:
+          selectedStyle === "unique"
+            ? "Restaurant cree — UI unique a construire."
+            : "Restaurant cree dans Supabase.",
         restaurant: result.restaurant,
         persisted: true,
         dataSource: "supabase",
@@ -993,6 +1027,14 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         dishesPersisted: Boolean(result.dishesPersisted),
         uiConfigPersisted: true,
         menuAppearancePersisted: true,
+        uniqueDesignPersisted: selectedStyle === "unique" ? true : Boolean(result.uniqueDesignPersisted ?? true),
+        ...(result.uniqueDesignId
+          ? {
+              uniqueDesignId: result.uniqueDesignId,
+              uniqueDesignStatus: result.uniqueDesignStatus
+            }
+          : {}),
+        publicMenuStyle: selectedStyle,
         persistedDishCount: result.persistedDishCount ?? 0,
         mediaBasePath: result.mediaBasePath ?? `restaurants/${result.restaurant.id}/photos/`,
         mediaBasePathPersisted: Boolean(result.mediaBasePathPersisted),
@@ -1600,11 +1642,46 @@ function MenuStep({
                 aria-pressed={publicMenuStyle === option.value}
                 onClick={() => onPublicMenuStyleChange(option.value)}
               >
-                <strong>{option.label}</strong>
+                <strong>
+                  {option.label}
+                  {option.badge ? (
+                    <span className={`${styles.badge} ${styles.badgeWarn}`} style={{ marginLeft: 8 }}>
+                      {option.badge}
+                    </span>
+                  ) : null}
+                  {publicMenuStyle === option.value ? (
+                    <span className={styles.badge} style={{ marginLeft: 8 }}>
+                      Sélectionné
+                    </span>
+                  ) : null}
+                </strong>
                 <span>{option.detail}</span>
+                {option.secondary ? <span>{option.secondary}</span> : null}
               </button>
             ))}
           </div>
+
+          {publicMenuStyle === "unique" ? (
+            <section
+              className={styles.menuLanguagePanel}
+              aria-labelledby="menu-unique-design-info-title"
+              role="status"
+            >
+              <div>
+                <h4 id="menu-unique-design-info-title">Design unique à construire</h4>
+                <p>
+                  Une nouvelle identité de design sera créée pour ce restaurant. Aucun template
+                  partagé ne lui sera associé.
+                </p>
+              </div>
+              <ul className={styles.sourceNote}>
+                <li>identifiant unique généré après création</li>
+                <li>développement séparé</li>
+                <li>publication séparée</li>
+                <li>aucun impact sur les autres restaurants</li>
+              </ul>
+            </section>
+          ) : null}
 
           <div
             className={styles.urlPreview}
@@ -2090,17 +2167,59 @@ function MenuAppearanceStep({
                     aria-pressed={publicMenuStyle === option.value}
                     onClick={() => onPublicMenuStyleChange(option.value)}
                   >
-                    <strong>{option.label}</strong>
+                    <strong>
+                      {option.label}
+                      {option.badge ? (
+                        <span className={`${styles.badge} ${styles.badgeWarn}`} style={{ marginLeft: 8 }}>
+                          {option.badge}
+                        </span>
+                      ) : null}
+                      {publicMenuStyle === option.value ? (
+                        <span className={styles.badge} style={{ marginLeft: 8 }}>
+                          Sélectionné
+                        </span>
+                      ) : null}
+                    </strong>
                     <span>{option.detail}</span>
+                    {option.secondary ? <span>{option.secondary}</span> : null}
                   </button>
                 ))}
               </div>
+              {publicMenuStyle === "unique" ? (
+                <section
+                  className={styles.menuLanguagePanel}
+                  aria-labelledby="menu-unique-design-info-title-appearance"
+                  role="status"
+                >
+                  <div>
+                    <h4 id="menu-unique-design-info-title-appearance">Design unique à construire</h4>
+                    <p>
+                      Une nouvelle identité de design sera créée pour ce restaurant. Aucun template
+                      partagé ne lui sera associé.
+                    </p>
+                  </div>
+                  <ul className={styles.sourceNote}>
+                    <li>identifiant unique généré après création</li>
+                    <li>développement séparé</li>
+                    <li>publication séparée</li>
+                    <li>aucun impact sur les autres restaurants</li>
+                  </ul>
+                </section>
+              ) : null}
             </section>
 
             <section className={styles.menuLanguagePanel} aria-labelledby="menu-appearance-presets-title">
               <div>
-                <h4 id="menu-appearance-presets-title">Palette premium</h4>
-                <p>Choisissez un preset, puis ajustez librement les deux couleurs principales.</p>
+                <h4 id="menu-appearance-presets-title">
+                  {publicMenuStyle === "unique"
+                    ? "Identité visuelle de secours"
+                    : "Palette premium"}
+                </h4>
+                <p>
+                  {publicMenuStyle === "unique"
+                    ? "Ces couleurs servent au fallback public avant le développement du UI final."
+                    : "Choisissez un preset, puis ajustez librement les deux couleurs principales."}
+                </p>
               </div>
               <div
                 className={styles.toggleCardGrid}
@@ -2214,13 +2333,27 @@ function MenuAppearanceStep({
                 <span className={styles.metricLabel}>Aperçu client</span>
                 <p className={styles.cellSub}>Votre menu sur téléphone</p>
               </div>
-              <span className={styles.badge}>{publicMenuStyle === "trouvable" ? "Immersif" : "Éditorial"}</span>
+              <span className={`${styles.badge} ${publicMenuStyle === "unique" ? styles.badgeWarn : ""}`}>
+                {publicMenuStyle === "trouvable"
+                  ? "Immersif"
+                  : publicMenuStyle === "maison-elyse"
+                    ? "Éditorial"
+                    : "APERÇU DE SECOURS"}
+              </span>
             </div>
             <div
               className={styles.menuPhoneFrame}
-              style={{ borderColor: appearancePalette.border }}
+              style={{ borderColor: appearancePalette.border, position: "relative" }}
               aria-label={`Aperçu mobile du menu de ${restaurantName.trim() || "Votre restaurant"}`}
             >
+              {publicMenuStyle === "unique" ? (
+                <span
+                  className={`${styles.badge} ${styles.badgeWarn}`}
+                  style={{ position: "absolute", top: 18, right: 18, zIndex: 3 }}
+                >
+                  APERÇU DE SECOURS
+                </span>
+              ) : null}
               <div className={styles.menuPhoneNotch} aria-hidden="true" />
               <div className={styles.menuPhoneTopbar} style={{ color: appearancePalette.muted }}>
                 <span>09:41</span>
@@ -2693,12 +2826,17 @@ function CreationSuccess({
   state: Extract<SubmitState, { status: "success" }>;
   menuUrl: string;
 }) {
+  const isUnique = state.publicMenuStyle === "unique";
+  const designStudioHref = `/owner/menu-builder?restaurantId=${encodeURIComponent(state.restaurant.id)}&restaurantSlug=${encodeURIComponent(state.restaurant.slug)}`;
+
   return (
     <section className={styles.creationStage}>
       <article className={`${styles.panel} ${styles.highlightPanel}`}>
         <div className={styles.panelHeader}>
           <div>
-            <span className={`${styles.badge} ${styles.badgeReady}`}>Restaurant cree</span>
+            <span className={`${styles.badge} ${styles.badgeReady}`}>
+              {isUnique ? "Restaurant créé — UI unique à construire" : "Restaurant cree"}
+            </span>
             <h3 className={styles.panelTitle}>{state.restaurant.name}</h3>
             <p className={styles.cellSub}>{state.message}</p>
           </div>
@@ -2726,16 +2864,40 @@ function CreationSuccess({
               <small>{state.mediaBasePath}</small>
             </article>
             <article>
-              <span>Design UI</span>
-              <strong>{state.uiConfigPersisted ? "Configuration persistee" : "A verifier"}</strong>
-              <small>Draft menu_ui_configs</small>
+              <span>{isUnique ? "Type de UI" : "Design UI"}</span>
+              <strong>
+                {isUnique
+                  ? "Unique"
+                  : state.uiConfigPersisted
+                    ? "Configuration persistee"
+                    : "A verifier"}
+              </strong>
+              <small>
+                {isUnique
+                  ? `Statut : À construire${state.uniqueDesignId ? ` · ${state.uniqueDesignId}` : ""}`
+                  : "Draft menu_ui_configs"}
+              </small>
             </article>
             <article>
               <span>Palette</span>
               <strong>{state.menuAppearancePersisted ? "Palette appliquee" : "A verifier"}</strong>
-              <small>Template, couleurs et mode</small>
+              <small>
+                {isUnique ? "Identité visuelle de secours" : "Template, couleurs et mode"}
+              </small>
             </article>
           </div>
+
+          {isUnique ? (
+            <div className={styles.checklist}>
+              <div className={styles.checkItem}>
+                <span>
+                  <strong>Design unique créé</strong>
+                  <small>Identité serveur pending — aucun template partagé associé.</small>
+                </span>
+                <span className={`${styles.badge} ${styles.badgeWarn}`}>À construire</span>
+              </div>
+            </div>
+          ) : null}
 
           {state.warnings.length > 0 ? (
             <div className={styles.checklist}>
@@ -2757,18 +2919,21 @@ function CreationSuccess({
           </div>
 
           <div className={styles.creationFooterActions}>
-            <Link className={`${styles.btnPrimary} ${styles.btn}`} href={state.qrCodesHref}>
-              Generer le QR menu
+            <Link className={`${styles.btnPrimary} ${styles.btn}`} href={state.restaurant.dashboardHref}>
+              Ouvrir le restaurant
             </Link>
-            <Link className={styles.btn} href={state.restaurant.dashboardHref}>
-              Ouvrir le dashboard
+            <Link className={styles.btn} href={menuUrl} target="_blank" rel="noreferrer">
+              Voir le fallback public
             </Link>
-            <Link
-              className={styles.btn}
-              href={`/owner/medias?restaurantId=${encodeURIComponent(state.restaurant.id)}&restaurantSlug=${encodeURIComponent(state.restaurant.slug)}`}
-            >
-              Voir les photos a ajouter
-            </Link>
+            {isUnique ? (
+              <Link className={styles.btn} href={designStudioHref}>
+                Créer le UI unique
+              </Link>
+            ) : (
+              <Link className={styles.btn} href={state.qrCodesHref}>
+                Generer le QR menu
+              </Link>
+            )}
           </div>
         </div>
       </article>

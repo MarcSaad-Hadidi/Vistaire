@@ -17,6 +17,11 @@ import type { OwnerRestaurant } from "@/lib/owner/types";
 type OwnerRestaurantDashboardProps = {
   restaurant: OwnerRestaurant;
   preparation: OwnerRestaurantPreparation;
+  uniqueUi?: {
+    statusLabel: string;
+    designStudioHref: string;
+    publicMenuHref: string;
+  } | null;
 };
 
 function formatCount(value: number): string {
@@ -52,7 +57,8 @@ function ModuleCard({
 
 export function OwnerRestaurantDashboard({
   restaurant,
-  preparation
+  preparation,
+  uniqueUi = null
 }: OwnerRestaurantDashboardProps) {
   const [copyStatus, setCopyStatus] = useState("");
   const { summary, checklist, nextAction, issues } = preparation;
@@ -92,8 +98,13 @@ export function OwnerRestaurantDashboard({
             target="_blank"
             rel="noreferrer"
           >
-            Voir comme client
+            {uniqueUi ? "Voir le fallback public" : "Voir comme client"}
           </a>
+          {uniqueUi ? (
+            <Link className={styles.btn} href={uniqueUi.designStudioHref} prefetch={false}>
+              Créer le UI unique
+            </Link>
+          ) : null}
           <button type="button" className={styles.btn} onClick={copyMenuUrl}>
             Copier le lien
           </button>
@@ -146,6 +157,13 @@ export function OwnerRestaurantDashboard({
             {summary.immersiveDishCount > 0 ? "GLB/AR détectés" : "Statut à vérifier"}
           </small>
         </article>
+        {uniqueUi ? (
+          <article>
+            <span>Type de UI</span>
+            <strong>Unique</strong>
+            <small>{uniqueUi.statusLabel}</small>
+          </article>
+        ) : null}
       </section>
 
       <div className={styles.restaurantOverviewGrid}>
@@ -208,6 +226,15 @@ export function OwnerRestaurantDashboard({
       </article>
 
       <section className={styles.moduleCardGrid} aria-label="Modules restaurant">
+        {uniqueUi ? (
+          <ModuleCard
+            title="UI unique"
+            body="Composez le design réservé à ce restaurant. Le public voit un fallback professionnel tant que le UI n'est pas publié."
+            meta={uniqueUi.statusLabel}
+            href={uniqueUi.designStudioHref}
+            action="Créer le UI unique"
+          />
+        ) : null}
         <ModuleCard
           title="Carte & plats"
           body="Catégories, plats, prix, descriptions, disponibilité et qualité de contenu."

@@ -64,6 +64,12 @@ const publicMenuStyleOptions: Array<{
     value: "maison-elyse",
     label: "Style Maison Elyse",
     detail: "Carte QR editoriale avec accueil fort et navigation visuelle."
+  },
+  {
+    value: "unique",
+    label: "Nouveau UI unique",
+    detail:
+      "Identite de design reservee a ce restaurant. Fallback professionnel tant que le UI n'est pas publie."
   }
 ];
 

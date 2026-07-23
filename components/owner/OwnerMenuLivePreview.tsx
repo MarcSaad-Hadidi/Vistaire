@@ -1,6 +1,7 @@
 "use client";
 
 import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
+import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { normalizeLocale } from "@/lib/i18n";
@@ -186,6 +187,20 @@ export function OwnerMenuLivePreview({
         locale={locale}
         query={{ lang: publicMenuSettings.defaultLocale, view: "carte" }}
         showGoogleReview={false}
+      />
+    );
+  }
+
+  if (appearance.template === "unique") {
+    return (
+      <PublicMenuRenderer
+        menu={menu}
+        config={config}
+        context="Aperçu de secours"
+        query={{ lang: publicMenuSettings.defaultLocale }}
+        mode="builder-preview"
+        disableHeavyAssets
+        locale={locale}
       />
     );
   }

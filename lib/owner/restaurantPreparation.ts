@@ -1,4 +1,9 @@
 import type { PublicMenuDish } from "@/lib/menu/publicMenuCore";
+import type { PublicMenuStyle } from "@/lib/menu/publicMenuSettings";
+import {
+  uniqueMenuDesignOwnerStatusLabel,
+  type UniqueMenuDesignStatus
+} from "@/lib/menu/uniqueMenuDesign";
 import type { OwnerQrStatus, OwnerRestaurant } from "@/lib/owner/types";
 
 export type OwnerPreparationTone = "ready" | "warn" | "danger" | "muted";
@@ -160,7 +165,11 @@ export function buildOwnerPreparationSummary(
 
 export function buildOwnerRestaurantPreparation(
   restaurant: OwnerRestaurant,
-  dishes: PublicMenuDish[] = []
+  dishes: PublicMenuDish[] = [],
+  options?: {
+    publicMenuStyle?: PublicMenuStyle | null;
+    uniqueDesignStatus?: UniqueMenuDesignStatus | null;
+  }
 ): OwnerRestaurantPreparation {
   const summary = buildOwnerPreparationSummary(restaurant, dishes);
   const infoComplete =
@@ -173,6 +182,11 @@ export function buildOwnerRestaurantPreparation(
   const previewHref = ownerRestaurantRoute(restaurant, "preview");
   const qrHref = ownerRestaurantRoute(restaurant, "qr");
   const settingsHref = ownerRestaurantRoute(restaurant, "settings");
+  const designStudioHref = `/owner/menu-builder?restaurantId=${encodeURIComponent(restaurant.id)}&restaurantSlug=${encodeURIComponent(restaurant.slug)}`;
+  const isUnique = options?.publicMenuStyle === "unique";
+  const uniqueStatusLabel = uniqueMenuDesignOwnerStatusLabel(
+    options?.uniqueDesignStatus
+  );
 
   const checklist: OwnerPreparationItem[] = [
     {
@@ -235,6 +249,21 @@ export function buildOwnerRestaurantPreparation(
           : "warn",
       href: mediasHref
     },
+    ...(isUnique
+      ? [
+          {
+            id: "ui-unique",
+            label: "Type de UI : Unique",
+            detail: "Design Studio : thème et blueprint à composer séparément.",
+            status: uniqueStatusLabel,
+            tone:
+              options?.uniqueDesignStatus === "published"
+                ? ("ready" as const)
+                : ("warn" as const),
+            href: designStudioHref
+          }
+        ]
+      : []),
     {
       id: "media",
       label: "Médias 3D/AR prêts si inclus",
@@ -257,7 +286,9 @@ export function buildOwnerRestaurantPreparation(
     {
       id: "preview",
       label: "Aperçu client vérifié",
-      detail: "Ouvrez le rendu mobile avant impression ou publication.",
+      detail: isUnique
+        ? "Le public voit le fallback professionnel tant que le UI unique n'est pas publié."
+        : "Ouvrez le rendu mobile avant impression ou publication.",
       status: "À vérifier",
       tone: "warn",
       href: previewHref
@@ -265,7 +296,14 @@ export function buildOwnerRestaurantPreparation(
   ];
 
   let nextAction: OwnerNextAction;
-  if (summary.dishCount === 0) {
+  if (isUnique && options?.uniqueDesignStatus !== "published") {
+    nextAction = {
+      title: "Créer le UI unique",
+      body: "Une identité de design unique est en attente. Composez-la dans le Design Studio.",
+      href: designStudioHref,
+      label: "Créer le UI unique"
+    };
+  } else if (summary.dishCount === 0) {
     nextAction = {
       title: "Ajoutez les premiers plats.",
       body: "La carte client ne peut pas être validée tant qu’aucun plat n’est rattaché au restaurant.",
