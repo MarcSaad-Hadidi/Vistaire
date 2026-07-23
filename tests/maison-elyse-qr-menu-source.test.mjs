@@ -25,6 +25,26 @@ test("Maison Elyse public menu is the only dedicated QR table experience", async
   assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
 });
 
+test("Maison Elyse maps the resolved owner palette into its skin variables", async () => {
+  const [source, css] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8")
+  ]);
+
+  for (const variable of [
+    "--elyse-bg",
+    "--elyse-surface",
+    "--elyse-text",
+    "--elyse-muted",
+    "--elyse-champagne",
+    "--elyse-gold",
+    "--elyse-border"
+  ]) {
+    assert.match(source, new RegExp(`"${variable}"`));
+    assert.match(css, new RegExp(`${variable}:\\s*var\\(--menu-`));
+  }
+});
+
 test("Maison Elyse demo public menu can be built with localized sample data", async () => {
   const source = await readFile(publicMenuPath, "utf8");
 

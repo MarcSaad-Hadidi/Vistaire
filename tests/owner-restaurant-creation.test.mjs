@@ -706,14 +706,27 @@ test("restaurant creation wizard lets owners choose menu languages locally", asy
   assert.match(source, /Lien Google Reviews invalide\./);
 });
 
-test("restaurant creation wizard is a four-step menu persistence workflow", async () => {
+test("restaurant creation wizard keeps structure before dishes and style after dishes", async () => {
   const source = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
 
-  assert.match(source, /type StepId = "profile" \| "menu" \| "dishes" \| "review"/);
+  assert.match(source, /type StepId = "profile" \| "menu" \| "dishes" \| "appearance" \| "review"/);
   assert.match(source, /id: "profile"/);
   assert.match(source, /id: "menu"/);
   assert.match(source, /id: "dishes"/);
+  assert.match(source, /id: "appearance"/);
   assert.match(source, /id: "review"/);
+  assert.match(source, /function MenuAppearanceStep/);
+  assert.match(source, /menuPhoneFrame/);
+  assert.match(source, /OwnerMenuLivePreview/);
+  assert.match(source, /publicMenuSettings=\{publicMenuSettings\}/);
+  assert.match(source, /appearance=\{appearance\}/);
+  const livePreview = await readFile("components/owner/OwnerMenuLivePreview.tsx", "utf8");
+  assert.match(livePreview, /MaisonElyseQrMenu/);
+  assert.match(livePreview, /TrouvablePremiumMenuExperience/);
+  assert.match(livePreview, /displayMode="phone-preview"/);
+  const stepsBlock = source.slice(source.indexOf("const steps:"), source.indexOf("const statusOptions:"));
+  assert.ok(stepsBlock.indexOf('id: "menu"') < stepsBlock.indexOf('id: "dishes"'));
+  assert.ok(stepsBlock.indexOf('id: "dishes"') < stepsBlock.indexOf('id: "appearance"'));
   assert.doesNotMatch(source, /id: "media"/);
   assert.doesNotMatch(source, /id: "qr"/);
   assert.doesNotMatch(source, /MediaStep/);
@@ -736,6 +749,10 @@ test("restaurant creation wizard is a four-step menu persistence workflow", asyn
   assert.match(source, /dishes:/);
   assert.match(source, /menuLanguages:/);
   assert.match(source, /qrCodesHref/);
+  const ownerStyles = await readFile("components/owner/OwnerCockpit.module.css", "utf8");
+  assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneFrame[\s\S]*border: 0/);
+  assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneNotch,[\s\S]*\.menuPhoneTopbar[\s\S]*display: none/);
+  assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneScreen[\s\S]*height: auto[\s\S]*overflow-y: visible/);
 });
 
 test("restaurant creation wizard keeps price decimals and targeted post-create links", async () => {

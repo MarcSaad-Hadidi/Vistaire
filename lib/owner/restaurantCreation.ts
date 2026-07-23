@@ -16,6 +16,11 @@ import {
   type PublicMenuSettings
 } from "../menu/publicMenuSettings.ts";
 import {
+  buildMenuUiConfigForRestaurant,
+  normalizeMenuAppearanceSelection,
+  type MenuAppearanceSelection
+} from "../menu/menuAppearance.ts";
+import {
   normalizeDisplayPriceMode,
   parsePriceToCents
 } from "./price.ts";
@@ -83,6 +88,8 @@ export type CreateRestaurantRecordResult =
       restaurant: OwnerRestaurant;
       restaurantPersisted: true;
       menuPersisted: boolean;
+      uiConfigPersisted: boolean;
+      menuAppearancePersisted: boolean;
       categoriesPersisted: boolean;
       sectionsPersisted: boolean;
       dishesPersisted: boolean;
@@ -136,6 +143,8 @@ const SITE_URL_ENV_KEYS = [
 const MENU_LANGUAGE_VALUES = new Set<CreateRestaurantMenuLanguage>(["fr", "en"]);
 const MENU_SETTINGS_WARNING =
   "Les settings publics du menu n'ont pas pu etre persistes dans menus.settings_json.";
+const MENU_UI_CONFIG_WARNING =
+  "La configuration UI du restaurant n'a pas pu etre persistee.";
 
 const PHOTO_STATUS_VALUES = new Set<CreateRestaurantDishPhotoStatus>([
   "ready",
@@ -503,7 +512,8 @@ function hasCreationWorkflowPayload(candidate: Record<string, unknown>): boolean
     "publicMenuSettings" in candidate ||
     "menuSettings" in candidate ||
     "menu_settings" in candidate ||
-    "settings_json" in candidate
+    "settings_json" in candidate ||
+    "menuAppearance" in candidate
   );
 }
 
@@ -543,6 +553,19 @@ function buildTransactionalCreationPayload(
   const publicMenuUrl = buildPublicMenuUrl(normalizedSlug, env);
   const publicMenuSettings = normalizePublicMenuSettings(input.publicMenuSettings, {
     legacyMenuLanguages: input.menuLanguages
+  });
+  const appearance: MenuAppearanceSelection = normalizeMenuAppearanceSelection(
+    input.menuAppearance,
+    {
+      template: publicMenuSettings.publicMenuStyle,
+      themeMode: publicMenuSettings.defaultThemeMode
+    }
+  );
+  const menuUiConfig = buildMenuUiConfigForRestaurant({
+    name: input.name,
+    slug: normalizedSlug,
+    appearance,
+    publicMenuSettings: serializePublicMenuSettings(publicMenuSettings)
   });
   const menuLanguages = publicMenuSettingsToLegacyMenuLanguages(publicMenuSettings);
   const categorySlugs = new Set<string>();
@@ -633,12 +656,14 @@ function buildTransactionalCreationPayload(
     categories,
     dishes,
     ui_config: {
-      theme: "fresh-homemade",
+      theme: menuUiConfig.theme,
       status: "draft",
       config_json: {
+        ...menuUiConfig,
         createdFromOwnerWizard: true,
         menuLanguages,
-        publicMenuStyle: publicMenuSettings.publicMenuStyle
+        publicMenuStyle: publicMenuSettings.publicMenuStyle,
+        menuAppearance: appearance
       }
     }
   };
@@ -723,6 +748,14 @@ async function createRestaurantRecordWithRpc(
   const warnings = Array.isArray(response.warnings)
     ? response.warnings.filter((item): item is string => typeof item === "string")
     : [];
+  const uiConfigPersisted = response.uiConfigPersisted === true;
+  if (!uiConfigPersisted) {
+    return {
+      ok: false,
+      status: 502,
+      error: "Creation invalide : la configuration UI du restaurant n'a pas ete persistee."
+    };
+  }
 
   return {
     ok: true,
@@ -738,6 +771,8 @@ async function createRestaurantRecordWithRpc(
     },
     restaurantPersisted: true,
     menuPersisted: response.menuPersisted !== false,
+    uiConfigPersisted,
+    menuAppearancePersisted: uiConfigPersisted,
     categoriesPersisted: response.categoriesPersisted !== false,
     sectionsPersisted: response.categoriesPersisted !== false,
     dishesPersisted: response.dishesPersisted !== false,
@@ -1018,6 +1053,13 @@ export function validateCreateRestaurantInput(
     legacyMenuLanguages
   });
   if (!normalizedSettings.ok) return normalizedSettings;
+  const menuAppearance = normalizeMenuAppearanceSelection(
+    candidate.menuAppearance,
+    {
+      template: normalizedSettings.value.publicMenuStyle,
+      themeMode: normalizedSettings.value.defaultThemeMode
+    }
+  );
   const menuLanguages = publicMenuSettingsToLegacyMenuLanguages(normalizedSettings.value);
   const normalizedSections = normalizeSections(candidate);
   if (!normalizedSections.ok) return normalizedSections;
@@ -1056,6 +1098,7 @@ export function validateCreateRestaurantInput(
       ...(notes ? { notes } : {}),
       ...(workflowPayload ? { menuLanguages } : {}),
       ...(workflowPayload ? { publicMenuSettings: normalizedSettings.value } : {}),
+      ...(workflowPayload ? { menuAppearance } : {}),
       ...(workflowPayload ? { sections: normalizedSections.value } : {}),
       ...(workflowPayload ? { dishes: normalizedDishes.value } : {})
     }
@@ -1156,6 +1199,8 @@ export async function createRestaurantRecord(
   let dishesPersisted = true;
   let sectionsPersisted = true;
   let menuPersisted = false;
+  let uiConfigPersisted = false;
+  let menuAppearancePersisted = false;
   let menuRow: Record<string, unknown> | undefined;
 
   const mediaBasePathColumn = pickColumn(columns, RESTAURANT_MEDIA_BASE_PATH_COLUMNS);
@@ -1181,38 +1226,83 @@ export async function createRestaurantRecord(
 
   try {
     const menuColumns = await dependencies.getColumns("menus");
-    const menuInsert: Record<string, unknown> = {};
-    assignInsertValue(menuInsert, menuColumns, ["restaurant_id", "restaurantId"], restaurantId);
-    assignInsertValue(menuInsert, menuColumns, ["name"], "Menu principal");
-    assignInsertValue(menuInsert, menuColumns, ["slug"], "principal");
-    assignInsertValue(menuInsert, menuColumns, ["status"], "published");
-    assignInsertValue(menuInsert, menuColumns, ["is_primary", "isPrimary"], true);
-    if (menuColumns.has("settings_json")) {
-      assignInsertValue(
-        menuInsert,
-        menuColumns,
-        ["settings_json", "settingsJson"],
-        serializePublicMenuSettings(publicMenuSettings)
-      );
-    } else {
-      warnings.push(MENU_SETTINGS_WARNING);
-    }
-
-    if (Object.keys(menuInsert).length > 0) {
-      const { data: insertedMenu, error: menuError } = await dependencies.admin.client
-        .from("menus")
-        .insert(menuInsert)
-        .select("*")
-        .single();
-      if (menuError || !insertedMenu) {
-        warnings.push("Le menu principal n'a pas pu etre persiste sans RPC.");
+    const hasMenuIdentityColumn = Boolean(
+      pickColumn(menuColumns, ["restaurant_id", "restaurantId"])
+    );
+    if (hasMenuIdentityColumn) {
+      const menuInsert: Record<string, unknown> = {};
+      assignInsertValue(menuInsert, menuColumns, ["restaurant_id", "restaurantId"], restaurantId);
+      assignInsertValue(menuInsert, menuColumns, ["name"], "Menu principal");
+      assignInsertValue(menuInsert, menuColumns, ["slug"], "principal");
+      assignInsertValue(menuInsert, menuColumns, ["status"], "published");
+      assignInsertValue(menuInsert, menuColumns, ["is_primary", "isPrimary"], true);
+      if (menuColumns.has("settings_json")) {
+        assignInsertValue(
+          menuInsert,
+          menuColumns,
+          ["settings_json", "settingsJson"],
+          serializePublicMenuSettings(publicMenuSettings)
+        );
       } else {
-        menuPersisted = true;
-        menuRow = insertedMenu;
+        warnings.push(MENU_SETTINGS_WARNING);
+      }
+
+      if (Object.keys(menuInsert).length > 0) {
+        const { data: insertedMenu, error: menuError } = await dependencies.admin.client
+          .from("menus")
+          .insert(menuInsert)
+          .select("*")
+          .single();
+        if (menuError || !insertedMenu) {
+          warnings.push("Le menu principal n'a pas pu etre persiste sans RPC.");
+        } else {
+          menuPersisted = true;
+          menuRow = insertedMenu;
+        }
       }
     }
   } catch {
     warnings.push("La table menus est indisponible pour le fallback de creation.");
+  }
+
+  try {
+    const uiConfigColumns = await dependencies.getColumns("menu_ui_configs");
+    const hasUiConfigIdentityColumn = Boolean(
+      pickColumn(uiConfigColumns, ["restaurant_id", "restaurantId"])
+    );
+    if (hasUiConfigIdentityColumn) {
+      const uiConfig = buildMenuUiConfigForRestaurant({
+        name: input.name,
+        slug: restaurantSlug,
+        appearance: normalizeMenuAppearanceSelection(input.menuAppearance, {
+          template: publicMenuSettings.publicMenuStyle,
+          themeMode: publicMenuSettings.defaultThemeMode
+        }),
+        publicMenuSettings: serializePublicMenuSettings(publicMenuSettings)
+      });
+      const uiConfigInsert: Record<string, unknown> = {};
+      assignInsertValue(uiConfigInsert, uiConfigColumns, ["restaurant_id", "restaurantId"], restaurantId);
+      assignInsertValue(uiConfigInsert, uiConfigColumns, ["theme"], uiConfig.theme);
+      assignInsertValue(uiConfigInsert, uiConfigColumns, ["config_json", "configJson"], {
+        ...uiConfig,
+        createdFromOwnerWizard: true,
+        publicMenuStyle: publicMenuSettings.publicMenuStyle
+      });
+      assignInsertValue(uiConfigInsert, uiConfigColumns, ["status"], "draft");
+
+      if (uiConfigInsert.restaurant_id || uiConfigInsert.restaurantId) {
+        const { data: insertedUiConfig, error: uiConfigError } = await dependencies.admin.client
+          .from("menu_ui_configs")
+          .insert(uiConfigInsert)
+          .select("*")
+          .single();
+        uiConfigPersisted = !uiConfigError && Boolean(insertedUiConfig);
+        menuAppearancePersisted = uiConfigPersisted;
+        if (!uiConfigPersisted) warnings.push(MENU_UI_CONFIG_WARNING);
+      }
+    }
+  } catch {
+    warnings.push(MENU_UI_CONFIG_WARNING);
   }
 
   if (inputDishes.length > 0) {
@@ -1276,6 +1366,8 @@ export async function createRestaurantRecord(
     restaurant,
     restaurantPersisted: true,
     menuPersisted,
+    uiConfigPersisted,
+    menuAppearancePersisted,
     categoriesPersisted: sectionsPersisted,
     sectionsPersisted,
     dishesPersisted,

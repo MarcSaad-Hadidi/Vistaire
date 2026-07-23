@@ -87,6 +87,7 @@ export default async function PublicMenuPage({
     return (
       <MaisonElyseQrMenu
         menu={menu}
+        config={resolvedConfig}
         locale={activeLocale}
         localizedMenus={{
           ...(frenchMenu ? { fr: frenchMenu } : {}),

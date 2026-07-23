@@ -27,35 +27,35 @@ import {
   parsePriceToCents,
   type DisplayPriceMode
 } from "@/lib/owner/price";
+import {
+  buildAccessibleMenuPalette,
+  MENU_STYLE_PRESETS,
+  normalizeHexColor,
+  normalizeMenuAppearanceSelection,
+  type MenuAppearanceSelection
+} from "@/lib/menu/menuAppearance";
 import type {
   CreateRestaurantDishPhotoStatus,
   OwnerRestaurant,
   OwnerRestaurantStatus
 } from "@/lib/owner/types";
+import { OwnerMenuLivePreview } from "./OwnerMenuLivePreview";
+import type { DraftDish, DraftSection } from "./restaurantCreatePreviewTypes";
 
-type StepId = "profile" | "menu" | "dishes" | "review";
+type StepId = "profile" | "menu" | "dishes" | "appearance" | "review";
 
-type DraftSection = {
-  id: string;
-  name: string;
-  description: string;
-};
-
-type DraftDish = {
-  id: string;
-  name: string;
-  section: string;
-  price: string;
-  displayPriceMode: DisplayPriceMode;
-  description: string;
-  imageUrl: string;
-  ingredients: string[];
-  allergens: string[];
-  tags: string[];
-  options: string[];
-  chefNote: string;
-  available: boolean;
-  photoStatus: CreateRestaurantDishPhotoStatus;
+type MenuAppearancePalette = {
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  accent: string;
+  accent2: string;
+  accent3: string;
+  border: string;
+  success: string;
+  warning: string;
+  danger: string;
 };
 
 type MenuLanguage = PublicMenuLocale;
@@ -74,6 +74,8 @@ type SubmitState =
       restaurantPersisted: true;
       sectionsPersisted: boolean;
       dishesPersisted: boolean;
+      uiConfigPersisted: true;
+      menuAppearancePersisted: true;
       persistedDishCount: number;
       mediaBasePath: string;
       mediaBasePathPersisted: boolean;
@@ -95,13 +97,18 @@ const steps: Array<{ id: StepId; title: string; sub: string }> = [
   },
   {
     id: "menu",
-    title: "Menu",
+    title: "Structure menu",
     sub: "Langues et sections de la carte."
   },
   {
     id: "dishes",
     title: "Plats",
     sub: "Descriptions, prix, photos."
+  },
+  {
+    id: "appearance",
+    title: "Style du menu",
+    sub: "Palette, templates et aperçu client."
   },
   {
     id: "review",
@@ -420,6 +427,10 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [defaultCurrency, setDefaultCurrency] = useState<MenuCurrency>("CAD");
   const [publicMenuStyle, setPublicMenuStyle] =
     useState<PublicMenuStyle>("trouvable");
+  const defaultAppearancePreset = MENU_STYLE_PRESETS[0];
+  const [appearancePresetId, setAppearancePresetId] = useState(defaultAppearancePreset.id);
+  const [primaryColor, setPrimaryColor] = useState(defaultAppearancePreset.primaryColor);
+  const [secondaryColor, setSecondaryColor] = useState(defaultAppearancePreset.secondaryColor);
   const [restaurantTimezone, setRestaurantTimezone] =
     useState("America/Toronto");
   const [defaultThemeMode, setDefaultThemeMode] =
@@ -499,12 +510,43 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       taxIncluded
     ]
   );
+  const menuAppearance = useMemo<MenuAppearanceSelection>(
+    () =>
+      normalizeMenuAppearanceSelection({
+        template: publicMenuStyle,
+        presetId: appearancePresetId,
+        primaryColor,
+        secondaryColor,
+        themeMode: defaultThemeMode
+      }),
+    [appearancePresetId, defaultThemeMode, primaryColor, publicMenuStyle, secondaryColor]
+  );
+  const appearancePalette = useMemo(
+    () => buildAccessibleMenuPalette(menuAppearance),
+    [menuAppearance]
+  );
 
   function updateName(value: string) {
     setName(value);
     if (!slugTouched) {
       setSlug(slugifyRestaurantSlug(value));
     }
+  }
+
+  function applyAppearancePreset(presetId: string) {
+    const preset = MENU_STYLE_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+    setAppearancePresetId(preset.id);
+    setPrimaryColor(preset.primaryColor);
+    setSecondaryColor(preset.secondaryColor);
+    setDefaultThemeMode(preset.themeMode);
+  }
+
+  function resetAppearanceToTemplate() {
+    const preset = publicMenuStyle === "trouvable"
+      ? MENU_STYLE_PRESETS[0]
+      : MENU_STYLE_PRESETS.find((item) => item.id === "olive-beige") ?? MENU_STYLE_PRESETS[0];
+    applyAppearancePreset(preset.id);
   }
 
   function updateSlug(value: string) {
@@ -853,6 +895,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           notes,
           menuLanguages: publicMenuSettingsToLegacyMenuLanguages(publicMenuSettings),
           publicMenuSettings,
+          menuAppearance,
           sections: sections.map((section, index) => ({
             name: section.name,
             description: section.description,
@@ -883,6 +926,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         restaurantPersisted?: boolean;
         sectionsPersisted?: boolean;
         dishesPersisted?: boolean;
+        uiConfigPersisted?: boolean;
+        menuAppearancePersisted?: boolean;
         persistedDishCount?: number;
         mediaBasePath?: string;
         mediaBasePathPersisted?: boolean;
@@ -895,7 +940,13 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         throw new Error(result.error ?? "Creation impossible.");
       }
 
-      if (!result.persisted || result.dataSource !== "supabase" || !result.restaurantPersisted) {
+      if (
+        !result.persisted ||
+        result.dataSource !== "supabase" ||
+        !result.restaurantPersisted ||
+        result.uiConfigPersisted !== true ||
+        result.menuAppearancePersisted !== true
+      ) {
         setState({
           status: "fallback",
           message:
@@ -913,6 +964,8 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
         restaurantPersisted: true,
         sectionsPersisted: Boolean(result.sectionsPersisted),
         dishesPersisted: Boolean(result.dishesPersisted),
+        uiConfigPersisted: true,
+        menuAppearancePersisted: true,
         persistedDishCount: result.persistedDishCount ?? 0,
         mediaBasePath: result.mediaBasePath ?? `restaurants/${result.restaurant.id}/photos/`,
         mediaBasePathPersisted: Boolean(result.mediaBasePathPersisted),
@@ -1012,12 +1065,18 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
 
         {currentStep.id === "menu" ? (
           <MenuStep
+            restaurantName={name}
             menuLanguages={menuLanguages}
             defaultMenuLanguage={defaultMenuLanguage}
             supportedCurrencies={supportedCurrencies}
             baseCurrency={baseCurrency}
             defaultCurrency={defaultCurrency}
             publicMenuStyle={publicMenuStyle}
+            appearancePresetId={appearancePresetId}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            appearancePalette={appearancePalette.palette}
+            appearanceWarnings={appearancePalette.warnings}
             restaurantTimezone={restaurantTimezone}
             defaultThemeMode={defaultThemeMode}
             allowLanguageSelector={allowLanguageSelector}
@@ -1034,6 +1093,10 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onBaseCurrencyChange={updateBaseCurrency}
             onDefaultCurrencyChange={updateDefaultCurrency}
             onPublicMenuStyleChange={setPublicMenuStyle}
+            onAppearancePresetChange={applyAppearancePreset}
+            onPrimaryColorChange={setPrimaryColor}
+            onSecondaryColorChange={setSecondaryColor}
+            onResetAppearance={resetAppearanceToTemplate}
             onRestaurantTimezoneChange={setRestaurantTimezone}
             onDefaultThemeModeChange={setDefaultThemeMode}
             onAllowLanguageSelectorChange={setAllowLanguageSelector}
@@ -1045,6 +1108,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onSectionDescriptionChange={setSectionDescription}
             onAddSection={addSection}
             onRemoveSection={removeSection}
+            showAppearance={false}
           />
         ) : null}
 
@@ -1084,6 +1148,30 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onCancelEdit={resetDishDraft}
             onRemoveDish={removeDish}
             onEditDish={startEditDish}
+          />
+        ) : null}
+
+        {currentStep.id === "appearance" ? (
+          <MenuAppearanceStep
+            restaurantName={name}
+            slug={effectiveSlug}
+            publicMenuSettings={publicMenuSettings}
+            appearance={menuAppearance}
+            publicMenuStyle={publicMenuStyle}
+            appearancePresetId={appearancePresetId}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            appearancePalette={appearancePalette.palette}
+            appearanceWarnings={appearancePalette.warnings}
+            defaultThemeMode={defaultThemeMode}
+            sections={sections}
+            dishes={dishes}
+            onPublicMenuStyleChange={setPublicMenuStyle}
+            onAppearancePresetChange={applyAppearancePreset}
+            onPrimaryColorChange={setPrimaryColor}
+            onSecondaryColorChange={setSecondaryColor}
+            onResetAppearance={resetAppearanceToTemplate}
+            onDefaultThemeModeChange={setDefaultThemeMode}
           />
         ) : null}
 
@@ -1256,12 +1344,18 @@ function ProfileStep({
 }
 
 function MenuStep({
+  restaurantName,
   menuLanguages,
   defaultMenuLanguage,
   supportedCurrencies,
   baseCurrency,
   defaultCurrency,
   publicMenuStyle,
+  appearancePresetId,
+  primaryColor,
+  secondaryColor,
+  appearancePalette,
+  appearanceWarnings,
   restaurantTimezone,
   defaultThemeMode,
   allowLanguageSelector,
@@ -1278,6 +1372,10 @@ function MenuStep({
   onBaseCurrencyChange,
   onDefaultCurrencyChange,
   onPublicMenuStyleChange,
+  onAppearancePresetChange,
+  onPrimaryColorChange,
+  onSecondaryColorChange,
+  onResetAppearance,
   onRestaurantTimezoneChange,
   onDefaultThemeModeChange,
   onAllowLanguageSelectorChange,
@@ -1288,14 +1386,33 @@ function MenuStep({
   onSectionNameChange,
   onSectionDescriptionChange,
   onAddSection,
-  onRemoveSection
+  onRemoveSection,
+  showAppearance
 }: {
+  restaurantName: string;
   menuLanguages: MenuLanguage[];
   defaultMenuLanguage: MenuLanguage;
   supportedCurrencies: MenuCurrency[];
   baseCurrency: MenuCurrency;
   defaultCurrency: MenuCurrency;
   publicMenuStyle: PublicMenuStyle;
+  appearancePresetId: string;
+  primaryColor: string;
+  secondaryColor: string;
+  appearancePalette: {
+    background: string;
+    surface: string;
+    text: string;
+    muted: string;
+    accent: string;
+    accent2: string;
+    accent3: string;
+    border: string;
+    success: string;
+    warning: string;
+    danger: string;
+  };
+  appearanceWarnings: string[];
   restaurantTimezone: string;
   defaultThemeMode: PublicMenuThemeMode;
   allowLanguageSelector: boolean;
@@ -1312,6 +1429,10 @@ function MenuStep({
   onBaseCurrencyChange: (currency: MenuCurrency) => void;
   onDefaultCurrencyChange: (currency: MenuCurrency) => void;
   onPublicMenuStyleChange: (style: PublicMenuStyle) => void;
+  onAppearancePresetChange: (presetId: string) => void;
+  onPrimaryColorChange: (value: string) => void;
+  onSecondaryColorChange: (value: string) => void;
+  onResetAppearance: () => void;
   onRestaurantTimezoneChange: (timezone: string) => void;
   onDefaultThemeModeChange: (theme: PublicMenuThemeMode) => void;
   onAllowLanguageSelectorChange: (value: boolean) => void;
@@ -1323,6 +1444,7 @@ function MenuStep({
   onSectionDescriptionChange: (value: string) => void;
   onAddSection: () => void;
   onRemoveSection: (id: string) => void;
+  showAppearance: boolean;
 }) {
   const [customLanguage, setCustomLanguage] = useState("");
   const [customCurrency, setCustomCurrency] = useState("");
@@ -1430,15 +1552,17 @@ function MenuStep({
           </div>
         </section>
 
+        {showAppearance ? (
         <section className={styles.menuLanguagePanel} aria-labelledby="menu-public-style-title">
           <div>
-            <h4 id="menu-public-style-title">Style du menu public</h4>
+            <h4 id="menu-public-style-title">Expérience et apparence du menu public</h4>
             <p>
-              Choisissez l&apos;experience visuelle qui sera utilisee sur le QR menu
-              public et sur les fiches plats.
+              Le choix est enregistré avec ce restaurant et appliqué au menu QR public
+              et aux fiches plats après publication.
             </p>
           </div>
-          <div className={styles.toggleCardGrid} role="group" aria-label="Style du menu public">
+
+          <div className={styles.toggleCardGrid} role="group" aria-label="Template du menu public">
             {publicMenuStyleOptions.map((option) => (
               <button
                 key={option.value}
@@ -1454,7 +1578,168 @@ function MenuStep({
               </button>
             ))}
           </div>
+
+          <div
+            className={styles.urlPreview}
+            aria-label="Aperçu non publié de l'apparence du menu"
+            style={{
+              backgroundColor: appearancePalette.background,
+              color: appearancePalette.text,
+              borderColor: appearancePalette.border
+            }}
+          >
+            <p className={styles.metricLabel} style={{ color: appearancePalette.muted }}>
+              Aperçu non publié · {publicMenuStyle === "trouvable" ? "Immersif" : "Éditorial"}
+            </p>
+            <p className={styles.bodyText} style={{ color: appearancePalette.text }}>
+              <strong>{restaurantName.trim() || "Votre restaurant"}</strong>
+            </p>
+            <p className={styles.sourceNote} style={{ color: appearancePalette.muted }}>
+              Un aperçu de la hiérarchie, des contrastes et des accents choisis.
+            </p>
+            <div className={styles.choiceRow} aria-hidden="true">
+              <span
+                className={styles.choiceButton}
+                style={{
+                  backgroundColor: appearancePalette.accent,
+                  borderColor: appearancePalette.accent,
+                  color: appearancePalette.background
+                }}
+              >
+                Carte
+              </span>
+              <span
+                className={styles.choiceButton}
+                style={{
+                  backgroundColor: appearancePalette.surface,
+                  borderColor: appearancePalette.border,
+                  color: appearancePalette.text
+                }}
+              >
+                Signature
+              </span>
+              <span
+                className={styles.choiceButton}
+                style={{
+                  backgroundColor: appearancePalette.accent2,
+                  borderColor: appearancePalette.accent2,
+                  color: appearancePalette.background
+                }}
+              >
+                28 CAD
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <h4 id="menu-appearance-presets-title">Palette premium</h4>
+            <p>Choisissez un preset, puis ajustez librement les deux couleurs principales.</p>
+          </div>
+          <div
+            className={styles.toggleCardGrid}
+            role="group"
+            aria-labelledby="menu-appearance-presets-title"
+          >
+            {MENU_STYLE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={`${styles.toggleCard} ${
+                  appearancePresetId === preset.id ? styles.toggleCardActive : ""
+                }`}
+                aria-pressed={appearancePresetId === preset.id}
+                onClick={() => onAppearancePresetChange(preset.id)}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-flex",
+                    width: 56,
+                    height: 18,
+                    borderRadius: 999,
+                    background: `linear-gradient(90deg, ${preset.primaryColor} 0 50%, ${preset.secondaryColor} 50% 100%)`,
+                    border: "1px solid rgba(255,255,255,.18)"
+                  }}
+                />
+                <strong>{preset.label}</strong>
+                <span>{preset.description}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.formGrid}>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Couleur principale</span>
+              <div className={styles.inlineControlGroup}>
+                <input
+                  type="color"
+                  value={normalizeHexColor(primaryColor, appearancePalette.accent)}
+                  aria-label="Sélecteur de couleur principale"
+                  onChange={(event) => onPrimaryColorChange(event.target.value)}
+                />
+                <input
+                  className={styles.control}
+                  value={primaryColor}
+                  inputMode="text"
+                  maxLength={7}
+                  aria-label="Code hexadécimal de la couleur principale"
+                  onChange={(event) => onPrimaryColorChange(event.target.value)}
+                />
+              </div>
+            </label>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Couleur secondaire</span>
+              <div className={styles.inlineControlGroup}>
+                <input
+                  type="color"
+                  value={normalizeHexColor(secondaryColor, appearancePalette.accent2)}
+                  aria-label="Sélecteur de couleur secondaire"
+                  onChange={(event) => onSecondaryColorChange(event.target.value)}
+                />
+                <input
+                  className={styles.control}
+                  value={secondaryColor}
+                  inputMode="text"
+                  maxLength={7}
+                  aria-label="Code hexadécimal de la couleur secondaire"
+                  onChange={(event) => onSecondaryColorChange(event.target.value)}
+                />
+              </div>
+            </label>
+          </div>
+
+          <div className={styles.formGrid}>
+            <label className={styles.formField}>
+              <span className={styles.filterLabel}>Fond par défaut</span>
+              <select
+                className={styles.control}
+                value={defaultThemeMode}
+                onChange={(event) => onDefaultThemeModeChange(event.target.value as PublicMenuThemeMode)}
+              >
+                {themeModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className={styles.formField}>
+              <span className={styles.filterLabel}>Palette calculée</span>
+              <span className={styles.sourceNote}>
+                Fond {appearancePalette.background} · texte {appearancePalette.text}
+              </span>
+              <button type="button" className={`${styles.btn} ${styles.btnSmall}`} onClick={onResetAppearance}>
+                Réinitialiser le preset du template
+              </button>
+            </div>
+          </div>
+          {appearanceWarnings.length > 0 ? (
+            <p className={styles.sourceNote} role="status">
+              {appearanceWarnings.join(" ")}
+            </p>
+          ) : null}
         </section>
+        ) : null}
 
         <section className={styles.menuLanguagePanel} aria-labelledby="menu-settings-title">
           <div>
@@ -1700,6 +1985,238 @@ function MenuStep({
               </span>
             ))
           )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MenuAppearanceStep({
+  restaurantName,
+  slug,
+  publicMenuSettings,
+  appearance,
+  publicMenuStyle,
+  appearancePresetId,
+  primaryColor,
+  secondaryColor,
+  appearancePalette,
+  appearanceWarnings,
+  defaultThemeMode,
+  sections,
+  dishes,
+  onPublicMenuStyleChange,
+  onAppearancePresetChange,
+  onPrimaryColorChange,
+  onSecondaryColorChange,
+  onResetAppearance,
+  onDefaultThemeModeChange
+}: {
+  restaurantName: string;
+  slug: string;
+  publicMenuSettings: PublicMenuSettings;
+  appearance: MenuAppearanceSelection;
+  publicMenuStyle: PublicMenuStyle;
+  appearancePresetId: string;
+  primaryColor: string;
+  secondaryColor: string;
+  appearancePalette: MenuAppearancePalette;
+  appearanceWarnings: string[];
+  defaultThemeMode: PublicMenuThemeMode;
+  sections: DraftSection[];
+  dishes: DraftDish[];
+  onPublicMenuStyleChange: (style: PublicMenuStyle) => void;
+  onAppearancePresetChange: (presetId: string) => void;
+  onPrimaryColorChange: (value: string) => void;
+  onSecondaryColorChange: (value: string) => void;
+  onResetAppearance: () => void;
+  onDefaultThemeModeChange: (mode: PublicMenuThemeMode) => void;
+}) {
+  return (
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>4. Style du menu</h3>
+          <p className={styles.cellSub}>
+            Choisissez l&apos;identité visuelle après avoir construit le contenu de votre carte.
+          </p>
+        </div>
+      </div>
+      <div className={styles.panelBody}>
+        <div className={styles.menuAppearanceLayout}>
+          <div className={styles.menuAppearanceControls}>
+            <section className={styles.menuLanguagePanel} aria-labelledby="menu-public-style-title">
+              <div>
+                <h4 id="menu-public-style-title">Expérience et apparence du menu public</h4>
+                <p>
+                  Le choix est enregistré avec ce restaurant et appliqué au menu QR public et aux fiches plats.
+                </p>
+              </div>
+              <div className={styles.toggleCardGrid} role="group" aria-label="Template du menu public">
+                {publicMenuStyleOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${styles.toggleCard} ${
+                      publicMenuStyle === option.value ? styles.toggleCardActive : ""
+                    }`}
+                    aria-pressed={publicMenuStyle === option.value}
+                    onClick={() => onPublicMenuStyleChange(option.value)}
+                  >
+                    <strong>{option.label}</strong>
+                    <span>{option.detail}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className={styles.menuLanguagePanel} aria-labelledby="menu-appearance-presets-title">
+              <div>
+                <h4 id="menu-appearance-presets-title">Palette premium</h4>
+                <p>Choisissez un preset, puis ajustez librement les deux couleurs principales.</p>
+              </div>
+              <div
+                className={styles.toggleCardGrid}
+                role="group"
+                aria-labelledby="menu-appearance-presets-title"
+              >
+                {MENU_STYLE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`${styles.toggleCard} ${
+                      appearancePresetId === preset.id ? styles.toggleCardActive : ""
+                    }`}
+                    aria-pressed={appearancePresetId === preset.id}
+                    onClick={() => onAppearancePresetChange(preset.id)}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        display: "inline-flex",
+                        width: 56,
+                        height: 18,
+                        borderRadius: 999,
+                        background: `linear-gradient(90deg, ${preset.primaryColor} 0 50%, ${preset.secondaryColor} 50% 100%)`,
+                        border: "1px solid rgba(255,255,255,.18)"
+                      }}
+                    />
+                    <strong>{preset.label}</strong>
+                    <span>{preset.description}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.formGrid}>
+                <label className={styles.formField}>
+                  <span className={styles.filterLabel}>Couleur principale</span>
+                  <div className={styles.inlineControlGroup}>
+                    <input
+                      type="color"
+                      value={normalizeHexColor(primaryColor, appearancePalette.accent)}
+                      aria-label="Sélecteur de couleur principale"
+                      onChange={(event) => onPrimaryColorChange(event.target.value)}
+                    />
+                    <input
+                      className={styles.control}
+                      value={primaryColor}
+                      inputMode="text"
+                      maxLength={7}
+                      aria-label="Code hexadécimal de la couleur principale"
+                      onChange={(event) => onPrimaryColorChange(event.target.value)}
+                    />
+                  </div>
+                </label>
+                <label className={styles.formField}>
+                  <span className={styles.filterLabel}>Couleur secondaire</span>
+                  <div className={styles.inlineControlGroup}>
+                    <input
+                      type="color"
+                      value={normalizeHexColor(secondaryColor, appearancePalette.accent2)}
+                      aria-label="Sélecteur de couleur secondaire"
+                      onChange={(event) => onSecondaryColorChange(event.target.value)}
+                    />
+                    <input
+                      className={styles.control}
+                      value={secondaryColor}
+                      inputMode="text"
+                      maxLength={7}
+                      aria-label="Code hexadécimal de la couleur secondaire"
+                      onChange={(event) => onSecondaryColorChange(event.target.value)}
+                    />
+                  </div>
+                </label>
+              </div>
+
+              <div className={styles.formGrid}>
+                <label className={styles.formField}>
+                  <span className={styles.filterLabel}>Fond par défaut</span>
+                  <select
+                    className={styles.control}
+                    value={defaultThemeMode}
+                    onChange={(event) => onDefaultThemeModeChange(event.target.value as PublicMenuThemeMode)}
+                  >
+                    {themeModeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className={styles.formField}>
+                  <span className={styles.filterLabel}>Palette calculée</span>
+                  <span className={styles.sourceNote}>
+                    Fond {appearancePalette.background} · texte {appearancePalette.text}
+                  </span>
+                  <button type="button" className={`${styles.btn} ${styles.btnSmall}`} onClick={onResetAppearance}>
+                    Réinitialiser le preset du template
+                  </button>
+                </div>
+              </div>
+              {appearanceWarnings.length > 0 ? (
+                <p className={styles.sourceNote} role="status">
+                  {appearanceWarnings.join(" ")}
+                </p>
+              ) : null}
+            </section>
+          </div>
+
+          <div className={styles.menuAppearancePreview}>
+            <div className={styles.menuAppearancePreviewHeader}>
+              <div>
+                <span className={styles.metricLabel}>Aperçu client</span>
+                <p className={styles.cellSub}>Votre menu sur téléphone</p>
+              </div>
+              <span className={styles.badge}>{publicMenuStyle === "trouvable" ? "Immersif" : "Éditorial"}</span>
+            </div>
+            <div
+              className={styles.menuPhoneFrame}
+              style={{ borderColor: appearancePalette.border }}
+              aria-label={`Aperçu mobile du menu de ${restaurantName.trim() || "Votre restaurant"}`}
+            >
+              <div className={styles.menuPhoneNotch} aria-hidden="true" />
+              <div className={styles.menuPhoneTopbar} style={{ color: appearancePalette.muted }}>
+                <span>09:41</span>
+                <span aria-hidden="true">•••</span>
+              </div>
+              <div
+                className={styles.menuPhoneScreen}
+                style={{ backgroundColor: appearancePalette.background, color: appearancePalette.text }}
+              >
+                <OwnerMenuLivePreview
+                  restaurantName={restaurantName}
+                  slug={slug}
+                  publicMenuSettings={publicMenuSettings}
+                  appearance={appearance}
+                  sections={sections}
+                  dishes={dishes}
+                />
+              </div>
+            </div>
+            <p className={styles.sourceNote}>
+              Aperçu instantané : il suit le template et la palette sélectionnés avant publication.
+            </p>
+          </div>
         </div>
       </div>
     </article>
@@ -2149,6 +2666,16 @@ function CreationSuccess({
               <span>Medias</span>
               <strong>{state.mediaBasePathPersisted ? "Chemin media reference" : "Chemin media prevu"}</strong>
               <small>{state.mediaBasePath}</small>
+            </article>
+            <article>
+              <span>Design UI</span>
+              <strong>{state.uiConfigPersisted ? "Configuration persistee" : "A verifier"}</strong>
+              <small>Draft menu_ui_configs</small>
+            </article>
+            <article>
+              <span>Palette</span>
+              <strong>{state.menuAppearancePersisted ? "Palette appliquee" : "A verifier"}</strong>
+              <small>Template, couleurs et mode</small>
             </article>
           </div>
 

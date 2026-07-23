@@ -708,6 +708,23 @@
   gap: 8px;
 }
 
+.inlineControlGroup {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.inlineControlGroup input[type="color"] {
+  width: 48px;
+  height: 42px;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 10px;
+  background: rgba(8, 6, 4, 0.34);
+  padding: 3px;
+  cursor: pointer;
+}
+
 .fieldHelp {
   color: rgba(255, 250, 240, 0.58);
   font-size: 12px;
@@ -2507,6 +2524,200 @@
   border: 0;
   border-radius: 22px;
   background: #15100c;
+}
+
+.menuAppearanceLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 18px;
+  align-items: start;
+}
+
+.menuAppearanceControls {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.menuAppearancePreview {
+  position: sticky;
+  top: 86px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.menuAppearancePreviewHeader {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.menuPhoneFrame {
+  position: relative;
+  width: min(100%, 330px);
+  margin: 0 auto;
+  border: 1px solid rgba(232, 207, 155, 0.28);
+  border-radius: 36px;
+  background: #070504;
+  padding: 10px;
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, 0.36),
+    inset 0 0 0 1px rgba(255, 250, 240, 0.05);
+}
+
+.menuPhoneNotch {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  z-index: 2;
+  width: 92px;
+  height: 20px;
+  border-radius: 0 0 13px 13px;
+  background: #070504;
+  transform: translateX(-50%);
+}
+
+.menuPhoneTopbar {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.menuPhoneScreen {
+  position: relative;
+  container-type: inline-size;
+  height: 650px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 26px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+}
+
+.menuPhoneHero {
+  display: grid;
+  gap: 7px;
+  padding: 34px 17px 18px;
+}
+
+.menuPhoneHero > span:first-child {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.menuPhoneHero h4 {
+  margin: 0;
+  font-family: var(--owner-display);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 0.95;
+  overflow-wrap: anywhere;
+}
+
+.menuPhoneHero p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.menuPhoneAction {
+  width: max-content;
+  max-width: 100%;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 30px;
+  overflow-wrap: anywhere;
+}
+
+.menuPhoneContent {
+  display: grid;
+  gap: 15px;
+  padding: 14px;
+}
+
+.menuPhoneTabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow-x: hidden;
+  color: var(--owner-muted);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.menuPhoneTabs > span {
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 0 9px;
+  line-height: 26px;
+}
+
+.menuPhoneSection {
+  display: grid;
+  gap: 7px;
+}
+
+.menuPhoneSectionTitle {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.menuPhoneSectionTitle span {
+  font-size: 10px;
+}
+
+.menuPhoneDish {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  border-bottom: 1px solid rgba(232, 207, 155, 0.12);
+  padding: 7px 0;
+}
+
+.menuPhoneDish > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.menuPhoneDish strong,
+.menuPhoneDish small,
+.menuPhoneDish b {
+  overflow-wrap: anywhere;
+}
+
+.menuPhoneDish strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.menuPhoneDish small {
+  font-size: 9px;
+}
+
+.menuPhoneDish b {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .createWizard {
@@ -4768,8 +4979,13 @@
   .ownerPortfolioLayout,
   .restaurantOverviewGrid,
   .createWizard,
-  .qrPreviewGrid {
+  .qrPreviewGrid,
+  .menuAppearanceLayout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .menuAppearancePreview {
+    position: static;
   }
 
   .ownerPickerToolbar {
@@ -5114,6 +5330,33 @@
   .qrDialogActions .btnPrimary,
   .qrDialogActions .qrDangerButton {
     width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .menuPhoneFrame {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .menuPhoneNotch,
+  .menuPhoneTopbar {
+    display: none;
+  }
+
+  .menuPhoneScreen {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: clip;
+    overflow-y: visible;
+    border-radius: 0;
+    transform: none;
   }
 }
 

@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
       dataSource: created.dataSource,
       restaurantPersisted: created.restaurantPersisted,
       menuPersisted: created.menuPersisted,
+      uiConfigPersisted: created.uiConfigPersisted,
+      menuAppearancePersisted: created.menuAppearancePersisted,
       categoriesPersisted: created.categoriesPersisted,
       sectionsPersisted: created.sectionsPersisted,
       dishesPersisted: created.dishesPersisted,

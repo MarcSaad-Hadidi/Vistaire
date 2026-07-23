@@ -4,9 +4,11 @@ import { useEffect } from "react";
 
 export function useTrouvableDocumentLanguage(
   locale: string,
-  direction: "ltr" | "rtl"
+  direction: "ltr" | "rtl",
+  enabled = true
 ) {
   useEffect(() => {
+    if (!enabled) return;
     const root = document.documentElement;
     const previousLang = root.lang;
     const previousDir = root.getAttribute("dir");
@@ -22,5 +24,5 @@ export function useTrouvableDocumentLanguage(
         root.setAttribute("dir", previousDir);
       }
     };
-  }, [direction, locale]);
+  }, [direction, enabled, locale]);
 }

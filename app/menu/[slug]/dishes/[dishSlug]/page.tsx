@@ -84,6 +84,16 @@ export default async function PublicDishPage({
     notFound();
   }
 
+  const fallbackConfig = menuUiConfigForRestaurant({
+    name: menu.name,
+    slug: menu.slug
+  });
+  const configRecord = await getPublishedMenuUiConfigForRestaurant(
+    menu.restaurantId,
+    fallbackConfig
+  );
+  const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
+
   if (isMaisonElysePublicMenu(menu)) {
     return (
       <MaisonElyseDishDetail
@@ -91,6 +101,7 @@ export default async function PublicDishPage({
         locale={activeLocale}
         menu={menu}
         query={menuQuery}
+        config={resolvedConfig}
       />
     );
   }
@@ -109,6 +120,7 @@ export default async function PublicDishPage({
 
     return (
       <TrouvableDishDetailExperience
+        config={resolvedConfig}
         context={context}
         dish={dish}
         exchangeRates={exchangeRates}
@@ -121,16 +133,6 @@ export default async function PublicDishPage({
       />
     );
   }
-
-  const fallbackConfig = menuUiConfigForRestaurant({
-    name: menu.name,
-    slug: menu.slug
-  });
-  const configRecord = await getPublishedMenuUiConfigForRestaurant(
-    menu.restaurantId,
-    fallbackConfig
-  );
-  const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
 
   return (
     <PublicDishDetailExperience

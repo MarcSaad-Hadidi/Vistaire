@@ -126,7 +126,11 @@ export function OwnerQrManager({
           <span className={styles.badge}>{selectedTarget.badgeLabel}</span>
           <div>
             <strong>Destination exacte</strong>
-            <p>{selectedTarget.targetPath}</p>
+            <p>
+              {selectedTarget.targetKind === "admin"
+                ? "URL opaque /q/… (destination interne masquée)"
+                : selectedTarget.targetPath}
+            </p>
           </div>
         </div>
       ) : null}
@@ -143,7 +147,7 @@ export function OwnerQrManager({
         targetPath={selectedTarget?.targetPath ?? selected.publicMenuPath}
         targetDisplayUrl={
           selectedTarget?.targetKind === "admin"
-            ? selectedTarget.targetPath
+            ? ""
             : selected.publicMenuUrl
         }
       />

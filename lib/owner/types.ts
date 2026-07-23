@@ -1,4 +1,5 @@
 import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
+import type { MenuAppearanceSelection } from "@/lib/menu/menuAppearance";
 
 export type OwnerRestaurantStatus =
   | "demo"
@@ -268,6 +269,7 @@ export type CreateRestaurantInput = {
   notes?: string;
   menuLanguages?: CreateRestaurantMenuLanguage[];
   publicMenuSettings?: PublicMenuSettings;
+  menuAppearance?: MenuAppearanceSelection;
   sections?: CreateRestaurantSectionInput[];
   dishes?: CreateRestaurantDishInput[];
 };

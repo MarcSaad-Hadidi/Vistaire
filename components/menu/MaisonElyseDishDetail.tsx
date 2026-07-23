@@ -11,6 +11,7 @@ import {
   type PublicMenuContextQuery,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import {
   getPublicMenuAnalyticsContext,
@@ -45,6 +46,7 @@ type MaisonElyseDishDetailProps = {
   query?: PublicMenuContextQuery;
   displayMode?: "public" | "phone-preview";
   locale?: Locale;
+  config?: MenuUiConfig;
   onBackToMenu?: () => void;
 };
 
@@ -332,13 +334,14 @@ export function MaisonElyseDishDetail({
   query,
   displayMode = "public",
   locale = "fr",
+  config,
   onBackToMenu
 }: MaisonElyseDishDetailProps) {
   const copy = DETAIL_COPY[locale];
   const [showModelViewer, setShowModelViewer] = useState(false);
   const analyticsContext = getPublicMenuAnalyticsContext(menu);
   const menuHref = buildFullMenuHref(menu, query);
-  const restaurantName = cleanDisplayText(menu.name) || "Maison Élyse";
+  const restaurantName = cleanDisplayText(menu.name) || "Restaurant";
   const dishName = cleanDisplayText(dish.name);
   const dishDescription = cleanDisplayText(dish.description);
   const displayCategory = categoryLabel(dish.category, locale);
@@ -359,12 +362,13 @@ export function MaisonElyseDishDetail({
       : copy.openAr;
 
   useEffect(() => {
+    if (displayMode !== "public") return;
     trackPublicMenuEvent(menu, {
       eventName: "dish_opened",
       dishSlug: dish.slug,
       categorySlug: dish.categorySlug ?? slugify(dish.category)
     });
-  }, [dish.category, dish.categorySlug, dish.slug, menu]);
+  }, [displayMode, dish.category, dish.categorySlug, dish.slug, menu]);
 
   function toggleModelViewer() {
     setShowModelViewer((isVisible) => {
@@ -379,6 +383,34 @@ export function MaisonElyseDishDetail({
       className={`${styles.page} ${
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
+      style={
+        config
+          ? ({
+              "--menu-bg": config.palette.background,
+              "--menu-surface": config.palette.surface,
+              "--menu-text": config.palette.text,
+              "--menu-muted": config.palette.muted,
+              "--menu-accent": config.palette.accent,
+              "--menu-accent-2": config.palette.accent2,
+              "--menu-accent-3": config.palette.accent3,
+              "--menu-border": config.palette.border,
+              "--menu-success": config.palette.success,
+              "--menu-warning": config.palette.warning,
+              "--menu-danger": config.palette.danger,
+              "--elyse-bg": config.palette.background,
+              "--elyse-bg-soft": config.palette.surface,
+              "--elyse-surface": config.palette.surface,
+              "--elyse-surface-soft": config.palette.surface,
+              "--elyse-cream": config.palette.text,
+              "--elyse-text": config.palette.text,
+              "--elyse-muted": config.palette.muted,
+              "--elyse-champagne": config.palette.accent,
+              "--elyse-gold": config.palette.accent2,
+              "--elyse-border": config.palette.border,
+              "--elyse-border-strong": config.palette.accent
+            } as CSSProperties)
+          : undefined
+      }
     >
       <nav className={styles.topNav} aria-label={copy.topNavAria}>
         {onBackToMenu ? (
