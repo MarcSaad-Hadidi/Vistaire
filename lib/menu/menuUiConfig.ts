@@ -1,6 +1,7 @@
 import {
   MENU_THEME_IDS,
-  buildConfigFromTheme
+  buildConfigFromTheme,
+  MAISON_ELYSE_PALETTE
 } from "./menuThemePresets.ts";
 import {
   MENU_CATEGORY_PRESENTATION_VALUES,
@@ -476,6 +477,7 @@ export function menuUiConfigForRestaurant(args: {
   if (premium) {
     return normalizeMenuUiConfig({
       ...baseConfig,
+      palette: MAISON_ELYSE_PALETTE,
       global: {
         ...baseConfig.global,
         backgroundStyle: "dark",

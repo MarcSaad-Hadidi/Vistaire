@@ -31,24 +31,28 @@
 }
 
 .page {
-  --elyse-bg: var(--menu-bg, #050403);
-  --elyse-bg-soft: var(--menu-surface, #0b0705);
-  --elyse-surface: var(--menu-surface, #120c08);
-  --elyse-surface-soft: color-mix(in srgb, var(--menu-surface, #191109) 76%, var(--menu-bg, #050403));
-  --elyse-cream: var(--menu-text, #fff7ea);
-  --elyse-text: var(--menu-text, #f4ebdd);
-  --elyse-muted: var(--menu-muted, #bfaf98);
-  --elyse-champagne: var(--menu-accent, #e8cf9b);
-  --elyse-gold: var(--menu-accent-2, #d2a45e);
-  --elyse-bronze: var(--menu-accent-3, #8a6338);
-  --elyse-border: var(--menu-border, rgba(232, 207, 155, 0.2));
-  --elyse-border-strong: color-mix(in srgb, var(--menu-accent, #e8cf9b) 42%, transparent);
-  --elyse-overlay: color-mix(in srgb, var(--menu-bg, #050403) 62%, transparent);
+  --elyse-black: var(--menu-bg, #000000);
+  --elyse-bg: var(--menu-bg, #000000);
+  --elyse-bg-soft: var(--menu-surface, #050505);
+  --elyse-surface: var(--menu-surface, #0A0A0A);
+  --elyse-surface-elevated: var(--menu-surface-elevated, #111111);
+  --elyse-surface-soft: var(--menu-surface, #0A0A0A);
+  --elyse-white: var(--menu-text, #FFFFFF);
+  --elyse-text: var(--menu-text, #F2F2F2);
+  --elyse-muted: var(--menu-muted, #A6A6A6);
+  --elyse-gold: var(--menu-accent, #C9A45C);
+  --elyse-gold-light: var(--menu-accent-2, #DFC478);
+  --elyse-border: var(--menu-border, rgba(255, 255, 255, 0.12));
+  --elyse-border-strong: var(--menu-border-strong, rgba(201, 164, 92, 0.46));
+  --elyse-gold-border: var(--menu-gold-border, rgba(201, 164, 92, 0.22));
+  --elyse-overlay: var(--menu-overlay, rgba(0, 0, 0, 0.72));
+  --elyse-overlay-strong: var(--menu-overlay-strong, rgba(0, 0, 0, 0.88));
+  --elyse-focus: var(--menu-focus, #DFC478);
   position: relative;
   min-height: 100svh;
   overflow-x: clip;
   background:
-    linear-gradient(180deg, rgba(35, 19, 10, 0.92), rgba(5, 4, 3, 0.98) 260px),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.98) 260px),
     var(--elyse-bg);
   color: var(--elyse-text);
   font-family: "Neue Montreal", system-ui, sans-serif;
@@ -73,8 +77,6 @@
   padding-bottom: 0;
 }
 
-.hero,
-.guestToolbar,
 .sections,
 .page [data-google-review-card="true"] {
   width: min(100%, 760px);
@@ -104,37 +106,6 @@
   min-height: 0;
 }
 
-.hero {
-  display: grid;
-  gap: 16px;
-  padding: 8px 0 14px;
-}
-
-.guestToolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 2px 0 10px;
-}
-
-.guestToolbarName {
-  min-width: 0;
-  overflow: hidden;
-  color: rgba(255, 247, 234, 0.82);
-  font-family: "BT Suave", Georgia, serif;
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.heroCopy {
-  display: grid;
-  gap: 10px;
-}
-
 .kicker {
   margin: 0;
   color: var(--elyse-gold);
@@ -145,33 +116,14 @@
   text-transform: uppercase;
 }
 
-.hero h1,
-.sectionHeader h2,
-.featuredHeader h2,
 .menuCoverCopy h2,
 .dishSectionHeader h3,
 .sheetHeader h3 {
   margin: 0;
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-weight: 500;
   letter-spacing: 0;
-}
-
-.hero h1 {
-  max-width: 11ch;
-  font-size: 48px;
-  line-height: 0.92;
-  text-wrap: balance;
-}
-
-.heroCopy > p:not(.kicker) {
-  max-width: 35rem;
-  margin: 0;
-  color: rgba(244, 235, 221, 0.82);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.48;
 }
 
 .sections {
@@ -180,21 +132,6 @@
   padding-top: 4px;
 }
 
-.sectionHeader,
-.featuredHeader {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.sectionHeader h2,
-.featuredHeader h2 {
-  font-size: 30px;
-  line-height: 0.98;
-}
-
-.featuredHeader button,
 .empty button,
 .activeFilterNotice button,
 .sheetHeader button,
@@ -203,8 +140,8 @@
   min-height: 40px;
   border: 1px solid var(--elyse-border);
   border-radius: 999px;
-  background: rgba(232, 207, 155, 0.055);
-  color: rgba(255, 247, 234, 0.94);
+  background: rgba(201, 164, 92, 0.055);
+  color: rgba(255, 255, 255, 0.94);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -213,77 +150,9 @@
   padding: 0 14px;
 }
 
-.categoryGrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.categoryCard {
-  --category-image: none;
-  position: relative;
-  display: grid;
-  min-height: 138px;
-  align-content: end;
-  gap: 7px;
-  overflow: hidden;
-  border: 1px solid rgba(232, 207, 155, 0.2);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(5, 4, 3, 0.12), rgba(5, 4, 3, 0.9)),
-    var(--category-image),
-    var(--elyse-surface);
-  background-position: center;
-  background-size: cover;
-  color: var(--elyse-cream);
-  cursor: pointer;
-  font: inherit;
-  padding: 12px;
-  text-align: left;
-  box-shadow:
-    0 18px 42px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(232, 207, 155, 0.12);
-}
-
-.categoryCard strong {
-  display: block;
-  color: var(--elyse-cream);
-  font-family: "BT Suave", Georgia, serif;
-  font-size: 30px;
-  font-weight: 500;
-  line-height: 0.95;
-  overflow-wrap: break-word;
-  text-wrap: balance;
-}
-
-.categoryCard small {
-  max-width: 20rem;
-  color: rgba(244, 235, 221, 0.76);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.32;
-}
-
-.phonePreview .categoryGrid {
-  grid-template-columns: 1fr;
-}
-
-.phonePreview .categoryCard {
-  min-height: 138px;
-}
-
-.phonePreview .categoryCard strong {
-  font-size: 30px;
-}
-
-.featured,
 .menuPanel {
   display: grid;
   gap: 12px;
-}
-
-.featured {
-  padding-top: 6px;
 }
 
 .menuPanel {
@@ -312,7 +181,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-bottom: 18px;
-  scrollbar-color: rgba(232, 207, 155, 0.22) transparent;
+  scrollbar-color: rgba(201, 164, 92, 0.22) transparent;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
@@ -325,8 +194,8 @@
   overflow: hidden;
   align-items: end;
   background:
-    linear-gradient(180deg, rgba(5, 4, 3, 0.32), rgba(5, 4, 3, 0.2) 32%, rgba(5, 4, 3, 0.94) 88%, var(--elyse-bg)),
-    linear-gradient(0deg, rgba(5, 4, 3, 0.38), rgba(5, 4, 3, 0.38)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.2) 32%, rgba(0, 0, 0, 0.94) 88%, var(--elyse-bg)),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.38)),
     var(--menu-hero-image),
     var(--elyse-bg-soft);
   background-position: center;
@@ -358,7 +227,7 @@
 .menuRestaurantName {
   min-width: 0;
   overflow: hidden;
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-size: 29px;
   font-weight: 500;
@@ -382,10 +251,10 @@
   min-height: 44px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.26);
+  border: 1px solid rgba(201, 164, 92, 0.26);
   border-radius: 999px;
-  background: rgba(5, 4, 3, 0.3);
-  color: var(--elyse-champagne);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--elyse-gold);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
@@ -407,7 +276,7 @@
   justify-content: center;
   border: 0;
   background: transparent;
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   cursor: pointer;
   padding: 0;
 }
@@ -436,7 +305,7 @@
 
 .menuCoverCopy h2 {
   margin: 0;
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-size: 48px;
   font-weight: 500;
@@ -453,7 +322,7 @@
 .menuCoverCopy p:not(.kicker) {
   max-width: 24rem;
   margin: 0;
-  color: rgba(244, 235, 221, 0.8);
+  color: rgba(242, 242, 242, 0.8);
   font-size: 14px;
   line-height: 1.52;
   text-wrap: balance;
@@ -466,8 +335,8 @@
   justify-content: space-between;
   gap: 12px;
   margin: 16px auto 0;
-  border-bottom: 1px solid rgba(232, 207, 155, 0.12);
-  color: rgba(244, 235, 221, 0.78);
+  border-bottom: 1px solid rgba(201, 164, 92, 0.12);
+  color: rgba(242, 242, 242, 0.78);
   font-size: 12px;
   font-weight: 700;
   padding: 2px 0 14px;
@@ -475,12 +344,11 @@
 
 .activeFilterNotice button {
   min-height: 30px;
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
   font-size: 10.5px;
   padding-inline: 11px;
 }
 
-.previewList,
 .dishList {
   display: grid;
   gap: 0;
@@ -525,14 +393,14 @@
 .dishSectionHeader p:not(.kicker) {
   max-width: 31rem;
   margin: 0;
-  color: rgba(244, 235, 221, 0.62);
+  color: rgba(242, 242, 242, 0.62);
   font-size: 13px;
   line-height: 1.45;
 }
 
 .dishItem {
   min-width: 0;
-  border-bottom: 1px solid rgba(232, 207, 155, 0.1);
+  border-bottom: 1px solid rgba(201, 164, 92, 0.1);
 }
 
 .dishCard {
@@ -561,10 +429,10 @@
   aspect-ratio: 1;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(232, 207, 155, 0.14);
+  border: 1px solid rgba(201, 164, 92, 0.14);
   border-radius: 2px;
-  background: rgba(232, 207, 155, 0.055);
-  color: rgba(232, 207, 155, 0.76);
+  background: rgba(201, 164, 92, 0.055);
+  color: rgba(201, 164, 92, 0.76);
   font-family: "BT Suave", Georgia, serif;
   font-size: 24px;
 }
@@ -584,7 +452,7 @@
 }
 
 .dishName {
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-size: 20px;
   font-weight: 500;
@@ -596,7 +464,7 @@
   display: -webkit-box;
   overflow: hidden;
   max-width: 34ch;
-  color: rgba(244, 235, 221, 0.72);
+  color: rgba(242, 242, 242, 0.72);
   font-size: 15px;
   font-weight: 400;
   line-height: 1.42;
@@ -615,10 +483,10 @@
   display: inline-flex;
   min-height: 26px;
   align-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.18);
+  border: 1px solid rgba(201, 164, 92, 0.18);
   border-radius: 0;
-  background: rgba(5, 4, 3, 0.28);
-  color: rgba(244, 235, 221, 0.68);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(242, 242, 242, 0.68);
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
@@ -627,7 +495,7 @@
 }
 
 .dishPrice {
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
   font-family: "Neue Montreal", system-ui, sans-serif;
   font-size: 14px;
   font-weight: 800;
@@ -639,15 +507,15 @@
   min-height: 190px;
   place-items: center;
   gap: 12px;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  background: rgba(232, 207, 155, 0.035);
+  border: 1px solid rgba(201, 164, 92, 0.18);
+  background: rgba(201, 164, 92, 0.035);
   padding: 22px;
   text-align: center;
 }
 
 .empty p {
   margin: 0;
-  color: rgba(255, 247, 234, 0.82);
+  color: rgba(255, 255, 255, 0.82);
   font-size: 15px;
   font-weight: 800;
 }
@@ -657,7 +525,7 @@
   min-height: 100%;
   place-items: center;
   background: var(--elyse-bg);
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -675,12 +543,12 @@
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid rgba(232, 207, 155, 0.2);
-  background: rgba(10, 7, 5, 0.94);
+  border: 1px solid rgba(201, 164, 92, 0.2);
+  background: rgba(10, 10, 10, 0.94);
   padding: 10px 14px;
   box-shadow:
     0 18px 46px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(232, 207, 155, 0.08);
+    inset 0 1px 0 rgba(201, 164, 92, 0.08);
   -webkit-backdrop-filter: blur(14px) saturate(112%);
   backdrop-filter: blur(14px) saturate(112%);
 }
@@ -700,9 +568,9 @@
 
 .bottomBar button {
   min-height: 38px;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  background: rgba(232, 207, 155, 0.035);
-  color: var(--elyse-champagne);
+  border: 1px solid rgba(201, 164, 92, 0.18);
+  background: rgba(201, 164, 92, 0.035);
+  color: var(--elyse-gold);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -714,9 +582,9 @@
 }
 
 .bottomBar button[aria-expanded="true"] {
-  border-color: rgba(232, 207, 155, 0.42);
-  background: rgba(232, 207, 155, 0.08);
-  color: var(--elyse-cream);
+  border-color: rgba(201, 164, 92, 0.42);
+  background: rgba(201, 164, 92, 0.08);
+  color: var(--elyse-white);
 }
 
 .sheetBackdrop {
@@ -741,14 +609,14 @@
   gap: 16px;
   justify-self: center;
   overflow-y: auto;
-  border: 1px solid rgba(232, 207, 155, 0.22);
+  border: 1px solid rgba(201, 164, 92, 0.22);
   background:
-    linear-gradient(180deg, rgba(25, 17, 9, 0.98), rgba(5, 4, 3, 0.98)),
+    linear-gradient(180deg, rgba(17, 17, 17, 0.98), rgba(0, 0, 0, 0.98)),
     var(--elyse-bg-soft);
   padding: 10px 14px calc(18px + env(safe-area-inset-bottom));
   box-shadow:
     0 -26px 70px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(232, 207, 155, 0.08);
+    inset 0 1px 0 rgba(201, 164, 92, 0.08);
   -webkit-backdrop-filter: blur(14px) saturate(112%);
   backdrop-filter: blur(14px) saturate(112%);
 }
@@ -821,7 +689,7 @@
   height: 3px;
   justify-self: center;
   border-radius: 999px;
-  background: rgba(232, 207, 155, 0.3);
+  background: rgba(201, 164, 92, 0.3);
 }
 
 .sheetHeader {
@@ -839,7 +707,7 @@
 
 .sheetHeader button {
   min-height: 32px;
-  color: rgba(244, 235, 221, 0.82);
+  color: rgba(242, 242, 242, 0.82);
   font-size: 10.5px;
   padding-inline: 10px;
 }
@@ -854,7 +722,7 @@
   gap: 12px;
   align-items: center;
   border: 0;
-  border-top: 1px solid rgba(232, 207, 155, 0.12);
+  border-top: 1px solid rgba(201, 164, 92, 0.12);
   background: transparent;
   color: var(--elyse-text);
   cursor: pointer;
@@ -869,14 +737,14 @@
 }
 
 .sheetList span {
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-size: 22px;
   line-height: 1;
 }
 
 .sheetList small {
-  color: rgba(232, 207, 155, 0.78);
+  color: rgba(201, 164, 92, 0.78);
   font-size: 11px;
   font-weight: 900;
   line-height: 1;
@@ -891,10 +759,10 @@
 
 .filterGrid button {
   min-height: 38px;
-  border: 1px solid rgba(232, 207, 155, 0.16);
+  border: 1px solid rgba(201, 164, 92, 0.16);
   border-radius: 999px;
-  background: rgba(232, 207, 155, 0.035);
-  color: rgba(244, 235, 221, 0.76);
+  background: rgba(201, 164, 92, 0.035);
+  color: rgba(242, 242, 242, 0.76);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
@@ -905,13 +773,13 @@
 
 .sheetList .isActive,
 .filterGrid .isActive {
-  border-color: rgba(232, 207, 155, 0.44);
-  color: var(--elyse-cream);
+  border-color: rgba(201, 164, 92, 0.44);
+  color: var(--elyse-white);
 }
 
 .sheetList .isActive span,
 .filterGrid .isActive {
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
 }
 
 .sheetReset,
@@ -921,16 +789,14 @@
 
 .sheetReset {
   min-height: 34px;
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
 }
 
 .sheetApply {
-  background: rgba(232, 207, 155, 0.1);
-  color: var(--elyse-cream);
+  background: rgba(201, 164, 92, 0.1);
+  color: var(--elyse-white);
 }
 
-.featuredHeader button:hover,
-.categoryCard:hover,
 .dishCard:hover,
 .languageToggle:hover,
 .menuButton:hover,
@@ -942,11 +808,9 @@
 .sheetApply:hover,
 .activeFilterNotice button:hover,
 .empty button:hover {
-  border-color: rgba(255, 247, 234, 0.52);
+  border-color: rgba(255, 255, 255, 0.52);
 }
 
-.featuredHeader button:focus-visible,
-.categoryCard:focus-visible,
 .dishCard:focus-visible,
 .languageToggle:focus-visible,
 .menuButton:focus-visible,
@@ -958,37 +822,31 @@
 .sheetApply:focus-visible,
 .activeFilterNotice button:focus-visible,
 .empty button:focus-visible {
-  outline: 2px solid rgba(232, 207, 155, 0.9);
+  outline: 2px solid rgba(201, 164, 92, 0.9);
   outline-offset: 3px;
   box-shadow:
-    0 0 0 5px rgba(6, 3, 1, 0.72),
-    0 0 0 2px rgba(232, 207, 155, 0.34);
+    0 0 0 5px rgba(0, 0, 0, 0.72),
+    0 0 0 2px rgba(201, 164, 92, 0.34);
 }
 
 .page [data-google-review-card="true"] {
-  --menu-accent: var(--elyse-champagne);
+  --menu-accent: var(--elyse-gold);
   --menu-accent-2: var(--elyse-gold);
   --menu-border: var(--elyse-border);
   --menu-muted: var(--elyse-muted);
   --menu-radius-card: 14px;
   --menu-surface: var(--elyse-surface);
   --menu-text: var(--elyse-text);
-  border-color: rgba(232, 207, 155, 0.2);
+  border-color: rgba(201, 164, 92, 0.22);
   background:
-    linear-gradient(180deg, rgba(232, 207, 155, 0.055), rgba(232, 207, 155, 0.018)),
-    rgba(12, 8, 4, 0.42);
+    linear-gradient(180deg, rgba(201, 164, 92, 0.055), rgba(201, 164, 92, 0.018)),
+    rgba(10, 10, 10, 0.42);
   color: var(--elyse-text);
   margin-top: 22px;
 }
 
 .page [data-google-review-action="true"] {
-  color: #090604;
-}
-
-@media (min-width: 560px) {
-  .categoryGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  color: #000000;
 }
 
 @media (min-width: 760px) {
@@ -998,26 +856,6 @@
 
   .isMenuMode {
     padding: 0 0 calc(54px + env(safe-area-inset-bottom));
-  }
-
-  .hero {
-    padding: 34px 0 22px;
-  }
-
-  .hero h1 {
-    font-size: 74px;
-  }
-
-  .categoryGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .categoryCard {
-    min-height: 170px;
-  }
-
-  .categoryCard strong {
-    font-size: 28px;
   }
 
   .menuCover {
@@ -1072,7 +910,6 @@
     padding: 14px 12px calc(28px + env(safe-area-inset-bottom));
   }
 
-  .phonePreview .hero,
   .phonePreview .sections {
     width: min(100%, 760px);
     margin-inline: auto;
@@ -1108,26 +945,9 @@
   }
 }
 
-@media (max-width: 430px) {
-  .sectionHeader,
-  .featuredHeader {
-    display: grid;
-    align-items: start;
-  }
-
-  .featuredHeader button {
-    width: 100%;
-  }
-
-}
-
 @media (max-width: 390px) {
   .page {
     padding-inline: 10px;
-  }
-
-  .hero h1 {
-    font-size: 42px;
   }
 
   .menuCover {
@@ -1279,7 +1099,6 @@
       var(--elyse-bg-soft);
   }
 
-  .page.phonePreview .categoryCard,
   .page.phonePreview .menuTopbar,
   .page.phonePreview .dishImage,
   .page.phonePreview .badges span,

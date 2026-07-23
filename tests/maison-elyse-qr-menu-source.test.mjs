@@ -14,34 +14,69 @@ const demoShowcasePath = "components/vistaire-preview/DemoPhoneShowcase.tsx";
 const demoShowcaseCssPath =
   "components/vistaire-preview/DemoPhoneShowcase.module.css";
 const publicMenuPath = "lib/menu/publicMenu.ts";
+const themePresetPath = "lib/menu/menuThemePresets.ts";
+const menuExperiencePath = "lib/menu/trouvableMenuExperience.ts";
+const themePath = "lib/menu/maisonElyseTheme.ts";
 
 test("Maison Elyse public menu is the only dedicated QR table experience", async () => {
   const source = await readFile(pagePath, "utf8");
 
   assert.match(source, /MaisonElyseQrMenu/);
   assert.match(source, /isMaisonElysePublicMenu\(menu\)/);
-  assert.match(source, /startFullMenu=\{query\.view === "carte"\}/);
+  assert.doesNotMatch(source, /startFullMenu/);
+  assert.match(source, /view: query\.view/);
   assert.match(source, /PublicMenuRenderer/);
   assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
 });
 
 test("Maison Elyse maps the resolved owner palette into its skin variables", async () => {
-  const [source, css] = await Promise.all([
+  const [source, css, theme] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(cssPath, "utf8")
+    readFile(cssPath, "utf8"),
+    readFile(themePath, "utf8")
   ]);
 
   for (const variable of [
+    "--elyse-black",
     "--elyse-bg",
     "--elyse-surface",
+    "--elyse-surface-elevated",
+    "--elyse-white",
     "--elyse-text",
     "--elyse-muted",
-    "--elyse-champagne",
     "--elyse-gold",
-    "--elyse-border"
+    "--elyse-border",
+    "--elyse-overlay",
+    "--elyse-focus"
   ]) {
-    assert.match(source, new RegExp(`"${variable}"`));
+    assert.match(theme, new RegExp(`"${variable}"`));
     assert.match(css, new RegExp(`${variable}:\\s*var\\(--menu-`));
+  }
+  assert.match(source, /maisonElyseThemeStyle/);
+  assert.doesNotMatch(source, /--elyse-(?:cream|champagne|bronze)/);
+  assert.doesNotMatch(css, /--elyse-(?:cream|champagne|bronze)/);
+});
+
+test("Maison Elyse keeps one canonical neutral black and gold palette", async () => {
+  const [preset, experience, menuCss, detailCss] = await Promise.all([
+    readFile(themePresetPath, "utf8"),
+    readFile(menuExperiencePath, "utf8"),
+    readFile(cssPath, "utf8"),
+    readFile(dishDetailCssPath, "utf8")
+  ]);
+
+  assert.match(preset, /MAISON_ELYSE_PALETTE/);
+  assert.match(preset, /background:\s*"#000000"/);
+  assert.match(preset, /surface:\s*"#0A0A0A"/);
+  assert.match(preset, /accent:\s*"#C9A45C"/);
+  assert.match(experience, /isMaisonElysePublicMenu\(menu\)/);
+  assert.match(experience, /MAISON_ELYSE_PALETTE/);
+  for (const css of [menuCss, detailCss]) {
+    assert.match(css, /--elyse-bg/);
+    assert.match(css, /--elyse-surface-elevated/);
+    assert.match(css, /--elyse-gold/);
+    assert.doesNotMatch(css, /#(?:050403|0b0705|120c08|191109|fff7ea|f4ebdd|bfaf98|e8cf9b|d2a45e|8a6338)/i);
+    assert.doesNotMatch(css, /rgba\((?:35,\s*19,\s*10|25,\s*17,\s*9|18,\s*11,\s*7|10,\s*7,\s*5)/);
   }
 });
 
@@ -122,94 +157,37 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   assert.match(css, /@media \(max-width: 430px\)/);
 });
 
-test("Maison Elyse QR menu starts with welcome and visual category navigation", async () => {
+test("Maison Elyse QR menu starts directly with the complete menu", async () => {
   const [component, css] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(cssPath, "utf8")
   ]);
 
-  for (const text of [
-    "Bienvenue chez Maison Élyse",
-    "Carte à table",
-    "Plats signatures",
-    "Voir toute la carte",
-    "Maison Élyse",
-    "LA COLLECTION",
-    "LA CARTE",
-    "Une sélection de créations servies par section",
-    "POUR COMMENCER",
-    "LA SIGNATURE",
-    "LA DOUCEUR",
-    "LE BAR"
-  ]) {
-    assert.match(component, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
-
-  assert.match(component, /getVisiblePublicMenuCategories/);
-  assert.match(component, /getPublicMenuCategoryGroups/);
-  assert.match(component, /locale\?: Locale/);
-  assert.match(component, /localizedMenus\?: Partial<Record<Locale, PublicMenu>>/);
-  assert.match(component, /MENU_LOCALE_STORAGE_KEY/);
-  assert.match(component, /Langue du menu/);
-  assert.match(component, /Menu language/);
-  assert.match(component, /Français/);
-  assert.match(component, /English/);
-  assert.match(component, /normalizeLocale/);
-  assert.match(component, /Welcome to Maison/);
-  assert.match(component, /Table menu/);
-  assert.match(component, /Starters/);
-  assert.match(component, /Signature dishes/);
-  assert.match(component, /View the full menu/);
-  assert.match(component, /THE COLLECTION/);
-  assert.match(component, /THE MENU/);
-  assert.doesNotMatch(component, /heroDish/);
-  assert.doesNotMatch(component, /heroVisual/);
-  assert.doesNotMatch(component, /Découvrir la carte/);
-  assert.doesNotMatch(component, /Voir les sections/);
-  assert.doesNotMatch(component, /Retour aux sections/);
-  assert.doesNotMatch(component, /Choisir une section/);
-  assert.doesNotMatch(component, /La carte Maison Élyse/);
-  assert.doesNotMatch(component, /styles\.context/);
-  assert.match(component, /ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS/);
-  assert.match(component, /homard-bisque/);
-  assert.match(component, /canAppearInEntryPreview/);
+  assert.match(component, /useState<string>\(ALL_CATEGORY_ID\)/);
+  assert.match(component, /LA COLLECTION/);
+  assert.match(component, /LA CARTE/);
   assert.match(component, /DishSection/);
   assert.match(component, /visibleDishSections/);
-  assert.match(component, /categoryAnchorId/);
-  assert.match(component, /sectionDomId/);
-  assert.match(component, /data-testid=\{`maison-section-\$\{categoryAnchorId\(category\.label, locale\)\}`\}/);
-  assert.match(component, /id=\{sectionId\}/);
-  assert.match(component, /headingId/);
+  assert.match(component, /GoogleReviewCard/);
+  assert.match(component, /MENU_LOCALE_STORAGE_KEY/);
+  assert.match(component, /FILTER_OPTIONS/);
   assert.match(component, /menuCover/);
-  assert.match(component, /menuCoverCopy/);
-  assert.match(component, /menuRestaurantName/);
   assert.match(component, /bottomBar/);
   assert.match(component, /bottomSheet/);
-  assert.match(component, /sheetList/);
-  assert.match(component, /filterGrid/);
-  assert.match(component, /activeFilterNotice/);
-  assert.doesNotMatch(component, /categoryPills/);
-  assert.doesNotMatch(component, /quickFilterBar/);
-  assert.doesNotMatch(component, /preferencePanel/);
+  assert.doesNotMatch(component, /startFullMenu/);
+  assert.doesNotMatch(component, /activeCategory[^\n]*null/);
+  assert.doesNotMatch(component, /!activeCategory/);
+  assert.doesNotMatch(component, /Bienvenue chez Maison/);
+  assert.doesNotMatch(component, /tonightTitle|viewFullMenu|chefSuggestion/);
+  assert.doesNotMatch(component, /ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS|canAppearInEntryPreview/);
+  assert.doesNotMatch(component, /styles\.(guestToolbar|categoryGrid|categoryCard|featured)/);
+  assert.doesNotMatch(css, /\.(guestToolbar|categoryGrid|categoryCard|featured)\b/);
   assert.match(css, /\.sectionedDishList/);
   assert.match(css, /\.dishSectionHeader/);
-  assert.match(css, /scroll-margin-top/);
   assert.match(css, /\.menuCover/);
-  assert.match(css, /\.menuCoverCopy/);
-  assert.match(css, /\.menuRestaurantName/);
-  assert.match(css, /\.bottomBar/);
   assert.match(css, /\.bottomSheet/);
-  assert.match(css, /\.sheetList/);
-  assert.match(css, /\.filterGrid/);
-  assert.match(css, /\.activeFilterNotice/);
-  assert.doesNotMatch(css, /\.categoryPills/);
-  assert.doesNotMatch(css, /\.quickFilterBar/);
-  assert.doesNotMatch(css, /\.preferencePanel/);
-  assert.doesNotMatch(css, /\.context/);
-  assert.match(css, /\.categoryGrid/);
-  assert.match(css, /\.categoryCard/);
+  assert.doesNotMatch(css, /\.(hero|categoryGrid|categoryCard|featured)\b/);
   assert.match(css, /@media \(max-width: 390px\)/);
-  assert.match(css, /@media \(max-width: 430px\)/);
 });
 
 test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D autoload", async () => {

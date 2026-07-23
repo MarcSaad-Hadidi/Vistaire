@@ -11,6 +11,7 @@ import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { useTransitionPresence } from "@/lib/useTransitionPresence";
+import { maisonElyseThemeStyle } from "@/lib/menu/maisonElyseTheme";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -52,7 +53,6 @@ type MaisonElyseQrMenuProps = {
   localizedMenus?: Partial<Record<Locale, PublicMenu>>;
   config?: MenuUiConfig;
   showGoogleReview?: boolean;
-  startFullMenu?: boolean;
 };
 
 type FilterId =
@@ -87,7 +87,6 @@ type SheetId = "menu" | "filter" | "language" | null;
 const ALL_CATEGORY_ID = "all";
 // Kept slightly above the CSS sheet animation duration so the exit finishes before unmount.
 const SHEET_MOTION_MS = 260;
-const ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS = new Set(["homard-bisque"]);
 const MENU_LOCALE_STORAGE_KEY = "vistaire:maison-elyse-menu-locale";
 const LANGUAGE_OPTIONS: Array<{ id: Locale; label: string; shortLabel: string }> = [
   { id: "fr", label: "Français", shortLabel: "FR" },
@@ -116,7 +115,6 @@ const MENU_COPY: Record<
     apply: string;
     bottomFilter: string;
     bottomMenu: string;
-    chefSuggestion: string;
     close: string;
     collectionBody: string;
     collectionKicker: string;
@@ -126,9 +124,6 @@ const MENU_COPY: Record<
     filterDialogLabel: string;
     filterFallback: string;
     filterGroupLabel: string;
-    heroBody: string;
-    heroKicker: string;
-    heroTitle: string;
     languageDialogLabel: string;
     languageToggleAria: string;
     menuDialogLabel: string;
@@ -140,9 +135,7 @@ const MENU_COPY: Record<
     resetFilters: string;
     sections: string;
     sheetNavigation: string;
-    tonightTitle: string;
     unavailableBadge: string;
-    viewFullMenu: string;
   }
 > = {
   fr: {
@@ -151,7 +144,6 @@ const MENU_COPY: Record<
     apply: "Appliquer",
     bottomFilter: "Filtrer",
     bottomMenu: "La carte",
-    chefSuggestion: "Suggestion du chef",
     close: "Fermer",
     collectionBody:
       "Une sélection de créations servies par section, pensées pour être explorées directement à table.",
@@ -162,10 +154,6 @@ const MENU_COPY: Record<
     filterDialogLabel: "Filtrer la carte",
     filterFallback: "Filtre",
     filterGroupLabel: "Filtres",
-    heroBody:
-      "Découvrez les entrées, plats signatures, desserts et cocktails de la maison, pensés pour être explorés directement à table.",
-    heroKicker: "Carte à table",
-    heroTitle: "Bienvenue chez Maison Élyse",
     languageDialogLabel: "Langue du menu",
     languageToggleAria: "Choisir la langue du menu",
     menuDialogLabel: "La carte",
@@ -177,9 +165,7 @@ const MENU_COPY: Record<
     resetFilters: "Réinitialiser les filtres",
     sections: "Sections",
     sheetNavigation: "Navigation",
-    tonightTitle: "À découvrir ce soir",
     unavailableBadge: "Indisponible",
-    viewFullMenu: "Voir toute la carte"
   },
   en: {
     activeFilterPrefix: "Active filter",
@@ -187,7 +173,6 @@ const MENU_COPY: Record<
     apply: "Apply",
     bottomFilter: "Filter",
     bottomMenu: "Menu",
-    chefSuggestion: "Chef's suggestion",
     close: "Close",
     collectionBody:
       "A section-by-section selection of house creations designed to be explored at the table.",
@@ -198,10 +183,6 @@ const MENU_COPY: Record<
     filterDialogLabel: "Filter the menu",
     filterFallback: "Filter",
     filterGroupLabel: "Filters",
-    heroBody:
-      "Explore the house starters, signature dishes, desserts and cocktails directly at the table.",
-    heroKicker: "Table menu",
-    heroTitle: "Welcome to Maison Élyse",
     languageDialogLabel: "Menu language",
     languageToggleAria: "Choose menu language",
     menuDialogLabel: "Menu",
@@ -213,9 +194,7 @@ const MENU_COPY: Record<
     resetFilters: "Reset filters",
     sections: "Sections",
     sheetNavigation: "Navigation",
-    tonightTitle: "To discover tonight",
     unavailableBadge: "Unavailable",
-    viewFullMenu: "View the full menu"
   }
 };
 
@@ -375,36 +354,6 @@ function personalizeBranding<T>(value: T, restaurantName: string): T {
   return value;
 }
 
-function menuPaletteStyle(config?: MenuUiConfig): CSSProperties | undefined {
-  if (!config) return undefined;
-  return {
-    "--menu-bg": config.palette.background,
-    "--menu-surface": config.palette.surface,
-    "--menu-text": config.palette.text,
-    "--menu-muted": config.palette.muted,
-    "--menu-accent": config.palette.accent,
-    "--menu-accent-2": config.palette.accent2,
-    "--menu-accent-3": config.palette.accent3,
-    "--menu-border": config.palette.border,
-    "--menu-success": config.palette.success,
-    "--menu-warning": config.palette.warning,
-    "--menu-danger": config.palette.danger,
-    "--elyse-bg": config.palette.background,
-    "--elyse-bg-soft": config.palette.surface,
-    "--elyse-surface": config.palette.surface,
-    "--elyse-surface-soft": config.palette.surface,
-    "--elyse-cream": config.palette.text,
-    "--elyse-text": config.palette.text,
-    "--elyse-muted": config.palette.muted,
-    "--elyse-champagne": config.palette.accent,
-    "--elyse-gold": config.palette.accent2,
-    "--elyse-bronze": config.palette.accent3,
-    "--elyse-border": config.palette.border,
-    "--elyse-border-strong": config.palette.accent,
-    "--elyse-overlay": `color-mix(in srgb, ${config.palette.background} 62%, transparent)`
-  } as CSSProperties;
-}
-
 function getFilterLabel(filter: FilterId, locale: Locale = "fr"): string {
   if (filter === "all") return MENU_COPY[locale].allMenu;
   return (
@@ -491,10 +440,6 @@ function isRecommendedDish(dish: PublicMenuDish): boolean {
   });
 }
 
-function canAppearInEntryPreview(dish: PublicMenuDish): boolean {
-  return !ENTRY_PREVIEW_EXCLUDED_DISH_SLUGS.has(dish.slug);
-}
-
 function isDietaryFilter(filter: FilterId): filter is DietaryFilterId {
   return filter.endsWith("-free");
 }
@@ -529,43 +474,6 @@ function dishBadges(dish: PublicMenuDish, locale: Locale): string[] {
   if (hasRealAr(dish)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
   return badges.slice(0, 4);
-}
-
-function CategoryCard({
-  category,
-  imageUrl,
-  locale,
-  restaurantName,
-  onSelect
-}: {
-  category: PublicMenuCategory;
-  imageUrl: string;
-  locale: Locale;
-  restaurantName: string;
-  onSelect: () => void;
-}) {
-  const label = displayCategoryLabel(category.label, locale);
-  const editorial = personalizeBranding(
-    categoryEditorial(category.label, locale),
-    restaurantName
-  );
-
-  return (
-    <button
-      className={styles.categoryCard}
-      data-testid={`maison-section-${categoryAnchorId(category.label, locale)}`}
-      onClick={onSelect}
-      style={
-        imageUrl
-          ? ({ "--category-image": `url("${imageUrl}")` } as CSSProperties)
-          : undefined
-      }
-      type="button"
-    >
-      <strong>{label}</strong>
-      <small>{editorial.description}</small>
-    </button>
-  );
 }
 
 function DishCard({
@@ -703,8 +611,7 @@ export function MaisonElyseQrMenu({
   config,
   menu,
   query,
-  showGoogleReview = true,
-  startFullMenu = false
+  showGoogleReview = true
 }: MaisonElyseQrMenuProps) {
   const router = useRouter();
   const propLocale = normalizeLocale(locale);
@@ -745,9 +652,7 @@ export function MaisonElyseQrMenu({
       })),
     [selectedLocale]
   );
-  const [activeCategory, setActiveCategory] = useState<string | null>(() =>
-    startFullMenu ? ALL_CATEGORY_ID : null
-  );
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_ID);
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [activeSheet, setActiveSheet] = useState<SheetId>(null);
   const [activeDish, setActiveDish] = useState<PublicMenuDish | null>(null);
@@ -766,23 +671,12 @@ export function MaisonElyseQrMenu({
     () => getVisiblePublicMenuCategories(activeMenu.dishes).sort(categorySort),
     [activeMenu.dishes]
   );
-  const featuredDishes = useMemo(
-    () =>
-      activeMenu.dishes
-        .filter(canAppearInEntryPreview)
-        .filter((dish) => isSignatureDish(dish) || isRecommendedDish(dish))
-        .slice(0, 3),
-    [activeMenu.dishes]
-  );
   const menuHeroImage = useMemo(() => {
-    const coverDish =
-      activeMenu.dishes.find((dish) => canAppearInEntryPreview(dish) && dish.imageUrl) ??
-      activeMenu.dishes.find((dish) => dish.imageUrl);
+    const coverDish = activeMenu.dishes.find((dish) => dish.imageUrl);
 
     return coverDish?.imageUrl || coverDish?.thumbnailUrl || "";
   }, [activeMenu.dishes]);
   const baseDishes = useMemo(() => {
-    if (!activeCategory) return [];
     if (activeCategory === ALL_CATEGORY_ID) return activeMenu.dishes;
     return groups.get(activeCategory) ?? [];
   }, [activeCategory, activeMenu.dishes, groups]);
@@ -813,12 +707,7 @@ export function MaisonElyseQrMenu({
   const activeCategoryLabel =
     activeCategory === ALL_CATEGORY_ID
       ? copy.allMenu
-      : activeCategory
-        ? displayCategoryLabel(
-            selectedCategory?.label ?? activeCategory,
-            selectedLocale
-          )
-        : copy.sections;
+      : displayCategoryLabel(selectedCategory?.label ?? activeCategory, selectedLocale);
   const hasActiveFilter = activeFilter !== "all";
 
   const resetLocaleDependentUi = useCallback(() => {
@@ -917,7 +806,7 @@ export function MaisonElyseQrMenu({
   }, [activeCategory, displayMode, pendingSectionLabel, selectedLocale]);
 
   useEffect(() => {
-    if (displayMode !== "phone-preview" || !activeCategory || pendingSectionLabel) {
+    if (displayMode !== "phone-preview" || pendingSectionLabel) {
       return;
     }
 
@@ -968,7 +857,7 @@ export function MaisonElyseQrMenu({
     });
   }
 
-  function selectCategory(categoryId: string | null) {
+  function selectCategory(categoryId: string) {
     skipNextPhonePreviewAutoScrollRef.current = false;
     setActiveCategory(categoryId);
     setActiveFilter("all");
@@ -1063,20 +952,6 @@ export function MaisonElyseQrMenu({
     scrollPhonePreviewToTop();
   }
 
-  const categoryImages = new Map(
-    categories.map((category) => {
-      const categoryDishes = groups.get(category.id) ?? [];
-      const previewDish =
-        categoryDishes.find(
-          (dish) => canAppearInEntryPreview(dish) && dish.imageUrl
-        ) ?? categoryDishes.find((dish) => dish.imageUrl);
-
-      return [
-        category.id,
-        previewDish?.thumbnailUrl || previewDish?.imageUrl || ""
-      ];
-    })
-  );
   const phonePreviewDishSelect =
     displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
   const currentLanguage =
@@ -1262,73 +1137,14 @@ export function MaisonElyseQrMenu({
 
   return (
     <main
-      className={`${styles.page} ${activeCategory ? styles.isMenuMode : ""} ${
+      className={`${styles.page} ${styles.isMenuMode} ${
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
       data-display-mode={displayMode}
-      style={menuPaletteStyle(config)}
+      style={maisonElyseThemeStyle(config)}
     >
-      {!activeCategory ? (
-        <>
-          <div className={styles.guestToolbar}>
-            <span className={styles.guestToolbarName}>{restaurantDisplayName}</span>
-            {renderLanguageToggle()}
-          </div>
-          <section className={styles.hero} aria-labelledby="maison-elyse-heading">
-            <div className={styles.heroCopy}>
-              <p className={styles.kicker}>{copy.heroKicker}</p>
-              <h1 id="maison-elyse-heading">{copy.heroTitle}</h1>
-              <p>{copy.heroBody}</p>
-            </div>
-          </section>
-        </>
-      ) : null}
-
       <section className={styles.sections} ref={menuRef} aria-label={copy.sections}>
-        {!activeCategory ? (
-          <>
-            <div className={styles.categoryGrid}>
-              {categories.map((category) => (
-                <CategoryCard
-                  category={category}
-                  imageUrl={categoryImages.get(category.id) ?? ""}
-                  key={category.id}
-                  locale={selectedLocale}
-                  restaurantName={restaurantDisplayName}
-                  onSelect={() => openCategoryInFullMenu(category.id)}
-                />
-              ))}
-            </div>
-
-            {featuredDishes.length > 0 ? (
-              <section className={styles.featured} aria-labelledby="featured-heading">
-                <div className={styles.featuredHeader}>
-                  <div>
-                    <p className={styles.kicker}>{copy.chefSuggestion}</p>
-                    <h2 id="featured-heading">{copy.tonightTitle}</h2>
-                  </div>
-                  <button type="button" onClick={showAll}>
-                    {copy.viewFullMenu}
-                  </button>
-                </div>
-                <ul className={styles.previewList}>
-                  {featuredDishes.map((dish) => (
-                    <DishCard
-                      dish={dish}
-                      key={dish.id}
-                      locale={selectedLocale}
-                      menu={activeMenu}
-                      onSelectDish={phonePreviewDishSelect}
-                      query={activeQuery}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {renderGoogleReviewCard()}
-          </>
-        ) : (
-          <section className={styles.menuPanel} aria-labelledby="active-category-heading">
+        <section className={styles.menuPanel} aria-labelledby="active-category-heading">
             <div className={styles.menuScrollArea} ref={menuScrollAreaRef}>
               <div
                 className={styles.menuCover}
@@ -1401,7 +1217,7 @@ export function MaisonElyseQrMenu({
                 <div className={styles.empty} role="status">
                   <p>{copy.emptySelection}</p>
                   <button type="button" onClick={showAll}>
-                    {copy.viewFullMenu}
+                    {copy.allMenu}
                   </button>
                 </div>
               )}
@@ -1433,8 +1249,7 @@ export function MaisonElyseQrMenu({
               </button>
             </nav>
 
-          </section>
-        )}
+        </section>
       </section>
       {renderBottomSheet()}
     </main>

@@ -36,7 +36,9 @@ test("CI smoke loads the hermetic demo menu without early 3D requests", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await expectHealthy(page, "/demo");
   await expect(page.getByTestId("demo-phone-viewport")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Voir toute la carte" })).toBeVisible();
+  await expect(page.getByText("LA COLLECTION")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Voir toute la carte" })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   expect(modelRequests).toEqual([]);
 });

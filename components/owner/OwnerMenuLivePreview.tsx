@@ -185,7 +185,6 @@ export function OwnerMenuLivePreview({
         locale={locale}
         query={{ lang: publicMenuSettings.defaultLocale, view: "carte" }}
         showGoogleReview={false}
-        startFullMenu
       />
     );
   }

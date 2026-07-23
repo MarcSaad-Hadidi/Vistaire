@@ -31,6 +31,20 @@ export type MenuUiPalette = {
   danger: string;
 };
 
+export const MAISON_ELYSE_PALETTE: MenuUiPalette = {
+  background: "#000000",
+  surface: "#0A0A0A",
+  text: "#FFFFFF",
+  muted: "#A6A6A6",
+  accent: "#C9A45C",
+  accent2: "#DFC478",
+  accent3: "#8A8A8A",
+  border: "#2A2A2A",
+  success: "#A6A6A6",
+  warning: "#DFC478",
+  danger: "#FFFFFF"
+};
+
 export type MenuThemePreset = {
   id: MenuThemeId;
   name: string;
