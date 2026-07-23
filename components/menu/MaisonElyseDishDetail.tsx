@@ -17,6 +17,7 @@ import {
   getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
+import { maisonElyseThemeStyle } from "@/lib/menu/maisonElyseTheme";
 import styles from "./MaisonElyseDishDetail.module.css";
 
 const MODEL_VIEWER_ID = "maison-elyse-dish-model-viewer";
@@ -383,34 +384,7 @@ export function MaisonElyseDishDetail({
       className={`${styles.page} ${
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
-      style={
-        config
-          ? ({
-              "--menu-bg": config.palette.background,
-              "--menu-surface": config.palette.surface,
-              "--menu-text": config.palette.text,
-              "--menu-muted": config.palette.muted,
-              "--menu-accent": config.palette.accent,
-              "--menu-accent-2": config.palette.accent2,
-              "--menu-accent-3": config.palette.accent3,
-              "--menu-border": config.palette.border,
-              "--menu-success": config.palette.success,
-              "--menu-warning": config.palette.warning,
-              "--menu-danger": config.palette.danger,
-              "--elyse-bg": config.palette.background,
-              "--elyse-bg-soft": config.palette.surface,
-              "--elyse-surface": config.palette.surface,
-              "--elyse-surface-soft": config.palette.surface,
-              "--elyse-cream": config.palette.text,
-              "--elyse-text": config.palette.text,
-              "--elyse-muted": config.palette.muted,
-              "--elyse-champagne": config.palette.accent,
-              "--elyse-gold": config.palette.accent2,
-              "--elyse-border": config.palette.border,
-              "--elyse-border-strong": config.palette.accent
-            } as CSSProperties)
-          : undefined
-      }
+      style={maisonElyseThemeStyle(config)}
     >
       <nav className={styles.topNav} aria-label={copy.topNavAria}>
         {onBackToMenu ? (

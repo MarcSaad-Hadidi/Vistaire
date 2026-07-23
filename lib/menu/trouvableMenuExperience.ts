@@ -1,3 +1,4 @@
+import { MAISON_ELYSE_PALETTE } from "@/lib/menu/menuThemePresets";
 import {
   normalizeMenuUiConfig,
   type MenuUiConfig
@@ -45,6 +46,23 @@ export function resolvePublicMenuUiConfig(
   menu: Pick<PublicMenu, "slug" | "name">,
   config: MenuUiConfig
 ): MenuUiConfig {
+  if (isMaisonElysePublicMenu(menu)) {
+    return normalizeMenuUiConfig({
+      ...config,
+      theme: "premium-gastronomic",
+      palette: MAISON_ELYSE_PALETTE,
+      global: {
+        ...config.global,
+        backgroundStyle: "dark",
+        density: "compact",
+        radius: "soft",
+        shadow: "medium"
+      },
+      welcomeEnabled: false,
+      defaultView: "all"
+    });
+  }
+
   if (!isTrouvablePublicMenu(menu)) return config;
 
   const isLegacyTrouvable = matchesMenuIdentity(menu, "trouvable");

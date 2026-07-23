@@ -239,7 +239,8 @@ async function openDemoDish(page: Page, dishName: RegExp) {
   );
 
   const phoneViewport = page.getByTestId("demo-phone-viewport");
-  await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+  await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
+  await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
   const dishButton = phoneViewport.getByRole("button", { name: dishName });
   await dishButton.scrollIntoViewIfNeeded();
   await expect(dishButton).toBeVisible();
@@ -312,15 +313,14 @@ test.describe("Vistaire MVP smoke", () => {
     );
 
     const phoneViewport = page.getByTestId("demo-phone-viewport");
-    await expect(
-      phoneViewport.getByRole("heading", {
-        level: 1,
-        name: /Bienvenue chez Maison/i
-      })
-    ).toBeVisible();
-    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toHaveCount(0);
-    await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+    await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
     await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    await expect(
+      phoneViewport.getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
+    ).toHaveCount(0);
+    await expect(
+      phoneViewport.getByRole("button", { name: "Voir toute la carte" })
+    ).toHaveCount(0);
     await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
     const visibleDishButton = phoneViewport.getByRole("button", { name: /Ravioles/i });
     await expect(visibleDishButton).toBeVisible();

@@ -42,7 +42,8 @@ async function openDemoDish(page: Page, dishName: RegExp) {
   });
 
   const phoneViewport = page.getByTestId("demo-phone-viewport");
-  await phoneViewport.getByRole("button", { name: "Voir toute la carte" }).click();
+  await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
+  await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
   const dishButton = phoneViewport.getByRole("button", { name: dishName });
   await dishButton.scrollIntoViewIfNeeded();
   await expect(dishButton).toBeVisible();

@@ -31,22 +31,27 @@
 }
 
 .page {
-  --elyse-bg: var(--menu-bg, #050403);
-  --elyse-bg-soft: var(--menu-surface, #0b0705);
-  --elyse-surface: var(--menu-surface, #120c08);
-  --elyse-surface-soft: color-mix(in srgb, var(--menu-surface, #191109) 76%, var(--menu-bg, #050403));
-  --elyse-cream: var(--menu-text, #fff7ea);
-  --elyse-text: var(--menu-text, #f4ebdd);
-  --elyse-muted: var(--menu-muted, #bfaf98);
-  --elyse-champagne: var(--menu-accent, #e8cf9b);
-  --elyse-gold: var(--menu-accent-2, #d2a45e);
-  --elyse-bronze: var(--menu-accent-3, #8a6338);
-  --elyse-border: var(--menu-border, rgba(232, 207, 155, 0.2));
-  --elyse-border-strong: color-mix(in srgb, var(--menu-accent, #e8cf9b) 42%, transparent);
+  --elyse-black: var(--menu-bg, #000000);
+  --elyse-bg: var(--menu-bg, #000000);
+  --elyse-bg-soft: var(--menu-surface, #050505);
+  --elyse-surface: var(--menu-surface, #0A0A0A);
+  --elyse-surface-elevated: var(--menu-surface-elevated, #111111);
+  --elyse-surface-soft: var(--menu-surface, #0A0A0A);
+  --elyse-white: var(--menu-text, #FFFFFF);
+  --elyse-text: var(--menu-text, #F2F2F2);
+  --elyse-muted: var(--menu-muted, #A6A6A6);
+  --elyse-gold: var(--menu-accent, #C9A45C);
+  --elyse-gold-light: var(--menu-accent-2, #DFC478);
+  --elyse-border: var(--menu-border, rgba(255, 255, 255, 0.12));
+  --elyse-border-strong: var(--menu-border-strong, rgba(201, 164, 92, 0.46));
+  --elyse-gold-border: var(--menu-gold-border, rgba(201, 164, 92, 0.22));
+  --elyse-overlay: var(--menu-overlay, rgba(0, 0, 0, 0.72));
+  --elyse-overlay-strong: var(--menu-overlay-strong, rgba(0, 0, 0, 0.88));
+  --elyse-focus: var(--menu-focus, #DFC478);
   min-height: 100svh;
   overflow-x: clip;
   background:
-    linear-gradient(180deg, rgba(18, 11, 7, 0.84), rgba(5, 4, 3, 0.98) 260px),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.84), rgba(0, 0, 0, 0.98) 260px),
     var(--elyse-bg);
   color: var(--elyse-text);
   font-family: "Neue Montreal", system-ui, sans-serif;
@@ -66,12 +71,12 @@
   justify-content: space-between;
   gap: 12px;
   margin-inline: auto;
-  border: 1px solid rgba(232, 207, 155, 0.22);
-  background: rgba(12, 7, 4, 0.58);
+  border: 1px solid rgba(201, 164, 92, 0.22);
+  background: rgba(10, 10, 10, 0.58);
   padding: 7px;
   box-shadow:
     0 22px 60px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(232, 207, 155, 0.12);
+    inset 0 1px 0 rgba(201, 164, 92, 0.12);
   -webkit-backdrop-filter: blur(14px) saturate(112%);
   backdrop-filter: blur(14px) saturate(112%);
 }
@@ -83,9 +88,9 @@
   min-height: 36px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.2);
-  background: rgba(232, 207, 155, 0.035);
-  color: var(--elyse-champagne);
+  border: 1px solid rgba(201, 164, 92, 0.2);
+  background: rgba(201, 164, 92, 0.035);
+  color: var(--elyse-gold);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -99,7 +104,7 @@
 
 .topNav span {
   min-width: 0;
-  color: rgba(255, 247, 234, 0.9);
+  color: rgba(255, 255, 255, 0.9);
   font-family: "BT Suave", Georgia, serif;
   font-size: 18px;
   font-weight: 500;
@@ -125,8 +130,8 @@
   place-items: center;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(5, 4, 3, 0.16), rgba(5, 4, 3, 0.1) 42%, rgba(5, 4, 3, 0.94)),
-    linear-gradient(0deg, rgba(5, 4, 3, 0.34), rgba(5, 4, 3, 0.34)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.1) 42%, rgba(0, 0, 0, 0.94)),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.34)),
     var(--dish-image),
     var(--elyse-bg-soft);
   background-position: center;
@@ -148,7 +153,7 @@
   display: grid;
   justify-items: center;
   gap: 10px;
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
   text-align: center;
 }
 
@@ -158,7 +163,7 @@
   aspect-ratio: 1;
   place-items: center;
   border: 1px solid var(--elyse-border);
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
   font-family: "BT Suave", Georgia, serif;
   font-size: 34px;
 }
@@ -184,7 +189,7 @@
   display: grid;
   justify-items: start;
   gap: 12px;
-  border-bottom: 1px solid rgba(232, 207, 155, 0.12);
+  border-bottom: 1px solid rgba(201, 164, 92, 0.12);
   padding-bottom: 18px;
 }
 
@@ -200,7 +205,7 @@
 .heading h1 {
   max-width: 12ch;
   margin: 0;
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-size: 48px;
   font-weight: 500;
@@ -212,7 +217,7 @@
 
 .price {
   margin: 0;
-  color: var(--elyse-champagne);
+  color: var(--elyse-gold);
   font-family: "BT Suave", Georgia, serif;
   font-size: 28px;
   font-weight: 500;
@@ -222,7 +227,7 @@
 .description {
   max-width: 38rem;
   margin: 0;
-  color: rgba(244, 235, 221, 0.8);
+  color: rgba(242, 242, 242, 0.8);
   font-size: 15px;
   line-height: 1.52;
 }
@@ -237,9 +242,9 @@
   display: inline-flex;
   min-height: 28px;
   align-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  background: rgba(5, 4, 3, 0.3);
-  color: rgba(244, 235, 221, 0.72);
+  border: 1px solid rgba(201, 164, 92, 0.18);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(242, 242, 242, 0.72);
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
@@ -251,12 +256,12 @@
   display: grid;
   gap: 12px;
   scroll-margin-top: 78px;
-  border: 1px solid rgba(232, 207, 155, 0.18);
+  border: 1px solid rgba(201, 164, 92, 0.18);
   background:
-    linear-gradient(180deg, rgba(232, 207, 155, 0.06), rgba(232, 207, 155, 0.016)),
-    rgba(10, 7, 5, 0.52);
+    linear-gradient(180deg, rgba(201, 164, 92, 0.06), rgba(201, 164, 92, 0.016)),
+    rgba(10, 10, 10, 0.52);
   padding: 14px;
-  box-shadow: inset 0 1px 0 rgba(232, 207, 155, 0.08);
+  box-shadow: inset 0 1px 0 rgba(201, 164, 92, 0.08);
 }
 
 .modelPanelOpen {
@@ -275,7 +280,7 @@
 
 .modelPanel h2 {
   margin: 0;
-  color: var(--elyse-cream);
+  color: var(--elyse-white);
   font-family: "BT Suave", Georgia, serif;
   font-size: 28px;
   font-weight: 500;
@@ -284,7 +289,7 @@
 
 .modelPanel p:not(.kicker) {
   margin: 0;
-  color: rgba(244, 235, 221, 0.68);
+  color: rgba(242, 242, 242, 0.68);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -292,9 +297,9 @@
 .primaryAction {
   justify-self: start;
   min-height: 42px;
-  border-color: rgba(232, 207, 155, 0.42);
-  background: rgba(232, 207, 155, 0.08);
-  color: var(--elyse-cream);
+  border-color: rgba(201, 164, 92, 0.42);
+  background: rgba(201, 164, 92, 0.08);
+  color: var(--elyse-white);
 }
 
 .modelStage,
@@ -309,9 +314,9 @@
   display: grid;
   min-height: 180px;
   place-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  background: rgba(5, 4, 3, 0.42);
-  color: rgba(232, 207, 155, 0.8);
+  border: 1px solid rgba(201, 164, 92, 0.18);
+  background: rgba(0, 0, 0, 0.42);
+  color: rgba(201, 164, 92, 0.8);
   padding: 18px;
   text-align: center;
 }
@@ -322,7 +327,7 @@
 }
 
 .modelPreview span {
-  color: rgba(232, 207, 155, 0.92);
+  color: rgba(201, 164, 92, 0.92);
   font-family: "BT Suave", Georgia, serif;
   font-size: 44px;
   font-weight: 500;
@@ -331,7 +336,7 @@
 
 .modelPreview small {
   max-width: 18rem;
-  color: rgba(244, 235, 221, 0.62);
+  color: rgba(242, 242, 242, 0.62);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
@@ -340,13 +345,13 @@
 .detailSections {
   display: grid;
   gap: 0;
-  border-top: 1px solid rgba(232, 207, 155, 0.12);
+  border-top: 1px solid rgba(201, 164, 92, 0.12);
 }
 
 .detailSections section {
   display: grid;
   gap: 10px;
-  border-bottom: 1px solid rgba(232, 207, 155, 0.1);
+  border-bottom: 1px solid rgba(201, 164, 92, 0.1);
   padding: 18px 0;
 }
 
@@ -364,7 +369,7 @@
   gap: 7px;
   margin: 0;
   padding: 0;
-  color: rgba(255, 247, 234, 0.88);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 15px;
   line-height: 1.42;
   list-style: none;
@@ -381,43 +386,43 @@
   left: 0;
   width: 5px;
   height: 5px;
-  border: 1px solid var(--elyse-champagne);
+  border: 1px solid var(--elyse-gold);
   content: "";
 }
 
 .detailSections p {
   margin: 0;
-  color: rgba(244, 235, 221, 0.76);
+  color: rgba(242, 242, 242, 0.76);
   font-size: 14px;
   line-height: 1.48;
 }
 
 .houseNote p {
-  color: rgba(255, 247, 234, 0.84);
+  color: rgba(255, 255, 255, 0.84);
   font-family: "BT Suave", Georgia, serif;
   font-size: 21px;
   line-height: 1.24;
 }
 
 .primaryAction[aria-expanded="true"] {
-  border-color: rgba(232, 207, 155, 0.58);
-  background: rgba(232, 207, 155, 0.12);
-  color: var(--elyse-cream);
+  border-color: rgba(201, 164, 92, 0.58);
+  background: rgba(201, 164, 92, 0.12);
+  color: var(--elyse-white);
 }
 
 .topNav a:hover,
 .topNav button:hover,
 .primaryAction:hover {
-  border-color: rgba(232, 207, 155, 0.48);
-  color: var(--elyse-cream);
+  border-color: rgba(201, 164, 92, 0.48);
+  color: var(--elyse-white);
 }
 
 .topNav a:focus-visible,
 .topNav button:focus-visible,
 .primaryAction:focus-visible {
-  outline: 2px solid rgba(232, 207, 155, 0.9);
+  outline: 2px solid rgba(201, 164, 92, 0.9);
   outline-offset: 3px;
-  box-shadow: 0 0 0 5px rgba(5, 4, 3, 0.72);
+  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.72);
 }
 
 @media (min-width: 860px) {
@@ -442,7 +447,7 @@
     position: sticky;
     top: 90px;
     min-height: min(780px, calc(100svh - 116px));
-    border: 1px solid rgba(232, 207, 155, 0.16);
+    border: 1px solid rgba(201, 164, 92, 0.16);
   }
 
   .content {
@@ -540,10 +545,10 @@
   min-height: 52px;
   margin: 0;
   border-width: 0 0 1px;
-  background: rgba(10, 7, 5, 0.9);
+  background: rgba(10, 10, 10, 0.9);
   box-shadow:
     0 14px 30px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(232, 207, 155, 0.1);
+    inset 0 1px 0 rgba(201, 164, 92, 0.1);
 }
 
 .phonePreview .topNav span {

@@ -314,7 +314,7 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "foreign-dish" }));
 
   await page.goto("/menu/maison-elyse", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Voir toute la carte", exact: true }).click();
+  await expect(page.getByText("LA COLLECTION")).toBeVisible();
   const publicRows = page.locator("[data-public-menu-dish]");
   await expect(publicRows).toHaveCount(12);
   const publicDishes = await publicRows.evaluateAll((elements) => elements.map((element) => ({

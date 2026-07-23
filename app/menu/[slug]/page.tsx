@@ -95,7 +95,6 @@ export default async function PublicMenuPage({
         }}
         context={context}
         query={menuQuery}
-        startFullMenu={query.view === "carte"}
       />
     );
   }

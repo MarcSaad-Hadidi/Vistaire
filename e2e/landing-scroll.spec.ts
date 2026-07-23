@@ -152,20 +152,24 @@ test.describe("Menu and dish regression", () => {
 
     await page.goto("/demo", { waitUntil: "domcontentloaded" });
     await expect(
-      page
-        .getByTestId("demo-phone-viewport")
-        .getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
+      page.getByTestId("demo-phone-viewport").getByText("LA COLLECTION")
     ).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-    expect(modelAssetRequests).toEqual([]);
-
-    await page
-      .getByTestId("demo-phone-viewport")
-      .getByRole("button", { name: "Voir toute la carte" })
-      .click();
     await expect(
       page.getByTestId("demo-phone-viewport").getByRole("heading", { name: "LA CARTE" })
     ).toBeVisible();
+    await expect(
+      page
+        .getByTestId("demo-phone-viewport")
+        .getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
+    ).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+    expect(modelAssetRequests).toEqual([]);
+
+    await expect(
+      page
+        .getByTestId("demo-phone-viewport")
+        .getByRole("button", { name: "Voir toute la carte" })
+    ).toHaveCount(0);
 
     await page
       .getByTestId("demo-phone-viewport")
