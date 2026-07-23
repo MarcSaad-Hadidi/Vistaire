@@ -18,7 +18,8 @@ test("public Trouvable menu is centralized in a targeted premium experience", as
   const helper = await readFile(helperPath, "utf8");
 
   assert.match(page, /TrouvablePremiumMenuExperience/);
-  assert.match(page, /isTrouvablePublicMenu\(menu\)/);
+  assert.match(page, /resolvePublicMenuExperience/);
+  assert.match(page, /experience\.kind === "trouvable"/);
   assert.match(page, /resolvePublicMenuUiConfig\(menu, configRecord\.config\)/);
   assert.match(helper, /matchesMenuIdentity\(menu,\s*"trouvable"\)/);
   assert.match(helper, /theme:\s*"premium-gastronomic"/);

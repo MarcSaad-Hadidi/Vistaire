@@ -96,6 +96,10 @@ test("normalizes explicit public menu style choices", () => {
     normalizePublicMenuSettings({ publicMenuStyle: "trouvable" }).publicMenuStyle,
     "trouvable"
   );
+  assert.equal(
+    normalizePublicMenuSettings({ publicMenuStyle: "unique" }).publicMenuStyle,
+    "unique"
+  );
 });
 
 test("public menu currency picker uses a deterministic SSR-safe catalog", () => {
