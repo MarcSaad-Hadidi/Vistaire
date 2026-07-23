@@ -106,6 +106,7 @@ const FILTER_OPTIONS: Array<{ id: FilterId; labels: Record<Locale, string> }> = 
   { id: "soy-free", labels: { fr: "Sans soja", en: "Soy-free" } },
   { id: "fish-free", labels: { fr: "Sans poisson", en: "Fish-free" } }
 ];
+const BACK_TO_TOP_SCROLL_THRESHOLD = 520;
 
 const MENU_COPY: Record<
   Locale,
@@ -113,6 +114,7 @@ const MENU_COPY: Record<
     activeFilterPrefix: string;
     allMenu: string;
     apply: string;
+    backToTop: string;
     bottomFilter: string;
     bottomMenu: string;
     close: string;
@@ -142,6 +144,7 @@ const MENU_COPY: Record<
     activeFilterPrefix: "Filtre actif",
     allMenu: "Toute la carte",
     apply: "Appliquer",
+    backToTop: "Retour en haut",
     bottomFilter: "Filtrer",
     bottomMenu: "La carte",
     close: "Fermer",
@@ -171,6 +174,7 @@ const MENU_COPY: Record<
     activeFilterPrefix: "Active filter",
     allMenu: "Full menu",
     apply: "Apply",
+    backToTop: "Back to top",
     bottomFilter: "Filter",
     bottomMenu: "Menu",
     close: "Close",
@@ -225,6 +229,14 @@ function normalizeText(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function BackToTopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 12.5 12 5l7 7.5M12 6v13" />
+    </svg>
+  );
 }
 
 function tokenize(value: string): string[] {
@@ -656,6 +668,7 @@ export function MaisonElyseQrMenu({
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [activeSheet, setActiveSheet] = useState<SheetId>(null);
   const [activeDish, setActiveDish] = useState<PublicMenuDish | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLElement | null>(null);
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -663,6 +676,55 @@ export function MaisonElyseQrMenu({
   const skipNextPhonePreviewAutoScrollRef = useRef(false);
   const manualLocaleRef = useRef<Locale | null>(null);
   const lastSeenQueryLocaleRef = useRef<Locale | null>(queryLocale);
+  const getPhonePreviewScrollParent = useCallback(() => {
+    const currentScrollParent = phonePreviewScrollParentRef.current;
+    if (currentScrollParent?.isConnected && currentScrollParent.hasAttribute("data-phone-mockup-scroll")) {
+      return currentScrollParent;
+    }
+
+    const scrollParent =
+      menuScrollAreaRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
+      menuRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
+      null;
+
+    phonePreviewScrollParentRef.current = scrollParent;
+    return scrollParent;
+  }, []);
+
+  const getPhonePreviewScrollTarget = useCallback(() => {
+    const scrollParent = getPhonePreviewScrollParent();
+    if (scrollParent && scrollParent.scrollHeight > scrollParent.clientHeight) {
+      return scrollParent;
+    }
+
+    return menuScrollAreaRef.current;
+  }, [getPhonePreviewScrollParent]);
+
+  const getPhonePreviewScrollTargets = useCallback(() => {
+    const scrollParent = getPhonePreviewScrollParent();
+    const scrollArea = menuScrollAreaRef.current;
+
+    return Array.from(
+      new Set(
+        [scrollParent, scrollArea].filter(
+          (target): target is HTMLElement => Boolean(target)
+        )
+      )
+    );
+  }, [getPhonePreviewScrollParent]);
+  const updateBackToTopVisibility = useCallback(() => {
+    if (displayMode !== "phone-preview") {
+      setShowBackToTop(window.scrollY > BACK_TO_TOP_SCROLL_THRESHOLD);
+      return;
+    }
+
+    const scrollTargets = getPhonePreviewScrollTargets();
+    const scrollOffset = scrollTargets.reduce(
+      (maximum, target) => Math.max(maximum, target.scrollTop),
+      0
+    );
+    setShowBackToTop(scrollOffset > BACK_TO_TOP_SCROLL_THRESHOLD);
+  }, [displayMode, getPhonePreviewScrollTargets]);
   const groups = useMemo(
     () => getPublicMenuCategoryGroups(activeMenu.dishes),
     [activeMenu.dishes]
@@ -781,16 +843,16 @@ export function MaisonElyseQrMenu({
     const frameId = window.requestAnimationFrame(() => {
       const sectionId = sectionDomId(pendingSectionLabel, selectedLocale);
       const section = document.getElementById(sectionId);
-      const scrollArea = menuScrollAreaRef.current;
+      const scrollTarget = getPhonePreviewScrollTarget();
 
-      if (displayMode === "phone-preview" && section && scrollArea?.contains(section)) {
-        const scrollAreaRect = scrollArea.getBoundingClientRect();
+      if (displayMode === "phone-preview" && section && scrollTarget?.contains(section)) {
+        const scrollTargetRect = scrollTarget.getBoundingClientRect();
         const sectionRect = section.getBoundingClientRect();
-        scrollArea.scrollTo({
+        scrollTarget.scrollTo({
           behavior: getScrollBehavior(),
           top: Math.max(
             0,
-            sectionRect.top - scrollAreaRect.top + scrollArea.scrollTop
+            sectionRect.top - scrollTargetRect.top + scrollTarget.scrollTop
           )
         });
       } else {
@@ -803,7 +865,7 @@ export function MaisonElyseQrMenu({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, displayMode, pendingSectionLabel, selectedLocale]);
+  }, [activeCategory, displayMode, getPhonePreviewScrollTarget, pendingSectionLabel, selectedLocale]);
 
   useEffect(() => {
     if (displayMode !== "phone-preview" || pendingSectionLabel) {
@@ -816,27 +878,30 @@ export function MaisonElyseQrMenu({
     }
 
     const frameId = window.requestAnimationFrame(() => {
-      const scrollArea = menuScrollAreaRef.current;
-      if (!scrollArea) return;
+      const scrollTarget = getPhonePreviewScrollTarget();
+      if (!scrollTarget) return;
 
-      scrollArea.scrollTop = 0;
+      scrollTarget.scrollTop = 0;
 
-      const firstDish = scrollArea.querySelector<HTMLElement>('[data-dish-card="true"]');
+      const firstDish = scrollTarget.querySelector<HTMLElement>('[data-dish-card="true"]');
       if (!firstDish) return;
 
-      const scrollAreaRect = scrollArea.getBoundingClientRect();
+      const scrollTargetRect = scrollTarget.getBoundingClientRect();
       const firstDishRect = firstDish.getBoundingClientRect();
-      const firstDishOverflow = firstDishRect.bottom - scrollAreaRect.bottom;
+      const firstDishOverflow = firstDishRect.bottom - scrollTargetRect.bottom;
       if (firstDishOverflow <= 0) return;
 
-      const collectionLabel = Array.from(scrollArea.querySelectorAll<HTMLElement>("p")).find(
+      const collectionLabel = Array.from(scrollTarget.querySelectorAll<HTMLElement>("p")).find(
         (element) => element.textContent?.trim() === copy.collectionKicker
       );
       const maxScrollKeepingCollection = collectionLabel
-        ? Math.max(0, collectionLabel.getBoundingClientRect().top - scrollAreaRect.top)
+        ? Math.max(0, collectionLabel.getBoundingClientRect().top - scrollTargetRect.top)
         : Number.POSITIVE_INFINITY;
 
-      scrollArea.scrollTop = Math.min(Math.ceil(firstDishOverflow + 2), maxScrollKeepingCollection);
+      scrollTarget.scrollTop = Math.min(
+        Math.ceil(firstDishOverflow + 2),
+        maxScrollKeepingCollection
+      );
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -844,9 +909,41 @@ export function MaisonElyseQrMenu({
     activeCategory,
     copy.collectionKicker,
     displayMode,
+    getPhonePreviewScrollTarget,
     pendingSectionLabel,
     visibleDishes.length
   ]);
+
+  useEffect(() => {
+    const isPhonePreview = displayMode === "phone-preview";
+    if (!isPhonePreview) {
+      const frameId = window.requestAnimationFrame(updateBackToTopVisibility);
+      window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+      return () => {
+        window.cancelAnimationFrame(frameId);
+        window.removeEventListener("scroll", updateBackToTopVisibility);
+      };
+    }
+
+    const scrollTargets = getPhonePreviewScrollTargets();
+    if (scrollTargets.length === 0) return;
+
+    const frameId = window.requestAnimationFrame(updateBackToTopVisibility);
+    scrollTargets.forEach((target) =>
+      target.addEventListener("scroll", updateBackToTopVisibility, { passive: true })
+    );
+    window.addEventListener("scroll", updateBackToTopVisibility, {
+      capture: true,
+      passive: true
+    });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      scrollTargets.forEach((target) =>
+        target.removeEventListener("scroll", updateBackToTopVisibility)
+      );
+      window.removeEventListener("scroll", updateBackToTopVisibility, true);
+    };
+  }, [displayMode, getPhonePreviewScrollTargets, updateBackToTopVisibility]);
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
@@ -854,6 +951,23 @@ export function MaisonElyseQrMenu({
         behavior: getScrollBehavior(),
         block: "start"
       });
+    });
+  }
+
+  function scrollToTop() {
+    if (displayMode === "phone-preview") {
+      getPhonePreviewScrollTargets().forEach((scrollTarget) => {
+        scrollTarget.scrollTo({
+          top: 0,
+          behavior: getScrollBehavior()
+        });
+      });
+      return;
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: getScrollBehavior()
     });
   }
 
@@ -924,13 +1038,15 @@ export function MaisonElyseQrMenu({
   }
 
   function scrollPhonePreviewToTop() {
-    const scrollParent = phonePreviewScrollParentRef.current;
-    if (!scrollParent) return;
+    const scrollTargets = getPhonePreviewScrollTargets();
+    if (scrollTargets.length === 0) return;
 
     requestAnimationFrame(() => {
-      scrollParent.scrollTo({
-        top: 0,
-        behavior: "auto"
+      scrollTargets.forEach((scrollTarget) => {
+        scrollTarget.scrollTo({
+          top: 0,
+          behavior: "auto"
+        });
       });
     });
   }
@@ -938,10 +1054,7 @@ export function MaisonElyseQrMenu({
   function openDishInPhonePreview(dish: PublicMenuDish) {
     if (displayMode !== "phone-preview") return;
 
-    phonePreviewScrollParentRef.current =
-      menuScrollAreaRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
-      menuRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
-      null;
+    phonePreviewScrollParentRef.current = getPhonePreviewScrollParent();
     setActiveSheet(null);
     setActiveDish(dish);
     scrollPhonePreviewToTop();
@@ -1145,7 +1258,11 @@ export function MaisonElyseQrMenu({
     >
       <section className={styles.sections} ref={menuRef} aria-label={copy.sections}>
         <section className={styles.menuPanel} aria-labelledby="active-category-heading">
-            <div className={styles.menuScrollArea} ref={menuScrollAreaRef}>
+            <div
+              className={styles.menuScrollArea}
+              ref={menuScrollAreaRef}
+              onScroll={displayMode === "phone-preview" ? updateBackToTopVisibility : undefined}
+            >
               <div
                 className={styles.menuCover}
                 style={
@@ -1251,6 +1368,19 @@ export function MaisonElyseQrMenu({
 
         </section>
       </section>
+      <button
+        aria-hidden={!showBackToTop}
+        aria-label={copy.backToTop}
+        className={styles.backToTop}
+        data-back-to-top="true"
+        data-visible={showBackToTop}
+        tabIndex={showBackToTop ? 0 : -1}
+        title={copy.backToTop}
+        type="button"
+        onClick={scrollToTop}
+      >
+        <BackToTopIcon />
+      </button>
       {renderBottomSheet()}
     </main>
   );
