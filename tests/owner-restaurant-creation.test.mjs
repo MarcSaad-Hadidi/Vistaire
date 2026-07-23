@@ -749,6 +749,10 @@ test("restaurant creation wizard keeps structure before dishes and style after d
   assert.match(source, /dishes:/);
   assert.match(source, /menuLanguages:/);
   assert.match(source, /qrCodesHref/);
+  const ownerStyles = await readFile("components/owner/OwnerCockpit.module.css", "utf8");
+  assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneFrame[\s\S]*border: 0/);
+  assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneNotch,[\s\S]*\.menuPhoneTopbar[\s\S]*display: none/);
+  assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneScreen[\s\S]*height: auto[\s\S]*overflow-y: visible/);
 });
 
 test("restaurant creation wizard keeps price decimals and targeted post-create links", async () => {
