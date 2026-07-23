@@ -106,6 +106,7 @@ const FILTER_OPTIONS: Array<{ id: FilterId; labels: Record<Locale, string> }> = 
   { id: "soy-free", labels: { fr: "Sans soja", en: "Soy-free" } },
   { id: "fish-free", labels: { fr: "Sans poisson", en: "Fish-free" } }
 ];
+const BACK_TO_TOP_SCROLL_THRESHOLD = 520;
 
 const MENU_COPY: Record<
   Locale,
@@ -113,6 +114,7 @@ const MENU_COPY: Record<
     activeFilterPrefix: string;
     allMenu: string;
     apply: string;
+    backToTop: string;
     bottomFilter: string;
     bottomMenu: string;
     close: string;
@@ -142,6 +144,7 @@ const MENU_COPY: Record<
     activeFilterPrefix: "Filtre actif",
     allMenu: "Toute la carte",
     apply: "Appliquer",
+    backToTop: "Retour en haut",
     bottomFilter: "Filtrer",
     bottomMenu: "La carte",
     close: "Fermer",
@@ -171,6 +174,7 @@ const MENU_COPY: Record<
     activeFilterPrefix: "Active filter",
     allMenu: "Full menu",
     apply: "Apply",
+    backToTop: "Back to top",
     bottomFilter: "Filter",
     bottomMenu: "Menu",
     close: "Close",
@@ -225,6 +229,14 @@ function normalizeText(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function BackToTopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 12.5 12 5l7 7.5M12 6v13" />
+    </svg>
+  );
 }
 
 function tokenize(value: string): string[] {
@@ -656,6 +668,7 @@ export function MaisonElyseQrMenu({
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [activeSheet, setActiveSheet] = useState<SheetId>(null);
   const [activeDish, setActiveDish] = useState<PublicMenuDish | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLElement | null>(null);
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -848,12 +861,46 @@ export function MaisonElyseQrMenu({
     visibleDishes.length
   ]);
 
+  useEffect(() => {
+    const isPhonePreview = displayMode === "phone-preview";
+    const scrollArea = menuScrollAreaRef.current;
+    if (isPhonePreview && !scrollArea) return;
+    const scrollTarget = isPhonePreview ? scrollArea : window;
+    if (!scrollTarget) return;
+
+    const updateVisibility = () => {
+      const scrollOffset = isPhonePreview
+        ? scrollArea?.scrollTop ?? 0
+        : window.scrollY;
+      setShowBackToTop(scrollOffset > BACK_TO_TOP_SCROLL_THRESHOLD);
+    };
+
+    updateVisibility();
+    scrollTarget.addEventListener("scroll", updateVisibility, { passive: true });
+    return () => scrollTarget.removeEventListener("scroll", updateVisibility);
+  }, [displayMode]);
+
   function scrollToMenu() {
     requestAnimationFrame(() => {
       menuRef.current?.scrollIntoView({
         behavior: getScrollBehavior(),
         block: "start"
       });
+    });
+  }
+
+  function scrollToTop() {
+    if (displayMode === "phone-preview") {
+      menuScrollAreaRef.current?.scrollTo({
+        top: 0,
+        behavior: getScrollBehavior()
+      });
+      return;
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: getScrollBehavior()
     });
   }
 
@@ -1251,6 +1298,19 @@ export function MaisonElyseQrMenu({
 
         </section>
       </section>
+      <button
+        aria-hidden={!showBackToTop}
+        aria-label={copy.backToTop}
+        className={styles.backToTop}
+        data-back-to-top="true"
+        data-visible={showBackToTop}
+        tabIndex={showBackToTop ? 0 : -1}
+        title={copy.backToTop}
+        type="button"
+        onClick={scrollToTop}
+      >
+        <BackToTopIcon />
+      </button>
       {renderBottomSheet()}
     </main>
   );

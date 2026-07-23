@@ -171,6 +171,8 @@ test("Maison Elyse QR menu starts directly with the complete menu", async () => 
   assert.match(component, /GoogleReviewCard/);
   assert.match(component, /MENU_LOCALE_STORAGE_KEY/);
   assert.match(component, /FILTER_OPTIONS/);
+  assert.match(component, /backToTop/);
+  assert.match(component, /scrollToTop/);
   assert.match(component, /menuCover/);
   assert.match(component, /bottomBar/);
   assert.match(component, /bottomSheet/);

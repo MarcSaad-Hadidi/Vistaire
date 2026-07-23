@@ -134,6 +134,11 @@ test.describe("Maison Elyse public QR menu", () => {
 
     await expect(page.getByRole("button", { exact: true, name: "La carte" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Filtrer" })).toBeVisible();
+    await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
+    const backToTop = page.locator('[data-back-to-top="true"]');
+    await expect(backToTop).toBeVisible();
+    await backToTop.click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(8);
     await page.getByRole("button", { name: "Filtrer" }).click();
     await expect(page.getByRole("dialog", { name: "Filtrer la carte" })).toBeVisible();
     await expect(page.getByRole("button", { exact: true, name: "Signature" })).toBeVisible();
