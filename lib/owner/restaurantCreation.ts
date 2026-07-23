@@ -24,6 +24,12 @@ import {
   normalizeDisplayPriceMode,
   parsePriceToCents
 } from "./price.ts";
+import {
+  legacyAllergensFromDeclarations,
+  normalizeAllergenData,
+  validateAllergenDeclarations,
+  type DishAllergenDeclaration
+} from "../menu/allergens.ts";
 
 type SupabaseInsertError = {
   code?: string;
@@ -165,6 +171,7 @@ const DEFAULT_MENU_DISH_COLUMNS = new Set([
   "thumbnail_url",
   "ingredients",
   "allergens",
+  "allergen_declarations",
   "options",
   "house_note",
   "tags",
@@ -480,6 +487,23 @@ function normalizeDishes(
       };
     }
 
+    const rawLegacyAllergens = getStringArray(
+      dish,
+      ["allergens", "allergenes", "allergen_list"],
+      16
+    );
+    const rawAllergenDeclarations =
+      dish.allergenDeclarations ?? dish.allergen_declarations;
+    let allergenDeclarations: DishAllergenDeclaration[];
+    try {
+      allergenDeclarations =
+        rawAllergenDeclarations === undefined
+          ? normalizeAllergenData(undefined, rawLegacyAllergens).declarations
+          : validateAllergenDeclarations(rawAllergenDeclarations);
+    } catch {
+      return { ok: false, error: "Declarations allergenes invalides." };
+    }
+
     dishes.push({
       name,
       section,
@@ -491,7 +515,11 @@ function normalizeDishes(
       description,
       ...(imageUrl ? { imageUrl } : {}),
       ingredients: getStringArray(dish, ["ingredients", "ingredient_list"], 16),
-      allergens: getStringArray(dish, ["allergens", "allergenes", "allergen_list"], 16),
+      allergens: legacyAllergensFromDeclarations(
+        allergenDeclarations,
+        rawLegacyAllergens
+      ),
+      allergenDeclarations,
       tags: getStringArray(dish, ["tags", "badges", "labels"], 10),
       options: getStringArray(dish, ["options", "option_list"], 12),
       chefNote: getString(dish, ["chefNote", "chef_note", "houseNote", "house_note"], "").slice(0, 220),
@@ -613,6 +641,7 @@ function buildTransactionalCreationPayload(
         normalizedBadges.includes("recommande") || normalizedBadges.includes("recommended"),
       has_immersive_view: false,
       allergens: dish.allergens ?? [],
+      allergen_declarations: dish.allergenDeclarations ?? null,
       display_order: index + 1,
       metadata: {
         ingredients: dish.ingredients ?? [],
@@ -863,6 +892,12 @@ function buildMenuDishInsertRows(args: {
       args.columns,
       ["allergens", "allergenes", "allergen_list"],
       dish.allergens?.length ? dish.allergens : undefined
+    );
+    assignMenuDishValue(
+      row,
+      args.columns,
+      ["allergen_declarations", "allergenDeclarations"],
+      dish.allergenDeclarations?.length ? dish.allergenDeclarations : undefined
     );
     assignMenuDishValue(
       row,

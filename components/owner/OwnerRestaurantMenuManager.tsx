@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerCockpit.module.css";
 import { Badge, EmptyState, Panel } from "@/components/owner/OwnerUi";
 import type { PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCore";
+import {
+  ALLERGEN_REGISTRY,
+  allergenLabel,
+  getAllergenStatus,
+  legacyAllergensFromDeclarations,
+  normalizeAllergenData,
+  type AllergenStatus,
+  type DishAllergenDeclaration
+} from "@/lib/menu/allergens";
 
 type EditorMode = "category" | "dish" | null;
 type DeleteTarget = {
@@ -36,7 +45,8 @@ type DishDraft = {
   price: string;
   description: string;
   ingredientsText: string;
-  allergensText: string;
+  allergenDeclarations: DishAllergenDeclaration[];
+  allergenLegacyValues: string[];
   tagsText: string;
   optionsText: string;
   chefNote: string;
@@ -68,7 +78,11 @@ const EMPTY_DISH_DRAFT: DishDraft = {
   price: "",
   description: "",
   ingredientsText: "",
-  allergensText: "",
+  allergenDeclarations: ALLERGEN_REGISTRY.map(({ id }) => ({
+    allergenId: id,
+    status: "unknown"
+  })),
+  allergenLegacyValues: [],
   tagsText: "",
   optionsText: "",
   chefNote: "",
@@ -103,6 +117,21 @@ function splitDishList(value: string): string[] {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 24);
+}
+
+const ALLERGEN_STATUS_OPTIONS: Array<{ value: AllergenStatus; label: string }> = [
+  { value: "unknown", label: "À confirmer" },
+  { value: "contains", label: "Contient" },
+  { value: "may_contain", label: "Peut contenir" },
+  { value: "confirmed_free", label: "Déclaré sans" }
+];
+
+function declarationsForDish(dish: PublicMenuDish): DishAllergenDeclaration[] {
+  const normalized = normalizeAllergenData(dish.allergenDeclarations, dish.allergens);
+  return ALLERGEN_REGISTRY.map(({ id }) => ({
+    allergenId: id,
+    status: getAllergenStatus(normalized, id)
+  }));
 }
 
 function categoryIdForDish(
@@ -265,7 +294,8 @@ export function OwnerRestaurantMenuManager({
       price: priceDraftFromDish(dish),
       description: dish.description,
       ingredientsText: dish.ingredients.join(", "),
-      allergensText: dish.allergens.join(", "),
+      allergenDeclarations: declarationsForDish(dish),
+      allergenLegacyValues: dish.allergenLegacyValues ?? dish.allergens,
       tagsText: dish.tags.join(", "),
       optionsText: dish.options.join(", "),
       chefNote: dish.houseNote,
@@ -381,7 +411,11 @@ export function OwnerRestaurantMenuManager({
         price: dishDraft.price,
         description: dishDraft.description,
         ingredients: splitDishList(dishDraft.ingredientsText),
-        allergens: splitDishList(dishDraft.allergensText),
+        allergenDeclarations: dishDraft.allergenDeclarations,
+        allergens: legacyAllergensFromDeclarations(
+          dishDraft.allergenDeclarations,
+          dishDraft.allergenLegacyValues
+        ),
         tags: splitDishList(dishDraft.tagsText),
         options: splitDishList(dishDraft.optionsText),
         chefNote: dishDraft.chefNote.trim(),
@@ -648,19 +682,49 @@ export function OwnerRestaurantMenuManager({
                   }
                 />
               </label>
-              <label className={styles.formField}>
-                <span>Allergenes</span>
-                <input
-                  className={styles.control}
-                  value={dishDraft.allergensText}
-                  onChange={(event) =>
-                    setDishDraft((draft) => ({
-                      ...draft,
-                      allergensText: event.target.value
-                    }))
-                  }
-                />
-              </label>
+              <fieldset className={styles.formField}>
+                <legend>Déclarations allergènes</legend>
+                <p className={styles.cellSub}>
+                  Sélectionnez un statut pour chaque allergène. « À confirmer »
+                  reste exclu des filtres sans allergène.
+                </p>
+                <p className={styles.cellSub}>
+                  Ne sélectionnez « Déclaré sans » qu’après vérification de la recette,
+                  des sauces, des fonds, des garnitures et des risques de contamination croisée.
+                </p>
+                <div className={styles.formGrid}>
+                  {ALLERGEN_REGISTRY.map(({ id }) => {
+                    const declaration = dishDraft.allergenDeclarations.find(
+                      (item) => item.allergenId === id
+                    );
+                    return (
+                      <label key={id} className={styles.formField}>
+                        <span>{allergenLabel(id, "fr")}</span>
+                        <select
+                          className={styles.control}
+                          value={declaration?.status ?? "unknown"}
+                          onChange={(event) =>
+                            setDishDraft((draft) => ({
+                              ...draft,
+                              allergenDeclarations: draft.allergenDeclarations.map((item) =>
+                                item.allergenId === id
+                                  ? { ...item, status: event.target.value as AllergenStatus }
+                                  : item
+                              )
+                            }))
+                          }
+                        >
+                          {ALLERGEN_STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
               <label className={styles.formField}>
                 <span>Options, extras / accompagnements</span>
                 <input
@@ -675,6 +739,11 @@ export function OwnerRestaurantMenuManager({
                 />
               </label>
             </div>
+            {dishDraft.id && dishes.find((dish) => dish.id === dishDraft.id)?.allergenReviewRequired ? (
+              <p className={styles.fieldHelp} role="alert">
+                Les anciennes données allergènes nécessitent une vérification avant publication.
+              </p>
+            ) : null}
             <label className={styles.formField}>
               <span>Note chef</span>
               <textarea

@@ -1,5 +1,6 @@
 import type { Locale } from "./i18n.ts";
 import type { GoogleReviewConfig } from "./menu/publicMenuCore.ts";
+import type { DishAllergenDeclaration } from "./menu/allergens.ts";
 
 export type CurrencyCode = "CAD" | "EUR" | "USD";
 
@@ -52,6 +53,7 @@ export type Dish = {
   imageObjectPositionDetail?: string;
   ingredients: string[];
   allergens: Allergen[];
+  allergenDeclarations?: DishAllergenDeclaration[];
   options: string[];
   sides: string[];
   chefRecommendation: string;

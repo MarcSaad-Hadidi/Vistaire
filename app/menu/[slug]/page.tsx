@@ -123,6 +123,7 @@ export default async function PublicMenuPage({
       query={menuQuery}
       mode="public"
       disableHeavyAssets={false}
+      locale={activeLocale}
     />
   );
 }

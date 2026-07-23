@@ -117,6 +117,7 @@ function buildPreviewMenu({
               imageUrl: "",
               ingredients: [],
               allergens: [],
+              allergenDeclarations: [],
               tags: [],
               options: [],
               chefNote: "",

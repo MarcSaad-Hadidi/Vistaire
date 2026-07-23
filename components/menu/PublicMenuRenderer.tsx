@@ -4,6 +4,13 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
+import { normalizeLocale, type Locale } from "@/lib/i18n";
+import {
+  ALLERGEN_FILTERS,
+  allergenIdForFilter,
+  matchesConfirmedFree,
+  type AllergenFilterId
+} from "@/lib/menu/allergens";
 import {
   buildPublicDishPath,
   getPublicMenuCategoryGroups,
@@ -15,6 +22,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { GoogleReviewCard } from "./GoogleReviewCard";
+import { AllergenWarning } from "./AllergenDisclosure";
 import { PublicDishDetailExperience } from "./PublicDishDetailExperience";
 import styles from "./PublicMenuRenderer.module.css";
 
@@ -26,6 +34,7 @@ type PublicMenuRendererProps = {
   query?: PublicMenuContextQuery;
   disableHeavyAssets?: boolean;
   onDishOpen?: (dish: PublicMenuDish) => void;
+  locale?: Locale;
 };
 
 const ALL_TAB_ID = "all";
@@ -35,71 +44,18 @@ const MENU_FILTERS = [
   { id: "recommended", label: "Recommandés" },
   { id: "immersive", label: "Vue 3D / AR" },
   { id: "available", label: "Disponibles" },
-  { id: "gluten-free", label: "Sans gluten" },
-  { id: "dairy-free", label: "Sans lactose / laitiers" },
-  { id: "nut-free", label: "Sans fruits à coque" },
-  { id: "shellfish-free", label: "Sans crustacés" },
-  { id: "egg-free", label: "Sans oeufs" },
-  { id: "sesame-free", label: "Sans sésame" },
-  { id: "soy-free", label: "Sans soja" },
-  { id: "fish-free", label: "Sans poisson" }
+  ...ALLERGEN_FILTERS.map((filter) => ({
+    id: filter.id as AllergenFilterId,
+    label: filter.labels.fr
+  }))
 ] as const;
 type MenuFilterId = (typeof MENU_FILTERS)[number]["id"];
-type AllergenFilterId = Extract<
-  MenuFilterId,
-  | "gluten-free"
-  | "dairy-free"
-  | "nut-free"
-  | "shellfish-free"
-  | "egg-free"
-  | "sesame-free"
-  | "soy-free"
-  | "fish-free"
->;
 const preferredCategoryLabels = ["Entrees", "Entrées", "Plats", "Desserts", "Boissons"];
 const preferredCategoryOrder = new Map(
   preferredCategoryLabels.map((label, index) => [label, index])
 );
 preferredCategoryOrder.set("Signatures", 2);
 preferredCategoryOrder.set("Cocktails", 4);
-
-const ALLERGEN_FILTER_TERMS: Record<AllergenFilterId, string[]> = {
-  "gluten-free": ["gluten", "wheat", "ble"],
-  "dairy-free": [
-    "dairy",
-    "lait",
-    "lactose",
-    "milk",
-    "cream",
-    "creme",
-    "cheese",
-    "fromage",
-    "beurre",
-    "butter"
-  ],
-  "nut-free": [
-    "nut",
-    "nuts",
-    "noix",
-    "amande",
-    "amandes",
-    "noisette",
-    "pistache",
-    "pecan"
-  ],
-  "shellfish-free": [
-    "shellfish",
-    "crustace",
-    "crustaces",
-    "homard",
-    "crevette",
-    "crabe"
-  ],
-  "egg-free": ["egg", "eggs", "oeuf", "oeufs"],
-  "sesame-free": ["sesame"],
-  "soy-free": ["soy", "soja"],
-  "fish-free": ["fish", "poisson"]
-};
 
 function themeClass(theme: MenuUiConfig["theme"]): string {
   if (theme === "bbq-smokehouse") return styles.themeBbq;
@@ -249,20 +205,6 @@ function normalizeFilterText(value: string): string {
     .toLowerCase();
 }
 
-function tokenizeFilterText(value: string): string[] {
-  return normalizeFilterText(value)
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-}
-
-function dishAllergenTokens(dish: PublicMenuDish): Set<string> {
-  return new Set(dish.allergens.flatMap(tokenizeFilterText));
-}
-
-function isAllergenFilter(filter: MenuFilterId): filter is AllergenFilterId {
-  return filter.endsWith("-free");
-}
-
 function dishMatchesQuickFilter(
   dish: PublicMenuDish,
   filter: MenuFilterId
@@ -276,11 +218,9 @@ function dishMatchesQuickFilter(
   }
   if (filter === "available") return dish.available;
   if (filter === "immersive") return dish.hasImmersive || dish.has3d || dish.hasAr;
-  if (isAllergenFilter(filter)) {
-    const allergenTokens = dishAllergenTokens(dish);
-    return !ALLERGEN_FILTER_TERMS[filter].some((term) =>
-      allergenTokens.has(normalizeFilterText(term))
-    );
+  const allergenId = allergenIdForFilter(filter);
+  if (allergenId) {
+    return matchesConfirmedFree(dish, allergenId);
   }
   return true;
 }
@@ -317,8 +257,21 @@ export function PublicMenuRenderer({
   context = "",
   query,
   disableHeavyAssets = mode === "builder-preview",
-  onDishOpen
+  onDishOpen,
+  locale = "fr"
 }: PublicMenuRendererProps) {
+  const activeLocale = normalizeLocale(locale);
+  const localizedMenuFilters = useMemo(
+    () =>
+      MENU_FILTERS.map((filter) => {
+        const allergenFilter = ALLERGEN_FILTERS.find((item) => item.id === filter.id);
+        return {
+          ...filter,
+          label: allergenFilter?.labels[activeLocale] ?? filter.label
+        };
+      }),
+    [activeLocale]
+  );
   const initialTab =
     config.experience.blueprint === "compact-qr" ||
     config.experience.blueprint === "fast-board" ||
@@ -659,7 +612,7 @@ export function PublicMenuRenderer({
               }
             }}
           >
-            {MENU_FILTERS.map((filter) => (
+            {localizedMenuFilters.map((filter) => (
               <option key={filter.id} value={filter.id}>
                 {filter.label}
               </option>
@@ -823,6 +776,7 @@ export function PublicMenuRenderer({
             </button>
           ) : null}
         </div>
+        <AllergenWarning locale={activeLocale} />
         {renderMenuTools()}
         {children}
       </section>
@@ -1152,6 +1106,7 @@ export function PublicMenuRenderer({
         dish={selectedDish}
         menu={menu}
         mode="builder-preview"
+        locale={activeLocale}
         onBack={() => setSelectedDish(null)}
         query={query}
       />

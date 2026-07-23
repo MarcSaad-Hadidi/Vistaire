@@ -24,6 +24,10 @@ import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
+  matchesConfirmedFree,
+  type AllergenId
+} from "@/lib/menu/allergens";
+import {
   getTrouvableCategoryIconKindForCategory,
   sortTrouvablePublicMenuCategories
 } from "@/lib/menu/trouvableCategoryIcons";
@@ -46,6 +50,7 @@ import {
 } from "@/lib/menu/arBrowserHandoff";
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
+import { AllergenWarning } from "./AllergenDisclosure";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
@@ -169,32 +174,21 @@ const VEG_TERMS = [
   "vegetarian",
   "vegetarien"
 ];
-const ALLERGEN_FILTER_TERMS: Record<
+const TROUVABLE_ALLERGEN_FILTER_IDS: Record<
   Exclude<
     QuickFilterId,
     "all" | "veg" | "nonVeg" | "available" | "immersive" | "recommended"
   >,
-  string[]
+  AllergenId
 > = {
-  glutenFree: ["gluten", "wheat", "ble"],
-  dairyFree: [
-    "dairy",
-    "lait",
-    "lactose",
-    "milk",
-    "cream",
-    "creme",
-    "cheese",
-    "fromage",
-    "beurre",
-    "butter"
-  ],
-  nutFree: ["nut", "nuts", "noix", "amande", "amandes", "noisette", "pistache"],
-  shellfishFree: ["shellfish", "crustace", "crustaces", "homard", "crevette", "crabe"],
-  eggFree: ["egg", "eggs", "oeuf", "oeufs"],
-  sesameFree: ["sesame"],
-  soyFree: ["soy", "soya", "soja"],
-  fishFree: ["fish", "poisson", "saumon", "thon"]
+  glutenFree: "gluten",
+  dairyFree: "dairy",
+  nutFree: "tree_nuts",
+  shellfishFree: "shellfish",
+  eggFree: "eggs",
+  sesameFree: "sesame",
+  soyFree: "soy",
+  fishFree: "fish"
 };
 
 function normalizeText(value: string): string {
@@ -226,11 +220,6 @@ function searchableDishText(dish: PublicMenuDish): string {
 function dishHasAnyTerm(dish: PublicMenuDish, terms: string[]): boolean {
   const text = searchableDishText(dish);
   return terms.some((term) => text.includes(normalizeText(term)));
-}
-
-function dishHasAllergenTerm(dish: PublicMenuDish, terms: string[]): boolean {
-  const allergenText = normalizeText(dish.allergens.join(" "));
-  return terms.some((term) => allergenText.includes(normalizeText(term)));
 }
 
 function isVegDish(dish: PublicMenuDish): boolean {
@@ -302,14 +291,10 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   if (filter === "available") return dish.available;
   if (filter === "immersive") return dish.has3d || dish.hasAr || dish.hasImmersive;
   if (filter === "recommended") return isRecommendedDish(dish);
-  if (filter in ALLERGEN_FILTER_TERMS) {
-    return !dishHasAllergenTerm(
-      dish,
-      ALLERGEN_FILTER_TERMS[
-        filter as keyof typeof ALLERGEN_FILTER_TERMS
-      ]
-    );
-  }
+  const allergenId = TROUVABLE_ALLERGEN_FILTER_IDS[
+    filter as keyof typeof TROUVABLE_ALLERGEN_FILTER_IDS
+  ];
+  if (allergenId) return matchesConfirmedFree(dish, allergenId);
   return true;
 }
 
@@ -677,7 +662,12 @@ export function TrouvablePremiumMenuExperience({
     [menu.dishes]
   );
   const hasAllergenData = useMemo(
-    () => menu.dishes.some((dish) => dish.allergens.length > 0),
+    () =>
+      menu.dishes.some(
+        (dish) =>
+          dish.allergens.length > 0 ||
+          (dish.allergenDeclarations?.length ?? 0) > 0
+      ),
     [menu.dishes]
   );
   const quickFilters = useMemo(
@@ -1967,6 +1957,7 @@ export function TrouvablePremiumMenuExperience({
       <PremiumDishDetailsSheet
         dish={detailsDish}
         copy={copy}
+        locale={selectedLocale}
         sheetId={`trouvable-dish-more-details-${detailsDish.slug}`}
         titleId="trouvable-dish-details-title"
         onClose={closeDishSubSheet}
@@ -2363,6 +2354,7 @@ export function TrouvablePremiumMenuExperience({
         className={styles.backToTopSentinel}
         aria-hidden="true"
       />
+      <AllergenWarning locale={selectedLocale} />
       <header ref={topBarRef} className={styles.topBar}>
         <div className={styles.brandBlock}>
           <VistaireWord />

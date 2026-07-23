@@ -9,14 +9,14 @@ import {
 
 const ALLERGEN_OPTIONS: { value: Allergen | ""; label: string }[] = [
   { value: "", label: "Tous les plats" },
-  { value: "gluten", label: "Sans gluten" },
-  { value: "dairy", label: "Sans lactose / laitiers" },
-  { value: "nuts", label: "Sans fruits à coque" },
-  { value: "shellfish", label: "Sans crustacés" },
-  { value: "eggs", label: "Sans œufs" },
-  { value: "sesame", label: "Sans sésame" },
-  { value: "soy", label: "Sans soja" },
-  { value: "fish", label: "Sans poisson" }
+  { value: "gluten", label: "Déclaré sans gluten" },
+  { value: "dairy", label: "Déclaré sans produits laitiers" },
+  { value: "nuts", label: "Déclaré sans fruits à coque" },
+  { value: "shellfish", label: "Déclaré sans crustacés" },
+  { value: "eggs", label: "Déclaré sans œufs" },
+  { value: "sesame", label: "Déclaré sans sésame" },
+  { value: "soy", label: "Déclaré sans soja" },
+  { value: "fish", label: "Déclaré sans poisson" }
 ];
 
 type MenuFilterBarProps = {

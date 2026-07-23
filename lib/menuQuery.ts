@@ -1,4 +1,5 @@
 import type { Allergen, Dish } from "@/lib/demoMenuData";
+import { allergenIdForFilter, matchesConfirmedFree } from "@/lib/menu/allergens";
 
 /** Slug de l’onglet « Tous » : aucun filtre par catégorie. */
 export const MENU_ALL_CATEGORY_SLUG = "tous" as const;
@@ -65,11 +66,11 @@ export function applyMenuFilters(
     if (filters.recommendedOnly && !dish.isRecommended) return false;
     if (filters.availableOnly && !dish.isAvailable) return false;
     if (filters.with3dOnly && !dishHasImmersiveAsset(dish)) return false;
-    if (
-      filters.excludeAllergen &&
-      dish.allergens.includes(filters.excludeAllergen)
-    ) {
-      return false;
+    if (filters.excludeAllergen) {
+      const allergenId = allergenIdForFilter(filters.excludeAllergen);
+      if (!allergenId || !matchesConfirmedFree(dish, allergenId)) {
+        return false;
+      }
     }
     return true;
   });

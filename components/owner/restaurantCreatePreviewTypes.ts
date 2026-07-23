@@ -1,5 +1,6 @@
 import type { DisplayPriceMode } from "@/lib/owner/price";
 import type { CreateRestaurantDishPhotoStatus } from "@/lib/owner/types";
+import type { DishAllergenDeclaration } from "@/lib/menu/allergens";
 
 export type DraftSection = {
   id: string;
@@ -17,6 +18,7 @@ export type DraftDish = {
   imageUrl: string;
   ingredients: string[];
   allergens: string[];
+  allergenDeclarations: DishAllergenDeclaration[];
   tags: string[];
   options: string[];
   chefNote: string;
