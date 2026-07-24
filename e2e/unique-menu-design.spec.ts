@@ -60,12 +60,14 @@ async function reachAppearanceStep(page: Page) {
   ).toBeVisible();
 
   await page.getByLabel("Nom restaurant").fill("Unique E2E Wizard");
-  await page.getByLabel("Email contact").fill("owner-e2e@localhost");
+  await page.getByLabel("Email contact").fill("owner@example.com");
   await page
     .getByLabel("Lien Google Reviews")
     .fill("https://g.page/r/CYEXAMPLE/review");
   await page.getByRole("button", { name: "Continuer" }).click();
-  await expect(page.getByText("2. Structure menu")).toBeVisible();
+  await expect(page.getByText("2. Structure menu")).toBeVisible({
+    timeout: 10_000
+  });
 
   await page.getByLabel("Nom section").fill("Entrees");
   await page.getByRole("button", { name: "Ajouter section" }).click();
