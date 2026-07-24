@@ -5,6 +5,7 @@ import {
 } from "../owner/price.ts";
 import { normalizeModelAssetBytes } from "../owner/modelAssetSize.ts";
 import {
+  hasMeaningfulPublicMenuSettings,
   normalizePublicMenuCurrency,
   normalizePublicMenuLocale,
   normalizePublicMenuSettings,
@@ -1007,6 +1008,7 @@ type MenuSettingsCandidate = {
   rawSettings: PublicMenuRow;
   localizedUiCopy?: Record<string, unknown>;
   updatedAtMs: number | null;
+  meaningful: boolean;
 };
 
 function parseUpdatedAtMs(value: unknown): number | null {
@@ -1060,16 +1062,23 @@ function settingsCandidateFromLegacyInput(value: unknown): MenuSettingsCandidate
   const input = objectInput(value);
   const nestedSettings = objectInput(input.settings);
   const rawSettings =
-    Object.keys(nestedSettings).length > 0 ? nestedSettings : input;
-  if (Object.keys(rawSettings).length === 0) return null;
+    hasMeaningfulPublicMenuSettings(nestedSettings)
+      ? nestedSettings
+      : hasMeaningfulPublicMenuSettings(input)
+        ? input
+        : {};
+  const meaningful = hasMeaningfulPublicMenuSettings(rawSettings);
+  const localizedUiCopy = mergeLocalizedUiCopy(
+    getLocalizedUiCopy(input, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"]),
+    getLocalizedUiCopy(rawSettings, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"])
+  );
+  if (!meaningful && !localizedUiCopy) return null;
 
   return {
     rawSettings,
-    localizedUiCopy: mergeLocalizedUiCopy(
-      getLocalizedUiCopy(input, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"]),
-      getLocalizedUiCopy(rawSettings, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"])
-    ),
-    updatedAtMs: parseUpdatedAtMs(input.updatedAt ?? input.updated_at)
+    localizedUiCopy,
+    updatedAtMs: parseUpdatedAtMs(input.updatedAt ?? input.updated_at),
+    meaningful
   };
 }
 
@@ -1091,17 +1100,19 @@ function settingsCandidateFromMenuRow(
     getLocalizedUiCopy(metadataSettings, ["localizedUiCopy", "localized_ui_copy", "uiCopy", "ui_copy"])
   );
   const rawSettings =
-    Object.keys(nativeSettings).length > 0
+    hasMeaningfulPublicMenuSettings(nativeSettings)
       ? nativeSettings
-      : Object.keys(metadataSettings).length > 0
+      : hasMeaningfulPublicMenuSettings(metadataSettings)
         ? metadataSettings
         : {};
-  if (Object.keys(rawSettings).length === 0 && !localizedUiCopy) return null;
+  const meaningful = hasMeaningfulPublicMenuSettings(rawSettings);
+  if (!meaningful && !localizedUiCopy) return null;
 
   return {
     rawSettings,
     localizedUiCopy,
-    updatedAtMs: rowUpdatedAtMs(row)
+    updatedAtMs: rowUpdatedAtMs(row),
+    meaningful
   };
 }
 
@@ -1113,6 +1124,34 @@ function resolveMenuSettingsCandidate(args: {
   const uiConfigCandidate = settingsCandidateFromLegacyInput(
     args.legacyPublicMenuSettings
   );
+
+  const meaningfulMenuCandidate = menuCandidate?.meaningful ? menuCandidate : null;
+  const meaningfulUiConfigCandidate = uiConfigCandidate?.meaningful
+    ? uiConfigCandidate
+    : null;
+
+  if (meaningfulMenuCandidate && meaningfulUiConfigCandidate) {
+    // settings_json is the canonical store once it has a recognized public
+    // setting. Legacy rows are only a recovery source for empty/invalid data.
+    return {
+      ...meaningfulMenuCandidate,
+      localizedUiCopy: mergeLocalizedUiCopy(
+        meaningfulUiConfigCandidate.localizedUiCopy,
+        meaningfulMenuCandidate.localizedUiCopy
+      )
+    };
+  }
+
+  if (meaningfulMenuCandidate || meaningfulUiConfigCandidate) {
+    const selected = meaningfulMenuCandidate ?? meaningfulUiConfigCandidate!;
+    return {
+      ...selected,
+      localizedUiCopy: mergeLocalizedUiCopy(
+        uiConfigCandidate?.localizedUiCopy,
+        menuCandidate?.localizedUiCopy
+      )
+    };
+  }
 
   if (menuCandidate && uiConfigCandidate) {
     if (
@@ -1128,7 +1167,11 @@ function resolveMenuSettingsCandidate(args: {
     return menuCandidate;
   }
 
-  const selected = menuCandidate ?? uiConfigCandidate ?? { rawSettings: {}, updatedAtMs: null };
+  const selected = menuCandidate ?? uiConfigCandidate ?? {
+    rawSettings: {},
+    updatedAtMs: null,
+    meaningful: false
+  };
   return {
     ...selected,
     localizedUiCopy: mergeLocalizedUiCopy(
@@ -1145,7 +1188,7 @@ function menuSettingsBundleFromRows(args: {
 }): { settings: PublicMenuSettings; localizedUiCopy?: Record<string, unknown> } {
   const candidate = resolveMenuSettingsCandidate(args);
   const rawSettings = candidate.rawSettings;
-  const isEmptySettings = Object.keys(rawSettings).length === 0;
+  const isEmptySettings = !hasMeaningfulPublicMenuSettings(rawSettings);
   return {
     settings: normalizePublicMenuSettings(rawSettings, {
       legacyMenuLanguages: isEmptySettings ? args.legacyMenuLanguages : undefined

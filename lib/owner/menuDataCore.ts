@@ -144,7 +144,8 @@ export function buildOwnerMenuDataFromRows(
   const primaryMenu = findPrimaryMenu(args.menuRows, args.restaurantId);
   const legacyPublicMenuSettings = publicMenuSettingsFallbackFromUiConfigRows(
     args.uiConfigRows ?? [],
-    args.restaurantId
+    args.restaurantId,
+    { includeDraft: true }
   );
   const menu = primaryMenu
     ? buildRelationalSupabasePublicMenu({

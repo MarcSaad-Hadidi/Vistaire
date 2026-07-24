@@ -375,7 +375,7 @@ test("buildRelationalSupabasePublicMenu reads localized UI copy from menu_ui_con
   assert.deepEqual(menu.settings.supportedLocales, ["fr-CA", "pt-BR"]);
 });
 
-test("buildRelationalSupabasePublicMenu prefers effective menu_ui_configs settings over stale menu settings", () => {
+test("buildRelationalSupabasePublicMenu keeps meaningful menu settings canonical over newer legacy settings", () => {
   const menu = buildRelationalSupabasePublicMenu({
     slug: "le-comptoir-decimal",
     restaurantRow: {
@@ -426,18 +426,11 @@ test("buildRelationalSupabasePublicMenu prefers effective menu_ui_configs settin
     dishRows: []
   });
 
-  assert.deepEqual(menu.settings.supportedLocales, [
-    "fr-CA",
-    "en-CA",
-    "es-ES",
-    "it-IT",
-    "de-DE",
-    "ar"
-  ]);
-  assert.deepEqual(menu.settings.supportedCurrencies, ["CAD", "USD", "EUR", "GBP"]);
-  assert.equal(menu.settings.allowLanguageSelector, true);
-  assert.equal(menu.settings.allowCurrencySelector, true);
-  assert.equal(menu.settings.publicMenuStyle, "trouvable");
+  assert.deepEqual(menu.settings.supportedLocales, ["fr-CA", "en-CA"]);
+  assert.deepEqual(menu.settings.supportedCurrencies, ["CAD"]);
+  assert.equal(menu.settings.allowLanguageSelector, false);
+  assert.equal(menu.settings.allowCurrencySelector, false);
+  assert.equal(menu.settings.publicMenuStyle, "maison-elyse");
   assert.equal(menu.publicMenuStyleExplicit, true);
 });
 

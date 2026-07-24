@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  hasMeaningfulPublicMenuSettings,
   normalizePublicMenuSettings,
   serializePublicMenuSettings,
   type PublicMenuSettings
@@ -96,7 +97,7 @@ export function publicMenuSettingsFromMenuRow(
       metadata.settings
   );
   const nativeSettings = objectInput(row.settings_json ?? row.settingsJson);
-  if (Object.keys(nativeSettings).length > 0) {
+  if (hasMeaningfulPublicMenuSettings(nativeSettings)) {
     const localizedUiCopy =
       getLocalizedUiCopy(nativeSettings) ??
       getLocalizedUiCopy(row) ??
@@ -111,7 +112,7 @@ export function publicMenuSettingsFromMenuRow(
     };
   }
 
-  if (Object.keys(metadataSettings).length > 0) {
+  if (hasMeaningfulPublicMenuSettings(metadataSettings)) {
     const localizedUiCopy = getLocalizedUiCopy(metadata) ?? getLocalizedUiCopy(metadataSettings);
     return {
       source: "metadata",
@@ -135,7 +136,7 @@ export function publicMenuSettingsFromUiConfigRow(
       config.public_menu_settings ??
       config.settings
   );
-  if (Object.keys(settings).length === 0) return null;
+  if (!hasMeaningfulPublicMenuSettings(settings)) return null;
   const localizedUiCopy = getLocalizedUiCopy(config) ?? getLocalizedUiCopy(settings);
 
   return {
@@ -153,22 +154,45 @@ export function publicMenuSettingsFromUiConfigRow(
 
 export function publicMenuSettingsFallbackFromUiConfigRows(
   data: unknown,
-  restaurantId = ""
+  restaurantId = "",
+  options: { includeDraft?: boolean } = {}
 ): OwnerPublicMenuSettingsFallback | null {
-  // Effective public menu settings are stored in menu_ui_configs for legacy
-  // databases without menus.settings_json. Owner reloads and public routes
-  // must read the same saved values, so the editable draft wins when present.
+  // Owner recovery can read the editable draft. Public routes pass
+  // includeDraft: false and therefore only accept a published snapshot.
   const allRows = Array.isArray(data) ? data : [];
+  const includeDraft = options.includeDraft ?? false;
   const rows = restaurantId
     ? allRows.filter((row) => {
         const candidate = objectInput(row);
-        return String(candidate.restaurant_id ?? candidate.restaurantId ?? "") === restaurantId;
+        const status = String(candidate.status ?? "");
+        return (
+          String(candidate.restaurant_id ?? candidate.restaurantId ?? "") === restaurantId &&
+          (status === "published" || (includeDraft && status === "draft"))
+        );
       })
-    : allRows;
+    : allRows.filter((row) => {
+        const status = String(objectInput(row).status ?? "");
+        return status === "published" || (includeDraft && status === "draft");
+      });
+  const newestFirst = [...rows].sort((left, right) => {
+    const leftUpdatedAt = Date.parse(
+      String(objectInput(left).updated_at ?? objectInput(left).updatedAt ?? "")
+    );
+    const rightUpdatedAt = Date.parse(
+      String(objectInput(right).updated_at ?? objectInput(right).updatedAt ?? "")
+    );
+    if (Number.isFinite(leftUpdatedAt) && Number.isFinite(rightUpdatedAt)) {
+      return rightUpdatedAt - leftUpdatedAt;
+    }
+    if (Number.isFinite(rightUpdatedAt)) return 1;
+    if (Number.isFinite(leftUpdatedAt)) return -1;
+    return 0;
+  });
   const preferred =
-    rows.find((row) => String(objectInput(row).status ?? "") === "draft") ??
-    rows.find((row) => String(objectInput(row).status ?? "") === "published") ??
-    rows[0];
+    (includeDraft
+      ? newestFirst.find((row) => String(objectInput(row).status ?? "") === "draft")
+      : undefined) ??
+    newestFirst.find((row) => String(objectInput(row).status ?? "") === "published");
   return publicMenuSettingsFromUiConfigRow(preferred);
 }
 
@@ -176,7 +200,10 @@ export function publicMenuSettingsFromUiConfigRows(
   data: unknown,
   restaurantId = ""
 ): PublicMenuSettings | null {
-  return publicMenuSettingsFallbackFromUiConfigRows(data, restaurantId)?.settings ?? null;
+  return (
+    publicMenuSettingsFallbackFromUiConfigRows(data, restaurantId, { includeDraft: true })
+      ?.settings ?? null
+  );
 }
 
 export async function readUiConfigPublicMenuSettings(
@@ -199,7 +226,9 @@ export async function readUiConfigPublicMenuSettingsFallback(
     .limit(10);
 
   if (config.error) return null;
-  return publicMenuSettingsFallbackFromUiConfigRows(config.data, restaurantId);
+  return publicMenuSettingsFallbackFromUiConfigRows(config.data, restaurantId, {
+    includeDraft: true
+  });
 }
 
 export async function readPublicMenuSettingsBundleWithFallbacks(args: {

@@ -7,6 +7,7 @@ import { updateOwnerMenuSettings } from "../lib/owner/menuSettingsMutation.ts";
 import { buildOwnerMenuDataFromRows } from "../lib/owner/menuDataCore.ts";
 import { buildRelationalSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
 import {
+  publicMenuSettingsFallbackFromUiConfigRows,
   publicMenuSettingsFromUiConfigRows
 } from "../lib/owner/publicMenuSettingsFallback.ts";
 
@@ -410,6 +411,89 @@ test("owner API fallback save preserves locales and currencies across two refres
     "JPY",
     "CHF"
   ]);
+});
+
+test("public fallback does not expose a draft when published settings are absent", () => {
+  const draftOnlyRows = ownerRows().uiConfigRows.filter(
+    (row) => row.status === "draft"
+  );
+
+  assert.equal(
+    publicMenuSettingsFallbackFromUiConfigRows(draftOnlyRows, restaurantId, {
+      includeDraft: false
+    }),
+    null
+  );
+  assert.ok(
+    publicMenuSettingsFallbackFromUiConfigRows(draftOnlyRows, restaurantId, {
+      includeDraft: true
+    })
+  );
+});
+
+test("fallback prioritizes published settings and only uses the newest draft when opted in", () => {
+  const rows = [
+    {
+      id: "published",
+      restaurant_id: restaurantId,
+      status: "published",
+      updated_at: "2026-07-01T12:00:00.000Z",
+      config_json: { publicMenuSettings: { publicMenuStyle: "trouvable" } }
+    },
+    {
+      id: "newer-draft",
+      restaurant_id: restaurantId,
+      status: "draft",
+      updated_at: "2026-07-03T12:00:00.000Z",
+      config_json: { publicMenuSettings: { publicMenuStyle: "maison-elyse" } }
+    },
+    {
+      id: "older-draft",
+      restaurant_id: restaurantId,
+      status: "draft",
+      updated_at: "2026-07-02T12:00:00.000Z",
+      config_json: { publicMenuSettings: { publicMenuStyle: "unique" } }
+    }
+  ];
+
+  assert.equal(
+    publicMenuSettingsFallbackFromUiConfigRows(rows, restaurantId, {
+      includeDraft: false
+    })?.settings.publicMenuStyle,
+    "trouvable"
+  );
+  assert.equal(
+    publicMenuSettingsFallbackFromUiConfigRows(rows, restaurantId, {
+      includeDraft: true
+    })?.settings.publicMenuStyle,
+    "maison-elyse"
+  );
+});
+
+test("fallback isolates rows by restaurant", () => {
+  const rows = [
+    {
+      id: "other-restaurant",
+      restaurant_id: "other-restaurant",
+      status: "published",
+      updated_at: "2026-07-03T12:00:00.000Z",
+      config_json: { publicMenuSettings: { publicMenuStyle: "maison-elyse" } }
+    },
+    {
+      id: "target-restaurant",
+      restaurant_id: restaurantId,
+      status: "published",
+      updated_at: "2026-07-01T12:00:00.000Z",
+      config_json: { publicMenuSettings: { publicMenuStyle: "trouvable" } }
+    }
+  ];
+
+  assert.equal(
+    publicMenuSettingsFallbackFromUiConfigRows(rows, restaurantId, {
+      includeDraft: false
+    })?.settings.publicMenuStyle,
+    "trouvable"
+  );
 });
 
 test("owner and public builders expose identical settings for the same ui_config rows", () => {
