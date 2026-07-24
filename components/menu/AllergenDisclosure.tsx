@@ -47,30 +47,21 @@ export function AllergenDisclosure({
   const hasGroups =
     groups.contains.length > 0 ||
     groups.mayContain.length > 0 ||
-    groups.confirmedFree.length > 0 ||
-    groups.unknownCount > 0;
+    groups.confirmedFree.length > 0;
 
   return (
     <>
       {includeWarning ? <AllergenWarning locale={locale} /> : null}
-      <section className={styles.disclosure} aria-labelledby="allergen-disclosure-title">
-        <h2 id="allergen-disclosure-title">{copy.detailsTitle}</h2>
-        {hasGroups ? (
+      {hasGroups ? (
+        <section className={styles.disclosure} aria-labelledby="allergen-disclosure-title">
+          <h2 id="allergen-disclosure-title">{copy.detailsTitle}</h2>
           <dl>
             <StatusGroup label={copy.contains} values={groups.contains} />
             <StatusGroup label={copy.mayContain} values={groups.mayContain} />
             <StatusGroup label={copy.confirmedFree} values={groups.confirmedFree} />
-            {groups.unknownCount > 0 ? (
-              <div className={styles.group}>
-                <dt>{copy.unknown}</dt>
-                <dd>{copy.unknownBody(groups.unknownCount)}</dd>
-              </div>
-            ) : null}
           </dl>
-        ) : (
-          <p className={styles.unknown}>{copy.unknownBody(1)}</p>
-        )}
-      </section>
+        </section>
+      ) : null}
     </>
   );
 }

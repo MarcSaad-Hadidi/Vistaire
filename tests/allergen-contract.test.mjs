@@ -3,12 +3,26 @@ import test from "node:test";
 
 import {
   ALLERGEN_REGISTRY,
+  getAllergenPublicCopy,
   getAllergenStatus,
   matchesConfirmedFreeForFilter,
   matchesConfirmedFree,
   normalizeAllergenData,
   validateAllergenDeclarations
 } from "../lib/menu/allergens.ts";
+
+test("allergen copy agrees with plural unknown declarations", () => {
+  const copy = getAllergenPublicCopy("fr");
+
+  assert.equal(
+    copy.unknownBody(1),
+    "1 allergène n’est pas confirmé pour ce plat."
+  );
+  assert.equal(
+    copy.unknownBody(12),
+    "12 allergènes ne sont pas confirmés pour ce plat."
+  );
+});
 
 test("every supported allergen status is fail-closed for declared-free filtering", () => {
   const statuses = ["unknown", "contains", "may_contain", "confirmed_free"];

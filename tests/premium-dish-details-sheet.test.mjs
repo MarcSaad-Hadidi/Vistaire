@@ -31,7 +31,7 @@ test("premium details sheet renders grouped dish metadata", async () => {
   assert.match(sheetSource, /PremiumDishTagGroup/);
   assert.match(sheetSource, /AllergenDisclosure/);
   assert.match(sheetSource, /locale=\{locale\}/);
-  assert.match(sheetSource, /includeWarning=\{false\}/);
+  assert.match(sheetSource, /includeWarning\s*\/>/);
   assert.match(sheetSource, /copy\.detailCompositionLabel/);
   assert.match(sheetSource, /copy\.detailOptionsLabel/);
   assert.match(tagsSource, /assignPremiumTagAccents/);

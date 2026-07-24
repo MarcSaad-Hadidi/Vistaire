@@ -4986,11 +4986,11 @@
 }
 
 .page[data-palette-source="reference"][data-user-theme="dark"] .topBar {
-  border: 1px solid rgba(232, 207, 155, 0.26);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: #000;
   color: #fffaf0;
-  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
-  -webkit-backdrop-filter: blur(16px) saturate(118%);
-  backdrop-filter: blur(16px) saturate(118%);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }

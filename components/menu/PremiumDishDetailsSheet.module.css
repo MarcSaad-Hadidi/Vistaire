@@ -287,27 +287,27 @@
   color: var(--menu-text, #fff);
 }
 
-:global(.page[data-palette-source="restaurant"]) .kicker,
-:global(.page[data-palette-source="restaurant"]) .houseNoteLabel {
+:global([data-palette-source="restaurant"]) .kicker,
+:global([data-palette-source="restaurant"]) .houseNoteLabel {
   color: var(--menu-accent, #dec24b);
 }
 
-:global(.page[data-palette-source="restaurant"]) .title {
+:global([data-palette-source="restaurant"]) .title {
   color: var(--menu-text, #fff);
 }
 
-:global(.page[data-palette-source="restaurant"]) .description,
-:global(.page[data-palette-source="restaurant"]) .houseNoteText {
+:global([data-palette-source="restaurant"]) .description,
+:global([data-palette-source="restaurant"]) .houseNoteText {
   color: var(--menu-muted, rgba(255, 255, 255, 0.78));
 }
 
-:global(.page[data-palette-source="restaurant"]) .houseNote {
+:global([data-palette-source="restaurant"]) .houseNote {
   border-color: var(--menu-border, rgba(222, 194, 75, 0.24));
   background: color-mix(in srgb, var(--menu-accent, #dec24b) 8%, var(--menu-surface, #050505));
 }
 
-:global(.page[data-palette-source="restaurant"]) .fallback,
-:global(.page[data-palette-source="restaurant"]) .label {
+:global([data-palette-source="restaurant"]) .fallback,
+:global([data-palette-source="restaurant"]) .label {
   color: var(--menu-muted, rgba(255, 255, 255, 0.48));
 }
 
@@ -346,7 +346,7 @@
   gap: 14px;
 }
 
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .sheet {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .sheet {
   border-color: var(--menu-border, rgba(143, 109, 20, 0.26));
   background:
     radial-gradient(
@@ -358,29 +358,102 @@
   color: var(--menu-text, #211912);
 }
 
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .close {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .close {
   border-color: var(--menu-border, rgba(35, 26, 13, 0.18));
   background: color-mix(in srgb, var(--menu-surface, #fffdf9) 88%, transparent);
   color: var(--menu-text, #211912);
 }
 
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .kicker,
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteLabel {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .kicker,
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteLabel {
   color: var(--menu-accent, #8f6d14);
 }
 
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .title {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .title {
   color: var(--menu-text, #211912);
 }
 
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .description,
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteText,
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .fallback,
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .label {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .description,
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteText,
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .fallback,
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .label {
   color: var(--menu-muted, rgba(35, 26, 13, 0.72));
 }
 
-:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNote {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNote {
   border-color: var(--menu-border, rgba(143, 109, 20, 0.22));
   background: color-mix(in srgb, var(--menu-accent, #8f6d14) 8%, var(--menu-surface, #fffdf9));
+}
+
+@media (max-width: 520px) {
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .overlay {
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.74);
+    padding: 0 8px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .sheet {
+    width: 100%;
+    max-height: calc(100svh - 88px);
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 22px 22px 0 0;
+    padding: 16px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .close {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .header {
+    gap: 4px;
+    padding-right: 44px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .title {
+    font-size: 27px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .description {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .houseNote {
+    gap: 5px;
+    border-radius: 12px;
+    padding: 8px 10px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .houseNoteText {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .groups {
+    gap: 8px;
+  }
+}
+
+/* Trouvable's reference detail is a single black surface. It must not look
+   like a separate gold card layered over the historical menu. */
+:global([data-palette-source="reference"][data-user-theme="dark"]) .sheet {
+  border-color: transparent;
+  background: #000;
+  box-shadow: none;
+  color: #fffaf0;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .close {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: #000;
+  color: #fffaf0;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .houseNote {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: #000;
 }

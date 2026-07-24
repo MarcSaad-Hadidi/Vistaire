@@ -48,6 +48,47 @@
   margin: 0;
 }
 
-.unknown {
-  margin-top: 0.65rem;
+/* The reference Trouvable detail keeps allergen information compact and
+   readable inside the full-screen black detail surface. */
+:global([data-palette-source="reference"][data-user-theme="dark"]) .warning,
+:global([data-palette-source="reference"][data-user-theme="dark"]) .disclosure {
+  margin-top: 0;
+  border-color: rgba(255, 255, 255, 0.16);
+  border-radius: 0.75rem;
+  background: #000;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .warning p {
+  margin-top: 0.2rem;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .disclosure h2 {
+  color: #fffaf0;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .disclosure dl {
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .group {
+  gap: 0.04rem;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .group dt {
+  color: rgba(255, 250, 240, 0.68);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+:global([data-palette-source="reference"][data-user-theme="dark"]) .group dd {
+  font-size: 0.74rem;
+  line-height: 1.35;
 }

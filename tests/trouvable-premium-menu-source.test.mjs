@@ -328,6 +328,10 @@ test("Trouvable list keeps the allergen warning inside dish details", async () =
     new URL("../components/menu/TrouvableDishDetailExperience.tsx", import.meta.url),
     "utf8"
   );
+  const sheetSource = await readFile(
+    new URL("../components/menu/PremiumDishDetailsSheet.tsx", import.meta.url),
+    "utf8"
+  );
 
   const listSource = menuSource.slice(
     0,
@@ -335,8 +339,9 @@ test("Trouvable list keeps the allergen warning inside dish details", async () =
   );
 
   assert.doesNotMatch(listSource, /<AllergenWarning/);
-  assert.match(menuSource, /<AllergenWarning locale=\{selectedLocale\} \/>/);
+  assert.doesNotMatch(menuSource, /<AllergenWarning/);
   assert.match(detailSource, /<AllergenWarning locale=\{selectedLocale\} \/>/);
+  assert.match(sheetSource, /includeWarning\s*\/>/);
 });
 
 test("Trouvable reference and custom palette sources are explicit", async () => {
@@ -354,6 +359,7 @@ test("Trouvable reference and custom palette sources are explicit", async () => 
     css,
     /data-palette-source="reference"\]\[data-user-theme="dark"\] \.topBar[\s\S]*background: #000;/
   );
+  assert.match(css, /data-palette-source="reference"\]\[data-user-theme="dark"\] \.topBar[\s\S]*border: 0;/);
   assert.match(
     css,
     /\.page\[data-user-theme="light"\]\s*\{\s*--trouvable-black: #f5efe4/

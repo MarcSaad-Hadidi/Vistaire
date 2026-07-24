@@ -49,7 +49,6 @@ import {
   type ArHandoffPlatform
 } from "@/lib/menu/arBrowserHandoff";
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
-import { AllergenWarning } from "./AllergenDisclosure";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
@@ -2097,7 +2096,6 @@ export function TrouvablePremiumMenuExperience({
                 x
               </button>
             </header>
-            <AllergenWarning locale={selectedLocale} />
             {detailPrice ? (
               <strong className={styles.detailPrice}>{detailPrice}</strong>
             ) : null}
