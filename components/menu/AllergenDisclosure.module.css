@@ -2,10 +2,10 @@
 .disclosure {
   margin-top: 1rem;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: 1rem;
-  padding: 0.9rem 1rem;
-  font-size: 0.82rem;
-  line-height: 1.5;
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .warning {
@@ -30,22 +30,26 @@
 }
 
 .disclosure h2 {
-  font-size: 0.9rem;
+  font-size: 14px;
+  letter-spacing: 0.04em;
 }
 
 .disclosure dl {
   display: grid;
-  gap: 0.55rem;
-  margin-top: 0.7rem;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .group {
   display: grid;
-  gap: 0.12rem;
+  gap: 3px;
 }
 
+.group dt,
 .group dd {
   margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* The reference Trouvable detail keeps allergen information compact and
@@ -91,4 +95,39 @@
 :global([data-palette-source="reference"][data-user-theme="dark"]) .group dd {
   font-size: 0.74rem;
   line-height: 1.35;
+}
+
+/* Maison Élyse wraps the disclosure in its detailSections layout. Give this
+   component its own panel geometry instead of inheriting section padding. */
+:global([class*="detailSections"]) .disclosure {
+  gap: 10px;
+  margin: 0;
+  border: 1px solid rgba(201, 164, 92, 0.24);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+:global([class*="detailSections"]) .disclosure h2 {
+  color: var(--elyse-gold, #d5ad61);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+
+:global([class*="detailSections"]) .disclosure dl {
+  gap: 8px;
+  margin-top: 0;
+}
+
+:global([class*="detailSections"]) .disclosure .group {
+  gap: 3px;
+}
+
+:global([class*="detailSections"]) .disclosure .group dt,
+:global([class*="detailSections"]) .disclosure .group dd {
+  font-size: 13px;
+  line-height: 1.45;
 }
