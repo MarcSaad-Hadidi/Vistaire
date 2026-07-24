@@ -7,7 +7,9 @@ test("public menu route loads the published UI config and shared renderer", asyn
 
   assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
   assert.match(source, /PublicMenuRenderer/);
-  assert.doesNotMatch(source, /PublicMenuExperience/);
+  assert.match(source, /resolvePublicMenuExperience/);
+  assert.doesNotMatch(source, /<PublicMenuExperience[\s/>]/);
+  assert.doesNotMatch(source, /from ["']@\/components\/menu\/PublicMenuExperience["']/);
 });
 
 test("shared public menu renderer avoids heavy 3D auto-loads", async () => {

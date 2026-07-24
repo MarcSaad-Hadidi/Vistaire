@@ -11,6 +11,7 @@ import {
   normalizeMenuUiConfig,
   type MenuUiConfig
 } from "./menuUiConfig.ts";
+import type { UniqueMenuDesign } from "./uniqueMenuDesign.ts";
 
 export type MenuAppearanceSelection = {
   template: PublicMenuStyle;
@@ -277,15 +278,47 @@ export function buildMenuUiConfigForRestaurant(args: {
   slug: string;
   appearance: MenuAppearanceSelection;
   publicMenuSettings?: Record<string, unknown>;
+  uniqueDesign?: UniqueMenuDesign | null;
 }): MenuUiConfig & { publicMenuSettings?: Record<string, unknown>; menuAppearance: MenuAppearanceSelection } {
-  const theme = args.appearance.template === "trouvable"
-    ? "premium-gastronomic"
-    : "fresh-homemade";
+  let theme: "premium-gastronomic" | "fresh-homemade";
+  let blueprint: "immersive-first" | "editorial-magazine" | "classic-tabs";
+  let welcomeSubtitle: string;
+
+  switch (args.appearance.template) {
+    case "trouvable":
+      theme = "premium-gastronomic";
+      blueprint = "immersive-first";
+      welcomeSubtitle = "Une carte immersive pensée pour le service à table.";
+      break;
+    case "maison-elyse":
+      theme = "fresh-homemade";
+      blueprint = "editorial-magazine";
+      welcomeSubtitle = "Une carte éditoriale pensée pour votre salle.";
+      break;
+    case "unique":
+      theme = "fresh-homemade";
+      blueprint = "classic-tabs";
+      welcomeSubtitle = "Découvrez la carte de notre restaurant.";
+      break;
+    default: {
+      const _exhaustive: never = args.appearance.template;
+      void _exhaustive;
+      theme = "fresh-homemade";
+      blueprint = "classic-tabs";
+      welcomeSubtitle = "Carte professionnelle.";
+    }
+  }
+
   const base = buildConfigFromTheme(theme, { name: args.name, slug: args.slug });
   const palette = buildAccessibleMenuPalette(args.appearance).palette;
+  const uniqueDesign =
+    args.appearance.template === "unique"
+      ? args.uniqueDesign ?? null
+      : null;
   const config = normalizeMenuUiConfig({
     ...base,
     custom: true,
+    uniqueDesign,
     palette,
     global: {
       ...base.global,
@@ -293,12 +326,14 @@ export function buildMenuUiConfigForRestaurant(args: {
     },
     experience: {
       ...base.experience,
-      blueprint: args.appearance.template === "trouvable" ? "immersive-first" : "editorial-magazine"
+      blueprint
+    },
+    detail: {
+      ...base.detail,
+      dishOpenMode: "route"
     },
     welcomeTitle: `Bienvenue chez ${args.name}`,
-    welcomeSubtitle: args.appearance.template === "trouvable"
-      ? "Une carte immersive pensée pour le service à table."
-      : "Une carte éditoriale pensée pour votre salle."
+    welcomeSubtitle
   });
   return {
     ...config,

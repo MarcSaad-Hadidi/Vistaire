@@ -378,3 +378,95 @@ test("settings_json error detection only catches missing-column failures", () =>
     false
   );
 });
+
+test("switching settings to unique provisions server uniqueDesign in menu_ui_configs", async () => {
+  const client = menuSettingsClient();
+  let rpcPayload = null;
+  client.rpc = async (fn, params) => {
+    assert.equal(fn, "mutate_owner_public_menu_settings_atomic");
+    rpcPayload = params;
+    return {
+      data: {
+        ok: true,
+        menuId: MENU_ID,
+        settings: params.p_settings,
+        uniqueDesign: params.p_unique_design ?? {
+          mode: "unique",
+          designId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          status: "pending",
+          rendererKey: null,
+          rendererVersion: null,
+          version: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      },
+      error: null
+    };
+  };
+  const uniqueSettings = {
+    ...settings,
+    publicMenuStyle: "unique"
+  };
+
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings: uniqueSettings
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.storage, "settings_json");
+  assert.ok(rpcPayload);
+  assert.equal(rpcPayload.p_restaurant_id, RESTAURANT_ID);
+  assert.equal(rpcPayload.p_settings.publicMenuStyle, "unique");
+  assert.equal(rpcPayload.p_unique_design?.mode, "unique");
+  assert.equal(rpcPayload.p_unique_design?.status, "pending");
+  assert.equal(rpcPayload.p_unique_design?.rendererKey, null);
+  assert.match(
+    rpcPayload.p_unique_design?.designId ?? "",
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  );
+});
+
+test("leaving unique without RPC fails closed before partial writes", async () => {
+  const client = menuSettingsClient({
+    settingsJson: {
+      ...settings,
+      publicMenuStyle: "unique"
+    }
+  });
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(
+    client.calls.some(
+      (call) => call.table === "menus" && call.action === "update"
+    ),
+    false
+  );
+});
+
+test("entering unique without RPC fails closed before partial writes", async () => {
+  const client = menuSettingsClient();
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings: {
+      ...settings,
+      publicMenuStyle: "unique"
+    }
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(
+    client.calls.some(
+      (call) => call.table === "menus" && call.action === "update"
+    ),
+    false
+  );
+});

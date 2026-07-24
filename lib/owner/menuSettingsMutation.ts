@@ -45,6 +45,13 @@ type SupabaseMenuSettingsSelectAfterEq = {
 };
 
 export type SupabaseMenuSettingsClient = {
+  rpc?: (
+    functionName: string,
+    params: Record<string, unknown>
+  ) => PromiseLike<{
+    data: Record<string, unknown> | null;
+    error: SupabaseMenuSettingsError | null;
+  }>;
   from(table: "menus" | "menu_ui_configs"): {
     insert(row: Record<string, unknown>): SupabaseMenuSettingsSelectable;
     update(row: Record<string, unknown>): {
@@ -189,6 +196,68 @@ export async function updateOwnerMenuSettings(args: {
     args.settings,
     publicMenuSettingsFromMenuRow(existingPrimary.data)?.localizedUiCopy
   );
+
+  const previousStyle = publicMenuSettingsFromMenuRow(existingPrimary.data)
+    ?.settings.publicMenuStyle;
+  const styleTouchesUnique =
+    settings.publicMenuStyle === "unique" || previousStyle === "unique";
+
+  if (styleTouchesUnique && typeof args.client.rpc === "function") {
+    const existingDraft = await args.client
+      .from("menu_ui_configs")
+      .select("id,theme,config_json,status")
+      .eq("restaurant_id", args.restaurantId)
+      .eq("status", "draft")
+      .maybeSingle();
+    const existingUnique = mergePublicMenuSettingsIntoUiConfig(
+      existingDraft.data?.config_json,
+      settings
+    ).uniqueDesign;
+
+    const { data, error } = await args.client.rpc(
+      "mutate_owner_public_menu_settings_atomic",
+      {
+        p_restaurant_id: args.restaurantId,
+        p_settings: settings,
+        p_unique_design: existingUnique
+      }
+    );
+    if (error) {
+      return {
+        ok: false,
+        status: 503,
+        error:
+          "Mutation atomique des settings unique impossible. Aucune ecriture partielle confirmee."
+      };
+    }
+    if (!data || data.ok !== true) {
+      return {
+        ok: false,
+        status: 503,
+        error:
+          typeof data?.error === "string"
+            ? data.error
+            : "Mutation atomique des settings unique refusee."
+      };
+    }
+    return {
+      ok: true,
+      restaurantId: args.restaurantId,
+      menuId: typeof data.menuId === "string" ? data.menuId : "",
+      settings,
+      storage: "settings_json"
+    };
+  }
+
+  if (styleTouchesUnique && typeof args.client.rpc !== "function") {
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "Mutation de style unique impossible sans RPC transactionnelle. Aucune ecriture partielle."
+    };
+  }
+
   const primary = await args.client
     .from("menus")
     .update({ settings_json: settings })
@@ -198,6 +267,14 @@ export async function updateOwnerMenuSettings(args: {
     .single();
 
   if (!primary.error && primary.data) {
+    const uiSync = await saveSettingsToUiConfig({
+      client: args.client,
+      restaurantId: args.restaurantId,
+      settings
+    });
+    if (settings.publicMenuStyle === "unique" && !uiSync.ok) {
+      return uiSync;
+    }
     const normalized = publicMenuSettingsFromMenuRow(primary.data);
     return {
       ok: true,
@@ -272,6 +349,15 @@ export async function updateOwnerMenuSettings(args: {
       status: 503,
       error: "Settings menu impossibles a sauvegarder."
     };
+  }
+
+  const uiSync = await saveSettingsToUiConfig({
+    client: args.client,
+    restaurantId: args.restaurantId,
+    settings
+  });
+  if (settings.publicMenuStyle === "unique" && !uiSync.ok) {
+    return uiSync;
   }
 
   return {

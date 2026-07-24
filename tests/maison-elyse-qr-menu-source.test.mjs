@@ -23,7 +23,8 @@ test("Maison Elyse public menu is the only dedicated QR table experience", async
   const source = await readFile(pagePath, "utf8");
 
   assert.match(source, /MaisonElyseQrMenu/);
-  assert.match(source, /isMaisonElysePublicMenu\(menu\)/);
+  assert.match(source, /resolvePublicMenuExperience/);
+  assert.match(source, /experience\.kind === "maison-elyse"/);
   assert.doesNotMatch(source, /startFullMenu/);
   assert.match(source, /view: query\.view/);
   assert.match(source, /PublicMenuRenderer/);
@@ -113,7 +114,8 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   ]);
 
   assert.match(route, /MaisonElyseDishDetail/);
-  assert.match(route, /isMaisonElysePublicMenu\(menu\)/);
+  assert.match(route, /resolvePublicMenuExperience/);
+  assert.match(route, /experience\.kind === "maison-elyse"/);
   assert.match(route, /PublicDishDetailExperience/);
   assert.match(route, /getPublishedMenuUiConfigForRestaurant/);
 

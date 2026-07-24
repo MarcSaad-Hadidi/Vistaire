@@ -7,11 +7,14 @@ import {
   defaultMenuUiConfigRecord,
   mapMenuUiConfigRow,
   menuUiConfigForRestaurant,
+  normalizeMenuUiConfig,
   serializeMenuUiConfig,
   type MenuUiConfig,
   type MenuUiConfigRecord,
   type MenuUiConfigRow
 } from "@/lib/menu/menuUiConfig";
+import { createPendingUniqueMenuDesign } from "@/lib/menu/uniqueMenuDesign";
+import { normalizePublicMenuStyle } from "@/lib/menu/publicMenuSettings";
 
 const TABLE = "menu_ui_configs";
 const UUID_PATTERN =
@@ -42,6 +45,74 @@ export type MenuUiConfigHistoryResult = {
 
 function isValidRestaurantId(restaurantId: string): boolean {
   return UUID_PATTERN.test(restaurantId);
+}
+
+function readStyleFromConfig(config: MenuUiConfig): string {
+  const extended = config as MenuUiConfig & {
+    publicMenuStyle?: unknown;
+    publicMenuSettings?: { publicMenuStyle?: unknown };
+  };
+  return normalizePublicMenuStyle(
+    extended.publicMenuSettings?.publicMenuStyle ?? extended.publicMenuStyle
+  );
+}
+
+/**
+ * Server-owned unique identity: never trust client uniqueDesign on save/publish.
+ * Preserve existing identity; generate pending only when style is unique and none exists.
+ */
+function withServerOwnedUniqueDesign(
+  incoming: MenuUiConfig,
+  existing: MenuUiConfig | null
+): MenuUiConfig {
+  if (existing?.uniqueDesign) {
+    return normalizeMenuUiConfig({
+      ...incoming,
+      uniqueDesign: existing.uniqueDesign
+    });
+  }
+
+  const style = readStyleFromConfig(incoming);
+  if (style === "unique") {
+    return normalizeMenuUiConfig({
+      ...incoming,
+      uniqueDesign: createPendingUniqueMenuDesign()
+    });
+  }
+
+  return normalizeMenuUiConfig({
+    ...incoming,
+    uniqueDesign: null
+  });
+}
+
+async function loadExistingConfigForRestaurant(
+  client: SupabaseClient,
+  restaurantId: string
+): Promise<MenuUiConfig | null> {
+  const draft = await client
+    .from(TABLE)
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "draft")
+    .limit(1)
+    .maybeSingle();
+  if (!draft.error && draft.data) {
+    return mapMenuUiConfigRow(draft.data as MenuUiConfigRow).config;
+  }
+
+  const published = await client
+    .from(TABLE)
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "published")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!published.error && published.data) {
+    return mapMenuUiConfigRow(published.data as MenuUiConfigRow).config;
+  }
+  return null;
 }
 
 function missingSupabaseFailure(reason: string): StoreFailure {
@@ -399,7 +470,12 @@ export async function saveDraftMenuUiConfig(args: {
   );
   if (restaurantError) return restaurantError;
 
-  return upsertDraft(admin.client, args.restaurantId, args.config);
+  const existing = await loadExistingConfigForRestaurant(
+    admin.client,
+    args.restaurantId
+  );
+  const config = withServerOwnedUniqueDesign(args.config, existing);
+  return upsertDraft(admin.client, args.restaurantId, config);
 }
 
 export async function publishMenuUiConfig(args: {
@@ -419,7 +495,13 @@ export async function publishMenuUiConfig(args: {
   );
   if (restaurantError) return restaurantError;
 
-  const draft = await upsertDraft(admin.client, args.restaurantId, args.config);
+  const existing = await loadExistingConfigForRestaurant(
+    admin.client,
+    args.restaurantId
+  );
+  const config = withServerOwnedUniqueDesign(args.config, existing);
+
+  const draft = await upsertDraft(admin.client, args.restaurantId, config);
   if (!draft.ok) return draft;
 
   const current = await getCurrentPublishedRow(admin.client, args.restaurantId);
@@ -434,7 +516,7 @@ export async function publishMenuUiConfig(args: {
     admin.client,
     current.row,
     args.restaurantId,
-    args.config
+    config
   );
 }
 

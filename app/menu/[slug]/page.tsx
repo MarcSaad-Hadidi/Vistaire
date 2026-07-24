@@ -10,11 +10,8 @@ import {
   publicLocaleToShortLocale
 } from "@/lib/menu/publicMenuSettings";
 import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
-import {
-  isMaisonElysePublicMenu,
-  isTrouvablePublicMenu,
-  resolvePublicMenuUiConfig
-} from "@/lib/menu/trouvableMenuExperience";
+import { resolvePublicMenuExperience } from "@/lib/menu/publicMenuExperienceRoute";
+import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
 import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
 import { trouvableTypographyClassName } from "./trouvableTypography";
 
@@ -51,19 +48,18 @@ export default async function PublicMenuPage({
   );
   const activeLocale = publicLocaleToShortLocale(activePublicLocale);
   const menu = initialMenu;
-  const menuQuery = {
-    lang: activePublicLocale,
-    table: query.table,
-    zone: query.zone,
-    view: query.view
-  };
-
   const context = [
     query.table ? `Table ${query.table}` : "",
     query.zone ? `Zone ${query.zone}` : ""
   ]
     .filter(Boolean)
     .join(" · ");
+  const menuQuery = {
+    lang: activePublicLocale,
+    table: query.table,
+    zone: query.zone,
+    view: query.view
+  };
   const fallbackConfig = menuUiConfigForRestaurant({
     name: menu.name,
     slug: menu.slug
@@ -73,12 +69,13 @@ export default async function PublicMenuPage({
     fallbackConfig
   );
   const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
+  const experience = resolvePublicMenuExperience(menu, resolvedConfig);
   const exchangeRates = await getExchangeRates({
     baseCurrency: menu.settings.baseCurrency,
     supportedCurrencies: menu.settings.supportedCurrencies
   });
 
-  if (isMaisonElysePublicMenu(menu)) {
+  if (experience.kind === "maison-elyse") {
     const [frenchMenu, englishMenu] = await Promise.all([
       activeLocale === "fr" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "fr"),
       activeLocale === "en" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "en")
@@ -99,7 +96,7 @@ export default async function PublicMenuPage({
     );
   }
 
-  if (isTrouvablePublicMenu(menu)) {
+  if (experience.kind === "trouvable") {
     return (
       <TrouvablePremiumMenuExperience
         menu={menu}
@@ -111,6 +108,21 @@ export default async function PublicMenuPage({
           lang: hasLangParam ? activePublicLocale : undefined
         }}
         typographyClassName={trouvableTypographyClassName}
+      />
+    );
+  }
+
+  if (experience.kind === "unique-registered" && experience.renderer) {
+    const UniqueMenu = experience.renderer.menu;
+    return (
+      <UniqueMenu
+        menu={menu}
+        config={resolvedConfig}
+        context={context}
+        exchangeRates={exchangeRates}
+        query={menuQuery}
+        locale={activeLocale}
+        mode="public"
       />
     );
   }

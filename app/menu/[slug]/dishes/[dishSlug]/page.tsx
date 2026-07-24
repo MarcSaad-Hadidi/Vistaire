@@ -11,11 +11,8 @@ import {
   normalizePublicMenuLocalePreference,
   publicLocaleToShortLocale
 } from "@/lib/menu/publicMenuSettings";
-import {
-  isMaisonElysePublicMenu,
-  isTrouvablePublicMenu,
-  resolvePublicMenuUiConfig
-} from "@/lib/menu/trouvableMenuExperience";
+import { resolvePublicMenuExperience } from "@/lib/menu/publicMenuExperienceRoute";
+import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
 import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
 import { trouvableTypographyClassName } from "../../trouvableTypography";
 
@@ -93,8 +90,15 @@ export default async function PublicDishPage({
     fallbackConfig
   );
   const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
+  const experience = resolvePublicMenuExperience(menu, resolvedConfig);
+  const context = [
+    query.table ? `Table ${query.table}` : "",
+    query.zone ? `Zone ${query.zone}` : ""
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  if (isMaisonElysePublicMenu(menu)) {
+  if (experience.kind === "maison-elyse") {
     return (
       <MaisonElyseDishDetail
         dish={dish}
@@ -106,13 +110,7 @@ export default async function PublicDishPage({
     );
   }
 
-  const context = [
-    query.table ? `Table ${query.table}` : "",
-    query.zone ? `Zone ${query.zone}` : ""
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  if (isTrouvablePublicMenu(menu)) {
+  if (experience.kind === "trouvable") {
     const exchangeRates = await getExchangeRates({
       baseCurrency: menu.settings.baseCurrency,
       supportedCurrencies: menu.settings.supportedCurrencies
@@ -130,6 +128,21 @@ export default async function PublicDishPage({
           lang: hasLangParam ? activePublicLocale : undefined
         }}
         typographyClassName={trouvableTypographyClassName}
+      />
+    );
+  }
+
+  if (experience.kind === "unique-registered" && experience.renderer) {
+    const UniqueDishDetail = experience.renderer.dishDetail;
+    return (
+      <UniqueDishDetail
+        menu={menu}
+        config={resolvedConfig}
+        context={context}
+        query={menuQuery}
+        locale={activeLocale}
+        dish={dish}
+        mode="public"
       />
     );
   }

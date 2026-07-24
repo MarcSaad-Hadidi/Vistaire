@@ -2663,8 +2663,15 @@ export function MenuUiBuilder({
                 qualityResult.blockers.length > 0
               }
             >
-              Publier UI
+              {config.uniqueDesign ? "Publier le fallback" : "Publier UI"}
             </button>
+            {config.uniqueDesign ? (
+              <p className={styles.helpText}>
+                Ceci publie uniquement le rendu générique de secours. Cela ne
+                publie pas le renderer unique. Utilisez l&apos;espace UI unique
+                pour le cycle de vie serveur.
+              </p>
+            ) : null}
             <a
               className={styles.secondaryButton}
               href={publicMenuUrl}
