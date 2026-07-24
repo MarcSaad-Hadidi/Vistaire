@@ -112,10 +112,13 @@ test.describe("unique menu design mode — owner create UI", () => {
       await expect(page.getByText("Nouveau UI unique")).toBeVisible();
       await page.getByRole("button", { name: /Nouveau UI unique/i }).click();
       await expect(page.getByText(/SUR MESURE/i).first()).toBeVisible();
-      await expect(page.getByText(/Design unique à construire/i)).toBeVisible();
       await expect(
-        page.getByText(/APERÇU DE SECOURS|Identité visuelle de secours/i)
+        page.getByRole("heading", { name: /Design unique à construire/i })
       ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: /Identité visuelle de secours/i })
+      ).toBeVisible();
+      await expect(page.getByText("APERÇU DE SECOURS").first()).toBeVisible();
     }
 
     health.expectNo3dBeforeIntent();
