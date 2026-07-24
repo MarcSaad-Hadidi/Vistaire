@@ -90,20 +90,16 @@ do $$
 declare
   trouvable_settings jsonb;
 begin
-  if exists (
-    select 1
-    from public.restaurants
-    where slug = 'trouvable'
-  ) then
-    select menu.settings_json
-      into trouvable_settings
-    from public.restaurants as restaurant
-    join public.menus as menu
-      on menu.restaurant_id = restaurant.id
-    where restaurant.slug = 'trouvable'
-      and menu.is_primary is true
-    limit 1;
+  select menu.settings_json
+    into trouvable_settings
+  from public.restaurants as restaurant
+  join public.menus as menu
+    on menu.restaurant_id = restaurant.id
+  where restaurant.slug = 'trouvable'
+    and menu.is_primary is true
+  limit 1;
 
+  if found then
     if trouvable_settings is null
       or trouvable_settings ->> 'publicMenuStyle' is distinct from 'trouvable'
       or trouvable_settings ->> 'defaultThemeMode' is distinct from 'dark'

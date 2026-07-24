@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 const menuPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const detailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const sheetPath = "components/menu/PremiumDishDetailsSheet.tsx";
+const allergenDisclosurePath = "components/menu/AllergenDisclosure.tsx";
 const tagsPath = "components/menu/PremiumDishTags.tsx";
 const menuCssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
 
@@ -38,6 +39,14 @@ test("premium details sheet renders grouped dish metadata", async () => {
   assert.match(tagsSource, /chipAccent/);
   assert.match(tagsSource, /kind === "allergen"/);
   assert.doesNotMatch(tagsSource, /Allerg[eè]ne\s*:/);
+});
+
+test("allergen disclosure keeps unknown registry declarations visible", async () => {
+  const source = await readFile(allergenDisclosurePath, "utf8");
+
+  assert.match(source, /groups\.unknownCount > 0/);
+  assert.match(source, /copy\.unknown/);
+  assert.match(source, /copy\.unknownBody\(groups\.unknownCount\)/);
 });
 
 test("details popup opens from the dish sheet without a card-level trigger", async () => {

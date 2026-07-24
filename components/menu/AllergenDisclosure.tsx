@@ -47,7 +47,8 @@ export function AllergenDisclosure({
   const hasGroups =
     groups.contains.length > 0 ||
     groups.mayContain.length > 0 ||
-    groups.confirmedFree.length > 0;
+    groups.confirmedFree.length > 0 ||
+    groups.unknownCount > 0;
 
   return (
     <>
@@ -59,6 +60,12 @@ export function AllergenDisclosure({
             <StatusGroup label={copy.contains} values={groups.contains} />
             <StatusGroup label={copy.mayContain} values={groups.mayContain} />
             <StatusGroup label={copy.confirmedFree} values={groups.confirmedFree} />
+            {groups.unknownCount > 0 ? (
+              <div className={styles.group}>
+                <dt>{copy.unknown}</dt>
+                <dd>{copy.unknownBody(groups.unknownCount)}</dd>
+              </div>
+            ) : null}
           </dl>
         </section>
       ) : null}

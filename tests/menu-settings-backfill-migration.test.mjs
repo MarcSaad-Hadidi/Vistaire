@@ -19,6 +19,10 @@ test("legacy public menu settings backfill is scoped and idempotent", () => {
   assert.match(migration, /ui\.updated_at desc nulls last/);
   assert.match(migration, /source\.source_rank = 1/);
   assert.match(migration, /not modified|never published/i);
+  assert.match(
+    migration,
+    /select menu\.settings_json[\s\S]*into trouvable_settings[\s\S]*if found then/
+  );
   assert.match(migration, /raise exception/);
 });
 
