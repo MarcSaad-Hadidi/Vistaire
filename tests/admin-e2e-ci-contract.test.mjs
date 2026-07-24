@@ -87,19 +87,24 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
     "npm run typecheck",
     "npm run test:qr:node",
     "npm run test:qr:postgres",
+    "npm run build",
+    "npm run test:unique-menu-design:e2e",
     "npm run test:qr:functional",
     "npm run test:seo",
     "npm run test:admin",
-    "npm run build",
     "npm run test:smoke:bootstrap",
     "npm run test:seo:e2e"
   ]) {
     assert.match(workflow, new RegExp(`run: ${command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`));
   }
   assert.ok(
-    workflow.indexOf("run: npm run test:qr:functional") < workflow.indexOf("run: npm run build") &&
-      workflow.indexOf("run: npm run build") < workflow.indexOf("run: npm run test:smoke:bootstrap"),
-    "QR functional tests must run before the build and hermetic smoke must run after it"
+    workflow.indexOf("run: npm run build") <
+      workflow.indexOf("run: npm run test:unique-menu-design:e2e") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:qr:functional") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:smoke:bootstrap"),
+    "next start Playwright suites and hermetic smoke must run after build"
   );
   assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
   assert.doesNotMatch(fullSmoke, /test\.skip/);
