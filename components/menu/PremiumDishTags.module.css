@@ -93,6 +93,26 @@
   }
 }
 
+@media (max-width: 520px) {
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .group {
+    gap: 5px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .label {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .detailRow {
+    gap: 5px;
+  }
+
+  :global([data-palette-source="reference"][data-user-theme="dark"]) .detailChip {
+    font-size: 9px;
+    padding: 4px 7px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chipAccent {
     box-shadow: none;
@@ -114,8 +134,7 @@
 }
 
 /* Detail chips inherit the restaurant palette in both theme modes. */
-:global([data-display-mode="phone-preview"]) .chipAccent,
-:global([data-user-theme="light"]) .chipAccent {
+:global([data-palette-source="restaurant"]) .chipAccent {
   border-color: var(--menu-accent, var(--tag-accent-border));
   color: var(--menu-text, var(--tag-accent-text));
   background: color-mix(
@@ -126,7 +145,6 @@
   box-shadow: none;
 }
 
-:global([data-display-mode="phone-preview"]) .label,
-:global([data-user-theme="light"]) .label {
+:global([data-palette-source="restaurant"]) .label {
   color: var(--menu-muted, #8f6d14);
 }

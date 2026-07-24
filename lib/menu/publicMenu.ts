@@ -533,7 +533,9 @@ export async function getPublicMenuBySlug(
     ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
     : undefined;
   const legacyPublicMenuSettings = uiConfigsResult.ok
-    ? publicMenuSettingsFallbackFromUiConfigRows(uiConfigsResult.rows, restaurantId) ?? undefined
+    ? publicMenuSettingsFallbackFromUiConfigRows(uiConfigsResult.rows, restaurantId, {
+        includeDraft: false
+      }) ?? undefined
     : undefined;
   const hasScopedDishRows = dishRows.length > 0;
 

@@ -270,7 +270,8 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     mayContain: "Peut contenir",
     confirmedFree: "Déclaré sans",
     unknown: "Information non confirmée",
-    unknownBody: (count) => `${count} allergène${count > 1 ? "s" : ""} n’est pas confirmé${count > 1 ? "s" : ""} pour ce plat.`
+    unknownBody: (count) =>
+      `${count} allergène${count > 1 ? "s" : ""} ${count > 1 ? "ne sont pas confirmés" : "n’est pas confirmé"} pour ce plat.`
   },
   en: {
     warning: "Allergen information is provided by the restaurant. If you have an allergy, always confirm with staff before ordering.",
@@ -280,7 +281,8 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     mayContain: "May contain",
     confirmedFree: "Declared free from",
     unknown: "Information not confirmed",
-    unknownBody: (count) => `${count} allergen${count > 1 ? "s" : ""} is not confirmed for this dish.`
+    unknownBody: (count) =>
+      `${count} allergen${count > 1 ? "s are" : " is"} not confirmed for this dish.`
   },
   es: {
     warning: "La información sobre alérgenos la declara el restaurante. Si tienes una alergia, confirma siempre con el personal antes de pedir.",

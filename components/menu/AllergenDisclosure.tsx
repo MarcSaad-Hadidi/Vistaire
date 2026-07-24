@@ -53,9 +53,9 @@ export function AllergenDisclosure({
   return (
     <>
       {includeWarning ? <AllergenWarning locale={locale} /> : null}
-      <section className={styles.disclosure} aria-labelledby="allergen-disclosure-title">
-        <h2 id="allergen-disclosure-title">{copy.detailsTitle}</h2>
-        {hasGroups ? (
+      {hasGroups ? (
+        <section className={styles.disclosure} aria-labelledby="allergen-disclosure-title">
+          <h2 id="allergen-disclosure-title">{copy.detailsTitle}</h2>
           <dl>
             <StatusGroup label={copy.contains} values={groups.contains} />
             <StatusGroup label={copy.mayContain} values={groups.mayContain} />
@@ -67,10 +67,8 @@ export function AllergenDisclosure({
               </div>
             ) : null}
           </dl>
-        ) : (
-          <p className={styles.unknown}>{copy.unknownBody(1)}</p>
-        )}
-      </section>
+        </section>
+      ) : null}
     </>
   );
 }

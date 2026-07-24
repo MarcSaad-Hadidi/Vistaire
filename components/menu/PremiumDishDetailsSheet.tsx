@@ -112,7 +112,7 @@ export function PremiumDishDetailsSheet({
             kind="ingredient"
             labelledById={compositionId}
           />
-          <AllergenDisclosure dish={dish} locale={locale} includeWarning={false} />
+          <AllergenDisclosure dish={dish} locale={locale} includeWarning />
           <PremiumDishTagGroup
             label={copy.detailOptionsLabel}
             items={dish.options}

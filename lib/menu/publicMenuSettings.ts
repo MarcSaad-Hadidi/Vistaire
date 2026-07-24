@@ -112,10 +112,55 @@ export const DEFAULT_PUBLIC_MENU_SETTINGS: PublicMenuSettings = {
   priceDisplayMode: "auto"
 };
 
+const PUBLIC_MENU_SETTINGS_KEYS = [
+  "defaultLocale",
+  "default_locale",
+  "locale",
+  "supportedLocales",
+  "supported_locales",
+  "locales",
+  "baseCurrency",
+  "base_currency",
+  "currency",
+  "defaultCurrency",
+  "default_currency",
+  "supportedCurrencies",
+  "supported_currencies",
+  "currencies",
+  "publicMenuStyle",
+  "public_menu_style",
+  "menuStyle",
+  "menu_style",
+  "menuExperience",
+  "menu_experience",
+  "timezone",
+  "timeZone",
+  "defaultThemeMode",
+  "default_theme_mode",
+  "themeMode",
+  "allowThemeToggle",
+  "allow_theme_toggle",
+  "allowCurrencySelector",
+  "allow_currency_selector",
+  "allowLanguageSelector",
+  "allow_language_selector",
+  "taxIncluded",
+  "tax_included",
+  "priceDisplayMode",
+  "price_display_mode"
+] as const;
+
 function objectInput(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input)
     ? (input as Record<string, unknown>)
     : {};
+}
+
+export function hasMeaningfulPublicMenuSettings(value: unknown): boolean {
+  const candidate = objectInput(value);
+  return PUBLIC_MENU_SETTINGS_KEYS.some((key) =>
+    Object.prototype.hasOwnProperty.call(candidate, key)
+  );
 }
 
 function stringInput(value: unknown): string {

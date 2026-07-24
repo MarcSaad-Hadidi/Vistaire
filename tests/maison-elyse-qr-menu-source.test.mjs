@@ -219,7 +219,7 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.match(component, /Available/);
   assert.match(component, /ALLERGEN_FILTERS/);
   assert.match(component, /matchesConfirmedFree/);
-  assert.match(component, /AllergenWarning/);
+  assert.doesNotMatch(component, /AllergenWarning/);
   assert.match(component, /Filter the menu/);
   assert.match(component, /Active filter/);
   assert.doesNotMatch(component, /Tous les plats/);

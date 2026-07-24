@@ -13,14 +13,150 @@ import {
 import { getGreetingForTime } from "../lib/menu/greeting.ts";
 import {
   PUBLIC_MENU_CURRENCIES,
+  hasMeaningfulPublicMenuSettings,
   normalizePublicMenuSettings,
   normalizePublicMenuLocalePreference,
   validatePublicMenuSettingsInput
 } from "../lib/menu/publicMenuSettings.ts";
+import { buildRelationalSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
+import { menuUiConfigForRestaurant } from "../lib/menu/menuUiConfig.ts";
+import {
+  getTrouvablePaletteSource,
+  isReferenceTrouvableMenu,
+  resolvePublicMenuUiConfig
+} from "../lib/menu/trouvableMenuExperience.ts";
 import {
   getTrouvableLanguageOptions,
   isTrouvableLocaleSupported
 } from "../components/menu/trouvableMenuControls.ts";
+
+test("recognizes only public menu settings as meaningful", () => {
+  assert.equal(hasMeaningfulPublicMenuSettings(null), false);
+  assert.equal(hasMeaningfulPublicMenuSettings(undefined), false);
+  assert.equal(hasMeaningfulPublicMenuSettings([]), false);
+  assert.equal(hasMeaningfulPublicMenuSettings("{}"), false);
+  assert.equal(hasMeaningfulPublicMenuSettings({}), false);
+  assert.equal(hasMeaningfulPublicMenuSettings({ localizedUiCopy: {} }), false);
+  assert.equal(hasMeaningfulPublicMenuSettings({ migrationMarker: true }), false);
+  assert.equal(
+    hasMeaningfulPublicMenuSettings({ defaultThemeMode: "dark" }),
+    true
+  );
+});
+
+test("empty menu settings fall back to the historical Trouvable settings", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "trouvable",
+    restaurantRow: { id: "restaurant-trouvable", name: "Trouvable", slug: "trouvable" },
+    menuRow: {
+      id: "menu-trouvable",
+      restaurant_id: "restaurant-trouvable",
+      settings_json: {}
+    },
+    legacyPublicMenuSettings: {
+      source: "menu_ui_configs",
+      settings: {
+        publicMenuStyle: "trouvable",
+        defaultThemeMode: "dark",
+        allowThemeToggle: true
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.equal(menu.publicMenuStyleExplicit, true);
+  assert.equal(menu.settings.publicMenuStyle, "trouvable");
+  assert.equal(menu.settings.defaultThemeMode, "dark");
+  assert.equal(menu.settings.allowThemeToggle, true);
+});
+
+test("unknown native settings do not mask a meaningful legacy configuration", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "trouvable",
+    restaurantRow: { id: "restaurant-trouvable", name: "Trouvable", slug: "trouvable" },
+    menuRow: {
+      id: "menu-trouvable",
+      restaurant_id: "restaurant-trouvable",
+      updated_at: "2026-07-03T12:00:00.000Z",
+      settings_json: { migrationMarker: true }
+    },
+    legacyPublicMenuSettings: {
+      source: "menu_ui_configs",
+      updatedAt: "2026-07-01T12:00:00.000Z",
+      settings: {
+        publicMenuStyle: "trouvable",
+        defaultThemeMode: "light",
+        allowThemeToggle: true
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.equal(menu.settings.defaultThemeMode, "light");
+  assert.equal(menu.settings.allowThemeToggle, true);
+});
+
+test("meaningful native settings remain canonical over legacy settings", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "trouvable",
+    restaurantRow: { id: "restaurant-trouvable", name: "Trouvable", slug: "trouvable" },
+    menuRow: {
+      id: "menu-trouvable",
+      restaurant_id: "restaurant-trouvable",
+      settings_json: {
+        publicMenuStyle: "trouvable",
+        defaultThemeMode: "light"
+      }
+    },
+    legacyPublicMenuSettings: {
+      source: "menu_ui_configs",
+      updatedAt: "2099-07-01T12:00:00.000Z",
+      settings: {
+        publicMenuStyle: "maison-elyse",
+        defaultThemeMode: "dark"
+      }
+    },
+    categoryRows: [],
+    dishRows: []
+  });
+
+  assert.equal(menu.settings.publicMenuStyle, "trouvable");
+  assert.equal(menu.settings.defaultThemeMode, "light");
+});
+
+test("Trouvable keeps its historical palette accents when persisted UI config is light", () => {
+  const sourceConfig = menuUiConfigForRestaurant({
+    name: "Trouvable",
+    slug: "trouvable"
+  });
+  const config = resolvePublicMenuUiConfig(
+    {
+      slug: "trouvable",
+      name: "Trouvable",
+      settings: { publicMenuStyle: "trouvable" },
+      publicMenuStyleExplicit: true
+    },
+    sourceConfig
+  );
+
+  assert.equal(config.theme, "premium-gastronomic");
+  assert.deepEqual(config.palette, sourceConfig.palette);
+  assert.equal(config.palette.accent, "#f6c453");
+  assert.equal(config.palette.accent2, "#e85d3f");
+  assert.equal(config.palette.text, "#17324d");
+});
+
+test("Trouvable separates the canonical reference skin from custom restaurants", () => {
+  const reference = { slug: "Trouvable", name: "Trouvable" };
+  const custom = { slug: "chez-marie", name: "Chez Marie" };
+
+  assert.equal(isReferenceTrouvableMenu(reference), true);
+  assert.equal(getTrouvablePaletteSource(reference), "reference");
+  assert.equal(isReferenceTrouvableMenu(custom), false);
+  assert.equal(getTrouvablePaletteSource(custom), "restaurant");
+});
 
 test("demo menu preserves French and English supported locales", async () => {
   const source = await readFile(

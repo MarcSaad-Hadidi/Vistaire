@@ -21,7 +21,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { GoogleReviewCard } from "./GoogleReviewCard";
-import { AllergenDisclosure, AllergenWarning } from "./AllergenDisclosure";
+import { AllergenDisclosure } from "./AllergenDisclosure";
 import { PublicDishDetailExperience } from "./PublicDishDetailExperience";
 import styles from "./PublicMenuRenderer.module.css";
 
@@ -771,7 +771,6 @@ export function PublicMenuRenderer({
             </button>
           ) : null}
         </div>
-        <AllergenWarning locale={activeLocale} />
         {renderMenuTools()}
         {children}
       </section>
@@ -1036,7 +1035,7 @@ export function PublicMenuRenderer({
             <AllergenDisclosure
               dish={selectedDish}
               locale={activeLocale}
-              includeWarning={false}
+              includeWarning
             />
 
             {selectedDish.options.length > 0 ? (
