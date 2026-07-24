@@ -135,8 +135,9 @@ test("generic public dish sheets render structured allergen declarations and act
   );
   assert.match(
     source,
-    /<AllergenDisclosure[\s\S]*dish=\{selectedDish\}[\s\S]*locale=\{activeLocale\}[\s\S]*includeWarning=\{false\}/
+    /<AllergenDisclosure[\s\S]*dish=\{selectedDish\}[\s\S]*locale=\{activeLocale\}[\s\S]*includeWarning\s*\/>/
   );
+  assert.doesNotMatch(source, /AllergenWarning/);
   assert.ok(
     (source.match(/locale=\{activeLocale\}/g) ?? []).length >= 2,
     "public and builder detail experiences both receive the active locale"

@@ -19,6 +19,12 @@ import {
   validatePublicMenuSettingsInput
 } from "../lib/menu/publicMenuSettings.ts";
 import { buildRelationalSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
+import { menuUiConfigForRestaurant } from "../lib/menu/menuUiConfig.ts";
+import {
+  getTrouvablePaletteSource,
+  isReferenceTrouvableMenu,
+  resolvePublicMenuUiConfig
+} from "../lib/menu/trouvableMenuExperience.ts";
 import {
   getTrouvableLanguageOptions,
   isTrouvableLocaleSupported
@@ -118,6 +124,38 @@ test("meaningful native settings remain canonical over legacy settings", () => {
 
   assert.equal(menu.settings.publicMenuStyle, "trouvable");
   assert.equal(menu.settings.defaultThemeMode, "light");
+});
+
+test("Trouvable keeps its historical palette accents when persisted UI config is light", () => {
+  const sourceConfig = menuUiConfigForRestaurant({
+    name: "Trouvable",
+    slug: "trouvable"
+  });
+  const config = resolvePublicMenuUiConfig(
+    {
+      slug: "trouvable",
+      name: "Trouvable",
+      settings: { publicMenuStyle: "trouvable" },
+      publicMenuStyleExplicit: true
+    },
+    sourceConfig
+  );
+
+  assert.equal(config.theme, "premium-gastronomic");
+  assert.deepEqual(config.palette, sourceConfig.palette);
+  assert.equal(config.palette.accent, "#f6c453");
+  assert.equal(config.palette.accent2, "#e85d3f");
+  assert.equal(config.palette.text, "#17324d");
+});
+
+test("Trouvable separates the canonical reference skin from custom restaurants", () => {
+  const reference = { slug: "Trouvable", name: "Trouvable" };
+  const custom = { slug: "chez-marie", name: "Chez Marie" };
+
+  assert.equal(isReferenceTrouvableMenu(reference), true);
+  assert.equal(getTrouvablePaletteSource(reference), "reference");
+  assert.equal(isReferenceTrouvableMenu(custom), false);
+  assert.equal(getTrouvablePaletteSource(custom), "restaurant");
 });
 
 test("demo menu preserves French and English supported locales", async () => {

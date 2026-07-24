@@ -49,12 +49,13 @@ import {
   type ArHandoffPlatform
 } from "@/lib/menu/arBrowserHandoff";
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
-import { GoogleReviewCard } from "./GoogleReviewCard";
 import { AllergenWarning } from "./AllergenDisclosure";
+import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
+import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
 import {
   getDishSwipeScrollTop,
   resolveDishSwipeGesture
@@ -549,6 +550,7 @@ export function TrouvablePremiumMenuExperience({
     menu.localizedUiCopy
   );
   const textDirection = getTrouvableTextDirection(selectedLocale);
+  const paletteSource = getTrouvablePaletteSource(menu);
   useTrouvableDocumentLanguage(
     selectedLocale,
     textDirection,
@@ -2095,6 +2097,7 @@ export function TrouvablePremiumMenuExperience({
                 x
               </button>
             </header>
+            <AllergenWarning locale={selectedLocale} />
             {detailPrice ? (
               <strong className={styles.detailPrice}>{detailPrice}</strong>
             ) : null}
@@ -2332,21 +2335,24 @@ export function TrouvablePremiumMenuExperience({
       data-copy-missing-keys={copyResolution.missingKeys.length}
       data-copy-ignored-keys={copyResolution.ignoredKeys.length}
       data-theme={config.theme}
+      data-palette-source={paletteSource}
       data-user-theme={selectedTheme}
       style={
-        {
-          "--menu-bg": config.palette.background,
-          "--menu-surface": config.palette.surface,
-          "--menu-text": config.palette.text,
-          "--menu-muted": config.palette.muted,
-          "--menu-accent": config.palette.accent,
-          "--menu-accent-2": config.palette.accent2,
-          "--menu-accent-3": config.palette.accent3,
-          "--menu-border": config.palette.border,
-          "--menu-success": config.palette.success,
-          "--menu-warning": config.palette.warning,
-          "--menu-danger": config.palette.danger
-        } as CSSProperties
+        paletteSource === "restaurant"
+          ? ({
+              "--menu-bg": config.palette.background,
+              "--menu-surface": config.palette.surface,
+              "--menu-text": config.palette.text,
+              "--menu-muted": config.palette.muted,
+              "--menu-accent": config.palette.accent,
+              "--menu-accent-2": config.palette.accent2,
+              "--menu-accent-3": config.palette.accent3,
+              "--menu-border": config.palette.border,
+              "--menu-success": config.palette.success,
+              "--menu-warning": config.palette.warning,
+              "--menu-danger": config.palette.danger
+            } as CSSProperties)
+          : undefined
       }
     >
       <div
@@ -2354,7 +2360,6 @@ export function TrouvablePremiumMenuExperience({
         className={styles.backToTopSentinel}
         aria-hidden="true"
       />
-      <AllergenWarning locale={selectedLocale} />
       <header ref={topBarRef} className={styles.topBar}>
         <div className={styles.brandBlock}>
           <VistaireWord />

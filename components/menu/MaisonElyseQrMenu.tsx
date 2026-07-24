@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
-import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
@@ -1255,8 +1254,6 @@ export function MaisonElyseQrMenu({
                   <p>{copy.collectionBody}</p>
                 </div>
               </div>
-
-              <AllergenWarning locale={selectedLocale} />
 
               {hasActiveFilter ? (
                 <div className={styles.activeFilterNotice} role="status">

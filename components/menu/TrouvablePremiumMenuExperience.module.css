@@ -11,6 +11,8 @@
   padding: 10px 12px 30px;
 }
 
+@scope (.page[data-palette-source="restaurant"]) {
+
 /* Light mode keeps the selected brand colors instead of falling back to the
    legacy beige/gold skin. This block intentionally comes last so it wins over
    the historical light-theme overrides above. */
@@ -137,6 +139,8 @@
 .page[data-user-theme="light"] .reviewOverlay,
 .page[data-user-theme="light"] .stackedOverlay {
   background: color-mix(in srgb, var(--menu-bg, #fbf7ef) 78%, transparent);
+}
+
 }
 
 .phonePreview {
@@ -1870,7 +1874,7 @@
 }
 
 /* New restaurant palettes are injected as semantic variables by the resolved config. */
-.page {
+.page[data-palette-source="restaurant"] {
   --trouvable-black: var(--menu-bg, #000);
   --trouvable-ink: var(--menu-surface, #050505);
   --trouvable-line: var(--menu-border, rgba(255, 255, 255, 0.16));
@@ -3865,16 +3869,15 @@
 }
 
 .page[data-user-theme="light"] {
-  --trouvable-black: var(--menu-bg, #f5efe4);
-  --trouvable-ink: var(--menu-surface, #fffaf1);
-  --trouvable-line: var(--menu-border, rgba(35, 26, 13, 0.18));
-  --trouvable-muted: var(--menu-muted, rgba(35, 26, 13, 0.66));
-  --trouvable-soft: color-mix(in srgb, var(--menu-surface, #fffaf1) 24%, transparent);
-  --trouvable-gold: var(--menu-accent, #8f6d14);
-  --trouvable-gold-2: var(--menu-accent-2, #b99124);
-  --trouvable-blue: var(--menu-accent-3, #4d6b86);
-  background: var(--menu-bg, #f5efe4);
-  color: var(--menu-text, #17120b);
+  --trouvable-black: #f5efe4;
+  --trouvable-ink: #fffaf1;
+  --trouvable-line: rgba(35, 26, 13, 0.18);
+  --trouvable-muted: rgba(35, 26, 13, 0.66);
+  --trouvable-soft: rgba(35, 26, 13, 0.07);
+  --trouvable-gold: #8f6d14;
+  --trouvable-gold-2: #b99124;
+  background: #f5efe4;
+  color: #17120b;
 }
 
 .page[data-user-theme="light"] .backToTop {
@@ -4705,6 +4708,8 @@
   }
 }
 
+@scope (.page[data-palette-source="restaurant"]) {
+
 /* Final light-mode cascade: these rules are deliberately last because the
    reference skin contains older, more specific light selectors above. */
 .page[data-user-theme="light"] {
@@ -4958,6 +4963,8 @@
   color: var(--trouvable-dark-text) !important;
 }
 
+}
+
 /* Preserve the full touch target while the entry/exit scale transition runs. */
 .backToTop {
   height: 48px;
@@ -4967,4 +4974,23 @@
 .page.phonePreview .backToTop {
   height: 48px;
   min-height: 48px;
+}
+
+/* The canonical Trouvable restaurant keeps the pre-builder composition. The
+   reference surface is intentionally independent from owner palette tokens. */
+.page[data-palette-source="reference"][data-user-theme="dark"] {
+  background:
+    linear-gradient(180deg, rgba(54, 31, 16, 0.78), rgba(10, 7, 5, 0.98) 36%),
+    #080604;
+  color: #fffaf0;
+}
+
+.page[data-palette-source="reference"][data-user-theme="dark"] .topBar {
+  border: 1px solid rgba(232, 207, 155, 0.26);
+  border-radius: 8px;
+  background: #000;
+  color: #fffaf0;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(16px) saturate(118%);
+  backdrop-filter: blur(16px) saturate(118%);
 }

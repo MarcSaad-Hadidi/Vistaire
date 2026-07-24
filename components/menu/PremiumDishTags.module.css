@@ -114,8 +114,7 @@
 }
 
 /* Detail chips inherit the restaurant palette in both theme modes. */
-:global([data-display-mode="phone-preview"]) .chipAccent,
-:global([data-user-theme="light"]) .chipAccent {
+:global(.page[data-palette-source="restaurant"]) .chipAccent {
   border-color: var(--menu-accent, var(--tag-accent-border));
   color: var(--menu-text, var(--tag-accent-text));
   background: color-mix(
@@ -126,7 +125,6 @@
   box-shadow: none;
 }
 
-:global([data-display-mode="phone-preview"]) .label,
-:global([data-user-theme="light"]) .label {
+:global(.page[data-palette-source="restaurant"]) .label {
   color: var(--menu-muted, #8f6d14);
 }

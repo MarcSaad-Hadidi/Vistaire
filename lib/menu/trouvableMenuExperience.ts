@@ -11,6 +11,24 @@ type PublicMenuStyleRouteInput = Pick<PublicMenu, "slug" | "name"> & {
   publicMenuStyleExplicit?: boolean;
 };
 
+export type TrouvablePaletteSource = "reference" | "restaurant";
+
+/**
+ * The canonical Trouvable restaurant owns the historical skin. Other menus
+ * using the Trouvable experience remain connected to their owner palette.
+ */
+export function isReferenceTrouvableMenu(
+  menu: Pick<PublicMenu, "slug">
+): boolean {
+  return menu.slug.trim().toLowerCase() === "trouvable";
+}
+
+export function getTrouvablePaletteSource(
+  menu: Pick<PublicMenu, "slug">
+): TrouvablePaletteSource {
+  return isReferenceTrouvableMenu(menu) ? "reference" : "restaurant";
+}
+
 function matchesMenuIdentity(
   menu: Pick<PublicMenu, "slug" | "name">,
   expected: string

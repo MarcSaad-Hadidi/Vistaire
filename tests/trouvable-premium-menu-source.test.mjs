@@ -319,6 +319,51 @@ test("Trouvable details keep ingredients, allergens, options, and notes in the p
   assert.match(source, /hasPublicMenu3d\(dish\)/);
 });
 
+test("Trouvable list keeps the allergen warning inside dish details", async () => {
+  const menuSource = await readFile(
+    new URL("../components/menu/TrouvablePremiumMenuExperience.tsx", import.meta.url),
+    "utf8"
+  );
+  const detailSource = await readFile(
+    new URL("../components/menu/TrouvableDishDetailExperience.tsx", import.meta.url),
+    "utf8"
+  );
+
+  const listSource = menuSource.slice(
+    0,
+    menuSource.indexOf("function renderDishDetailSheet")
+  );
+
+  assert.doesNotMatch(listSource, /<AllergenWarning/);
+  assert.match(menuSource, /<AllergenWarning locale=\{selectedLocale\} \/>/);
+  assert.match(detailSource, /<AllergenWarning locale=\{selectedLocale\} \/>/);
+});
+
+test("Trouvable reference and custom palette sources are explicit", async () => {
+  const source = await readFile(componentPath, "utf8");
+  const detailSource = await readFile(dishDetailPath, "utf8");
+  const css = await readFile(cssPath, "utf8");
+
+  assert.match(source, /data-palette-source=\{paletteSource\}/);
+  assert.match(source, /paletteSource === "restaurant"/);
+  assert.match(detailSource, /data-palette-source=\{paletteSource\}/);
+  assert.match(detailSource, /paletteSource === "restaurant"/);
+  assert.match(css, /@scope \(\.page\[data-palette-source="restaurant"\]\)/);
+  assert.match(css, /linear-gradient\(180deg, rgba\(54, 31, 16, 0\.78\)/);
+  assert.match(
+    css,
+    /data-palette-source="reference"\]\[data-user-theme="dark"\] \.topBar[\s\S]*background: #000;/
+  );
+  assert.match(
+    css,
+    /\.page\[data-user-theme="light"\]\s*\{\s*--trouvable-black: #f5efe4/
+  );
+  assert.match(
+    css,
+    /\.page\[data-palette-source="reference"\]\[data-user-theme="dark"\]/
+  );
+});
+
 test("Trouvable all category stays global while filters and searches resolve dishes", async () => {
   const source = await readFile(componentPath, "utf8");
 

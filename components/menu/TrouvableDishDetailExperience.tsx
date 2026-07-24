@@ -59,6 +59,7 @@ import {
 } from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { AllergenWarning } from "./AllergenDisclosure";
+import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
 import { PremiumDishCardOptionTags } from "./PremiumDishTags";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
@@ -529,11 +530,13 @@ export function TrouvableDishDetailExperience({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [activeSubSheet]);
 
+  const paletteSource = getTrouvablePaletteSource(menu);
+
   return (
     <main
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
       style={
-        config
+        config && paletteSource === "restaurant"
           ? ({
               "--menu-bg": config.palette.background,
               "--menu-surface": config.palette.surface,
@@ -551,6 +554,7 @@ export function TrouvableDishDetailExperience({
       }
       lang={selectedLocale}
       data-text-direction={textDirection}
+      data-palette-source={paletteSource}
       data-user-theme={selectedTheme}
       data-copy-built-in-locale={copyResolution.builtInLocale}
       data-copy-dynamic-source={copyResolution.dynamicSource}

@@ -287,27 +287,27 @@
   color: var(--menu-text, #fff);
 }
 
-.kicker,
-.houseNoteLabel {
+:global(.page[data-palette-source="restaurant"]) .kicker,
+:global(.page[data-palette-source="restaurant"]) .houseNoteLabel {
   color: var(--menu-accent, #dec24b);
 }
 
-.title {
+:global(.page[data-palette-source="restaurant"]) .title {
   color: var(--menu-text, #fff);
 }
 
-.description,
-.houseNoteText {
+:global(.page[data-palette-source="restaurant"]) .description,
+:global(.page[data-palette-source="restaurant"]) .houseNoteText {
   color: var(--menu-muted, rgba(255, 255, 255, 0.78));
 }
 
-.houseNote {
+:global(.page[data-palette-source="restaurant"]) .houseNote {
   border-color: var(--menu-border, rgba(222, 194, 75, 0.24));
   background: color-mix(in srgb, var(--menu-accent, #dec24b) 8%, var(--menu-surface, #050505));
 }
 
-.fallback,
-.label {
+:global(.page[data-palette-source="restaurant"]) .fallback,
+:global(.page[data-palette-source="restaurant"]) .label {
   color: var(--menu-muted, rgba(255, 255, 255, 0.48));
 }
 
@@ -346,7 +346,7 @@
   gap: 14px;
 }
 
-.overlay[data-user-theme="light"] .sheet {
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .sheet {
   border-color: var(--menu-border, rgba(143, 109, 20, 0.26));
   background:
     radial-gradient(
@@ -358,29 +358,29 @@
   color: var(--menu-text, #211912);
 }
 
-.overlay[data-user-theme="light"] .close {
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .close {
   border-color: var(--menu-border, rgba(35, 26, 13, 0.18));
   background: color-mix(in srgb, var(--menu-surface, #fffdf9) 88%, transparent);
   color: var(--menu-text, #211912);
 }
 
-.overlay[data-user-theme="light"] .kicker,
-.overlay[data-user-theme="light"] .houseNoteLabel {
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .kicker,
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteLabel {
   color: var(--menu-accent, #8f6d14);
 }
 
-.overlay[data-user-theme="light"] .title {
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .title {
   color: var(--menu-text, #211912);
 }
 
-.overlay[data-user-theme="light"] .description,
-.overlay[data-user-theme="light"] .houseNoteText,
-.overlay[data-user-theme="light"] .fallback,
-.overlay[data-user-theme="light"] .label {
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .description,
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteText,
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .fallback,
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .label {
   color: var(--menu-muted, rgba(35, 26, 13, 0.72));
 }
 
-.overlay[data-user-theme="light"] .houseNote {
+:global(.page[data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNote {
   border-color: var(--menu-border, rgba(143, 109, 20, 0.22));
   background: color-mix(in srgb, var(--menu-accent, #8f6d14) 8%, var(--menu-surface, #fffdf9));
 }
