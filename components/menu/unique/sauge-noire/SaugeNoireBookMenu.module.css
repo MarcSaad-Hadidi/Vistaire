@@ -177,7 +177,7 @@
 }
 
 .bookHeader > .brandMark {
-  position: fixed;
+  position: absolute;
   top: 78px;
   left: calc(50% + var(--sn-rail-half));
   z-index: 4;
