@@ -70,9 +70,31 @@ async function getCanonicalPublicMenuStyle(
   client: SupabaseClient,
   restaurantId: string
 ): Promise<string> {
+  const primaryMenus = await client
+    .from("menus")
+    .select("id,is_primary,status")
+    .eq("restaurant_id", restaurantId)
+    .limit(50);
+  const rows = Array.isArray(primaryMenus.data) ? primaryMenus.data : [];
+  const activeRows = rows.filter(
+    (row) => String((row as { status?: unknown }).status ?? "") !== "archived"
+  );
+  const primary =
+    activeRows.find(
+      (row) =>
+        (row as { is_primary?: unknown }).is_primary === true &&
+        String((row as { status?: unknown }).status ?? "") === "published"
+    ) ??
+    activeRows.find((row) => (row as { is_primary?: unknown }).is_primary === true) ??
+    activeRows[0];
+  const menuId =
+    typeof (primary as { id?: unknown } | undefined)?.id === "string"
+      ? (primary as { id: string }).id
+      : undefined;
   const settings = await readPublicMenuSettingsWithFallbacks({
     client,
-    restaurantId
+    restaurantId,
+    menuId
   });
   return settings.publicMenuStyle;
 }
