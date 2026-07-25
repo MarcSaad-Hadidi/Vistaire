@@ -130,7 +130,7 @@
   min-width: 0;
   flex: 1;
   min-height: 100svh;
-  overflow: auto;
+  overflow: hidden;
   scrollbar-gutter: stable;
   border: 2px solid rgba(38, 55, 43, 0.8);
   border-left: 0;
@@ -316,16 +316,17 @@
 .pageViewport {
   position: relative;
   width: 100%;
-  overflow: visible;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pageFlipViewport {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 100%;
-  overflow: visible;
+  min-height: 0;
+  overflow: hidden;
   touch-action: pan-y;
   isolation: isolate;
 }
@@ -334,7 +335,8 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pageFlipBookPending {
@@ -353,11 +355,15 @@
   width: 100%;
   height: 100%;
   min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: auto;
   background: var(--sn-paper);
   color: var(--sn-ink);
   scrollbar-width: thin;
+}
+
+.pageFlipPage:has(.coverPage),
+.pageFlipPage:has(.contentsPage) {
+  overflow: clip;
 }
 
 .pageFlipFallback {
@@ -366,6 +372,11 @@
   height: 100%;
   min-height: 100%;
   overflow: auto;
+}
+
+.pageFlipFallback:has(.coverPage),
+.pageFlipFallback:has(.contentsPage) {
+  overflow: clip;
 }
 
 .pageFlipInitializing {

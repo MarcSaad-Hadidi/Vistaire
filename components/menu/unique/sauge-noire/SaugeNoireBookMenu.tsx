@@ -497,6 +497,10 @@ export function SaugeNoireBookMenu({
             className={styles.backToTop}
             onClick={() => {
               paperRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+              const activePage = paperRef.current?.querySelector<HTMLElement>(
+                `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone]), .${styles.pageFlipFallback}`
+              );
+              activePage?.scrollTo({ top: 0, behavior: "smooth" });
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             aria-label={copy.backToTop}
