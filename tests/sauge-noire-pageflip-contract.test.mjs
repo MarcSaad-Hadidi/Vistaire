@@ -19,6 +19,10 @@ const ownerPreviewPath = new URL(
   "../app/owner/restaurants/[restaurantId]/unique-ui/preview/page.tsx",
   import.meta.url
 );
+const stylesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireBookMenu.module.css",
+  import.meta.url
+);
 
 test("page flip is enabled on the public renderer and remains opt-in in the builder", async () => {
   const book = await readFile(bookPath, "utf8");
@@ -89,4 +93,12 @@ test("page flip cleanup and clone focus protection are explicit", async () => {
   assert.match(experiment, /aria-hidden/);
   assert.match(experiment, /setAttribute\("inert", ""\)/);
   assert.match(experiment, /button, a, input, select, textarea/);
+});
+
+test("the book logo stays pinned while the paper content scrolls", async () => {
+  const styles = await readFile(stylesPath, "utf8");
+
+  assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;/);
+  assert.match(styles, /\.bookHeader\s*\{[\s\S]*position:\s*sticky;[\s\S]*top:\s*0;/);
+  assert.match(styles, /\.bookHeader\s*\{[\s\S]*margin-bottom:\s*-92px;/);
 });

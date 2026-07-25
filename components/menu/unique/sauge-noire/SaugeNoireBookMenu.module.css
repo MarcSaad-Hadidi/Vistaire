@@ -125,7 +125,7 @@
 .paper {
   position: relative;
   z-index: 1;
-  display: flex;
+  display: block;
   height: 100svh;
   min-width: 0;
   flex: 1;
@@ -155,10 +155,13 @@
 }
 
 .bookHeader {
-  position: absolute;
-  inset: 0 0 auto;
+  position: sticky;
+  top: 0;
   z-index: 3;
+  width: 100%;
+  height: 92px;
   min-height: 92px;
+  margin-bottom: -92px;
   pointer-events: none;
 }
 
