@@ -30,7 +30,10 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /Retour au menu/);
   assert.match(source, /dish\.ingredients\.length/);
   assert.match(source, /AllergenDisclosure/);
-  assert.match(source, /<AllergenDisclosure dish=\{dish\} locale=\{locale\} \/>/);
+  assert.match(
+    source,
+    /<AllergenDisclosure[\s\S]*dish=\{dish\}[\s\S]*locale=\{locale\}[\s\S]*\/>/
+  );
   assert.match(source, /dish\.options\.length/);
   assert.match(source, /dish\.houseNote/);
   assert.match(source, /config\?: MenuUiConfig/);

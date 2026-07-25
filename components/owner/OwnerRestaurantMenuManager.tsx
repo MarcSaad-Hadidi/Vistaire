@@ -9,6 +9,7 @@ import type { PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCo
 import {
   ALLERGEN_REGISTRY,
   allergenLabel,
+  customAllergensFromLegacyValues,
   getAllergenStatus,
   legacyAllergensFromDeclarations,
   normalizeAllergenData,
@@ -45,8 +46,8 @@ type DishDraft = {
   price: string;
   description: string;
   ingredientsText: string;
+  customAllergensText: string;
   allergenDeclarations: DishAllergenDeclaration[];
-  allergenLegacyValues: string[];
   tagsText: string;
   optionsText: string;
   chefNote: string;
@@ -78,11 +79,11 @@ const EMPTY_DISH_DRAFT: DishDraft = {
   price: "",
   description: "",
   ingredientsText: "",
+  customAllergensText: "",
   allergenDeclarations: ALLERGEN_REGISTRY.map(({ id }) => ({
     allergenId: id,
     status: "unknown"
   })),
-  allergenLegacyValues: [],
   tagsText: "",
   optionsText: "",
   chefNote: "",
@@ -294,8 +295,10 @@ export function OwnerRestaurantMenuManager({
       price: priceDraftFromDish(dish),
       description: dish.description,
       ingredientsText: dish.ingredients.join(", "),
+      customAllergensText: customAllergensFromLegacyValues(
+        dish.customAllergens ?? dish.allergenLegacyValues ?? dish.allergens
+      ).join(", "),
       allergenDeclarations: declarationsForDish(dish),
-      allergenLegacyValues: dish.allergenLegacyValues ?? dish.allergens,
       tagsText: dish.tags.join(", "),
       optionsText: dish.options.join(", "),
       chefNote: dish.houseNote,
@@ -411,11 +414,12 @@ export function OwnerRestaurantMenuManager({
         price: dishDraft.price,
         description: dishDraft.description,
         ingredients: splitDishList(dishDraft.ingredientsText),
+        customAllergens: splitDishList(dishDraft.customAllergensText),
         allergenDeclarations: dishDraft.allergenDeclarations,
-        allergens: legacyAllergensFromDeclarations(
-          dishDraft.allergenDeclarations,
-          dishDraft.allergenLegacyValues
-        ),
+        allergens: [
+          ...legacyAllergensFromDeclarations(dishDraft.allergenDeclarations),
+          ...splitDishList(dishDraft.customAllergensText)
+        ],
         tags: splitDishList(dishDraft.tagsText),
         options: splitDishList(dishDraft.optionsText),
         chefNote: dishDraft.chefNote.trim(),
@@ -725,6 +729,24 @@ export function OwnerRestaurantMenuManager({
                   })}
                 </div>
               </fieldset>
+              <label className={styles.formField}>
+                <span>Autres allergènes</span>
+                <input
+                  className={styles.control}
+                  value={dishDraft.customAllergensText}
+                  onChange={(event) =>
+                    setDishDraft((draft) => ({
+                      ...draft,
+                      customAllergensText: event.target.value
+                    }))
+                  }
+                  placeholder="Céleri, lupin, allergène fournisseur"
+                  maxLength={500}
+                />
+                <span className={styles.cellSub}>
+                  Ajoutez les allergènes absents de la liste. Ils seront déclarés comme présents et restent soumis à confirmation avec l’équipe.
+                </span>
+              </label>
               <label className={styles.formField}>
                 <span>Options, extras / accompagnements</span>
                 <input

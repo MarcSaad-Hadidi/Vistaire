@@ -41,12 +41,12 @@ test("premium details sheet renders grouped dish metadata", async () => {
   assert.doesNotMatch(tagsSource, /Allerg[eè]ne\s*:/);
 });
 
-test("allergen disclosure keeps unknown registry declarations visible", async () => {
+test("allergen disclosure hides the unconfirmed-information block", async () => {
   const source = await readFile(allergenDisclosurePath, "utf8");
 
-  assert.match(source, /groups\.unknownCount > 0/);
-  assert.match(source, /copy\.unknown/);
-  assert.match(source, /copy\.unknownBody\(groups\.unknownCount\)/);
+  assert.doesNotMatch(source, /groups\.unknownCount > 0/);
+  assert.doesNotMatch(source, /copy\.unknown/);
+  assert.doesNotMatch(source, /copy\.unknownBody/);
 });
 
 test("details popup opens from the dish sheet without a card-level trigger", async () => {

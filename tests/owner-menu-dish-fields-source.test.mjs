@@ -7,6 +7,7 @@ test("owner live dish editor sends public menu badge and filter fields", async (
 
   for (const field of [
     "ingredientsText",
+    "customAllergensText",
     "allergenDeclarations",
     "tagsText",
     "optionsText",
@@ -17,6 +18,7 @@ test("owner live dish editor sends public menu badge and filter fields", async (
 
   assert.match(source, /extras.*accompagnements/i);
   assert.match(source, /ingredients:\s*splitDishList\(dishDraft\.ingredientsText\)/);
+  assert.match(source, /customAllergens:\s*splitDishList\(dishDraft\.customAllergensText\)/);
   assert.match(source, /allergenDeclarations:\s*dishDraft\.allergenDeclarations/);
   assert.doesNotMatch(source, /allergensText/);
   assert.match(source, /tags:\s*splitDishList\(dishDraft\.tagsText\)/);
@@ -33,17 +35,16 @@ test("owner menu mutations preserve real asset metadata while storing dish detai
   assert.match(mutations, /dishMetadata\(existing.*candidate/s);
   assert.match(mutations, /ingredients/);
   assert.match(mutations, /allergens/);
+  assert.match(mutations, /customAllergens/);
   assert.match(mutations, /tags/);
   assert.match(mutations, /options/);
   assert.match(mutations, /chefNote/);
   assert.match(
     mutations,
-    /metadata:\s*dishMetadata\(\{ photoStatus: "planned" \}, parsedPrice, candidate\)/
+    /dishMetadata\(\{ photoStatus: "planned" \}, parsedPrice, candidate\)/
   );
-  assert.match(
-    mutations,
-    /metadata:\s*dishMetadata\(existing\.data\.metadata, parsedPrice, candidate\)/
-  );
+  assert.match(mutations, /const metadata = dishMetadata\(existing\.data\.metadata, parsedPrice, candidate\)/);
+  assert.match(mutations, /metadata,/);
   assert.match(publicCore, /PUBLIC_MENU_OPTION_FIELD_KEYS/);
   assert.match(publicCore, /"extras"/);
   assert.match(publicCore, /"accompaniments"/);
@@ -64,4 +65,24 @@ test("owner dish currency uses effective public menu settings fallbacks", async 
     /normalizePublicMenuSettings\(menuResult\.menu\.settingsJson\)/
   );
   assert.doesNotMatch(mutations, /function isMissingColumnError/);
+});
+
+test("dish order has a migration-backed field and metadata compatibility fallback", async () => {
+  const migration = await readFile(
+    "supabase/migrations/20260724150000_menu_dish_display_order.sql",
+    "utf8"
+  );
+  const mutations = await readFile("lib/owner/menuMutations.ts", "utf8");
+  const publicCore = await readFile("lib/menu/publicMenuCore.ts", "utf8");
+  const publicMenu = await readFile("lib/menu/publicMenu.ts", "utf8");
+
+  assert.match(migration, /add column if not exists display_order integer not null default 0/);
+  assert.match(migration, /metadata ->> 'displayOrder'/);
+  assert.match(migration, /candidate\.value::numeric <= 2147483647/);
+  assert.match(migration, /length\(candidate\.value\) <= 10/);
+  assert.match(mutations, /nextDishDisplayOrder/);
+  assert.match(mutations, /displayOrder: displayOrder\.value/);
+  assert.match(publicCore, /metadataSortOrder/);
+  assert.match(publicCore, /dishStableSortKey/);
+  assert.match(publicMenu, /orderBy: \["display_order", "id"\]/);
 });

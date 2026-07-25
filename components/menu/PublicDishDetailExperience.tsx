@@ -313,7 +313,11 @@ export function PublicDishDetailExperience({
                 </section>
               ) : null}
 
-              <AllergenDisclosure dish={dish} locale={locale} />
+              <AllergenDisclosure
+                dish={dish}
+                locale={locale}
+                localizedUiCopy={menu.localizedUiCopy}
+              />
 
               {dish.options.length > 0 ? (
                 <section>

@@ -3,8 +3,11 @@ import test from "node:test";
 
 import {
   ALLERGEN_REGISTRY,
+  customAllergensFromLegacyValues,
+  fixedAllergenIdForValue,
   getAllergenDisplayGroups,
   getAllergenPublicCopy,
+  getRequestedModificationsAllergenDisclaimer,
   getAllergenStatus,
   matchesConfirmedFreeForFilter,
   matchesConfirmedFree,
@@ -12,17 +15,40 @@ import {
   validateAllergenDeclarations
 } from "../lib/menu/allergens.ts";
 
-test("allergen copy agrees with plural unknown declarations", () => {
-  const copy = getAllergenPublicCopy("fr");
+test("custom values cannot duplicate the fixed allergen registry", () => {
+  assert.equal(fixedAllergenIdForValue("Gluten"), "gluten");
+  assert.equal(fixedAllergenIdForValue("C\u00e9leri"), null);
+  assert.deepEqual(
+    customAllergensFromLegacyValues(["C\u00e9leri", "Gluten", "Lupin"]),
+    ["C\u00e9leri", "Lupin"]
+  );
+});
+
+test("localized requested-modifications disclaimer uses menu copy", () => {
+  const localizedUiCopy = {
+    allergens: {
+      requestedModificationsDisclaimer: {
+        fr: "Avertissement FR",
+        en: "Warning EN"
+      }
+    }
+  };
 
   assert.equal(
-    copy.unknownBody(1),
-    "1 allergène n’est pas confirmé pour ce plat."
+    getRequestedModificationsAllergenDisclaimer("fr-CA", localizedUiCopy),
+    "Avertissement FR"
   );
   assert.equal(
-    copy.unknownBody(12),
-    "12 allergènes ne sont pas confirmés pour ce plat."
+    getRequestedModificationsAllergenDisclaimer("en-CA", localizedUiCopy),
+    "Warning EN"
   );
+});
+
+test("allergen copy omits the unconfirmed-information block", () => {
+  const copy = getAllergenPublicCopy("fr");
+
+  assert.equal("unknown" in copy, false);
+  assert.equal("unknownBody" in copy, false);
 });
 
 test("allergen display groups preserve unknown registry declarations", () => {

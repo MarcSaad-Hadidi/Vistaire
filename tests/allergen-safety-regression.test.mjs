@@ -63,3 +63,25 @@ test("owner UI defaults every declaration to unknown and sends the structured pa
   assert.match(mutations, /allergen_declarations/);
   assert.doesNotMatch(manager, /allergensText/);
 });
+
+test("owner editing keeps legacy free-text allergens visible in the custom field", async () => {
+  const [manager, mutations] = await Promise.all([
+    readFile("components/owner/OwnerRestaurantMenuManager.tsx", "utf8"),
+    readFile("lib/owner/menuMutations.ts", "utf8")
+  ]);
+
+  assert.match(manager, /dish\.customAllergens \?\? dish\.allergenLegacyValues \?\? dish\.allergens/);
+  assert.match(mutations, /select\("id,menu_id,metadata,allergens,allergen_declarations"\)/);
+  assert.match(mutations, /existingLegacyAllergens/);
+  assert.match(mutations, /preservedCustomAllergens/);
+});
+
+test("custom allergen aliases are rejected by owner persistence", async () => {
+  const [mutations, creation] = await Promise.all([
+    readFile("lib/owner/menuMutations.ts", "utf8"),
+    readFile("lib/owner/restaurantCreation.ts", "utf8")
+  ]);
+
+  assert.match(mutations, /fixedAllergenIdForValue/);
+  assert.match(creation, /fixedAllergenIdForValue/);
+});

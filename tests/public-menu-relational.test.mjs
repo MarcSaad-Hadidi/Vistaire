@@ -83,7 +83,7 @@ test("buildRelationalSupabasePublicMenu maps categories, dishes, metadata, and p
         allergens: ["lait"],
         metadata: {
           ingredients: ["betterave"],
-          options: ["Sans lactose sur demande"],
+          options: ["sans lactose sur demande"],
           tags: ["Maison"],
           badges: ["Signature", "Recommande"],
           chefNote: "Servir frais.",
@@ -129,7 +129,7 @@ test("buildRelationalSupabasePublicMenu maps categories, dishes, metadata, and p
   assert.equal(menu.dishes[0].priceCurrency, "CAD");
   assert.equal(menu.dishes[0].baseCurrency, "USD");
   assert.equal(menu.dishes[0].photoStatus, "ready");
-  assert.deepEqual(menu.dishes[0].ingredients, ["betterave"]);
+  assert.deepEqual(menu.dishes[0].ingredients, ["Betterave"]);
   assert.deepEqual(menu.dishes[0].options, ["Sans lactose sur demande"]);
   assert.deepEqual(menu.dishes[0].tags, ["Maison", "Signature", "Recommande"]);
   assert.equal(menu.dishes[0].houseNote, "Servir frais.");
@@ -146,6 +146,75 @@ test("buildRelationalSupabasePublicMenu maps categories, dishes, metadata, and p
       ["Desserts", "Finir doucement"]
     ]
   );
+});
+
+test("relational public menu uses persisted dish display order instead of UUID order", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "sauge-noire",
+    restaurantRow: {
+      id: restaurantId,
+      name: "Sauge Noire",
+      slug: "sauge-noire"
+    },
+    menuRow: {
+      id: menuId,
+      restaurant_id: restaurantId,
+      settings_json: { baseCurrency: "CAD", defaultLocale: "fr-CA" }
+    },
+    categoryRows: [
+      {
+        id: entreeId,
+        restaurant_id: restaurantId,
+        menu_id: menuId,
+        name: "Cru & frais",
+        display_order: 1
+      }
+    ],
+    dishRows: [
+      {
+        id: "00000000-0000-4000-8000-000000000001",
+        restaurant_id: restaurantId,
+        menu_id: menuId,
+        category_id: entreeId,
+        name: "Deuxième plat",
+        slug: "deuxieme-plat",
+        display_order: 2,
+        is_available: true
+      },
+      {
+        id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        restaurant_id: restaurantId,
+        menu_id: menuId,
+        category_id: entreeId,
+        name: "Premier plat",
+        slug: "premier-plat",
+        display_order: 1,
+        is_available: true
+      }
+    ]
+  });
+
+  assert.deepEqual(
+    menu.dishes.map((dish) => dish.name),
+    ["Premier plat", "Deuxième plat"]
+  );
+});
+
+test("relational public menu keeps zero-valued legacy dishes in stable id order", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "sauge-noire",
+    restaurantRow: { id: restaurantId, name: "Sauge Noire", slug: "sauge-noire" },
+    menuRow: { id: menuId, restaurant_id: restaurantId, settings_json: {} },
+    categoryRows: [
+      { id: entreeId, restaurant_id: restaurantId, menu_id: menuId, name: "Cru & frais", display_order: 1 }
+    ],
+    dishRows: [
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", restaurant_id: restaurantId, menu_id: menuId, category_id: entreeId, name: "Deuxième", is_available: true, display_order: 0 },
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", restaurant_id: restaurantId, menu_id: menuId, category_id: entreeId, name: "Premier", is_available: true, display_order: 0 }
+    ]
+  });
+
+  assert.deepEqual(menu.dishes.map((dish) => dish.name), ["Premier", "Deuxième"]);
 });
 
 test("buildRelationalSupabasePublicMenu reads settings from menu metadata fallback", () => {

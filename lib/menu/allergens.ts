@@ -257,8 +257,6 @@ export type AllergenPublicCopy = {
   contains: string;
   mayContain: string;
   confirmedFree: string;
-  unknown: string;
-  unknownBody: (count: number) => string;
 };
 
 const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
@@ -268,10 +266,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Déclarations allergènes",
     contains: "Contient",
     mayContain: "Peut contenir",
-    confirmedFree: "Déclaré sans",
-    unknown: "Information non confirmée",
-    unknownBody: (count) =>
-      `${count} allergène${count > 1 ? "s" : ""} ${count > 1 ? "ne sont pas confirmés" : "n’est pas confirmé"} pour ce plat.`
+    confirmedFree: "Déclaré sans"
   },
   en: {
     warning: "Allergen information is provided by the restaurant. If you have an allergy, always confirm with staff before ordering.",
@@ -279,10 +274,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Allergen declarations",
     contains: "Contains",
     mayContain: "May contain",
-    confirmedFree: "Declared free from",
-    unknown: "Information not confirmed",
-    unknownBody: (count) =>
-      `${count} allergen${count > 1 ? "s are" : " is"} not confirmed for this dish.`
+    confirmedFree: "Declared free from"
   },
   es: {
     warning: "La información sobre alérgenos la declara el restaurante. Si tienes una alergia, confirma siempre con el personal antes de pedir.",
@@ -290,9 +282,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Declaraciones de alérgenos",
     contains: "Contiene",
     mayContain: "Puede contener",
-    confirmedFree: "Declarado sin",
-    unknown: "Información no confirmada",
-    unknownBody: (count) => `${count} alérgeno${count > 1 ? "s" : ""} no está confirmado para este plato.`
+    confirmedFree: "Declarado sin"
   },
   it: {
     warning: "Le informazioni sugli allergeni sono dichiarate dal ristorante. In caso di allergia, conferma sempre con il personale prima di ordinare.",
@@ -300,9 +290,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Dichiarazioni sugli allergeni",
     contains: "Contiene",
     mayContain: "Può contenere",
-    confirmedFree: "Dichiarato senza",
-    unknown: "Informazione non confermata",
-    unknownBody: (count) => `${count} allergen${count > 1 ? "i" : "e"} non è confermato per questo piatto.`
+    confirmedFree: "Dichiarato senza"
   },
   de: {
     warning: "Allergeninformationen werden vom Restaurant bereitgestellt. Bei einer Allergie bitte vor der Bestellung immer das Personal fragen.",
@@ -310,9 +298,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Allergenerklärungen",
     contains: "Enthält",
     mayContain: "Kann enthalten",
-    confirmedFree: "Als frei von deklariert",
-    unknown: "Information nicht bestätigt",
-    unknownBody: (count) => `${count} Allergen${count > 1 ? "e" : ""} ist für dieses Gericht nicht bestätigt.`
+    confirmedFree: "Als frei von deklariert"
   },
   el: {
     warning: "Οι πληροφορίες για τα αλλεργιογόνα παρέχονται από το εστιατόριο. Αν έχετε αλλεργία, επιβεβαιώστε πάντα με το προσωπικό πριν παραγγείλετε.",
@@ -320,9 +306,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Δηλώσεις αλλεργιογόνων",
     contains: "Περιέχει",
     mayContain: "Μπορεί να περιέχει",
-    confirmedFree: "Δηλωμένο χωρίς",
-    unknown: "Μη επιβεβαιωμένη πληροφορία",
-    unknownBody: (count) => `${count} αλλεργιογόνο${count > 1 ? "α" : ""} δεν έχει επιβεβαιωθεί για αυτό το πιάτο.`
+    confirmedFree: "Δηλωμένο χωρίς"
   },
   ar: {
     warning: "يقدم المطعم معلومات مسببات الحساسية. إذا كنت تعاني من حساسية، فتأكد دائماً من الموظفين قبل الطلب.",
@@ -330,15 +314,31 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "إقرارات مسببات الحساسية",
     contains: "يحتوي على",
     mayContain: "قد يحتوي على",
-    confirmedFree: "معلن خلوه من",
-    unknown: "معلومات غير مؤكدة",
-    unknownBody: (count) => `لم يتم تأكيد ${count} من مسببات الحساسية لهذا الطبق.`
+    confirmedFree: "معلن خلوه من"
   }
 };
 
 export function getAllergenPublicCopy(locale: string = "fr"): AllergenPublicCopy {
   const language = locale.toLowerCase().split("-")[0];
   return ALLERGEN_PUBLIC_COPY[language] ?? ALLERGEN_PUBLIC_COPY.en;
+}
+
+export function getRequestedModificationsAllergenDisclaimer(
+  locale: string = "fr",
+  localizedUiCopy?: Record<string, unknown>
+): string {
+  const allergensCopy = localizedUiCopy?.allergens;
+  if (!allergensCopy || typeof allergensCopy !== "object" || Array.isArray(allergensCopy)) {
+    return "";
+  }
+  const disclaimer = (allergensCopy as Record<string, unknown>)
+    .requestedModificationsDisclaimer;
+  if (!disclaimer || typeof disclaimer !== "object" || Array.isArray(disclaimer)) {
+    return "";
+  }
+  const language = locale.toLowerCase().startsWith("en") ? "en" : "fr";
+  const value = (disclaimer as Record<string, unknown>)[language];
+  return typeof value === "string" ? value.trim().slice(0, 500) : "";
 }
 
 const ALLERGEN_ID_SET = new Set<string>(ALLERGEN_REGISTRY.map((item) => item.id));
@@ -393,6 +393,31 @@ function stringList(value: unknown): string[] {
     .slice(0, 64);
 }
 
+/**
+ * Free-text allergens are kept separate from the fixed registry so they never
+ * become an unvalidated structured allergen id. They are public declarations,
+ * not claims that the ingredient is absent from the kitchen.
+ */
+export function normalizeCustomAllergens(value: unknown): string[] {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,;\n]+/)
+      : [];
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const rawValue of rawValues) {
+    if (typeof rawValue !== "string") continue;
+    const value = rawValue.trim().slice(0, 120);
+    const key = normalizeText(value);
+    if (!value || seen.has(key)) continue;
+    seen.add(key);
+    values.push(value);
+    if (values.length >= 16) break;
+  }
+  return values;
+}
+
 function registryEntryForLegacyValue(value: string) {
   const normalized = normalizeText(value);
   return ALLERGEN_REGISTRY.find((item) =>
@@ -400,6 +425,17 @@ function registryEntryForLegacyValue(value: string) {
       const candidate = normalizeText(alias);
       return normalized === candidate || normalized.includes(` ${candidate} `) || normalized.startsWith(`${candidate} `) || normalized.endsWith(` ${candidate}`);
     })
+  );
+}
+
+export function fixedAllergenIdForValue(value: unknown): AllergenId | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  return registryEntryForLegacyValue(value)?.id ?? null;
+}
+
+export function customAllergensFromLegacyValues(value: unknown): string[] {
+  return normalizeCustomAllergens(value).filter(
+    (item) => fixedAllergenIdForValue(item) === null
   );
 }
 

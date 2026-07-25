@@ -14,9 +14,11 @@ import {
   type PublicMenuSettings
 } from "./publicMenuSettings.ts";
 import {
+  customAllergensFromLegacyValues,
   normalizeAllergenData,
   type DishAllergenDeclaration
 } from "./allergens.ts";
+import { capitalizeListItems } from "./listText.ts";
 
 export type PublicMenuDish = {
   id: string;
@@ -105,6 +107,7 @@ export type PublicMenuDish = {
   isRecommended?: boolean;
   ingredients: string[];
   allergens: string[];
+  customAllergens?: string[];
   allergenDeclarations?: DishAllergenDeclaration[];
   allergenLegacyValues?: string[];
   allergenReviewRequired?: boolean;
@@ -478,6 +481,26 @@ function getStringListFromSources(
   return metadataList.length > 0 ? metadataList : getStringList(row, candidates);
 }
 
+function getExplicitStringListFromSources(
+  row: PublicMenuRow,
+  metadata: PublicMenuRow,
+  candidates: string[]
+): { values: string[]; present: boolean } {
+  const metadataKey = candidates.find((key) =>
+    Object.prototype.hasOwnProperty.call(metadata, key)
+  );
+  if (metadataKey) {
+    return { values: getStringList(metadata, [metadataKey]), present: true };
+  }
+  const rowKey = candidates.find((key) =>
+    Object.prototype.hasOwnProperty.call(row, key)
+  );
+  if (rowKey) {
+    return { values: getStringList(row, [rowKey]), present: true };
+  }
+  return { values: [], present: false };
+}
+
 function getAllergenDeclarationSource(
   row: PublicMenuRow,
   metadata: PublicMenuRow
@@ -646,8 +669,54 @@ function includeDishRow(
 }
 
 function dishSortOrder(row: PublicMenuRow, index: number): number {
-  const sortOrder = getNumber(row, ["sort_order", "sortOrder", "position"], 0);
-  return sortOrder > 0 ? sortOrder : 10_000 + index;
+  const rowSortOrder = getNumber(
+    row,
+    ["display_order", "displayOrder", "sort_order", "sortOrder", "position"],
+    0
+  );
+  const metadataSortOrder = getNumber(
+    getObject(row, ["metadata", "meta"]),
+    ["display_order", "displayOrder", "sort_order", "sortOrder", "position"],
+    0
+  );
+  const sortOrder = rowSortOrder > 0 ? rowSortOrder : metadataSortOrder;
+  if (sortOrder > 0) return sortOrder;
+  const rowHasPersistedOrder = [
+    "display_order",
+    "displayOrder",
+    "sort_order",
+    "sortOrder",
+    "position"
+  ].some((key) => Object.prototype.hasOwnProperty.call(row, key));
+  const metadata = getObject(row, ["metadata", "meta"]);
+  const metadataHasPersistedOrder = [
+    "display_order",
+    "displayOrder",
+    "sort_order",
+    "sortOrder",
+    "position"
+  ].some((key) => Object.prototype.hasOwnProperty.call(metadata, key));
+  return rowHasPersistedOrder || metadataHasPersistedOrder
+    ? 10_000
+    : 10_000 + index;
+}
+
+function dishStableSortKey(row: PublicMenuRow, index: number): string {
+  return getString(row, ["id", "dish_id", "slug", "dish_slug"], `dish-${index}`);
+}
+
+function compareDishEntries(
+  a: { row: PublicMenuRow; index: number; order: number },
+  b: { row: PublicMenuRow; index: number; order: number }
+): number {
+  return (
+    a.order - b.order ||
+    dishStableSortKey(a.row, a.index).localeCompare(
+      dishStableSortKey(b.row, b.index),
+      "en"
+    ) ||
+    a.index - b.index
+  );
 }
 
 function rowMatchesValue(
@@ -849,6 +918,13 @@ function mapDishRow(
     "allergenes",
     "allergen_list"
   ]);
+  const customAllergenSource = getExplicitStringListFromSources(row, metadata, [
+    "customAllergens",
+    "custom_allergens"
+  ]);
+  const customAllergens = customAllergenSource.present
+    ? customAllergensFromLegacyValues(customAllergenSource.values)
+    : undefined;
   const allergenData = normalizeAllergenData(
     getAllergenDeclarationSource(row, metadata),
     legacyAllergens
@@ -965,18 +1041,23 @@ function mapDishRow(
     available: isDishAvailable(row),
     ...(isSignature ? { isSignature } : {}),
     ...(isRecommended ? { isRecommended } : {}),
-    ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
+    ingredients: capitalizeListItems(
+      getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"])
+    ),
     allergens: legacyAllergens,
+    ...(customAllergens === undefined ? {} : { customAllergens }),
     allergenDeclarations: allergenData.declarations,
     allergenLegacyValues: allergenData.legacyValues,
     allergenReviewRequired: allergenData.reviewRequired,
-    options: mergeStringLists(
-      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
-      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
-      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
-      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
-      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
-      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
+    options: capitalizeListItems(
+      mergeStringLists(
+        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
+        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
+      )
     ),
     houseNote:
       getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"], "") ||
@@ -1264,7 +1345,7 @@ export function buildSupabasePublicMenu(
   const dishes = scopedRows
     .filter((row) => includeDishRow(row, options))
     .map((row, index) => ({ row, index, order: dishSortOrder(row, index) }))
-    .sort((a, b) => a.order - b.order || a.index - b.index)
+    .sort(compareDishEntries)
     .slice(0, 200)
     .map(({ row, index }) => mapDishRow(row, index, settings));
 
@@ -1343,7 +1424,7 @@ export function buildRelationalSupabasePublicMenu(args: {
           dishSortOrder(row, index)
       };
     })
-    .sort((a, b) => a.order - b.order || a.index - b.index)
+    .sort(compareDishEntries)
     .slice(0, 200)
     .map(({ row, index }) => mapDishRow(row, index, settings));
 
