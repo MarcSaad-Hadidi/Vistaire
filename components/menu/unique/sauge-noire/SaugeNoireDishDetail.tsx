@@ -143,6 +143,10 @@ function buildMenuHref(
   });
 }
 
+function stopDishSwipePropagation(event: React.PointerEvent<HTMLElement>) {
+  event.stopPropagation();
+}
+
 export function SaugeNoireDishDetail({
   menu,
   query,
@@ -379,7 +383,13 @@ export function SaugeNoireDishDetail({
                 {targetShowModelViewer ? copy.hide3d : copy.show3d}
               </button>
               {targetShowModelViewer ? (
-                <div className={styles.modelStage}>
+                <div
+                  className={styles.modelStage}
+                  onPointerDown={stopDishSwipePropagation}
+                  onPointerMove={stopDishSwipePropagation}
+                  onPointerUp={stopDishSwipePropagation}
+                  onPointerCancel={stopDishSwipePropagation}
+                >
                   <LazyDishModelViewer
                     dish={modelViewerDishFromPublicDish(targetDish)}
                     minimalChrome

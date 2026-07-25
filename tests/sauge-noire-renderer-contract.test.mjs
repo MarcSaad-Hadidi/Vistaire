@@ -94,6 +94,8 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   assert.match(source, /transitionDish/);
   assert.match(source, /renderDishPaper\(transitionDish, true\)/);
   assert.match(source, /data-transition-preview/);
+  assert.match(source, /function stopDishSwipePropagation/);
+  assert.match(source, /className=\{styles\.modelStage\}[\s\S]*onPointerDown=\{stopDishSwipePropagation\}[\s\S]*onPointerUp=\{stopDishSwipePropagation\}/);
   assert.match(styles, /\.pageTurnNext/);
   assert.match(styles, /\.pageTurnPrevious/);
   assert.match(styles, /\.transitionPreview\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/);

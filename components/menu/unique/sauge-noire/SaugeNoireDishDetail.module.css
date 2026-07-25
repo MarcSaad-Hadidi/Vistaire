@@ -408,6 +408,7 @@
 .modelStage {
   width: 100%;
   margin-top: 18px;
+  touch-action: none;
 }
 
 .modelLoading {
