@@ -361,8 +361,7 @@
   scrollbar-width: thin;
 }
 
-.pageFlipPage:has(.coverPage),
-.pageFlipPage:has(.contentsPage) {
+.pageFlipPage:has(.coverPage) {
   overflow: clip;
 }
 
@@ -374,8 +373,7 @@
   overflow: auto;
 }
 
-.pageFlipFallback:has(.coverPage),
-.pageFlipFallback:has(.contentsPage) {
+.pageFlipFallback:has(.coverPage) {
   overflow: clip;
 }
 
@@ -399,13 +397,14 @@
 
 .coverPage {
   justify-content: flex-start;
-  padding-top: 222px;
+  padding-top: clamp(156px, 18vh, 176px);
 }
 
 .coverTap {
   display: flex;
+  flex: 1;
   width: 100%;
-  min-height: calc(100svh - 270px);
+  min-height: 0;
   flex-direction: column;
   align-items: center;
   border: 0;
@@ -416,8 +415,16 @@
 
 .coverBotanical {
   width: clamp(142px, 25vw, 260px);
-  height: clamp(250px, 40vh, 420px);
-  margin-bottom: 24px;
+  height: clamp(180px, 24vh, 240px);
+  margin-bottom: 12px;
+}
+
+.coverTitle h1 {
+  font-size: clamp(3.1rem, 6.5vw, 6rem);
+}
+
+.coverPage .coverTitle p {
+  margin-top: 12px;
 }
 
 .coverTitle h1,
@@ -472,20 +479,25 @@
 }
 
 .coverMenuTitle {
-  margin: 34px 0 0;
+  margin: 18px 0 0;
   color: var(--sn-bronze);
-  font-size: clamp(1.55rem, 3vw, 3rem);
+  font-size: clamp(1.35rem, 2.6vw, 2.4rem);
 }
 
 .coverUnderline {
   width: 64px;
   height: 1px;
-  margin-top: 26px;
+  margin-top: 14px;
   background: var(--sn-bronze);
 }
 
 .coverCity,
-.coverYear,
+.coverYear {
+  margin: 14px 0 0;
+  font-size: clamp(1rem, 2vw, 1.7rem);
+  font-style: italic;
+}
+
 .endingCity,
 .endingUrl {
   margin: 24px 0 0;
@@ -496,18 +508,18 @@
 .coverDot {
   width: 7px;
   height: 7px;
-  margin: 18px 0 0;
+  margin: 10px 0 0;
 }
 
 .coverYear {
-  margin-top: 18px;
+  margin-top: 10px;
   font-style: normal;
   letter-spacing: 0.16em;
 }
 
 .coverOpen {
   margin-top: auto;
-  padding-top: 42px;
+  padding-top: 18px;
   font-size: clamp(0.94rem, 1.7vw, 1.42rem);
   font-style: italic;
 }
@@ -1142,13 +1154,13 @@
   }
 
   .coverPage {
-    padding-top: 156px;
+    padding-top: clamp(132px, 18svh, 156px);
   }
 
   .coverBotanical {
     width: 116px;
-    height: 210px;
-    margin-bottom: 12px;
+    height: clamp(160px, 25svh, 210px);
+    margin-bottom: 10px;
   }
 
   .coverTitle h1 {

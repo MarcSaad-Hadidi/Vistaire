@@ -108,15 +108,17 @@ test("page flip cleanup and clone focus protection are explicit", async () => {
   assert.match(experiment, /button, a, input, select, textarea/);
 });
 
-test("the book keeps its frame fixed and limits scrolling to overflowing dish pages", async () => {
+test("the book keeps its frame fixed while contents and dish pages can scroll when needed", async () => {
   const styles = await readFile(stylesPath, "utf8");
 
   assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.bookHeader\s*\{[\s\S]*position:\s*sticky;[\s\S]*top:\s*0;/);
   assert.match(styles, /\.bookHeader\s*\{[\s\S]*margin-bottom:\s*-92px;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overflow:\s*auto;/);
-  assert.match(styles, /\.pageFlipPage:has\(\.coverPage\),[\s\S]*\.pageFlipPage:has\(\.contentsPage\)\s*\{[\s\S]*overflow:\s*clip;/);
-  assert.match(styles, /\.pageFlipFallback:has\(\.coverPage\),[\s\S]*\.pageFlipFallback:has\(\.contentsPage\)\s*\{[\s\S]*overflow:\s*clip;/);
+  assert.match(styles, /\.pageFlipPage:has\(\.coverPage\)\s*\{[\s\S]*overflow:\s*clip;/);
+  assert.doesNotMatch(styles, /\.pageFlipPage:has\(\.coverPage\),[\s\S]*\.pageFlipPage:has\(\.contentsPage\)/);
+  assert.match(styles, /\.pageFlipFallback:has\(\.coverPage\)\s*\{[\s\S]*overflow:\s*clip;/);
+  assert.doesNotMatch(styles, /\.pageFlipFallback:has\(\.coverPage\),[\s\S]*\.pageFlipFallback:has\(\.contentsPage\)/);
   assert.match(styles, /\.pageViewport\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.pageFlipBook\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
 });
