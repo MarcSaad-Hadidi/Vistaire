@@ -65,6 +65,7 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(experiment, /useMouseEvents=\{false\}/);
   assert.match(experiment, /showPageCorners=\{false\}/);
   assert.match(experiment, /onPointerDown=\{handlePointerDown\}/);
+  assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
   assert.match(experiment, /onPointerUp=\{handlePointerUp\}/);
   assert.match(experiment, /onTouchStart=\{handleTouchStart\}/);
   assert.match(experiment, /onTouchEnd=\{handleTouchEnd\}/);
@@ -80,12 +81,14 @@ test("page swipes can start on dish links without hijacking real controls", asyn
 
   assert.match(
     experiment,
-    /target\.closest\(\s*"button, input, select, textarea, \[role=button\]/
+    /target\.closest\(\s*"input, select, textarea, \[contenteditable=true\], \[data-no-page-flip\]"/
   );
   assert.doesNotMatch(
     experiment,
-    /target\.closest\(\s*"button, a, input, select, textarea, \[role=button\]/
+    /target\.closest\(\s*"button, input, select, textarea/
   );
+  assert.match(experiment, /const SWIPE_DISTANCE = 32/);
+  assert.match(experiment, /Math\.abs\(deltaX\) <= Math\.abs\(deltaY\)/);
 });
 
 test("lab does not introduce document or raster substitutes", async () => {

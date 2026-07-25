@@ -77,6 +77,8 @@ type FlipDimensions = {
   height: number;
 };
 
+const SWIPE_DISTANCE = 32;
+
 function parsePageIndex(event: PageFlipEvent | number): number | null {
   const value = typeof event === "number" ? event : event.data;
   const index = typeof value === "string" ? Number(value) : value;
@@ -90,7 +92,7 @@ function isPageFlipProtectedTarget(target: EventTarget | null): boolean {
     target instanceof HTMLElement &&
     Boolean(
       target.closest(
-        "button, input, select, textarea, [role=button], [role=menu], [role=menuitem], [role=listbox], [role=option], [data-no-page-flip]"
+        "input, select, textarea, [contenteditable=true], [data-no-page-flip]"
       )
     )
   );
@@ -262,7 +264,7 @@ export function SaugeNoirePageFlipExperiment({
 
     const deltaX = endX - start.x;
     const deltaY = endY - start.y;
-    if (Math.abs(deltaX) < 44 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (Math.abs(deltaX) < SWIPE_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY)) return;
 
     const pageFlip = bookRef.current?.pageFlip();
     if (!pageFlip) return;
@@ -277,15 +279,23 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "touch") return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     rememberGestureStart(event.clientX, event.clientY, event.target);
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "touch") return;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     handleSwipeEnd(event.clientX, event.clientY, () => event.preventDefault());
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = gestureStartRef.current;
+    if (!start) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) >= SWIPE_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY)) {
+      event.preventDefault();
+    }
   };
 
   const handlePointerCancel = () => {
@@ -314,7 +324,7 @@ export function SaugeNoirePageFlipExperiment({
     if (!start || !touch) return;
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
-    if (Math.abs(deltaX) >= 44 && Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (Math.abs(deltaX) >= SWIPE_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY)) {
       event.preventDefault();
     }
   };
@@ -327,6 +337,7 @@ export function SaugeNoirePageFlipExperiment({
       ref={viewportRef}
       className={styles.pageFlipViewport}
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onTouchStart={handleTouchStart}
