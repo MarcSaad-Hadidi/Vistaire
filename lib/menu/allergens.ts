@@ -428,6 +428,17 @@ function registryEntryForLegacyValue(value: string) {
   );
 }
 
+export function fixedAllergenIdForValue(value: unknown): AllergenId | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  return registryEntryForLegacyValue(value)?.id ?? null;
+}
+
+export function customAllergensFromLegacyValues(value: unknown): string[] {
+  return normalizeCustomAllergens(value).filter(
+    (item) => fixedAllergenIdForValue(item) === null
+  );
+}
+
 function isMayContainValue(value: string): boolean {
   return /(^|\s)(may contain|peut contenir|traces? de|might contain|cross contamination|contamination croisee)(\s|$)/i.test(
     normalizeText(value)

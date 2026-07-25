@@ -75,7 +75,7 @@ export async function readSupabaseRowsByFilters<T extends AnyRow>(args: {
   columns: string;
   filters: Record<string, string>;
   limit: number;
-  orderBy: string;
+  orderBy: string | string[];
 }): Promise<DataReadResult<T>> {
   const { table, columns, filters, limit, orderBy } = args;
   if (Object.values(filters).some((value) => !value.trim())) return { ok: false, error: "Scoped reads require identifiers.", rows: [] };
@@ -83,7 +83,10 @@ export async function readSupabaseRowsByFilters<T extends AnyRow>(args: {
   if (!admin.ok) return { ok: false, error: admin.reason, rows: [] };
   let query = admin.client.from(table).select(columns);
   for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
-  const { data, error } = await query.order(orderBy, { ascending: true }).limit(limit);
+  for (const column of Array.isArray(orderBy) ? orderBy : [orderBy]) {
+    query = query.order(column, { ascending: true });
+  }
+  const { data, error } = await query.limit(limit);
   if (error) return { ok: false, error: error.message, rows: [] };
   return { ok: true, rows: (data ?? []) as unknown as T[] };
 }

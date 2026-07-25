@@ -43,10 +43,8 @@ test("owner menu mutations preserve real asset metadata while storing dish detai
     mutations,
     /dishMetadata\(\{ photoStatus: "planned" \}, parsedPrice, candidate\)/
   );
-  assert.match(
-    mutations,
-    /metadata:\s*dishMetadata\(existing\.data\.metadata, parsedPrice, candidate\)/
-  );
+  assert.match(mutations, /const metadata = dishMetadata\(existing\.data\.metadata, parsedPrice, candidate\)/);
+  assert.match(mutations, /metadata,/);
   assert.match(publicCore, /PUBLIC_MENU_OPTION_FIELD_KEYS/);
   assert.match(publicCore, /"extras"/);
   assert.match(publicCore, /"accompaniments"/);
@@ -76,10 +74,15 @@ test("dish order has a migration-backed field and metadata compatibility fallbac
   );
   const mutations = await readFile("lib/owner/menuMutations.ts", "utf8");
   const publicCore = await readFile("lib/menu/publicMenuCore.ts", "utf8");
+  const publicMenu = await readFile("lib/menu/publicMenu.ts", "utf8");
 
   assert.match(migration, /add column if not exists display_order integer not null default 0/);
   assert.match(migration, /metadata ->> 'displayOrder'/);
+  assert.match(migration, /candidate\.value::numeric <= 2147483647/);
+  assert.match(migration, /length\(candidate\.value\) <= 10/);
   assert.match(mutations, /nextDishDisplayOrder/);
   assert.match(mutations, /displayOrder: displayOrder\.value/);
   assert.match(publicCore, /metadataSortOrder/);
+  assert.match(publicCore, /dishStableSortKey/);
+  assert.match(publicMenu, /orderBy: \["display_order", "id"\]/);
 });

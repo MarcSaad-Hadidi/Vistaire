@@ -32,6 +32,7 @@ import {
   parsePriceToCents
 } from "./price.ts";
 import {
+  fixedAllergenIdForValue,
   legacyAllergensFromDeclarations,
   normalizeCustomAllergens,
   normalizeAllergenData,
@@ -508,6 +509,12 @@ function normalizeDishes(
     const customAllergens = normalizeCustomAllergens(
       dish.customAllergens ?? dish.custom_allergens
     );
+    if (customAllergens.some((value) => fixedAllergenIdForValue(value))) {
+      return {
+        ok: false,
+        error: "Les allergenes du registre fixe doivent etre declares dans la liste correspondante."
+      };
+    }
     rawLegacyAllergens.push(...customAllergens);
     const rawAllergenDeclarations =
       dish.allergenDeclarations ?? dish.allergen_declarations;

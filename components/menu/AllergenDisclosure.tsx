@@ -1,5 +1,6 @@
 import type { PublicMenuDish } from "@/lib/menu/publicMenuCore";
 import {
+  customAllergensFromLegacyValues,
   getAllergenDisplayGroups,
   getAllergenPublicCopy,
   getRequestedModificationsAllergenDisclaimer
@@ -7,7 +8,10 @@ import {
 import styles from "./AllergenDisclosure.module.css";
 
 type AllergenDisclosureProps = {
-  dish: Pick<PublicMenuDish, "allergens" | "customAllergens" | "allergenDeclarations">;
+  dish: Pick<
+    PublicMenuDish,
+    "allergens" | "customAllergens" | "allergenDeclarations" | "allergenLegacyValues"
+  >;
   locale?: string;
   includeWarning?: boolean;
   localizedUiCopy?: Record<string, unknown>;
@@ -58,7 +62,9 @@ export function AllergenDisclosure({
 }: AllergenDisclosureProps) {
   const copy = getAllergenPublicCopy(locale);
   const groups = getAllergenDisplayGroups(dish, locale);
-  const customAllergens = dish.customAllergens ?? [];
+  const customAllergens = customAllergensFromLegacyValues(
+    dish.customAllergens ?? dish.allergenLegacyValues ?? dish.allergens
+  );
   const customLabel = locale.toLowerCase().startsWith("en")
     ? "Other allergens"
     : locale.toLowerCase().startsWith("es")

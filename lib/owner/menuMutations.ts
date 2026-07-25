@@ -17,6 +17,8 @@ import {
   deleteDishMediaStorageTargets
 } from "@/lib/owner/dishMediaGarbageCollector";
 import {
+  customAllergensFromLegacyValues,
+  fixedAllergenIdForValue,
   legacyAllergensFromDeclarations,
   normalizeCustomAllergens,
   normalizeAllergenData,
@@ -121,6 +123,11 @@ function allergenInput(candidate: Record<string, unknown>): {
   const customAllergens = normalizeCustomAllergens(
     candidate.customAllergens ?? candidate.custom_allergens
   );
+  if (customAllergens.some((value) => fixedAllergenIdForValue(value))) {
+    return {
+      error: "Les allergenes du registre fixe doivent etre declares dans la liste correspondante."
+    };
+  }
   const legacyValues = mergeStringListInput(candidate.allergens, customAllergens);
   const rawDeclarations = candidate.allergenDeclarations ?? candidate.allergen_declarations;
   try {
@@ -772,7 +779,7 @@ export async function updateOwnerMenuDish(args: {
 
   const existing = await args.client
     .from("menu_dishes")
-    .select("id,menu_id,metadata,allergen_declarations")
+    .select("id,menu_id,metadata,allergens,allergen_declarations")
     .eq("id", id)
     .eq("restaurant_id", args.restaurantId)
     .maybeSingle();
@@ -783,14 +790,34 @@ export async function updateOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Plat introuvable." };
   }
 
+  const existingMetadata = jsonObject(existing.data.metadata);
+  const existingLegacyAllergens = mergeStringListInput(
+    existing.data.allergens,
+    existingMetadata.allergens,
+    existingMetadata.allergenLegacyValues,
+    existingMetadata.allergen_legacy_values
+  );
   const existingCustomAllergens = normalizeCustomAllergens(
-    jsonObject(existing.data.metadata).customAllergens
+    existingMetadata.customAllergens ?? existingMetadata.custom_allergens
   );
   const hasCustomAllergenInput =
     "customAllergens" in candidate || "custom_allergens" in candidate;
   const allergens = hasCustomAllergenInput
     ? allergenData.legacyValues
-    : mergeStringListInput(allergenData.legacyValues, existingCustomAllergens);
+    : mergeStringListInput(
+        allergenData.legacyValues,
+        existingLegacyAllergens,
+        existingCustomAllergens
+      );
+  const metadata = dishMetadata(existing.data.metadata, parsedPrice, candidate);
+  if (!hasCustomAllergenInput) {
+    const preservedCustomAllergens = customAllergensFromLegacyValues(
+      mergeStringListInput(existingCustomAllergens, existingLegacyAllergens)
+    );
+    if (preservedCustomAllergens.length > 0) {
+      metadata.customAllergens = preservedCustomAllergens;
+    }
+  }
 
   const category = await categoryForDish({
     client: args.client,
@@ -834,7 +861,7 @@ export async function updateOwnerMenuDish(args: {
         allergenData,
         existing.data.allergen_declarations
       ),
-      metadata: dishMetadata(existing.data.metadata, parsedPrice, candidate),
+      metadata,
       updated_at: new Date().toISOString()
     })
     .eq("id", id)

@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   ALLERGEN_REGISTRY,
+  customAllergensFromLegacyValues,
+  fixedAllergenIdForValue,
   getAllergenDisplayGroups,
   getAllergenPublicCopy,
   getRequestedModificationsAllergenDisclaimer,
@@ -12,6 +14,15 @@ import {
   normalizeAllergenData,
   validateAllergenDeclarations
 } from "../lib/menu/allergens.ts";
+
+test("custom values cannot duplicate the fixed allergen registry", () => {
+  assert.equal(fixedAllergenIdForValue("Gluten"), "gluten");
+  assert.equal(fixedAllergenIdForValue("C\u00e9leri"), null);
+  assert.deepEqual(
+    customAllergensFromLegacyValues(["C\u00e9leri", "Gluten", "Lupin"]),
+    ["C\u00e9leri", "Lupin"]
+  );
+});
 
 test("localized requested-modifications disclaimer uses menu copy", () => {
   const localizedUiCopy = {

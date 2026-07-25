@@ -200,6 +200,23 @@ test("relational public menu uses persisted dish display order instead of UUID o
   );
 });
 
+test("relational public menu keeps zero-valued legacy dishes in stable id order", () => {
+  const menu = buildRelationalSupabasePublicMenu({
+    slug: "sauge-noire",
+    restaurantRow: { id: restaurantId, name: "Sauge Noire", slug: "sauge-noire" },
+    menuRow: { id: menuId, restaurant_id: restaurantId, settings_json: {} },
+    categoryRows: [
+      { id: entreeId, restaurant_id: restaurantId, menu_id: menuId, name: "Cru & frais", display_order: 1 }
+    ],
+    dishRows: [
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", restaurant_id: restaurantId, menu_id: menuId, category_id: entreeId, name: "Deuxième", is_available: true, display_order: 0 },
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", restaurant_id: restaurantId, menu_id: menuId, category_id: entreeId, name: "Premier", is_available: true, display_order: 0 }
+    ]
+  });
+
+  assert.deepEqual(menu.dishes.map((dish) => dish.name), ["Premier", "Deuxième"]);
+});
+
 test("buildRelationalSupabasePublicMenu reads settings from menu metadata fallback", () => {
   const menu = buildRelationalSupabasePublicMenu({
     slug: "le-comptoir-decimal",

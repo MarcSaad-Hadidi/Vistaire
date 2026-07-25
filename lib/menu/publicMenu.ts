@@ -43,7 +43,7 @@ async function readDishRows(
     table: "menu_dishes",
     columns: "*",
     filters,
-    orderBy: "display_order",
+    orderBy: ["display_order", "id"],
     limit: 1_000
   });
   if (ordered.ok || !isMissingDisplayOrderError(ordered)) return ordered;
@@ -51,7 +51,7 @@ async function readDishRows(
     table: "menu_dishes",
     columns: "*",
     filters,
-    orderBy: "id",
+    orderBy: ["id"],
     limit: 1_000
   });
 }

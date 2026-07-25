@@ -9,6 +9,7 @@ import type { PublicMenuCategory, PublicMenuDish } from "@/lib/menu/publicMenuCo
 import {
   ALLERGEN_REGISTRY,
   allergenLabel,
+  customAllergensFromLegacyValues,
   getAllergenStatus,
   legacyAllergensFromDeclarations,
   normalizeAllergenData,
@@ -294,7 +295,9 @@ export function OwnerRestaurantMenuManager({
       price: priceDraftFromDish(dish),
       description: dish.description,
       ingredientsText: dish.ingredients.join(", "),
-      customAllergensText: (dish.customAllergens ?? []).join(", "),
+      customAllergensText: customAllergensFromLegacyValues(
+        dish.customAllergens ?? dish.allergenLegacyValues ?? dish.allergens
+      ).join(", "),
       allergenDeclarations: declarationsForDish(dish),
       tagsText: dish.tags.join(", "),
       optionsText: dish.options.join(", "),
