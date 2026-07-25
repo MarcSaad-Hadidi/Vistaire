@@ -75,6 +75,19 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(flipPage, /data-sauge-flip-page-index=\{index\}/);
 });
 
+test("page swipes can start on dish links without hijacking real controls", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(
+    experiment,
+    /target\.closest\(\s*"button, input, select, textarea, \[role=button\]/
+  );
+  assert.doesNotMatch(
+    experiment,
+    /target\.closest\(\s*"button, a, input, select, textarea, \[role=button\]/
+  );
+});
+
 test("lab does not introduce document or raster substitutes", async () => {
   const experiment = await readFile(experimentPath, "utf8");
   const flipPage = await readFile(flipPagePath, "utf8");

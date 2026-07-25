@@ -90,7 +90,7 @@ function isPageFlipProtectedTarget(target: EventTarget | null): boolean {
     target instanceof HTMLElement &&
     Boolean(
       target.closest(
-        "button, a, input, select, textarea, [role=button], [role=menu], [role=menuitem], [role=listbox], [role=option], [data-no-page-flip]"
+        "button, input, select, textarea, [role=button], [role=menu], [role=menuitem], [role=listbox], [role=option], [data-no-page-flip]"
       )
     )
   );
