@@ -168,8 +168,9 @@
 .bookHeader {
   position: absolute;
   top: 0;
+  left: var(--sn-rail);
   z-index: 3;
-  width: 100%;
+  width: calc(100% - var(--sn-rail));
   height: 92px;
   min-height: 92px;
   margin-bottom: -92px;
@@ -179,7 +180,7 @@
 .bookHeader > .brandMark {
   position: absolute;
   top: 78px;
-  left: calc(50% + var(--sn-rail-half));
+  left: 50%;
   z-index: 4;
   transform: translateX(-50%);
 }

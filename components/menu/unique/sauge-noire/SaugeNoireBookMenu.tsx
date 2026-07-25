@@ -462,23 +462,23 @@ export function SaugeNoireBookMenu({
       style={{ "--sn-page-index": pageIndex } as CSSProperties}
     >
       <BookRail />
+      <BookHeader
+        locales={availableLocales}
+        currencies={availableCurrencies}
+        activeLocale={activeLocaleValue}
+        activeCurrency={currency}
+        onLocaleChange={selectLocale}
+        onCurrencyChange={selectCurrency}
+        showContentsLink={pageIndex > 1}
+        contentsLabel={copy.contents}
+        onContents={() => goToPage(1)}
+      />
       <div
         className={styles.paper}
         ref={paperRef}
         onPointerDown={pageFlipEnabled ? undefined : handlePointerDown}
         onPointerUp={pageFlipEnabled ? undefined : handlePointerUp}
       >
-        <BookHeader
-          locales={availableLocales}
-          currencies={availableCurrencies}
-          activeLocale={activeLocaleValue}
-          activeCurrency={currency}
-          onLocaleChange={selectLocale}
-          onCurrencyChange={selectCurrency}
-          showContentsLink={pageIndex > 1}
-          contentsLabel={copy.contents}
-          onContents={() => goToPage(1)}
-        />
         <div className={styles.pageViewport}>
           {pageFlipEnabled ? (
             <SaugeNoirePageFlipExperiment
