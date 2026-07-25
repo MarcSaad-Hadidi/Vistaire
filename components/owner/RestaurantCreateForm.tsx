@@ -479,6 +479,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [dishImageUrl, setDishImageUrl] = useState("");
   const [dishIngredients, setDishIngredients] = useState("");
   const [dishOptions, setDishOptions] = useState("");
+  const [dishCustomAllergens, setDishCustomAllergens] = useState("");
   const [dishAllergenDeclarations, setDishAllergenDeclarations] = useState<
     DishAllergenDeclaration[]
   >(emptyAllergenDeclarations);
@@ -707,6 +708,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDishImageUrl("");
     setDishIngredients("");
     setDishOptions("");
+    setDishCustomAllergens("");
     setDishAllergenDeclarations(emptyAllergenDeclarations());
     setDishTags([]);
     setDishChefNote("");
@@ -724,6 +726,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDishImageUrl(dish.imageUrl);
     setDishIngredients(dish.ingredients.join(", "));
     setDishOptions(dish.options.join(", "));
+    setDishCustomAllergens((dish.customAllergens ?? []).join(", "));
     const normalizedAllergens = normalizeAllergenData(
       dish.allergenDeclarations,
       dish.allergens
@@ -782,6 +785,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       imageUrl,
       ingredients: splitList(dishIngredients),
       allergens: legacyAllergensFromDeclarations(dishAllergenDeclarations),
+      customAllergens: splitList(dishCustomAllergens),
       allergenDeclarations: dishAllergenDeclarations,
       tags: dishTags,
       options: splitList(dishOptions),
@@ -956,6 +960,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             imageUrl: dish.imageUrl,
             ingredients: dish.ingredients,
             allergens: dish.allergens,
+            customAllergens: dish.customAllergens,
             allergenDeclarations: dish.allergenDeclarations,
             tags: dish.tags,
             options: dish.options,
@@ -1195,6 +1200,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             dishImageUrl={dishImageUrl}
             dishIngredients={dishIngredients}
             dishOptions={dishOptions}
+            dishCustomAllergens={dishCustomAllergens}
             dishAllergenDeclarations={dishAllergenDeclarations}
             dishTags={dishTags}
             dishChefNote={dishChefNote}
@@ -1208,6 +1214,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             onDishImageUrlChange={setDishImageUrl}
             onDishIngredientsChange={setDishIngredients}
             onDishOptionsChange={setDishOptions}
+            onDishCustomAllergensChange={setDishCustomAllergens}
             onAllergenStatusChange={updateAllergenStatus}
             onToggleTag={toggleTag}
             onDishChefNoteChange={setDishChefNote}
@@ -2397,6 +2404,7 @@ function DishesStep({
   dishImageUrl,
   dishIngredients,
   dishOptions,
+  dishCustomAllergens,
   dishAllergenDeclarations,
   dishTags,
   dishChefNote,
@@ -2410,6 +2418,7 @@ function DishesStep({
   onDishImageUrlChange,
   onDishIngredientsChange,
   onDishOptionsChange,
+  onDishCustomAllergensChange,
   onAllergenStatusChange,
   onToggleTag,
   onDishChefNoteChange,
@@ -2432,6 +2441,7 @@ function DishesStep({
   dishImageUrl: string;
   dishIngredients: string;
   dishOptions: string;
+  dishCustomAllergens: string;
   dishAllergenDeclarations: DishAllergenDeclaration[];
   dishTags: string[];
   dishChefNote: string;
@@ -2445,6 +2455,7 @@ function DishesStep({
   onDishImageUrlChange: (value: string) => void;
   onDishIngredientsChange: (value: string) => void;
   onDishOptionsChange: (value: string) => void;
+  onDishCustomAllergensChange: (value: string) => void;
   onAllergenStatusChange: (allergenId: string, status: AllergenStatus) => void;
   onToggleTag: (value: string) => void;
   onDishChefNoteChange: (value: string) => void;
@@ -2535,6 +2546,12 @@ function DishesStep({
             value={dishOptions}
             onChange={onDishOptionsChange}
             placeholder="Sans lactose sur demande, salade verte"
+          />
+          <Field
+            label="Autres allergènes"
+            value={dishCustomAllergens}
+            onChange={onDishCustomAllergensChange}
+            placeholder="Céleri, lupin, allergène fournisseur"
           />
           <Field
             label="Note du chef"

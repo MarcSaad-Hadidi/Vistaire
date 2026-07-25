@@ -18,10 +18,12 @@ import {
 } from "@/lib/owner/dishMediaGarbageCollector";
 import {
   legacyAllergensFromDeclarations,
+  normalizeCustomAllergens,
   normalizeAllergenData,
   validateAllergenDeclarations,
   type DishAllergenDeclaration
 } from "@/lib/menu/allergens";
+import { capitalizeListItems } from "@/lib/menu/listText";
 
 type MenuMutationResult =
   | { ok: true; record: Record<string, unknown> }
@@ -113,9 +115,13 @@ function priceInput(value: unknown): string {
 function allergenInput(candidate: Record<string, unknown>): {
   declarations: DishAllergenDeclaration[];
   legacyValues: string[];
+  customAllergens: string[];
   explicit: boolean;
 } | { error: string } {
-  const legacyValues = stringListInput(candidate.allergens);
+  const customAllergens = normalizeCustomAllergens(
+    candidate.customAllergens ?? candidate.custom_allergens
+  );
+  const legacyValues = mergeStringListInput(candidate.allergens, customAllergens);
   const rawDeclarations = candidate.allergenDeclarations ?? candidate.allergen_declarations;
   try {
     const declarations =
@@ -125,6 +131,7 @@ function allergenInput(candidate: Record<string, unknown>): {
     return {
       declarations,
       legacyValues: legacyAllergensFromDeclarations(declarations, legacyValues),
+      customAllergens,
       explicit: rawDeclarations !== undefined
     };
   } catch {
@@ -375,6 +382,59 @@ async function nextCategoryOrder(
   return Number.isFinite(value) ? value + 1 : 1;
 }
 
+async function nextDishDisplayOrder(args: {
+  client: SupabaseClient;
+  menuId: string;
+  categoryId: string;
+}): Promise<
+  | { ok: true; value: number; supportsColumn: boolean }
+  | { ok: false; error: string }
+> {
+  const legacyDishCount = async () =>
+    args.client
+      .from("menu_dishes")
+      .select("id", { count: "exact", head: true })
+      .eq("menu_id", args.menuId)
+      .eq("category_id", args.categoryId);
+
+  const current = await args.client
+    .from("menu_dishes")
+    .select("display_order")
+    .eq("menu_id", args.menuId)
+    .eq("category_id", args.categoryId)
+    .order("display_order", { ascending: false })
+    .limit(1);
+
+  if (current.error) {
+    if (isMissingSettingsColumnError(current.error, "display_order")) {
+      const legacyCount = await legacyDishCount();
+      if (legacyCount.error) {
+        return { ok: false, error: "Ordre des plats impossible a verifier." };
+      }
+      return {
+        ok: true,
+        value: 10_000 + (legacyCount.count ?? 0),
+        supportsColumn: false
+      };
+    }
+    return { ok: false, error: "Ordre des plats impossible a verifier." };
+  }
+
+  const highest = Number(current.data?.[0]?.display_order ?? 0);
+  if (Number.isFinite(highest) && highest > 0) {
+    return { ok: true, value: highest + 1, supportsColumn: true };
+  }
+
+  const legacyCount = await legacyDishCount();
+  if (legacyCount.error) {
+    return { ok: false, error: "Ordre des plats impossible a verifier." };
+  }
+
+  // Rows left at the migration default keep their legacy order. New rows are
+  // appended after that fallback range until an explicit order is assigned.
+  return { ok: true, value: 10_000 + (legacyCount.count ?? 0), supportsColumn: true };
+}
+
 export async function createOwnerMenuCategory(args: {
   client: SupabaseClient;
   restaurantId: string;
@@ -554,18 +614,26 @@ function dishMetadata(
     displayPriceMode: parsedPrice.ok ? parsedPrice.displayPriceMode : "auto",
     originalPriceInput: parsedPrice.ok ? parsedPrice.originalInput : ""
   };
-  const ingredients = stringListInput(candidate.ingredients);
+  const ingredients = capitalizeListItems(stringListInput(candidate.ingredients));
   const allergens = stringListInput(candidate.allergens);
+  const customAllergens = normalizeCustomAllergens(
+    candidate.customAllergens ?? candidate.custom_allergens
+  );
   const tags = mergeStringListInput(candidate.tags, candidate.badges);
-  const options = mergeStringListInput(
-    candidate.options,
-    candidate.extras,
-    candidate.accompaniments
+  const options = capitalizeListItems(
+    mergeStringListInput(
+      candidate.options,
+      candidate.extras,
+      candidate.accompaniments
+    )
   );
   const chefNote = stringInput(candidate.chefNote ?? candidate.chef_note, 500);
 
   if ("ingredients" in candidate) metadata.ingredients = ingredients;
   if ("allergens" in candidate) metadata.allergens = allergens;
+  if ("customAllergens" in candidate || "custom_allergens" in candidate) {
+    metadata.customAllergens = customAllergens;
+  }
   if ("tags" in candidate || "badges" in candidate) {
     metadata.tags = tags;
     metadata.badges = tags;
@@ -638,24 +706,37 @@ export async function createOwnerMenuDish(args: {
     name,
     fallback: "plat"
   });
+  const displayOrder = await nextDishDisplayOrder({
+    client: args.client,
+    menuId: menuResult.menu.id,
+    categoryId
+  });
+  if (!displayOrder.ok) {
+    return { ok: false, status: 503, error: displayOrder.error };
+  }
+  const dishPayload = {
+    restaurant_id: args.restaurantId,
+    menu_id: menuResult.menu.id,
+    category_id: categoryId,
+    slug,
+    name,
+    short_description: description,
+    description,
+    price_cents: parsedPrice.cents,
+    currency: settings.baseCurrency,
+    is_available: available,
+    has_immersive_view: false,
+    allergens,
+    allergen_declarations: persistedAllergenDeclarations(allergenData),
+    metadata: {
+      ...dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate),
+      displayOrder: displayOrder.value
+    },
+    ...(displayOrder.supportsColumn ? { display_order: displayOrder.value } : {})
+  };
   const inserted = await args.client
     .from("menu_dishes")
-    .insert({
-      restaurant_id: args.restaurantId,
-      menu_id: menuResult.menu.id,
-      category_id: categoryId,
-      slug,
-      name,
-      short_description: description,
-      description,
-      price_cents: parsedPrice.cents,
-      currency: settings.baseCurrency,
-      is_available: available,
-      has_immersive_view: false,
-      allergens,
-      allergen_declarations: persistedAllergenDeclarations(allergenData),
-      metadata: dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate)
-    })
+    .insert(dishPayload)
     .select("id,name,slug,category_id,price_cents,currency")
     .single();
 
@@ -684,7 +765,6 @@ export async function updateOwnerMenuDish(args: {
   if ("error" in allergenData) {
     return { ok: false, status: 400, error: allergenData.error };
   }
-  const allergens = allergenData.legacyValues;
   if (!id) return { ok: false, status: 400, error: "Plat requis." };
   if (name.length < 2) return { ok: false, status: 400, error: "Nom du plat requis." };
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
@@ -702,6 +782,15 @@ export async function updateOwnerMenuDish(args: {
   if (!existing.data?.id || !existing.data.menu_id) {
     return { ok: false, status: 404, error: "Plat introuvable." };
   }
+
+  const existingCustomAllergens = normalizeCustomAllergens(
+    jsonObject(existing.data.metadata).customAllergens
+  );
+  const hasCustomAllergenInput =
+    "customAllergens" in candidate || "custom_allergens" in candidate;
+  const allergens = hasCustomAllergenInput
+    ? allergenData.legacyValues
+    : mergeStringListInput(allergenData.legacyValues, existingCustomAllergens);
 
   const category = await categoryForDish({
     client: args.client,

@@ -17,6 +17,7 @@ import {
   normalizeAllergenData,
   type DishAllergenDeclaration
 } from "./allergens.ts";
+import { capitalizeListItems } from "./listText.ts";
 
 export type PublicMenuDish = {
   id: string;
@@ -105,6 +106,7 @@ export type PublicMenuDish = {
   isRecommended?: boolean;
   ingredients: string[];
   allergens: string[];
+  customAllergens?: string[];
   allergenDeclarations?: DishAllergenDeclaration[];
   allergenLegacyValues?: string[];
   allergenReviewRequired?: boolean;
@@ -646,7 +648,17 @@ function includeDishRow(
 }
 
 function dishSortOrder(row: PublicMenuRow, index: number): number {
-  const sortOrder = getNumber(row, ["sort_order", "sortOrder", "position"], 0);
+  const rowSortOrder = getNumber(
+    row,
+    ["display_order", "displayOrder", "sort_order", "sortOrder", "position"],
+    0
+  );
+  const metadataSortOrder = getNumber(
+    getObject(row, ["metadata", "meta"]),
+    ["display_order", "displayOrder", "sort_order", "sortOrder", "position"],
+    0
+  );
+  const sortOrder = rowSortOrder > 0 ? rowSortOrder : metadataSortOrder;
   return sortOrder > 0 ? sortOrder : 10_000 + index;
 }
 
@@ -849,6 +861,10 @@ function mapDishRow(
     "allergenes",
     "allergen_list"
   ]);
+  const customAllergens = getStringListFromSources(row, metadata, [
+    "customAllergens",
+    "custom_allergens"
+  ]);
   const allergenData = normalizeAllergenData(
     getAllergenDeclarationSource(row, metadata),
     legacyAllergens
@@ -965,18 +981,23 @@ function mapDishRow(
     available: isDishAvailable(row),
     ...(isSignature ? { isSignature } : {}),
     ...(isRecommended ? { isRecommended } : {}),
-    ingredients: getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"]),
+    ingredients: capitalizeListItems(
+      getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"])
+    ),
     allergens: legacyAllergens,
+    customAllergens,
     allergenDeclarations: allergenData.declarations,
     allergenLegacyValues: allergenData.legacyValues,
     allergenReviewRequired: allergenData.reviewRequired,
-    options: mergeStringLists(
-      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
-      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
-      getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
-      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
-      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
-      getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
+    options: capitalizeListItems(
+      mergeStringLists(
+        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
+        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
+      )
     ),
     houseNote:
       getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"], "") ||

@@ -1036,6 +1036,7 @@ export function PublicMenuRenderer({
               dish={selectedDish}
               locale={activeLocale}
               includeWarning
+              localizedUiCopy={menu.localizedUiCopy}
             />
 
             {selectedDish.options.length > 0 ? (

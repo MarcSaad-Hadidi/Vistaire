@@ -341,6 +341,24 @@ export function getAllergenPublicCopy(locale: string = "fr"): AllergenPublicCopy
   return ALLERGEN_PUBLIC_COPY[language] ?? ALLERGEN_PUBLIC_COPY.en;
 }
 
+export function getRequestedModificationsAllergenDisclaimer(
+  locale: string = "fr",
+  localizedUiCopy?: Record<string, unknown>
+): string {
+  const allergensCopy = localizedUiCopy?.allergens;
+  if (!allergensCopy || typeof allergensCopy !== "object" || Array.isArray(allergensCopy)) {
+    return "";
+  }
+  const disclaimer = (allergensCopy as Record<string, unknown>)
+    .requestedModificationsDisclaimer;
+  if (!disclaimer || typeof disclaimer !== "object" || Array.isArray(disclaimer)) {
+    return "";
+  }
+  const language = locale.toLowerCase().startsWith("en") ? "en" : "fr";
+  const value = (disclaimer as Record<string, unknown>)[language];
+  return typeof value === "string" ? value.trim().slice(0, 500) : "";
+}
+
 const ALLERGEN_ID_SET = new Set<string>(ALLERGEN_REGISTRY.map((item) => item.id));
 const ALLERGEN_STATUS_SET = new Set<string>(ALLERGEN_STATUSES);
 const REGISTRY_BY_ID = new Map<AllergenId, (typeof ALLERGEN_REGISTRY)[number]>(
@@ -391,6 +409,31 @@ function stringList(value: unknown): string[] {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 64);
+}
+
+/**
+ * Free-text allergens are kept separate from the fixed registry so they never
+ * become an unvalidated structured allergen id. They are public declarations,
+ * not claims that the ingredient is absent from the kitchen.
+ */
+export function normalizeCustomAllergens(value: unknown): string[] {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,;\n]+/)
+      : [];
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const rawValue of rawValues) {
+    if (typeof rawValue !== "string") continue;
+    const value = rawValue.trim().slice(0, 120);
+    const key = normalizeText(value);
+    if (!value || seen.has(key)) continue;
+    seen.add(key);
+    values.push(value);
+    if (values.length >= 16) break;
+  }
+  return values;
 }
 
 function registryEntryForLegacyValue(value: string) {

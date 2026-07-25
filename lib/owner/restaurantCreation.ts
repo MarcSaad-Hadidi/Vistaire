@@ -33,6 +33,7 @@ import {
 } from "./price.ts";
 import {
   legacyAllergensFromDeclarations,
+  normalizeCustomAllergens,
   normalizeAllergenData,
   validateAllergenDeclarations,
   type DishAllergenDeclaration
@@ -177,6 +178,7 @@ const DEFAULT_MENU_DISH_COLUMNS = new Set([
   "category_name",
   "price",
   "available",
+  "display_order",
   "sort_order",
   "image_url",
   "thumbnail_url",
@@ -503,6 +505,10 @@ function normalizeDishes(
       ["allergens", "allergenes", "allergen_list"],
       16
     );
+    const customAllergens = normalizeCustomAllergens(
+      dish.customAllergens ?? dish.custom_allergens
+    );
+    rawLegacyAllergens.push(...customAllergens);
     const rawAllergenDeclarations =
       dish.allergenDeclarations ?? dish.allergen_declarations;
     let allergenDeclarations: DishAllergenDeclaration[];
@@ -530,6 +536,7 @@ function normalizeDishes(
         allergenDeclarations,
         rawLegacyAllergens
       ),
+      customAllergens,
       allergenDeclarations,
       tags: getStringArray(dish, ["tags", "badges", "labels"], 10),
       options: getStringArray(dish, ["options", "option_list"], 12),
@@ -684,6 +691,7 @@ function buildTransactionalCreationPayload(
     );
     const imageUrl = dish.imageUrl ?? "";
     const photoStatus = imageUrl ? "ready" : dish.photoStatus ?? "planned";
+    const customAllergens = normalizeCustomAllergens(dish.customAllergens);
 
     return {
       name: dish.name,
@@ -708,6 +716,8 @@ function buildTransactionalCreationPayload(
         options: dish.options ?? [],
         tags: dish.tags ?? [],
         badges,
+        displayOrder: index + 1,
+        customAllergens,
         chefNote: dish.chefNote ?? "",
         houseNote: dish.chefNote ?? "",
         photoStatus,
@@ -995,7 +1005,12 @@ function buildMenuDishInsertRows(args: {
     assignMenuDishValue(row, args.columns, ["price_cents", "priceCents"], parsedPrice.ok ? parsedPrice.cents : 0);
     assignMenuDishValue(row, args.columns, ["currency"], args.settings.baseCurrency);
     assignMenuDishValue(row, args.columns, ["available", "isAvailable"], dish.available ?? true);
-    assignMenuDishValue(row, args.columns, ["sort_order", "sortOrder", "position"], index + 1);
+    assignMenuDishValue(
+      row,
+      args.columns,
+      ["display_order", "sort_order", "sortOrder", "position"],
+      index + 1
+    );
     assignMenuDishValue(
       row,
       args.columns,

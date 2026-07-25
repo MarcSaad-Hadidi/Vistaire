@@ -5,12 +5,33 @@ import {
   ALLERGEN_REGISTRY,
   getAllergenDisplayGroups,
   getAllergenPublicCopy,
+  getRequestedModificationsAllergenDisclaimer,
   getAllergenStatus,
   matchesConfirmedFreeForFilter,
   matchesConfirmedFree,
   normalizeAllergenData,
   validateAllergenDeclarations
 } from "../lib/menu/allergens.ts";
+
+test("localized requested-modifications disclaimer uses menu copy", () => {
+  const localizedUiCopy = {
+    allergens: {
+      requestedModificationsDisclaimer: {
+        fr: "Avertissement FR",
+        en: "Warning EN"
+      }
+    }
+  };
+
+  assert.equal(
+    getRequestedModificationsAllergenDisclaimer("fr-CA", localizedUiCopy),
+    "Avertissement FR"
+  );
+  assert.equal(
+    getRequestedModificationsAllergenDisclaimer("en-CA", localizedUiCopy),
+    "Warning EN"
+  );
+});
 
 test("allergen copy agrees with plural unknown declarations", () => {
   const copy = getAllergenPublicCopy("fr");

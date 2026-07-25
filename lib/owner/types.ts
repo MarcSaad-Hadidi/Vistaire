@@ -250,6 +250,7 @@ export type CreateRestaurantDishInput = {
   imageUrl?: string;
   ingredients?: string[];
   allergens?: string[];
+  customAllergens?: string[];
   allergenDeclarations?: DishAllergenDeclaration[];
   tags?: string[];
   options?: string[];

@@ -84,6 +84,7 @@ function buildPreviewDish(
     isRecommended: draft.tags.some((tag) => tag.toLowerCase() === "recommande"),
     ingredients: draft.ingredients,
     allergens: draft.allergens,
+    customAllergens: draft.customAllergens,
     options: draft.options,
     houseNote: draft.chefNote,
     tags: draft.tags
@@ -118,6 +119,7 @@ function buildPreviewMenu({
               imageUrl: "",
               ingredients: [],
               allergens: [],
+              customAllergens: [],
               allergenDeclarations: [],
               tags: [],
               options: [],

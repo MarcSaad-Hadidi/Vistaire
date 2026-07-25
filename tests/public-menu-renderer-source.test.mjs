@@ -135,7 +135,7 @@ test("generic public dish sheets render structured allergen declarations and act
   );
   assert.match(
     source,
-    /<AllergenDisclosure[\s\S]*dish=\{selectedDish\}[\s\S]*locale=\{activeLocale\}[\s\S]*includeWarning\s*\/>/
+    /<AllergenDisclosure[\s\S]*dish=\{selectedDish\}[\s\S]*locale=\{activeLocale\}[\s\S]*includeWarning[\s\S]*\/>/
   );
   assert.doesNotMatch(source, /AllergenWarning/);
   assert.ok(

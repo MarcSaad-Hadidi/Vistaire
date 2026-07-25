@@ -31,6 +31,31 @@ import { publicMenuSettingsFallbackFromUiConfigRows } from "@/lib/owner/publicMe
 
 export type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
+function isMissingDisplayOrderError(result: { ok: boolean; error?: string }): boolean {
+  return !result.ok && /display_order|schema cache|does not exist/i.test(result.error ?? "");
+}
+
+async function readDishRows(
+  readRows: typeof readSupabaseRowsByFilters,
+  filters: Record<string, string>
+) {
+  const ordered = await readRows({
+    table: "menu_dishes",
+    columns: "*",
+    filters,
+    orderBy: "display_order",
+    limit: 1_000
+  });
+  if (ordered.ok || !isMissingDisplayOrderError(ordered)) return ordered;
+  return readRows({
+    table: "menu_dishes",
+    columns: "*",
+    filters,
+    orderBy: "id",
+    limit: 1_000
+  });
+}
+
 const DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   ...DEFAULT_PUBLIC_MENU_SETTINGS,
   supportedLocales: ["fr-CA", "en-CA"],
@@ -513,19 +538,15 @@ export async function getPublicMenuBySlug(
   const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
     dependencies.readRows<PublicMenuRow>({ table: "menus", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500 }),
     dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "display_order", limit: 1_000 }),
-    dependencies.readRows<PublicMenuRow>({ table: "menu_dishes", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 }),
+    readDishRows(dependencies.readRows, { restaurant_id: restaurantId }),
     dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
   ]);
   if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) return localDemo();
   const primaryMenu = findPrimaryMenu(menusResult.rows, restaurantId);
   let dishRows = dishesResult.rows;
   if (!primaryMenu && dishRows.length === 0) {
-    const legacyDishesResult = await dependencies.readRows<PublicMenuRow>({
-      table: "menu_dishes",
-      columns: "*",
-      filters: { restaurant_slug: slug },
-      orderBy: "id",
-      limit: 1_000
+    const legacyDishesResult = await readDishRows(dependencies.readRows, {
+      restaurant_slug: slug
     });
     if (legacyDishesResult.ok) dishRows = legacyDishesResult.rows;
   }
