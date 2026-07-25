@@ -89,10 +89,15 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   assert.match(source, /requestDishNavigation/);
   assert.match(source, /setPageTurn\(\{ dishId: dish\.id, direction \}\)/);
   assert.match(source, /onPointerCancel/);
-  assert.match(source, /handleDishLinkClick\(event, detailHref, "next"\)/);
-  assert.match(source, /handleDishLinkClick\(event, previousHref, "previous"\)/);
+  assert.match(source, /handleDishLinkClick\(event, targetNextHref, "next"\)/);
+  assert.match(source, /handleDishLinkClick\(event, targetPreviousHref, "previous"\)/);
+  assert.match(source, /transitionDish/);
+  assert.match(source, /renderDishPaper\(transitionDish, true\)/);
+  assert.match(source, /data-transition-preview/);
   assert.match(styles, /\.pageTurnNext/);
   assert.match(styles, /\.pageTurnPrevious/);
+  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/);
+  assert.match(styles, /\.pageTurnNext,[\s\S]*\.pageTurnPrevious\s*\{[\s\S]*z-index:\s*2;/);
   assert.match(styles, /@keyframes detailPageTurnNext/);
   assert.match(styles, /@keyframes detailPageTurnPrevious/);
   assert.match(source, /SAUGE_PAGE_FLIP_DURATION_MS = 720/);

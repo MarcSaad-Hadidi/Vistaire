@@ -135,6 +135,15 @@
 
 .pageTurnNext,
 .pageTurnPrevious {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.transitionPreview {
+  position: absolute;
+  inset: 0 0 0 clamp(42px, 11vw, 116px);
+  z-index: 1;
   pointer-events: none;
 }
 

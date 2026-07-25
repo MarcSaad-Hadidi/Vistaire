@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
@@ -159,7 +159,6 @@ export function SaugeNoireDishDetail({
   const navigationDishId = useRef<string | null>(null);
   const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
-  const canOpen3d = useMemo(() => hasReal3d(dish), [dish]);
 
   useEffect(() => {
     return () => {
@@ -240,16 +239,6 @@ export function SaugeNoireDishDetail({
       menu: "القائمة"
     }
   }[selectedCopyLocale];
-  const groups = getAllergenDisplayGroups(dish, publicLocale);
-  const customAllergens = customAllergensFromLegacyValues(
-    dish.customAllergens ?? dish.allergenLegacyValues ?? dish.allergens
-  );
-  const allergenText = [
-    ...groups.contains,
-    ...customAllergens
-  ].join(", ") || (groups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
-  const menuHref = buildMenuHref(menu, dish, query, currency);
-  const category = localizedCategoryLabel(dish.category, publicLocale);
   const currentDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
   const dishCount = Math.max(menu.dishes.length, 1);
   const previousDish = menu.dishes[(currentDishIndex - 1 + dishCount) % dishCount] ?? dish;
@@ -267,6 +256,11 @@ export function SaugeNoireDishDetail({
   const previousHref = buildDishHref(previousDish);
   const detailHref = buildDishHref(nextDish);
   const pageTurnDirection = pageTurn?.dishId === dish.id ? pageTurn.direction : null;
+  const transitionDish = pageTurnDirection === "next"
+    ? nextDish
+    : pageTurnDirection === "previous"
+      ? previousDish
+      : null;
 
   function requestDishNavigation(href: string, direction: DishTurnDirection) {
     if (navigationDishId.current === dish.id) return;
@@ -319,59 +313,75 @@ export function SaugeNoireDishDetail({
     requestDishNavigation(deltaX < 0 ? detailHref : previousHref, deltaX < 0 ? "next" : "previous");
   }
 
-  return (
-    <main className={styles.detailPage} data-testid="sauge-noire-dish-detail">
-      <aside className={styles.rail} aria-hidden="true">
-        <div className={styles.railPattern} />
-        <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>
-        <div className={`${styles.railFastener} ${styles.railFastenerBottom}`}><i /><span /><i /></div>
-      </aside>
+  function renderDishPaper(targetDish: PublicMenuDish, isPreview: boolean) {
+    const targetGroups = getAllergenDisplayGroups(targetDish, publicLocale);
+    const targetCustomAllergens = customAllergensFromLegacyValues(
+      targetDish.customAllergens ?? targetDish.allergenLegacyValues ?? targetDish.allergens
+    );
+    const targetAllergenText = [
+      ...targetGroups.contains,
+      ...targetCustomAllergens
+    ].join(", ") || (targetGroups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
+    const targetMenuHref = buildMenuHref(menu, targetDish, query, currency);
+    const targetCategory = localizedCategoryLabel(targetDish.category, publicLocale);
+    const targetDishIndex = menu.dishes.findIndex((item) => item.id === targetDish.id);
+    const targetPreviousDish = menu.dishes[(targetDishIndex - 1 + dishCount) % dishCount] ?? targetDish;
+    const targetNextDish = menu.dishes[(targetDishIndex + 1) % dishCount] ?? targetDish;
+    const targetPreviousHref = buildDishHref(targetPreviousDish);
+    const targetNextHref = buildDishHref(targetNextDish);
+    const targetCanOpen3d = !isPreview && hasReal3d(targetDish);
+    const targetShowModelViewer = !isPreview && targetDish.id === dish.id && showModelViewer;
+    const turnClass = !isPreview
+      ? pageTurnDirection === "next"
+        ? styles.pageTurnNext
+        : pageTurnDirection === "previous"
+          ? styles.pageTurnPrevious
+          : ""
+      : styles.transitionPreview;
+
+    return (
       <article
-        className={`${styles.paper} ${
-          pageTurnDirection === "next"
-            ? styles.pageTurnNext
-            : pageTurnDirection === "previous"
-              ? styles.pageTurnPrevious
-              : ""
-        }`}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => { pointerStart.current = null; }}
+        className={`${styles.paper} ${turnClass}`}
+        data-transition-preview={isPreview ? "true" : undefined}
+        aria-hidden={isPreview || undefined}
+        onPointerDown={isPreview ? undefined : handlePointerDown}
+        onPointerUp={isPreview ? undefined : handlePointerUp}
+        onPointerCancel={isPreview ? undefined : () => { pointerStart.current = null; }}
       >
         <header className={styles.detailHeader}>
-          <Link className={styles.backLink} href={menuHref} prefetch={false}>
-            <span aria-hidden="true">←</span> {copy.back} {category}
+          <Link className={styles.backLink} href={targetMenuHref} prefetch={false}>
+            <span aria-hidden="true">{"\u2190"}</span> {copy.back} {targetCategory}
           </Link>
           <div className={styles.brandMark} aria-label="Sauge Noire"><span>S</span><span>N</span></div>
         </header>
         <section className={styles.detailContent}>
-          <p className={styles.categoryKicker}>{category}{isSignatureLabel(dish, publicLocale) ? "  ·  " : ""}{isSignatureLabel(dish, publicLocale)}</p>
-          <h1>{dish.name.toUpperCase()}</h1>
+          <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(targetDish, publicLocale) ? "  \u00b7  " : ""}{isSignatureLabel(targetDish, publicLocale)}</p>
+          <h1>{targetDish.name.toUpperCase()}</h1>
           <Rule />
-          <div className={styles.detailPhoto} data-photo-slot={dish.slug}>
-            {dish.imageUrl ? (
+          <div className={styles.detailPhoto} data-photo-slot={targetDish.slug}>
+            {targetDish.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={dish.imageUrl} alt={`Image du plat ${dish.name}`} />
+              <img src={targetDish.imageUrl} alt={`Image du plat ${targetDish.name}`} />
             ) : null}
           </div>
-          <p className={styles.detailPrice}>{formatPrice(dish, currency, locale, exchangeRates)}</p>
+          <p className={styles.detailPrice}>{formatPrice(targetDish, currency, locale, exchangeRates)}</p>
           <Rule />
-          <p className={styles.description}>{dish.description}</p>
+          <p className={styles.description}>{targetDish.description}</p>
           <div className={styles.detailRows}>
-            <DetailRow label={copy.ingredients} value={dish.ingredients.join(", ")} variant="detailIngredients" />
-            <DetailRow label={copy.allergens} value={allergenText} variant="detailAllergens" />
-            <DetailRow label={copy.options} value={dish.options.join(", ") || copy.confirmAllergens} variant="detailAccord" />
+            <DetailRow label={copy.ingredients} value={targetDish.ingredients.join(", ")} variant="detailIngredients" />
+            <DetailRow label={copy.allergens} value={targetAllergenText} variant="detailAllergens" />
+            <DetailRow label={copy.options} value={targetDish.options.join(", ") || copy.confirmAllergens} variant="detailAccord" />
           </div>
-          {canOpen3d ? (
+          {targetCanOpen3d ? (
             <section className={styles.modelSection} aria-label={copy.show3d}>
-              <button type="button" className={styles.modelButton} onClick={() => setShowModelViewer((visible) => !visible)} aria-expanded={showModelViewer}>
+              <button type="button" className={styles.modelButton} onClick={() => setShowModelViewer((visible) => !visible)} aria-expanded={targetShowModelViewer}>
                 <CubeIcon />
-                {showModelViewer ? copy.hide3d : copy.show3d}
+                {targetShowModelViewer ? copy.hide3d : copy.show3d}
               </button>
-              {showModelViewer ? (
+              {targetShowModelViewer ? (
                 <div className={styles.modelStage}>
                   <LazyDishModelViewer
-                    dish={modelViewerDishFromPublicDish(dish)}
+                    dish={modelViewerDishFromPublicDish(targetDish)}
                     minimalChrome
                     quietChrome
                     onReturnToDish={() => setShowModelViewer(false)}
@@ -386,24 +396,36 @@ export function SaugeNoireDishDetail({
             <div className={styles.detailDoubleArrowControl}>
               <Link
                 className={`${styles.detailArrowHit} ${styles.detailArrowHitPrevious}`}
-                href={previousHref}
+                href={targetPreviousHref}
                 prefetch={false}
                 aria-label={copy.previous}
-                onClick={(event) => handleDishLinkClick(event, previousHref, "previous")}
+                onClick={isPreview ? undefined : (event) => handleDishLinkClick(event, targetPreviousHref, "previous")}
               />
               <DoubleArrow />
               <Link
                 className={`${styles.detailArrowHit} ${styles.detailArrowHitNext}`}
-                href={detailHref}
+                href={targetNextHref}
                 prefetch={false}
                 aria-label={copy.next}
-                onClick={(event) => handleDishLinkClick(event, detailHref, "next")}
+                onClick={isPreview ? undefined : (event) => handleDishLinkClick(event, targetNextHref, "next")}
               />
             </div>
           </div>
-          <Link className={styles.menuLink} href={menuHref} prefetch={false}>{copy.menu}</Link>
+          <Link className={styles.menuLink} href={targetMenuHref} prefetch={false}>{copy.menu}</Link>
         </section>
       </article>
+    );
+  }
+
+  return (
+    <main className={styles.detailPage} data-testid="sauge-noire-dish-detail">
+      <aside className={styles.rail} aria-hidden="true">
+        <div className={styles.railPattern} />
+        <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>
+        <div className={`${styles.railFastener} ${styles.railFastenerBottom}`}><i /><span /><i /></div>
+      </aside>
+      {transitionDish ? renderDishPaper(transitionDish, true) : null}
+      {renderDishPaper(dish, false)}
     </main>
   );
 }
