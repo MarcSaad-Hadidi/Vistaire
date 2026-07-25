@@ -33,6 +33,8 @@ type DishCopyLocale = "fr" | "en" | "es" | "it" | "ar";
 type DishTurnDirection = "next" | "previous";
 type DishPageTurnState = { dishId: string; direction: DishTurnDirection };
 
+const SAUGE_PAGE_FLIP_DURATION_MS = 720;
+
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
   .map((origin) => origin.trim().replace(/\/$/, ""))
@@ -274,7 +276,7 @@ export function SaugeNoireDishDetail({
     navigationTimer.current = setTimeout(() => {
       navigationTimer.current = null;
       router.push(href);
-    }, 620);
+    }, SAUGE_PAGE_FLIP_DURATION_MS);
   }
 
   function handleDishLinkClick(
