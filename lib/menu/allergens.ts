@@ -257,8 +257,6 @@ export type AllergenPublicCopy = {
   contains: string;
   mayContain: string;
   confirmedFree: string;
-  unknown: string;
-  unknownBody: (count: number) => string;
 };
 
 const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
@@ -268,10 +266,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Déclarations allergènes",
     contains: "Contient",
     mayContain: "Peut contenir",
-    confirmedFree: "Déclaré sans",
-    unknown: "Information non confirmée",
-    unknownBody: (count) =>
-      `${count} allergène${count > 1 ? "s" : ""} ${count > 1 ? "ne sont pas confirmés" : "n’est pas confirmé"} pour ce plat.`
+    confirmedFree: "Déclaré sans"
   },
   en: {
     warning: "Allergen information is provided by the restaurant. If you have an allergy, always confirm with staff before ordering.",
@@ -279,10 +274,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Allergen declarations",
     contains: "Contains",
     mayContain: "May contain",
-    confirmedFree: "Declared free from",
-    unknown: "Information not confirmed",
-    unknownBody: (count) =>
-      `${count} allergen${count > 1 ? "s are" : " is"} not confirmed for this dish.`
+    confirmedFree: "Declared free from"
   },
   es: {
     warning: "La información sobre alérgenos la declara el restaurante. Si tienes una alergia, confirma siempre con el personal antes de pedir.",
@@ -290,9 +282,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Declaraciones de alérgenos",
     contains: "Contiene",
     mayContain: "Puede contener",
-    confirmedFree: "Declarado sin",
-    unknown: "Información no confirmada",
-    unknownBody: (count) => `${count} alérgeno${count > 1 ? "s" : ""} no está confirmado para este plato.`
+    confirmedFree: "Declarado sin"
   },
   it: {
     warning: "Le informazioni sugli allergeni sono dichiarate dal ristorante. In caso di allergia, conferma sempre con il personale prima di ordinare.",
@@ -300,9 +290,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Dichiarazioni sugli allergeni",
     contains: "Contiene",
     mayContain: "Può contenere",
-    confirmedFree: "Dichiarato senza",
-    unknown: "Informazione non confermata",
-    unknownBody: (count) => `${count} allergen${count > 1 ? "i" : "e"} non è confermato per questo piatto.`
+    confirmedFree: "Dichiarato senza"
   },
   de: {
     warning: "Allergeninformationen werden vom Restaurant bereitgestellt. Bei einer Allergie bitte vor der Bestellung immer das Personal fragen.",
@@ -310,9 +298,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Allergenerklärungen",
     contains: "Enthält",
     mayContain: "Kann enthalten",
-    confirmedFree: "Als frei von deklariert",
-    unknown: "Information nicht bestätigt",
-    unknownBody: (count) => `${count} Allergen${count > 1 ? "e" : ""} ist für dieses Gericht nicht bestätigt.`
+    confirmedFree: "Als frei von deklariert"
   },
   el: {
     warning: "Οι πληροφορίες για τα αλλεργιογόνα παρέχονται από το εστιατόριο. Αν έχετε αλλεργία, επιβεβαιώστε πάντα με το προσωπικό πριν παραγγείλετε.",
@@ -320,9 +306,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "Δηλώσεις αλλεργιογόνων",
     contains: "Περιέχει",
     mayContain: "Μπορεί να περιέχει",
-    confirmedFree: "Δηλωμένο χωρίς",
-    unknown: "Μη επιβεβαιωμένη πληροφορία",
-    unknownBody: (count) => `${count} αλλεργιογόνο${count > 1 ? "α" : ""} δεν έχει επιβεβαιωθεί για αυτό το πιάτο.`
+    confirmedFree: "Δηλωμένο χωρίς"
   },
   ar: {
     warning: "يقدم المطعم معلومات مسببات الحساسية. إذا كنت تعاني من حساسية، فتأكد دائماً من الموظفين قبل الطلب.",
@@ -330,9 +314,7 @@ const ALLERGEN_PUBLIC_COPY: Record<string, AllergenPublicCopy> = {
     detailsTitle: "إقرارات مسببات الحساسية",
     contains: "يحتوي على",
     mayContain: "قد يحتوي على",
-    confirmedFree: "معلن خلوه من",
-    unknown: "معلومات غير مؤكدة",
-    unknownBody: (count) => `لم يتم تأكيد ${count} من مسببات الحساسية لهذا الطبق.`
+    confirmedFree: "معلن خلوه من"
   }
 };
 

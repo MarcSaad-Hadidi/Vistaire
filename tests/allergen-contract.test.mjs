@@ -33,17 +33,11 @@ test("localized requested-modifications disclaimer uses menu copy", () => {
   );
 });
 
-test("allergen copy agrees with plural unknown declarations", () => {
+test("allergen copy omits the unconfirmed-information block", () => {
   const copy = getAllergenPublicCopy("fr");
 
-  assert.equal(
-    copy.unknownBody(1),
-    "1 allergène n’est pas confirmé pour ce plat."
-  );
-  assert.equal(
-    copy.unknownBody(12),
-    "12 allergènes ne sont pas confirmés pour ce plat."
-  );
+  assert.equal("unknown" in copy, false);
+  assert.equal("unknownBody" in copy, false);
 });
 
 test("allergen display groups preserve unknown registry declarations", () => {
