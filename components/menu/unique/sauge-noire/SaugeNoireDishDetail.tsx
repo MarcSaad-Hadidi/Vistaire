@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
@@ -30,6 +30,8 @@ import styles from "./SaugeNoireDishDetail.module.css";
 
 type DishDetailProps = UniqueMenuRendererModuleProps & { dish: PublicMenuDish };
 type DishCopyLocale = "fr" | "en" | "es" | "it" | "ar";
+type DishTurnDirection = "next" | "previous";
+type DishPageTurnState = { dishId: string; direction: DishTurnDirection };
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
@@ -150,9 +152,20 @@ export function SaugeNoireDishDetail({
   const publicLocale = query?.lang ?? locale;
   const selectedCopyLocale = copyLocale(publicLocale);
   const router = useRouter();
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const pointerStart = useRef<{ x: number; y: number; pointerType: string } | null>(null);
+  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigationDishId = useRef<string | null>(null);
+  const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const canOpen3d = useMemo(() => hasReal3d(dish), [dish]);
+
+  useEffect(() => {
+    return () => {
+      if (navigationTimer.current) {
+        clearTimeout(navigationTimer.current);
+      }
+    };
+  }, []);
   const copy = {
     fr: {
         back: "Retour à",
@@ -251,21 +264,57 @@ export function SaugeNoireDishDetail({
   };
   const previousHref = buildDishHref(previousDish);
   const detailHref = buildDishHref(nextDish);
+  const pageTurnDirection = pageTurn?.dishId === dish.id ? pageTurn.direction : null;
+
+  function requestDishNavigation(href: string, direction: DishTurnDirection) {
+    if (navigationDishId.current === dish.id) return;
+    navigationDishId.current = dish.id;
+    setShowModelViewer(false);
+    setPageTurn({ dishId: dish.id, direction });
+    navigationTimer.current = setTimeout(() => {
+      navigationTimer.current = null;
+      router.push(href);
+    }, 620);
+  }
+
+  function handleDishLinkClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    direction: DishTurnDirection
+  ) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    requestDishNavigation(href, direction);
+  }
 
   function handlePointerDown(event: React.PointerEvent<HTMLElement>) {
-    pointerStart.current = { x: event.clientX, y: event.clientY };
+    if (event.pointerType !== "touch") return;
+    pointerStart.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerType: event.pointerType
+    };
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLElement>) {
     const start = pointerStart.current;
     pointerStart.current = null;
-    if (!start) return;
-    const target = event.target as HTMLElement;
+    if (!start || start.pointerType !== "touch") return;
+    const target = event.target as Element;
     if (target.closest("a, button")) return;
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 44 || Math.abs(deltaX) < Math.abs(deltaY)) return;
-    router.push(deltaX < 0 ? detailHref : previousHref);
+    requestDishNavigation(deltaX < 0 ? detailHref : previousHref, deltaX < 0 ? "next" : "previous");
   }
 
   return (
@@ -275,7 +324,18 @@ export function SaugeNoireDishDetail({
         <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>
         <div className={`${styles.railFastener} ${styles.railFastenerBottom}`}><i /><span /><i /></div>
       </aside>
-      <article className={styles.paper} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp}>
+      <article
+        className={`${styles.paper} ${
+          pageTurnDirection === "next"
+            ? styles.pageTurnNext
+            : pageTurnDirection === "previous"
+              ? styles.pageTurnPrevious
+              : ""
+        }`}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => { pointerStart.current = null; }}
+      >
         <header className={styles.detailHeader}>
           <Link className={styles.backLink} href={menuHref} prefetch={false}>
             <span aria-hidden="true">←</span> {copy.back} {category}
@@ -322,9 +382,21 @@ export function SaugeNoireDishDetail({
           <div className={styles.detailSwipeNav}>
             <p>{copy.next}</p>
             <div className={styles.detailDoubleArrowControl}>
-              <Link className={`${styles.detailArrowHit} ${styles.detailArrowHitPrevious}`} href={previousHref} prefetch={false} aria-label={copy.previous} />
+              <Link
+                className={`${styles.detailArrowHit} ${styles.detailArrowHitPrevious}`}
+                href={previousHref}
+                prefetch={false}
+                aria-label={copy.previous}
+                onClick={(event) => handleDishLinkClick(event, previousHref, "previous")}
+              />
               <DoubleArrow />
-              <Link className={`${styles.detailArrowHit} ${styles.detailArrowHitNext}`} href={detailHref} prefetch={false} aria-label={copy.next} />
+              <Link
+                className={`${styles.detailArrowHit} ${styles.detailArrowHitNext}`}
+                href={detailHref}
+                prefetch={false}
+                aria-label={copy.next}
+                onClick={(event) => handleDishLinkClick(event, detailHref, "next")}
+              />
             </div>
           </div>
           <Link className={styles.menuLink} href={menuHref} prefetch={false}>{copy.menu}</Link>

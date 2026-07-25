@@ -27,6 +27,8 @@
   height: 100svh;
   min-height: 100svh;
   overflow: hidden;
+  perspective: 1800px;
+  perspective-origin: 50% 50%;
   background: #172219;
   color: var(--sn-forest);
   font-family: "BT Suave", Georgia, serif;
@@ -117,6 +119,7 @@
   touch-action: pan-y;
   min-height: 100svh;
   overflow: auto;
+  backface-visibility: hidden;
   border: 2px solid rgba(38, 55, 43, 0.65);
   border-left: 0;
   border-radius: 0 42px 42px 0;
@@ -125,6 +128,63 @@
     radial-gradient(circle at 12% 16%, rgba(180, 122, 60, 0.045) 0 1px, transparent 1.5px),
     radial-gradient(circle at 75% 62%, rgba(38, 55, 43, 0.025) 0 1px, transparent 1.5px);
   background-size: 16px 17px, 23px 24px;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+}
+
+.pageTurnNext,
+.pageTurnPrevious {
+  pointer-events: none;
+}
+
+.pageTurnNext {
+  transform-origin: left center;
+  animation: detailPageTurnNext 620ms cubic-bezier(0.2, 0.76, 0.26, 1) both;
+}
+
+.pageTurnPrevious {
+  transform-origin: right center;
+  animation: detailPageTurnPrevious 620ms cubic-bezier(0.2, 0.76, 0.26, 1) both;
+}
+
+@keyframes detailPageTurnNext {
+  0% {
+    filter: brightness(1);
+    opacity: 1;
+    transform: perspective(1800px) rotateY(0deg);
+  }
+
+  48% {
+    filter: brightness(0.96);
+    opacity: 0.94;
+    transform: perspective(1800px) rotateY(-70deg) translateX(-2%);
+  }
+
+  100% {
+    filter: brightness(0.82);
+    opacity: 0.08;
+    transform: perspective(1800px) rotateY(-92deg) translateX(-5%);
+  }
+}
+
+@keyframes detailPageTurnPrevious {
+  0% {
+    filter: brightness(1);
+    opacity: 1;
+    transform: perspective(1800px) rotateY(0deg);
+  }
+
+  48% {
+    filter: brightness(0.96);
+    opacity: 0.94;
+    transform: perspective(1800px) rotateY(70deg) translateX(2%);
+  }
+
+  100% {
+    filter: brightness(0.82);
+    opacity: 0.08;
+    transform: perspective(1800px) rotateY(92deg) translateX(5%);
+  }
 }
 
 .detailHeader {

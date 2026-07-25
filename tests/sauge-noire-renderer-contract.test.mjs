@@ -78,3 +78,21 @@ test("detail page uses the existing allergen disclosure contract and has no AR C
   assert.match(source, /AllergenWarning/);
   assert.doesNotMatch(source, /Réalité augmentée|Ouvrir l’aperçu AR|AR preview/i);
 });
+
+test("dish-to-dish navigation turns the detail page before routing", async () => {
+  const source = await readFile(detailPath, "utf8");
+  const styles = await readFile(
+    new URL("../components/menu/unique/sauge-noire/SaugeNoireDishDetail.module.css", import.meta.url),
+    "utf8"
+  );
+  assert.match(source, /type DishTurnDirection = "next" \| "previous"/);
+  assert.match(source, /requestDishNavigation/);
+  assert.match(source, /setPageTurnDirection\(direction\)/);
+  assert.match(source, /onPointerCancel/);
+  assert.match(source, /handleDishLinkClick\(event, detailHref, "next"\)/);
+  assert.match(source, /handleDishLinkClick\(event, previousHref, "previous"\)/);
+  assert.match(styles, /\.pageTurnNext/);
+  assert.match(styles, /\.pageTurnPrevious/);
+  assert.match(styles, /@keyframes detailPageTurnNext/);
+  assert.match(styles, /@keyframes detailPageTurnPrevious/);
+});
