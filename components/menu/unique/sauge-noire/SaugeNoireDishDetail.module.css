@@ -521,13 +521,39 @@
 }
 
 @media (max-width: 700px) {
+  .detailPage {
+    height: auto;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow: visible;
+    align-items: flex-start;
+  }
+
+  .rail {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    align-self: flex-start;
+  }
+
   .paper {
+    height: auto;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow: visible;
     border-radius: 0 24px 24px 0;
   }
 
   .detailHeader {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     min-height: 135px;
     padding-top: 52px;
+    background: var(--sn-paper);
   }
 
   .brandMark {

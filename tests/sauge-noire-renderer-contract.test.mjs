@@ -108,4 +108,8 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   assert.match(styles, /detailPageTurnPrevious 720ms linear/);
   assert.match(styles, /rotateY\(-180deg\)/);
   assert.match(styles, /rotateY\(180deg\)/);
+  assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*sticky;[\s\S]*align-self:\s*flex-start;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.paper\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader\s*\{[\s\S]*position:\s*sticky;[\s\S]*background:\s*var\(--sn-paper\);/);
 });
