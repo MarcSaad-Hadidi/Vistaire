@@ -34,6 +34,7 @@
   --sn-muted: #6c6f61;
   --sn-line: rgba(38, 55, 43, 0.2);
   --sn-rail: clamp(42px, 11vw, 116px);
+  --sn-rail-half: clamp(21px, 5.5vw, 58px);
   position: fixed;
   inset: 0;
   display: flex;
@@ -176,9 +177,10 @@
 }
 
 .bookHeader > .brandMark {
-  position: absolute;
+  position: fixed;
   top: 78px;
-  left: 50%;
+  left: calc(50% + var(--sn-rail-half));
+  z-index: 4;
   transform: translateX(-50%);
 }
 
