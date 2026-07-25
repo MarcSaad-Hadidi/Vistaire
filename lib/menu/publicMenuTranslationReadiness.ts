@@ -238,6 +238,22 @@ function statusForRows(args: {
     for (const [field, sourceValue] of Object.entries(fields)) {
       const reason = storedTranslationFieldFailure(row, fields, field, sourceValue);
       if (!reason) continue;
+
+      // Signature/recommended labels are derived presentation tags. The
+      // translation generator hashes the original metadata tags, while the
+      // public dish model removes those two labels after deriving booleans.
+      // Keep a current, complete translation usable when only that derived
+      // tag hash differs.
+      if (
+        field === "tags" &&
+        row &&
+        stringInput(row.translation_status) === "up_to_date" &&
+        stringInput(row.source_hash) &&
+        listInput(objectInput(row.content).tags).length >= listInput(sourceValue).length
+      ) {
+        continue;
+      }
+
       return {
         locale: args.locale,
         status: row ? "stale" : "missing",

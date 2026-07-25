@@ -19,7 +19,13 @@ export const dynamic = "force-dynamic";
 
 type MenuPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lang?: string; table?: string; view?: string; zone?: string }>;
+  searchParams: Promise<{
+    lang?: string;
+    currency?: string;
+    table?: string;
+    view?: string;
+    zone?: string;
+  }>;
 };
 
 export const metadata: Metadata = {
@@ -56,6 +62,7 @@ export default async function PublicMenuPage({
     .join(" · ");
   const menuQuery = {
     lang: activePublicLocale,
+    currency: query.currency,
     table: query.table,
     zone: query.zone,
     view: query.view
@@ -69,7 +76,11 @@ export default async function PublicMenuPage({
     fallbackConfig
   );
   const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
-  const experience = resolvePublicMenuExperience(menu, resolvedConfig);
+  const experience = resolvePublicMenuExperience(menu, resolvedConfig, {
+    allowPendingUniquePreview:
+      process.env.NODE_ENV !== "production" &&
+      process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
+  });
   const exchangeRates = await getExchangeRates({
     baseCurrency: menu.settings.baseCurrency,
     supportedCurrencies: menu.settings.supportedCurrencies

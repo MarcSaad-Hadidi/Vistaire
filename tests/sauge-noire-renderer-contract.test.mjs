@@ -1,0 +1,80 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const registryPath = new URL(
+  "../lib/menu/uniqueMenuRendererRegistry.ts",
+  import.meta.url
+);
+const bookPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx",
+  import.meta.url
+);
+const detailPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx",
+  import.meta.url
+);
+
+test("Sauge Noire renderer is statically bound to the canonical design identity", async () => {
+  const source = await readFile(registryPath, "utf8");
+  assert.match(source, /sauge-noire-book-v1/);
+  assert.match(source, /073bd2ca-56f9-46ee-bd7c-38ab22f01c9a/);
+  assert.match(source, /version: 1/);
+  assert.match(source, /SaugeNoireBookMenu/);
+  assert.match(source, /SaugeNoireDishDetail/);
+  assert.doesNotMatch(source, /import\s*\(\s*[`'"].*\$\{/);
+});
+
+test("book pages and dish rows derive from PublicMenu data", async () => {
+  const source = await readFile(bookPath, "utf8");
+  assert.match(source, /getVisiblePublicMenuCategories\(menu\.dishes\)/);
+  assert.match(source, /getPublicMenuCategoryGroups\(menu\.dishes\)/);
+  assert.match(source, /groups\.get\(category\.id\)/);
+  assert.match(source, /dishes\.map\(\(dish\)/);
+  assert.match(source, /dishes\.find\(isSignature\)/);
+  assert.doesNotMatch(source, /Betterave sous la cendre|Canard à l’érable noir/);
+  assert.doesNotMatch(source, /\.sort\(/);
+});
+
+test("Sauge Noire keeps empty media slots and defers real 3D to intent", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(detailPath, "utf8");
+  assert.match(book, /data-photo-slot/);
+  assert.match(book, /dish\.imageUrl \?/);
+  assert.match(detail, /hasReal3d/);
+  assert.match(detail, /showModelViewer/);
+  assert.match(detail, /dynamic<.*DishModelViewer/);
+  assert.doesNotMatch(book, /\.glb|\.usdz|model-viewer/);
+});
+
+test("locale and currency remain part of menu and dish navigation state", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(detailPath, "utf8");
+  assert.match(book, /params\.set\("view", `sauge-\$\{pageIndex\}`\)/);
+  assert.match(book, /params\.set\("currency", next\.currency\)/);
+  assert.match(book, /params\.set\("lang", next\.locale\)/);
+  assert.match(detail, /currency,/);
+  assert.match(detail, /view: `sauge-/);
+});
+
+test("Sauge Noire preferences use compact popovers and page escape controls", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const styles = await readFile(
+    new URL("../components/menu/unique/sauge-noire/SaugeNoireBookMenu.module.css", import.meta.url),
+    "utf8"
+  );
+  assert.match(book, /function PreferenceMenu/);
+  assert.match(book, /aria-haspopup="menu"/);
+  assert.match(book, /role="menuitemradio"/);
+  assert.match(book, /backToTop/);
+  assert.match(book, /contentsBack/);
+  assert.match(styles, /\.preferencePopover/);
+  assert.match(styles, /\.backToTop/);
+});
+
+test("detail page uses the existing allergen disclosure contract and has no AR CTA", async () => {
+  const source = await readFile(detailPath, "utf8");
+  assert.match(source, /getAllergenDisplayGroups/);
+  assert.match(source, /AllergenWarning/);
+  assert.doesNotMatch(source, /Réalité augmentée|Ouvrir l’aperçu AR|AR preview/i);
+});

@@ -42,6 +42,10 @@ test("localized requested-modifications disclaimer uses menu copy", () => {
     getRequestedModificationsAllergenDisclaimer("en-CA", localizedUiCopy),
     "Warning EN"
   );
+  assert.match(
+    getRequestedModificationsAllergenDisclaimer("it-IT", localizedUiCopy),
+    /^Le modifiche richieste non garantiscono/
+  );
 });
 
 test("allergen copy omits the unconfirmed-information block", () => {
