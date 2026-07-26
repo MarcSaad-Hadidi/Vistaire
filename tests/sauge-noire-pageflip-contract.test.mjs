@@ -150,3 +150,19 @@ test("the table of contents is compact enough to stay inside the sheet", async (
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.contentsBotanical\s*\{[\s\S]*height:\s*104px;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.contentsList button\s*\{[\s\S]*min-height:\s*42px;/);
 });
+
+test("the ending page is compact and includes a Google review CTA without the old domain", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const styles = await readFile(stylesPath, "utf8");
+
+  assert.doesNotMatch(book, /saugenoire\.com/);
+  assert.match(book, /data-testid="google-review-cta"/);
+  assert.match(book, /Laisser un avis Google/);
+  assert.match(styles, /\.endingPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*34px;[\s\S]*padding-bottom:\s*22px;/);
+  assert.match(styles, /\.endingBotanical\s*\{[\s\S]*height:\s*clamp\(150px, 28vh, 260px\);/);
+  assert.match(styles, /\.googleReviewCta\s*\{[\s\S]*width:\s*min\(100%, 360px\);[\s\S]*min-height:\s*52px;/);
+  assert.match(styles, /\.googleReviewBrand\s*\{[\s\S]*font-family:\s*"BT Suave", Georgia, serif;[\s\S]*font-weight:\s*400;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.endingPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*16px;[\s\S]*padding-bottom:\s*20px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.endingBotanical\s*\{[\s\S]*height:\s*140px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.googleReviewCta\s*\{[\s\S]*width:\s*min\(100%, 320px\);[\s\S]*min-height:\s*48px;/);
+});

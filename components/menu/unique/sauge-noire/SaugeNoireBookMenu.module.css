@@ -518,8 +518,7 @@
   font-style: italic;
 }
 
-.endingCity,
-.endingUrl {
+.endingCity {
   margin: 24px 0 0;
   font-size: clamp(1rem, 2vw, 1.7rem);
   font-style: italic;
@@ -952,9 +951,10 @@
 }
 
 .endingPage {
+  min-height: calc(100% - 132px);
   justify-content: flex-start;
-  padding-top: 280px;
-  padding-bottom: 86px;
+  padding-top: 34px;
+  padding-bottom: 22px;
 }
 
 .endingPage h1 {
@@ -968,9 +968,9 @@
 }
 
 .endingBotanical {
-  width: clamp(140px, 24vw, 245px);
-  height: clamp(220px, 38vh, 390px);
-  margin: 30px auto 22px;
+  width: clamp(120px, 20vw, 210px);
+  height: clamp(150px, 28vh, 260px);
+  margin: 16px auto 14px;
 }
 
 .endingWordmark {
@@ -978,20 +978,72 @@
 }
 
 .endingPage > p {
-  margin-top: 13px;
+  margin-top: 8px;
 }
 
 .endingCity {
-  margin-top: 56px;
+  margin-top: 16px;
 }
 
-.endingUrl {
-  margin-top: 20px;
-  font-size: clamp(1.1rem, 2vw, 1.7rem);
+.googleReviewCta {
+  display: flex;
+  width: min(100%, 360px);
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px auto 0;
+  padding: 0 16px;
+  border: 1px solid rgba(130, 94, 57, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: 0 5px 14px rgba(38, 55, 43, 0.06);
+  color: var(--sn-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.googleReviewCta:hover,
+.googleReviewCta:focus-visible {
+  border-color: rgba(130, 94, 57, 0.72);
+  box-shadow: 0 8px 18px rgba(38, 55, 43, 0.12);
+  transform: translateY(-1px);
+}
+
+.googleReviewCta:focus-visible {
+  outline: 2px solid var(--sn-bronze);
+  outline-offset: 3px;
+}
+
+.googleReviewBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.googleReviewMark {
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: conic-gradient(from 210deg, #4285f4 0 25%, #34a853 25% 46%, #fbbc05 46% 68%, #ea4335 68% 84%, #4285f4 84%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.googleReviewArrow {
+  color: var(--sn-bronze);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1.3rem;
+  line-height: 1;
 }
 
 .restartButton {
-  margin-top: 24px;
+  margin-top: 16px;
   border-bottom: 1px solid var(--sn-bronze);
   color: var(--sn-bronze);
   font-size: 1rem;
@@ -1391,17 +1443,57 @@
   }
 
   .endingPage {
-    padding-top: 195px;
-    padding-bottom: 86px;
+    min-height: calc(100% - 132px);
+    padding-top: 16px;
+    padding-bottom: 20px;
   }
 
   .endingPage h1 {
-    font-size: clamp(2.2rem, 11vw, 4rem);
+    font-size: clamp(1.8rem, 9vw, 3.5rem);
   }
 
   .endingBotanical {
-    width: 120px;
-    height: 200px;
-    margin: 20px auto 14px;
+    width: 92px;
+    height: 140px;
+    margin: 10px auto 10px;
+  }
+
+  .endingWordmark {
+    font-size: clamp(2rem, 9vw, 3.5rem);
+  }
+
+  .endingPage > p {
+    margin-top: 6px;
+  }
+
+  .endingCity {
+    margin-top: 14px;
+  }
+
+  .googleReviewCta {
+    width: min(100%, 320px);
+    margin-top: 12px;
+    min-height: 48px;
+    padding-inline: 14px;
+  }
+
+  .googleReviewBrand {
+    font-size: 1rem;
+  }
+
+  .googleReviewMark {
+    font-size: 1rem;
+  }
+
+  .googleReviewArrow {
+    font-size: 1.15rem;
+  }
+
+  .restartButton {
+    margin-top: 14px;
+  }
+
+  .endingSoon {
+    margin-top: 8px;
   }
 }

@@ -922,7 +922,18 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
       <Rule />
       <p className={styles.endingCity}>Montréal, Québec</p>
       <span className={styles.coverDot} aria-hidden="true" />
-      <p className={styles.endingUrl}>saugenoire.com</p>
+      <button
+        type="button"
+        className={styles.googleReviewCta}
+        data-testid="google-review-cta"
+        aria-label="Exemple de bouton pour laisser un avis Google"
+      >
+        <span className={styles.googleReviewBrand}>
+          <span className={styles.googleReviewMark} aria-hidden="true">G</span>
+          Laisser un avis Google
+        </span>
+        <span className={styles.googleReviewArrow} aria-hidden="true">↗</span>
+      </button>
       <button type="button" className={styles.restartButton} onClick={onRestart}>{copy.menu}</button>
       <p className={styles.endingSoon}>{copy.soon}</p>
     </section>
