@@ -210,23 +210,19 @@
 }
 
 .detailHeader {
-  position: fixed;
-  top: 0;
-  right: auto;
-  left: var(--sn-rail);
-  z-index: 20;
+  position: relative;
+  z-index: 2;
   display: flex;
-  width: calc(100vw - var(--sn-rail));
+  width: 100%;
   height: 170px;
   min-height: 170px;
+  flex: 0 0 170px;
   align-items: flex-start;
   justify-content: center;
   padding: 76px clamp(16px, 6vw, 84px) 0;
-  overflow: hidden;
-  background-color: var(--sn-paper);
-  background-image: var(--sn-paper-texture);
-  background-size: var(--sn-paper-texture-size);
-  pointer-events: none;
+  overflow: visible;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .detailHeader > .brandMark {
@@ -290,7 +286,7 @@
 .detailContent {
   width: min(100%, 980px);
   margin: 0 auto;
-  padding: 170px clamp(16px, 5vw, 74px) 54px;
+  padding: 0 clamp(16px, 5vw, 74px) 54px;
   text-align: center;
 }
 
@@ -585,12 +581,10 @@
   }
 
   .detailHeader {
-    top: 0;
-    right: auto;
-    left: var(--sn-rail);
     height: 135px;
     min-height: 135px;
-    padding-top: 52px;
+    flex-basis: 135px;
+    padding: 0;
   }
 
   .detailHeader > .brandMark {
@@ -624,7 +618,6 @@
   }
 
   .detailContent {
-    padding-top: 135px;
     padding-inline: 14px;
     padding-bottom: 32px;
   }

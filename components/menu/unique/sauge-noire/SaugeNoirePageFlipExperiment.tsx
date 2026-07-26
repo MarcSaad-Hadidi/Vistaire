@@ -16,7 +16,6 @@ import styles from "./SaugeNoireBookMenu.module.css";
 
 type PageFlipApi = {
   getCurrentPageIndex: () => number;
-  flip: (page: number) => void;
   flipNext: () => void;
   flipPrev: () => void;
   destroy: () => void;
@@ -113,6 +112,7 @@ export function SaugeNoirePageFlipExperiment({
   const originalPagesRef = useRef<Set<HTMLElement>>(new Set());
   const readyBookKeyRef = useRef<string | null>(null);
   const requestedPageIndexRef = useRef<number | null>(null);
+  const animationTargetPageRef = useRef<number | null>(null);
   const gestureStartRef = useRef<{ x: number; y: number } | null>(null);
   const [dimensions, setDimensions] = useState<FlipDimensions | null>(null);
   const [readyBookKey, setReadyBookKey] = useState<string | null>(null);
@@ -203,19 +203,25 @@ export function SaugeNoirePageFlipExperiment({
     if (!pageFlip || dimensions === null || !bookIsReady || failed) return;
 
     const currentPage = pageFlip.getCurrentPageIndex();
-    if (currentPage === pageIndex) {
+    if (animationTargetPageRef.current === null) {
+      if (requestedPageIndexRef.current !== null || currentPage === pageIndex) return;
+      animationTargetPageRef.current = pageIndex;
+    }
+
+    const targetPage = animationTargetPageRef.current;
+    if (targetPage === null) return;
+
+    if (currentPage === targetPage) {
+      animationTargetPageRef.current = null;
       requestedPageIndexRef.current = null;
       return;
     }
-    if (requestedPageIndexRef.current !== null) return;
 
-    requestedPageIndexRef.current = pageIndex;
-    if (pageIndex === currentPage + 1) {
+    requestedPageIndexRef.current = targetPage;
+    if (targetPage > currentPage) {
       pageFlip.flipNext();
-    } else if (pageIndex === currentPage - 1) {
-      pageFlip.flipPrev();
     } else {
-      pageFlip.flip(pageIndex);
+      pageFlip.flipPrev();
     }
   }, [bookIsReady, dimensions, failed, pageIndex]);
 
@@ -245,6 +251,7 @@ export function SaugeNoirePageFlipExperiment({
   const handleInit = () => {
     readyBookKeyRef.current = bookKey;
     requestedPageIndexRef.current = null;
+    animationTargetPageRef.current = null;
     setReadyBookKey(bookKey);
     captureOriginalPages();
   };

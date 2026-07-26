@@ -69,7 +69,10 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(experiment, /onPointerUp=\{handlePointerUp\}/);
   assert.match(experiment, /onTouchStart=\{handleTouchStart\}/);
   assert.match(experiment, /onTouchEnd=\{handleTouchEnd\}/);
-  assert.match(experiment, /pageFlip\.flip\(pageIndex\)/);
+  assert.match(experiment, /animationTargetPageRef/);
+  assert.match(experiment, /targetPage > currentPage/);
+  assert.match(experiment, /pageFlip\.flipNext\(\)/);
+  assert.match(experiment, /pageFlip\.flipPrev\(\)/);
   assert.match(experiment, /onPageFlip\(nextIndex\)/);
   assert.match(flipPage, /SaugeNoireFlipPageDensity = "hard" \| "soft"/);
   assert.match(flipPage, /data-density=\{density\}/);
@@ -110,20 +113,17 @@ test("page flip cleanup and clone focus protection are explicit", async () => {
   assert.match(experiment, /button, a, input, select, textarea/);
 });
 
-test("the book keeps its frame fixed while contents and dish pages can scroll when needed", async () => {
+test("the book keeps its frame fixed while each sheet owns its complete scrolling chrome", async () => {
   const styles = await readFile(stylesPath, "utf8");
 
   assert.match(styles, /\.book\s*\{[\s\S]*position:\s*fixed;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;[\s\S]*overflow:\s*hidden;/);
   assert.match(
     styles,
-    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*right:\s*auto;[\s\S]*width:\s*calc\(100vw - var\(--sn-rail\)\);/
+    /\.bookHeader\s*\{[\s\S]*position:\s*relative;[\s\S]*width:\s*100%;[\s\S]*height:\s*132px;[\s\S]*overflow:\s*visible;/
   );
-  assert.match(
-    styles,
-    /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*calc\(50% - 5px\);/
-  );
-  assert.match(styles, /\.bookHeader\s*\{[\s\S]*background-color:\s*var\(--sn-paper\);[\s\S]*background-image:\s*var\(--sn-paper-texture\);/);
+  assert.doesNotMatch(styles, /\.bookHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
+  assert.match(styles, /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*calc\(50% - 5px\);/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.bookHeader > \.brandMark\s*\{[\s\S]*top:\s*65px;/);
   assert.doesNotMatch(styles, /margin-bottom:\s*-92px;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overflow:\s*auto;/);

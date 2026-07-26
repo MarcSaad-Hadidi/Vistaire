@@ -119,29 +119,23 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*sticky;[\s\S]*align-self:\s*flex-start;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.paper\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
-  assert.match(styles, /\.detailHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*background-color:\s*var\(--sn-paper\);[\s\S]*background-image:\s*var\(--sn-paper-texture\);/);
+  assert.match(styles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;[\s\S]*width:\s*100%;[\s\S]*height:\s*170px;/);
+  assert.doesNotMatch(styles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
   assert.match(styles, /\.detailHeader > \.brandMark\s*\{[\s\S]*top:\s*78px;[\s\S]*left:\s*calc\(50% - 5px\);/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader\s*\{[\s\S]*height:\s*135px;[\s\S]*padding-top:\s*52px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader\s*\{[\s\S]*height:\s*135px;[\s\S]*padding:\s*0;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader > \.brandMark\s*\{[\s\S]*top:\s*65px;/);
 });
 
-test("Sauge Noire chrome is fixed once, outside every scrollable or animated sheet", async () => {
+test("Sauge Noire chrome is normal-flow content inside its scrollable sheet", async () => {
   const detail = await readFile(detailPath, "utf8");
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
-  const renderDishPaper = detail.slice(
-    detail.indexOf("function renderDishPaper"),
-    detail.indexOf("  return (", detail.indexOf("function renderDishPaper"))
-  );
-
-  assert.match(
-    bookStyles,
-    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*right:\s*auto;[\s\S]*width:\s*calc\(100vw - var\(--sn-rail\)\);/
-  );
-  assert.doesNotMatch(renderDishPaper, /detailHeader|brandMark/);
-  assert.match(detail, /<DishDetailHeader[\s\S]*<div className=\{styles\.detailSurface\}>/);
+  assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
+  assert.match(detail, /renderDishPaper[\s\S]*\{!isPreview \?[\s\S]*<DishDetailHeader/);
+  assert.match(detail, /<div className=\{styles\.detailSurface\}>/);
   assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*perspective:\s*2000px;/);
-  assert.match(detailStyles, /\.detailHeader\s*\{[\s\S]*position:\s*fixed;/);
-  assert.match(detailStyles, /\.detailContent\s*\{[\s\S]*padding:[^;]*170px/);
-  assert.match(detailStyles, /@media \(max-width: 700px\)[\s\S]*\.detailContent\s*\{[\s\S]*padding-top:\s*135px;/);
+  assert.match(detailStyles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;/);
+  assert.doesNotMatch(detailStyles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
+  assert.match(detailStyles, /\.detailContent\s*\{[\s\S]*padding:\s*0 clamp\(16px, 5vw, 74px\) 54px;/);
+  assert.match(detailStyles, /@media \(max-width: 700px\)[\s\S]*\.detailContent\s*\{[\s\S]*padding-inline:\s*14px;/);
 });

@@ -358,21 +358,21 @@ export function SaugeNoireBookMenu({
     };
   }, []);
 
-  function updatePreference(next: { locale?: string; currency?: string }) {
-    const params = new URLSearchParams(searchParams.toString());
+  const updatePreference = useCallback((next: { locale?: string; currency?: string }) => {
+    const params = new URLSearchParams(searchParamsString);
     params.set("view", `sauge-${pageIndex}`);
     if (next.locale) params.set("lang", next.locale);
     if (next.currency) params.set("currency", next.currency);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }
+  }, [pageIndex, pathname, router, searchParamsString]);
 
-  function selectLocale(nextLocale: string) {
+  const selectLocale = useCallback((nextLocale: string) => {
     updatePreference({ locale: nextLocale });
-  }
+  }, [updatePreference]);
 
-  function selectCurrency(nextCurrency: string) {
+  const selectCurrency = useCallback((nextCurrency: string) => {
     updatePreference({ currency: nextCurrency });
-  }
+  }, [updatePreference]);
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (pageFlipEnabled) return;
@@ -399,6 +399,17 @@ export function SaugeNoireBookMenu({
 
     return (
       <>
+        <BookHeader
+          locales={availableLocales}
+          currencies={availableCurrencies}
+          activeLocale={activeLocaleValue}
+          activeCurrency={currency}
+          onLocaleChange={selectLocale}
+          onCurrencyChange={selectCurrency}
+          showContentsLink={pageIndex > 1}
+          contentsLabel={copy.contents}
+          onContents={() => goToPage(1)}
+        />
         {page.kind === "cover" ? <CoverPage copy={copy} onOpen={() => goToPage(1)} /> : null}
         {page.kind === "contents" ? (
           <ContentsPage
@@ -432,7 +443,22 @@ export function SaugeNoireBookMenu({
         {page.kind === "ending" ? <EndingPage copy={copy} onRestart={() => goToPage(0)} /> : null}
       </>
     );
-  }, [activeLocale, activeLocaleValue, copy, currency, exchangeRates, goToPage, menu, pages, query]);
+  }, [
+    activeLocale,
+    activeLocaleValue,
+    availableCurrencies,
+    availableLocales,
+    copy,
+    currency,
+    exchangeRates,
+    goToPage,
+    menu,
+    pageIndex,
+    pages,
+    query,
+    selectCurrency,
+    selectLocale
+  ]);
 
   const flipPages = useMemo(
     () =>
@@ -462,17 +488,6 @@ export function SaugeNoireBookMenu({
       style={{ "--sn-page-index": pageIndex } as CSSProperties}
     >
       <BookRail />
-      <BookHeader
-        locales={availableLocales}
-        currencies={availableCurrencies}
-        activeLocale={activeLocaleValue}
-        activeCurrency={currency}
-        onLocaleChange={selectLocale}
-        onCurrencyChange={selectCurrency}
-        showContentsLink={pageIndex > 1}
-        contentsLabel={copy.contents}
-        onContents={() => goToPage(1)}
-      />
       <div
         className={styles.paper}
         ref={paperRef}

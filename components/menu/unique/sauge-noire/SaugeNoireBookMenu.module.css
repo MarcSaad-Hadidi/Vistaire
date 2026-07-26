@@ -168,19 +168,16 @@
 }
 
 .bookHeader {
-  position: fixed;
-  top: 0;
-  left: var(--sn-rail);
-  right: auto;
-  z-index: 20;
-  width: calc(100vw - var(--sn-rail));
+  position: relative;
+  z-index: 2;
+  width: 100%;
   height: 132px;
   min-height: 132px;
-  overflow: hidden;
-  background-color: var(--sn-paper);
-  background-image: var(--sn-paper-texture);
-  background-size: var(--sn-paper-texture-size);
-  pointer-events: none;
+  flex: 0 0 132px;
+  margin-left: 0;
+  overflow: visible;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .bookHeader > .brandMark {
@@ -376,7 +373,9 @@
   min-height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
-  background: var(--sn-paper);
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
   color: var(--sn-ink);
   scrollbar-width: thin;
 }
@@ -412,13 +411,13 @@
   min-height: 100%;
   flex-direction: column;
   align-items: center;
-  padding: 168px clamp(16px, 6vw, 92px) 46px;
+  padding: 36px clamp(16px, 6vw, 92px) 46px;
   text-align: center;
 }
 
 .coverPage {
   justify-content: flex-start;
-  padding-top: clamp(156px, 18vh, 176px);
+  padding-top: clamp(24px, calc(18vh - 132px), 44px);
 }
 
 .coverTap {
@@ -628,7 +627,7 @@
 }
 
 .contentsPage {
-  padding-top: 195px;
+  padding-top: 63px;
 }
 
 .contentsBotanical {
@@ -692,7 +691,7 @@
 }
 
 .sectionPage {
-  padding-top: 184px;
+  padding-top: 52px;
 }
 
 .sectionKicker {
@@ -1171,11 +1170,11 @@
 
   .page {
     min-height: calc(100svh - 1px);
-    padding: 137px 14px 28px;
+    padding: 5px 14px 28px;
   }
 
   .coverPage {
-    padding-top: clamp(132px, 18svh, 156px);
+    padding-top: clamp(0px, calc(18svh - 132px), 24px);
   }
 
   .coverBotanical {
@@ -1198,7 +1197,7 @@
   }
 
   .contentsPage {
-    padding-top: 144px;
+    padding-top: 12px;
   }
 
   .contentsBotanical {
@@ -1228,7 +1227,7 @@
   }
 
   .sectionPage {
-    padding-top: 142px;
+    padding-top: 10px;
   }
 
   .sectionKicker {
