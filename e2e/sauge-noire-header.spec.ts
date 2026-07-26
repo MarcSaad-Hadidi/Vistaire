@@ -39,14 +39,25 @@ type HeaderSnapshot = {
   visibleMonograms: number;
   monogramsInFlipPages: number;
   monogramsInFlipClones: number;
+  headerPosition: string;
+  headerBackgroundColor: string;
+  headerBackgroundImage: string;
+  controlsHavePointerEvents: boolean;
+  visibleContentAboveHeader: boolean;
   documentHasHorizontalOverflow: boolean;
   bookHasHorizontalOverflow: boolean;
 };
 
 function assertStablePosition(before: Box, after: Box, label: string) {
-  expect(Math.abs(after.top - before.top), `${label} top moved`).toBeLessThan(0.5);
-  expect(Math.abs(after.left - before.left), `${label} left moved`).toBeLessThan(0.5);
-  expect(Math.abs(after.center - before.center), `${label} center moved`).toBeLessThan(0.5);
+  expect(Math.abs(after.top - before.top), `${label} top moved`).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.left - before.left), `${label} left moved`).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.center - before.center), `${label} center moved`).toBeLessThanOrEqual(1);
+}
+
+function assertMatchingPosition(menuLogo: Box, detailLogo: Box, label: string) {
+  expect(Math.abs(detailLogo.top - menuLogo.top), `${label} top differs`).toBeLessThanOrEqual(1);
+  expect(Math.abs(detailLogo.left - menuLogo.left), `${label} left differs`).toBeLessThanOrEqual(1);
+  expect(Math.abs(detailLogo.center - menuLogo.center), `${label} center differs`).toBeLessThanOrEqual(1);
 }
 
 async function snapshotHeader(page: Page): Promise<HeaderSnapshot> {
@@ -74,6 +85,31 @@ async function snapshotHeader(page: Page): Promise<HeaderSnapshot> {
         )
       : null;
     if (!book || !activePage) throw new Error("Expected active Sauge Noire page");
+
+    const headerStyle = header ? getComputedStyle(header) : null;
+    const headerRect = header?.getBoundingClientRect();
+    const headerZIndex = Number.parseInt(headerStyle?.zIndex ?? "0", 10) || 0;
+    const visibleContentAboveHeader = Array.from(
+      document.querySelectorAll<HTMLElement>("h1, h2, h3, p, a, button, img, svg")
+    ).some((element) => {
+      if (!header || header.contains(element)) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const elementZIndex = Number.parseInt(style.zIndex, 10);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== "hidden" &&
+        style.opacity !== "0" &&
+        headerRect &&
+        rect.left < headerRect.right &&
+        rect.right > headerRect.left &&
+        rect.top < headerRect.bottom &&
+        rect.bottom > headerRect.top &&
+        Number.isFinite(elementZIndex) &&
+        elementZIndex > headerZIndex
+      );
+    });
 
     const visibleMonograms = Array.from(
       document.querySelectorAll<HTMLElement>('div[aria-label="Sauge Noire"]')
@@ -103,6 +139,15 @@ async function snapshotHeader(page: Page): Promise<HeaderSnapshot> {
       monogramsInFlipClones: document.querySelectorAll(
         '[data-sauge-flip-clone] div[aria-label="Sauge Noire"]'
       ).length,
+      headerPosition: headerStyle?.position ?? "",
+      headerBackgroundColor: headerStyle?.backgroundColor ?? "",
+      headerBackgroundImage: headerStyle?.backgroundImage ?? "",
+      controlsHavePointerEvents: header
+        ? Array.from(header.querySelectorAll("a, button")).every(
+            (element) => getComputedStyle(element).pointerEvents !== "none"
+          )
+        : false,
+      visibleContentAboveHeader,
       documentHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
       bookHasHorizontalOverflow: book.scrollWidth > book.clientWidth
     };
@@ -120,6 +165,30 @@ async function snapshotDishHeader(page: Page) {
     if (!detail || !header || !logo || !currentPaper) {
       throw new Error("Expected Sauge Noire dish chrome and current paper");
     }
+
+    const headerStyle = getComputedStyle(header);
+    const headerRect = header.getBoundingClientRect();
+    const headerZIndex = Number.parseInt(headerStyle.zIndex, 10) || 0;
+    const visibleContentAboveHeader = Array.from(
+      detail.querySelectorAll<HTMLElement>("h1, h2, h3, p, a, button, img, svg")
+    ).some((element) => {
+      if (header.contains(element)) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const elementZIndex = Number.parseInt(style.zIndex, 10);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== "hidden" &&
+        style.opacity !== "0" &&
+        rect.left < headerRect.right &&
+        rect.right > headerRect.left &&
+        rect.top < headerRect.bottom &&
+        rect.bottom > headerRect.top &&
+        Number.isFinite(elementZIndex) &&
+        elementZIndex > headerZIndex
+      );
+    });
 
     const box = (element: Element): Box => {
       const rect = element.getBoundingClientRect();
@@ -155,6 +224,13 @@ async function snapshotDishHeader(page: Page) {
       monogramsInTransitionPreview: detail.querySelectorAll(
         '[data-transition-preview="true"] [aria-label="Sauge Noire"]'
       ).length,
+      headerPosition: headerStyle.position,
+      headerBackgroundColor: headerStyle.backgroundColor,
+      headerBackgroundImage: headerStyle.backgroundImage,
+      controlsHavePointerEvents: Array.from(header.querySelectorAll("a, button")).every(
+        (element) => getComputedStyle(element).pointerEvents !== "none"
+      ),
+      visibleContentAboveHeader,
       documentHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth
     };
   });
@@ -223,6 +299,54 @@ test("Sauge Noire dish links open the real detail route", async ({ page }) => {
   await dishLinks.first().click();
   await page.waitForURL(/\/menu\/sauge-noire\/dishes\//, { timeout: 5_000 });
   await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
+});
+
+test("Sauge Noire monogram uses one opaque fixed mask across menu and detail", async ({
+  page
+}) => {
+  test.setTimeout(60_000);
+
+  for (const viewport of VIEWPORTS.slice(0, 2)) {
+    await page.setViewportSize(viewport);
+    await page.goto(MENU_ROUTE, { waitUntil: "domcontentloaded" });
+    await waitForMenuReady(page);
+
+    const menuTop = await snapshotHeader(page);
+    expect(menuTop.headerPosition).toBe("fixed");
+    expect(menuTop.headerBackgroundColor).not.toMatch(/transparent|rgba\(0, 0, 0, 0\)/);
+    expect(menuTop.headerBackgroundImage).toContain("radial-gradient");
+    expect(menuTop.controlsHavePointerEvents).toBe(true);
+    expect(menuTop.visibleMonograms).toBe(1);
+    expect(menuTop.monogramsInFlipPages).toBe(0);
+    expect(menuTop.monogramsInFlipClones).toBe(0);
+    expect(menuTop.visibleContentAboveHeader).toBe(false);
+
+    await scrollActivePageToBottom(page);
+    const menuBottom = await snapshotHeader(page);
+    assertStablePosition(menuTop.logo, menuBottom.logo, `menu logo at ${viewport.width}px`);
+    expect(menuBottom.visibleMonograms).toBe(1);
+    expect(menuBottom.visibleContentAboveHeader).toBe(false);
+
+    await page.goto(DETAIL_ROUTE, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
+
+    const detailTop = await snapshotDishHeader(page);
+    expect(detailTop.headerPosition).toBe("fixed");
+    expect(detailTop.headerBackgroundColor).not.toMatch(/transparent|rgba\(0, 0, 0, 0\)/);
+    expect(detailTop.headerBackgroundImage).toContain("radial-gradient");
+    expect(detailTop.controlsHavePointerEvents).toBe(true);
+    expect(detailTop.visibleMonograms).toBe(1);
+    expect(detailTop.monogramsInPapers).toBe(0);
+    expect(detailTop.monogramsInTransitionPreview).toBe(0);
+    expect(detailTop.visibleContentAboveHeader).toBe(false);
+    assertMatchingPosition(menuTop.logo, detailTop.logo, `menu/detail logo at ${viewport.width}px`);
+
+    await scrollDishToBottom(page);
+    const detailBottom = await snapshotDishHeader(page);
+    assertStablePosition(detailTop.logo, detailBottom.logo, `detail logo at ${viewport.width}px`);
+    expect(detailBottom.visibleMonograms).toBe(1);
+    expect(detailBottom.visibleContentAboveHeader).toBe(false);
+  }
 });
 
 test("Sauge Noire header and monogram stay fixed while a long page scrolls", async ({

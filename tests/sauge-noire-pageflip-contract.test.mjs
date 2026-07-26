@@ -117,12 +117,14 @@ test("the book keeps its frame fixed while contents and dish pages can scroll wh
   assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;[\s\S]*overflow:\s*hidden;/);
   assert.match(
     styles,
-    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*width:\s*auto;/
+    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*right:\s*auto;[\s\S]*width:\s*calc\(100vw - var\(--sn-rail\)\);/
   );
   assert.match(
     styles,
-    /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*50%;/
+    /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*calc\(50% - 5px\);/
   );
+  assert.match(styles, /\.bookHeader\s*\{[\s\S]*background-color:\s*var\(--sn-paper\);[\s\S]*background-image:\s*var\(--sn-paper-texture\);/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.bookHeader > \.brandMark\s*\{[\s\S]*top:\s*65px;/);
   assert.doesNotMatch(styles, /margin-bottom:\s*-92px;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overflow:\s*auto;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overscroll-behavior:\s*contain;/);

@@ -20,6 +20,11 @@
 .detailPage {
   --sn-forest: #26372b;
   --sn-paper: #faf4e9;
+  --sn-rail: clamp(42px, 11vw, 116px);
+  --sn-paper-texture:
+    radial-gradient(circle at 12% 16%, rgba(180, 122, 60, 0.06) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 75% 62%, rgba(38, 55, 43, 0.035) 0 1px, transparent 1.5px);
+  --sn-paper-texture-size: 16px 17px, 23px 24px;
   --sn-cream: #f3eadb;
   --sn-bronze: #b47a3c;
   --sn-line: rgba(38, 55, 43, 0.22);
@@ -123,10 +128,8 @@
   border-left: 0;
   border-radius: 0 42px 42px 0;
   background-color: var(--sn-paper);
-  background-image:
-    radial-gradient(circle at 12% 16%, rgba(180, 122, 60, 0.045) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 75% 62%, rgba(38, 55, 43, 0.025) 0 1px, transparent 1.5px);
-  background-size: 16px 17px, 23px 24px;
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
   transform-style: preserve-3d;
   will-change: transform, opacity, filter;
 }
@@ -209,16 +212,28 @@
 .detailHeader {
   position: fixed;
   top: 0;
-  right: 0;
-  left: clamp(42px, 11vw, 116px);
+  right: auto;
+  left: var(--sn-rail);
   z-index: 20;
   display: flex;
+  width: calc(100vw - var(--sn-rail));
   height: 170px;
   min-height: 170px;
   align-items: flex-start;
   justify-content: center;
   padding: 76px clamp(16px, 6vw, 84px) 0;
+  overflow: hidden;
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
   pointer-events: none;
+}
+
+.detailHeader > .brandMark {
+  position: absolute;
+  top: 78px;
+  left: calc(50% - 5px);
+  transform: translateX(-50%);
 }
 
 .backLink {
@@ -571,12 +586,15 @@
 
   .detailHeader {
     top: 0;
-    right: 0;
-    left: clamp(42px, 11vw, 116px);
+    right: auto;
+    left: var(--sn-rail);
     height: 135px;
     min-height: 135px;
     padding-top: 52px;
-    background: var(--sn-paper);
+  }
+
+  .detailHeader > .brandMark {
+    top: 65px;
   }
 
   .brandMark {
