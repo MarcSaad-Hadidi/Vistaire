@@ -138,4 +138,5 @@ test("Sauge Noire chrome is normal-flow content inside its scrollable sheet", as
   assert.doesNotMatch(detailStyles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
   assert.match(detailStyles, /\.detailContent\s*\{[\s\S]*padding:\s*0 clamp\(16px, 5vw, 74px\) 54px;/);
   assert.match(detailStyles, /@media \(max-width: 700px\)[\s\S]*\.detailContent\s*\{[\s\S]*padding-inline:\s*14px;/);
+  assert.match(detailStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.detailPage \.doubleArrow\s*\{[\s\S]*animation:\s*detailDoubleArrowNudge 1\.8s ease-in-out infinite !important;/);
 });

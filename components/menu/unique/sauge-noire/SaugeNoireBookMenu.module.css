@@ -626,6 +626,17 @@
   }
 }
 
+/* Sauge Noire keeps its tactile navigation cue even when the host opts into reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .book .arrow {
+    animation: saugeArrowNudge 1.8s ease-in-out infinite !important;
+  }
+
+  .book .doubleArrow {
+    animation: saugeDoubleArrowNudge 1.8s ease-in-out infinite !important;
+  }
+}
+
 .contentsPage {
   padding-top: 63px;
 }

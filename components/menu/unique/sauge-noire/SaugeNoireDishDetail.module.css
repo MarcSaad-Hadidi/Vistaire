@@ -530,6 +530,13 @@
   }
 }
 
+/* Keep the dish-to-dish navigation cue visible in the local browser's reduced-motion profile. */
+@media (prefers-reduced-motion: reduce) {
+  .detailPage .doubleArrow {
+    animation: detailDoubleArrowNudge 1.8s ease-in-out infinite !important;
+  }
+}
+
 .menuLink {
   display: inline-block;
   margin-top: 26px;
