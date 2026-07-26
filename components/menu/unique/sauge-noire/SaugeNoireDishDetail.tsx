@@ -259,6 +259,8 @@ export function SaugeNoireDishDetail({
   };
   const previousHref = buildDishHref(previousDish);
   const detailHref = buildDishHref(nextDish);
+  const currentMenuHref = buildMenuHref(menu, dish, query, currency);
+  const currentCategory = localizedCategoryLabel(dish.category, publicLocale);
   const pageTurnDirection = pageTurn?.dishId === dish.id ? pageTurn.direction : null;
   const transitionDish = pageTurnDirection === "next"
     ? nextDish
@@ -352,12 +354,6 @@ export function SaugeNoireDishDetail({
         onPointerUp={isPreview ? undefined : handlePointerUp}
         onPointerCancel={isPreview ? undefined : () => { pointerStart.current = null; }}
       >
-        <header className={styles.detailHeader}>
-          <Link className={styles.backLink} href={targetMenuHref} prefetch={false}>
-            <span aria-hidden="true">{"\u2190"}</span> {copy.back} {targetCategory}
-          </Link>
-          <div className={styles.brandMark} aria-label="Sauge Noire"><span>S</span><span>N</span></div>
-        </header>
         <section className={styles.detailContent}>
           <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(targetDish, publicLocale) ? "  \u00b7  " : ""}{isSignatureLabel(targetDish, publicLocale)}</p>
           <h1>{targetDish.name.toUpperCase()}</h1>
@@ -434,9 +430,31 @@ export function SaugeNoireDishDetail({
         <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>
         <div className={`${styles.railFastener} ${styles.railFastenerBottom}`}><i /><span /><i /></div>
       </aside>
-      {transitionDish ? renderDishPaper(transitionDish, true) : null}
-      {renderDishPaper(dish, false)}
+      <DishDetailHeader href={currentMenuHref} category={currentCategory} backLabel={copy.back} />
+      <div className={styles.detailSurface}>
+        {transitionDish ? renderDishPaper(transitionDish, true) : null}
+        {renderDishPaper(dish, false)}
+      </div>
     </main>
+  );
+}
+
+function DishDetailHeader({
+  href,
+  category,
+  backLabel
+}: {
+  href: string;
+  category: string;
+  backLabel: string;
+}) {
+  return (
+    <header className={styles.detailHeader}>
+      <Link className={styles.backLink} href={href} prefetch={false}>
+        <span aria-hidden="true">{"\u2190"}</span> {backLabel} {category}
+      </Link>
+      <div className={styles.brandMark} aria-label="Sauge Noire"><span>S</span><span>N</span></div>
+    </header>
   );
 }
 

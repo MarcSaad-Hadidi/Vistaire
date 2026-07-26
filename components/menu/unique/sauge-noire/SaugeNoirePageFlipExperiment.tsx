@@ -98,6 +98,10 @@ function isPageFlipProtectedTarget(target: EventTarget | null): boolean {
   );
 }
 
+function isPageFlipInteractiveTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest("a, button"));
+}
+
 export function SaugeNoirePageFlipExperiment({
   pages,
   pageIndex,
@@ -279,7 +283,9 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    if (!isPageFlipInteractiveTarget(event.target)) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
     rememberGestureStart(event.clientX, event.clientY, event.target);
   };
 

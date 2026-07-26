@@ -7,6 +7,12 @@ type SupabaseAdminClientResult =
   | { ok: true; client: SupabaseClient }
   | { ok: false; reason: string };
 
+let cachedAdminClient: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  client: SupabaseClient;
+} | null = null;
+
 export function getSupabaseAdminClient(): SupabaseAdminClientResult {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,18 +33,28 @@ export function getSupabaseAdminClient(): SupabaseAdminClientResult {
     return { ok: false, reason: projectIdentity.reason };
   }
 
+  if (
+    cachedAdminClient?.supabaseUrl === supabaseUrl &&
+    cachedAdminClient.serviceRoleKey === serviceRoleKey
+  ) {
+    return { ok: true, client: cachedAdminClient.client };
+  }
+
+  const client = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    },
+    global: {
+      headers: {
+        "X-Client-Info": "vistaire-owner-analytics"
+      }
+    }
+  });
+  cachedAdminClient = { supabaseUrl, serviceRoleKey, client };
+
   return {
     ok: true,
-    client: createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      },
-      global: {
-        headers: {
-          "X-Client-Info": "vistaire-owner-analytics"
-        }
-      }
-    })
+    client
   };
 }

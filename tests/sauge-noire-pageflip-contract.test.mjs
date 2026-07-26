@@ -83,10 +83,9 @@ test("page swipes can start on dish links without hijacking real controls", asyn
     experiment,
     /target\.closest\(\s*"input, select, textarea, \[contenteditable=true\], \[data-no-page-flip\]"/
   );
-  assert.doesNotMatch(
-    experiment,
-    /target\.closest\(\s*"button, input, select, textarea/
-  );
+  assert.match(experiment, /function isPageFlipInteractiveTarget/);
+  assert.match(experiment, /target\.closest\("a, button"\)/);
+  assert.match(experiment, /if \(!isPageFlipInteractiveTarget\(event\.target\)\)/);
   assert.match(experiment, /const SWIPE_DISTANCE = 32/);
   assert.match(experiment, /Math\.abs\(deltaX\) <= Math\.abs\(deltaY\)/);
 });
@@ -118,7 +117,7 @@ test("the book keeps its frame fixed while contents and dish pages can scroll wh
   assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;[\s\S]*overflow:\s*hidden;/);
   assert.match(
     styles,
-    /\.bookHeader\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*width:\s*auto;/
+    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*width:\s*auto;/
   );
   assert.match(
     styles,

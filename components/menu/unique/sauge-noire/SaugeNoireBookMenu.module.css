@@ -166,7 +166,7 @@
 }
 
 .bookHeader {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   left: var(--sn-rail);
@@ -1359,14 +1359,5 @@
     width: 120px;
     height: 200px;
     margin: 20px auto 14px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .featureCard,
-  .arrow,
-  .doubleArrow {
-    transition: none;
-    animation: none;
   }
 }

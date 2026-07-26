@@ -14,6 +14,14 @@ const detailPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx",
   import.meta.url
 );
+const bookStylesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireBookMenu.module.css",
+  import.meta.url
+);
+const detailStylesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireDishDetail.module.css",
+  import.meta.url
+);
 
 test("Sauge Noire renderer is statically bound to the canonical design identity", async () => {
   const source = await readFile(registryPath, "utf8");
@@ -111,5 +119,26 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*sticky;[\s\S]*align-self:\s*flex-start;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.paper\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader\s*\{[\s\S]*position:\s*sticky;[\s\S]*background:\s*var\(--sn-paper\);/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader\s*\{[\s\S]*height:\s*135px;[\s\S]*background:\s*var\(--sn-paper\);/);
+});
+
+test("Sauge Noire chrome is fixed once, outside every scrollable or animated sheet", async () => {
+  const detail = await readFile(detailPath, "utf8");
+  const bookStyles = await readFile(bookStylesPath, "utf8");
+  const detailStyles = await readFile(detailStylesPath, "utf8");
+  const renderDishPaper = detail.slice(
+    detail.indexOf("function renderDishPaper"),
+    detail.indexOf("  return (", detail.indexOf("function renderDishPaper"))
+  );
+
+  assert.match(
+    bookStyles,
+    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*right:\s*0;[\s\S]*left:\s*var\(--sn-rail\);/
+  );
+  assert.doesNotMatch(renderDishPaper, /detailHeader|brandMark/);
+  assert.match(detail, /<DishDetailHeader[\s\S]*<div className=\{styles\.detailSurface\}>/);
+  assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*perspective:\s*2000px;/);
+  assert.match(detailStyles, /\.detailHeader\s*\{[\s\S]*position:\s*fixed;/);
+  assert.match(detailStyles, /\.detailContent\s*\{[\s\S]*padding:[^;]*170px/);
+  assert.match(detailStyles, /@media \(max-width: 700px\)[\s\S]*\.detailContent\s*\{[\s\S]*padding-top:\s*135px;/);
 });
