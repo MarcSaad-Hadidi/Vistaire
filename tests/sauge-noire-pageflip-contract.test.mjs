@@ -118,11 +118,11 @@ test("the book keeps its frame fixed while contents and dish pages can scroll wh
   assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;[\s\S]*overflow:\s*hidden;/);
   assert.match(
     styles,
-    /\.bookHeader\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*width:\s*calc\(100% - var\(--sn-rail\)\);/
+    /\.bookHeader\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*0;[\s\S]*left:\s*var\(--sn-rail\);[\s\S]*width:\s*calc\(100vw - var\(--sn-rail\)\);/
   );
   assert.match(
     styles,
-    /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*50%;/
+    /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*fixed;[\s\S]*left:\s*calc\(var\(--sn-rail\) \+ \(\(100vw - var\(--sn-rail\)\) \/ 2\)\);/
   );
   assert.match(styles, /\.bookHeader\s*\{[\s\S]*margin-bottom:\s*-92px;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overflow:\s*auto;/);

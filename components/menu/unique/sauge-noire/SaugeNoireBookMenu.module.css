@@ -166,11 +166,11 @@
 }
 
 .bookHeader {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: var(--sn-rail);
   z-index: 3;
-  width: calc(100% - var(--sn-rail));
+  width: calc(100vw - var(--sn-rail));
   height: 92px;
   min-height: 92px;
   margin-bottom: -92px;
@@ -178,9 +178,9 @@
 }
 
 .bookHeader > .brandMark {
-  position: absolute;
+  position: fixed;
   top: 78px;
-  left: 50%;
+  left: calc(var(--sn-rail) + ((100vw - var(--sn-rail)) / 2));
   z-index: 4;
   transform: translateX(-50%);
 }
