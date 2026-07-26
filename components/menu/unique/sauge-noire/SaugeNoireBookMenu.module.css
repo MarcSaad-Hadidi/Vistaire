@@ -638,19 +638,21 @@
 }
 
 .contentsPage {
-  padding-top: 63px;
+  min-height: calc(100% - 132px);
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 .contentsBotanical {
-  width: clamp(120px, 19vw, 220px);
-  height: clamp(170px, 26vh, 270px);
+  width: clamp(90px, 14vw, 150px);
+  height: clamp(100px, 14vh, 130px);
 }
 
 .contentsPage h1 {
   max-width: 760px;
-  margin: 24px 0 0;
+  margin: 12px 0 0;
   color: var(--sn-forest);
-  font-size: clamp(2.4rem, 6vw, 6.5rem);
+  font-size: clamp(2rem, 4.5vw, 4.8rem);
   font-weight: 400;
   letter-spacing: 0.13em;
   line-height: 0.98;
@@ -658,19 +660,19 @@
 }
 
 .contentsPage .instruction {
-  margin-top: 16px;
+  margin-top: 6px;
 }
 
 .contentsList {
   display: grid;
   width: min(100%, 770px);
-  margin-top: 34px;
+  margin-top: 14px;
   text-align: left;
 }
 
 .contentsList button {
   display: flex;
-  min-height: 66px;
+  min-height: 44px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -680,7 +682,7 @@
   background: transparent;
   color: var(--sn-ink);
   cursor: pointer;
-  font-size: clamp(1.05rem, 2.5vw, 2rem);
+  font-size: clamp(0.94rem, 1.7vw, 1.45rem);
   letter-spacing: 0.02em;
   text-align: left;
 }
@@ -694,6 +696,14 @@
   border: 1px solid var(--sn-bronze);
   border-radius: 15px;
   background: rgba(250, 244, 233, 0.52);
+}
+
+.contentsPage .pageFooter {
+  padding: 12px 0 14px;
+}
+
+.contentsPage .pageFooter p {
+  margin-top: 4px;
 }
 
 .contentsList b {
@@ -1213,26 +1223,31 @@
   }
 
   .contentsPage {
+    min-height: calc(100% - 132px);
     padding-top: 12px;
   }
 
   .contentsBotanical {
     width: 92px;
-    height: 132px;
+    height: 104px;
   }
 
   .contentsPage h1 {
-    margin-top: 14px;
-    font-size: clamp(2rem, 10vw, 3.6rem);
+    margin-top: 8px;
+    font-size: clamp(1.85rem, 8.5vw, 3.1rem);
     letter-spacing: 0.08em;
   }
 
+  .contentsPage .instruction {
+    margin-top: 4px;
+  }
+
   .contentsList {
-    margin-top: 20px;
+    margin-top: 12px;
   }
 
   .contentsList button {
-    min-height: 47px;
+    min-height: 42px;
     padding-inline: 9px;
     font-size: 0.98rem;
   }
@@ -1240,6 +1255,14 @@
   .contentsList button:hover,
   .contentsList .contentsActive {
     border-radius: 10px;
+  }
+
+  .contentsPage .pageFooter {
+    padding: 8px 0 12px;
+  }
+
+  .contentsPage .pageFooter p {
+    margin-top: 2px;
   }
 
   .sectionPage {

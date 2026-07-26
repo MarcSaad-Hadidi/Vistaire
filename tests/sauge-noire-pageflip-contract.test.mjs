@@ -138,3 +138,15 @@ test("the book keeps its frame fixed while each sheet owns its complete scrollin
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.book \.arrow\s*\{[\s\S]*animation:\s*saugeArrowNudge 1\.8s ease-in-out infinite !important;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.book \.doubleArrow\s*\{[\s\S]*animation:\s*saugeDoubleArrowNudge 1\.8s ease-in-out infinite !important;/);
 });
+
+test("the table of contents is compact enough to stay inside the sheet", async () => {
+  const styles = await readFile(stylesPath, "utf8");
+
+  assert.match(styles, /\.contentsPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*16px;[\s\S]*padding-bottom:\s*16px;/);
+  assert.match(styles, /\.contentsBotanical\s*\{[\s\S]*height:\s*clamp\(100px, 14vh, 130px\);/);
+  assert.match(styles, /\.contentsList button\s*\{[\s\S]*min-height:\s*44px;/);
+  assert.match(styles, /\.contentsPage \.pageFooter\s*\{[\s\S]*padding:\s*12px 0 14px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.contentsPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*12px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.contentsBotanical\s*\{[\s\S]*height:\s*104px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.contentsList button\s*\{[\s\S]*min-height:\s*42px;/);
+});
