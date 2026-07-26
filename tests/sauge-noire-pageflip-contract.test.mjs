@@ -134,6 +134,7 @@ test("the book keeps its frame fixed while each sheet owns its complete scrollin
   assert.doesNotMatch(styles, /\.pageFlipFallback:has\(\.coverPage\),[\s\S]*\.pageFlipFallback:has\(\.contentsPage\)/);
   assert.match(styles, /\.pageViewport\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.pageFlipBook\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.coverOpen\s*\{[\s\S]*margin-top:\s*20px;[\s\S]*padding-top:\s*0;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.book \.arrow\s*\{[\s\S]*animation:\s*saugeArrowNudge 1\.8s ease-in-out infinite !important;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.book \.doubleArrow\s*\{[\s\S]*animation:\s*saugeDoubleArrowNudge 1\.8s ease-in-out infinite !important;/);
 });

@@ -1199,6 +1199,11 @@
     letter-spacing: 0.055em;
   }
 
+  .coverOpen {
+    margin-top: 20px;
+    padding-top: 0;
+  }
+
   .coverTitle p,
   .endingPage > p,
   .instruction,
