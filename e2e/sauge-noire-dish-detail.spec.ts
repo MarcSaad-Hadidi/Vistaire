@@ -10,7 +10,15 @@ type DetailState = {
   clientHeight: number;
   stfTransforms: string[];
   logoRect: { top: number; left: number } | null;
+  headerRect: { top: number; left: number } | null;
+  titleRect: { top: number; left: number } | null;
+  titleCenter: number | null;
+  backRect: { top: number; left: number } | null;
   visibleLogoCount: number;
+  externalFloatingLogoCount: number;
+  activePageIndex: string | null;
+  activePageLogoCount: number;
+  activeHeaderLogoCount: number;
   fallbackVisible: boolean;
   physicalPageCount: number;
   windowScrollY: number;
@@ -19,22 +27,6 @@ type DetailState = {
   detailSurfaceRect: { top: number; left: number; width: number; height: number } | null;
   visualViewport: { offsetTop: number; height: number; width: number } | null;
   pageScrollTops: Array<{ scrollTop: number; isCurrent: boolean; isVisible: boolean; isClone: boolean }>;
-  logoParentIsShell: boolean;
-  logoInsidePageFlip: boolean;
-  logoInsideScrollContainer: boolean;
-  logoInsideTransformedAncestor: boolean;
-  logoAncestors: Array<{
-    tag: string;
-    className: string;
-    position: string;
-    transform: string;
-    perspective: string;
-    filter: string;
-    contain: string;
-    willChange: string;
-    overflow: string;
-    rect: { top: number; left: number; width: number; height: number };
-  }>;
   detailPageScrollTop: number;
   detailSurfaceScrollTop: number;
   detailPageOverflow: string | null;
@@ -51,8 +43,10 @@ type FlipProbeSample = {
   scrollTop: number;
   pageScrollTops: number[];
   transforms: string[];
-  logoTop: number | null;
-  logoLeft: number | null;
+  activePageIndex: string | null;
+  activePageLogoCount: number;
+  activeHeaderLogoCount: number;
+  externalFloatingLogoCount: number;
   visibleLogoCount: number;
   fallbackVisible: boolean;
 };
@@ -67,7 +61,14 @@ function previousDishLink(page: Page) {
 
 async function openDetail(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
-  await page.goto(detailPath, { waitUntil: "domcontentloaded" });
+  const response = await page.goto(detailPath, { waitUntil: "domcontentloaded" });
+  const notFoundContent = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+  if (response?.status() === 404 || notFoundContent.includes("This page could not be found")) {
+    test.skip(
+      true,
+      "Requires a seeded Sauge Noire Supabase fixture (route returned 404)."
+    );
+  }
   await expect(page.getByRole("heading", { name: /TRUITE/i })).toBeVisible();
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible();
   await expect.poll(async () => (await detailState(page)).currentScrollTop).toBe(0);
@@ -95,15 +96,20 @@ async function detailState(page: Page): Promise<DetailState> {
         isVisible(element) &&
         Boolean(element.querySelector('article:not([data-transition-preview="true"])'))
     );
+    const currentArticle = currentPage?.querySelector<HTMLElement>(
+      'article:not([data-transition-preview="true"])'
+    );
+    const currentHeader = currentArticle?.querySelector<HTMLElement>("header");
+    const currentTitle = currentArticle?.querySelector<HTMLElement>("h1");
+    const currentBack = currentHeader?.querySelector<HTMLElement>("a");
     const stfTransforms = Array.from(
       document.querySelectorAll<HTMLElement>(".stf__item")
     ).map((element) => getComputedStyle(element).transform);
-    const visibleLogoCount = Array.from(
+    const logos = Array.from(
       document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')
-    ).filter(isVisible).length;
-    const logo = Array.from(
-      document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')
-    ).find(isVisible);
+    );
+    const visibleLogoCount = logos.filter(isVisible).length;
+    const logo = currentHeader?.querySelector<HTMLElement>('[aria-label="Sauge Noire"]');
     const logoRect = logo?.getBoundingClientRect();
     const detailPage = document.querySelector<HTMLElement>(
       '[data-testid="sauge-noire-dish-detail"]'
@@ -119,45 +125,10 @@ async function detailState(page: Page): Promise<DetailState> {
       const value = element.getBoundingClientRect();
       return { top: value.top, left: value.left, width: value.width, height: value.height };
     };
-    const logoAncestors: DetailState["logoAncestors"] = [];
-    let logoInsideScrollContainer = false;
-    let logoInsideTransformedAncestor = false;
-    let ancestor = logo?.parentElement ?? null;
-    while (ancestor) {
-      const style = getComputedStyle(ancestor);
-      const ancestorRect = ancestor.getBoundingClientRect();
-      logoAncestors.push({
-        tag: ancestor.tagName,
-        className: String(ancestor.className),
-        position: style.position,
-        transform: style.transform,
-        perspective: style.perspective,
-        filter: style.filter,
-        contain: style.contain,
-        willChange: style.willChange,
-        overflow: style.overflow,
-        rect: {
-          top: ancestorRect.top,
-          left: ancestorRect.left,
-          width: ancestorRect.width,
-          height: ancestorRect.height
-        }
-      });
-      const canScroll = ancestor.scrollHeight > ancestor.clientHeight + 1 ||
-        ancestor.scrollWidth > ancestor.clientWidth + 1;
-      if (canScroll && /(auto|scroll|overlay|clip)/.test(`${style.overflow} ${style.overflowY} ${style.overflowX}`)) {
-        logoInsideScrollContainer = true;
-      }
-      if (
-        style.transform !== "none" ||
-        style.perspective !== "none" ||
-        style.filter !== "none" ||
-        style.willChange.includes("transform")
-      ) {
-        logoInsideTransformedAncestor = true;
-      }
-      ancestor = ancestor.parentElement;
-    }
+    const externalFloatingLogoCount = [
+      ...(detailPage ? Array.from(detailPage.children) : []),
+      ...(detailSurface ? Array.from(detailSurface.children) : [])
+    ].filter((element) => element.matches('[aria-label="Sauge Noire"]')).length;
     const cssValue = (style: CSSStyleDeclaration | null, property: string) =>
       style?.getPropertyValue(property) || null;
     const fallbackVisible = Array.from(
@@ -191,13 +162,22 @@ async function detailState(page: Page): Promise<DetailState> {
         isVisible: isVisible(element),
         isClone: Boolean(element.closest('[data-sauge-flip-clone]'))
       })),
-      logoParentIsShell: logo?.parentElement === detailPage,
-      logoInsidePageFlip: Boolean(
-        logo?.closest('.stf__item, [class*="pageFlipPage"], [data-sauge-flip-clone]')
-      ),
-      logoInsideScrollContainer,
-      logoInsideTransformedAncestor,
-      logoAncestors,
+      headerRect: currentHeader
+        ? { top: currentHeader.getBoundingClientRect().top, left: currentHeader.getBoundingClientRect().left }
+        : null,
+      titleRect: currentTitle
+        ? { top: currentTitle.getBoundingClientRect().top, left: currentTitle.getBoundingClientRect().left }
+        : null,
+      titleCenter: currentTitle
+        ? currentTitle.getBoundingClientRect().left + currentTitle.getBoundingClientRect().width / 2
+        : null,
+      backRect: currentBack
+        ? { top: currentBack.getBoundingClientRect().top, left: currentBack.getBoundingClientRect().left }
+        : null,
+      externalFloatingLogoCount,
+      activePageIndex: currentPage?.getAttribute("data-sauge-flip-page-index") ?? null,
+      activePageLogoCount: currentPage?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
+      activeHeaderLogoCount: currentHeader?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
       detailPageScrollTop: detailPage?.scrollTop ?? -1,
       detailSurfaceScrollTop: detailSurface?.scrollTop ?? -1,
       detailPageOverflow: detailPageStyle?.overflow ?? null,
@@ -355,11 +335,11 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
         candidate.route === expected.route &&
         candidate.scrollTop === expected.scrollTop &&
         candidate.visibleLogoCount === 1 &&
+        candidate.activePageIndex === expected.activePageIndex &&
+        candidate.activePageLogoCount === 1 &&
+        candidate.activeHeaderLogoCount === 1 &&
+        candidate.externalFloatingLogoCount === 0 &&
         !candidate.fallbackVisible &&
-        candidate.logoTop !== null &&
-        candidate.logoLeft !== null &&
-        Math.abs(candidate.logoTop - expected.logoTop) <= 1 &&
-        Math.abs(candidate.logoLeft - expected.logoLeft) <= 1 &&
         (transformChanged || expected.allowLifecycleOnly)
       );
     });
@@ -368,8 +348,7 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
     route: before.route,
     scrollTop: before.currentScrollTop,
     transforms: before.stfTransforms,
-    logoTop: before.logoRect?.top ?? 0,
-    logoLeft: before.logoRect?.left ?? 0,
+    activePageIndex: before.activePageIndex,
     // Playwright WebKit collapses this library's CSS transform to an identity
     // matrix; Chromium still requires a non-identity .stf__item transform.
     allowLifecycleOnly: browserName === "webkit"
@@ -382,10 +361,10 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
   expect(transitionSample).not.toBeNull();
   expect(transitionSample!.route).toBe(before.route);
   expect(transitionSample!.scrollTop).toBe(before.currentScrollTop);
-  expect(transitionSample!.logoTop).not.toBeNull();
-  expect(transitionSample!.logoLeft).not.toBeNull();
-  expect(Math.abs(transitionSample!.logoTop! - before.logoRect!.top)).toBeLessThanOrEqual(1);
-  expect(Math.abs(transitionSample!.logoLeft! - before.logoRect!.left)).toBeLessThanOrEqual(1);
+  expect(transitionSample!.activePageIndex).toBe(before.activePageIndex);
+  expect(transitionSample!.activePageLogoCount).toBe(1);
+  expect(transitionSample!.activeHeaderLogoCount).toBe(1);
+  expect(transitionSample!.externalFloatingLogoCount).toBe(0);
 }
 
 async function armFlipProbe(page: Page) {
@@ -401,14 +380,20 @@ async function armFlipProbe(page: Page) {
         rect.width > 0 && rect.height > 0 && !element.closest('[aria-hidden="true"]');
     };
     const sample = () => {
-      const logo = [...document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')].find(isVisible);
       const currentPage = [...document.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]')].find(
         (element) => isVisible(element) && element.querySelector('article:not([data-transition-preview="true"])')
       );
+      const currentArticle = currentPage?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
+      const currentHeader = currentArticle?.querySelector<HTMLElement>("header");
+      const detail = document.querySelector<HTMLElement>('[data-testid="sauge-noire-dish-detail"]');
+      const detailSurface = detail?.querySelector<HTMLElement>('[data-detail-page-flip="true"]');
+      const externalFloatingLogoCount = [
+        ...(detail ? [...detail.children] : []),
+        ...(detailSurface ? [...detailSurface.children] : [])
+      ].filter((element) => element.matches('[aria-label="Sauge Noire"]')).length;
       const pageScrollTops = [...document.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]')].map(
         (element) => element.scrollTop
       );
-      const logoRect = logo?.getBoundingClientRect();
       probe.samples.push({
         route: window.location.href,
         scrollTop: Math.max(currentPage?.scrollTop ?? 0, ...pageScrollTops),
@@ -416,8 +401,10 @@ async function armFlipProbe(page: Page) {
         transforms: [...document.querySelectorAll<HTMLElement>(".stf__item")].map(
           (element) => getComputedStyle(element).transform
         ),
-        logoTop: logoRect?.top ?? null,
-        logoLeft: logoRect?.left ?? null,
+        activePageIndex: currentPage?.getAttribute("data-sauge-flip-page-index") ?? null,
+        activePageLogoCount: currentPage?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
+        activeHeaderLogoCount: currentHeader?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
+        externalFloatingLogoCount,
         visibleLogoCount: [...document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')].filter(isVisible).length,
         fallbackVisible: [...document.querySelectorAll<HTMLElement>('[data-page-flip-fallback]')].some(isVisible)
       });
@@ -427,23 +414,40 @@ async function armFlipProbe(page: Page) {
   });
 }
 
-function assertStableLogo(before: DetailState, after: DetailState, label: string) {
-  expect(after.logoRect, `${label} should expose the SN`).not.toBeNull();
-  expect(after.visibleLogoCount, `${label} should expose one visible SN`).toBe(1);
-  expect(after.logoParentIsShell, `${label} SN should belong to the fixed shell`).toBe(true);
-  expect(after.logoInsidePageFlip, `${label} SN entered PageFlip`).toBe(false);
-  expect(after.logoInsideScrollContainer, `${label} SN entered a scroll container`).toBe(false);
-  expect(after.logoInsideTransformedAncestor, `${label} SN entered a transformed ancestor`).toBe(false);
-  expect(Math.abs(after.logoRect!.top - before.logoRect!.top), `${label} SN top moved`).toBeLessThanOrEqual(1);
-  expect(Math.abs(after.logoRect!.left - before.logoRect!.left), `${label} SN left moved`).toBeLessThanOrEqual(1);
-  expect(after.windowScrollY, `${label} window scrolled`).toBe(0);
-  expect(after.documentElementScrollTop, `${label} document scrolled`).toBe(0);
-  expect(after.detailPageScrollTop, `${label} detail shell scrolled`).toBe(0);
-  expect(after.detailSurfaceScrollTop, `${label} detail surface scrolled`).toBe(0);
-  expect(after.detailPageRect?.top, `${label} detail shell moved vertically`).toBe(0);
-  expect(after.detailPageRect?.left, `${label} detail shell moved horizontally`).toBe(0);
-  expect(after.detailSurfaceRect?.top, `${label} detail surface moved vertically`).toBe(0);
-  expect(after.pageScrollTops.filter((entry) => entry.scrollTop > 0).length, `${label} multiple pages scrolled`).toBeLessThanOrEqual(1);
+function assertDishSheetChrome(state: DetailState, label: string) {
+  expect(state.logoRect, `${label} should expose the SN`).not.toBeNull();
+  expect(state.visibleLogoCount, `${label} should expose one visible SN`).toBe(1);
+  expect(state.externalFloatingLogoCount, `${label} should not expose an external floating SN`).toBe(0);
+  expect(state.activePageLogoCount, `${label} active PageFlip sheet should contain one SN`).toBe(1);
+  expect(state.activeHeaderLogoCount, `${label} active detail header should contain one SN`).toBe(1);
+  expect(state.activePageIndex, `${label} should expose an active PageFlip sheet`).not.toBeNull();
+  expect(state.windowScrollY, `${label} window scrolled`).toBe(0);
+  expect(state.documentElementScrollTop, `${label} document scrolled`).toBe(0);
+  expect(state.detailPageScrollTop, `${label} detail shell scrolled`).toBe(0);
+  expect(state.detailSurfaceScrollTop, `${label} detail surface scrolled`).toBe(0);
+  expect(state.detailPageRect?.top, `${label} detail shell moved vertically`).toBe(0);
+  expect(state.detailPageRect?.left, `${label} detail shell moved horizontally`).toBe(0);
+  expect(state.detailSurfaceRect?.top, `${label} detail surface moved vertically`).toBe(0);
+  expect(state.pageScrollTops.filter((entry) => entry.scrollTop > 0).length, `${label} multiple pages scrolled`).toBeLessThanOrEqual(1);
+}
+
+function assertDishMovesTogether(before: DetailState, after: DetailState, label: string) {
+  expect(after.logoRect, `${label} should expose the SN after scroll`).not.toBeNull();
+  expect(after.headerRect, `${label} should expose the header after scroll`).not.toBeNull();
+  expect(after.titleRect, `${label} should expose the title after scroll`).not.toBeNull();
+  expect(after.backRect, `${label} should expose the back control after scroll`).not.toBeNull();
+  expect(after.logoRect!.top, `${label} SN did not move with the sheet`).toBeLessThan(before.logoRect!.top - 1);
+  expect(after.headerRect!.top, `${label} header did not move with the sheet`).toBeLessThan(before.headerRect!.top - 1);
+  expect(after.backRect!.top, `${label} back control did not move with the sheet`).toBeLessThan(before.backRect!.top - 1);
+  expect(after.titleRect!.top, `${label} title did not move with the sheet`).toBeLessThan(before.titleRect!.top - 1);
+
+  for (const [name, beforeGap, afterGap] of [
+    ["SN/title", before.logoRect!.top - before.titleRect!.top, after.logoRect!.top - after.titleRect!.top],
+    ["SN/back", before.logoRect!.top - before.backRect!.top, after.logoRect!.top - after.backRect!.top],
+    ["SN/title-center", before.logoRect!.left - before.titleCenter!, after.logoRect!.left - after.titleCenter!]
+  ] as const) {
+    expect(Math.abs(afterGap - beforeGap), `${label} ${name} relative gap changed`).toBeLessThanOrEqual(1);
+  }
 }
 
 function collectPageErrors(page: Page) {
@@ -485,7 +489,7 @@ async function clickAndAssertFlip(
   expect(after.visibleLogoCount).toBe(1);
   expect(after.fallbackVisible).toBe(false);
   expect(after.physicalPageCount).toBe(3);
-  assertStableLogo(before, after, "after route change");
+  assertDishSheetChrome(after, "after route change");
 }
 
 async function swipeAndAssertFlip(
@@ -571,12 +575,11 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       expect(errors, `${viewport.width}px emitted console errors`).toEqual([]);
     });
 
-    test(`keeps the SN fixed while the detail PageFlip page scrolls at ${viewport.width}px`, async ({ page, browserName }) => {
+    test(`keeps the SN attached to the scrolling detail sheet at ${viewport.width}px`, async ({ page, browserName }) => {
       const errors = collectPageErrors(page);
       await openDetail(page, viewport.width, viewport.height);
       const before = await detailState(page);
-      expect(before.logoRect).not.toBeNull();
-      expect(before.visibleLogoCount).toBe(1);
+      assertDishSheetChrome(before, `${browserName} ${viewport.width}px top`);
       expect(before.windowScrollY).toBe(0);
       expect(before.detailPageScrollTop).toBe(0);
       expect(before.detailSurfaceScrollTop).toBe(0);
@@ -590,26 +593,24 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       expect(before.detailSurfaceOverflow).toBe("hidden");
       expect(before.pageOverflow).toBe("auto");
 
-      expect(before.logoParentIsShell).toBe(true);
-      expect(before.logoInsidePageFlip).toBe(false);
-      expect(before.logoInsideScrollContainer).toBe(false);
-      expect(before.logoInsideTransformedAncestor).toBe(false);
       expect(before.detailPageRect?.top).toBe(0);
       expect(before.detailPageRect?.left).toBe(0);
       expect(before.detailSurfaceRect?.top).toBe(0);
 
       const midGesture = await scrollDetailToOffset(page, viewport, 360, browserName);
-      assertStableLogo(before, midGesture, `${browserName} ${viewport.width}px middle`);
+      assertDishSheetChrome(midGesture, `${browserName} ${viewport.width}px middle`);
+      assertDishMovesTogether(before, midGesture, `${browserName} ${viewport.width}px middle`);
       expect(midGesture.currentScrollTop).toBeGreaterThan(0);
       const duringMid = await detailState(page);
-      assertStableLogo(before, duringMid, `${browserName} ${viewport.width}px after gesture`);
+      assertDishSheetChrome(duringMid, `${browserName} ${viewport.width}px after gesture`);
 
       const bottom = await scrollDetailToBottom(page, viewport, browserName);
-      assertStableLogo(before, bottom, `${browserName} ${viewport.width}px bottom`);
+      assertDishSheetChrome(bottom, `${browserName} ${viewport.width}px bottom`);
+      assertDishMovesTogether(before, bottom, `${browserName} ${viewport.width}px bottom`);
       expect(bottom.currentScrollTop).toBeGreaterThanOrEqual(bottom.scrollHeight - bottom.clientHeight - 1);
 
       const top = await scrollDetailToTop(page, viewport, browserName);
-      assertStableLogo(before, top, `${browserName} ${viewport.width}px top again`);
+      assertDishSheetChrome(top, `${browserName} ${viewport.width}px top again`);
       expect(top.currentScrollTop).toBe(0);
       expect(top.visualViewport).not.toBeNull();
       expect(errors, `${browserName} ${viewport.width}px emitted console errors`).toEqual([]);
@@ -656,10 +657,9 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
     });
 
     const beforeVerticalUrl = page.url();
-    const beforeVertical = await detailState(page);
     const verticalGestureResult = await scrollDetailByGesture(page, viewport, 1, browserName);
-    assertStableLogo(beforeVertical, verticalGestureResult.during, "3D test during vertical gesture");
-    assertStableLogo(beforeVertical, verticalGestureResult.after, "3D test after vertical gesture");
+    assertDishSheetChrome(verticalGestureResult.during, "3D test during vertical gesture");
+    assertDishSheetChrome(verticalGestureResult.after, "3D test after vertical gesture");
     expect(page.url()).toBe(beforeVerticalUrl);
 
     await page.evaluate(() => {
@@ -691,13 +691,12 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       await expect(modelStage).toBeVisible();
       const box = await modelStage.boundingBox();
       expect(box).not.toBeNull();
-      const before3d = await detailState(page);
       await drag(page, { x: box!.x + box!.width * 0.7, y: box!.y + box!.height * 0.5 }, { x: box!.x + box!.width * 0.3, y: box!.y + box!.height * 0.5 });
       expect(page.url()).toBe(beforeVerticalUrl);
-      assertStableLogo(before3d, await detailState(page), "3D open");
+      assertDishSheetChrome(await detailState(page), "3D open");
       await page.getByRole("button", { name: "MASQUER LA 3D" }).click();
       await expect(modelStage).toBeHidden();
-      assertStableLogo(beforeVertical, await detailState(page), "3D closed");
+      assertDishSheetChrome(await detailState(page), "3D closed");
     }
 
     await page.goto(detailPath, { waitUntil: "domcontentloaded" });

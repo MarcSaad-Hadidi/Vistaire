@@ -22,6 +22,7 @@ const detailStylesPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireDishDetail.module.css",
   import.meta.url
 );
+const forbiddenDetailFloatingClass = ["detail", "Floating", "Brand", "Mark"].join("");
 
 test("Sauge Noire renderer is statically bound to the canonical design identity", async () => {
   const source = await readFile(registryPath, "utf8");
@@ -95,6 +96,8 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   );
   assert.match(source, /type DishTurnDirection = "next" \| "previous"/);
   assert.match(source, /requestDishNavigation/);
+  assert.match(source, /querySelector<HTMLElement>\("\[data-page-flip-state\]"\)/);
+  assert.match(source, /if \(pageFlipState !== "ready"\) return;/);
   assert.match(source, /targetPageIndex: direction === "next" \? 2 : 0/);
   assert.match(source, /handleDishLinkClick\(event, targetNextHref, "next"\)/);
   assert.match(source, /handleDishLinkClick\(event, targetPreviousHref, "previous"\)/);
@@ -105,12 +108,15 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   assert.match(source, /key="next-page"/);
   assert.doesNotMatch(source, /key=\{activePageTurn \?/);
   assert.match(source, /isPreview=\{isPreview\}/);
+  assert.match(source, /<div className=\{styles\.brandMark\} aria-label="Sauge Noire">/);
+  assert.doesNotMatch(source, new RegExp(forbiddenDetailFloatingClass));
   assert.match(source, /draggable=\{false\}/);
   assert.match(source, /data-transition-preview/);
   assert.match(source, /function stopDishSwipePropagation/);
   assert.match(source, /className=\{styles\.modelStage\}[\s\S]*onPointerDown=\{stopDishSwipePropagation\}[\s\S]*onPointerUp=\{stopDishSwipePropagation\}/);
   assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*none;/);
-  assert.match(styles, /\.transitionPreview \.detailHeader\s*\{[\s\S]*visibility:\s*hidden;[\s\S]*pointer-events:\s*none;/);
+  assert.doesNotMatch(styles, /\.transitionPreview \.detailHeader[\s\S]*visibility:\s*hidden/);
+  assert.doesNotMatch(styles, /data-sauge-flip-clone="true"[\s\S]*visibility:\s*hidden/);
   assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
   assert.match(styles, /\.detailPage\s*\{[\s\S]*background-color:\s*var\(--sn-paper\);[\s\S]*background-image:\s*var\(--sn-paper-texture\);[\s\S]*background-size:\s*var\(--sn-paper-texture-size\);/);
   assert.match(styles, /\.detailPage\s*\{[\s\S]*position:\s*fixed;[\s\S]*inset:\s*0;[\s\S]*width:\s*100%;[\s\S]*height:\s*100svh;[\s\S]*overflow:\s*hidden;[\s\S]*overscroll-behavior:\s*none;[\s\S]*isolation:\s*isolate;/);
@@ -183,12 +189,14 @@ test("dish PageFlip gestures lock horizontal direction and protect interactive s
   assert.match(experiment, /onSwipe\(deltaX < 0 \? "next" : "previous"\)/);
 });
 
-test("Sauge Noire chrome stays fixed while PageFlip owns detail scrolling", async () => {
+test("Sauge Noire detail chrome belongs to each PageFlip sheet", async () => {
   const detail = await readFile(detailPath, "utf8");
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
   assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
   assert.match(detail, /renderDishPaper[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
+  assert.match(detail, /function DishDetailHeader[\s\S]*<div className=\{styles\.brandMark\} aria-label="Sauge Noire">/);
+  assert.doesNotMatch(detail, new RegExp(forbiddenDetailFloatingClass));
   assert.match(detail, /<div className=\{styles\.detailSurface\}[^>]*data-detail-page-flip="true"/);
   assert.match(detailStyles, /\.detailPage\s*\{[\s\S]*position:\s*fixed;[\s\S]*inset:\s*0;[\s\S]*overscroll-behavior:\s*none;[\s\S]*isolation:\s*isolate;/);
   assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*overflow:\s*hidden;/);

@@ -63,13 +63,15 @@ type DishSnapshot = {
   title: Box;
   back: Box;
   header: Box;
-  paperScrollTop: number;
-  paperScrollHeight: number;
-  paperClientHeight: number;
+  pageScrollTop: number;
+  pageScrollHeight: number;
+  pageClientHeight: number;
   documentScrollTop: number;
   visibleMonograms: number;
-  monogramsInPapers: number;
-  monogramsInTransitionPreview: number;
+  externalFloatingLogoCount: number;
+  activePageLogoCount: number;
+  activeHeaderLogoCount: number;
+  originalPageLogoCounts: number[];
   headerPosition: string;
   logoPosition: string;
   backPosition: string;
@@ -109,6 +111,7 @@ function assertMovesTogether(before: MenuSnapshot, after: MenuSnapshot, label: s
 
 function assertDishMovesTogether(before: DishSnapshot, after: DishSnapshot, label: string) {
   for (const [name, beforeBox, afterBox] of [
+    ["logo", before.logo, after.logo],
     ["title", before.title, after.title],
     ["header", before.header, after.header],
     ["back", before.back, after.back]
@@ -123,6 +126,14 @@ function assertDishMovesTogether(before: DishSnapshot, after: DishSnapshot, labe
       Math.abs((afterFirst.top - afterSecond.top) - (beforeFirst.top - beforeSecond.top)),
       `${label} ${name} top gap changed`
     ).toBeLessThanOrEqual(1);
+  }
+
+  for (const [name, beforeGap, afterGap] of [
+    ["logo/title", before.logo.top - before.title.top, after.logo.top - after.title.top],
+    ["logo/back", before.logo.top - before.back.top, after.logo.top - after.back.top],
+    ["logo/title-center", before.logo.left - before.title.center, after.logo.left - after.title.center]
+  ] as const) {
+    expect(Math.abs(afterGap - beforeGap), `${label} ${name} relative gap changed`).toBeLessThanOrEqual(1);
   }
 }
 
@@ -152,7 +163,8 @@ async function waitForMenuReady(page: Page) {
 
 async function gotoSaugeNoireRoute(page: Page, route: string) {
   const response = await page.goto(route, { waitUntil: "domcontentloaded" });
-  if (response?.status() === 404) {
+  const notFoundContent = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+  if (response?.status() === 404 || notFoundContent.includes("This page could not be found")) {
     test.skip(
       true,
       "Requires a seeded Sauge Noire Supabase fixture (route returned 404)."
@@ -425,15 +437,18 @@ async function snapshotDish(page: Page): Promise<DishSnapshot> {
       };
     };
     const detail = document.querySelector('[data-testid="sauge-noire-dish-detail"]');
-    const paper = detail?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
+    const activePage = [...(detail?.querySelectorAll<HTMLElement>('[data-sauge-flip-page-index]') ?? [])].find(
+      (page) =>
+        !page.closest('[data-sauge-flip-clone="true"]') &&
+        Boolean(page.querySelector('article:not([data-transition-preview="true"])'))
+    );
+    const paper = activePage?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
     const header = paper?.querySelector("header");
-    const logo = detail?.querySelector('[aria-label="Sauge Noire"]');
+    const logo = header?.querySelector('[aria-label="Sauge Noire"]');
     const title = paper?.querySelector("h1");
     const back = header?.querySelector("a");
-    if (!detail || !paper || !header || !logo || !title || !back) {
-      throw new Error("Expected Sauge Noire dish sheet");
-    }
-    const visibleMonograms = [...detail.querySelectorAll('[aria-label="Sauge Noire"]')].filter((element) => {
+    const detailSurface = detail?.querySelector<HTMLElement>('[data-detail-page-flip="true"]');
+    const isVisible = (element: Element) => {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
       return (
@@ -444,23 +459,36 @@ async function snapshotDish(page: Page): Promise<DishSnapshot> {
         rect.left < window.innerWidth &&
         rect.top < window.innerHeight &&
         style.visibility !== "hidden" &&
-        style.opacity !== "0"
+        style.opacity !== "0" &&
+        !element.closest('[aria-hidden="true"]')
       );
-    });
+    };
+    const logos = [...(detail?.querySelectorAll('[aria-label="Sauge Noire"]') ?? [])];
+    const originalPages = [...(detail?.querySelectorAll<HTMLElement>('[data-sauge-flip-page-index]') ?? [])]
+      .filter((page) => !page.closest('[data-sauge-flip-clone="true"]'));
+    const externalFloatingLogoCount = [
+      ...(detail ? [...detail.children] : []),
+      ...(detailSurface ? [...detailSurface.children] : [])
+    ].filter((element) => element.matches('[aria-label="Sauge Noire"]')).length;
+    if (!detail || !activePage || !paper || !header || !logo || !title || !back) {
+      throw new Error("Expected Sauge Noire dish sheet");
+    }
     return {
       logo: box(logo),
       title: box(title),
       back: box(back),
       header: box(header),
-      paperScrollTop: paper.scrollTop,
-      paperScrollHeight: paper.scrollHeight,
-      paperClientHeight: paper.clientHeight,
+      pageScrollTop: activePage.scrollTop,
+      pageScrollHeight: activePage.scrollHeight,
+      pageClientHeight: activePage.clientHeight,
       documentScrollTop: window.scrollY,
-      visibleMonograms: visibleMonograms.length,
-      monogramsInPapers: paper.querySelectorAll('[aria-label="Sauge Noire"]').length,
-      monogramsInTransitionPreview: detail.querySelectorAll(
-        '[data-transition-preview="true"] [aria-label="Sauge Noire"]'
-      ).length,
+      visibleMonograms: logos.filter(isVisible).length,
+      externalFloatingLogoCount,
+      activePageLogoCount: activePage.querySelectorAll('[aria-label="Sauge Noire"]').length,
+      activeHeaderLogoCount: header.querySelectorAll('[aria-label="Sauge Noire"]').length,
+      originalPageLogoCounts: originalPages.map((page) =>
+        page.querySelectorAll('[aria-label="Sauge Noire"]').length
+      ),
       headerPosition: getComputedStyle(header).position,
       logoPosition: getComputedStyle(logo).position,
       backPosition: getComputedStyle(back).position,
@@ -564,16 +592,20 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
     expect(top.backPosition).not.toMatch(/fixed|sticky/);
     expect(top.headerSharesPaper).toBe(true);
     expect(top.controlsHavePointerEvents).toBe(true);
-    expect(top.visibleMonograms).toBeLessThanOrEqual(1);
-    expect(top.monogramsInPapers).toBe(0);
-    expect(top.monogramsInTransitionPreview).toBe(0);
+    expect(top.visibleMonograms).toBe(1);
+    expect(top.externalFloatingLogoCount).toBe(0);
+    expect(top.activePageLogoCount).toBe(1);
+    expect(top.activeHeaderLogoCount).toBe(1);
+    expect(top.originalPageLogoCounts).toEqual([1, 1, 1]);
     expect(top.documentHasHorizontalOverflow).toBe(false);
 
     const scrollDistance = await scrollDishToBottom(page);
     const bottom = await snapshotDish(page);
-    expect(bottom.visibleMonograms).toBeLessThanOrEqual(1);
-    expect(bottom.monogramsInPapers).toBe(0);
-    expect(bottom.monogramsInTransitionPreview).toBe(0);
+    expect(bottom.visibleMonograms).toBe(1);
+    expect(bottom.externalFloatingLogoCount).toBe(0);
+    expect(bottom.activePageLogoCount).toBe(1);
+    expect(bottom.activeHeaderLogoCount).toBe(1);
+    expect(bottom.originalPageLogoCounts).toEqual([1, 1, 1]);
     if (scrollDistance > 0) {
       assertDishMovesTogether(top, bottom, `dish ${viewport.width}px`);
     } else {

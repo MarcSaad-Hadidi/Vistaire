@@ -350,6 +350,10 @@ export function SaugeNoireDishDetail({
     ) {
       return;
     }
+    const pageFlipState = detailSurfaceRef.current
+      ?.querySelector<HTMLElement>("[data-page-flip-state]")
+      ?.getAttribute("data-page-flip-state");
+    if (pageFlipState !== "ready") return;
     event.preventDefault();
     requestDishNavigation(
       href,
@@ -474,6 +478,7 @@ export function SaugeNoireDishDetail({
                 href={targetPreviousHref}
                 prefetch={false}
                 aria-label={copy.previous}
+                tabIndex={isPreview ? -1 : undefined}
                 onClick={isPreview ? undefined : (event) => handleDishLinkClick(event, targetPreviousHref, "previous")}
               />
               <DoubleArrow />
@@ -482,11 +487,19 @@ export function SaugeNoireDishDetail({
                 href={targetNextHref}
                 prefetch={false}
                 aria-label={copy.next}
+                tabIndex={isPreview ? -1 : undefined}
                 onClick={isPreview ? undefined : (event) => handleDishLinkClick(event, targetNextHref, "next")}
               />
             </div>
           </div>
-          <Link className={styles.menuLink} href={targetMenuHref} prefetch={false}>{copy.menu}</Link>
+          <Link
+            className={styles.menuLink}
+            href={targetMenuHref}
+            prefetch={false}
+            tabIndex={isPreview ? -1 : undefined}
+          >
+            {copy.menu}
+          </Link>
         </section>
       </article>
     );
@@ -530,9 +543,6 @@ export function SaugeNoireDishDetail({
           fallback={renderDishPaper(dish, false)}
         />
       </div>
-      <div className={`${styles.brandMark} ${styles.detailFloatingBrandMark}`} aria-label="Sauge Noire">
-        <span>S</span><span>N</span>
-      </div>
     </main>
   );
 }
@@ -550,9 +560,18 @@ function DishDetailHeader({
 }) {
   return (
     <header className={styles.detailHeader} aria-hidden={isPreview || undefined}>
-      <Link className={styles.backLink} href={href} prefetch={false}>
+      <Link
+        className={styles.backLink}
+        href={href}
+        prefetch={false}
+        tabIndex={isPreview ? -1 : undefined}
+      >
         <span aria-hidden="true">{"\u2190"}</span> {backLabel} {category}
       </Link>
+      <div className={styles.brandMark} aria-label="Sauge Noire">
+        <span>S</span>
+        <span>N</span>
+      </div>
     </header>
   );
 }

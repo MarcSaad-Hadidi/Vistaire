@@ -156,15 +156,6 @@
   pointer-events: none;
 }
 
-.transitionPreview .detailHeader {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.detailPage [data-sauge-flip-clone="true"] .detailHeader {
-  visibility: hidden;
-}
-
 .detailHeader {
   position: relative;
   z-index: 2;
@@ -186,15 +177,6 @@
   top: 78px;
   left: calc(50% - 5px);
   transform: translateX(-50%);
-}
-
-.detailPage > .detailFloatingBrandMark {
-  position: absolute;
-  z-index: 5;
-  top: 78px;
-  left: calc(var(--sn-rail) + (100% - var(--sn-rail)) / 2 - 5px);
-  transform: translateX(-50%);
-  pointer-events: none;
 }
 
 .backLink {
@@ -561,10 +543,6 @@
   }
 
   .detailHeader > .brandMark {
-    top: 65px;
-  }
-
-  .detailPage > .detailFloatingBrandMark {
     top: 65px;
   }
 
