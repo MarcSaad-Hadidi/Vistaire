@@ -81,6 +81,11 @@ test("route transitions keep two soft sheets mounted and navigate only from the 
 
   assert.match(routeTransition, /pages = useMemo/);
   assert.match(routeTransition, /density="soft"/g);
+  assert.match(routeTransition, /index=\{startPage\}[\s\S]*index=\{targetPage\}/);
+  assert.match(
+    routeTransition,
+    /direction === "next"\s*\? \[sourcePage, destinationPage\]\s*:\s*\[destinationPage, sourcePage\]/
+  );
   assert.match(routeTransition, /showCover=\{false\}/);
   assert.match(routeTransition, /renderOnlyPageLengthChange/);
   assert.match(routeTransition, /onFlip\(\)/);

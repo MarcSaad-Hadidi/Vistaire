@@ -37,15 +37,23 @@ export function SaugeNoireRoutePageFlip({
   const startPage = direction === "next" ? 0 : 1;
   const targetPage = direction === "next" ? 1 : 0;
   const pages = useMemo(
-    () => [
-      <SaugeNoireFlipPage density="soft" index={0} key={`${id}-source`}>
-        {source}
-      </SaugeNoireFlipPage>,
-      <SaugeNoireFlipPage density="soft" index={1} key={`${id}-destination`}>
-        {destination}
-      </SaugeNoireFlipPage>
-    ],
-    [destination, id, source]
+    () => {
+      const sourcePage = (
+        <SaugeNoireFlipPage density="soft" index={startPage} key={`${id}-source`}>
+          {source}
+        </SaugeNoireFlipPage>
+      );
+      const destinationPage = (
+        <SaugeNoireFlipPage density="soft" index={targetPage} key={`${id}-destination`}>
+          {destination}
+        </SaugeNoireFlipPage>
+      );
+
+      return direction === "next"
+        ? [sourcePage, destinationPage]
+        : [destinationPage, sourcePage];
+    },
+    [destination, direction, id, source, startPage, targetPage]
   );
 
   const restoreSourceScroll = useCallback(() => {
