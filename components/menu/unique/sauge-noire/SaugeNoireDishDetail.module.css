@@ -32,7 +32,9 @@
   height: 100svh;
   min-height: 100svh;
   overflow: hidden;
-  background: #172219;
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
   color: var(--sn-forest);
   font-family: "BT Suave", Georgia, serif;
 }

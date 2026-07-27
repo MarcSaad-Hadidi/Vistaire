@@ -935,7 +935,11 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
           <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
           Laisser un avis Google
         </span>
-        <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">↗</span>
+        <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">
+          <svg viewBox="0 0 20 20" focusable="false">
+            <path d="M4 16 16 4M8 4h8v8" />
+          </svg>
+        </span>
       </button>
       <button type="button" className={styles.restartButton} onClick={onRestart}>{copy.menu}</button>
       <p className={styles.endingSoon}>{copy.soon}</p>

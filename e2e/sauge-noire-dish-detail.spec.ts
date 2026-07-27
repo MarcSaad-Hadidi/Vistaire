@@ -45,6 +45,36 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
 }
 
 test.describe("Sauge Noire dish detail PageFlip", () => {
+  test("keeps the detail backdrop beige around the paper", async ({ page }) => {
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+      { width: 1280, height: 900 }
+    ]) {
+      await openDetail(page, viewport.width, viewport.height);
+
+      const backdrop = await page.evaluate(() => {
+        const detail = document.querySelector<HTMLElement>('[data-testid="sauge-noire-dish-detail"]');
+        const paper = detail?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
+        const detailStyle = detail ? getComputedStyle(detail) : null;
+        const paperStyle = paper ? getComputedStyle(paper) : null;
+        return {
+          detailBackground: detailStyle?.backgroundColor,
+          detailTexture: detailStyle?.backgroundImage,
+          paperBackground: paperStyle?.backgroundColor,
+          paperTexture: paperStyle?.backgroundImage,
+          documentHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+        };
+      });
+
+      expect(backdrop.detailBackground, `${viewport.width}px detail backdrop should be paper`).toBe("rgb(250, 244, 233)");
+      expect(backdrop.detailTexture, `${viewport.width}px detail backdrop should keep the paper texture`).toContain("radial-gradient");
+      expect(backdrop.paperBackground).toBe("rgb(250, 244, 233)");
+      expect(backdrop.paperTexture).toContain("radial-gradient");
+      expect(backdrop.documentHasHorizontalOverflow).toBe(false);
+    }
+  });
+
   for (const viewport of [
     { width: 390, height: 844 },
     { width: 430, height: 932 }

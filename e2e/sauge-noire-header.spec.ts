@@ -631,6 +631,7 @@ test("Sauge Noire Google review CTA uses the paper and bronze visual language", 
         markColor: mark ? getComputedStyle(mark).color : "",
         markBackground: mark ? getComputedStyle(mark).backgroundImage : "",
         arrowColor: arrow ? getComputedStyle(arrow).color : "",
+        arrowPath: arrow?.querySelector("path")?.getAttribute("d") ?? "",
         documentHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
       };
     });
@@ -642,6 +643,7 @@ test("Sauge Noire Google review CTA uses the paper and bronze visual language", 
     expect(snapshot.background).not.toContain("255, 255, 255");
     expect(snapshot.markColor).toBe(snapshot.arrowColor);
     expect(snapshot.markBackground).toBe("none");
+    expect(snapshot.arrowPath).toBe("M4 16 16 4M8 4h8v8");
     expect(snapshot.documentHasHorizontalOverflow).toBe(false);
   }
 });

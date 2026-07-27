@@ -1039,11 +1039,28 @@
 }
 
 .googleReviewArrow {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
   color: var(--sn-bronze);
-  font-family: "BT Suave", Georgia, serif;
-  font-size: 1.15rem;
   line-height: 1;
-  transform: translateY(-1px);
+}
+
+.googleReviewArrow svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.googleReviewArrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
 }
 
 .restartButton {
@@ -1495,7 +1512,9 @@
   }
 
   .googleReviewArrow {
-    font-size: 1.15rem;
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
   }
 
   .restartButton {
