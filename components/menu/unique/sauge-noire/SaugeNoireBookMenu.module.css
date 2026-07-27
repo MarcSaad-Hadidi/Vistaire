@@ -1445,7 +1445,7 @@
   }
 
   .shortSectionPage .pageFooter {
-    transform: translateY(-64px);
+    transform: none;
   }
 
   .endingPage {

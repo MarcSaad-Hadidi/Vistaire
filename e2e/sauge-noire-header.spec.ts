@@ -5,6 +5,7 @@ const CONTENTS_ROUTE = "/menu/sauge-noire?view=sauge-1&lang=fr-CA&currency=CAD";
 const DETAIL_ROUTE =
   "/menu/sauge-noire/dishes/canard-a-l-erable-noir?lang=fr-CA&currency=CAD&view=sauge-4";
 const FIRST_GESTES_ROUTE = "/menu/sauge-noire?view=sauge-2&lang=fr-CA&currency=CAD";
+const SHORT_SECTION_ROUTE = "/menu/sauge-noire?view=sauge-5&lang=fr-CA&currency=CAD";
 const COCKTAILS_ROUTE = "/menu/sauge-noire?view=sauge-7&lang=fr-CA&currency=CAD";
 const BETTERAVE_DETAIL_ROUTE =
   "/menu/sauge-noire/dishes/betterave-sous-la-cendre?lang=fr-CA&currency=CAD&view=sauge-2";
@@ -289,6 +290,52 @@ async function snapshotImageContainment(page: Page): Promise<ImageContainmentSna
   });
 }
 
+type ShortSectionFooterSnapshot = {
+  isShortSection: boolean;
+  lastDishBottom: number;
+  footerTop: number;
+  maxScroll: number;
+  footerVisibleAtBottom: boolean;
+  documentHasHorizontalOverflow: boolean;
+};
+
+async function snapshotShortSectionFooter(page: Page): Promise<ShortSectionFooterSnapshot> {
+  return page.evaluate(() => {
+    const book = document.querySelector('[data-testid="sauge-noire-book"]');
+    const index = book?.getAttribute('data-page-index');
+    const activePage = index
+      ? document.querySelector(`[data-sauge-flip-page-index="${index}"]:not([data-sauge-flip-clone])`)
+      : null;
+    const section = activePage?.querySelector('section[aria-label]');
+    const footer = section?.querySelector('footer');
+    const dishLinks = section
+      ? [...section.querySelectorAll<HTMLAnchorElement>('a[href*="/dishes/"]')].filter((link) => {
+          const rect = link.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        })
+      : [];
+    const lastDish = dishLinks.at(-1);
+    if (!activePage || !section || !footer || !lastDish) {
+      throw new Error('Expected a short Sauge Noire section with a footer and dishes');
+    }
+
+    const lastDishRect = lastDish.getBoundingClientRect();
+    const footerRect = footer.getBoundingClientRect();
+    const maxScroll = activePage.scrollHeight - activePage.clientHeight;
+    activePage.scrollTo({ top: Math.max(0, maxScroll), behavior: 'auto' });
+    const footerAtBottom = footer.getBoundingClientRect();
+
+    return {
+      isShortSection: section.className.includes('shortSectionPage'),
+      lastDishBottom: lastDishRect.bottom,
+      footerTop: footerRect.top,
+      maxScroll,
+      footerVisibleAtBottom: footerAtBottom.top < innerHeight && footerAtBottom.bottom > 0,
+      documentHasHorizontalOverflow: document.documentElement.scrollWidth > innerWidth
+    };
+  });
+}
+
 async function snapshotMenu(page: Page): Promise<MenuSnapshot> {
   return page.evaluate(() => {
     const box = (element: Element | null): Box => {
@@ -535,6 +582,24 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
       expect(Math.abs(bottom.title.top - top.title.top), `dish ${viewport.width}px title moved without a scroll`).toBeLessThanOrEqual(1);
       expect(Math.abs(bottom.back.top - top.back.top), `dish ${viewport.width}px back link moved without a scroll`).toBeLessThanOrEqual(1);
     }
+  }
+});
+
+test("Sauge Noire short sections keep arrows below the final dish", async ({ page }) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 }
+  ]) {
+    await page.setViewportSize(viewport);
+    await gotoSaugeNoireRoute(page, SHORT_SECTION_ROUTE);
+    await waitForMenuReady(page);
+
+    const snapshot = await snapshotShortSectionFooter(page);
+    expect(snapshot.isShortSection).toBe(true);
+    expect(snapshot.footerTop - snapshot.lastDishBottom, `${viewport.width}px footer overlaps final dish`).toBeGreaterThanOrEqual(-1);
+    expect(snapshot.maxScroll, `${viewport.width}px short section should keep its scroll container`).toBeGreaterThan(0);
+    expect(snapshot.footerVisibleAtBottom, `${viewport.width}px arrows should be visible at the end of the page`).toBe(true);
+    expect(snapshot.documentHasHorizontalOverflow, `${viewport.width}px short section overflows horizontally`).toBe(false);
   }
 });
 

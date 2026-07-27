@@ -76,13 +76,13 @@ test("multi-page contents jumps keep animating until the requested page", async 
   );
 });
 
-test("short non-split sections lift their navigation into the first viewport", async () => {
+test("short non-split sections keep navigation below the final dish", async () => {
   const book = await readFile(bookPath, "utf8");
   const styles = await readFile(stylesPath, "utf8");
 
   assert.match(book, /const isShortSection = !isSplit && dishes\.length <= 4/);
   assert.match(book, /isShortSection \? styles\.shortSectionPage : ""/);
-  assert.match(styles, /\.shortSectionPage \.pageFooter\s*\{\s*transform: translateY\(-64px\)/);
+  assert.match(styles, /\.shortSectionPage \.pageFooter\s*\{\s*transform: none/);
 });
 
 test("lab uses real HTML pages, hard covers, soft internals, and the supported StPageFlip controls", async () => {
