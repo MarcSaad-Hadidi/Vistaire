@@ -70,11 +70,14 @@ type SaugeNoirePageFlipExperimentProps = {
   pageIndex: number;
   startPage?: number;
   onPageFlip: (index: number) => void;
+  onReady?: () => void;
+  onError?: () => void;
   onSwipe?: (direction: "next" | "previous") => void;
   interceptSwipe?: boolean;
   resetKey?: string | number;
   protectInteractiveTargets?: boolean;
   showCover?: boolean;
+  renderOnlyPageLengthChange?: boolean;
   fallback: ReactNode;
 };
 
@@ -113,11 +116,14 @@ export function SaugeNoirePageFlipExperiment({
   pageIndex,
   startPage = pageIndex,
   onPageFlip,
+  onReady,
+  onError,
   onSwipe,
   interceptSwipe = false,
   resetKey,
   protectInteractiveTargets = false,
   showCover = true,
+  renderOnlyPageLengthChange = false,
   fallback
 }: SaugeNoirePageFlipExperimentProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -456,6 +462,7 @@ export function SaugeNoirePageFlipExperiment({
             onError={() => {
               setFailed(true);
               setReadyBookKey(null);
+              onError?.();
             }}
           >
             <HTMLFlipBook
@@ -488,8 +495,12 @@ export function SaugeNoirePageFlipExperiment({
               // Mouse events are disabled below; programmatic swipe turns
               // still need the library's corner guard to be bypassed.
               disableFlipByClick={false}
+              renderOnlyPageLengthChange={renderOnlyPageLengthChange}
               onFlip={handleFlip}
-              onInit={handleInit}
+              onInit={() => {
+                handleInit();
+                onReady?.();
+              }}
             >
               {pages}
             </HTMLFlipBook>

@@ -73,7 +73,9 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
   assert.match(book, /data-sauge-3d-indicator="true"/);
   assert.match(book, /function SaugeNoire3dIndicator/);
   assert.match(detail, /hasReal3d/);
-  assert.match(detail, /showModelViewer/);
+  assert.match(detail, /function SaugeNoireDish3dSection/);
+  assert.match(detail, /setIsOpen/);
+  assert.match(detail, /onViewerMounted/);
   assert.match(detail, /dynamic<.*DishModelViewer/);
   assert.doesNotMatch(book, /\.glb|\.usdz|model-viewer/);
 });
@@ -136,8 +138,8 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   assert.match(source, /querySelector<HTMLElement>\("\[data-page-flip-state\]"\)/);
   assert.match(source, /if \(pageFlipState !== "ready"\) return;/);
   assert.match(source, /targetPageIndex: direction === "next" \? 2 : 0/);
-  assert.match(source, /handleDishLinkClick\(event, targetNextHref, "next"\)/);
-  assert.match(source, /handleDishLinkClick\(event, targetPreviousHref, "previous"\)/);
+  assert.match(source, /targetNextHref, "next"/);
+  assert.match(source, /targetPreviousHref, "previous"/);
   assert.match(source, /const previousPageDish =/);
   assert.match(source, /const nextPageDish =/);
   assert.match(source, /key="previous-page"/);
@@ -231,7 +233,7 @@ test("Sauge Noire detail chrome belongs to each PageFlip sheet", async () => {
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
   assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
-  assert.match(detail, /renderDishPaper[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
+  assert.match(detail, /function SaugeNoireDishSheet[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
   assert.match(detail, /function DishDetailHeader[\s\S]*<div className=\{styles\.brandMark\} aria-label="Sauge Noire">/);
   assert.doesNotMatch(detail, new RegExp(forbiddenDetailFloatingClass));
   assert.match(detail, /<div className=\{styles\.detailSurface\}[^>]*data-detail-page-flip="true"/);

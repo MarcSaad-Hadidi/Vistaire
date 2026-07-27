@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
@@ -26,8 +26,10 @@ import { formatMenuPrice, type MenuExchangeRates } from "@/lib/currency/formatMe
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
+import { SectionPage } from "./SaugeNoireBookMenu";
 import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
+import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
 import styles from "./SaugeNoireDishDetail.module.css";
 
 type DishDetailProps = UniqueMenuRendererModuleProps & { dish: PublicMenuDish };
@@ -39,6 +41,14 @@ type DishPageTurnState = {
   targetDish: PublicMenuDish;
   href: string;
   targetPageIndex: 0 | 2;
+};
+
+type DetailRouteTransition = {
+  id: string;
+  href: string;
+  source: React.ReactNode;
+  destination: React.ReactNode;
+  sourceScrollTop: number;
 };
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -144,6 +154,18 @@ function categoryPageIndex(menu: PublicMenu, dish: PublicMenuDish): number {
   return index >= 0 ? index + 2 : 1;
 }
 
+function categorySheetForDish(menu: PublicMenu, dish: PublicMenuDish) {
+  const categories = getVisiblePublicMenuCategories(menu.dishes);
+  const groups = getPublicMenuCategoryGroups(menu.dishes);
+  const categoryIndex = Math.max(0, categoryPageIndex(menu, dish) - 2);
+  const category = categories[categoryIndex] ?? categories[0];
+  return {
+    category,
+    dishes: category ? groups.get(category.id) ?? [] : [],
+    pageNumber: categoryIndex
+  };
+}
+
 function buildMenuHref(
   menu: PublicMenu,
   dish: PublicMenuDish,
@@ -161,6 +183,314 @@ function stopDishSwipePropagation(event: React.PointerEvent<HTMLElement>) {
   event.stopPropagation();
 }
 
+type SaugeNoireDishSheetCopy = {
+  back: string;
+  ingredients: string;
+  allergens: string;
+  options: string;
+  accord: string;
+  noAllergens: string;
+  confirmAllergens: string;
+  show3d: string;
+  hide3d: string;
+  previous: string;
+  next: string;
+  menu: string;
+};
+
+type SaugeNoireDishSheetProps = {
+  menu: PublicMenu;
+  query?: PublicMenuContextQuery;
+  locale: Locale;
+  publicLocale: string;
+  exchangeRates?: MenuExchangeRates;
+  dish: PublicMenuDish;
+  copy: SaugeNoireDishSheetCopy;
+  isPreview: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    direction: DishTurnDirection
+  ) => void;
+  onMenuLinkClick?: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+};
+
+function SaugeNoireDish3dSection({
+  dish,
+  copy
+}: {
+  dish: PublicMenuDish;
+  copy: SaugeNoireDishSheetCopy;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const preservedScrollTopRef = useRef<number | null>(null);
+
+  const getScrollContainer = useCallback(() => {
+    return buttonRef.current?.closest<HTMLElement>(
+      '[data-sauge-flip-page-index], [data-page-flip-fallback]'
+    ) ?? null;
+  }, []);
+
+  const restoreScroll = useCallback(() => {
+    const preservedScrollTop = preservedScrollTopRef.current;
+    const scrollContainer = getScrollContainer();
+    if (preservedScrollTop === null || !scrollContainer) return;
+    if (scrollContainer.scrollTop !== preservedScrollTop) {
+      scrollContainer.scrollTop = preservedScrollTop;
+    }
+  }, [getScrollContainer]);
+
+  useLayoutEffect(() => {
+    if (preservedScrollTopRef.current === null) return;
+    restoreScroll();
+    const frame = window.requestAnimationFrame(() => {
+      restoreScroll();
+      if (!isOpen) {
+        preservedScrollTopRef.current = null;
+        buttonRef.current?.focus({ preventScroll: true });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, restoreScroll]);
+
+  const toggleViewer = useCallback(() => {
+    preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
+    setIsOpen((current) => !current);
+  }, [getScrollContainer]);
+
+  const closeViewer = useCallback(() => {
+    preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
+    setIsOpen(false);
+  }, [getScrollContainer]);
+
+  return (
+    <section className={styles.modelSection} aria-label={copy.show3d} data-no-page-flip="true">
+      <button
+        ref={buttonRef}
+        type="button"
+        className={styles.modelButton}
+        onClick={toggleViewer}
+        aria-expanded={isOpen}
+      >
+        <CubeIcon />
+        {isOpen ? copy.hide3d : copy.show3d}
+      </button>
+      {isOpen ? (
+        <div
+          className={styles.modelStage}
+          data-no-page-flip="true"
+          onPointerDown={stopDishSwipePropagation}
+          onPointerMove={stopDishSwipePropagation}
+          onPointerUp={stopDishSwipePropagation}
+          onPointerCancel={stopDishSwipePropagation}
+        >
+          <LazyDishModelViewer
+            dish={modelViewerDishFromPublicDish(dish)}
+            minimalChrome
+            quietChrome
+            onViewerMounted={restoreScroll}
+            onReturnToDish={closeViewer}
+          />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function SaugeNoireDishSheet({
+  menu,
+  query,
+  locale,
+  publicLocale,
+  exchangeRates,
+  dish,
+  copy,
+  isPreview,
+  onDishLinkClick,
+  onMenuLinkClick
+}: SaugeNoireDishSheetProps) {
+  const currency = query?.currency ?? menu.settings.defaultCurrency;
+  const dishCount = Math.max(menu.dishes.length, 1);
+  const targetDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
+  const targetPreviousDish = menu.dishes[(targetDishIndex - 1 + dishCount) % dishCount] ?? dish;
+  const targetNextDish = menu.dishes[(targetDishIndex + 1) % dishCount] ?? dish;
+  const targetMenuHref = buildMenuHref(menu, dish, query, currency);
+  const targetCategory = localizedCategoryLabel(dish.category, publicLocale);
+  const targetPreviousHref = buildPublicDishPath(menu.slug, targetPreviousDish.slug, {
+    ...query,
+    lang: publicLocale,
+    currency,
+    view: `sauge-${categoryPageIndex(menu, targetPreviousDish)}`
+  });
+  const targetNextHref = buildPublicDishPath(menu.slug, targetNextDish.slug, {
+    ...query,
+    lang: publicLocale,
+    currency,
+    view: `sauge-${categoryPageIndex(menu, targetNextDish)}`
+  });
+  const targetGroups = getAllergenDisplayGroups(dish, publicLocale);
+  const targetCustomAllergens = customAllergensFromLegacyValues(
+    dish.customAllergens ?? dish.allergenLegacyValues ?? dish.allergens
+  );
+  const targetAllergenText = [
+    ...targetGroups.contains,
+    ...targetCustomAllergens
+  ].join(", ") || (targetGroups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
+  const targetCanOpen3d = !isPreview && hasReal3d(dish);
+
+  return (
+    <article
+      className={`${styles.paper} ${isPreview ? styles.transitionPreview : ""}`}
+      data-transition-preview={isPreview ? "true" : undefined}
+      aria-hidden={isPreview || undefined}
+    >
+      <DishDetailHeader
+        href={targetMenuHref}
+        category={targetCategory}
+        backLabel={copy.back}
+        isPreview={isPreview}
+        onClick={isPreview ? undefined : onMenuLinkClick}
+      />
+      <section className={styles.detailContent}>
+        <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(dish, publicLocale) ? "  ·  " : ""}{isSignatureLabel(dish, publicLocale)}</p>
+        <h1>{dish.name.toUpperCase()}</h1>
+        <Rule />
+        <div className={styles.detailPhoto} data-photo-slot={dish.slug}>
+          {dish.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={dish.imageUrl}
+              alt={`Image du plat ${dish.name}`}
+              draggable={false}
+            />
+          ) : null}
+        </div>
+        <p className={styles.detailPrice}>{formatPrice(dish, currency, locale, exchangeRates)}</p>
+        <Rule />
+        <p className={styles.description}>{dish.description}</p>
+        <div className={styles.detailRows}>
+          <DetailRow label={copy.ingredients} value={dish.ingredients.join(", ")} variant="detailIngredients" />
+          <DetailRow label={copy.allergens} value={targetAllergenText} variant="detailAllergens" />
+          <DetailRow label={copy.options} value={dish.options.join(", ") || copy.confirmAllergens} variant="detailAccord" />
+        </div>
+        {targetCanOpen3d ? (
+          <SaugeNoireDish3dSection dish={dish} copy={copy} />
+        ) : null}
+        <AllergenWarning locale={publicLocale} localizedUiCopy={menu.localizedUiCopy} />
+        <div className={styles.detailSwipeNav}>
+          <p>{copy.next}</p>
+          <div className={styles.detailDoubleArrowControl}>
+            <Link
+              className={`${styles.detailArrowHit} ${styles.detailArrowHitPrevious}`}
+              href={targetPreviousHref}
+              prefetch={false}
+              aria-label={copy.previous}
+              tabIndex={isPreview ? -1 : undefined}
+              onClick={isPreview ? undefined : (event) => onDishLinkClick?.(event, targetPreviousHref, "previous")}
+            />
+            <DoubleArrow />
+            <Link
+              className={`${styles.detailArrowHit} ${styles.detailArrowHitNext}`}
+              href={targetNextHref}
+              prefetch={false}
+              aria-label={copy.next}
+              tabIndex={isPreview ? -1 : undefined}
+              onClick={isPreview ? undefined : (event) => onDishLinkClick?.(event, targetNextHref, "next")}
+            />
+          </div>
+        </div>
+        <Link
+          className={styles.menuLink}
+          href={targetMenuHref}
+          prefetch={false}
+          tabIndex={isPreview ? -1 : undefined}
+          onClick={isPreview ? undefined : (event) => onMenuLinkClick?.(event, targetMenuHref)}
+        >
+          {copy.menu}
+        </Link>
+      </section>
+    </article>
+  );
+}
+
+const DISH_COPY: Record<DishCopyLocale, SaugeNoireDishSheetCopy> = {
+  fr: {
+    back: "Retour à",
+    ingredients: "INGRÉDIENTS",
+    allergens: "ALLERGÈNES",
+    options: "OPTIONS",
+    accord: "ACCORD",
+    noAllergens: "aucun allergène majeur déclaré",
+    confirmAllergens: "à confirmer avec l’équipe en salle",
+    show3d: "VOIR EN 3D",
+    hide3d: "MASQUER LA 3D",
+    previous: "Balayez vers le plat précédent",
+    next: "Balayez pour tourner vers le prochain plat",
+    menu: "La Carte"
+  },
+  en: {
+    back: "Back to",
+    ingredients: "INGREDIENTS",
+    allergens: "ALLERGENS",
+    options: "OPTIONS",
+    accord: "PAIRING",
+    noAllergens: "no major allergens declared",
+    confirmAllergens: "please confirm with the dining room team",
+    show3d: "VIEW IN 3D",
+    hide3d: "HIDE 3D",
+    previous: "Swipe to the previous dish",
+    next: "Swipe to turn to the next dish",
+    menu: "The Menu"
+  },
+  es: {
+    back: "Volver a",
+    ingredients: "INGREDIENTES",
+    allergens: "ALÉRGENOS",
+    options: "OPCIONES",
+    accord: "MARIDAJE",
+    noAllergens: "no se han declarado alérgenos principales",
+    confirmAllergens: "confirma con el equipo de sala",
+    show3d: "VER EN 3D",
+    hide3d: "OCULTAR 3D",
+    previous: "Desliza hacia el plato anterior",
+    next: "Desliza para ver el siguiente plato",
+    menu: "El menú"
+  },
+  it: {
+    back: "Torna a",
+    ingredients: "INGREDIENTI",
+    allergens: "ALLERGENI",
+    options: "OPZIONI",
+    accord: "ABBINAMENTO",
+    noAllergens: "nessun allergene principale dichiarato",
+    confirmAllergens: "conferma con il personale di sala",
+    show3d: "VEDI IN 3D",
+    hide3d: "NASCONDI 3D",
+    previous: "Scorri verso il piatto precedente",
+    next: "Scorri per il prossimo piatto",
+    menu: "Il menu"
+  },
+  ar: {
+    back: "العودة إلى",
+    ingredients: "المكونات",
+    allergens: "مسببات الحساسية",
+    options: "الخيارات",
+    accord: "التوافق",
+    noAllergens: "لم يتم الإعلان عن مسببات حساسية رئيسية",
+    confirmAllergens: "يرجى التأكيد مع فريق الصالة",
+    show3d: "عرض ثلاثي الأبعاد",
+    hide3d: "إخفاء العرض ثلاثي الأبعاد",
+    previous: "مرّر للطبق السابق",
+    next: "مرّر للانتقال إلى الطبق التالي",
+    menu: "القائمة"
+  }
+};
+
+export function SaugeNoireDishSheetCopyForLocale(locale: string): SaugeNoireDishSheetCopy {
+  return DISH_COPY[copyLocale(locale)];
+}
+
 export function SaugeNoireDishDetail({
   menu,
   query,
@@ -174,10 +504,11 @@ export function SaugeNoireDishDetail({
   const router = useRouter();
   const detailSurfaceRef = useRef<HTMLDivElement>(null);
   const navigationInFlightRef = useRef(false);
+  const routeTransitionInFlightRef = useRef(false);
+  const routeTransitionIdRef = useRef(0);
   const preservedScrollTopRef = useRef<number | null>(null);
   const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
-  const [showModelViewerDishId, setShowModelViewerDishId] = useState<string | null>(null);
-  const showModelViewer = showModelViewerDishId === dish.id;
+  const [routeTransition, setRouteTransition] = useState<DetailRouteTransition | null>(null);
 
   useEffect(() => {
     navigationInFlightRef.current = false;
@@ -192,6 +523,7 @@ export function SaugeNoireDishDetail({
 
     return () => {
       navigationInFlightRef.current = false;
+      routeTransitionInFlightRef.current = false;
     };
   }, [dish.id]);
 
@@ -333,7 +665,6 @@ export function SaugeNoireDishDetail({
         page.scrollTop = preservedScrollTop;
       }
     }
-    setShowModelViewerDishId(null);
     setPageTurn({
       dishId: dish.id,
       direction,
@@ -391,125 +722,106 @@ export function SaugeNoireDishDetail({
     );
   }
 
-  function renderDishPaper(targetDish: PublicMenuDish, isPreview: boolean) {
-    const targetGroups = getAllergenDisplayGroups(targetDish, publicLocale);
-    const targetCustomAllergens = customAllergensFromLegacyValues(
-      targetDish.customAllergens ?? targetDish.allergenLegacyValues ?? targetDish.allergens
+  function currentDetailScrollTop(): number {
+    const currentPage = Array.from(
+      detailSurfaceRef.current?.querySelectorAll<HTMLElement>(
+        '[class*="pageFlipPage"], [class*="pageFlipFallback"]'
+      ) ?? []
+    ).find(
+      (page) =>
+        !page.closest('[aria-hidden="true"]') &&
+        page.querySelector('article:not([data-transition-preview="true"])')
     );
-    const targetAllergenText = [
-      ...targetGroups.contains,
-      ...targetCustomAllergens
-    ].join(", ") || (targetGroups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
-    const targetMenuHref = buildMenuHref(menu, targetDish, query, currency);
-    const targetCategory = localizedCategoryLabel(targetDish.category, publicLocale);
-    const targetDishIndex = menu.dishes.findIndex((item) => item.id === targetDish.id);
-    const targetPreviousDish = menu.dishes[(targetDishIndex - 1 + dishCount) % dishCount] ?? targetDish;
-    const targetNextDish = menu.dishes[(targetDishIndex + 1) % dishCount] ?? targetDish;
-    const targetPreviousHref = buildDishHref(targetPreviousDish);
-    const targetNextHref = buildDishHref(targetNextDish);
-    const targetCanOpen3d = !isPreview && hasReal3d(targetDish);
-    const targetShowModelViewer = !isPreview && targetDish.id === dish.id && showModelViewer;
-    const turnClass = !isPreview
-      ? ""
-      : styles.transitionPreview;
+    return currentPage?.scrollTop ?? 0;
+  }
 
-    return (
-      <article
-        className={`${styles.paper} ${turnClass}`}
-        data-transition-preview={isPreview ? "true" : undefined}
-        aria-hidden={isPreview || undefined}
-      >
-        <DishDetailHeader
-          href={targetMenuHref}
-          category={targetCategory}
-          backLabel={copy.back}
-          isPreview={isPreview}
+  function handleMenuLinkClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    if (routeTransitionInFlightRef.current) {
+      event.preventDefault();
+      return;
+    }
+
+    const pageFlipState = detailSurfaceRef.current
+      ?.querySelector<HTMLElement>("[data-page-flip-state]")
+      ?.getAttribute("data-page-flip-state");
+    if (pageFlipState !== "ready") return;
+
+    const categorySheet = categorySheetForDish(menu, dish);
+    if (!categorySheet.category) return;
+
+    event.preventDefault();
+    routeTransitionInFlightRef.current = true;
+    routeTransitionIdRef.current += 1;
+    setRouteTransition({
+      id: `detail-to-menu-${routeTransitionIdRef.current}-${dish.id}`,
+      href,
+      sourceScrollTop: currentDetailScrollTop(),
+      source: renderDishPaper(dish, true),
+      destination: (
+        <SectionPage
+          menu={menu}
+          category={categorySheet.category}
+          dishes={categorySheet.dishes}
+          pageNumber={categorySheet.pageNumber}
+          locale={locale}
+          localeTag={publicLocale}
+          currency={currency}
+          copy={{
+            menu: copy.menu,
+            swipePage: copy.next,
+            previous: copy.previous,
+            next: copy.next
+          }}
+          query={query}
+          exchangeRates={exchangeRates}
+          onPrevious={() => undefined}
+          onNext={() => undefined}
+          isPreview
         />
-        <section className={styles.detailContent}>
-          <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(targetDish, publicLocale) ? "  \u00b7  " : ""}{isSignatureLabel(targetDish, publicLocale)}</p>
-          <h1>{targetDish.name.toUpperCase()}</h1>
-          <Rule />
-          <div className={styles.detailPhoto} data-photo-slot={targetDish.slug}>
-            {targetDish.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={targetDish.imageUrl}
-                alt={`Image du plat ${targetDish.name}`}
-                draggable={false}
-              />
-            ) : null}
-          </div>
-          <p className={styles.detailPrice}>{formatPrice(targetDish, currency, locale, exchangeRates)}</p>
-          <Rule />
-          <p className={styles.description}>{targetDish.description}</p>
-          <div className={styles.detailRows}>
-            <DetailRow label={copy.ingredients} value={targetDish.ingredients.join(", ")} variant="detailIngredients" />
-            <DetailRow label={copy.allergens} value={targetAllergenText} variant="detailAllergens" />
-            <DetailRow label={copy.options} value={targetDish.options.join(", ") || copy.confirmAllergens} variant="detailAccord" />
-          </div>
-          {targetCanOpen3d ? (
-            <section className={styles.modelSection} aria-label={copy.show3d} data-no-page-flip="true">
-              <button
-                type="button"
-                className={styles.modelButton}
-                onClick={() => setShowModelViewerDishId((visibleDishId) => visibleDishId === targetDish.id ? null : targetDish.id)}
-                aria-expanded={targetShowModelViewer}
-              >
-                <CubeIcon />
-                {targetShowModelViewer ? copy.hide3d : copy.show3d}
-              </button>
-              {targetShowModelViewer ? (
-                <div
-                  className={styles.modelStage}
-                  data-no-page-flip="true"
-                  onPointerDown={stopDishSwipePropagation}
-                  onPointerMove={stopDishSwipePropagation}
-                  onPointerUp={stopDishSwipePropagation}
-                  onPointerCancel={stopDishSwipePropagation}
-                >
-                  <LazyDishModelViewer
-                    dish={modelViewerDishFromPublicDish(targetDish)}
-                    minimalChrome
-                    quietChrome
-                    onReturnToDish={() => setShowModelViewerDishId(null)}
-                  />
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-          <AllergenWarning locale={publicLocale} localizedUiCopy={menu.localizedUiCopy} />
-          <div className={styles.detailSwipeNav}>
-            <p>{copy.next}</p>
-            <div className={styles.detailDoubleArrowControl}>
-              <Link
-                className={`${styles.detailArrowHit} ${styles.detailArrowHitPrevious}`}
-                href={targetPreviousHref}
-                prefetch={false}
-                aria-label={copy.previous}
-                tabIndex={isPreview ? -1 : undefined}
-                onClick={isPreview ? undefined : (event) => handleDishLinkClick(event, targetPreviousHref, "previous")}
-              />
-              <DoubleArrow />
-              <Link
-                className={`${styles.detailArrowHit} ${styles.detailArrowHitNext}`}
-                href={targetNextHref}
-                prefetch={false}
-                aria-label={copy.next}
-                tabIndex={isPreview ? -1 : undefined}
-                onClick={isPreview ? undefined : (event) => handleDishLinkClick(event, targetNextHref, "next")}
-              />
-            </div>
-          </div>
-          <Link
-            className={styles.menuLink}
-            href={targetMenuHref}
-            prefetch={false}
-            tabIndex={isPreview ? -1 : undefined}
-          >
-            {copy.menu}
-          </Link>
-        </section>
-      </article>
+      )
+    });
+  }
+
+  function handleRouteFlip() {
+    if (!routeTransition || !routeTransitionInFlightRef.current) return;
+    routeTransitionInFlightRef.current = false;
+    router.push(routeTransition.href);
+  }
+
+  function handleRouteFallback() {
+    if (!routeTransition || !routeTransitionInFlightRef.current) return;
+    routeTransitionInFlightRef.current = false;
+    router.push(routeTransition.href);
+  }
+
+  function renderDishPaper(targetDish: PublicMenuDish, isPreview: boolean) {
+    return (
+      <SaugeNoireDishSheet
+        menu={menu}
+        query={query}
+        locale={locale}
+        publicLocale={publicLocale}
+        exchangeRates={exchangeRates}
+        dish={targetDish}
+        copy={copy}
+        isPreview={isPreview}
+        onDishLinkClick={isPreview ? undefined : handleDishLinkClick}
+        onMenuLinkClick={isPreview ? undefined : handleMenuLinkClick}
+      />
     );
   }
 
@@ -548,8 +860,20 @@ export function SaugeNoireDishDetail({
           resetKey={dish.id}
           protectInteractiveTargets
           showCover={false}
+          renderOnlyPageLengthChange={!activePageTurn}
           fallback={renderDishPaper(dish, false)}
         />
+        {routeTransition ? (
+          <SaugeNoireRoutePageFlip
+            id={routeTransition.id}
+            direction="previous"
+            source={routeTransition.source}
+            destination={routeTransition.destination}
+            sourceScrollTop={routeTransition.sourceScrollTop}
+            onFlip={handleRouteFlip}
+            onFallback={handleRouteFallback}
+          />
+        ) : null}
       </div>
     </main>
   );
@@ -559,12 +883,14 @@ function DishDetailHeader({
   href,
   category,
   backLabel,
-  isPreview
+  isPreview,
+  onClick
 }: {
   href: string;
   category: string;
   backLabel: string;
   isPreview: boolean;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   return (
     <header className={styles.detailHeader} aria-hidden={isPreview || undefined}>
@@ -573,6 +899,7 @@ function DishDetailHeader({
         href={href}
         prefetch={false}
         tabIndex={isPreview ? -1 : undefined}
+        onClick={isPreview ? undefined : (event) => onClick?.(event, href)}
       >
         <span aria-hidden="true">{"\u2190"}</span> {backLabel} {category}
       </Link>

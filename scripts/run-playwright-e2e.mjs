@@ -26,10 +26,13 @@ const useTrouvableImmersiveFixture = process.argv
   .some((argument) =>
     argument.replaceAll("\\", "/").endsWith("e2e/trouvable-back-to-top-ar-handoff.spec.ts")
   );
-const includesSaugeNoireDishDetail = process.argv
+const includesSaugeNoireBrowserFlow = process.argv
   .slice(2)
   .some((argument) =>
-    argument.replaceAll("\\", "/").endsWith("e2e/sauge-noire-dish-detail.spec.ts")
+    [
+      "e2e/sauge-noire-dish-detail.spec.ts",
+      "e2e/sauge-noire-route-transitions.spec.ts"
+    ].some((testPath) => argument.replaceAll("\\", "/").endsWith(testPath))
   );
 
 function waitForServer(url, timeoutMs = 120_000) {
@@ -117,7 +120,7 @@ async function main() {
         ...process.env,
         PLAYWRIGHT_SKIP_WEB_SERVER: "1",
         PLAYWRIGHT_BASE_URL: baseURL,
-        ...(includesSaugeNoireDishDetail ? { PLAYWRIGHT_INCLUDE_WEBKIT: "1" } : {}),
+        ...(includesSaugeNoireBrowserFlow ? { PLAYWRIGHT_INCLUDE_WEBKIT: "1" } : {}),
         VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: OWNER_E2E_TOKEN
       }
     });

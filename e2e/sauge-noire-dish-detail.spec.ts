@@ -690,6 +690,42 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
     });
   }
 
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 }
+  ]) {
+    test(`keeps the exact reading position while opening and closing 3D at ${viewport.width}px`, async ({ page, browserName }) => {
+      await openDetail(page, viewport.width, viewport.height);
+      await scrollDetailToOffset(page, viewport, 500, browserName);
+      const before = await detailState(page);
+      expect(before.currentScrollTop).toBeGreaterThan(0);
+      const routeBefore = page.url();
+
+      const showButton = page.getByRole("button", { name: "VOIR EN 3D" });
+      await expect(showButton).toHaveCount(1);
+      await showButton.click();
+      const modelStage = page.locator('[class*="modelStage"]');
+      await expect(modelStage).toBeVisible();
+      const afterOpen = await detailState(page);
+      expect(Math.abs(afterOpen.currentScrollTop - before.currentScrollTop)).toBeLessThanOrEqual(1);
+      expect(afterOpen.windowScrollY).toBe(0);
+      expect(page.url()).toBe(routeBefore);
+
+      await expect
+        .poll(() => modelStage.locator("model-viewer").count(), { timeout: 15_000 })
+        .toBeGreaterThan(0);
+      const afterModelMount = await detailState(page);
+      expect(Math.abs(afterModelMount.currentScrollTop - before.currentScrollTop)).toBeLessThanOrEqual(1);
+
+      await page.getByRole("button", { name: "MASQUER LA 3D" }).click();
+      await expect(modelStage).toBeHidden();
+      const afterClose = await detailState(page);
+      expect(Math.abs(afterClose.currentScrollTop - before.currentScrollTop)).toBeLessThanOrEqual(1);
+      expect(afterClose.windowScrollY).toBe(0);
+      expect(page.url()).toBe(routeBefore);
+    });
+  }
+
   test("keeps vertical scrolling, pointercancel, 3D and duplicate clicks isolated", async ({ page, browserName }) => {
     const errors = collectPageErrors(page);
     const viewport = { width: 390, height: 844 };

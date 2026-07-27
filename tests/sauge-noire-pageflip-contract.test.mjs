@@ -14,6 +14,10 @@ const flipPagePath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireFlipPage.tsx",
   import.meta.url
 );
+const routeTransitionPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireRoutePageFlip.tsx",
+  import.meta.url
+);
 const publicMenuPath = new URL("../app/menu/[slug]/page.tsx", import.meta.url);
 const ownerPreviewPath = new URL(
   "../app/owner/restaurants/[restaurantId]/unique-ui/preview/page.tsx",
@@ -42,9 +46,9 @@ test("the animated renderer reuses the existing page renderer", async () => {
 
   assert.match(book, /function buildPages\(menu: PublicMenu\)/);
   assert.match(book, /const flipPages = useMemo/);
-  assert.match(book, /renderPage\(currentPage, pageIndex\)/);
+  assert.match(book, /renderPage\(currentPage, pageIndex/);
   assert.match(book, /pageFlipEnabled \? \(/);
-  assert.match(book, /renderPage\(currentPage, pageIndex\)\s*\n\s*\)}/);
+  assert.match(book, /renderPage\(currentPage, pageIndex[^\n]*\)\s*\n\s*\)}/);
   assert.match(book, /setPageIndex\(\(current\) => \(current === nextIndex \? current : nextIndex\)\)/);
   assert.doesNotMatch(book, /\}, \[pageIndex, pages\.length\]\);/);
   assert.doesNotMatch(experiment, /CANONICAL_DISHES|Betterave sous la cendre|Crabe des neiges/);
@@ -65,6 +69,38 @@ test("completed page flips clear stale animation targets", async () => {
     experiment,
     /requestedPageIndexRef\.current = null;\s*animationTargetPageRef\.current = null;\s*onPageFlip\(nextIndex\)/,
   );
+});
+
+test("route transitions keep two soft sheets mounted and navigate only from the real flip event", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(
+    new URL("../components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx", import.meta.url),
+    "utf8"
+  );
+  const routeTransition = await readFile(routeTransitionPath, "utf8");
+
+  assert.match(routeTransition, /pages = useMemo/);
+  assert.match(routeTransition, /density="soft"/g);
+  assert.match(routeTransition, /showCover=\{false\}/);
+  assert.match(routeTransition, /renderOnlyPageLengthChange/);
+  assert.match(routeTransition, /onFlip\(\)/);
+  assert.match(routeTransition, /onFallback/);
+  assert.match(book, /<SaugeNoireRoutePageFlip/);
+  assert.match(detail, /<SaugeNoireRoutePageFlip/);
+  assert.match(book, /router\.push\(routeTransition\.href\)/);
+  assert.match(detail, /router\.push\(routeTransition\.href\)/);
+  assert.doesNotMatch(book, /router\.push\(href\)/);
+});
+
+test("the real PageFlip wrapper exposes the stable-child and lifecycle controls", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(experiment, /onReady\?: \(\) => void/);
+  assert.match(experiment, /onError\?: \(\) => void/);
+  assert.match(experiment, /renderOnlyPageLengthChange\?: boolean/);
+  assert.match(experiment, /renderOnlyPageLengthChange=\{renderOnlyPageLengthChange\}/);
+  assert.match(experiment, /onReady\?\.\(\)/);
+  assert.match(experiment, /onError\?\.\(\)/);
 });
 
 test("multi-page contents jumps keep animating until the requested page", async () => {

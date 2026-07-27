@@ -27,7 +27,12 @@ import {
   SaugeNoireFlipPage,
   type SaugeNoireFlipPageDensity
 } from "./SaugeNoireFlipPage";
+import {
+  SaugeNoireDishSheet,
+  SaugeNoireDishSheetCopyForLocale
+} from "./SaugeNoireDishDetail";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
+import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
 import styles from "./SaugeNoireBookMenu.module.css";
 
 type BookProps = UniqueMenuRendererModuleProps;
@@ -37,6 +42,14 @@ type BookPage =
   | { kind: "contents" }
   | { kind: "section"; category: PublicMenuCategory; dishes: PublicMenuDish[] }
   | { kind: "ending" };
+
+type BookRouteTransition = {
+  id: string;
+  href: string;
+  source: React.ReactNode;
+  destination: React.ReactNode;
+  sourceScrollTop: number;
+};
 
 type SaugeCopyLocale = "fr" | "en" | "es" | "it" | "ar";
 
@@ -61,6 +74,8 @@ type Copy = {
   allergenEmpty: string;
   allergenConfirm: string;
 };
+
+type SectionPageCopy = Pick<Copy, "menu" | "swipePage" | "previous" | "next">;
 
 const COPY: Record<SaugeCopyLocale, Copy> = {
   fr: {
@@ -285,6 +300,8 @@ export function SaugeNoireBookMenu({
   );
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const paperRef = useRef<HTMLDivElement>(null);
+  const [routeTransition, setRouteTransition] = useState<BookRouteTransition | null>(null);
+  const [routeTransitionInFlight, setRouteTransitionInFlight] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const currency = initialCurrency;
   const searchParamsString = searchParams.toString();
@@ -394,7 +411,17 @@ export function SaugeNoireBookMenu({
 
   const currentPage = pages[pageIndex] ?? pages[0];
 
-  const renderPage = useCallback((page: BookPage, index: number) => {
+  const renderPage = useCallback(
+    (
+      page: BookPage,
+      index: number,
+      isPreview = false,
+      onDishLinkClick?: (
+        event: React.MouseEvent<HTMLAnchorElement>,
+        href: string,
+        targetDish: PublicMenuDish
+      ) => void
+    ) => {
     const categoryPage = page.kind === "section" ? index - 2 : null;
 
     return (
@@ -409,6 +436,7 @@ export function SaugeNoireBookMenu({
           showContentsLink={index > 1}
           contentsLabel={copy.contents}
           onContents={() => goToPage(1)}
+          isPreview={isPreview}
         />
         {page.kind === "cover" ? <CoverPage copy={copy} onOpen={() => goToPage(1)} /> : null}
         {page.kind === "contents" ? (
@@ -438,12 +466,14 @@ export function SaugeNoireBookMenu({
             exchangeRates={exchangeRates}
             onPrevious={() => goToPage(index - 1)}
             onNext={() => goToPage(index + 1)}
+            isPreview={isPreview}
+            onDishLinkClick={isPreview ? undefined : onDishLinkClick}
           />
         ) : null}
         {page.kind === "ending" ? <EndingPage copy={copy} onRestart={() => goToPage(0)} /> : null}
       </>
     );
-  }, [
+    }, [
     activeLocale,
     activeLocaleValue,
     availableCurrencies,
@@ -456,8 +486,76 @@ export function SaugeNoireBookMenu({
     pages,
     query,
     selectCurrency,
-    selectLocale
-  ]);
+      selectLocale
+    ]
+  );
+
+  const handleDishLinkClick = useCallback((
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    if (routeTransitionInFlight) {
+      event.preventDefault();
+      return;
+    }
+
+    const pageFlipState = event.currentTarget
+      .closest<HTMLElement>("[data-page-flip-state]")
+      ?.getAttribute("data-page-flip-state");
+    if (pageFlipState !== "ready") return;
+
+    const currentPageElement = event.currentTarget.closest<HTMLElement>(
+      '[data-sauge-flip-page-index]:not([data-sauge-flip-clone])'
+    );
+    const currentPageIndex = Number(currentPageElement?.getAttribute("data-sauge-flip-page-index"));
+    const currentPage = pages[currentPageIndex];
+    if (!currentPage || currentPage.kind !== "section") return;
+
+    event.preventDefault();
+    setRouteTransitionInFlight(true);
+    setRouteTransition({
+      id: `menu-to-detail-${currentPageIndex}-${targetDish.id}`,
+      href,
+      sourceScrollTop: currentPageElement?.scrollTop ?? 0,
+      source: renderPage(currentPage, currentPageIndex, true),
+      destination: (
+        <SaugeNoireDishSheet
+          menu={menu}
+          query={query}
+          locale={activeLocale}
+          publicLocale={activeLocaleValue}
+          exchangeRates={exchangeRates}
+          dish={targetDish}
+          copy={SaugeNoireDishSheetCopyForLocale(activeLocaleValue)}
+          isPreview
+        />
+      )
+    });
+  }, [activeLocale, activeLocaleValue, exchangeRates, menu, pages, query, renderPage, routeTransitionInFlight]);
+
+  function handleRouteFlip() {
+    if (!routeTransition || !routeTransitionInFlight) return;
+    setRouteTransitionInFlight(false);
+    router.push(routeTransition.href);
+  }
+
+  function handleRouteFallback() {
+    if (!routeTransition || !routeTransitionInFlight) return;
+    setRouteTransitionInFlight(false);
+    router.push(routeTransition.href);
+  }
 
   const flipPages = useMemo(
     () =>
@@ -470,11 +568,11 @@ export function SaugeNoireBookMenu({
             index={index}
             density={density}
           >
-            {renderPage(page, index)}
+            {renderPage(page, index, false, handleDishLinkClick)}
           </SaugeNoireFlipPage>
         );
       }),
-    [pages, renderPage]
+    [handleDishLinkClick, pages, renderPage]
   );
 
   return (
@@ -499,11 +597,22 @@ export function SaugeNoireBookMenu({
               pages={flipPages}
               pageIndex={pageIndex}
               onPageFlip={goToPage}
-              fallback={renderPage(currentPage, pageIndex)}
+              fallback={renderPage(currentPage, pageIndex, false, handleDishLinkClick)}
             />
           ) : (
-            renderPage(currentPage, pageIndex)
+            renderPage(currentPage, pageIndex, false, handleDishLinkClick)
           )}
+          {routeTransition ? (
+            <SaugeNoireRoutePageFlip
+              id={routeTransition.id}
+              direction="next"
+              source={routeTransition.source}
+              destination={routeTransition.destination}
+              sourceScrollTop={routeTransition.sourceScrollTop}
+              onFlip={handleRouteFlip}
+              onFallback={handleRouteFallback}
+            />
+          ) : null}
         </div>
         {showBackToTop ? (
           <button
@@ -552,7 +661,8 @@ function BookHeader({
   onCurrencyChange,
   showContentsLink,
   contentsLabel,
-  onContents
+  onContents,
+  isPreview = false
 }: {
   locales: string[];
   currencies: string[];
@@ -563,9 +673,10 @@ function BookHeader({
   showContentsLink: boolean;
   contentsLabel: string;
   onContents: () => void;
+  isPreview?: boolean;
 }) {
   return (
-    <header className={styles.bookHeader}>
+    <header className={styles.bookHeader} aria-hidden={isPreview || undefined}>
       <BrandMark />
       {showContentsLink ? (
         <button
@@ -756,7 +867,7 @@ function ContentsPage({
   );
 }
 
-function SectionPage({
+export function SectionPage({
   menu,
   category,
   dishes,
@@ -768,7 +879,9 @@ function SectionPage({
   query,
   exchangeRates,
   onPrevious,
-  onNext
+  onNext,
+  isPreview = false,
+  onDishLinkClick
 }: {
   menu: PublicMenu;
   category: PublicMenuCategory;
@@ -777,11 +890,17 @@ function SectionPage({
   locale: Locale;
   localeTag: string;
   currency: string;
-  copy: Copy;
+  copy: SectionPageCopy;
   query?: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
   onPrevious: () => void;
   onNext: () => void;
+  isPreview?: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => void;
 }) {
   const featured = dishes.find(isSignature) ?? dishes[0];
   const remainingDishes = featured
@@ -798,6 +917,8 @@ function SectionPage({
     <section
       className={`${styles.page} ${styles.sectionPage} ${isSplit ? styles.splitSection : ""} ${isShortSection ? styles.shortSectionPage : ""}`}
       aria-label={category.label}
+      aria-hidden={isPreview || undefined}
+      data-transition-preview={isPreview ? "true" : undefined}
     >
       <div className={styles.sectionKicker}>
         <span>{String(sectionNumber).padStart(2, "0")}</span>
@@ -820,6 +941,8 @@ function SectionPage({
           query={sectionQuery}
           exchangeRates={exchangeRates}
           variant={isFirstPage ? "compact" : isSplit ? "split" : "editorial"}
+          isPreview={isPreview}
+          onDishLinkClick={onDishLinkClick}
         />
       ) : null}
       <div className={styles.dishList}>
@@ -833,6 +956,8 @@ function SectionPage({
             query={sectionQuery}
             exchangeRates={exchangeRates}
             compact={isFirstPage}
+            isPreview={isPreview}
+            onDishLinkClick={onDishLinkClick}
           />
         ))}
       </div>
@@ -855,16 +980,24 @@ function DishFeatureCard({
   copy,
   query,
   exchangeRates,
-  variant
+  variant,
+  isPreview = false,
+  onDishLinkClick
 }: {
   menu: PublicMenu;
   dish: PublicMenuDish;
   locale: Locale;
   currency: string;
-  copy: Copy;
+  copy: Pick<Copy, "menu">;
   query: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
   variant: "compact" | "editorial" | "split";
+  isPreview?: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => void;
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
@@ -874,6 +1007,12 @@ function DishFeatureCard({
       className={`${styles.featureCard} ${styles[`feature${variant[0].toUpperCase()}${variant.slice(1)}`]}`}
       data-sauge-featured-dish="true"
       data-dish-id={dish.id}
+      tabIndex={isPreview ? -1 : undefined}
+      onClick={
+        isPreview
+          ? (event) => event.preventDefault()
+          : (event) => onDishLinkClick?.(event, href, dish)
+      }
     >
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
@@ -897,7 +1036,9 @@ function DishRow({
   currency,
   query,
   exchangeRates,
-  compact
+  compact,
+  isPreview = false,
+  onDishLinkClick
 }: {
   menu: PublicMenu;
   dish: PublicMenuDish;
@@ -906,14 +1047,27 @@ function DishRow({
   query: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
   compact: boolean;
+  isPreview?: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => void;
 }) {
+  const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
     <Link
-      href={buildPublicDishPath(menu.slug, dish.slug, query)}
+      href={href}
       prefetch={false}
       className={`${styles.dishRow} ${compact ? styles.dishRowCompact : ""}`}
       data-sauge-dish-row="true"
       data-dish-id={dish.id}
+      tabIndex={isPreview ? -1 : undefined}
+      onClick={
+        isPreview
+          ? (event) => event.preventDefault()
+          : (event) => onDishLinkClick?.(event, href, dish)
+      }
     >
       <PhotoSlot dish={dish} />
       <span className={styles.dishRowName}>
