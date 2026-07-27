@@ -4,10 +4,21 @@ const MENU_ROUTE = "/menu/sauge-noire?view=sauge-4&lang=fr-CA&currency=CAD";
 const CONTENTS_ROUTE = "/menu/sauge-noire?view=sauge-1&lang=fr-CA&currency=CAD";
 const DETAIL_ROUTE =
   "/menu/sauge-noire/dishes/canard-a-l-erable-noir?lang=fr-CA&currency=CAD&view=sauge-4";
+const FIRST_GESTES_ROUTE = "/menu/sauge-noire?view=sauge-2&lang=fr-CA&currency=CAD";
+const COCKTAILS_ROUTE = "/menu/sauge-noire?view=sauge-7&lang=fr-CA&currency=CAD";
+const BETTERAVE_DETAIL_ROUTE =
+  "/menu/sauge-noire/dishes/betterave-sous-la-cendre?lang=fr-CA&currency=CAD&view=sauge-2";
+const SAUGE_75_DETAIL_ROUTE =
+  "/menu/sauge-noire/dishes/sauge-75?lang=fr-CA&currency=CAD&view=sauge-7";
 const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
   { width: 768, height: 1024 },
+  { width: 1280, height: 900 }
+] as const;
+const IMAGE_VIEWPORTS = [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
   { width: 1280, height: 900 }
 ] as const;
 
@@ -174,16 +185,108 @@ async function scrollDishToBottom(page: Page) {
     );
     if (!currentPaper) throw new Error("Expected current Sauge Noire dish paper");
     const paperTarget = currentPaper.scrollHeight - currentPaper.clientHeight;
-    if (paperTarget > 0 && getComputedStyle(currentPaper).overflowY !== "visible") {
-      currentPaper.scrollTo({ top: paperTarget, behavior: "auto" });
-      return paperTarget;
+    const scrollContainer =
+      paperTarget > 0 && getComputedStyle(currentPaper).overflowY !== "visible"
+        ? currentPaper
+        : currentPaper.closest<HTMLElement>('[data-sauge-flip-page-index]') ?? currentPaper;
+    const scrollTarget = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    if (scrollTarget > 0 && getComputedStyle(scrollContainer).overflowY !== "visible") {
+      scrollContainer.scrollTo({ top: scrollTarget, behavior: "auto" });
+      return scrollTarget;
     }
     const documentTarget = document.documentElement.scrollHeight - window.innerHeight;
     window.scrollTo({ top: documentTarget, behavior: "auto" });
     return documentTarget;
   });
-  expect(targetScroll).toBeGreaterThan(0);
-  await page.waitForTimeout(50);
+  if (targetScroll > 0) await page.waitForTimeout(50);
+  return targetScroll;
+}
+
+type ImageContainmentSnapshot = {
+  imageCount: number;
+  allContain: boolean;
+  allCentered: boolean;
+  allIntrinsicallySized: boolean;
+  allSlotsContainImages: boolean;
+  documentHasHorizontalOverflow: boolean;
+};
+
+async function waitForSaugeImages(page: Page, scrollIntoView = true) {
+  const visibleImages = page.locator('[data-photo-slot] img:visible');
+  await expect.poll(() => visibleImages.count(), { timeout: 15_000, intervals: [100, 250, 500] }).toBeGreaterThan(0);
+  const imageCount = await visibleImages.count();
+  if (scrollIntoView) {
+    await visibleImages.evaluateAll((images) => {
+      images.forEach((image) => image.scrollIntoView({ block: "center", behavior: "auto" }));
+    });
+  }
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            [...document.querySelectorAll<HTMLImageElement>('[data-photo-slot] img')].filter((image) => {
+              const style = getComputedStyle(image);
+              const rect = image.getBoundingClientRect();
+              return (
+                style.display !== "none" &&
+                style.visibility !== "hidden" &&
+                rect.width > 0 &&
+                rect.height > 0 &&
+                image.naturalWidth > 0 &&
+                image.naturalHeight > 0
+              );
+            }).length,
+        ),
+      { timeout: 15_000, intervals: [100, 250, 500] },
+    )
+    .toBe(imageCount);
+}
+
+async function snapshotImageContainment(page: Page): Promise<ImageContainmentSnapshot> {
+  return page.evaluate(() => {
+    const visible = (element: Element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+
+    const images = [...document.querySelectorAll<HTMLImageElement>('[data-photo-slot] img')].filter(visible);
+    const frames = images.map((image) => {
+      const frame = image.parentElement;
+      const imageRect = image.getBoundingClientRect();
+      const frameRect = frame?.getBoundingClientRect();
+      const style = getComputedStyle(image);
+      if (!frame || !frameRect || !image.naturalWidth || !image.naturalHeight) {
+        return { contain: false, centered: false, intrinsicallySized: false, fitsFrame: false };
+      }
+
+      const scale = Math.min(frameRect.width / image.naturalWidth, frameRect.height / image.naturalHeight);
+      const contentWidth = image.naturalWidth * scale;
+      const contentHeight = image.naturalHeight * scale;
+      const contentLeft = frameRect.left + (frameRect.width - contentWidth) / 2;
+      const contentTop = frameRect.top + (frameRect.height - contentHeight) / 2;
+      const tolerance = 1;
+
+      return {
+        contain: style.objectFit === "contain" && style.objectPosition === "50% 50%",
+        centered:
+          Math.abs(contentLeft - (frameRect.left + (frameRect.width - contentWidth) / 2)) <= tolerance &&
+          Math.abs(contentTop - (frameRect.top + (frameRect.height - contentHeight) / 2)) <= tolerance,
+        intrinsicallySized: contentWidth <= frameRect.width + tolerance && contentHeight <= frameRect.height + tolerance,
+        fitsFrame: imageRect.width <= frameRect.width + tolerance && imageRect.height <= frameRect.height + tolerance
+      };
+    });
+
+    return {
+      imageCount: images.length,
+      allContain: frames.length > 0 && frames.every((frame) => frame.contain),
+      allCentered: frames.length > 0 && frames.every((frame) => frame.centered),
+      allIntrinsicallySized: frames.length > 0 && frames.every((frame) => frame.intrinsicallySized),
+      allSlotsContainImages: frames.length > 0 && frames.every((frame) => frame.fitsFrame),
+      documentHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth
+    };
+  });
 }
 
 async function snapshotMenu(page: Page): Promise<MenuSnapshot> {
@@ -407,6 +510,8 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
     await page.setViewportSize(viewport);
     await gotoSaugeNoireRoute(page, DETAIL_ROUTE);
     await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
+    await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({ timeout: 15_000 });
+    await waitForSaugeImages(page, false);
     const top = await snapshotDish(page);
     expect(top.headerPosition).not.toMatch(/fixed|sticky/);
     expect(top.logoPosition).not.toMatch(/fixed|sticky/);
@@ -418,11 +523,54 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
     expect(top.monogramsInTransitionPreview).toBe(0);
     expect(top.documentHasHorizontalOverflow).toBe(false);
 
-    await scrollDishToBottom(page);
+    const scrollDistance = await scrollDishToBottom(page);
     const bottom = await snapshotDish(page);
     expect(bottom.visibleMonograms).toBeLessThanOrEqual(1);
     expect(bottom.monogramsInPapers).toBe(1);
     expect(bottom.monogramsInTransitionPreview).toBe(0);
-    assertDishMovesTogether(top, bottom, `dish ${viewport.width}px`);
+    if (scrollDistance > 0) {
+      assertDishMovesTogether(top, bottom, `dish ${viewport.width}px`);
+    } else {
+      expect(Math.abs(bottom.logo.top - top.logo.top), `dish ${viewport.width}px moved without a scroll`).toBeLessThanOrEqual(1);
+      expect(Math.abs(bottom.title.top - top.title.top), `dish ${viewport.width}px title moved without a scroll`).toBeLessThanOrEqual(1);
+      expect(Math.abs(bottom.back.top - top.back.top), `dish ${viewport.width}px back link moved without a scroll`).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
+test("Sauge Noire dish photos stay fully contained in their frames", async ({ page }) => {
+  test.setTimeout(150_000);
+
+  for (const viewport of IMAGE_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+
+    for (const route of [FIRST_GESTES_ROUTE, COCKTAILS_ROUTE]) {
+      await gotoSaugeNoireRoute(page, route);
+      await waitForMenuReady(page);
+      await waitForSaugeImages(page);
+      const menuImages = await snapshotImageContainment(page);
+
+      expect(menuImages.imageCount, `${viewport.width}px ${route} should render dish photos`).toBeGreaterThan(0);
+      expect(menuImages.allContain, `${viewport.width}px ${route} uses contain`).toBe(true);
+      expect(menuImages.allCentered, `${viewport.width}px ${route} centers images`).toBe(true);
+      expect(menuImages.allIntrinsicallySized, `${viewport.width}px ${route} preserves image proportions`).toBe(true);
+      expect(menuImages.allSlotsContainImages, `${viewport.width}px ${route} contains each image`).toBe(true);
+      expect(menuImages.documentHasHorizontalOverflow, `${viewport.width}px ${route} overflows horizontally`).toBe(false);
+    }
+
+    for (const route of [BETTERAVE_DETAIL_ROUTE, SAUGE_75_DETAIL_ROUTE]) {
+      await gotoSaugeNoireRoute(page, route);
+      await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
+      await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({ timeout: 15_000 });
+      await waitForSaugeImages(page);
+      const detailImages = await snapshotImageContainment(page);
+
+      expect(detailImages.imageCount, `${viewport.width}px ${route} should render a detail photo`).toBe(1);
+      expect(detailImages.allContain, `${viewport.width}px ${route} uses contain`).toBe(true);
+      expect(detailImages.allCentered, `${viewport.width}px ${route} centers the photo`).toBe(true);
+      expect(detailImages.allIntrinsicallySized, `${viewport.width}px ${route} preserves image proportions`).toBe(true);
+      expect(detailImages.allSlotsContainImages, `${viewport.width}px ${route} contains the photo`).toBe(true);
+      expect(detailImages.documentHasHorizontalOverflow, `${viewport.width}px ${route} overflows horizontally`).toBe(false);
+    }
   }
 });

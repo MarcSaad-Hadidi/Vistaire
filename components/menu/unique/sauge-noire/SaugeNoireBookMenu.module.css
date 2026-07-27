@@ -795,14 +795,14 @@
 .featurePhoto {
   display: block;
   width: 100%;
-  aspect-ratio: 2.7 / 1;
+  aspect-ratio: 1 / 1;
 }
 
 .featureCard .photoSlotLarge {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 2.65 / 1;
+  aspect-ratio: 1 / 1;
   border: 0;
   border-bottom: 1px solid rgba(180, 122, 60, 0.22);
   border-radius: 0;
@@ -895,7 +895,8 @@
 .photoSlot {
   display: block;
   width: 106px;
-  height: 74px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   overflow: hidden;
   border: 1px solid rgba(130, 94, 57, 0.42);
   border-radius: 14px;
@@ -906,7 +907,8 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .dishRowName {
@@ -1355,7 +1357,7 @@
   }
 
   .featureCard .photoSlotLarge {
-    aspect-ratio: 1.95 / 1;
+    aspect-ratio: 1 / 1;
   }
 
   .featureCopy {
@@ -1405,7 +1407,7 @@
 
   .photoSlot {
     width: 62px;
-    height: 48px;
+    height: auto;
     border-radius: 9px;
   }
 
