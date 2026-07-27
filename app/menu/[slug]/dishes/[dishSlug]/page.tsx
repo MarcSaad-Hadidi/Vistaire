@@ -20,7 +20,13 @@ export const dynamic = "force-dynamic";
 
 type PublicDishPageProps = {
   params: Promise<{ slug: string; dishSlug: string }>;
-  searchParams: Promise<{ lang?: string; table?: string; zone?: string; view?: string }>;
+  searchParams: Promise<{
+    lang?: string;
+    currency?: string;
+    table?: string;
+    zone?: string;
+    view?: string;
+  }>;
 };
 
 export async function generateMetadata({
@@ -71,6 +77,7 @@ export default async function PublicDishPage({
   const menu = initialMenu;
   const menuQuery = {
     lang: activePublicLocale,
+    currency: query.currency,
     table: query.table,
     zone: query.zone,
     view: query.view
@@ -90,7 +97,11 @@ export default async function PublicDishPage({
     fallbackConfig
   );
   const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
-  const experience = resolvePublicMenuExperience(menu, resolvedConfig);
+  const experience = resolvePublicMenuExperience(menu, resolvedConfig, {
+    allowPendingUniquePreview:
+      process.env.NODE_ENV !== "production" &&
+      process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
+  });
   const context = [
     query.table ? `Table ${query.table}` : "",
     query.zone ? `Zone ${query.zone}` : ""

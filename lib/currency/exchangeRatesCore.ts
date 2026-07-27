@@ -17,6 +17,7 @@ export type ExchangeRatesResult = {
 
 const PROVIDER_REFRESH_TTL_MS = 60 * 60 * 1000;
 const FALLBACK_RETRY_TTL_MS = 15 * 60 * 1000;
+const PROVIDER_REQUEST_TIMEOUT_MS = 5_000;
 const FRANKFURTER_ENDPOINT = "https://api.frankfurter.dev/v2/rates";
 
 type CacheEntry = ExchangeRatesResult & {
@@ -145,9 +146,16 @@ export async function getExchangeRates(args: {
   url.searchParams.set("base", base);
   url.searchParams.set("quotes", quotes.join(","));
 
+  const usesDefaultFetcher = !args.fetcher;
+  const controller = usesDefaultFetcher ? new AbortController() : null;
+  const timeout = controller
+    ? setTimeout(() => controller.abort(), PROVIDER_REQUEST_TIMEOUT_MS)
+    : null;
+
   try {
     const response = await (args.fetcher ?? fetch)(url.toString(), {
-      next: { revalidate: PROVIDER_REFRESH_TTL_MS / 1000 }
+      next: { revalidate: PROVIDER_REFRESH_TTL_MS / 1000 },
+      ...(controller ? { signal: controller.signal } : {})
     } as RequestInit);
     if (!response.ok) throw new Error(`Frankfurter ${response.status}`);
     const payload = (await response.json()) as FrankfurterRatesPayload;
@@ -178,5 +186,7 @@ export async function getExchangeRates(args: {
     const result = fallbackRates(base);
     memoryCache.set(key, { ...result, expiresAt: now + FALLBACK_RETRY_TTL_MS });
     return result;
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }

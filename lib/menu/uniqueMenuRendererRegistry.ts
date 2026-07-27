@@ -8,12 +8,16 @@ import type {
   PublicMenuDish
 } from "./publicMenuCore.ts";
 import { isSafeRendererKeyCandidate } from "./uniqueMenuDesign.ts";
+import {
+  SaugeNoireBookMenu,
+  SaugeNoireDishDetail
+} from "../../components/menu/unique/sauge-noire/SaugeNoireRendererBindings.ts";
 
 /**
  * Compile-time allowlist of unique menu renderer keys.
  * Grow this union only when a real bespoke UI is statically imported below.
  */
-export type UniqueMenuRendererKey = never;
+export type UniqueMenuRendererKey = "sauge-noire-book-v1";
 
 export type UniqueMenuRendererModuleProps = {
   menu: PublicMenu;
@@ -51,12 +55,24 @@ export type UniqueMenuRendererPublicMeta = {
 };
 
 /**
- * Empty static production registry.
+ * Static production registry.
  * Future unique UIs must be explicitly imported here with a fixed designId.
  * Never resolve modules from DB strings, paths, or dynamic import templates.
  */
 const PRODUCTION_UNIQUE_MENU_RENDERERS: ReadonlyArray<UniqueMenuRendererEntry> =
   Object.freeze([
+    {
+      key: "sauge-noire-book-v1",
+      designId: "073bd2ca-56f9-46ee-bd7c-38ab22f01c9a",
+      version: 1,
+      displayName: "Sauge Noire — Livre éditorial v1",
+      menu: SaugeNoireBookMenu,
+      dishDetail: SaugeNoireDishDetail,
+      capabilities: {
+        supportsMultiLocale: true,
+        supportsCurrencySelector: true
+      }
+    },
     // Future entries only — static imports required; no template-string module loading.
   ]);
 

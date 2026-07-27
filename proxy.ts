@@ -19,6 +19,11 @@ import {
   shouldServeMarkdownForAcceptHeader
 } from "@/lib/agent-discovery";
 import { getLocaleFromPath, VISTAIRE_LOCALE_HEADER } from "@/lib/i18n";
+import {
+  isSaugeNoirePath,
+  SAUGE_NOIRE_ROUTE_THEME,
+  VISTAIRE_ROUTE_THEME_HEADER
+} from "@/lib/vistaireRouteTheme";
 import { updateSession } from "@/utils/supabase/middleware";
 
 const isProtectedRoute = createRouteMatcher([
@@ -40,6 +45,11 @@ function requestHeadersWithLocale(request: NextRequest): Headers {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete(DEV_OWNER_BYPASS_TRUSTED_HEADER);
   requestHeaders.set(VISTAIRE_LOCALE_HEADER, getLocaleFromPath(request.nextUrl.pathname));
+  if (isSaugeNoirePath(request.nextUrl.pathname)) {
+    requestHeaders.set(VISTAIRE_ROUTE_THEME_HEADER, SAUGE_NOIRE_ROUTE_THEME);
+  } else {
+    requestHeaders.delete(VISTAIRE_ROUTE_THEME_HEADER);
+  }
   return requestHeaders;
 }
 

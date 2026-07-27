@@ -51,17 +51,25 @@ export function buildRestaurantDashboardPath(restaurantIdOrSlug: string): string
  */
 export function buildPublicMenuPath(
   slugOrName: string,
-  params?: { lang?: Locale | string; table?: string; zone?: string; view?: string }
+  params?: {
+    lang?: Locale | string;
+    currency?: string;
+    table?: string;
+    zone?: string;
+    view?: string;
+  }
 ): string {
   const slug = slugifyRestaurantSlug(slugOrName);
   if (!slug) return "/demo";
 
   const query = new URLSearchParams();
   const lang = params?.lang?.toString().trim();
+  const currency = params?.currency?.toString().trim();
   const table = params?.table?.toString().trim();
   const zone = params?.zone?.toString().trim();
   const view = params?.view?.toString().trim();
   if (lang) query.set("lang", normalizePublicMenuLocale(lang));
+  if (currency) query.set("currency", currency.toUpperCase().slice(0, 3));
   if (table) query.set("table", table.slice(0, 24));
   if (zone) query.set("zone", zone.slice(0, 24));
   if (view) query.set("view", view.slice(0, 24));

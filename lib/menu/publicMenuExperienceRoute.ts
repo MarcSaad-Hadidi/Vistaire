@@ -3,6 +3,7 @@ import type { PublicMenu } from "./publicMenuCore.ts";
 import type { PublicMenuStyle } from "./publicMenuSettings.ts";
 import type { UniqueMenuDesign } from "./uniqueMenuDesign.ts";
 import {
+  getRegisteredUniqueMenuRenderersForDesign,
   getUniqueMenuRendererForDesign,
   getUniqueMenuRendererForDesignVersion,
   type UniqueMenuRendererEntry
@@ -41,7 +42,8 @@ type RouteMenuInput = Pick<
  */
 export function resolvePublicMenuExperience(
   menu: RouteMenuInput,
-  config: MenuUiConfig
+  config: MenuUiConfig,
+  options?: { allowPendingUniquePreview?: boolean }
 ): ResolvedPublicMenuExperience {
   if (isMaisonElysePublicMenu(menu)) {
     return {
@@ -72,6 +74,29 @@ export function resolvePublicMenuExperience(
     const design = config.uniqueDesign;
     const key = design?.rendererKey ?? null;
     const designVersion = design?.rendererVersion ?? null;
+    const pendingPreviewMeta =
+      options?.allowPendingUniquePreview && design?.status !== "published"
+        ? getRegisteredUniqueMenuRenderersForDesign(design?.designId)[0]
+        : null;
+    const pendingPreviewRenderer = pendingPreviewMeta
+      ? getUniqueMenuRendererForDesign(
+          pendingPreviewMeta.designId,
+          pendingPreviewMeta.key
+        )
+      : null;
+
+    if (pendingPreviewRenderer) {
+      return {
+        kind: "unique-registered",
+        style: "unique",
+        uniqueDesign: design,
+        rendererKey: pendingPreviewRenderer.key,
+        rendererVersion: pendingPreviewRenderer.version,
+        useGenericFallback: false,
+        renderer: pendingPreviewRenderer
+      };
+    }
+
     const bound =
       design?.status === "published"
         ? getUniqueMenuRendererForDesignVersion(

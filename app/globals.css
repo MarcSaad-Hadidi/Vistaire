@@ -5,6 +5,7 @@
 :root {
   color-scheme: dark;
   --color-charcoal: #080706;
+  --color-sauge-paper: #faf4e9;
   --color-espresso: #1d130d;
   --color-cream: #f7eddd;
   --color-muted: #cdbfa9;
@@ -47,6 +48,24 @@ body {
   font-family: "Avenir Next", Optima, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
   text-rendering: geometricPrecision;
+}
+
+html[data-vistaire-route-theme="sauge-noire"],
+html:has([data-vistaire-route-theme="sauge-noire"]) {
+  color-scheme: light;
+  background: var(--color-sauge-paper);
+}
+
+body[data-vistaire-route-theme="sauge-noire"],
+body:has([data-vistaire-route-theme="sauge-noire"]) {
+  color-scheme: light;
+  background: var(--color-sauge-paper);
+}
+
+body[data-vistaire-route-theme="sauge-noire"] #contenu,
+body:has([data-vistaire-route-theme="sauge-noire"]) #contenu {
+  min-height: 100svh;
+  background: var(--color-sauge-paper);
 }
 
 button,

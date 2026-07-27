@@ -161,6 +161,7 @@ export type PublicMenu = {
 
 export type PublicMenuContextQuery = {
   lang?: Locale | string;
+  currency?: string;
   table?: string;
   zone?: string;
   view?: string;
@@ -1534,7 +1535,9 @@ export function buildPublicDishPath(
   const zone = query?.zone?.toString().trim();
   const view = query?.view?.toString().trim();
   const rawLang = query?.lang?.toString().trim();
+  const rawCurrency = query?.currency?.toString().trim();
   if (rawLang) params.set("lang", normalizePublicMenuLocale(rawLang));
+  if (rawCurrency) params.set("currency", rawCurrency.toUpperCase().slice(0, 3));
   if (table) params.set("table", table.slice(0, 24));
   if (zone) params.set("zone", zone.slice(0, 24));
   if (view) params.set("view", view.slice(0, 24));

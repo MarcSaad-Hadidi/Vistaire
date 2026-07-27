@@ -336,8 +336,16 @@ export function getRequestedModificationsAllergenDisclaimer(
   if (!disclaimer || typeof disclaimer !== "object" || Array.isArray(disclaimer)) {
     return "";
   }
-  const language = locale.toLowerCase().startsWith("en") ? "en" : "fr";
-  const value = (disclaimer as Record<string, unknown>)[language];
+  const language = locale.toLowerCase().split(/[-_]/)[0];
+  const builtInFallbacks: Record<string, string> = {
+    fr: "Les modifications demandées ne garantissent pas l’absence d’allergènes ou de contamination croisée. Veuillez confirmer toute allergie avec notre équipe.",
+    en: "Requested modifications do not guarantee the absence of allergens or cross-contamination. Please confirm any allergy with our team.",
+    es: "Las modificaciones solicitadas no garantizan la ausencia de alérgenos ni de contaminación cruzada. Confirma cualquier alergia con nuestro equipo.",
+    it: "Le modifiche richieste non garantiscono l'assenza di allergeni o contaminazioni incrociate. Conferma qualsiasi allergia con il nostro team.",
+    ar: "التعديلات المطلوبة لا تضمن غياب مسببات الحساسية أو التلوث المتبادل. يرجى تأكيد أي حساسية مع فريقنا."
+  };
+  const values = disclaimer as Record<string, unknown>;
+  const value = values[language] ?? builtInFallbacks[language] ?? values.en ?? values.fr;
   return typeof value === "string" ? value.trim().slice(0, 500) : "";
 }
 

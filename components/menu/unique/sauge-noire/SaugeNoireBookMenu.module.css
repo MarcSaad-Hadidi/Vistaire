@@ -1,0 +1,1570 @@
+@font-face {
+  font-family: "BT Suave";
+  src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BT Suave";
+  src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+.book,
+.book * {
+  box-sizing: border-box;
+}
+
+.book {
+  --sn-forest: #26372b;
+  --sn-forest-dark: #172219;
+  --sn-cream: #f3eadb;
+  --sn-paper: #faf4e9;
+  --sn-paper-texture:
+    radial-gradient(circle at 12% 16%, rgba(180, 122, 60, 0.06) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 75% 62%, rgba(38, 55, 43, 0.035) 0 1px, transparent 1.5px);
+  --sn-paper-texture-size: 16px 17px, 23px 24px;
+  --sn-bronze: #b47a3c;
+  --sn-ink: #26372b;
+  --sn-muted: #6c6f61;
+  --sn-line: rgba(38, 55, 43, 0.2);
+  --sn-rail: clamp(42px, 11vw, 116px);
+  --sn-rail-half: clamp(21px, 5.5vw, 58px);
+  position: fixed;
+  inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100svh;
+  min-height: 0;
+  max-height: 100svh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--sn-forest-dark);
+  color: var(--sn-ink);
+  font-family: "BT Suave", Georgia, serif;
+  isolation: isolate;
+}
+
+@supports (height: 100dvh) {
+  .book {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+}
+
+.book button,
+.book a {
+  color: inherit;
+  font: inherit;
+}
+
+.book button:focus-visible,
+.book a:focus-visible {
+  outline: 2px solid var(--sn-bronze);
+  outline-offset: 4px;
+}
+
+.rail {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 var(--sn-rail);
+  flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--sn-forest);
+  border-left: 2px solid rgba(180, 122, 60, 0.32);
+  border-right: 2px solid rgba(180, 122, 60, 0.52);
+  box-shadow: inset -4px 0 12px rgba(14, 24, 18, 0.3);
+}
+
+.railPattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.24;
+  background-image:
+    radial-gradient(ellipse at 20% 20%, transparent 0 38%, rgba(243, 234, 219, 0.16) 39% 40%, transparent 41%),
+    radial-gradient(ellipse at 70% 70%, transparent 0 40%, rgba(243, 234, 219, 0.12) 41% 42%, transparent 43%);
+  background-size: 22px 30px, 25px 33px;
+  mix-blend-mode: screen;
+}
+
+.railFastener {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  width: 22px;
+  height: 174px;
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.railFastenerTop {
+  top: 26svh;
+}
+
+.railFastenerBottom {
+  bottom: 18svh;
+}
+
+.railFastener span {
+  display: block;
+  width: 3px;
+  flex: 1;
+  background: var(--sn-bronze);
+  box-shadow: 0 0 2px rgba(255, 220, 164, 0.55);
+}
+
+.railFastener i {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 1px solid rgba(255, 221, 166, 0.44);
+  border-radius: 50%;
+  background: var(--sn-bronze);
+  box-shadow: inset 3px 2px 4px rgba(255, 233, 190, 0.55), 0 2px 4px rgba(9, 18, 11, 0.46);
+}
+
+.paper {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  border: 2px solid rgba(38, 55, 43, 0.8);
+  border-left: 0;
+  border-radius: 0 42px 42px 0;
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  box-shadow: inset 0 0 30px rgba(94, 73, 45, 0.08), -5px 0 16px rgba(15, 23, 17, 0.25);
+}
+
+.paper::after {
+  position: fixed;
+  inset: 0 0 0 var(--sn-rail);
+  z-index: -1;
+  border: 1px solid rgba(180, 122, 60, 0.2);
+  border-left: 0;
+  border-radius: 0 40px 40px 0;
+  content: "";
+  pointer-events: none;
+}
+
+.bookHeader {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 132px;
+  min-height: 132px;
+  flex: 0 0 132px;
+  margin-left: 0;
+  overflow: visible;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.bookHeader > .brandMark {
+  position: absolute;
+  top: 78px;
+  left: calc(50% - 5px);
+  z-index: 4;
+  transform: translateX(-50%);
+}
+
+.contentsBack {
+  position: absolute;
+  top: 38px;
+  left: clamp(16px, 5vw, 64px);
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid rgba(130, 94, 57, 0.52);
+  border-radius: 13px;
+  background: rgba(250, 244, 233, 0.24);
+  color: rgba(38, 55, 43, 0.82);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-style: italic;
+  pointer-events: auto;
+}
+
+.contentsBack span:first-child {
+  color: var(--sn-bronze);
+  font-size: 1.1rem;
+  font-style: normal;
+  line-height: 1;
+}
+
+.brandMark {
+  position: relative;
+  display: inline-block;
+  width: 68px;
+  height: 70px;
+  color: var(--sn-bronze);
+  font-size: 58px;
+  font-weight: 400;
+  letter-spacing: -0.22em;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.brandMark span:first-child {
+  position: absolute;
+  top: 0;
+  left: 4px;
+}
+
+.brandMark span:last-child {
+  position: absolute;
+  top: 20px;
+  right: 4px;
+  font-size: 46px;
+}
+
+.preferenceControls {
+  position: absolute;
+  top: 38px;
+  right: clamp(16px, 5vw, 64px);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.preferenceMenu {
+  position: relative;
+}
+
+.preferenceTrigger {
+  display: inline-flex;
+  min-width: 62px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid rgba(130, 94, 57, 0.66);
+  border-radius: 13px;
+  background: rgba(250, 244, 233, 0.38);
+  color: rgba(38, 55, 43, 0.86);
+  cursor: pointer;
+  font-family: "Neue Montreal", Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.preferenceTrigger[aria-expanded="true"] {
+  background: rgba(180, 122, 60, 0.12);
+}
+
+.preferenceChevron {
+  width: 7px;
+  height: 7px;
+  margin-top: -4px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.preferencePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  display: grid;
+  min-width: 104px;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid rgba(130, 94, 57, 0.66);
+  border-radius: 12px;
+  background: rgba(250, 244, 233, 0.98);
+  box-shadow: 0 12px 22px rgba(38, 55, 43, 0.18);
+}
+
+.preferenceOption,
+.preferenceOptionActive {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: "Neue Montreal", Arial, sans-serif;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.preferenceOption:hover,
+.preferenceOptionActive {
+  border-radius: 8px;
+  background: rgba(180, 122, 60, 0.12);
+  color: var(--sn-ink);
+}
+
+.preferenceOptionActive {
+  font-weight: 700;
+}
+
+.pageViewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pageFlipViewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+  isolation: isolate;
+}
+
+.pageFlipBook {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pageFlipBookPending {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pageFlipBook :global(.stf__parent),
+.pageFlipBook :global(.stf__wrapper),
+.pageFlipBook :global(.stf__block) {
+  width: 100%;
+  height: 100%;
+}
+
+.pageFlipPage {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  color: var(--sn-ink);
+  scrollbar-width: thin;
+}
+
+.pageFlipPage:has(.coverPage) {
+  overflow: clip;
+}
+
+.pageFlipFallback {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.pageFlipFallback:has(.coverPage) {
+  overflow: clip;
+}
+
+.pageFlipInitializing {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.page {
+  position: relative;
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px clamp(16px, 6vw, 92px) 46px;
+  text-align: center;
+}
+
+.coverPage {
+  justify-content: flex-start;
+  padding-top: clamp(24px, calc(18vh - 132px), 44px);
+}
+
+.coverTap {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+}
+
+.coverBotanical {
+  width: clamp(142px, 25vw, 260px);
+  height: clamp(180px, 24vh, 240px);
+  margin-bottom: 12px;
+}
+
+.coverTitle h1 {
+  font-size: clamp(3.1rem, 6.5vw, 6rem);
+}
+
+.coverPage .coverTitle p {
+  margin-top: 12px;
+}
+
+.coverTitle h1,
+.endingWordmark {
+  margin: 0;
+  color: var(--sn-forest);
+  font-size: clamp(3.5rem, 8vw, 8.8rem);
+  font-weight: 400;
+  letter-spacing: 0.075em;
+  line-height: 0.88;
+}
+
+.coverTitle p,
+.endingPage > p,
+.instruction,
+.pageFooter p,
+.endingSoon {
+  margin: 22px 0 0;
+  color: rgba(38, 55, 43, 0.83);
+  font-size: clamp(0.88rem, 1.65vw, 1.52rem);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.rule {
+  position: relative;
+  display: inline-flex;
+  width: 108px;
+  height: 12px;
+  align-items: center;
+  justify-content: center;
+  margin: 20px auto 0;
+}
+
+.rule::before,
+.rule::after {
+  display: block;
+  width: 44px;
+  height: 1px;
+  background: var(--sn-bronze);
+  content: "";
+}
+
+.rule i,
+.coverDot {
+  display: block;
+  width: 9px;
+  height: 9px;
+  margin: 0 7px;
+  border-radius: 50%;
+  background: var(--sn-bronze);
+}
+
+.coverMenuTitle {
+  margin: 18px 0 0;
+  color: var(--sn-bronze);
+  font-size: clamp(1.35rem, 2.6vw, 2.4rem);
+}
+
+.coverUnderline {
+  width: 64px;
+  height: 1px;
+  margin-top: 14px;
+  background: var(--sn-bronze);
+}
+
+.coverCity,
+.coverYear {
+  margin: 14px 0 0;
+  font-size: clamp(1rem, 2vw, 1.7rem);
+  font-style: italic;
+}
+
+.endingCity {
+  margin: 24px 0 0;
+  font-size: clamp(1rem, 2vw, 1.7rem);
+  font-style: italic;
+}
+
+.coverDot {
+  width: 7px;
+  height: 7px;
+  margin: 10px 0 0;
+}
+
+.coverYear {
+  margin-top: 10px;
+  font-style: normal;
+  letter-spacing: 0.16em;
+}
+
+.coverOpen {
+  margin-top: auto;
+  padding-top: 18px;
+  font-size: clamp(0.94rem, 1.7vw, 1.42rem);
+  font-style: italic;
+}
+
+.arrow {
+  display: block;
+  width: 52px;
+  height: 22px;
+  margin: 13px auto 0;
+  fill: none;
+  stroke: var(--sn-bronze);
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 2;
+  animation: saugeArrowNudge 1.8s ease-in-out infinite;
+}
+
+.doubleArrowControl {
+  position: relative;
+  display: grid;
+  width: 76px;
+  height: 30px;
+  place-items: center;
+  margin-top: 7px;
+}
+
+.doubleArrow {
+  display: block;
+  width: 58px;
+  height: 24px;
+  fill: none;
+  stroke: var(--sn-bronze);
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 2;
+  animation: saugeDoubleArrowNudge 1.8s ease-in-out infinite;
+}
+
+.arrowHit {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: 50%;
+  min-width: 0 !important;
+  height: 100%;
+  min-height: 0 !important;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.arrowHitPrevious {
+  left: 0;
+}
+
+.arrowHitNext {
+  right: 0;
+}
+
+@keyframes saugeArrowNudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes saugeDoubleArrowNudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  32% {
+    transform: translateX(4px);
+  }
+
+  66% {
+    transform: translateX(-4px);
+  }
+}
+
+/* Sauge Noire keeps its tactile navigation cue even when the host opts into reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .book .arrow {
+    animation: saugeArrowNudge 1.8s ease-in-out infinite !important;
+  }
+
+  .book .doubleArrow {
+    animation: saugeDoubleArrowNudge 1.8s ease-in-out infinite !important;
+  }
+}
+
+.contentsPage {
+  min-height: calc(100% - 132px);
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.contentsBotanical {
+  width: clamp(90px, 14vw, 150px);
+  height: clamp(100px, 14vh, 130px);
+}
+
+.contentsPage h1 {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: var(--sn-forest);
+  font-size: clamp(2rem, 4.5vw, 4.8rem);
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  line-height: 0.98;
+  text-transform: uppercase;
+}
+
+.contentsPage .instruction {
+  margin-top: 6px;
+}
+
+.contentsList {
+  display: grid;
+  width: min(100%, 770px);
+  margin-top: 14px;
+  text-align: left;
+}
+
+.contentsList button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 1px solid rgba(180, 122, 60, 0.38);
+  background: transparent;
+  color: var(--sn-ink);
+  cursor: pointer;
+  font-size: clamp(0.94rem, 1.7vw, 1.45rem);
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+
+.contentsList button:first-child {
+  border-top: 1px solid rgba(180, 122, 60, 0.38);
+}
+
+.contentsList button:hover,
+.contentsList .contentsActive {
+  border: 1px solid var(--sn-bronze);
+  border-radius: 15px;
+  background: rgba(250, 244, 233, 0.52);
+}
+
+.contentsPage .pageFooter {
+  padding: 12px 0 14px;
+}
+
+.contentsPage .pageFooter p {
+  margin-top: 4px;
+}
+
+.contentsList b {
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.sectionPage {
+  padding-top: 52px;
+}
+
+.sectionKicker {
+  display: grid;
+  justify-items: center;
+  color: var(--sn-bronze);
+  font-size: clamp(1.3rem, 2.7vw, 2.3rem);
+  letter-spacing: 0.16em;
+}
+
+.sectionKicker .rule {
+  margin-top: 12px;
+}
+
+.sectionTitleRow {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  min-height: 92px;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 4vw, 56px);
+  margin-top: 16px;
+}
+
+.sectionTitleRow h1 {
+  max-width: 100%;
+  margin: 0;
+  color: var(--sn-forest);
+  font-size: clamp(2rem, 5.8vw, 5.8rem);
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  line-height: 0.98;
+  text-transform: uppercase;
+}
+
+.titleBranchLeft,
+.titleBranchRight {
+  width: 68px;
+  height: 104px;
+  flex: 0 0 68px;
+}
+
+.titleBranchLeft {
+  transform: scaleX(-1);
+}
+
+.sectionBotanical {
+  width: clamp(150px, 24vw, 260px);
+  height: clamp(74px, 12vh, 140px);
+  margin: 20px auto 16px;
+}
+
+.sectionPage:not(.splitSection) .sectionBotanical {
+  opacity: 0.72;
+}
+
+.featureCard {
+  display: block;
+  width: min(100%, 900px);
+  margin: 22px auto 0;
+  overflow: hidden;
+  border: 1px solid rgba(180, 122, 60, 0.7);
+  border-radius: 24px;
+  background: rgba(250, 244, 233, 0.48);
+  color: var(--sn-ink);
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.featureCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(59, 47, 29, 0.1);
+}
+
+.featureCompact {
+  border-color: rgba(38, 55, 43, 0.35);
+}
+
+.featurePhoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.featureCard .photoSlotLarge {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border: 0;
+  border-bottom: 1px solid rgba(180, 122, 60, 0.22);
+  border-radius: 0;
+}
+
+.featureCopy {
+  display: flex;
+  min-height: 112px;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 18px 26px 22px;
+  flex-direction: column;
+}
+
+.featureCopy h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+.featureTitle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.threeDIndicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 3px 7px 3px 5px;
+  border: 1px solid rgba(180, 122, 60, 0.48);
+  border-radius: 999px;
+  background: rgba(180, 122, 60, 0.09);
+  color: var(--sn-forest);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.threeDIcon {
+  display: block;
+  width: 13px;
+  height: 13px;
+  color: var(--sn-bronze);
+}
+
+.featureCopy p {
+  max-width: 670px;
+  margin: -4px 0 0;
+  font-size: clamp(0.94rem, 1.7vw, 1.3rem);
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.featureCopy .rule {
+  margin-top: 0;
+}
+
+.featureCopy strong {
+  color: var(--sn-bronze);
+  font-size: clamp(1.25rem, 2.4vw, 2rem);
+  font-weight: 400;
+}
+
+.featureEditorial .featureCopy {
+  flex-direction: row;
+  justify-content: space-between;
+  min-height: 92px;
+}
+
+.featureEditorial .featureCopy .rule,
+.featureEditorial .featureCopy p {
+  display: none;
+}
+
+.featureSplit .featureCopy {
+  align-items: flex-start;
+  padding-inline: clamp(20px, 5vw, 52px);
+  text-align: left;
+}
+
+.featureSplit .featureCopy h2 {
+  font-size: clamp(1.6rem, 3.6vw, 3rem);
+}
+
+.dishList {
+  display: grid;
+  width: min(100%, 880px);
+  margin-top: 20px;
+}
+
+.dishRow {
+  display: grid;
+  min-height: 96px;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(12px, 3vw, 30px);
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(180, 122, 60, 0.34);
+  color: var(--sn-ink);
+  text-align: left;
+  text-decoration: none;
+}
+
+.dishRow:hover .dishRowName {
+  color: var(--sn-bronze);
+}
+
+.dishRowCompact {
+  min-height: 84px;
+  grid-template-columns: 106px minmax(0, 1fr) auto;
+}
+
+.photoSlot {
+  display: block;
+  width: 106px;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  overflow: hidden;
+  border: 1px solid rgba(130, 94, 57, 0.42);
+  border-radius: 14px;
+  background-color: rgba(232, 223, 209, 0.46);
+}
+
+.photoSlot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.dishRowName {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dishRowName > span:first-child {
+  font-size: clamp(1.05rem, 2.35vw, 1.8rem);
+  letter-spacing: 0.02em;
+  line-height: 1.12;
+}
+
+.dishRowPrice {
+  color: var(--sn-bronze);
+  font-size: clamp(1.05rem, 2.15vw, 1.7rem);
+  white-space: nowrap;
+}
+
+.pageFooter {
+  display: grid;
+  justify-items: center;
+  margin-top: auto;
+  padding: 30px 0 34px;
+}
+
+.pageFooter .rule {
+  margin-top: 0;
+}
+
+.pageFooter p {
+  margin-top: 12px;
+}
+
+.pageFooter button,
+.restartButton {
+  display: inline-flex;
+  min-width: 52px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.endingPage {
+  min-height: calc(100% - 132px);
+  justify-content: flex-start;
+  padding-top: 34px;
+  padding-bottom: 22px;
+}
+
+.endingPage h1 {
+  max-width: 800px;
+  margin: 0;
+  color: var(--sn-forest);
+  font-size: clamp(2.7rem, 7vw, 7rem);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  line-height: 0.95;
+}
+
+.endingBotanical {
+  width: clamp(120px, 20vw, 210px);
+  height: clamp(150px, 28vh, 260px);
+  margin: 16px auto 14px;
+}
+
+.endingWordmark {
+  font-size: clamp(2.3rem, 5vw, 4.5rem);
+}
+
+.endingPage > p {
+  margin-top: 8px;
+}
+
+.endingCity {
+  margin-top: 16px;
+}
+
+.googleReviewCta {
+  display: inline-flex;
+  width: fit-content;
+  max-width: min(100%, 300px);
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px auto 0;
+  padding: 8px 16px;
+  border: 1px solid rgba(130, 94, 57, 0.62);
+  border-radius: 13px;
+  background: var(--sn-paper);
+  box-shadow: none;
+  color: var(--sn-ink);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.googleReviewCta:hover,
+.googleReviewCta:focus-visible {
+  border-color: rgba(130, 94, 57, 0.72);
+  background: rgba(180, 122, 60, 0.1);
+  box-shadow: 0 6px 14px rgba(38, 55, 43, 0.08);
+  transform: translateY(-1px);
+}
+
+.googleReviewCta:focus-visible {
+  outline: 2px solid var(--sn-bronze);
+  outline-offset: 3px;
+}
+
+.googleReviewBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.googleReviewMark {
+  color: var(--sn-bronze);
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.googleReviewArrow {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--sn-bronze);
+  line-height: 1;
+}
+
+.googleReviewArrow svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.googleReviewArrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.restartButton {
+  margin-top: 16px;
+  border-bottom: 1px solid var(--sn-bronze);
+  color: var(--sn-bronze);
+  font-size: 1rem;
+}
+
+.backToTop {
+  position: fixed;
+  left: calc(50% + (var(--sn-rail) / 2));
+  bottom: 18px;
+  z-index: 8;
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgba(130, 94, 57, 0.7);
+  border-radius: 999px;
+  background: rgba(250, 244, 233, 0.95);
+  box-shadow: 0 8px 18px rgba(38, 55, 43, 0.16);
+  color: var(--sn-bronze);
+  cursor: pointer;
+  font-family: "Neue Montreal", Arial, sans-serif;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  transform: translateX(-50%);
+}
+
+.backToTop span {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.endingSoon {
+  max-width: 450px;
+  margin-top: 24px;
+}
+
+.botanical {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.botanical img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.botanicalPlant {
+  overflow: visible;
+}
+
+.botanicalPlant img {
+  transform: none;
+}
+
+.botanicalBranch {
+  width: 100%;
+  max-width: 320px;
+}
+
+.botanicalSprig,
+.botanicalSideSprig,
+.botanicalCocktailStem,
+.botanicalDetail {
+  overflow: hidden;
+}
+
+.botanicalSprig img {
+  transform: none;
+}
+
+.botanicalSideSprig img {
+  transform: none;
+}
+
+.botanicalBranch img {
+  transform: none;
+}
+
+.botanicalDetail img {
+  transform: none;
+}
+
+.ornament {
+  display: inline-flex;
+  width: 108px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+.ornament i {
+  width: 42px;
+  height: 1px;
+  background: var(--sn-bronze);
+}
+
+.ornament b {
+  width: 8px;
+  height: 8px;
+  margin: 0 8px;
+  border-radius: 50%;
+  background: var(--sn-bronze);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 700px) {
+  .paper {
+    border-radius: 0 24px 24px 0;
+  }
+
+  .paper::after {
+    border-radius: 0 22px 22px 0;
+  }
+
+  .bookHeader > .brandMark {
+    top: 65px;
+  }
+
+  .contentsBack {
+    top: 18px;
+    left: 12px;
+    min-height: 34px;
+    gap: 5px;
+    padding: 0 8px;
+    border-radius: 9px;
+    font-size: 0.68rem;
+  }
+
+  .contentsBack span:first-child {
+    font-size: 0.96rem;
+  }
+
+  .brandMark {
+    width: 52px;
+    height: 56px;
+    font-size: 45px;
+  }
+
+  .brandMark span:last-child {
+    top: 17px;
+    font-size: 36px;
+  }
+
+  .preferenceControls {
+    top: 18px;
+    right: 12px;
+    gap: 6px;
+  }
+
+  .preferenceTrigger {
+    min-width: 56px;
+    min-height: 34px;
+    gap: 6px;
+    padding: 0 8px;
+    border-radius: 9px;
+    font-size: 0.68rem;
+  }
+
+  .preferencePopover {
+    top: calc(100% + 6px);
+    min-width: 92px;
+    border-radius: 10px;
+  }
+
+  .preferenceOption,
+  .preferenceOptionActive {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 0.68rem;
+  }
+
+  .backToTop {
+    left: calc(50% + (var(--sn-rail) / 2));
+    bottom: 14px;
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 0.66rem;
+  }
+
+  .page {
+    min-height: calc(100svh - 1px);
+    padding: 5px 14px 28px;
+  }
+
+  .coverPage {
+    padding-top: clamp(0px, calc(18svh - 132px), 24px);
+  }
+
+  .coverBotanical {
+    width: 116px;
+    height: clamp(160px, 25svh, 210px);
+    margin-bottom: 10px;
+  }
+
+  .coverTitle h1 {
+    font-size: clamp(3rem, 14vw, 5rem);
+    letter-spacing: 0.055em;
+  }
+
+  .coverOpen {
+    margin-top: 20px;
+    padding-top: 0;
+  }
+
+  .coverTitle p,
+  .endingPage > p,
+  .instruction,
+  .pageFooter p,
+  .endingSoon {
+    font-size: 0.83rem;
+  }
+
+  .contentsPage {
+    min-height: calc(100% - 132px);
+    padding-top: 12px;
+  }
+
+  .contentsBotanical {
+    width: 92px;
+    height: 104px;
+  }
+
+  .contentsPage h1 {
+    margin-top: 8px;
+    font-size: clamp(1.85rem, 8.5vw, 3.1rem);
+    letter-spacing: 0.08em;
+  }
+
+  .contentsPage .instruction {
+    margin-top: 4px;
+  }
+
+  .contentsList {
+    margin-top: 12px;
+  }
+
+  .contentsList button {
+    min-height: 42px;
+    padding-inline: 9px;
+    font-size: 0.98rem;
+  }
+
+  .contentsList button:hover,
+  .contentsList .contentsActive {
+    border-radius: 10px;
+  }
+
+  .contentsPage .pageFooter {
+    padding: 8px 0 12px;
+  }
+
+  .contentsPage .pageFooter p {
+    margin-top: 2px;
+  }
+
+  .sectionPage {
+    padding-top: 10px;
+  }
+
+  .sectionKicker {
+    font-size: 1.2rem;
+  }
+
+  .sectionTitleRow {
+    min-height: 56px;
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .sectionTitleRow h1 {
+    font-size: clamp(1.7rem, 8vw, 3rem);
+    letter-spacing: 0.055em;
+  }
+
+  .titleBranchLeft,
+  .titleBranchRight {
+    width: 42px;
+    height: 70px;
+    flex-basis: 42px;
+  }
+
+  .sectionBotanical {
+    width: 130px;
+    height: 66px;
+    margin: 10px auto 8px;
+  }
+
+  .featureCard {
+    margin-top: 12px;
+    border-radius: 15px;
+  }
+
+  .featureCard .photoSlotLarge {
+    aspect-ratio: 1 / 1;
+  }
+
+  .featureCopy {
+    min-height: 70px;
+    gap: 8px;
+    padding: 12px 12px 14px;
+  }
+
+  .featureCopy h2 {
+    font-size: 1.2rem;
+  }
+
+  .featureCopy p {
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+
+  .featureCopy .rule {
+    margin-top: 0;
+    transform: scale(0.7);
+  }
+
+  .featureCopy strong {
+    font-size: 1.08rem;
+  }
+
+  .featureEditorial .featureCopy {
+    min-height: 62px;
+    padding-inline: 14px;
+  }
+
+  .featureEditorial .featureCopy h2 {
+    font-size: 1.05rem;
+  }
+
+  .dishList {
+    margin-top: 10px;
+  }
+
+  .dishRow,
+  .dishRowCompact {
+    min-height: 65px;
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 9px 0;
+  }
+
+  .photoSlot {
+    width: 62px;
+    height: auto;
+    border-radius: 9px;
+  }
+
+  .dishRowName {
+    font-size: 0.9rem;
+  }
+
+  .dishRowPrice {
+    font-size: 0.86rem;
+  }
+
+  .pageFooter {
+    padding: 20px 0 42px;
+  }
+
+  .pageFooter p {
+    margin-top: 6px;
+  }
+
+  .pageFooter .arrow {
+    width: 42px;
+    height: 18px;
+    margin-top: 5px;
+  }
+
+  .doubleArrowControl {
+    width: 70px;
+    height: 26px;
+    margin-top: 4px;
+  }
+
+  .pageFooter .doubleArrow {
+    width: 50px;
+    height: 21px;
+  }
+
+  .shortSectionPage .pageFooter {
+    transform: none;
+  }
+
+  .endingPage {
+    min-height: calc(100% - 132px);
+    padding-top: 16px;
+    padding-bottom: 20px;
+  }
+
+  .endingPage h1 {
+    font-size: clamp(1.8rem, 9vw, 3.5rem);
+  }
+
+  .endingBotanical {
+    width: 92px;
+    height: 140px;
+    margin: 10px auto 10px;
+  }
+
+  .endingWordmark {
+    font-size: clamp(2rem, 9vw, 3.5rem);
+  }
+
+  .endingPage > p {
+    margin-top: 6px;
+  }
+
+  .endingCity {
+    margin-top: 14px;
+  }
+
+  .googleReviewCta {
+    width: fit-content;
+    max-width: calc(100% - 24px);
+    margin-top: 12px;
+    min-height: 42px;
+    padding-inline: 14px;
+  }
+
+  .googleReviewBrand {
+    font-size: 1rem;
+  }
+
+  .googleReviewMark {
+    font-size: 1.1rem;
+  }
+
+  .googleReviewArrow {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+
+  .restartButton {
+    margin-top: 14px;
+  }
+
+  .endingSoon {
+    margin-top: 8px;
+  }
+}

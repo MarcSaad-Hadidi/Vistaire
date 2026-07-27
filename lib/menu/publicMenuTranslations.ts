@@ -124,13 +124,15 @@ export async function applyStoredPublicMenuTranslations(
       menu.settings,
       translationLocales
     );
+    const publicSettings =
+      menu.settings.publicMenuStyle === "unique" ? menu.settings : filteredSettings;
     const activeLocale = normalizePublicMenuLocalePreference(
       requestedLocale,
-      filteredSettings
+      publicSettings
     );
     return {
       ...menu,
-      settings: filteredSettings,
+      settings: publicSettings,
       activeLocale,
       translationLocales,
       translationStatus: statusForLocale(translationLocales, activeLocale)
@@ -170,13 +172,15 @@ export async function applyStoredPublicMenuTranslations(
       menu.settings,
       translationLocales
     );
+    const publicSettings =
+      menu.settings.publicMenuStyle === "unique" ? menu.settings : filteredSettings;
     const activeLocale = normalizePublicMenuLocalePreference(
       requestedLocale,
-      filteredSettings
+      publicSettings
     );
     return {
       ...menu,
-      settings: filteredSettings,
+      settings: publicSettings,
       activeLocale,
       translationLocales,
       translationStatus: statusForLocale(translationLocales, activeLocale)
@@ -196,15 +200,17 @@ export async function applyStoredPublicMenuTranslations(
     menu.settings,
     translationLocales
   );
+  const publicSettings =
+    menu.settings.publicMenuStyle === "unique" ? menu.settings : filteredSettings;
   const activeLocale = normalizePublicMenuLocalePreference(
     requestedLocale,
-    filteredSettings
+    publicSettings
   );
 
-  if (activeLocale === filteredSettings.defaultLocale) {
+  if (activeLocale === publicSettings.defaultLocale) {
     return {
       ...menu,
-      settings: filteredSettings,
+      settings: publicSettings,
       activeLocale,
       translationLocales,
       translationStatus: statusForLocale(translationLocales, activeLocale)
@@ -304,7 +310,7 @@ export async function applyStoredPublicMenuTranslations(
 
   return {
     ...menu,
-    settings: filteredSettings,
+    settings: publicSettings,
     activeLocale,
     name: menu.name,
     menuName: translatedMenuName,
