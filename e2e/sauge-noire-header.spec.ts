@@ -7,6 +7,7 @@ const DETAIL_ROUTE =
 const FIRST_GESTES_ROUTE = "/menu/sauge-noire?view=sauge-2&lang=fr-CA&currency=CAD";
 const SHORT_SECTION_ROUTE = "/menu/sauge-noire?view=sauge-5&lang=fr-CA&currency=CAD";
 const COCKTAILS_ROUTE = "/menu/sauge-noire?view=sauge-7&lang=fr-CA&currency=CAD";
+const ENDING_ROUTE = "/menu/sauge-noire?view=sauge-9&lang=fr-CA&currency=CAD";
 const BETTERAVE_DETAIL_ROUTE =
   "/menu/sauge-noire/dishes/betterave-sous-la-cendre?lang=fr-CA&currency=CAD&view=sauge-2";
 const SAUGE_75_DETAIL_ROUTE =
@@ -600,6 +601,48 @@ test("Sauge Noire short sections keep arrows below the final dish", async ({ pag
     expect(snapshot.maxScroll, `${viewport.width}px short section should keep its scroll container`).toBeGreaterThan(0);
     expect(snapshot.footerVisibleAtBottom, `${viewport.width}px arrows should be visible at the end of the page`).toBe(true);
     expect(snapshot.documentHasHorizontalOverflow, `${viewport.width}px short section overflows horizontally`).toBe(false);
+  }
+});
+
+test("Sauge Noire Google review CTA uses the paper and bronze visual language", async ({ page }) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 1280, height: 900 }
+  ]) {
+    await page.setViewportSize(viewport);
+    await gotoSaugeNoireRoute(page, ENDING_ROUTE);
+    await waitForMenuReady(page);
+
+    const cta = page.getByTestId("google-review-cta");
+    await expect(cta).toBeVisible();
+    const snapshot = await cta.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const mark = element.querySelector<HTMLElement>('[data-testid="google-review-mark"]');
+      const arrow = element.querySelector<HTMLElement>('[data-testid="google-review-arrow"]');
+      const rect = element.getBoundingClientRect();
+      return {
+        text: element.textContent,
+        width: rect.width,
+        height: rect.height,
+        borderRadius: style.borderRadius,
+        background: style.backgroundColor,
+        shadow: style.boxShadow,
+        markColor: mark ? getComputedStyle(mark).color : "",
+        markBackground: mark ? getComputedStyle(mark).backgroundImage : "",
+        arrowColor: arrow ? getComputedStyle(arrow).color : "",
+        documentHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    });
+
+    expect(snapshot.text).toContain("Laisser un avis Google");
+    expect(snapshot.width, `${viewport.width}px CTA should stay compact`).toBeLessThan(viewport.width * 0.85);
+    expect(snapshot.height).toBeGreaterThanOrEqual(42);
+    expect(snapshot.borderRadius).toBe("13px");
+    expect(snapshot.background).not.toContain("255, 255, 255");
+    expect(snapshot.markColor).toBe(snapshot.arrowColor);
+    expect(snapshot.markBackground).toBe("none");
+    expect(snapshot.documentHasHorizontalOverflow).toBe(false);
   }
 });
 

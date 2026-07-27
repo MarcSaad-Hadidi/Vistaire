@@ -932,10 +932,10 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
         aria-label="Exemple de bouton pour laisser un avis Google"
       >
         <span className={styles.googleReviewBrand}>
-          <span className={styles.googleReviewMark} aria-hidden="true">G</span>
+          <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
           Laisser un avis Google
         </span>
-        <span className={styles.googleReviewArrow} aria-hidden="true">↗</span>
+        <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">↗</span>
       </button>
       <button type="button" className={styles.restartButton} onClick={onRestart}>{copy.menu}</button>
       <p className={styles.endingSoon}>{copy.soon}</p>

@@ -194,9 +194,11 @@ test("the ending page is compact and includes a Google review CTA without the ol
   assert.match(book, /Laisser un avis Google/);
   assert.match(styles, /\.endingPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*34px;[\s\S]*padding-bottom:\s*22px;/);
   assert.match(styles, /\.endingBotanical\s*\{[\s\S]*height:\s*clamp\(150px, 28vh, 260px\);/);
-  assert.match(styles, /\.googleReviewCta\s*\{[\s\S]*width:\s*min\(100%, 360px\);[\s\S]*min-height:\s*52px;/);
+  assert.match(styles, /\.googleReviewCta\s*\{[\s\S]*width:\s*fit-content;[\s\S]*max-width:\s*min\(100%, 300px\);[\s\S]*min-height:\s*44px;[\s\S]*border-radius:\s*13px;[\s\S]*background:\s*var\(--sn-paper\);/);
   assert.match(styles, /\.googleReviewBrand\s*\{[\s\S]*font-family:\s*"BT Suave", Georgia, serif;[\s\S]*font-weight:\s*400;/);
+  assert.match(styles, /\.googleReviewMark\s*\{[\s\S]*color:\s*var\(--sn-bronze\);/);
+  assert.doesNotMatch(styles, /\.googleReviewMark\s*\{[\s\S]*conic-gradient/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.endingPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*16px;[\s\S]*padding-bottom:\s*20px;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.endingBotanical\s*\{[\s\S]*height:\s*140px;/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.googleReviewCta\s*\{[\s\S]*width:\s*min\(100%, 320px\);[\s\S]*min-height:\s*48px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.googleReviewCta\s*\{[\s\S]*width:\s*fit-content;[\s\S]*max-width:\s*calc\(100% - 24px\);[\s\S]*min-height:\s*42px;/);
 });
