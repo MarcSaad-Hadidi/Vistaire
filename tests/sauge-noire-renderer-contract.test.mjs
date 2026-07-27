@@ -39,10 +39,28 @@ test("book pages and dish rows derive from PublicMenu data", async () => {
   assert.match(source, /getVisiblePublicMenuCategories\(menu\.dishes\)/);
   assert.match(source, /getPublicMenuCategoryGroups\(menu\.dishes\)/);
   assert.match(source, /groups\.get\(category\.id\)/);
-  assert.match(source, /dishes\.map\(\(dish\)/);
+  assert.match(source, /remainingDishes\.map\(\(dish\)/);
   assert.match(source, /dishes\.find\(isSignature\)/);
   assert.doesNotMatch(source, /Betterave sous la cendre|Canard à l’érable noir/);
   assert.doesNotMatch(source, /\.sort\(/);
+});
+
+test("featured dishes use stable ids and never render a second row", async () => {
+  const source = await readFile(bookPath, "utf8");
+  const singleDishId = "single-dish";
+  const singleDishRemaining = [{ id: singleDishId }].filter(
+    (dish) => dish.id !== singleDishId
+  );
+
+  assert.match(
+    source,
+    /const remainingDishes = featured\s*\?\s*dishes\.filter\(\(dish\) => dish\.id !== featured\.id\)\s*:\s*dishes;/
+  );
+  assert.match(source, /\{remainingDishes\.map\(\(dish\) => \(/);
+  assert.match(source, /data-sauge-featured-dish/);
+  assert.match(source, /data-sauge-dish-row/);
+  assert.match(source, /data-dish-id=\{dish\.id\}/);
+  assert.deepEqual(singleDishRemaining, []);
 });
 
 test("Sauge Noire keeps empty media slots and defers real 3D to intent", async () => {

@@ -784,6 +784,9 @@ function SectionPage({
   onNext: () => void;
 }) {
   const featured = dishes.find(isSignature) ?? dishes[0];
+  const remainingDishes = featured
+    ? dishes.filter((dish) => dish.id !== featured.id)
+    : dishes;
   const sectionNumber = pageNumber + 1;
   const isFirstPage = sectionNumber === 1;
   const isCocktail = category.label.toLowerCase().includes("cocktail");
@@ -820,7 +823,7 @@ function SectionPage({
         />
       ) : null}
       <div className={styles.dishList}>
-        {dishes.map((dish) => (
+        {remainingDishes.map((dish) => (
           <DishRow
             key={dish.id}
             menu={menu}
@@ -865,7 +868,13 @@ function DishFeatureCard({
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
-    <Link href={href} prefetch={false} className={`${styles.featureCard} ${styles[`feature${variant[0].toUpperCase()}${variant.slice(1)}`]}`}>
+    <Link
+      href={href}
+      prefetch={false}
+      className={`${styles.featureCard} ${styles[`feature${variant[0].toUpperCase()}${variant.slice(1)}`]}`}
+      data-sauge-featured-dish="true"
+      data-dish-id={dish.id}
+    >
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
         <h2>{dish.name}</h2>
@@ -896,7 +905,13 @@ function DishRow({
   compact: boolean;
 }) {
   return (
-    <Link href={buildPublicDishPath(menu.slug, dish.slug, query)} prefetch={false} className={`${styles.dishRow} ${compact ? styles.dishRowCompact : ""}`}>
+    <Link
+      href={buildPublicDishPath(menu.slug, dish.slug, query)}
+      prefetch={false}
+      className={`${styles.dishRow} ${compact ? styles.dishRowCompact : ""}`}
+      data-sauge-dish-row="true"
+      data-dish-id={dish.id}
+    >
       <PhotoSlot dish={dish} />
       <span className={styles.dishRowName}>{dish.name}</span>
       <span className={styles.dishRowPrice}>{formatDishPrice(dish, currency, locale, exchangeRates)}</span>

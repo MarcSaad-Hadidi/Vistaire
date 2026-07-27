@@ -310,6 +310,132 @@ type ShortSectionFooterSnapshot = {
   documentHasHorizontalOverflow: boolean;
 };
 
+type RenderedSectionDish = {
+  id: string;
+  name: string;
+  path: string;
+  href: string;
+};
+
+type SectionDishSnapshot = {
+  pageIndex: string;
+  category: string;
+  featured: RenderedSectionDish;
+  rows: RenderedSectionDish[];
+  all: RenderedSectionDish[];
+};
+
+const FEATURED_SECTION_CASES = [
+  {
+    view: 2,
+    featuredDishSlug: "betterave-sous-la-cendre",
+    dishSlugs: [
+      "pain-de-seigle-chaud",
+      "betterave-sous-la-cendre",
+      "croquette-de-canard-confit",
+      "chou-pointu-braise",
+      "huitres-tiedes-au-kombu"
+    ]
+  },
+  {
+    view: 3,
+    featuredDishSlug: "truite-des-laurentides",
+    dishSlugs: [
+      "truite-des-laurentides",
+      "hamachi-a-la-verveine",
+      "boeuf-cru-au-couteau",
+      "crabe-des-neiges"
+    ]
+  },
+  {
+    view: 4,
+    featuredDishSlug: "canard-a-l-erable-noir",
+    dishSlugs: [
+      "canard-a-l-erable-noir",
+      "fletan-roti-au-nori",
+      "cote-de-porc-du-quebec",
+      "agneau-grille-au-sumac",
+      "poulet-de-grain-au-citron-confit",
+      "courge-au-charbon"
+    ]
+  },
+  {
+    view: 5,
+    featuredDishSlug: "gnocchi-de-panais",
+    dishSlugs: [
+      "orge-perle-des-sous-bois",
+      "gnocchi-de-panais",
+      "polenta-blanche-fumee",
+      "epeautre-cremeux"
+    ]
+  },
+  {
+    view: 6,
+    featuredDishSlug: "chocolat-fume",
+    dishSlugs: [
+      "pommes-de-terre-pressees",
+      "haricots-verts-a-la-flamme",
+      "salade-d-herbes-fraiches",
+      "chocolat-fume",
+      "pomme-au-poivre-long",
+      "parfait-de-mais",
+      "agrumes-au-basilic-thai",
+      "fromages-du-quebec"
+    ]
+  },
+  {
+    view: 7,
+    featuredDishSlug: "sauge-75",
+    dishSlugs: ["sauge-75", "ecorce", "cendre-rose", "lisiere", "nuit-d-ambre"]
+  },
+  {
+    view: 8,
+    featuredDishSlug: "verger-froid",
+    dishSlugs: ["verger-froid", "jardin-salin", "the-des-bois", "citron-brule"]
+  }
+] as const;
+
+async function snapshotOriginalSection(page: Page): Promise<SectionDishSnapshot> {
+  return page.evaluate(() => {
+    const book = document.querySelector('[data-testid="sauge-noire-book"]');
+    const pageIndex = book?.getAttribute("data-page-index");
+    const activePage = pageIndex
+      ? document.querySelector<HTMLElement>(
+          `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone])`
+        )
+      : null;
+    const section = activePage?.querySelector<HTMLElement>("section[aria-label]");
+    const featuredLink = section?.querySelector<HTMLAnchorElement>("[data-sauge-featured-dish]");
+    const rowLinks = section
+      ? [...section.querySelectorAll<HTMLAnchorElement>("[data-sauge-dish-row]")]
+      : [];
+    if (!pageIndex || !activePage || !section || !featuredLink) {
+      throw new Error("Expected the original active Sauge Noire section sheet");
+    }
+
+    const readDish = (link: HTMLAnchorElement): RenderedSectionDish => {
+      const href = link.getAttribute("href") ?? "";
+      const path = new URL(href, window.location.href).pathname;
+      return {
+        id: link.getAttribute("data-dish-id") ?? "",
+        name: link.textContent?.replace(/\s+/g, " ").trim() ?? "",
+        path,
+        href
+      };
+    };
+
+    const featured = readDish(featuredLink);
+    const rows = rowLinks.map(readDish);
+    return {
+      pageIndex,
+      category: section.getAttribute("aria-label") ?? "",
+      featured,
+      rows,
+      all: [featured, ...rows]
+    };
+  });
+}
+
 async function snapshotShortSectionFooter(page: Page): Promise<ShortSectionFooterSnapshot> {
   return page.evaluate(() => {
     const book = document.querySelector('[data-testid="sauge-noire-book"]');
@@ -631,6 +757,46 @@ test("Sauge Noire short sections keep arrows below the final dish", async ({ pag
     expect(snapshot.maxScroll, `${viewport.width}px short section should keep its scroll container`).toBeGreaterThan(0);
     expect(snapshot.footerVisibleAtBottom, `${viewport.width}px arrows should be visible at the end of the page`).toBe(true);
     expect(snapshot.documentHasHorizontalOverflow, `${viewport.width}px short section overflows horizontally`).toBe(false);
+  }
+});
+
+test("Sauge Noire featured dishes appear once and preserve the remaining order", async ({ page }) => {
+  test.setTimeout(180_000);
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 }
+  ]) {
+    await page.setViewportSize(viewport);
+
+    for (const sectionCase of FEATURED_SECTION_CASES) {
+      const route = `/menu/sauge-noire?view=sauge-${sectionCase.view}&lang=fr-CA&currency=CAD`;
+      await gotoSaugeNoireRoute(page, route);
+      await waitForMenuReady(page);
+
+      const snapshot = await snapshotOriginalSection(page);
+      const expectedRows = sectionCase.dishSlugs.filter(
+        (slug) => slug !== sectionCase.featuredDishSlug
+      );
+      const dishIdSet = new Set(snapshot.all.map((dish) => dish.id));
+      const dishPathSet = new Set(snapshot.all.map((dish) => dish.path));
+
+      expect(snapshot.pageIndex, `${viewport.width}px view index`).toBe(String(sectionCase.view));
+      expect(snapshot.featured.path).toContain(
+        `/menu/sauge-noire/dishes/${sectionCase.featuredDishSlug}`
+      );
+      expect(snapshot.all).toHaveLength(sectionCase.dishSlugs.length);
+      expect(snapshot.rows.map((dish) => dish.path.split("/dishes/")[1])).toEqual(expectedRows);
+      expect(snapshot.all.filter((dish) => dish.path.includes(sectionCase.featuredDishSlug))).toHaveLength(1);
+      expect(snapshot.featured.id).toBeTruthy();
+      expect(snapshot.rows.every((dish) => dish.id !== snapshot.featured.id)).toBe(true);
+      expect(snapshot.rows.every((dish) => dish.path !== snapshot.featured.path)).toBe(true);
+      expect(dishIdSet.size).toBe(sectionCase.dishSlugs.length);
+      expect(dishPathSet.size).toBe(sectionCase.dishSlugs.length);
+      if (sectionCase.view === 4) {
+        expect(snapshot.all.filter((dish) => dish.name.toLowerCase().includes("canard"))).toHaveLength(1);
+      }
+    }
   }
 });
 
