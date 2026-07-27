@@ -877,7 +877,10 @@ function DishFeatureCard({
     >
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
-        <h2>{dish.name}</h2>
+        <div className={styles.featureTitle}>
+          <h2>{dish.name}</h2>
+          {dish.has3d ? <SaugeNoire3dIndicator label={threeDLabel(locale)} /> : null}
+        </div>
         {variant !== "compact" && dish.description ? <p>{dish.description}</p> : null}
         <Rule />
         <strong>{formatDishPrice(dish, currency, locale, exchangeRates)}</strong>
@@ -913,10 +916,51 @@ function DishRow({
       data-dish-id={dish.id}
     >
       <PhotoSlot dish={dish} />
-      <span className={styles.dishRowName}>{dish.name}</span>
+      <span className={styles.dishRowName}>
+        <span>{dish.name}</span>
+        {dish.has3d ? <SaugeNoire3dIndicator label={threeDLabel(locale)} /> : null}
+      </span>
       <span className={styles.dishRowPrice}>{formatDishPrice(dish, currency, locale, exchangeRates)}</span>
     </Link>
   );
+}
+
+function SaugeNoire3dIndicator({ label }: { label: string }) {
+  return (
+    <span
+      className={styles.threeDIndicator}
+      data-sauge-3d-indicator="true"
+      role="img"
+      aria-label={label}
+    >
+      <svg className={styles.threeDIcon} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path
+          d="M8 1.5 2.5 4.75v6.5L8 14.5l5.5-3.25v-6.5L8 1.5Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinejoin="round"
+          strokeWidth="1.1"
+        />
+        <path
+          d="M8 1.5v13M2.5 4.75 8 8l5.5-3.25M8 8v6.5"
+          fill="none"
+          stroke="currentColor"
+          strokeLinejoin="round"
+          strokeWidth="1.1"
+        />
+      </svg>
+      <span>3D</span>
+    </span>
+  );
+}
+
+function threeDLabel(locale: Locale): string {
+  const language = locale.trim().toLowerCase().split(/[-_]/)[0];
+  if (language === "en") return "3D view available";
+  if (language === "es") return "Vista 3D disponible";
+  if (language === "it") return "Vista 3D disponibile";
+  if (language === "ar") return "Ø¹Ø±Ø¶ 3D Ù…ØªØ§Ø­";
+  return "Vue 3D disponible";
 }
 
 function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: boolean }) {

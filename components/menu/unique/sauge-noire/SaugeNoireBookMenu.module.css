@@ -825,6 +825,42 @@
   letter-spacing: 0.03em;
 }
 
+.featureTitle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.threeDIndicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 3px 7px 3px 5px;
+  border: 1px solid rgba(180, 122, 60, 0.48);
+  border-radius: 999px;
+  background: rgba(180, 122, 60, 0.09);
+  color: var(--sn-forest);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.threeDIcon {
+  display: block;
+  width: 13px;
+  height: 13px;
+  color: var(--sn-bronze);
+}
+
 .featureCopy p {
   max-width: 670px;
   margin: -4px 0 0;
@@ -913,6 +949,13 @@
 
 .dishRowName {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dishRowName > span:first-child {
   font-size: clamp(1.05rem, 2.35vw, 1.8rem);
   letter-spacing: 0.02em;
   line-height: 1.12;

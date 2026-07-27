@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const detailPath =
   "/menu/sauge-noire/dishes/truite-des-laurentides?lang=fr-CA&currency=CAD&view=sauge-3&table=main&zone=terrasse";
+const cocktailDetailPath =
+  "/menu/sauge-noire/dishes/cendre-rose?lang=fr-CA&currency=CAD&view=sauge-7&table=main&zone=terrasse";
 
 type DetailState = {
   route: string;
@@ -72,6 +74,20 @@ async function openDetail(page: Page, width: number, height: number) {
   await expect(page.getByRole("heading", { name: /TRUITE/i })).toBeVisible();
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible();
   await expect.poll(async () => (await detailState(page)).currentScrollTop).toBe(0);
+}
+
+async function openCocktailDetail(page: Page, width: number, height: number) {
+  await page.setViewportSize({ width, height });
+  const response = await page.goto(cocktailDetailPath, { waitUntil: "domcontentloaded" });
+  const notFoundContent = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+  if (response?.status() === 404 || notFoundContent.includes("This page could not be found")) {
+    test.skip(
+      true,
+      "Requires a seeded Sauge Noire Supabase fixture (route returned 404)."
+    );
+  }
+  await expect(page.getByRole("heading", { name: /CENDRE ROSE/i })).toBeVisible();
+  await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible();
 }
 
 async function detailState(page: Page): Promise<DetailState> {
@@ -519,6 +535,23 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
 }
 
 test.describe("Sauge Noire dish detail PageFlip", () => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 }
+  ]) {
+    test(`uses cocktail terminology in signature drink details at ${viewport.width}px`, async ({ page }) => {
+      await openCocktailDetail(page, viewport.width, viewport.height);
+
+      const activeArticle = page.locator(
+        '[class*="pageFlipPage"]:not([aria-hidden="true"]) article:not([data-transition-preview="true"])'
+      ).first();
+      const categoryKicker = activeArticle.locator('[class*="categoryKicker"]');
+      await expect(categoryKicker).toHaveText("Cocktail signature");
+      await expect(categoryKicker).not.toContainText("Plat signature");
+      await expect(activeArticle.getByRole("link", { name: /Retour à Cocktail signature/i })).toBeVisible();
+    });
+  }
+
   test("keeps the detail backdrop beige around the paper", async ({ page }) => {
     for (const viewport of [
       { width: 390, height: 844 },

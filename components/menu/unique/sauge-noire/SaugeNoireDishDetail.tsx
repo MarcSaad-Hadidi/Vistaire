@@ -115,6 +115,14 @@ function localizedCategoryLabel(category: string, locale: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+  if (normalized.includes("cocktail") && normalized.includes("signature")) {
+    const language = copyLocale(locale);
+    if (language === "fr") return "Cocktail signature";
+    if (language === "es") return "Cóctel de autor";
+    if (language === "it") return "Cocktail d'autore";
+    if (language === "ar") return "كوكتيل مميز";
+    return "Signature cocktail";
+  }
   if (normalized.includes("signature")) {
     const language = copyLocale(locale);
     if (language === "fr") return "Plat signature";
@@ -578,7 +586,17 @@ function DishDetailHeader({
 
 function isSignatureLabel(dish: PublicMenuDish, locale: string): string {
   const signature = dish.isSignature || dish.tags.some((tag) => tag.toLowerCase().includes("signature"));
-  return signature ? localizedCategoryLabel("signature", locale) : "";
+  return signature && !isCocktailSignatureCategory(dish.category)
+    ? localizedCategoryLabel("signature", locale)
+    : "";
+}
+
+function isCocktailSignatureCategory(category: string): boolean {
+  const normalized = category
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return normalized.includes("cocktail") && normalized.includes("signature");
 }
 
 function DetailRow({ label, value, variant }: {

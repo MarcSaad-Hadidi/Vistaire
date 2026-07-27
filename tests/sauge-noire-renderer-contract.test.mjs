@@ -68,6 +68,10 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
   const detail = await readFile(detailPath, "utf8");
   assert.match(book, /data-photo-slot/);
   assert.match(book, /dish\.imageUrl \?/);
+  assert.match(book, /dish\.has3d \? <SaugeNoire3dIndicator/);
+  assert.equal((book.match(/dish\.has3d \? <SaugeNoire3dIndicator/g) ?? []).length, 2);
+  assert.match(book, /data-sauge-3d-indicator="true"/);
+  assert.match(book, /function SaugeNoire3dIndicator/);
   assert.match(detail, /hasReal3d/);
   assert.match(detail, /showModelViewer/);
   assert.match(detail, /dynamic<.*DishModelViewer/);
@@ -104,6 +108,14 @@ test("detail page uses the existing allergen disclosure contract and has no AR C
   assert.match(source, /getAllergenDisplayGroups/);
   assert.match(source, /AllergenWarning/);
   assert.doesNotMatch(source, /Réalité augmentée|Ouvrir l’aperçu AR|AR preview/i);
+});
+
+test("cocktail signature details use beverage-specific copy", async () => {
+  const source = await readFile(detailPath, "utf8");
+  assert.match(source, /normalized\.includes\("cocktail"\) && normalized\.includes\("signature"\)/);
+  assert.match(source, /if \(language === "fr"\) return "Cocktail signature";/);
+  assert.match(source, /signature && !isCocktailSignatureCategory\(dish\.category\)/);
+  assert.match(source, /function isCocktailSignatureCategory\(category: string\): boolean/);
 });
 
 test("dish-to-dish navigation prepares adjacent dishes without duplicating their chrome", async () => {
