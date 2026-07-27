@@ -193,15 +193,15 @@ export function SaugeNoireDishDetail({
 
     let frame = 0;
     const restoreCurrentScroll = () => {
-      const currentPage = Array.from(
+      const pages = Array.from(
         detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
-      ).find(
-        (page) =>
-          !page.closest('[aria-hidden="true"]') &&
-          page.querySelector('article:not([data-transition-preview="true"])')
-      );
-      if (currentPage && currentPage.scrollTop !== preservedScrollTop) {
-        currentPage.scrollTop = preservedScrollTop;
+      ).filter((page) => !page.closest('[data-sauge-flip-clone="true"]'));
+      // PageFlip can reset every physical sheet while it prepares the fold.
+      // Keep the reading position on the original sheets during the transition.
+      for (const page of pages) {
+        if (page.scrollHeight > page.clientHeight && page.scrollTop !== preservedScrollTop) {
+          page.scrollTop = preservedScrollTop;
+        }
       }
 
       if (navigationInFlightRef.current) {
@@ -310,13 +310,21 @@ export function SaugeNoireDishDetail({
   ) {
     if (navigationInFlightRef.current) return;
     navigationInFlightRef.current = true;
-    preservedScrollTopRef.current = Array.from(
+    const preservedScrollTop = Array.from(
       detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
     ).find(
       (page) =>
         !page.closest('[aria-hidden="true"]') &&
         page.querySelector('article:not([data-transition-preview="true"])')
     )?.scrollTop ?? 0;
+    preservedScrollTopRef.current = preservedScrollTop;
+    for (const page of Array.from(
+      detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
+    ).filter((page) => !page.closest('[data-sauge-flip-clone="true"]'))) {
+      if (page.scrollHeight > page.clientHeight && page.scrollTop !== preservedScrollTop) {
+        page.scrollTop = preservedScrollTop;
+      }
+    }
     setShowModelViewerDishId(null);
     setPageTurn({
       dishId: dish.id,
@@ -521,9 +529,9 @@ export function SaugeNoireDishDetail({
           showCover={false}
           fallback={renderDishPaper(dish, false)}
         />
-        <div className={`${styles.brandMark} ${styles.detailFloatingBrandMark}`} aria-label="Sauge Noire">
-          <span>S</span><span>N</span>
-        </div>
+      </div>
+      <div className={`${styles.brandMark} ${styles.detailFloatingBrandMark}`} aria-label="Sauge Noire">
+        <span>S</span><span>N</span>
       </div>
     </main>
   );

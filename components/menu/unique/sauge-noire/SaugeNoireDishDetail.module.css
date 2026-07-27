@@ -188,11 +188,11 @@
   transform: translateX(-50%);
 }
 
-.detailSurface > .detailFloatingBrandMark {
+.detailPage > .detailFloatingBrandMark {
   position: absolute;
   z-index: 5;
   top: 78px;
-  left: calc(50% - 5px);
+  left: calc(var(--sn-rail) + (100% - var(--sn-rail)) / 2 - 5px);
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -564,7 +564,7 @@
     top: 65px;
   }
 
-  .detailSurface > .detailFloatingBrandMark {
+  .detailPage > .detailFloatingBrandMark {
     top: 65px;
   }
 
