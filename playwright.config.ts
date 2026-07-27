@@ -6,6 +6,7 @@ const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
+const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1";
 const adminE2eSensitive = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
 const sensitiveQrE2E = process.env.VISTAIRE_QR_E2E_SENSITIVE === "1";
 const sensitiveE2E = adminE2eSensitive || sensitiveQrE2E;
@@ -58,7 +59,15 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         ...(browserChannel ? { channel: browserChannel } : {})
       }
-    }
+    },
+    ...(includeWebkit
+      ? [{
+          name: "webkit",
+          use: {
+            ...devices["iPhone 13"]
+          }
+        }]
+      : [])
   ],
   ...(shouldStartWebServer
     ? {

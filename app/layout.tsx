@@ -15,6 +15,10 @@ import {
   buildWebsiteJsonLd,
   getSiteUrl
 } from "@/lib/seo";
+import {
+  SAUGE_NOIRE_ROUTE_THEME,
+  VISTAIRE_ROUTE_THEME_HEADER
+} from "@/lib/vistaireRouteTheme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -63,10 +67,18 @@ export default async function RootLayout({
   const headerList = await headers();
   const locale = localeFromHeaderValue(headerList.get(VISTAIRE_LOCALE_HEADER));
   const documentLanguage = LOCALE_LANGUAGE_TAG[locale];
+  const routeTheme =
+    headerList.get(VISTAIRE_ROUTE_THEME_HEADER) === SAUGE_NOIRE_ROUTE_THEME
+      ? SAUGE_NOIRE_ROUTE_THEME
+      : undefined;
 
   return (
-    <html lang={documentLanguage} data-scroll-behavior="smooth">
-      <body>
+    <html
+      lang={documentLanguage}
+      data-scroll-behavior="smooth"
+      data-vistaire-route-theme={routeTheme}
+    >
+      <body data-vistaire-route-theme={routeTheme}>
         <a className="skip-link" href="#contenu">
           {locale === "en" ? "Skip to content" : "Aller au contenu"}
         </a>

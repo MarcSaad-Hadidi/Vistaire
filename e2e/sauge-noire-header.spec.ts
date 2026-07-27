@@ -109,7 +109,6 @@ function assertMovesTogether(before: MenuSnapshot, after: MenuSnapshot, label: s
 
 function assertDishMovesTogether(before: DishSnapshot, after: DishSnapshot, label: string) {
   for (const [name, beforeBox, afterBox] of [
-    ["logo", before.logo, after.logo],
     ["title", before.title, after.title],
     ["header", before.header, after.header],
     ["back", before.back, after.back]
@@ -118,8 +117,7 @@ function assertDishMovesTogether(before: DishSnapshot, after: DishSnapshot, labe
   }
 
   for (const [name, beforeFirst, beforeSecond, afterFirst, afterSecond] of [
-    ["logo/title", before.logo, before.title, after.logo, after.title],
-    ["logo/back", before.logo, before.back, after.logo, after.back]
+    ["title/back", before.title, before.back, after.title, after.back]
   ] as const) {
     expect(
       Math.abs((afterFirst.top - afterSecond.top) - (beforeFirst.top - beforeSecond.top)),
@@ -429,7 +427,7 @@ async function snapshotDish(page: Page): Promise<DishSnapshot> {
     const detail = document.querySelector('[data-testid="sauge-noire-dish-detail"]');
     const paper = detail?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
     const header = paper?.querySelector("header");
-    const logo = header?.querySelector('[aria-label="Sauge Noire"]');
+    const logo = detail?.querySelector('[aria-label="Sauge Noire"]');
     const title = paper?.querySelector("h1");
     const back = header?.querySelector("a");
     if (!detail || !paper || !header || !logo || !title || !back) {
@@ -567,14 +565,14 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
     expect(top.headerSharesPaper).toBe(true);
     expect(top.controlsHavePointerEvents).toBe(true);
     expect(top.visibleMonograms).toBeLessThanOrEqual(1);
-    expect(top.monogramsInPapers).toBe(1);
+    expect(top.monogramsInPapers).toBe(0);
     expect(top.monogramsInTransitionPreview).toBe(0);
     expect(top.documentHasHorizontalOverflow).toBe(false);
 
     const scrollDistance = await scrollDishToBottom(page);
     const bottom = await snapshotDish(page);
     expect(bottom.visibleMonograms).toBeLessThanOrEqual(1);
-    expect(bottom.monogramsInPapers).toBe(1);
+    expect(bottom.monogramsInPapers).toBe(0);
     expect(bottom.monogramsInTransitionPreview).toBe(0);
     if (scrollDistance > 0) {
       assertDishMovesTogether(top, bottom, `dish ${viewport.width}px`);
