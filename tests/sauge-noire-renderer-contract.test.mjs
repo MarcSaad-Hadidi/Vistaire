@@ -113,9 +113,13 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   assert.match(styles, /\.transitionPreview \.detailHeader\s*\{[\s\S]*visibility:\s*hidden;[\s\S]*pointer-events:\s*none;/);
   assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
   assert.match(styles, /\.detailPage\s*\{[\s\S]*background-color:\s*var\(--sn-paper\);[\s\S]*background-image:\s*var\(--sn-paper-texture\);[\s\S]*background-size:\s*var\(--sn-paper-texture-size\);/);
+  assert.match(styles, /\.detailPage\s*\{[\s\S]*position:\s*fixed;[\s\S]*inset:\s*0;[\s\S]*width:\s*100%;[\s\S]*height:\s*100svh;[\s\S]*overflow:\s*hidden;[\s\S]*overscroll-behavior:\s*none;[\s\S]*isolation:\s*isolate;/);
+  assert.match(styles, /@supports \(height: 100dvh\)[\s\S]*\.detailPage,\s*\.detailSurface,\s*\.rail\s*\{[\s\S]*height:\s*100dvh;[\s\S]*min-height:\s*100dvh;/);
   assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*100svh;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*relative;[\s\S]*align-self:\s*flex-start;/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.paper\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
+  assert.match(styles, /\.paper\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.detailSurface\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.paper\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;[\s\S]*width:\s*100%;[\s\S]*height:\s*170px;/);
   assert.doesNotMatch(styles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
   assert.match(styles, /\.detailHeader > \.brandMark\s*\{[\s\S]*top:\s*78px;[\s\S]*left:\s*calc\(50% - 5px\);/);
@@ -179,14 +183,17 @@ test("dish PageFlip gestures lock horizontal direction and protect interactive s
   assert.match(experiment, /onSwipe\(deltaX < 0 \? "next" : "previous"\)/);
 });
 
-test("Sauge Noire chrome is normal-flow content inside its scrollable sheet", async () => {
+test("Sauge Noire chrome stays fixed while PageFlip owns detail scrolling", async () => {
   const detail = await readFile(detailPath, "utf8");
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
   assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
   assert.match(detail, /renderDishPaper[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
   assert.match(detail, /<div className=\{styles\.detailSurface\}[^>]*data-detail-page-flip="true"/);
+  assert.match(detailStyles, /\.detailPage\s*\{[\s\S]*position:\s*fixed;[\s\S]*inset:\s*0;[\s\S]*overscroll-behavior:\s*none;[\s\S]*isolation:\s*isolate;/);
   assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(detailStyles, /\.paper\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(bookStyles, /\.pageFlipPage\s*\{[\s\S]*overflow:\s*auto;/);
   assert.match(detailStyles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;/);
   assert.doesNotMatch(detailStyles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
   assert.match(detailStyles, /\.detailContent\s*\{[\s\S]*padding:\s*0 clamp\(16px, 5vw, 74px\) 54px;/);

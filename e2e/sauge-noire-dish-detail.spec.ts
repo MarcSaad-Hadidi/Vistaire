@@ -9,9 +9,20 @@ type DetailState = {
   scrollHeight: number;
   clientHeight: number;
   stfTransforms: string[];
+  logoRect: { top: number; left: number } | null;
   visibleLogoCount: number;
   fallbackVisible: boolean;
   physicalPageCount: number;
+  windowScrollY: number;
+  detailPageScrollTop: number;
+  detailSurfaceScrollTop: number;
+  detailPageOverflow: string | null;
+  detailPageOverscrollBehavior: string | null;
+  detailPagePosition: string | null;
+  detailPageInset: string | null;
+  detailPageIsolation: string | null;
+  detailSurfaceOverflow: string | null;
+  pageOverflow: string | null;
 };
 
 function nextDishLink(page: Page) {
@@ -58,6 +69,21 @@ async function detailState(page: Page): Promise<DetailState> {
     const visibleLogoCount = Array.from(
       document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')
     ).filter(isVisible).length;
+    const logo = Array.from(
+      document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')
+    ).find(isVisible);
+    const logoRect = logo?.getBoundingClientRect();
+    const detailPage = document.querySelector<HTMLElement>(
+      '[data-testid="sauge-noire-dish-detail"]'
+    );
+    const detailSurface = detailPage?.querySelector<HTMLElement>(
+      '[data-detail-page-flip="true"]'
+    );
+    const detailPageStyle = detailPage ? getComputedStyle(detailPage) : null;
+    const detailSurfaceStyle = detailSurface ? getComputedStyle(detailSurface) : null;
+    const pageStyle = currentPage ? getComputedStyle(currentPage) : null;
+    const cssValue = (style: CSSStyleDeclaration | null, property: string) =>
+      style?.getPropertyValue(property) || null;
     const fallbackVisible = Array.from(
       document.querySelectorAll<HTMLElement>('[data-page-flip-fallback]')
     ).some(isVisible);
@@ -68,9 +94,20 @@ async function detailState(page: Page): Promise<DetailState> {
       scrollHeight: currentPage?.scrollHeight ?? 0,
       clientHeight: currentPage?.clientHeight ?? 0,
       stfTransforms,
+      logoRect: logoRect ? { top: logoRect.top, left: logoRect.left } : null,
       visibleLogoCount,
       fallbackVisible,
-      physicalPageCount: physicalPages.length
+      physicalPageCount: physicalPages.length,
+      windowScrollY: window.scrollY,
+      detailPageScrollTop: detailPage?.scrollTop ?? -1,
+      detailSurfaceScrollTop: detailSurface?.scrollTop ?? -1,
+      detailPageOverflow: detailPageStyle?.overflow ?? null,
+      detailPageOverscrollBehavior: cssValue(detailPageStyle, "overscroll-behavior"),
+      detailPagePosition: detailPageStyle?.position ?? null,
+      detailPageInset: detailPageStyle?.inset ?? null,
+      detailPageIsolation: detailPageStyle?.isolation ?? null,
+      detailSurfaceOverflow: detailSurfaceStyle?.overflow ?? null,
+      pageOverflow: pageStyle?.overflow ?? null
     };
   });
 }
@@ -221,6 +258,47 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       await expect(page).toHaveURL(/zone=terrasse/);
     });
 
+    test(`keeps the SN fixed while the detail PageFlip page scrolls at ${viewport.width}px`, async ({ page, browserName }) => {
+      await openDetail(page, viewport.width, viewport.height);
+      const before = await detailState(page);
+      expect(before.logoRect).not.toBeNull();
+      expect(before.visibleLogoCount).toBe(1);
+      expect(before.windowScrollY).toBe(0);
+      expect(before.detailPageScrollTop).toBe(0);
+      expect(before.detailSurfaceScrollTop).toBe(0);
+      expect(before.detailPagePosition).toBe("fixed");
+      expect(before.detailPageInset).toBe("0px");
+      expect(before.detailPageOverflow).toBe("hidden");
+      if (browserName !== "webkit") {
+        expect(before.detailPageOverscrollBehavior).toBe("none");
+      }
+      expect(before.detailPageIsolation).toBe("isolate");
+      expect(before.detailSurfaceOverflow).toBe("hidden");
+      expect(before.pageOverflow).toBe("auto");
+
+      const beforeLogo = before.logoRect!;
+      const beforeRoute = before.route;
+      if (browserName === "webkit") {
+        // Mobile WebKit does not expose page.mouse.wheel; scroll the same PageFlip
+        // node directly after the Chromium real-wheel assertion covers input behavior.
+        await scrollCurrentDetail(page, 520);
+      } else {
+        await page.mouse.move(viewport.width / 2, 420);
+        await page.mouse.wheel(0, 520);
+      }
+      await expect.poll(async () => (await detailState(page)).currentScrollTop).toBeGreaterThan(0);
+
+      const after = await detailState(page);
+      expect(after.route).toBe(beforeRoute);
+      expect(after.currentScrollTop).toBeGreaterThan(before.currentScrollTop);
+      expect(after.windowScrollY).toBe(0);
+      expect(after.detailPageScrollTop).toBe(0);
+      expect(after.detailSurfaceScrollTop).toBe(0);
+      expect(after.visibleLogoCount).toBe(1);
+      expect(Math.abs(after.logoRect!.top - beforeLogo.top)).toBeLessThanOrEqual(1);
+      expect(Math.abs(after.logoRect!.left - beforeLogo.left)).toBeLessThanOrEqual(1);
+    });
+
     test(`uses the same animated path for left and right swipes at ${viewport.width}px`, async ({ page }) => {
       await openDetail(page, viewport.width, viewport.height);
       await expect(page.locator('[aria-label="Sauge Noire"]:visible')).toHaveCount(1);
@@ -243,7 +321,7 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
     });
   }
 
-  test("keeps vertical scrolling, pointercancel, 3D and duplicate clicks isolated", async ({ page }) => {
+  test("keeps vertical scrolling, pointercancel, 3D and duplicate clicks isolated", async ({ page, browserName }) => {
     await openDetail(page, 390, 844);
 
     await page.evaluate(() => {
@@ -257,8 +335,12 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
 
     const beforeVerticalUrl = page.url();
     const beforeVertical = await detailState(page);
-    await page.mouse.move(195, 420);
-    await page.mouse.wheel(0, 520);
+    if (browserName === "webkit") {
+      await scrollCurrentDetail(page, 520);
+    } else {
+      await page.mouse.move(195, 420);
+      await page.mouse.wheel(0, 520);
+    }
     await expect.poll(async () => (await detailState(page)).currentScrollTop).toBeGreaterThan(beforeVertical.currentScrollTop);
     expect(page.url()).toBe(beforeVerticalUrl);
 
