@@ -406,7 +406,7 @@ export function SaugeNoireBookMenu({
           activeCurrency={currency}
           onLocaleChange={selectLocale}
           onCurrencyChange={selectCurrency}
-          showContentsLink={pageIndex > 1}
+          showContentsLink={index > 1}
           contentsLabel={copy.contents}
           onContents={() => goToPage(1)}
         />
@@ -453,7 +453,6 @@ export function SaugeNoireBookMenu({
     exchangeRates,
     goToPage,
     menu,
-    pageIndex,
     pages,
     query,
     selectCurrency,

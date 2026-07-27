@@ -244,7 +244,14 @@ export function SaugeNoirePageFlipExperiment({
     if (bookKey === null || readyBookKeyRef.current !== bookKey) return;
     const nextIndex = parsePageIndex(event);
     if (nextIndex === null) return;
+    const animationTarget = animationTargetPageRef.current;
+    if (animationTarget !== null && nextIndex !== animationTarget) {
+      requestedPageIndexRef.current = animationTarget;
+      onPageFlip(nextIndex);
+      return;
+    }
     requestedPageIndexRef.current = null;
+    animationTargetPageRef.current = null;
     onPageFlip(nextIndex);
   };
 

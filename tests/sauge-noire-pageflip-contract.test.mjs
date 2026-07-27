@@ -51,6 +51,31 @@ test("the animated renderer reuses the existing page renderer", async () => {
   assert.doesNotMatch(experiment, /const COPY|function buildPages/);
 });
 
+test("section headers keep their contents control stable during page flips", async () => {
+  const book = await readFile(bookPath, "utf8");
+
+  assert.match(book, /showContentsLink=\{index > 1\}/);
+  assert.doesNotMatch(book, /showContentsLink=\{pageIndex > 1\}/);
+});
+
+test("completed page flips clear stale animation targets", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(
+    experiment,
+    /requestedPageIndexRef\.current = null;\s*animationTargetPageRef\.current = null;\s*onPageFlip\(nextIndex\)/,
+  );
+});
+
+test("multi-page contents jumps keep animating until the requested page", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(
+    experiment,
+    /const animationTarget = animationTargetPageRef\.current;\s*if \(animationTarget !== null && nextIndex !== animationTarget\)/,
+  );
+});
+
 test("lab uses real HTML pages, hard covers, soft internals, and the supported StPageFlip controls", async () => {
   const experiment = await readFile(experimentPath, "utf8");
   const flipPage = await readFile(flipPagePath, "utf8");
