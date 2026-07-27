@@ -150,6 +150,11 @@
   pointer-events: none;
 }
 
+.transitionPreview .detailHeader {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .detailPage [data-sauge-flip-clone="true"] .detailHeader {
   visibility: hidden;
 }
@@ -175,6 +180,15 @@
   top: 78px;
   left: calc(50% - 5px);
   transform: translateX(-50%);
+}
+
+.detailSurface > .detailFloatingBrandMark {
+  position: absolute;
+  z-index: 5;
+  top: 78px;
+  left: calc(50% - 5px);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .backLink {
@@ -541,6 +555,10 @@
   }
 
   .detailHeader > .brandMark {
+    top: 65px;
+  }
+
+  .detailSurface > .detailFloatingBrandMark {
     top: 65px;
   }
 

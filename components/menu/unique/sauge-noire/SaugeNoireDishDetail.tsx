@@ -38,8 +38,7 @@ type DishPageTurnState = {
   direction: DishTurnDirection;
   targetDish: PublicMenuDish;
   href: string;
-  startPageIndex: 0 | 1;
-  targetPageIndex: 0 | 1;
+  targetPageIndex: 0 | 2;
 };
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -167,20 +166,54 @@ export function SaugeNoireDishDetail({
   const router = useRouter();
   const detailSurfaceRef = useRef<HTMLDivElement>(null);
   const navigationInFlightRef = useRef(false);
+  const preservedScrollTopRef = useRef<number | null>(null);
   const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
-  const [showModelViewer, setShowModelViewer] = useState(false);
+  const [showModelViewerDishId, setShowModelViewerDishId] = useState<string | null>(null);
+  const showModelViewer = showModelViewerDishId === dish.id;
 
   useEffect(() => {
     navigationInFlightRef.current = false;
+    preservedScrollTopRef.current = null;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    detailSurfaceRef.current
-      ?.querySelector<HTMLElement>('[class*="pageFlipPage"], [class*="pageFlipFallback"]')
-      ?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const currentPage = Array.from(
+      detailSurfaceRef.current?.querySelectorAll<HTMLElement>(
+        '[class*="pageFlipPage"], [class*="pageFlipFallback"]'
+      ) ?? []
+    ).find((page) => page.querySelector('article:not([data-transition-preview="true"])'));
+    currentPage?.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
     return () => {
       navigationInFlightRef.current = false;
     };
   }, [dish.id]);
+
+  useEffect(() => {
+    const preservedScrollTop = preservedScrollTopRef.current;
+    if (preservedScrollTop === null) return;
+
+    let frame = 0;
+    const restoreCurrentScroll = () => {
+      const currentPage = Array.from(
+        detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
+      ).find(
+        (page) =>
+          !page.closest('[aria-hidden="true"]') &&
+          page.querySelector('article:not([data-transition-preview="true"])')
+      );
+      if (currentPage && currentPage.scrollTop !== preservedScrollTop) {
+        currentPage.scrollTop = preservedScrollTop;
+      }
+
+      if (navigationInFlightRef.current) {
+        frame = requestAnimationFrame(restoreCurrentScroll);
+      }
+    };
+
+    frame = requestAnimationFrame(restoreCurrentScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [pageTurn?.targetDish.id]);
   const copy = {
     fr: {
         back: "Retour à",
@@ -277,14 +310,20 @@ export function SaugeNoireDishDetail({
   ) {
     if (navigationInFlightRef.current) return;
     navigationInFlightRef.current = true;
-    setShowModelViewer(false);
+    preservedScrollTopRef.current = Array.from(
+      detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
+    ).find(
+      (page) =>
+        !page.closest('[aria-hidden="true"]') &&
+        page.querySelector('article:not([data-transition-preview="true"])')
+    )?.scrollTop ?? 0;
+    setShowModelViewerDishId(null);
     setPageTurn({
       dishId: dish.id,
       direction,
       targetDish,
       href,
-      startPageIndex: direction === "next" ? 0 : 1,
-      targetPageIndex: direction === "next" ? 1 : 0
+      targetPageIndex: direction === "next" ? 2 : 0
     });
   }
 
@@ -312,7 +351,15 @@ export function SaugeNoireDishDetail({
   }
 
   function handleDetailPageFlip(index: number) {
-    if (!pageTurn || pageTurn.dishId !== dish.id || index !== pageTurn.targetPageIndex) return;
+    if (
+      !pageTurn ||
+      pageTurn.dishId !== dish.id ||
+      index !== pageTurn.targetPageIndex ||
+      !navigationInFlightRef.current
+    ) {
+      return;
+    }
+    navigationInFlightRef.current = false;
     router.push(pageTurn.href);
   }
 
@@ -352,9 +399,12 @@ export function SaugeNoireDishDetail({
         data-transition-preview={isPreview ? "true" : undefined}
         aria-hidden={isPreview || undefined}
       >
-        {!isPreview ? (
-          <DishDetailHeader href={targetMenuHref} category={targetCategory} backLabel={copy.back} />
-        ) : null}
+        <DishDetailHeader
+          href={targetMenuHref}
+          category={targetCategory}
+          backLabel={copy.back}
+          isPreview={isPreview}
+        />
         <section className={styles.detailContent}>
           <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(targetDish, publicLocale) ? "  \u00b7  " : ""}{isSignatureLabel(targetDish, publicLocale)}</p>
           <h1>{targetDish.name.toUpperCase()}</h1>
@@ -379,7 +429,12 @@ export function SaugeNoireDishDetail({
           </div>
           {targetCanOpen3d ? (
             <section className={styles.modelSection} aria-label={copy.show3d} data-no-page-flip="true">
-              <button type="button" className={styles.modelButton} onClick={() => setShowModelViewer((visible) => !visible)} aria-expanded={targetShowModelViewer}>
+              <button
+                type="button"
+                className={styles.modelButton}
+                onClick={() => setShowModelViewerDishId((visibleDishId) => visibleDishId === targetDish.id ? null : targetDish.id)}
+                aria-expanded={targetShowModelViewer}
+              >
                 <CubeIcon />
                 {targetShowModelViewer ? copy.hide3d : copy.show3d}
               </button>
@@ -396,7 +451,7 @@ export function SaugeNoireDishDetail({
                     dish={modelViewerDishFromPublicDish(targetDish)}
                     minimalChrome
                     quietChrome
-                    onReturnToDish={() => setShowModelViewer(false)}
+                    onReturnToDish={() => setShowModelViewerDishId(null)}
                   />
                 </div>
               ) : null}
@@ -430,29 +485,21 @@ export function SaugeNoireDishDetail({
   }
 
   const activePageTurn = pageTurn?.dishId === dish.id ? pageTurn : null;
-  const detailFlipPages = activePageTurn
-    ? activePageTurn.direction === "next"
-      ? [
-          <SaugeNoireFlipPage density="soft" index={0} key={`current-${dish.id}`}>
-            {renderDishPaper(dish, false)}
-          </SaugeNoireFlipPage>,
-          <SaugeNoireFlipPage density="soft" index={1} key={`target-${activePageTurn.targetDish.id}`}>
-            {renderDishPaper(activePageTurn.targetDish, true)}
-          </SaugeNoireFlipPage>
-        ]
-      : [
-          <SaugeNoireFlipPage density="soft" index={0} key={`target-${activePageTurn.targetDish.id}`}>
-            {renderDishPaper(activePageTurn.targetDish, true)}
-          </SaugeNoireFlipPage>,
-          <SaugeNoireFlipPage density="soft" index={1} key={`current-${dish.id}`}>
-            {renderDishPaper(dish, false)}
-          </SaugeNoireFlipPage>
-        ]
-    : [
-        <SaugeNoireFlipPage density="soft" index={0} key={`current-${dish.id}`}>
-          {renderDishPaper(dish, false)}
-        </SaugeNoireFlipPage>
-      ];
+  const previousPageDish =
+    activePageTurn?.direction === "previous" ? activePageTurn.targetDish : previousDish;
+  const nextPageDish =
+    activePageTurn?.direction === "next" ? activePageTurn.targetDish : nextDish;
+  const detailFlipPages = [
+    <SaugeNoireFlipPage density="soft" index={0} key="previous-page">
+      {renderDishPaper(previousPageDish, true)}
+    </SaugeNoireFlipPage>,
+    <SaugeNoireFlipPage density="soft" index={1} key="current-page">
+      {renderDishPaper(dish, false)}
+    </SaugeNoireFlipPage>,
+    <SaugeNoireFlipPage density="soft" index={2} key="next-page">
+      {renderDishPaper(nextPageDish, true)}
+    </SaugeNoireFlipPage>
+  ];
 
   return (
     <main className={styles.detailPage} data-testid="sauge-noire-dish-detail">
@@ -463,16 +510,20 @@ export function SaugeNoireDishDetail({
       </aside>
       <div className={styles.detailSurface} ref={detailSurfaceRef} data-detail-page-flip="true">
         <SaugeNoirePageFlipExperiment
-          key={activePageTurn ? `${dish.id}-${activePageTurn.targetDish.id}-${activePageTurn.direction}` : `idle-${dish.id}`}
           pages={detailFlipPages}
-          pageIndex={activePageTurn?.targetPageIndex ?? 0}
-          startPage={activePageTurn?.startPageIndex ?? 0}
+          pageIndex={activePageTurn?.targetPageIndex ?? 1}
+          startPage={1}
           onPageFlip={handleDetailPageFlip}
-          onSwipe={activePageTurn ? undefined : handleDetailSwipe}
+          onSwipe={handleDetailSwipe}
+          interceptSwipe
+          resetKey={dish.id}
           protectInteractiveTargets
           showCover={false}
           fallback={renderDishPaper(dish, false)}
         />
+        <div className={`${styles.brandMark} ${styles.detailFloatingBrandMark}`} aria-label="Sauge Noire">
+          <span>S</span><span>N</span>
+        </div>
       </div>
     </main>
   );
@@ -481,18 +532,19 @@ export function SaugeNoireDishDetail({
 function DishDetailHeader({
   href,
   category,
-  backLabel
+  backLabel,
+  isPreview
 }: {
   href: string;
   category: string;
   backLabel: string;
+  isPreview: boolean;
 }) {
   return (
-    <header className={styles.detailHeader}>
+    <header className={styles.detailHeader} aria-hidden={isPreview || undefined}>
       <Link className={styles.backLink} href={href} prefetch={false}>
         <span aria-hidden="true">{"\u2190"}</span> {backLabel} {category}
       </Link>
-      <div className={styles.brandMark} aria-label="Sauge Noire"><span>S</span><span>N</span></div>
     </header>
   );
 }

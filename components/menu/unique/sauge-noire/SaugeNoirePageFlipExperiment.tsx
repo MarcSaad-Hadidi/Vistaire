@@ -16,6 +16,7 @@ import styles from "./SaugeNoireBookMenu.module.css";
 
 type PageFlipApi = {
   getCurrentPageIndex: () => number;
+  turnToPage: (page: number) => void;
   flipNext: () => void;
   flipPrev: () => void;
   destroy: () => void;
@@ -70,6 +71,8 @@ type SaugeNoirePageFlipExperimentProps = {
   startPage?: number;
   onPageFlip: (index: number) => void;
   onSwipe?: (direction: "next" | "previous") => void;
+  interceptSwipe?: boolean;
+  resetKey?: string | number;
   protectInteractiveTargets?: boolean;
   showCover?: boolean;
   fallback: ReactNode;
@@ -111,6 +114,8 @@ export function SaugeNoirePageFlipExperiment({
   startPage = pageIndex,
   onPageFlip,
   onSwipe,
+  interceptSwipe = false,
+  resetKey,
   protectInteractiveTargets = false,
   showCover = true,
   fallback
@@ -129,6 +134,7 @@ export function SaugeNoirePageFlipExperiment({
   const [dimensions, setDimensions] = useState<FlipDimensions | null>(null);
   const [readyBookKey, setReadyBookKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const lastResetKeyRef = useRef<string | number | undefined>(resetKey);
   const bookKey = dimensions ? `${dimensions.width}-${dimensions.height}` : null;
   const bookIsReady = bookKey !== null && readyBookKey === bookKey;
 
@@ -209,6 +215,25 @@ export function SaugeNoirePageFlipExperiment({
     observer.observe(viewport, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [bookIsReady, captureOriginalPages, dimensions, failed]);
+
+  useEffect(() => {
+    const pageFlip = bookRef.current?.pageFlip();
+    if (
+      !pageFlip ||
+      dimensions === null ||
+      !bookIsReady ||
+      failed ||
+      resetKey === undefined ||
+      lastResetKeyRef.current === resetKey
+    ) {
+      return;
+    }
+
+    lastResetKeyRef.current = resetKey;
+    requestedPageIndexRef.current = null;
+    animationTargetPageRef.current = null;
+    pageFlip.turnToPage(startPage);
+  }, [bookIsReady, dimensions, failed, resetKey, startPage]);
 
   useEffect(() => {
     const pageFlip = bookRef.current?.pageFlip();
@@ -308,6 +333,11 @@ export function SaugeNoirePageFlipExperiment({
     if (!pageFlip) return;
     const currentPage = pageFlip.getCurrentPageIndex();
     const nextPage = deltaX < 0 ? currentPage + 1 : currentPage - 1;
+    if (interceptSwipe && onSwipe) {
+      preventDefault();
+      onSwipe(deltaX < 0 ? "next" : "previous");
+      return;
+    }
     if (nextPage < 0 || nextPage >= pages.length) {
       if (onSwipe) {
         preventDefault();

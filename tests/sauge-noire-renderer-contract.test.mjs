@@ -87,7 +87,7 @@ test("detail page uses the existing allergen disclosure contract and has no AR C
   assert.doesNotMatch(source, /Réalité augmentée|Ouvrir l’aperçu AR|AR preview/i);
 });
 
-test("dish-to-dish navigation prepares the adjacent dish without duplicating its chrome", async () => {
+test("dish-to-dish navigation prepares adjacent dishes without duplicating their chrome", async () => {
   const source = await readFile(detailPath, "utf8");
   const styles = await readFile(
     new URL("../components/menu/unique/sauge-noire/SaugeNoireDishDetail.module.css", import.meta.url),
@@ -95,15 +95,22 @@ test("dish-to-dish navigation prepares the adjacent dish without duplicating its
   );
   assert.match(source, /type DishTurnDirection = "next" \| "previous"/);
   assert.match(source, /requestDishNavigation/);
-  assert.match(source, /targetPageIndex: direction === "next" \? 1 : 0/);
+  assert.match(source, /targetPageIndex: direction === "next" \? 2 : 0/);
   assert.match(source, /handleDishLinkClick\(event, targetNextHref, "next"\)/);
   assert.match(source, /handleDishLinkClick\(event, targetPreviousHref, "previous"\)/);
-  assert.match(source, /renderDishPaper\(activePageTurn\.targetDish, true\)/);
+  assert.match(source, /const previousPageDish =/);
+  assert.match(source, /const nextPageDish =/);
+  assert.match(source, /key="previous-page"/);
+  assert.match(source, /key="current-page"/);
+  assert.match(source, /key="next-page"/);
+  assert.doesNotMatch(source, /key=\{activePageTurn \?/);
+  assert.match(source, /isPreview=\{isPreview\}/);
   assert.match(source, /draggable=\{false\}/);
   assert.match(source, /data-transition-preview/);
   assert.match(source, /function stopDishSwipePropagation/);
   assert.match(source, /className=\{styles\.modelStage\}[\s\S]*onPointerDown=\{stopDishSwipePropagation\}[\s\S]*onPointerUp=\{stopDishSwipePropagation\}/);
   assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*none;/);
+  assert.match(styles, /\.transitionPreview \.detailHeader\s*\{[\s\S]*visibility:\s*hidden;[\s\S]*pointer-events:\s*none;/);
   assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
   assert.match(styles, /\.detailPage\s*\{[\s\S]*background-color:\s*var\(--sn-paper\);[\s\S]*background-image:\s*var\(--sn-paper-texture\);[\s\S]*background-size:\s*var\(--sn-paper-texture-size\);/);
   assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*100svh;[\s\S]*overflow:\s*hidden;/);
@@ -116,7 +123,7 @@ test("dish-to-dish navigation prepares the adjacent dish without duplicating its
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader > \.brandMark\s*\{[\s\S]*top:\s*65px;/);
 });
 
-test("dish-to-dish navigation uses a two-sheet soft PageFlip and waits for onFlip", async () => {
+test("dish-to-dish navigation uses one stable three-sheet PageFlip and waits for onFlip", async () => {
   const detail = await readFile(detailPath, "utf8");
   const experiment = await readFile(
     new URL("../components/menu/unique/sauge-noire/SaugeNoirePageFlipExperiment.tsx", import.meta.url),
@@ -132,11 +139,22 @@ test("dish-to-dish navigation uses a two-sheet soft PageFlip and waits for onFli
   assert.match(detail, /SaugeNoireFlipPage/);
   assert.match(detail, /showCover=\{false\}/);
   assert.match(detail, /onPageFlip=\{handleDetailPageFlip\}/);
-  assert.match(detail, /renderDishPaper\(activePageTurn\.targetDish, true\)/);
+  assert.match(detail, /key="previous-page"/);
+  assert.match(detail, /key="current-page"/);
+  assert.match(detail, /key="next-page"/);
+  assert.match(detail, /pageIndex=\{activePageTurn\?\.targetPageIndex \?\? 1\}/);
+  assert.match(detail, /startPage=\{1\}/);
+  assert.match(detail, /interceptSwipe/);
+  assert.match(detail, /resetKey=\{dish\.id\}/);
+  assert.doesNotMatch(detail, /<SaugeNoirePageFlipExperiment\s+key=/);
   assert.match(experiment, /startPage\?: number/);
   assert.match(experiment, /showCover\?: boolean/);
   assert.match(experiment, /showCover=\{showCover\}/);
   assert.match(experiment, /onSwipe\?: \(direction: "next" \| "previous"\)/);
+  assert.match(experiment, /interceptSwipe\?: boolean/);
+  assert.match(experiment, /resetKey\?: string \| number/);
+  assert.match(experiment, /turnToPage: \(page: number\) => void/);
+  assert.match(experiment, /pageFlip\.turnToPage\(startPage\)/);
   assert.match(flipPage, /density: SaugeNoireFlipPageDensity/);
   assert.doesNotMatch(detail, /SAUGE_PAGE_FLIP_DURATION_MS/);
   assert.doesNotMatch(detail, /setTimeout\([\s\S]*router\.push/);
@@ -166,7 +184,7 @@ test("Sauge Noire chrome is normal-flow content inside its scrollable sheet", as
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
   assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
-  assert.match(detail, /renderDishPaper[\s\S]*\{!isPreview \?[\s\S]*<DishDetailHeader/);
+  assert.match(detail, /renderDishPaper[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
   assert.match(detail, /<div className=\{styles\.detailSurface\}[^>]*data-detail-page-flip="true"/);
   assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*overflow:\s*hidden;/);
   assert.match(detailStyles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;/);
