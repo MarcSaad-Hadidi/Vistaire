@@ -26,14 +26,21 @@ import { formatMenuPrice, type MenuExchangeRates } from "@/lib/currency/formatMe
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
+import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
+import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import styles from "./SaugeNoireDishDetail.module.css";
 
 type DishDetailProps = UniqueMenuRendererModuleProps & { dish: PublicMenuDish };
 type DishCopyLocale = "fr" | "en" | "es" | "it" | "ar";
 type DishTurnDirection = "next" | "previous";
-type DishPageTurnState = { dishId: string; direction: DishTurnDirection };
-
-const SAUGE_PAGE_FLIP_DURATION_MS = 720;
+type DishPageTurnState = {
+  dishId: string;
+  direction: DishTurnDirection;
+  targetDish: PublicMenuDish;
+  href: string;
+  startPageIndex: 0 | 1;
+  targetPageIndex: 0 | 1;
+};
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
@@ -158,19 +165,22 @@ export function SaugeNoireDishDetail({
   const publicLocale = query?.lang ?? locale;
   const selectedCopyLocale = copyLocale(publicLocale);
   const router = useRouter();
-  const pointerStart = useRef<{ x: number; y: number; pointerType: string } | null>(null);
-  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const navigationDishId = useRef<string | null>(null);
+  const detailSurfaceRef = useRef<HTMLDivElement>(null);
+  const navigationInFlightRef = useRef(false);
   const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
 
   useEffect(() => {
+    navigationInFlightRef.current = false;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    detailSurfaceRef.current
+      ?.querySelector<HTMLElement>('[class*="pageFlipPage"], [class*="pageFlipFallback"]')
+      ?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
     return () => {
-      if (navigationTimer.current) {
-        clearTimeout(navigationTimer.current);
-      }
+      navigationInFlightRef.current = false;
     };
-  }, []);
+  }, [dish.id]);
   const copy = {
     fr: {
         back: "Retour à",
@@ -259,22 +269,23 @@ export function SaugeNoireDishDetail({
   };
   const previousHref = buildDishHref(previousDish);
   const detailHref = buildDishHref(nextDish);
-  const pageTurnDirection = pageTurn?.dishId === dish.id ? pageTurn.direction : null;
-  const transitionDish = pageTurnDirection === "next"
-    ? nextDish
-    : pageTurnDirection === "previous"
-      ? previousDish
-      : null;
 
-  function requestDishNavigation(href: string, direction: DishTurnDirection) {
-    if (navigationDishId.current === dish.id) return;
-    navigationDishId.current = dish.id;
+  function requestDishNavigation(
+    href: string,
+    direction: DishTurnDirection,
+    targetDish: PublicMenuDish
+  ) {
+    if (navigationInFlightRef.current) return;
+    navigationInFlightRef.current = true;
     setShowModelViewer(false);
-    setPageTurn({ dishId: dish.id, direction });
-    navigationTimer.current = setTimeout(() => {
-      navigationTimer.current = null;
-      router.push(href);
-    }, SAUGE_PAGE_FLIP_DURATION_MS);
+    setPageTurn({
+      dishId: dish.id,
+      direction,
+      targetDish,
+      href,
+      startPageIndex: direction === "next" ? 0 : 1,
+      targetPageIndex: direction === "next" ? 1 : 0
+    });
   }
 
   function handleDishLinkClick(
@@ -293,28 +304,24 @@ export function SaugeNoireDishDetail({
       return;
     }
     event.preventDefault();
-    requestDishNavigation(href, direction);
+    requestDishNavigation(
+      href,
+      direction,
+      direction === "next" ? nextDish : previousDish
+    );
   }
 
-  function handlePointerDown(event: React.PointerEvent<HTMLElement>) {
-    if (event.pointerType !== "touch") return;
-    pointerStart.current = {
-      x: event.clientX,
-      y: event.clientY,
-      pointerType: event.pointerType
-    };
+  function handleDetailPageFlip(index: number) {
+    if (!pageTurn || pageTurn.dishId !== dish.id || index !== pageTurn.targetPageIndex) return;
+    router.push(pageTurn.href);
   }
 
-  function handlePointerUp(event: React.PointerEvent<HTMLElement>) {
-    const start = pointerStart.current;
-    pointerStart.current = null;
-    if (!start || start.pointerType !== "touch") return;
-    const target = event.target as Element;
-    if (target.closest("a, button")) return;
-    const deltaX = event.clientX - start.x;
-    const deltaY = event.clientY - start.y;
-    if (Math.abs(deltaX) < 44 || Math.abs(deltaX) < Math.abs(deltaY)) return;
-    requestDishNavigation(deltaX < 0 ? detailHref : previousHref, deltaX < 0 ? "next" : "previous");
+  function handleDetailSwipe(direction: "next" | "previous") {
+    requestDishNavigation(
+      direction === "next" ? detailHref : previousHref,
+      direction,
+      direction === "next" ? nextDish : previousDish
+    );
   }
 
   function renderDishPaper(targetDish: PublicMenuDish, isPreview: boolean) {
@@ -336,11 +343,7 @@ export function SaugeNoireDishDetail({
     const targetCanOpen3d = !isPreview && hasReal3d(targetDish);
     const targetShowModelViewer = !isPreview && targetDish.id === dish.id && showModelViewer;
     const turnClass = !isPreview
-      ? pageTurnDirection === "next"
-        ? styles.pageTurnNext
-        : pageTurnDirection === "previous"
-          ? styles.pageTurnPrevious
-          : ""
+      ? ""
       : styles.transitionPreview;
 
     return (
@@ -348,9 +351,6 @@ export function SaugeNoireDishDetail({
         className={`${styles.paper} ${turnClass}`}
         data-transition-preview={isPreview ? "true" : undefined}
         aria-hidden={isPreview || undefined}
-        onPointerDown={isPreview ? undefined : handlePointerDown}
-        onPointerUp={isPreview ? undefined : handlePointerUp}
-        onPointerCancel={isPreview ? undefined : () => { pointerStart.current = null; }}
       >
         {!isPreview ? (
           <DishDetailHeader href={targetMenuHref} category={targetCategory} backLabel={copy.back} />
@@ -362,7 +362,11 @@ export function SaugeNoireDishDetail({
           <div className={styles.detailPhoto} data-photo-slot={targetDish.slug}>
             {targetDish.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={targetDish.imageUrl} alt={`Image du plat ${targetDish.name}`} />
+              <img
+                src={targetDish.imageUrl}
+                alt={`Image du plat ${targetDish.name}`}
+                draggable={false}
+              />
             ) : null}
           </div>
           <p className={styles.detailPrice}>{formatPrice(targetDish, currency, locale, exchangeRates)}</p>
@@ -374,7 +378,7 @@ export function SaugeNoireDishDetail({
             <DetailRow label={copy.options} value={targetDish.options.join(", ") || copy.confirmAllergens} variant="detailAccord" />
           </div>
           {targetCanOpen3d ? (
-            <section className={styles.modelSection} aria-label={copy.show3d}>
+            <section className={styles.modelSection} aria-label={copy.show3d} data-no-page-flip="true">
               <button type="button" className={styles.modelButton} onClick={() => setShowModelViewer((visible) => !visible)} aria-expanded={targetShowModelViewer}>
                 <CubeIcon />
                 {targetShowModelViewer ? copy.hide3d : copy.show3d}
@@ -382,6 +386,7 @@ export function SaugeNoireDishDetail({
               {targetShowModelViewer ? (
                 <div
                   className={styles.modelStage}
+                  data-no-page-flip="true"
                   onPointerDown={stopDishSwipePropagation}
                   onPointerMove={stopDishSwipePropagation}
                   onPointerUp={stopDishSwipePropagation}
@@ -424,6 +429,31 @@ export function SaugeNoireDishDetail({
     );
   }
 
+  const activePageTurn = pageTurn?.dishId === dish.id ? pageTurn : null;
+  const detailFlipPages = activePageTurn
+    ? activePageTurn.direction === "next"
+      ? [
+          <SaugeNoireFlipPage density="soft" index={0} key={`current-${dish.id}`}>
+            {renderDishPaper(dish, false)}
+          </SaugeNoireFlipPage>,
+          <SaugeNoireFlipPage density="soft" index={1} key={`target-${activePageTurn.targetDish.id}`}>
+            {renderDishPaper(activePageTurn.targetDish, true)}
+          </SaugeNoireFlipPage>
+        ]
+      : [
+          <SaugeNoireFlipPage density="soft" index={0} key={`target-${activePageTurn.targetDish.id}`}>
+            {renderDishPaper(activePageTurn.targetDish, true)}
+          </SaugeNoireFlipPage>,
+          <SaugeNoireFlipPage density="soft" index={1} key={`current-${dish.id}`}>
+            {renderDishPaper(dish, false)}
+          </SaugeNoireFlipPage>
+        ]
+    : [
+        <SaugeNoireFlipPage density="soft" index={0} key={`current-${dish.id}`}>
+          {renderDishPaper(dish, false)}
+        </SaugeNoireFlipPage>
+      ];
+
   return (
     <main className={styles.detailPage} data-testid="sauge-noire-dish-detail">
       <aside className={styles.rail} aria-hidden="true">
@@ -431,9 +461,18 @@ export function SaugeNoireDishDetail({
         <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>
         <div className={`${styles.railFastener} ${styles.railFastenerBottom}`}><i /><span /><i /></div>
       </aside>
-      <div className={styles.detailSurface}>
-        {transitionDish ? renderDishPaper(transitionDish, true) : null}
-        {renderDishPaper(dish, false)}
+      <div className={styles.detailSurface} ref={detailSurfaceRef} data-detail-page-flip="true">
+        <SaugeNoirePageFlipExperiment
+          key={activePageTurn ? `${dish.id}-${activePageTurn.targetDish.id}-${activePageTurn.direction}` : `idle-${dish.id}`}
+          pages={detailFlipPages}
+          pageIndex={activePageTurn?.targetPageIndex ?? 0}
+          startPage={activePageTurn?.startPageIndex ?? 0}
+          onPageFlip={handleDetailPageFlip}
+          onSwipe={activePageTurn ? undefined : handleDetailSwipe}
+          protectInteractiveTargets
+          showCover={false}
+          fallback={renderDishPaper(dish, false)}
+        />
       </div>
     </main>
   );

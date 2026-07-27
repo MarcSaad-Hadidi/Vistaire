@@ -87,7 +87,7 @@ test("detail page uses the existing allergen disclosure contract and has no AR C
   assert.doesNotMatch(source, /Réalité augmentée|Ouvrir l’aperçu AR|AR preview/i);
 });
 
-test("dish-to-dish navigation turns the detail page before routing", async () => {
+test("dish-to-dish navigation prepares the adjacent dish without duplicating its chrome", async () => {
   const source = await readFile(detailPath, "utf8");
   const styles = await readFile(
     new URL("../components/menu/unique/sauge-noire/SaugeNoireDishDetail.module.css", import.meta.url),
@@ -95,29 +95,18 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   );
   assert.match(source, /type DishTurnDirection = "next" \| "previous"/);
   assert.match(source, /requestDishNavigation/);
-  assert.match(source, /setPageTurn\(\{ dishId: dish\.id, direction \}\)/);
-  assert.match(source, /onPointerCancel/);
+  assert.match(source, /targetPageIndex: direction === "next" \? 1 : 0/);
   assert.match(source, /handleDishLinkClick\(event, targetNextHref, "next"\)/);
   assert.match(source, /handleDishLinkClick\(event, targetPreviousHref, "previous"\)/);
-  assert.match(source, /transitionDish/);
-  assert.match(source, /renderDishPaper\(transitionDish, true\)/);
+  assert.match(source, /renderDishPaper\(activePageTurn\.targetDish, true\)/);
+  assert.match(source, /draggable=\{false\}/);
   assert.match(source, /data-transition-preview/);
   assert.match(source, /function stopDishSwipePropagation/);
   assert.match(source, /className=\{styles\.modelStage\}[\s\S]*onPointerDown=\{stopDishSwipePropagation\}[\s\S]*onPointerUp=\{stopDishSwipePropagation\}/);
-  assert.match(styles, /\.pageTurnNext/);
-  assert.match(styles, /\.pageTurnPrevious/);
-  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/);
-  assert.match(styles, /\.pageTurnNext,[\s\S]*\.pageTurnPrevious\s*\{[\s\S]*z-index:\s*2;/);
-  assert.match(styles, /@keyframes detailPageTurnNext/);
-  assert.match(styles, /@keyframes detailPageTurnPrevious/);
-  assert.match(source, /SAUGE_PAGE_FLIP_DURATION_MS = 720/);
-  assert.match(source, /\}, SAUGE_PAGE_FLIP_DURATION_MS\);/);
-  assert.match(styles, /detailPageTurnNext 720ms linear/);
-  assert.match(styles, /detailPageTurnPrevious 720ms linear/);
-  assert.match(styles, /rotateY\(-180deg\)/);
-  assert.match(styles, /rotateY\(180deg\)/);
-  assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*sticky;[\s\S]*align-self:\s*flex-start;/);
+  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*none;/);
+  assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
+  assert.match(styles, /@media \(max-width: 700px\)\s*\{[\s\S]*\.detailPage\s*\{[\s\S]*height:\s*100svh;[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*relative;[\s\S]*align-self:\s*flex-start;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.paper\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow:\s*visible;/);
   assert.match(styles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;[\s\S]*width:\s*100%;[\s\S]*height:\s*170px;/);
   assert.doesNotMatch(styles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
@@ -126,14 +115,59 @@ test("dish-to-dish navigation turns the detail page before routing", async () =>
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.detailHeader > \.brandMark\s*\{[\s\S]*top:\s*65px;/);
 });
 
+test("dish-to-dish navigation uses a two-sheet soft PageFlip and waits for onFlip", async () => {
+  const detail = await readFile(detailPath, "utf8");
+  const experiment = await readFile(
+    new URL("../components/menu/unique/sauge-noire/SaugeNoirePageFlipExperiment.tsx", import.meta.url),
+    "utf8"
+  );
+  const flipPage = await readFile(
+    new URL("../components/menu/unique/sauge-noire/SaugeNoireFlipPage.tsx", import.meta.url),
+    "utf8"
+  );
+  const styles = await readFile(detailStylesPath, "utf8");
+
+  assert.match(detail, /SaugeNoirePageFlipExperiment/);
+  assert.match(detail, /SaugeNoireFlipPage/);
+  assert.match(detail, /showCover=\{false\}/);
+  assert.match(detail, /onPageFlip=\{handleDetailPageFlip\}/);
+  assert.match(detail, /renderDishPaper\(activePageTurn\.targetDish, true\)/);
+  assert.match(experiment, /startPage\?: number/);
+  assert.match(experiment, /showCover\?: boolean/);
+  assert.match(experiment, /showCover=\{showCover\}/);
+  assert.match(experiment, /onSwipe\?: \(direction: "next" \| "previous"\)/);
+  assert.match(flipPage, /density: SaugeNoireFlipPageDensity/);
+  assert.doesNotMatch(detail, /SAUGE_PAGE_FLIP_DURATION_MS/);
+  assert.doesNotMatch(detail, /setTimeout\([\s\S]*router\.push/);
+  assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
+});
+
+test("dish PageFlip gestures lock horizontal direction and protect interactive surfaces", async () => {
+  const detail = await readFile(detailPath, "utf8");
+  const experiment = await readFile(
+    new URL("../components/menu/unique/sauge-noire/SaugeNoirePageFlipExperiment.tsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(detail, /protectInteractiveTargets/);
+  assert.match(detail, /data-no-page-flip="true"/);
+  assert.match(experiment, /gestureStartRef/);
+  assert.match(experiment, /axis: "undecided" \| "horizontal" \| "vertical"/);
+  assert.match(experiment, /setPointerCapture/);
+  assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
+  assert.match(experiment, /onPointerCancel=\{handlePointerCancel\}/);
+  assert.match(experiment, /isPageFlipInteractiveTarget\(target\)/);
+  assert.match(experiment, /onSwipe\(deltaX < 0 \? "next" : "previous"\)/);
+});
+
 test("Sauge Noire chrome is normal-flow content inside its scrollable sheet", async () => {
   const detail = await readFile(detailPath, "utf8");
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
   assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
   assert.match(detail, /renderDishPaper[\s\S]*\{!isPreview \?[\s\S]*<DishDetailHeader/);
-  assert.match(detail, /<div className=\{styles\.detailSurface\}>/);
-  assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*perspective:\s*2000px;/);
+  assert.match(detail, /<div className=\{styles\.detailSurface\}[^>]*data-detail-page-flip="true"/);
+  assert.match(detailStyles, /\.detailSurface\s*\{[\s\S]*overflow:\s*hidden;/);
   assert.match(detailStyles, /\.detailHeader\s*\{[\s\S]*position:\s*relative;/);
   assert.doesNotMatch(detailStyles, /\.detailHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
   assert.match(detailStyles, /\.detailContent\s*\{[\s\S]*padding:\s*0 clamp\(16px, 5vw, 74px\) 54px;/);

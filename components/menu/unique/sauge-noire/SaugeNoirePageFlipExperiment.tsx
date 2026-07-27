@@ -67,7 +67,11 @@ class PageFlipErrorBoundary extends Component<
 type SaugeNoirePageFlipExperimentProps = {
   pages: ReactNode[];
   pageIndex: number;
+  startPage?: number;
   onPageFlip: (index: number) => void;
+  onSwipe?: (direction: "next" | "previous") => void;
+  protectInteractiveTargets?: boolean;
+  showCover?: boolean;
   fallback: ReactNode;
 };
 
@@ -104,7 +108,11 @@ function isPageFlipInteractiveTarget(target: EventTarget | null): boolean {
 export function SaugeNoirePageFlipExperiment({
   pages,
   pageIndex,
+  startPage = pageIndex,
   onPageFlip,
+  onSwipe,
+  protectInteractiveTargets = false,
+  showCover = true,
   fallback
 }: SaugeNoirePageFlipExperimentProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -113,7 +121,11 @@ export function SaugeNoirePageFlipExperiment({
   const readyBookKeyRef = useRef<string | null>(null);
   const requestedPageIndexRef = useRef<number | null>(null);
   const animationTargetPageRef = useRef<number | null>(null);
-  const gestureStartRef = useRef<{ x: number; y: number } | null>(null);
+  const gestureStartRef = useRef<{
+    x: number;
+    y: number;
+    axis: "undecided" | "horizontal" | "vertical";
+  } | null>(null);
   const [dimensions, setDimensions] = useState<FlipDimensions | null>(null);
   const [readyBookKey, setReadyBookKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -264,11 +276,15 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const rememberGestureStart = (x: number, y: number, target: EventTarget | null) => {
-    if (!bookIsReady || isPageFlipProtectedTarget(target)) {
+    if (
+      !bookIsReady ||
+      isPageFlipProtectedTarget(target) ||
+      (protectInteractiveTargets && isPageFlipInteractiveTarget(target))
+    ) {
       gestureStartRef.current = null;
       return;
     }
-    gestureStartRef.current = { x, y };
+    gestureStartRef.current = { x, y, axis: "undecided" };
   };
 
   const handleSwipeEnd = (
@@ -278,7 +294,11 @@ export function SaugeNoirePageFlipExperiment({
   ) => {
     const start = gestureStartRef.current;
     gestureStartRef.current = null;
-    if (!start || requestedPageIndexRef.current !== null) return;
+    if (
+      !start ||
+      start.axis !== "horizontal" ||
+      requestedPageIndexRef.current !== null
+    ) return;
 
     const deltaX = endX - start.x;
     const deltaY = endY - start.y;
@@ -288,7 +308,13 @@ export function SaugeNoirePageFlipExperiment({
     if (!pageFlip) return;
     const currentPage = pageFlip.getCurrentPageIndex();
     const nextPage = deltaX < 0 ? currentPage + 1 : currentPage - 1;
-    if (nextPage < 0 || nextPage >= pages.length) return;
+    if (nextPage < 0 || nextPage >= pages.length) {
+      if (onSwipe) {
+        preventDefault();
+        onSwipe(deltaX < 0 ? "next" : "previous");
+      }
+      return;
+    }
 
     preventDefault();
     requestedPageIndexRef.current = nextPage;
@@ -297,14 +323,13 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isPageFlipInteractiveTarget(event.target)) {
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-    }
     rememberGestureStart(event.clientX, event.clientY, event.target);
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
     handleSwipeEnd(event.clientX, event.clientY, () => event.preventDefault());
   };
 
@@ -313,18 +338,34 @@ export function SaugeNoirePageFlipExperiment({
     if (!start) return;
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
-    if (Math.abs(deltaX) >= SWIPE_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (start.axis === "undecided") {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+      if (Math.abs(deltaX) <= Math.abs(deltaY)) {
+        start.axis = "vertical";
+        return;
+      }
+      start.axis = "horizontal";
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+    if (start.axis === "horizontal") {
       event.preventDefault();
     }
   };
 
-  const handlePointerCancel = () => {
+  const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
     gestureStartRef.current = null;
   };
 
   const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
     if (gestureStartRef.current) return;
-    if (!bookIsReady || isPageFlipProtectedTarget(event.target)) {
+    if (
+      !bookIsReady ||
+      isPageFlipProtectedTarget(event.target) ||
+      (protectInteractiveTargets && isPageFlipInteractiveTarget(event.target))
+    ) {
       gestureStartRef.current = null;
       return;
     }
@@ -344,7 +385,11 @@ export function SaugeNoirePageFlipExperiment({
     if (!start || !touch) return;
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
-    if (Math.abs(deltaX) >= SWIPE_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (start.axis === "undecided") {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+      start.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
+    }
+    if (start.axis === "horizontal") {
       event.preventDefault();
     }
   };
@@ -363,7 +408,9 @@ export function SaugeNoirePageFlipExperiment({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onTouchCancel={handlePointerCancel}
+      onTouchCancel={() => {
+        gestureStartRef.current = null;
+      }}
       data-page-flip-state={
         failed ? "fallback-error" : bookIsReady ? "ready" : "loading"
       }
@@ -395,14 +442,14 @@ export function SaugeNoirePageFlipExperiment({
               maxWidth={dimensions.width}
               minHeight={Math.max(100, dimensions.height)}
               maxHeight={dimensions.height}
-              startPage={pageIndex}
+              startPage={startPage}
               drawShadow
               flippingTime={720}
               usePortrait
               startZIndex={0}
               autoSize={false}
               maxShadowOpacity={0.62}
-              showCover
+              showCover={showCover}
               mobileScrollSupport
               swipeDistance={44}
               clickEventForward

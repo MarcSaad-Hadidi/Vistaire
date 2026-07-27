@@ -141,72 +141,15 @@
   min-width: 0;
   height: 100svh;
   min-height: 100svh;
-  perspective: 2000px;
-  perspective-origin: 50% 50%;
-}
-
-.pageTurnNext,
-.pageTurnPrevious {
-  position: relative;
-  z-index: 2;
-  pointer-events: none;
+  overflow: hidden;
 }
 
 .transitionPreview {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
   pointer-events: none;
 }
 
-.pageTurnNext {
-  transform-origin: left center;
-  animation: detailPageTurnNext 720ms linear both;
-}
-
-.pageTurnPrevious {
-  transform-origin: right center;
-  animation: detailPageTurnPrevious 720ms linear both;
-}
-
-@keyframes detailPageTurnNext {
-  0% {
-    filter: brightness(1);
-    opacity: 1;
-    transform: translate3d(0, 0, 0) rotateY(0deg);
-  }
-
-  50% {
-    filter: brightness(0.92);
-    opacity: 1;
-    transform: translate3d(-2%, 0, 0) rotateY(-90deg);
-  }
-
-  100% {
-    filter: brightness(1);
-    opacity: 1;
-    transform: translate3d(-5%, 0, 0) rotateY(-180deg);
-  }
-}
-
-@keyframes detailPageTurnPrevious {
-  0% {
-    filter: brightness(1);
-    opacity: 1;
-    transform: translate3d(0, 0, 0) rotateY(0deg);
-  }
-
-  50% {
-    filter: brightness(0.92);
-    opacity: 1;
-    transform: translate3d(2%, 0, 0) rotateY(90deg);
-  }
-
-  100% {
-    filter: brightness(1);
-    opacity: 1;
-    transform: translate3d(5%, 0, 0) rotateY(180deg);
-  }
+.detailPage [data-sauge-flip-clone="true"] .detailHeader {
+  visibility: hidden;
 }
 
 .detailHeader {
@@ -556,22 +499,22 @@
 
 @media (max-width: 700px) {
   .detailPage {
-    height: auto;
+    height: 100svh;
     min-height: 100svh;
     min-height: 100dvh;
-    overflow: visible;
+    overflow: hidden;
     align-items: flex-start;
   }
 
   .detailSurface {
-    height: auto;
-    min-height: 100svh;
-    overflow: visible;
+    height: 100svh;
+    min-height: 0;
+    min-height: 100dvh;
+    overflow: hidden;
   }
 
   .rail {
-    position: sticky;
-    top: 0;
+    position: relative;
     height: 100svh;
     height: 100dvh;
     min-height: 100svh;

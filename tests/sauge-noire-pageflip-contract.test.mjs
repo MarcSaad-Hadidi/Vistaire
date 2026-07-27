@@ -122,7 +122,7 @@ test("page swipes can start on dish links without hijacking real controls", asyn
   );
   assert.match(experiment, /function isPageFlipInteractiveTarget/);
   assert.match(experiment, /target\.closest\("a, button"\)/);
-  assert.match(experiment, /if \(!isPageFlipInteractiveTarget\(event\.target\)\)/);
+  assert.match(experiment, /event\.currentTarget\.setPointerCapture/);
   assert.match(experiment, /const SWIPE_DISTANCE = 32/);
   assert.match(experiment, /Math\.abs\(deltaX\) <= Math\.abs\(deltaY\)/);
 });
