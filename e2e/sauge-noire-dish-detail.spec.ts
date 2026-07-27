@@ -548,7 +548,22 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       const categoryKicker = activeArticle.locator('[class*="categoryKicker"]');
       await expect(categoryKicker).toHaveText("Cocktail signature");
       await expect(categoryKicker).not.toContainText("Plat signature");
-      await expect(activeArticle.getByRole("link", { name: /Retour à Cocktail signature/i })).toBeVisible();
+      const backLink = activeArticle.getByRole("link", { name: /Retour à Cocktail signature/i });
+      await expect(backLink).toBeVisible();
+      await expect.poll(async () => backLink.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        whiteSpace: getComputedStyle(element).whiteSpace
+      }))).toEqual({
+        clientWidth: expect.any(Number),
+        scrollWidth: expect.any(Number),
+        whiteSpace: "nowrap"
+      });
+      const backMetrics = await backLink.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth
+      }));
+      expect(backMetrics.scrollWidth).toBeLessThanOrEqual(backMetrics.clientWidth + 1);
     });
   }
 

@@ -184,7 +184,9 @@
   top: 38px;
   left: clamp(16px, 6vw, 84px);
   display: inline-flex;
+  width: max-content;
   min-height: 38px;
+  max-width: calc(100% - 24px);
   align-items: center;
   gap: 10px;
   padding: 0 11px;
@@ -196,7 +198,10 @@
   pointer-events: auto;
   font-size: 0.84rem;
   font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .backLink span {
@@ -561,7 +566,7 @@
     top: 18px;
     left: 12px;
     min-height: 34px;
-    max-width: 48%;
+    max-width: calc(100% - 24px);
     gap: 5px;
     padding: 0 8px;
     border-radius: 9px;

@@ -118,6 +118,13 @@ test("cocktail signature details use beverage-specific copy", async () => {
   assert.match(source, /function isCocktailSignatureCategory\(category: string\): boolean/);
 });
 
+test("detail back links stay on one line for long categories", async () => {
+  const styles = await readFile(detailStylesPath, "utf8");
+  assert.match(styles, /\.backLink\s*\{[\s\S]*width:\s*max-content;[\s\S]*white-space:\s*nowrap;/);
+  assert.match(styles, /\.backLink\s*\{[\s\S]*text-overflow:\s*ellipsis;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.backLink\s*\{[\s\S]*max-width:\s*calc\(100% - 24px\);/);
+});
+
 test("dish-to-dish navigation prepares adjacent dishes without duplicating their chrome", async () => {
   const source = await readFile(detailPath, "utf8");
   const styles = await readFile(
