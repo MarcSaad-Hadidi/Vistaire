@@ -789,9 +789,13 @@ function SectionPage({
   const isCocktail = category.label.toLowerCase().includes("cocktail");
   const isNonAlcoholic = category.label.toLowerCase().includes("alcool") || category.label.toLowerCase().includes("alcohol");
   const isSplit = isCocktail || isNonAlcoholic;
+  const isShortSection = !isSplit && dishes.length <= 4;
   const sectionQuery = { ...query, lang: localeTag, currency, view: `sauge-${pageNumber + 2}` };
   return (
-    <section className={`${styles.page} ${styles.sectionPage} ${isSplit ? styles.splitSection : ""}`} aria-label={category.label}>
+    <section
+      className={`${styles.page} ${styles.sectionPage} ${isSplit ? styles.splitSection : ""} ${isShortSection ? styles.shortSectionPage : ""}`}
+      aria-label={category.label}
+    >
       <div className={styles.sectionKicker}>
         <span>{String(sectionNumber).padStart(2, "0")}</span>
         <Rule />
