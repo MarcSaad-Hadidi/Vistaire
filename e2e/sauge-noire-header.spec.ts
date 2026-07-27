@@ -139,6 +139,16 @@ async function waitForMenuReady(page: Page) {
     .toBe(true);
 }
 
+async function gotoSaugeNoireRoute(page: Page, route: string) {
+  const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+  if (response?.status() === 404) {
+    test.skip(
+      true,
+      "Requires a seeded Sauge Noire Supabase fixture (route returned 404)."
+    );
+  }
+}
+
 async function scrollActivePageToBottom(page: Page) {
   const targetScroll = await page.evaluate(() => {
     const book = document.querySelector('[data-testid="sauge-noire-book"]');
@@ -316,7 +326,7 @@ async function snapshotDish(page: Page): Promise<DishSnapshot> {
 
 test("Sauge Noire dish links open the real detail route", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(MENU_ROUTE, { waitUntil: "domcontentloaded" });
+  await gotoSaugeNoireRoute(page, MENU_ROUTE);
   await waitForMenuReady(page);
   const dishLinks = page.locator('a[href*="/menu/sauge-noire/dishes/"]:visible');
   await expect(dishLinks.first()).toBeVisible();
@@ -328,7 +338,7 @@ test("Sauge Noire dish links open the real detail route", async ({ page }) => {
 test("Sauge Noire contents controls animate to the selected sheet", async ({ page }) => {
   test.setTimeout(30_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(MENU_ROUTE, { waitUntil: "domcontentloaded" });
+  await gotoSaugeNoireRoute(page, MENU_ROUTE);
   await waitForMenuReady(page);
 
   await page.getByRole("button", { name: /Table des matières/i }).click();
@@ -356,12 +366,12 @@ test("Sauge Noire top chrome belongs to the scrolling menu sheet", async ({ page
   test.setTimeout(90_000);
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
-    await page.goto(CONTENTS_ROUTE, { waitUntil: "domcontentloaded" });
+    await gotoSaugeNoireRoute(page, CONTENTS_ROUTE);
     await waitForMenuReady(page);
     await expect(page.getByTestId("sauge-noire-book")).toHaveAttribute("data-page-kind", "contents");
     await expect(page.getByRole("heading", { name: "Table des matières" })).toBeVisible();
 
-    await page.goto(MENU_ROUTE, { waitUntil: "domcontentloaded" });
+    await gotoSaugeNoireRoute(page, MENU_ROUTE);
     await waitForMenuReady(page);
     const top = await snapshotMenu(page);
     expect(top.pageKind).toBe("section");
@@ -395,7 +405,7 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
   test.setTimeout(90_000);
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
-    await page.goto(DETAIL_ROUTE, { waitUntil: "domcontentloaded" });
+    await gotoSaugeNoireRoute(page, DETAIL_ROUTE);
     await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
     const top = await snapshotDish(page);
     expect(top.headerPosition).not.toMatch(/fixed|sticky/);
