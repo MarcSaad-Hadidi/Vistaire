@@ -15,8 +15,10 @@
   position: fixed;
   z-index: 8;
   inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100svh;
   box-sizing: border-box;
-  padding-left: var(--sn-rail);
   overflow: hidden;
   pointer-events: auto;
   isolation: isolate;
@@ -27,16 +29,19 @@
   font-family: "BT Suave", Georgia, serif;
 }
 
-.routeTransitionOverlay::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--sn-rail);
-  background:
-    radial-gradient(circle at 28% 20%, rgba(243, 234, 219, 0.14) 0 1px, transparent 1.5px)
-      0 0 / 17px 19px,
-    var(--sn-forest);
-  pointer-events: none;
+.routeTransitionOverlay,
+.routeTransitionOverlay * {
+  box-sizing: border-box;
+}
+
+.routeTransitionSurface {
+  position: relative;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 100svh;
+  min-height: 100svh;
+  overflow: hidden;
 }
 
 .routeTransitionOverlay[data-sauge-route-transition-visible="false"] {

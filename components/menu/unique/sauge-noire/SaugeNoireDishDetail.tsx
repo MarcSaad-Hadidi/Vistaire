@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
@@ -26,11 +27,16 @@ import { formatMenuPrice, type MenuExchangeRates } from "@/lib/currency/formatMe
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
-import { SaugeNoireBookHeader, SectionPage } from "./SaugeNoireBookMenu";
+import {
+  SaugeNoireBookHeader,
+  SaugeNoireBookRail,
+  SectionPage
+} from "./SaugeNoireBookMenu";
 import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireDishDetail.module.css";
+import menuStyles from "./SaugeNoireBookMenu.module.css";
 
 type DishDetailProps = UniqueMenuRendererModuleProps & { dish: PublicMenuDish };
 type DishCopyLocale = "fr" | "en" | "es" | "it" | "ar";
@@ -205,6 +211,7 @@ type SaugeNoireDishSheetProps = {
     direction: DishTurnDirection
   ) => void;
   onMenuLinkClick?: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onMenuLinkIntent?: (href: string) => void;
 };
 
 function SaugeNoireDish3dSection({
@@ -300,7 +307,8 @@ export function SaugeNoireDishSheet({
   copy,
   isPreview,
   onDishLinkClick,
-  onMenuLinkClick
+  onMenuLinkClick,
+  onMenuLinkIntent
 }: SaugeNoireDishSheetProps) {
   const currency = query?.currency ?? menu.settings.defaultCurrency;
   const dishCount = Math.max(menu.dishes.length, 1);
@@ -343,6 +351,7 @@ export function SaugeNoireDishSheet({
         backLabel={copy.back}
         isPreview={isPreview}
         onClick={isPreview ? undefined : onMenuLinkClick}
+        onIntent={isPreview ? undefined : onMenuLinkIntent}
       />
       <section className={styles.detailContent}>
         <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(dish, publicLocale) ? "  ·  " : ""}{isSignatureLabel(dish, publicLocale)}</p>
@@ -398,6 +407,10 @@ export function SaugeNoireDishSheet({
           prefetch={false}
           tabIndex={isPreview ? -1 : undefined}
           onClick={isPreview ? undefined : (event) => onMenuLinkClick?.(event, targetMenuHref)}
+          onPointerEnter={() => onMenuLinkIntent?.(targetMenuHref)}
+          onFocus={() => onMenuLinkIntent?.(targetMenuHref)}
+          onPointerDown={() => onMenuLinkIntent?.(targetMenuHref)}
+          onTouchStart={() => onMenuLinkIntent?.(targetMenuHref)}
         >
           {copy.menu}
         </Link>
@@ -495,7 +508,12 @@ export function SaugeNoireDishDetail({
   const selectedCopyLocale = copyLocale(publicLocale);
   const routeTransition = useSaugeNoireTransition();
   const beginRouteTransition = routeTransition?.beginTransition;
+  const prefetchRouteDestination = routeTransition?.prefetchDestination;
   const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
+  const pathname = usePathname();
+  const notifyCurrentRouteReady = useCallback(() => {
+    notifyRouteDestinationReady?.(pathname);
+  }, [notifyRouteDestinationReady, pathname]);
   const detailSurfaceRef = useRef<HTMLDivElement>(null);
   const [activeDish, setActiveDish] = useState(dish);
   const currentDishRef = useRef(activeDish);
@@ -863,6 +881,8 @@ export function SaugeNoireDishDetail({
       href,
       direction: "previous",
       sourceScrollTop: currentDetailScrollTop(),
+      rail: <SaugeNoireBookRail />,
+      frameClassName: menuStyles.paper,
       source: renderDishPaperRef.current?.(activeDish, true) ?? null,
       destination: (
         <>
@@ -904,6 +924,10 @@ export function SaugeNoireDishDetail({
     if (started) event.preventDefault();
   }, [activeDish, beginRouteTransition, copy.menu, copy.next, copy.previous, currentDetailScrollTop, currency, exchangeRates, locale, menu, publicLocale, query]);
 
+  const handleMenuLinkIntent = useCallback((href: string) => {
+    prefetchRouteDestination?.(href);
+  }, [prefetchRouteDestination]);
+
   const renderDishPaper = useCallback((targetDish: PublicMenuDish, isPreview: boolean) => {
     return (
       <SaugeNoireDishSheet
@@ -917,9 +941,10 @@ export function SaugeNoireDishDetail({
         isPreview={isPreview}
         onDishLinkClick={isPreview ? undefined : handleDishLinkClick}
         onMenuLinkClick={isPreview ? undefined : handleMenuLinkClick}
+        onMenuLinkIntent={isPreview ? undefined : handleMenuLinkIntent}
       />
     );
-  }, [copy, exchangeRates, handleDishLinkClick, handleMenuLinkClick, locale, menu, publicLocale, query]);
+  }, [copy, exchangeRates, handleDishLinkClick, handleMenuLinkClick, handleMenuLinkIntent, locale, menu, publicLocale, query]);
 
   useEffect(() => {
     renderDishPaperRef.current = renderDishPaper;
@@ -947,7 +972,7 @@ export function SaugeNoireDishDetail({
 
   return (
     <main className={styles.detailPage} data-testid="sauge-noire-dish-detail">
-      <aside className={styles.rail} aria-hidden="true">
+      <aside className={styles.rail} aria-hidden="true" data-sauge-book-rail="true">
         <div className={styles.railPattern} />
         <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>
         <div className={`${styles.railFastener} ${styles.railFastenerBottom}`}><i /><span /><i /></div>
@@ -959,8 +984,9 @@ export function SaugeNoireDishDetail({
           startPage={1}
           onPageFlip={handleDetailPageFlip}
           onChangeState={handleDetailPageFlipState}
-          onReady={notifyRouteDestinationReady}
-          onError={notifyRouteDestinationReady}
+          onReady={notifyCurrentRouteReady}
+          onError={notifyCurrentRouteReady}
+          readyScrollTop={0}
           onSwipe={handleDetailSwipe}
           interceptSwipe
           resetKey={`sauge-detail-book-${menu.slug}`}
@@ -981,13 +1007,15 @@ function DishDetailHeader({
   category,
   backLabel,
   isPreview,
-  onClick
+  onClick,
+  onIntent
 }: {
   href: string;
   category: string;
   backLabel: string;
   isPreview: boolean;
   onClick?: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onIntent?: (href: string) => void;
 }) {
   return (
     <header className={styles.detailHeader} aria-hidden={isPreview || undefined}>
@@ -997,6 +1025,10 @@ function DishDetailHeader({
         prefetch={false}
         tabIndex={isPreview ? -1 : undefined}
         onClick={isPreview ? undefined : (event) => onClick?.(event, href)}
+        onPointerEnter={() => onIntent?.(href)}
+        onFocus={() => onIntent?.(href)}
+        onPointerDown={() => onIntent?.(href)}
+        onTouchStart={() => onIntent?.(href)}
       >
         <span aria-hidden="true">{"\u2190"}</span> {backLabel} {category}
       </Link>

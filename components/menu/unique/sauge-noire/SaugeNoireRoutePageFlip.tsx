@@ -11,6 +11,8 @@ type SaugeNoireRoutePageFlipProps = {
   direction: "next" | "previous";
   source: ReactNode;
   destination: ReactNode;
+  rail: ReactNode;
+  frameClassName?: string;
   sourceScrollTop: number;
   phase: "preparing" | "animating" | "awaiting-destination";
   targetActivated: boolean;
@@ -30,6 +32,8 @@ export function SaugeNoireRoutePageFlip({
   direction,
   source,
   destination,
+  rail,
+  frameClassName,
   sourceScrollTop,
   phase,
   targetActivated,
@@ -148,21 +152,28 @@ export function SaugeNoireRoutePageFlip({
       data-sauge-route-transition-phase={phase}
       data-sauge-route-transition-current-page={targetActivated ? targetPage : startPage}
       aria-hidden="true"
+      inert
     >
-      <SaugeNoirePageFlipExperiment
-        pages={pages}
-        pageIndex={targetActivated ? targetPage : startPage}
-        startPage={startPage}
-        onPageFlip={handleFlip}
-        onReady={onReady}
-        onChangeState={handleChangeState}
-        onError={handleError}
-        resetKey={id}
-        protectInteractiveTargets
-        showCover={false}
-        renderOnlyPageLengthChange
-        fallback={source}
-      />
+      {rail}
+      <div
+        className={`${styles.routeTransitionSurface} ${frameClassName ?? ""}`}
+        data-sauge-route-transition-surface="true"
+      >
+        <SaugeNoirePageFlipExperiment
+          pages={pages}
+          pageIndex={targetActivated ? targetPage : startPage}
+          startPage={startPage}
+          onPageFlip={handleFlip}
+          onReady={onReady}
+          onChangeState={handleChangeState}
+          onError={handleError}
+          resetKey={id}
+          protectInteractiveTargets
+          showCover={false}
+          renderOnlyPageLengthChange
+          fallback={source}
+        />
+      </div>
     </div>
   );
 }

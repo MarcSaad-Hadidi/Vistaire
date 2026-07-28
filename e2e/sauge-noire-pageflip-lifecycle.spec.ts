@@ -11,6 +11,14 @@ type LifecycleProbe = {
   initializingVisible: boolean;
 };
 
+type ContentsJumpProbe = {
+  actualPages: number[];
+  states: string[];
+  urls: string[];
+  sameRoot: boolean;
+  fallbackVisible: boolean;
+};
+
 async function installLifecycleProbe(page: import("@playwright/test").Page) {
   await page.evaluate(() => {
     const viewport = document.querySelector<HTMLElement>("[data-page-flip-state]");
@@ -65,6 +73,112 @@ async function readLifecycleProbe(page: import("@playwright/test").Page): Promis
       bookKeys: probe.bookKeys,
       fallbackVisible: probe.fallbackVisible,
       initializingVisible: probe.initializingVisible
+    };
+  });
+}
+
+async function installContentsJumpProbe(page: import("@playwright/test").Page) {
+  await page.evaluate(() => {
+    const viewport = document.querySelector<HTMLElement>("[data-page-flip-state]");
+    const root = viewport?.querySelector(".stf__parent");
+    if (!viewport || !root) throw new Error("Expected a ready Sauge Noire PageFlip root");
+
+    const scope = window as typeof window & {
+      __saugeContentsJumpProbe?: {
+        actualPages: number[];
+        states: string[];
+        urls: string[];
+        initialRoot: Element;
+        fallbackVisible: boolean;
+        observer: MutationObserver;
+      };
+    };
+    const probe = {
+      actualPages: [] as number[],
+      states: [] as string[],
+      urls: [`${location.pathname}${location.search}`],
+      initialRoot: root,
+      fallbackVisible: false,
+      observer: null as unknown as MutationObserver
+    };
+    const visible = (element: HTMLElement) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        Number(style.opacity) !== 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+    const capture = () => {
+      const actualPage = Number(viewport.getAttribute("data-page-flip-actual-page"));
+      const state = viewport.getAttribute("data-page-flip-engine-state") ?? "";
+      const url = `${location.pathname}${location.search}`;
+      if (Number.isInteger(actualPage) && probe.actualPages.at(-1) !== actualPage) {
+        probe.actualPages.push(actualPage);
+      }
+      if (state && probe.states.at(-1) !== state) probe.states.push(state);
+      if (probe.urls.at(-1) !== url) probe.urls.push(url);
+      if (
+        [...document.querySelectorAll<HTMLElement>("[data-page-flip-fallback]")].some(visible)
+      ) {
+        probe.fallbackVisible = true;
+      }
+    };
+    const originalReplaceState = history.replaceState.bind(history);
+    history.replaceState = (...args) => {
+      originalReplaceState(...args);
+      capture();
+    };
+    const originalPushState = history.pushState.bind(history);
+    history.pushState = (...args) => {
+      originalPushState(...args);
+      capture();
+    };
+    capture();
+    probe.observer = new MutationObserver(capture);
+    probe.observer.observe(document.documentElement, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: [
+        "data-page-flip-actual-page",
+        "data-page-flip-engine-state",
+        "data-page-flip-state"
+      ]
+    });
+    scope.__saugeContentsJumpProbe = probe;
+  });
+}
+
+async function readContentsJumpProbe(
+  page: import("@playwright/test").Page
+): Promise<ContentsJumpProbe> {
+  return page.evaluate(() => {
+    const probe = (
+      window as typeof window & {
+        __saugeContentsJumpProbe?: {
+          actualPages: number[];
+          states: string[];
+          urls: string[];
+          initialRoot: Element;
+          fallbackVisible: boolean;
+          observer: MutationObserver;
+        };
+      }
+    ).__saugeContentsJumpProbe;
+    if (!probe) throw new Error("Contents jump probe was not installed");
+    probe.observer.disconnect();
+    return {
+      actualPages: probe.actualPages,
+      states: probe.states,
+      urls: probe.urls,
+      sameRoot:
+        probe.initialRoot ===
+        document.querySelector('[data-page-flip-state="ready"] .stf__parent'),
+      fallbackVisible: probe.fallbackVisible
     };
   });
 }
@@ -146,6 +260,78 @@ test("End resumes a multi-page jump after each intermediate sheet settles", asyn
   await expect(page).toHaveURL(/view=sauge-9/, { timeout: 12_000 });
   await expect(page.getByTestId("sauge-noire-book")).toHaveAttribute("data-page-index", "9");
 });
+
+for (const viewportSize of [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 1280, height: 900 }
+]) {
+  for (const origin of [4, 7, 9]) {
+    test(`Table des matières flips once then jumps instantly from page ${origin} at ${viewportSize.width}px`, async ({
+      page
+    }) => {
+      await page.setViewportSize(viewportSize);
+      await page.goto(
+        `/menu/sauge-noire?view=sauge-${origin}&lang=fr-CA&currency=CAD`,
+        { waitUntil: "domcontentloaded" }
+      );
+      const viewport = page.locator('[data-page-flip-state="ready"]').first();
+      await expect(viewport).toBeVisible({ timeout: 15_000 });
+      await expect(viewport).toHaveAttribute("data-page-flip-actual-page", String(origin));
+      await installContentsJumpProbe(page);
+
+      await page
+        .locator(
+          `[data-sauge-flip-page-index="${origin}"]:not([data-sauge-flip-clone])`
+        )
+        .getByRole("button", { name: /Table des matières/i })
+        .click();
+
+      await expect(page).toHaveURL(/view=sauge-1/, { timeout: 12_000 });
+      await expect(viewport).toHaveAttribute("data-page-flip-actual-page", "1");
+      await expect(page.getByTestId("sauge-noire-book")).toHaveAttribute(
+        "data-page-index",
+        "1"
+      );
+
+      const probe = await readContentsJumpProbe(page);
+      expect(probe.actualPages).toEqual([origin, origin - 1, 1]);
+      expect(probe.states.filter((state) => state === "flipping")).toHaveLength(1);
+      expect(probe.states.slice(1).filter((state) => state === "read")).toHaveLength(1);
+      expect(probe.urls.slice(1)).toEqual([
+        `/menu/sauge-noire?view=sauge-1&lang=fr-CA&currency=CAD`
+      ]);
+      expect(probe.sameRoot).toBe(true);
+      expect(probe.fallbackVisible).toBe(false);
+    });
+  }
+}
+
+for (const viewportSize of [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 1280, height: 900 }
+]) {
+  test(`Table des matières uses one adjacent flip from page 2 at ${viewportSize.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewportSize);
+    await page.goto("/menu/sauge-noire?view=sauge-2&lang=fr-CA&currency=CAD", {
+      waitUntil: "domcontentloaded"
+    });
+    const viewport = page.locator('[data-page-flip-state="ready"]').first();
+    await expect(viewport).toBeVisible({ timeout: 15_000 });
+    await installContentsJumpProbe(page);
+    await page
+      .locator('[data-sauge-flip-page-index="2"]:not([data-sauge-flip-clone])')
+      .getByRole("button", { name: /Table des matières/i })
+      .click();
+    await expect(viewport).toHaveAttribute("data-page-flip-actual-page", "1");
+    const probe = await readContentsJumpProbe(page);
+    expect(probe.actualPages).toEqual([2, 1]);
+    expect(probe.states.filter((state) => state === "flipping")).toHaveLength(1);
+    expect(probe.sameRoot).toBe(true);
+    expect(probe.fallbackVisible).toBe(false);
+  });
+}
 
 test("adjacent dish turns keep one stable engine and recenter without loading", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

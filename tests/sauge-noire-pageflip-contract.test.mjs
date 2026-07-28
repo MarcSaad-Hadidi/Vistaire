@@ -144,8 +144,8 @@ test("route transitions live in the shared layout until the destination book is 
     /useEffect\(\(\) => \{[\s\S]*pathnameRef\.current = pathname;[\s\S]*tryCompleteHandoff\(\);[\s\S]*\}, \[pathname, tryCompleteHandoff\]\)/
   );
   assert.doesNotMatch(book, /router\.push\(href\)/);
-  assert.match(book, /onError=\{notifyRouteDestinationReady\}/);
-  assert.match(detail, /onError=\{notifyRouteDestinationReady\}/);
+  assert.match(book, /onError=\{notifyCurrentRouteReady\}/);
+  assert.match(detail, /onError=\{notifyCurrentRouteReady\}/);
   assert.doesNotMatch(book, /renderPage,\s*routeTransition\]/);
   assert.doesNotMatch(detail, /query,\s*routeTransition\]/);
   assert.match(routeTransition, /if \(!completedRef\.current\) \{\s*completedRef\.current = true;\s*onFallback\(\);/);
@@ -159,10 +159,11 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /renderOnlyPageLengthChange\?: boolean/);
   assert.match(experiment, /renderOnlyPageLengthChange=\{renderOnlyPageLengthChange\}/);
   assert.match(experiment, /const onReadyRef = useRef\(onReady\)/);
-  assert.match(
-    experiment,
-    /useEffect\(\(\) => \{\s*if \(!bookIsReady\) return;\s*onReadyRef\.current\?\.\(\);\s*\}, \[bookIsReady\]\)/
-  );
+  assert.match(experiment, /readyScrollTop\?: number/);
+  assert.match(experiment, /data-sauge-flip-page-index=.*:not\(\[data-sauge-flip-clone\]\)/s);
+  assert.match(experiment, /await mainImage\.decode\(\)/);
+  assert.match(experiment, /mainImage\.getBoundingClientRect\(\)\.width <= 0/);
+  assert.match(experiment, /onReadyRef\.current\?\.\(\)/);
   assert.doesNotMatch(experiment, /onInit=\{\(\) => \{[\s\S]*onReady\?\.\(\)/);
   assert.match(experiment, /onError\?\.\(\)/);
   assert.match(experiment, /const \[actualPageIndex, setActualPageIndex\] = useState\(startPage\)/);
@@ -207,7 +208,10 @@ test("a permanent PageFlip error keeps the visible fallback interactive", async 
 test("multi-page jumps resume when PageFlip returns to read", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
-  assert.match(experiment, /\}, \[bookIsReady, dimensions, engineState, failed, pageIndex\]\);/);
+  assert.match(
+    experiment,
+    /\}, \[bookIsReady, dimensions, engineState, failed, pageIndex, singleFlipJumpRequest\]\);/
+  );
 });
 
 test("multi-page contents jumps keep animating until the requested page", async () => {

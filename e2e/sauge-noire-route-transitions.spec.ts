@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const MENU_ROUTE = "/menu/sauge-noire?view=sauge-4&lang=fr-CA&currency=CAD&table=main&zone=terrasse";
 const DETAIL_ROUTE = "/menu/sauge-noire/dishes/canard-a-l-erable-noir?lang=fr-CA&currency=CAD&view=sauge-4&table=main&zone=terrasse";
+const ROW_DETAIL_ROUTE =
+  "/menu/sauge-noire/dishes/fletan-roti-au-nori?lang=fr-CA&currency=CAD&view=sauge-4&table=main&zone=terrasse";
 
 type RouteTransitionSample = {
   actualPage: string | null;
@@ -15,9 +17,23 @@ type RouteTransitionSample = {
   settled: boolean;
   targetPage: string | null;
   targetReached: boolean;
+  timestamp: number;
+  engineRect: RectSnapshot | null;
+  headerRect: RectSnapshot | null;
+  imageRect: RectSnapshot | null;
+  logoRect: RectSnapshot | null;
+  railRect: RectSnapshot | null;
+  titleRect: RectSnapshot | null;
   visibleBrandMarks: number;
   visibleEngines: number;
   visibleFallbacks: number;
+};
+
+type RectSnapshot = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 type PageDiagnostics = {
@@ -69,6 +85,15 @@ test.afterEach(async ({ page }) => {
 });
 
 async function openRoute(page: Page, route: string, heading: RegExp) {
+  // `router.prefetch()` intentionally performs no network work in `next dev`.
+  // Compile both deterministic fixture destinations before timing the client
+  // handoff so the 500 ms budget measures route/render readiness, not dev HMR.
+  for (const fixtureRoute of [MENU_ROUTE, DETAIL_ROUTE, ROW_DETAIL_ROUTE]) {
+    const warmResponse = await page.request.get(fixtureRoute);
+    if (!warmResponse.ok()) {
+      throw new Error(`Sauge Noire fixture warmup failed: ${warmResponse.status()}`);
+    }
+  }
   const response = await page.goto(route, { waitUntil: "domcontentloaded" });
   const body = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
   if (response?.status() === 404 || body.includes("This page could not be found")) {
@@ -113,6 +138,16 @@ async function installRouteTransitionProbe(page: Page) {
         rect.width > 0 &&
         rect.height > 0;
     };
+    const rectSnapshot = (element: Element | null): RectSnapshot | null => {
+      if (!element || !isVisible(element)) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height
+      };
+    };
     const capture = () => {
       const overlay = document.querySelector<HTMLElement>(
         '[data-sauge-route-transition="true"]'
@@ -121,6 +156,19 @@ async function installRouteTransitionProbe(page: Page) {
         "[data-sauge-route-renderer-hidden]"
       );
       const engine = overlay?.querySelector<HTMLElement>("[data-page-flip-engine-state]");
+      const targetPage = overlay?.getAttribute("data-sauge-route-transition-target") ?? null;
+      const destinationEngine =
+        engine ??
+        renderer?.querySelector<HTMLElement>('[data-page-flip-state="ready"]') ??
+        null;
+      const actualPage =
+        destinationEngine?.getAttribute("data-page-flip-actual-page") ?? targetPage;
+      const visualRoot = overlay ?? renderer ?? document.body;
+      const activeSheet = actualPage === null
+        ? null
+        : visualRoot.querySelector<HTMLElement>(
+            `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
+          );
       const sample: RouteTransitionSample = {
         actualPage: engine?.getAttribute("data-page-flip-actual-page") ?? null,
         currentPage:
@@ -140,10 +188,23 @@ async function installRouteTransitionProbe(page: Page) {
           getComputedStyle(renderer).visibility === "hidden",
         settled:
           overlay?.getAttribute("data-sauge-route-transition-settled") === "true",
-        targetPage:
-          overlay?.getAttribute("data-sauge-route-transition-target") ?? null,
+        targetPage,
         targetReached:
           overlay?.getAttribute("data-sauge-route-transition-target-reached") === "true",
+        timestamp: performance.now(),
+        engineRect: rectSnapshot(
+          destinationEngine?.querySelector(".stf__parent") ??
+            visualRoot.querySelector(".stf__parent")
+        ),
+        headerRect: rectSnapshot(activeSheet?.querySelector("header") ?? null),
+        imageRect: rectSnapshot(
+          activeSheet?.querySelector("article img, [data-photo-slot]") ?? null
+        ),
+        logoRect: rectSnapshot(
+          activeSheet?.querySelector('[aria-label="Sauge Noire"]') ?? null
+        ),
+        railRect: rectSnapshot(visualRoot.querySelector('[data-sauge-book-rail="true"]')),
+        titleRect: rectSnapshot(activeSheet?.querySelector("h1") ?? null),
         visibleBrandMarks: [
           ...document.querySelectorAll('[aria-label="Sauge Noire"]')
         ].filter(isVisible).length,
@@ -250,6 +311,8 @@ async function assertRealRouteFlip(
   );
   expect(firstTargetIndex, "the route overlay must reach its target page").toBeGreaterThanOrEqual(0);
 
+  const firstOverlayIndex = samples.findIndex((sample) => sample.overlay);
+  const transitionTimeline = samples.slice(firstOverlayIndex);
   const afterTarget = samples.slice(firstTargetIndex);
   expect(
     afterTarget.filter((sample) => sample.overlay).map((sample) => sample.currentPage),
@@ -308,12 +371,12 @@ async function assertRealRouteFlip(
     ),
     "the real destination must be ready behind the overlay before handoff"
   ).toBe(true);
-  expect(afterTarget.every((sample) => sample.visibleEngines === 1)).toBe(true);
+  expect(transitionTimeline.every((sample) => sample.visibleEngines === 1)).toBe(true);
   expect(
-    afterTarget.map((sample) => sample.visibleBrandMarks),
+    transitionTimeline.map((sample) => sample.visibleBrandMarks),
     "exactly one SN brand mark must remain visible through handoff"
-  ).toEqual(afterTarget.map(() => 1));
-  expect(afterTarget.every((sample) => sample.visibleFallbacks === 0)).toBe(true);
+  ).toEqual(transitionTimeline.map(() => 1));
+  expect(transitionTimeline.every((sample) => sample.visibleFallbacks === 0)).toBe(true);
   expect(
     afterTarget.every(
       (sample) =>
@@ -323,11 +386,78 @@ async function assertRealRouteFlip(
     "the overlay-to-route handoff must be atomic"
   ).toBe(true);
 
+  const firstSettledSample = samples.find(
+    (sample) => sample.overlay && sample.targetReached && sample.settled
+  );
+  const finalOverlaySample = samples.findLast(
+    (sample) => sample.overlay && sample.targetReached && sample.settled
+  );
+  const firstDestinationSample = samples.find(
+    (sample) =>
+      firstSettledSample !== undefined &&
+      !sample.overlay &&
+      sample.timestamp >= firstSettledSample.timestamp
+  );
+  if (!firstSettledSample || !finalOverlaySample || !firstDestinationSample) {
+    throw new Error("Expected settled overlay and first destination frame samples");
+  }
+  expect(
+    firstDestinationSample.timestamp - firstSettledSample.timestamp,
+    "settled flip to atomic handoff must stay within the deterministic fixture budget"
+  ).toBeLessThanOrEqual(500);
+
+  const expectRectContinuity = (
+    label: string,
+    before: RectSnapshot | null,
+    after: RectSnapshot | null
+  ) => {
+    expect(before, `${label} must exist on the final overlay frame`).not.toBeNull();
+    expect(after, `${label} must exist on the first destination frame`).not.toBeNull();
+    for (const field of ["x", "y", "width", "height"] as const) {
+      expect(
+        Math.abs(before![field] - after![field]),
+        `${label}.${field} must remain within one CSS pixel at handoff`
+      ).toBeLessThanOrEqual(1);
+    }
+  };
+  expectRectContinuity(
+    "PageFlip engine",
+    finalOverlaySample.engineRect,
+    firstDestinationSample.engineRect
+  );
+  expectRectContinuity("rail", finalOverlaySample.railRect, firstDestinationSample.railRect);
+  expectRectContinuity("title", finalOverlaySample.titleRect, firstDestinationSample.titleRect);
+  expectRectContinuity("image", finalOverlaySample.imageRect, firstDestinationSample.imageRect);
+  if (finalOverlaySample.headerRect || firstDestinationSample.headerRect) {
+    expectRectContinuity(
+      "header",
+      finalOverlaySample.headerRect,
+      firstDestinationSample.headerRect
+    );
+  }
+  if (finalOverlaySample.logoRect || firstDestinationSample.logoRect) {
+    expectRectContinuity(
+      "SN logo",
+      finalOverlaySample.logoRect,
+      firstDestinationSample.logoRect
+    );
+  }
+
   const sourceUrl = new URL(initialUrl);
   const finalUrl = new URL(page.url());
   for (const parameter of ["lang", "currency", "view", "table", "zone"]) {
     expect(finalUrl.searchParams.get(parameter)).toBe(sourceUrl.searchParams.get(parameter));
   }
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const activeElement = document.activeElement;
+        return activeElement?.matches(
+          '[data-sauge-route-renderer-hidden="false"] h1, [data-sauge-route-renderer-hidden="false"] h2'
+        ) ?? false;
+      })
+    )
+    .toBe(true);
 }
 
 async function scrollActiveSheet(page: Page, amount: number) {
@@ -342,7 +472,8 @@ async function scrollActiveSheet(page: Page, amount: number) {
 
 for (const viewport of [
   { width: 390, height: 844 },
-  { width: 430, height: 932 }
+  { width: 430, height: 932 },
+  { width: 1280, height: 900 }
 ]) {
   test(`featured dish uses a real menu-to-detail page flip at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
@@ -433,3 +564,101 @@ test("direct detail loading never creates a route transition overlay", async ({ 
   await openRoute(page, DETAIL_ROUTE, /CANARD/);
   await expect(page.locator('[data-sauge-route-transition="true"]')).toHaveCount(0);
 });
+
+test("a broken main image cannot lock the atomic route handoff", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/images/demo/dishes/**", (route) => route.abort());
+  await openRoute(page, MENU_ROUTE, /CANARD|SAUGE NOIRE/i);
+
+  const link = await activeMenuLink(page, "[data-sauge-featured-dish]");
+  const initialUrl = page.url();
+  await installRouteTransitionProbe(page);
+  await dispatchPrimaryClick(link);
+  await assertRealRouteFlip(
+    page,
+    initialUrl,
+    page.locator('[data-sauge-route-transition] article[data-transition-preview="true"]')
+  );
+  await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/canard-a-l-erable-noir/);
+});
+
+for (const intent of [
+  {
+    name: "menu dish",
+    route: MENU_ROUTE,
+    heading: /CANARD|SAUGE NOIRE/i,
+    link: async (page: Page) => activeMenuLink(page, "[data-sauge-featured-dish]")
+  },
+  {
+    name: "detail back",
+    route: DETAIL_ROUTE,
+    heading: /CANARD/i,
+    link: async (page: Page) =>
+      page
+        .locator(
+          '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone]) article:not([data-transition-preview="true"]) a'
+        )
+        .first()
+  }
+]) {
+  test(`mobile pointer intent prefetches the ${intent.name} route before click`, async ({
+    page
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openRoute(page, intent.route, intent.heading);
+    const link = await intent.link(page);
+    const href = await link.getAttribute("href");
+    if (!href) throw new Error("Expected a destination href");
+    await page.evaluate(() => {
+      const scope = window as unknown as {
+        next?: {
+          router?: {
+            prefetch: (
+              href: string,
+              options?: { kind?: string; onInvalidate?: () => void }
+            ) => void;
+          };
+        };
+        __saugePrefetchCalls?: Array<{ href: string; kind: string | null }>;
+      };
+      const router = scope.next?.router;
+      if (!router) throw new Error("Expected the installed Next App Router instance");
+      const originalPrefetch = router.prefetch.bind(router);
+      scope.__saugePrefetchCalls = [];
+      router.prefetch = (targetHref, options) => {
+        scope.__saugePrefetchCalls?.push({
+          href: targetHref,
+          kind: options?.kind ?? null
+        });
+        originalPrefetch(targetHref, options);
+      };
+    });
+
+    await link.dispatchEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "touch"
+    });
+    await link.dispatchEvent("pointerenter", { bubbles: true });
+    await link.focus();
+    await link.dispatchEvent("touchstart", { bubbles: true, cancelable: true });
+
+    const prefetchCalls = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            __saugePrefetchCalls?: Array<{ href: string; kind: string | null }>;
+          }
+        ).__saugePrefetchCalls ?? []
+    );
+    expect(prefetchCalls).toEqual([
+      {
+        href: new URL(href, page.url()).pathname + new URL(href, page.url()).search,
+        kind: "full"
+      }
+    ]);
+    expect(page.url()).toBe(new URL(intent.route, page.url()).href);
+    await expect(page.locator('[data-sauge-route-transition="true"]')).toHaveCount(0);
+  });
+}

@@ -85,6 +85,7 @@ export default defineConfig({
           command: "node e2e/support/sauge-noire-fixture-server.mjs",
           url: `${saugeNoireFixtureOrigin}/fixture/health`,
           reuseExistingServer,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
           timeout: 30_000
         }, {
           command: fixtureStartCommand,
@@ -96,6 +97,7 @@ export default defineConfig({
           },
           url: baseURL,
           reuseExistingServer,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
           timeout: 120_000
         }] : adminVisualFixture ? [{
           command: "node e2e/support/admin-visual-fixture-server.mjs",

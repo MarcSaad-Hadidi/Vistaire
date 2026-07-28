@@ -32,6 +32,7 @@ import {
   SaugeNoireDishSheetCopyForLocale
 } from "./SaugeNoireDishDetail";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
+import type { SingleFlipJumpRequest } from "./SaugeNoirePageFlipExperiment";
 import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireBookMenu.module.css";
 
@@ -277,9 +278,13 @@ export function SaugeNoireBookMenu({
   const router = useRouter();
   const routeTransition = useSaugeNoireTransition();
   const beginRouteTransition = routeTransition?.beginTransition;
+  const prefetchRouteDestination = routeTransition?.prefetchDestination;
   const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
   const routeTransitionActive = routeTransition?.transitionActive ?? false;
   const pathname = usePathname();
+  const notifyCurrentRouteReady = useCallback(() => {
+    notifyRouteDestinationReady?.(pathname);
+  }, [notifyRouteDestinationReady, pathname]);
   const searchParams = useSearchParams();
   const pages = useMemo(() => buildPages(menu), [menu]);
   const activeLocale = locale;
@@ -294,6 +299,9 @@ export function SaugeNoireBookMenu({
   const [pageIndex, setPageIndex] = useState(() =>
     pageFromQuery(query?.view, pages.length)
   );
+  const [contentsJumpRequest, setContentsJumpRequest] =
+    useState<SingleFlipJumpRequest | null>(null);
+  const contentsJumpTokenRef = useRef(0);
   const pageIndexRef = useRef(pageIndex);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const paperRef = useRef<HTMLDivElement>(null);
@@ -309,12 +317,47 @@ export function SaugeNoireBookMenu({
     setPageIndex((current) => (current === nextIndex ? current : nextIndex));
   }, [pages.length]);
 
+  const openContentsWithSingleFlip = useCallback(() => {
+    if (!pageFlipEnabled || pageIndexRef.current <= 1) {
+      goToPage(1);
+      return;
+    }
+    setContentsJumpRequest((current) => {
+      if (current) return current;
+      contentsJumpTokenRef.current += 1;
+      return {
+        token: contentsJumpTokenRef.current,
+        direction: "previous",
+        finalPage: 1
+      };
+    });
+  }, [goToPage, pageFlipEnabled]);
+
+  const handleContentsJumpSettled = useCallback((token: number) => {
+    setContentsJumpRequest((current) =>
+      current?.token === token ? null : current
+    );
+  }, []);
+
   useEffect(() => {
     pageIndexRef.current = pageIndex;
   }, [pageIndex]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (contentsJumpRequest) {
+        if (
+          event.key === "ArrowRight" ||
+          event.key === "ArrowLeft" ||
+          event.key === "PageDown" ||
+          event.key === "PageUp" ||
+          event.key === "Home" ||
+          event.key === "End"
+        ) {
+          event.preventDefault();
+        }
+        return;
+      }
       // Let the active dish sheet consume vertical paging keys for its own
       // scroll container instead of turning the underlying menu page.
       if (
@@ -343,7 +386,7 @@ export function SaugeNoireBookMenu({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [goToPage, pages.length, pageIndex]);
+  }, [contentsJumpRequest, goToPage, pages.length, pageIndex]);
 
   useEffect(() => {
     const nextView = `sauge-${pageIndex}`;
@@ -428,7 +471,8 @@ export function SaugeNoireBookMenu({
         event: React.MouseEvent<HTMLAnchorElement>,
         href: string,
         targetDish: PublicMenuDish
-      ) => void
+      ) => void,
+      onDishLinkIntent?: (href: string) => void
     ) => {
     const categoryPage = page.kind === "section" ? index - 2 : null;
 
@@ -443,7 +487,7 @@ export function SaugeNoireBookMenu({
           onCurrencyChange={selectCurrency}
           showContentsLink={index > 1}
           contentsLabel={copy.contents}
-          onContents={() => goToPage(1)}
+          onContents={openContentsWithSingleFlip}
           isPreview={isPreview}
         />
         {page.kind === "cover" ? <CoverPage copy={copy} onOpen={() => goToPage(1)} /> : null}
@@ -476,6 +520,7 @@ export function SaugeNoireBookMenu({
             onNext={() => goToPage(index + 1)}
             isPreview={isPreview}
             onDishLinkClick={isPreview ? undefined : onDishLinkClick}
+            onDishLinkIntent={isPreview ? undefined : onDishLinkIntent}
           />
         ) : null}
         {page.kind === "ending" ? <EndingPage copy={copy} onRestart={() => goToPage(0)} /> : null}
@@ -493,8 +538,9 @@ export function SaugeNoireBookMenu({
     menu,
     pages,
     query,
+    openContentsWithSingleFlip,
     selectCurrency,
-      selectLocale
+    selectLocale
     ]
   );
 
@@ -532,6 +578,7 @@ export function SaugeNoireBookMenu({
       href,
       direction: "next",
       sourceScrollTop: currentPageElement?.scrollTop ?? 0,
+      rail: <SaugeNoireBookRail />,
       source: renderPage(currentPage, currentPageIndex, true),
       destination: (
         <SaugeNoireDishSheet
@@ -549,6 +596,10 @@ export function SaugeNoireBookMenu({
     if (started) event.preventDefault();
   }, [activeLocale, activeLocaleValue, beginRouteTransition, exchangeRates, menu, pages, query, renderPage]);
 
+  const handleDishLinkIntent = useCallback((href: string) => {
+    prefetchRouteDestination?.(href);
+  }, [prefetchRouteDestination]);
+
   const flipPages = useMemo(
     () =>
       pages.map((page, index) => {
@@ -560,11 +611,11 @@ export function SaugeNoireBookMenu({
             index={index}
             density={density}
           >
-            {renderPage(page, index, false, handleDishLinkClick)}
+            {renderPage(page, index, false, handleDishLinkClick, handleDishLinkIntent)}
           </SaugeNoireFlipPage>
         );
       }),
-    [handleDishLinkClick, pages, renderPage]
+    [handleDishLinkClick, handleDishLinkIntent, pages, renderPage]
   );
 
   return (
@@ -579,7 +630,7 @@ export function SaugeNoireBookMenu({
       }
       style={{ "--sn-page-index": pageIndex } as CSSProperties}
     >
-      <BookRail />
+      <SaugeNoireBookRail />
       <div
         className={styles.paper}
         ref={paperRef}
@@ -592,8 +643,11 @@ export function SaugeNoireBookMenu({
               pages={flipPages}
               pageIndex={pageIndex}
               onPageFlip={goToPage}
-              onReady={notifyRouteDestinationReady}
-              onError={notifyRouteDestinationReady}
+              onReady={notifyCurrentRouteReady}
+              onError={notifyCurrentRouteReady}
+              readyScrollTop={0}
+              singleFlipJumpRequest={contentsJumpRequest}
+              onSingleFlipJumpSettled={handleContentsJumpSettled}
               fallback={renderPage(currentPage, pageIndex, false, handleDishLinkClick)}
             />
           ) : (
@@ -623,9 +677,9 @@ export function SaugeNoireBookMenu({
   );
 }
 
-function BookRail() {
+export function SaugeNoireBookRail() {
   return (
-    <aside className={styles.rail} aria-hidden="true">
+    <aside className={styles.rail} aria-hidden="true" data-sauge-book-rail="true">
       <div className={styles.railPattern} />
       {RAIL_PINS.map((position) => (
         <div className={`${styles.railFastener} ${styles[`railFastener${position}`]}`} key={position}>
@@ -867,7 +921,8 @@ export function SectionPage({
   onPrevious,
   onNext,
   isPreview = false,
-  onDishLinkClick
+  onDishLinkClick,
+  onDishLinkIntent
 }: {
   menu: PublicMenu;
   category: PublicMenuCategory;
@@ -887,6 +942,7 @@ export function SectionPage({
     href: string,
     targetDish: PublicMenuDish
   ) => void;
+  onDishLinkIntent?: (href: string) => void;
 }) {
   const featured = dishes.find(isSignature) ?? dishes[0];
   const remainingDishes = featured
@@ -929,6 +985,7 @@ export function SectionPage({
           variant={isFirstPage ? "compact" : isSplit ? "split" : "editorial"}
           isPreview={isPreview}
           onDishLinkClick={onDishLinkClick}
+          onDishLinkIntent={onDishLinkIntent}
         />
       ) : null}
       <div className={styles.dishList}>
@@ -944,6 +1001,7 @@ export function SectionPage({
             compact={isFirstPage}
             isPreview={isPreview}
             onDishLinkClick={onDishLinkClick}
+            onDishLinkIntent={onDishLinkIntent}
           />
         ))}
       </div>
@@ -968,7 +1026,8 @@ function DishFeatureCard({
   exchangeRates,
   variant,
   isPreview = false,
-  onDishLinkClick
+  onDishLinkClick,
+  onDishLinkIntent
 }: {
   menu: PublicMenu;
   dish: PublicMenuDish;
@@ -984,6 +1043,7 @@ function DishFeatureCard({
     href: string,
     targetDish: PublicMenuDish
   ) => void;
+  onDishLinkIntent?: (href: string) => void;
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
@@ -999,6 +1059,10 @@ function DishFeatureCard({
           ? (event) => event.preventDefault()
           : (event) => onDishLinkClick?.(event, href, dish)
       }
+      onPointerEnter={() => onDishLinkIntent?.(href)}
+      onFocus={() => onDishLinkIntent?.(href)}
+      onPointerDown={() => onDishLinkIntent?.(href)}
+      onTouchStart={() => onDishLinkIntent?.(href)}
     >
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
@@ -1024,7 +1088,8 @@ function DishRow({
   exchangeRates,
   compact,
   isPreview = false,
-  onDishLinkClick
+  onDishLinkClick,
+  onDishLinkIntent
 }: {
   menu: PublicMenu;
   dish: PublicMenuDish;
@@ -1039,6 +1104,7 @@ function DishRow({
     href: string,
     targetDish: PublicMenuDish
   ) => void;
+  onDishLinkIntent?: (href: string) => void;
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
@@ -1054,6 +1120,10 @@ function DishRow({
           ? (event) => event.preventDefault()
           : (event) => onDishLinkClick?.(event, href, dish)
       }
+      onPointerEnter={() => onDishLinkIntent?.(href)}
+      onFocus={() => onDishLinkIntent?.(href)}
+      onPointerDown={() => onDishLinkIntent?.(href)}
+      onTouchStart={() => onDishLinkIntent?.(href)}
     >
       <PhotoSlot dish={dish} />
       <span className={styles.dishRowName}>
