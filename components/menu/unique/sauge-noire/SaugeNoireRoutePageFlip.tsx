@@ -84,27 +84,11 @@ export function SaugeNoireRoutePageFlip({
     }
   }, [sourceScrollTop, startPage]);
 
-  const resetTargetScroll = useCallback(() => {
-    const targetSheet = overlayRef.current?.querySelector<HTMLElement>(
-      `[data-sauge-flip-page-index="${targetPage}"]:not([data-sauge-flip-clone])`
-    );
-    if (targetSheet && targetSheet.scrollTop !== 0) {
-      targetSheet.scrollTop = 0;
-    }
-  }, [targetPage]);
-
   useLayoutEffect(() => {
     restoreSourceScroll();
     const frame = window.requestAnimationFrame(restoreSourceScroll);
     return () => window.cancelAnimationFrame(frame);
   }, [restoreSourceScroll]);
-
-  useLayoutEffect(() => {
-    if (phase !== "awaiting-destination") return;
-    resetTargetScroll();
-    const frame = window.requestAnimationFrame(resetTargetScroll);
-    return () => window.cancelAnimationFrame(frame);
-  }, [phase, resetTargetScroll]);
 
   useEffect(() => {
     // This is only a failure escape hatch. A successful transition navigates

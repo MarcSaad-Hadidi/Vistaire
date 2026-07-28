@@ -8,6 +8,7 @@
   --sn-muted: #6c6f61;
   --sn-line: rgba(38, 55, 43, 0.2);
   --sn-rail: clamp(42px, 11vw, 116px);
+  --sn-header-height: 132px;
   --sn-paper-texture:
     radial-gradient(circle at 24% 30%, rgba(38, 55, 43, 0.032) 0 0.7px, transparent 0.8px),
     radial-gradient(circle at 72% 66%, rgba(180, 122, 60, 0.03) 0 0.65px, transparent 0.75px);
