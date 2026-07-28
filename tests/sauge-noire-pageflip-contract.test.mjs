@@ -161,7 +161,8 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /const onReadyRef = useRef\(onReady\)/);
   assert.match(experiment, /readyScrollTop\?: number/);
   assert.match(experiment, /data-sauge-flip-page-index=.*:not\(\[data-sauge-flip-clone\]\)/s);
-  assert.match(experiment, /await mainImage\.decode\(\)/);
+  assert.match(experiment, /mainImage\.decode\(\)\.then\(finish, finish\)/);
+  assert.match(experiment, /window\.setTimeout\(finish, 2_000\)/);
   assert.match(experiment, /mainImage\.getBoundingClientRect\(\)\.width <= 0/);
   assert.match(experiment, /onReadyRef\.current\?\.\(\)/);
   assert.doesNotMatch(experiment, /onInit=\{\(\) => \{[\s\S]*onReady\?\.\(\)/);

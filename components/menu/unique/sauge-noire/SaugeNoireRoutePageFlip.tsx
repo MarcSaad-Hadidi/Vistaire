@@ -106,6 +106,10 @@ export function SaugeNoireRoutePageFlip({
     (index: number) => {
       if (index !== targetPage || completedRef.current) return;
       phaseRef.current.reachedTarget = true;
+      overlayRef.current?.setAttribute(
+        "data-sauge-route-transition-target-reached",
+        "true"
+      );
       setHasReachedTarget(true);
       if (phaseRef.current.started && phaseRef.current.returnedToRead) {
         completedRef.current = true;
@@ -118,12 +122,17 @@ export function SaugeNoireRoutePageFlip({
   const handleChangeState = useCallback((state: string) => {
     if (state === "flipping") {
       phaseRef.current.started = true;
+      overlayRef.current?.setAttribute(
+        "data-sauge-route-transition-flip-started",
+        "true"
+      );
       setHasStartedFlipping(true);
       return;
     }
     if (state !== "read" || !phaseRef.current.started) return;
 
     phaseRef.current.returnedToRead = true;
+    overlayRef.current?.setAttribute("data-sauge-route-transition-settled", "true");
     setHasReturnedToRead(true);
     if (phaseRef.current.reachedTarget && !completedRef.current) {
       completedRef.current = true;

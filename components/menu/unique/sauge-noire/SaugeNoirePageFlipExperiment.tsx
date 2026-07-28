@@ -257,11 +257,17 @@ export function SaugeNoirePageFlipExperiment({
 
       const mainImage = activePage.querySelector<HTMLImageElement>("img");
       if (mainImage && (!mainImage.complete || mainImage.naturalWidth === 0)) {
-        try {
-          await mainImage.decode();
-        } catch {
-          // A broken image is visually settled once its reserved slot exists.
-        }
+        await new Promise<void>((resolve) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timeout);
+            resolve();
+          };
+          const timeout = window.setTimeout(finish, 2_000);
+          void mainImage.decode().then(finish, finish);
+        });
       }
 
       if (cancelled) return;
