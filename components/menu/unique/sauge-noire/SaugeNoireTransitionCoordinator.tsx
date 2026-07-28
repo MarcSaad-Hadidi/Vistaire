@@ -215,6 +215,64 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     tryCompleteHandoff();
   }, [tryCompleteHandoff]);
 
+  useEffect(() => {
+    const current = transitionRef.current;
+    if (!current || current.phase !== "awaiting-destination") return;
+    const expectedPathname = new URL(current.href, window.location.origin).pathname;
+    if (pathname !== expectedPathname) return;
+
+    const destinationRendererIsReady = () => {
+      const renderer = document.querySelector<HTMLElement>(
+        '[data-sauge-route-renderer-hidden="true"]'
+      );
+      const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
+      if (!viewport) return false;
+      if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
+      if (
+        viewport.getAttribute("data-page-flip-state") !== "ready" ||
+        viewport.getAttribute("data-page-flip-engine-state") !== "read"
+      ) {
+        return false;
+      }
+
+      const currentPage = viewport.getAttribute("data-page-flip-current-page");
+      const actualPage = viewport.getAttribute("data-page-flip-actual-page");
+      if (currentPage === null || currentPage !== actualPage) return false;
+      const activePage = viewport.querySelector<HTMLElement>(
+        `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
+      );
+      if (!activePage || Math.abs(activePage.scrollTop) > 1) return false;
+      const image = activePage.querySelector<HTMLImageElement>("img");
+      if (image) {
+        const rect = image.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return false;
+      }
+      return true;
+    };
+
+    const completeWhenReady = () => {
+      const latest = transitionRef.current;
+      if (!latest || latest.id !== current.id || !destinationRendererIsReady()) return;
+      destinationReadyTransitionIdRef.current = current.id;
+      tryCompleteHandoff();
+    };
+
+    completeWhenReady();
+    const observer = new MutationObserver(completeWhenReady);
+    observer.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: [
+        "data-page-flip-actual-page",
+        "data-page-flip-current-page",
+        "data-page-flip-engine-state",
+        "data-page-flip-state"
+      ]
+    });
+    return () => observer.disconnect();
+  }, [pathname, transition, tryCompleteHandoff]);
+
   const contextValue = useMemo<TransitionContextValue>(
     () => ({
       beginTransition,

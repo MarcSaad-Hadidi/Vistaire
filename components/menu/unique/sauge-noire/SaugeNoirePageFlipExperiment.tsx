@@ -398,6 +398,15 @@ export function SaugeNoirePageFlipExperiment({
         height: Math.max(1, Math.round(rect.height))
       };
       if (next.width === 1 || next.height === 1) return;
+      const pageFlip = bookRef.current?.pageFlip();
+      if (
+        pageFlip &&
+        readyBookKeyRef.current === bookKey &&
+        pageFlip.getState() === "flipping"
+      ) {
+        pendingStructuralDimensionsRef.current = next;
+        return;
+      }
       dimensionsRef.current = next;
       setDimensions((current) =>
         current?.width === next.width && current.height === next.height ? current : next
@@ -417,7 +426,7 @@ export function SaugeNoirePageFlipExperiment({
       window.removeEventListener("resize", updateDimensions);
       observer.disconnect();
     };
-  }, [updatePageFlipBounds]);
+  }, [bookKey, updatePageFlipBounds]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -689,6 +698,17 @@ export function SaugeNoirePageFlipExperiment({
       singleFlipJump.sawFlipping = true;
     }
     onChangeStateRef.current?.(state);
+    if (state === "read" && pendingStructuralDimensionsRef.current) {
+      const pendingDimensions = pendingStructuralDimensionsRef.current;
+      pendingStructuralDimensionsRef.current = null;
+      dimensionsRef.current = pendingDimensions;
+      setDimensions((current) =>
+        current?.width === pendingDimensions.width &&
+        current.height === pendingDimensions.height
+          ? current
+          : pendingDimensions
+      );
+    }
     if (
       state === "read" &&
       singleFlipJump?.phase === "single-flip" &&

@@ -112,6 +112,8 @@ test("route transitions live in the shared layout until the destination book is 
   );
   assert.match(coordinator, /router\.push\(current\.href\)/);
   assert.match(coordinator, /notifyDestinationReady/);
+  assert.match(coordinator, /destinationRendererIsReady/);
+  assert.match(coordinator, /data-page-flip-engine-state/);
   assert.match(coordinator, /requestAnimationFrame/);
   assert.match(coordinator, /inert/);
   assert.match(
