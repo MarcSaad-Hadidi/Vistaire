@@ -154,9 +154,11 @@ export function SaugeNoirePageFlipExperiment({
   const [readyBookKey, setReadyBookKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [engineState, setEngineState] = useState("idle");
+  const [actualPageIndex, setActualPageIndex] = useState(startPage);
   const lastResetKeyRef = useRef<string | number | undefined>(resetKey);
   const dimensionsRef = useRef<FlipDimensions | null>(null);
   const onChangeStateRef = useRef(onChangeState);
+  const onReadyRef = useRef(onReady);
   const appliedDimensionKeyRef = useRef<string | null>(null);
   const appliedDimensionsRef = useRef<FlipDimensions | null>(null);
   const pendingStructuralDimensionsRef = useRef<FlipDimensions | null>(null);
@@ -172,8 +174,14 @@ export function SaugeNoirePageFlipExperiment({
   useEffect(() => {
     dimensionsRef.current = dimensions;
     onChangeStateRef.current = onChangeState;
+    onReadyRef.current = onReady;
     failedRef.current = failed;
-  }, [dimensions, failed, onChangeState]);
+  }, [dimensions, failed, onChangeState, onReady]);
+
+  useEffect(() => {
+    if (!bookIsReady) return;
+    onReadyRef.current?.();
+  }, [bookIsReady]);
 
   const updatePageFlipBounds = useCallback(() => {
     const pageFlip = bookRef.current?.pageFlip();
@@ -410,6 +418,7 @@ export function SaugeNoirePageFlipExperiment({
     if (readyBookKeyRef.current !== bookKey) return;
     const nextIndex = parsePageIndex(event);
     if (nextIndex === null) return;
+    setActualPageIndex(nextIndex);
     const animationTarget = animationTargetPageRef.current;
     if (reportedFlipPageRef.current === nextIndex && animationTarget === null) return;
     reportedFlipPageRef.current = nextIndex;
@@ -424,6 +433,7 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const handleInit = () => {
+    setActualPageIndex(bookRef.current?.pageFlip()?.getCurrentPageIndex() ?? startPage);
     readyBookKeyRef.current = bookKey;
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
@@ -596,6 +606,7 @@ export function SaugeNoirePageFlipExperiment({
       data-page-flip-book-key={bookKey}
       data-page-flip-engine-state={engineState}
       data-page-flip-current-page={pageIndex}
+      data-page-flip-actual-page={actualPageIndex}
     >
       {dimensions !== null ? (
         <div
@@ -650,10 +661,7 @@ export function SaugeNoirePageFlipExperiment({
               renderOnlyPageLengthChange={renderOnlyPageLengthChange}
               onFlip={handleFlip}
               onChangeState={handleChangeState}
-              onInit={() => {
-                handleInit();
-                onReady?.();
-              }}
+              onInit={handleInit}
             >
               {pages}
             </HTMLFlipBook>

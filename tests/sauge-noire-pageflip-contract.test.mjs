@@ -23,6 +23,7 @@ const transitionCoordinatorPath = new URL(
   import.meta.url
 );
 const menuLayoutPath = new URL("../app/menu/[slug]/layout.tsx", import.meta.url);
+const playwrightConfigPath = new URL("../playwright.config.ts", import.meta.url);
 const publicMenuPath = new URL("../app/menu/[slug]/page.tsx", import.meta.url);
 const ownerPreviewPath = new URL(
   "../app/owner/restaurants/[restaurantId]/unique-ui/preview/page.tsx",
@@ -118,6 +119,30 @@ test("route transitions live in the shared layout until the destination book is 
     /const handleOverlayFallback[\s\S]*current\.phase === "awaiting-destination"[\s\S]*router\.push\(current\.href\)/
   );
   assert.match(coordinator, /onFallback=\{handleOverlayFallback\}/);
+  assert.match(
+    coordinator,
+    /targetActivated=\{transition\.phase !== "preparing"\}/
+  );
+  assert.match(routeTransition, /targetActivated:\s*boolean/);
+  assert.match(
+    routeTransition,
+    /pageIndex=\{targetActivated \? targetPage : startPage\}/
+  );
+  assert.match(routeTransition, /data-sauge-route-transition-phase=\{phase\}/);
+  assert.match(
+    routeTransition,
+    /data-sauge-route-transition-current-page=\{targetActivated \? targetPage : startPage\}/
+  );
+  assert.match(coordinator, /destinationReadyTransitionIdRef/);
+  assert.match(coordinator, /const tryCompleteHandoff/);
+  assert.match(
+    coordinator,
+    /destinationReadyTransitionIdRef\.current = current\.id;[\s\S]*tryCompleteHandoff\(\)/
+  );
+  assert.match(
+    coordinator,
+    /useEffect\(\(\) => \{[\s\S]*pathnameRef\.current = pathname;[\s\S]*tryCompleteHandoff\(\);[\s\S]*\}, \[pathname, tryCompleteHandoff\]\)/
+  );
   assert.doesNotMatch(book, /router\.push\(href\)/);
   assert.match(book, /onError=\{notifyRouteDestinationReady\}/);
   assert.match(detail, /onError=\{notifyRouteDestinationReady\}/);
@@ -133,8 +158,16 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /onError\?: \(\) => void/);
   assert.match(experiment, /renderOnlyPageLengthChange\?: boolean/);
   assert.match(experiment, /renderOnlyPageLengthChange=\{renderOnlyPageLengthChange\}/);
-  assert.match(experiment, /onReady\?\.\(\)/);
+  assert.match(experiment, /const onReadyRef = useRef\(onReady\)/);
+  assert.match(
+    experiment,
+    /useEffect\(\(\) => \{\s*if \(!bookIsReady\) return;\s*onReadyRef\.current\?\.\(\);\s*\}, \[bookIsReady\]\)/
+  );
+  assert.doesNotMatch(experiment, /onInit=\{\(\) => \{[\s\S]*onReady\?\.\(\)/);
   assert.match(experiment, /onError\?\.\(\)/);
+  assert.match(experiment, /const \[actualPageIndex, setActualPageIndex\] = useState\(startPage\)/);
+  assert.match(experiment, /setActualPageIndex\(nextIndex\)/);
+  assert.match(experiment, /data-page-flip-actual-page=\{actualPageIndex\}/);
 });
 
 test("mobile height-only changes never schedule a structural update after read", async () => {
@@ -197,6 +230,32 @@ test("the Sauge browser fixture provides local dish photos", async () => {
       typeof dish.image_url === "string" &&
       dish.image_url.startsWith("/images/demo/dishes/")
     )
+  );
+});
+
+test("a direct WebKit project selection remains available inside Playwright workers", async () => {
+  const config = await readFile(playwrightConfigPath, "utf8");
+
+  assert.match(config, /const cliRequestsWebkit = process\.argv\.some/);
+  assert.match(
+    config,
+    /if \(cliRequestsWebkit\) process\.env\.PLAYWRIGHT_INCLUDE_WEBKIT = "1"/
+  );
+  assert.match(
+    config,
+    /const includeWebkit = process\.env\.PLAYWRIGHT_INCLUDE_WEBKIT === "1"/
+  );
+  assert.match(
+    config,
+    /if \(cliIncludesSaugeNoireBrowserFlow\) process\.env\.VISTAIRE_SAUGE_NOIRE_FIXTURE = "1"/
+  );
+  assert.match(
+    config,
+    /const saugeNoireFixture = process\.env\.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1"/
+  );
+  assert.match(
+    config,
+    /webServer: saugeNoireFixture \? \[[\s\S]*command: fixtureStartCommand/
   );
 });
 

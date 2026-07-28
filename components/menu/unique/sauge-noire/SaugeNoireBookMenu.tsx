@@ -434,7 +434,7 @@ export function SaugeNoireBookMenu({
 
     return (
       <>
-        <BookHeader
+        <SaugeNoireBookHeader
           locales={availableLocales}
           currencies={availableCurrencies}
           activeLocale={activeLocaleValue}
@@ -638,7 +638,7 @@ function BookRail() {
   );
 }
 
-function BookHeader({
+export function SaugeNoireBookHeader({
   locales,
   currencies,
   activeLocale,

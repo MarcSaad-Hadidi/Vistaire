@@ -26,7 +26,7 @@ import { formatMenuPrice, type MenuExchangeRates } from "@/lib/currency/formatMe
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
-import { SectionPage } from "./SaugeNoireBookMenu";
+import { SaugeNoireBookHeader, SectionPage } from "./SaugeNoireBookMenu";
 import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
@@ -865,26 +865,40 @@ export function SaugeNoireDishDetail({
       sourceScrollTop: currentDetailScrollTop(),
       source: renderDishPaperRef.current?.(activeDish, true) ?? null,
       destination: (
-        <SectionPage
-          menu={menu}
-          category={categorySheet.category}
-          dishes={categorySheet.dishes}
-          pageNumber={categorySheet.pageNumber}
-          locale={locale}
-          localeTag={publicLocale}
-          currency={currency}
-          copy={{
-            menu: copy.menu,
-            swipePage: copy.next,
-            previous: copy.previous,
-            next: copy.next
-          }}
-          query={query}
-          exchangeRates={exchangeRates}
-          onPrevious={() => undefined}
-          onNext={() => undefined}
-          isPreview
-        />
+        <>
+          <SaugeNoireBookHeader
+            locales={menu.settings.supportedLocales}
+            currencies={menu.settings.supportedCurrencies}
+            activeLocale={publicLocale}
+            activeCurrency={currency}
+            onLocaleChange={() => undefined}
+            onCurrencyChange={() => undefined}
+            showContentsLink
+            contentsLabel={copy.menu}
+            onContents={() => undefined}
+            isPreview
+          />
+          <SectionPage
+            menu={menu}
+            category={categorySheet.category}
+            dishes={categorySheet.dishes}
+            pageNumber={categorySheet.pageNumber}
+            locale={locale}
+            localeTag={publicLocale}
+            currency={currency}
+            copy={{
+              menu: copy.menu,
+              swipePage: copy.next,
+              previous: copy.previous,
+              next: copy.next
+            }}
+            query={query}
+            exchangeRates={exchangeRates}
+            onPrevious={() => undefined}
+            onNext={() => undefined}
+            isPreview
+          />
+        </>
       )
     });
     if (started) event.preventDefault();

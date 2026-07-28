@@ -35,16 +35,14 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   const transitionRef = useRef<ActiveTransition | null>(null);
+  const destinationReadyTransitionIdRef = useRef<string | null>(null);
   const handoffFrameRef = useRef(0);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
-
-  useEffect(() => {
-    pathnameRef.current = pathname;
-  }, [pathname]);
 
   const beginTransition = useCallback((next: SaugeNoireRouteTransition) => {
     if (transitionRef.current) return false;
     const active = { ...next, phase: "preparing" as const };
+    destinationReadyTransitionIdRef.current = null;
     transitionRef.current = active;
     setTransition(active);
     return true;
@@ -76,19 +74,36 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     router.push(current.href);
   }, [router, updatePhase]);
 
-  const notifyDestinationReady = useCallback(() => {
+  const tryCompleteHandoff = useCallback(() => {
     const current = transitionRef.current;
     if (!current || current.phase !== "awaiting-destination") return;
+    if (destinationReadyTransitionIdRef.current !== current.id) return;
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathnameRef.current !== expectedPathname) return;
     window.cancelAnimationFrame(handoffFrameRef.current);
     handoffFrameRef.current = window.requestAnimationFrame(() => {
       const latest = transitionRef.current;
       if (!latest || latest.id !== current.id || latest.phase !== "awaiting-destination") return;
+      if (destinationReadyTransitionIdRef.current !== latest.id) return;
+      const latestExpectedPathname = new URL(latest.href, window.location.origin).pathname;
+      if (pathnameRef.current !== latestExpectedPathname) return;
+      destinationReadyTransitionIdRef.current = null;
       transitionRef.current = null;
       setTransition(null);
     });
   }, []);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+    tryCompleteHandoff();
+  }, [pathname, tryCompleteHandoff]);
+
+  const notifyDestinationReady = useCallback(() => {
+    const current = transitionRef.current;
+    if (!current || current.phase !== "awaiting-destination") return;
+    destinationReadyTransitionIdRef.current = current.id;
+    tryCompleteHandoff();
+  }, [tryCompleteHandoff]);
 
   const contextValue = useMemo<TransitionContextValue>(
     () => ({
@@ -126,7 +141,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
           source={transition.source}
           destination={transition.destination}
           sourceScrollTop={transition.sourceScrollTop}
-          active={transition.phase === "animating"}
+          phase={transition.phase}
+          targetActivated={transition.phase !== "preparing"}
           visible={transition.phase !== "preparing"}
           onReady={handleOverlayReady}
           onFlip={handleFlipSettled}

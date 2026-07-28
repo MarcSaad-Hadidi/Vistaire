@@ -6,9 +6,9 @@ const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
-const includeWebkit =
-  process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1" ||
-  process.argv.some((argument) => argument === "--project=webkit");
+const cliRequestsWebkit = process.argv.some((argument) => argument === "--project=webkit");
+if (cliRequestsWebkit) process.env.PLAYWRIGHT_INCLUDE_WEBKIT = "1";
+const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1";
 const adminE2eSensitive = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
 const sensitiveQrE2E = process.env.VISTAIRE_QR_E2E_SENSITIVE === "1";
 const sensitiveE2E = adminE2eSensitive || sensitiveQrE2E;
@@ -20,8 +20,8 @@ const cliIncludesSaugeNoireBrowserFlow = process.argv
   .some((argument) => /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(
     argument.replaceAll("\\", "/")
   ));
-const saugeNoireFixture =
-  process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1" || cliIncludesSaugeNoireBrowserFlow;
+if (cliIncludesSaugeNoireBrowserFlow) process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE = "1";
+const saugeNoireFixture = process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1";
 const saugeNoireFixtureOrigin = "http://127.0.0.1:55434";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
@@ -87,7 +87,7 @@ export default defineConfig({
           reuseExistingServer,
           timeout: 30_000
         }, {
-          command: startCommand,
+          command: fixtureStartCommand,
           env: {
             ...process.env,
             NEXT_PUBLIC_SUPABASE_URL: saugeNoireFixtureOrigin,
@@ -96,7 +96,6 @@ export default defineConfig({
           },
           url: baseURL,
           reuseExistingServer,
-          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
           timeout: 120_000
         }] : adminVisualFixture ? [{
           command: "node e2e/support/admin-visual-fixture-server.mjs",
