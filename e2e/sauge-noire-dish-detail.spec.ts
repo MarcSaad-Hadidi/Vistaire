@@ -4,6 +4,8 @@ const detailPath =
   "/menu/sauge-noire/dishes/truite-des-laurentides?lang=fr-CA&currency=CAD&view=sauge-3&table=main&zone=terrasse";
 const cocktailDetailPath =
   "/menu/sauge-noire/dishes/cendre-rose?lang=fr-CA&currency=CAD&view=sauge-7&table=main&zone=terrasse";
+const activeDetailPageSelector =
+  '[data-sauge-flip-page-index="1"]:not([data-sauge-flip-clone="true"]):not([aria-hidden="true"])';
 
 type DetailState = {
   route: string;
@@ -215,21 +217,30 @@ async function verticalGesture(
     // Mobile WebKit exposes tap but not a trusted drag API in Playwright.
     // PageDown/ArrowDown is the closest browser-level scroll input; no scrollTop
     // is mutated by the test. Real iPhone Safari touch remains device QA.
-    const activePage = page.locator('[class*="pageFlipPage"]:not([aria-hidden="true"])').filter({
+    const activePage = page.locator(activeDetailPageSelector).filter({
       has: page.locator('article:not([data-transition-preview="true"])')
     }).first();
+    await expect.poll(
+      () => activePage.evaluate((element) => element.scrollHeight - element.clientHeight),
+      { timeout: 5_000 }
+    ).toBeGreaterThan(0);
     await activePage.evaluate((element) => {
       (element as HTMLElement).tabIndex = 0;
       (element as HTMLElement).focus();
     });
+    const initialScrollTop = await activePage.evaluate((element) => element.scrollTop);
     const key = direction > 0
       ? amount >= 500 ? "PageDown" : "ArrowDown"
       : amount >= 500 ? "PageUp" : "ArrowUp";
     const presses = amount >= 500 ? 1 : Math.max(1, Math.ceil(amount / 40));
     for (let index = 0; index < presses; index += 1) {
-      await activePage.press(key);
+      await page.keyboard.press(key);
       if (index === Math.floor(presses / 2)) during = await detailState(page);
     }
+    await expect.poll(
+      () => activePage.evaluate((element) => element.scrollTop),
+      { timeout: 2_000 }
+    )[direction > 0 ? "toBeGreaterThan" : "toBeLessThan"](initialScrollTop);
   } else {
     await page.mouse.move(x, fromY);
     await page.mouse.wheel(0, direction * amount);
@@ -243,10 +254,11 @@ async function verticalGesture(
 async function activeDetailScroll(page: Page) {
   return page.evaluate(() => {
     const currentPage = Array.from(
-      document.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]')
+      document.querySelectorAll<HTMLElement>(
+        '[data-sauge-flip-page-index="1"]:not([data-sauge-flip-clone="true"]):not([aria-hidden="true"])'
+      )
     ).find(
       (element) =>
-        !element.closest('[aria-hidden="true"]') &&
         element.querySelector('article:not([data-transition-preview="true"])')
     );
     return {
