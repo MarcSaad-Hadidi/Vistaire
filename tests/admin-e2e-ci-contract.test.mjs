@@ -120,12 +120,22 @@ test("App CI runs Chromium and WebKit unique-menu coverage in parallel behind on
   assert.match(workflow, /^\s{2}checks:\s*$/m);
   assert.match(workflow, /^\s{2}unique_menu_e2e:\s*$/m);
   assert.match(workflow, /^\s{2}app-ci:\s*$/m);
-  assert.match(workflow, /name: Unique menu E2E \(\$\{\{ matrix\.project \}\}\)/);
-  assert.match(workflow, /- project: chromium\s+browser_channel: chrome/);
-  assert.match(workflow, /- project: webkit\s+browser_channel: ""/);
+  assert.match(workflow, /name: Unique menu E2E \(\$\{\{ matrix\.label \}\}\)/);
   assert.match(
     workflow,
-    /npm run test:unique-menu-design:e2e -- --project=\$\{\{ matrix\.project \}\}/
+    /- label: chromium\s+project: chromium\s+browser_channel: chrome\s+workers: 2\s+shard: 1\/1/
+  );
+  for (const shard of [1, 2, 3]) {
+    assert.match(
+      workflow,
+      new RegExp(
+        `- label: webkit-${shard}-of-3\\s+project: webkit\\s+browser_channel: ""\\s+workers: 1\\s+shard: ${shard}/3`
+      )
+    );
+  }
+  assert.match(
+    workflow,
+    /npm run test:unique-menu-design:e2e -- --project=\$\{\{ matrix\.project \}\} --workers=\$\{\{ matrix\.workers \}\} --shard=\$\{\{ matrix\.shard \}\}/
   );
   assert.match(workflow, /name: App CI\s+if: \$\{\{ always\(\) \}\}\s+needs:\s+- checks\s+- unique_menu_e2e/);
 });

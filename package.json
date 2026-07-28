@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit --incremental false",
     "test:unique-menu-design": "node --test tests/unique-menu-design-contract.test.mjs tests/unique-menu-design-isolation.test.mjs tests/owner-menu-settings-mutation.test.mjs tests/sauge-noire-pageflip-contract.test.mjs tests/sauge-noire-renderer-contract.test.mjs",
     "test:unique-menu-design:postgres": "node scripts/run-unique-menu-design-postgres-tests.mjs",
-    "test:unique-menu-design:e2e": "node scripts/run-playwright-e2e.mjs e2e/unique-menu-design.spec.ts e2e/sauge-noire-header.spec.ts e2e/sauge-noire-dish-detail.spec.ts e2e/sauge-noire-route-transitions.spec.ts e2e/sauge-noire-pageflip-lifecycle.spec.ts e2e/sauge-noire-static-pages-responsive.spec.ts --workers=2",
+    "test:unique-menu-design:e2e": "node scripts/run-playwright-e2e.mjs e2e/unique-menu-design.spec.ts e2e/sauge-noire-header.spec.ts e2e/sauge-noire-dish-detail.spec.ts e2e/sauge-noire-route-transitions.spec.ts e2e/sauge-noire-pageflip-lifecycle.spec.ts e2e/sauge-noire-static-pages-responsive.spec.ts",
     "test:maison-elyse-media": "node --test tests/owner-maison-elyse-media-backfill.test.mjs tests/owner-dish-photo-upload.test.mjs tests/owner-dish-model-assets.test.mjs tests/owner-prepared-glb-workflow.test.mjs tests/owner-public-media-contract.test.mjs tests/public-menu-core.test.mjs tests/owner-usdz-source-not-stored.test.mjs tests/owner-usdz-runtime-optimizer.test.mjs tests/maison-elyse-ci-contract.test.mjs",
     "assets:check": "node scripts/check-large-files.mjs",
     "lfs:check": "node scripts/check-lfs-policy.mjs",
