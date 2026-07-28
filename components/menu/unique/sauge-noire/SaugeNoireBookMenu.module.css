@@ -400,6 +400,10 @@
   overscroll-behavior: contain;
 }
 
+.pageFlipFallback[data-page-flip-fallback="loading"] {
+  pointer-events: none;
+}
+
 .pageFlipFallback:has(.coverPage) {
   overflow: clip;
 }

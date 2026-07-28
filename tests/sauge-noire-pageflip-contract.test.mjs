@@ -18,6 +18,11 @@ const routeTransitionPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireRoutePageFlip.tsx",
   import.meta.url
 );
+const transitionCoordinatorPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireTransitionCoordinator.tsx",
+  import.meta.url
+);
+const menuLayoutPath = new URL("../app/menu/[slug]/layout.tsx", import.meta.url);
 const publicMenuPath = new URL("../app/menu/[slug]/page.tsx", import.meta.url);
 const ownerPreviewPath = new URL(
   "../app/owner/restaurants/[restaurantId]/unique-ui/preview/page.tsx",
@@ -71,13 +76,15 @@ test("completed page flips clear stale animation targets", async () => {
   );
 });
 
-test("route transitions keep two soft sheets mounted and navigate after flip settles", async () => {
+test("route transitions live in the shared layout until the destination book is ready", async () => {
   const book = await readFile(bookPath, "utf8");
   const detail = await readFile(
     new URL("../components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx", import.meta.url),
     "utf8"
   );
   const routeTransition = await readFile(routeTransitionPath, "utf8");
+  const coordinator = await readFile(transitionCoordinatorPath, "utf8").catch(() => "");
+  const layout = await readFile(menuLayoutPath, "utf8");
 
   assert.match(routeTransition, /pages = useMemo/);
   assert.match(routeTransition, /density="soft"/g);
@@ -94,11 +101,28 @@ test("route transitions keep two soft sheets mounted and navigate after flip set
   assert.match(routeTransition, /reachedTarget/);
   assert.match(routeTransition, /returnedToRead/);
   assert.match(routeTransition, /onFallback/);
-  assert.match(book, /<SaugeNoireRoutePageFlip/);
-  assert.match(detail, /<SaugeNoireRoutePageFlip/);
-  assert.match(book, /routerRef\.current\.push\(transition\.href\)/);
-  assert.match(detail, /routerRef\.current\.push\(transition\.href\)/);
+  assert.doesNotMatch(book, /<SaugeNoireRoutePageFlip/);
+  assert.doesNotMatch(detail, /<SaugeNoireRoutePageFlip/);
+  assert.match(layout, /<SaugeNoireTransitionCoordinator>/);
+  assert.match(coordinator, /<SaugeNoireRoutePageFlip/);
+  assert.match(
+    coordinator,
+    /phase:\s*"preparing"\s*\|\s*"animating"\s*\|\s*"awaiting-destination"/
+  );
+  assert.match(coordinator, /router\.push\(current\.href\)/);
+  assert.match(coordinator, /notifyDestinationReady/);
+  assert.match(coordinator, /requestAnimationFrame/);
+  assert.match(coordinator, /inert/);
+  assert.match(
+    coordinator,
+    /const handleOverlayFallback[\s\S]*current\.phase === "awaiting-destination"[\s\S]*router\.push\(current\.href\)/
+  );
+  assert.match(coordinator, /onFallback=\{handleOverlayFallback\}/);
   assert.doesNotMatch(book, /router\.push\(href\)/);
+  assert.match(book, /onError=\{notifyRouteDestinationReady\}/);
+  assert.match(detail, /onError=\{notifyRouteDestinationReady\}/);
+  assert.doesNotMatch(book, /renderPage,\s*routeTransition\]/);
+  assert.doesNotMatch(detail, /query,\s*routeTransition\]/);
   assert.match(routeTransition, /if \(!completedRef\.current\) \{\s*completedRef\.current = true;\s*onFallback\(\);/);
 });
 
@@ -113,12 +137,38 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /onError\?\.\(\)/);
 });
 
+test("mobile height-only changes never schedule a structural update after read", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(experiment, /const MOBILE_HEIGHT_NOISE_PX = 64/);
+  assert.match(experiment, /widthChanged/);
+  assert.match(experiment, /orientationChanged/);
+  assert.doesNotMatch(experiment, /pendingDimensionUpdateRef/);
+  assert.match(experiment, /pendingStructuralDimensionsRef/);
+  assert.match(
+    experiment,
+    /appliedDimensionKeyRef\.current === dimensionKey[\s\S]*pendingStructuralDimensionsRef\.current = null/
+  );
+});
+
+test("PageFlip uses one transient loading surface before the real engine is ready", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.doesNotMatch(experiment, /pageFlipInitializing/);
+  assert.equal((experiment.match(/data-page-flip-fallback=/g) ?? []).length, 2);
+});
+
 test("a permanent PageFlip error keeps the visible fallback interactive", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
-  assert.match(experiment, /const isTransientFallback = dimensions === null && !failed/);
-  assert.match(experiment, /aria-hidden=\{isTransientFallback \? "true" : undefined\}/);
-  assert.match(experiment, /if \(isTransientFallback\) \{[\s\S]*element\.setAttribute\("inert", ""\);[\s\S]*\} else \{[\s\S]*element\.removeAttribute\("inert"\);/);
+  assert.match(experiment, /data-page-flip-fallback="error"/);
+  assert.match(experiment, /data-page-flip-fallback="loading"[\s\S]*aria-hidden="true"/);
+  assert.doesNotMatch(
+    experiment,
+    /data-page-flip-fallback="error"[^>]*(?:aria-hidden|inert)/
+  );
+  assert.match(experiment, /aria-hidden=\{!bookIsReady && !failed \? true : undefined\}/);
+  assert.match(experiment, /if \(bookIsReady \|\| failed\) element\.removeAttribute\("inert"\)/);
 });
 
 test("multi-page jumps resume when PageFlip returns to read", async () => {

@@ -6,7 +6,9 @@ const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
-const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1";
+const includeWebkit =
+  process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1" ||
+  process.argv.some((argument) => argument === "--project=webkit");
 const adminE2eSensitive = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
 const sensitiveQrE2E = process.env.VISTAIRE_QR_E2E_SENSITIVE === "1";
 const sensitiveE2E = adminE2eSensitive || sensitiveQrE2E;
@@ -15,13 +17,9 @@ const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
 const qrFunctionalFixture = process.env.VISTAIRE_QR_FUNCTIONAL === "1";
 const cliIncludesSaugeNoireBrowserFlow = process.argv
   .slice(2)
-  .some((argument) =>
-    [
-      "e2e/sauge-noire-dish-detail.spec.ts",
-      "e2e/sauge-noire-route-transitions.spec.ts",
-      "e2e/sauge-noire-pageflip-lifecycle.spec.ts"
-    ].some((testPath) => argument.replaceAll("\\", "/").endsWith(testPath))
-  );
+  .some((argument) => /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(
+    argument.replaceAll("\\", "/")
+  ));
 const saugeNoireFixture =
   process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1" || cliIncludesSaugeNoireBrowserFlow;
 const saugeNoireFixtureOrigin = "http://127.0.0.1:55434";

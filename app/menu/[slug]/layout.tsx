@@ -1,5 +1,6 @@
 import type { Viewport } from "next";
 import { SaugeNoireRouteThemeBridge } from "@/components/menu/SaugeNoireRouteThemeBridge";
+import { SaugeNoireTransitionCoordinator } from "@/components/menu/unique/sauge-noire/SaugeNoireTransitionCoordinator";
 import {
   SAUGE_NOIRE_PAPER,
   SAUGE_NOIRE_ROUTE_THEME
@@ -47,7 +48,9 @@ export default async function MenuLayout({
       style={{ display: "contents" }}
     >
       <SaugeNoireRouteThemeBridge />
-      {children}
+      <SaugeNoireTransitionCoordinator>
+        {children}
+      </SaugeNoireTransitionCoordinator>
     </div>
   );
 }

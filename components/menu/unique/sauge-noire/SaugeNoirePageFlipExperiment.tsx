@@ -81,6 +81,8 @@ type SaugeNoirePageFlipExperimentProps = {
   protectInteractiveTargets?: boolean;
   showCover?: boolean;
   renderOnlyPageLengthChange?: boolean;
+  recenterPage?: number;
+  recenterToken?: string | number;
   fallback: ReactNode;
 };
 
@@ -90,6 +92,7 @@ type FlipDimensions = {
 };
 
 const SWIPE_DISTANCE = 32;
+const MOBILE_HEIGHT_NOISE_PX = 64;
 
 function parsePageIndex(event: PageFlipEvent | number): number | null {
   const value = typeof event === "number" ? event : event.data;
@@ -132,6 +135,8 @@ export function SaugeNoirePageFlipExperiment({
   protectInteractiveTargets = false,
   showCover = true,
   renderOnlyPageLengthChange = false,
+  recenterPage,
+  recenterToken,
   fallback
 }: SaugeNoirePageFlipExperimentProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -152,8 +157,10 @@ export function SaugeNoirePageFlipExperiment({
   const lastResetKeyRef = useRef<string | number | undefined>(resetKey);
   const dimensionsRef = useRef<FlipDimensions | null>(null);
   const onChangeStateRef = useRef(onChangeState);
-  const pendingDimensionUpdateRef = useRef(false);
   const appliedDimensionKeyRef = useRef<string | null>(null);
+  const appliedDimensionsRef = useRef<FlipDimensions | null>(null);
+  const pendingStructuralDimensionsRef = useRef<FlipDimensions | null>(null);
+  const lastRecenterTokenRef = useRef<string | number | undefined>(recenterToken);
   const failedRef = useRef(false);
   const cleanupGenerationRef = useRef(0);
   const reportedFlipPageRef = useRef<number | null>(null);
@@ -180,18 +187,47 @@ export function SaugeNoirePageFlipExperiment({
       return;
     }
 
+    const appliedDimensions = appliedDimensionsRef.current;
+    const widthChanged =
+      appliedDimensions !== null && appliedDimensions.width !== currentDimensions.width;
+    const orientationChanged =
+      appliedDimensions !== null &&
+      (appliedDimensions.width > appliedDimensions.height) !==
+        (currentDimensions.width > currentDimensions.height);
+    const heightDelta =
+      appliedDimensions === null
+        ? 0
+        : Math.abs(appliedDimensions.height - currentDimensions.height);
     const dimensionKey = `${currentDimensions.width}-${currentDimensions.height}`;
-    if (pageFlip.getState() === "flipping") {
-      pendingDimensionUpdateRef.current = true;
+    if (appliedDimensions === null) {
+      appliedDimensionsRef.current = currentDimensions;
+      appliedDimensionKeyRef.current = dimensionKey;
       return;
     }
-    if (appliedDimensionKeyRef.current === dimensionKey && !pendingDimensionUpdateRef.current) {
+    if (!widthChanged && !orientationChanged) {
+      pendingStructuralDimensionsRef.current = null;
+    }
+    if (!widthChanged && !orientationChanged && heightDelta <= MOBILE_HEIGHT_NOISE_PX) {
+      return;
+    }
+    if (!widthChanged && !orientationChanged) {
+      appliedDimensionsRef.current = currentDimensions;
+      appliedDimensionKeyRef.current = dimensionKey;
+      return;
+    }
+    if (pageFlip.getState() === "flipping") {
+      pendingStructuralDimensionsRef.current = currentDimensions;
+      return;
+    }
+    if (appliedDimensionKeyRef.current === dimensionKey) {
+      pendingStructuralDimensionsRef.current = null;
       return;
     }
 
     pageFlip.update();
     appliedDimensionKeyRef.current = dimensionKey;
-    pendingDimensionUpdateRef.current = false;
+    appliedDimensionsRef.current = currentDimensions;
+    pendingStructuralDimensionsRef.current = null;
   }, [bookKey]);
 
   useEffect(() => {
@@ -296,6 +332,29 @@ export function SaugeNoirePageFlipExperiment({
   }, [bookIsReady, dimensions, failed, resetKey, startPage]);
 
   useEffect(() => {
+    if (
+      recenterPage === undefined ||
+      recenterToken === undefined ||
+      lastRecenterTokenRef.current === recenterToken ||
+      dimensions === null ||
+      !bookIsReady ||
+      failed
+    ) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const pageFlip = bookRef.current?.pageFlip();
+      if (!pageFlip || pageFlip.getState() === "flipping") return;
+      lastRecenterTokenRef.current = recenterToken;
+      requestedPageIndexRef.current = null;
+      animationTargetPageRef.current = null;
+      reportedFlipPageRef.current = recenterPage;
+      pageFlip.turnToPage(recenterPage);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [bookIsReady, dimensions, failed, recenterPage, recenterToken]);
+
+  useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const pageFlip = bookRef.current?.pageFlip();
       if (!pageFlip || dimensions === null || !bookIsReady || failed) return;
@@ -372,6 +431,7 @@ export function SaugeNoirePageFlipExperiment({
     setEngineState("read");
     setReadyBookKey(bookKey);
     appliedDimensionKeyRef.current = null;
+    appliedDimensionsRef.current = dimensionsRef.current;
     captureOriginalPages();
   };
 
@@ -380,8 +440,10 @@ export function SaugeNoirePageFlipExperiment({
     setEngineState(state);
     if (state === "flipping") reportedFlipPageRef.current = null;
     onChangeStateRef.current?.(state);
-    if (state === "read" && pendingDimensionUpdateRef.current) {
-      window.requestAnimationFrame(updatePageFlipBounds);
+    if (state === "read" && pendingStructuralDimensionsRef.current) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(updatePageFlipBounds);
+      });
     }
   }, [updatePageFlipBounds]);
 
@@ -512,8 +574,7 @@ export function SaugeNoirePageFlipExperiment({
     }
   };
 
-  const shouldShowFallback = dimensions === null || failed;
-  const isTransientFallback = dimensions === null && !failed;
+  const shouldShowTransientFallback = !failed && !bookIsReady;
 
   return (
     <div
@@ -534,25 +595,18 @@ export function SaugeNoirePageFlipExperiment({
       }
       data-page-flip-book-key={bookKey}
       data-page-flip-engine-state={engineState}
+      data-page-flip-current-page={pageIndex}
     >
-      {shouldShowFallback ? (
+      {dimensions !== null ? (
         <div
-          className={styles.pageFlipFallback}
-          data-page-flip-fallback="instant"
-          aria-hidden={isTransientFallback ? "true" : undefined}
+          style={{ display: "contents" }}
+          aria-hidden={!bookIsReady && !failed ? true : undefined}
           ref={(element) => {
             if (!element) return;
-            if (isTransientFallback) {
-              element.setAttribute("inert", "");
-            } else {
-              element.removeAttribute("inert");
-            }
+            if (bookIsReady || failed) element.removeAttribute("inert");
+            else element.setAttribute("inert", "");
           }}
         >
-          {fallback}
-        </div>
-      ) : (
-        <>
           <PageFlipErrorBoundary
             fallback={fallback}
             onError={() => {
@@ -604,17 +658,18 @@ export function SaugeNoirePageFlipExperiment({
               {pages}
             </HTMLFlipBook>
           </PageFlipErrorBoundary>
-          {!bookIsReady ? (
-            <div
-              className={styles.pageFlipInitializing}
-              aria-hidden="true"
-              ref={(element) => element?.setAttribute("inert", "")}
-            >
-              {fallback}
-            </div>
-          ) : null}
-        </>
-      )}
+        </div>
+      ) : null}
+      {shouldShowTransientFallback ? (
+        <div
+          className={styles.pageFlipFallback}
+          data-page-flip-fallback="loading"
+          aria-hidden="true"
+          ref={(element) => element?.setAttribute("inert", "")}
+        >
+          {fallback}
+        </div>
+      ) : null}
     </div>
   );
 }

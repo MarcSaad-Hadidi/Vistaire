@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
@@ -30,7 +29,7 @@ import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
 import { SectionPage } from "./SaugeNoireBookMenu";
 import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
-import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
+import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireDishDetail.module.css";
 
 type DishDetailProps = UniqueMenuRendererModuleProps & { dish: PublicMenuDish };
@@ -42,14 +41,6 @@ type DishPageTurnState = {
   targetDish: PublicMenuDish;
   href: string;
   targetPageIndex: 0 | 2;
-};
-
-type DetailRouteTransition = {
-  id: string;
-  href: string;
-  source: React.ReactNode;
-  destination: React.ReactNode;
-  sourceScrollTop: number;
 };
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
@@ -502,10 +493,13 @@ export function SaugeNoireDishDetail({
   const currency = query?.currency ?? menu.settings.defaultCurrency;
   const publicLocale = query?.lang ?? locale;
   const selectedCopyLocale = copyLocale(publicLocale);
-  const router = useRouter();
+  const routeTransition = useSaugeNoireTransition();
+  const beginRouteTransition = routeTransition?.beginTransition;
+  const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
   const detailSurfaceRef = useRef<HTMLDivElement>(null);
-  const routerRef = useRef(router);
-  const currentDishRef = useRef(dish);
+  const [activeDish, setActiveDish] = useState(dish);
+  const currentDishRef = useRef(activeDish);
+  const [recenterToken, setRecenterToken] = useState(0);
   const navigationInFlightRef = useRef(false);
   const pageTurnRef = useRef<DishPageTurnState | null>(null);
   const dishFlipPhaseRef = useRef({
@@ -514,20 +508,42 @@ export function SaugeNoireDishDetail({
     returnedToRead: false,
     navigationStarted: false
   });
-  const routeTransitionInFlightRef = useRef(false);
   const routeTransitionIdRef = useRef(0);
-  const routeTransitionRef = useRef<DetailRouteTransition | null>(null);
   const renderDishPaperRef = useRef<
     ((targetDish: PublicMenuDish, isPreview: boolean) => ReactNode) | null
   >(null);
   const preservedScrollTopRef = useRef<number | null>(null);
   const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
-  const [routeTransition, setRouteTransition] = useState<DetailRouteTransition | null>(null);
+  useEffect(() => {
+    document.title = `${activeDish.name} | ${menu.name} | Vistaire`;
+  }, [activeDish.name, menu.name]);
 
   useEffect(() => {
-    routerRef.current = router;
+    const routeSlug = decodeURIComponent(window.location.pathname.split("/").filter(Boolean).at(-1) ?? "");
+    if (routeSlug !== dish.slug || currentDishRef.current.id === dish.id) return;
     currentDishRef.current = dish;
-  }, [dish, router]);
+    setActiveDish(dish);
+    setPageTurn(null);
+    setRecenterToken((current) => current + 1);
+  }, [dish]);
+
+  useEffect(() => {
+    const syncFromHistory = () => {
+      const routeSlug = decodeURIComponent(
+        window.location.pathname.split("/").filter(Boolean).at(-1) ?? ""
+      );
+      const historyDish = menu.dishes.find((item) => item.slug === routeSlug);
+      if (!historyDish || historyDish.id === currentDishRef.current.id) return;
+      navigationInFlightRef.current = false;
+      pageTurnRef.current = null;
+      currentDishRef.current = historyDish;
+      setPageTurn(null);
+      setActiveDish(historyDish);
+      setRecenterToken((current) => current + 1);
+    };
+    window.addEventListener("popstate", syncFromHistory);
+    return () => window.removeEventListener("popstate", syncFromHistory);
+  }, [menu.dishes]);
 
   useEffect(() => {
     navigationInFlightRef.current = false;
@@ -549,9 +565,8 @@ export function SaugeNoireDishDetail({
 
     return () => {
       navigationInFlightRef.current = false;
-      routeTransitionInFlightRef.current = false;
     };
-  }, [dish.id]);
+  }, [activeDish.id]);
 
   useEffect(() => {
     const preservedScrollTop = preservedScrollTopRef.current;
@@ -652,11 +667,12 @@ export function SaugeNoireDishDetail({
       menu: "القائمة"
     }
   }[selectedCopyLocale]), [selectedCopyLocale]);
-  const currentDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
+  const currentDishIndex = menu.dishes.findIndex((item) => item.id === activeDish.id);
   const dishCount = Math.max(menu.dishes.length, 1);
-  const previousDish = menu.dishes[(currentDishIndex - 1 + dishCount) % dishCount] ?? dish;
+  const previousDish =
+    menu.dishes[(currentDishIndex - 1 + dishCount) % dishCount] ?? activeDish;
   const nextDish =
-    menu.dishes[(currentDishIndex + 1) % dishCount] ?? dish;
+    menu.dishes[(currentDishIndex + 1) % dishCount] ?? activeDish;
   const buildDishHref = useCallback((targetDish: PublicMenuDish) => {
     const dishQuery = {
       ...query,
@@ -739,7 +755,7 @@ export function SaugeNoireDishDetail({
     );
   }, [currentDishIndex, detailSurfaceRef, dishCount, menu, requestDishNavigation]);
 
-  const completeDishNavigation = useCallback(() => {
+  const commitDish = useCallback(() => {
     const turn = pageTurnRef.current;
     const phase = dishFlipPhaseRef.current;
     if (
@@ -755,7 +771,12 @@ export function SaugeNoireDishDetail({
     }
     phase.navigationStarted = true;
     navigationInFlightRef.current = false;
-    routerRef.current.push(turn.href);
+    pageTurnRef.current = null;
+    currentDishRef.current = turn.targetDish;
+    setActiveDish(turn.targetDish);
+    setPageTurn(null);
+    setRecenterToken((current) => current + 1);
+    window.history.pushState(window.history.state, "", turn.href);
   }, []);
 
   const handleDetailPageFlip = useCallback((index: number) => {
@@ -769,8 +790,8 @@ export function SaugeNoireDishDetail({
       return;
     }
     dishFlipPhaseRef.current.reachedTarget = true;
-    completeDishNavigation();
-  }, [completeDishNavigation]);
+    commitDish();
+  }, [commitDish]);
 
   const handleDetailPageFlipState = useCallback((state: string) => {
     if (state === "flipping") {
@@ -779,11 +800,11 @@ export function SaugeNoireDishDetail({
     }
     if (state !== "read" || !dishFlipPhaseRef.current.started) return;
     dishFlipPhaseRef.current.returnedToRead = true;
-    completeDishNavigation();
-  }, [completeDishNavigation]);
+    commitDish();
+  }, [commitDish]);
 
   const handleDetailSwipe = useCallback((direction: "next" | "previous") => {
-    const currentIndex = currentDishRef.current.id === dish.id
+    const currentIndex = currentDishRef.current.id === activeDish.id
       ? currentDishIndex
       : menu.dishes.findIndex((item) => item.id === currentDishRef.current.id);
     const safeIndex = currentIndex < 0 ? 0 : currentIndex;
@@ -797,7 +818,7 @@ export function SaugeNoireDishDetail({
         ? menu.dishes[(safeIndex + 1) % count] ?? currentDishRef.current
         : menu.dishes[(safeIndex - 1 + count) % count] ?? currentDishRef.current
     );
-  }, [buildDishHref, currentDishIndex, dish.id, menu.dishes, requestDishNavigation]);
+  }, [activeDish.id, buildDishHref, currentDishIndex, menu.dishes, requestDishNavigation]);
 
   const currentDetailScrollTop = useCallback((): number => {
     const currentPage = Array.from(
@@ -827,27 +848,22 @@ export function SaugeNoireDishDetail({
       return;
     }
 
-    if (routeTransitionInFlightRef.current) {
-      event.preventDefault();
-      return;
-    }
-
     const pageFlipState = detailSurfaceRef.current
       ?.querySelector<HTMLElement>("[data-page-flip-state]")
       ?.getAttribute("data-page-flip-state");
     if (pageFlipState !== "ready") return;
 
-    const categorySheet = categorySheetForDish(menu, dish);
+    const categorySheet = categorySheetForDish(menu, activeDish);
     if (!categorySheet.category) return;
 
-    event.preventDefault();
-    routeTransitionInFlightRef.current = true;
+    if (!beginRouteTransition) return;
     routeTransitionIdRef.current += 1;
-    const nextTransition: DetailRouteTransition = {
-      id: `detail-to-menu-${routeTransitionIdRef.current}-${dish.id}`,
+    const started = beginRouteTransition({
+      id: `detail-to-menu-${routeTransitionIdRef.current}-${activeDish.id}`,
       href,
+      direction: "previous",
       sourceScrollTop: currentDetailScrollTop(),
-      source: renderDishPaperRef.current?.(dish, true) ?? null,
+      source: renderDishPaperRef.current?.(activeDish, true) ?? null,
       destination: (
         <SectionPage
           menu={menu}
@@ -870,26 +886,9 @@ export function SaugeNoireDishDetail({
           isPreview
         />
       )
-    };
-    routeTransitionRef.current = nextTransition;
-    setRouteTransition(nextTransition);
-  }, [copy.menu, copy.next, copy.previous, currentDetailScrollTop, currency, dish, exchangeRates, locale, menu, publicLocale, query]);
-
-  const handleRouteFlip = useCallback(() => {
-    const transition = routeTransitionRef.current;
-    if (!transition || !routeTransitionInFlightRef.current) return;
-    routeTransitionInFlightRef.current = false;
-    routeTransitionRef.current = null;
-    routerRef.current.push(transition.href);
-  }, []);
-
-  const handleRouteFallback = useCallback(() => {
-    const transition = routeTransitionRef.current;
-    if (!transition || !routeTransitionInFlightRef.current) return;
-    routeTransitionInFlightRef.current = false;
-    routeTransitionRef.current = null;
-    routerRef.current.push(transition.href);
-  }, []);
+    });
+    if (started) event.preventDefault();
+  }, [activeDish, beginRouteTransition, copy.menu, copy.next, copy.previous, currentDetailScrollTop, currency, exchangeRates, locale, menu, publicLocale, query]);
 
   const renderDishPaper = useCallback((targetDish: PublicMenuDish, isPreview: boolean) => {
     return (
@@ -912,7 +911,7 @@ export function SaugeNoireDishDetail({
     renderDishPaperRef.current = renderDishPaper;
   }, [renderDishPaper]);
 
-  const activePageTurn = pageTurn?.dishId === dish.id ? pageTurn : null;
+  const activePageTurn = pageTurn?.dishId === activeDish.id ? pageTurn : null;
   const previousPageDish =
     activePageTurn?.direction === "previous" ? activePageTurn.targetDish : previousDish;
   const nextPageDish =
@@ -923,13 +922,13 @@ export function SaugeNoireDishDetail({
         {renderDishPaper(previousPageDish, true)}
       </SaugeNoireFlipPage>,
       <SaugeNoireFlipPage density="soft" index={1} key="current-page">
-        {renderDishPaper(dish, false)}
+        {renderDishPaper(activeDish, false)}
       </SaugeNoireFlipPage>,
       <SaugeNoireFlipPage density="soft" index={2} key="next-page">
         {renderDishPaper(nextPageDish, true)}
       </SaugeNoireFlipPage>
     ],
-    [dish, nextPageDish, previousPageDish, renderDishPaper]
+    [activeDish, nextPageDish, previousPageDish, renderDishPaper]
   );
 
   return (
@@ -946,25 +945,18 @@ export function SaugeNoireDishDetail({
           startPage={1}
           onPageFlip={handleDetailPageFlip}
           onChangeState={handleDetailPageFlipState}
+          onReady={notifyRouteDestinationReady}
+          onError={notifyRouteDestinationReady}
           onSwipe={handleDetailSwipe}
           interceptSwipe
-          resetKey={dish.id}
+          resetKey={`sauge-detail-book-${menu.slug}`}
+          recenterPage={1}
+          recenterToken={recenterToken}
           protectInteractiveTargets
           showCover={false}
-          renderOnlyPageLengthChange={!activePageTurn}
-          fallback={renderDishPaper(dish, false)}
+          renderOnlyPageLengthChange={false}
+          fallback={renderDishPaper(activeDish, false)}
         />
-        {routeTransition ? (
-          <SaugeNoireRoutePageFlip
-            id={routeTransition.id}
-            direction="previous"
-            source={routeTransition.source}
-            destination={routeTransition.destination}
-            sourceScrollTop={routeTransition.sourceScrollTop}
-            onFlip={handleRouteFlip}
-            onFallback={handleRouteFallback}
-          />
-        ) : null}
       </div>
     </main>
   );

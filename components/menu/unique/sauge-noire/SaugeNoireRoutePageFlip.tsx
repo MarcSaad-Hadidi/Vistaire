@@ -12,6 +12,9 @@ type SaugeNoireRoutePageFlipProps = {
   source: ReactNode;
   destination: ReactNode;
   sourceScrollTop: number;
+  active: boolean;
+  visible: boolean;
+  onReady: () => void;
   onFlip: () => void;
   onFallback: () => void;
 };
@@ -27,6 +30,9 @@ export function SaugeNoireRoutePageFlip({
   source,
   destination,
   sourceScrollTop,
+  active,
+  visible,
+  onReady,
   onFlip,
   onFallback
 }: SaugeNoireRoutePageFlipProps) {
@@ -136,13 +142,15 @@ export function SaugeNoireRoutePageFlip({
       data-sauge-route-transition-flip-started={hasStartedFlipping ? "true" : "false"}
       data-sauge-route-transition-target-reached={hasReachedTarget ? "true" : "false"}
       data-sauge-route-transition-settled={hasReturnedToRead ? "true" : "false"}
+      data-sauge-route-transition-visible={visible ? "true" : "false"}
       aria-hidden="true"
     >
       <SaugeNoirePageFlipExperiment
         pages={pages}
-        pageIndex={targetPage}
+        pageIndex={active ? targetPage : startPage}
         startPage={startPage}
         onPageFlip={handleFlip}
+        onReady={onReady}
         onChangeState={handleChangeState}
         onError={handleError}
         resetKey={id}

@@ -32,7 +32,7 @@ import {
   SaugeNoireDishSheetCopyForLocale
 } from "./SaugeNoireDishDetail";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
-import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
+import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireBookMenu.module.css";
 
 type BookProps = UniqueMenuRendererModuleProps;
@@ -42,14 +42,6 @@ type BookPage =
   | { kind: "contents" }
   | { kind: "section"; category: PublicMenuCategory; dishes: PublicMenuDish[] }
   | { kind: "ending" };
-
-type BookRouteTransition = {
-  id: string;
-  href: string;
-  source: React.ReactNode;
-  destination: React.ReactNode;
-  sourceScrollTop: number;
-};
 
 type SaugeCopyLocale = "fr" | "en" | "es" | "it" | "ar";
 
@@ -283,7 +275,10 @@ export function SaugeNoireBookMenu({
   mode
 }: BookProps) {
   const router = useRouter();
-  const routerRef = useRef(router);
+  const routeTransition = useSaugeNoireTransition();
+  const beginRouteTransition = routeTransition?.beginTransition;
+  const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
+  const routeTransitionActive = routeTransition?.transitionActive ?? false;
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const pages = useMemo(() => buildPages(menu), [menu]);
@@ -299,11 +294,9 @@ export function SaugeNoireBookMenu({
   const [pageIndex, setPageIndex] = useState(() =>
     pageFromQuery(query?.view, pages.length)
   );
+  const pageIndexRef = useRef(pageIndex);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const paperRef = useRef<HTMLDivElement>(null);
-  const [routeTransition, setRouteTransition] = useState<BookRouteTransition | null>(null);
-  const routeTransitionRef = useRef<BookRouteTransition | null>(null);
-  const routeTransitionInFlightRef = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const currency = initialCurrency;
   const searchParamsString = searchParams.toString();
@@ -311,19 +304,14 @@ export function SaugeNoireBookMenu({
     mode === "public" ||
     (mode === "builder-preview" && searchParams.get("pageFlipLab") === "1");
 
-  useEffect(() => {
-    routerRef.current = router;
-  }, [router]);
-
-  useEffect(() => {
-    routeTransitionRef.current = routeTransition;
-    routeTransitionInFlightRef.current = routeTransition !== null;
-  }, [routeTransition]);
-
   const goToPage = useCallback((index: number) => {
     const nextIndex = Math.max(0, Math.min(index, pages.length - 1));
     setPageIndex((current) => (current === nextIndex ? current : nextIndex));
   }, [pages.length]);
+
+  useEffect(() => {
+    pageIndexRef.current = pageIndex;
+  }, [pageIndex]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -366,7 +354,7 @@ export function SaugeNoireBookMenu({
     const nextUrl = `${pathname}?${params.toString()}`;
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (currentUrl !== nextUrl) {
-      window.history.replaceState(null, "", nextUrl);
+      window.history.replaceState(window.history.state, "", nextUrl);
     }
   }, [pageIndex, pathname, searchParamsString]);
 
@@ -397,11 +385,11 @@ export function SaugeNoireBookMenu({
 
   const updatePreference = useCallback((next: { locale?: string; currency?: string }) => {
     const params = new URLSearchParams(searchParamsString);
-    params.set("view", `sauge-${pageIndex}`);
+    params.set("view", `sauge-${pageIndexRef.current}`);
     if (next.locale) params.set("lang", next.locale);
     if (next.currency) params.set("currency", next.currency);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [pageIndex, pathname, router, searchParamsString]);
+  }, [pathname, router, searchParamsString]);
 
   const selectLocale = useCallback((nextLocale: string) => {
     updatePreference({ locale: nextLocale });
@@ -526,15 +514,6 @@ export function SaugeNoireBookMenu({
       return;
     }
 
-    if (
-      event.currentTarget.closest(
-        '[data-sauge-route-transition-in-flight="true"]'
-      )
-    ) {
-      event.preventDefault();
-      return;
-    }
-
     const pageFlipState = event.currentTarget
       .closest<HTMLElement>("[data-page-flip-state]")
       ?.getAttribute("data-page-flip-state");
@@ -547,10 +526,11 @@ export function SaugeNoireBookMenu({
     const currentPage = pages[currentPageIndex];
     if (!currentPage || currentPage.kind !== "section") return;
 
-    event.preventDefault();
-    const nextTransition: BookRouteTransition = {
+    if (!beginRouteTransition) return;
+    const started = beginRouteTransition({
       id: `menu-to-detail-${currentPageIndex}-${targetDish.id}`,
       href,
+      direction: "next",
       sourceScrollTop: currentPageElement?.scrollTop ?? 0,
       source: renderPage(currentPage, currentPageIndex, true),
       destination: (
@@ -565,25 +545,9 @@ export function SaugeNoireBookMenu({
           isPreview
         />
       )
-    };
-    setRouteTransition(nextTransition);
-  }, [activeLocale, activeLocaleValue, exchangeRates, menu, pages, query, renderPage]);
-
-  const handleRouteFlip = useCallback(() => {
-    const transition = routeTransitionRef.current;
-    if (!transition || !routeTransitionInFlightRef.current) return;
-    routeTransitionInFlightRef.current = false;
-    routeTransitionRef.current = null;
-    routerRef.current.push(transition.href);
-  }, []);
-
-  const handleRouteFallback = useCallback(() => {
-    const transition = routeTransitionRef.current;
-    if (!transition || !routeTransitionInFlightRef.current) return;
-    routeTransitionInFlightRef.current = false;
-    routeTransitionRef.current = null;
-    routerRef.current.push(transition.href);
-  }, []);
+    });
+    if (started) event.preventDefault();
+  }, [activeLocale, activeLocaleValue, beginRouteTransition, exchangeRates, menu, pages, query, renderPage]);
 
   const flipPages = useMemo(
     () =>
@@ -611,7 +575,7 @@ export function SaugeNoireBookMenu({
       data-page-kind={currentPage.kind}
       data-page-flip-mode={pageFlipEnabled ? "animated" : "instant"}
       data-sauge-route-transition-in-flight={
-        routeTransition ? "true" : undefined
+        routeTransitionActive ? "true" : undefined
       }
       style={{ "--sn-page-index": pageIndex } as CSSProperties}
     >
@@ -628,22 +592,13 @@ export function SaugeNoireBookMenu({
               pages={flipPages}
               pageIndex={pageIndex}
               onPageFlip={goToPage}
+              onReady={notifyRouteDestinationReady}
+              onError={notifyRouteDestinationReady}
               fallback={renderPage(currentPage, pageIndex, false, handleDishLinkClick)}
             />
           ) : (
             renderPage(currentPage, pageIndex, false, handleDishLinkClick)
           )}
-          {routeTransition ? (
-            <SaugeNoireRoutePageFlip
-              id={routeTransition.id}
-              direction="next"
-              source={routeTransition.source}
-              destination={routeTransition.destination}
-              sourceScrollTop={routeTransition.sourceScrollTop}
-              onFlip={handleRouteFlip}
-              onFallback={handleRouteFallback}
-            />
-          ) : null}
         </div>
         {showBackToTop ? (
           <button

@@ -146,3 +146,74 @@ test("End resumes a multi-page jump after each intermediate sheet settles", asyn
   await expect(page).toHaveURL(/view=sauge-9/, { timeout: 12_000 });
   await expect(page.getByTestId("sauge-noire-book")).toHaveAttribute("data-page-index", "9");
 });
+
+test("adjacent dish turns keep one stable engine and recenter without loading", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(
+    "/menu/sauge-noire/dishes/canard-a-l-erable-noir?lang=fr-CA&currency=CAD&view=sauge-4",
+    { waitUntil: "domcontentloaded" }
+  );
+  const viewport = page.locator('[data-page-flip-state="ready"]').first();
+  await expect(viewport).toBeVisible({ timeout: 15_000 });
+  await expect(viewport).toHaveAttribute("data-page-flip-current-page", "1");
+  const initialKey = await viewport.getAttribute("data-page-flip-book-key");
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-page-flip-state="ready"] .stf__parent');
+    if (!root) throw new Error("Expected the initial detail PageFlip root");
+    (window as typeof window & { __saugeInitialDetailRoot?: Element }).__saugeInitialDetailRoot = root;
+    (window as typeof window & { __saugeSawDetailLoading?: boolean }).__saugeSawDetailLoading = false;
+    (window as typeof window & { __saugeVisibleDetailTitles?: string[] }).__saugeVisibleDetailTitles = [];
+    const observer = new MutationObserver(() => {
+      const loading = document.querySelector('[data-page-flip-fallback="loading"]');
+      if (loading) {
+        (window as typeof window & { __saugeSawDetailLoading?: boolean }).__saugeSawDetailLoading = true;
+      }
+      const visibleTitle = Array.from(document.querySelectorAll<HTMLElement>("article h1")).find(
+        (title) => {
+          const rect = title.getBoundingClientRect();
+          const style = getComputedStyle(title);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden";
+        }
+      )?.textContent?.trim();
+      const titles = (window as typeof window & { __saugeVisibleDetailTitles?: string[] })
+        .__saugeVisibleDetailTitles;
+      if (visibleTitle && titles && titles.at(-1) !== visibleTitle) titles.push(visibleTitle);
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    (window as typeof window & { __saugeDetailObserver?: MutationObserver }).__saugeDetailObserver = observer;
+  });
+
+  await page.getByRole("link", { name: /prochain plat/i }).click();
+  await expect(page).not.toHaveURL(/canard-a-l-erable-noir/, { timeout: 8_000 });
+  await expect(viewport).toHaveAttribute("data-page-flip-state", "ready");
+  await expect(viewport).toHaveAttribute("data-page-flip-current-page", "1");
+  await expect(viewport).toHaveAttribute("data-page-flip-book-key", initialKey!);
+
+  const lifecycle = await page.evaluate(() => {
+    const scope = window as typeof window & {
+      __saugeInitialDetailRoot?: Element;
+      __saugeSawDetailLoading?: boolean;
+      __saugeVisibleDetailTitles?: string[];
+      __saugeDetailObserver?: MutationObserver;
+    };
+    scope.__saugeDetailObserver?.disconnect();
+    return {
+      sameRoot:
+        scope.__saugeInitialDetailRoot ===
+        document.querySelector('[data-page-flip-state="ready"] .stf__parent'),
+      sawLoading: scope.__saugeSawDetailLoading,
+      parentCount: document.querySelectorAll(".stf__parent").length,
+      visibleTitles: scope.__saugeVisibleDetailTitles ?? []
+    };
+  });
+  expect(lifecycle.sameRoot).toBe(true);
+  expect(lifecycle.sawLoading).toBe(false);
+  expect(lifecycle.parentCount).toBe(1);
+  const targetTitleIndex = lifecycle.visibleTitles.indexOf("FLÉTAN RÔTI AU NORI");
+  expect(targetTitleIndex).toBeGreaterThanOrEqual(0);
+  expect(lifecycle.visibleTitles.slice(targetTitleIndex + 1)).not.toContain(
+    "CANARD À L’ÉRABLE NOIR"
+  );
+  await expect(page.locator("article h1:visible")).toHaveCount(1);
+  await expect(page.locator("article h1:visible")).toHaveText("FLÉTAN RÔTI AU NORI");
+});

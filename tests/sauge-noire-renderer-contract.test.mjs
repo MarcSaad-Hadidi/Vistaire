@@ -83,7 +83,7 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
 test("locale and currency remain part of menu and dish navigation state", async () => {
   const book = await readFile(bookPath, "utf8");
   const detail = await readFile(detailPath, "utf8");
-  assert.match(book, /params\.set\("view", `sauge-\$\{pageIndex\}`\)/);
+  assert.match(book, /params\.set\("view", `sauge-\$\{pageIndexRef\.current\}`\)/);
   assert.match(book, /params\.set\("currency", next\.currency\)/);
   assert.match(book, /params\.set\("lang", next\.locale\)/);
   assert.match(detail, /currency,/);
@@ -194,7 +194,9 @@ test("dish-to-dish navigation uses one stable three-sheet PageFlip and waits for
   assert.match(detail, /pageIndex=\{activePageTurn\?\.targetPageIndex \?\? 1\}/);
   assert.match(detail, /startPage=\{1\}/);
   assert.match(detail, /interceptSwipe/);
-  assert.match(detail, /resetKey=\{dish\.id\}/);
+  assert.match(detail, /resetKey=\{`sauge-detail-book-\$\{menu\.slug\}`\}/);
+  assert.match(detail, /renderOnlyPageLengthChange=\{false\}/);
+  assert.doesNotMatch(detail, /resetKey=\{dish\.id\}/);
   assert.doesNotMatch(detail, /<SaugeNoirePageFlipExperiment\s+key=/);
   assert.match(experiment, /startPage\?: number/);
   assert.match(experiment, /showCover\?: boolean/);
@@ -203,7 +205,9 @@ test("dish-to-dish navigation uses one stable three-sheet PageFlip and waits for
   assert.match(experiment, /interceptSwipe\?: boolean/);
   assert.match(experiment, /resetKey\?: string \| number/);
   assert.match(experiment, /turnToPage: \(page: number\) => void/);
-  assert.match(experiment, /pageFlip\.turnToPage\(startPage\)/);
+  assert.match(detail, /recenterPage=\{1\}/);
+  assert.match(detail, /commitDish/);
+  assert.match(detail, /window\.history\.pushState\(window\.history\.state, "", turn\.href\)/);
   assert.match(flipPage, /density: SaugeNoireFlipPageDensity/);
   assert.doesNotMatch(detail, /SAUGE_PAGE_FLIP_DURATION_MS/);
   assert.doesNotMatch(detail, /setTimeout\([\s\S]*router\.push/);
