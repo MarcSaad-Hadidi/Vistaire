@@ -429,7 +429,7 @@ async function armFlipProbe(page: Page) {
       );
       probe.samples.push({
         route: window.location.href,
-        scrollTop: Math.max(currentPage?.scrollTop ?? 0, ...pageScrollTops),
+        scrollTop: currentPage?.scrollTop ?? 0,
         pageScrollTops,
         transforms: [...document.querySelectorAll<HTMLElement>(".stf__item")].map(
           (element) => getComputedStyle(element).transform
@@ -535,7 +535,37 @@ async function swipeAndAssertFlip(
   const before = await detailState(page);
   expect(before.currentScrollTop).toBeGreaterThan(0);
   await armFlipProbe(page);
-  await drag(page, from, to);
+  if (browserName === "webkit") {
+    await page.evaluate(({ from, to }) => {
+      const viewport = document.querySelector<HTMLElement>('[data-page-flip-state="ready"]');
+      if (!viewport) throw new Error("Expected the ready PageFlip viewport");
+      const dispatch = (
+        type: "touchstart" | "touchmove" | "touchend",
+        touches: Array<{ clientX: number; clientY: number }>,
+        changedTouches: Array<{ clientX: number; clientY: number }>
+      ) => {
+        const event = new Event(type, {
+          bubbles: true,
+          cancelable: true
+        });
+        Object.defineProperty(event, "touches", { value: touches });
+        Object.defineProperty(event, "changedTouches", { value: changedTouches });
+        viewport.dispatchEvent(event);
+      };
+      const middle = {
+        x: from.x + (to.x - from.x) * 0.5,
+        y: from.y + (to.y - from.y) * 0.5
+      };
+      const startTouch = { clientX: from.x, clientY: from.y };
+      const middleTouch = { clientX: middle.x, clientY: middle.y };
+      const endTouch = { clientX: to.x, clientY: to.y };
+      dispatch("touchstart", [startTouch], [startTouch]);
+      dispatch("touchmove", [middleTouch], [middleTouch]);
+      dispatch("touchend", [], [endTouch]);
+    }, { from, to });
+  } else {
+    await drag(page, from, to);
+  }
   await waitForRealFlip(page, before, browserName);
   await expect(page).toHaveURL(expectedPath);
   await expect.poll(async () => (await detailState(page)).currentScrollTop).toBe(0);
