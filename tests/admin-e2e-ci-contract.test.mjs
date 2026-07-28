@@ -114,6 +114,22 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
+test("App CI runs Chromium and WebKit unique-menu coverage in parallel behind one required gate", async () => {
+  const workflow = await source(".github/workflows/app-ci.yml");
+
+  assert.match(workflow, /^\s{2}checks:\s*$/m);
+  assert.match(workflow, /^\s{2}unique_menu_e2e:\s*$/m);
+  assert.match(workflow, /^\s{2}app-ci:\s*$/m);
+  assert.match(workflow, /name: Unique menu E2E \(\$\{\{ matrix\.project \}\}\)/);
+  assert.match(workflow, /- project: chromium\s+browser_channel: chrome/);
+  assert.match(workflow, /- project: webkit\s+browser_channel: ""/);
+  assert.match(
+    workflow,
+    /npm run test:unique-menu-design:e2e -- --project=\$\{\{ matrix\.project \}\}/
+  );
+  assert.match(workflow, /name: App CI\s+if: \$\{\{ always\(\) \}\}\s+needs:\s+- checks\s+- unique_menu_e2e/);
+});
+
 test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {
   const workflow = await source(".github/workflows/codeql.yml");
 

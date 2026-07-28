@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  app-ci:
-    name: App CI
+  checks:
+    name: App checks
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -98,15 +98,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Install Playwright WebKit
-        run: npx --no-install playwright install --with-deps webkit
-
-      - name: Unique menu Playwright tests
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:unique-menu-design:e2e
-
       - name: QR functional Playwright tests
         timeout-minutes: 10
         env:
@@ -130,3 +121,62 @@ jobs:
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:seo:e2e
+
+  unique_menu_e2e:
+    name: Unique menu E2E (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            browser_channel: chrome
+          - project: webkit
+            browser_channel: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright WebKit
+        if: matrix.project == 'webkit'
+        run: npx --no-install playwright install --with-deps webkit
+
+      - name: Run unique menu Playwright tests
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: ${{ matrix.browser_channel }}
+        run: npm run test:unique-menu-design:e2e -- --project=${{ matrix.project }}
+
+  app-ci:
+    name: App CI
+    if: ${{ always() }}
+    needs:
+      - checks
+      - unique_menu_e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          UNIQUE_MENU_E2E_RESULT: ${{ needs.unique_menu_e2e.result }}
+        run: |
+          if [[ "$CHECKS_RESULT" != "success" || "$UNIQUE_MENU_E2E_RESULT" != "success" ]]; then
+            echo "App checks: $CHECKS_RESULT"
+            echo "Unique menu E2E matrix: $UNIQUE_MENU_E2E_RESULT"
+            exit 1
+          fi
