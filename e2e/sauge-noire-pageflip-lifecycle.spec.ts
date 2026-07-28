@@ -198,7 +198,14 @@ for (const viewport of [
     await page.getByRole("button", { name: /Tapotez pour ouvrir/i }).click();
     await page.waitForTimeout(40);
     await page.setViewportSize({ width: viewport.width, height: viewport.height - 64 });
-    await page.waitForTimeout(1_100);
+    const readyViewport = page.locator('[data-page-flip-state="ready"]');
+    await expect(page).toHaveURL(/view=sauge-1/, { timeout: 15_000 });
+    await expect(readyViewport).toHaveAttribute("data-page-flip-actual-page", "1", {
+      timeout: 15_000
+    });
+    await expect(readyViewport).toHaveAttribute("data-page-flip-engine-state", "read", {
+      timeout: 15_000
+    });
 
     const probe = await readLifecycleProbe(page);
     expect(probe.states.filter((state) => state === "flipping")).toHaveLength(1);
@@ -208,7 +215,6 @@ for (const viewport of [
     expect(probe.bookKeys).toEqual(["sauge-main-book"]);
     expect(probe.fallbackVisible).toBe(false);
     expect(probe.initializingVisible).toBe(false);
-    await expect(page).toHaveURL(/view=sauge-1/);
     await expect(page.getByRole("heading", { name: /Table des matières/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /Tapotez pour ouvrir/i })).toHaveCount(0);
   });

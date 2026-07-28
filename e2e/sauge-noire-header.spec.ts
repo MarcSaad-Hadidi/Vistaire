@@ -635,7 +635,12 @@ test("Sauge Noire dish links open the real detail route", async ({ page }) => {
   await expect(dishLinks.first()).toBeVisible();
   await dishLinks.first().click();
   await page.waitForURL(/\/menu\/sauge-noire\/dishes\//, { timeout: 5_000 });
-  await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
+  await expect(page.locator('[data-sauge-route-transition="true"]')).toHaveCount(0, {
+    timeout: 15_000
+  });
+  await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible({
+    timeout: 15_000
+  });
 });
 
 test("Sauge Noire contents controls animate to the selected sheet", async ({ page }) => {

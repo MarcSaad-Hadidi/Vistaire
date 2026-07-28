@@ -251,6 +251,7 @@ async function assertRealRouteFlip(
   initialUrl: string,
   destination: Locator
 ) {
+  expect(page.url(), "the route must remain on the source before the flip").toBe(initialUrl);
   const transition = page.locator('[data-sauge-route-transition="true"]');
   await expect(transition).toBeVisible();
   await expect(transition).toHaveAttribute("aria-hidden", "true");
@@ -260,7 +261,6 @@ async function assertRealRouteFlip(
     )
   ).toBe(true);
   await expect(destination).toBeAttached();
-  expect(page.url(), "the route must remain on the source before the flip").toBe(initialUrl);
 
   const before = await transition.locator(".stf__item").evaluateAll((items) =>
     items.map((item) => getComputedStyle(item).transform)
