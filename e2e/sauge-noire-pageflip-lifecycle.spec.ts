@@ -133,3 +133,16 @@ test("modified dish clicks remain native and do not start the route overlay", as
     await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({ timeout: 15_000 });
   }
 });
+
+test("End resumes a multi-page jump after each intermediate sheet settles", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/menu/sauge-noire?view=sauge-1&lang=fr-CA&currency=CAD", {
+    waitUntil: "domcontentloaded"
+  });
+  await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({ timeout: 15_000 });
+
+  await page.keyboard.press("End");
+
+  await expect(page).toHaveURL(/view=sauge-9/, { timeout: 12_000 });
+  await expect(page.getByTestId("sauge-noire-book")).toHaveAttribute("data-page-index", "9");
+});

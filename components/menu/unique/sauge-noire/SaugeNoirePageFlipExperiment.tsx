@@ -321,7 +321,7 @@ export function SaugeNoirePageFlipExperiment({
     } else {
       pageFlip.flipPrev();
     }
-  }, [bookIsReady, dimensions, failed, pageIndex]);
+  }, [bookIsReady, dimensions, engineState, failed, pageIndex]);
 
   useEffect(() => {
     const activeBookRef = bookRef;
@@ -509,6 +509,7 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const shouldShowFallback = dimensions === null || failed;
+  const isTransientFallback = dimensions === null && !failed;
 
   return (
     <div
@@ -534,8 +535,15 @@ export function SaugeNoirePageFlipExperiment({
         <div
           className={styles.pageFlipFallback}
           data-page-flip-fallback="instant"
-          aria-hidden="true"
-          ref={(element) => element?.setAttribute("inert", "")}
+          aria-hidden={isTransientFallback ? "true" : undefined}
+          ref={(element) => {
+            if (!element) return;
+            if (isTransientFallback) {
+              element.setAttribute("inert", "");
+            } else {
+              element.removeAttribute("inert");
+            }
+          }}
         >
           {fallback}
         </div>

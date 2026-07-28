@@ -113,6 +113,20 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /onError\?\.\(\)/);
 });
 
+test("a permanent PageFlip error keeps the visible fallback interactive", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(experiment, /const isTransientFallback = dimensions === null && !failed/);
+  assert.match(experiment, /aria-hidden=\{isTransientFallback \? "true" : undefined\}/);
+  assert.match(experiment, /if \(isTransientFallback\) \{[\s\S]*element\.setAttribute\("inert", ""\);[\s\S]*\} else \{[\s\S]*element\.removeAttribute\("inert"\);/);
+});
+
+test("multi-page jumps resume when PageFlip returns to read", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(experiment, /\}, \[bookIsReady, dimensions, engineState, failed, pageIndex\]\);/);
+});
+
 test("multi-page contents jumps keep animating until the requested page", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
