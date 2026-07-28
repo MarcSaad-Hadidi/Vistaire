@@ -327,6 +327,15 @@ export function SaugeNoireBookMenu({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Let the active dish sheet consume vertical paging keys for its own
+      // scroll container instead of turning the underlying menu page.
+      if (
+        (event.key === "PageDown" || event.key === "PageUp") &&
+        event.target instanceof HTMLElement &&
+        event.target.closest('[data-testid="sauge-noire-dish-detail"]')
+      ) {
+        return;
+      }
       if (event.key === "ArrowRight" || event.key === "PageDown") {
         event.preventDefault();
         goToPage(pageIndex + 1);
