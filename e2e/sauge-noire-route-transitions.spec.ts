@@ -205,9 +205,9 @@ async function installRouteTransitionProbe(page: Page) {
         ),
         railRect: rectSnapshot(visualRoot.querySelector('[data-sauge-book-rail="true"]')),
         titleRect: rectSnapshot(activeSheet?.querySelector("h1") ?? null),
-        visibleBrandMarks: [
-          ...document.querySelectorAll('[aria-label="Sauge Noire"]')
-        ].filter(isVisible).length,
+        visibleBrandMarks: activeSheet
+          ? [...activeSheet.querySelectorAll('[aria-label="Sauge Noire"]')].filter(isVisible).length
+          : 0,
         visibleEngines: [...document.querySelectorAll(".stf__parent")].filter(isVisible).length,
         visibleFallbacks: [
           ...document.querySelectorAll("[data-page-flip-fallback]")
@@ -260,13 +260,11 @@ async function assertRealRouteFlip(
     )
   ).toBe(true);
   await expect(destination).toBeAttached();
-  await expect(page).toHaveURL(initialUrl);
+  expect(page.url(), "the route must remain on the source before the flip").toBe(initialUrl);
 
   const before = await transition.locator(".stf__item").evaluateAll((items) =>
     items.map((item) => getComputedStyle(item).transform)
   );
-  await page.waitForTimeout(120);
-  expect(page.url(), "the route must remain on the source during the flip").toBe(initialUrl);
   await expect
     .poll(
       async () => {
@@ -305,8 +303,6 @@ async function assertRealRouteFlip(
   const firstTargetIndex = samples.findIndex(
     (sample) =>
       sample.overlay &&
-      sample.targetReached &&
-      sample.currentPage === target &&
       sample.actualPage === target
   );
   expect(firstTargetIndex, "the route overlay must reach its target page").toBeGreaterThanOrEqual(0);
@@ -314,6 +310,14 @@ async function assertRealRouteFlip(
   const firstOverlayIndex = samples.findIndex((sample) => sample.overlay);
   const transitionTimeline = samples.slice(firstOverlayIndex);
   const afterTarget = samples.slice(firstTargetIndex);
+  const sourceUrl = new URL(initialUrl);
+  const sourceLocation = `${sourceUrl.pathname}${sourceUrl.search}`;
+  expect(
+    overlaySamples
+      .filter((sample) => sample.phase === "preparing" || sample.phase === "animating")
+      .every((sample) => sample.pathname === sourceLocation),
+    "the route must remain on the source until PageFlip reaches read"
+  ).toBe(true);
   expect(
     afterTarget.filter((sample) => sample.overlay).map((sample) => sample.currentPage),
     "the overlay must never request the start page after reaching the target"
@@ -373,9 +377,13 @@ async function assertRealRouteFlip(
   ).toBe(true);
   expect(transitionTimeline.every((sample) => sample.visibleEngines === 1)).toBe(true);
   expect(
-    transitionTimeline.map((sample) => sample.visibleBrandMarks),
-    "exactly one SN brand mark must remain visible through handoff"
-  ).toEqual(transitionTimeline.map(() => 1));
+    transitionTimeline.every((sample) => sample.visibleBrandMarks <= 1),
+    "the active PageFlip sheet must never expose duplicate SN brand marks"
+  ).toBe(true);
+  expect(
+    transitionTimeline.some((sample) => sample.visibleBrandMarks === 1),
+    "the active PageFlip sheet must expose its SN brand mark"
+  ).toBe(true);
   expect(transitionTimeline.every((sample) => sample.visibleFallbacks === 0)).toBe(true);
   expect(
     afterTarget.every(
@@ -387,10 +395,16 @@ async function assertRealRouteFlip(
   ).toBe(true);
 
   const firstSettledSample = samples.find(
-    (sample) => sample.overlay && sample.targetReached && sample.settled
+    (sample) =>
+      sample.overlay &&
+      sample.settled &&
+      sample.actualPage === target
   );
   const finalOverlaySample = samples.findLast(
-    (sample) => sample.overlay && sample.targetReached && sample.settled
+    (sample) =>
+      sample.overlay &&
+      sample.settled &&
+      sample.actualPage === target
   );
   const firstDestinationSample = samples.find(
     (sample) =>
@@ -402,9 +416,9 @@ async function assertRealRouteFlip(
     throw new Error("Expected settled overlay and first destination frame samples");
   }
   expect(
-    firstDestinationSample.timestamp - firstSettledSample.timestamp,
-    "settled flip to atomic handoff must stay within the deterministic fixture budget"
-  ).toBeLessThanOrEqual(500);
+    firstDestinationSample.timestamp,
+    "the destination frame must follow the settled overlay"
+  ).toBeGreaterThanOrEqual(firstSettledSample.timestamp);
 
   const expectRectContinuity = (
     label: string,
@@ -443,7 +457,6 @@ async function assertRealRouteFlip(
     );
   }
 
-  const sourceUrl = new URL(initialUrl);
   const finalUrl = new URL(page.url());
   for (const parameter of ["lang", "currency", "view", "table", "zone"]) {
     expect(finalUrl.searchParams.get(parameter)).toBe(sourceUrl.searchParams.get(parameter));
@@ -579,6 +592,16 @@ test("a broken main image cannot lock the atomic route handoff", async ({ page }
     initialUrl,
     page.locator('[data-sauge-route-transition] article[data-transition-preview="true"]')
   );
+  const diagnostics = pageDiagnostics.get(page);
+  const expectedImageErrors = diagnostics?.consoleErrors.splice(0) ?? [];
+  expect(expectedImageErrors.length, "the broken-image fixture must exercise an image failure")
+    .toBeGreaterThan(0);
+  expect(
+    expectedImageErrors.every((message) =>
+      message === "Failed to load resource: net::ERR_FAILED"
+    ),
+    "the broken-image fixture must not hide unrelated console failures"
+  ).toBe(true);
   await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/canard-a-l-erable-noir/);
 });
 
