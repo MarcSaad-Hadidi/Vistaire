@@ -20,6 +20,14 @@ type PageFlipApi = {
   flipNext: () => void;
   flipPrev: () => void;
   getState: () => string;
+  getSettings: () => {
+    width: number;
+    height: number;
+    minWidth: number;
+    maxWidth: number;
+    minHeight: number;
+    maxHeight: number;
+  };
   update: () => void;
   destroy: () => void;
 };
@@ -119,7 +127,7 @@ type FlipDimensions = {
 };
 
 const SWIPE_DISTANCE = 32;
-const MOBILE_HEIGHT_NOISE_PX = 64;
+const RESIZE_ROUNDING_NOISE_PX = 1;
 
 function parsePageIndex(event: PageFlipEvent | number): number | null {
   const value = typeof event === "number" ? event : event.data;
@@ -203,6 +211,7 @@ export function SaugeNoirePageFlipExperiment({
   const readyNotificationBookKeyRef = useRef<string | null>(null);
   const cleanupGenerationRef = useRef(0);
   const reportedFlipPageRef = useRef<number | null>(null);
+  const initCountRef = useRef(0);
   // The DOM identity belongs to the logical book, not to a volatile viewport
   // measurement. PageFlip can recalculate its bounds in place on resize.
   const bookKey = resetKey === undefined ? "sauge-main-book" : `sauge-book-${resetKey}`;
@@ -327,12 +336,7 @@ export function SaugeNoirePageFlipExperiment({
     if (!widthChanged && !orientationChanged) {
       pendingStructuralDimensionsRef.current = null;
     }
-    if (!widthChanged && !orientationChanged && heightDelta <= MOBILE_HEIGHT_NOISE_PX) {
-      return;
-    }
-    if (!widthChanged && !orientationChanged) {
-      appliedDimensionsRef.current = currentDimensions;
-      appliedDimensionKeyRef.current = dimensionKey;
+    if (!widthChanged && !orientationChanged && heightDelta <= RESIZE_ROUNDING_NOISE_PX) {
       return;
     }
     if (pageFlip.getState() === "flipping") {
@@ -344,6 +348,13 @@ export function SaugeNoirePageFlipExperiment({
       return;
     }
 
+    const settings = pageFlip.getSettings();
+    settings.width = currentDimensions.width;
+    settings.height = currentDimensions.height;
+    settings.minWidth = Math.max(100, currentDimensions.width);
+    settings.maxWidth = currentDimensions.width;
+    settings.minHeight = Math.max(100, currentDimensions.height);
+    settings.maxHeight = currentDimensions.height;
     pageFlip.update();
     appliedDimensionKeyRef.current = dimensionKey;
     appliedDimensionsRef.current = currentDimensions;
@@ -381,18 +392,26 @@ export function SaugeNoirePageFlipExperiment({
         height: Math.max(1, Math.round(rect.height))
       };
       if (next.width === 1 || next.height === 1) return;
+      dimensionsRef.current = next;
       setDimensions((current) =>
         current?.width === next.width && current.height === next.height ? current : next
       );
+      updatePageFlipBounds();
     };
 
     updateDimensions();
-    if (typeof ResizeObserver === "undefined") return;
+    window.addEventListener("resize", updateDimensions);
+    if (typeof ResizeObserver === "undefined") {
+      return () => window.removeEventListener("resize", updateDimensions);
+    }
 
     const observer = new ResizeObserver(updateDimensions);
     observer.observe(viewport);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      window.removeEventListener("resize", updateDimensions);
+      observer.disconnect();
+    };
+  }, [updatePageFlipBounds]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -638,6 +657,11 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const handleInit = () => {
+    initCountRef.current += 1;
+    viewportRef.current?.setAttribute(
+      "data-page-flip-init-count",
+      String(initCountRef.current)
+    );
     setActualPageIndex(bookRef.current?.pageFlip()?.getCurrentPageIndex() ?? startPage);
     readyBookKeyRef.current = bookKey;
     requestedPageIndexRef.current = null;

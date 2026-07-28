@@ -171,14 +171,22 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /data-page-flip-actual-page=\{actualPageIndex\}/);
 });
 
-test("mobile height-only changes never schedule a structural update after read", async () => {
+test("PageFlip resizes in place for structural width and height changes", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
-  assert.match(experiment, /const MOBILE_HEIGHT_NOISE_PX = 64/);
+  assert.match(experiment, /const RESIZE_ROUNDING_NOISE_PX = 1/);
   assert.match(experiment, /widthChanged/);
   assert.match(experiment, /orientationChanged/);
   assert.doesNotMatch(experiment, /pendingDimensionUpdateRef/);
   assert.match(experiment, /pendingStructuralDimensionsRef/);
+  assert.match(experiment, /const settings = pageFlip\.getSettings\(\)/);
+  assert.match(experiment, /settings\.width = currentDimensions\.width/);
+  assert.match(experiment, /settings\.height = currentDimensions\.height/);
+  assert.match(experiment, /settings\.minWidth = Math\.max\(100, currentDimensions\.width\)/);
+  assert.match(experiment, /settings\.maxWidth = currentDimensions\.width/);
+  assert.match(experiment, /settings\.minHeight = Math\.max\(100, currentDimensions\.height\)/);
+  assert.match(experiment, /settings\.maxHeight = currentDimensions\.height/);
+  assert.match(experiment, /pageFlip\.update\(\)/);
   assert.match(
     experiment,
     /appliedDimensionKeyRef\.current === dimensionKey[\s\S]*pendingStructuralDimensionsRef\.current = null/
@@ -339,9 +347,10 @@ test("the book keeps its frame fixed while each sheet owns its complete scrollin
 
   assert.match(styles, /\.book\s*\{[\s\S]*position:\s*fixed;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.paper\s*\{[\s\S]*display:\s*block;[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /--sn-header-height:\s*132px;/);
   assert.match(
     styles,
-    /\.bookHeader\s*\{[\s\S]*position:\s*relative;[\s\S]*width:\s*100%;[\s\S]*height:\s*132px;[\s\S]*overflow:\s*visible;/
+    /\.bookHeader\s*\{[\s\S]*position:\s*relative;[\s\S]*width:\s*100%;[\s\S]*height:\s*var\(--sn-header-height\);[\s\S]*overflow:\s*visible;/
   );
   assert.doesNotMatch(styles, /\.bookHeader\s*\{[^}]*position:\s*(?:fixed|sticky);/);
   assert.match(styles, /\.bookHeader > \.brandMark\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*calc\(50% - 5px\);/);
@@ -349,12 +358,12 @@ test("the book keeps its frame fixed while each sheet owns its complete scrollin
   assert.doesNotMatch(styles, /margin-bottom:\s*-92px;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overflow:\s*auto;/);
   assert.match(styles, /\.pageFlipPage\s*\{[\s\S]*overscroll-behavior:\s*contain;/);
-  assert.match(styles, /\.pageFlipPage:has\(\.coverPage\)\s*\{[\s\S]*overflow:\s*clip;/);
-  assert.doesNotMatch(styles, /\.pageFlipPage:has\(\.coverPage\),[\s\S]*\.pageFlipPage:has\(\.contentsPage\)/);
-  assert.match(styles, /\.pageFlipFallback:has\(\.coverPage\)\s*\{[\s\S]*overflow:\s*clip;/);
-  assert.doesNotMatch(styles, /\.pageFlipFallback:has\(\.coverPage\),[\s\S]*\.pageFlipFallback:has\(\.contentsPage\)/);
+  assert.match(styles, /\.pageFlipPage:has\(> \.staticPageFrame\)\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.pageFlipFallback:has\(> \.staticPageFrame\)\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.staticPageFrame\s*\{[\s\S]*display:\s*flex;[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.staticPageFrame > \.page\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*0;[\s\S]*flex:\s*1 1 auto;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.pageViewport\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
-  assert.match(styles, /\.pageFlipBook\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.pageFlipBook\s*\{[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0 !important;[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.coverOpen\s*\{[\s\S]*margin-top:\s*20px;[\s\S]*padding-top:\s*0;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.book \.arrow\s*\{[\s\S]*animation:\s*saugeArrowNudge 1\.8s ease-in-out infinite !important;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.book \.doubleArrow\s*\{[\s\S]*animation:\s*saugeDoubleArrowNudge 1\.8s ease-in-out infinite !important;/);

@@ -476,7 +476,7 @@ export function SaugeNoireBookMenu({
     ) => {
     const categoryPage = page.kind === "section" ? index - 2 : null;
 
-    return (
+    const renderedPage = (
       <>
         <SaugeNoireBookHeader
           locales={availableLocales}
@@ -526,6 +526,12 @@ export function SaugeNoireBookMenu({
         {page.kind === "ending" ? <EndingPage copy={copy} onRestart={() => goToPage(0)} /> : null}
       </>
     );
+
+    return page.kind === "cover" || page.kind === "contents" || page.kind === "ending" ? (
+      <div className={styles.staticPageFrame} data-sauge-static-frame={page.kind}>
+        {renderedPage}
+      </div>
+    ) : renderedPage;
     }, [
     activeLocale,
     activeLocaleValue,
@@ -716,7 +722,11 @@ export function SaugeNoireBookHeader({
   isPreview?: boolean;
 }) {
   return (
-    <header className={styles.bookHeader} aria-hidden={isPreview || undefined}>
+    <header
+      className={styles.bookHeader}
+      aria-hidden={isPreview || undefined}
+      data-sauge-static-element="header"
+    >
       <BrandMark />
       {showContentsLink ? (
         <button
@@ -726,7 +736,7 @@ export function SaugeNoireBookHeader({
           aria-label={`Retour à ${contentsLabel}`}
         >
           <span aria-hidden="true">←</span>
-          <span>{contentsLabel}</span>
+          <span className={styles.contentsBackLabel}>{contentsLabel}</span>
         </button>
       ) : null}
       <div className={styles.preferenceControls}>
@@ -823,7 +833,11 @@ function PreferenceMenu({
 
 function BrandMark() {
   return (
-    <div className={styles.brandMark} aria-label="Sauge Noire">
+    <div
+      className={styles.brandMark}
+      aria-label="Sauge Noire"
+      data-sauge-static-element="brand"
+    >
       <span>S</span>
       <span>N</span>
     </div>
@@ -831,25 +845,39 @@ function BrandMark() {
 }
 
 function Rule() {
-  return <span className={styles.rule} aria-hidden="true"><i /></span>;
+  return (
+    <span className={styles.rule} aria-hidden="true" data-sauge-static-element="rule">
+      <i />
+    </span>
+  );
 }
 
 function CoverPage({ copy, onOpen }: { copy: Copy; onOpen: () => void }) {
   return (
-    <section className={`${styles.page} ${styles.coverPage}`} aria-label="Sauge Noire">
-      <button type="button" className={styles.coverTap} onClick={onOpen} aria-label={copy.open}>
+    <section
+      className={`${styles.page} ${styles.coverPage}`}
+      aria-label="Sauge Noire"
+      data-sauge-static-page="cover"
+    >
+      <button
+        type="button"
+        className={styles.coverTap}
+        onClick={onOpen}
+        aria-label={copy.open}
+        data-sauge-static-element="cover-tap"
+      >
         <SaugeNoireBotanical className={styles.coverBotanical} />
-        <div className={styles.coverTitle}>
+        <div className={styles.coverTitle} data-sauge-static-element="wordmark">
           <h1>SAUGE<br />NOIRE</h1>
           <p>{copy.tagline}</p>
         </div>
         <Rule />
-        <p className={styles.coverMenuTitle}>{copy.menu}</p>
-        <span className={styles.coverUnderline} aria-hidden="true" />
-        <p className={styles.coverCity}>{copy.city}</p>
-        <span className={styles.coverDot} aria-hidden="true" />
-        <p className={styles.coverYear}>{romanYear(new Date().getFullYear())}</p>
-        <span className={styles.coverOpen}>{copy.open}</span>
+        <p className={styles.coverMenuTitle} data-sauge-static-element="menu-title">{copy.menu}</p>
+        <span className={styles.coverUnderline} aria-hidden="true" data-sauge-static-element="underline" />
+        <p className={styles.coverCity} data-sauge-static-element="city">{copy.city}</p>
+        <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
+        <p className={styles.coverYear} data-sauge-static-element="year">{romanYear(new Date().getFullYear())}</p>
+        <span className={styles.coverOpen} data-sauge-static-element="open">{copy.open}</span>
         <Arrow />
       </button>
     </section>
@@ -874,11 +902,15 @@ function ContentsPage({
   onNext: () => void;
 }) {
   return (
-    <section className={`${styles.page} ${styles.contentsPage}`} aria-label={copy.contents}>
+    <section
+      className={`${styles.page} ${styles.contentsPage}`}
+      aria-label={copy.contents}
+      data-sauge-static-page="contents"
+    >
       <SaugeNoireBotanical className={styles.contentsBotanical} />
       <h1>{copy.contents}</h1>
       <Rule />
-      <p className={styles.instruction}>{copy.touchSection}</p>
+      <p className={styles.instruction} data-sauge-static-element="instruction">{copy.touchSection}</p>
       <nav className={styles.contentsList} aria-label={copy.contents}>
         {categories.map((category, index) => (
           <button
@@ -1186,14 +1218,18 @@ function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: bool
 
 function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) {
   return (
-    <section className={`${styles.page} ${styles.endingPage}`} aria-label={copy.thanks}>
+    <section
+      className={`${styles.page} ${styles.endingPage}`}
+      aria-label={copy.thanks}
+      data-sauge-static-page="ending"
+    >
       <h1>{copy.thanks.toUpperCase()}</h1>
       <SaugeNoireBotanical className={styles.endingBotanical} />
-      <div className={styles.endingWordmark}>SAUGE<br />NOIRE</div>
-      <p>{copy.tagline}</p>
+      <div className={styles.endingWordmark} data-sauge-static-element="wordmark">SAUGE<br />NOIRE</div>
+      <p data-sauge-static-element="tagline">{copy.tagline}</p>
       <Rule />
-      <p className={styles.endingCity}>Montréal, Québec</p>
-      <span className={styles.coverDot} aria-hidden="true" />
+      <p className={styles.endingCity} data-sauge-static-element="city">Montréal, Québec</p>
+      <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
       <button
         type="button"
         className={styles.googleReviewCta}
@@ -1210,8 +1246,8 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
           </svg>
         </span>
       </button>
-      <button type="button" className={styles.restartButton} onClick={onRestart}>{copy.menu}</button>
-      <p className={styles.endingSoon}>{copy.soon}</p>
+      <button type="button" className={styles.restartButton} onClick={onRestart} data-sauge-static-element="restart">{copy.menu}</button>
+      <p className={styles.endingSoon} data-sauge-static-element="message">{copy.soon}</p>
     </section>
   );
 }
@@ -1230,13 +1266,25 @@ function PageFooter({
   onNext: () => void;
 }) {
   return (
-    <footer className={styles.pageFooter}>
+    <footer className={styles.pageFooter} data-sauge-static-element="footer">
       <Rule />
       <p>{copy}</p>
       <div className={styles.doubleArrowControl}>
-        <button type="button" className={`${styles.arrowHit} ${styles.arrowHitPrevious}`} onClick={onPrevious} aria-label={previousLabel} />
+        <button
+          type="button"
+          className={`${styles.arrowHit} ${styles.arrowHitPrevious}`}
+          onClick={onPrevious}
+          aria-label={previousLabel}
+          data-sauge-static-element="previous-control"
+        />
         <DoubleArrow />
-        <button type="button" className={`${styles.arrowHit} ${styles.arrowHitNext}`} onClick={onNext} aria-label={nextLabel} />
+        <button
+          type="button"
+          className={`${styles.arrowHit} ${styles.arrowHitNext}`}
+          onClick={onNext}
+          aria-label={nextLabel}
+          data-sauge-static-element="next-control"
+        />
       </div>
     </footer>
   );
@@ -1244,7 +1292,7 @@ function PageFooter({
 
 function DoubleArrow() {
   return (
-    <svg className={styles.doubleArrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false">
+    <svg className={styles.doubleArrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false" data-sauge-static-element="double-arrow">
       <path d="M1 10h46M7 4l-6 6 6 6M41 4l6 6-6 6" />
     </svg>
   );
@@ -1252,7 +1300,7 @@ function DoubleArrow() {
 
 function Arrow() {
   return (
-    <svg className={styles.arrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false">
+    <svg className={styles.arrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false" data-sauge-static-element="arrow">
       <path d="M1 10h42M34 2l10 8-10 8" />
     </svg>
   );

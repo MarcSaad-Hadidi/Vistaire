@@ -29,11 +29,7 @@ const useTrouvableImmersiveFixture = process.argv
 const includesSaugeNoireBrowserFlow = process.argv
   .slice(2)
   .some((argument) =>
-    [
-      "e2e/sauge-noire-dish-detail.spec.ts",
-      "e2e/sauge-noire-route-transitions.spec.ts",
-      "e2e/sauge-noire-pageflip-lifecycle.spec.ts"
-    ].some((testPath) => argument.replaceAll("\\", "/").endsWith(testPath))
+    /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
   );
 const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 
