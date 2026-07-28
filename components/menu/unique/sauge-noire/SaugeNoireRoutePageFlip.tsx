@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
@@ -19,7 +19,7 @@ type SaugeNoireRoutePageFlipProps = {
 /**
  * A short-lived, two-sheet PageFlip kept inside the currently mounted route.
  * The route owner decides what to navigate to only after this component gets
- * the real StPageFlip `flip` event.
+ * the real StPageFlip `flip` event and the following `read` state.
  */
 export function SaugeNoireRoutePageFlip({
   id,
@@ -32,7 +32,14 @@ export function SaugeNoireRoutePageFlip({
 }: SaugeNoireRoutePageFlipProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const completedRef = useRef(false);
-  const readyRef = useRef(false);
+  const phaseRef = useRef({
+    started: false,
+    reachedTarget: false,
+    returnedToRead: false
+  });
+  const [hasStartedFlipping, setHasStartedFlipping] = useState(false);
+  const [hasReachedTarget, setHasReachedTarget] = useState(false);
+  const [hasReturnedToRead, setHasReturnedToRead] = useState(false);
 
   const startPage = direction === "next" ? 0 : 1;
   const targetPage = direction === "next" ? 1 : 0;
@@ -72,10 +79,11 @@ export function SaugeNoireRoutePageFlip({
   }, [restoreSourceScroll]);
 
   useEffect(() => {
-    // This is only a failure escape hatch. A successful transition always
-    // navigates from onFlip, never from this timer.
+    // This is only a failure escape hatch. A successful transition navigates
+    // after the flip event and the following read state.
     const timeout = window.setTimeout(() => {
-      if (!readyRef.current && !completedRef.current) {
+      if (!completedRef.current) {
+        completedRef.current = true;
         onFallback();
       }
     }, 2_500);
@@ -85,15 +93,31 @@ export function SaugeNoireRoutePageFlip({
   const handleFlip = useCallback(
     (index: number) => {
       if (index !== targetPage || completedRef.current) return;
-      completedRef.current = true;
-      onFlip();
+      phaseRef.current.reachedTarget = true;
+      setHasReachedTarget(true);
+      if (phaseRef.current.started && phaseRef.current.returnedToRead) {
+        completedRef.current = true;
+        onFlip();
+      }
     },
     [onFlip, targetPage]
   );
 
-  const handleReady = useCallback(() => {
-    readyRef.current = true;
-  }, []);
+  const handleChangeState = useCallback((state: string) => {
+    if (state === "flipping") {
+      phaseRef.current.started = true;
+      setHasStartedFlipping(true);
+      return;
+    }
+    if (state !== "read" || !phaseRef.current.started) return;
+
+    phaseRef.current.returnedToRead = true;
+    setHasReturnedToRead(true);
+    if (phaseRef.current.reachedTarget && !completedRef.current) {
+      completedRef.current = true;
+      onFlip();
+    }
+  }, [onFlip]);
 
   const handleError = useCallback(() => {
     if (completedRef.current) return;
@@ -109,6 +133,9 @@ export function SaugeNoireRoutePageFlip({
       data-sauge-route-transition-direction={direction}
       data-sauge-route-transition-start={startPage}
       data-sauge-route-transition-target={targetPage}
+      data-sauge-route-transition-flip-started={hasStartedFlipping ? "true" : "false"}
+      data-sauge-route-transition-target-reached={hasReachedTarget ? "true" : "false"}
+      data-sauge-route-transition-settled={hasReturnedToRead ? "true" : "false"}
       aria-hidden="true"
     >
       <SaugeNoirePageFlipExperiment
@@ -116,7 +143,7 @@ export function SaugeNoireRoutePageFlip({
         pageIndex={targetPage}
         startPage={startPage}
         onPageFlip={handleFlip}
-        onReady={handleReady}
+        onChangeState={handleChangeState}
         onError={handleError}
         resetKey={id}
         protectInteractiveTargets

@@ -31,9 +31,11 @@ const includesSaugeNoireBrowserFlow = process.argv
   .some((argument) =>
     [
       "e2e/sauge-noire-dish-detail.spec.ts",
-      "e2e/sauge-noire-route-transitions.spec.ts"
+      "e2e/sauge-noire-route-transitions.spec.ts",
+      "e2e/sauge-noire-pageflip-lifecycle.spec.ts"
     ].some((testPath) => argument.replaceAll("\\", "/").endsWith(testPath))
   );
+const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 
 function waitForServer(url, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
@@ -78,8 +80,21 @@ function runChild(command, args, options = {}) {
 
 async function main() {
   let server = null;
+  let saugeFixture = null;
 
   try {
+    if (includesSaugeNoireBrowserFlow) {
+      saugeFixture = spawn(
+        process.execPath,
+        ["e2e/support/sauge-noire-fixture-server.mjs"],
+        {
+          stdio: "inherit",
+          windowsHide: true,
+          env: { ...process.env, VISTAIRE_SAUGE_NOIRE_FIXTURE_PORT: "55434" }
+        }
+      );
+      await waitForServer(`${SAUGE_FIXTURE_ORIGIN}/fixture/health`);
+    }
     if (!skipWebServer) {
       const port = parsedBaseURL.port || (parsedBaseURL.protocol === "https:" ? "443" : "80");
       server = spawn(
@@ -97,6 +112,13 @@ async function main() {
           windowsHide: true,
           env: {
             ...process.env,
+            ...(includesSaugeNoireBrowserFlow
+              ? {
+                  NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
+                  SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
+                  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+                }
+              : {}),
             CLERK_SECRET_KEY: LOCAL_E2E_CLERK_SECRET_KEY,
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
               LOCAL_E2E_CLERK_PUBLISHABLE_KEY,
@@ -129,6 +151,9 @@ async function main() {
   } finally {
     if (server && !server.killed) {
       server.kill();
+    }
+    if (saugeFixture && !saugeFixture.killed) {
+      saugeFixture.kill();
     }
   }
 }

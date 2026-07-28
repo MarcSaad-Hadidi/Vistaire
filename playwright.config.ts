@@ -13,6 +13,18 @@ const sensitiveE2E = adminE2eSensitive || sensitiveQrE2E;
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
 const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
 const qrFunctionalFixture = process.env.VISTAIRE_QR_FUNCTIONAL === "1";
+const cliIncludesSaugeNoireBrowserFlow = process.argv
+  .slice(2)
+  .some((argument) =>
+    [
+      "e2e/sauge-noire-dish-detail.spec.ts",
+      "e2e/sauge-noire-route-transitions.spec.ts",
+      "e2e/sauge-noire-pageflip-lifecycle.spec.ts"
+    ].some((testPath) => argument.replaceAll("\\", "/").endsWith(testPath))
+  );
+const saugeNoireFixture =
+  process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1" || cliIncludesSaugeNoireBrowserFlow;
+const saugeNoireFixtureOrigin = "http://127.0.0.1:55434";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const qrFixtureOrigin = "http://127.0.0.1:55432";
@@ -71,7 +83,24 @@ export default defineConfig({
   ],
   ...(shouldStartWebServer
     ? {
-        webServer: adminVisualFixture ? [{
+        webServer: saugeNoireFixture ? [{
+          command: "node e2e/support/sauge-noire-fixture-server.mjs",
+          url: `${saugeNoireFixtureOrigin}/fixture/health`,
+          reuseExistingServer,
+          timeout: 30_000
+        }, {
+          command: startCommand,
+          env: {
+            ...process.env,
+            NEXT_PUBLIC_SUPABASE_URL: saugeNoireFixtureOrigin,
+            SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
+            VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+          },
+          url: baseURL,
+          reuseExistingServer,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+          timeout: 120_000
+        }] : adminVisualFixture ? [{
           command: "node e2e/support/admin-visual-fixture-server.mjs",
           url: `${adminVisualFixtureOrigin}/rest/v1/restaurants`,
           reuseExistingServer,

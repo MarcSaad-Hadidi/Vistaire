@@ -355,6 +355,11 @@
   overflow: hidden;
 }
 
+.pageFlipViewport[data-page-flip-state="loading"] .pageFlipBook {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .pageFlipBookPending {
   visibility: hidden;
   pointer-events: none;
@@ -365,6 +370,8 @@
 .pageFlipBook :global(.stf__block) {
   width: 100%;
   height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
 }
 
 .pageFlipPage {

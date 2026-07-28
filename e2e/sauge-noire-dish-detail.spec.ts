@@ -66,10 +66,7 @@ async function openDetail(page: Page, width: number, height: number) {
   const response = await page.goto(detailPath, { waitUntil: "domcontentloaded" });
   const notFoundContent = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
   if (response?.status() === 404 || notFoundContent.includes("This page could not be found")) {
-    test.skip(
-      true,
-      "Requires a seeded Sauge Noire Supabase fixture (route returned 404)."
-    );
+    throw new Error("Sauge Noire fixture setup failed: route returned 404.");
   }
   await expect(page.getByRole("heading", { name: /TRUITE/i })).toBeVisible();
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible();
@@ -81,10 +78,7 @@ async function openCocktailDetail(page: Page, width: number, height: number) {
   const response = await page.goto(cocktailDetailPath, { waitUntil: "domcontentloaded" });
   const notFoundContent = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
   if (response?.status() === 404 || notFoundContent.includes("This page could not be found")) {
-    test.skip(
-      true,
-      "Requires a seeded Sauge Noire Supabase fixture (route returned 404)."
-    );
+    throw new Error("Sauge Noire fixture setup failed: route returned 404.");
   }
   await expect(page.getByRole("heading", { name: /CENDRE ROSE/i })).toBeVisible();
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible();

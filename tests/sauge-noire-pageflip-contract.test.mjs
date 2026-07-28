@@ -71,7 +71,7 @@ test("completed page flips clear stale animation targets", async () => {
   );
 });
 
-test("route transitions keep two soft sheets mounted and navigate only from the real flip event", async () => {
+test("route transitions keep two soft sheets mounted and navigate after flip settles", async () => {
   const book = await readFile(bookPath, "utf8");
   const detail = await readFile(
     new URL("../components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx", import.meta.url),
@@ -89,12 +89,17 @@ test("route transitions keep two soft sheets mounted and navigate only from the 
   assert.match(routeTransition, /showCover=\{false\}/);
   assert.match(routeTransition, /renderOnlyPageLengthChange/);
   assert.match(routeTransition, /onFlip\(\)/);
+  assert.match(routeTransition, /onChangeState/);
+  assert.match(routeTransition, /started/);
+  assert.match(routeTransition, /reachedTarget/);
+  assert.match(routeTransition, /returnedToRead/);
   assert.match(routeTransition, /onFallback/);
   assert.match(book, /<SaugeNoireRoutePageFlip/);
   assert.match(detail, /<SaugeNoireRoutePageFlip/);
-  assert.match(book, /router\.push\(routeTransition\.href\)/);
-  assert.match(detail, /router\.push\(routeTransition\.href\)/);
+  assert.match(book, /routerRef\.current\.push\(transition\.href\)/);
+  assert.match(detail, /routerRef\.current\.push\(transition\.href\)/);
   assert.doesNotMatch(book, /router\.push\(href\)/);
+  assert.match(routeTransition, /if \(!completedRef\.current\) \{\s*completedRef\.current = true;\s*onFallback\(\);/);
 });
 
 test("the real PageFlip wrapper exposes the stable-child and lifecycle controls", async () => {
@@ -113,8 +118,9 @@ test("multi-page contents jumps keep animating until the requested page", async 
 
   assert.match(
     experiment,
-    /const animationTarget = animationTargetPageRef\.current;\s*if \(animationTarget !== null && nextIndex !== animationTarget\)/,
+    /const animationTarget = animationTargetPageRef\.current;[\s\S]*?if \(animationTarget !== null && nextIndex !== animationTarget\)/,
   );
+  assert.match(experiment, /reportedFlipPageRef/);
 });
 
 test("short non-split sections keep navigation below the final dish", async () => {

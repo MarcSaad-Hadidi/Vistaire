@@ -19,6 +19,8 @@ type PageFlipApi = {
   turnToPage: (page: number) => void;
   flipNext: () => void;
   flipPrev: () => void;
+  getState: () => string;
+  update: () => void;
   destroy: () => void;
 };
 
@@ -71,6 +73,7 @@ type SaugeNoirePageFlipExperimentProps = {
   startPage?: number;
   onPageFlip: (index: number) => void;
   onReady?: () => void;
+  onChangeState?: (state: string) => void;
   onError?: () => void;
   onSwipe?: (direction: "next" | "previous") => void;
   interceptSwipe?: boolean;
@@ -111,12 +114,17 @@ function isPageFlipInteractiveTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && Boolean(target.closest("a, button"));
 }
 
+function isCurrentCleanupGeneration(ref: { current: number }, generation: number): boolean {
+  return ref.current === generation;
+}
+
 export function SaugeNoirePageFlipExperiment({
   pages,
   pageIndex,
   startPage = pageIndex,
   onPageFlip,
   onReady,
+  onChangeState,
   onError,
   onSwipe,
   interceptSwipe = false,
@@ -140,9 +148,55 @@ export function SaugeNoirePageFlipExperiment({
   const [dimensions, setDimensions] = useState<FlipDimensions | null>(null);
   const [readyBookKey, setReadyBookKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [engineState, setEngineState] = useState("idle");
   const lastResetKeyRef = useRef<string | number | undefined>(resetKey);
-  const bookKey = dimensions ? `${dimensions.width}-${dimensions.height}` : null;
+  const dimensionsRef = useRef<FlipDimensions | null>(null);
+  const onChangeStateRef = useRef(onChangeState);
+  const pendingDimensionUpdateRef = useRef(false);
+  const appliedDimensionKeyRef = useRef<string | null>(null);
+  const failedRef = useRef(false);
+  const cleanupGenerationRef = useRef(0);
+  const reportedFlipPageRef = useRef<number | null>(null);
+  // The DOM identity belongs to the logical book, not to a volatile viewport
+  // measurement. PageFlip can recalculate its bounds in place on resize.
+  const bookKey = resetKey === undefined ? "sauge-main-book" : `sauge-book-${resetKey}`;
   const bookIsReady = bookKey !== null && readyBookKey === bookKey;
+
+  useEffect(() => {
+    dimensionsRef.current = dimensions;
+    onChangeStateRef.current = onChangeState;
+    failedRef.current = failed;
+  }, [dimensions, failed, onChangeState]);
+
+  const updatePageFlipBounds = useCallback(() => {
+    const pageFlip = bookRef.current?.pageFlip();
+    const currentDimensions = dimensionsRef.current;
+    if (
+      !pageFlip ||
+      currentDimensions === null ||
+      readyBookKeyRef.current !== bookKey ||
+      failedRef.current
+    ) {
+      return;
+    }
+
+    const dimensionKey = `${currentDimensions.width}-${currentDimensions.height}`;
+    if (pageFlip.getState() === "flipping") {
+      pendingDimensionUpdateRef.current = true;
+      return;
+    }
+    if (appliedDimensionKeyRef.current === dimensionKey && !pendingDimensionUpdateRef.current) {
+      return;
+    }
+
+    pageFlip.update();
+    appliedDimensionKeyRef.current = dimensionKey;
+    pendingDimensionUpdateRef.current = false;
+  }, [bookKey]);
+
+  useEffect(() => {
+    updatePageFlipBounds();
+  }, [dimensions, updatePageFlipBounds]);
 
   const captureOriginalPages = useCallback(() => {
     const viewport = viewportRef.current;
@@ -244,6 +298,7 @@ export function SaugeNoirePageFlipExperiment({
   useEffect(() => {
     const pageFlip = bookRef.current?.pageFlip();
     if (!pageFlip || dimensions === null || !bookIsReady || failed) return;
+    if (pageFlip.getState() === "flipping") return;
 
     const currentPage = pageFlip.getCurrentPageIndex();
     if (animationTargetPageRef.current === null) {
@@ -270,10 +325,15 @@ export function SaugeNoirePageFlipExperiment({
 
   useEffect(() => {
     const activeBookRef = bookRef;
+    const cleanupGeneration = ++cleanupGenerationRef.current;
     return () => {
       const pageFlip = activeBookRef.current?.pageFlip();
       if (!pageFlip) return;
       queueMicrotask(() => {
+        // React Strict Mode runs effect cleanup and setup once during
+        // development. Do not destroy the live PageFlip root from that
+        // rehearsal; only the final unmount may remove it.
+        if (!isCurrentCleanupGeneration(cleanupGenerationRef, cleanupGeneration)) return;
         try {
           pageFlip.destroy();
         } catch {
@@ -284,10 +344,12 @@ export function SaugeNoirePageFlipExperiment({
   }, []);
 
   const handleFlip = (event: PageFlipEvent) => {
-    if (bookKey === null || readyBookKeyRef.current !== bookKey) return;
+    if (readyBookKeyRef.current !== bookKey) return;
     const nextIndex = parsePageIndex(event);
     if (nextIndex === null) return;
     const animationTarget = animationTargetPageRef.current;
+    if (reportedFlipPageRef.current === nextIndex && animationTarget === null) return;
+    reportedFlipPageRef.current = nextIndex;
     if (animationTarget !== null && nextIndex !== animationTarget) {
       requestedPageIndexRef.current = animationTarget;
       onPageFlip(nextIndex);
@@ -302,9 +364,22 @@ export function SaugeNoirePageFlipExperiment({
     readyBookKeyRef.current = bookKey;
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
+    reportedFlipPageRef.current = null;
+    setEngineState("read");
     setReadyBookKey(bookKey);
+    appliedDimensionKeyRef.current = null;
     captureOriginalPages();
   };
+
+  const handleChangeState = useCallback((event: PageFlipEvent) => {
+    const state = String(event.data);
+    setEngineState(state);
+    if (state === "flipping") reportedFlipPageRef.current = null;
+    onChangeStateRef.current?.(state);
+    if (state === "read" && pendingDimensionUpdateRef.current) {
+      window.requestAnimationFrame(updatePageFlipBounds);
+    }
+  }, [updatePageFlipBounds]);
 
   const rememberGestureStart = (x: number, y: number, target: EventTarget | null) => {
     if (
@@ -354,8 +429,11 @@ export function SaugeNoirePageFlipExperiment({
 
     preventDefault();
     requestedPageIndexRef.current = nextPage;
-    if (deltaX < 0) pageFlip.flipNext();
-    else pageFlip.flipPrev();
+    if (deltaX < 0) {
+      pageFlip.flipNext();
+    } else {
+      pageFlip.flipPrev();
+    }
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -431,7 +509,6 @@ export function SaugeNoirePageFlipExperiment({
   };
 
   const shouldShowFallback = dimensions === null || failed;
-  const shouldHideBook = !bookIsReady || failed;
 
   return (
     <div
@@ -450,9 +527,16 @@ export function SaugeNoirePageFlipExperiment({
       data-page-flip-state={
         failed ? "fallback-error" : bookIsReady ? "ready" : "loading"
       }
+      data-page-flip-book-key={bookKey}
+      data-page-flip-engine-state={engineState}
     >
       {shouldShowFallback ? (
-        <div className={styles.pageFlipFallback} data-page-flip-fallback="instant">
+        <div
+          className={styles.pageFlipFallback}
+          data-page-flip-fallback="instant"
+          aria-hidden="true"
+          ref={(element) => element?.setAttribute("inert", "")}
+        >
           {fallback}
         </div>
       ) : (
@@ -468,7 +552,9 @@ export function SaugeNoirePageFlipExperiment({
             <HTMLFlipBook
               key={bookKey ?? undefined}
               ref={bookRef}
-              className={`${styles.pageFlipBook} ${shouldHideBook ? styles.pageFlipBookPending : ""}`}
+              // PageFlip adds `.stf__parent` to this root. Keep React's class
+              // list stable so a ready-state render cannot remove it.
+              className={styles.pageFlipBook}
               style={{} as CSSProperties}
               width={dimensions.width}
               height={dimensions.height}
@@ -497,6 +583,7 @@ export function SaugeNoirePageFlipExperiment({
               disableFlipByClick={false}
               renderOnlyPageLengthChange={renderOnlyPageLengthChange}
               onFlip={handleFlip}
+              onChangeState={handleChangeState}
               onInit={() => {
                 handleInit();
                 onReady?.();
@@ -506,7 +593,11 @@ export function SaugeNoirePageFlipExperiment({
             </HTMLFlipBook>
           </PageFlipErrorBoundary>
           {!bookIsReady ? (
-            <div className={styles.pageFlipInitializing} aria-hidden="true">
+            <div
+              className={styles.pageFlipInitializing}
+              aria-hidden="true"
+              ref={(element) => element?.setAttribute("inert", "")}
+            >
               {fallback}
             </div>
           ) : null}

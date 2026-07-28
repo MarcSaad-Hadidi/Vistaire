@@ -7,9 +7,9 @@ async function openRoute(page: Page, route: string, heading: RegExp) {
   const response = await page.goto(route, { waitUntil: "domcontentloaded" });
   const body = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
   if (response?.status() === 404 || body.includes("This page could not be found")) {
-    test.skip(true, "Requires a seeded Sauge Noire Supabase fixture (route returned 404).");
+    throw new Error("Sauge Noire fixture setup failed: route returned 404.");
   }
-  await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({ timeout: 15_000 });
 }
 
@@ -36,7 +36,7 @@ async function assertRealRouteFlip(
 ) {
   const transition = page.locator('[data-sauge-route-transition="true"]');
   await expect(transition).toBeVisible();
-  await expect(destination).toBeVisible();
+  await expect(destination).toBeAttached();
   await expect(page).toHaveURL(initialUrl);
 
   const before = await transition.locator(".stf__item").evaluateAll((items) =>
@@ -50,7 +50,15 @@ async function assertRealRouteFlip(
         const after = await transition.locator(".stf__item").evaluateAll((items) =>
           items.map((item) => getComputedStyle(item).transform)
         );
-        return after.some((transform, index) => transform !== before[index]);
+        const state = await transition
+          .locator("[data-page-flip-engine-state]")
+          .getAttribute("data-page-flip-engine-state");
+        const flipStarted = await transition.getAttribute(
+          "data-sauge-route-transition-flip-started"
+        );
+        return after.some((transform, index) => transform !== before[index]) ||
+          state === "flipping" ||
+          flipStarted === "true";
       },
       { timeout: 1_500, intervals: [40, 80, 120] }
     )
