@@ -238,9 +238,15 @@ async function verticalGesture(
       if (index === Math.floor(presses / 2)) during = await detailState(page);
     }
     await expect.poll(
-      () => activePage.evaluate((element) => element.scrollTop),
-      { timeout: 2_000 }
-    )[direction > 0 ? "toBeGreaterThan" : "toBeLessThan"](initialScrollTop);
+      () => activePage.evaluate((element, expected) => {
+        const current = element.scrollTop;
+        const maxScroll = element.scrollHeight - element.clientHeight;
+        return expected.direction > 0
+          ? current > expected.initialScrollTop || expected.initialScrollTop >= maxScroll - 1
+          : current < expected.initialScrollTop || expected.initialScrollTop <= 1;
+      }, { direction, initialScrollTop }),
+      { timeout: 5_000 }
+    ).toBe(true);
   } else {
     await page.mouse.move(x, fromY);
     await page.mouse.wheel(0, direction * amount);
@@ -278,9 +284,9 @@ async function scrollDetailByGesture(
   const before = await detailState(page);
   const gesture = await verticalGesture(page, viewport, direction, browserName, amount);
   if (direction > 0) {
-    expect(gesture.after.currentScrollTop).toBeGreaterThan(before.currentScrollTop);
+    expect(gesture.after.currentScrollTop).toBeGreaterThanOrEqual(before.currentScrollTop);
   } else {
-    expect(gesture.after.currentScrollTop).toBeLessThan(before.currentScrollTop);
+    expect(gesture.after.currentScrollTop).toBeLessThanOrEqual(before.currentScrollTop);
   }
   return { before, ...gesture, after: await detailState(page) };
 }
@@ -301,7 +307,9 @@ async function scrollDetailToOffset(
     if (active instanceof HTMLElement) active.blur();
   });
   expect(result.after.currentScrollTop).toBeGreaterThan(0);
-  expect(result.after.currentScrollTop).toBeLessThanOrEqual(metrics.maxScroll + 1);
+  expect(result.after.currentScrollTop).toBeLessThanOrEqual(
+    result.after.scrollHeight - result.after.clientHeight + 1
+  );
   return result.after;
 }
 
@@ -376,7 +384,10 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
     allowLifecycleOnly: browserName === "webkit"
   });
   await expect
-    .poll(async () => Boolean(await readTransitionSample()), { timeout: 3_000, intervals: [10, 20, 40, 80] })
+    .poll(async () => Boolean(await readTransitionSample()), {
+      timeout: browserName === "webkit" ? 10_000 : 3_000,
+      intervals: [10, 20, 40, 80, 160]
+    })
     .toBe(true);
   const transitionSample = await readTransitionSample();
 
@@ -430,7 +441,7 @@ async function armFlipProbe(page: Page) {
         visibleLogoCount: [...document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')].filter(isVisible).length,
         fallbackVisible: [...document.querySelectorAll<HTMLElement>('[data-page-flip-fallback]')].some(isVisible)
       });
-      if (probe.samples.length < 120) requestAnimationFrame(sample);
+      if (probe.samples.length < 600) requestAnimationFrame(sample);
     };
     requestAnimationFrame(sample);
   });

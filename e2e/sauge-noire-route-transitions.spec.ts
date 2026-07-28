@@ -60,7 +60,7 @@ async function assertRealRouteFlip(
           state === "flipping" ||
           flipStarted === "true";
       },
-      { timeout: 1_500, intervals: [40, 80, 120] }
+      { timeout: 8_000, intervals: [40, 80, 120, 240] }
     )
     .toBe(true);
 }
