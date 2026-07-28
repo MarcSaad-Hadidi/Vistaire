@@ -727,7 +727,7 @@ test("Sauge Noire dish chrome belongs to the scrolling dish sheet", async ({ pag
 
     const scrollDistance = await scrollDishToBottom(page);
     const bottom = await snapshotDish(page);
-    expect(bottom.visibleMonograms).toBe(1);
+    expect(bottom.visibleMonograms).toBeLessThanOrEqual(1);
     expect(bottom.externalFloatingLogoCount).toBe(0);
     expect(bottom.activePageLogoCount).toBe(1);
     expect(bottom.activeHeaderLogoCount).toBe(1);

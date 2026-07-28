@@ -296,31 +296,35 @@ export function SaugeNoirePageFlipExperiment({
   }, [bookIsReady, dimensions, failed, resetKey, startPage]);
 
   useEffect(() => {
-    const pageFlip = bookRef.current?.pageFlip();
-    if (!pageFlip || dimensions === null || !bookIsReady || failed) return;
-    if (pageFlip.getState() === "flipping") return;
+    const frame = window.requestAnimationFrame(() => {
+      const pageFlip = bookRef.current?.pageFlip();
+      if (!pageFlip || dimensions === null || !bookIsReady || failed) return;
+      if (pageFlip.getState() === "flipping") return;
 
-    const currentPage = pageFlip.getCurrentPageIndex();
-    if (animationTargetPageRef.current === null) {
-      if (requestedPageIndexRef.current !== null || currentPage === pageIndex) return;
-      animationTargetPageRef.current = pageIndex;
-    }
+      const currentPage = pageFlip.getCurrentPageIndex();
+      if (animationTargetPageRef.current === null) {
+        if (requestedPageIndexRef.current !== null || currentPage === pageIndex) return;
+        animationTargetPageRef.current = pageIndex;
+      }
 
-    const targetPage = animationTargetPageRef.current;
-    if (targetPage === null) return;
+      const targetPage = animationTargetPageRef.current;
+      if (targetPage === null) return;
 
-    if (currentPage === targetPage) {
-      animationTargetPageRef.current = null;
-      requestedPageIndexRef.current = null;
-      return;
-    }
+      if (currentPage === targetPage) {
+        animationTargetPageRef.current = null;
+        requestedPageIndexRef.current = null;
+        return;
+      }
 
-    requestedPageIndexRef.current = targetPage;
-    if (targetPage > currentPage) {
-      pageFlip.flipNext();
-    } else {
-      pageFlip.flipPrev();
-    }
+      requestedPageIndexRef.current = targetPage;
+      if (targetPage > currentPage) {
+        pageFlip.flipNext();
+      } else {
+        pageFlip.flipPrev();
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [bookIsReady, dimensions, engineState, failed, pageIndex]);
 
   useEffect(() => {

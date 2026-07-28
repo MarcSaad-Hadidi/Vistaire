@@ -137,6 +137,19 @@ test("multi-page contents jumps keep animating until the requested page", async 
   assert.match(experiment, /reportedFlipPageRef/);
 });
 
+test("the Sauge browser fixture provides local dish photos", async () => {
+  const { rows } = await import("../e2e/support/sauge-noire-fixture-data.mjs");
+
+  assert.equal(rows.menu_dishes.length, 36);
+  assert.equal(rows.menu_dishes[1].slug, "betterave-sous-la-cendre");
+  assert.ok(
+    rows.menu_dishes.every((dish) =>
+      typeof dish.image_url === "string" &&
+      dish.image_url.startsWith("/images/demo/dishes/")
+    )
+  );
+});
+
 test("short non-split sections keep navigation below the final dish", async () => {
   const book = await readFile(bookPath, "utf8");
   const styles = await readFile(stylesPath, "utf8");
