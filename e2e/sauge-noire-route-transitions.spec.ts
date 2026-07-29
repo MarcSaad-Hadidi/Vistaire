@@ -259,9 +259,24 @@ async function assertRealRouteFlip(
   await expect(transition).toBeVisible();
   await expect(transition).toHaveAttribute("aria-hidden", "true");
   expect(
-    await transition.locator(".stf__item").evaluateAll((items) =>
-      items.every((item) => getComputedStyle(item).pointerEvents === "none")
-    )
+    await transition.evaluate((overlay) => {
+      const items = [...overlay.querySelectorAll<HTMLElement>(".stf__item")];
+      const phase = overlay.getAttribute("data-sauge-route-transition-phase");
+      if (phase !== "awaiting-destination") {
+        return items.every(
+          (item) => getComputedStyle(item).pointerEvents === "none"
+        );
+      }
+      const target = overlay.querySelector<HTMLElement>(
+        '[data-sauge-route-preview-scroll-target="true"]'
+      );
+      if (!target || getComputedStyle(target).pointerEvents !== "auto") {
+        return false;
+      }
+      return items
+        .filter((item) => getComputedStyle(item).pointerEvents !== "none")
+        .every((item) => item === target || item.contains(target));
+    })
   ).toBe(true);
   await expect(destination).toBeAttached();
 
