@@ -14,6 +14,7 @@ type RouteTransitionSample = {
   overlay: boolean;
   pathname: string;
   phase: string | null;
+  phaseHistory: string | null;
   rendererHidden: boolean;
   settled: boolean;
   targetPage: string | null;
@@ -183,6 +184,8 @@ async function installRouteTransitionProbe(page: Page) {
         overlay: overlay !== null,
         pathname: `${location.pathname}${location.search}`,
         phase: overlay?.getAttribute("data-sauge-route-transition-phase") ?? null,
+        phaseHistory:
+          overlay?.getAttribute("data-sauge-route-transition-phase-history") ?? null,
         rendererHidden:
           renderer?.getAttribute("data-sauge-route-renderer-hidden") === "true" &&
           renderer.hasAttribute("inert") &&
@@ -238,6 +241,7 @@ async function installRouteTransitionProbe(page: Page) {
         "data-sauge-route-renderer-hidden",
         "data-sauge-route-transition-current-page",
         "data-sauge-route-transition-phase",
+        "data-sauge-route-transition-phase-history",
         "data-sauge-route-transition-settled",
         "data-sauge-route-transition-target-reached",
         "inert",
@@ -402,14 +406,10 @@ async function assertRealRouteFlip(
   const engineStates = overlaySamples
     .map((sample) => sample.engineState)
     .filter((state, index, states) => state !== states[index - 1]);
-  const phases = overlaySamples
-    .map((sample) => sample.phase)
-    .filter((phase, index, allPhases) => phase !== allPhases[index - 1]);
-  expect(phases, "route transition phases must advance monotonically").toEqual([
-    "preparing",
-    "animating",
-    "awaiting-destination"
-  ]);
+  expect(
+    overlaySamples.at(-1)?.phaseHistory?.split(","),
+    "route transition phases must advance monotonically"
+  ).toEqual(["preparing", "animating", "awaiting-destination"]);
   expect(
     engineStates.filter((state) => state === "flipping"),
     "the route transition must enter flipping exactly once"
@@ -976,6 +976,19 @@ test("the watchdog hard navigates when the client destination never commits", as
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({
     timeout: 15_000
   });
+  const diagnostics = pageDiagnostics.get(page);
+  const expectedRscFallback = /Failed to fetch RSC payload .*Falling back to browser navigation\./;
+  const expectedFallbackErrors =
+    diagnostics?.consoleErrors.filter((message) => expectedRscFallback.test(message)) ?? [];
+  expect(
+    expectedFallbackErrors.length,
+    "the deliberately aborted client RSC request must trigger Next.js browser fallback"
+  ).toBeGreaterThan(0);
+  if (diagnostics) {
+    diagnostics.consoleErrors = diagnostics.consoleErrors.filter(
+      (message) => !expectedRscFallback.test(message)
+    );
+  }
 });
 
 for (const intent of [

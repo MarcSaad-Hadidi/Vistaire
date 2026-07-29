@@ -19,6 +19,7 @@ export type SaugeNoireRouteTransition = {
 
 type ActiveTransition = SaugeNoireRouteTransition & {
   phase: "preparing" | "animating" | "awaiting-destination";
+  phaseHistory: Array<"preparing" | "animating" | "awaiting-destination">;
   sourcePathname: string;
 };
 
@@ -92,6 +93,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const active = {
       ...next,
       phase: "preparing" as const,
+      phaseHistory: ["preparing"] as ActiveTransition["phaseHistory"],
       sourcePathname: pathnameRef.current
     };
     if (document.activeElement instanceof HTMLElement) {
@@ -108,7 +110,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const updatePhase = useCallback((phase: ActiveTransition["phase"]) => {
     const current = transitionRef.current;
     if (!current || current.phase === phase) return;
-    const next = { ...current, phase };
+    const next = {
+      ...current,
+      phase,
+      phaseHistory: [...current.phaseHistory, phase]
+    };
     transitionRef.current = next;
     setTransition(next);
   }, []);
@@ -400,6 +406,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
           frameClassName={transition.frameClassName}
           sourceScrollTop={transition.sourceScrollTop}
           phase={transition.phase}
+          phaseHistory={transition.phaseHistory.join(",")}
           targetActivated={transition.phase !== "preparing"}
           visible={transition.phase !== "preparing"}
           onReady={handleOverlayReady}
