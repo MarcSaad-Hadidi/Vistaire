@@ -1,0 +1,108 @@
+.routeTransitionOverlay {
+  --sn-forest: #26372b;
+  --sn-forest-dark: #172219;
+  --sn-cream: #f3eadb;
+  --sn-paper: #faf4e9;
+  --sn-bronze: #b47a3c;
+  --sn-ink: #26372b;
+  --sn-muted: #6c6f61;
+  --sn-line: rgba(38, 55, 43, 0.2);
+  --sn-rail: clamp(42px, 11vw, 116px);
+  --sn-header-height: 132px;
+  --sn-paper-texture:
+    radial-gradient(circle at 24% 30%, rgba(38, 55, 43, 0.032) 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 72% 66%, rgba(180, 122, 60, 0.03) 0 0.65px, transparent 0.75px);
+  --sn-paper-texture-size: 16px 17px, 23px 24px;
+  position: fixed;
+  z-index: 8;
+  inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100svh;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: auto;
+  isolation: isolate;
+  background-color: var(--sn-forest);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  color: var(--sn-ink);
+  font-family: "BT Suave", Georgia, serif;
+}
+
+.routeTransitionOverlay,
+.routeTransitionOverlay * {
+  box-sizing: border-box;
+}
+
+.routeTransitionSurface {
+  position: relative;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 100svh;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.routeFlipEngine,
+.settledSurface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.routeFlipEngine {
+  overflow: hidden;
+}
+
+.routeFlipEngine[data-sauge-route-flip-engine-visible="false"],
+.routeFlipEngine[data-sauge-route-flip-engine-visible="false"] * {
+  visibility: hidden !important;
+  pointer-events: none;
+}
+
+.settledSurface {
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  color: var(--sn-ink);
+  scrollbar-width: thin;
+  container: sn-sheet / size;
+}
+
+.settledSurface[data-sauge-route-settled-surface-visible="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.settledSurface[data-sauge-route-settled-surface-visible="true"] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.settledContent {
+  min-height: 100%;
+  font: inherit;
+  pointer-events: auto;
+}
+
+.settledContent :where(a, button, input, select, textarea) {
+  pointer-events: none;
+}
+
+.routeTransitionOverlay[data-sauge-route-transition-visible="false"] {
+  visibility: hidden;
+}
+
+.routeTransitionOverlay :global(.stf__item),
+.routeTransitionOverlay :global(.stf__item) * {
+  pointer-events: none;
+}

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -149,6 +150,7 @@ export type DishModelViewerProps = {
   quietChrome?: boolean;
   copy?: DishModelViewerCopy;
   onReturnToDish?: () => void;
+  onViewerMounted?: () => void;
   onArFallbackNeeded?: (reason: ArFallbackReason) => void;
   onArFallbackCleared?: () => void;
   analyticsContext?: PublicMenuAnalyticsContext;
@@ -517,6 +519,7 @@ export function DishModelViewer({
   quietChrome = false,
   copy: customCopy,
   onReturnToDish,
+  onViewerMounted,
   onArFallbackNeeded,
   onArFallbackCleared,
   analyticsContext
@@ -540,6 +543,10 @@ export function DishModelViewer({
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  useLayoutEffect(() => {
+    onViewerMounted?.();
+  }, [onViewerMounted]);
 
   const isAndroid = isAndroidDevice();
   const manifest = useMemo(() => buildDemoDish3dManifest(dish), [dish]);

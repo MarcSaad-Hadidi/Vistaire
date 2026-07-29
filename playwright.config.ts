@@ -6,6 +6,8 @@ const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
+const cliRequestsWebkit = process.argv.some((argument) => argument === "--project=webkit");
+if (cliRequestsWebkit) process.env.PLAYWRIGHT_INCLUDE_WEBKIT = "1";
 const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1";
 const adminE2eSensitive = process.env.VISTAIRE_ADMIN_E2E_SENSITIVE === "1";
 const sensitiveQrE2E = process.env.VISTAIRE_QR_E2E_SENSITIVE === "1";
@@ -13,6 +15,14 @@ const sensitiveE2E = adminE2eSensitive || sensitiveQrE2E;
 const adminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
 const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
 const qrFunctionalFixture = process.env.VISTAIRE_QR_FUNCTIONAL === "1";
+const cliIncludesSaugeNoireBrowserFlow = process.argv
+  .slice(2)
+  .some((argument) => /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(
+    argument.replaceAll("\\", "/")
+  ));
+if (cliIncludesSaugeNoireBrowserFlow) process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE = "1";
+const saugeNoireFixture = process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1";
+const saugeNoireFixtureOrigin = "http://127.0.0.1:55434";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const qrFixtureOrigin = "http://127.0.0.1:55432";
@@ -71,7 +81,27 @@ export default defineConfig({
   ],
   ...(shouldStartWebServer
     ? {
-        webServer: adminVisualFixture ? [{
+        webServer: saugeNoireFixture ? [{
+          command: "node e2e/support/sauge-noire-fixture-server.mjs",
+          url: `${saugeNoireFixtureOrigin}/fixture/health`,
+          reuseExistingServer,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+          timeout: 30_000
+        }, {
+          command: fixtureStartCommand,
+          env: {
+            ...process.env,
+            NEXT_PUBLIC_SUPABASE_URL: saugeNoireFixtureOrigin,
+            SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
+            VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+            VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
+              '{"CAD":1,"USD":0.72,"EUR":0.6225}'
+          },
+          url: baseURL,
+          reuseExistingServer,
+          gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+          timeout: 120_000
+        }] : adminVisualFixture ? [{
           command: "node e2e/support/admin-visual-fixture-server.mjs",
           url: `${adminVisualFixtureOrigin}/rest/v1/restaurants`,
           reuseExistingServer,

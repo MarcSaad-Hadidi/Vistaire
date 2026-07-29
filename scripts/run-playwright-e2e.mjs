@@ -26,11 +26,14 @@ const useTrouvableImmersiveFixture = process.argv
   .some((argument) =>
     argument.replaceAll("\\", "/").endsWith("e2e/trouvable-back-to-top-ar-handoff.spec.ts")
   );
-const includesSaugeNoireDishDetail = process.argv
+const includesSaugeNoireBrowserFlow = process.argv
   .slice(2)
   .some((argument) =>
-    argument.replaceAll("\\", "/").endsWith("e2e/sauge-noire-dish-detail.spec.ts")
+    /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
   );
+const useDevelopmentServer =
+  useLocalDemoServer || includesSaugeNoireBrowserFlow;
+const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 
 function waitForServer(url, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
@@ -75,15 +78,28 @@ function runChild(command, args, options = {}) {
 
 async function main() {
   let server = null;
+  let saugeFixture = null;
 
   try {
+    if (includesSaugeNoireBrowserFlow) {
+      saugeFixture = spawn(
+        process.execPath,
+        ["e2e/support/sauge-noire-fixture-server.mjs"],
+        {
+          stdio: "inherit",
+          windowsHide: true,
+          env: { ...process.env, VISTAIRE_SAUGE_NOIRE_FIXTURE_PORT: "55434" }
+        }
+      );
+      await waitForServer(`${SAUGE_FIXTURE_ORIGIN}/fixture/health`);
+    }
     if (!skipWebServer) {
       const port = parsedBaseURL.port || (parsedBaseURL.protocol === "https:" ? "443" : "80");
       server = spawn(
         process.execPath,
         [
           "./node_modules/next/dist/bin/next",
-          useLocalDemoServer ? "dev" : "start",
+          useDevelopmentServer ? "dev" : "start",
           "-p",
           port,
           "-H",
@@ -94,6 +110,15 @@ async function main() {
           windowsHide: true,
           env: {
             ...process.env,
+            ...(includesSaugeNoireBrowserFlow
+              ? {
+                  NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
+                  SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
+                  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+                  VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
+                    '{"CAD":1,"USD":0.72,"EUR":0.6225}'
+                }
+              : {}),
             CLERK_SECRET_KEY: LOCAL_E2E_CLERK_SECRET_KEY,
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
               LOCAL_E2E_CLERK_PUBLISHABLE_KEY,
@@ -117,7 +142,7 @@ async function main() {
         ...process.env,
         PLAYWRIGHT_SKIP_WEB_SERVER: "1",
         PLAYWRIGHT_BASE_URL: baseURL,
-        ...(includesSaugeNoireDishDetail ? { PLAYWRIGHT_INCLUDE_WEBKIT: "1" } : {}),
+        ...(includesSaugeNoireBrowserFlow ? { PLAYWRIGHT_INCLUDE_WEBKIT: "1" } : {}),
         VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: OWNER_E2E_TOKEN
       }
     });
@@ -126,6 +151,9 @@ async function main() {
   } finally {
     if (server && !server.killed) {
       server.kill();
+    }
+    if (saugeFixture && !saugeFixture.killed) {
+      saugeFixture.kill();
     }
   }
 }

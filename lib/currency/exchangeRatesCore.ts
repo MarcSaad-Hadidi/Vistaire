@@ -79,6 +79,35 @@ function resultWithCacheFlag(
   return { ...result, cached };
 }
 
+function fixtureRates(
+  base: PublicMenuCurrency,
+  quotes: readonly PublicMenuCurrency[]
+): ExchangeRatesResult | null {
+  const raw = process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON;
+  if (!raw) return null;
+  try {
+    const values = JSON.parse(raw) as Record<string, unknown>;
+    const rates = {
+      [base]: Number(values[base] ?? 1)
+    } as Partial<Record<PublicMenuCurrency, number>>;
+    for (const quote of quotes) {
+      const value = Number(values[quote]);
+      if (!Number.isFinite(value) || value <= 0) return null;
+      rates[quote] = value;
+    }
+    return {
+      ok: true,
+      base,
+      rates,
+      provider: "fallback",
+      updatedAt: new Date(0).toISOString(),
+      cached: false
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseFrankfurterRates(
   payload: FrankfurterRatesPayload,
   quotes: readonly PublicMenuCurrency[]
@@ -131,6 +160,13 @@ export async function getExchangeRates(args: {
   const quotes = normalizeQuotes(base, supported);
   const key = cacheKey(base, quotes);
   const now = args.now ?? Date.now();
+
+  // Deterministic browser fixtures opt into fixed rates without changing
+  // production provider behavior. They deliberately take precedence over the
+  // process cache so a reused test server cannot leak an earlier fallback.
+  const fixture = fixtureRates(base, quotes);
+  if (fixture) return fixture;
+
   const cached = memoryCache.get(key);
   if (cached && cached.expiresAt > now) {
     return resultWithCacheFlag(cached, true);

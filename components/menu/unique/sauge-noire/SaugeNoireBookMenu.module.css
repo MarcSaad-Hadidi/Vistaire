@@ -39,6 +39,11 @@
   --sn-line: rgba(38, 55, 43, 0.2);
   --sn-rail: clamp(42px, 11vw, 116px);
   --sn-rail-half: clamp(21px, 5.5vw, 58px);
+  --sn-header-height: 132px;
+  --sn-safe-top: env(safe-area-inset-top, 0px);
+  --sn-safe-right: env(safe-area-inset-right, 0px);
+  --sn-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --sn-safe-left-in-page: max(0px, calc(env(safe-area-inset-left, 0px) - var(--sn-rail)));
   position: fixed;
   inset: 0;
   display: flex;
@@ -61,8 +66,7 @@
   }
 }
 
-.book button,
-.book a {
+.book :where(button, a) {
   color: inherit;
   font: inherit;
 }
@@ -171,9 +175,9 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  height: 132px;
-  min-height: 132px;
-  flex: 0 0 132px;
+  height: var(--sn-header-height);
+  min-height: var(--sn-header-height);
+  flex: 0 0 var(--sn-header-height);
   margin-left: 0;
   overflow: visible;
   background: transparent;
@@ -182,7 +186,7 @@
 
 .bookHeader > .brandMark {
   position: absolute;
-  top: 78px;
+  top: calc(59% - 0px);
   left: calc(50% - 5px);
   z-index: 4;
   transform: translateX(-50%);
@@ -190,8 +194,8 @@
 
 .contentsBack {
   position: absolute;
-  top: 38px;
-  left: clamp(16px, 5vw, 64px);
+  top: calc(29% - 0px);
+  left: max(clamp(16px, 5vw, 64px), var(--sn-safe-left-in-page));
   display: inline-flex;
   min-height: 38px;
   align-items: center;
@@ -202,8 +206,12 @@
   background: rgba(250, 244, 233, 0.24);
   color: rgba(38, 55, 43, 0.82);
   cursor: pointer;
-  font-size: 0.84rem;
-  font-style: italic;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.5;
   pointer-events: auto;
 }
 
@@ -242,8 +250,8 @@
 
 .preferenceControls {
   position: absolute;
-  top: 38px;
-  right: clamp(16px, 5vw, 64px);
+  top: calc(29% - 0px);
+  right: max(clamp(16px, 5vw, 64px), var(--sn-safe-right));
   display: flex;
   gap: 8px;
   align-items: center;
@@ -267,10 +275,12 @@
   background: rgba(250, 244, 233, 0.38);
   color: rgba(38, 55, 43, 0.86);
   cursor: pointer;
-  font-family: "Neue Montreal", Arial, sans-serif;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
   letter-spacing: 0.04em;
+  line-height: 1.5;
 }
 
 .preferenceTrigger[aria-expanded="true"] {
@@ -313,9 +323,12 @@
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-family: "Neue Montreal", Arial, sans-serif;
-  font-size: 0.76rem;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
   letter-spacing: 0.04em;
+  line-height: 1.5;
 }
 
 .preferenceOption:hover,
@@ -325,16 +338,13 @@
   color: var(--sn-ink);
 }
 
-.preferenceOptionActive {
-  font-weight: 700;
-}
-
 .pageViewport {
   position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  container: sn-sheet / size;
 }
 
 .pageFlipViewport {
@@ -347,12 +357,42 @@
   isolation: isolate;
 }
 
+.pageFlipEngineLayer {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pageFlipEngineLayer[data-page-flip-engine-visible="false"],
+.pageFlipEngineLayer[data-page-flip-engine-visible="false"] * {
+  visibility: hidden !important;
+}
+
+.pageFlipEngineLayer[data-page-flip-engine-visible="true"] {
+  visibility: visible;
+}
+
 .pageFlipBook {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  min-width: 0 !important;
+  min-height: 0 !important;
   overflow: hidden;
+}
+
+.pageFlipEngineLayer :global(.stf__item),
+.pageFlipEngineLayer :global(.stf__item) * {
+  pointer-events: none;
+}
+
+.pageFlipViewport[data-page-flip-state="loading"] .pageFlipBook {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .pageFlipBookPending {
@@ -365,12 +405,15 @@
 .pageFlipBook :global(.stf__block) {
   width: 100%;
   height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
 }
 
 .pageFlipPage {
   width: 100%;
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
   background-color: var(--sn-paper);
@@ -378,23 +421,30 @@
   background-size: var(--sn-paper-texture-size);
   color: var(--sn-ink);
   scrollbar-width: thin;
+  container: sn-sheet / size;
 }
 
-.pageFlipPage:has(.coverPage) {
-  overflow: clip;
+.pageFlipPage:has(> .staticPageFrame) {
+  overflow: hidden;
 }
 
 .pageFlipFallback {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
+  container: sn-sheet / size;
 }
 
-.pageFlipFallback:has(.coverPage) {
-  overflow: clip;
+.pageFlipFallback[data-page-flip-fallback="loading"] {
+  pointer-events: none;
+}
+
+.pageFlipFallback:has(> .staticPageFrame) {
+  overflow: hidden;
 }
 
 .pageFlipInitializing {
@@ -1129,9 +1179,12 @@
   box-shadow: 0 8px 18px rgba(38, 55, 43, 0.16);
   color: var(--sn-bronze);
   cursor: pointer;
-  font-family: "Neue Montreal", Arial, sans-serif;
-  font-size: 0.74rem;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
   letter-spacing: 0.03em;
+  line-height: 1.5;
   transform: translateX(-50%);
 }
 
@@ -1251,7 +1304,6 @@
     gap: 5px;
     padding: 0 8px;
     border-radius: 9px;
-    font-size: 0.68rem;
   }
 
   .contentsBack span:first-child {
@@ -1281,7 +1333,6 @@
     gap: 6px;
     padding: 0 8px;
     border-radius: 9px;
-    font-size: 0.68rem;
   }
 
   .preferencePopover {
@@ -1294,7 +1345,6 @@
   .preferenceOptionActive {
     min-height: 32px;
     padding: 0 8px;
-    font-size: 0.68rem;
   }
 
   .backToTop {
@@ -1302,7 +1352,6 @@
     bottom: 14px;
     min-height: 34px;
     padding: 0 10px;
-    font-size: 0.66rem;
   }
 
   .page {
@@ -1566,5 +1615,652 @@
 
   .endingSoon {
     margin-top: 8px;
+  }
+}
+
+/*
+ * Static PageFlip sheets use the engine's measured page as their only size
+ * source. The wrapper is deliberately inside `.pageFlipPage`: StPageFlip
+ * owns and rewrites the outer page's inline display during turns.
+ */
+.staticPageFrame {
+  --sn-header-height: calc(clamp(72px, 15cqh, 132px) + var(--sn-safe-top));
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.staticPageFrame > .bookHeader {
+  width: 100%;
+}
+
+.staticPageFrame > .page {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding:
+    clamp(4px, 1.4cqh, 18px)
+    max(clamp(8px, 3cqw, 32px), var(--sn-safe-right))
+    max(clamp(8px, 1.8cqh, 26px), var(--sn-safe-bottom))
+    max(clamp(8px, 3cqw, 32px), var(--sn-safe-left-in-page));
+}
+
+.staticPageFrame .bookHeader > .brandMark {
+  top: calc(75% - 34px);
+}
+
+.staticPageFrame .contentsBack,
+.staticPageFrame .preferenceControls {
+  top: max(var(--sn-safe-top), calc(10% + 5px));
+}
+
+.staticPageFrame .contentsBack {
+  left: max(clamp(6px, 3cqw, 24px), var(--sn-safe-left-in-page));
+  min-height: 40px;
+  font-size: 0.8125rem;
+}
+
+.staticPageFrame .preferenceControls {
+  right: max(clamp(6px, 3cqw, 24px), var(--sn-safe-right));
+  gap: clamp(4px, 1.5cqw, 8px);
+}
+
+.staticPageFrame .preferenceTrigger {
+  min-width: 44px;
+  min-height: 40px;
+  padding-inline: clamp(5px, 1.8cqw, 11px);
+  font-size: 0.8125rem;
+}
+
+.staticPageFrame .preferenceOption,
+.staticPageFrame .preferenceOptionActive {
+  min-height: 40px;
+  font-size: 0.8125rem;
+}
+
+.staticPageFrame .rule,
+.staticPageFrame .coverMenuTitle,
+.staticPageFrame .coverUnderline,
+.staticPageFrame .coverCity,
+.staticPageFrame .coverDot,
+.staticPageFrame .coverYear,
+.staticPageFrame .coverOpen,
+.staticPageFrame .instruction,
+.staticPageFrame .pageFooter,
+.staticPageFrame .pageFooter p,
+.staticPageFrame .endingPage > p,
+.staticPageFrame .endingCity,
+.staticPageFrame .googleReviewCta,
+.staticPageFrame .restartButton,
+.staticPageFrame .endingSoon {
+  margin-top: 0;
+}
+
+.staticPageFrame .coverPage {
+  padding-top: clamp(4px, 1.4cqh, 18px);
+}
+
+.staticPageFrame .coverTap {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: repeat(10, auto);
+  justify-items: center;
+  align-content: space-evenly;
+  gap: clamp(5px, 1cqh, 12px);
+}
+
+.staticPageFrame .coverBotanical {
+  width: clamp(72px, 28cqw, 210px);
+  height: 100%;
+  min-height: 0;
+  max-height: clamp(72px, 24cqh, 220px);
+  margin-bottom: 0;
+}
+
+.staticPageFrame .coverTitle h1 {
+  font-size: clamp(2.15rem, min(13cqw, 8cqh), 5rem);
+  letter-spacing: 0.055em;
+  line-height: 0.86;
+  text-wrap: balance;
+}
+
+.staticPageFrame .coverPage .coverTitle p,
+.staticPageFrame .endingPage > p,
+.staticPageFrame .instruction,
+.staticPageFrame .pageFooter p,
+.staticPageFrame .endingSoon {
+  margin-top: clamp(1px, 0.35cqh, 5px);
+  font-size: clamp(0.75rem, min(3.9cqw, 2.2cqh), 1rem);
+  line-height: 1.12;
+}
+
+.staticPageFrame .rule {
+  width: clamp(70px, 28cqw, 108px);
+  height: clamp(8px, 1.5cqh, 12px);
+}
+
+.staticPageFrame .rule::before,
+.staticPageFrame .rule::after {
+  width: calc(50% - 10px);
+}
+
+.staticPageFrame .rule i {
+  width: clamp(6px, 1.3cqh, 9px);
+  height: clamp(6px, 1.3cqh, 9px);
+  margin-inline: 5px;
+}
+
+.staticPageFrame .coverMenuTitle {
+  font-size: clamp(1rem, min(6cqw, 3.2cqh), 1.7rem);
+  line-height: 1;
+}
+
+.staticPageFrame .coverUnderline {
+  width: clamp(42px, 18cqw, 64px);
+}
+
+.staticPageFrame .coverCity,
+.staticPageFrame .coverYear,
+.staticPageFrame .endingCity {
+  font-size: clamp(0.75rem, min(4.4cqw, 2.4cqh), 1rem);
+  line-height: 1.05;
+}
+
+.staticPageFrame .coverDot {
+  width: clamp(5px, 1cqh, 7px);
+  height: clamp(5px, 1cqh, 7px);
+}
+
+.staticPageFrame .coverOpen {
+  padding-top: 0;
+  font-size: clamp(0.8125rem, min(4.4cqw, 2.4cqh), 1rem);
+  line-height: 1.05;
+}
+
+.staticPageFrame .arrow {
+  width: clamp(42px, 14cqw, 52px);
+  height: clamp(17px, 2.8cqh, 22px);
+  margin: 0 auto;
+}
+
+.staticPageFrame .contentsPage {
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  justify-items: center;
+  align-content: stretch;
+  gap: clamp(5px, 0.9cqh, 11px);
+  padding-top: clamp(4px, 1.2cqh, 16px);
+  padding-bottom: max(clamp(6px, 1.4cqh, 16px), var(--sn-safe-bottom));
+}
+
+.staticPageFrame .contentsBotanical {
+  width: clamp(48px, 22cqw, 130px);
+  height: clamp(52px, 11cqh, 112px);
+  min-height: 0;
+}
+
+.staticPageFrame .contentsPage h1 {
+  width: min(100%, 300px);
+  margin: 0;
+  font-size: clamp(1.75rem, min(11cqw, 6cqh), 3.4rem);
+  letter-spacing: 0.075em;
+  line-height: 0.92;
+  text-wrap: balance;
+}
+
+.staticPageFrame .contentsList {
+  display: grid;
+  width: min(100%, 770px);
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  margin-top: 0;
+}
+
+.staticPageFrame .contentsList button {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  gap: clamp(4px, 1.5cqw, 12px);
+  padding-inline: clamp(5px, 2cqw, 14px);
+  font-size: clamp(0.8125rem, min(4cqw, 2.1cqh), 1rem);
+  line-height: 1.08;
+}
+
+.staticPageFrame .contentsList button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.staticPageFrame .contentsList b {
+  flex: 0 0 auto;
+}
+
+.staticPageFrame .contentsPage .pageFooter {
+  display: grid;
+  width: 100%;
+  min-height: 72px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 44px;
+  align-items: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 2px 0 0;
+}
+
+.staticPageFrame .contentsPage .pageFooter > .rule {
+  width: clamp(70px, 28cqw, 108px);
+}
+
+.staticPageFrame .contentsPage .pageFooter p {
+  margin: 0;
+  text-align: center;
+}
+
+.staticPageFrame .doubleArrowControl {
+  width: 96px;
+  height: 44px;
+  margin-top: 0;
+  justify-self: center;
+}
+
+.staticPageFrame .arrowHit {
+  width: 44px;
+  min-width: 44px !important;
+  height: 44px;
+  min-height: 44px !important;
+}
+
+.staticPageFrame .doubleArrow {
+  width: 58px;
+  height: 21px;
+  pointer-events: none;
+}
+
+.staticPageFrame .endingPage {
+  display: grid;
+  grid-auto-rows: auto;
+  justify-items: center;
+  align-content: space-evenly;
+  gap: clamp(5px, 1cqh, 11px);
+  padding-top: clamp(4px, 1.2cqh, 18px);
+  padding-bottom: max(clamp(6px, 1.4cqh, 20px), var(--sn-safe-bottom));
+}
+
+.staticPageFrame .endingPage h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, min(9cqw, 5.8cqh), 4.6rem);
+  line-height: 0.9;
+  text-wrap: balance;
+}
+
+.staticPageFrame .endingBotanical {
+  width: clamp(52px, 24cqw, 180px);
+  height: clamp(48px, 17cqh, 210px);
+  min-height: 0;
+  margin: 0 auto;
+}
+
+.staticPageFrame .endingWordmark {
+  font-size: clamp(1.8rem, min(9cqw, 5.4cqh), 4rem);
+}
+
+.staticPageFrame .googleReviewCta,
+.staticPageFrame .restartButton {
+  min-height: 44px;
+  margin-top: 0;
+  font-size: max(0.875rem, min(4cqw, 2cqh));
+}
+
+.staticPageFrame .googleReviewCta {
+  max-width: 100%;
+  padding: 6px clamp(8px, 2.5cqw, 16px);
+}
+
+.staticPageFrame .googleReviewBrand {
+  min-width: 0;
+  font-size: inherit;
+}
+
+.staticPageFrame .endingSoon {
+  max-width: min(100%, 450px);
+}
+
+@container sn-sheet (max-height: 800px) {
+  .staticPageFrame .contentsPage {
+    gap: clamp(4px, 0.8cqh, 8px);
+  }
+
+  .staticPageFrame .contentsBotanical {
+    height: clamp(44px, 8cqh, 64px);
+  }
+
+  .staticPageFrame .contentsList button {
+    min-height: 40px;
+  }
+}
+
+@container sn-sheet (max-height: 700px) {
+  .staticPageFrame .contentsPage {
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) 44px;
+    gap: 3px;
+  }
+
+  .staticPageFrame .contentsBotanical {
+    height: clamp(34px, 9cqh, 62px);
+  }
+
+  .staticPageFrame .contentsList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(4px, 1.5cqw, 10px);
+  }
+
+  .staticPageFrame .contentsList button:nth-child(2) {
+    border-top: 1px solid rgba(180, 122, 60, 0.38);
+  }
+
+  .staticPageFrame .contentsPage .pageFooter {
+    min-height: 44px;
+    grid-template-columns: minmax(28px, 0.3fr) minmax(0, 1fr) 96px;
+    grid-template-rows: 44px;
+    justify-items: stretch;
+    gap: clamp(2px, 1cqw, 8px);
+  }
+
+  .staticPageFrame .contentsPage .pageFooter p {
+    margin: 0;
+    font-size: max(0.75rem, min(3.4cqw, 1.8cqh));
+    line-height: 1;
+  }
+
+  .staticPageFrame .contentsPage .pageFooter > .rule {
+    width: 32px;
+  }
+
+}
+
+@container sn-sheet (max-width: 360px) {
+  .staticPageFrame .brandMark {
+    left: calc(50% - 13px);
+    width: 40px;
+    height: 48px;
+    font-size: 36px;
+  }
+
+  .staticPageFrame .brandMark span:last-child {
+    top: 14px;
+    font-size: 29px;
+  }
+
+  .staticPageFrame .contentsBack {
+    width: 40px;
+    min-width: 40px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .staticPageFrame .contentsBackLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .staticPageFrame .preferenceTrigger {
+    min-width: 42px;
+    padding-inline: 4px;
+  }
+
+  .staticPageFrame .preferenceChevron {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+@container sn-sheet (max-height: 480px) and (min-aspect-ratio: 4 / 3) {
+  .staticPageFrame {
+    --sn-header-height: calc(clamp(64px, 22cqh, 72px) + var(--sn-safe-top));
+  }
+
+  .staticPageFrame .bookHeader > .brandMark {
+    top: calc(50% - 28px);
+    width: 52px;
+    height: 56px;
+    font-size: 45px;
+  }
+
+  .staticPageFrame .bookHeader > .brandMark span:last-child {
+    top: 17px;
+    font-size: 36px;
+  }
+
+  .staticPageFrame .contentsBack,
+  .staticPageFrame .preferenceControls {
+    top: max(var(--sn-safe-top), calc(50% - 20px));
+  }
+
+  .staticPageFrame > .page {
+    padding:
+      clamp(3px, 1cqh, 6px)
+      max(clamp(6px, 1.8cqw, 16px), var(--sn-safe-right))
+      max(clamp(4px, 1.2cqh, 8px), var(--sn-safe-bottom))
+      max(clamp(6px, 1.8cqw, 16px), var(--sn-safe-left-in-page));
+  }
+
+  .staticPageFrame .coverTap {
+    grid-template-columns: minmax(90px, 0.8fr) minmax(150px, 1.2fr);
+    grid-template-rows: repeat(8, minmax(0, auto));
+    align-content: center;
+    column-gap: clamp(10px, 4cqw, 28px);
+    row-gap: clamp(1px, 0.7cqh, 4px);
+  }
+
+  .staticPageFrame .coverBotanical {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+    width: clamp(58px, 18cqw, 100px);
+    height: clamp(52px, 25cqh, 82px);
+  }
+
+  .staticPageFrame .coverTitle {
+    grid-column: 1;
+    grid-row: 6 / span 3;
+  }
+
+  .staticPageFrame .coverTitle h1 {
+    font-size: clamp(1.8rem, min(8cqw, 12cqh), 3rem);
+  }
+
+  .staticPageFrame .coverTap > .rule,
+  .staticPageFrame .coverMenuTitle,
+  .staticPageFrame .coverUnderline,
+  .staticPageFrame .coverCity,
+  .staticPageFrame .coverDot,
+  .staticPageFrame .coverYear,
+  .staticPageFrame .coverOpen,
+  .staticPageFrame .coverTap > .arrow {
+    grid-column: 2;
+  }
+
+  .staticPageFrame .coverTap > .rule {
+    grid-row: 1;
+  }
+
+  .staticPageFrame .coverMenuTitle {
+    grid-row: 2;
+  }
+
+  .staticPageFrame .coverUnderline {
+    grid-row: 3;
+  }
+
+  .staticPageFrame .coverCity {
+    grid-row: 4;
+  }
+
+  .staticPageFrame .coverDot {
+    grid-row: 5;
+  }
+
+  .staticPageFrame .coverYear {
+    grid-row: 6;
+  }
+
+  .staticPageFrame .coverOpen {
+    grid-row: 7;
+  }
+
+  .staticPageFrame .coverTap > .arrow {
+    grid-row: 8;
+  }
+
+  .staticPageFrame .contentsPage {
+    grid-template-columns: minmax(62px, 0.42fr) minmax(0, 1.58fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) 44px;
+    column-gap: clamp(8px, 2.4cqw, 18px);
+    row-gap: clamp(1px, 0.6cqh, 4px);
+  }
+
+  .staticPageFrame .contentsBotanical {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    align-self: center;
+    width: clamp(44px, 12cqw, 82px);
+    height: clamp(38px, 18cqh, 64px);
+  }
+
+  .staticPageFrame .contentsPage h1,
+  .staticPageFrame .contentsPage > .rule,
+  .staticPageFrame .contentsPage > .instruction {
+    grid-column: 2;
+  }
+
+  .staticPageFrame .contentsPage h1 {
+    grid-row: 1;
+    font-size: clamp(1.15rem, min(5cqw, 8cqh), 2rem);
+  }
+
+  .staticPageFrame .contentsPage > .rule {
+    grid-row: 2;
+  }
+
+  .staticPageFrame .contentsPage > .instruction {
+    grid-row: 3;
+  }
+
+  .staticPageFrame .contentsList {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-content: center;
+    column-gap: clamp(3px, 1cqw, 8px);
+  }
+
+  .staticPageFrame .contentsList button {
+    min-height: 40px;
+    padding-inline: clamp(4px, 1cqw, 8px);
+    font-size: clamp(0.75rem, min(2.5cqw, 4.6cqh), 0.875rem);
+  }
+
+  .staticPageFrame .contentsList button:nth-child(-n + 4) {
+    border-top: 1px solid rgba(180, 122, 60, 0.38);
+  }
+
+  .staticPageFrame .contentsPage .pageFooter {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    min-height: 44px;
+    grid-template-rows: 44px;
+  }
+
+  .staticPageFrame .endingPage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(5, minmax(0, auto));
+    align-content: center;
+    column-gap: clamp(12px, 4cqw, 34px);
+    row-gap: clamp(1px, 0.6cqh, 4px);
+  }
+
+  .staticPageFrame .endingPage > * {
+    grid-column: auto;
+  }
+
+  .staticPageFrame .endingPage > h1:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: clamp(1.2rem, min(5cqw, 8cqh), 2.1rem);
+    overflow-wrap: normal;
+  }
+
+  .staticPageFrame .endingPage > .endingBotanical {
+    grid-column: 1;
+    grid-row: 2;
+    width: clamp(48px, 14cqw, 92px);
+    height: clamp(40px, 18cqh, 56px);
+  }
+
+  .staticPageFrame .endingPage > .endingWordmark {
+    grid-column: 1;
+    grid-row: 3;
+    font-size: clamp(1.55rem, min(6cqw, 9cqh), 2.4rem);
+  }
+
+  .staticPageFrame .endingPage > [data-sauge-static-element="tagline"] {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .staticPageFrame .endingPage > .rule {
+    grid-column: 1;
+    grid-row: 5;
+  }
+
+  .staticPageFrame .endingPage > .endingCity {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .staticPageFrame .endingPage > [data-sauge-static-element="dot"] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .staticPageFrame .endingPage > .googleReviewCta {
+    grid-column: 2;
+    grid-row: 3;
+    min-height: 40px;
+    max-height: 44px;
+    padding-block: 3px;
+    justify-self: center;
+  }
+
+  .staticPageFrame .endingPage > .googleReviewCta .googleReviewBrand {
+    line-height: 1;
+  }
+
+  .staticPageFrame .endingPage > .restartButton {
+    grid-column: 2;
+    grid-row: 4;
+    min-height: 40px;
+    justify-self: center;
+  }
+
+  .staticPageFrame .endingPage > .endingSoon {
+    grid-column: 2;
+    grid-row: 5;
   }
 }

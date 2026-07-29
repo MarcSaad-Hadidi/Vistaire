@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  app-ci:
-    name: App CI
+  checks:
+    name: App checks
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -98,14 +98,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Install Playwright WebKit
-        run: npx --no-install playwright install --with-deps webkit
-
-      - name: Unique menu Playwright tests
-        timeout-minutes: 10
+      - name: Sauge Noire critical smoke
+        timeout-minutes: 5
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:unique-menu-design:e2e
+        run: npm run test:sauge-noire:smoke
 
       - name: QR functional Playwright tests
         timeout-minutes: 10
@@ -130,3 +127,19 @@ jobs:
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:seo:e2e
+
+  app-ci:
+    name: App CI
+    if: ${{ always() }}
+    needs:
+      - checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: |
+          if [[ "$CHECKS_RESULT" != "success" ]]; then
+            echo "App checks: $CHECKS_RESULT"
+            exit 1
+          fi

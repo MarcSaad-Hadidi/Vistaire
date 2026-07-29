@@ -391,6 +391,36 @@ test("exchange rates fetch Frankfurter once per hourly cache window and always i
   assert.equal(refreshed.cached, false);
 });
 
+test("exchange-rate fixtures override a previously cached provider fallback", async () => {
+  const previousFixture = process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON;
+  delete process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON;
+  clearExchangeRatesCacheForTests();
+  try {
+    await getExchangeRates({
+      baseCurrency: "CAD",
+      supportedCurrencies: ["CAD", "EUR"],
+      fetcher: async () => ({ ok: false }),
+      now: 1_000
+    });
+    process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON =
+      '{"CAD":1,"EUR":0.6225}';
+    const fixture = await getExchangeRates({
+      baseCurrency: "CAD",
+      supportedCurrencies: ["CAD", "EUR"],
+      now: 2_000
+    });
+    assert.deepEqual(fixture.rates, { CAD: 1, EUR: 0.6225 });
+    assert.equal(fixture.cached, false);
+  } finally {
+    if (previousFixture === undefined) {
+      delete process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON;
+    } else {
+      process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON = previousFixture;
+    }
+    clearExchangeRatesCacheForTests();
+  }
+});
+
 test("exchange rates fall back briefly instead of returning zero rates when provider omits quotes", async () => {
   clearExchangeRatesCacheForTests();
   let calls = 0;

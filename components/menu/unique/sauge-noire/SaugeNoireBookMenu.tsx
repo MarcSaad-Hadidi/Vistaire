@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { flushSync } from "react-dom";
 import type { Locale } from "@/lib/i18n";
 import {
   formatMenuPrice,
@@ -19,7 +20,8 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import {
   normalizePublicMenuCurrencyPreference,
-  publicLocaleToLanguageTag
+  publicLocaleToLanguageTag,
+  publicLocaleToShortLocale
 } from "@/lib/menu/publicMenuSettings";
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
@@ -27,7 +29,13 @@ import {
   SaugeNoireFlipPage,
   type SaugeNoireFlipPageDensity
 } from "./SaugeNoireFlipPage";
+import {
+  SaugeNoireDishSheet,
+  SaugeNoireDishSheetCopyForLocale
+} from "./SaugeNoireDishDetail";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
+import type { SingleFlipJumpRequest } from "./SaugeNoirePageFlipExperiment";
+import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireBookMenu.module.css";
 
 type BookProps = UniqueMenuRendererModuleProps;
@@ -53,6 +61,8 @@ type Copy = {
   next: string;
   thanks: string;
   soon: string;
+  googleReview: string;
+  googleReviewAria: string;
   backToTop: string;
   backToMenu: string;
   ingredients: string;
@@ -61,6 +71,8 @@ type Copy = {
   allergenEmpty: string;
   allergenConfirm: string;
 };
+
+type SectionPageCopy = Pick<Copy, "menu" | "swipePage" | "previous" | "next">;
 
 const COPY: Record<SaugeCopyLocale, Copy> = {
   fr: {
@@ -76,6 +88,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Page suivante",
     thanks: "Merci et à bientôt",
     soon: "Au plaisir de vous retrouver autour d’une prochaine assiette.",
+    googleReview: "Laisser un avis Google",
+    googleReviewAria: "Exemple de bouton pour laisser un avis Google",
     backToTop: "Retour en haut",
     backToMenu: "Retour à la carte",
     ingredients: "Ingrédients",
@@ -97,6 +111,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Next page",
     thanks: "Thank you and see you soon",
     soon: "We look forward to welcoming you around the table again.",
+    googleReview: "Leave a Google review",
+    googleReviewAria: "Example button to leave a Google review",
     backToTop: "Back to top",
     backToMenu: "Back to the menu",
     ingredients: "Ingredients",
@@ -118,6 +134,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Página siguiente",
     thanks: "Gracias y hasta pronto",
     soon: "Esperamos recibirte de nuevo alrededor de la mesa.",
+    googleReview: "Dejar una reseña en Google",
+    googleReviewAria: "Ejemplo de botón para dejar una reseña en Google",
     backToTop: "Volver arriba",
     backToMenu: "Volver al menú",
     ingredients: "Ingredientes",
@@ -139,6 +157,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Pagina successiva",
     thanks: "Grazie e a presto",
     soon: "Speriamo di accoglierti di nuovo intorno al tavolo.",
+    googleReview: "Lascia una recensione su Google",
+    googleReviewAria: "Esempio di pulsante per lasciare una recensione su Google",
     backToTop: "Torna in alto",
     backToMenu: "Torna al menu",
     ingredients: "Ingredienti",
@@ -160,6 +180,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "الصفحة التالية",
     thanks: "شكرًا وإلى اللقاء",
     soon: "نتطلع إلى استقبالكم من جديد حول المائدة.",
+    googleReview: "اترك مراجعة على Google",
+    googleReviewAria: "مثال على زر لترك مراجعة على Google",
     backToTop: "العودة إلى الأعلى",
     backToMenu: "العودة إلى القائمة",
     ingredients: "المكونات",
@@ -268,25 +290,59 @@ export function SaugeNoireBookMenu({
   mode
 }: BookProps) {
   const router = useRouter();
+  const routeTransition = useSaugeNoireTransition();
+  const beginRouteTransition = routeTransition?.beginTransition;
+  const prefetchRouteDestination = routeTransition?.prefetchDestination;
+  const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
+  const routeTransitionActive = routeTransition?.transitionActive ?? false;
   const pathname = usePathname();
+  const notifyCurrentRouteReady = useCallback(() => {
+    notifyRouteDestinationReady?.(pathname);
+  }, [notifyRouteDestinationReady, pathname]);
   const searchParams = useSearchParams();
   const pages = useMemo(() => buildPages(menu), [menu]);
   const activeLocale = locale;
-  const activeLocaleValue = query?.lang ?? publicLocaleToLanguageTag(activeLocale);
+  const localeFromUrl =
+    searchParams.get("lang") ??
+    query?.lang ??
+    publicLocaleToLanguageTag(activeLocale);
+  const [activeLocaleValue, setActiveLocaleValue] = useState(localeFromUrl);
+  const [localeUrlSnapshot, setLocaleUrlSnapshot] = useState(localeFromUrl);
+  if (localeUrlSnapshot !== localeFromUrl) {
+    setLocaleUrlSnapshot(localeFromUrl);
+    setActiveLocaleValue(localeFromUrl);
+  }
   const copy = COPY[copyLocale(activeLocaleValue)];
   const availableLocales = menu.settings.supportedLocales;
   const availableCurrencies = menu.settings.supportedCurrencies;
-  const initialCurrency = normalizePublicMenuCurrencyPreference(
-    query?.currency,
+  const currencyFromUrl = normalizePublicMenuCurrencyPreference(
+    searchParams.get("currency") ?? query?.currency,
     menu.settings
   );
+  const [activeCurrency, setActiveCurrency] = useState(currencyFromUrl);
+  const [currencyUrlSnapshot, setCurrencyUrlSnapshot] = useState(currencyFromUrl);
+  if (currencyUrlSnapshot !== currencyFromUrl) {
+    setCurrencyUrlSnapshot(currencyFromUrl);
+    setActiveCurrency(currencyFromUrl);
+  }
   const [pageIndex, setPageIndex] = useState(() =>
     pageFromQuery(query?.view, pages.length)
   );
+  const [contentsJumpRequest, setContentsJumpRequest] =
+    useState<SingleFlipJumpRequest | null>(null);
+  const contentsJumpTokenRef = useRef(0);
+  const pageIndexRef = useRef(pageIndex);
+  const activeCurrencyRef = useRef(activeCurrency);
+  const activeLocaleRef = useRef(activeLocaleValue);
+  const contextQueryRef = useRef<PublicMenuContextQuery>({
+    ...query,
+    lang: activeLocaleValue,
+    currency: activeCurrency
+  });
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const currency = initialCurrency;
+  const currency = activeCurrency;
   const searchParamsString = searchParams.toString();
   const pageFlipEnabled =
     mode === "public" ||
@@ -297,8 +353,68 @@ export function SaugeNoireBookMenu({
     setPageIndex((current) => (current === nextIndex ? current : nextIndex));
   }, [pages.length]);
 
+  const openContentsWithSingleFlip = useCallback(() => {
+    if (!pageFlipEnabled || pageIndexRef.current <= 1) {
+      goToPage(1);
+      return;
+    }
+    setContentsJumpRequest((current) => {
+      if (current) return current;
+      contentsJumpTokenRef.current += 1;
+      return {
+        token: contentsJumpTokenRef.current,
+        direction: "previous",
+        finalPage: 1
+      };
+    });
+  }, [goToPage, pageFlipEnabled]);
+
+  const handleContentsJumpSettled = useCallback((token: number) => {
+    setContentsJumpRequest((current) =>
+      current?.token === token ? null : current
+    );
+  }, []);
+
+  useEffect(() => {
+    pageIndexRef.current = pageIndex;
+  }, [pageIndex]);
+
+  useEffect(() => {
+    activeCurrencyRef.current = activeCurrency;
+    activeLocaleRef.current = activeLocaleValue;
+    contextQueryRef.current = {
+      ...contextQueryRef.current,
+      ...query,
+      lang: activeLocaleValue,
+      currency: activeCurrency,
+      view: `sauge-${pageIndex}`
+    };
+  }, [activeCurrency, activeLocaleValue, pageIndex, query]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (contentsJumpRequest) {
+        if (
+          event.key === "ArrowRight" ||
+          event.key === "ArrowLeft" ||
+          event.key === "PageDown" ||
+          event.key === "PageUp" ||
+          event.key === "Home" ||
+          event.key === "End"
+        ) {
+          event.preventDefault();
+        }
+        return;
+      }
+      // Let the active dish sheet consume vertical paging keys for its own
+      // scroll container instead of turning the underlying menu page.
+      if (
+        (event.key === "PageDown" || event.key === "PageUp") &&
+        event.target instanceof HTMLElement &&
+        event.target.closest('[data-testid="sauge-noire-dish-detail"]')
+      ) {
+        return;
+      }
       if (event.key === "ArrowRight" || event.key === "PageDown") {
         event.preventDefault();
         goToPage(pageIndex + 1);
@@ -318,7 +434,7 @@ export function SaugeNoireBookMenu({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [goToPage, pages.length, pageIndex]);
+  }, [contentsJumpRequest, goToPage, pages.length, pageIndex]);
 
   useEffect(() => {
     const nextView = `sauge-${pageIndex}`;
@@ -329,18 +445,9 @@ export function SaugeNoireBookMenu({
     const nextUrl = `${pathname}?${params.toString()}`;
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (currentUrl !== nextUrl) {
-      window.history.replaceState(null, "", nextUrl);
+      window.history.replaceState(window.history.state, "", nextUrl);
     }
   }, [pageIndex, pathname, searchParamsString]);
-
-  useEffect(() => {
-    paperRef.current?.scrollTo({ top: 0, behavior: "auto" });
-    const activeFlipPage = paperRef.current?.querySelector<HTMLElement>(
-      `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone])`
-    );
-    activeFlipPage?.scrollTo({ top: 0, behavior: "auto" });
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [pageIndex]);
 
   useEffect(() => {
     const paper = paperRef.current;
@@ -359,20 +466,38 @@ export function SaugeNoireBookMenu({
   }, []);
 
   const updatePreference = useCallback((next: { locale?: string; currency?: string }) => {
-    const params = new URLSearchParams(searchParamsString);
-    params.set("view", `sauge-${pageIndex}`);
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", `sauge-${pageIndexRef.current}`);
     if (next.locale) params.set("lang", next.locale);
     if (next.currency) params.set("currency", next.currency);
+    contextQueryRef.current = {
+      ...contextQueryRef.current,
+      view: params.get("view") ?? undefined,
+      lang: params.get("lang") ?? undefined,
+      currency: params.get("currency") ?? undefined,
+      table: params.get("table") ?? undefined,
+      zone: params.get("zone") ?? undefined
+    };
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [pageIndex, pathname, router, searchParamsString]);
+  }, [pathname, router]);
 
   const selectLocale = useCallback((nextLocale: string) => {
+    activeLocaleRef.current = nextLocale;
+    setActiveLocaleValue(nextLocale);
     updatePreference({ locale: nextLocale });
   }, [updatePreference]);
 
   const selectCurrency = useCallback((nextCurrency: string) => {
-    updatePreference({ currency: nextCurrency });
-  }, [updatePreference]);
+    const normalizedCurrency = normalizePublicMenuCurrencyPreference(
+      nextCurrency,
+      menu.settings
+    );
+    activeCurrencyRef.current = normalizedCurrency;
+    flushSync(() => {
+      setActiveCurrency(normalizedCurrency);
+    });
+    updatePreference({ currency: normalizedCurrency });
+  }, [menu.settings, updatePreference]);
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (pageFlipEnabled) return;
@@ -394,12 +519,23 @@ export function SaugeNoireBookMenu({
 
   const currentPage = pages[pageIndex] ?? pages[0];
 
-  const renderPage = useCallback((page: BookPage, index: number) => {
+  const renderPage = useCallback(
+    (
+      page: BookPage,
+      index: number,
+      isPreview = false,
+      onDishLinkClick?: (
+        event: React.MouseEvent<HTMLAnchorElement>,
+        href: string,
+        targetDish: PublicMenuDish
+      ) => void,
+      onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void
+    ) => {
     const categoryPage = page.kind === "section" ? index - 2 : null;
 
-    return (
+    const renderedPage = (
       <>
-        <BookHeader
+        <SaugeNoireBookHeader
           locales={availableLocales}
           currencies={availableCurrencies}
           activeLocale={activeLocaleValue}
@@ -408,7 +544,8 @@ export function SaugeNoireBookMenu({
           onCurrencyChange={selectCurrency}
           showContentsLink={index > 1}
           contentsLabel={copy.contents}
-          onContents={() => goToPage(1)}
+          onContents={openContentsWithSingleFlip}
+          isPreview={isPreview}
         />
         {page.kind === "cover" ? <CoverPage copy={copy} onOpen={() => goToPage(1)} /> : null}
         {page.kind === "contents" ? (
@@ -438,12 +575,21 @@ export function SaugeNoireBookMenu({
             exchangeRates={exchangeRates}
             onPrevious={() => goToPage(index - 1)}
             onNext={() => goToPage(index + 1)}
+            isPreview={isPreview}
+            onDishLinkClick={isPreview ? undefined : onDishLinkClick}
+            onDishLinkIntent={isPreview ? undefined : onDishLinkIntent}
           />
         ) : null}
         {page.kind === "ending" ? <EndingPage copy={copy} onRestart={() => goToPage(0)} /> : null}
       </>
     );
-  }, [
+
+    return page.kind === "cover" || page.kind === "contents" || page.kind === "ending" ? (
+      <div className={styles.staticPageFrame} data-sauge-static-frame={page.kind}>
+        {renderedPage}
+      </div>
+    ) : renderedPage;
+    }, [
     activeLocale,
     activeLocaleValue,
     availableCurrencies,
@@ -455,10 +601,123 @@ export function SaugeNoireBookMenu({
     menu,
     pages,
     query,
+    openContentsWithSingleFlip,
     selectCurrency,
     selectLocale
-  ]);
+    ]
+  );
 
+  const buildCanonicalDishTransition = useCallback(
+    (targetDish: PublicMenuDish, targetPageIndex?: number) => {
+      const context = contextQueryRef.current;
+      const currencySnapshot = activeCurrencyRef.current;
+      const localeSnapshot = activeLocaleRef.current;
+      const viewSnapshot = `sauge-${
+        targetPageIndex ??
+        Math.max(
+          0,
+          pages.findIndex(
+            (page) =>
+              page.kind === "section" &&
+              page.dishes.some((dish) => dish.id === targetDish.id)
+          )
+        )
+      }`;
+      const canonicalQuery: PublicMenuContextQuery = {
+        ...context,
+        currency: currencySnapshot,
+        lang: localeSnapshot,
+        view: viewSnapshot
+      };
+      const canonicalHref = buildPublicDishPath(
+        menu.slug,
+        targetDish.slug,
+        canonicalQuery
+      );
+      return {
+        href: canonicalHref,
+        query: canonicalQuery,
+        snapshot: {
+          currency: currencySnapshot,
+          locale: localeSnapshot,
+          view: viewSnapshot,
+          table: canonicalQuery.table,
+          zone: canonicalQuery.zone,
+          href: canonicalHref
+        }
+      };
+    },
+    [menu.slug, pages]
+  );
+
+  const handleDishLinkClick = useCallback((
+    event: React.MouseEvent<HTMLAnchorElement>,
+    _href: string,
+    targetDish: PublicMenuDish
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    const pageFlipState = event.currentTarget
+      .closest<HTMLElement>("[data-page-flip-state]")
+      ?.getAttribute("data-page-flip-state");
+    if (pageFlipState !== "ready") return;
+
+    const currentPageElement = event.currentTarget.closest<HTMLElement>(
+      '[data-sauge-reading-surface="true"]'
+    );
+    if (!currentPageElement) return;
+    const currentPageIndex = Number(
+      currentPageElement.getAttribute("data-sauge-reading-page-index")
+    );
+    const currentPage = pages[currentPageIndex];
+    if (!currentPage || currentPage.kind !== "section") return;
+    const canonical = buildCanonicalDishTransition(targetDish, currentPageIndex);
+
+    if (!beginRouteTransition) return;
+    const started = beginRouteTransition({
+      id: `menu-to-detail-${currentPageIndex}-${targetDish.id}`,
+      href: canonical.href,
+      snapshot: canonical.snapshot,
+      direction: "next",
+      sourceScrollTop: currentPageElement?.scrollTop ?? 0,
+      rail: <SaugeNoireBookRail />,
+      source: renderPage(currentPage, currentPageIndex, true),
+      destination: (
+        <SaugeNoireDishSheet
+          menu={menu}
+          query={canonical.query}
+          currency={canonical.snapshot.currency}
+          locale={publicLocaleToShortLocale(canonical.snapshot.locale)}
+          publicLocale={canonical.snapshot.locale}
+          exchangeRates={exchangeRates}
+          dish={targetDish}
+          copy={SaugeNoireDishSheetCopyForLocale(canonical.snapshot.locale)}
+          isPreview
+          renderMode="route-preview"
+        />
+      )
+    });
+    if (started) event.preventDefault();
+  }, [beginRouteTransition, buildCanonicalDishTransition, exchangeRates, menu, pages, renderPage]);
+
+  const handleDishLinkIntent = useCallback((_href: string, targetDish: PublicMenuDish) => {
+    prefetchRouteDestination?.(buildCanonicalDishTransition(targetDish).href);
+  }, [buildCanonicalDishTransition, prefetchRouteDestination]);
+
+  /*
+   * renderPage only attaches these callbacks to DOM events; it never invokes
+   * their synchronous transition-context refs during render.
+   */
+  /* eslint-disable react-hooks/refs */
   const flipPages = useMemo(
     () =>
       pages.map((page, index) => {
@@ -470,11 +729,24 @@ export function SaugeNoireBookMenu({
             index={index}
             density={density}
           >
-            {renderPage(page, index)}
+            {renderPage(page, index, false, handleDishLinkClick, handleDishLinkIntent)}
           </SaugeNoireFlipPage>
         );
       }),
-    [pages, renderPage]
+    [handleDishLinkClick, handleDishLinkIntent, pages, renderPage]
+  );
+  const readingPages = useMemo(
+    () =>
+      pages.map((page, index) =>
+        renderPage(
+          page,
+          index,
+          false,
+          handleDishLinkClick,
+          handleDishLinkIntent
+        )
+      ),
+    [handleDishLinkClick, handleDishLinkIntent, pages, renderPage]
   );
 
   return (
@@ -484,9 +756,14 @@ export function SaugeNoireBookMenu({
       data-page-index={pageIndex}
       data-page-kind={currentPage.kind}
       data-page-flip-mode={pageFlipEnabled ? "animated" : "instant"}
+      data-active-currency={activeCurrency}
+      data-active-locale={activeLocaleValue}
+      data-sauge-route-transition-in-flight={
+        routeTransitionActive ? "true" : undefined
+      }
       style={{ "--sn-page-index": pageIndex } as CSSProperties}
     >
-      <BookRail />
+      <SaugeNoireBookRail />
       <div
         className={styles.paper}
         ref={paperRef}
@@ -497,12 +774,19 @@ export function SaugeNoireBookMenu({
           {pageFlipEnabled ? (
             <SaugeNoirePageFlipExperiment
               pages={flipPages}
+              readingPages={readingPages}
+              readingKind="menu"
               pageIndex={pageIndex}
               onPageFlip={goToPage}
-              fallback={renderPage(currentPage, pageIndex)}
+              onReady={notifyCurrentRouteReady}
+              onError={notifyCurrentRouteReady}
+              readyScrollTop={0}
+              singleFlipJumpRequest={contentsJumpRequest}
+              onSingleFlipJumpSettled={handleContentsJumpSettled}
+              fallback={renderPage(currentPage, pageIndex, false, handleDishLinkClick)}
             />
           ) : (
-            renderPage(currentPage, pageIndex)
+            renderPage(currentPage, pageIndex, false, handleDishLinkClick)
           )}
         </div>
         {showBackToTop ? (
@@ -510,12 +794,10 @@ export function SaugeNoireBookMenu({
             type="button"
             className={styles.backToTop}
             onClick={() => {
-              paperRef.current?.scrollTo({ top: 0, behavior: "smooth" });
               const activePage = paperRef.current?.querySelector<HTMLElement>(
-                `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone]), .${styles.pageFlipFallback}`
+                '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
               );
               activePage?.scrollTo({ top: 0, behavior: "smooth" });
-              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             aria-label={copy.backToTop}
           >
@@ -527,10 +809,11 @@ export function SaugeNoireBookMenu({
     </main>
   );
 }
+/* eslint-enable react-hooks/refs */
 
-function BookRail() {
+export function SaugeNoireBookRail() {
   return (
-    <aside className={styles.rail} aria-hidden="true">
+    <aside className={styles.rail} aria-hidden="true" data-sauge-book-rail="true">
       <div className={styles.railPattern} />
       {RAIL_PINS.map((position) => (
         <div className={`${styles.railFastener} ${styles[`railFastener${position}`]}`} key={position}>
@@ -543,7 +826,7 @@ function BookRail() {
   );
 }
 
-function BookHeader({
+export function SaugeNoireBookHeader({
   locales,
   currencies,
   activeLocale,
@@ -552,7 +835,8 @@ function BookHeader({
   onCurrencyChange,
   showContentsLink,
   contentsLabel,
-  onContents
+  onContents,
+  isPreview = false
 }: {
   locales: string[];
   currencies: string[];
@@ -563,19 +847,25 @@ function BookHeader({
   showContentsLink: boolean;
   contentsLabel: string;
   onContents: () => void;
+  isPreview?: boolean;
 }) {
   return (
-    <header className={styles.bookHeader}>
+    <header
+      className={styles.bookHeader}
+      aria-hidden={isPreview || undefined}
+      data-sauge-static-element="header"
+    >
       <BrandMark />
       {showContentsLink ? (
         <button
           type="button"
           className={styles.contentsBack}
+          data-sauge-typography-role="contents-control"
           onClick={onContents}
           aria-label={`Retour à ${contentsLabel}`}
         >
           <span aria-hidden="true">←</span>
-          <span>{contentsLabel}</span>
+          <span className={styles.contentsBackLabel}>{contentsLabel}</span>
         </button>
       ) : null}
       <div className={styles.preferenceControls}>
@@ -638,6 +928,9 @@ function PreferenceMenu({
       <button
         type="button"
         className={styles.preferenceTrigger}
+        data-sauge-typography-role={
+          ariaLabel === "Langue" ? "locale-control" : "currency-control"
+        }
         aria-label={`${ariaLabel}: ${label(active)}`}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -672,7 +965,11 @@ function PreferenceMenu({
 
 function BrandMark() {
   return (
-    <div className={styles.brandMark} aria-label="Sauge Noire">
+    <div
+      className={styles.brandMark}
+      aria-label="Sauge Noire"
+      data-sauge-static-element="brand"
+    >
       <span>S</span>
       <span>N</span>
     </div>
@@ -680,25 +977,39 @@ function BrandMark() {
 }
 
 function Rule() {
-  return <span className={styles.rule} aria-hidden="true"><i /></span>;
+  return (
+    <span className={styles.rule} aria-hidden="true" data-sauge-static-element="rule">
+      <i />
+    </span>
+  );
 }
 
 function CoverPage({ copy, onOpen }: { copy: Copy; onOpen: () => void }) {
   return (
-    <section className={`${styles.page} ${styles.coverPage}`} aria-label="Sauge Noire">
-      <button type="button" className={styles.coverTap} onClick={onOpen} aria-label={copy.open}>
+    <section
+      className={`${styles.page} ${styles.coverPage}`}
+      aria-label="Sauge Noire"
+      data-sauge-static-page="cover"
+    >
+      <button
+        type="button"
+        className={styles.coverTap}
+        onClick={onOpen}
+        aria-label={copy.open}
+        data-sauge-static-element="cover-tap"
+      >
         <SaugeNoireBotanical className={styles.coverBotanical} />
-        <div className={styles.coverTitle}>
+        <div className={styles.coverTitle} data-sauge-static-element="wordmark">
           <h1>SAUGE<br />NOIRE</h1>
           <p>{copy.tagline}</p>
         </div>
         <Rule />
-        <p className={styles.coverMenuTitle}>{copy.menu}</p>
-        <span className={styles.coverUnderline} aria-hidden="true" />
-        <p className={styles.coverCity}>{copy.city}</p>
-        <span className={styles.coverDot} aria-hidden="true" />
-        <p className={styles.coverYear}>{romanYear(new Date().getFullYear())}</p>
-        <span className={styles.coverOpen}>{copy.open}</span>
+        <p className={styles.coverMenuTitle} data-sauge-static-element="menu-title">{copy.menu}</p>
+        <span className={styles.coverUnderline} aria-hidden="true" data-sauge-static-element="underline" />
+        <p className={styles.coverCity} data-sauge-static-element="city">{copy.city}</p>
+        <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
+        <p className={styles.coverYear} data-sauge-static-element="year">{romanYear(new Date().getFullYear())}</p>
+        <span className={styles.coverOpen} data-sauge-static-element="open">{copy.open}</span>
         <Arrow />
       </button>
     </section>
@@ -723,11 +1034,15 @@ function ContentsPage({
   onNext: () => void;
 }) {
   return (
-    <section className={`${styles.page} ${styles.contentsPage}`} aria-label={copy.contents}>
+    <section
+      className={`${styles.page} ${styles.contentsPage}`}
+      aria-label={copy.contents}
+      data-sauge-static-page="contents"
+    >
       <SaugeNoireBotanical className={styles.contentsBotanical} />
-      <h1>{copy.contents}</h1>
+      <h1 data-sauge-typography-role="title">{copy.contents}</h1>
       <Rule />
-      <p className={styles.instruction}>{copy.touchSection}</p>
+      <p className={styles.instruction} data-sauge-static-element="instruction">{copy.touchSection}</p>
       <nav className={styles.contentsList} aria-label={copy.contents}>
         {categories.map((category, index) => (
           <button
@@ -756,7 +1071,7 @@ function ContentsPage({
   );
 }
 
-function SectionPage({
+export function SectionPage({
   menu,
   category,
   dishes,
@@ -768,7 +1083,10 @@ function SectionPage({
   query,
   exchangeRates,
   onPrevious,
-  onNext
+  onNext,
+  isPreview = false,
+  onDishLinkClick,
+  onDishLinkIntent
 }: {
   menu: PublicMenu;
   category: PublicMenuCategory;
@@ -777,11 +1095,18 @@ function SectionPage({
   locale: Locale;
   localeTag: string;
   currency: string;
-  copy: Copy;
+  copy: SectionPageCopy;
   query?: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
   onPrevious: () => void;
   onNext: () => void;
+  isPreview?: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => void;
+  onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void;
 }) {
   const featured = dishes.find(isSignature) ?? dishes[0];
   const remainingDishes = featured
@@ -798,6 +1123,8 @@ function SectionPage({
     <section
       className={`${styles.page} ${styles.sectionPage} ${isSplit ? styles.splitSection : ""} ${isShortSection ? styles.shortSectionPage : ""}`}
       aria-label={category.label}
+      aria-hidden={isPreview || undefined}
+      data-transition-preview={isPreview ? "true" : undefined}
     >
       <div className={styles.sectionKicker}>
         <span>{String(sectionNumber).padStart(2, "0")}</span>
@@ -805,7 +1132,7 @@ function SectionPage({
       </div>
       <div className={styles.sectionTitleRow}>
         {sectionNumber === 2 ? <SaugeNoireBotanical variant="sideSprig" className={styles.titleBranchLeft} /> : null}
-        <h1>{category.label.toUpperCase()}</h1>
+        <h1 data-sauge-typography-role="title">{category.label.toUpperCase()}</h1>
         {sectionNumber === 2 ? <SaugeNoireBotanical variant="sideSprig" className={styles.titleBranchRight} /> : null}
       </div>
       {sectionNumber === 1 ? <SaugeNoireBotanical variant="sprig" className={styles.sectionBotanical} /> : null}
@@ -820,6 +1147,9 @@ function SectionPage({
           query={sectionQuery}
           exchangeRates={exchangeRates}
           variant={isFirstPage ? "compact" : isSplit ? "split" : "editorial"}
+          isPreview={isPreview}
+          onDishLinkClick={onDishLinkClick}
+          onDishLinkIntent={onDishLinkIntent}
         />
       ) : null}
       <div className={styles.dishList}>
@@ -833,6 +1163,9 @@ function SectionPage({
             query={sectionQuery}
             exchangeRates={exchangeRates}
             compact={isFirstPage}
+            isPreview={isPreview}
+            onDishLinkClick={onDishLinkClick}
+            onDishLinkIntent={onDishLinkIntent}
           />
         ))}
       </div>
@@ -855,16 +1188,26 @@ function DishFeatureCard({
   copy,
   query,
   exchangeRates,
-  variant
+  variant,
+  isPreview = false,
+  onDishLinkClick,
+  onDishLinkIntent
 }: {
   menu: PublicMenu;
   dish: PublicMenuDish;
   locale: Locale;
   currency: string;
-  copy: Copy;
+  copy: Pick<Copy, "menu">;
   query: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
   variant: "compact" | "editorial" | "split";
+  isPreview?: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => void;
+  onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void;
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
@@ -874,6 +1217,16 @@ function DishFeatureCard({
       className={`${styles.featureCard} ${styles[`feature${variant[0].toUpperCase()}${variant.slice(1)}`]}`}
       data-sauge-featured-dish="true"
       data-dish-id={dish.id}
+      tabIndex={isPreview ? -1 : undefined}
+      onClick={
+        isPreview
+          ? (event) => event.preventDefault()
+          : (event) => onDishLinkClick?.(event, href, dish)
+      }
+      onPointerEnter={() => onDishLinkIntent?.(href, dish)}
+      onFocus={() => onDishLinkIntent?.(href, dish)}
+      onPointerDown={() => onDishLinkIntent?.(href, dish)}
+      onTouchStart={() => onDishLinkIntent?.(href, dish)}
     >
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
@@ -883,7 +1236,13 @@ function DishFeatureCard({
         </div>
         {variant !== "compact" && dish.description ? <p>{dish.description}</p> : null}
         <Rule />
-        <strong>{formatDishPrice(dish, currency, locale, exchangeRates)}</strong>
+        <strong
+          data-sauge-visible-price="true"
+          data-rendered-currency={currency}
+          data-sauge-typography-role="price"
+        >
+          {formatDishPrice(dish, currency, locale, exchangeRates)}
+        </strong>
       </div>
       <span className={styles.srOnly}>{copy.menu}</span>
     </Link>
@@ -897,7 +1256,10 @@ function DishRow({
   currency,
   query,
   exchangeRates,
-  compact
+  compact,
+  isPreview = false,
+  onDishLinkClick,
+  onDishLinkIntent
 }: {
   menu: PublicMenu;
   dish: PublicMenuDish;
@@ -906,21 +1268,46 @@ function DishRow({
   query: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
   compact: boolean;
+  isPreview?: boolean;
+  onDishLinkClick?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    targetDish: PublicMenuDish
+  ) => void;
+  onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void;
 }) {
+  const href = buildPublicDishPath(menu.slug, dish.slug, query);
   return (
     <Link
-      href={buildPublicDishPath(menu.slug, dish.slug, query)}
+      href={href}
       prefetch={false}
       className={`${styles.dishRow} ${compact ? styles.dishRowCompact : ""}`}
       data-sauge-dish-row="true"
       data-dish-id={dish.id}
+      tabIndex={isPreview ? -1 : undefined}
+      onClick={
+        isPreview
+          ? (event) => event.preventDefault()
+          : (event) => onDishLinkClick?.(event, href, dish)
+      }
+      onPointerEnter={() => onDishLinkIntent?.(href, dish)}
+      onFocus={() => onDishLinkIntent?.(href, dish)}
+      onPointerDown={() => onDishLinkIntent?.(href, dish)}
+      onTouchStart={() => onDishLinkIntent?.(href, dish)}
     >
       <PhotoSlot dish={dish} />
       <span className={styles.dishRowName}>
         <span>{dish.name}</span>
         {dish.has3d ? <SaugeNoire3dIndicator label={threeDLabel(locale)} /> : null}
       </span>
-      <span className={styles.dishRowPrice}>{formatDishPrice(dish, currency, locale, exchangeRates)}</span>
+      <span
+        className={styles.dishRowPrice}
+        data-sauge-visible-price="true"
+        data-rendered-currency={currency}
+        data-sauge-typography-role="price"
+      >
+        {formatDishPrice(dish, currency, locale, exchangeRates)}
+      </span>
     </Link>
   );
 }
@@ -976,23 +1363,27 @@ function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: bool
 
 function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) {
   return (
-    <section className={`${styles.page} ${styles.endingPage}`} aria-label={copy.thanks}>
+    <section
+      className={`${styles.page} ${styles.endingPage}`}
+      aria-label={copy.thanks}
+      data-sauge-static-page="ending"
+    >
       <h1>{copy.thanks.toUpperCase()}</h1>
       <SaugeNoireBotanical className={styles.endingBotanical} />
-      <div className={styles.endingWordmark}>SAUGE<br />NOIRE</div>
-      <p>{copy.tagline}</p>
+      <div className={styles.endingWordmark} data-sauge-static-element="wordmark">SAUGE<br />NOIRE</div>
+      <p data-sauge-static-element="tagline">{copy.tagline}</p>
       <Rule />
-      <p className={styles.endingCity}>Montréal, Québec</p>
-      <span className={styles.coverDot} aria-hidden="true" />
+      <p className={styles.endingCity} data-sauge-static-element="city">Montréal, Québec</p>
+      <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
       <button
         type="button"
         className={styles.googleReviewCta}
         data-testid="google-review-cta"
-        aria-label="Exemple de bouton pour laisser un avis Google"
+        aria-label={copy.googleReviewAria}
       >
         <span className={styles.googleReviewBrand}>
           <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
-          Laisser un avis Google
+          {copy.googleReview}
         </span>
         <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">
           <svg viewBox="0 0 20 20" focusable="false">
@@ -1000,8 +1391,8 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
           </svg>
         </span>
       </button>
-      <button type="button" className={styles.restartButton} onClick={onRestart}>{copy.menu}</button>
-      <p className={styles.endingSoon}>{copy.soon}</p>
+      <button type="button" className={styles.restartButton} onClick={onRestart} data-sauge-static-element="restart">{copy.menu}</button>
+      <p className={styles.endingSoon} data-sauge-static-element="message">{copy.soon}</p>
     </section>
   );
 }
@@ -1020,13 +1411,25 @@ function PageFooter({
   onNext: () => void;
 }) {
   return (
-    <footer className={styles.pageFooter}>
+    <footer className={styles.pageFooter} data-sauge-static-element="footer">
       <Rule />
       <p>{copy}</p>
       <div className={styles.doubleArrowControl}>
-        <button type="button" className={`${styles.arrowHit} ${styles.arrowHitPrevious}`} onClick={onPrevious} aria-label={previousLabel} />
+        <button
+          type="button"
+          className={`${styles.arrowHit} ${styles.arrowHitPrevious}`}
+          onClick={onPrevious}
+          aria-label={previousLabel}
+          data-sauge-static-element="previous-control"
+        />
         <DoubleArrow />
-        <button type="button" className={`${styles.arrowHit} ${styles.arrowHitNext}`} onClick={onNext} aria-label={nextLabel} />
+        <button
+          type="button"
+          className={`${styles.arrowHit} ${styles.arrowHitNext}`}
+          onClick={onNext}
+          aria-label={nextLabel}
+          data-sauge-static-element="next-control"
+        />
       </div>
     </footer>
   );
@@ -1034,7 +1437,7 @@ function PageFooter({
 
 function DoubleArrow() {
   return (
-    <svg className={styles.doubleArrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false">
+    <svg className={styles.doubleArrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false" data-sauge-static-element="double-arrow">
       <path d="M1 10h46M7 4l-6 6 6 6M41 4l6 6-6 6" />
     </svg>
   );
@@ -1042,7 +1445,7 @@ function DoubleArrow() {
 
 function Arrow() {
   return (
-    <svg className={styles.arrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false">
+    <svg className={styles.arrow} viewBox="0 0 48 20" aria-hidden="true" focusable="false" data-sauge-static-element="arrow">
       <path d="M1 10h42M34 2l10 8-10 8" />
     </svg>
   );

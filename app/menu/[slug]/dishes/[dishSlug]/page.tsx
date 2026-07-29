@@ -145,6 +145,10 @@ export default async function PublicDishPage({
 
   if (experience.kind === "unique-registered" && experience.renderer) {
     const UniqueDishDetail = experience.renderer.dishDetail;
+    const exchangeRates = await getExchangeRates({
+      baseCurrency: menu.settings.baseCurrency,
+      supportedCurrencies: menu.settings.supportedCurrencies
+    });
     return (
       <UniqueDishDetail
         menu={menu}
@@ -152,6 +156,7 @@ export default async function PublicDishPage({
         context={context}
         query={menuQuery}
         locale={activeLocale}
+        exchangeRates={exchangeRates}
         dish={dish}
         mode="public"
       />

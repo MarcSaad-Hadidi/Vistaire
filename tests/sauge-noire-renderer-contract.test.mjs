@@ -73,7 +73,9 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
   assert.match(book, /data-sauge-3d-indicator="true"/);
   assert.match(book, /function SaugeNoire3dIndicator/);
   assert.match(detail, /hasReal3d/);
-  assert.match(detail, /showModelViewer/);
+  assert.match(detail, /function SaugeNoireDish3dSection/);
+  assert.match(detail, /setIsOpen/);
+  assert.match(detail, /onViewerMounted/);
   assert.match(detail, /dynamic<.*DishModelViewer/);
   assert.doesNotMatch(book, /\.glb|\.usdz|model-viewer/);
 });
@@ -81,11 +83,57 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
 test("locale and currency remain part of menu and dish navigation state", async () => {
   const book = await readFile(bookPath, "utf8");
   const detail = await readFile(detailPath, "utf8");
-  assert.match(book, /params\.set\("view", `sauge-\$\{pageIndex\}`\)/);
+  assert.match(book, /params\.set\("view", `sauge-\$\{pageIndexRef\.current\}`\)/);
   assert.match(book, /params\.set\("currency", next\.currency\)/);
   assert.match(book, /params\.set\("lang", next\.locale\)/);
   assert.match(detail, /currency,/);
   assert.match(detail, /view: `sauge-/);
+});
+
+test("currency selection updates client state before URL reconciliation and stays explicit in dish sheets", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(book, /const \[activeCurrency, setActiveCurrency\] = useState/);
+  assert.match(book, /setActiveCurrency\(normalizedCurrency\);[\s\S]*updatePreference\(\{ currency: normalizedCurrency \}\)/);
+  assert.match(book, /<SaugeNoireDishSheet[\s\S]*currency=\{activeCurrency\}/);
+  assert.match(detail, /type SaugeNoireDishSheetProps = \{[\s\S]*currency: string;/);
+  assert.match(
+    detail,
+    /const currency = normalizePublicMenuCurrencyPreference\(\s*query\?\.currency,\s*menu\.settings\s*\)/
+  );
+  assert.doesNotMatch(
+    detail,
+    /function SaugeNoireDishSheet[\s\S]*const currency = query\?\.currency/
+  );
+});
+
+test("the canonical transition snapshot also owns the preview locale", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(
+    book,
+    /locale=\{publicLocaleToShortLocale\(canonical\.snapshot\.locale\)\}/
+  );
+  assert.doesNotMatch(
+    book,
+    /currency=\{canonical\.snapshot\.currency\}[\s\S]{0,160}locale=\{activeLocale\}/
+  );
+  assert.match(book, /data-active-locale=\{activeLocaleValue\}/);
+  assert.match(detail, /data-active-locale=\{publicLocale\}/);
+});
+
+test("Sauge Noire passes complete localized viewer copy and owns a translated dynamic placeholder", async () => {
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(detail, /SaugeNoireModelViewerCopyForLocale/);
+  assert.match(detail, /Required<DishModelViewerCopy>/);
+  assert.match(detail, /getTrouvableCopy/);
+  assert.match(detail, /loading:\s*\(\)\s*=>\s*null/);
+  assert.match(detail, /copy=\{viewerCopy\}/);
+  assert.match(detail, /data-viewer-copy-locale/);
+  assert.doesNotMatch(detail, /loading:\s*\(\)\s*=>[\s\S]*PrÃ©paration de la vue immersive/);
 });
 
 test("Sauge Noire preferences use compact popovers and page escape controls", async () => {
@@ -136,8 +184,8 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   assert.match(source, /querySelector<HTMLElement>\("\[data-page-flip-state\]"\)/);
   assert.match(source, /if \(pageFlipState !== "ready"\) return;/);
   assert.match(source, /targetPageIndex: direction === "next" \? 2 : 0/);
-  assert.match(source, /handleDishLinkClick\(event, targetNextHref, "next"\)/);
-  assert.match(source, /handleDishLinkClick\(event, targetPreviousHref, "previous"\)/);
+  assert.match(source, /targetNextHref, "next"/);
+  assert.match(source, /targetPreviousHref, "previous"/);
   assert.match(source, /const previousPageDish =/);
   assert.match(source, /const nextPageDish =/);
   assert.match(source, /key="previous-page"/);
@@ -145,13 +193,26 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   assert.match(source, /key="next-page"/);
   assert.doesNotMatch(source, /key=\{activePageTurn \?/);
   assert.match(source, /isPreview=\{isPreview\}/);
+  assert.match(
+    source,
+    /"pageflip-sheet"\s*\|\s*"reading-surface"\s*\|\s*"route-preview"/
+  );
+  assert.match(source, /data-sauge-dish-render-mode=\{renderMode\}/);
   assert.match(source, /<div className=\{styles\.brandMark\} aria-label="Sauge Noire">/);
   assert.doesNotMatch(source, new RegExp(forbiddenDetailFloatingClass));
   assert.match(source, /draggable=\{false\}/);
   assert.match(source, /data-transition-preview/);
   assert.match(source, /function stopDishSwipePropagation/);
   assert.match(source, /className=\{styles\.modelStage\}[\s\S]*onPointerDown=\{stopDishSwipePropagation\}[\s\S]*onPointerUp=\{stopDishSwipePropagation\}/);
-  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*none;/);
+  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*auto;/);
+  assert.match(
+    styles,
+    /\.transitionPreview :where\(a, button, input, select, textarea\)\s*\{[\s\S]*pointer-events:\s*none;/
+  );
+  assert.match(
+    styles,
+    /\.paper\.naturalHeightPaper\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*100%;[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/
+  );
   assert.doesNotMatch(styles, /\.transitionPreview \.detailHeader[\s\S]*visibility:\s*hidden/);
   assert.doesNotMatch(styles, /data-sauge-flip-clone="true"[\s\S]*visibility:\s*hidden/);
   assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
@@ -192,7 +253,9 @@ test("dish-to-dish navigation uses one stable three-sheet PageFlip and waits for
   assert.match(detail, /pageIndex=\{activePageTurn\?\.targetPageIndex \?\? 1\}/);
   assert.match(detail, /startPage=\{1\}/);
   assert.match(detail, /interceptSwipe/);
-  assert.match(detail, /resetKey=\{dish\.id\}/);
+  assert.match(detail, /resetKey=\{`sauge-detail-book-\$\{menu\.slug\}`\}/);
+  assert.match(detail, /renderOnlyPageLengthChange=\{false\}/);
+  assert.doesNotMatch(detail, /resetKey=\{dish\.id\}/);
   assert.doesNotMatch(detail, /<SaugeNoirePageFlipExperiment\s+key=/);
   assert.match(experiment, /startPage\?: number/);
   assert.match(experiment, /showCover\?: boolean/);
@@ -201,7 +264,9 @@ test("dish-to-dish navigation uses one stable three-sheet PageFlip and waits for
   assert.match(experiment, /interceptSwipe\?: boolean/);
   assert.match(experiment, /resetKey\?: string \| number/);
   assert.match(experiment, /turnToPage: \(page: number\) => void/);
-  assert.match(experiment, /pageFlip\.turnToPage\(startPage\)/);
+  assert.match(detail, /recenterPage=\{1\}/);
+  assert.match(detail, /commitDish/);
+  assert.match(detail, /window\.history\.pushState\(window\.history\.state, "", turn\.href\)/);
   assert.match(flipPage, /density: SaugeNoireFlipPageDensity/);
   assert.doesNotMatch(detail, /SAUGE_PAGE_FLIP_DURATION_MS/);
   assert.doesNotMatch(detail, /setTimeout\([\s\S]*router\.push/);
@@ -231,7 +296,7 @@ test("Sauge Noire detail chrome belongs to each PageFlip sheet", async () => {
   const bookStyles = await readFile(bookStylesPath, "utf8");
   const detailStyles = await readFile(detailStylesPath, "utf8");
   assert.match(bookStyles, /\.bookHeader\s*\{[\s\S]*position:\s*relative;/);
-  assert.match(detail, /renderDishPaper[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
+  assert.match(detail, /function SaugeNoireDishSheet[\s\S]*<DishDetailHeader[\s\S]*isPreview=\{isPreview\}/);
   assert.match(detail, /function DishDetailHeader[\s\S]*<div className=\{styles\.brandMark\} aria-label="Sauge Noire">/);
   assert.doesNotMatch(detail, new RegExp(forbiddenDetailFloatingClass));
   assert.match(detail, /<div className=\{styles\.detailSurface\}[^>]*data-detail-page-flip="true"/);
