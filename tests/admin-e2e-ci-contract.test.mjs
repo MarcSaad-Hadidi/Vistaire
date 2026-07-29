@@ -115,11 +115,12 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
-test("App CI keeps deterministic checks blocking with the Sauge Noire first-gesture proof", async () => {
-  const [workflow, packageJson, scrollSpec, noSkipReporter] = await Promise.all([
+test("App CI keeps deterministic checks blocking with the Sauge Noire browser proofs", async () => {
+  const [workflow, packageJson, scrollSpec, staticParitySpec, noSkipReporter] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
     source("package.json"),
     source("e2e/sauge-noire-first-gesture-scroll.spec.ts"),
+    source("e2e/sauge-noire-static-page-handoff.spec.ts"),
     source("e2e/support/forbid-skipped-tests-reporter.ts")
   ]);
   const scripts = JSON.parse(packageJson).scripts;
@@ -135,14 +136,38 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire first-gest
     scripts["test:sauge-noire:scroll"],
     "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-first-gesture-scroll.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
   );
+  assert.equal(
+    scripts["test:sauge-noire:smoke"],
+    "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-critical-smoke.spec.ts --project=chromium --workers=1 --retries=0"
+  );
+  assert.equal(
+    scripts["test:sauge-noire:static-parity"],
+    "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-static-page-handoff.spec.ts --project=chromium --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
+  );
+  assert.match(
+    workflow,
+    /- name: Install Playwright WebKit\s+run: npx --no-install playwright install --with-deps webkit/
+  );
+  assert.match(
+    workflow,
+    /- name: Sauge Noire critical smoke\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:smoke/
+  );
   assert.match(
     workflow,
     /- name: Sauge Noire first-gesture scroll\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:scroll/
   );
+  assert.match(
+    workflow,
+    /- name: Sauge Noire static-page parity\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
+  );
   assert.ok(
     workflow.indexOf("run: npm run build") <
-      workflow.indexOf("run: npm run test:sauge-noire:scroll"),
-    "the built Next server must exist before the Sauge Noire scroll proof starts"
+      workflow.indexOf("run: npm run test:sauge-noire:smoke") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:sauge-noire:scroll") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:sauge-noire:static-parity"),
+    "the built Next server must exist before the Sauge Noire browser proofs start"
   );
   assert.doesNotMatch(
     workflow,
@@ -189,6 +214,28 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire first-gest
     /\bdescribe\s*\.\s*skip\s*\(/
   ]) {
     assert.doesNotMatch(scrollSpec, forbiddenSkip);
+    assert.doesNotMatch(staticParitySpec, forbiddenSkip);
+  }
+  for (const viewport of [
+    /\{\s*width:\s*390,\s*height:\s*844\s*\}/,
+    /\{\s*width:\s*430,\s*height:\s*932\s*\}/
+  ]) {
+    assert.match(staticParitySpec, viewport);
+  }
+  for (const pageKind of ["cover", "contents", "ending"]) {
+    assert.match(staticParitySpec, new RegExp(`"${pageKind}"`));
+  }
+  for (const invariant of [
+    /canonical\.frame\.clientHeight - canonical\.container\.clientHeight/,
+    /canonical\.content\?\.clientHeight/,
+    /canonical\.container\.scrollHeight/,
+    /canonical\.frame\.scrollHeight/,
+    /canonical\.horizontalOverflow/,
+    /document\.fonts\.ready/,
+    /data-page-flip-engine-state",\s*"flipping"/,
+    /engineState:\s*"read"/
+  ]) {
+    assert.match(staticParitySpec, invariant);
   }
   assert.match(noSkipReporter, /result\.status !== "skipped"/);
   assert.match(noSkipReporter, /test\.expectedStatus !== "skipped"/);

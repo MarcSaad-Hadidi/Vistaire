@@ -15,7 +15,7 @@ class ForbidSkippedTestsReporter implements Reporter {
   async onEnd() {
     if (this.skippedTests.length === 0) return;
     console.error(
-      `Sauge Noire scroll suite must not skip tests:\n${this.skippedTests
+      `Sauge Noire blocking suite must not skip tests:\n${this.skippedTests
         .map((title) => `- ${title}`)
         .join("\n")}`
     );

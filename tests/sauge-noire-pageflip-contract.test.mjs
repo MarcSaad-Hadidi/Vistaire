@@ -26,6 +26,10 @@ const readingSurfacePath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireReadingSurface.tsx",
   import.meta.url
 );
+const readingSurfaceStylesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireReadingSurface.module.css",
+  import.meta.url
+);
 const menuLayoutPath = new URL("../app/menu/[slug]/layout.tsx", import.meta.url);
 const playwrightConfigPath = new URL("../playwright.config.ts", import.meta.url);
 const publicMenuPath = new URL("../app/menu/[slug]/page.tsx", import.meta.url);
@@ -127,6 +131,15 @@ test("route transitions live in the shared layout until the destination book is 
   assert.match(
     coordinator,
     /const handleOverlayFallback[\s\S]*current\.phase === "awaiting-destination"[\s\S]*router\.push\(current\.href\)/
+  );
+  assert.match(coordinator, /overlayFallbackPendingRef = useRef\(false\)/);
+  assert.match(
+    coordinator,
+    /current\.phase === "preparing"[\s\S]*routeGestureActiveRef\.current[\s\S]*overlayFallbackPendingRef\.current = true/
+  );
+  assert.match(
+    coordinator,
+    /if \(overlayFallbackPendingRef\.current\)[\s\S]*updatePhase\("awaiting-destination"\);[\s\S]*router\.push\(current\.href\)/
   );
   assert.match(coordinator, /onFallback=\{handleOverlayFallback\}/);
   assert.match(
@@ -283,8 +296,60 @@ test("the canonical reading surface is visible while PageFlip initializes", asyn
   assert.match(readingSurface, /data-sauge-scroll-owner=\{scrollOwner \? "true" : "false"\}/);
   assert.match(readingSurface, /data-sauge-reading-content="true"/);
   assert.match(readingSurface, /inert=\{contentInert \|\| preview \? true : undefined\}/);
+  assert.match(
+    readingSurface,
+    /window\.addEventListener\("pointerup", finishGlobalPointer, true\)/
+  );
+  assert.match(
+    readingSurface,
+    /window\.addEventListener\("pointercancel", finishGlobalPointer, true\)/
+  );
+  assert.doesNotMatch(readingSurface, /setPointerCapture/);
   assert.match(experiment, /visible=\{hasReadingSurface\}/);
   assert.match(experiment, /scrollOwner=\{readingSurfaceOwnsScroll\}/);
+});
+
+test("a short vertical gesture during a flip survives the reading-page commit", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(
+    experiment,
+    /source && source\.readingIdentity !== readingIdentity[\s\S]*readingSurface\.scrollTop - source\.scrollTop/
+  );
+  assert.match(experiment, /readingIdentity,\s*scrollTop: sourceScrollTop/);
+  assert.match(
+    experiment,
+    /\(readyScrollTop \?\? 0\) \+ gestureDelta/
+  );
+  assert.match(experiment, /data-page-flip-gesture-delta/);
+  assert.match(experiment, /data-page-flip-prepared-scroll-top/);
+  assert.match(experiment, /animationSourceClearFrameRef = useRef\(0\)/);
+  assert.match(
+    experiment,
+    /requestAnimationFrame\(\(\) => \{[\s\S]*animationSourceScrollRef\.current === completedSource[\s\S]*animationSourceScrollRef\.current = null/
+  );
+  assert.doesNotMatch(experiment, /settledSurface\.scrollTop\s*=/);
+  assert.match(
+    experiment,
+    /state === "read"[\s\S]*requestAnimationFrame\(\(\) => \{[\s\S]*animationSourceScrollRef\.current = null/
+  );
+  assert.doesNotMatch(
+    experiment,
+    /if \(state === "read"\) animationSourceScrollRef\.current = null/
+  );
+});
+
+test("only static reading pages restore the definite full-height chain", async () => {
+  const styles = await readFile(readingSurfaceStylesPath, "utf8");
+
+  assert.match(
+    styles,
+    /\.content:has\(> \[data-sauge-static-frame\]\)\s*\{[\s\S]*width:\s*100%;[\s\S]*height:\s*100%;[\s\S]*min-height:\s*0;/
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.content\s*\{[^}]*?(?:^|[;\s])height:\s*100%;/m
+  );
 });
 
 test("a permanent PageFlip error returns to the canonical reading surface", async () => {
@@ -299,6 +364,14 @@ test("a permanent PageFlip error returns to the canonical reading surface", asyn
   assert.match(
     experiment,
     /!hasReadingSurface \|\| \(!failed && engineState === "flipping"\)/
+  );
+  assert.match(
+    experiment,
+    /contentInert=\{[\s\S]*\(!failed && engineState === "flipping"\)[\s\S]*!readingSurfaceOwnsScroll/
+  );
+  assert.match(
+    experiment,
+    /onError=\{\(\) => \{[\s\S]*cancelAnimationFrame\(animationSourceClearFrameRef\.current\)[\s\S]*animationSourceScrollRef\.current = null;[\s\S]*setFailed\(true\)/
   );
 });
 

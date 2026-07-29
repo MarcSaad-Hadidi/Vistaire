@@ -50,6 +50,7 @@ type GestureSnapshot = {
   windowScrollY: number;
   documentScrollTop: number;
   horizontalOverflow: number;
+  lastRoutePreviewScrollTop: number;
 };
 
 type GestureEvent = GestureSnapshot & {
@@ -64,6 +65,7 @@ async function installGestureProbe(page: Page) {
   await page.addInitScript(() => {
     const ids = new WeakMap<object, number>();
     let nextId = 1;
+    let lastRoutePreviewScrollTop = 0;
     const idFor = (value: object | null) => {
       if (!value) return 0;
       const existing = ids.get(value);
@@ -134,11 +136,26 @@ async function installGestureProbe(page: Page) {
           null,
         windowScrollY: window.scrollY,
         documentScrollTop: document.documentElement.scrollTop,
+        lastRoutePreviewScrollTop,
         horizontalOverflow:
           document.documentElement.scrollWidth -
           document.documentElement.clientWidth
       };
     };
+
+    document.addEventListener(
+      "scroll",
+      (event) => {
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          target.getAttribute("data-sauge-reading-kind") === "route-preview"
+        ) {
+          lastRoutePreviewScrollTop = target.scrollTop;
+        }
+      },
+      { capture: true, passive: true }
+    );
 
     const events: Array<
       ReturnType<typeof snapshot> & {
@@ -187,6 +204,7 @@ async function installGestureProbe(page: Page) {
       events,
       reset: () => {
         events.length = 0;
+        lastRoutePreviewScrollTop = 0;
       },
       snapshot
     };
@@ -351,6 +369,31 @@ async function endVerticalGesture(session: CDPSession, id: number) {
   await dispatchTouch(session, "touchEnd", id, 260, 180);
 }
 
+async function holdActiveTouch(
+  page: Page,
+  session: CDPSession,
+  id: number,
+  frameCount = 8
+) {
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    await nextAnimationFrame(page);
+    await dispatchTouch(session, "touchMove", id, 260, 180);
+  }
+}
+
+async function reverseVerticalGesture(
+  page: Page,
+  session: CDPSession,
+  id: number
+) {
+  await dispatchTouch(session, "touchStart", id, 260, 180);
+  for (const y of [250, 330, 410, 490, 570, 650, 720]) {
+    await nextAnimationFrame(page);
+    await dispatchTouch(session, "touchMove", id, 260, y);
+  }
+  await dispatchTouch(session, "touchEnd", id, 260, 720);
+}
+
 function assertTrustedSingleTouch(events: GestureEvent[]) {
   const touchEvents = events.filter((event) =>
     ["touchstart", "touchmove", "touchend"].includes(event.type)
@@ -370,7 +413,9 @@ async function expectUrlContext(
   expectedPathname: string,
   expectedView: string
 ) {
-  await expect.poll(() => new URL(page.url()).pathname).toBe(expectedPathname);
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 15_000 })
+    .toBe(expectedPathname);
   await expect
     .poll(() => {
       const params = new URL(page.url()).searchParams;
@@ -381,7 +426,7 @@ async function expectUrlContext(
         zone: params.get("zone"),
         view: params.get("view")
       };
-    })
+    }, { timeout: 15_000 })
     .toEqual({ ...contextQuery, view: expectedView });
 }
 
@@ -478,7 +523,12 @@ async function completeRouteGesture({
   const final = await probeSnapshot(page);
   const finalOwner = expectUsableSingleOwner(final);
   expect(finalOwner.id).not.toBe(startingOwner.id);
-  expect(finalOwner.scrollTop).toBeGreaterThan(0);
+  expect(final.lastRoutePreviewScrollTop).toBeGreaterThan(0);
+  const expectedScrollTop = Math.min(
+    final.lastRoutePreviewScrollTop,
+    finalOwner.scrollHeight - finalOwner.clientHeight
+  );
+  expect(Math.abs(finalOwner.scrollTop - expectedScrollTop)).toBeLessThanOrEqual(1);
   assertTrustedSingleTouch(await probeEvents(page));
 }
 
@@ -517,28 +567,39 @@ for (const viewport of [
         .locator('[data-page-flip-engine-state="flipping"]')
         .waitFor({ timeout: 3_000 });
       await resetProbe(page);
+      const beforeGesture = await probeSnapshot(page);
+      const baselineOwner = expectUsableSingleOwner(beforeGesture, "menu");
       await startVerticalGesture(page, session, 12);
       const duringFlip = await probeSnapshot(page);
       const startingOwner = expectUsableSingleOwner(duringFlip, "menu");
+      const beforeRead = await probeSnapshot(page);
+      const scrolledOwner = expectUsableSingleOwner(beforeRead, "menu");
+      expect(scrolledOwner.id).toBe(startingOwner.id);
 
       await page
         .locator('[data-page-flip-engine-state="read"]')
         .waitFor({ timeout: 5_000 });
+      await expectUrlContext(page, "/menu/sauge-noire", "sauge-3");
       const afterRead = await probeSnapshot(page);
-      const readingOwner = expectUsableSingleOwner(afterRead, "menu");
-      expect(readingOwner.id).toBe(startingOwner.id);
-      const markerTopBeforeMoves = readingOwner.markerTop;
-
+      const afterReadOwner = expectUsableSingleOwner(afterRead, "menu");
+      expect(afterReadOwner.id).toBe(startingOwner.id);
       await continueVerticalGesture(page, session, 12);
+      await holdActiveTouch(page, session, 12);
       await endVerticalGesture(session, 12);
+      const finalSurface = await expectSettledSurface(page);
       const final = await probeSnapshot(page);
       const finalOwner = expectUsableSingleOwner(final, "menu");
       expect(finalOwner.id).toBe(startingOwner.id);
-      expect(finalOwner.scrollTop).toBeGreaterThan(0);
-      expect(finalOwner.markerTop).not.toBeNull();
-      expect(markerTopBeforeMoves).not.toBeNull();
-      expect(finalOwner.markerTop!).toBeLessThan(markerTopBeforeMoves!);
-      await expectUrlContext(page, "/menu/sauge-noire", "sauge-3");
+      expect(finalOwner.scrollTop).toBeGreaterThan(baselineOwner.scrollTop);
+      expect(finalOwner.scrollTop).toBeGreaterThan(afterReadOwner.scrollTop);
+      const preparedScrollTop = Number(
+        await finalSurface.getAttribute("data-page-flip-prepared-scroll-top")
+      );
+      expect(preparedScrollTop).toBeGreaterThan(0);
+      expect(finalOwner.scrollTop).toBeGreaterThanOrEqual(preparedScrollTop - 1);
+      expect(finalOwner.scrollTop).toBeLessThanOrEqual(
+        finalOwner.scrollHeight - finalOwner.clientHeight
+      );
       assertTrustedSingleTouch(await probeEvents(page));
     });
 
@@ -555,7 +616,7 @@ for (const viewport of [
       try {
         await surface
           .locator('[data-sauge-featured-dish="true"]')
-          .dispatchEvent("click", { button: 0 });
+          .click({ noWaitAfter: true });
         await completeRouteGesture({
           page,
           session,
@@ -584,7 +645,7 @@ for (const viewport of [
       try {
         await surface
           .locator('[data-sauge-typography-role="back-control"]')
-          .dispatchEvent("click", { button: 0 });
+          .click({ noWaitAfter: true });
         await completeRouteGesture({
           page,
           session,
@@ -614,24 +675,70 @@ for (const viewport of [
         ["next", 41, 42],
         ["previous", 43, 44]
       ] as const) {
+        const sourcePathname = new URL(page.url()).pathname;
+        const sourceSurface = await expectSettledSurface(page);
+        const seededScrollTop = await sourceSurface.evaluate((element) => {
+          const maxScroll = element.scrollHeight - element.clientHeight;
+          element.scrollTop = Math.min(120, Math.max(0, maxScroll / 3));
+          return element.scrollTop;
+        });
         await horizontalSwipe(page, session, direction, horizontalId);
         await page
           .locator('[data-page-flip-engine-state="flipping"]')
           .waitFor({ timeout: 3_000 });
+        const capturedSourceScrollTop = Number(
+          await page
+            .locator("[data-page-flip-source-scroll-top]")
+            .getAttribute("data-page-flip-source-scroll-top")
+        );
+        expect(Math.abs(capturedSourceScrollTop - seededScrollTop)).toBeLessThanOrEqual(1);
         await resetProbe(page);
+        const beforeGesture = await probeSnapshot(page);
+        const baselineOwner = expectUsableSingleOwner(beforeGesture, "dish");
+        expect(Math.abs(baselineOwner.scrollTop - seededScrollTop)).toBeLessThanOrEqual(1);
         await startVerticalGesture(page, session, verticalId);
         const duringFlip = await probeSnapshot(page);
         const startingOwner = expectUsableSingleOwner(duringFlip, "dish");
+        await continueVerticalGesture(page, session, verticalId);
+        await holdActiveTouch(page, session, verticalId);
+        await endVerticalGesture(session, verticalId);
+        const beforeRead = await probeSnapshot(page);
+        const scrolledOwner = expectUsableSingleOwner(beforeRead, "dish");
+        expect(scrolledOwner.id).toBe(startingOwner.id);
+        expect(scrolledOwner.scrollTop).toBeGreaterThan(baselineOwner.scrollTop);
 
         await page
           .locator('[data-page-flip-engine-state="read"]')
           .waitFor({ timeout: 5_000 });
-        await continueVerticalGesture(page, session, verticalId);
-        await endVerticalGesture(session, verticalId);
+        await expect
+          .poll(() => new URL(page.url()).pathname, { timeout: 15_000 })
+          .not.toBe(sourcePathname);
+        await expectSettledSurface(page);
         const final = await probeSnapshot(page);
         const finalOwner = expectUsableSingleOwner(final, "dish");
         expect(finalOwner.id).toBe(startingOwner.id);
-        expect(finalOwner.scrollTop).toBeGreaterThan(0);
+        const preparedScrollTop = Number(
+          await sourceSurface.getAttribute("data-page-flip-prepared-scroll-top")
+        );
+        const gestureDelta = Number(
+          await sourceSurface.getAttribute("data-page-flip-gesture-delta")
+        );
+        const maxTargetScroll =
+          finalOwner.scrollHeight - finalOwner.clientHeight;
+        expect(preparedScrollTop).toBe(
+          Math.min(maxTargetScroll, Math.max(0, gestureDelta))
+        );
+        expect(preparedScrollTop).not.toBe(
+          Math.min(
+            maxTargetScroll,
+            Math.max(0, gestureDelta + capturedSourceScrollTop)
+          )
+        );
+        expect(preparedScrollTop).toBeGreaterThan(0);
+        expect(finalOwner.scrollTop).toBeGreaterThanOrEqual(preparedScrollTop - 1);
+        expect(finalOwner.scrollTop).toBeLessThanOrEqual(
+          finalOwner.scrollHeight - finalOwner.clientHeight
+        );
         assertTrustedSingleTouch(await probeEvents(page));
         await expectSettledSurface(page);
       }
@@ -686,12 +793,22 @@ for (const viewport of [
       expect(Math.abs(afterClose - beforeOpen)).toBeLessThanOrEqual(2);
 
       await resetProbe(page);
-      await startVerticalGesture(page, session, 52);
-      await continueVerticalGesture(page, session, 52);
-      await endVerticalGesture(session, 52);
-      await expect
-        .poll(() => surface.evaluate((element) => element.scrollTop))
-        .toBeGreaterThan(afterClose);
+      const maxScroll = await surface.evaluate(
+        (element) => element.scrollHeight - element.clientHeight
+      );
+      if (afterClose < maxScroll - 2) {
+        await startVerticalGesture(page, session, 52);
+        await continueVerticalGesture(page, session, 52);
+        await endVerticalGesture(session, 52);
+        await expect
+          .poll(() => surface.evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(afterClose);
+      } else {
+        await reverseVerticalGesture(page, session, 52);
+        await expect
+          .poll(() => surface.evaluate((element) => element.scrollTop))
+          .toBeLessThan(afterClose);
+      }
       expectUsableSingleOwner(await probeSnapshot(page), "dish");
       assertTrustedSingleTouch(await probeEvents(page));
     });

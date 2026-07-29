@@ -74,14 +74,23 @@ export const SaugeNoireReadingSurface = forwardRef<
   useEffect(() => {
     const activeTouchIdentifiers = activeTouchIdentifiersRef.current;
     const activePointerIdentifiers = activePointerIdentifiersRef.current;
+    const finishGlobalPointer = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      activePointerIdentifiers.delete(event.pointerId);
+      reportGestureState();
+    };
+    window.addEventListener("pointerup", finishGlobalPointer, true);
+    window.addEventListener("pointercancel", finishGlobalPointer, true);
     return () => {
+      window.removeEventListener("pointerup", finishGlobalPointer, true);
+      window.removeEventListener("pointercancel", finishGlobalPointer, true);
       activeTouchIdentifiers.clear();
       activePointerIdentifiers.clear();
       if (!gestureActiveRef.current) return;
       gestureActiveRef.current = false;
       onGestureActiveChangeRef.current?.(false);
     };
-  }, []);
+  }, [reportGestureState]);
 
   const handleTouchStartCapture: TouchEventHandler<HTMLDivElement> = (event) => {
     for (const touch of Array.from(event.changedTouches)) {
@@ -111,11 +120,6 @@ export const SaugeNoireReadingSurface = forwardRef<
   const handlePointerDownCapture: PointerEventHandler<HTMLDivElement> = (event) => {
     if (event.pointerType !== "touch") {
       activePointerIdentifiersRef.current.add(event.pointerId);
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // The pointer can end before capture is applied.
-      }
       reportGestureState();
     }
     onPointerDownCapture?.(event);

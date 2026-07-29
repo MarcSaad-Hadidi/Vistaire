@@ -72,6 +72,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const settledPreviewScrollTopRef = useRef(0);
   const routeGestureActiveRef = useRef(false);
   const overlayReadyPendingRef = useRef(false);
+  const overlayFallbackPendingRef = useRef(false);
   const settledPreviewGestureActiveRef = useRef(false);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
 
@@ -113,6 +114,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     focusAfterHandoffRef.current = true;
     settledPreviewScrollTopRef.current = 0;
     overlayReadyPendingRef.current = false;
+    overlayFallbackPendingRef.current = false;
     settledPreviewGestureActiveRef.current = false;
     destinationReadyTransitionIdRef.current = null;
     destinationPathnameObservedRef.current = false;
@@ -131,16 +133,25 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
 
   const handleRouteGestureActiveChange = useCallback((active: boolean) => {
     routeGestureActiveRef.current = active;
-    if (active || !overlayReadyPendingRef.current) return;
+    if (active) return;
     const current = transitionRef.current;
     if (!current || current.phase !== "preparing") return;
+    if (overlayFallbackPendingRef.current) {
+      overlayFallbackPendingRef.current = false;
+      overlayReadyPendingRef.current = false;
+      updatePhase("awaiting-destination");
+      router.push(current.href);
+      return;
+    }
+    if (!overlayReadyPendingRef.current) return;
     overlayReadyPendingRef.current = false;
     updatePhase("animating");
-  }, [updatePhase]);
+  }, [router, updatePhase]);
 
   const handleOverlayReady = useCallback(() => {
     const current = transitionRef.current;
     if (!current || current.phase !== "preparing") return;
+    if (overlayFallbackPendingRef.current) return;
     if (routeGestureActiveRef.current) {
       overlayReadyPendingRef.current = true;
       return;
@@ -158,6 +169,13 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const handleOverlayFallback = useCallback(() => {
     const current = transitionRef.current;
     if (!current || current.phase === "awaiting-destination") return;
+    if (
+      current.phase === "preparing" &&
+      routeGestureActiveRef.current
+    ) {
+      overlayFallbackPendingRef.current = true;
+      return;
+    }
     updatePhase("awaiting-destination");
     router.push(current.href);
   }, [router, updatePhase]);
@@ -272,6 +290,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         destinationReadyTransitionIdRef.current = null;
         destinationPathnameObservedRef.current = false;
         overlayReadyPendingRef.current = false;
+        overlayFallbackPendingRef.current = false;
         settledPreviewGestureActiveRef.current = false;
         transitionRef.current = null;
         setTransition(null);

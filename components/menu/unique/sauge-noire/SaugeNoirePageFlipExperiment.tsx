@@ -236,8 +236,10 @@ export function SaugeNoirePageFlipExperiment({
   const sawFlipStateRef = useRef(false);
   const animationSourceScrollRef = useRef<{
     pageIndex: number;
+    readingIdentity: string;
     scrollTop: number;
   } | null>(null);
+  const animationSourceClearFrameRef = useRef(0);
   const initCountRef = useRef(0);
   const hasReadingSurface = readingPage !== undefined || readingPages !== undefined;
   // The DOM identity belongs to the logical book, not to a volatile viewport
@@ -282,9 +284,34 @@ export function SaugeNoirePageFlipExperiment({
   useLayoutEffect(() => {
     const readingSurface = readingSurfaceRef.current;
     if (!readingSurface) return;
-    const preparedScrollTop = Math.max(0, readyScrollTop ?? 0);
+    const source = animationSourceScrollRef.current;
+    const gestureDelta =
+      source && source.readingIdentity !== readingIdentity
+        ? readingSurface.scrollTop - source.scrollTop
+        : 0;
+    const preparedScrollTop = Math.min(
+      Math.max(0, readingSurface.scrollHeight - readingSurface.clientHeight),
+      Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
+    );
+    readingSurface.setAttribute(
+      "data-page-flip-prepared-scroll-top",
+      String(preparedScrollTop)
+    );
+    readingSurface.setAttribute(
+      "data-page-flip-gesture-delta",
+      String(gestureDelta)
+    );
     if (readingSurface.scrollTop !== preparedScrollTop) {
       readingSurface.scrollTop = preparedScrollTop;
+    }
+    if (source && source.readingIdentity !== readingIdentity) {
+      const completedSource = source;
+      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      animationSourceClearFrameRef.current = window.requestAnimationFrame(() => {
+        if (animationSourceScrollRef.current === completedSource) {
+          animationSourceScrollRef.current = null;
+        }
+      });
     }
   }, [readingIdentity, readyScrollTop]);
 
@@ -292,13 +319,19 @@ export function SaugeNoirePageFlipExperiment({
     (sourcePageIndex: number, targetPageIndex: number) => {
       const viewport = viewportRef.current;
       if (!viewport) return;
+      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
       const sourcePage = resolveSaugeNoireOriginalPage(viewport, sourcePageIndex);
       const targetPage = resolveSaugeNoireOriginalPage(viewport, targetPageIndex);
       const sourceScrollTop = readingSurfaceRef.current?.scrollTop ?? 0;
       animationSourceScrollRef.current = {
         pageIndex: sourcePageIndex,
+        readingIdentity,
         scrollTop: sourceScrollTop
       };
+      viewport.setAttribute(
+        "data-page-flip-source-scroll-top",
+        String(sourceScrollTop)
+      );
       if (sourcePage && sourcePage.scrollTop !== sourceScrollTop) {
         sourcePage.scrollTop = sourceScrollTop;
       }
@@ -311,7 +344,7 @@ export function SaugeNoirePageFlipExperiment({
         targetPage.scrollTop = targetScrollTop;
       }
     },
-    [readyScrollTop]
+    [readingIdentity, readyScrollTop]
   );
 
   useLayoutEffect(() => {
@@ -731,6 +764,7 @@ export function SaugeNoirePageFlipExperiment({
     return () => {
       const pageFlip = activeBookRef.current?.pageFlip();
       window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
+      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
       activeSingleFlipJumpRef.current = null;
       if (!pageFlip) return;
       queueMicrotask(() => {
@@ -815,7 +849,15 @@ export function SaugeNoirePageFlipExperiment({
       reportedFlipPageRef.current = null;
       sawFlipStateRef.current = true;
     }
-    if (state === "read") animationSourceScrollRef.current = null;
+    if (state === "read") {
+      const completedSource = animationSourceScrollRef.current;
+      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      animationSourceClearFrameRef.current = window.requestAnimationFrame(() => {
+        if (animationSourceScrollRef.current === completedSource) {
+          animationSourceScrollRef.current = null;
+        }
+      });
+    }
     if (
       state === "flipping" &&
       activeSingleFlipJumpRef.current?.phase === "single-flip"
@@ -1044,6 +1086,8 @@ export function SaugeNoirePageFlipExperiment({
             <PageFlipErrorBoundary
               fallback={fallback}
               onError={() => {
+                window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+                animationSourceScrollRef.current = null;
                 setFailed(true);
                 setReadyBookKey(null);
                 onError?.();
@@ -1100,7 +1144,8 @@ export function SaugeNoirePageFlipExperiment({
           visible={hasReadingSurface}
           scrollOwner={readingSurfaceOwnsScroll}
           contentInert={
-            engineState === "flipping" || !readingSurfaceOwnsScroll
+            (!failed && engineState === "flipping") ||
+            !readingSurfaceOwnsScroll
           }
           onGestureActiveChange={onReadingGestureActiveChange}
           data-sauge-handoff-candidate="true"
