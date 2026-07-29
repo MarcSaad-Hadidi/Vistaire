@@ -30,6 +30,7 @@ type SaugeNoireRoutePageFlipProps = {
   targetActivated: boolean;
   visible: boolean;
   onSettledPreviewScrollTopChange: (scrollTop: number) => void;
+  onSettledPreviewGestureActiveChange: (active: boolean) => void;
   onReady: () => void;
   onFlip: () => void;
   onFallback: () => void;
@@ -53,6 +54,7 @@ export function SaugeNoireRoutePageFlip({
   targetActivated,
   visible,
   onSettledPreviewScrollTopChange,
+  onSettledPreviewGestureActiveChange,
   onReady,
   onFlip,
   onFallback
@@ -109,7 +111,7 @@ export function SaugeNoireRoutePageFlip({
   }, [restoreSourceScroll]);
 
   useLayoutEffect(() => {
-    if (phase !== "awaiting-destination") return;
+    if (phase === "preparing") return;
     const target = settledSurfaceRef.current;
     if (!target) return;
 
@@ -212,7 +214,6 @@ export function SaugeNoireRoutePageFlip({
       }
       data-sauge-route-transition-current-page={targetActivated ? targetPage : startPage}
       aria-hidden="true"
-      inert
     >
       {rail}
       <div
@@ -225,6 +226,8 @@ export function SaugeNoireRoutePageFlip({
           data-sauge-route-flip-engine-visible={
             phase === "animating" ? "true" : "false"
           }
+          aria-hidden="true"
+          inert
         >
           <SaugeNoirePageFlipExperiment
             pages={pages}
@@ -246,14 +249,15 @@ export function SaugeNoireRoutePageFlip({
           className={styles.settledSurface}
           kind="route-preview"
           pageIndex={targetPage}
-          visible={phase === "awaiting-destination"}
+          visible={phase !== "preparing"}
           preview
+          onGestureActiveChange={onSettledPreviewGestureActiveChange}
           data-sauge-route-settled-surface="true"
           data-sauge-route-settled-surface-visible={
-            phase === "awaiting-destination" ? "true" : "false"
+            phase !== "preparing" ? "true" : "false"
           }
           data-sauge-route-scroll-owner={
-            phase === "awaiting-destination" ? "true" : "false"
+            phase !== "preparing" ? "true" : "false"
           }
         >
           <div className={styles.settledContent}>

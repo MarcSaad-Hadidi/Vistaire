@@ -115,11 +115,13 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
-test("App CI keeps deterministic checks blocking with one Sauge Noire Chromium smoke", async () => {
-  const [workflow, packageJson, smoke] = await Promise.all([
+test("App CI keeps deterministic checks blocking with the Sauge Noire browser proofs", async () => {
+  const [workflow, packageJson, scrollSpec, staticParitySpec, noSkipReporter] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
     source("package.json"),
-    source("e2e/sauge-noire-critical-smoke.spec.ts")
+    source("e2e/sauge-noire-first-gesture-scroll.spec.ts"),
+    source("e2e/sauge-noire-static-page-handoff.spec.ts"),
+    source("e2e/support/forbid-skipped-tests-reporter.ts")
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
@@ -131,28 +133,113 @@ test("App CI keeps deterministic checks blocking with one Sauge Noire Chromium s
   );
   assert.match(workflow, /CHECKS_RESULT:\s*\$\{\{ needs\.checks\.result \}\}/);
   assert.equal(
+    scripts["test:sauge-noire:scroll"],
+    "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-first-gesture-scroll.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
+  );
+  assert.equal(
     scripts["test:sauge-noire:smoke"],
     "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-critical-smoke.spec.ts --project=chromium --workers=1 --retries=0"
+  );
+  assert.equal(
+    scripts["test:sauge-noire:static-parity"],
+    "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-static-page-handoff.spec.ts --project=chromium --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
+  );
+  assert.match(
+    workflow,
+    /- name: Install Playwright WebKit\s+run: npx --no-install playwright install --with-deps webkit/
   );
   assert.match(
     workflow,
     /- name: Sauge Noire critical smoke\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:smoke/
   );
+  assert.match(
+    workflow,
+    /- name: Sauge Noire first-gesture scroll\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:scroll/
+  );
+  assert.match(
+    workflow,
+    /- name: Sauge Noire static-page parity\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
+  );
   assert.ok(
     workflow.indexOf("run: npm run build") <
-      workflow.indexOf("run: npm run test:sauge-noire:smoke"),
-    "the built Next server must exist before the Sauge Noire smoke starts"
+      workflow.indexOf("run: npm run test:sauge-noire:smoke") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:sauge-noire:scroll") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:sauge-noire:static-parity"),
+    "the built Next server must exist before the Sauge Noire browser proofs start"
   );
   assert.doesNotMatch(
     workflow,
-    /unique_menu_e2e|Unique menu E2E|test:unique-menu-design:e2e|sauge-noire-(?:header|dish-detail|first-gesture-scroll|route-transitions|pageflip-lifecycle|static-pages-responsive)\.spec\.ts/
+    /unique_menu_e2e|Unique menu E2E|test:unique-menu-design:e2e|sauge-noire-(?:header|dish-detail|route-transitions|pageflip-lifecycle|static-pages-responsive)\.spec\.ts/
   );
   assert.doesNotMatch(workflow, /continue-on-error/);
   assert.equal(scripts["test:unique-menu-design:e2e"], undefined);
-  assert.doesNotMatch(
-    smoke,
-    /\.stf__item|touchstart|touchmove|PageDown|scrollBy|waitForTimeout|data-sauge-route-transition/
-  );
+
+  assert.match(scrollSpec, /Input\.dispatchTouchEvent/);
+  for (const touchType of ["touchStart", "touchMove", "touchEnd"]) {
+    assert.match(scrollSpec, new RegExp(`"${touchType}"`));
+  }
+  for (const viewport of [
+    /\{\s*width:\s*390,\s*height:\s*844\s*\}/,
+    /\{\s*width:\s*430,\s*height:\s*932\s*\}/
+  ]) {
+    assert.match(scrollSpec, viewport);
+  }
+  for (const flow of [
+    "menu page flip keeps the first vertical gesture on one owner",
+    "menu to dish defers route handoff until the active touch ends",
+    "dish to menu defers route handoff until the active touch ends",
+    "next and previous dish flips keep the first gesture usable",
+    "3D open and close preserve scroll and the next touch scrolls"
+  ]) {
+    assert.match(scrollSpec, new RegExp(flow));
+  }
+  for (const selector of [
+    'data-page-flip-engine-state="flipping"',
+    'data-page-flip-engine-state="read"',
+    'data-sauge-route-transition-phase="animating"',
+    'data-sauge-route-transition-phase="awaiting-destination"',
+    'data-sauge-route-renderer-pending-handoff="true"',
+    'data-sauge-route-renderer-pending-handoff="false"',
+    'data-sauge-reading-surface="true"',
+    'data-sauge-scroll-owner="true"'
+  ]) {
+    assert.match(scrollSpec, new RegExp(selector));
+  }
+  for (const forbiddenSkip of [
+    /\btest\s*\.\s*skip\s*\(/,
+    /\btest\s*\.\s*fixme\s*\(/,
+    /\btestInfo\s*\.\s*skip\s*\(/,
+    /\bdescribe\s*\.\s*skip\s*\(/
+  ]) {
+    assert.doesNotMatch(scrollSpec, forbiddenSkip);
+    assert.doesNotMatch(staticParitySpec, forbiddenSkip);
+  }
+  for (const viewport of [
+    /\{\s*width:\s*390,\s*height:\s*844\s*\}/,
+    /\{\s*width:\s*430,\s*height:\s*932\s*\}/
+  ]) {
+    assert.match(staticParitySpec, viewport);
+  }
+  for (const pageKind of ["cover", "contents", "ending"]) {
+    assert.match(staticParitySpec, new RegExp(`"${pageKind}"`));
+  }
+  for (const invariant of [
+    /canonical\.frame\.clientHeight - canonical\.container\.clientHeight/,
+    /canonical\.content\?\.clientHeight/,
+    /canonical\.container\.scrollHeight/,
+    /canonical\.frame\.scrollHeight/,
+    /canonical\.horizontalOverflow/,
+    /document\.fonts\.ready/,
+    /data-page-flip-engine-state",\s*"flipping"/,
+    /engineState:\s*"read"/
+  ]) {
+    assert.match(staticParitySpec, invariant);
+  }
+  assert.match(noSkipReporter, /result\.status !== "skipped"/);
+  assert.match(noSkipReporter, /test\.expectedStatus !== "skipped"/);
+  assert.match(noSkipReporter, /return \{ status: "failed" as const \}/);
 });
 
 test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {

@@ -294,6 +294,10 @@ export function SaugeNoireBookMenu({
   const beginRouteTransition = routeTransition?.beginTransition;
   const prefetchRouteDestination = routeTransition?.prefetchDestination;
   const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
+  const onRouteGestureActiveChange =
+    routeTransition?.onRouteGestureActiveChange;
+  const routeScrollOwnerActive =
+    routeTransition?.routeScrollOwnerActive ?? true;
   const routeTransitionActive = routeTransition?.transitionActive ?? false;
   const pathname = usePathname();
   const notifyCurrentRouteReady = useCallback(() => {
@@ -393,6 +397,23 @@ export function SaugeNoireBookMenu({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        routeTransitionActive ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        (
+          event.target instanceof HTMLElement &&
+          Boolean(
+            event.target.closest(
+              "a, button, input, select, textarea, [contenteditable=true]"
+            )
+          )
+        )
+      ) {
+        return;
+      }
       if (contentsJumpRequest) {
         if (
           event.key === "ArrowRight" ||
@@ -434,7 +455,13 @@ export function SaugeNoireBookMenu({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [contentsJumpRequest, goToPage, pages.length, pageIndex]);
+  }, [
+    contentsJumpRequest,
+    goToPage,
+    pages.length,
+    pageIndex,
+    routeTransitionActive
+  ]);
 
   useEffect(() => {
     const nextView = `sauge-${pageIndex}`;
@@ -781,6 +808,8 @@ export function SaugeNoireBookMenu({
               onReady={notifyCurrentRouteReady}
               onError={notifyCurrentRouteReady}
               readyScrollTop={0}
+              readingSurfaceOwnsScroll={routeScrollOwnerActive}
+              onReadingGestureActiveChange={onRouteGestureActiveChange}
               singleFlipJumpRequest={contentsJumpRequest}
               onSingleFlipJumpSettled={handleContentsJumpSettled}
               fallback={renderPage(currentPage, pageIndex, false, handleDishLinkClick)}
