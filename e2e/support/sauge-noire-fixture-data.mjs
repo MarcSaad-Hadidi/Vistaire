@@ -114,7 +114,7 @@ const rows = {
       supportedLocales: ["fr-CA", "en-CA"],
       baseCurrency: "CAD",
       defaultCurrency: "CAD",
-      supportedCurrencies: ["CAD", "USD"],
+      supportedCurrencies: ["CAD", "USD", "EUR"],
       publicMenuStyle: "unique",
       timezone: "America/Toronto",
       allowCurrencySelector: true,

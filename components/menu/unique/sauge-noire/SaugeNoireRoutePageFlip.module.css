@@ -45,24 +45,59 @@
   overflow: hidden;
 }
 
+.routeFlipEngine,
+.settledSurface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.routeFlipEngine {
+  overflow: hidden;
+}
+
+.routeFlipEngine[data-sauge-route-flip-engine-visible="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.settledSurface {
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  color: var(--sn-ink);
+  scrollbar-width: thin;
+  container: sn-sheet / size;
+}
+
+.settledSurface[data-sauge-route-settled-surface-visible="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.settledSurface[data-sauge-route-settled-surface-visible="true"] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.settledContent {
+  min-height: 100%;
+  font: inherit;
+  pointer-events: none;
+}
+
 .routeTransitionOverlay[data-sauge-route-transition-visible="false"] {
   visibility: hidden;
 }
 
 .routeTransitionOverlay :global(.stf__item),
 .routeTransitionOverlay :global(.stf__item) * {
-  pointer-events: none;
-}
-
-.routeTransitionOverlay[data-sauge-route-transition-scrollable="true"]
-  :global([data-sauge-route-preview-scroll-target="true"]) {
-  pointer-events: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
-
-.routeTransitionOverlay[data-sauge-route-transition-scrollable="true"]
-  :global([data-sauge-route-preview-scroll-target="true"])
-  > * {
   pointer-events: none;
 }

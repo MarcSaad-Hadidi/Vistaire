@@ -430,7 +430,7 @@ export function SaugeNoireDishSheet({
       />
       <section className={styles.detailContent}>
         <p className={styles.categoryKicker}>{targetCategory}{isSignatureLabel(dish, publicLocale) ? "  ·  " : ""}{isSignatureLabel(dish, publicLocale)}</p>
-        <h1>{dish.name.toUpperCase()}</h1>
+        <h1 data-sauge-typography-role="title">{dish.name.toUpperCase()}</h1>
         <Rule />
         <div className={styles.detailPhoto} data-photo-slot={dish.slug}>
           {dish.imageUrl ? (
@@ -442,7 +442,14 @@ export function SaugeNoireDishSheet({
             />
           ) : null}
         </div>
-        <p className={styles.detailPrice}>{formatPrice(dish, currency, locale, exchangeRates)}</p>
+        <p
+          className={styles.detailPrice}
+          data-sauge-visible-price="true"
+          data-rendered-currency={currency}
+          data-sauge-typography-role="price"
+        >
+          {formatPrice(dish, currency, locale, exchangeRates)}
+        </p>
         <Rule />
         <p className={styles.description}>{dish.description}</p>
         <div className={styles.detailRows}>
@@ -937,8 +944,9 @@ export function SaugeNoireDishDetail({
 
   const handleMenuLinkClick = useCallback((
     event: React.MouseEvent<HTMLAnchorElement>,
-    href: string
+    _href: string
   ) => {
+    void _href;
     if (
       event.defaultPrevented ||
       event.button !== 0 ||
@@ -957,12 +965,25 @@ export function SaugeNoireDishDetail({
 
     const categorySheet = categorySheetForDish(menu, activeDish);
     if (!categorySheet.category) return;
+    const canonicalHref = buildMenuHref(menu, activeDish, query, currency);
+    const transitionQuery = new URL(
+      canonicalHref,
+      window.location.origin
+    ).searchParams;
 
     if (!beginRouteTransition) return;
     routeTransitionIdRef.current += 1;
     const started = beginRouteTransition({
       id: `detail-to-menu-${routeTransitionIdRef.current}-${activeDish.id}`,
-      href,
+      href: canonicalHref,
+      snapshot: {
+        currency,
+        locale: publicLocale,
+        view: transitionQuery.get("view") ?? undefined,
+        table: transitionQuery.get("table") ?? undefined,
+        zone: transitionQuery.get("zone") ?? undefined,
+        href: canonicalHref
+      },
       direction: "previous",
       sourceScrollTop: currentDetailScrollTop(),
       rail: <SaugeNoireBookRail />,
@@ -1060,6 +1081,7 @@ export function SaugeNoireDishDetail({
       className={styles.detailPage}
       data-testid="sauge-noire-dish-detail"
       data-active-currency={currency}
+      data-active-locale={publicLocale}
     >
       <aside className={styles.rail} aria-hidden="true" data-sauge-book-rail="true">
         <div className={styles.railPattern} />
@@ -1110,6 +1132,7 @@ function DishDetailHeader({
     <header className={styles.detailHeader} aria-hidden={isPreview || undefined}>
       <Link
         className={styles.backLink}
+        data-sauge-typography-role="back-control"
         href={href}
         prefetch={false}
         tabIndex={isPreview ? -1 : undefined}

@@ -45,8 +45,7 @@
   font-family: "BT Suave", Georgia, serif;
 }
 
-.detailPage a,
-.detailPage button {
+.detailPage :where(a, button) {
   color: inherit;
   font: inherit;
 }

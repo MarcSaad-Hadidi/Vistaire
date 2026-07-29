@@ -108,6 +108,22 @@ test("currency selection updates client state before URL reconciliation and stay
   );
 });
 
+test("the canonical transition snapshot also owns the preview locale", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(
+    book,
+    /locale=\{publicLocaleToShortLocale\(canonical\.snapshot\.locale\)\}/
+  );
+  assert.doesNotMatch(
+    book,
+    /currency=\{canonical\.snapshot\.currency\}[\s\S]{0,160}locale=\{activeLocale\}/
+  );
+  assert.match(book, /data-active-locale=\{activeLocaleValue\}/);
+  assert.match(detail, /data-active-locale=\{publicLocale\}/);
+});
+
 test("Sauge Noire passes complete localized viewer copy and owns a translated dynamic placeholder", async () => {
   const detail = await readFile(detailPath, "utf8");
 

@@ -9,6 +9,14 @@ import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
 export type SaugeNoireRouteTransition = {
   id: string;
   href: string;
+  snapshot: {
+    currency: string;
+    locale: string;
+    view?: string;
+    table?: string;
+    zone?: string;
+    href: string;
+  };
   direction: "next" | "previous";
   source: ReactNode;
   destination: ReactNode;
@@ -60,7 +68,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const awaitingDestinationWatchdogRef = useRef(0);
   const focusFrameRef = useRef(0);
   const focusAfterHandoffRef = useRef(false);
-  const targetPreviewScrollTopRef = useRef(0);
+  const settledPreviewScrollTopRef = useRef(0);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
 
   const prefetchDestination = useCallback((href: string) => {
@@ -99,7 +107,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       document.activeElement.blur();
     }
     focusAfterHandoffRef.current = true;
-    targetPreviewScrollTopRef.current = 0;
+    settledPreviewScrollTopRef.current = 0;
     destinationReadyTransitionIdRef.current = null;
     destinationPathnameObservedRef.current = false;
     transitionRef.current = active;
@@ -146,7 +154,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         ? resolveSaugeNoireOriginalPage(viewport, actualPage)
         : null;
     if (!activePage || !activePage.isConnected) return false;
-    const desiredScrollTop = Math.max(0, targetPreviewScrollTopRef.current);
+    const desiredScrollTop = Math.max(0, settledPreviewScrollTopRef.current);
     activePage.scrollTop = desiredScrollTop;
     return Math.abs(activePage.scrollTop - desiredScrollTop) <= 1;
   }, []);
@@ -290,8 +298,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     return syncDestinationScroll();
   }, [syncDestinationScroll]);
 
-  const handleTargetPreviewScrollTopChange = useCallback((scrollTop: number) => {
-    targetPreviewScrollTopRef.current = Math.max(0, scrollTop);
+  const handleSettledPreviewScrollTopChange = useCallback((scrollTop: number) => {
+    settledPreviewScrollTopRef.current = Math.max(0, scrollTop);
   }, []);
 
   const notifyDestinationReady = useCallback((readyPathname: string) => {
@@ -417,6 +425,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       {transition ? (
         <SaugeNoireRoutePageFlip
           id={transition.id}
+          snapshot={transition.snapshot}
           direction={transition.direction}
           source={transition.source}
           destination={transition.destination}
@@ -426,7 +435,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
           phase={transition.phase}
           targetActivated={transition.phase !== "preparing"}
           visible={transition.phase !== "preparing"}
-          onTargetPreviewScrollTopChange={handleTargetPreviewScrollTopChange}
+          onSettledPreviewScrollTopChange={handleSettledPreviewScrollTopChange}
           onReady={handleOverlayReady}
           onFlip={handleFlipSettled}
           onFallback={handleOverlayFallback}

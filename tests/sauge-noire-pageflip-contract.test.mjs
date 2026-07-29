@@ -158,9 +158,9 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   const routeTransition = await readFile(routeTransitionPath, "utf8");
 
   assert.match(coordinator, /const AWAITING_DESTINATION_TIMEOUT_MS = 6_000/);
-  assert.match(coordinator, /targetPreviewScrollTopRef = useRef\(0\)/);
-  assert.match(coordinator, /targetPreviewScrollTopRef\.current = 0/);
-  assert.match(coordinator, /onTargetPreviewScrollTopChange/);
+  assert.match(coordinator, /settledPreviewScrollTopRef = useRef\(0\)/);
+  assert.match(coordinator, /settledPreviewScrollTopRef\.current = 0/);
+  assert.match(coordinator, /onSettledPreviewScrollTopChange/);
   assert.match(coordinator, /Math\.abs\(activePage\.scrollTop - desiredScrollTop\) <= 1/);
   assert.match(coordinator, /syncDestinationScroll/);
   assert.match(coordinator, /const pollDestinationReadiness/);
@@ -177,7 +177,16 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   assert.match(routeTransition, /phase !== "awaiting-destination"/);
   assert.match(routeTransition, /data-sauge-route-transition-scrollable/);
   assert.match(routeTransition, /addEventListener\("scroll", handleScroll, \{ passive: true \}\)/);
-  assert.match(routeTransition, /data-sauge-route-preview-scroll-target/);
+  assert.match(routeTransition, /data-sauge-route-settled-surface="true"/);
+  assert.match(
+    routeTransition,
+    /data-sauge-route-scroll-owner=\{[\s\S]*phase === "awaiting-destination"[\s\S]*"true"/
+  );
+  assert.doesNotMatch(routeTransition, /data-sauge-route-preview-scroll-target/);
+  assert.doesNotMatch(
+    routeTransition,
+    /resolveSaugeNoireOriginalPage\(overlay,\s*targetPage\)/
+  );
 });
 
 test("the real PageFlip wrapper exposes the stable-child and lifecycle controls", async () => {

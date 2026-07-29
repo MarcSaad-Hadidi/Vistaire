@@ -11,6 +11,11 @@ import styles from "./SaugeNoireRoutePageFlip.module.css";
 
 type SaugeNoireRoutePageFlipProps = {
   id: string;
+  snapshot: {
+    currency: string;
+    locale: string;
+    href: string;
+  };
   direction: "next" | "previous";
   source: ReactNode;
   destination: ReactNode;
@@ -20,7 +25,7 @@ type SaugeNoireRoutePageFlipProps = {
   phase: "preparing" | "animating" | "awaiting-destination";
   targetActivated: boolean;
   visible: boolean;
-  onTargetPreviewScrollTopChange: (scrollTop: number) => void;
+  onSettledPreviewScrollTopChange: (scrollTop: number) => void;
   onReady: () => void;
   onFlip: () => void;
   onFallback: () => void;
@@ -33,6 +38,7 @@ type SaugeNoireRoutePageFlipProps = {
  */
 export function SaugeNoireRoutePageFlip({
   id,
+  snapshot,
   direction,
   source,
   destination,
@@ -42,12 +48,13 @@ export function SaugeNoireRoutePageFlip({
   phase,
   targetActivated,
   visible,
-  onTargetPreviewScrollTopChange,
+  onSettledPreviewScrollTopChange,
   onReady,
   onFlip,
   onFallback
 }: SaugeNoireRoutePageFlipProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const settledSurfaceRef = useRef<HTMLDivElement>(null);
   const completedRef = useRef(false);
   const phaseRef = useRef({
     started: false,
@@ -98,33 +105,19 @@ export function SaugeNoireRoutePageFlip({
 
   useLayoutEffect(() => {
     if (phase !== "awaiting-destination") return;
-    const overlay = overlayRef.current;
-    const target = overlay
-      ? resolveSaugeNoireOriginalPage(overlay, targetPage)
-      : null;
+    const target = settledSurfaceRef.current;
     if (!target) return;
 
-    target.setAttribute("data-sauge-route-preview-scroll-target", "true");
-    const inertChildren = Array.from(target.children).map((child) => ({
-      child,
-      wasInert: child.hasAttribute("inert")
-    }));
-    for (const { child } of inertChildren) child.setAttribute("inert", "");
-
     const handleScroll = () => {
-      onTargetPreviewScrollTopChange(target.scrollTop);
+      onSettledPreviewScrollTopChange(target.scrollTop);
     };
-    onTargetPreviewScrollTopChange(target.scrollTop);
+    onSettledPreviewScrollTopChange(target.scrollTop);
     target.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       target.removeEventListener("scroll", handleScroll);
-      target.removeAttribute("data-sauge-route-preview-scroll-target");
-      for (const { child, wasInert } of inertChildren) {
-        if (!wasInert) child.removeAttribute("inert");
-      }
     };
-  }, [onTargetPreviewScrollTopChange, phase, targetPage]);
+  }, [onSettledPreviewScrollTopChange, phase]);
 
   useEffect(() => {
     // This is only a failure escape hatch. A successful transition navigates
@@ -188,6 +181,9 @@ export function SaugeNoireRoutePageFlip({
       className={styles.routeTransitionOverlay}
       data-sauge-route-transition="true"
       data-sauge-route-transition-direction={direction}
+      data-sauge-transition-currency={snapshot.currency}
+      data-sauge-transition-locale={snapshot.locale}
+      data-sauge-transition-href={snapshot.href}
       data-sauge-route-transition-start={startPage}
       data-sauge-route-transition-target={targetPage}
       data-sauge-route-transition-flip-started={hasStartedFlipping ? "true" : "false"}
@@ -200,27 +196,50 @@ export function SaugeNoireRoutePageFlip({
       }
       data-sauge-route-transition-current-page={targetActivated ? targetPage : startPage}
       aria-hidden="true"
-      inert={phase !== "awaiting-destination" ? true : undefined}
+      inert={phase === "preparing" ? true : undefined}
     >
       {rail}
       <div
         className={`${styles.routeTransitionSurface} ${frameClassName ?? ""}`}
         data-sauge-route-transition-surface="true"
       >
-        <SaugeNoirePageFlipExperiment
-          pages={pages}
-          pageIndex={targetActivated ? targetPage : startPage}
-          startPage={startPage}
-          onPageFlip={handleFlip}
-          onReady={onReady}
-          onChangeState={handleChangeState}
-          onError={handleError}
-          resetKey={id}
-          protectInteractiveTargets
-          showCover={false}
-          renderOnlyPageLengthChange
-          fallback={source}
-        />
+        <div
+          className={styles.routeFlipEngine}
+          data-sauge-route-flip-engine="true"
+          data-sauge-route-flip-engine-visible={
+            phase === "animating" ? "true" : "false"
+          }
+        >
+          <SaugeNoirePageFlipExperiment
+            pages={pages}
+            pageIndex={targetActivated ? targetPage : startPage}
+            startPage={startPage}
+            onPageFlip={handleFlip}
+            onReady={onReady}
+            onChangeState={handleChangeState}
+            onError={handleError}
+            resetKey={id}
+            protectInteractiveTargets
+            showCover={false}
+            renderOnlyPageLengthChange
+            fallback={source}
+          />
+        </div>
+        <div
+          ref={settledSurfaceRef}
+          className={styles.settledSurface}
+          data-sauge-route-settled-surface="true"
+          data-sauge-route-settled-surface-visible={
+            phase === "awaiting-destination" ? "true" : "false"
+          }
+          data-sauge-route-scroll-owner={
+            phase === "awaiting-destination" ? "true" : "false"
+          }
+        >
+          <div className={styles.settledContent} inert>
+            {destination}
+          </div>
+        </div>
       </div>
     </div>
   );

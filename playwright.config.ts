@@ -93,7 +93,9 @@ export default defineConfig({
             ...process.env,
             NEXT_PUBLIC_SUPABASE_URL: saugeNoireFixtureOrigin,
             SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
-            VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+            VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+            VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
+              '{"CAD":1,"USD":0.72,"EUR":0.6225}'
           },
           url: baseURL,
           reuseExistingServer,

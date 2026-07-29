@@ -66,8 +66,7 @@
   }
 }
 
-.book button,
-.book a {
+.book :where(button, a) {
   color: inherit;
   font: inherit;
 }

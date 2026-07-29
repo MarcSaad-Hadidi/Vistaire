@@ -5,6 +5,8 @@ const MENU_ROUTE = "/menu/sauge-noire?view=sauge-4&lang=fr-CA&currency=CAD&table
 const DETAIL_ROUTE = "/menu/sauge-noire/dishes/canard-a-l-erable-noir?lang=fr-CA&currency=CAD&view=sauge-4&table=main&zone=terrasse";
 const ROW_DETAIL_ROUTE =
   "/menu/sauge-noire/dishes/fletan-roti-au-nori?lang=fr-CA&currency=CAD&view=sauge-4&table=main&zone=terrasse";
+const EN_CAD_MENU_ROUTE =
+  "/menu/sauge-noire?view=sauge-2&lang=en&currency=CAD&table=main&zone=terrasse";
 
 type RouteTransitionSample = {
   actualPage: string | null;
@@ -28,6 +30,7 @@ type RouteTransitionSample = {
   visibleBrandMarks: number;
   visibleEngines: number;
   visibleFallbacks: number;
+  visibleSettledSurfaces: number;
 };
 
 type RectSnapshot = {
@@ -158,6 +161,9 @@ async function installRouteTransitionProbe(page: Page) {
         "[data-sauge-route-renderer-hidden]"
       );
       const engine = overlay?.querySelector<HTMLElement>("[data-page-flip-engine-state]");
+      const settledSurface = overlay?.querySelector<HTMLElement>(
+        '[data-sauge-route-settled-surface-visible="true"]'
+      );
       const targetPage = overlay?.getAttribute("data-sauge-route-transition-target") ?? null;
       const destinationEngine =
         engine ??
@@ -166,11 +172,13 @@ async function installRouteTransitionProbe(page: Page) {
       const actualPage =
         destinationEngine?.getAttribute("data-page-flip-actual-page") ?? targetPage;
       const visualRoot = overlay ?? renderer ?? document.body;
-      const activeSheet = actualPage === null
-        ? null
-        : visualRoot.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
-          );
+      const activeSheet =
+        settledSurface ??
+        (actualPage === null
+          ? null
+          : visualRoot.querySelector<HTMLElement>(
+              `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
+            ));
       const sample: RouteTransitionSample = {
         actualPage: engine?.getAttribute("data-page-flip-actual-page") ?? null,
         currentPage:
@@ -195,7 +203,8 @@ async function installRouteTransitionProbe(page: Page) {
           overlay?.getAttribute("data-sauge-route-transition-target-reached") === "true",
         timestamp: performance.now(),
         engineRect: rectSnapshot(
-          destinationEngine?.querySelector(".stf__parent") ??
+          settledSurface ??
+            destinationEngine?.querySelector(".stf__parent") ??
             visualRoot.querySelector(".stf__parent")
         ),
         headerRect: rectSnapshot(activeSheet?.querySelector("header") ?? null),
@@ -213,6 +222,11 @@ async function installRouteTransitionProbe(page: Page) {
         visibleEngines: [...document.querySelectorAll(".stf__parent")].filter(isVisible).length,
         visibleFallbacks: [
           ...document.querySelectorAll("[data-page-flip-fallback]")
+        ].filter(isVisible).length,
+        visibleSettledSurfaces: [
+          ...document.querySelectorAll(
+            '[data-sauge-route-settled-surface-visible="true"]'
+          )
         ].filter(isVisible).length
       };
       const samples = browserWindow.__saugeRouteTransitionSamples!;
@@ -236,6 +250,7 @@ async function installRouteTransitionProbe(page: Page) {
         "data-page-flip-engine-state",
         "data-page-flip-state",
         "data-sauge-route-renderer-hidden",
+        "data-sauge-route-settled-surface-visible",
         "data-sauge-route-transition-current-page",
         "data-sauge-route-transition-phase",
         "data-sauge-route-transition-settled",
@@ -262,23 +277,27 @@ async function assertRealRouteFlip(
     await transition.evaluate((overlay) => {
       const items = [...overlay.querySelectorAll<HTMLElement>(".stf__item")];
       const phase = overlay.getAttribute("data-sauge-route-transition-phase");
-      if (phase !== "awaiting-destination") {
-        return items.every(
-          (item) => getComputedStyle(item).pointerEvents === "none"
-        );
-      }
       const target = overlay.querySelector<HTMLElement>(
-        '[data-sauge-route-preview-scroll-target="true"]'
+        '[data-sauge-route-scroll-owner="true"]'
       );
-      if (!target || getComputedStyle(target).pointerEvents !== "auto") {
-        return false;
+      const engine = overlay.querySelector<HTMLElement>(
+        '[data-sauge-route-flip-engine="true"]'
+      );
+      const physicalPagesAreInert = items.every(
+        (item) => getComputedStyle(item).pointerEvents === "none"
+      );
+      if (phase !== "awaiting-destination") {
+        return target === null && physicalPagesAreInert;
       }
-      return items
-        .filter((item) => getComputedStyle(item).pointerEvents !== "none")
-        .every((item) => item === target || item.contains(target));
+      return (
+        target !== null &&
+        getComputedStyle(target).pointerEvents === "auto" &&
+        engine?.getAttribute("data-sauge-route-flip-engine-visible") === "false" &&
+        physicalPagesAreInert
+      );
     })
   ).toBe(true);
-  await expect(destination).toBeAttached();
+  await expect(destination.first()).toBeAttached();
 
   const before = await transition.locator(".stf__item").evaluateAll((items) =>
     items.map((item) => getComputedStyle(item).transform)
@@ -477,7 +496,18 @@ async function assertRealRouteFlip(
     ),
     "the real destination must be ready behind the overlay before handoff"
   ).toBe(true);
-  expect(transitionTimeline.every((sample) => sample.visibleEngines === 1)).toBe(true);
+  expect(
+    transitionTimeline.every((sample) => {
+      if (!sample.overlay) {
+        return sample.visibleEngines === 1 && sample.visibleSettledSurfaces === 0;
+      }
+      if (sample.phase === "awaiting-destination") {
+        return sample.visibleEngines === 0 && sample.visibleSettledSurfaces === 1;
+      }
+      return sample.visibleEngines === 1 && sample.visibleSettledSurfaces === 0;
+    }),
+    "PageFlip must own animation only; the settled surface must own awaiting-destination"
+  ).toBe(true);
   expect(
     transitionTimeline.every((sample) => sample.visibleBrandMarks <= 1),
     "the active PageFlip sheet must never expose duplicate SN brand marks"
@@ -917,6 +947,7 @@ for (const slowTransition of [
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await openRoute(page, slowTransition.route, slowTransition.heading);
+    await page.evaluate(() => document.fonts.ready);
     await page.route("**/*", async (route) => {
       const request = route.request();
       const url = new URL(request.url());
@@ -934,8 +965,46 @@ for (const slowTransition of [
     const link = await slowTransition.link(page);
     const initialUrl = page.url();
     let previewScrollTop = 0;
+    let animatedTypography: Record<string, Record<string, string>> = {};
+    let previewTypography: Record<string, Record<string, string>> = {};
     await installRouteTransitionProbe(page);
     await dispatchPrimaryClick(link);
+    const routeTransition = page.locator(
+      '[data-sauge-route-transition="true"]'
+    );
+    await expect(routeTransition).toHaveAttribute(
+      "data-sauge-route-transition-phase",
+      "animating"
+    );
+    animatedTypography = await routeTransition
+      .locator(
+        '[data-sauge-route-flip-engine-visible="true"] [data-sauge-page-origin="react-original"]'
+      )
+      .filter({ has: page.locator(slowTransition.destinationPreview) })
+      .first()
+      .evaluate((element) =>
+        Object.fromEntries(
+          [
+            ...element.querySelectorAll<HTMLElement>(
+              "[data-sauge-typography-role]"
+            )
+          ].map((node) => {
+            const style = getComputedStyle(node);
+            return [
+              node.dataset.saugeTypographyRole ?? "",
+              {
+                fontFamily: style.fontFamily,
+                fontSize: style.fontSize,
+                fontStyle: style.fontStyle,
+                fontWeight: style.fontWeight,
+                letterSpacing: style.letterSpacing,
+                lineHeight: style.lineHeight
+              }
+            ];
+          })
+        )
+      );
+    expect(Object.keys(animatedTypography).length).toBeGreaterThanOrEqual(2);
     await assertRealRouteFlip(
       page,
       initialUrl,
@@ -949,7 +1018,7 @@ for (const slowTransition of [
         );
         await expect(transition).not.toHaveAttribute("inert", "");
         const target = transition.locator(
-          '[data-sauge-route-preview-scroll-target="true"]'
+          '[data-sauge-route-scroll-owner="true"]'
         );
         await expect(target).toBeAttached();
         expect(
@@ -957,6 +1026,110 @@ for (const slowTransition of [
             children.every((child) => child.hasAttribute("inert"))
           )
         ).toBe(true);
+        const beforeState = await target.evaluate((element) => {
+          const measurable = (selector: string) =>
+            [...element.querySelectorAll<HTMLElement>(selector)].find((node) => {
+              const rect = node.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            }) ?? null;
+          const title = measurable("h1");
+          const image = measurable("img");
+          const price = measurable('[data-sauge-visible-price="true"]');
+          const description =
+            measurable(
+              '[class*="description"], [data-sauge-featured-dish] p'
+            ) ?? measurable('[data-sauge-dish-row="true"]');
+          const ownerRect = element.getBoundingClientRect();
+          const originalScrollTop = element.scrollTop;
+          const probe = (role: string, node: HTMLElement | null) => {
+            if (!node) return { role, present: false, topmostIsOwner: false, ownerInStack: false };
+            const initialRect = node.getBoundingClientRect();
+            const ownerCenter = ownerRect.top + ownerRect.height / 2;
+            const initialCenter = initialRect.top + initialRect.height / 2;
+            if (
+              initialCenter < ownerRect.top ||
+              initialCenter > ownerRect.bottom
+            ) {
+              element.scrollTop += initialCenter - ownerCenter;
+            }
+            const rect = node.getBoundingClientRect();
+            const point = {
+              x: Math.min(ownerRect.right - 2, Math.max(ownerRect.left + 2, rect.left + rect.width / 2)),
+              y: Math.min(ownerRect.bottom - 2, Math.max(ownerRect.top + 2, rect.top + rect.height / 2))
+            };
+            const stack = document.elementsFromPoint(point.x, point.y);
+            const topmost = document.elementFromPoint(point.x, point.y);
+            const firstDestinationOwner = stack
+              .map((node) =>
+                node.closest<HTMLElement>(
+                  '[data-sauge-route-scroll-owner="true"]'
+                )
+              )
+              .find(Boolean);
+            return {
+              role,
+              present: true,
+              topmostIsOwner: topmost === element,
+              ownerInStack:
+                firstDestinationOwner === element && stack.includes(element)
+            };
+          };
+          const hitTests = [
+            probe("title", title),
+            probe("image", image),
+            probe("description", description),
+            probe("paper", element as HTMLElement)
+          ];
+          element.scrollTop = originalScrollTop;
+          const backgroundScrollTops = [
+            ...document.querySelectorAll<HTMLElement>(
+              '[data-sauge-route-renderer-hidden="true"] [data-sauge-page-origin="react-original"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-page-origin="react-original"]'
+            )
+          ].map((node, index) => ({
+            key:
+              node.getAttribute("data-sauge-page-instance-id") ??
+              `${node.getAttribute("data-sauge-flip-page-index") ?? "unknown"}-${index}`,
+            scrollTop: node.scrollTop
+          }));
+          return {
+            titleTop: title?.getBoundingClientRect().top ?? null,
+            imageTop: image?.getBoundingClientRect().top ?? null,
+            priceTop: price?.getBoundingClientRect().top ?? null,
+            descriptionTop: description?.getBoundingClientRect().top ?? null,
+            scrollTop: element.scrollTop,
+            hitTests,
+            backgroundScrollTops
+          };
+        });
+        expect(beforeState.hitTests.every((result) => result.present)).toBe(true);
+        expect(
+          beforeState.hitTests.every(
+            (result) => result.topmostIsOwner && result.ownerInStack
+          )
+        ).toBe(true);
+        previewTypography = await target.evaluate((element) =>
+          Object.fromEntries(
+            [
+              ...element.querySelectorAll<HTMLElement>(
+                "[data-sauge-typography-role]"
+              )
+            ].map((node) => {
+              const style = getComputedStyle(node);
+              return [
+                node.dataset.saugeTypographyRole ?? "",
+                {
+                  fontFamily: style.fontFamily,
+                  fontSize: style.fontSize,
+                  fontStyle: style.fontStyle,
+                  fontWeight: style.fontWeight,
+                  letterSpacing: style.letterSpacing,
+                  lineHeight: style.lineHeight
+                }
+              ];
+            })
+          )
+        );
+        expect(previewTypography).toEqual(animatedTypography);
         if (browserName === "webkit") {
           // Playwright does not expose wheel/touch scrolling for mobile WebKit.
           await target.evaluate((element) => element.scrollBy({ top: 320 }));
@@ -967,11 +1140,91 @@ for (const slowTransition of [
         await expect
           .poll(async () => target.evaluate((element) => element.scrollTop))
           .toBeGreaterThan(0);
+        const afterState = await target.evaluate((element) => {
+          const measurable = (selector: string) =>
+            [...element.querySelectorAll<HTMLElement>(selector)].find((node) => {
+              const rect = node.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            }) ?? null;
+          const title = measurable("h1");
+          const image = measurable("img");
+          const price = measurable('[data-sauge-visible-price="true"]');
+          const description =
+            measurable(
+              '[class*="description"], [data-sauge-featured-dish] p'
+            ) ?? measurable('[data-sauge-dish-row="true"]');
+          return {
+            titleTop: title?.getBoundingClientRect().top ?? null,
+            imageTop: image?.getBoundingClientRect().top ?? null,
+            priceTop: price?.getBoundingClientRect().top ?? null,
+            descriptionTop: description?.getBoundingClientRect().top ?? null,
+            scrollTop: element.scrollTop,
+            windowScrollY: window.scrollY,
+            documentScrollTop: document.documentElement.scrollTop,
+            bodyScrollTop: document.body.scrollTop,
+            backgroundScrollTops: [
+              ...document.querySelectorAll<HTMLElement>(
+                '[data-sauge-route-renderer-hidden="true"] [data-sauge-page-origin="react-original"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-page-origin="react-original"]'
+              )
+            ].map((node, index) => ({
+              key:
+                node.getAttribute("data-sauge-page-instance-id") ??
+                `${node.getAttribute("data-sauge-flip-page-index") ?? "unknown"}-${index}`,
+              scrollTop: node.scrollTop
+            }))
+          };
+        });
+        const scrollDelta = afterState.scrollTop - beforeState.scrollTop;
+        expect(scrollDelta).toBeGreaterThan(0);
+        for (const key of [
+          "titleTop",
+          "imageTop",
+          "priceTop",
+          "descriptionTop"
+        ] as const) {
+          expect(beforeState[key]).not.toBeNull();
+          expect(afterState[key]).not.toBeNull();
+          expect(
+            Math.abs(
+              ((beforeState[key] as number) - (afterState[key] as number)) -
+                scrollDelta
+            ),
+            `${key} must move with the canonical scroll owner`
+          ).toBeLessThanOrEqual(3);
+        }
+        expect(afterState.windowScrollY).toBe(0);
+        expect(afterState.documentScrollTop).toBe(0);
+        expect(afterState.bodyScrollTop).toBe(0);
+        expect(afterState.backgroundScrollTops).toEqual(
+          beforeState.backgroundScrollTops
+        );
+        const maxScroll = await target.evaluate((element) => {
+          for (let index = 0; index < 3; index += 1) {
+            element.scrollBy({ top: element.scrollHeight * 2 });
+          }
+          const firstBottom = element.scrollTop;
+          element.scrollBy({ top: element.scrollHeight * 2 });
+          return {
+            max: Math.max(0, element.scrollHeight - element.clientHeight),
+            scrollTop: element.scrollTop,
+            firstBottom,
+            windowScrollY: window.scrollY,
+            documentScrollTop: document.documentElement.scrollTop,
+            bodyScrollTop: document.body.scrollTop
+          };
+        });
+        expect(maxScroll.scrollTop).toBeGreaterThanOrEqual(0);
+        expect(maxScroll.scrollTop).toBeLessThanOrEqual(maxScroll.max + 1);
+        expect(Math.abs(maxScroll.scrollTop - maxScroll.max)).toBeLessThanOrEqual(1);
+        expect(maxScroll.scrollTop).toBe(maxScroll.firstBottom);
+        expect(maxScroll.windowScrollY).toBe(0);
+        expect(maxScroll.documentScrollTop).toBe(0);
+        expect(maxScroll.bodyScrollTop).toBe(0);
         previewScrollTop = await target.evaluate((element) => element.scrollTop);
       }
     );
 
-    const destinationScrollTop = await page.evaluate(() => {
+    const destinationState = await page.evaluate(() => {
       const viewport = document.querySelector<HTMLElement>(
         '[data-page-flip-state="ready"]'
       );
@@ -982,11 +1235,314 @@ for (const slowTransition of [
               `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
             )
           : null;
-      return activePage?.scrollTop ?? -1;
+      const typography = activePage
+        ? Object.fromEntries(
+            [
+              ...activePage.querySelectorAll<HTMLElement>(
+                "[data-sauge-typography-role]"
+              )
+            ].map((node) => {
+              const style = getComputedStyle(node);
+              return [
+                node.dataset.saugeTypographyRole ?? "",
+                {
+                  fontFamily: style.fontFamily,
+                  fontSize: style.fontSize,
+                  fontStyle: style.fontStyle,
+                  fontWeight: style.fontWeight,
+                  letterSpacing: style.letterSpacing,
+                  lineHeight: style.lineHeight
+                }
+              ];
+            })
+          )
+        : {};
+      return {
+        scrollTop: activePage?.scrollTop ?? -1,
+        typography
+      };
     });
-    expect(Math.abs(destinationScrollTop - previewScrollTop)).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(destinationState.scrollTop - previewScrollTop)
+    ).toBeLessThanOrEqual(1);
+    expect(destinationState.typography).toEqual(previewTypography);
   });
 }
+
+test("an immediate dish tap after CAD to EUR keeps one canonical currency snapshot", async ({
+  page
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openRoute(page, EN_CAD_MENU_ROUTE, /BETTERAVE|FIRST|GESTES|SAUGE NOIRE/i);
+  let delayMenuRsc = false;
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const isRsc = url.searchParams.has("_rsc") || request.headers().rsc === "1";
+    const isDestinationRsc =
+      ((url.pathname.includes("/menu/sauge-noire/dishes/") && !delayMenuRsc) ||
+        (url.pathname === "/menu/sauge-noire" && delayMenuRsc)) &&
+      isRsc;
+    if (isDestinationRsc) {
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+    }
+    await route.continue();
+  });
+
+  const pageIndex = await page
+    .getByTestId("sauge-noire-book")
+    .getAttribute("data-page-index");
+  if (!pageIndex) throw new Error("Expected an active Sauge Noire page");
+  const activePage = page.locator(
+    `[data-sauge-flip-page-index="${pageIndex}"][data-sauge-page-origin="react-original"]`
+  );
+  await activePage.getByRole("button", { name: "Devise: CAD" }).click();
+  const euroOption = activePage.getByRole("menuitemradio", { name: "EUR" });
+  await expect(euroOption).toBeVisible();
+  await euroOption.evaluate((option) => {
+    const browserWindow = window as typeof window & {
+      __saugeCurrencySamples?: Array<{
+        currencies: string[];
+        layers: string[];
+        prices: string[];
+      }>;
+      __saugeStopCurrencySamples?: boolean;
+    };
+    option.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 })
+    );
+    requestAnimationFrame(() => {
+      browserWindow.__saugeCurrencySamples = [];
+      browserWindow.__saugeStopCurrencySamples = false;
+      const sample = () => {
+        const visible = (element: HTMLElement) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          const cssVisible =
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            style.opacity !== "0" &&
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.right > 0 &&
+            rect.bottom > 0 &&
+            rect.left < window.innerWidth &&
+            rect.top < window.innerHeight &&
+            !element.closest('[data-sauge-route-renderer-hidden="true"]') &&
+            !element.closest('[data-sauge-route-settled-surface-visible="false"]') &&
+            !element.closest('[data-sauge-route-flip-engine-visible="false"]');
+          if (!cssVisible) return false;
+          const points = [
+            [rect.left + rect.width / 2, rect.top + rect.height / 2],
+            [rect.left + 2, rect.top + 2],
+            [rect.right - 2, rect.top + 2],
+            [rect.left + 2, rect.bottom - 2],
+            [rect.right - 2, rect.bottom - 2]
+          ];
+          return points.some(([x, y]) => {
+            const px = Math.min(window.innerWidth - 1, Math.max(0, x));
+            const py = Math.min(window.innerHeight - 1, Math.max(0, y));
+            return document
+              .elementsFromPoint(px, py)
+              .some((painted) => painted === element || element.contains(painted));
+          });
+        };
+        const currencyNodes = [
+          ...document.querySelectorAll<HTMLElement>(
+            "[data-rendered-currency], [data-active-currency]"
+          )
+        ].filter(visible);
+        browserWindow.__saugeCurrencySamples?.push({
+          currencies: currencyNodes
+            .map(
+              (node) =>
+                node.getAttribute("data-rendered-currency") ??
+                node.getAttribute("data-active-currency") ??
+                ""
+            )
+            .filter(Boolean),
+          layers: currencyNodes.map((node) => {
+            const pageLayer = node.closest<HTMLElement>(
+              "[data-sauge-page-origin], [data-sauge-route-scroll-owner], [data-sauge-route-renderer-hidden]"
+            );
+            return [
+              node.tagName.toLowerCase(),
+              node.getAttribute("data-rendered-currency") ??
+                node.getAttribute("data-active-currency") ??
+                "",
+              pageLayer?.getAttribute("data-sauge-page-origin") ?? "",
+              pageLayer?.getAttribute("data-sauge-flip-page-index") ?? "",
+              node.closest<HTMLElement>("[data-sauge-route-transition-phase]")
+                ?.getAttribute("data-sauge-route-transition-phase") ?? "final"
+            ].join(":");
+          }),
+          prices: [
+            ...document.querySelectorAll<HTMLElement>(
+              '[data-sauge-visible-price="true"]'
+            )
+          ]
+            .filter(visible)
+            .map((node) => node.textContent?.trim() ?? "")
+        });
+        if (!browserWindow.__saugeStopCurrencySamples) requestAnimationFrame(sample);
+      };
+      sample();
+      const book = document.querySelector<HTMLElement>(
+        '[data-testid="sauge-noire-book"]'
+      );
+      const activeIndex = book?.getAttribute("data-page-index");
+      const link =
+        activeIndex === null || activeIndex === undefined
+          ? null
+          : document.querySelector<HTMLElement>(
+              `[data-sauge-flip-page-index="${activeIndex}"][data-sauge-page-origin="react-original"] [data-sauge-featured-dish]`
+            );
+      link?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 })
+      );
+    });
+  });
+
+  const transition = page.locator('[data-sauge-route-transition="true"]');
+  await expect(transition).toHaveAttribute("data-sauge-transition-currency", "EUR");
+  await expect(transition).toHaveAttribute("data-sauge-transition-locale", "en");
+  await expect(transition).toHaveAttribute(
+    "data-sauge-transition-href",
+    /currency=EUR/
+  );
+  await expect(transition).toHaveAttribute(
+    "data-sauge-route-transition-phase",
+    "awaiting-destination",
+    { timeout: 10_000 }
+  );
+  const settled = transition.locator('[data-sauge-route-scroll-owner="true"]');
+  await expect(settled).toBeVisible();
+  await expect(
+    settled.locator('article[data-rendered-currency="EUR"]')
+  ).toBeVisible();
+  await expect(page).toHaveURL(/currency=EUR/, { timeout: 15_000 });
+  await expect(transition).toHaveCount(0, { timeout: 15_000 });
+  await expect(
+    page.locator('[data-sauge-route-renderer-hidden="false"] [data-active-currency="EUR"]')
+  ).toBeAttached();
+  await expect(
+    page.locator(
+      '[data-sauge-route-renderer-hidden="false"] article:not([data-transition-preview="true"])[data-rendered-currency="EUR"]'
+    )
+  ).toBeAttached();
+  await expect(
+    page
+      .locator(
+        '[data-sauge-route-renderer-hidden="false"] article:not([data-transition-preview="true"]) [data-sauge-visible-price="true"]'
+      )
+      .first()
+  ).toHaveText(/€\s*9[.,]96|9[.,]96\s*€/);
+
+  const samples = await page.evaluate(() => {
+    const browserWindow = window as typeof window & {
+      __saugeCurrencySamples?: Array<{
+        currencies: string[];
+        layers: string[];
+        prices: string[];
+      }>;
+      __saugeStopCurrencySamples?: boolean;
+    };
+    browserWindow.__saugeStopCurrencySamples = true;
+    return browserWindow.__saugeCurrencySamples ?? [];
+  });
+  expect(samples.length).toBeGreaterThan(0);
+  const currencySamples = samples.filter(
+    (sample) => sample.currencies.length > 0
+  );
+  const priceSamples = samples.filter((sample) => sample.prices.length > 0);
+  expect(currencySamples.length).toBeGreaterThan(0);
+  expect(priceSamples.length).toBeGreaterThan(0);
+  for (const sample of currencySamples) {
+    expect(
+      sample.currencies,
+      `painted currency layers: ${sample.layers.join(", ")}`
+    ).toEqual(sample.currencies.map(() => "EUR"));
+  }
+  for (const sample of priceSamples) {
+    expect(sample.prices.some((price) => /16\s*\$/.test(price))).toBe(false);
+  }
+
+  delayMenuRsc = true;
+  const detailViewport = page
+    .locator(
+      '[data-sauge-route-renderer-hidden="false"] [data-page-flip-state="ready"]'
+    )
+    .first();
+  const detailPageIndex = await detailViewport.getAttribute(
+    "data-page-flip-actual-page"
+  );
+  if (detailPageIndex === null) {
+    throw new Error("Expected the active Sauge Noire detail page");
+  }
+  const backLink = detailViewport.locator(
+    `[data-sauge-flip-page-index="${detailPageIndex}"][data-sauge-page-origin="react-original"] [data-sauge-typography-role="back-control"]`
+  );
+  await expect(backLink).toContainText(/Back to/i);
+  await dispatchPrimaryClick(backLink);
+  const returnTransition = page.locator(
+    '[data-sauge-route-transition="true"]'
+  );
+  await expect(returnTransition).toHaveAttribute(
+    "data-sauge-transition-currency",
+    "EUR"
+  );
+  await expect(returnTransition).toHaveAttribute(
+    "data-sauge-transition-locale",
+    /^en(?:-CA)?$/
+  );
+  await expect(returnTransition).toHaveAttribute(
+    "data-sauge-route-transition-phase",
+    "awaiting-destination",
+    { timeout: 10_000 }
+  );
+  const returnSettled = returnTransition.locator(
+    '[data-sauge-route-scroll-owner="true"]'
+  );
+  await returnSettled.evaluate((element) => element.scrollBy({ top: 260 }));
+  const returnPreviewScrollTop = await returnSettled.evaluate(
+    (element) => element.scrollTop
+  );
+  expect(returnPreviewScrollTop).toBeGreaterThan(0);
+  await expect(page).toHaveURL(/\/menu\/sauge-noire\?/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/currency=EUR/);
+  await expect(returnTransition).toHaveCount(0, { timeout: 15_000 });
+  const returnedState = await page.evaluate(() => {
+    const viewport = document.querySelector<HTMLElement>(
+      '[data-page-flip-state="ready"]'
+    );
+    const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
+    const activePage =
+      viewport && actualPage !== null && actualPage !== undefined
+        ? viewport.querySelector<HTMLElement>(
+            `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
+          )
+        : null;
+    return {
+      currency: document
+        .querySelector<HTMLElement>(
+          '[data-sauge-route-renderer-hidden="false"] [data-active-currency]'
+        )
+        ?.getAttribute("data-active-currency"),
+      locale: document
+        .querySelector<HTMLElement>(
+          '[data-sauge-route-renderer-hidden="false"] [data-active-locale]'
+        )
+        ?.getAttribute("data-active-locale"),
+      scrollTop: activePage?.scrollTop ?? -1
+    };
+  });
+  expect(returnedState.currency).toBe("EUR");
+  expect(returnedState.locale).toMatch(/^en(?:-CA)?$/);
+  expect(
+    Math.abs(returnedState.scrollTop - returnPreviewScrollTop)
+  ).toBeLessThanOrEqual(1);
+});
 
 test("the awaiting-destination watchdog resolves when readiness cannot be accepted", async ({
   page
