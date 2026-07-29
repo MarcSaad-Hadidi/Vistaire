@@ -119,7 +119,11 @@ test("route transitions live in the shared layout until the destination book is 
   assert.match(coordinator, /destinationRendererIsReady/);
   assert.match(coordinator, /data-page-flip-engine-state/);
   assert.match(coordinator, /requestAnimationFrame/);
-  assert.match(coordinator, /inert/);
+  assert.doesNotMatch(
+    coordinator,
+    /visibility:\s*routeIsHidden|aria-hidden=\{routeIsHidden|setAttribute\("inert", ""\)/
+  );
+  assert.match(routeTransition, /aria-hidden="true"\s+inert/);
   assert.match(
     coordinator,
     /const handleOverlayFallback[\s\S]*current\.phase === "awaiting-destination"[\s\S]*router\.push\(current\.href\)/
@@ -154,7 +158,16 @@ test("route transitions live in the shared layout until the destination book is 
   assert.match(detail, /onError=\{notifyCurrentRouteReady\}/);
   assert.doesNotMatch(book, /renderPage,\s*routeTransition\]/);
   assert.doesNotMatch(detail, /query,\s*routeTransition\]/);
-  assert.match(routeTransition, /if \(!completedRef\.current\) \{\s*completedRef\.current = true;\s*onFallback\(\);/);
+  assert.match(
+    routeTransition,
+    /completedRef\.current \|\|[\s\S]*escapePhaseRef\.current !== escapePhase[\s\S]*completedRef\.current = true;\s*onFallback\(\);/
+  );
+  assert.match(routeTransition, /const ROUTE_PREPARATION_TIMEOUT_MS = 2_500/);
+  assert.match(routeTransition, /const ROUTE_ANIMATION_TIMEOUT_MS = 2_500/);
+  assert.match(
+    routeTransition,
+    /phase === "preparing"[\s\S]*ROUTE_PREPARATION_TIMEOUT_MS[\s\S]*phase === "animating"[\s\S]*ROUTE_ANIMATION_TIMEOUT_MS[\s\S]*window\.setTimeout[\s\S]*escapeTimeoutMs[\s\S]*\}, \[onFallback, phase\]\)/
+  );
 });
 
 test("awaiting destination polls frame-only readiness and has a bounded watchdog", async () => {

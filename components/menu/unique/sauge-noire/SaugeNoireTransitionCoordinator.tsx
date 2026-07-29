@@ -144,7 +144,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
 
   const syncDestinationScroll = useCallback(() => {
     const renderer = document.querySelector<HTMLElement>(
-      '[data-sauge-route-renderer-hidden="true"]'
+      '[data-sauge-route-renderer-pending-handoff="true"]'
     );
     const activePage = renderer?.querySelector<HTMLElement>(
       '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
@@ -187,7 +187,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     window.cancelAnimationFrame(focusFrameRef.current);
     focusFrameRef.current = window.requestAnimationFrame(() => {
       const renderer = document.querySelector<HTMLElement>(
-        '[data-sauge-route-renderer-hidden="false"]'
+        '[data-sauge-route-renderer-pending-handoff="false"]'
       );
       const activePage = renderer?.querySelector<HTMLElement>(
         '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
@@ -242,7 +242,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
 
   const destinationRendererIsReady = useCallback(() => {
     const renderer = document.querySelector<HTMLElement>(
-      '[data-sauge-route-renderer-hidden="true"]'
+      '[data-sauge-route-renderer-pending-handoff="true"]'
     );
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
@@ -276,7 +276,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
 
   const destinationRendererIsUsable = useCallback(() => {
     const renderer = document.querySelector<HTMLElement>(
-      '[data-sauge-route-renderer-hidden="true"]'
+      '[data-sauge-route-renderer-pending-handoff="true"]'
     );
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
@@ -397,23 +397,18 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     [beginTransition, notifyDestinationReady, prefetchDestination, transition]
   );
 
-  const routeIsHidden =
+  const routeHasPendingHandoff =
     transition?.phase === "animating" || transition?.phase === "awaiting-destination";
 
   return (
     <TransitionContext.Provider value={contextValue}>
       <div
         style={{
-          display: "contents",
-          visibility: routeIsHidden ? "hidden" : undefined
+          display: "contents"
         }}
-        aria-hidden={routeIsHidden || undefined}
-        ref={(element) => {
-          if (!element) return;
-          if (transition !== null) element.setAttribute("inert", "");
-          else element.removeAttribute("inert");
-        }}
-        data-sauge-route-renderer-hidden={routeIsHidden ? "true" : "false"}
+        data-sauge-route-renderer-pending-handoff={
+          routeHasPendingHandoff ? "true" : "false"
+        }
       >
         {children}
       </div>

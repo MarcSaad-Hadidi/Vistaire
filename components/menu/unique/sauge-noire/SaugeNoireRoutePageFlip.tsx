@@ -10,6 +10,9 @@ import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import { SaugeNoireReadingSurface } from "./SaugeNoireReadingSurface";
 import styles from "./SaugeNoireRoutePageFlip.module.css";
 
+const ROUTE_PREPARATION_TIMEOUT_MS = 2_500;
+const ROUTE_ANIMATION_TIMEOUT_MS = 2_500;
+
 type SaugeNoireRoutePageFlipProps = {
   id: string;
   snapshot: {
@@ -57,6 +60,7 @@ export function SaugeNoireRoutePageFlip({
   const overlayRef = useRef<HTMLDivElement>(null);
   const settledSurfaceRef = useRef<HTMLDivElement>(null);
   const completedRef = useRef(false);
+  const escapePhaseRef = useRef(phase);
   const phaseRef = useRef({
     started: false,
     reachedTarget: false,
@@ -121,16 +125,27 @@ export function SaugeNoireRoutePageFlip({
   }, [onSettledPreviewScrollTopChange, phase]);
 
   useEffect(() => {
-    // This is only a failure escape hatch. A successful transition navigates
-    // after the flip event and the following read state.
+    escapePhaseRef.current = phase;
+    const escapeTimeoutMs =
+      phase === "preparing"
+        ? ROUTE_PREPARATION_TIMEOUT_MS
+        : phase === "animating"
+          ? ROUTE_ANIMATION_TIMEOUT_MS
+          : null;
+    if (escapeTimeoutMs === null) return;
+    const escapePhase = phase;
     const timeout = window.setTimeout(() => {
-      if (!completedRef.current) {
-        completedRef.current = true;
-        onFallback();
+      if (
+        completedRef.current ||
+        escapePhaseRef.current !== escapePhase
+      ) {
+        return;
       }
-    }, 2_500);
+      completedRef.current = true;
+      onFallback();
+    }, escapeTimeoutMs);
     return () => window.clearTimeout(timeout);
-  }, [onFallback]);
+  }, [onFallback, phase]);
 
   const handleFlip = useCallback(
     (index: number) => {
@@ -197,7 +212,7 @@ export function SaugeNoireRoutePageFlip({
       }
       data-sauge-route-transition-current-page={targetActivated ? targetPage : startPage}
       aria-hidden="true"
-      inert={phase === "preparing" ? true : undefined}
+      inert
     >
       {rail}
       <div
