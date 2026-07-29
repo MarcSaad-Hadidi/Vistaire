@@ -942,11 +942,11 @@ for (const slowTransition of [
             children.every((child) => child.hasAttribute("inert"))
           )
         ).toBe(true);
-        await target.hover();
         if (browserName === "webkit") {
           // Playwright does not expose wheel/touch scrolling for mobile WebKit.
           await target.evaluate((element) => element.scrollBy({ top: 320 }));
         } else {
+          await target.hover();
           await page.mouse.wheel(0, 320);
         }
         await expect
