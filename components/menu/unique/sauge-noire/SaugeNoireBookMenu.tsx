@@ -294,10 +294,16 @@ export function SaugeNoireBookMenu({
   const copy = COPY[copyLocale(activeLocaleValue)];
   const availableLocales = menu.settings.supportedLocales;
   const availableCurrencies = menu.settings.supportedCurrencies;
-  const initialCurrency = normalizePublicMenuCurrencyPreference(
-    query?.currency,
+  const currencyFromUrl = normalizePublicMenuCurrencyPreference(
+    searchParams.get("currency") ?? query?.currency,
     menu.settings
   );
+  const [activeCurrency, setActiveCurrency] = useState(currencyFromUrl);
+  const [currencyUrlSnapshot, setCurrencyUrlSnapshot] = useState(currencyFromUrl);
+  if (currencyUrlSnapshot !== currencyFromUrl) {
+    setCurrencyUrlSnapshot(currencyFromUrl);
+    setActiveCurrency(currencyFromUrl);
+  }
   const [pageIndex, setPageIndex] = useState(() =>
     pageFromQuery(query?.view, pages.length)
   );
@@ -308,7 +314,7 @@ export function SaugeNoireBookMenu({
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const currency = initialCurrency;
+  const currency = activeCurrency;
   const searchParamsString = searchParams.toString();
   const pageFlipEnabled =
     mode === "public" ||
@@ -441,8 +447,13 @@ export function SaugeNoireBookMenu({
   }, [updatePreference]);
 
   const selectCurrency = useCallback((nextCurrency: string) => {
-    updatePreference({ currency: nextCurrency });
-  }, [updatePreference]);
+    const normalizedCurrency = normalizePublicMenuCurrencyPreference(
+      nextCurrency,
+      menu.settings
+    );
+    setActiveCurrency(normalizedCurrency);
+    updatePreference({ currency: normalizedCurrency });
+  }, [menu.settings, updatePreference]);
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (pageFlipEnabled) return;
@@ -593,6 +604,7 @@ export function SaugeNoireBookMenu({
         <SaugeNoireDishSheet
           menu={menu}
           query={query}
+          currency={activeCurrency}
           locale={activeLocale}
           publicLocale={activeLocaleValue}
           exchangeRates={exchangeRates}
@@ -603,7 +615,7 @@ export function SaugeNoireBookMenu({
       )
     });
     if (started) event.preventDefault();
-  }, [activeLocale, activeLocaleValue, beginRouteTransition, exchangeRates, menu, pages, query, renderPage]);
+  }, [activeCurrency, activeLocale, activeLocaleValue, beginRouteTransition, exchangeRates, menu, pages, query, renderPage]);
 
   const handleDishLinkIntent = useCallback((href: string) => {
     prefetchRouteDestination?.(href);
@@ -634,6 +646,7 @@ export function SaugeNoireBookMenu({
       data-page-index={pageIndex}
       data-page-kind={currentPage.kind}
       data-page-flip-mode={pageFlipEnabled ? "animated" : "instant"}
+      data-active-currency={activeCurrency}
       data-sauge-route-transition-in-flight={
         routeTransitionActive ? "true" : undefined
       }

@@ -20,6 +20,7 @@ type SaugeNoireRoutePageFlipProps = {
   phase: "preparing" | "animating" | "awaiting-destination";
   targetActivated: boolean;
   visible: boolean;
+  onTargetPreviewScrollTopChange: (scrollTop: number) => void;
   onReady: () => void;
   onFlip: () => void;
   onFallback: () => void;
@@ -41,6 +42,7 @@ export function SaugeNoireRoutePageFlip({
   phase,
   targetActivated,
   visible,
+  onTargetPreviewScrollTopChange,
   onReady,
   onFlip,
   onFallback
@@ -93,6 +95,36 @@ export function SaugeNoireRoutePageFlip({
     const frame = window.requestAnimationFrame(restoreSourceScroll);
     return () => window.cancelAnimationFrame(frame);
   }, [restoreSourceScroll]);
+
+  useLayoutEffect(() => {
+    if (phase !== "awaiting-destination") return;
+    const overlay = overlayRef.current;
+    const target = overlay
+      ? resolveSaugeNoireOriginalPage(overlay, targetPage)
+      : null;
+    if (!target) return;
+
+    target.setAttribute("data-sauge-route-preview-scroll-target", "true");
+    const inertChildren = Array.from(target.children).map((child) => ({
+      child,
+      wasInert: child.hasAttribute("inert")
+    }));
+    for (const { child } of inertChildren) child.setAttribute("inert", "");
+
+    const handleScroll = () => {
+      onTargetPreviewScrollTopChange(target.scrollTop);
+    };
+    onTargetPreviewScrollTopChange(target.scrollTop);
+    target.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      target.removeEventListener("scroll", handleScroll);
+      target.removeAttribute("data-sauge-route-preview-scroll-target");
+      for (const { child, wasInert } of inertChildren) {
+        if (!wasInert) child.removeAttribute("inert");
+      }
+    };
+  }, [onTargetPreviewScrollTopChange, phase, targetPage]);
 
   useEffect(() => {
     // This is only a failure escape hatch. A successful transition navigates
@@ -163,9 +195,12 @@ export function SaugeNoireRoutePageFlip({
       data-sauge-route-transition-settled={hasReturnedToRead ? "true" : "false"}
       data-sauge-route-transition-visible={visible ? "true" : "false"}
       data-sauge-route-transition-phase={phase}
+      data-sauge-route-transition-scrollable={
+        phase === "awaiting-destination" ? "true" : "false"
+      }
       data-sauge-route-transition-current-page={targetActivated ? targetPage : startPage}
       aria-hidden="true"
-      inert
+      inert={phase !== "awaiting-destination" ? true : undefined}
     >
       {rail}
       <div

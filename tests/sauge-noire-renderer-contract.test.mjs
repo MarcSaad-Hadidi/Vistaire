@@ -90,6 +90,36 @@ test("locale and currency remain part of menu and dish navigation state", async 
   assert.match(detail, /view: `sauge-/);
 });
 
+test("currency selection updates client state before URL reconciliation and stays explicit in dish sheets", async () => {
+  const book = await readFile(bookPath, "utf8");
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(book, /const \[activeCurrency, setActiveCurrency\] = useState/);
+  assert.match(book, /setActiveCurrency\(normalizedCurrency\);[\s\S]*updatePreference\(\{ currency: normalizedCurrency \}\)/);
+  assert.match(book, /<SaugeNoireDishSheet[\s\S]*currency=\{activeCurrency\}/);
+  assert.match(detail, /type SaugeNoireDishSheetProps = \{[\s\S]*currency: string;/);
+  assert.match(
+    detail,
+    /const currency = normalizePublicMenuCurrencyPreference\(\s*query\?\.currency,\s*menu\.settings\s*\)/
+  );
+  assert.doesNotMatch(
+    detail,
+    /function SaugeNoireDishSheet[\s\S]*const currency = query\?\.currency/
+  );
+});
+
+test("Sauge Noire passes complete localized viewer copy and owns a translated dynamic placeholder", async () => {
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(detail, /SaugeNoireModelViewerCopyForLocale/);
+  assert.match(detail, /Required<DishModelViewerCopy>/);
+  assert.match(detail, /getTrouvableCopy/);
+  assert.match(detail, /loading:\s*\(\)\s*=>\s*null/);
+  assert.match(detail, /copy=\{viewerCopy\}/);
+  assert.match(detail, /data-viewer-copy-locale/);
+  assert.doesNotMatch(detail, /loading:\s*\(\)\s*=>[\s\S]*PrÃ©paration de la vue immersive/);
+});
+
 test("Sauge Noire preferences use compact popovers and page escape controls", async () => {
   const book = await readFile(bookPath, "utf8");
   const styles = await readFile(

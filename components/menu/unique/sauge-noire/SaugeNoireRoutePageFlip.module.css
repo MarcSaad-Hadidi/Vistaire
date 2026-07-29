@@ -53,3 +53,16 @@
 .routeTransitionOverlay :global(.stf__item) * {
   pointer-events: none;
 }
+
+.routeTransitionOverlay[data-sauge-route-transition-scrollable="true"]
+  :global([data-sauge-route-preview-scroll-target="true"]) {
+  pointer-events: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.routeTransitionOverlay[data-sauge-route-transition-scrollable="true"]
+  :global([data-sauge-route-preview-scroll-target="true"])
+  > * {
+  pointer-events: none;
+}

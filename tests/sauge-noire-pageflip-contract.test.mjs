@@ -155,8 +155,14 @@ test("route transitions live in the shared layout until the destination book is 
 
 test("awaiting destination polls frame-only readiness and has a bounded watchdog", async () => {
   const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+  const routeTransition = await readFile(routeTransitionPath, "utf8");
 
   assert.match(coordinator, /const AWAITING_DESTINATION_TIMEOUT_MS = 6_000/);
+  assert.match(coordinator, /targetPreviewScrollTopRef = useRef\(0\)/);
+  assert.match(coordinator, /targetPreviewScrollTopRef\.current = 0/);
+  assert.match(coordinator, /onTargetPreviewScrollTopChange/);
+  assert.match(coordinator, /Math\.abs\(activePage\.scrollTop - desiredScrollTop\) <= 1/);
+  assert.match(coordinator, /syncDestinationScroll/);
   assert.match(coordinator, /const pollDestinationReadiness/);
   assert.match(
     coordinator,
@@ -168,6 +174,10 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   );
   assert.match(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
+  assert.match(routeTransition, /phase !== "awaiting-destination"/);
+  assert.match(routeTransition, /data-sauge-route-transition-scrollable/);
+  assert.match(routeTransition, /addEventListener\("scroll", handleScroll, \{ passive: true \}\)/);
+  assert.match(routeTransition, /data-sauge-route-preview-scroll-target/);
 });
 
 test("the real PageFlip wrapper exposes the stable-child and lifecycle controls", async () => {

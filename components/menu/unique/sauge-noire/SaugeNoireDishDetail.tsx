@@ -5,7 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import type {
+  DishModelViewerCopy,
+  DishModelViewerProps
+} from "@/components/dish/DishModelViewer";
+import { getTrouvableCopy } from "@/components/menu/trouvableMenuControls";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   getAllergenDisplayGroups,
@@ -19,6 +23,10 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
+import {
+  normalizePublicMenuCurrencyPreference,
+  normalizePublicMenuLocale
+} from "@/lib/menu/publicMenuSettings";
 import {
   getVisiblePublicMenuCategories,
   getPublicMenuCategoryGroups
@@ -65,7 +73,7 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
     ),
   {
     ssr: false,
-    loading: () => <div className={styles.modelLoading}>Préparation de la vue immersive…</div>
+    loading: () => null
   }
 );
 
@@ -120,6 +128,42 @@ function copyLocale(locale: string): DishCopyLocale {
   if (language === "it") return "it";
   if (language === "ar") return "ar";
   return "en";
+}
+
+export function SaugeNoireModelViewerCopyForLocale(
+  locale: string
+): Required<DishModelViewerCopy> {
+  const copy = getTrouvableCopy(normalizePublicMenuLocale(locale));
+  return {
+    loadingTitle: copy.modelPreparing,
+    loadingBody: copy.modelViewer.loadingBody,
+    arHelp: copy.modelViewer.arHelp,
+    quickLookCta: copy.modelViewer.quickLookCta,
+    shareText: copy.modelViewer.shareText,
+    sizeDisclaimer: copy.modelViewer.sizeDisclaimer,
+    loadFailureTitle: copy.modelViewer.loadFailureTitle,
+    loadFailureBodyWithAr: copy.modelViewer.loadFailureBodyWithAr,
+    loadFailureBody: copy.modelViewer.loadFailureBody,
+    retry: copy.modelViewer.retry,
+    close: copy.modelViewer.close,
+    returnToDish: copy.modelViewer.returnToDish,
+    slowNetworkTitle: copy.modelViewer.slowNetworkTitle,
+    slowNetworkBody: copy.modelViewer.slowNetworkBody,
+    slowNetworkCta: copy.modelViewer.slowNetworkCta,
+    noModelQuiet: copy.modelViewer.noModelQuiet,
+    noModelIos: copy.modelViewer.noModelIos,
+    noModelIosHandoff: copy.modelViewer.noModelIosHandoff,
+    noModelSoon: copy.modelViewer.noModelSoon,
+    safariTitle: copy.modelViewer.safariTitle,
+    copyLink: copy.modelViewer.copyLink,
+    linkCopied: copy.modelViewer.linkCopied,
+    share: copy.modelViewer.share,
+    iosUsdzMissing: copy.modelViewer.iosUsdzMissing,
+    desktopArHint: copy.modelViewer.desktopArHint,
+    arAndroidBrowser: copy.modelViewer.arAndroidBrowser,
+    arIosHandoff: copy.modelViewer.arIosHandoff,
+    modelAlt: copy.modelAlt
+  };
 }
 
 function localizedCategoryLabel(category: string, locale: string): string {
@@ -203,6 +247,7 @@ type SaugeNoireDishSheetCopy = {
 type SaugeNoireDishSheetProps = {
   menu: PublicMenu;
   query?: PublicMenuContextQuery;
+  currency: string;
   locale: Locale;
   publicLocale: string;
   exchangeRates?: MenuExchangeRates;
@@ -220,12 +265,17 @@ type SaugeNoireDishSheetProps = {
 
 function SaugeNoireDish3dSection({
   dish,
-  copy
+  copy,
+  publicLocale,
+  viewerCopy
 }: {
   dish: PublicMenuDish;
   copy: SaugeNoireDishSheetCopy;
+  publicLocale: string;
+  viewerCopy: Required<DishModelViewerCopy>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [viewerMounted, setViewerMounted] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const preservedScrollTopRef = useRef<number | null>(null);
 
@@ -264,8 +314,16 @@ function SaugeNoireDish3dSection({
 
   const closeViewer = useCallback(() => {
     preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
+    setViewerMounted(false);
     setIsOpen(false);
   }, [getScrollContainer]);
+
+  const handleViewerMounted = useCallback(() => {
+    setViewerMounted(true);
+    restoreScroll();
+  }, [restoreScroll]);
+
+  const viewerLocale = copyLocale(publicLocale);
 
   return (
     <section className={styles.modelSection} aria-label={copy.show3d} data-no-page-flip="true">
@@ -283,16 +341,28 @@ function SaugeNoireDish3dSection({
         <div
           className={styles.modelStage}
           data-no-page-flip="true"
+          data-viewer-copy-locale={viewerLocale}
+          lang={viewerLocale}
+          dir={viewerLocale === "ar" ? "rtl" : "ltr"}
           onPointerDown={stopDishSwipePropagation}
           onPointerMove={stopDishSwipePropagation}
           onPointerUp={stopDishSwipePropagation}
           onPointerCancel={stopDishSwipePropagation}
         >
+          {!viewerMounted ? (
+            <div
+              className={styles.modelLoading}
+              data-viewer-copy-key="loadingTitle"
+            >
+              {viewerCopy.loadingTitle}
+            </div>
+          ) : null}
           <LazyDishModelViewer
             dish={modelViewerDishFromPublicDish(dish)}
             minimalChrome
             quietChrome
-            onViewerMounted={restoreScroll}
+            copy={viewerCopy}
+            onViewerMounted={handleViewerMounted}
             onReturnToDish={closeViewer}
           />
         </div>
@@ -304,6 +374,7 @@ function SaugeNoireDish3dSection({
 export function SaugeNoireDishSheet({
   menu,
   query,
+  currency,
   locale,
   publicLocale,
   exchangeRates,
@@ -314,7 +385,6 @@ export function SaugeNoireDishSheet({
   onMenuLinkClick,
   onMenuLinkIntent
 }: SaugeNoireDishSheetProps) {
-  const currency = query?.currency ?? menu.settings.defaultCurrency;
   const dishCount = Math.max(menu.dishes.length, 1);
   const targetDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
   const targetPreviousDish = menu.dishes[(targetDishIndex - 1 + dishCount) % dishCount] ?? dish;
@@ -347,6 +417,7 @@ export function SaugeNoireDishSheet({
     <article
       className={`${styles.paper} ${isPreview ? styles.transitionPreview : ""}`}
       data-transition-preview={isPreview ? "true" : undefined}
+      data-rendered-currency={currency}
       aria-hidden={isPreview || undefined}
     >
       <DishDetailHeader
@@ -380,7 +451,12 @@ export function SaugeNoireDishSheet({
           <DetailRow label={copy.options} value={dish.options.join(", ") || copy.confirmAllergens} variant="detailAccord" />
         </div>
         {targetCanOpen3d ? (
-          <SaugeNoireDish3dSection dish={dish} copy={copy} />
+          <SaugeNoireDish3dSection
+            dish={dish}
+            copy={copy}
+            publicLocale={publicLocale}
+            viewerCopy={SaugeNoireModelViewerCopyForLocale(publicLocale)}
+          />
         ) : null}
         <AllergenWarning locale={publicLocale} localizedUiCopy={menu.localizedUiCopy} />
         <div className={styles.detailSwipeNav}>
@@ -507,7 +583,10 @@ export function SaugeNoireDishDetail({
   exchangeRates,
   dish
 }: DishDetailProps) {
-  const currency = query?.currency ?? menu.settings.defaultCurrency;
+  const currency = normalizePublicMenuCurrencyPreference(
+    query?.currency,
+    menu.settings
+  );
   const publicLocale = query?.lang ?? locale;
   const selectedCopyLocale = copyLocale(publicLocale);
   const routeTransition = useSaugeNoireTransition();
@@ -938,6 +1017,7 @@ export function SaugeNoireDishDetail({
       <SaugeNoireDishSheet
         menu={menu}
         query={query}
+        currency={currency}
         locale={locale}
         publicLocale={publicLocale}
         exchangeRates={exchangeRates}
@@ -949,7 +1029,7 @@ export function SaugeNoireDishDetail({
         onMenuLinkIntent={isPreview ? undefined : handleMenuLinkIntent}
       />
     );
-  }, [copy, exchangeRates, handleDishLinkClick, handleMenuLinkClick, handleMenuLinkIntent, locale, menu, publicLocale, query]);
+  }, [copy, currency, exchangeRates, handleDishLinkClick, handleMenuLinkClick, handleMenuLinkIntent, locale, menu, publicLocale, query]);
 
   useEffect(() => {
     renderDishPaperRef.current = renderDishPaper;
@@ -976,7 +1056,11 @@ export function SaugeNoireDishDetail({
   );
 
   return (
-    <main className={styles.detailPage} data-testid="sauge-noire-dish-detail">
+    <main
+      className={styles.detailPage}
+      data-testid="sauge-noire-dish-detail"
+      data-active-currency={currency}
+    >
       <aside className={styles.rail} aria-hidden="true" data-sauge-book-rail="true">
         <div className={styles.railPattern} />
         <div className={`${styles.railFastener} ${styles.railFastenerTop}`}><i /><span /><i /></div>

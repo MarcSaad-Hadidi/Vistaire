@@ -60,6 +60,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const awaitingDestinationWatchdogRef = useRef(0);
   const focusFrameRef = useRef(0);
   const focusAfterHandoffRef = useRef(false);
+  const targetPreviewScrollTopRef = useRef(0);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
 
   const prefetchDestination = useCallback((href: string) => {
@@ -98,6 +99,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       document.activeElement.blur();
     }
     focusAfterHandoffRef.current = true;
+    targetPreviewScrollTopRef.current = 0;
     destinationReadyTransitionIdRef.current = null;
     destinationPathnameObservedRef.current = false;
     transitionRef.current = active;
@@ -133,6 +135,22 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     router.push(current.href);
   }, [router, updatePhase]);
 
+  const syncDestinationScroll = useCallback(() => {
+    const renderer = document.querySelector<HTMLElement>(
+      '[data-sauge-route-renderer-hidden="true"]'
+    );
+    const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
+    const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
+    const activePage =
+      viewport && actualPage !== null && actualPage !== undefined
+        ? resolveSaugeNoireOriginalPage(viewport, actualPage)
+        : null;
+    if (!activePage || !activePage.isConnected) return false;
+    const desiredScrollTop = Math.max(0, targetPreviewScrollTopRef.current);
+    activePage.scrollTop = desiredScrollTop;
+    return Math.abs(activePage.scrollTop - desiredScrollTop) <= 1;
+  }, []);
+
   const tryCompleteHandoff = useCallback(() => {
     const current = transitionRef.current;
     if (!current || current.phase !== "awaiting-destination") return;
@@ -141,18 +159,23 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     if (pathnameRef.current !== expectedPathname) return;
     window.cancelAnimationFrame(handoffFrameRef.current);
     window.cancelAnimationFrame(readinessFrameRef.current);
-    window.clearTimeout(awaitingDestinationWatchdogRef.current);
-    handoffFrameRef.current = window.requestAnimationFrame(() => {
+    const completeOnFrame = () => {
       const latest = transitionRef.current;
       if (!latest || latest.id !== current.id || latest.phase !== "awaiting-destination") return;
       if (destinationReadyTransitionIdRef.current !== latest.id) return;
       const latestExpectedPathname = new URL(latest.href, window.location.origin).pathname;
       if (pathnameRef.current !== latestExpectedPathname) return;
+      if (!syncDestinationScroll()) {
+        handoffFrameRef.current = window.requestAnimationFrame(completeOnFrame);
+        return;
+      }
+      window.clearTimeout(awaitingDestinationWatchdogRef.current);
       destinationReadyTransitionIdRef.current = null;
       transitionRef.current = null;
       setTransition(null);
-    });
-  }, []);
+    };
+    handoffFrameRef.current = window.requestAnimationFrame(completeOnFrame);
+  }, [syncDestinationScroll]);
 
   useEffect(() => {
     if (transition !== null || !focusAfterHandoffRef.current) return;
@@ -239,14 +262,14 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       actualPage === null
         ? null
         : resolveSaugeNoireOriginalPage(viewport, actualPage);
-    if (!activePage || Math.abs(activePage.scrollTop) > 1) return false;
+    if (!activePage || !syncDestinationScroll()) return false;
     const image = activePage.querySelector<HTMLImageElement>("img");
     if (image) {
       const rect = image.getBoundingClientRect();
       if (!image.complete || rect.width <= 0 || rect.height <= 0) return false;
     }
     return true;
-  }, []);
+  }, [syncDestinationScroll]);
 
   const destinationRendererIsUsable = useCallback(() => {
     const renderer = document.querySelector<HTMLElement>(
@@ -264,10 +287,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     ) {
       return false;
     }
-    const activePage = resolveSaugeNoireOriginalPage(viewport, actualPage);
-    if (!activePage || !activePage.isConnected) return false;
-    activePage.scrollTop = 0;
-    return true;
+    return syncDestinationScroll();
+  }, [syncDestinationScroll]);
+
+  const handleTargetPreviewScrollTopChange = useCallback((scrollTop: number) => {
+    targetPreviewScrollTopRef.current = Math.max(0, scrollTop);
   }, []);
 
   const notifyDestinationReady = useCallback((readyPathname: string) => {
@@ -402,6 +426,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
           phase={transition.phase}
           targetActivated={transition.phase !== "preparing"}
           visible={transition.phase !== "preparing"}
+          onTargetPreviewScrollTopChange={handleTargetPreviewScrollTopChange}
           onReady={handleOverlayReady}
           onFlip={handleFlipSettled}
           onFallback={handleOverlayFallback}

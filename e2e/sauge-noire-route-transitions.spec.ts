@@ -251,7 +251,8 @@ async function installRouteTransitionProbe(page: Page) {
 async function assertRealRouteFlip(
   page: Page,
   initialUrl: string,
-  destination: Locator
+  destination: Locator,
+  duringAwaiting?: (transition: Locator) => Promise<void>
 ) {
   expect(page.url(), "the route must remain on the source before the flip").toBe(initialUrl);
   const transition = page.locator('[data-sauge-route-transition="true"]');
@@ -286,6 +287,15 @@ async function assertRealRouteFlip(
       { timeout: 8_000, intervals: [40, 80, 120, 240] }
     )
     .toBe(true);
+
+  if (duringAwaiting) {
+    await expect(transition).toHaveAttribute(
+      "data-sauge-route-transition-phase",
+      "awaiting-destination",
+      { timeout: 10_000 }
+    );
+    await duringAwaiting(transition);
+  }
 
   try {
     await expect(transition).toHaveCount(0, { timeout: 15_000 });
@@ -866,6 +876,107 @@ test("frame polling observes a late scroll reset without a DOM mutation", async 
     startedPathname: "/menu/sauge-noire/dishes/canard-a-l-erable-noir"
   });
 });
+
+for (const slowTransition of [
+  {
+    name: "forward",
+    route: MENU_ROUTE,
+    heading: /CANARD|SAUGE NOIRE/i,
+    destinationPathname: "/menu/sauge-noire/dishes/canard-a-l-erable-noir",
+    destinationPreview: 'article[data-transition-preview="true"]',
+    link: async (page: Page) => activeMenuLink(page, "[data-sauge-featured-dish]")
+  },
+  {
+    name: "reverse",
+    route: DETAIL_ROUTE,
+    heading: /CANARD/i,
+    destinationPathname: "/menu/sauge-noire",
+    destinationPreview: 'section[data-transition-preview="true"]',
+    link: async (page: Page) =>
+      page
+        .locator(
+          '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone]) article:not([data-transition-preview="true"]) a'
+        )
+        .first()
+  }
+]) {
+  test(`slow RSC keeps the ${slowTransition.name} destination preview scrollable and preserves its scroll`, async ({
+    browserName,
+    page
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openRoute(page, slowTransition.route, slowTransition.heading);
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const isDestinationRsc =
+        url.pathname === slowTransition.destinationPathname &&
+        (url.searchParams.has("_rsc") || request.headers().rsc === "1");
+      if (!isDestinationRsc) {
+        await route.continue();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      await route.continue();
+    });
+
+    const link = await slowTransition.link(page);
+    const initialUrl = page.url();
+    let previewScrollTop = 0;
+    await installRouteTransitionProbe(page);
+    await dispatchPrimaryClick(link);
+    await assertRealRouteFlip(
+      page,
+      initialUrl,
+      page.locator(
+        `[data-sauge-route-transition] ${slowTransition.destinationPreview}`
+      ),
+      async (transition) => {
+        await expect(transition).toHaveAttribute(
+          "data-sauge-route-transition-scrollable",
+          "true"
+        );
+        await expect(transition).not.toHaveAttribute("inert", "");
+        const target = transition.locator(
+          '[data-sauge-route-preview-scroll-target="true"]'
+        );
+        await expect(target).toBeAttached();
+        expect(
+          await target.locator(":scope > *").evaluateAll((children) =>
+            children.every((child) => child.hasAttribute("inert"))
+          )
+        ).toBe(true);
+        await target.hover();
+        if (browserName === "webkit") {
+          // Playwright does not expose wheel/touch scrolling for mobile WebKit.
+          await target.evaluate((element) => element.scrollBy({ top: 320 }));
+        } else {
+          await page.mouse.wheel(0, 320);
+        }
+        await expect
+          .poll(async () => target.evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(0);
+        previewScrollTop = await target.evaluate((element) => element.scrollTop);
+      }
+    );
+
+    const destinationScrollTop = await page.evaluate(() => {
+      const viewport = document.querySelector<HTMLElement>(
+        '[data-page-flip-state="ready"]'
+      );
+      const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
+      const activePage =
+        viewport && actualPage !== null && actualPage !== undefined
+          ? viewport.querySelector<HTMLElement>(
+              `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
+            )
+          : null;
+      return activePage?.scrollTop ?? -1;
+    });
+    expect(Math.abs(destinationScrollTop - previewScrollTop)).toBeLessThanOrEqual(1);
+  });
+}
 
 test("the awaiting-destination watchdog resolves when readiness cannot be accepted", async ({
   page
