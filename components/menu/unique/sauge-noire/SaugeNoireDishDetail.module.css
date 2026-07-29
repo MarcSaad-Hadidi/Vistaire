@@ -195,8 +195,12 @@
   color: rgba(38, 55, 43, 0.82);
   cursor: pointer;
   pointer-events: auto;
-  font-size: 0.84rem;
-  font-style: italic;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   text-decoration: none;
@@ -569,7 +573,6 @@
     gap: 5px;
     padding: 0 8px;
     border-radius: 9px;
-    font-size: 0.68rem;
   }
 
   .backLink span {

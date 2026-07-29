@@ -206,8 +206,12 @@
   background: rgba(250, 244, 233, 0.24);
   color: rgba(38, 55, 43, 0.82);
   cursor: pointer;
-  font-size: 0.84rem;
-  font-style: italic;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.5;
   pointer-events: auto;
 }
 
@@ -271,10 +275,12 @@
   background: rgba(250, 244, 233, 0.38);
   color: rgba(38, 55, 43, 0.86);
   cursor: pointer;
-  font-family: "Neue Montreal", Arial, sans-serif;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
   letter-spacing: 0.04em;
+  line-height: 1.5;
 }
 
 .preferenceTrigger[aria-expanded="true"] {
@@ -317,9 +323,12 @@
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-family: "Neue Montreal", Arial, sans-serif;
-  font-size: 0.76rem;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
   letter-spacing: 0.04em;
+  line-height: 1.5;
 }
 
 .preferenceOption:hover,
@@ -327,10 +336,6 @@
   border-radius: 8px;
   background: rgba(180, 122, 60, 0.12);
   color: var(--sn-ink);
-}
-
-.preferenceOptionActive {
-  font-weight: 700;
 }
 
 .pageViewport {
@@ -1174,9 +1179,12 @@
   box-shadow: 0 8px 18px rgba(38, 55, 43, 0.16);
   color: var(--sn-bronze);
   cursor: pointer;
-  font-family: "Neue Montreal", Arial, sans-serif;
-  font-size: 0.74rem;
+  font-family: "BT Suave", Georgia, serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
   letter-spacing: 0.03em;
+  line-height: 1.5;
   transform: translateX(-50%);
 }
 
@@ -1296,7 +1304,6 @@
     gap: 5px;
     padding: 0 8px;
     border-radius: 9px;
-    font-size: 0.68rem;
   }
 
   .contentsBack span:first-child {
@@ -1326,7 +1333,6 @@
     gap: 6px;
     padding: 0 8px;
     border-radius: 9px;
-    font-size: 0.68rem;
   }
 
   .preferencePopover {
@@ -1339,7 +1345,6 @@
   .preferenceOptionActive {
     min-height: 32px;
     padding: 0 8px;
-    font-size: 0.68rem;
   }
 
   .backToTop {
@@ -1347,7 +1352,6 @@
     bottom: 14px;
     min-height: 34px;
     padding: 0 10px;
-    font-size: 0.66rem;
   }
 
   .page {
