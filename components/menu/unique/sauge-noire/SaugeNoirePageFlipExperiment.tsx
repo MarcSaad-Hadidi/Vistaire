@@ -229,6 +229,7 @@ export function SaugeNoirePageFlipExperiment({
   const readyNotificationBookKeyRef = useRef<string | null>(null);
   const cleanupGenerationRef = useRef(0);
   const reportedFlipPageRef = useRef<number | null>(null);
+  const sawFlipStateRef = useRef(false);
   const animationSourceScrollRef = useRef<{
     pageIndex: number;
     scrollTop: number;
@@ -240,9 +241,9 @@ export function SaugeNoirePageFlipExperiment({
   const bookKey = resetKey === undefined ? "sauge-main-book" : `sauge-book-${resetKey}`;
   const bookIsReady = bookKey !== null && readyBookKey === bookKey;
   const activeReadingPage =
-    readingPage ?? readingPages?.[actualPageIndex] ?? fallback;
+    readingPage ?? readingPages?.[pageIndex] ?? fallback;
   const readingIdentity = `${bookKey}:${
-    readingKey ?? actualPageIndex
+    readingKey ?? pageIndex
   }`;
   const readingSurfaceVisible =
     hasReadingSurface && (failed || engineState !== "flipping");
@@ -744,7 +745,7 @@ export function SaugeNoirePageFlipExperiment({
     };
   }, []);
 
-  const handleFlip = (event: PageFlipEvent) => {
+  const handleFlip = useCallback((event: PageFlipEvent) => {
     if (readyBookKeyRef.current !== bookKey) return;
     const nextIndex = parsePageIndex(event);
     if (nextIndex === null) return;
@@ -785,7 +786,7 @@ export function SaugeNoirePageFlipExperiment({
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
     onPageFlip(nextIndex);
-  };
+  }, [bookKey, onPageFlip]);
 
   const handleInit = () => {
     initCountRef.current += 1;
@@ -798,6 +799,7 @@ export function SaugeNoirePageFlipExperiment({
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
     reportedFlipPageRef.current = null;
+    sawFlipStateRef.current = false;
     setEngineState("read");
     setReadyBookKey(bookKey);
     appliedDimensionKeyRef.current = null;
@@ -807,13 +809,28 @@ export function SaugeNoirePageFlipExperiment({
   const handleChangeState = useCallback((event: PageFlipEvent) => {
     const state = String(event.data);
     setEngineState(state);
-    if (state === "flipping") reportedFlipPageRef.current = null;
+    if (state === "flipping") {
+      reportedFlipPageRef.current = null;
+      sawFlipStateRef.current = true;
+    }
     if (state === "read") animationSourceScrollRef.current = null;
-    const singleFlipJump = activeSingleFlipJumpRef.current;
-    if (state === "flipping" && singleFlipJump?.phase === "single-flip") {
-      singleFlipJump.sawFlipping = true;
+    if (
+      state === "flipping" &&
+      activeSingleFlipJumpRef.current?.phase === "single-flip"
+    ) {
+      activeSingleFlipJumpRef.current.sawFlipping = true;
     }
     onChangeStateRef.current?.(state);
+    // WebKit can commit the physical page before its wrapper emits `flip`.
+    // Reconcile from the engine after a genuine flipping -> read cycle so the
+    // logical page and the canonical reading surface cannot remain one sheet
+    // behind a completed animation.
+    if (state === "read" && sawFlipStateRef.current) {
+      const settledPage = bookRef.current?.pageFlip()?.getCurrentPageIndex();
+      sawFlipStateRef.current = false;
+      if (settledPage !== undefined) handleFlip({ data: settledPage });
+    }
+    const singleFlipJump = activeSingleFlipJumpRef.current;
     if (state === "read" && pendingStructuralDimensionsRef.current) {
       const pendingDimensions = pendingStructuralDimensionsRef.current;
       pendingStructuralDimensionsRef.current = null;
@@ -898,7 +915,7 @@ export function SaugeNoirePageFlipExperiment({
         window.requestAnimationFrame(updatePageFlipBounds);
       });
     }
-  }, [onPageFlip, revealEngineForFlip, updatePageFlipBounds]);
+  }, [handleFlip, onPageFlip, revealEngineForFlip, updatePageFlipBounds]);
 
   const rememberGestureStart = (x: number, y: number, target: EventTarget | null) => {
     if (
@@ -1077,7 +1094,7 @@ export function SaugeNoirePageFlipExperiment({
         <SaugeNoireReadingSurface
           ref={readingSurfaceRef}
           kind={readingKind}
-          pageIndex={actualPageIndex}
+          pageIndex={pageIndex}
           visible={readingSurfaceVisible}
         >
           {activeReadingPage}

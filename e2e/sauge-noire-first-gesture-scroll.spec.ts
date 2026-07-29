@@ -53,9 +53,11 @@ type ScrollSnapshot = {
 type GestureEvidence = {
   after: ScrollSnapshot;
   before: ScrollSnapshot;
+  input: "keyboard" | "wheel";
   events: Array<{
     cancelable: boolean;
     defaultPrevented: boolean;
+    key: string | null;
     path: string[];
     phase: string;
     target: string;
@@ -95,6 +97,7 @@ test.beforeEach(async ({ page }) => {
       scope.__saugeFirstGestureEvents?.push({
         cancelable: event.cancelable,
         defaultPrevented: event.defaultPrevented,
+        key: event instanceof KeyboardEvent ? event.key : null,
         path: event.composedPath().slice(0, 12).map(label),
         phase,
         target: label(event.target),
@@ -112,6 +115,7 @@ test.beforeEach(async ({ page }) => {
       "touchend",
       "touchcancel",
       "wheel",
+      "keydown",
       "scroll"
     ]) {
       document.addEventListener(type, recordEvent("capture"), {
@@ -353,9 +357,86 @@ async function firstVerticalGesture(page: Page): Promise<GestureEvidence> {
   });
   const before = await snapshotReadingSurface(page);
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
-  await page.mouse.move(before.point.x, before.point.y);
-  await page.mouse.wheel(0, 360);
-  await page.waitForTimeout(80);
+  const browserName =
+    page.context().browser()?.browserType().name() ?? "chromium";
+  const input = browserName === "webkit" ? "keyboard" : "wheel";
+  if (input === "keyboard") {
+    await page.evaluate(() => {
+      const candidates = [
+        ...document.querySelectorAll<HTMLElement>(
+          '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"], ' +
+            '[data-sauge-route-scroll-owner="true"]'
+        )
+      ];
+      const element = candidates.find((candidate) => {
+        const style = getComputedStyle(candidate);
+        const rect = candidate.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          style.pointerEvents !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          candidate.scrollHeight > candidate.clientHeight + 1
+        );
+      });
+      if (!element) throw new Error("Expected a visible scrollable reading owner");
+      element.tabIndex = -1;
+      element.focus();
+    });
+    // Playwright cannot emit a trusted touch swipe in WebKit. ArrowDown is a
+    // real browser input (not element.scrollBy) and exercises the same visible
+    // canonical owner without claiming physical iOS touch coverage.
+    await page.keyboard.press("ArrowDown");
+  } else {
+    await page.mouse.move(before.point.x, before.point.y);
+    await page.mouse.wheel(0, 360);
+  }
+  await expect
+    .poll(async () => (await snapshotReadingSurface(page)).owner.scrollTop)
+    .toBeGreaterThan(before.owner.scrollTop);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const owner = [
+          ...document.querySelectorAll<HTMLElement>(
+            '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"], ' +
+              '[data-sauge-route-scroll-owner="true"]'
+          )
+        ].find((candidate) => {
+          const style = getComputedStyle(candidate);
+          const rect = candidate.getBoundingClientRect();
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            style.pointerEvents !== "none" &&
+            rect.width > 0 &&
+            rect.height > 0 &&
+            candidate.scrollHeight > candidate.clientHeight + 1
+          );
+        });
+        if (!owner) {
+          resolve();
+          return;
+        }
+        let previous = owner.scrollTop;
+        let stableFrames = 0;
+        const startedAt = performance.now();
+        const sample = () => {
+          const current = owner.scrollTop;
+          stableFrames = Math.abs(current - previous) < 0.5
+            ? stableFrames + 1
+            : 0;
+          previous = current;
+          if (stableFrames >= 4 || performance.now() - startedAt > 2_000) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      })
+  );
   const after = await snapshotReadingSurface(page);
   const instrumentation = await page.evaluate(() => {
     const scope = window as typeof window & {
@@ -367,19 +448,28 @@ async function firstVerticalGesture(page: Page): Promise<GestureEvidence> {
       resets: scope.__saugeScrollResets ?? []
     };
   });
-  return { before, after, ...instrumentation };
+  return { before, after, input, ...instrumentation };
 }
 
 function expectFirstGestureToMoveVisibleContent(evidence: GestureEvidence) {
   const scrollDelta =
     evidence.after.owner.scrollTop - evidence.before.owner.scrollTop;
-  expect(scrollDelta, "the very first wheel must move the visible scroll owner").toBeGreaterThan(0);
   expect(
-    evidence.events.some(
-      (event) => event.type === "wheel" && !event.defaultPrevented
-    ),
-    "the first wheel must reach the visible surface without cancellation"
-  ).toBe(true);
+    scrollDelta,
+    "the very first browser-level vertical input must move the visible scroll owner"
+  ).toBeGreaterThan(0);
+  const inputEvent = evidence.events.find((event) =>
+    event.phase === "bubble" &&
+    (
+      evidence.input === "wheel"
+        ? event.type === "wheel"
+        : event.type === "keydown" && event.key === "ArrowDown"
+    )
+  );
+  expect(
+    inputEvent?.defaultPrevented,
+    "the first browser-level vertical input must not be cancelled"
+  ).toBe(false);
   for (const marker of ["title", "image", "price", "description"] as const) {
     const before = evidence.before.markers[marker];
     const after = evidence.after.markers[marker];
@@ -401,7 +491,10 @@ function expectFirstGestureToMoveVisibleContent(evidence: GestureEvidence) {
   }
   expect(
     evidence.resets.filter(
-      (reset) => reset.top === 0 && reset.timestamp > evidence.events[0]!.timestamp
+      (reset) =>
+        reset.top === 0 &&
+        inputEvent !== undefined &&
+        reset.timestamp > inputEvent.timestamp
     ),
     "no automatic reset to zero may run after the user's first gesture starts"
   ).toEqual([]);

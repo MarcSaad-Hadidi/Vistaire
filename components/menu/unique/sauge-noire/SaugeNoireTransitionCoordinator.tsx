@@ -255,12 +255,17 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     }
 
     const currentPage = viewport.getAttribute("data-page-flip-current-page");
-    const actualPage = viewport.getAttribute("data-page-flip-actual-page");
-    if (currentPage === null || currentPage !== actualPage) return false;
     const activePage = renderer?.querySelector<HTMLElement>(
       '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
     );
-    if (!activePage || !syncDestinationScroll()) return false;
+    if (
+      currentPage === null ||
+      !activePage ||
+      activePage.getAttribute("data-sauge-reading-page-index") !== currentPage ||
+      !syncDestinationScroll()
+    ) {
+      return false;
+    }
     const image = activePage.querySelector<HTMLImageElement>("img");
     if (image) {
       const rect = image.getBoundingClientRect();
@@ -276,12 +281,15 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
     if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
-    const actualPage = viewport.getAttribute("data-page-flip-actual-page");
     const currentPage = viewport.getAttribute("data-page-flip-current-page");
+    const activePage = renderer?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+    );
     if (
       viewport.getAttribute("data-page-flip-state") !== "ready" ||
-      actualPage === null ||
-      currentPage !== actualPage
+      currentPage === null ||
+      !activePage ||
+      activePage.getAttribute("data-sauge-reading-page-index") !== currentPage
     ) {
       return false;
     }

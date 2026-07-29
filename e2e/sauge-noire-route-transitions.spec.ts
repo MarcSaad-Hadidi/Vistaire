@@ -124,6 +124,54 @@ async function dispatchPrimaryClick(link: Locator) {
   });
 }
 
+async function scrollRouteOwnerWithBrowserInput(
+  page: Page,
+  owner: Locator,
+  browserName: string,
+  amount: number
+) {
+  const initialScrollTop = await owner.evaluate((element) => element.scrollTop);
+  if (browserName === "webkit") {
+    await owner.evaluate((element) => {
+      element.tabIndex = -1;
+      element.focus();
+    });
+    const presses = Math.max(1, Math.ceil(amount / 40));
+    for (let index = 0; index < presses; index += 1) {
+      await page.keyboard.press("ArrowDown");
+      await page.waitForTimeout(24);
+    }
+  } else {
+    await owner.hover();
+    await page.mouse.wheel(0, amount);
+  }
+  await expect
+    .poll(() => owner.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(initialScrollTop);
+  await owner.evaluate(
+    (element) =>
+      new Promise<void>((resolve) => {
+        let previous = element.scrollTop;
+        let stableFrames = 0;
+        const startedAt = performance.now();
+        const sample = () => {
+          const current = element.scrollTop;
+          stableFrames = Math.abs(current - previous) < 0.5
+            ? stableFrames + 1
+            : 0;
+          previous = current;
+          if (stableFrames >= 4 || performance.now() - startedAt > 2_000) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      })
+  );
+  return owner.evaluate((element) => element.scrollTop);
+}
+
 async function installRouteTransitionProbe(page: Page) {
   await page.evaluate(() => {
     const browserWindow = window as typeof window & {
@@ -973,13 +1021,18 @@ for (const slowTransition of [
     const routeTransition = page.locator(
       '[data-sauge-route-transition="true"]'
     );
+    await expect
+      .poll(() =>
+        routeTransition.getAttribute("data-sauge-route-transition-phase")
+      )
+      .toMatch(/^(?:animating|awaiting-destination)$/);
     await expect(routeTransition).toHaveAttribute(
-      "data-sauge-route-transition-phase",
-      "animating"
+      "data-sauge-route-transition-flip-started",
+      "true"
     );
     animatedTypography = await routeTransition
       .locator(
-        '[data-sauge-route-flip-engine-visible="true"] [data-sauge-page-origin="react-original"]'
+        '[data-sauge-route-flip-engine="true"] [data-sauge-page-origin="react-original"]'
       )
       .filter({ has: page.locator(slowTransition.destinationPreview) })
       .first()
@@ -1149,19 +1202,12 @@ for (const slowTransition of [
           )
         );
         expect(previewTypography).toEqual(animatedTypography);
-        if (browserName === "webkit") {
-          await target.evaluate((element) => {
-            element.tabIndex = -1;
-            element.focus();
-          });
-          await page.keyboard.press("PageDown");
-        } else {
-          await target.hover();
-          await page.mouse.wheel(0, 320);
-        }
-        await expect
-          .poll(async () => target.evaluate((element) => element.scrollTop))
-          .toBeGreaterThan(0);
+        await scrollRouteOwnerWithBrowserInput(
+          page,
+          target,
+          browserName,
+          320
+        );
         const afterState = await target.evaluate((element) => {
           const measurable = (selector: string) =>
             [...element.querySelectorAll<HTMLElement>(selector)].find((node) => {
@@ -1515,21 +1561,11 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
   const returnSettled = returnTransition.locator(
     '[data-sauge-route-scroll-owner="true"]'
   );
-  if (browserName === "webkit") {
-    await returnSettled.evaluate((element) => {
-      element.tabIndex = -1;
-      element.focus();
-    });
-    await page.keyboard.press("PageDown");
-  } else {
-    await returnSettled.hover();
-    await page.mouse.wheel(0, 260);
-  }
-  await expect
-    .poll(() => returnSettled.evaluate((element) => element.scrollTop))
-    .toBeGreaterThan(0);
-  const returnPreviewScrollTop = await returnSettled.evaluate(
-    (element) => element.scrollTop
+  const returnPreviewScrollTop = await scrollRouteOwnerWithBrowserInput(
+    page,
+    returnSettled,
+    browserName,
+    260
   );
   expect(returnPreviewScrollTop).toBeGreaterThan(0);
   await expect(page).toHaveURL(/\/menu\/sauge-noire\?/, { timeout: 15_000 });

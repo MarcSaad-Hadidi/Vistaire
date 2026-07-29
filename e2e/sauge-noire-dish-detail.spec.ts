@@ -240,6 +240,9 @@ async function verticalGesture(
       element.tabIndex = -1;
       element.focus();
     });
+    const initialScrollTop = await activePage.evaluate(
+      (element) => element.scrollTop
+    );
     const key =
       direction > 0
         ? amount >= 500
@@ -252,6 +255,36 @@ async function verticalGesture(
     for (let index = 0; index < presses; index += 1) {
       await page.keyboard.press(key);
     }
+    if (direction > 0) {
+      await expect
+        .poll(() => activePage.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(initialScrollTop);
+    } else {
+      await expect
+        .poll(() => activePage.evaluate((element) => element.scrollTop))
+        .toBeLessThan(initialScrollTop);
+    }
+    await activePage.evaluate(
+      (element) =>
+        new Promise<void>((resolve) => {
+          let previous = element.scrollTop;
+          let stableFrames = 0;
+          const startedAt = performance.now();
+          const sample = () => {
+            const current = element.scrollTop;
+            stableFrames = Math.abs(current - previous) < 0.5
+              ? stableFrames + 1
+              : 0;
+            previous = current;
+            if (stableFrames >= 4 || performance.now() - startedAt > 2_000) {
+              resolve();
+              return;
+            }
+            requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+        })
+    );
     during = await detailState(page);
   } else {
     await page.mouse.move(x, fromY);
@@ -629,6 +662,38 @@ async function swipeAndAssertFlip(
 ) {
   const before = await detailState(page);
   expect(before.currentScrollTop).toBeGreaterThan(0);
+  const safeY = await page.evaluate(
+    ({ startX, preferredY }) => {
+      const owner = document.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-kind="dish"]'
+      );
+      if (!owner) throw new Error("Expected the canonical dish reading surface");
+      const rect = owner.getBoundingClientRect();
+      const candidates = [
+        preferredY,
+        rect.top + rect.height * 0.32,
+        rect.top + rect.height * 0.48,
+        rect.top + rect.height * 0.64,
+        rect.top + rect.height * 0.76
+      ];
+      const safe = candidates.find((candidateY) => {
+        const y = Math.min(rect.bottom - 8, Math.max(rect.top + 8, candidateY));
+        const target = document.elementFromPoint(startX, y);
+        return (
+          target !== null &&
+          owner.contains(target) &&
+          target.closest("a, button, input, select, textarea") === null
+        );
+      });
+      return Math.min(
+        rect.bottom - 8,
+        Math.max(rect.top + 8, safe ?? preferredY)
+      );
+    },
+    { startX: from.x, preferredY: from.y }
+  );
+  const safeFrom = { ...from, y: safeY };
+  const safeTo = { ...to, y: safeY };
   await armFlipProbe(page);
   if (browserName === "webkit") {
     await page.evaluate(({ from, to }) => {
@@ -657,9 +722,9 @@ async function swipeAndAssertFlip(
       dispatch("touchstart", [startTouch], [startTouch]);
       dispatch("touchmove", [middleTouch], [middleTouch]);
       dispatch("touchend", [], [endTouch]);
-    }, { from, to });
+    }, { from: safeFrom, to: safeTo });
   } else {
-    await drag(page, from, to);
+    await drag(page, safeFrom, safeTo);
   }
   await waitForRealFlip(page, before);
   await expect(page).toHaveURL(expectedPath);
