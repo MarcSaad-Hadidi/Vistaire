@@ -88,7 +88,6 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
     "npm run test:qr:node",
     "npm run test:qr:postgres",
     "npm run build",
-    "npm run test:unique-menu-design:e2e",
     "npm run test:qr:functional",
     "npm run test:seo",
     "npm run test:admin",
@@ -99,9 +98,7 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   }
   assert.ok(
     workflow.indexOf("run: npm run build") <
-      workflow.indexOf("run: npm run test:unique-menu-design:e2e") &&
-      workflow.indexOf("run: npm run build") <
-        workflow.indexOf("run: npm run test:qr:functional") &&
+      workflow.indexOf("run: npm run test:qr:functional") &&
       workflow.indexOf("run: npm run build") <
         workflow.indexOf("run: npm run test:smoke:bootstrap"),
     "next start Playwright suites and hermetic smoke must run after build"
@@ -114,30 +111,26 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
-test("App CI runs Chromium and WebKit unique-menu coverage in parallel behind one required gate", async () => {
-  const workflow = await source(".github/workflows/app-ci.yml");
+test("App CI keeps deterministic checks blocking without the Sauge Noire browser matrix", async () => {
+  const [workflow, packageJson] = await Promise.all([
+    source(".github/workflows/app-ci.yml"),
+    source("package.json")
+  ]);
+  const scripts = JSON.parse(packageJson).scripts;
 
   assert.match(workflow, /^\s{2}checks:\s*$/m);
-  assert.match(workflow, /^\s{2}unique_menu_e2e:\s*$/m);
   assert.match(workflow, /^\s{2}app-ci:\s*$/m);
-  assert.match(workflow, /name: Unique menu E2E \(\$\{\{ matrix\.label \}\}\)/);
   assert.match(
     workflow,
-    /- label: chromium\s+project: chromium\s+browser_channel: chrome\s+workers: 2\s+shard: 1\/1/
+    /name: App CI\s+if: \$\{\{ always\(\) \}\}\s+needs:\s+- checks\s+runs-on:/
   );
-  for (const shard of [1, 2, 3]) {
-    assert.match(
-      workflow,
-      new RegExp(
-        `- label: webkit-${shard}-of-3\\s+project: webkit\\s+browser_channel: ""\\s+workers: 1\\s+shard: ${shard}/3`
-      )
-    );
-  }
-  assert.match(
+  assert.match(workflow, /CHECKS_RESULT:\s*\$\{\{ needs\.checks\.result \}\}/);
+  assert.doesNotMatch(
     workflow,
-    /npm run test:unique-menu-design:e2e -- --project=\$\{\{ matrix\.project \}\} --workers=\$\{\{ matrix\.workers \}\} --shard=\$\{\{ matrix\.shard \}\}/
+    /unique_menu_e2e|Unique menu E2E|test:unique-menu-design:e2e|sauge-noire-(?:header|dish-detail|first-gesture-scroll|route-transitions|pageflip-lifecycle|static-pages-responsive)\.spec\.ts/
   );
-  assert.match(workflow, /name: App CI\s+if: \$\{\{ always\(\) \}\}\s+needs:\s+- checks\s+- unique_menu_e2e/);
+  assert.doesNotMatch(workflow, /continue-on-error/);
+  assert.equal(scripts["test:unique-menu-design:e2e"], undefined);
 });
 
 test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {
