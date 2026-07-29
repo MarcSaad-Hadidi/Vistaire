@@ -791,20 +791,16 @@ test("frame polling observes an image that becomes complete without a DOM mutati
   });
 });
 
-test("frame polling observes a late scroll reset without a DOM mutation", async ({ page }) => {
+test("frame polling corrects a late hidden destination scroll mismatch", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openRoute(page, MENU_ROUTE, /CANARD|SAUGE NOIRE/i);
   await page.evaluate(() => {
     const state = {
-      holding: true,
-      released: false,
       started: false,
-      releaseScheduled: false,
-      overlayAtRelease: false,
       startedPageIndex: null as string | null,
       startedPathname: null as string | null
     };
-    const holdDestinationScroll = () => {
+    const injectDestinationMismatch = () => {
       const overlay = document.querySelector<HTMLElement>(
         '[data-sauge-route-transition="true"]'
       );
@@ -822,26 +818,16 @@ test("frame polling observes a late scroll reset without a DOM mutation", async 
             `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
           )
         : null;
-      if (destinationCommitted && activePage && state.holding) {
+      if (destinationCommitted && activePage) {
         state.started = true;
         state.startedPageIndex = actualPage ?? null;
         state.startedPathname = location.pathname;
         activePage.scrollTop = 48;
-        if (!state.releaseScheduled) {
-          state.releaseScheduled = true;
-          window.setTimeout(() => {
-            state.holding = false;
-            state.released = true;
-            state.overlayAtRelease = Boolean(
-              document.querySelector('[data-sauge-route-transition="true"]')
-            );
-            activePage.scrollTop = 0;
-          }, 600);
-        }
+        return;
       }
-      if (state.holding) requestAnimationFrame(holdDestinationScroll);
+      requestAnimationFrame(injectDestinationMismatch);
     };
-    requestAnimationFrame(holdDestinationScroll);
+    requestAnimationFrame(injectDestinationMismatch);
     (window as typeof window & { __saugeLateScrollState?: typeof state })
       .__saugeLateScrollState = state;
   });
@@ -860,8 +846,6 @@ test("frame polling observes a late scroll reset without a DOM mutation", async 
       () =>
         (window as typeof window & {
           __saugeLateScrollState?: {
-            overlayAtRelease: boolean;
-            released: boolean;
             started: boolean;
             startedPageIndex: string | null;
             startedPathname: string | null;
@@ -869,12 +853,23 @@ test("frame polling observes a late scroll reset without a DOM mutation", async 
         }).__saugeLateScrollState
     )
   ).toMatchObject({
-    overlayAtRelease: true,
-    released: true,
     started: true,
     startedPageIndex: "1",
     startedPathname: "/menu/sauge-noire/dishes/canard-a-l-erable-noir"
   });
+  expect(
+    await page.evaluate(() => {
+      const viewport = document.querySelector<HTMLElement>(
+        '[data-page-flip-state="ready"]'
+      );
+      const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
+      return actualPage
+        ? viewport?.querySelector<HTMLElement>(
+            `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
+          )?.scrollTop ?? -1
+        : -1;
+    })
+  ).toBe(0);
 });
 
 for (const slowTransition of [
