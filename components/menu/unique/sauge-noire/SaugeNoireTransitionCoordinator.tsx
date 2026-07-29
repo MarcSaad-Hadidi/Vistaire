@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { resolveSaugeNoireOriginalPage } from "./SaugeNoireFlipPage";
 import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
 
 export type SaugeNoireRouteTransition = {
@@ -38,6 +39,8 @@ type FullPrefetchRouter = {
   ) => void;
 };
 
+const AWAITING_DESTINATION_TIMEOUT_MS = 6_000;
+
 const TransitionContext = createContext<TransitionContextValue | null>(null);
 
 export function useSaugeNoireTransition() {
@@ -53,6 +56,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const destinationPathnameObservedRef = useRef(false);
   const prefetchedDestinationsRef = useRef(new Set<string>());
   const handoffFrameRef = useRef(0);
+  const readinessFrameRef = useRef(0);
+  const awaitingDestinationWatchdogRef = useRef(0);
   const focusFrameRef = useRef(0);
   const focusAfterHandoffRef = useRef(false);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
@@ -109,6 +114,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, []);
 
   const handleOverlayReady = useCallback(() => {
+    const current = transitionRef.current;
+    if (!current || current.phase !== "preparing") return;
     updatePhase("animating");
   }, [updatePhase]);
 
@@ -133,6 +140,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathnameRef.current !== expectedPathname) return;
     window.cancelAnimationFrame(handoffFrameRef.current);
+    window.cancelAnimationFrame(readinessFrameRef.current);
+    window.clearTimeout(awaitingDestinationWatchdogRef.current);
     handoffFrameRef.current = window.requestAnimationFrame(() => {
       const latest = transitionRef.current;
       if (!latest || latest.id !== current.id || latest.phase !== "awaiting-destination") return;
@@ -157,11 +166,10 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         '[data-page-flip-state="ready"]'
       );
       const activePageIndex = viewport?.getAttribute("data-page-flip-actual-page");
-      const activePage = activePageIndex === null || activePageIndex === undefined
-        ? null
-        : viewport?.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index="${activePageIndex}"]:not([data-sauge-flip-clone])`
-          );
+      const activePage =
+        viewport && activePageIndex !== null && activePageIndex !== undefined
+          ? resolveSaugeNoireOriginalPage(viewport, activePageIndex)
+          : null;
       const heading = activePage?.querySelector<HTMLElement>("h1, h2");
       if (!heading) return;
       const hadTabIndex = heading.hasAttribute("tabindex");
@@ -180,6 +188,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   useEffect(() => {
     return () => {
       window.cancelAnimationFrame(handoffFrameRef.current);
+      window.cancelAnimationFrame(readinessFrameRef.current);
+      window.clearTimeout(awaitingDestinationWatchdogRef.current);
       window.cancelAnimationFrame(focusFrameRef.current);
     };
   }, []);
@@ -196,6 +206,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         destinationPathnameObservedRef.current
       ) {
         window.cancelAnimationFrame(handoffFrameRef.current);
+        window.cancelAnimationFrame(readinessFrameRef.current);
+        window.clearTimeout(awaitingDestinationWatchdogRef.current);
         destinationReadyTransitionIdRef.current = null;
         destinationPathnameObservedRef.current = false;
         transitionRef.current = null;
@@ -206,14 +218,67 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     tryCompleteHandoff();
   }, [pathname, tryCompleteHandoff]);
 
+  const destinationRendererIsReady = useCallback(() => {
+    const renderer = document.querySelector<HTMLElement>(
+      '[data-sauge-route-renderer-hidden="true"]'
+    );
+    const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
+    if (!viewport) return false;
+    if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
+    if (
+      viewport.getAttribute("data-page-flip-state") !== "ready" ||
+      viewport.getAttribute("data-page-flip-engine-state") !== "read"
+    ) {
+      return false;
+    }
+
+    const currentPage = viewport.getAttribute("data-page-flip-current-page");
+    const actualPage = viewport.getAttribute("data-page-flip-actual-page");
+    if (currentPage === null || currentPage !== actualPage) return false;
+    const activePage =
+      actualPage === null
+        ? null
+        : resolveSaugeNoireOriginalPage(viewport, actualPage);
+    if (!activePage || Math.abs(activePage.scrollTop) > 1) return false;
+    const image = activePage.querySelector<HTMLImageElement>("img");
+    if (image) {
+      const rect = image.getBoundingClientRect();
+      if (!image.complete || rect.width <= 0 || rect.height <= 0) return false;
+    }
+    return true;
+  }, []);
+
+  const destinationRendererIsUsable = useCallback(() => {
+    const renderer = document.querySelector<HTMLElement>(
+      '[data-sauge-route-renderer-hidden="true"]'
+    );
+    const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
+    if (!viewport) return false;
+    if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
+    const actualPage = viewport.getAttribute("data-page-flip-actual-page");
+    const currentPage = viewport.getAttribute("data-page-flip-current-page");
+    if (
+      viewport.getAttribute("data-page-flip-state") !== "ready" ||
+      actualPage === null ||
+      currentPage !== actualPage
+    ) {
+      return false;
+    }
+    const activePage = resolveSaugeNoireOriginalPage(viewport, actualPage);
+    if (!activePage || !activePage.isConnected) return false;
+    activePage.scrollTop = 0;
+    return true;
+  }, []);
+
   const notifyDestinationReady = useCallback((readyPathname: string) => {
     const current = transitionRef.current;
     if (!current || current.phase !== "awaiting-destination") return;
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (readyPathname !== expectedPathname) return;
+    if (!destinationRendererIsReady()) return;
     destinationReadyTransitionIdRef.current = current.id;
     tryCompleteHandoff();
-  }, [tryCompleteHandoff]);
+  }, [destinationRendererIsReady, tryCompleteHandoff]);
 
   useEffect(() => {
     const current = transitionRef.current;
@@ -221,57 +286,76 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathname !== expectedPathname) return;
 
-    const destinationRendererIsReady = () => {
-      const renderer = document.querySelector<HTMLElement>(
-        '[data-sauge-route-renderer-hidden="true"]'
-      );
-      const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
-      if (!viewport) return false;
-      if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
-      if (
-        viewport.getAttribute("data-page-flip-state") !== "ready" ||
-        viewport.getAttribute("data-page-flip-engine-state") !== "read"
-      ) {
-        return false;
-      }
-
-      const currentPage = viewport.getAttribute("data-page-flip-current-page");
-      const actualPage = viewport.getAttribute("data-page-flip-actual-page");
-      if (currentPage === null || currentPage !== actualPage) return false;
-      const activePage = viewport.querySelector<HTMLElement>(
-        `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
-      );
-      if (!activePage || Math.abs(activePage.scrollTop) > 1) return false;
-      const image = activePage.querySelector<HTMLImageElement>("img");
-      if (image) {
-        const rect = image.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return false;
-      }
-      return true;
-    };
-
-    const completeWhenReady = () => {
+    const pollDestinationReadiness = () => {
       const latest = transitionRef.current;
-      if (!latest || latest.id !== current.id || !destinationRendererIsReady()) return;
+      if (
+        !latest ||
+        latest.id !== current.id ||
+        latest.phase !== "awaiting-destination"
+      ) {
+        return;
+      }
+      if (!destinationRendererIsReady()) {
+        readinessFrameRef.current = window.requestAnimationFrame(
+          pollDestinationReadiness
+        );
+        return;
+      }
       destinationReadyTransitionIdRef.current = current.id;
       tryCompleteHandoff();
     };
 
-    completeWhenReady();
-    const observer = new MutationObserver(completeWhenReady);
-    observer.observe(document.body, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-      attributeFilter: [
-        "data-page-flip-actual-page",
-        "data-page-flip-current-page",
-        "data-page-flip-engine-state",
-        "data-page-flip-state"
-      ]
-    });
-    return () => observer.disconnect();
-  }, [pathname, transition, tryCompleteHandoff]);
+    readinessFrameRef.current = window.requestAnimationFrame(
+      pollDestinationReadiness
+    );
+
+    return () => {
+      window.cancelAnimationFrame(readinessFrameRef.current);
+    };
+  }, [
+    destinationRendererIsReady,
+    pathname,
+    transition,
+    tryCompleteHandoff
+  ]);
+
+  useEffect(() => {
+    const current = transitionRef.current;
+    if (!current || current.phase !== "awaiting-destination") return;
+
+    awaitingDestinationWatchdogRef.current = window.setTimeout(() => {
+      const latest = transitionRef.current;
+      if (
+        !latest ||
+        latest.id !== current.id ||
+        latest.phase !== "awaiting-destination"
+      ) {
+        return;
+      }
+      const latestExpectedPathname = new URL(
+        latest.href,
+        window.location.origin
+      ).pathname;
+      window.cancelAnimationFrame(readinessFrameRef.current);
+      if (
+        pathnameRef.current === latestExpectedPathname &&
+        destinationRendererIsUsable()
+      ) {
+        destinationReadyTransitionIdRef.current = latest.id;
+        tryCompleteHandoff();
+        return;
+      }
+      window.location.assign(latest.href);
+    }, AWAITING_DESTINATION_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(awaitingDestinationWatchdogRef.current);
+    };
+  }, [
+    destinationRendererIsUsable,
+    transition,
+    tryCompleteHandoff
+  ]);
 
   const contextValue = useMemo<TransitionContextValue>(
     () => ({

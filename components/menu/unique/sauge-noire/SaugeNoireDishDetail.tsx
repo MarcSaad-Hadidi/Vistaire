@@ -32,7 +32,11 @@ import {
   SaugeNoireBookRail,
   SectionPage
 } from "./SaugeNoireBookMenu";
-import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
+import {
+  isSaugeNoireOriginalPage,
+  listSaugeNoireOriginalPages,
+  SaugeNoireFlipPage
+} from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireDishDetail.module.css";
@@ -592,9 +596,9 @@ export function SaugeNoireDishDetail({
 
     let frame = 0;
     const restoreCurrentScroll = () => {
-      const pages = Array.from(
-        detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
-      ).filter((page) => !page.closest('[data-sauge-flip-clone="true"]'));
+      const pages = detailSurfaceRef.current
+        ? listSaugeNoireOriginalPages(detailSurfaceRef.current)
+        : [];
       // PageFlip can reset every physical sheet while it prepares the fold.
       // Keep the reading position on the original sheets during the transition.
       for (const page of pages) {
@@ -711,13 +715,14 @@ export function SaugeNoireDishDetail({
       detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
     ).find(
       (page) =>
+        isSaugeNoireOriginalPage(page) &&
         !page.closest('[aria-hidden="true"]') &&
         page.querySelector('article:not([data-transition-preview="true"])')
     )?.scrollTop ?? 0;
     preservedScrollTopRef.current = preservedScrollTop;
-    for (const page of Array.from(
-      detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
-    ).filter((page) => !page.closest('[data-sauge-flip-clone="true"]'))) {
+    for (const page of detailSurfaceRef.current
+      ? listSaugeNoireOriginalPages(detailSurfaceRef.current)
+      : []) {
       if (page.scrollHeight > page.clientHeight && page.scrollTop !== preservedScrollTop) {
         page.scrollTop = preservedScrollTop;
       }

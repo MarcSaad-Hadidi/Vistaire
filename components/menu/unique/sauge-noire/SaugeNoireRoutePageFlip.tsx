@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
+import {
+  resolveSaugeNoireOriginalPage,
+  SaugeNoireFlipPage
+} from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import styles from "./SaugeNoireRoutePageFlip.module.css";
 
@@ -76,9 +79,10 @@ export function SaugeNoireRoutePageFlip({
   );
 
   const restoreSourceScroll = useCallback(() => {
-    const sourcePage = overlayRef.current?.querySelector<HTMLElement>(
-      `[data-sauge-flip-page-index="${startPage}"]:not([data-sauge-flip-clone])`
-    );
+    const overlay = overlayRef.current;
+    const sourcePage = overlay
+      ? resolveSaugeNoireOriginalPage(overlay, startPage)
+      : null;
     if (sourcePage && sourcePage.scrollTop !== sourceScrollTop) {
       sourcePage.scrollTop = sourceScrollTop;
     }

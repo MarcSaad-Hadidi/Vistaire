@@ -43,10 +43,15 @@ type DetailState = {
 };
 
 type FlipProbeSample = {
+  phase: "armed" | "before-click" | "after-click" | "mutation" | "animation-frame";
+  timestamp: number;
   route: string;
   scrollTop: number;
   pageScrollTops: number[];
   transforms: string[];
+  engineState: string | null;
+  currentPageIndex: string | null;
+  actualPageIndex: string | null;
   activePageIndex: string | null;
   activePageLogoCount: number;
   activeHeaderLogoCount: number;
@@ -342,11 +347,12 @@ async function scrollDetailToTop(
   return detailState(page);
 }
 
-async function waitForRealFlip(page: Page, before: DetailState, browserName: string) {
+async function waitForRealFlip(page: Page, before: DetailState) {
   const readTransitionSample = () => page.evaluate((expected) => {
     const probe = (window as typeof window & {
       __saugeFlipProbe?: { samples: FlipProbeSample[] };
     }).__saugeFlipProbe;
+    const initialActualPageIndex = probe?.samples[0]?.actualPageIndex ?? null;
     const isVisualTransform = (transform: string) => {
       if (transform === "none") return false;
       const values = transform.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
@@ -361,7 +367,17 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
         (transform, index) =>
           transform !== expected.transforms[index] && isVisualTransform(transform)
       );
+      const flipWasObserved =
+        candidate.engineState === "flipping" ||
+        (
+          initialActualPageIndex !== null &&
+          candidate.actualPageIndex !== null &&
+          candidate.actualPageIndex !== initialActualPageIndex
+        ) ||
+        transformChanged;
       return (
+        candidate.phase !== "armed" &&
+        candidate.phase !== "before-click" &&
         candidate.route === expected.route &&
         candidate.scrollTop === expected.scrollTop &&
         candidate.visibleLogoCount === 1 &&
@@ -370,7 +386,7 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
         candidate.activeHeaderLogoCount === 1 &&
         candidate.externalFloatingLogoCount === 0 &&
         !candidate.fallbackVisible &&
-        (transformChanged || expected.allowLifecycleOnly)
+        flipWasObserved
       );
     });
     return sample ?? null;
@@ -378,14 +394,11 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
     route: before.route,
     scrollTop: before.currentScrollTop,
     transforms: before.stfTransforms,
-    activePageIndex: before.activePageIndex,
-    // Playwright WebKit collapses this library's CSS transform to an identity
-    // matrix; Chromium still requires a non-identity .stf__item transform.
-    allowLifecycleOnly: browserName === "webkit"
+    activePageIndex: before.activePageIndex
   });
   await expect
     .poll(async () => Boolean(await readTransitionSample()), {
-      timeout: browserName === "webkit" ? 10_000 : 3_000,
+      timeout: 10_000,
       intervals: [10, 20, 40, 80, 160]
     })
     .toBe(true);
@@ -398,21 +411,45 @@ async function waitForRealFlip(page: Page, before: DetailState, browserName: str
   expect(transitionSample!.activePageLogoCount).toBe(1);
   expect(transitionSample!.activeHeaderLogoCount).toBe(1);
   expect(transitionSample!.externalFloatingLogoCount).toBe(0);
+  await expect.poll(() => page.evaluate(() => {
+    const samples = (window as typeof window & {
+      __saugeFlipProbe?: { samples: FlipProbeSample[] };
+    }).__saugeFlipProbe?.samples ?? [];
+    const stateTransitions = samples
+      .map((sample) => sample.engineState)
+      .filter((state, index, states) => state !== null && state !== states[index - 1]);
+    const flippingIndex = stateTransitions.indexOf("flipping");
+    return flippingIndex >= 0 && stateTransitions.slice(flippingIndex + 1).includes("read");
+  })).toBe(true);
+  const flipCycles = await page.evaluate(() => {
+    const samples = (window as typeof window & {
+      __saugeFlipProbe?: { samples: FlipProbeSample[] };
+    }).__saugeFlipProbe?.samples ?? [];
+    return samples
+      .map((sample) => sample.engineState)
+      .filter((state, index, states) => state !== null && state !== states[index - 1])
+      .filter((state) => state === "flipping").length;
+  });
+  expect(flipCycles).toBe(1);
 }
 
 async function armFlipProbe(page: Page) {
   await page.evaluate(() => {
-    const probe = { samples: [] as FlipProbeSample[] };
-    (window as typeof window & {
-      __saugeFlipProbe?: { samples: FlipProbeSample[] };
-    }).__saugeFlipProbe = probe;
+    const probe = {
+      samples: [] as FlipProbeSample[],
+      capture: null as null | ((phase: FlipProbeSample["phase"]) => void),
+      observer: null as MutationObserver | null
+    };
     const isVisible = (element: HTMLElement) => {
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0 &&
         rect.width > 0 && rect.height > 0 && !element.closest('[aria-hidden="true"]');
     };
-    const sample = () => {
+    const capture = (phase: FlipProbeSample["phase"]) => {
+      if (probe.samples.length >= 1_200) {
+        return;
+      }
       const currentPage = [...document.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]')].find(
         (element) => isVisible(element) && element.querySelector('article:not([data-transition-preview="true"])')
       );
@@ -420,6 +457,7 @@ async function armFlipProbe(page: Page) {
       const currentHeader = currentArticle?.querySelector<HTMLElement>("header");
       const detail = document.querySelector<HTMLElement>('[data-testid="sauge-noire-dish-detail"]');
       const detailSurface = detail?.querySelector<HTMLElement>('[data-detail-page-flip="true"]');
+      const viewport = detailSurface?.querySelector<HTMLElement>("[data-page-flip-state]");
       const externalFloatingLogoCount = [
         ...(detail ? [...detail.children] : []),
         ...(detailSurface ? [...detailSurface.children] : [])
@@ -428,12 +466,17 @@ async function armFlipProbe(page: Page) {
         (element) => element.scrollTop
       );
       probe.samples.push({
+        phase,
+        timestamp: performance.now(),
         route: window.location.href,
         scrollTop: currentPage?.scrollTop ?? 0,
         pageScrollTops,
         transforms: [...document.querySelectorAll<HTMLElement>(".stf__item")].map(
           (element) => getComputedStyle(element).transform
         ),
+        engineState: viewport?.getAttribute("data-page-flip-engine-state") ?? null,
+        currentPageIndex: viewport?.getAttribute("data-page-flip-current-page") ?? null,
+        actualPageIndex: viewport?.getAttribute("data-page-flip-actual-page") ?? null,
         activePageIndex: currentPage?.getAttribute("data-sauge-flip-page-index") ?? null,
         activePageLogoCount: currentPage?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
         activeHeaderLogoCount: currentHeader?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
@@ -441,9 +484,28 @@ async function armFlipProbe(page: Page) {
         visibleLogoCount: [...document.querySelectorAll<HTMLElement>('[aria-label="Sauge Noire"]')].filter(isVisible).length,
         fallbackVisible: [...document.querySelectorAll<HTMLElement>('[data-page-flip-fallback]')].some(isVisible)
       });
-      if (probe.samples.length < 600) requestAnimationFrame(sample);
     };
-    requestAnimationFrame(sample);
+    probe.capture = capture;
+    probe.observer = new MutationObserver(() => capture("mutation"));
+    probe.observer.observe(document.documentElement, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: [
+        "data-page-flip-actual-page",
+        "data-page-flip-current-page",
+        "data-page-flip-engine-state"
+      ]
+    });
+    (window as typeof window & {
+      __saugeFlipProbe?: typeof probe;
+    }).__saugeFlipProbe = probe;
+    capture("armed");
+    const sampleFrame = () => {
+      capture("animation-frame");
+      if (probe.samples.length < 600) requestAnimationFrame(sampleFrame);
+    };
+    requestAnimationFrame(sampleFrame);
   });
 }
 
@@ -499,8 +561,7 @@ function collectPageErrors(page: Page) {
 async function clickAndAssertFlip(
   page: Page,
   link: Locator,
-  expectedPath: RegExp,
-  browserName: string
+  expectedPath: RegExp
 ) {
   await expect(link).toHaveCount(1);
   const before = await detailState(page);
@@ -509,9 +570,16 @@ async function clickAndAssertFlip(
 
   await armFlipProbe(page);
   await link.evaluate((element) => {
+    const probe = (window as typeof window & {
+      __saugeFlipProbe?: {
+        capture: (phase: FlipProbeSample["phase"]) => void;
+      };
+    }).__saugeFlipProbe;
+    probe?.capture("before-click");
     element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    probe?.capture("after-click");
   });
-  await waitForRealFlip(page, before, browserName);
+  await waitForRealFlip(page, before);
   await expect(page).toHaveURL(expectedPath);
   await expect(page.getByRole("heading", { name: /HAMACHI|TRUITE/i })).toBeVisible();
   await expect.poll(async () => (await detailState(page)).currentScrollTop).toBe(0);
@@ -566,7 +634,7 @@ async function swipeAndAssertFlip(
   } else {
     await drag(page, from, to);
   }
-  await waitForRealFlip(page, before, browserName);
+  await waitForRealFlip(page, before);
   await expect(page).toHaveURL(expectedPath);
   await expect.poll(async () => (await detailState(page)).currentScrollTop).toBe(0);
   const after = await detailState(page);
@@ -656,12 +724,12 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
 
       await scrollDetailToOffset(page, viewport, 360, browserName);
       const initialUrl = page.url();
-      await clickAndAssertFlip(page, nextDishLink(page), /\/dishes\/hamachi-a-la-verveine/, browserName);
+      await clickAndAssertFlip(page, nextDishLink(page), /\/dishes\/hamachi-a-la-verveine/);
       expect(initialUrl).not.toBe(page.url());
 
       const hamachiUrl = page.url();
       await scrollDetailToOffset(page, viewport, 300, browserName);
-      await clickAndAssertFlip(page, previousDishLink(page), /\/dishes\/truite-des-laurentides/, browserName);
+      await clickAndAssertFlip(page, previousDishLink(page), /\/dishes\/truite-des-laurentides/);
       expect(hamachiUrl).not.toBe(page.url());
       await expect(page).toHaveURL(/lang=fr-CA/);
       await expect(page).toHaveURL(/currency=CAD/);
@@ -841,7 +909,7 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
       element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
     });
-    await waitForRealFlip(page, beforeDoubleNavigation, browserName);
+    await waitForRealFlip(page, beforeDoubleNavigation);
     await expect(page).toHaveURL(/\/dishes\/hamachi-a-la-verveine/);
     await expect(page).not.toHaveURL(/boeuf-cru-au-couteau/);
     await expect.poll(async () => (await detailState(page)).currentScrollTop).toBe(0);

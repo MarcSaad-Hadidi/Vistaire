@@ -153,8 +153,26 @@ test("route transitions live in the shared layout until the destination book is 
   assert.match(routeTransition, /if \(!completedRef\.current\) \{\s*completedRef\.current = true;\s*onFallback\(\);/);
 });
 
+test("awaiting destination polls frame-only readiness and has a bounded watchdog", async () => {
+  const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+
+  assert.match(coordinator, /const AWAITING_DESTINATION_TIMEOUT_MS = 6_000/);
+  assert.match(coordinator, /const pollDestinationReadiness/);
+  assert.match(
+    coordinator,
+    /readinessFrameRef\.current = window\.requestAnimationFrame\(\s*pollDestinationReadiness\s*\)/
+  );
+  assert.match(
+    coordinator,
+    /awaitingDestinationWatchdogRef\.current = window\.setTimeout/
+  );
+  assert.match(coordinator, /resolveSaugeNoireOriginalPage/);
+  assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
+});
+
 test("the real PageFlip wrapper exposes the stable-child and lifecycle controls", async () => {
   const experiment = await readFile(experimentPath, "utf8");
+  const flipPage = await readFile(flipPagePath, "utf8");
 
   assert.match(experiment, /onReady\?: \(\) => void/);
   assert.match(experiment, /onError\?: \(\) => void/);
@@ -162,7 +180,12 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /renderOnlyPageLengthChange=\{renderOnlyPageLengthChange\}/);
   assert.match(experiment, /const onReadyRef = useRef\(onReady\)/);
   assert.match(experiment, /readyScrollTop\?: number/);
-  assert.match(experiment, /data-sauge-flip-page-index=.*:not\(\[data-sauge-flip-clone\]\)/s);
+  assert.match(experiment, /resolveSaugeNoireOriginalPage/);
+  assert.match(experiment, /originalPagesRef = useRef<Map<number, HTMLElement>>/);
+  assert.doesNotMatch(experiment, /pageElements\.length !== pages\.length/);
+  assert.match(flipPage, /data-sauge-page-origin="react-original"/);
+  assert.match(flipPage, /data-sauge-page-instance-id=/);
+  assert.match(flipPage, /SAUGE_REACT_ORIGINAL_PAGE/);
   assert.match(experiment, /mainImage\.decode\(\)\.then\(finish, finish\)/);
   assert.match(experiment, /window\.setTimeout\(finish, 2_000\)/);
   assert.match(experiment, /mainImage\.getBoundingClientRect\(\)\.width <= 0/);

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { assertSaugeNoirePageIdentity } from "./support/sauge-noire-page-identity";
 
 const MENU_ROUTE = "/menu/sauge-noire?view=sauge-4&lang=fr-CA&currency=CAD&table=main&zone=terrasse";
 const DETAIL_ROUTE = "/menu/sauge-noire/dishes/canard-a-l-erable-noir?lang=fr-CA&currency=CAD&view=sauge-4&table=main&zone=terrasse";
@@ -101,13 +102,14 @@ async function openRoute(page: Page, route: string, heading: RegExp) {
   }
   await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
   await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({ timeout: 15_000 });
+  await assertSaugeNoirePageIdentity(page, `initial route ${route}`);
 }
 
 async function activeMenuLink(page: Page, selector: string): Promise<Locator> {
   const pageIndex = await page.getByTestId("sauge-noire-book").getAttribute("data-page-index");
   if (!pageIndex) throw new Error("Expected the active Sauge Noire menu page");
   return page.locator(
-    `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone]) ${selector}`
+    `[data-sauge-flip-page-index="${pageIndex}"][data-sauge-page-origin="react-original"] ${selector}`
   ).first();
 }
 
@@ -285,7 +287,65 @@ async function assertRealRouteFlip(
     )
     .toBe(true);
 
-  await expect(transition).toHaveCount(0, { timeout: 15_000 });
+  try {
+    await expect(transition).toHaveCount(0, { timeout: 15_000 });
+  } catch (error) {
+    const handoffState = await page.evaluate(() => {
+      const overlay = document.querySelector<HTMLElement>(
+        '[data-sauge-route-transition="true"]'
+      );
+      const renderer = document.querySelector<HTMLElement>(
+        '[data-sauge-route-renderer-hidden="true"]'
+      );
+      const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
+      const actualPage = viewport?.getAttribute("data-page-flip-actual-page") ?? null;
+      const activePage = actualPage === null
+        ? null
+        : viewport?.querySelector<HTMLElement>(
+            `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
+          ) ?? null;
+      return {
+        overlay: {
+          phase: overlay?.getAttribute("data-sauge-route-transition-phase") ?? null,
+          settled: overlay?.getAttribute("data-sauge-route-transition-settled") ?? null,
+          targetReached:
+            overlay?.getAttribute("data-sauge-route-transition-target-reached") ?? null
+        },
+        renderer: {
+          hidden: renderer?.getAttribute("data-sauge-route-renderer-hidden") ?? null,
+          pathname: `${location.pathname}${location.search}`
+        },
+        viewport: {
+          state: viewport?.getAttribute("data-page-flip-state") ?? null,
+          engineState: viewport?.getAttribute("data-page-flip-engine-state") ?? null,
+          currentPage: viewport?.getAttribute("data-page-flip-current-page") ?? null,
+          actualPage
+        },
+        activePage: activePage
+          ? {
+              connected: activePage.isConnected,
+              scrollTop: activePage.scrollTop,
+              clientHeight: activePage.clientHeight,
+              scrollHeight: activePage.scrollHeight,
+              images: [...activePage.querySelectorAll<HTMLImageElement>("img")].map((image) => {
+                const rect = image.getBoundingClientRect();
+                return {
+                  complete: image.complete,
+                  naturalWidth: image.naturalWidth,
+                  rect: { width: rect.width, height: rect.height },
+                  src: image.currentSrc || image.src
+                };
+              })
+            }
+          : null
+      };
+    });
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\n` +
+      `Sauge Noire handoff state: ${JSON.stringify(handoffState)}`
+    );
+  }
+  await assertSaugeNoirePageIdentity(page, `route handoff from ${initialUrl}`);
 
   const samples = await page.evaluate(() => {
     const browserWindow = window as typeof window & {
@@ -620,6 +680,302 @@ test("a broken main image cannot lock the atomic route handoff", async ({ page }
     "the broken-image fixture must not hide unrelated console failures"
   ).toBe(true);
   await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/canard-a-l-erable-noir/);
+});
+
+test("frame polling observes an image that becomes complete without a DOM mutation", async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openRoute(page, MENU_ROUTE, /CANARD|SAUGE NOIRE/i);
+  await page.evaluate(() => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      "complete"
+    );
+    if (!descriptor?.get || !descriptor.configurable) {
+      throw new Error("Expected a configurable HTMLImageElement.complete getter");
+    }
+    const state = {
+      holding: true,
+      released: false,
+      started: false,
+      releaseScheduled: false,
+      overlayAtRelease: false,
+      startedPathname: null as string | null
+    };
+    const originalGetter = descriptor.get;
+    Object.defineProperty(HTMLImageElement.prototype, "complete", {
+      ...descriptor,
+      get() {
+        if (
+          state.holding &&
+          location.pathname ===
+            "/menu/sauge-noire/dishes/canard-a-l-erable-noir" &&
+          document
+            .querySelector('[data-sauge-route-transition="true"]')
+            ?.getAttribute("data-sauge-route-transition-phase") ===
+            "awaiting-destination" &&
+          this.closest('[data-sauge-route-renderer-hidden="true"]')
+        ) {
+          state.started = true;
+          state.startedPathname = location.pathname;
+          if (!state.releaseScheduled) {
+            state.releaseScheduled = true;
+            window.setTimeout(() => {
+              state.holding = false;
+              state.released = true;
+              state.overlayAtRelease = Boolean(
+                document.querySelector('[data-sauge-route-transition="true"]')
+              );
+              Object.defineProperty(
+                HTMLImageElement.prototype,
+                "complete",
+                descriptor
+              );
+            }, 600);
+          }
+          return false;
+        }
+        return originalGetter.call(this);
+      }
+    });
+    (window as typeof window & { __saugeLateImageState?: typeof state })
+      .__saugeLateImageState = state;
+  });
+
+  const link = await activeMenuLink(page, "[data-sauge-featured-dish]");
+  const initialUrl = page.url();
+  await installRouteTransitionProbe(page);
+  await dispatchPrimaryClick(link);
+  await assertRealRouteFlip(
+    page,
+    initialUrl,
+    page.locator('[data-sauge-route-transition] article[data-transition-preview="true"]')
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & {
+          __saugeLateImageState?: {
+            overlayAtRelease: boolean;
+            released: boolean;
+            started: boolean;
+            startedPathname: string | null;
+          };
+        }).__saugeLateImageState
+    )
+  ).toMatchObject({
+    overlayAtRelease: true,
+    released: true,
+    started: true,
+    startedPathname: "/menu/sauge-noire/dishes/canard-a-l-erable-noir"
+  });
+});
+
+test("frame polling observes a late scroll reset without a DOM mutation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openRoute(page, MENU_ROUTE, /CANARD|SAUGE NOIRE/i);
+  await page.evaluate(() => {
+    const state = {
+      holding: true,
+      released: false,
+      started: false,
+      releaseScheduled: false,
+      overlayAtRelease: false,
+      startedPageIndex: null as string | null,
+      startedPathname: null as string | null
+    };
+    const holdDestinationScroll = () => {
+      const overlay = document.querySelector<HTMLElement>(
+        '[data-sauge-route-transition="true"]'
+      );
+      const destinationCommitted =
+        location.pathname ===
+          "/menu/sauge-noire/dishes/canard-a-l-erable-noir" &&
+        overlay?.getAttribute("data-sauge-route-transition-phase") ===
+          "awaiting-destination";
+      const viewport = document.querySelector<HTMLElement>(
+        '[data-sauge-route-renderer-hidden="true"] [data-page-flip-state="ready"]'
+      );
+      const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
+      const activePage = actualPage
+        ? viewport?.querySelector<HTMLElement>(
+            `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
+          )
+        : null;
+      if (destinationCommitted && activePage && state.holding) {
+        state.started = true;
+        state.startedPageIndex = actualPage ?? null;
+        state.startedPathname = location.pathname;
+        activePage.scrollTop = 48;
+        if (!state.releaseScheduled) {
+          state.releaseScheduled = true;
+          window.setTimeout(() => {
+            state.holding = false;
+            state.released = true;
+            state.overlayAtRelease = Boolean(
+              document.querySelector('[data-sauge-route-transition="true"]')
+            );
+            activePage.scrollTop = 0;
+          }, 600);
+        }
+      }
+      if (state.holding) requestAnimationFrame(holdDestinationScroll);
+    };
+    requestAnimationFrame(holdDestinationScroll);
+    (window as typeof window & { __saugeLateScrollState?: typeof state })
+      .__saugeLateScrollState = state;
+  });
+
+  const link = await activeMenuLink(page, "[data-sauge-featured-dish]");
+  const initialUrl = page.url();
+  await installRouteTransitionProbe(page);
+  await dispatchPrimaryClick(link);
+  await assertRealRouteFlip(
+    page,
+    initialUrl,
+    page.locator('[data-sauge-route-transition] article[data-transition-preview="true"]')
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & {
+          __saugeLateScrollState?: {
+            overlayAtRelease: boolean;
+            released: boolean;
+            started: boolean;
+            startedPageIndex: string | null;
+            startedPathname: string | null;
+          };
+        }).__saugeLateScrollState
+    )
+  ).toMatchObject({
+    overlayAtRelease: true,
+    released: true,
+    started: true,
+    startedPageIndex: "1",
+    startedPathname: "/menu/sauge-noire/dishes/canard-a-l-erable-noir"
+  });
+});
+
+test("the awaiting-destination watchdog resolves when readiness cannot be accepted", async ({
+  page
+}) => {
+  test.setTimeout(30_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openRoute(page, MENU_ROUTE, /CANARD|SAUGE NOIRE/i);
+  await page.evaluate(() => {
+    const originalGetAttribute = Element.prototype.getAttribute;
+    const state = { forcedReads: 0 };
+    Element.prototype.getAttribute = function patchedGetAttribute(name: string) {
+      if (
+        name === "data-page-flip-engine-state" &&
+        this instanceof HTMLElement &&
+        this.closest('[data-sauge-route-renderer-hidden="true"]')
+      ) {
+        state.forcedReads += 1;
+        return "flipping";
+      }
+      return originalGetAttribute.call(this, name);
+    };
+    (window as typeof window & { __saugeWatchdogState?: typeof state })
+      .__saugeWatchdogState = state;
+  });
+
+  const link = await activeMenuLink(page, "[data-sauge-featured-dish]");
+  await installRouteTransitionProbe(page);
+  await dispatchPrimaryClick(link);
+  const transition = page.locator('[data-sauge-route-transition="true"]');
+  await expect(transition).toHaveAttribute(
+    "data-sauge-route-transition-phase",
+    "awaiting-destination",
+    { timeout: 10_000 }
+  );
+  await page.waitForTimeout(5_200);
+  await expect(transition).toHaveCount(1);
+  await expect(transition).toHaveCount(0, {
+    timeout: 3_000
+  });
+  const samples = await page.evaluate(() => {
+    const browserWindow = window as typeof window & {
+      __saugeRouteTransitionObserver?: MutationObserver;
+      __saugeRouteTransitionSamples?: RouteTransitionSample[];
+    };
+    browserWindow.__saugeRouteTransitionObserver?.disconnect();
+    return browserWindow.__saugeRouteTransitionSamples ?? [];
+  });
+  const awaitingSample = samples.find(
+    (sample) => sample.overlay && sample.phase === "awaiting-destination"
+  );
+  const handoffSample = samples.find(
+    (sample) =>
+      awaitingSample !== undefined &&
+      sample.timestamp >= awaitingSample.timestamp &&
+      !sample.overlay
+  );
+  expect(awaitingSample, "the probe must observe awaiting-destination").toBeDefined();
+  expect(handoffSample, "the probe must observe watchdog handoff").toBeDefined();
+  const watchdogDuration =
+    handoffSample!.timestamp - awaitingSample!.timestamp;
+  expect(watchdogDuration).toBeGreaterThanOrEqual(5_000);
+  expect(watchdogDuration).toBeLessThanOrEqual(8_000);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & {
+          __saugeWatchdogState?: { forcedReads: number };
+        }).__saugeWatchdogState?.forcedReads ?? 0
+    )
+  ).toBeGreaterThan(0);
+});
+
+test("the watchdog hard navigates when the client destination never commits", async ({
+  page
+}) => {
+  test.setTimeout(35_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openRoute(page, MENU_ROUTE, /CANARD|SAUGE NOIRE/i);
+
+  let blockedDestinationRscRequests = 0;
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const isDestinationRsc =
+      url.pathname === "/menu/sauge-noire/dishes/canard-a-l-erable-noir" &&
+      (
+        url.searchParams.has("_rsc") ||
+        request.headers().rsc === "1"
+      );
+    if (!isDestinationRsc) {
+      await route.continue();
+      return;
+    }
+
+    blockedDestinationRscRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
+    await route.abort().catch(() => undefined);
+  });
+
+  const link = await activeMenuLink(page, "[data-sauge-featured-dish]");
+  await dispatchPrimaryClick(link);
+  const transition = page.locator('[data-sauge-route-transition="true"]');
+  await expect(transition).toHaveAttribute(
+    "data-sauge-route-transition-phase",
+    "awaiting-destination",
+    { timeout: 10_000 }
+  );
+  await expect(page).toHaveURL(/\/menu\/sauge-noire\?/, { timeout: 5_000 });
+  await expect(page).toHaveURL(
+    /\/menu\/sauge-noire\/dishes\/canard-a-l-erable-noir/,
+    { timeout: 10_000 }
+  );
+  expect(
+    blockedDestinationRscRequests,
+    "the fixture must stall at least one client RSC navigation"
+  ).toBeGreaterThan(0);
+  await expect(page.locator('[data-page-flip-state="ready"]')).toBeVisible({
+    timeout: 15_000
+  });
 });
 
 for (const intent of [

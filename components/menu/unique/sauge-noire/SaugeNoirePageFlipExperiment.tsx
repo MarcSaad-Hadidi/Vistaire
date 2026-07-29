@@ -9,10 +9,15 @@ import {
   type TouchEvent as ReactTouchEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState
 } from "react";
 import styles from "./SaugeNoireBookMenu.module.css";
+import {
+  resolveSaugeNoireOriginalPage,
+  SaugeNoireOriginalPageRegistryContext
+} from "./SaugeNoireFlipPage";
 
 type PageFlipApi = {
   getCurrentPageIndex: () => number;
@@ -179,7 +184,7 @@ export function SaugeNoirePageFlipExperiment({
 }: SaugeNoirePageFlipExperimentProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<PageFlipHandle>(null);
-  const originalPagesRef = useRef<Set<HTMLElement>>(new Set());
+  const originalPagesRef = useRef<Map<number, HTMLElement>>(new Map());
   const readyBookKeyRef = useRef<string | null>(null);
   const requestedPageIndexRef = useRef<number | null>(null);
   const animationTargetPageRef = useRef<number | null>(null);
@@ -216,6 +221,25 @@ export function SaugeNoirePageFlipExperiment({
   // measurement. PageFlip can recalculate its bounds in place on resize.
   const bookKey = resetKey === undefined ? "sauge-main-book" : `sauge-book-${resetKey}`;
   const bookIsReady = bookKey !== null && readyBookKey === bookKey;
+  const originalPageRegistry = useMemo(
+    () => ({
+      bookId: bookKey,
+      register: (index: number, element: HTMLElement) => {
+        originalPagesRef.current.set(index, element);
+        element.setAttribute("data-sauge-page-origin", "react-original");
+        element.removeAttribute("data-sauge-flip-clone");
+        element.removeAttribute("data-sauge-page-clone-reason");
+        element.removeAttribute("aria-hidden");
+        element.removeAttribute("inert");
+      },
+      unregister: (index: number, element: HTMLElement) => {
+        if (originalPagesRef.current.get(index) === element) {
+          originalPagesRef.current.delete(index);
+        }
+      }
+    }),
+    [bookKey]
+  );
 
   useEffect(() => {
     dimensionsRef.current = dimensions;
@@ -234,9 +258,9 @@ export function SaugeNoirePageFlipExperiment({
     const verifyReadyPage = async () => {
       const viewport = viewportRef.current;
       const pageFlip = bookRef.current?.pageFlip();
-      const activePage = viewport?.querySelector<HTMLElement>(
-        `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone])`
-      );
+      const activePage = viewport
+        ? resolveSaugeNoireOriginalPage(viewport, pageIndex)
+        : null;
 
       if (
         !viewport ||
@@ -371,22 +395,6 @@ export function SaugeNoirePageFlipExperiment({
     updatePageFlipBounds();
   }, [dimensions, updatePageFlipBounds]);
 
-  const captureOriginalPages = useCallback(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    const pageElements = Array.from(
-      viewport.querySelectorAll<HTMLElement>("[data-sauge-flip-page-index]")
-    );
-    if (pageElements.length !== pages.length) return;
-
-    const currentElements = new Set(pageElements);
-    const currentSetStillMatches =
-      originalPagesRef.current.size === pageElements.length &&
-      Array.from(originalPagesRef.current).every((element) => currentElements.has(element));
-    if (!currentSetStillMatches) originalPagesRef.current = currentElements;
-  }, [pages.length]);
-
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -448,10 +456,23 @@ export function SaugeNoirePageFlipExperiment({
     if (!viewport || dimensions === null || !bookIsReady || failed) return;
 
     const markClones = () => {
-      captureOriginalPages();
-      viewport.querySelectorAll<HTMLElement>(".stf__item").forEach((page) => {
-        if (originalPagesRef.current.has(page)) return;
+      viewport
+        .querySelectorAll<HTMLElement>(".stf__item[data-sauge-flip-page-index]")
+        .forEach((page) => {
+        const pageIndex = Number(page.getAttribute("data-sauge-flip-page-index"));
+        const originalPage = originalPagesRef.current.get(pageIndex);
+        if (!originalPage) return;
+        if (page === originalPage) {
+          page.setAttribute("data-sauge-page-origin", "react-original");
+          page.removeAttribute("data-sauge-flip-clone");
+          page.removeAttribute("data-sauge-page-clone-reason");
+          page.removeAttribute("aria-hidden");
+          page.removeAttribute("inert");
+          return;
+        }
         page.setAttribute("data-sauge-flip-clone", "true");
+        page.setAttribute("data-sauge-page-origin", "pageflip-clone");
+        page.setAttribute("data-sauge-page-clone-reason", "dom-reference-mismatch");
         page.setAttribute("aria-hidden", "true");
         page.setAttribute("inert", "");
         page.querySelectorAll<HTMLElement>("button, a, input, select, textarea, [tabindex]").forEach(
@@ -464,7 +485,7 @@ export function SaugeNoirePageFlipExperiment({
     const observer = new MutationObserver(markClones);
     observer.observe(viewport, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [bookIsReady, captureOriginalPages, dimensions, failed]);
+  }, [bookIsReady, dimensions, failed]);
 
   useEffect(() => {
     const pageFlip = bookRef.current?.pageFlip();
@@ -686,7 +707,6 @@ export function SaugeNoirePageFlipExperiment({
     setReadyBookKey(bookKey);
     appliedDimensionKeyRef.current = null;
     appliedDimensionsRef.current = dimensionsRef.current;
-    captureOriginalPages();
   };
 
   const handleChangeState = useCallback((event: PageFlipEvent) => {
@@ -914,15 +934,16 @@ export function SaugeNoirePageFlipExperiment({
             else element.setAttribute("inert", "");
           }}
         >
-          <PageFlipErrorBoundary
-            fallback={fallback}
-            onError={() => {
-              setFailed(true);
-              setReadyBookKey(null);
-              onError?.();
-            }}
-          >
-            <HTMLFlipBook
+          <SaugeNoireOriginalPageRegistryContext.Provider value={originalPageRegistry}>
+            <PageFlipErrorBoundary
+              fallback={fallback}
+              onError={() => {
+                setFailed(true);
+                setReadyBookKey(null);
+                onError?.();
+              }}
+            >
+              <HTMLFlipBook
               key={bookKey ?? undefined}
               ref={bookRef}
               // PageFlip adds `.stf__parent` to this root. Keep React's class
@@ -958,10 +979,11 @@ export function SaugeNoirePageFlipExperiment({
               onFlip={handleFlip}
               onChangeState={handleChangeState}
               onInit={handleInit}
-            >
-              {pages}
-            </HTMLFlipBook>
-          </PageFlipErrorBoundary>
+              >
+                {pages}
+              </HTMLFlipBook>
+            </PageFlipErrorBoundary>
+          </SaugeNoireOriginalPageRegistryContext.Provider>
         </div>
       ) : null}
       {shouldShowTransientFallback ? (

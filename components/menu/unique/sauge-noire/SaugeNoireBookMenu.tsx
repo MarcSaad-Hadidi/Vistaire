@@ -24,6 +24,8 @@ import {
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
 import {
+  isSaugeNoireOriginalPage,
+  resolveSaugeNoireOriginalPage,
   SaugeNoireFlipPage,
   type SaugeNoireFlipPageDensity
 } from "./SaugeNoireFlipPage";
@@ -403,9 +405,9 @@ export function SaugeNoireBookMenu({
 
   useEffect(() => {
     paperRef.current?.scrollTo({ top: 0, behavior: "auto" });
-    const activeFlipPage = paperRef.current?.querySelector<HTMLElement>(
-      `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone])`
-    );
+    const activeFlipPage = paperRef.current
+      ? resolveSaugeNoireOriginalPage(paperRef.current, pageIndex)
+      : null;
     activeFlipPage?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [pageIndex]);
@@ -572,8 +574,9 @@ export function SaugeNoireBookMenu({
     if (pageFlipState !== "ready") return;
 
     const currentPageElement = event.currentTarget.closest<HTMLElement>(
-      '[data-sauge-flip-page-index]:not([data-sauge-flip-clone])'
+      "[data-sauge-flip-page-index]"
     );
+    if (!currentPageElement || !isSaugeNoireOriginalPage(currentPageElement)) return;
     const currentPageIndex = Number(currentPageElement?.getAttribute("data-sauge-flip-page-index"));
     const currentPage = pages[currentPageIndex];
     if (!currentPage || currentPage.kind !== "section") return;
@@ -666,9 +669,12 @@ export function SaugeNoireBookMenu({
             className={styles.backToTop}
             onClick={() => {
               paperRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-              const activePage = paperRef.current?.querySelector<HTMLElement>(
-                `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone]), .${styles.pageFlipFallback}`
-              );
+              const activePage = paperRef.current
+                ? resolveSaugeNoireOriginalPage(paperRef.current, pageIndex) ??
+                  paperRef.current.querySelector<HTMLElement>(
+                    `.${styles.pageFlipFallback}`
+                  )
+                : null;
               activePage?.scrollTo({ top: 0, behavior: "smooth" });
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}

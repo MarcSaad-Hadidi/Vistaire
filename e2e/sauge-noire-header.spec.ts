@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { assertSaugeNoirePageIdentity } from "./support/sauge-noire-page-identity";
 
 const MENU_ROUTE = "/menu/sauge-noire?view=sauge-4&lang=fr-CA&currency=CAD";
 const CONTENTS_ROUTE = "/menu/sauge-noire?view=sauge-1&lang=fr-CA&currency=CAD";
@@ -653,20 +654,73 @@ test("Sauge Noire contents controls animate to the selected sheet", async ({ pag
   await page.waitForURL(/view=sauge-1/);
   await expect(page.locator('[data-page-kind="contents"]')).toBeVisible({ timeout: 10_000 });
 
+  await page.evaluate(() => {
+    const viewport = document.querySelector<HTMLElement>("[data-page-flip-state]");
+    if (!viewport) throw new Error("Expected a Sauge Noire PageFlip viewport");
+    const probe = {
+      actualPages: [] as number[],
+      states: [] as string[],
+      observer: null as MutationObserver | null
+    };
+    const capture = () => {
+      const actualPage = Number(
+        viewport.getAttribute("data-page-flip-actual-page")
+      );
+      const state = viewport.getAttribute("data-page-flip-engine-state") ?? "";
+      if (
+        Number.isInteger(actualPage) &&
+        probe.actualPages.at(-1) !== actualPage
+      ) {
+        probe.actualPages.push(actualPage);
+      }
+      if (state && probe.states.at(-1) !== state) probe.states.push(state);
+    };
+    capture();
+    probe.observer = new MutationObserver(capture);
+    probe.observer.observe(viewport, {
+      attributes: true,
+      attributeFilter: [
+        "data-page-flip-actual-page",
+        "data-page-flip-engine-state"
+      ]
+    });
+    (window as typeof window & { __saugeHeaderContentsProbe?: typeof probe })
+      .__saugeHeaderContentsProbe = probe;
+  });
   await page.getByRole("button", { name: /À côté & desserts 05/i }).click();
   await page.waitForURL(/view=sauge-6/);
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() =>
-          [...document.querySelectorAll(".stf__item")].some((element) => {
-            const style = getComputedStyle(element);
-            return style.transform !== "none" || style.opacity !== "1";
-          })
-        ),
-      { timeout: 3_000 }
-    )
-    .toBe(true);
+  const viewport = page.locator('[data-page-flip-state="ready"]');
+  await expect(viewport).toHaveAttribute("data-page-flip-actual-page", "6", {
+    timeout: 15_000
+  });
+  await expect(viewport).toHaveAttribute("data-page-flip-current-page", "6");
+  await expect(viewport).toHaveAttribute("data-page-flip-engine-state", "read");
+  const probe = await page.evaluate(() => {
+    const contentsProbe = (
+      window as typeof window & {
+        __saugeHeaderContentsProbe?: {
+          actualPages: number[];
+          states: string[];
+          observer: MutationObserver | null;
+        };
+      }
+    ).__saugeHeaderContentsProbe;
+    if (!contentsProbe) throw new Error("Expected the contents PageFlip probe");
+    contentsProbe.observer?.disconnect();
+    return {
+      actualPages: contentsProbe.actualPages,
+      states: contentsProbe.states
+    };
+  });
+  expect(probe.states).toContain("flipping");
+  expect(probe.states.at(-1)).toBe("read");
+  expect(probe.actualPages.at(0)).toBe(1);
+  expect(probe.actualPages.at(-1)).toBe(6);
+  expect(
+    probe.actualPages.some((pageIndex) => pageIndex > 1 && pageIndex < 6),
+    "the contents jump must traverse a real intermediate physical sheet"
+  ).toBe(true);
+  await assertSaugeNoirePageIdentity(page, "contents jump to page 6");
   await expect(page.getByRole("heading", { name: "À CÔTÉ & DESSERTS" })).toBeVisible({ timeout: 10_000 });
 });
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { assertSaugeNoirePageIdentity } from "./support/sauge-noire-page-identity";
 
 const COVER_ROUTE = "/menu/sauge-noire?view=sauge-0&lang=fr-CA&currency=CAD";
 
@@ -18,6 +19,41 @@ type ContentsJumpProbe = {
   sameRoot: boolean;
   fallbackVisible: boolean;
 };
+
+async function installEarlyIndexedClone(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    const querySelectorAll = Element.prototype.querySelectorAll;
+    const injectedViewports = new WeakSet<Element>();
+
+    Element.prototype.querySelectorAll = function patchedQuerySelectorAll(
+      selectors: string
+    ) {
+      const isOriginalPageScan =
+        selectors === "[data-sauge-flip-page-index]" ||
+        selectors === ".stf__item[data-sauge-flip-page-index]";
+      if (
+        isOriginalPageScan &&
+        this instanceof HTMLElement &&
+        this.hasAttribute("data-page-flip-state") &&
+        !injectedViewports.has(this)
+      ) {
+        const pages = querySelectorAll.call(
+          this,
+          "[data-sauge-flip-page-index]"
+        ) as NodeListOf<HTMLElement>;
+        const firstPage = pages.item(0);
+        if (firstPage) {
+          injectedViewports.add(this);
+          const earlyClone = firstPage.cloneNode(true) as HTMLElement;
+          earlyClone.setAttribute("data-sauge-test-early-clone", "true");
+          this.appendChild(earlyClone);
+        }
+      }
+
+      return querySelectorAll.call(this, selectors);
+    };
+  });
+}
 
 async function installLifecycleProbe(page: import("@playwright/test").Page) {
   await page.evaluate(() => {
@@ -183,6 +219,62 @@ async function readContentsJumpProbe(
   });
 }
 
+test("keeps the React original authoritative when an indexed clone precedes capture", async ({
+  page
+}) => {
+  await installEarlyIndexedClone(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(COVER_ROUTE, { waitUntil: "domcontentloaded" });
+
+  const viewport = page.locator("[data-page-flip-state]").first();
+  await expect(viewport).toHaveAttribute("data-page-flip-state", "ready", {
+    timeout: 15_000
+  });
+  await expect(viewport.locator("[data-sauge-test-early-clone]")).toHaveCount(1);
+  await assertSaugeNoirePageIdentity(page, "early indexed clone");
+
+  const identity = await viewport.evaluate((element) => {
+    const pages = [...element.querySelectorAll<HTMLElement>(
+      ".stf__item[data-sauge-flip-page-index]"
+    )];
+    const indexes = [...new Set(
+      pages.map((page) => page.getAttribute("data-sauge-flip-page-index"))
+    )].filter((index): index is string => index !== null);
+
+    return indexes.map((index) => {
+      const indexedPages = pages.filter(
+        (page) => page.getAttribute("data-sauge-flip-page-index") === index
+      );
+      const originals = indexedPages.filter(
+        (page) => page.getAttribute("data-sauge-page-origin") === "react-original"
+      );
+      return {
+        index,
+        unclassifiedPages: indexedPages.filter(
+          (page) => !page.hasAttribute("data-sauge-flip-clone")
+        ).length,
+        originals: originals.length,
+        originalIsClone: originals.some((page) =>
+          page.hasAttribute("data-sauge-flip-clone")
+        ),
+        originalIsHidden: originals.some(
+          (page) => page.getAttribute("aria-hidden") === "true"
+        ),
+        originalIsInert: originals.some((page) => page.hasAttribute("inert"))
+      };
+    });
+  });
+
+  expect(identity.length).toBeGreaterThan(0);
+  for (const pageIdentity of identity) {
+    expect(pageIdentity.unclassifiedPages, `index ${pageIdentity.index}`).toBe(1);
+    expect(pageIdentity.originals, `index ${pageIdentity.index}`).toBe(1);
+    expect(pageIdentity.originalIsClone, `index ${pageIdentity.index}`).toBe(false);
+    expect(pageIdentity.originalIsHidden, `index ${pageIdentity.index}`).toBe(false);
+    expect(pageIdentity.originalIsInert, `index ${pageIdentity.index}`).toBe(false);
+  }
+});
+
 for (const viewport of [
   { width: 390, height: 844 },
   { width: 430, height: 932 }
@@ -206,6 +298,10 @@ for (const viewport of [
     await expect(readyViewport).toHaveAttribute("data-page-flip-engine-state", "read", {
       timeout: 15_000
     });
+    await assertSaugeNoirePageIdentity(
+      page,
+      `${viewport.width}px after viewport resize`
+    );
 
     const probe = await readLifecycleProbe(page);
     expect(probe.states.filter((state) => state === "flipping")).toHaveLength(1);
