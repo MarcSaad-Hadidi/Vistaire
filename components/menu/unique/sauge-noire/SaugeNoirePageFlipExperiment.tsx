@@ -765,6 +765,37 @@ export function SaugeNoirePageFlipExperiment({
         });
       }
     }
+    if (
+      state === "read" &&
+      !singleFlipJump &&
+      animationTargetPageRef.current !== null
+    ) {
+      window.requestAnimationFrame(() => {
+        const pageFlip = bookRef.current?.pageFlip();
+        const targetPage = animationTargetPageRef.current;
+        if (
+          !pageFlip ||
+          targetPage === null ||
+          pageFlip.getState() !== "read"
+        ) {
+          return;
+        }
+
+        const currentPage = pageFlip.getCurrentPageIndex();
+        if (currentPage === targetPage) {
+          requestedPageIndexRef.current = null;
+          animationTargetPageRef.current = null;
+          return;
+        }
+
+        requestedPageIndexRef.current = targetPage;
+        if (targetPage > currentPage) {
+          pageFlip.flipNext();
+        } else {
+          pageFlip.flipPrev();
+        }
+      });
+    }
     if (state === "read" && pendingStructuralDimensionsRef.current) {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(updatePageFlipBounds);
