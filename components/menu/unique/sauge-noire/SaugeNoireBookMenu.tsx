@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { flushSync } from "react-dom";
 import type { Locale } from "@/lib/i18n";
 import {
   formatMenuPrice,
@@ -491,7 +492,9 @@ export function SaugeNoireBookMenu({
       menu.settings
     );
     activeCurrencyRef.current = normalizedCurrency;
-    setActiveCurrency(normalizedCurrency);
+    flushSync(() => {
+      setActiveCurrency(normalizedCurrency);
+    });
     updatePreference({ currency: normalizedCurrency });
   }, [menu.settings, updatePreference]);
 

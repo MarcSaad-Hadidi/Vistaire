@@ -112,7 +112,9 @@ async function main() {
               ? {
                   NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
                   SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
-                  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+                  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+                  VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
+                    '{"CAD":1,"USD":0.72,"EUR":0.6225}'
                 }
               : {}),
             CLERK_SECRET_KEY: LOCAL_E2E_CLERK_SECRET_KEY,
