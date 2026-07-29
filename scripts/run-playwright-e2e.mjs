@@ -31,6 +31,8 @@ const includesSaugeNoireBrowserFlow = process.argv
   .some((argument) =>
     /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
   );
+const useDevelopmentServer =
+  useLocalDemoServer || includesSaugeNoireBrowserFlow;
 const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 
 function waitForServer(url, timeoutMs = 120_000) {
@@ -97,7 +99,7 @@ async function main() {
         process.execPath,
         [
           "./node_modules/next/dist/bin/next",
-          useLocalDemoServer ? "dev" : "start",
+          useDevelopmentServer ? "dev" : "start",
           "-p",
           port,
           "-H",

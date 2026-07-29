@@ -37,7 +37,11 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   assert.match(runner, /NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:/);
   assert.match(runner, /CLERK_SECRET_KEY:\s*LOCAL_E2E_CLERK_SECRET_KEY/);
   assert.match(runner, /includes\("e2e\/ci-smoke\.spec\.ts"\)/);
-  assert.match(runner, /useLocalDemoServer \? "dev" : "start"/);
+  assert.match(
+    runner,
+    /const useDevelopmentServer =\s*useLocalDemoServer \|\| includesSaugeNoireBrowserFlow/
+  );
+  assert.match(runner, /useDevelopmentServer \? "dev" : "start"/);
   assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
   assert.match(runner, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.doesNotMatch(runner, /vistaire-owner-e2e-local-token/);
@@ -111,10 +115,11 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   assert.doesNotMatch(workflow, /e2e\/admin-restaurant-dashboard\.spec\.ts/);
 });
 
-test("App CI keeps deterministic checks blocking without the Sauge Noire browser matrix", async () => {
-  const [workflow, packageJson] = await Promise.all([
+test("App CI keeps deterministic checks blocking with one Sauge Noire Chromium smoke", async () => {
+  const [workflow, packageJson, smoke] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
-    source("package.json")
+    source("package.json"),
+    source("e2e/sauge-noire-critical-smoke.spec.ts")
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
@@ -125,12 +130,29 @@ test("App CI keeps deterministic checks blocking without the Sauge Noire browser
     /name: App CI\s+if: \$\{\{ always\(\) \}\}\s+needs:\s+- checks\s+runs-on:/
   );
   assert.match(workflow, /CHECKS_RESULT:\s*\$\{\{ needs\.checks\.result \}\}/);
+  assert.equal(
+    scripts["test:sauge-noire:smoke"],
+    "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-critical-smoke.spec.ts --project=chromium --workers=1 --retries=0"
+  );
+  assert.match(
+    workflow,
+    /- name: Sauge Noire critical smoke\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:smoke/
+  );
+  assert.ok(
+    workflow.indexOf("run: npm run build") <
+      workflow.indexOf("run: npm run test:sauge-noire:smoke"),
+    "the built Next server must exist before the Sauge Noire smoke starts"
+  );
   assert.doesNotMatch(
     workflow,
     /unique_menu_e2e|Unique menu E2E|test:unique-menu-design:e2e|sauge-noire-(?:header|dish-detail|first-gesture-scroll|route-transitions|pageflip-lifecycle|static-pages-responsive)\.spec\.ts/
   );
   assert.doesNotMatch(workflow, /continue-on-error/);
   assert.equal(scripts["test:unique-menu-design:e2e"], undefined);
+  assert.doesNotMatch(
+    smoke,
+    /\.stf__item|touchstart|touchmove|PageDown|scrollBy|waitForTimeout|data-sauge-route-transition/
+  );
 });
 
 test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {

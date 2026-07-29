@@ -35,9 +35,11 @@ Use browser DevTools or Playwright for routes affected by the task. Common smoke
 - Report iPhone Safari Quick Look and Android Scene Viewer as verified only when tested on real devices.
 
 ## Playwright
-`npm run test:e2e` uses `npm run start`, so build first unless testing against an already running compatible server. Keep Playwright out of default CI until the route suite is stable enough for required checks.
+`npm run test:e2e` uses `npm run start`, so build first unless testing against an already running compatible server. Keep broad or diagnostic Playwright suites out of default CI until they are stable enough for required checks.
 
 ### Sauge Noire
+`npm run test:sauge-noire:smoke` vérifie dans Chromium les routes critiques déterministes : ouverture d'une section, menu vers fiche puis retour, plat suivant/précédent et montage de la 3D après intention utilisateur. Les anciennes suites diagnostiques basées sur les gestes synthétiques, les phases PageFlip, les transforms ou les timings précis ne doivent pas être restaurées.
+
 Les corrections visuelles Sauge Noire peuvent être validées avec une Preview Vercel, un vrai appareil contrôlé par le propriétaire, puis `npm run lint`, `npm run typecheck` et `npm run build`. Le propriétaire vérifie manuellement le défilement, PageFlip, la typographie, la devise, la traduction et le responsive, notamment à 390 px et 430 px. Ces vérifications manuelles ne doivent pas être présentées comme une validation GitHub Actions.
 
 Un nouveau test E2E n'est pas obligatoire pour chaque correction. Un scénario E2E Sauge Noire ne devient bloquant que s'il vérifie un résultat utilisateur déterministe, se reproduit en CI, réussit cinq fois de suite localement et n'utilise ni geste tactile synthétique trompeur, ni assertion sur une frame, une phase ou un état transitoire exact de PageFlip.

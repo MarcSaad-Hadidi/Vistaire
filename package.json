@@ -43,6 +43,7 @@
     "3d:quality-report": "node scripts/3d/quality-report.mjs",
     "test:smoke": "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts",
     "test:smoke:bootstrap": "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts",
+    "test:sauge-noire:smoke": "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-critical-smoke.spec.ts --project=chromium --workers=1 --retries=0",
     "test:seo": "node --test tests/bilingual-seo.test.mjs tests/seo-foundation.test.mjs tests/seo-geo-pages.test.mjs tests/seo-pillar-animations.test.mjs tests/seo-public-content.test.mjs",
     "test:admin": "node scripts/run-admin-tests.mjs",
     "test:admin:qr": "node scripts/run-admin-qr-e2e.mjs",
