@@ -112,7 +112,7 @@ async function activeMenuLink(page: Page, selector: string): Promise<Locator> {
   const pageIndex = await page.getByTestId("sauge-noire-book").getAttribute("data-page-index");
   if (!pageIndex) throw new Error("Expected the active Sauge Noire menu page");
   return page.locator(
-    `[data-sauge-flip-page-index="${pageIndex}"][data-sauge-page-origin="react-original"] ${selector}`
+    `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${pageIndex}"] ${selector}`
   ).first();
 }
 
@@ -172,8 +172,12 @@ async function installRouteTransitionProbe(page: Page) {
       const actualPage =
         destinationEngine?.getAttribute("data-page-flip-actual-page") ?? targetPage;
       const visualRoot = overlay ?? renderer ?? document.body;
+      const canonicalSurface = visualRoot.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+      );
       const activeSheet =
         settledSurface ??
+        canonicalSurface ??
         (actualPage === null
           ? null
           : visualRoot.querySelector<HTMLElement>(
@@ -204,6 +208,7 @@ async function installRouteTransitionProbe(page: Page) {
         timestamp: performance.now(),
         engineRect: rectSnapshot(
           settledSurface ??
+            canonicalSurface ??
             destinationEngine?.querySelector(".stf__parent") ??
             visualRoot.querySelector(".stf__parent")
         ),
@@ -343,11 +348,10 @@ async function assertRealRouteFlip(
       );
       const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
       const actualPage = viewport?.getAttribute("data-page-flip-actual-page") ?? null;
-      const activePage = actualPage === null
-        ? null
-        : viewport?.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index="${actualPage}"]:not([data-sauge-flip-clone])`
-          ) ?? null;
+      const activePage =
+        renderer?.querySelector<HTMLElement>(
+          '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+        ) ?? null;
       return {
         overlay: {
           phase: overlay?.getAttribute("data-sauge-route-transition-phase") ?? null,
@@ -499,12 +503,15 @@ async function assertRealRouteFlip(
   expect(
     transitionTimeline.every((sample) => {
       if (!sample.overlay) {
-        return sample.visibleEngines === 1 && sample.visibleSettledSurfaces === 0;
+        return sample.visibleEngines === 0 && sample.visibleSettledSurfaces === 0;
       }
       if (sample.phase === "awaiting-destination") {
         return sample.visibleEngines === 0 && sample.visibleSettledSurfaces === 1;
       }
-      return sample.visibleEngines === 1 && sample.visibleSettledSurfaces === 0;
+      if (sample.phase === "animating") {
+        return sample.visibleEngines === 1 && sample.visibleSettledSurfaces === 0;
+      }
+      return sample.visibleEngines === 0 && sample.visibleSettledSurfaces === 0;
     }),
     "PageFlip must own animation only; the settled surface must own awaiting-destination"
   ).toBe(true);
@@ -608,7 +615,7 @@ async function assertRealRouteFlip(
 async function scrollActiveSheet(page: Page, amount: number) {
   await page.evaluate((target) => {
     const activePage = document.querySelector<HTMLElement>(
-      '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone]):has(article)'
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]:has(article)'
     );
     if (!activePage) throw new Error("Expected an active Sauge Noire sheet");
     activePage.scrollTop = Math.min(target, activePage.scrollHeight - activePage.clientHeight);
@@ -641,7 +648,7 @@ for (const viewport of [
     await expect(page).toHaveURL(/zone=terrasse/);
     await expect.poll(async () => {
       return page.locator(
-        '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone])'
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
       ).filter({ has: page.locator('article:not([data-transition-preview="true"])') }).first().evaluate(
         (element) => element.scrollTop
       );
@@ -672,7 +679,7 @@ for (const viewport of [
 
     const initialUrl = page.url();
     const backLink = page.locator(
-      '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone]) article:not([data-transition-preview="true"]) a'
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] article:not([data-transition-preview="true"]) a'
     ).first();
     await installRouteTransitionProbe(page);
     await dispatchPrimaryClick(backLink);
@@ -854,18 +861,13 @@ test("frame polling corrects a late hidden destination scroll mismatch", async (
           "/menu/sauge-noire/dishes/canard-a-l-erable-noir" &&
         overlay?.getAttribute("data-sauge-route-transition-phase") ===
           "awaiting-destination";
-      const viewport = document.querySelector<HTMLElement>(
-        '[data-sauge-route-renderer-hidden="true"] [data-page-flip-state="ready"]'
+      const activePage = document.querySelector<HTMLElement>(
+        '[data-sauge-route-renderer-hidden="true"] [data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
       );
-      const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
-      const activePage = actualPage
-        ? viewport?.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
-          )
-        : null;
       if (destinationCommitted && activePage) {
         state.started = true;
-        state.startedPageIndex = actualPage ?? null;
+        state.startedPageIndex =
+          activePage.getAttribute("data-sauge-reading-page-index");
         state.startedPathname = location.pathname;
         activePage.scrollTop = 48;
         return;
@@ -907,12 +909,11 @@ test("frame polling corrects a late hidden destination scroll mismatch", async (
       const viewport = document.querySelector<HTMLElement>(
         '[data-page-flip-state="ready"]'
       );
-      const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
-      return actualPage
-        ? viewport?.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
-          )?.scrollTop ?? -1
-        : -1;
+      return viewport
+        ?.querySelector<HTMLElement>(
+          '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+        )
+        ?.scrollTop ?? -1;
     })
   ).toBe(0);
 });
@@ -935,13 +936,12 @@ for (const slowTransition of [
     link: async (page: Page) =>
       page
         .locator(
-          '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone]) article:not([data-transition-preview="true"]) a'
+          '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] article:not([data-transition-preview="true"]) a'
         )
         .first()
   }
 ]) {
   test(`slow RSC keeps the ${slowTransition.name} destination preview scrollable and preserves its scroll`, async ({
-    browserName,
     page
   }) => {
     test.setTimeout(90_000);
@@ -1023,8 +1023,18 @@ for (const slowTransition of [
         await expect(target).toBeAttached();
         expect(
           await target.locator(":scope > *").evaluateAll((children) =>
-            children.every((child) => child.hasAttribute("inert"))
+            children.every((child) => !child.hasAttribute("inert"))
           )
+        ).toBe(true);
+        expect(
+          await target
+            .locator("a, button, input, select, textarea")
+            .evaluateAll((controls) =>
+              controls.every(
+                (control) =>
+                  getComputedStyle(control as HTMLElement).pointerEvents === "none"
+              )
+            )
         ).toBe(true);
         const beforeState = await target.evaluate((element) => {
           const measurable = (selector: string) =>
@@ -1042,7 +1052,14 @@ for (const slowTransition of [
           const ownerRect = element.getBoundingClientRect();
           const originalScrollTop = element.scrollTop;
           const probe = (role: string, node: HTMLElement | null) => {
-            if (!node) return { role, present: false, topmostIsOwner: false, ownerInStack: false };
+            if (!node) {
+              return {
+                role,
+                present: false,
+                topmostBelongsToOwner: false,
+                ownerInStack: false
+              };
+            }
             const initialRect = node.getBoundingClientRect();
             const ownerCenter = ownerRect.top + ownerRect.height / 2;
             const initialCenter = initialRect.top + initialRect.height / 2;
@@ -1069,7 +1086,8 @@ for (const slowTransition of [
             return {
               role,
               present: true,
-              topmostIsOwner: topmost === element,
+              topmostBelongsToOwner:
+                topmost === element || (topmost !== null && element.contains(topmost)),
               ownerInStack:
                 firstDestinationOwner === element && stack.includes(element)
             };
@@ -1083,7 +1101,7 @@ for (const slowTransition of [
           element.scrollTop = originalScrollTop;
           const backgroundScrollTops = [
             ...document.querySelectorAll<HTMLElement>(
-              '[data-sauge-route-renderer-hidden="true"] [data-sauge-page-origin="react-original"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-page-origin="react-original"]'
+              '[data-sauge-route-renderer-hidden="true"] [data-sauge-page-origin="react-original"], [data-sauge-route-renderer-hidden="true"] [data-sauge-reading-surface="true"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-page-origin="react-original"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-reading-surface="true"]'
             )
           ].map((node, index) => ({
             key:
@@ -1104,7 +1122,7 @@ for (const slowTransition of [
         expect(beforeState.hitTests.every((result) => result.present)).toBe(true);
         expect(
           beforeState.hitTests.every(
-            (result) => result.topmostIsOwner && result.ownerInStack
+            (result) => result.topmostBelongsToOwner && result.ownerInStack
           )
         ).toBe(true);
         previewTypography = await target.evaluate((element) =>
@@ -1130,13 +1148,8 @@ for (const slowTransition of [
           )
         );
         expect(previewTypography).toEqual(animatedTypography);
-        if (browserName === "webkit") {
-          // Playwright does not expose wheel/touch scrolling for mobile WebKit.
-          await target.evaluate((element) => element.scrollBy({ top: 320 }));
-        } else {
-          await target.hover();
-          await page.mouse.wheel(0, 320);
-        }
+        await target.hover();
+        await page.mouse.wheel(0, 320);
         await expect
           .poll(async () => target.evaluate((element) => element.scrollTop))
           .toBeGreaterThan(0);
@@ -1164,7 +1177,7 @@ for (const slowTransition of [
             bodyScrollTop: document.body.scrollTop,
             backgroundScrollTops: [
               ...document.querySelectorAll<HTMLElement>(
-                '[data-sauge-route-renderer-hidden="true"] [data-sauge-page-origin="react-original"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-page-origin="react-original"]'
+                '[data-sauge-route-renderer-hidden="true"] [data-sauge-page-origin="react-original"], [data-sauge-route-renderer-hidden="true"] [data-sauge-reading-surface="true"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-page-origin="react-original"], [data-sauge-route-flip-engine-visible="false"] [data-sauge-reading-surface="true"]'
               )
             ].map((node, index) => ({
               key:
@@ -1228,13 +1241,9 @@ for (const slowTransition of [
       const viewport = document.querySelector<HTMLElement>(
         '[data-page-flip-state="ready"]'
       );
-      const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
-      const activePage =
-        viewport && actualPage !== null && actualPage !== undefined
-          ? viewport.querySelector<HTMLElement>(
-              `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
-            )
-          : null;
+      const activePage = viewport?.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+      );
       const typography = activePage
         ? Object.fromEntries(
             [
@@ -1295,7 +1304,7 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
     .getAttribute("data-page-index");
   if (!pageIndex) throw new Error("Expected an active Sauge Noire page");
   const activePage = page.locator(
-    `[data-sauge-flip-page-index="${pageIndex}"][data-sauge-page-origin="react-original"]`
+    `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${pageIndex}"]`
   );
   await activePage.getByRole("button", { name: "Devise: CAD" }).click();
   const euroOption = activePage.getByRole("menuitemradio", { name: "EUR" });
@@ -1396,7 +1405,7 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
         activeIndex === null || activeIndex === undefined
           ? null
           : document.querySelector<HTMLElement>(
-              `[data-sauge-flip-page-index="${activeIndex}"][data-sauge-page-origin="react-original"] [data-sauge-featured-dish]`
+              `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${activeIndex}"] [data-sauge-featured-dish]`
             );
       link?.dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 })
@@ -1428,13 +1437,13 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
   ).toBeAttached();
   await expect(
     page.locator(
-      '[data-sauge-route-renderer-hidden="false"] article:not([data-transition-preview="true"])[data-rendered-currency="EUR"]'
+      '[data-sauge-route-renderer-hidden="false"] [data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] article:not([data-transition-preview="true"])[data-rendered-currency="EUR"]'
     )
   ).toBeAttached();
   await expect(
     page
       .locator(
-        '[data-sauge-route-renderer-hidden="false"] article:not([data-transition-preview="true"]) [data-sauge-visible-price="true"]'
+        '[data-sauge-route-renderer-hidden="false"] [data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] article:not([data-transition-preview="true"]) [data-sauge-visible-price="true"]'
       )
       .first()
   ).toHaveText(/€\s*9[.,]96|9[.,]96\s*€/);
@@ -1469,19 +1478,11 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
   }
 
   delayMenuRsc = true;
-  const detailViewport = page
-    .locator(
-      '[data-sauge-route-renderer-hidden="false"] [data-page-flip-state="ready"]'
-    )
-    .first();
-  const detailPageIndex = await detailViewport.getAttribute(
-    "data-page-flip-actual-page"
-  );
-  if (detailPageIndex === null) {
-    throw new Error("Expected the active Sauge Noire detail page");
-  }
+  const detailViewport = page.locator(
+    '[data-sauge-route-renderer-hidden="false"] [data-page-flip-state="ready"]'
+  ).first();
   const backLink = detailViewport.locator(
-    `[data-sauge-flip-page-index="${detailPageIndex}"][data-sauge-page-origin="react-original"] [data-sauge-typography-role="back-control"]`
+    '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] [data-sauge-typography-role="back-control"]'
   );
   await expect(backLink).toContainText(/Back to/i);
   await dispatchPrimaryClick(backLink);
@@ -1504,7 +1505,11 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
   const returnSettled = returnTransition.locator(
     '[data-sauge-route-scroll-owner="true"]'
   );
-  await returnSettled.evaluate((element) => element.scrollBy({ top: 260 }));
+  await returnSettled.hover();
+  await page.mouse.wheel(0, 260);
+  await expect
+    .poll(() => returnSettled.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
   const returnPreviewScrollTop = await returnSettled.evaluate(
     (element) => element.scrollTop
   );
@@ -1516,13 +1521,9 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
     const viewport = document.querySelector<HTMLElement>(
       '[data-page-flip-state="ready"]'
     );
-    const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
-    const activePage =
-      viewport && actualPage !== null && actualPage !== undefined
-        ? viewport.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index="${actualPage}"][data-sauge-page-origin="react-original"]`
-          )
-        : null;
+    const activePage = viewport?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+    );
     return {
       currency: document
         .querySelector<HTMLElement>(
@@ -1688,7 +1689,7 @@ for (const intent of [
     link: async (page: Page) =>
       page
         .locator(
-          '[data-page-flip-state="ready"] [data-sauge-flip-page-index]:not([data-sauge-flip-clone]) article:not([data-transition-preview="true"]) a'
+          '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] article:not([data-transition-preview="true"]) a'
         )
         .first()
   }

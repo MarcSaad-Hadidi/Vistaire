@@ -40,11 +40,7 @@ import {
   SaugeNoireBookRail,
   SectionPage
 } from "./SaugeNoireBookMenu";
-import {
-  isSaugeNoireOriginalPage,
-  listSaugeNoireOriginalPages,
-  SaugeNoireFlipPage
-} from "./SaugeNoireFlipPage";
+import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireDishDetail.module.css";
@@ -254,6 +250,7 @@ type SaugeNoireDishSheetProps = {
   dish: PublicMenuDish;
   copy: SaugeNoireDishSheetCopy;
   isPreview: boolean;
+  renderMode: SaugeNoireDishRenderMode;
   onDishLinkClick?: (
     event: React.MouseEvent<HTMLAnchorElement>,
     href: string,
@@ -262,6 +259,11 @@ type SaugeNoireDishSheetProps = {
   onMenuLinkClick?: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
   onMenuLinkIntent?: (href: string) => void;
 };
+
+export type SaugeNoireDishRenderMode =
+  | "pageflip-sheet"
+  | "reading-surface"
+  | "route-preview";
 
 function SaugeNoireDish3dSection({
   dish,
@@ -281,7 +283,7 @@ function SaugeNoireDish3dSection({
 
   const getScrollContainer = useCallback(() => {
     return buttonRef.current?.closest<HTMLElement>(
-      '[data-sauge-flip-page-index], [data-page-flip-fallback]'
+      '[data-sauge-reading-surface="true"], [data-sauge-flip-page-index], [data-page-flip-fallback]'
     ) ?? null;
   }, []);
 
@@ -381,6 +383,7 @@ export function SaugeNoireDishSheet({
   dish,
   copy,
   isPreview,
+  renderMode,
   onDishLinkClick,
   onMenuLinkClick,
   onMenuLinkIntent
@@ -412,11 +415,16 @@ export function SaugeNoireDishSheet({
     ...targetCustomAllergens
   ].join(", ") || (targetGroups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
   const targetCanOpen3d = !isPreview && hasReal3d(dish);
+  const naturalHeight =
+    renderMode === "reading-surface" || renderMode === "route-preview";
 
   return (
     <article
-      className={`${styles.paper} ${isPreview ? styles.transitionPreview : ""}`}
+      className={`${styles.paper} ${
+        naturalHeight ? styles.naturalHeightPaper : styles.pageFlipSheet
+      } ${isPreview ? styles.transitionPreview : ""}`}
       data-transition-preview={isPreview ? "true" : undefined}
+      data-sauge-dish-render-mode={renderMode}
       data-rendered-currency={currency}
       aria-hidden={isPreview || undefined}
     >
@@ -618,9 +626,12 @@ export function SaugeNoireDishDetail({
   });
   const routeTransitionIdRef = useRef(0);
   const renderDishPaperRef = useRef<
-    ((targetDish: PublicMenuDish, isPreview: boolean) => ReactNode) | null
+    ((
+      targetDish: PublicMenuDish,
+      isPreview: boolean,
+      renderMode?: SaugeNoireDishRenderMode
+    ) => ReactNode) | null
   >(null);
-  const preservedScrollTopRef = useRef<number | null>(null);
   const [pageTurn, setPageTurn] = useState<DishPageTurnState | null>(null);
   useEffect(() => {
     document.title = `${activeDish.name} | ${menu.name} | Vistaire`;
@@ -662,47 +673,11 @@ export function SaugeNoireDishDetail({
       returnedToRead: false,
       navigationStarted: false
     };
-    preservedScrollTopRef.current = null;
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    const currentPage = Array.from(
-      detailSurfaceRef.current?.querySelectorAll<HTMLElement>(
-        '[class*="pageFlipPage"], [class*="pageFlipFallback"]'
-      ) ?? []
-    ).find((page) => page.querySelector('article:not([data-transition-preview="true"])'));
-    currentPage?.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
     return () => {
       navigationInFlightRef.current = false;
     };
   }, [activeDish.id]);
-
-  useEffect(() => {
-    const preservedScrollTop = preservedScrollTopRef.current;
-    if (preservedScrollTop === null) return;
-
-    let frame = 0;
-    const restoreCurrentScroll = () => {
-      const pages = detailSurfaceRef.current
-        ? listSaugeNoireOriginalPages(detailSurfaceRef.current)
-        : [];
-      // PageFlip can reset every physical sheet while it prepares the fold.
-      // Keep the reading position on the original sheets during the transition.
-      for (const page of pages) {
-        if (page.scrollHeight > page.clientHeight && page.scrollTop !== preservedScrollTop) {
-          page.scrollTop = preservedScrollTop;
-        }
-      }
-
-      if (navigationInFlightRef.current) {
-        frame = requestAnimationFrame(restoreCurrentScroll);
-      }
-    };
-
-    frame = requestAnimationFrame(restoreCurrentScroll);
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  }, [pageTurn?.targetDish.id]);
   const copy = useMemo(() => ({
     fr: {
         back: "Retour à",
@@ -797,22 +772,6 @@ export function SaugeNoireDishDetail({
   ) => {
     if (navigationInFlightRef.current) return;
     navigationInFlightRef.current = true;
-    const preservedScrollTop = Array.from(
-      detailSurfaceRef.current?.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]') ?? []
-    ).find(
-      (page) =>
-        isSaugeNoireOriginalPage(page) &&
-        !page.closest('[aria-hidden="true"]') &&
-        page.querySelector('article:not([data-transition-preview="true"])')
-    )?.scrollTop ?? 0;
-    preservedScrollTopRef.current = preservedScrollTop;
-    for (const page of detailSurfaceRef.current
-      ? listSaugeNoireOriginalPages(detailSurfaceRef.current)
-      : []) {
-      if (page.scrollHeight > page.clientHeight && page.scrollTop !== preservedScrollTop) {
-        page.scrollTop = preservedScrollTop;
-      }
-    }
     setPageTurn({
       dishId: currentDishRef.current.id,
       direction,
@@ -930,15 +889,10 @@ export function SaugeNoireDishDetail({
   }, [activeDish.id, buildDishHref, currentDishIndex, menu.dishes, requestDishNavigation]);
 
   const currentDetailScrollTop = useCallback((): number => {
-    const currentPage = Array.from(
-      detailSurfaceRef.current?.querySelectorAll<HTMLElement>(
-        '[class*="pageFlipPage"], [class*="pageFlipFallback"]'
-      ) ?? []
-    ).find(
-      (page) =>
-        !page.closest('[aria-hidden="true"]') &&
-        page.querySelector('article:not([data-transition-preview="true"])')
-    );
+    const currentPage =
+      detailSurfaceRef.current?.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+      ) ?? null;
     return currentPage?.scrollTop ?? 0;
   }, []);
 
@@ -988,7 +942,8 @@ export function SaugeNoireDishDetail({
       sourceScrollTop: currentDetailScrollTop(),
       rail: <SaugeNoireBookRail />,
       frameClassName: menuStyles.paper,
-      source: renderDishPaperRef.current?.(activeDish, true) ?? null,
+      source:
+        renderDishPaperRef.current?.(activeDish, true, "route-preview") ?? null,
       destination: (
         <>
           <SaugeNoireBookHeader
@@ -1033,7 +988,13 @@ export function SaugeNoireDishDetail({
     prefetchRouteDestination?.(href);
   }, [prefetchRouteDestination]);
 
-  const renderDishPaper = useCallback((targetDish: PublicMenuDish, isPreview: boolean) => {
+  const renderDishPaper = useCallback((
+    targetDish: PublicMenuDish,
+    isPreview: boolean,
+    renderMode: SaugeNoireDishRenderMode = isPreview
+      ? "route-preview"
+      : "reading-surface"
+  ) => {
     return (
       <SaugeNoireDishSheet
         menu={menu}
@@ -1045,6 +1006,7 @@ export function SaugeNoireDishDetail({
         dish={targetDish}
         copy={copy}
         isPreview={isPreview}
+        renderMode={renderMode}
         onDishLinkClick={isPreview ? undefined : handleDishLinkClick}
         onMenuLinkClick={isPreview ? undefined : handleMenuLinkClick}
         onMenuLinkIntent={isPreview ? undefined : handleMenuLinkIntent}
@@ -1064,13 +1026,13 @@ export function SaugeNoireDishDetail({
   const detailFlipPages = useMemo(
     () => [
       <SaugeNoireFlipPage density="soft" index={0} key="previous-page">
-        {renderDishPaper(previousPageDish, true)}
+        {renderDishPaper(previousPageDish, true, "pageflip-sheet")}
       </SaugeNoireFlipPage>,
       <SaugeNoireFlipPage density="soft" index={1} key="current-page">
-        {renderDishPaper(activeDish, false)}
+        {renderDishPaper(activeDish, false, "pageflip-sheet")}
       </SaugeNoireFlipPage>,
       <SaugeNoireFlipPage density="soft" index={2} key="next-page">
-        {renderDishPaper(nextPageDish, true)}
+        {renderDishPaper(nextPageDish, true, "pageflip-sheet")}
       </SaugeNoireFlipPage>
     ],
     [activeDish, nextPageDish, previousPageDish, renderDishPaper]
@@ -1091,6 +1053,9 @@ export function SaugeNoireDishDetail({
       <div className={styles.detailSurface} ref={detailSurfaceRef} data-detail-page-flip="true">
         <SaugeNoirePageFlipExperiment
           pages={detailFlipPages}
+          readingPage={renderDishPaper(activeDish, false, "reading-surface")}
+          readingKey={activeDish.id}
+          readingKind="dish"
           pageIndex={activePageTurn?.targetPageIndex ?? 1}
           startPage={1}
           onPageFlip={handleDetailPageFlip}
@@ -1106,7 +1071,7 @@ export function SaugeNoireDishDetail({
           protectInteractiveTargets
           showCover={false}
           renderOnlyPageLengthChange={false}
-          fallback={renderDishPaper(activeDish, false)}
+          fallback={renderDishPaper(activeDish, false, "reading-surface")}
         />
       </div>
     </main>

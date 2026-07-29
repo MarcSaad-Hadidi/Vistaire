@@ -658,3 +658,27 @@
     max-height: 100dvh;
   }
 }
+
+.paper.pageFlipSheet {
+  height: 100%;
+  min-height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.paper.naturalHeightPaper {
+  height: auto;
+  min-height: 100%;
+  max-height: none;
+  overflow: visible;
+  transform-style: flat;
+  will-change: auto;
+}
+
+.transitionPreview {
+  pointer-events: auto;
+}
+
+.transitionPreview :where(a, button, input, select, textarea) {
+  pointer-events: none;
+}

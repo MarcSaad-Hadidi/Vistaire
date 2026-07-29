@@ -7,6 +7,7 @@ import {
   SaugeNoireFlipPage
 } from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
+import { SaugeNoireReadingSurface } from "./SaugeNoireReadingSurface";
 import styles from "./SaugeNoireRoutePageFlip.module.css";
 
 type SaugeNoireRoutePageFlipProps = {
@@ -225,9 +226,13 @@ export function SaugeNoireRoutePageFlip({
             fallback={source}
           />
         </div>
-        <div
+        <SaugeNoireReadingSurface
           ref={settledSurfaceRef}
           className={styles.settledSurface}
+          kind="route-preview"
+          pageIndex={targetPage}
+          visible={phase === "awaiting-destination"}
+          preview
           data-sauge-route-settled-surface="true"
           data-sauge-route-settled-surface-visible={
             phase === "awaiting-destination" ? "true" : "false"
@@ -236,10 +241,10 @@ export function SaugeNoireRoutePageFlip({
             phase === "awaiting-destination" ? "true" : "false"
           }
         >
-          <div className={styles.settledContent} inert>
+          <div className={styles.settledContent}>
             {destination}
           </div>
-        </div>
+        </SaugeNoireReadingSurface>
       </div>
     </div>
   );

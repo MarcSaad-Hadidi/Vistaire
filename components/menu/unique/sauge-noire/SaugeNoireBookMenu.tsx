@@ -26,8 +26,6 @@ import {
 import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
 import {
-  isSaugeNoireOriginalPage,
-  resolveSaugeNoireOriginalPage,
   SaugeNoireFlipPage,
   type SaugeNoireFlipPageDensity
 } from "./SaugeNoireFlipPage";
@@ -452,15 +450,6 @@ export function SaugeNoireBookMenu({
   }, [pageIndex, pathname, searchParamsString]);
 
   useEffect(() => {
-    paperRef.current?.scrollTo({ top: 0, behavior: "auto" });
-    const activeFlipPage = paperRef.current
-      ? resolveSaugeNoireOriginalPage(paperRef.current, pageIndex)
-      : null;
-    activeFlipPage?.scrollTo({ top: 0, behavior: "auto" });
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [pageIndex]);
-
-  useEffect(() => {
     const paper = paperRef.current;
     const onScroll = (event?: Event) => {
       const targetScrollTop = event?.target instanceof HTMLElement ? event.target.scrollTop : 0;
@@ -683,10 +672,12 @@ export function SaugeNoireBookMenu({
     if (pageFlipState !== "ready") return;
 
     const currentPageElement = event.currentTarget.closest<HTMLElement>(
-      "[data-sauge-flip-page-index]"
+      '[data-sauge-reading-surface="true"]'
     );
-    if (!currentPageElement || !isSaugeNoireOriginalPage(currentPageElement)) return;
-    const currentPageIndex = Number(currentPageElement?.getAttribute("data-sauge-flip-page-index"));
+    if (!currentPageElement) return;
+    const currentPageIndex = Number(
+      currentPageElement.getAttribute("data-sauge-reading-page-index")
+    );
     const currentPage = pages[currentPageIndex];
     if (!currentPage || currentPage.kind !== "section") return;
     const canonical = buildCanonicalDishTransition(targetDish, currentPageIndex);
@@ -711,6 +702,7 @@ export function SaugeNoireBookMenu({
           dish={targetDish}
           copy={SaugeNoireDishSheetCopyForLocale(canonical.snapshot.locale)}
           isPreview
+          renderMode="route-preview"
         />
       )
     });
@@ -743,6 +735,19 @@ export function SaugeNoireBookMenu({
       }),
     [handleDishLinkClick, handleDishLinkIntent, pages, renderPage]
   );
+  const readingPages = useMemo(
+    () =>
+      pages.map((page, index) =>
+        renderPage(
+          page,
+          index,
+          false,
+          handleDishLinkClick,
+          handleDishLinkIntent
+        )
+      ),
+    [handleDishLinkClick, handleDishLinkIntent, pages, renderPage]
+  );
 
   return (
     <main
@@ -769,6 +774,8 @@ export function SaugeNoireBookMenu({
           {pageFlipEnabled ? (
             <SaugeNoirePageFlipExperiment
               pages={flipPages}
+              readingPages={readingPages}
+              readingKind="menu"
               pageIndex={pageIndex}
               onPageFlip={goToPage}
               onReady={notifyCurrentRouteReady}
@@ -787,15 +794,10 @@ export function SaugeNoireBookMenu({
             type="button"
             className={styles.backToTop}
             onClick={() => {
-              paperRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-              const activePage = paperRef.current
-                ? resolveSaugeNoireOriginalPage(paperRef.current, pageIndex) ??
-                  paperRef.current.querySelector<HTMLElement>(
-                    `.${styles.pageFlipFallback}`
-                  )
-                : null;
+              const activePage = paperRef.current?.querySelector<HTMLElement>(
+                '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+              );
               activePage?.scrollTo({ top: 0, behavior: "smooth" });
-              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             aria-label={copy.backToTop}
           >

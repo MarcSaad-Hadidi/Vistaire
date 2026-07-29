@@ -384,7 +384,7 @@ for (const viewportSize of [
 
       await page
         .locator(
-          `[data-sauge-flip-page-index="${origin}"]:not([data-sauge-flip-clone])`
+          `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${origin}"]`
         )
         .getByRole("button", { name: /Table des matières/i })
         .click();
@@ -423,7 +423,9 @@ for (const viewportSize of [
     await expect(viewport).toBeVisible({ timeout: 15_000 });
     await installContentsJumpProbe(page);
     await page
-      .locator('[data-sauge-flip-page-index="2"]:not([data-sauge-flip-clone])')
+      .locator(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="2"]'
+      )
       .getByRole("button", { name: /Table des matières/i })
       .click();
     await expect(viewport).toHaveAttribute("data-page-flip-actual-page", "1");

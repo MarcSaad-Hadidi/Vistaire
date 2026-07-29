@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { resolveSaugeNoireOriginalPage } from "./SaugeNoireFlipPage";
 import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
 
 export type SaugeNoireRouteTransition = {
@@ -147,13 +146,10 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const renderer = document.querySelector<HTMLElement>(
       '[data-sauge-route-renderer-hidden="true"]'
     );
-    const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
-    const actualPage = viewport?.getAttribute("data-page-flip-actual-page");
-    const activePage =
-      viewport && actualPage !== null && actualPage !== undefined
-        ? resolveSaugeNoireOriginalPage(viewport, actualPage)
-        : null;
-    if (!activePage || !activePage.isConnected) return false;
+    const activePage = renderer?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+    );
+    if (!activePage?.isConnected) return false;
     const desiredScrollTop = Math.max(0, settledPreviewScrollTopRef.current);
     activePage.scrollTop = desiredScrollTop;
     return Math.abs(activePage.scrollTop - desiredScrollTop) <= 1;
@@ -193,14 +189,9 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       const renderer = document.querySelector<HTMLElement>(
         '[data-sauge-route-renderer-hidden="false"]'
       );
-      const viewport = renderer?.querySelector<HTMLElement>(
-        '[data-page-flip-state="ready"]'
+      const activePage = renderer?.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
       );
-      const activePageIndex = viewport?.getAttribute("data-page-flip-actual-page");
-      const activePage =
-        viewport && activePageIndex !== null && activePageIndex !== undefined
-          ? resolveSaugeNoireOriginalPage(viewport, activePageIndex)
-          : null;
       const heading = activePage?.querySelector<HTMLElement>("h1, h2");
       if (!heading) return;
       const hadTabIndex = heading.hasAttribute("tabindex");
@@ -266,10 +257,9 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const currentPage = viewport.getAttribute("data-page-flip-current-page");
     const actualPage = viewport.getAttribute("data-page-flip-actual-page");
     if (currentPage === null || currentPage !== actualPage) return false;
-    const activePage =
-      actualPage === null
-        ? null
-        : resolveSaugeNoireOriginalPage(viewport, actualPage);
+    const activePage = renderer?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+    );
     if (!activePage || !syncDestinationScroll()) return false;
     const image = activePage.querySelector<HTMLImageElement>("img");
     if (image) {

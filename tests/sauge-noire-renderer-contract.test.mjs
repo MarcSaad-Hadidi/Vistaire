@@ -193,13 +193,26 @@ test("dish-to-dish navigation prepares adjacent dishes without duplicating their
   assert.match(source, /key="next-page"/);
   assert.doesNotMatch(source, /key=\{activePageTurn \?/);
   assert.match(source, /isPreview=\{isPreview\}/);
+  assert.match(
+    source,
+    /"pageflip-sheet"\s*\|\s*"reading-surface"\s*\|\s*"route-preview"/
+  );
+  assert.match(source, /data-sauge-dish-render-mode=\{renderMode\}/);
   assert.match(source, /<div className=\{styles\.brandMark\} aria-label="Sauge Noire">/);
   assert.doesNotMatch(source, new RegExp(forbiddenDetailFloatingClass));
   assert.match(source, /draggable=\{false\}/);
   assert.match(source, /data-transition-preview/);
   assert.match(source, /function stopDishSwipePropagation/);
   assert.match(source, /className=\{styles\.modelStage\}[\s\S]*onPointerDown=\{stopDishSwipePropagation\}[\s\S]*onPointerUp=\{stopDishSwipePropagation\}/);
-  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*none;/);
+  assert.match(styles, /\.transitionPreview\s*\{[\s\S]*pointer-events:\s*auto;/);
+  assert.match(
+    styles,
+    /\.transitionPreview :where\(a, button, input, select, textarea\)\s*\{[\s\S]*pointer-events:\s*none;/
+  );
+  assert.match(
+    styles,
+    /\.paper\.naturalHeightPaper\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*100%;[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/
+  );
   assert.doesNotMatch(styles, /\.transitionPreview \.detailHeader[\s\S]*visibility:\s*hidden/);
   assert.doesNotMatch(styles, /data-sauge-flip-clone="true"[\s\S]*visibility:\s*hidden/);
   assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);

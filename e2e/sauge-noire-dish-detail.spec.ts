@@ -5,7 +5,7 @@ const detailPath =
 const cocktailDetailPath =
   "/menu/sauge-noire/dishes/cendre-rose?lang=fr-CA&currency=CAD&view=sauge-7&table=main&zone=terrasse";
 const activeDetailPageSelector =
-  '[data-sauge-flip-page-index="1"]:not([data-sauge-flip-clone="true"]):not([aria-hidden="true"])';
+  '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-kind="dish"]';
 
 type DetailState = {
   route: string;
@@ -101,14 +101,16 @@ async function detailState(page: Page): Promise<DetailState> {
         style.visibility !== "hidden" &&
         Number(style.opacity) !== 0 &&
         rect.width > 0 &&
-        rect.height > 0 &&
-        !element.closest('[aria-hidden="true"]')
+        rect.height > 0
       );
     };
     const physicalPages = Array.from(
       document.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]')
     );
-    const currentPage = physicalPages.find(
+    const readingSurfaces = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-sauge-reading-surface="true"]')
+    );
+    const currentPage = [...readingSurfaces, ...physicalPages].find(
       (element) =>
         isVisible(element) &&
         Boolean(element.querySelector('article:not([data-transition-preview="true"])'))
@@ -173,7 +175,7 @@ async function detailState(page: Page): Promise<DetailState> {
             width: window.visualViewport.width
           }
         : null,
-      pageScrollTops: physicalPages.map((element) => ({
+      pageScrollTops: [...readingSurfaces, ...physicalPages].map((element) => ({
         scrollTop: element.scrollTop,
         isCurrent: element === currentPage,
         isVisible: isVisible(element),
@@ -192,7 +194,10 @@ async function detailState(page: Page): Promise<DetailState> {
         ? { top: currentBack.getBoundingClientRect().top, left: currentBack.getBoundingClientRect().left }
         : null,
       externalFloatingLogoCount,
-      activePageIndex: currentPage?.getAttribute("data-sauge-flip-page-index") ?? null,
+      activePageIndex:
+        currentPage?.getAttribute("data-sauge-reading-page-index") ??
+        currentPage?.getAttribute("data-sauge-flip-page-index") ??
+        null,
       activePageLogoCount: currentPage?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
       activeHeaderLogoCount: currentHeader?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
       detailPageScrollTop: detailPage?.scrollTop ?? -1,
@@ -218,45 +223,9 @@ async function verticalGesture(
   const x = viewport.width / 2;
   const fromY = direction > 0 ? viewport.height * 0.78 : viewport.height * 0.24;
   let during: DetailState | undefined;
-  if (browserName === "webkit") {
-    // Mobile WebKit exposes tap but not a trusted drag API in Playwright.
-    // PageDown/ArrowDown is the closest browser-level scroll input; no scrollTop
-    // is mutated by the test. Real iPhone Safari touch remains device QA.
-    const activePage = page.locator(activeDetailPageSelector).filter({
-      has: page.locator('article:not([data-transition-preview="true"])')
-    }).first();
-    await expect.poll(
-      () => activePage.evaluate((element) => element.scrollHeight - element.clientHeight),
-      { timeout: 5_000 }
-    ).toBeGreaterThan(0);
-    await activePage.evaluate((element) => {
-      (element as HTMLElement).tabIndex = 0;
-      (element as HTMLElement).focus();
-    });
-    const initialScrollTop = await activePage.evaluate((element) => element.scrollTop);
-    const key = direction > 0
-      ? amount >= 500 ? "PageDown" : "ArrowDown"
-      : amount >= 500 ? "PageUp" : "ArrowUp";
-    const presses = amount >= 500 ? 1 : Math.max(1, Math.ceil(amount / 40));
-    for (let index = 0; index < presses; index += 1) {
-      await page.keyboard.press(key);
-      if (index === Math.floor(presses / 2)) during = await detailState(page);
-    }
-    await expect.poll(
-      () => activePage.evaluate((element, expected) => {
-        const current = element.scrollTop;
-        const maxScroll = element.scrollHeight - element.clientHeight;
-        return expected.direction > 0
-          ? current > expected.initialScrollTop || expected.initialScrollTop >= maxScroll - 1
-          : current < expected.initialScrollTop || expected.initialScrollTop <= 1;
-      }, { direction, initialScrollTop }),
-      { timeout: 5_000 }
-    ).toBe(true);
-  } else {
-    await page.mouse.move(x, fromY);
-    await page.mouse.wheel(0, direction * amount);
-    during = await detailState(page);
-  }
+  await page.mouse.move(x, fromY);
+  await page.mouse.wheel(0, direction * amount);
+  during = await detailState(page);
   await page.waitForTimeout(80);
   const after = await detailState(page);
   return { during: during ?? after, after };
@@ -264,13 +233,8 @@ async function verticalGesture(
 
 async function activeDetailScroll(page: Page) {
   return page.evaluate(() => {
-    const currentPage = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        '[data-sauge-flip-page-index="1"]:not([data-sauge-flip-clone="true"]):not([aria-hidden="true"])'
-      )
-    ).find(
-      (element) =>
-        element.querySelector('article:not([data-transition-preview="true"])')
+    const currentPage = document.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-kind="dish"]'
     );
     return {
       scrollTop: currentPage?.scrollTop ?? -1,
@@ -396,12 +360,34 @@ async function waitForRealFlip(page: Page, before: DetailState) {
     transforms: before.stfTransforms,
     activePageIndex: before.activePageIndex
   });
-  await expect
-    .poll(async () => Boolean(await readTransitionSample()), {
-      timeout: 10_000,
-      intervals: [10, 20, 40, 80, 160]
-    })
-    .toBe(true);
+  try {
+    await expect
+      .poll(async () => Boolean(await readTransitionSample()), {
+        timeout: 10_000,
+        intervals: [10, 20, 40, 80, 160]
+      })
+      .toBe(true);
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => {
+      const samples = (window as typeof window & {
+        __saugeFlipProbe?: { samples: FlipProbeSample[] };
+      }).__saugeFlipProbe?.samples ?? [];
+      return samples
+        .filter(
+          (sample, index) =>
+            index === 0 ||
+            sample.engineState !== samples[index - 1]?.engineState ||
+            sample.activePageIndex !== samples[index - 1]?.activePageIndex ||
+            sample.scrollTop !== samples[index - 1]?.scrollTop ||
+            sample.visibleLogoCount !== samples[index - 1]?.visibleLogoCount
+        )
+        .slice(0, 40);
+    });
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\n` +
+      `Flip samples: ${JSON.stringify(diagnostics)}`
+    );
+  }
   const transitionSample = await readTransitionSample();
 
   expect(transitionSample).not.toBeNull();
@@ -444,14 +430,20 @@ async function armFlipProbe(page: Page) {
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0 &&
-        rect.width > 0 && rect.height > 0 && !element.closest('[aria-hidden="true"]');
+        rect.width > 0 && rect.height > 0;
     };
     const capture = (phase: FlipProbeSample["phase"]) => {
       if (probe.samples.length >= 1_200) {
         return;
       }
-      const currentPage = [...document.querySelectorAll<HTMLElement>('[class*="pageFlipPage"]')].find(
-        (element) => isVisible(element) && element.querySelector('article:not([data-transition-preview="true"])')
+      const currentPage = [
+        ...document.querySelectorAll<HTMLElement>(
+          '[data-sauge-reading-surface="true"], [class*="pageFlipPage"]'
+        )
+      ].find(
+        (element) =>
+          isVisible(element) &&
+          element.querySelector('article:not([data-transition-preview="true"])')
       );
       const currentArticle = currentPage?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
       const currentHeader = currentArticle?.querySelector<HTMLElement>("header");
@@ -477,7 +469,10 @@ async function armFlipProbe(page: Page) {
         engineState: viewport?.getAttribute("data-page-flip-engine-state") ?? null,
         currentPageIndex: viewport?.getAttribute("data-page-flip-current-page") ?? null,
         actualPageIndex: viewport?.getAttribute("data-page-flip-actual-page") ?? null,
-        activePageIndex: currentPage?.getAttribute("data-sauge-flip-page-index") ?? null,
+        activePageIndex:
+          currentPage?.getAttribute("data-sauge-reading-page-index") ??
+          currentPage?.getAttribute("data-sauge-flip-page-index") ??
+          null,
         activePageLogoCount: currentPage?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
         activeHeaderLogoCount: currentHeader?.querySelectorAll('[aria-label="Sauge Noire"]').length ?? 0,
         externalFloatingLogoCount,
@@ -658,7 +653,7 @@ test.describe("Sauge Noire dish detail PageFlip", () => {
       await openCocktailDetail(page, viewport.width, viewport.height);
 
       const activeArticle = page.locator(
-        '[class*="pageFlipPage"]:not([aria-hidden="true"]) article:not([data-transition-preview="true"])'
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] article:not([data-transition-preview="true"])'
       ).first();
       const categoryKicker = activeArticle.locator('[class*="categoryKicker"]');
       await expect(categoryKicker).toHaveText("Cocktail signature");

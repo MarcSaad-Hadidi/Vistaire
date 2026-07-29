@@ -22,6 +22,10 @@ const transitionCoordinatorPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireTransitionCoordinator.tsx",
   import.meta.url
 );
+const readingSurfacePath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireReadingSurface.tsx",
+  import.meta.url
+);
 const menuLayoutPath = new URL("../app/menu/[slug]/layout.tsx", import.meta.url);
 const playwrightConfigPath = new URL("../playwright.config.ts", import.meta.url);
 const publicMenuPath = new URL("../app/menu/[slug]/page.tsx", import.meta.url);
@@ -172,7 +176,11 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
     coordinator,
     /awaitingDestinationWatchdogRef\.current = window\.setTimeout/
   );
-  assert.match(coordinator, /resolveSaugeNoireOriginalPage/);
+  assert.match(
+    coordinator,
+    /data-sauge-reading-surface="true"\]\[data-sauge-scroll-owner="true"/
+  );
+  assert.doesNotMatch(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
   assert.match(routeTransition, /phase !== "awaiting-destination"/);
   assert.match(routeTransition, /data-sauge-route-transition-scrollable/);
@@ -238,24 +246,31 @@ test("PageFlip resizes in place for structural width and height changes", async 
   );
 });
 
-test("PageFlip uses one transient loading surface before the real engine is ready", async () => {
+test("the canonical reading surface is visible while PageFlip initializes", async () => {
   const experiment = await readFile(experimentPath, "utf8");
+  const readingSurface = await readFile(readingSurfacePath, "utf8");
 
   assert.doesNotMatch(experiment, /pageFlipInitializing/);
   assert.equal((experiment.match(/data-page-flip-fallback=/g) ?? []).length, 2);
+  assert.match(experiment, /!hasReadingSurface && !failed && !bookIsReady/);
+  assert.match(experiment, /<SaugeNoireReadingSurface/);
+  assert.match(readingSurface, /data-sauge-reading-surface="true"/);
+  assert.match(readingSurface, /data-sauge-scroll-owner=\{visible \? "true" : "false"\}/);
 });
 
-test("a permanent PageFlip error keeps the visible fallback interactive", async () => {
+test("a permanent PageFlip error returns to the canonical reading surface", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
   assert.match(experiment, /data-page-flip-fallback="error"/);
   assert.match(experiment, /data-page-flip-fallback="loading"[\s\S]*aria-hidden="true"/);
-  assert.doesNotMatch(
+  assert.match(
     experiment,
-    /data-page-flip-fallback="error"[^>]*(?:aria-hidden|inert)/
+    /hasReadingSurface && \(failed \|\| engineState !== "flipping"\)/
   );
-  assert.match(experiment, /aria-hidden=\{!bookIsReady && !failed \? true : undefined\}/);
-  assert.match(experiment, /if \(bookIsReady \|\| failed\) element\.removeAttribute\("inert"\)/);
+  assert.match(
+    experiment,
+    /!hasReadingSurface \|\| \(!failed && engineState === "flipping"\)/
+  );
 });
 
 test("multi-page jumps resume when PageFlip returns to read", async () => {
@@ -263,7 +278,7 @@ test("multi-page jumps resume when PageFlip returns to read", async () => {
 
   assert.match(
     experiment,
-    /\}, \[bookIsReady, dimensions, engineState, failed, pageIndex, singleFlipJumpRequest\]\);/
+    /\}, \[[\s\S]*bookIsReady,[\s\S]*engineState,[\s\S]*pageIndex,[\s\S]*revealEngineForFlip,[\s\S]*singleFlipJumpRequest[\s\S]*\]\);/
   );
 });
 
@@ -341,8 +356,8 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(experiment, /onPointerDown=\{handlePointerDown\}/);
   assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
   assert.match(experiment, /onPointerUp=\{handlePointerUp\}/);
-  assert.match(experiment, /onTouchStart=\{handleTouchStart\}/);
-  assert.match(experiment, /onTouchEnd=\{handleTouchEnd\}/);
+  assert.doesNotMatch(experiment, /onTouchStart=\{handleTouchStart\}/);
+  assert.doesNotMatch(experiment, /onTouchEnd=\{handleTouchEnd\}/);
   assert.match(experiment, /animationTargetPageRef/);
   assert.match(experiment, /targetPage > currentPage/);
   assert.match(experiment, /pageFlip\.flipNext\(\)/);

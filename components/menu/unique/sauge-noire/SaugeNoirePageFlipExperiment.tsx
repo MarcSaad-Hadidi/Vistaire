@@ -6,9 +6,9 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
-  type TouchEvent as ReactTouchEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -18,6 +18,10 @@ import {
   resolveSaugeNoireOriginalPage,
   SaugeNoireOriginalPageRegistryContext
 } from "./SaugeNoireFlipPage";
+import {
+  SaugeNoireReadingSurface,
+  type SaugeNoireReadingKind
+} from "./SaugeNoireReadingSurface";
 
 type PageFlipApi = {
   getCurrentPageIndex: () => number;
@@ -106,6 +110,10 @@ class PageFlipErrorBoundary extends Component<
 
 type SaugeNoirePageFlipExperimentProps = {
   pages: ReactNode[];
+  readingPages?: ReactNode[];
+  readingPage?: ReactNode;
+  readingKey?: string | number;
+  readingKind?: Exclude<SaugeNoireReadingKind, "route-preview">;
   pageIndex: number;
   startPage?: number;
   onPageFlip: (index: number) => void;
@@ -163,6 +171,10 @@ function isCurrentCleanupGeneration(ref: { current: number }, generation: number
 
 export function SaugeNoirePageFlipExperiment({
   pages,
+  readingPages,
+  readingPage,
+  readingKey,
+  readingKind = "menu",
   pageIndex,
   startPage = pageIndex,
   onPageFlip,
@@ -184,6 +196,7 @@ export function SaugeNoirePageFlipExperiment({
 }: SaugeNoirePageFlipExperimentProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<PageFlipHandle>(null);
+  const readingSurfaceRef = useRef<HTMLDivElement>(null);
   const originalPagesRef = useRef<Map<number, HTMLElement>>(new Map());
   const readyBookKeyRef = useRef<string | null>(null);
   const requestedPageIndexRef = useRef<number | null>(null);
@@ -216,11 +229,25 @@ export function SaugeNoirePageFlipExperiment({
   const readyNotificationBookKeyRef = useRef<string | null>(null);
   const cleanupGenerationRef = useRef(0);
   const reportedFlipPageRef = useRef<number | null>(null);
+  const animationSourceScrollRef = useRef<{
+    pageIndex: number;
+    scrollTop: number;
+  } | null>(null);
   const initCountRef = useRef(0);
+  const hasReadingSurface = readingPage !== undefined || readingPages !== undefined;
   // The DOM identity belongs to the logical book, not to a volatile viewport
   // measurement. PageFlip can recalculate its bounds in place on resize.
   const bookKey = resetKey === undefined ? "sauge-main-book" : `sauge-book-${resetKey}`;
   const bookIsReady = bookKey !== null && readyBookKey === bookKey;
+  const activeReadingPage =
+    readingPage ?? readingPages?.[actualPageIndex] ?? fallback;
+  const readingIdentity = `${bookKey}:${
+    readingKey ?? actualPageIndex
+  }`;
+  const readingSurfaceVisible =
+    hasReadingSurface && (failed || engineState !== "flipping");
+  const pageFlipEngineVisible =
+    !hasReadingSurface || (!failed && engineState === "flipping");
   const originalPageRegistry = useMemo(
     () => ({
       bookId: bookKey,
@@ -248,6 +275,63 @@ export function SaugeNoirePageFlipExperiment({
     onSingleFlipJumpSettledRef.current = onSingleFlipJumpSettled;
     failedRef.current = failed;
   }, [dimensions, failed, onChangeState, onReady, onSingleFlipJumpSettled]);
+
+  useLayoutEffect(() => {
+    const readingSurface = readingSurfaceRef.current;
+    if (!readingSurface) return;
+    const preparedScrollTop = Math.max(0, readyScrollTop ?? 0);
+    if (readingSurface.scrollTop !== preparedScrollTop) {
+      readingSurface.scrollTop = preparedScrollTop;
+    }
+  }, [readingIdentity, readyScrollTop]);
+
+  const preparePageFlip = useCallback(
+    (sourcePageIndex: number, targetPageIndex: number) => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      const sourcePage = resolveSaugeNoireOriginalPage(viewport, sourcePageIndex);
+      const targetPage = resolveSaugeNoireOriginalPage(viewport, targetPageIndex);
+      const sourceScrollTop = readingSurfaceRef.current?.scrollTop ?? 0;
+      animationSourceScrollRef.current = {
+        pageIndex: sourcePageIndex,
+        scrollTop: sourceScrollTop
+      };
+      if (sourcePage && sourcePage.scrollTop !== sourceScrollTop) {
+        sourcePage.scrollTop = sourceScrollTop;
+      }
+      const targetScrollTop = Math.max(0, readyScrollTop ?? 0);
+      if (
+        targetPage &&
+        targetPage !== sourcePage &&
+        targetPage.scrollTop !== targetScrollTop
+      ) {
+        targetPage.scrollTop = targetScrollTop;
+      }
+    },
+    [readyScrollTop]
+  );
+
+  useLayoutEffect(() => {
+    if (engineState !== "flipping") return;
+    const source = animationSourceScrollRef.current;
+    const viewport = viewportRef.current;
+    if (!source || !viewport) return;
+    const sourcePage = resolveSaugeNoireOriginalPage(
+      viewport,
+      source.pageIndex
+    );
+    if (sourcePage && sourcePage.scrollTop !== source.scrollTop) {
+      sourcePage.scrollTop = source.scrollTop;
+    }
+  }, [engineState]);
+
+  const revealEngineForFlip = useCallback(
+    (sourcePageIndex: number, targetPageIndex: number) => {
+      preparePageFlip(sourcePageIndex, targetPageIndex);
+      if (hasReadingSurface) setEngineState("flipping");
+    },
+    [hasReadingSurface, preparePageFlip]
+  );
 
   useEffect(() => {
     if (!bookIsReady) return;
@@ -579,6 +663,7 @@ export function SaugeNoirePageFlipExperiment({
       requestedPageIndexRef.current = adjacentPage;
       reportedFlipPageRef.current = null;
       setSingleFlipJumpPhase("single-flip-started");
+      revealEngineForFlip(currentPage, adjacentPage);
       pageFlip.flipPrev();
     });
     singleFlipJumpFrameRef.current = startFrame;
@@ -591,6 +676,7 @@ export function SaugeNoirePageFlipExperiment({
     failed,
     onPageFlip,
     pages.length,
+    revealEngineForFlip,
     singleFlipJumpRequest
   ]);
 
@@ -617,6 +703,7 @@ export function SaugeNoirePageFlipExperiment({
       }
 
       requestedPageIndexRef.current = targetPage;
+      revealEngineForFlip(currentPage, targetPage);
       if (targetPage > currentPage) {
         pageFlip.flipNext();
       } else {
@@ -625,7 +712,15 @@ export function SaugeNoirePageFlipExperiment({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [bookIsReady, dimensions, engineState, failed, pageIndex, singleFlipJumpRequest]);
+  }, [
+    bookIsReady,
+    dimensions,
+    engineState,
+    failed,
+    pageIndex,
+    revealEngineForFlip,
+    singleFlipJumpRequest
+  ]);
 
   useEffect(() => {
     const activeBookRef = bookRef;
@@ -713,6 +808,7 @@ export function SaugeNoirePageFlipExperiment({
     const state = String(event.data);
     setEngineState(state);
     if (state === "flipping") reportedFlipPageRef.current = null;
+    if (state === "read") animationSourceScrollRef.current = null;
     const singleFlipJump = activeSingleFlipJumpRef.current;
     if (state === "flipping" && singleFlipJump?.phase === "single-flip") {
       singleFlipJump.sawFlipping = true;
@@ -789,6 +885,7 @@ export function SaugeNoirePageFlipExperiment({
         }
 
         requestedPageIndexRef.current = targetPage;
+        revealEngineForFlip(currentPage, targetPage);
         if (targetPage > currentPage) {
           pageFlip.flipNext();
         } else {
@@ -801,11 +898,12 @@ export function SaugeNoirePageFlipExperiment({
         window.requestAnimationFrame(updatePageFlipBounds);
       });
     }
-  }, [onPageFlip, updatePageFlipBounds]);
+  }, [onPageFlip, revealEngineForFlip, updatePageFlipBounds]);
 
   const rememberGestureStart = (x: number, y: number, target: EventTarget | null) => {
     if (
       !bookIsReady ||
+      engineState !== "read" ||
       isPageFlipProtectedTarget(target) ||
       (protectInteractiveTargets && isPageFlipInteractiveTarget(target))
     ) {
@@ -851,6 +949,7 @@ export function SaugeNoirePageFlipExperiment({
 
     preventDefault();
     requestedPageIndexRef.current = nextPage;
+    revealEngineForFlip(currentPage, nextPage);
     if (deltaX < 0) {
       pageFlip.flipNext();
     } else {
@@ -895,42 +994,8 @@ export function SaugeNoirePageFlipExperiment({
     gestureStartRef.current = null;
   };
 
-  const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
-    if (gestureStartRef.current) return;
-    if (
-      !bookIsReady ||
-      isPageFlipProtectedTarget(event.target) ||
-      (protectInteractiveTargets && isPageFlipInteractiveTarget(event.target))
-    ) {
-      gestureStartRef.current = null;
-      return;
-    }
-    const touch = event.touches[0];
-    if (touch) rememberGestureStart(touch.clientX, touch.clientY, event.target);
-  };
-
-  const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    handleSwipeEnd(touch.clientX, touch.clientY, () => event.preventDefault());
-  };
-
-  const handleTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
-    const start = gestureStartRef.current;
-    const touch = event.touches[0];
-    if (!start || !touch) return;
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-    if (start.axis === "undecided") {
-      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
-      start.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
-    }
-    if (start.axis === "horizontal") {
-      event.preventDefault();
-    }
-  };
-
-  const shouldShowTransientFallback = !failed && !bookIsReady;
+  const shouldShowTransientFallback =
+    !hasReadingSurface && !failed && !bookIsReady;
 
   return (
     <div
@@ -940,12 +1005,6 @@ export function SaugeNoirePageFlipExperiment({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={() => {
-        gestureStartRef.current = null;
-      }}
       data-page-flip-state={
         failed ? "fallback-error" : bookIsReady ? "ready" : "loading"
       }
@@ -957,13 +1016,10 @@ export function SaugeNoirePageFlipExperiment({
     >
       {dimensions !== null ? (
         <div
-          style={{ display: "contents" }}
-          aria-hidden={!bookIsReady && !failed ? true : undefined}
-          ref={(element) => {
-            if (!element) return;
-            if (bookIsReady || failed) element.removeAttribute("inert");
-            else element.setAttribute("inert", "");
-          }}
+          className={styles.pageFlipEngineLayer}
+          data-page-flip-engine-visible={pageFlipEngineVisible ? "true" : "false"}
+          aria-hidden={hasReadingSurface || undefined}
+          inert={hasReadingSurface ? true : undefined}
         >
           <SaugeNoireOriginalPageRegistryContext.Provider value={originalPageRegistry}>
             <PageFlipErrorBoundary
@@ -1016,6 +1072,16 @@ export function SaugeNoirePageFlipExperiment({
             </PageFlipErrorBoundary>
           </SaugeNoireOriginalPageRegistryContext.Provider>
         </div>
+      ) : null}
+      {hasReadingSurface ? (
+        <SaugeNoireReadingSurface
+          ref={readingSurfaceRef}
+          kind={readingKind}
+          pageIndex={actualPageIndex}
+          visible={readingSurfaceVisible}
+        >
+          {activeReadingPage}
+        </SaugeNoireReadingSurface>
       ) : null}
       {shouldShowTransientFallback ? (
         <div

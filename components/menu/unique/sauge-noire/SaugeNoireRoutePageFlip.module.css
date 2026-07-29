@@ -57,8 +57,9 @@
   overflow: hidden;
 }
 
-.routeFlipEngine[data-sauge-route-flip-engine-visible="false"] {
-  visibility: hidden;
+.routeFlipEngine[data-sauge-route-flip-engine-visible="false"],
+.routeFlipEngine[data-sauge-route-flip-engine-visible="false"] * {
+  visibility: hidden !important;
   pointer-events: none;
 }
 
@@ -90,6 +91,10 @@
 .settledContent {
   min-height: 100%;
   font: inherit;
+  pointer-events: auto;
+}
+
+.settledContent :where(a, button, input, select, textarea) {
   pointer-events: none;
 }
 
