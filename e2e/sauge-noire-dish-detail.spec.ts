@@ -4,8 +4,6 @@ const detailPath =
   "/menu/sauge-noire/dishes/truite-des-laurentides?lang=fr-CA&currency=CAD&view=sauge-3&table=main&zone=terrasse";
 const cocktailDetailPath =
   "/menu/sauge-noire/dishes/cendre-rose?lang=fr-CA&currency=CAD&view=sauge-7&table=main&zone=terrasse";
-const activeDetailPageSelector =
-  '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-kind="dish"]';
 
 type DetailState = {
   route: string;
@@ -222,13 +220,12 @@ async function verticalGesture(
 ) {
   const x = viewport.width / 2;
   const fromY = direction > 0 ? viewport.height * 0.78 : viewport.height * 0.24;
-  let during: DetailState | undefined;
   await page.mouse.move(x, fromY);
   await page.mouse.wheel(0, direction * amount);
-  during = await detailState(page);
+  const during = await detailState(page);
   await page.waitForTimeout(80);
   const after = await detailState(page);
-  return { during: during ?? after, after };
+  return { during, after };
 }
 
 async function activeDetailScroll(page: Page) {
