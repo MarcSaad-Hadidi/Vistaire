@@ -114,6 +114,8 @@ type SaugeNoirePageFlipExperimentProps = {
   readingPage?: ReactNode;
   readingKey?: string | number;
   readingKind?: Exclude<SaugeNoireReadingKind, "route-preview">;
+  readingSurfaceOwnsScroll?: boolean;
+  onReadingGestureActiveChange?: (active: boolean) => void;
   pageIndex: number;
   startPage?: number;
   onPageFlip: (index: number) => void;
@@ -175,6 +177,8 @@ export function SaugeNoirePageFlipExperiment({
   readingPage,
   readingKey,
   readingKind = "menu",
+  readingSurfaceOwnsScroll = true,
+  onReadingGestureActiveChange,
   pageIndex,
   startPage = pageIndex,
   onPageFlip,
@@ -245,8 +249,6 @@ export function SaugeNoirePageFlipExperiment({
   const readingIdentity = `${bookKey}:${
     readingKey ?? pageIndex
   }`;
-  const readingSurfaceVisible =
-    hasReadingSurface && (failed || engineState !== "flipping");
   const pageFlipEngineVisible =
     !hasReadingSurface || (!failed && engineState === "flipping");
   const originalPageRegistry = useMemo(
@@ -1095,7 +1097,13 @@ export function SaugeNoirePageFlipExperiment({
           ref={readingSurfaceRef}
           kind={readingKind}
           pageIndex={pageIndex}
-          visible={readingSurfaceVisible}
+          visible={hasReadingSurface}
+          scrollOwner={readingSurfaceOwnsScroll}
+          contentInert={
+            engineState === "flipping" || !readingSurfaceOwnsScroll
+          }
+          onGestureActiveChange={onReadingGestureActiveChange}
+          data-sauge-handoff-candidate="true"
         >
           {activeReadingPage}
         </SaugeNoireReadingSurface>

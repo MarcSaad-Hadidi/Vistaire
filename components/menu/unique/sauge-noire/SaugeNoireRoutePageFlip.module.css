@@ -54,12 +54,19 @@
 }
 
 .routeFlipEngine {
+  z-index: 2;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .routeFlipEngine[data-sauge-route-flip-engine-visible="false"],
 .routeFlipEngine[data-sauge-route-flip-engine-visible="false"] * {
   visibility: hidden !important;
+  pointer-events: none;
+}
+
+.routeFlipEngine,
+.routeFlipEngine * {
   pointer-events: none;
 }
 

@@ -178,8 +178,15 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   assert.match(coordinator, /settledPreviewScrollTopRef = useRef\(0\)/);
   assert.match(coordinator, /settledPreviewScrollTopRef\.current = 0/);
   assert.match(coordinator, /onSettledPreviewScrollTopChange/);
-  assert.match(coordinator, /Math\.abs\(activePage\.scrollTop - desiredScrollTop\) <= 1/);
-  assert.match(coordinator, /syncDestinationScroll/);
+  assert.match(coordinator, /const transferDestinationScroll/);
+  assert.match(
+    coordinator,
+    /Math\.min\(\s*maxScroll,\s*Math\.max\(0, settledPreviewScrollTopRef\.current\)\s*\)/
+  );
+  assert.match(
+    coordinator,
+    /Math\.abs\(activePage\.scrollTop - desiredScrollTop\) > 1[\s\S]*activePage\.scrollTop = desiredScrollTop/
+  );
   assert.match(coordinator, /const pollDestinationReadiness/);
   assert.match(
     coordinator,
@@ -191,18 +198,23 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   );
   assert.match(
     coordinator,
-    /data-sauge-reading-surface="true"\]\[data-sauge-scroll-owner="true"/
+    /data-sauge-reading-surface="true"\]\[data-sauge-handoff-candidate="true"/
   );
+  assert.match(coordinator, /settledPreviewGestureActiveRef/);
+  assert.match(coordinator, /if \(settledPreviewGestureActiveRef\.current\) return/);
+  assert.match(coordinator, /onRouteGestureActiveChange/);
+  assert.match(coordinator, /routeScrollOwnerActive/);
   assert.doesNotMatch(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
-  assert.match(routeTransition, /phase !== "awaiting-destination"/);
+  assert.match(routeTransition, /phase !== "preparing"/);
   assert.match(routeTransition, /data-sauge-route-transition-scrollable/);
   assert.match(routeTransition, /addEventListener\("scroll", handleScroll, \{ passive: true \}\)/);
   assert.match(routeTransition, /data-sauge-route-settled-surface="true"/);
   assert.match(
     routeTransition,
-    /data-sauge-route-scroll-owner=\{[\s\S]*phase === "awaiting-destination"[\s\S]*"true"/
+    /data-sauge-route-scroll-owner=\{[\s\S]*phase !== "preparing"[\s\S]*"true"/
   );
+  assert.match(routeTransition, /onSettledPreviewGestureActiveChange/);
   assert.doesNotMatch(routeTransition, /data-sauge-route-preview-scroll-target/);
   assert.doesNotMatch(
     routeTransition,
@@ -268,7 +280,11 @@ test("the canonical reading surface is visible while PageFlip initializes", asyn
   assert.match(experiment, /!hasReadingSurface && !failed && !bookIsReady/);
   assert.match(experiment, /<SaugeNoireReadingSurface/);
   assert.match(readingSurface, /data-sauge-reading-surface="true"/);
-  assert.match(readingSurface, /data-sauge-scroll-owner=\{visible \? "true" : "false"\}/);
+  assert.match(readingSurface, /data-sauge-scroll-owner=\{scrollOwner \? "true" : "false"\}/);
+  assert.match(readingSurface, /data-sauge-reading-content="true"/);
+  assert.match(readingSurface, /inert=\{contentInert \|\| preview \? true : undefined\}/);
+  assert.match(experiment, /visible=\{hasReadingSurface\}/);
+  assert.match(experiment, /scrollOwner=\{readingSurfaceOwnsScroll\}/);
 });
 
 test("a permanent PageFlip error returns to the canonical reading surface", async () => {
@@ -278,7 +294,7 @@ test("a permanent PageFlip error returns to the canonical reading surface", asyn
   assert.match(experiment, /data-page-flip-fallback="loading"[\s\S]*aria-hidden="true"/);
   assert.match(
     experiment,
-    /hasReadingSurface && \(failed \|\| engineState !== "flipping"\)/
+    /visible=\{hasReadingSurface\}/
   );
   assert.match(
     experiment,

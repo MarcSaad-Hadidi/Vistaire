@@ -608,6 +608,10 @@ export function SaugeNoireDishDetail({
   const beginRouteTransition = routeTransition?.beginTransition;
   const prefetchRouteDestination = routeTransition?.prefetchDestination;
   const notifyRouteDestinationReady = routeTransition?.notifyDestinationReady;
+  const onRouteGestureActiveChange =
+    routeTransition?.onRouteGestureActiveChange;
+  const routeScrollOwnerActive =
+    routeTransition?.routeScrollOwnerActive ?? true;
   const pathname = usePathname();
   const notifyCurrentRouteReady = useCallback(() => {
     notifyRouteDestinationReady?.(pathname);
@@ -1063,6 +1067,8 @@ export function SaugeNoireDishDetail({
           onReady={notifyCurrentRouteReady}
           onError={notifyCurrentRouteReady}
           readyScrollTop={0}
+          readingSurfaceOwnsScroll={routeScrollOwnerActive}
+          onReadingGestureActiveChange={onRouteGestureActiveChange}
           onSwipe={handleDetailSwipe}
           interceptSwipe
           resetKey={`sauge-detail-book-${menu.slug}`}

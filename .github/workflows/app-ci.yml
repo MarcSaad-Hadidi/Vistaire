@@ -98,11 +98,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Sauge Noire critical smoke
+      - name: Sauge Noire first-gesture scroll
         timeout-minutes: 5
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:smoke
+        run: npm run test:sauge-noire:scroll
 
       - name: QR functional Playwright tests
         timeout-minutes: 10
