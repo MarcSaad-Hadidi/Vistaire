@@ -942,6 +942,7 @@ for (const slowTransition of [
   }
 ]) {
   test(`slow RSC keeps the ${slowTransition.name} destination preview scrollable and preserves its scroll`, async ({
+    browserName,
     page
   }) => {
     test.setTimeout(90_000);
@@ -1148,8 +1149,16 @@ for (const slowTransition of [
           )
         );
         expect(previewTypography).toEqual(animatedTypography);
-        await target.hover();
-        await page.mouse.wheel(0, 320);
+        if (browserName === "webkit") {
+          await target.evaluate((element) => {
+            element.tabIndex = -1;
+            element.focus();
+          });
+          await page.keyboard.press("PageDown");
+        } else {
+          await target.hover();
+          await page.mouse.wheel(0, 320);
+        }
         await expect
           .poll(async () => target.evaluate((element) => element.scrollTop))
           .toBeGreaterThan(0);
@@ -1279,6 +1288,7 @@ for (const slowTransition of [
 }
 
 test("an immediate dish tap after CAD to EUR keeps one canonical currency snapshot", async ({
+  browserName,
   page
 }) => {
   test.setTimeout(60_000);
@@ -1505,8 +1515,16 @@ test("an immediate dish tap after CAD to EUR keeps one canonical currency snapsh
   const returnSettled = returnTransition.locator(
     '[data-sauge-route-scroll-owner="true"]'
   );
-  await returnSettled.hover();
-  await page.mouse.wheel(0, 260);
+  if (browserName === "webkit") {
+    await returnSettled.evaluate((element) => {
+      element.tabIndex = -1;
+      element.focus();
+    });
+    await page.keyboard.press("PageDown");
+  } else {
+    await returnSettled.hover();
+    await page.mouse.wheel(0, 260);
+  }
   await expect
     .poll(() => returnSettled.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);

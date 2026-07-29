@@ -130,7 +130,11 @@ async function openStaticPage(page: Page, kind: StaticPageKind, viewport: Viewpo
     "data-page-flip-actual-page",
     String(PAGE_INDEX[kind])
   );
-  await expect(page.locator(`[data-sauge-static-page="${kind}"]`)).toHaveCount(1);
+  await expect(
+    page.locator(
+      `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"] [data-sauge-static-page="${kind}"]`
+    )
+  ).toHaveCount(1);
   await expect(
     page.locator(
       `[data-page-flip-state="ready"] [data-sauge-flip-page-index="${PAGE_INDEX[kind]}"]:not([data-sauge-flip-clone="true"])`
@@ -143,7 +147,7 @@ async function assertStaticPageFits(
   { kind, viewport }: { kind: StaticPageKind; viewport: Viewport }
 ) {
   const sheet = page.locator(
-    `[data-sauge-flip-page-index]:not([data-sauge-flip-clone="true"]):has([data-sauge-static-page="${kind}"])`
+    `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]:has([data-sauge-static-page="${kind}"])`
   );
   await expect(sheet).toBeVisible();
   await expect
@@ -172,7 +176,7 @@ async function assertStaticPageFits(
         let stableFrames = 0;
         const sample = () => {
           const sheet = document.querySelector<HTMLElement>(
-            `[data-sauge-flip-page-index]:not([data-sauge-flip-clone="true"]):has([data-sauge-static-page="${expectedKind}"])`
+            `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]:has([data-sauge-static-page="${expectedKind}"])`
           );
           const elements = sheet
             ? [sheet, ...selectors.flatMap((selector) => [...sheet.querySelectorAll(selector)])]
@@ -200,13 +204,15 @@ async function assertStaticPageFits(
   );
   const result = await page.evaluate(
     ({ expectedKind, selectors }) => {
-      const content = document.querySelector<HTMLElement>(
+      const sheet = document.querySelector<HTMLElement>(
+        `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]:has([data-sauge-static-page="${expectedKind}"])`
+      );
+      const content = sheet?.querySelector<HTMLElement>(
         `[data-sauge-static-page="${expectedKind}"]`
       );
-      const sheet = content?.closest<HTMLElement>(
-        '[data-sauge-flip-page-index]:not([data-sauge-flip-clone="true"])'
-      );
-      if (!content || !sheet) throw new Error(`Missing original ${expectedKind} sheet`);
+      if (!content || !sheet) {
+        throw new Error(`Missing canonical ${expectedKind} reading surface`);
+      }
 
       const sheetRect = sheet.getBoundingClientRect();
       const contentRect = content.getBoundingClientRect();
@@ -794,7 +800,7 @@ test("simulated safe-area insets keep static controls and content contained", as
     await assertStaticPageFits(page, { kind, viewport });
     const safeAreaViolations = await page
       .locator(
-        `[data-sauge-flip-page-index]:not([data-sauge-flip-clone="true"]):has([data-sauge-static-page="${kind}"])`
+        `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]:has([data-sauge-static-page="${kind}"])`
       )
       .evaluate((sheet) => {
         const sheetRect = sheet.getBoundingClientRect();

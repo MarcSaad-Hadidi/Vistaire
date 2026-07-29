@@ -150,7 +150,7 @@ async function waitForMenuReady(page: Page) {
           const index = book?.getAttribute("data-page-index");
           const activePage = index
             ? document.querySelector<HTMLElement>(
-                `[data-sauge-flip-page-index="${index}"]:not([data-sauge-flip-clone])`
+                `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${index}"]`
               )
             : null;
           if (!activePage) return false;
@@ -179,7 +179,7 @@ async function scrollActivePageToBottom(page: Page) {
     const activePageIndex = book?.getAttribute("data-page-index");
     const activePage = activePageIndex
       ? document.querySelector<HTMLElement>(
-          `[data-sauge-flip-page-index="${activePageIndex}"]:not([data-sauge-flip-clone])`
+          `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${activePageIndex}"]`
         )
       : null;
     if (!activePage) throw new Error("Expected an active Sauge Noire page");
@@ -193,15 +193,12 @@ async function scrollActivePageToBottom(page: Page) {
 
 async function scrollDishToBottom(page: Page) {
   const targetScroll = await page.evaluate(() => {
-    const currentPaper = document.querySelector<HTMLElement>(
-      '[data-testid="sauge-noire-dish-detail"] article:not([data-transition-preview="true"])'
+    const scrollContainer = document.querySelector<HTMLElement>(
+      '[data-testid="sauge-noire-dish-detail"] [data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-kind="dish"]'
     );
-    if (!currentPaper) throw new Error("Expected current Sauge Noire dish paper");
-    const paperTarget = currentPaper.scrollHeight - currentPaper.clientHeight;
-    const scrollContainer =
-      paperTarget > 0 && getComputedStyle(currentPaper).overflowY !== "visible"
-        ? currentPaper
-        : currentPaper.closest<HTMLElement>('[data-sauge-flip-page-index]') ?? currentPaper;
+    if (!scrollContainer) {
+      throw new Error("Expected current Sauge Noire dish reading surface");
+    }
     const scrollTarget = scrollContainer.scrollHeight - scrollContainer.clientHeight;
     if (scrollTarget > 0 && getComputedStyle(scrollContainer).overflowY !== "visible") {
       scrollContainer.scrollTo({ top: scrollTarget, behavior: "auto" });
@@ -402,7 +399,7 @@ async function snapshotOriginalSection(page: Page): Promise<SectionDishSnapshot>
     const pageIndex = book?.getAttribute("data-page-index");
     const activePage = pageIndex
       ? document.querySelector<HTMLElement>(
-          `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone])`
+          `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${pageIndex}"]`
         )
       : null;
     const section = activePage?.querySelector<HTMLElement>("section[aria-label]");
@@ -442,7 +439,9 @@ async function snapshotShortSectionFooter(page: Page): Promise<ShortSectionFoote
     const book = document.querySelector('[data-testid="sauge-noire-book"]');
     const index = book?.getAttribute('data-page-index');
     const activePage = index
-      ? document.querySelector(`[data-sauge-flip-page-index="${index}"]:not([data-sauge-flip-clone])`)
+      ? document.querySelector(
+          `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${index}"]`
+        )
       : null;
     const section = activePage?.querySelector('section[aria-label]');
     const footer = section?.querySelector('footer');
@@ -507,7 +506,7 @@ async function snapshotMenu(page: Page): Promise<MenuSnapshot> {
     const pageIndex = book?.getAttribute("data-page-index");
     const activePage = pageIndex
       ? document.querySelector<HTMLElement>(
-          `[data-sauge-flip-page-index="${pageIndex}"]:not([data-sauge-flip-clone])`
+          `[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-page-index="${pageIndex}"]`
         )
       : null;
     const header = activePage?.querySelector("header");
@@ -564,10 +563,8 @@ async function snapshotDish(page: Page): Promise<DishSnapshot> {
       };
     };
     const detail = document.querySelector('[data-testid="sauge-noire-dish-detail"]');
-    const activePage = [...(detail?.querySelectorAll<HTMLElement>('[data-sauge-flip-page-index]') ?? [])].find(
-      (page) =>
-        !page.closest('[data-sauge-flip-clone="true"]') &&
-        Boolean(page.querySelector('article:not([data-transition-preview="true"])'))
+    const activePage = detail?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-kind="dish"]'
     );
     const paper = activePage?.querySelector<HTMLElement>('article:not([data-transition-preview="true"])');
     const header = paper?.querySelector("header");
@@ -706,6 +703,18 @@ test("Sauge Noire contents controls animate to the selected sheet", async ({ pag
       }
     ).__saugeHeaderContentsProbe;
     if (!contentsProbe) throw new Error("Expected the contents PageFlip probe");
+    const viewport = document.querySelector<HTMLElement>(
+      "[data-page-flip-state]"
+    );
+    const finalActualPage = Number(
+      viewport?.getAttribute("data-page-flip-actual-page")
+    );
+    if (
+      Number.isInteger(finalActualPage) &&
+      contentsProbe.actualPages.at(-1) !== finalActualPage
+    ) {
+      contentsProbe.actualPages.push(finalActualPage);
+    }
     contentsProbe.observer?.disconnect();
     return {
       actualPages: contentsProbe.actualPages,
@@ -869,7 +878,11 @@ test("Sauge Noire Google review CTA uses the paper and bronze visual language", 
     await gotoSaugeNoireRoute(page, ENDING_ROUTE);
     await waitForMenuReady(page);
 
-    const cta = page.getByTestId("google-review-cta");
+    const cta = page
+      .locator(
+        '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+      )
+      .getByTestId("google-review-cta");
     await expect(cta).toBeVisible();
     const snapshot = await cta.evaluate((element) => {
       const style = getComputedStyle(element);
@@ -906,7 +919,11 @@ test("Sauge Noire Google review CTA uses the paper and bronze visual language", 
   await gotoSaugeNoireRoute(page, ENDING_ROUTE);
   await waitForMenuReady(page);
 
-  const cta = page.getByTestId("google-review-cta");
+  const cta = page
+    .locator(
+      '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
+    )
+    .getByTestId("google-review-cta");
   await expect(cta).toContainText("Laisser un avis Google");
 
   await page.getByRole("button", { name: "Langue: FR" }).click();
