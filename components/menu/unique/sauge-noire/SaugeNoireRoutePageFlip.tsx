@@ -18,7 +18,6 @@ type SaugeNoireRoutePageFlipProps = {
   frameClassName?: string;
   sourceScrollTop: number;
   phase: "preparing" | "animating" | "awaiting-destination";
-  phaseHistory: string;
   targetActivated: boolean;
   visible: boolean;
   onReady: () => void;
@@ -40,7 +39,6 @@ export function SaugeNoireRoutePageFlip({
   frameClassName,
   sourceScrollTop,
   phase,
-  phaseHistory,
   targetActivated,
   visible,
   onReady,
@@ -165,7 +163,6 @@ export function SaugeNoireRoutePageFlip({
       data-sauge-route-transition-settled={hasReturnedToRead ? "true" : "false"}
       data-sauge-route-transition-visible={visible ? "true" : "false"}
       data-sauge-route-transition-phase={phase}
-      data-sauge-route-transition-phase-history={phaseHistory}
       data-sauge-route-transition-current-page={targetActivated ? targetPage : startPage}
       aria-hidden="true"
       inert
