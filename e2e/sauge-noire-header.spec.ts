@@ -901,6 +901,23 @@ test("Sauge Noire Google review CTA uses the paper and bronze visual language", 
     expect(snapshot.arrowPath).toBe("M4 16 16 4M8 4h8v8");
     expect(snapshot.documentHasHorizontalOverflow).toBe(false);
   }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoSaugeNoireRoute(page, ENDING_ROUTE);
+  await waitForMenuReady(page);
+
+  const cta = page.getByTestId("google-review-cta");
+  await expect(cta).toContainText("Laisser un avis Google");
+
+  await page.getByRole("button", { name: "Langue: FR" }).click();
+  await page.getByRole("menuitemradio", { name: "EN" }).click();
+
+  await expect(page).toHaveURL(/lang=en-CA/);
+  await expect(cta).toContainText("Leave a Google review");
+  await expect(cta).toHaveAttribute(
+    "aria-label",
+    "Example button to leave a Google review"
+  );
 });
 
 test("Sauge Noire dish photos stay fully contained in their frames", async ({ page }) => {

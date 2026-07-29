@@ -63,6 +63,8 @@ type Copy = {
   next: string;
   thanks: string;
   soon: string;
+  googleReview: string;
+  googleReviewAria: string;
   backToTop: string;
   backToMenu: string;
   ingredients: string;
@@ -88,6 +90,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Page suivante",
     thanks: "Merci et à bientôt",
     soon: "Au plaisir de vous retrouver autour d’une prochaine assiette.",
+    googleReview: "Laisser un avis Google",
+    googleReviewAria: "Exemple de bouton pour laisser un avis Google",
     backToTop: "Retour en haut",
     backToMenu: "Retour à la carte",
     ingredients: "Ingrédients",
@@ -109,6 +113,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Next page",
     thanks: "Thank you and see you soon",
     soon: "We look forward to welcoming you around the table again.",
+    googleReview: "Leave a Google review",
+    googleReviewAria: "Example button to leave a Google review",
     backToTop: "Back to top",
     backToMenu: "Back to the menu",
     ingredients: "Ingredients",
@@ -130,6 +136,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Página siguiente",
     thanks: "Gracias y hasta pronto",
     soon: "Esperamos recibirte de nuevo alrededor de la mesa.",
+    googleReview: "Dejar una reseña en Google",
+    googleReviewAria: "Ejemplo de botón para dejar una reseña en Google",
     backToTop: "Volver arriba",
     backToMenu: "Volver al menú",
     ingredients: "Ingredientes",
@@ -151,6 +159,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "Pagina successiva",
     thanks: "Grazie e a presto",
     soon: "Speriamo di accoglierti di nuovo intorno al tavolo.",
+    googleReview: "Lascia una recensione su Google",
+    googleReviewAria: "Esempio di pulsante per lasciare una recensione su Google",
     backToTop: "Torna in alto",
     backToMenu: "Torna al menu",
     ingredients: "Ingredienti",
@@ -172,6 +182,8 @@ const COPY: Record<SaugeCopyLocale, Copy> = {
     next: "الصفحة التالية",
     thanks: "شكرًا وإلى اللقاء",
     soon: "نتطلع إلى استقبالكم من جديد حول المائدة.",
+    googleReview: "اترك مراجعة على Google",
+    googleReviewAria: "مثال على زر لترك مراجعة على Google",
     backToTop: "العودة إلى الأعلى",
     backToMenu: "العودة إلى القائمة",
     ingredients: "المكونات",
@@ -1365,11 +1377,11 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
         type="button"
         className={styles.googleReviewCta}
         data-testid="google-review-cta"
-        aria-label="Exemple de bouton pour laisser un avis Google"
+        aria-label={copy.googleReviewAria}
       >
         <span className={styles.googleReviewBrand}>
           <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
-          Laisser un avis Google
+          {copy.googleReview}
         </span>
         <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">
           <svg viewBox="0 0 20 20" focusable="false">
