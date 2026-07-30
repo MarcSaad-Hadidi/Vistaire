@@ -11,6 +11,10 @@ const maisonRestaurantId = "11111111-1111-4111-8111-111111111112";
 const maisonMenuId = "22222222-2222-4222-8222-222222222223";
 const maisonCategoryId = "33333333-3333-4333-8333-333333333308";
 const maisonDishId = "44444444-4444-4444-8444-999999999999";
+const trouvableRestaurantId = "11111111-1111-4111-8111-111111111113";
+const trouvableMenuId = "22222222-2222-4222-8222-222222222224";
+const trouvableCategoryId = "33333333-3333-4333-8333-333333333309";
+const trouvableDishId = "44444444-4444-4444-8444-999999999998";
 
 const legacyCategoryNames = [
   ["33333333-3333-4333-8333-333333333301", "Amuse-bouches", "Ouvertures de saison"],
@@ -161,8 +165,74 @@ const maisonDish = {
   ar_usdz_url: ""
 };
 
+const trouvableRestaurant = {
+  id: trouvableRestaurantId,
+  name: "Trouvable",
+  slug: "trouvable",
+  location: "Montreal",
+  cuisine_type: "Bistro moderne",
+  status: "active"
+};
+
+const trouvableMenu = {
+  id: trouvableMenuId,
+  restaurant_id: trouvableRestaurantId,
+  name: "La Carte",
+  slug: "principal",
+  status: "published",
+  is_primary: true,
+  settings_json: {
+    defaultLocale: "fr-CA",
+    supportedLocales: ["fr-CA", "en-CA"],
+    baseCurrency: "CAD",
+    defaultCurrency: "CAD",
+    supportedCurrencies: ["CAD", "USD", "EUR"],
+    publicMenuStyle: "trouvable",
+    defaultThemeMode: "dark",
+    allowThemeToggle: true,
+    allowCurrencySelector: true,
+    allowLanguageSelector: true,
+    taxIncluded: true
+  }
+};
+
+const trouvableCategory = {
+  id: trouvableCategoryId,
+  restaurant_id: trouvableRestaurantId,
+  menu_id: trouvableMenuId,
+  name: "Plats",
+  slug: "plats",
+  description: "La carte actuelle de Trouvable",
+  display_order: 1
+};
+
+const trouvableDish = {
+  id: trouvableDishId,
+  restaurant_id: trouvableRestaurantId,
+  menu_id: trouvableMenuId,
+  category_id: trouvableCategoryId,
+  slug: "pesto-burrata-verde",
+  name: "Pesto Burrata Verde",
+  description: "Burrata, pesto vert et herbes fraiches.",
+  display_order: 1,
+  price: 22,
+  price_currency: "CAD",
+  base_currency: "CAD",
+  is_available: true,
+  is_signature: true,
+  ingredients: ["Burrata", "Pesto", "Herbes"],
+  options: [],
+  tags: ["Signature"],
+  image_url: "/images/demo/dishes/maison-elyse-n1.png",
+  metadata: {},
+  web_model_3d_url: "",
+  model_3d_url: "",
+  ar_model_3d_url: "",
+  ar_usdz_url: ""
+};
+
 const rows = {
-  restaurants: [maisonRestaurant, {
+  restaurants: [maisonRestaurant, trouvableRestaurant, {
     id: restaurantId,
     name: "Sauge Noire",
     slug: "sauge-noire",
@@ -170,7 +240,7 @@ const rows = {
     cuisine_type: "Cuisine au feu et botanique",
     status: "active"
   }],
-  menus: [maisonMenu, {
+  menus: [maisonMenu, trouvableMenu, {
     id: menuId,
     restaurant_id: restaurantId,
     name: "La Carte",
@@ -190,7 +260,7 @@ const rows = {
       taxIncluded: true
     }
   }],
-  menu_categories: [maisonCategory, ...categoryNames.map(([id, name, description], index) => ({
+  menu_categories: [maisonCategory, trouvableCategory, ...categoryNames.map(([id, name, description], index) => ({
     id,
     restaurant_id: restaurantId,
     menu_id: menuId,
@@ -199,7 +269,7 @@ const rows = {
     description,
     display_order: index + 1
   }))],
-  menu_dishes: [maisonDish, ...canonicalDishes],
+  menu_dishes: [maisonDish, trouvableDish, ...canonicalDishes],
   menu_ui_configs: [{
     id: "55555555-5555-4555-8555-555555555551",
     restaurant_id: restaurantId,
