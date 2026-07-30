@@ -105,6 +105,34 @@ async function expectLoadedImages(images: Locator, minimum = 1) {
     .toBeGreaterThanOrEqual(minimum);
 }
 
+async function expectIndependentComparisonScrollRoots(comparison: Locator) {
+  const roots = comparison.locator("[data-comparison-scroll-root]");
+  await expect(roots).toHaveCount(2);
+  await expect
+    .poll(() =>
+      roots.evaluateAll((elements) =>
+        elements.map((element) => ({
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight
+        }))
+      )
+    )
+    .toEqual([
+      expect.objectContaining({
+        clientHeight: expect.any(Number),
+        scrollHeight: expect.any(Number)
+      }),
+      expect.objectContaining({
+        clientHeight: expect.any(Number),
+        scrollHeight: expect.any(Number)
+      })
+    ]);
+  const overflow = await roots.evaluateAll((elements) =>
+    elements.map((element) => element.scrollHeight - element.clientHeight)
+  );
+  expect(overflow.every((value) => value > 24)).toBe(true);
+}
+
 async function performTouchGesture(
   page: Page,
   start: { x: number; y: number },
@@ -295,10 +323,11 @@ test.describe("Vistaire landing redesign", () => {
     ).toHaveCount(0);
     await expect(
       comparison.locator('[data-public-menu-renderer="sauge-noire"]')
-    ).toHaveAttribute("data-display-mode", "phone-preview");
+    ).toHaveAttribute("data-display-mode", "comparison-preview");
     await expectLoadedImages(
       comparison.locator('[data-public-menu-renderer="sauge-noire"] img')
     );
+    await expectIndependentComparisonScrollRoots(comparison);
     expect(runtime.previewPayloadRequests).toHaveLength(2);
     expect(runtime.previewPayloadRequests[1]).toContain(
       "/api/public/landing-menu-preview/sauge-noire?locale=fr"
@@ -318,12 +347,33 @@ test.describe("Vistaire landing redesign", () => {
     await expect(slider).toHaveAttribute("aria-valuenow", "4");
     await slider.press("End");
     await expect(slider).toHaveAttribute("aria-valuenow", "100");
+    await slider.press("Home");
+    await slider.press("Shift+ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "10");
+    await slider.press("Shift+ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "20");
+    await slider.press("Shift+ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "30");
+    await slider.press("Shift+ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "40");
+    await slider.press("Shift+ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "50");
     const sliderBox = await slider.boundingBox();
+    const comparisonBox = await comparison
+      .locator('[data-preview-comparison="pdf-vs-digital"]')
+      .boundingBox();
     expect(sliderBox).not.toBeNull();
-    if (sliderBox) {
-      await page.mouse.move(sliderBox.x + sliderBox.width * 0.8, sliderBox.y + 20);
+    expect(comparisonBox).not.toBeNull();
+    if (sliderBox && comparisonBox) {
+      await page.mouse.move(
+        sliderBox.x + sliderBox.width / 2,
+        sliderBox.y + sliderBox.height / 2
+      );
       await page.mouse.down();
-      await page.mouse.move(sliderBox.x + sliderBox.width * 0.25, sliderBox.y + 20);
+      await page.mouse.move(
+        comparisonBox.x + comparisonBox.width * 0.25,
+        sliderBox.y + sliderBox.height / 2
+      );
       await page.mouse.up();
       await expect
         .poll(async () => Number(await slider.getAttribute("aria-valuenow")))
@@ -483,28 +533,98 @@ test.describe("Vistaire landing redesign", () => {
       await expect(
         comparison.locator('[data-public-menu-renderer="maison-elyse"]')
       ).toHaveCount(1);
+      const tabs = comparison.getByRole("tab");
+      await expect
+        .poll(async () => {
+          await tabs.nth(2).click();
+          return tabs.nth(2).getAttribute("aria-selected");
+        })
+        .toBe("true");
+      await expect(
+        comparison.locator('[data-public-menu-renderer="sauge-noire"]')
+      ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
+      await expectIndependentComparisonScrollRoots(comparison);
+
       const slider = comparison.getByRole("slider");
-      const box = await slider.boundingBox();
-      expect(box).not.toBeNull();
-      if (box) {
+      const handleBox = await slider.boundingBox();
+      const frameBox = await comparison
+        .locator('[data-preview-comparison="pdf-vs-digital"]')
+        .boundingBox();
+      expect(handleBox).not.toBeNull();
+      expect(frameBox).not.toBeNull();
+      if (handleBox && frameBox) {
         await performTouchGesture(
           page,
-          { x: box.x + box.width * 0.8, y: box.y + box.height / 2 },
-          { x: box.x + box.width * 0.2, y: box.y + box.height / 2 }
+          {
+            x: handleBox.x + handleBox.width / 2,
+            y: handleBox.y + handleBox.height / 2
+          },
+          {
+            x: frameBox.x + frameBox.width * 0.2,
+            y: handleBox.y + handleBox.height / 2
+          }
         );
         await expect
           .poll(async () => Number(await slider.getAttribute("aria-valuenow")))
           .toBeLessThan(35);
 
-        const scrollBefore = await page.evaluate(() => window.scrollY);
+        await slider.press("Home");
+        await slider.press("Shift+ArrowRight");
+        await expect(slider).toHaveAttribute("aria-valuenow", "10");
+        await slider.press("Shift+ArrowRight");
+        await expect(slider).toHaveAttribute("aria-valuenow", "20");
+        await slider.press("Shift+ArrowRight");
+        await expect(slider).toHaveAttribute("aria-valuenow", "30");
+        await slider.press("Shift+ArrowRight");
+        await expect(slider).toHaveAttribute("aria-valuenow", "40");
+        await slider.press("Shift+ArrowRight");
+        await expect(slider).toHaveAttribute("aria-valuenow", "50");
+
+        const pdfRoot = comparison.locator(
+          '[data-comparison-scroll-root="pdf"]'
+        );
+        const digitalRoot = comparison.locator(
+          '[data-comparison-scroll-root="digital"]'
+        );
+        const windowScrollBefore = await page.evaluate(() => window.scrollY);
+        const pdfScrollBefore = await pdfRoot.evaluate(
+          (element) => element.scrollTop
+        );
+        const digitalScrollBefore = await digitalRoot.evaluate(
+          (element) => element.scrollTop
+        );
         await performTouchGesture(
           page,
-          { x: box.x + box.width / 2, y: box.y + box.height * 0.7 },
-          { x: box.x + box.width / 2, y: box.y + box.height * 0.35 }
+          {
+            x: frameBox.x + frameBox.width * 0.25,
+            y: frameBox.y + frameBox.height * 0.72
+          },
+          {
+            x: frameBox.x + frameBox.width * 0.25,
+            y: frameBox.y + frameBox.height * 0.3
+          }
         );
         await expect
+          .poll(() => pdfRoot.evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(pdfScrollBefore);
+
+        await performTouchGesture(
+          page,
+          {
+            x: frameBox.x + frameBox.width * 0.75,
+            y: frameBox.y + frameBox.height * 0.72
+          },
+          {
+            x: frameBox.x + frameBox.width * 0.75,
+            y: frameBox.y + frameBox.height * 0.3
+          }
+        );
+        await expect
+          .poll(() => digitalRoot.evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(digitalScrollBefore);
+        await expect
           .poll(() => page.evaluate(() => window.scrollY))
-          .toBeGreaterThan(scrollBefore);
+          .toBe(windowScrollBefore);
       }
       await expectNoHorizontalOverflow(page);
       expect(runtime.modelRequests).toEqual([]);

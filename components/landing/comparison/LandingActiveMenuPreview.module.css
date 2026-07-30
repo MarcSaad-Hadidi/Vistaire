@@ -2,14 +2,25 @@
   position: absolute;
   inset: 0;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #080706;
-  pointer-events: none;
+  -webkit-overflow-scrolling: touch;
+  pointer-events: auto;
+  scrollbar-color: rgba(232, 207, 155, 0.46) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-y;
 }
 
 .rendererShell > :global(*) {
   width: 100%;
   max-width: 100%;
+}
+
+.rendererShell:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.92);
+  outline-offset: -3px;
 }
 
 .loading {

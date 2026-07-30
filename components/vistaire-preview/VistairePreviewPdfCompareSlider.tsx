@@ -53,7 +53,13 @@ export function VistairePreviewPdfLayer({
   sections: PdfMenuSection[];
 }) {
   return (
-    <div className={styles.pdfScene} aria-hidden="true">
+    <div
+      aria-label={`Menu PDF complet de ${restaurantName}`}
+      className={styles.pdfScene}
+      data-comparison-scroll-root="pdf"
+      role="region"
+      tabIndex={0}
+    >
       <span className={`${styles.layerLabel} ${styles.pdfLabel}`}>PDF</span>
       <div className={styles.pdfContent}>
         <p className={styles.pdfRestaurant}>{restaurantName}</p>
@@ -286,46 +292,47 @@ export function VistairePreviewPdfCompareSlider({
         <div className={styles.screen}>
           <div
             ref={sliderRef}
-            role="slider"
-            tabIndex={0}
-            aria-label={
-              strings?.label ??
-              (locale === "en"
-                ? "Compare a PDF menu with the current Vistaire digital menu."
-                : "Comparer un menu PDF avec la carte digitale Vistaire actuelle.")
-            }
-            aria-orientation="horizontal"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={split}
-            aria-valuetext={
-              locale === "en"
-                ? `${split} percent PDF, ${100 - split} percent Vistaire`
-                : `${split} pour cent PDF, ${100 - split} pour cent Vistaire`
-            }
-            aria-controls={`${sliderId}-pdf ${sliderId}-vistaire`}
             className={styles.slider}
-            onKeyDown={onKeyDown}
-            onPointerCancel={onPointerUp}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
           >
             <div className={styles.vistaireLayer} id={`${sliderId}-vistaire`}>
               {digitalLayer}
             </div>
-            <div
-              aria-hidden="true"
-              className={styles.pdfLayer}
-              id={`${sliderId}-pdf`}
-            >
+            <div className={styles.pdfLayer} id={`${sliderId}-pdf`}>
               <VistairePreviewPdfLayer
                 restaurantName={preview.restaurant.name}
                 sections={preview.pdfSections}
               />
             </div>
 
-            <span className={styles.handle} aria-hidden="true">
+            <div
+              aria-controls={`${sliderId}-pdf ${sliderId}-vistaire`}
+              aria-label={
+                strings?.label ??
+                (locale === "en"
+                  ? "Compare a PDF menu with the current Vistaire digital menu."
+                  : "Comparer un menu PDF avec la carte digitale Vistaire actuelle.")
+              }
+              aria-orientation="horizontal"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={split}
+              aria-valuetext={
+                locale === "en"
+                  ? `${split} percent PDF, ${100 - split} percent Vistaire`
+                  : `${split} pour cent PDF, ${100 - split} pour cent Vistaire`
+              }
+              className={styles.handle}
+              onKeyDown={onKeyDown}
+              onLostPointerCapture={() => {
+                draggingRef.current = false;
+              }}
+              onPointerCancel={onPointerUp}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              role="slider"
+              tabIndex={0}
+            >
               <span className={styles.handleLine} />
               <span className={styles.handleButton}>
                 <svg
@@ -344,7 +351,7 @@ export function VistairePreviewPdfCompareSlider({
                   />
                 </svg>
               </span>
-            </span>
+            </div>
 
             {!hasInteracted ? (
               <span className={styles.hint}>

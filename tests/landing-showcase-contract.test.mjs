@@ -84,15 +84,18 @@ test("landing comparison mounts one official public-menu renderer with accessibl
   assert.match(comparison, /data-active-preview/);
   assert.match(previewLayer, /role="slider"/);
   assert.match(previewStyles, /touch-action:\s*pan-y/);
+  assert.match(previewStyles, /\.handle[\s\S]{0,300}touch-action:\s*none/);
+  assert.match(previewLayer, /data-comparison-scroll-root="pdf"/);
   assert.match(previewLayer, /digitalLayer/);
 
-  assert.match(activeRenderer, /MaisonElyseQrMenu/);
-  assert.match(activeRenderer, /TrouvablePremiumMenuExperience/);
-  assert.match(activeRenderer, /SaugeNoireBookMenu/);
-  assert.match(activeRenderer, /displayMode="phone-preview"/);
-  assert.match(activeRenderer, /mode="phone-preview"/);
-  assert.match(activeRenderer, /showGoogleReview=\{false\}/);
+  assert.match(activeRenderer, /MaisonElyseComparisonPreview/);
+  assert.match(activeRenderer, /TrouvableComparisonPreview/);
+  assert.match(activeRenderer, /SaugeNoireComparisonPreview/);
+  assert.match(activeRenderer, /data-display-mode="comparison-preview"/);
+  assert.match(activeRenderer, /data-comparison-scroll-root="digital"/);
   assert.match(activeRenderer, /rendererKey === "sauge-noire-book-v1"/);
+  assert.doesNotMatch(activeRenderer, /\sinert(?:\s|>)/);
+  assert.doesNotMatch(activeRenderer, /phone-preview/);
   assert.doesNotMatch(activeRenderer, /import\s*\(\s*[`'"].*\$\{/);
   assert.doesNotMatch(activeRenderer, /model-viewer|\.glb|\.usdz/i);
 });
@@ -146,6 +149,54 @@ test("landing dish cards use current public-menu detail routes", async () => {
   assert.match(projection, /getVisiblePublicMenuCategories/);
   assert.match(section, /experience\.featuredDish\.href/);
   assert.match(section, /data-testid="landing-dishes"/);
+  assert.match(section, /data-menu-slug/);
+  assert.match(section, /data-dish-slug/);
+  assert.match(section, /data-dish-id/);
+  assert.match(section, /data-image-source/);
+  assert.doesNotMatch(section, /fallbackSrc=\{experience\.image\}/);
+});
+
+test("landing comparison projects complete available menu data without arbitrary slices", async () => {
+  const projection = await source("lib/landing/publicMenuPreview.ts");
+  const activeRenderer = await source(
+    "components/landing/comparison/LandingActiveMenuPreview.tsx"
+  );
+  const comparisonRenderer = await source(
+    "components/landing/comparison/ComparisonPreviewMenu.tsx"
+  );
+
+  assert.match(projection, /buildFullPdfMenuData/);
+  assert.match(projection, /menu\.dishes\.filter\(\(dish\) => dish\.available\)/);
+  assert.doesNotMatch(projection, /categories\.slice\(/);
+  assert.doesNotMatch(projection, /currentDishes\.slice\(/);
+  assert.doesNotMatch(
+    projection,
+    /categoryDishes\([^)]*\)[\s\S]{0,80}\.slice\(/
+  );
+  assert.match(comparisonRenderer, /preview\.categoryCards\.map/);
+  assert.match(comparisonRenderer, /dishes\.map/);
+  assert.match(activeRenderer, /data-comparison-scroll-root="digital"/);
+});
+
+test("landing preview payload is sanitized and excludes immersive asset fields", async () => {
+  const data = await source("lib/landing/menuExperiences.ts");
+  const activeRenderer = await source(
+    "components/landing/comparison/LandingActiveMenuPreview.tsx"
+  );
+
+  assert.match(data, /comparison:\s*PdfComparePreviewData/);
+  assert.doesNotMatch(data, /type LandingPreviewBase[\s\S]{0,300}menu:\s*PublicMenu/);
+  assert.doesNotMatch(activeRenderer, /PageFlip|model-viewer|\.glb|\.usdz/i);
+});
+
+test("public dish images report loading only until the real image load event", async () => {
+  const image = await source("components/public-menu/PublicDishImage.tsx");
+
+  assert.match(image, /data-image-state=\{imageState\}/);
+  assert.match(image, /onLoad=\{\(\) => setLoadedSource\(currentSrc\)\}/);
+  assert.match(image, /"loading"/);
+  assert.match(image, /"fallback"/);
+  assert.match(image, /data-image-state="unavailable"/);
 });
 
 test("landing dish photos keep versioned public routes compatible with Next Image", async () => {

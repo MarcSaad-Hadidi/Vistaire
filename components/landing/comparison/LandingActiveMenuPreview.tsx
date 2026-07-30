@@ -4,26 +4,26 @@ import dynamic from "next/dynamic";
 import type { LandingMenuPreviewPayload } from "@/lib/landing/menuExperiences";
 import styles from "./LandingActiveMenuPreview.module.css";
 
-const MaisonElyseQrMenu = dynamic(
+const MaisonElyseComparisonPreview = dynamic(
   () =>
-    import("@/components/menu/MaisonElyseQrMenu").then(
-      (module) => module.MaisonElyseQrMenu
+    import("./MaisonElyseComparisonPreview").then(
+      (module) => module.MaisonElyseComparisonPreview
     ),
   { loading: PreviewLoading, ssr: false }
 );
 
-const TrouvablePremiumMenuExperience = dynamic(
+const TrouvableComparisonPreview = dynamic(
   () =>
-    import("@/components/menu/TrouvablePremiumMenuExperience").then(
-      (module) => module.TrouvablePremiumMenuExperience
+    import("./TrouvableComparisonPreview").then(
+      (module) => module.TrouvableComparisonPreview
     ),
   { loading: PreviewLoading, ssr: false }
 );
 
-const SaugeNoireBookMenu = dynamic(
+const SaugeNoireComparisonPreview = dynamic(
   () =>
-    import("@/components/menu/unique/sauge-noire/SaugeNoireBookMenu").then(
-      (module) => module.SaugeNoireBookMenu
+    import("./SaugeNoireComparisonPreview").then(
+      (module) => module.SaugeNoireComparisonPreview
     ),
   { loading: PreviewLoading, ssr: false }
 );
@@ -56,21 +56,16 @@ export function LandingActiveMenuPreview({
   if (payload.kind === "maison-elyse") {
     return (
       <div
-        aria-hidden="true"
+        aria-label={`${payload.comparison.restaurant.name}, carte digitale Vistaire`}
         className={styles.rendererShell}
+        data-comparison-scroll-root="digital"
+        data-display-mode="comparison-preview"
         data-landing-menu-renderer="maison-elyse"
-        data-phone-mockup-scroll=""
-        inert
+        data-public-menu-renderer="maison-elyse"
+        role="region"
+        tabIndex={0}
       >
-        <MaisonElyseQrMenu
-          config={payload.config}
-          displayMode="phone-preview"
-          locale={payload.locale}
-          localizedMenus={payload.localizedMenus}
-          menu={payload.menu}
-          query={payload.query}
-          showGoogleReview={false}
-        />
+        <MaisonElyseComparisonPreview preview={payload.comparison} />
       </div>
     );
   }
@@ -78,19 +73,16 @@ export function LandingActiveMenuPreview({
   if (payload.kind === "trouvable") {
     return (
       <div
-        aria-hidden="true"
+        aria-label={`${payload.comparison.restaurant.name}, carte digitale Vistaire`}
         className={styles.rendererShell}
+        data-comparison-scroll-root="digital"
+        data-display-mode="comparison-preview"
         data-landing-menu-renderer="trouvable"
-        data-phone-mockup-scroll=""
-        inert
+        data-public-menu-renderer="trouvable"
+        role="region"
+        tabIndex={0}
       >
-        <TrouvablePremiumMenuExperience
-          config={payload.config}
-          displayMode="phone-preview"
-          exchangeRates={payload.exchangeRates}
-          menu={payload.menu}
-          query={payload.query}
-        />
+        <TrouvableComparisonPreview preview={payload.comparison} />
       </div>
     );
   }
@@ -101,20 +93,16 @@ export function LandingActiveMenuPreview({
   ) {
     return (
       <div
-        aria-hidden="true"
+        aria-label={`${payload.comparison.restaurant.name}, carte digitale Vistaire`}
         className={styles.rendererShell}
+        data-comparison-scroll-root="digital"
+        data-display-mode="comparison-preview"
         data-landing-menu-renderer="sauge-noire"
-        data-phone-mockup-scroll=""
-        inert
+        data-public-menu-renderer="sauge-noire"
+        role="region"
+        tabIndex={0}
       >
-        <SaugeNoireBookMenu
-          config={payload.config}
-          exchangeRates={payload.exchangeRates}
-          locale={payload.locale}
-          menu={payload.menu}
-          mode="phone-preview"
-          query={payload.query}
-        />
+        <SaugeNoireComparisonPreview preview={payload.comparison} />
       </div>
     );
   }
