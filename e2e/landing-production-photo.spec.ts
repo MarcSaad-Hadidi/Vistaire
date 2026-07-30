@@ -33,10 +33,32 @@ test("production landing renders a versioned public dish photo through its signe
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const versionedPhotoPath =
-    "/api/public/menu-dishes/44444444-4444-4444-8444-000000000001/photo" +
-    "?v=0000000000000000000000000000000000000000000000000000000000000002";
-  const redirectResponse = await page.request.get(versionedPhotoPath, {
+  const landingResponse = await page.goto("/", {
+    waitUntil: "domcontentloaded"
+  });
+  expect(landingResponse?.status()).toBe(200);
+  const dishes = page.getByTestId("landing-dishes");
+  await dishes.scrollIntoViewIfNeeded();
+  const versionedPhotos = dishes.locator(
+    'img[data-public-dish-image][src*="/api/public/menu-dishes/"][src*="?v="]'
+  );
+  await expect(versionedPhotos).toHaveCount(3);
+  const photoPaths = await versionedPhotos.evaluateAll((images) =>
+    images.map((image) => {
+      const src = image.getAttribute("src");
+      if (!src) throw new Error("Versioned landing photo is missing its src.");
+      const resolved = new URL(src, window.location.href);
+      return `${resolved.pathname}${resolved.search}`;
+    })
+  );
+  expect(new Set(photoPaths).size).toBe(3);
+  for (const photoPath of photoPaths) {
+    expect(photoPath).toMatch(
+      /^\/api\/public\/menu-dishes\/[0-9a-f-]+\/photo\?v=[0-9a-f]{64}$/i
+    );
+  }
+
+  const redirectResponse = await page.request.get(photoPaths[0], {
     maxRedirects: 0
   });
   expect(redirectResponse.status()).toBe(307);
@@ -45,39 +67,33 @@ test("production landing renders a versioned public dish photo through its signe
     /^http:\/\/127\.0\.0\.1:55434\/storage\/v1\/object\/sign\/vistaire-media\/.+\?token=fixture-photo-token$/
   );
 
-  const landingResponse = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(landingResponse?.status()).toBe(200);
-  const dishes = page.getByTestId("landing-dishes");
-  await dishes.scrollIntoViewIfNeeded();
-  const versionedPhoto = dishes.locator(
-    'img[data-public-dish-image][src*="/api/public/menu-dishes/"][src*="?v="]'
-  );
-  await expect(versionedPhoto).toHaveCount(1);
-  await versionedPhoto.scrollIntoViewIfNeeded();
   await expect
     .poll(() =>
-      versionedPhoto.evaluate((image) => {
-        const element = image as HTMLImageElement;
-        return element.complete && element.naturalWidth > 0 && element.naturalHeight > 0;
-      })
+      versionedPhotos.evaluateAll((images) =>
+        images.every((image) => {
+          const element = image as HTMLImageElement;
+          return (
+            element.complete &&
+            element.naturalWidth > 0 &&
+            element.naturalHeight > 0
+          );
+        })
+      )
     )
     .toBe(true);
 
-  const src = await versionedPhoto.getAttribute("src");
-  expect(src).not.toBeNull();
-  const resolvedSrc = new URL(src!, page.url());
-  expect(`${resolvedSrc.pathname}${resolvedSrc.search}`).toMatch(
-    /^\/api\/public\/menu-dishes\/[0-9a-f-]+\/photo\?v=[0-9a-f]{64}$/i
-  );
-  expect(`${resolvedSrc.pathname}${resolvedSrc.search}`).toBe(versionedPhotoPath);
-  expect(resolvedSrc.pathname).not.toContain("/_next/image");
+  expect(photoPaths.every((path) => !path.includes("/_next/image"))).toBe(true);
   expect(failedResponses).toEqual([]);
   expect(
-    imageResponses.some(
-      (response) =>
-        response.status === 200 &&
-        response.contentType?.startsWith("image/") &&
-        /\/storage\/v1\/object\/sign\/vistaire-media\//.test(response.url)
-    )
-  ).toBe(true);
+    new Set(
+      imageResponses
+        .filter(
+          (response) =>
+            response.status === 200 &&
+            response.contentType?.startsWith("image/") &&
+            /\/storage\/v1\/object\/sign\/vistaire-media\//.test(response.url)
+        )
+        .map((response) => response.url)
+    ).size
+  ).toBeGreaterThanOrEqual(3);
 });
