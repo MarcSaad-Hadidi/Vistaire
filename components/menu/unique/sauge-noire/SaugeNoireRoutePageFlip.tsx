@@ -238,7 +238,6 @@ export function SaugeNoireRoutePageFlip({
             onChangeState={handleChangeState}
             onError={handleError}
             resetKey={id}
-            protectInteractiveTargets
             showCover={false}
             renderOnlyPageLengthChange
             fallback={source}

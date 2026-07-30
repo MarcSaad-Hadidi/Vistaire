@@ -332,9 +332,9 @@ export function SaugeNoireBookMenu({
   const [pageIndex, setPageIndex] = useState(() =>
     pageFromQuery(query?.view, pages.length)
   );
-  const [contentsJumpRequest, setContentsJumpRequest] =
+  const [singleFlipJumpRequest, setSingleFlipJumpRequest] =
     useState<SingleFlipJumpRequest | null>(null);
-  const contentsJumpTokenRef = useRef(0);
+  const singleFlipJumpTokenRef = useRef(0);
   const pageIndexRef = useRef(pageIndex);
   const activeCurrencyRef = useRef(activeCurrency);
   const activeLocaleRef = useRef(activeLocaleValue);
@@ -362,19 +362,38 @@ export function SaugeNoireBookMenu({
       goToPage(1);
       return;
     }
-    setContentsJumpRequest((current) => {
+    setSingleFlipJumpRequest((current) => {
       if (current) return current;
-      contentsJumpTokenRef.current += 1;
+      singleFlipJumpTokenRef.current += 1;
       return {
-        token: contentsJumpTokenRef.current,
+        token: singleFlipJumpTokenRef.current,
         direction: "previous",
         finalPage: 1
       };
     });
   }, [goToPage, pageFlipEnabled]);
 
-  const handleContentsJumpSettled = useCallback((token: number) => {
-    setContentsJumpRequest((current) =>
+  const openContentsDestinationWithSingleFlip = useCallback(
+    (finalPage: number) => {
+      if (!pageFlipEnabled || pageIndexRef.current !== 1) {
+        goToPage(finalPage);
+        return;
+      }
+      setSingleFlipJumpRequest((current) => {
+        if (current) return current;
+        singleFlipJumpTokenRef.current += 1;
+        return {
+          token: singleFlipJumpTokenRef.current,
+          direction: "next",
+          finalPage
+        };
+      });
+    },
+    [goToPage, pageFlipEnabled]
+  );
+
+  const handleSingleFlipJumpSettled = useCallback((token: number) => {
+    setSingleFlipJumpRequest((current) =>
       current?.token === token ? null : current
     );
   }, []);
@@ -414,7 +433,7 @@ export function SaugeNoireBookMenu({
       ) {
         return;
       }
-      if (contentsJumpRequest) {
+      if (singleFlipJumpRequest) {
         if (
           event.key === "ArrowRight" ||
           event.key === "ArrowLeft" ||
@@ -456,7 +475,7 @@ export function SaugeNoireBookMenu({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    contentsJumpRequest,
+    singleFlipJumpRequest,
     goToPage,
     pages.length,
     pageIndex,
@@ -582,8 +601,12 @@ export function SaugeNoireBookMenu({
               .map((candidate) => candidate.category)}
             copy={copy}
             activePage={categoryPage}
-            onSelect={(selectedIndex) => goToPage(selectedIndex + 2)}
-            onSelectEnding={() => goToPage(pages.length - 1)}
+            onSelect={(selectedIndex) =>
+              openContentsDestinationWithSingleFlip(selectedIndex + 2)
+            }
+            onSelectEnding={() =>
+              openContentsDestinationWithSingleFlip(pages.length - 1)
+            }
             onPrevious={() => goToPage(0)}
             onNext={() => goToPage(2)}
           />
@@ -627,6 +650,7 @@ export function SaugeNoireBookMenu({
     goToPage,
     menu,
     pages,
+    openContentsDestinationWithSingleFlip,
     query,
     openContentsWithSingleFlip,
     selectCurrency,
@@ -810,8 +834,8 @@ export function SaugeNoireBookMenu({
               readyScrollTop={0}
               readingSurfaceOwnsScroll={routeScrollOwnerActive}
               onReadingGestureActiveChange={onRouteGestureActiveChange}
-              singleFlipJumpRequest={contentsJumpRequest}
-              onSingleFlipJumpSettled={handleContentsJumpSettled}
+              singleFlipJumpRequest={singleFlipJumpRequest}
+              onSingleFlipJumpSettled={handleSingleFlipJumpSettled}
               fallback={renderPage(currentPage, pageIndex, false, handleDishLinkClick)}
             />
           ) : (
@@ -897,7 +921,10 @@ export function SaugeNoireBookHeader({
           <span className={styles.contentsBackLabel}>{contentsLabel}</span>
         </button>
       ) : null}
-      <div className={styles.preferenceControls}>
+      <div
+        className={styles.preferenceControls}
+        data-sauge-swipe-block="preferences"
+      >
         <PreferenceMenu
           ariaLabel="Langue"
           values={locales}

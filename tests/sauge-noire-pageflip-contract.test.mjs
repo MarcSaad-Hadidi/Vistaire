@@ -363,15 +363,15 @@ test("a permanent PageFlip error returns to the canonical reading surface", asyn
   );
   assert.match(
     experiment,
-    /!hasReadingSurface \|\| \(!failed && engineState === "flipping"\)/
+    /!hasReadingSurface \|\|[\s\S]*engineState === "flipping" \|\| singleFlipJumpKeepsEngineVisible/
   );
   assert.match(
     experiment,
-    /contentInert=\{[\s\S]*\(!failed && engineState === "flipping"\)[\s\S]*!readingSurfaceOwnsScroll/
+    /contentInert=\{[\s\S]*engineState === "flipping"[\s\S]*singleFlipJumpKeepsEngineVisible[\s\S]*!readingSurfaceOwnsScroll/
   );
   assert.match(
     experiment,
-    /onError=\{\(\) => \{[\s\S]*cancelAnimationFrame\(animationSourceClearFrameRef\.current\)[\s\S]*animationSourceScrollRef\.current = null;[\s\S]*setFailed\(true\)/
+    /onError=\{\(\) => \{[\s\S]*interruptedSingleFlipJump[\s\S]*cancelAnimationFrame\(singleFlipJumpFrameRef\.current\)[\s\S]*activeSingleFlipJumpRef\.current = null;[\s\S]*requestedPageIndexRef\.current = null;[\s\S]*animationTargetPageRef\.current = null;[\s\S]*onSingleFlipJumpSettledRef\.current\?\.\(interruptedSingleFlipJump\)[\s\S]*setFailed\(true\)/
   );
 });
 
@@ -458,8 +458,17 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(experiment, /onPointerDown=\{handlePointerDown\}/);
   assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
   assert.match(experiment, /onPointerUp=\{handlePointerUp\}/);
-  assert.doesNotMatch(experiment, /onTouchStart=\{handleTouchStart\}/);
-  assert.doesNotMatch(experiment, /onTouchEnd=\{handleTouchEnd\}/);
+  assert.match(experiment, /onTouchStart=\{handleTouchStart\}/);
+  assert.match(
+    experiment,
+    /addEventListener\("touchmove", handleTouchMove, \{[\s\S]*passive: false/
+  );
+  assert.match(
+    experiment,
+    /removeEventListener\("touchmove", handleTouchMove\)/
+  );
+  assert.match(experiment, /onTouchEnd=\{handleTouchEnd\}/);
+  assert.match(experiment, /onTouchCancel=\{handleTouchCancel\}/);
   assert.match(experiment, /animationTargetPageRef/);
   assert.match(experiment, /targetPage > currentPage/);
   assert.match(experiment, /pageFlip\.flipNext\(\)/);
@@ -473,15 +482,25 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
 test("page swipes can start on dish links without hijacking real controls", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
+  assert.match(experiment, /\[data-no-page-flip\], \[data-sauge-swipe-block\]/);
+  assert.match(experiment, /\[contenteditable\]:not\(\[contenteditable="false"\]\)/);
+  assert.doesNotMatch(experiment, /function isPageFlipInteractiveTarget/);
+  assert.match(experiment, /type GesturePhase =[\s\S]*"candidate"[\s\S]*"consumed"/);
+  assert.match(experiment, /event\.currentTarget\.setPointerCapture/);
+  assert.match(experiment, /const SWIPE_DISTANCE = 44/);
+  assert.match(experiment, /const FLICK_VELOCITY = 0\.3/);
+  assert.match(experiment, /const FLICK_RECENCY_MS = 160/);
   assert.match(
     experiment,
-    /target\.closest\(\s*"input, select, textarea, \[contenteditable=true\], \[data-no-page-flip\]"/
+    /gesture\.lastTime - gesture\.velocityTime <= FLICK_RECENCY_MS/
   );
-  assert.match(experiment, /function isPageFlipInteractiveTarget/);
-  assert.match(experiment, /target\.closest\("a, button"\)/);
-  assert.match(experiment, /event\.currentTarget\.setPointerCapture/);
-  assert.match(experiment, /const SWIPE_DISTANCE = 32/);
-  assert.match(experiment, /Math\.abs\(deltaX\) <= Math\.abs\(deltaY\)/);
+  assert.match(
+    experiment,
+    /Math\.sign\(gesture\.velocityX\) === Math\.sign\(gesture\.deltaX\)/
+  );
+  assert.match(experiment, /onClickCapture=\{handleClickCapture\}/);
+  assert.match(experiment, /event\.detail === 0/);
+  assert.match(experiment, /!event\.isTrusted/);
 });
 
 test("lab does not introduce document or raster substitutes", async () => {

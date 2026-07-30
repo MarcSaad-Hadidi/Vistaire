@@ -273,22 +273,30 @@ test("dish-to-dish navigation uses one stable three-sheet PageFlip and waits for
   assert.doesNotMatch(styles, /detailPageTurnNext|detailPageTurnPrevious|rotateY\(180deg\)/);
 });
 
-test("dish PageFlip gestures lock horizontal direction and protect interactive surfaces", async () => {
+test("dish PageFlip gestures arbitrate intent and protect only explicit surfaces", async () => {
   const detail = await readFile(detailPath, "utf8");
   const experiment = await readFile(
     new URL("../components/menu/unique/sauge-noire/SaugeNoirePageFlipExperiment.tsx", import.meta.url),
     "utf8"
   );
 
-  assert.match(detail, /protectInteractiveTargets/);
+  assert.doesNotMatch(detail, /protectInteractiveTargets/);
   assert.match(detail, /data-no-page-flip="true"/);
-  assert.match(experiment, /gestureStartRef/);
-  assert.match(experiment, /axis: "undecided" \| "horizontal" \| "vertical"/);
+  assert.match(experiment, /gestureRef/);
+  assert.match(experiment, /type GesturePhase =[\s\S]*"candidate"[\s\S]*"cancelled"/);
   assert.match(experiment, /setPointerCapture/);
   assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
-  assert.match(experiment, /onPointerCancel=\{handlePointerCancel\}/);
-  assert.match(experiment, /isPageFlipInteractiveTarget\(target\)/);
-  assert.match(experiment, /onSwipe\(deltaX < 0 \? "next" : "previous"\)/);
+  assert.match(experiment, /onPointerCancel=\{cancelGesture\}/);
+  assert.match(
+    experiment,
+    /addEventListener\("touchmove", handleTouchMove, \{[\s\S]*passive: false/
+  );
+  assert.match(
+    experiment,
+    /removeEventListener\("touchmove", handleTouchMove\)/
+  );
+  assert.match(experiment, /isPageFlipProtectedTarget/);
+  assert.match(experiment, /onSwipe\(direction\)/);
 });
 
 test("Sauge Noire detail chrome belongs to each PageFlip sheet", async () => {

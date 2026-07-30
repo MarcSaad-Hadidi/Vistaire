@@ -144,6 +144,10 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
     scripts["test:sauge-noire:static-parity"],
     "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-static-page-handoff.spec.ts --project=chromium --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
   );
+  assert.equal(
+    scripts["test:sauge-noire:contents-single-flip"],
+    "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-contents-single-flip.spec.ts --project=chromium --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
+  );
   assert.match(
     workflow,
     /- name: Install Playwright WebKit\s+run: npx --no-install playwright install --with-deps webkit/
@@ -160,11 +164,17 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
     workflow,
     /- name: Sauge Noire static-page parity\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
   );
+  assert.match(
+    workflow,
+    /- name: Sauge Noire contents single flip\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:contents-single-flip/
+  );
   assert.ok(
     workflow.indexOf("run: npm run build") <
       workflow.indexOf("run: npm run test:sauge-noire:smoke") &&
       workflow.indexOf("run: npm run build") <
         workflow.indexOf("run: npm run test:sauge-noire:scroll") &&
+      workflow.indexOf("run: npm run build") <
+        workflow.indexOf("run: npm run test:sauge-noire:contents-single-flip") &&
       workflow.indexOf("run: npm run build") <
         workflow.indexOf("run: npm run test:sauge-noire:static-parity"),
     "the built Next server must exist before the Sauge Noire browser proofs start"
