@@ -165,7 +165,7 @@ test("dish photo metadata merge keeps existing fields and marks photo ready", ()
   );
 });
 
-test("dish photo upload API and public proxy use guarded server-side storage", async () => {
+test("dish photo upload API and public redirect use guarded server-side storage", async () => {
   const uploadRoute = await readFile(
     "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
     "utf8"
@@ -174,6 +174,7 @@ test("dish photo upload API and public proxy use guarded server-side storage", a
     "app/api/public/menu-dishes/[dishId]/photo/route.ts",
     "utf8"
   );
+  const redirectHelper = await readFile("lib/publicDishAssetRedirect.ts", "utf8");
 
   assert.match(uploadRoute, /runtime = "nodejs"/);
   assert.match(uploadRoute, /requireVistaireOwnerApi\(\)/);
@@ -191,8 +192,14 @@ test("dish photo upload API and public proxy use guarded server-side storage", a
   assert.match(uploadRoute, /nextMetadata: metadata/);
   assert.match(uploadRoute, /warning/);
   assert.doesNotMatch(uploadRoute, /SUPABASE_SERVICE_ROLE_KEY/);
-  assert.match(publicRoute, /storage\.from\(bucket\)\.download/);
-  assert.match(publicRoute, /photoStoragePath/);
+  assert.match(publicRoute, /redirectPublicDishAsset/);
+  assert.match(publicRoute, /kind: "photo"/);
+  assert.match(publicRoute, /export async function HEAD/);
+  assert.match(redirectHelper, /photoStorageBucket/);
+  assert.match(redirectHelper, /photoStoragePath/);
+  assert.match(redirectHelper, /storage\.info\(storagePath\)/);
+  assert.match(redirectHelper, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });
 
 test("photo replacement, delete, and dish delete use the central media collector", async () => {
