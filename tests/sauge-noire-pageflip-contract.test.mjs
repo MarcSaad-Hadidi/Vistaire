@@ -275,6 +275,7 @@ test("a target sheet decodes its leading photo before the physical flip starts",
   assert.match(experiment, /flipPreparationTokenRef\.current \+= 1;[\s\S]*setMediaPreparing\(false\);[\s\S]*turnToPage/);
   assert.match(experiment, /const applyRecenter = \(\) =>/);
   assert.match(experiment, /pageFlip\.getState\(\) !== "read"[\s\S]*requestAnimationFrame\(applyRecenter\)/);
+  assert.match(experiment, /pageFlip\.turnToPage\(recenterPage\);\s*lastRecenterTokenRef\.current = recenterToken/);
   assert.match(experiment, /data-page-flip-media-preparing="true"/);
 });
 

@@ -966,7 +966,6 @@ export function SaugeNoirePageFlipExperiment({
       return;
     }
 
-    lastRecenterTokenRef.current = recenterToken;
     flipPreparationTokenRef.current += 1;
     setMediaPreparing(false);
     requestedPageIndexRef.current = null;
@@ -982,6 +981,7 @@ export function SaugeNoirePageFlipExperiment({
         return;
       }
       pageFlip.turnToPage(recenterPage);
+      lastRecenterTokenRef.current = recenterToken;
     };
     frame = window.requestAnimationFrame(applyRecenter);
     return () => window.cancelAnimationFrame(frame);
