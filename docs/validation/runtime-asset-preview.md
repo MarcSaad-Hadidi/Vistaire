@@ -19,7 +19,8 @@ full photo SHA-256, and model asset version. It checks:
   and at most one buffered byte;
 - direct discovered-Location `GET` with `Range: bytes=0-1023`: `206` and at
   most 1024 bytes when Range is supported;
-- wrong asset version: `404`;
+- wrong GLB and USDZ asset versions: `404`;
+- wrong photo SHA version: `404`;
 - optional known-missing public asset URL: `404`.
 
 If Storage ignores Range and returns `200`, the response stream is cancelled
@@ -32,13 +33,15 @@ npm run runtime:assets:validate -- `
   --asset-version 20260722-3d95d7da `
   --photo-version aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa `
   --expected-storage-host project-ref.supabase.co `
+  --expected-restaurant-id 11111111-1111-1111-1111-111111111111 `
   --missing-asset-url /api/public/menu-dishes/known-missing-id/photo
 ```
 
 The CLI also accepts the `VISTAIRE_RUNTIME_BASE_URL`,
 `VISTAIRE_RUNTIME_DISH_ID`, `VISTAIRE_RUNTIME_ASSET_VERSION`,
 `VISTAIRE_RUNTIME_PHOTO_VERSION`,
-`VISTAIRE_RUNTIME_STORAGE_HOST`, and
+`VISTAIRE_RUNTIME_STORAGE_HOST`,
+`VISTAIRE_RUNTIME_RESTAURANT_ID`, and
 `VISTAIRE_RUNTIME_MISSING_ASSET_URL` environment variables. Run with `--help`
 for optional public route overrides and `--json`. Overrides must stay on the
 Vistaire origin and must not contain signed-query keys.

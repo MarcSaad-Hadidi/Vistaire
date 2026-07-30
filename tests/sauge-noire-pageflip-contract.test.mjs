@@ -262,6 +262,16 @@ test("the real PageFlip wrapper exposes the stable-child and lifecycle controls"
   assert.match(experiment, /data-page-flip-actual-page=\{actualPageIndex\}/);
 });
 
+test("a target sheet decodes its leading photo before the physical flip starts", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+
+  assert.match(experiment, /const TARGET_MEDIA_DECODE_TIMEOUT_MS = \d+/);
+  assert.match(experiment, /async function waitForPreparedPhysicalPageMedia/);
+  assert.match(experiment, /await waitForPreparedPhysicalPageMedia/);
+  assert.match(experiment, /const startPreparedFlip = useCallback/);
+  assert.match(experiment, /startPreparedFlip\(/);
+});
+
 test("PageFlip resizes in place for structural width and height changes", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
@@ -380,7 +390,7 @@ test("multi-page jumps resume when PageFlip returns to read", async () => {
 
   assert.match(
     experiment,
-    /\}, \[[\s\S]*bookIsReady,[\s\S]*engineState,[\s\S]*pageIndex,[\s\S]*revealEngineForFlip,[\s\S]*singleFlipJumpRequest[\s\S]*\]\);/
+    /\}, \[[\s\S]*bookIsReady,[\s\S]*engineState,[\s\S]*pageIndex,[\s\S]*startPreparedFlip,[\s\S]*singleFlipJumpRequest[\s\S]*\]\);/
   );
 });
 
@@ -470,7 +480,7 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(experiment, /onTouchEnd=\{handleTouchEnd\}/);
   assert.match(experiment, /onTouchCancel=\{handleTouchCancel\}/);
   assert.match(experiment, /animationTargetPageRef/);
-  assert.match(experiment, /targetPage > currentPage/);
+  assert.match(experiment, /requestedTargetPageIndex > sourcePageIndex/);
   assert.match(experiment, /pageFlip\.flipNext\(\)/);
   assert.match(experiment, /pageFlip\.flipPrev\(\)/);
   assert.match(experiment, /onPageFlip\(nextIndex\)/);

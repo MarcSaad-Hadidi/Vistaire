@@ -11,6 +11,7 @@ const FLAG_TO_KEY = new Map([
   ["--asset-version", "assetVersion"],
   ["--photo-version", "photoVersion"],
   ["--expected-storage-host", "expectedStorageHost"],
+  ["--expected-restaurant-id", "expectedRestaurantId"],
   ["--photo-url", "photoUrl"],
   ["--glb-url", "glbUrl"],
   ["--usdz-url", "usdzUrl"],
@@ -27,6 +28,7 @@ Usage:
     --asset-version <version> \\
     --photo-version <full-photo-sha256> \\
     --expected-storage-host <project>.supabase.co \\
+    --expected-restaurant-id <restaurant-id> \\
     [--missing-asset-url /api/public/menu-dishes/<missing-id>/photo] [--json]
 
 Environment equivalents:
@@ -35,6 +37,7 @@ Environment equivalents:
   VISTAIRE_RUNTIME_ASSET_VERSION
   VISTAIRE_RUNTIME_PHOTO_VERSION
   VISTAIRE_RUNTIME_STORAGE_HOST
+  VISTAIRE_RUNTIME_RESTAURANT_ID
   VISTAIRE_RUNTIME_PHOTO_URL
   VISTAIRE_RUNTIME_GLB_URL
   VISTAIRE_RUNTIME_USDZ_URL
@@ -96,6 +99,10 @@ function createOptions(cli, env) {
     expectedStorageHost: firstDefined(
       cli.expectedStorageHost,
       env.VISTAIRE_RUNTIME_STORAGE_HOST
+    ),
+    expectedRestaurantId: firstDefined(
+      cli.expectedRestaurantId,
+      env.VISTAIRE_RUNTIME_RESTAURANT_ID
     ),
     missingAssetUrl: firstDefined(
       cli.missingAssetUrl,

@@ -77,11 +77,15 @@ test.describe("Sauge Noire runtime photo policy", () => {
   test("dish initial load transfers only the current photo and leaves physical neighbors deferred", async ({
     page
   }) => {
-    const photoRequests = new Set<string>();
+    const photoRequests: string[] = [];
     page.on("request", (request) => {
       const url = new URL(request.url());
-      if (url.pathname.includes("/images/demo/dishes/")) {
-        photoRequests.add(url.pathname);
+      const isDemoPhoto = url.pathname.includes("/images/demo/dishes/");
+      const isRuntimePhoto =
+        url.pathname.startsWith("/api/public/menu-dishes/") &&
+        url.pathname.endsWith("/photo");
+      if (isDemoPhoto || isRuntimePhoto) {
+        photoRequests.push(`${url.pathname}${url.search}`);
       }
     });
 
@@ -122,6 +126,7 @@ test.describe("Sauge Noire runtime photo policy", () => {
     );
     await expect(canonicalPhoto).toHaveAttribute("loading", "eager");
     await expect(canonicalPhoto).toHaveAttribute("fetchpriority", "high");
-    expect([...photoRequests]).toHaveLength(1);
+    expect(photoRequests).toHaveLength(1);
+    expect(new Set(photoRequests).size).toBe(1);
   });
 });

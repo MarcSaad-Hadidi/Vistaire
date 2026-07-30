@@ -192,6 +192,7 @@ const FLICK_DISTANCE = 24;
 const FLICK_VELOCITY = 0.3;
 const FLICK_RECENCY_MS = 160;
 const RESIZE_ROUNDING_NOISE_PX = 1;
+const TARGET_MEDIA_DECODE_TIMEOUT_MS = 2_000;
 
 function parsePageIndex(event: PageFlipEvent | number): number | null {
   const value = typeof event === "number" ? event : event.data;
@@ -234,6 +235,43 @@ function applyPhysicalMediaPolicy(
         image.setAttribute("src", source);
       }
     });
+}
+
+async function waitForPreparedPhysicalPageMedia(
+  viewport: ParentNode,
+  targetPageIndex: number
+) {
+  const targetPage = resolveSaugeNoireOriginalPage(
+    viewport,
+    targetPageIndex
+  );
+  const leadingImage = targetPage?.querySelector<HTMLImageElement>(
+    "img[data-sauge-deferred-src]"
+  );
+  if (
+    !leadingImage ||
+    (leadingImage.complete && leadingImage.naturalWidth > 0)
+  ) {
+    return;
+  }
+
+  leadingImage.loading = "eager";
+  leadingImage.fetchPriority = "high";
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      leadingImage.fetchPriority = "low";
+      resolve();
+    };
+    const timeout = window.setTimeout(
+      finish,
+      TARGET_MEDIA_DECODE_TIMEOUT_MS
+    );
+    void leadingImage.decode().then(finish, finish);
+  });
 }
 
 function isPageFlipProtectedTarget(
@@ -417,6 +455,7 @@ export function SaugeNoirePageFlipExperiment({
     scrollTop: number;
   } | null>(null);
   const animationSourceClearFrameRef = useRef(0);
+  const flipPreparationTokenRef = useRef(0);
   const preparedPhysicalPageIndexesRef = useRef<Set<number>>(
     new Set([startPage])
   );
@@ -578,11 +617,56 @@ export function SaugeNoirePageFlipExperiment({
   }, [engineState]);
 
   const revealEngineForFlip = useCallback(
-    (sourcePageIndex: number, targetPageIndex: number) => {
+    async (sourcePageIndex: number, targetPageIndex: number) => {
+      const preparationToken = ++flipPreparationTokenRef.current;
       preparePageFlip(sourcePageIndex, targetPageIndex);
+      const viewport = viewportRef.current;
+      if (!viewport) return false;
+      await waitForPreparedPhysicalPageMedia(viewport, targetPageIndex);
+      if (
+        preparationToken !== flipPreparationTokenRef.current ||
+        viewport !== viewportRef.current ||
+        failedRef.current
+      ) {
+        return false;
+      }
       if (hasReadingSurface) setEngineState("flipping");
+      return true;
     },
     [hasReadingSurface, preparePageFlip]
+  );
+
+  const startPreparedFlip = useCallback(
+    (
+      sourcePageIndex: number,
+      requestedTargetPageIndex: number,
+      onPrepared?: () => void
+    ) => {
+      const direction =
+        requestedTargetPageIndex > sourcePageIndex ? "next" : "previous";
+      const targetPageIndex =
+        sourcePageIndex + (direction === "next" ? 1 : -1);
+      void revealEngineForFlip(sourcePageIndex, targetPageIndex).then(
+        (prepared) => {
+          if (!prepared) return;
+          const pageFlip = bookRef.current?.pageFlip();
+          if (
+            !pageFlip ||
+            pageFlip.getState() !== "read" ||
+            pageFlip.getCurrentPageIndex() !== sourcePageIndex
+          ) {
+            return;
+          }
+          onPrepared?.();
+          if (direction === "next") {
+            pageFlip.flipNext();
+          } else {
+            pageFlip.flipPrev();
+          }
+        }
+      );
+    },
+    [revealEngineForFlip]
   );
 
   useEffect(() => {
@@ -928,13 +1012,10 @@ export function SaugeNoirePageFlipExperiment({
       animationTargetPageRef.current = null;
       requestedPageIndexRef.current = adjacentPage;
       reportedFlipPageRef.current = null;
-      setSingleFlipJumpPhase("single-flip-started");
-      revealEngineForFlip(currentPage, adjacentPage);
-      if (direction === "next") {
-        pageFlip.flipNext();
-      } else {
-        pageFlip.flipPrev();
-      }
+      setSingleFlipJumpPhase("requested");
+      startPreparedFlip(currentPage, adjacentPage, () => {
+        setSingleFlipJumpPhase("single-flip-started");
+      });
     });
     singleFlipJumpFrameRef.current = startFrame;
 
@@ -946,7 +1027,7 @@ export function SaugeNoirePageFlipExperiment({
     failed,
     onPageFlip,
     pages.length,
-    revealEngineForFlip,
+    startPreparedFlip,
     singleFlipJumpRequest
   ]);
 
@@ -973,12 +1054,7 @@ export function SaugeNoirePageFlipExperiment({
       }
 
       requestedPageIndexRef.current = targetPage;
-      revealEngineForFlip(currentPage, targetPage);
-      if (targetPage > currentPage) {
-        pageFlip.flipNext();
-      } else {
-        pageFlip.flipPrev();
-      }
+      startPreparedFlip(currentPage, targetPage);
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -988,7 +1064,7 @@ export function SaugeNoirePageFlipExperiment({
     engineState,
     failed,
     pageIndex,
-    revealEngineForFlip,
+    startPreparedFlip,
     singleFlipJumpRequest
   ]);
 
@@ -999,6 +1075,7 @@ export function SaugeNoirePageFlipExperiment({
       const pageFlip = activeBookRef.current?.pageFlip();
       window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      flipPreparationTokenRef.current += 1;
       activeSingleFlipJumpRef.current = null;
       if (!pageFlip) return;
       queueMicrotask(() => {
@@ -1170,19 +1247,35 @@ export function SaugeNoirePageFlipExperiment({
               return;
             }
             const viewport = viewportRef.current;
-            if (viewport) {
-              const preparedPageIndexes = new Set([
-                currentCommand.adjacentPage,
-                currentCommand.finalPage
-              ]);
-              preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
-              applyPhysicalMediaPolicy(
-                viewport,
-                preparedPageIndexes,
-                "flip"
-              );
-            }
-            currentPageFlip.turnToPage(currentCommand.finalPage);
+            if (!viewport) return;
+            const preparedPageIndexes = new Set([
+              currentCommand.adjacentPage,
+              currentCommand.finalPage
+            ]);
+            preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+            applyPhysicalMediaPolicy(
+              viewport,
+              preparedPageIndexes,
+              "flip"
+            );
+            void waitForPreparedPhysicalPageMedia(
+              viewport,
+              currentCommand.finalPage
+            ).then(() => {
+              const latestCommand = activeSingleFlipJumpRef.current;
+              const latestPageFlip = bookRef.current?.pageFlip();
+              if (
+                latestCommand?.token !== currentCommand.token ||
+                latestCommand.phase !== "instant-jump" ||
+                !latestPageFlip ||
+                latestPageFlip.getState() !== "read" ||
+                latestPageFlip.getCurrentPageIndex() !==
+                  currentCommand.adjacentPage
+              ) {
+                return;
+              }
+              latestPageFlip.turnToPage(currentCommand.finalPage);
+            });
           });
         });
       }
@@ -1211,12 +1304,7 @@ export function SaugeNoirePageFlipExperiment({
         }
 
         requestedPageIndexRef.current = targetPage;
-        revealEngineForFlip(currentPage, targetPage);
-        if (targetPage > currentPage) {
-          pageFlip.flipNext();
-        } else {
-          pageFlip.flipPrev();
-        }
+        startPreparedFlip(currentPage, targetPage);
       });
     }
     if (state === "read" && pendingStructuralDimensionsRef.current) {
@@ -1224,7 +1312,7 @@ export function SaugeNoirePageFlipExperiment({
         window.requestAnimationFrame(updatePageFlipBounds);
       });
     }
-  }, [handleFlip, onPageFlip, revealEngineForFlip, updatePageFlipBounds]);
+  }, [handleFlip, onPageFlip, startPreparedFlip, updatePageFlipBounds]);
 
   const releaseGestureCapture = (
     target: HTMLDivElement,
@@ -1311,12 +1399,7 @@ export function SaugeNoirePageFlipExperiment({
 
     consumeGesture(gesture, direction, preventDefault);
     requestedPageIndexRef.current = nextPage;
-    revealEngineForFlip(currentPage, nextPage);
-    if (direction === "next") {
-      pageFlip.flipNext();
-    } else {
-      pageFlip.flipPrev();
-    }
+    startPreparedFlip(currentPage, nextPage);
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {

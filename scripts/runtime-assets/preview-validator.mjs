@@ -155,12 +155,13 @@ function redactedUrl(value) {
   return `${url.origin}${url.pathname}${hadQuery ? "?<redacted>" : ""}`;
 }
 
-function createResult(baseUrl, expectedStorageHost) {
+function createResult(baseUrl, expectedStorageHost, expectedRestaurantId) {
   return {
     ok: true,
     target: {
       baseOrigin: baseUrl.origin,
-      expectedStorageHost
+      expectedStorageHost,
+      expectedRestaurantId
     },
     summary: {
       passed: 0,
@@ -171,6 +172,8 @@ function createResult(baseUrl, expectedStorageHost) {
     assets: [],
     negative: {
       wrongVersionStatus: null,
+      wrongUsdzVersionStatus: null,
+      wrongPhotoVersionStatus: null,
       missingAssetStatus: null
     }
   };
@@ -223,7 +226,12 @@ async function cancelBody(response) {
   }
 }
 
-function safeStorageLocation(location, expectedStorageHost, asset) {
+function safeStorageLocation(
+  location,
+  expectedStorageHost,
+  expectedRestaurantId,
+  asset
+) {
   let url;
   try {
     url = requireHttpUrl(location, "redirect Location");
@@ -244,14 +252,13 @@ function safeStorageLocation(location, expectedStorageHost, asset) {
   const segments = objectPath.split("/");
   const expectedPrefix = [
     "restaurants",
-    segments[1] ?? "",
+    expectedRestaurantId,
     ...asset.objectSegments
   ];
   const filename = segments.at(-1)?.toLowerCase() ?? "";
   if (
     segments.length !== expectedPrefix.length + 1 ||
     expectedPrefix.some((segment, index) => segments[index] !== segment) ||
-    !/^[a-f0-9-]{36}$/i.test(segments[1] ?? "") ||
     !segments.every((segment) => /^[a-z0-9][a-z0-9._-]*$/i.test(segment)) ||
     !asset.extensions.some((extension) => filename.endsWith(extension))
   ) {
@@ -292,6 +299,7 @@ async function validateAsset({
   publicUrl,
   baseUrl,
   expectedStorageHost,
+  expectedRestaurantId,
   timeoutMs,
   result
 }) {
@@ -418,11 +426,13 @@ async function validateAsset({
   const storageLocation = safeStorageLocation(
     getLocation,
     expectedStorageHost,
+    expectedRestaurantId,
     asset
   );
   const headStorageLocation = safeStorageLocation(
     headLocation,
     expectedStorageHost,
+    expectedRestaurantId,
     asset
   );
   if (!storageLocation.ok || !headStorageLocation.ok) {
@@ -737,6 +747,7 @@ export async function validateRuntimeAssetPreview({
   assetVersion: assetVersionInput,
   photoVersion: photoVersionInput,
   expectedStorageHost: expectedStorageHostInput,
+  expectedRestaurantId: expectedRestaurantIdInput,
   assetUrls = {},
   missingAssetUrl,
   timeoutMs = DEFAULT_TIMEOUT_MS
@@ -746,6 +757,10 @@ export async function validateRuntimeAssetPreview({
   const assetVersion = assertIdentifier(assetVersionInput, "assetVersion");
   const photoVersion = assertPhotoVersion(photoVersionInput);
   const expectedStorageHost = normalizeExpectedHost(expectedStorageHostInput);
+  const expectedRestaurantId = assertIdentifier(
+    expectedRestaurantIdInput,
+    "expectedRestaurantId"
+  );
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new TypeError("timeoutMs must be a positive number");
   }
@@ -769,13 +784,18 @@ export async function validateRuntimeAssetPreview({
     ? normalizePublicAssetUrl(missingAssetUrl, baseUrl, "missing asset URL")
     : null;
 
-  const result = createResult(baseUrl, expectedStorageHost);
+  const result = createResult(
+    baseUrl,
+    expectedStorageHost,
+    expectedRestaurantId
+  );
   for (const { asset, publicUrl } of publicAssets) {
     await validateAsset({
       asset,
       publicUrl,
       baseUrl,
       expectedStorageHost,
+      expectedRestaurantId,
       timeoutMs,
       result
     });
@@ -789,6 +809,34 @@ export async function validateRuntimeAssetPreview({
     id: "negative.wrong-version",
     label: "wrong asset version",
     url: wrongVersionUrl,
+    expectedStatus: 404,
+    timeoutMs,
+    result
+  });
+
+  const wrongUsdzVersionUrl = new URL(
+    publicAssets.find(({ asset }) => asset.name === "usdz").publicUrl
+  );
+  wrongUsdzVersionUrl.searchParams.set("v", `${assetVersion}-missing`);
+  result.negative.wrongUsdzVersionStatus = await validateNegativeStatus({
+    id: "negative.wrong-usdz-version",
+    label: "wrong USDZ version",
+    url: wrongUsdzVersionUrl,
+    expectedStatus: 404,
+    timeoutMs,
+    result
+  });
+
+  const wrongPhotoVersionUrl = new URL(
+    publicAssets.find(({ asset }) => asset.name === "photo").publicUrl
+  );
+  const wrongPhotoVersion =
+    `${photoVersion[0] === "0" ? "1" : "0"}${photoVersion.slice(1)}`;
+  wrongPhotoVersionUrl.searchParams.set("v", wrongPhotoVersion);
+  result.negative.wrongPhotoVersionStatus = await validateNegativeStatus({
+    id: "negative.wrong-photo-version",
+    label: "wrong photo version",
+    url: wrongPhotoVersionUrl,
     expectedStatus: 404,
     timeoutMs,
     result
@@ -813,7 +861,8 @@ export function formatRuntimeAssetReport(result) {
   const lines = [
     `Runtime asset preview validation: ${result.ok ? "PASS" : "FAIL"}`,
     `Target: ${result.target.baseOrigin}`,
-    `Expected Storage host: ${result.target.expectedStorageHost}`
+    `Expected Storage host: ${result.target.expectedStorageHost}`,
+    `Expected restaurant: ${result.target.expectedRestaurantId}`
   ];
   for (const asset of result.assets) {
     const storage =

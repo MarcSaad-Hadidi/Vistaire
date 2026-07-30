@@ -210,6 +210,7 @@ function baseOptions(fixture) {
     assetVersion: ASSET_VERSION,
     photoVersion: PHOTO_VERSION,
     expectedStorageHost: new URL(fixture.storageBaseUrl).host,
+    expectedRestaurantId: RESTAURANT_ID,
     missingAssetUrl: "/api/public/menu-dishes/missing/photo"
   };
 }
@@ -244,6 +245,8 @@ test("validates redirect, range, type, CORS, version, and missing-asset contract
       assert.equal(asset.range.cors, fixture.baseUrl, asset.name);
     }
     assert.equal(result.negative.wrongVersionStatus, 404);
+    assert.equal(result.negative.wrongUsdzVersionStatus, 404);
+    assert.equal(result.negative.wrongPhotoVersionStatus, 404);
     assert.equal(result.negative.missingAssetStatus, 404);
 
     assert.equal(fixture.storageRequests.length, 6);
@@ -350,6 +353,27 @@ test("fails a mismatched Storage host without exposing the discovered signed Loc
   }
 });
 
+test("fails when a signed Storage object belongs to another restaurant", async () => {
+  const fixture = await startFixture();
+  try {
+    const { validateRuntimeAssetPreview } = await loadValidator();
+    const result = await validateRuntimeAssetPreview({
+      ...baseOptions(fixture),
+      expectedRestaurantId: "ffffffff-eeee-4ddd-8ccc-bbbbbbbbbbbb"
+    });
+
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.checks.some(
+        (check) =>
+          check.id === "photo.storage.location" && check.status === "fail"
+      )
+    );
+  } finally {
+    await fixture.stop();
+  }
+});
+
 test("rejects signed input URLs because the validator must discover private Locations itself", async () => {
   const fixture = await startFixture();
   try {
@@ -384,6 +408,8 @@ test("CLI runs the reusable Preview contract and never prints a discovered token
       PHOTO_VERSION,
       "--expected-storage-host",
       new URL(fixture.storageBaseUrl).host,
+      "--expected-restaurant-id",
+      RESTAURANT_ID,
       "--missing-asset-url",
       "/api/public/menu-dishes/missing/photo"
     ];
