@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import type { Locale } from "@/lib/i18n";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 import {
   VistairePreviewMenuLayer,
@@ -11,6 +12,12 @@ import styles from "./VistairePdfToDigitalHoverReveal.module.css";
 
 type VistairePdfToDigitalHoverRevealProps = {
   preview: PdfComparePreviewData;
+  locale?: Locale;
+  strings?: {
+    caption: string;
+    hint: string;
+    label: string;
+  };
 };
 
 function clampPercent(value: number) {
@@ -18,13 +25,29 @@ function clampPercent(value: number) {
 }
 
 export function VistairePdfToDigitalHoverReveal({
-  preview
+  preview,
+  locale = "fr",
+  strings
 }: VistairePdfToDigitalHoverRevealProps) {
   const captionId = useId();
   const frameId = useId();
   const activeTouchRectRef = useRef<DOMRect | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [fingerActive, setFingerActive] = useState(false);
+  const copy = strings ?? {
+    caption:
+      locale === "en"
+        ? "Interactive comparison between a PDF menu and a Vistaire digital menu."
+        : "Comparaison interactive entre un menu PDF et une carte digitale Vistaire.",
+    hint:
+      locale === "en"
+        ? "Hover or touch to reveal Vistaire"
+        : "Survolez ou touchez pour révéler Vistaire",
+    label:
+      locale === "en"
+        ? "Reveal the Vistaire digital menu over the PDF menu"
+        : "Révéler le menu digital Vistaire par-dessus le menu PDF"
+  };
 
   const updateRevealPosition = (event: PointerEvent<HTMLDivElement>) => {
     const rect =
@@ -99,7 +122,7 @@ export function VistairePdfToDigitalHoverReveal({
         <div className={sliderStyles.screen}>
           <div
             aria-describedby={captionId}
-            aria-label="Révéler le menu digital Vistaire par-dessus le menu PDF"
+            aria-label={copy.label}
             aria-pressed={revealed || fingerActive}
             className={styles.frame}
             data-preview-reveal-frame="true"
@@ -113,6 +136,7 @@ export function VistairePdfToDigitalHoverReveal({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             role="button"
+            style={{ touchAction: "pan-y" }}
             tabIndex={0}
           >
             <div className={styles.vistaireLayer} data-preview-digital-layer="true">
@@ -127,7 +151,7 @@ export function VistairePdfToDigitalHoverReveal({
 
             <span className={styles.cursorRing} aria-hidden="true" />
             <span className={styles.hint} aria-hidden="true">
-              Survolez pour révéler Vistaire
+              {copy.hint}
             </span>
           </div>
         </div>
@@ -137,10 +161,7 @@ export function VistairePdfToDigitalHoverReveal({
       </div>
 
       <figcaption id={captionId} className="sr-only">
-        Comparaison interactive : le menu PDF apparaît d&apos;abord dans le même
-        téléphone que le slider de comparaison. Au survol, au déplacement du
-        doigt ou au focus clavier, la carte digitale Vistaire se révèle par
-        masque.
+        {copy.caption}
       </figcaption>
     </figure>
   );

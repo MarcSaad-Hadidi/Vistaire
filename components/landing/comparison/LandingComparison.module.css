@@ -1,0 +1,148 @@
+.comparison {
+  --landing-transition-duration: 180ms;
+
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+  transition: opacity var(--landing-transition-duration) ease;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  border: 1px solid rgba(232, 207, 155, 0.24);
+  border-radius: 999px;
+  background: rgba(7, 4, 2, 0.42);
+  padding: 4px;
+}
+
+.tab {
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 247, 234, 0.72);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 8px 11px;
+  transition:
+    background-color var(--landing-transition-duration) ease,
+    border-color var(--landing-transition-duration) ease,
+    color var(--landing-transition-duration) ease;
+}
+
+.tab[aria-selected="true"] {
+  border-color: rgba(232, 207, 155, 0.46);
+  background: rgba(232, 207, 155, 0.13);
+  color: #fffaf0;
+}
+
+.tab:hover {
+  color: #fffaf0;
+}
+
+.tab:focus-visible,
+.activeLink:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.94);
+  outline-offset: 3px;
+}
+
+.panel {
+  display: grid;
+  grid-template-columns: minmax(270px, 410px) minmax(160px, 1fr);
+  gap: 24px;
+  align-items: center;
+  min-width: 0;
+}
+
+.phone {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+}
+
+.activeCopy {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+}
+
+.activeCopy p,
+.activeCopy h3 {
+  margin: 0;
+}
+
+.activeCopy p {
+  color: rgba(232, 207, 155, 0.76);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.activeCopy h3 {
+  color: #fffaf0;
+  font-family: var(--vistaire-font-display);
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 400;
+  line-height: 0.98;
+}
+
+.activeLink {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 46px;
+  align-items: center;
+  margin-top: 8px;
+  border-bottom: 1px solid rgba(232, 207, 155, 0.52);
+  color: #e8cf9b;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .comparison {
+    gap: 16px;
+  }
+
+  .tabs {
+    border-radius: 18px;
+  }
+
+  .tab {
+    min-height: 48px;
+    border-radius: 14px;
+    font-size: 10px;
+    padding-inline: 5px;
+  }
+
+  .panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 17px;
+  }
+
+  .activeCopy {
+    text-align: center;
+  }
+
+  .activeLink {
+    justify-self: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison {
+    --landing-transition-duration: 0s;
+  }
+
+  .tab,
+  .comparison {
+    transition: none;
+  }
+}

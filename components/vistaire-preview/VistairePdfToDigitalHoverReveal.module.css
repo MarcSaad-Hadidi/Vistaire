@@ -111,8 +111,7 @@
 @media (hover: none), (pointer: coarse), (max-width: 640px) {
   .frame {
     cursor: crosshair;
-    touch-action: none;
-    touch-action: pinch-zoom;
+    touch-action: pan-y pinch-zoom;
   }
 
   .hint {

@@ -84,7 +84,6 @@ function CategoryPreviewCard({
             sizes="(max-width: 520px) 260px, 330px"
             src={category.image}
             style={{ objectPosition: category.imageObjectPosition }}
-            unoptimized
           />
         ) : null}
       </span>
@@ -109,7 +108,6 @@ function FeaturedDishPreview({ dish }: { dish: CompareDishPreview }) {
             sizes="72px"
             src={dish.image}
             style={{ objectPosition: dish.imageObjectPosition }}
-            unoptimized
           />
         ) : null}
       </span>
@@ -128,16 +126,26 @@ export function VistairePreviewMenuLayer({
   preview: PdfComparePreviewData;
 }) {
   const featuredDish = preview.featuredDish ?? preview.vistaireDishes[0];
+  const presentation = preview.presentation ?? {
+    theme: "maison-elyse" as const,
+    eyebrow: "Carte à table",
+    title: "Bienvenue chez Maison Élyse",
+    tagline:
+      "Découvrez les entrées, plats signatures, desserts et cocktails de la maison, pensés pour être explorés directement à table.",
+    featuredKicker: "Suggestion du chef",
+    featuredTitle: "À découvrir ce soir",
+    cta: "Voir toute la carte"
+  };
 
   return (
-    <div className={styles.previewMenu}>
+    <div
+      className={styles.previewMenu}
+      data-preview-theme={presentation.theme}
+    >
       <header className={styles.previewHeader}>
-        <p className={styles.previewEyebrow}>Carte à table</p>
-        <h3>Bienvenue chez Maison Élyse</h3>
-        <p className={styles.previewTagline}>
-          Découvrez les entrées, plats signatures, desserts et cocktails de la
-          maison, pensés pour être explorés directement à table.
-        </p>
+        <p className={styles.previewEyebrow}>{presentation.eyebrow}</p>
+        <h3>{presentation.title}</h3>
+        <p className={styles.previewTagline}>{presentation.tagline}</p>
       </header>
 
       <div className={styles.categoryGrid}>
@@ -152,10 +160,12 @@ export function VistairePreviewMenuLayer({
 
       {featuredDish ? (
         <section className={styles.featuredSection}>
-          <p className={styles.featuredKicker}>Suggestion du chef</p>
-          <h4>À découvrir ce soir</h4>
+          <p className={styles.featuredKicker}>
+            {presentation.featuredKicker}
+          </p>
+          <h4>{presentation.featuredTitle}</h4>
           <FeaturedDishPreview dish={featuredDish} />
-          <span className={styles.previewCta}>Voir toute la carte</span>
+          <span className={styles.previewCta}>{presentation.cta}</span>
         </section>
       ) : null}
     </div>

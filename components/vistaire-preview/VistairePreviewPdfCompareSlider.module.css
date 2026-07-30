@@ -172,6 +172,34 @@
   padding: 29px 12px 12px;
 }
 
+.previewMenu[data-preview-theme="trouvable"] {
+  background:
+    radial-gradient(circle at 82% 4%, rgba(194, 126, 58, 0.24), transparent 34%),
+    linear-gradient(180deg, #211108 0%, #130b06 42%, #080604 100%);
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] {
+  background:
+    radial-gradient(circle at 14% 4%, rgba(94, 108, 67, 0.2), transparent 34%),
+    linear-gradient(180deg, #15170f 0%, #0c0d09 44%, #050504 100%);
+}
+
+.previewMenu[data-preview-theme="trouvable"] .previewEyebrow,
+.previewMenu[data-preview-theme="trouvable"] .featuredKicker,
+.previewMenu[data-preview-theme="trouvable"] .featuredPrice {
+  color: #e0a864;
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] .previewEyebrow,
+.previewMenu[data-preview-theme="sauge-noire"] .featuredKicker,
+.previewMenu[data-preview-theme="sauge-noire"] .featuredPrice {
+  color: #b9b28b;
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] .categoryCard {
+  border-color: rgba(185, 178, 139, 0.2);
+}
+
 .previewHeader {
   display: grid;
   gap: 6px;
