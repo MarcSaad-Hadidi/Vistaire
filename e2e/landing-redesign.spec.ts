@@ -52,11 +52,19 @@ async function scrollThroughLanding(page: Page) {
   });
 }
 
+function landingUrl(path = "/") {
+  const protectedPreview = process.env.VISTAIRE_PROTECTED_PREVIEW_URL;
+  if (!protectedPreview) return path;
+  const url = new URL(protectedPreview);
+  url.pathname = path;
+  return url.toString();
+}
+
 test.describe("Vistaire landing redesign", () => {
   test("keeps the existing top bar and promoted hero video", async ({ page }) => {
     const runtime = collectRuntimeFailures(page);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
 
     const nav = page.getByRole("navigation", { name: "Navigation preview" });
     await expect(nav).toBeVisible();
@@ -127,7 +135,7 @@ test.describe("Vistaire landing redesign", () => {
   test("switches one accessible comparison preview at a time", async ({ page }) => {
     const runtime = collectRuntimeFailures(page);
     await page.setViewportSize({ width: 430, height: 932 });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
 
     const comparison = page.getByTestId("landing-comparison");
     await comparison.scrollIntoViewIfNeeded();
@@ -137,11 +145,22 @@ test.describe("Vistaire landing redesign", () => {
     await expect(comparison.locator('[data-active-preview="maison-elyse"]')).toHaveCount(
       1
     );
+    await expect(
+      comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
+    ).toHaveCount(1);
+    const initialSlider = comparison.getByRole("slider");
+    await expect(initialSlider).toHaveAttribute("aria-valuenow", "50");
 
     await tabs.nth(1).click();
     await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
     await expect(comparison.locator('[data-active-preview="trouvable"]')).toHaveCount(1);
-    await expect(comparison.locator("[data-preview-interaction]")).toHaveCount(1);
+    await expect(
+      comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
+    ).toHaveCount(1);
+    await expect(comparison.getByRole("slider")).toHaveAttribute(
+      "aria-valuenow",
+      "50"
+    );
 
     await tabs.nth(1).press("ArrowRight");
     await expect(tabs.nth(2)).toBeFocused();
@@ -152,45 +171,14 @@ test.describe("Vistaire landing redesign", () => {
     await expect(tabs.nth(0)).toBeFocused();
     await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
 
-    const reveal = comparison.locator('[data-preview-reveal-frame="true"]');
-    const revealBox = await reveal.boundingBox();
-    expect(revealBox).not.toBeNull();
-    if (!revealBox) throw new Error("Comparison reveal frame is not measurable");
-
-    await reveal.dispatchEvent("pointerdown", {
-      clientX: revealBox.x + revealBox.width * 0.35,
-      clientY: revealBox.y + revealBox.height * 0.45,
-      isPrimary: true,
-      pointerId: 7,
-      pointerType: "touch"
-    });
-    await expect(reveal).toHaveAttribute("data-touching", "true");
-    await reveal.dispatchEvent("pointermove", {
-      clientX: revealBox.x + revealBox.width * 0.7,
-      clientY: revealBox.y + revealBox.height * 0.55,
-      isPrimary: true,
-      pointerId: 7,
-      pointerType: "touch"
-    });
-    await expect
-      .poll(() =>
-        reveal.evaluate((element) =>
-          Number.parseFloat(element.style.getPropertyValue("--reveal-x"))
-        )
-      )
-      .toBeCloseTo(70, 2);
-    await reveal.dispatchEvent("pointerup", {
-      clientX: revealBox.x + revealBox.width * 0.7,
-      clientY: revealBox.y + revealBox.height * 0.55,
-      isPrimary: true,
-      pointerId: 7,
-      pointerType: "touch"
-    });
-    await expect(reveal).toHaveAttribute("data-touching", "false");
-
-    await reveal.focus();
-    await reveal.press("Enter");
-    await expect(reveal).toHaveAttribute("aria-pressed", "true");
+    const slider = comparison.getByRole("slider");
+    await slider.focus();
+    await slider.press("Home");
+    await expect(slider).toHaveAttribute("aria-valuenow", "0");
+    await slider.press("ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "4");
+    await slider.press("End");
+    await expect(slider).toHaveAttribute("aria-valuenow", "100");
 
     await expectNoHorizontalOverflow(page);
     expect(runtime.modelRequests).toEqual([]);
@@ -200,22 +188,34 @@ test.describe("Vistaire landing redesign", () => {
   });
 
   test("keeps the restaurant links real and bilingual", async ({ page }) => {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
     const experiences = page.getByTestId("landing-experiences");
     await expect(
       experiences.getByRole("link", { name: /Maison Élyse/ })
     ).toHaveAttribute("href", "/demo");
     await expect(
+      experiences.getByRole("link", { name: /Maison Élyse/ })
+    ).toHaveAttribute("target", "_blank");
+    await expect(
+      experiences.getByRole("link", { name: /Maison Élyse/ })
+    ).toHaveAttribute("rel", /noopener/);
+    await expect(
       experiences.getByRole("link", { name: /Trouvable/ })
     ).toHaveAttribute("href", "/menu/trouvable?lang=fr-CA");
+    await expect(
+      experiences.getByRole("link", { name: /Trouvable/ })
+    ).toHaveAttribute("target", "_blank");
     await expect(
       experiences.getByRole("link", { name: /Sauge Noire/ })
     ).toHaveAttribute("href", "/menu/sauge-noire?lang=fr-CA");
     await expect(
+      experiences.getByRole("link", { name: /Sauge Noire/ })
+    ).toHaveAttribute("target", "_blank");
+    await expect(
       page.getByRole("link", { name: "Prendre rendez-vous" }).first()
     ).toHaveAttribute("href", "/prendre-rendez-vous");
 
-    await page.goto("/en", { waitUntil: "domcontentloaded" });
+    await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", {
         level: 1,
@@ -232,6 +232,27 @@ test.describe("Vistaire landing redesign", () => {
     await expect(
       englishExperiences.getByRole("link", { name: /Sauge Noire/ })
     ).toHaveAttribute("href", "/menu/sauge-noire?lang=en-CA");
+  });
+
+  test("links one current dish from each experience to its real detail page", async ({
+    page
+  }) => {
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+    const dishes = page.getByTestId("landing-dishes");
+    const dishLinks = dishes.getByRole("link");
+    await expect(dishLinks).toHaveCount(3);
+    await expect(dishLinks.nth(0)).toHaveAttribute(
+      "href",
+      /^\/menu\/maison-elyse\/dishes\/[^?]+\?lang=fr-CA$/
+    );
+    await expect(dishLinks.nth(1)).toHaveAttribute(
+      "href",
+      /^\/menu\/trouvable\/dishes\/[^?]+\?lang=fr-CA$/
+    );
+    await expect(dishLinks.nth(2)).toHaveAttribute(
+      "href",
+      /^\/menu\/sauge-noire\/dishes\/[^?]+\?lang=fr-CA$/
+    );
   });
 
   for (const viewport of [

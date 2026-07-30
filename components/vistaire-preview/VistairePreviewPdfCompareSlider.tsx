@@ -15,11 +15,19 @@ import type {
   PdfComparePreviewData,
   PdfMenuSection
 } from "@/lib/pdfComparePreviewData";
+import type { Locale } from "@/lib/i18n";
 import styles from "./VistairePreviewPdfCompareSlider.module.css";
 
 type VistairePreviewPdfCompareSliderProps = {
   preview: PdfComparePreviewData;
   className?: string;
+  locale?: Locale;
+  prioritizePreviewImages?: boolean;
+  strings?: {
+    caption: string;
+    hint: string;
+    label: string;
+  };
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -176,7 +184,10 @@ export function VistairePreviewMenuLayer({
 
 export function VistairePreviewPdfCompareSlider({
   preview,
-  className = ""
+  className = "",
+  locale = "fr",
+  prioritizePreviewImages = true,
+  strings
 }: VistairePreviewPdfCompareSliderProps) {
   const sliderId = useId();
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -278,12 +289,21 @@ export function VistairePreviewPdfCompareSlider({
             ref={sliderRef}
             role="slider"
             tabIndex={0}
-            aria-label="Comparer un menu PDF et le nouveau menu preview Vistaire."
+            aria-label={
+              strings?.label ??
+              (locale === "en"
+                ? "Compare a PDF menu with the current Vistaire digital menu."
+                : "Comparer un menu PDF avec la carte digitale Vistaire actuelle.")
+            }
             aria-orientation="horizontal"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={split}
-            aria-valuetext={`${split} pour cent PDF, ${100 - split} pour cent Vistaire`}
+            aria-valuetext={
+              locale === "en"
+                ? `${split} percent PDF, ${100 - split} percent Vistaire`
+                : `${split} pour cent PDF, ${100 - split} pour cent Vistaire`
+            }
             aria-controls={`${sliderId}-pdf ${sliderId}-vistaire`}
             className={styles.slider}
             onKeyDown={onKeyDown}
@@ -293,7 +313,10 @@ export function VistairePreviewPdfCompareSlider({
             onPointerUp={onPointerUp}
           >
             <div className={styles.vistaireLayer} id={`${sliderId}-vistaire`}>
-              <VistairePreviewMenuLayer preview={preview} />
+              <VistairePreviewMenuLayer
+                preview={preview}
+                prioritizeFirstCategory={prioritizePreviewImages}
+              />
             </div>
             <div
               aria-hidden="true"
@@ -328,7 +351,10 @@ export function VistairePreviewPdfCompareSlider({
             </span>
 
             {!hasInteracted ? (
-              <span className={styles.hint}>Glissez pour comparer</span>
+              <span className={styles.hint}>
+                {strings?.hint ??
+                  (locale === "en" ? "Drag to compare" : "Glissez pour comparer")}
+              </span>
             ) : null}
           </div>
         </div>
@@ -337,9 +363,10 @@ export function VistairePreviewPdfCompareSlider({
         </span>
       </div>
       <figcaption className={styles.srOnly}>
-        Comparaison dans le même téléphone : menu PDF dense et carte digitale
-        Vistaire preview avec accueil Maison Élyse, catégories visuelles et
-        suggestion du chef.
+        {strings?.caption ??
+          (locale === "en"
+            ? `Comparison inside one phone: a PDF example and the current ${preview.restaurant.name} digital menu.`
+            : `Comparaison dans un même téléphone : un exemple PDF et la carte digitale actuelle de ${preview.restaurant.name}.`)}
       </figcaption>
     </figure>
   );

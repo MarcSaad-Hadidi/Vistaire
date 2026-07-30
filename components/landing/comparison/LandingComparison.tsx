@@ -13,7 +13,7 @@ import type {
   LandingExperience,
   LandingExperienceId
 } from "@/lib/landing/menuExperiences";
-import { VistairePdfToDigitalHoverReveal } from "@/components/vistaire-preview/VistairePdfToDigitalHoverReveal";
+import { VistairePreviewPdfCompareSlider } from "@/components/vistaire-preview/VistairePreviewPdfCompareSlider";
 import styles from "./LandingComparison.module.css";
 
 export function LandingComparison({
@@ -120,7 +120,7 @@ export function LandingComparison({
           className={styles.phone}
           data-testid="landing-comparison-phone"
         >
-          <VistairePdfToDigitalHoverReveal
+          <VistairePreviewPdfCompareSlider
             key={activeExperience.id}
             locale={locale}
             preview={activeExperience.preview}

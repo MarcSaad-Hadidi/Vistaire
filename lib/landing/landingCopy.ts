@@ -38,7 +38,8 @@ export const LANDING_COPY = {
       title: "Trois expériences. Trois identités.",
       body:
         "Chaque restaurant possède son propre univers. Vistaire adapte la carte à l’identité, au menu et au niveau de service du lieu.",
-      cta: "Découvrir l’expérience"
+      cta: "Découvrir l’expérience",
+      newTabLabel: "S’ouvre dans un nouvel onglet."
     },
     comparison: {
       eyebrow: "Comparaison",
@@ -49,8 +50,8 @@ export const LANDING_COPY = {
         "Comparez le même geste dans trois directions Vistaire, sans charger les menus complets ni leurs expériences immersives.",
       tabLabel: "Choisir l’expérience Vistaire à comparer",
       openCta: "Ouvrir l’expérience complète",
-      revealLabel: "Révéler Vistaire par-dessus le menu PDF",
-      revealHint: "Survolez ou touchez pour révéler Vistaire",
+      revealLabel: "Comparer le menu PDF et la carte digitale Vistaire",
+      revealHint: "Glissez pour comparer",
       figureCaption:
         "Comparaison interactive entre un menu PDF et une carte digitale Vistaire."
     },
@@ -152,7 +153,8 @@ export const LANDING_COPY = {
       title: "Three experiences. Three identities.",
       body:
         "Every restaurant has its own world. Vistaire adapts the menu to the venue’s identity, food and level of service.",
-      cta: "Discover the experience"
+      cta: "Discover the experience",
+      newTabLabel: "Opens in a new tab."
     },
     comparison: {
       eyebrow: "Comparison",
@@ -163,8 +165,8 @@ export const LANDING_COPY = {
         "Compare the same gesture across three Vistaire directions without loading full menus or immersive assets.",
       tabLabel: "Choose the Vistaire experience to compare",
       openCta: "Open the full experience",
-      revealLabel: "Reveal Vistaire over the PDF menu",
-      revealHint: "Hover or touch to reveal Vistaire",
+      revealLabel: "Compare the PDF menu and the Vistaire digital menu",
+      revealHint: "Drag to compare",
       figureCaption:
         "Interactive comparison between a PDF menu and a Vistaire digital menu."
     },

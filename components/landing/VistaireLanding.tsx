@@ -16,7 +16,7 @@ import { LandingOwnerSection } from "./LandingOwnerSection";
 import { LandingValueSection } from "./LandingValueSection";
 import styles from "./VistaireLanding.module.css";
 
-export function VistaireLanding({
+export async function VistaireLanding({
   locale = "fr",
   routeMode = "production"
 }: {
@@ -24,7 +24,7 @@ export function VistaireLanding({
   routeMode?: VistaireRouteMode;
 }) {
   const copy = getLandingCopy(locale);
-  const experiences = getLandingExperiences(locale);
+  const experiences = await getLandingExperiences(locale);
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const maisonExperience = experiences[0];
 
@@ -51,7 +51,7 @@ export function VistaireLanding({
         experiences={experiences}
         locale={locale}
       />
-      <LandingDishStorySection copy={copy.dishes} />
+      <LandingDishStorySection copy={copy.dishes} experiences={experiences} />
       <LandingOwnerSection
         copy={copy.owner}
         restaurateurDashboard={routes.restaurateurDashboard}

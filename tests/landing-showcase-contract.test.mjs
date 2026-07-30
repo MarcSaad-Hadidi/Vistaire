@@ -44,8 +44,12 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   }
 
   assert.match(data, /buildPublicMenuPath/);
+  assert.match(data, /getPublicMenuBySlug/);
+  assert.match(data, /buildPublicDishPath/);
   assert.match(data, /\/demo/);
   assert.match(experienceSection, /next\/image/);
+  assert.match(experienceSection, /target="_blank"/);
+  assert.match(experienceSection, /rel="noopener noreferrer"/);
   assert.match(ownerSection, /restaurateurDashboard/);
   assert.match(copy, /Trois expériences\. Trois identités\./);
   assert.match(copy, /Three experiences\. Three identities\./);
@@ -59,11 +63,11 @@ test("landing comparison mounts one lightweight preview with accessible tabs", a
   const comparison = await source(
     "components/landing/comparison/LandingComparison.tsx"
   );
-  const reveal = await source(
-    "components/vistaire-preview/VistairePdfToDigitalHoverReveal.tsx"
-  );
   const previewLayer = await source(
     "components/vistaire-preview/VistairePreviewPdfCompareSlider.tsx"
+  );
+  const previewStyles = await source(
+    "components/vistaire-preview/VistairePreviewPdfCompareSlider.module.css"
   );
 
   assert.match(comparison, /role="tablist"/);
@@ -72,14 +76,29 @@ test("landing comparison mounts one lightweight preview with accessible tabs", a
   assert.match(comparison, /ArrowRight/);
   assert.match(comparison, /Home/);
   assert.match(comparison, /End/);
-  assert.match(comparison, /VistairePdfToDigitalHoverReveal/);
+  assert.match(comparison, /VistairePreviewPdfCompareSlider/);
   assert.match(comparison, /data-active-preview/);
-  assert.match(reveal, /pan-y/);
+  assert.match(previewLayer, /role="slider"/);
+  assert.match(previewStyles, /touch-action:\s*pan-y/);
   assert.match(previewLayer, /preview\.presentation/);
 
-  const combined = `${comparison}\n${reveal}\n${previewLayer}`;
+  const combined = `${comparison}\n${previewLayer}\n${previewStyles}`;
   assert.doesNotMatch(combined, /PublicMenuRenderer|SaugeNoireBookMenu/);
   assert.doesNotMatch(combined, /model-viewer|\.glb|\.usdz/i);
+});
+
+test("landing dish cards use current public-menu detail routes", async () => {
+  const data = await source("lib/landing/menuExperiences.ts");
+  const projection = await source("lib/landing/publicMenuPreview.ts");
+  const section = await source(
+    "components/landing/LandingDishStorySection.tsx"
+  );
+
+  assert.match(data, /preferredDishSlug/);
+  assert.match(data, /buildCurrentPublicMenuPreview/);
+  assert.match(projection, /getVisiblePublicMenuCategories/);
+  assert.match(section, /experience\.featuredDish\.href/);
+  assert.match(section, /data-testid="landing-dishes"/);
 });
 
 test("landing styles stop motion without forced animations", async () => {

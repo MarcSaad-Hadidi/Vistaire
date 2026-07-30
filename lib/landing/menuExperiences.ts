@@ -1,4 +1,9 @@
+import "server-only";
+
 import type { Locale } from "@/lib/i18n";
+import { buildCurrentPublicMenuPreview } from "@/lib/landing/publicMenuPreview";
+import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
+import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import {
   buildPdfComparePreviewData,
@@ -10,307 +15,194 @@ export type LandingExperienceId =
   | "trouvable"
   | "sauge-noire";
 
+export type LandingFeaturedDish = {
+  name: string;
+  description: string;
+  price: string;
+  href: string;
+  image: string;
+  imageAlt: string;
+  imagePosition: string;
+};
+
 export type LandingExperience = {
   id: LandingExperienceId;
+  menuSlug: LandingExperienceId;
   name: "Maison Élyse" | "Trouvable" | "Sauge Noire";
   label: string;
   href: string;
   image: string;
   imageAlt: string;
   imagePosition: string;
+  preferredDishSlug: string;
+  dishView?: string;
+  featuredDish: LandingFeaturedDish;
   preview: PdfComparePreviewData;
 };
 
-type ManualPreviewCopy = {
-  theme: Exclude<LandingExperienceId, "maison-elyse">;
-  restaurantName: string;
-  tagline: string;
-  location: string;
-  title: string;
-  eyebrow: string;
-  description: string;
-  featuredKicker: string;
-  featuredTitle: string;
-  cta: string;
-  image: string;
-  categoryNames: readonly [string, string, string];
-  categoryDescriptions: readonly [string, string, string];
-  dishes: readonly [
-    { name: string; price: string; description: string; image?: string },
-    { name: string; price: string; description: string; image?: string },
-    { name: string; price: string; description: string; image?: string }
-  ];
-};
+function presentationFor(
+  locale: Locale,
+  theme: LandingExperienceId,
+  name: LandingExperience["name"]
+): NonNullable<PdfComparePreviewData["presentation"]> {
+  return {
+    theme,
+    eyebrow: locale === "en" ? "Current digital menu" : "Carte digitale actuelle",
+    title: name,
+    tagline:
+      locale === "en"
+        ? "A lightweight preview based on the restaurant’s current public menu."
+        : "Un aperçu léger fondé sur la carte publique actuelle du restaurant.",
+    featuredKicker: locale === "en" ? "From the menu" : "À la carte",
+    featuredTitle:
+      locale === "en" ? "A dish to discover" : "Un plat à découvrir",
+    cta: locale === "en" ? "View the full menu" : "Voir toute la carte"
+  };
+}
 
-function buildManualPreview(copy: ManualPreviewCopy): PdfComparePreviewData {
-  const categoryCards = copy.categoryNames.map((name, index) => ({
-    id: `${copy.theme}-category-${index}`,
-    slug: `${copy.theme}-category-${index}`,
-    name,
-    description: copy.categoryDescriptions[index],
-    image: copy.image,
-    imageAlt: "",
-    imageObjectPosition: ["center 28%", "center 50%", "center 72%"][index] ?? "center"
-  }));
-
-  const vistaireDishes = copy.dishes.map((dish, index) => ({
-    slug: `${copy.theme}-dish-${index}`,
+function fallbackPreview({
+  dish,
+  experienceImage,
+  locale,
+  name,
+  theme
+}: {
+  dish: LandingFeaturedDish;
+  experienceImage: string;
+  locale: Locale;
+  name: LandingExperience["name"];
+  theme: LandingExperienceId;
+}): PdfComparePreviewData {
+  const categoryName = locale === "en" ? "Current selection" : "Sélection actuelle";
+  const categoryDescription =
+    locale === "en"
+      ? "A real dish from the public menu"
+      : "Un plat réel de la carte publique";
+  const previewDish = {
+    slug: dish.href.split("/dishes/")[1]?.split("?")[0] ?? theme,
     name: dish.name,
     price: dish.price,
     shortDescription: dish.description,
-    image: dish.image ?? null,
-    imageAlt: "",
-    imageObjectPosition: "center",
+    image: dish.image,
+    imageAlt: dish.imageAlt,
+    imageObjectPosition: dish.imagePosition,
     allergens: [],
-    isSignature: index === 0,
-    isRecommended: index === 0,
+    isSignature: true,
+    isRecommended: true,
     has3d: false,
     isAvailable: true
-  }));
+  };
 
   return {
     restaurant: {
-      name: copy.restaurantName,
-      tagline: copy.tagline,
-      location: copy.location,
-      logoMonogram: copy.restaurantName
+      name,
+      tagline: "",
+      location: "",
+      logoMonogram: name
         .split(/\s+/)
         .map((part) => part[0])
         .join("")
         .slice(0, 2),
       currency: "CAD"
     },
-    pdfSections: copy.categoryNames.map((name, index) => ({
-      title: name,
-      rows: [
-        {
-          name: copy.dishes[index].name,
-          price: copy.dishes[index].price.replace("$", " $")
-        }
-      ]
-    })),
-    categoryTabs: [
-      { id: `${copy.theme}-all`, slug: "all", name: "All" },
-      ...categoryCards.map(({ id, slug, name }) => ({ id, slug, name }))
+    pdfSections: [
+      {
+        title: categoryName,
+        rows: [{ name: dish.name, price: dish.price }]
+      }
     ],
-    categoryCards,
-    activeCategorySlug: categoryCards[0]?.slug ?? "all",
-    vistaireDishes,
-    featuredDish: vistaireDishes[0],
-    presentation: {
-      theme: copy.theme,
-      eyebrow: copy.eyebrow,
-      title: copy.title,
-      tagline: copy.description,
-      featuredKicker: copy.featuredKicker,
-      featuredTitle: copy.featuredTitle,
-      cta: copy.cta
-    }
+    categoryTabs: [
+      { id: `${theme}-all`, slug: "all", name: locale === "en" ? "All" : "Tous" },
+      { id: `${theme}-current`, slug: "current", name: categoryName }
+    ],
+    categoryCards: [
+      {
+        id: `${theme}-current`,
+        slug: "current",
+        name: categoryName,
+        description: categoryDescription,
+        image: dish.image || experienceImage,
+        imageAlt: dish.imageAlt,
+        imageObjectPosition: dish.imagePosition
+      }
+    ],
+    activeCategorySlug: "current",
+    vistaireDishes: [previewDish],
+    featuredDish: previewDish,
+    presentation: presentationFor(locale, theme, name)
   };
 }
 
-function buildMaisonPreview(locale: Locale): PdfComparePreviewData {
+function maisonPreview(locale: Locale): PdfComparePreviewData {
   const preview = buildPdfComparePreviewData({ locale });
   return {
     ...preview,
-    presentation:
-      locale === "en"
-        ? {
-            theme: "maison-elyse",
-            eyebrow: "At-table menu",
-            title: "Welcome to Maison Élyse",
-            tagline:
-              "An editorial menu for discovering the house selection directly at the table.",
-            featuredKicker: "Chef’s selection",
-            featuredTitle: "Tonight’s highlight",
-            cta: "View the full menu"
-          }
-        : {
-            theme: "maison-elyse",
-            eyebrow: "Carte à table",
-            title: "Bienvenue chez Maison Élyse",
-            tagline:
-              "Une carte éditoriale pour découvrir la sélection de la maison directement à table.",
-            featuredKicker: "Suggestion du chef",
-            featuredTitle: "À découvrir ce soir",
-            cta: "Voir toute la carte"
-          }
+    presentation: presentationFor(locale, "maison-elyse", "Maison Élyse")
   };
 }
 
-function buildTrouvablePreview(locale: Locale): PdfComparePreviewData {
-  return buildManualPreview(
-    locale === "en"
-      ? {
-          theme: "trouvable",
-          restaurantName: "Trouvable",
-          tagline: "Premium brunch and evening plates",
-          location: "Montreal",
-          eyebrow: "Interactive menu",
-          title: "A warm, modern bistro",
-          description:
-            "Browse breakfast, starters and evening plates through a fluid, visual menu.",
-          featuredKicker: "House selection",
-          featuredTitle: "Made to be explored",
-          cta: "View the full menu",
-          image: "/images/landing/trouvable-experience.jpg",
-          categoryNames: ["Breakfast", "Starters", "Evening plates"],
-          categoryDescriptions: [
-            "Comforting house classics",
-            "Fresh plates to begin",
-            "A warm evening selection"
-          ],
-          dishes: [
-            {
-              name: "House classic breakfast",
-              price: "$18",
-              description: "Farm eggs, crisp potatoes and toasted sourdough.",
-              image: "/images/demo/dishes/maison-elyse-n1.png"
-            },
-            {
-              name: "Goat cheese ravioli",
-              price: "$24",
-              description: "Brown butter, preserved lemon and garden herbs.",
-              image: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png"
-            },
-            {
-              name: "Porcini risotto",
-              price: "$32",
-              description: "Carnaroli rice, porcini and aged parmesan.",
-              image: "/images/demo/dishes/risotto-cepes-parmesan.png"
-            }
-          ]
-        }
-      : {
-          theme: "trouvable",
-          restaurantName: "Trouvable",
-          tagline: "Brunch premium et assiettes du soir",
-          location: "Montréal",
-          eyebrow: "Carte interactive",
-          title: "Un bistro chaleureux et moderne",
-          description:
-            "Parcourez déjeuners, entrées et assiettes du soir dans une carte fluide et visuelle.",
-          featuredKicker: "Sélection de la maison",
-          featuredTitle: "Pensée pour être explorée",
-          cta: "Voir toute la carte",
-          image: "/images/landing/trouvable-experience.jpg",
-          categoryNames: ["Déjeuner", "Entrées", "Plats du soir"],
-          categoryDescriptions: [
-            "Les classiques réconfortants",
-            "Des assiettes fraîches pour commencer",
-            "Une sélection chaleureuse"
-          ],
-          dishes: [
-            {
-              name: "Déjeuner classique maison",
-              price: "$18",
-              description:
-                "Œufs fermiers, pommes de terre et pain au levain.",
-              image: "/images/demo/dishes/maison-elyse-n1.png"
-            },
-            {
-              name: "Ravioles chèvre et miel",
-              price: "$24",
-              description: "Beurre noisette, citron confit et herbes.",
-              image: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png"
-            },
-            {
-              name: "Risotto cèpes et parmesan",
-              price: "$32",
-              description: "Riz carnaroli, cèpes et parmesan affiné.",
-              image: "/images/demo/dishes/risotto-cepes-parmesan.png"
-            }
-          ]
-        }
-  );
-}
-
-function buildSaugePreview(locale: Locale): PdfComparePreviewData {
-  return buildManualPreview(
-    locale === "en"
-      ? {
-          theme: "sauge-noire",
-          restaurantName: "Sauge Noire",
-          tagline: "A dark botanical signature",
-          location: "Quebec",
-          eyebrow: "Editorial menu",
-          title: "A signature reading experience",
-          description:
-            "Raw materials, botanical detail and a low-light menu designed as a distinct world.",
-          featuredKicker: "Signature plate",
-          featuredTitle: "From the fire",
-          cta: "Open the full experience",
-          image: "/images/landing/sauge-noire-experience.jpg",
-          categoryNames: ["First gestures", "Raw & fresh", "From the fire"],
-          categoryDescriptions: [
-            "Small plates to share",
-            "Fresh, precise compositions",
-            "Flame-worked plates"
-          ],
-          dishes: [
-            {
-              name: "Betterave sous la cendre",
-              price: "$16",
-              description: "Smoked labneh, blackcurrant and pistachio."
-            },
-            {
-              name: "Truite des Laurentides",
-              price: "$22",
-              description: "Redcurrant, lovage, cucumber and pine oil."
-            },
-            {
-              name: "Canard à l’érable noir",
-              price: "$39",
-              description: "Fermented carrot, grilled chicory and thyme jus."
-            }
-          ]
-        }
-      : {
-          theme: "sauge-noire",
-          restaurantName: "Sauge Noire",
-          tagline: "Une signature botanique et sombre",
-          location: "Québec",
-          eyebrow: "Carte éditoriale",
-          title: "Une lecture signature et immersive",
-          description:
-            "Matières brutes, détails botaniques et lumière basse composent un univers distinct.",
-          featuredKicker: "Plat signature",
-          featuredTitle: "Du feu",
-          cta: "Ouvrir l’expérience complète",
-          image: "/images/landing/sauge-noire-experience.jpg",
-          categoryNames: ["Premiers gestes", "Cru & frais", "Du feu"],
-          categoryDescriptions: [
-            "Petites assiettes à partager",
-            "Compositions fraîches et précises",
-            "Plats travaillés à la flamme"
-          ],
-          dishes: [
-            {
-              name: "Betterave sous la cendre",
-              price: "$16",
-              description: "Labneh fumé, cassis et pistache."
-            },
-            {
-              name: "Truite des Laurentides",
-              price: "$22",
-              description: "Groseille, livèche, concombre et huile de pin."
-            },
-            {
-              name: "Canard à l’érable noir",
-              price: "$39",
-              description: "Carotte fermentée, chicorée grillée et jus au thym."
-            }
-          ]
-        }
-  );
-}
-
-export function getLandingExperiences(locale: Locale): LandingExperience[] {
+function fallbackExperiences(locale: Locale): LandingExperience[] {
   const lang = locale === "en" ? "en-CA" : "fr-CA";
+  const maisonDish: LandingFeaturedDish = {
+    name:
+      locale === "en"
+        ? "Fresh goat cheese ravioli & Montérégie honey"
+        : "Ravioles de chèvre frais & miel de Montérégie",
+    description:
+      locale === "en"
+        ? "Open the current dish page in the Maison Élyse menu."
+        : "Ouvrez la fiche actuelle dans la carte Maison Élyse.",
+    price: "",
+    href: buildPublicDishPath(
+      "maison-elyse",
+      "ravioles-de-chevre-frais-miel-de-monteregie",
+      { lang }
+    ),
+    image:
+      "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo",
+    imageAlt:
+      locale === "en"
+        ? "Fresh goat cheese ravioli from Maison Élyse"
+        : "Ravioles de chèvre frais de Maison Élyse",
+    imagePosition: "center"
+  };
+  const trouvableDish: LandingFeaturedDish = {
+    name: "Pesto Burrata Verde",
+    description:
+      locale === "en"
+        ? "Open the current dish page in the Trouvable menu."
+        : "Ouvrez la fiche actuelle dans la carte Trouvable.",
+    price: "",
+    href: buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang }),
+    image:
+      "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo",
+    imageAlt: "Pesto Burrata Verde de Trouvable",
+    imagePosition: "center"
+  };
+  const saugeDish: LandingFeaturedDish = {
+    name: locale === "en" ? "Beetroot under ash" : "Betterave sous la cendre",
+    description:
+      locale === "en"
+        ? "Open the current dish page in the Sauge Noire menu."
+        : "Ouvrez la fiche actuelle dans la carte Sauge Noire.",
+    price: "",
+    href: buildPublicDishPath("sauge-noire", "betterave-sous-la-cendre", {
+      lang,
+      view: "sauge-2"
+    }),
+    image:
+      "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo",
+    imageAlt:
+      locale === "en"
+        ? "Beetroot under ash from Sauge Noire"
+        : "Betterave sous la cendre de Sauge Noire",
+    imagePosition: "center"
+  };
 
   return [
     {
       id: "maison-elyse",
+      menuSlug: "maison-elyse",
       name: "Maison Élyse",
       label:
         locale === "en"
@@ -323,10 +215,13 @@ export function getLandingExperiences(locale: Locale): LandingExperience[] {
           ? "Bright, refined dining-room atmosphere"
           : "Ambiance de salle claire et raffinée",
       imagePosition: "center 45%",
-      preview: buildMaisonPreview(locale)
+      preferredDishSlug: "ravioles-de-chevre-frais-miel-de-monteregie",
+      featuredDish: maisonDish,
+      preview: maisonPreview(locale)
     },
     {
       id: "trouvable",
+      menuSlug: "trouvable",
       name: "Trouvable",
       label:
         locale === "en" ? "Modern and interactive" : "Moderne et interactive",
@@ -337,10 +232,19 @@ export function getLandingExperiences(locale: Locale): LandingExperience[] {
           ? "Warm bistro and bar atmosphere with plants"
           : "Ambiance de bistro chaleureux avec bar et végétation",
       imagePosition: "center 52%",
-      preview: buildTrouvablePreview(locale)
+      preferredDishSlug: "pesto-burrata-verde",
+      featuredDish: trouvableDish,
+      preview: fallbackPreview({
+        dish: trouvableDish,
+        experienceImage: "/images/landing/trouvable-experience.jpg",
+        locale,
+        name: "Trouvable",
+        theme: "trouvable"
+      })
     },
     {
       id: "sauge-noire",
+      menuSlug: "sauge-noire",
       name: "Sauge Noire",
       label:
         locale === "en"
@@ -353,7 +257,69 @@ export function getLandingExperiences(locale: Locale): LandingExperience[] {
           ? "Dark botanical dining-room atmosphere"
           : "Ambiance de salle sombre et botanique",
       imagePosition: "center 42%",
-      preview: buildSaugePreview(locale)
+      preferredDishSlug: "betterave-sous-la-cendre",
+      dishView: "sauge-2",
+      featuredDish: saugeDish,
+      preview: fallbackPreview({
+        dish: saugeDish,
+        experienceImage: "/images/landing/sauge-noire-experience.jpg",
+        locale,
+        name: "Sauge Noire",
+        theme: "sauge-noire"
+      })
     }
   ];
+}
+
+export async function getLandingExperiences(
+  locale: Locale
+): Promise<LandingExperience[]> {
+  const lang = locale === "en" ? "en-CA" : "fr-CA";
+  const fallbacks = fallbackExperiences(locale);
+
+  return Promise.all(
+    fallbacks.map(async (experience) => {
+      try {
+        const menu = await getPublicMenuBySlug(experience.menuSlug, lang);
+        if (!menu?.dishes.length) return experience;
+        const current = buildCurrentPublicMenuPreview({
+          locale,
+          menu,
+          preferredDishSlug: experience.preferredDishSlug,
+          theme: experience.id
+        });
+        if (!current.featuredDish) {
+          return { ...experience, preview: current.preview };
+        }
+        const dish = current.featuredDish;
+        const image =
+          dish.imageUrl ||
+          dish.thumbnailUrl ||
+          dish.posterUrl ||
+          experience.featuredDish.image;
+
+        return {
+          ...experience,
+          preview: current.preview,
+          featuredDish: {
+            name: dish.name,
+            description: dish.description,
+            price: dish.priceLabel,
+            href: buildPublicDishPath(menu.slug, dish.slug, {
+              lang,
+              ...(experience.dishView ? { view: experience.dishView } : {})
+            }),
+            image,
+            imageAlt:
+              locale === "en"
+                ? `${dish.name}, from ${experience.name}`
+                : `${dish.name}, dans la carte ${experience.name}`,
+            imagePosition: "center"
+          }
+        };
+      } catch {
+        return experience;
+      }
+    })
+  );
 }
