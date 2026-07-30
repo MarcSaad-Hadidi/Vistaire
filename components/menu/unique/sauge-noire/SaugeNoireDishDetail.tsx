@@ -1074,7 +1074,6 @@ export function SaugeNoireDishDetail({
           resetKey={`sauge-detail-book-${menu.slug}`}
           recenterPage={1}
           recenterToken={recenterToken}
-          protectInteractiveTargets
           showCover={false}
           renderOnlyPageLengthChange={false}
           fallback={renderDishPaper(activeDish, false, "reading-surface")}

@@ -45,6 +45,7 @@
     "test:smoke:bootstrap": "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts",
     "test:sauge-noire:smoke": "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-critical-smoke.spec.ts --project=chromium --workers=1 --retries=0",
     "test:sauge-noire:scroll": "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-first-gesture-scroll.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
+    "test:sauge-noire:swipe": "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-swipe-intent.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
     "test:sauge-noire:static-parity": "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-static-page-handoff.spec.ts --project=chromium --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
     "test:seo": "node --test tests/bilingual-seo.test.mjs tests/seo-foundation.test.mjs tests/seo-geo-pages.test.mjs tests/seo-pillar-animations.test.mjs tests/seo-public-content.test.mjs",
     "test:admin": "node scripts/run-admin-tests.mjs",

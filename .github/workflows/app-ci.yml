@@ -113,6 +113,12 @@ jobs:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:sauge-noire:scroll
 
+      - name: Sauge Noire swipe intent
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:sauge-noire:swipe
+
       - name: Sauge Noire static-page parity
         timeout-minutes: 10
         env:
