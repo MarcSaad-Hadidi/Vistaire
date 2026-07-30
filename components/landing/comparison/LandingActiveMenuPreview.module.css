@@ -1,0 +1,40 @@
+.rendererShell {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: #080706;
+  pointer-events: none;
+}
+
+.rendererShell > :global(*) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #080706;
+  color: rgba(232, 207, 155, 0.82);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.unavailable {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(232, 207, 155, 0.12), transparent 42%),
+    #080706;
+  color: rgba(255, 247, 234, 0.82);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}

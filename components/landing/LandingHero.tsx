@@ -50,7 +50,7 @@ export function LandingHero({
               className={styles.coverImage}
               fill
               priority
-              quality={86}
+              quality={90}
               sizes="(max-width: 920px) calc(100vw - 36px), 520px"
               src="/images/demo/dishes/homard-bleu-bisque-fenouil.png"
             />

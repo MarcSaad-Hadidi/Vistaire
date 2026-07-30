@@ -349,6 +349,7 @@ export function SaugeNoireBookMenu({
   const [showBackToTop, setShowBackToTop] = useState(false);
   const currency = activeCurrency;
   const searchParamsString = searchParams.toString();
+  const isPhonePreview = mode === "phone-preview";
   const pageFlipEnabled =
     mode === "public" ||
     (mode === "builder-preview" && searchParams.get("pageFlipLab") === "1");
@@ -416,6 +417,7 @@ export function SaugeNoireBookMenu({
   }, [activeCurrency, activeLocaleValue, pageIndex, query]);
 
   useEffect(() => {
+    if (isPhonePreview) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         routeTransitionActive ||
@@ -480,10 +482,12 @@ export function SaugeNoireBookMenu({
     goToPage,
     pages.length,
     pageIndex,
-    routeTransitionActive
+    routeTransitionActive,
+    isPhonePreview
   ]);
 
   useEffect(() => {
+    if (isPhonePreview) return;
     const nextView = `sauge-${pageIndex}`;
     const params = new URLSearchParams(searchParamsString);
     if (params.get("view") === nextView) return;
@@ -494,9 +498,10 @@ export function SaugeNoireBookMenu({
     if (currentUrl !== nextUrl) {
       window.history.replaceState(window.history.state, "", nextUrl);
     }
-  }, [pageIndex, pathname, searchParamsString]);
+  }, [isPhonePreview, pageIndex, pathname, searchParamsString]);
 
   useEffect(() => {
+    if (isPhonePreview) return;
     const paper = paperRef.current;
     const onScroll = (event?: Event) => {
       const targetScrollTop = event?.target instanceof HTMLElement ? event.target.scrollTop : 0;
@@ -510,9 +515,17 @@ export function SaugeNoireBookMenu({
       window.removeEventListener("scroll", onScroll);
       paper?.removeEventListener("scroll", onScroll, { capture: true });
     };
-  }, []);
+  }, [isPhonePreview]);
 
   const updatePreference = useCallback((next: { locale?: string; currency?: string }) => {
+    if (isPhonePreview) {
+      contextQueryRef.current = {
+        ...contextQueryRef.current,
+        ...(next.locale ? { lang: next.locale } : {}),
+        ...(next.currency ? { currency: next.currency } : {})
+      };
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     params.set("view", `sauge-${pageIndexRef.current}`);
     if (next.locale) params.set("lang", next.locale);
@@ -526,7 +539,7 @@ export function SaugeNoireBookMenu({
       zone: params.get("zone") ?? undefined
     };
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [pathname, router]);
+  }, [isPhonePreview, pathname, router]);
 
   const selectLocale = useCallback((nextLocale: string) => {
     activeLocaleRef.current = nextLocale;
@@ -631,7 +644,13 @@ export function SaugeNoireBookMenu({
             onDishLinkIntent={isPreview ? undefined : onDishLinkIntent}
           />
         ) : null}
-        {page.kind === "ending" ? <EndingPage copy={copy} onRestart={() => goToPage(0)} /> : null}
+        {page.kind === "ending" ? (
+          <EndingPage
+            copy={copy}
+            onRestart={() => goToPage(0)}
+            showGoogleReview={!isPhonePreview}
+          />
+        ) : null}
       </>
     );
 
@@ -655,7 +674,8 @@ export function SaugeNoireBookMenu({
     query,
     openContentsWithSingleFlip,
     selectCurrency,
-    selectLocale
+    selectLocale,
+    isPhonePreview
     ]
   );
 
@@ -804,6 +824,8 @@ export function SaugeNoireBookMenu({
   return (
     <main
       className={styles.book}
+      data-display-mode={mode}
+      data-public-menu-renderer="sauge-noire"
       data-testid="sauge-noire-book"
       data-page-index={pageIndex}
       data-page-kind={currentPage.kind}
@@ -1430,7 +1452,15 @@ function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: bool
   );
 }
 
-function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) {
+function EndingPage({
+  copy,
+  onRestart,
+  showGoogleReview = true
+}: {
+  copy: Copy;
+  onRestart: () => void;
+  showGoogleReview?: boolean;
+}) {
   return (
     <section
       className={`${styles.page} ${styles.endingPage}`}
@@ -1444,22 +1474,24 @@ function EndingPage({ copy, onRestart }: { copy: Copy; onRestart: () => void }) 
       <Rule />
       <p className={styles.endingCity} data-sauge-static-element="city">Montréal, Québec</p>
       <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
-      <button
-        type="button"
-        className={styles.googleReviewCta}
-        data-testid="google-review-cta"
-        aria-label={copy.googleReviewAria}
-      >
-        <span className={styles.googleReviewBrand}>
-          <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
-          {copy.googleReview}
-        </span>
-        <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">
-          <svg viewBox="0 0 20 20" focusable="false">
-            <path d="M4 16 16 4M8 4h8v8" />
-          </svg>
-        </span>
-      </button>
+      {showGoogleReview ? (
+        <button
+          type="button"
+          className={styles.googleReviewCta}
+          data-testid="google-review-cta"
+          aria-label={copy.googleReviewAria}
+        >
+          <span className={styles.googleReviewBrand}>
+            <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
+            {copy.googleReview}
+          </span>
+          <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">
+            <svg viewBox="0 0 20 20" focusable="false">
+              <path d="M4 16 16 4M8 4h8v8" />
+            </svg>
+          </span>
+        </button>
+      ) : null}
       <button type="button" className={styles.restartButton} onClick={onRestart} data-sauge-static-element="restart">{copy.menu}</button>
       <p className={styles.endingSoon} data-sauge-static-element="message">{copy.soon}</p>
     </section>

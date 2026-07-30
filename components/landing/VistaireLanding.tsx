@@ -42,7 +42,7 @@ export async function VistaireLanding({
       <LandingHero
         copy={copy.hero}
         locale={locale}
-        maisonHref={maisonExperience.href}
+        maisonHref={maisonExperience.publicMenuHref}
       />
       <LandingValueSection copy={copy.value} />
       <LandingExperienceSection copy={copy.experiences} experiences={experiences} />

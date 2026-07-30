@@ -38,7 +38,7 @@ export function LandingDishStorySection({
                     className={styles.coverImage}
                     fallbackSrc={experience.image}
                     objectPosition={experience.featuredDish.imagePosition}
-                    quality={84}
+                    quality={90}
                     sizes="(max-width: 720px) calc(100vw - 54px), (max-width: 1100px) 46vw, 350px"
                     src={experience.featuredDish.image}
                   />

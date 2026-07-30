@@ -13,7 +13,10 @@ import {
   PreviewNav,
   type VistaireRouteMode
 } from "./VistairePreviewChrome";
-import { VistairePreviewPdfCompareSlider } from "./VistairePreviewPdfCompareSlider";
+import {
+  VistairePreviewMenuLayer,
+  VistairePreviewPdfCompareSlider
+} from "./VistairePreviewPdfCompareSlider";
 import styles from "./VistairePdfVsMenuDigitalPreview.module.css";
 
 function ArrowIcon() {
@@ -340,6 +343,9 @@ export function VistairePdfVsMenuDigitalPreview({
             <VistairePreviewPdfCompareSlider
               preview={comparePreview}
               className={styles.compareSlider}
+              digitalLayer={
+                <VistairePreviewMenuLayer preview={comparePreview} />
+              }
             />
           </article>
 

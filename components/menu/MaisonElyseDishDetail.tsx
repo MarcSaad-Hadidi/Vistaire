@@ -320,7 +320,7 @@ export function MaisonElyseDishDetail({
   const displayCategory = categoryLabel(dish.category, locale);
   const has3d = hasReal3d(dish);
   const hasAr = hasRealAr(dish);
-  const canOpenImmersive = has3d || hasAr;
+  const canOpenImmersive = displayMode === "public" && (has3d || hasAr);
   const badges = dishBadges(dish, locale);
   const ingredients = displayList(dish.ingredients);
   const options = displayList(dish.options);

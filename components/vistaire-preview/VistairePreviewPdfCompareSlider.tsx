@@ -6,7 +6,8 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
-  type PointerEvent
+  type PointerEvent,
+  type ReactNode
 } from "react";
 import { PublicDishImage } from "@/components/public-menu/PublicDishImage";
 import type {
@@ -20,9 +21,9 @@ import styles from "./VistairePreviewPdfCompareSlider.module.css";
 
 type VistairePreviewPdfCompareSliderProps = {
   preview: PdfComparePreviewData;
+  digitalLayer: ReactNode;
   className?: string;
   locale?: Locale;
-  prioritizePreviewImages?: boolean;
   strings?: {
     caption: string;
     hint: string;
@@ -182,9 +183,9 @@ export function VistairePreviewMenuLayer({
 
 export function VistairePreviewPdfCompareSlider({
   preview,
+  digitalLayer,
   className = "",
   locale = "fr",
-  prioritizePreviewImages = true,
   strings
 }: VistairePreviewPdfCompareSliderProps) {
   const sliderId = useId();
@@ -311,10 +312,7 @@ export function VistairePreviewPdfCompareSlider({
             onPointerUp={onPointerUp}
           >
             <div className={styles.vistaireLayer} id={`${sliderId}-vistaire`}>
-              <VistairePreviewMenuLayer
-                preview={preview}
-                prioritizeFirstCategory={prioritizePreviewImages}
-              />
+              {digitalLayer}
             </div>
             <div
               aria-hidden="true"

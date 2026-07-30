@@ -1215,6 +1215,7 @@ export function MaisonElyseQrMenu({
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}
       data-display-mode={displayMode}
+      data-public-menu-renderer="maison-elyse"
       style={maisonElyseThemeStyle(config)}
     >
       <section className={styles.sections} ref={menuRef} aria-label={copy.sections}>

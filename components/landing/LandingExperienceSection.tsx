@@ -29,7 +29,7 @@ export function LandingExperienceSection({
             <article className={styles.experienceCard} key={experience.id}>
               <Link
                 className={styles.experienceCardLink}
-                href={experience.menuHref}
+                href={experience.publicMenuHref}
                 prefetch={false}
                 rel="noopener noreferrer"
                 target="_blank"
@@ -38,7 +38,7 @@ export function LandingExperienceSection({
                   alt={experience.imageAlt}
                   className={styles.coverImage}
                   fill
-                  quality={88}
+                  quality={90}
                   sizes="(max-width: 720px) calc(100vw - 54px), (max-width: 1100px) 46vw, 330px"
                   src={experience.image}
                   style={{ objectPosition: experience.imagePosition }}

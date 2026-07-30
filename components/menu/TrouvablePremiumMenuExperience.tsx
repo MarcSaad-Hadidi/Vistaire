@@ -1077,7 +1077,7 @@ export function TrouvablePremiumMenuExperience({
   }, []);
 
   useEffect(() => {
-    if (!activeSheet) return;
+    if (displayMode === "phone-preview" || !activeSheet) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1128,10 +1128,17 @@ export function TrouvablePremiumMenuExperience({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSheet, closeActiveSheet, closeDishSubSheet, dishSubSheet]);
+  }, [
+    activeSheet,
+    closeActiveSheet,
+    closeDishSubSheet,
+    dishSubSheet,
+    displayMode
+  ]);
 
   useEffect(() => {
     if (
+      displayMode !== "public" ||
       !showDetailModelViewer ||
       ModelViewerComponent ||
       modelViewerLoadFailed
@@ -1155,7 +1162,12 @@ export function TrouvablePremiumMenuExperience({
     return () => {
       cancelled = true;
     };
-  }, [ModelViewerComponent, modelViewerLoadFailed, showDetailModelViewer]);
+  }, [
+    ModelViewerComponent,
+    displayMode,
+    modelViewerLoadFailed,
+    showDetailModelViewer
+  ]);
 
   // Once the sheet layer has fully closed (past its exit animation), drop the dish-scoped
   // state so a reopened sheet starts clean and the model viewer never lingers.
@@ -1972,7 +1984,8 @@ export function TrouvablePremiumMenuExperience({
   function renderDishDetailSheet() {
     if (renderedSheet !== "dish" || !selectedDish) return null;
 
-    const hasModel = hasPublicMenu3d(selectedDish);
+    const hasModel =
+      displayMode === "public" && hasPublicMenu3d(selectedDish);
     const detailPrice = formatTrouvableDishPrice(
       selectedDish,
       selectedCurrency,
@@ -2285,6 +2298,7 @@ export function TrouvablePremiumMenuExperience({
       }`.trim()}
       lang={selectedLocale}
       data-display-mode={displayMode}
+      data-public-menu-renderer="trouvable"
       data-text-direction={textDirection}
       data-blueprint={config.experience.blueprint}
       data-copy-built-in-locale={copyResolution.builtInLocale}
