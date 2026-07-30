@@ -159,8 +159,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       "ravioles-de-chevre-frais-miel-de-monteregie",
       { lang }
     ),
-    image:
-      "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo",
+    image: "/images/landing/maison-elyse-experience.jpg",
     imageAlt:
       locale === "en"
         ? "Fresh goat cheese ravioli from Maison Élyse"
@@ -175,8 +174,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         : "Ouvrez la fiche actuelle dans la carte Trouvable.",
     price: "",
     href: buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang }),
-    image:
-      "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo",
+    image: "/images/landing/trouvable-experience.jpg",
     imageAlt: "Pesto Burrata Verde de Trouvable",
     imagePosition: "center"
   };
@@ -191,8 +189,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       lang,
       view: "sauge-2"
     }),
-    image:
-      "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo",
+    image: "/images/landing/sauge-noire-experience.jpg",
     imageAlt:
       locale === "en"
         ? "Beetroot under ash from Sauge Noire"

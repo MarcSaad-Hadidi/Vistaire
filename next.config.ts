@@ -262,6 +262,15 @@ const nextConfig: NextConfig = {
   },
   images: {
     qualities: [75, 90, 92, 100],
+    localPatterns: [
+      {
+        pathname: "/**",
+        search: "",
+      },
+      {
+        pathname: "/api/public/menu-dishes/*/photo",
+      },
+    ],
   },
   async redirects() {
     return [

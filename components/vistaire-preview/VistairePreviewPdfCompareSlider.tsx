@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   useEffect,
   useId,
@@ -9,6 +8,7 @@ import {
   type KeyboardEvent,
   type PointerEvent
 } from "react";
+import { PublicDishImage } from "@/components/public-menu/PublicDishImage";
 import type {
   CompareCategoryPreview,
   CompareDishPreview,
@@ -84,14 +84,13 @@ function CategoryPreviewCard({
     <article className={styles.categoryCard}>
       <span className={styles.categoryImage} aria-hidden="true">
         {category.image ? (
-          <Image
+          <PublicDishImage
             alt=""
-            fill
             priority={priority}
             quality={90}
             sizes="(max-width: 520px) 260px, 330px"
             src={category.image}
-            style={{ objectPosition: category.imageObjectPosition }}
+            objectPosition={category.imageObjectPosition}
           />
         ) : null}
       </span>
@@ -109,13 +108,12 @@ function FeaturedDishPreview({ dish }: { dish: CompareDishPreview }) {
     <article className={styles.featuredDish}>
       <span className={styles.featuredImage} aria-hidden="true">
         {dish.image ? (
-          <Image
+          <PublicDishImage
             alt=""
-            fill
             quality={90}
             sizes="72px"
             src={dish.image}
-            style={{ objectPosition: dish.imageObjectPosition }}
+            objectPosition={dish.imageObjectPosition}
           />
         ) : null}
       </span>

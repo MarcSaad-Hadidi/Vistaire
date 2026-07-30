@@ -101,6 +101,26 @@ test("landing dish cards use current public-menu detail routes", async () => {
   assert.match(section, /data-testid="landing-dishes"/);
 });
 
+test("landing dish photos keep versioned public routes compatible with Next Image", async () => {
+  const data = await source("lib/landing/menuExperiences.ts");
+  const nextConfig = (await import("../next.config.ts")).default;
+  const localPatterns = nextConfig.images?.localPatterns ?? [];
+
+  assert.ok(
+    localPatterns.some(
+      (pattern) =>
+        pattern.pathname === "/api/public/menu-dishes/*/photo" &&
+        pattern.search === undefined
+    ),
+    "versioned public dish photo URLs must be allowed without weakening every local image query"
+  );
+  assert.doesNotMatch(
+    data,
+    /\/api\/public\/menu-dishes\/[0-9a-f-]{36}\/photo["']/i,
+    "landing fallbacks must not fabricate an unversioned canonical photo route"
+  );
+});
+
 test("landing styles stop motion without forced animations", async () => {
   const styles = await source(
     "components/landing/VistaireLanding.module.css"

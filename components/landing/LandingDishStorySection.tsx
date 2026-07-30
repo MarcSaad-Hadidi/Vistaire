@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { PublicDishImage } from "@/components/public-menu/PublicDishImage";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import type { LandingExperience } from "@/lib/landing/menuExperiences";
 import styles from "./VistaireLanding.module.css";
@@ -33,16 +33,14 @@ export function LandingDishStorySection({
                 prefetch={false}
               >
                 <span className={styles.dishMedia}>
-                  <Image
+                  <PublicDishImage
                     alt={experience.featuredDish.imageAlt}
                     className={styles.coverImage}
-                    fill
+                    fallbackSrc={experience.image}
+                    objectPosition={experience.featuredDish.imagePosition}
                     quality={84}
                     sizes="(max-width: 720px) calc(100vw - 54px), (max-width: 1100px) 46vw, 350px"
                     src={experience.featuredDish.image}
-                    style={{
-                      objectPosition: experience.featuredDish.imagePosition
-                    }}
                   />
                 </span>
                 <div className={styles.dishCopy}>
