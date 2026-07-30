@@ -34,7 +34,10 @@ test("Maison Elyse public detail keeps the heavy viewer behind explicit action",
     "utf8"
   );
 
-  assert.match(detail, /const canOpenImmersive = has3d \|\| hasAr/);
+  assert.match(
+    detail,
+    /const canOpenImmersive = displayMode === "public" && \(has3d \|\| hasAr\)/
+  );
   assert.match(detail, /showModelViewer \?/);
   assert.match(detail, /showModelViewer \?\s*\(\s*<LazyDishModelViewer/);
   assert.doesNotMatch(detail, /loading=["']eager["']/);
