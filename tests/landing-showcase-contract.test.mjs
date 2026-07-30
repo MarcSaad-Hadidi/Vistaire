@@ -97,3 +97,27 @@ test("landing styles stop motion without forced animations", async () => {
     /prefers-reduced-motion[\s\S]{0,800}animation:[^;]+!important/
   );
 });
+
+test("landing keeps the restaurant backdrop visible through glass panels", async () => {
+  const styles = await source(
+    "components/landing/VistaireLanding.module.css"
+  );
+  const comparisonStyles = await source(
+    "components/landing/comparison/LandingComparison.module.css"
+  );
+
+  assert.match(
+    styles,
+    /url\("\/images\/landing\/trouvable-experience\.jpg"\)/
+  );
+  assert.match(styles, /backdrop-filter:\s*blur\(/);
+  assert.match(styles, /--landing-glass:/);
+  assert.doesNotMatch(
+    styles,
+    /--landing-(?:surface|glass):\s*rgba\([^;]+,\s*0\.[5-9]\)/
+  );
+  assert.doesNotMatch(
+    comparisonStyles,
+    /\.tabs[\s\S]{0,300}background:\s*rgba\([^;]+,\s*0\.[4-9]\)/
+  );
+});

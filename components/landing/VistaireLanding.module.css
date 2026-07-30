@@ -29,8 +29,8 @@
   --landing-cream: #fff8eb;
   --landing-muted: rgba(247, 234, 215, 0.72);
   --landing-champagne: #e8cf9b;
-  --landing-border: rgba(232, 207, 155, 0.24);
-  --landing-surface: rgba(15, 8, 4, 0.69);
+  --landing-border: rgba(255, 250, 240, 0.27);
+  --landing-glass: rgba(6, 4, 3, 0.1);
 
   position: relative;
   min-height: 100svh;
@@ -46,9 +46,9 @@
   inset: -36px;
   z-index: -2;
   background:
-    linear-gradient(180deg, rgba(7, 4, 2, 0.56), rgba(7, 4, 2, 0.9)),
+    linear-gradient(180deg, rgba(7, 4, 2, 0.15), rgba(7, 4, 2, 0.3)),
     url("/images/landing/trouvable-experience.jpg") center 46% / cover;
-  filter: saturate(0.82) brightness(0.78);
+  filter: saturate(0.96) brightness(0.9);
   transform: scale(1.035);
 }
 
@@ -57,9 +57,9 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(circle at 76% 8%, rgba(139, 81, 31, 0.2), transparent 31%),
-    radial-gradient(circle at 10% 40%, rgba(83, 49, 21, 0.14), transparent 37%),
-    rgba(5, 3, 2, 0.3);
+    radial-gradient(circle at 76% 8%, rgba(139, 81, 31, 0.09), transparent 31%),
+    radial-gradient(circle at 10% 40%, rgba(83, 49, 21, 0.07), transparent 37%),
+    rgba(5, 3, 2, 0.06);
   content: "";
   pointer-events: none;
 }
@@ -101,13 +101,18 @@
 .sectionPanel {
   border: 1px solid var(--landing-border);
   background:
-    linear-gradient(145deg, rgba(255, 248, 235, 0.035), transparent 52%),
-    var(--landing-surface);
+    linear-gradient(
+      145deg,
+      rgba(255, 250, 240, 0.065),
+      rgba(255, 250, 240, 0.012) 38%,
+      rgba(6, 4, 3, 0.08)
+    ),
+    var(--landing-glass);
   box-shadow:
-    0 26px 70px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 250, 240, 0.08);
-  -webkit-backdrop-filter: blur(13px) saturate(112%);
-  backdrop-filter: blur(13px) saturate(112%);
+    0 24px 64px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 250, 240, 0.1);
+  -webkit-backdrop-filter: blur(9px) saturate(112%);
+  backdrop-filter: blur(9px) saturate(112%);
 }
 
 .glassCard {
@@ -382,10 +387,12 @@
 
 .valueGrid li {
   min-height: 138px;
-  border: 1px solid rgba(232, 207, 155, 0.18);
+  border: 1px solid rgba(255, 250, 240, 0.18);
   border-radius: 18px;
-  background: rgba(7, 4, 2, 0.28);
+  background: rgba(255, 250, 240, 0.025);
   padding: 18px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 .valueGrid span,
@@ -470,7 +477,7 @@
   min-height: 46px;
   margin-top: 18px;
   border: 1px solid rgba(255, 248, 235, 0.34);
-  background: rgba(7, 4, 2, 0.42);
+  background: rgba(6, 4, 3, 0.18);
   color: rgba(255, 248, 235, 0.92);
 }
 
@@ -496,9 +503,11 @@
 
 .dishCard {
   overflow: hidden;
-  border: 1px solid rgba(232, 207, 155, 0.2);
+  border: 1px solid rgba(255, 250, 240, 0.2);
   border-radius: 22px;
-  background: rgba(7, 4, 2, 0.42);
+  background: rgba(6, 4, 3, 0.1);
+  -webkit-backdrop-filter: blur(6px) saturate(108%);
+  backdrop-filter: blur(6px) saturate(108%);
 }
 
 .dishMedia {
@@ -559,10 +568,12 @@
 
 .ownerGrid li {
   min-height: 178px;
-  border: 1px solid rgba(232, 207, 155, 0.18);
+  border: 1px solid rgba(255, 250, 240, 0.18);
   border-radius: 18px;
-  background: rgba(7, 4, 2, 0.3);
+  background: rgba(255, 250, 240, 0.025);
   padding: 20px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 .ownerGrid h3 {

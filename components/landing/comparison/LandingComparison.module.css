@@ -11,10 +11,12 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  border: 1px solid rgba(232, 207, 155, 0.24);
+  border: 1px solid rgba(255, 250, 240, 0.24);
   border-radius: 999px;
-  background: rgba(7, 4, 2, 0.42);
+  background: rgba(6, 4, 3, 0.1);
   padding: 4px;
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
+  backdrop-filter: blur(6px) saturate(110%);
 }
 
 .tab {
