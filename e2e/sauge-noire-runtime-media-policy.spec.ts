@@ -129,4 +129,89 @@ test.describe("Sauge Noire runtime photo policy", () => {
     expect(photoRequests).toHaveLength(1);
     expect(new Set(photoRequests).size).toBe(1);
   });
+
+  test("new logical navigation cancels stale target media preparation", async ({
+    page
+  }) => {
+    let releasePhoto: (() => void) | undefined;
+    let markPhotoRequested: (() => void) | undefined;
+    const photoRelease = new Promise<void>((resolve) => {
+      releasePhoto = resolve;
+    });
+    const photoRequested = new Promise<void>((resolve) => {
+      markPhotoRequested = resolve;
+    });
+
+    await page.route("**/__e2e__/delayed-page-photo.png", async (route) => {
+      markPhotoRequested?.();
+      await photoRelease;
+      await route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nFsAAAAASUVORK5CYII=",
+          "base64"
+        )
+      });
+    });
+
+    try {
+      await page.goto(menuPath, { waitUntil: "domcontentloaded" });
+      await waitForPhysicalBook(page);
+
+      const targetImage = page
+        .locator(
+          '[data-sauge-page-origin="react-original"]' +
+            '[data-sauge-flip-page-index="3"] img'
+        )
+        .first();
+      await expect(targetImage).toBeAttached();
+      await targetImage.evaluate((image) => {
+        image.setAttribute(
+          "data-sauge-deferred-src",
+          "/__e2e__/delayed-page-photo.png"
+        );
+        image.removeAttribute("src");
+      });
+
+      const readingSurface = page.locator(
+        '[data-sauge-reading-surface="true"]'
+      );
+      const readingBox = await readingSurface.boundingBox();
+      expect(readingBox).not.toBeNull();
+      const startX = readingBox!.x + readingBox!.width * 0.75;
+      const startY = readingBox!.y + readingBox!.height * 0.42;
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(startX - 180, startY - 24, { steps: 6 });
+      await page.mouse.up();
+      await photoRequested;
+      await expect(
+        page.locator('[data-page-flip-media-preparing="true"]')
+      ).toHaveCount(1);
+
+      const lastPageIndex =
+        (await page
+          .locator('[data-sauge-page-origin="react-original"]')
+          .count()) - 1;
+      await page.keyboard.press("End");
+      await expect(
+        page.locator('[data-testid="sauge-noire-book"]')
+      ).toHaveAttribute("data-page-index", String(lastPageIndex));
+
+      releasePhoto?.();
+
+      await expect(
+        page.locator(
+          `[data-page-flip-current-page="${lastPageIndex}"]` +
+            `[data-page-flip-actual-page="${lastPageIndex}"]`
+        )
+      ).toHaveCount(1, { timeout: 20_000 });
+      await expect(page).toHaveURL(
+        new RegExp(`[?&]view=sauge-${lastPageIndex}(?:&|$)`)
+      );
+    } finally {
+      releasePhoto?.();
+    }
+  });
 });

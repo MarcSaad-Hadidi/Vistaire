@@ -688,6 +688,53 @@ export function SaugeNoirePageFlipExperiment({
     [bookKey, hasReadingSurface, revealEngineForFlip]
   );
 
+  const turnToPreparedPage = useCallback(
+    (sourcePageIndex: number, targetPageIndex: number) => {
+      const preparedBookKey = bookKey;
+      void revealEngineForFlip(sourcePageIndex, targetPageIndex).then(
+        (prepared) => {
+          if (!prepared) return;
+          const pageFlip = bookRef.current?.pageFlip();
+          if (
+            readyBookKeyRef.current !== preparedBookKey ||
+            !pageFlip ||
+            pageFlip.getState() !== "read" ||
+            pageFlip.getCurrentPageIndex() !== sourcePageIndex
+          ) {
+            return;
+          }
+          animationTargetPageRef.current = null;
+          reportedFlipPageRef.current = null;
+          pageFlip.turnToPage(targetPageIndex);
+        }
+      );
+    },
+    [bookKey, revealEngineForFlip]
+  );
+
+  useLayoutEffect(() => {
+    const pendingTarget =
+      animationTargetPageRef.current ?? requestedPageIndexRef.current;
+    if (
+      requestedPageIndexRef.current === null ||
+      pendingTarget === null ||
+      pendingTarget === pageIndex ||
+      reportedFlipPageRef.current === pageIndex
+    ) {
+      return;
+    }
+
+    const pageFlip = bookRef.current?.pageFlip();
+    if (!pageFlip || pageFlip.getState() === "flipping") return;
+
+    flipPreparationTokenRef.current += 1;
+    setMediaPreparing(false);
+    requestedPageIndexRef.current = pageIndex;
+    animationTargetPageRef.current = null;
+    reportedFlipPageRef.current = null;
+    turnToPreparedPage(pageFlip.getCurrentPageIndex(), pageIndex);
+  }, [pageIndex, turnToPreparedPage]);
+
   useEffect(() => {
     if (!bookIsReady) return;
 

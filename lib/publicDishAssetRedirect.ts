@@ -234,7 +234,9 @@ export async function redirectPublicDishAsset(args: {
   }
 
   const metadata = metadataRecord(dish.metadata);
-  const requestedVersion = args.requestedAssetVersion?.trim() ?? "";
+  const rawRequestedVersion = args.requestedAssetVersion?.trim() ?? "";
+  const requestedVersion =
+    args.kind === "photo" ? rawRequestedVersion.toLowerCase() : rawRequestedVersion;
   const profile = ASSET_PROFILES[args.kind];
   const activeVersion = metadataString(metadata, profile.versionMetadataKey);
   if (

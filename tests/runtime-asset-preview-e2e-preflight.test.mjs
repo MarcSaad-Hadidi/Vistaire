@@ -56,3 +56,51 @@ test("official runtime Preview E2E preflight accepts complete read-only configur
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stderr, "");
 });
+
+test("official runtime Preview E2E preflight rejects the local Playwright origin", async () => {
+  const result = await runPreflight({
+    PATH: process.env.PATH ?? "",
+    VISTAIRE_RUNTIME_E2E: "1",
+    PLAYWRIGHT_SKIP_WEB_SERVER: "1",
+    PLAYWRIGHT_BASE_URL: "http://127.0.0.1:3000",
+    VISTAIRE_RUNTIME_DISH_PATH: "/menu/example/dishes/dish",
+    VISTAIRE_RUNTIME_DISH_ID: "11111111-2222-4333-8444-555555555555",
+    VISTAIRE_RUNTIME_ASSET_VERSION: "asset-version",
+    VISTAIRE_RUNTIME_STORAGE_HOST: "project.supabase.co"
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /PLAYWRIGHT_BASE_URL/);
+});
+
+test("official runtime Preview E2E preflight rejects an insecure external origin", async () => {
+  const result = await runPreflight({
+    PATH: process.env.PATH ?? "",
+    VISTAIRE_RUNTIME_E2E: "1",
+    PLAYWRIGHT_SKIP_WEB_SERVER: "1",
+    PLAYWRIGHT_BASE_URL: "http://preview.example.test",
+    VISTAIRE_RUNTIME_DISH_PATH: "/menu/example/dishes/dish",
+    VISTAIRE_RUNTIME_DISH_ID: "11111111-2222-4333-8444-555555555555",
+    VISTAIRE_RUNTIME_ASSET_VERSION: "asset-version",
+    VISTAIRE_RUNTIME_STORAGE_HOST: "project.supabase.co"
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /PLAYWRIGHT_BASE_URL/);
+});
+
+test("official runtime Preview E2E preflight rejects an HTTPS loopback origin", async () => {
+  const result = await runPreflight({
+    PATH: process.env.PATH ?? "",
+    VISTAIRE_RUNTIME_E2E: "1",
+    PLAYWRIGHT_SKIP_WEB_SERVER: "1",
+    PLAYWRIGHT_BASE_URL: "https://127.0.0.1:3000",
+    VISTAIRE_RUNTIME_DISH_PATH: "/menu/example/dishes/dish",
+    VISTAIRE_RUNTIME_DISH_ID: "11111111-2222-4333-8444-555555555555",
+    VISTAIRE_RUNTIME_ASSET_VERSION: "asset-version",
+    VISTAIRE_RUNTIME_STORAGE_HOST: "project.supabase.co"
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /PLAYWRIGHT_BASE_URL/);
+});

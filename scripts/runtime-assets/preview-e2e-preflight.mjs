@@ -17,9 +17,30 @@ const missing = [
   ...REQUIRED_VALUES.filter((name) => !process.env[name]?.trim())
 ];
 
-if (missing.length > 0) {
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim();
+let invalidBaseUrl = false;
+if (baseUrl) {
+  try {
+    const parsed = new URL(baseUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    invalidBaseUrl =
+      parsed.protocol !== "https:" ||
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname === "[::1]" ||
+      hostname === "::1" ||
+      hostname.startsWith("127.");
+  } catch {
+    invalidBaseUrl = true;
+  }
+}
+
+if (missing.length > 0 || invalidBaseUrl) {
+  const invalid = invalidBaseUrl
+    ? [...missing, "PLAYWRIGHT_BASE_URL (absolute HTTPS non-loopback URL)"]
+    : missing;
   console.error(
-    `Missing runtime Preview E2E configuration: ${missing.join(", ")}`
+    `Missing or invalid runtime Preview E2E configuration: ${invalid.join(", ")}`
   );
   process.exitCode = 2;
 }

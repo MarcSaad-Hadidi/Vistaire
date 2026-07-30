@@ -72,6 +72,8 @@ npm run test:runtime-assets:e2e
 The official browser command runs a preflight first and exits non-zero with the
 missing variable names unless the read-only Preview flag, external web-server
 mode, base URL, dish path/ID, model version, and Storage host are configured.
+`PLAYWRIGHT_BASE_URL` must be an absolute HTTPS, non-loopback Preview URL; the
+repository's local Playwright origin is rejected.
 
 Chromium and WebKit cover 390px, 430px, and desktop menu/dish views. The spec
 checks visible loaded photos, horizontal overflow, console errors, unexpected

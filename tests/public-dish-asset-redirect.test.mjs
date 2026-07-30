@@ -329,6 +329,36 @@ test("only true legacy photos redirect without a version while modern photos req
   }
 });
 
+test("photo versions accept the persisted SHA-256 regardless of letter case", async () => {
+  const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+  try {
+    const fixture = createAdminFixture({
+      metadata: assetMetadata("photo")
+    });
+    installAdmin(fixture);
+
+    const response = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256.toUpperCase()}`
+    });
+
+    assert.equal(response.status, 307);
+    assert.equal(
+      response.headers.get("location"),
+      signedUrl("vistaire-media", PHOTO_PATH)
+    );
+    assert.deepEqual(fixture.calls.storageFrom, ["vistaire-media"]);
+  } finally {
+    if (previousSupabaseUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+    }
+  }
+});
+
 test("Preview 307 exposes bounded phase timings without asset data", async () => {
   const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const previousVercelEnv = process.env.VERCEL_ENV;

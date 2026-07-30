@@ -49,7 +49,7 @@ export function OwnerDishPhotoUploader({
         throw new Error(payload.error || "Upload photo impossible.");
       }
 
-      setImageUrl(`${payload.imageUrl}?v=${Date.now()}`);
+      setImageUrl(payload.imageUrl);
       setStatus("Photo prete");
       router.refresh();
     } catch (uploadError) {
