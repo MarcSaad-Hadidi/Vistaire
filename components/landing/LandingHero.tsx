@@ -22,14 +22,7 @@ export function LandingHero({
     >
       <div className={styles.heroGrid}>
         <article className={`${styles.glassCard} ${styles.heroMainCard}`}>
-          <LandingHeroMedia
-            locale={locale}
-            videoLabel={
-              locale === "en"
-                ? "Video demonstration of the Vistaire digital menu"
-                : "Démonstration vidéo de la carte digitale Vistaire"
-            }
-          />
+          <LandingHeroMedia locale={locale} />
           <div aria-hidden="true" className={styles.heroMediaShade} />
           <div className={styles.heroCopy}>
             <p className={styles.eyebrow}>{copy.eyebrow}</p>

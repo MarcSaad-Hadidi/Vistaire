@@ -15,11 +15,9 @@ type ConnectionAwareNavigator = Navigator & {
 };
 
 export function LandingHeroMedia({
-  locale,
-  videoLabel
+  locale
 }: {
   locale: "fr" | "en";
-  videoLabel: string;
 }) {
   const [playVideo, setPlayVideo] = useState<boolean | null>(null);
 
@@ -66,7 +64,7 @@ export function LandingHeroMedia({
         src={heroPosterSrc}
       />
       <video
-        aria-label={videoLabel}
+        aria-hidden="true"
         autoPlay
         className={styles.video}
         controls={false}

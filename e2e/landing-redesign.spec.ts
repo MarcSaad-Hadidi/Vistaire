@@ -17,10 +17,14 @@ function collectRuntimeFailures(page: Page) {
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("response", (response) => {
-    if (
-      response.status() >= 400 &&
-      response.url().startsWith("http://127.0.0.1:3000")
-    ) {
+    let isSameOrigin = false;
+    try {
+      isSameOrigin =
+        new URL(response.url()).origin === new URL(page.url()).origin;
+    } catch {
+      // Ignore non-HTTP pages such as about:blank during browser startup.
+    }
+    if (response.status() >= 400 && isSameOrigin) {
       failedResponses.push(`${response.status()} ${response.url()}`);
     }
   });

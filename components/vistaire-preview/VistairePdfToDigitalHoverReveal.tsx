@@ -138,7 +138,7 @@ export function VistairePdfToDigitalHoverReveal({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             role="button"
-            style={{ touchAction: "pan-y" }}
+            style={{ touchAction: "pan-y pinch-zoom" }}
             tabIndex={0}
           >
             <div className={styles.vistaireLayer} data-preview-digital-layer="true">
