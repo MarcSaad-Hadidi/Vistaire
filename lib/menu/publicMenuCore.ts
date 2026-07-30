@@ -742,6 +742,23 @@ function getOptionalNumberFromSources(
   return value > 0 ? value : undefined;
 }
 
+const PHOTO_SHA256_PATTERN = /^[a-f0-9]{64}$/i;
+
+function versionCanonicalDishPhotoUrl(
+  imageUrl: string,
+  dishId: string,
+  photoSha256: string
+): string {
+  const canonicalPath = `/api/public/menu-dishes/${dishId}/photo`;
+  if (
+    imageUrl !== canonicalPath ||
+    !PHOTO_SHA256_PATTERN.test(photoSha256)
+  ) {
+    return imageUrl;
+  }
+  return `${canonicalPath}?v=${photoSha256.toLowerCase()}`;
+}
+
 function mapDishRow(
   row: PublicMenuRow,
   index: number,
@@ -772,18 +789,38 @@ function mapDishRow(
     ["dietaryType", "dietary_type", "veg", "vegetarian"],
     ""
   );
-  const imageUrl = getSafeStringFromSources(row, metadata, [
+  const dishId = getString(
+    row,
+    ["id", "dish_id", "slug", "dish_slug"],
+    `dish-${index}`
+  );
+  const photoSha256 = getString(
+    metadata,
+    ["photoSha256", "photo_sha256"],
+    ""
+  );
+  const rawImageUrl = getSafeStringFromSources(row, metadata, [
     "image",
     "image_url",
     "imageUrl",
     "photo_url",
     "photoUrl"
   ]);
-  const thumbnailUrl =
+  const imageUrl = versionCanonicalDishPhotoUrl(
+    rawImageUrl,
+    dishId,
+    photoSha256
+  );
+  const rawThumbnailUrl =
     getSafeStringFromSources(row, metadata, [
       "thumbnail_url",
       "thumbnailUrl"
-    ]) || imageUrl;
+    ]) || rawImageUrl;
+  const thumbnailUrl = versionCanonicalDishPhotoUrl(
+    rawThumbnailUrl,
+    dishId,
+    photoSha256
+  );
   const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
   const webModel3dUrl =
     getSafeStringFromSources(row, metadata, ["webModel3dUrl", "web_model_3d_url"]) ||
@@ -940,7 +977,7 @@ function mapDishRow(
   const categorySlug = getString(row, ["category_slug", "categorySlug"], "");
 
   return {
-    id: getString(row, ["id", "dish_id", "slug", "dish_slug"], `dish-${index}`),
+    id: dishId,
     slug: slug || `dish-${index}`,
     name,
     description: getString(row, ["short_description", "shortDescription", "description", "desc", "summary"], ""),

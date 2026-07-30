@@ -279,7 +279,7 @@ test("viewer GLB upload rolls back the newly uploaded file when DB update fails"
   assert.match(source, /storage\.from\(MODEL_BUCKET\)\.remove\(\[path\]\)/);
 });
 
-test("public photo, GLB, and USDZ routes continue to serve active metadata paths", async () => {
+test("public photo, GLB, and USDZ routes redirect active metadata objects through the shared guard", async () => {
   const photoRoute = await readFile(
     "app/api/public/menu-dishes/[dishId]/photo/route.ts",
     "utf8"
@@ -292,15 +292,21 @@ test("public photo, GLB, and USDZ routes continue to serve active metadata paths
     "app/api/public/menu-dishes/[dishId]/model/usdz/route.ts",
     "utf8"
   );
+  const redirectHelper = await readFile("lib/publicDishAssetRedirect.ts", "utf8");
 
-  assert.match(photoRoute, /photoStorageBucket/);
-  assert.match(photoRoute, /photoStoragePath/);
-  assert.match(photoRoute, /storage\.from\(bucket\)\.download\(storagePath\)/);
-  assert.match(glbRoute, /webModel3dStoragePath/);
-  assert.match(glbRoute, /arModel3dStoragePath/);
+  assert.match(photoRoute, /redirectPublicDishAsset/);
+  assert.match(photoRoute, /kind: "photo"/);
+  assert.match(glbRoute, /redirectPublicDishAsset/);
   assert.match(glbRoute, /variant === "ar-lite"/);
-  assert.match(glbRoute, /modelAssetVersion/);
-  assert.match(usdzRoute, /arUsdzStoragePath/);
-  assert.match(usdzRoute, /modelAssetVersion/);
-  assert.match(usdzRoute, /model\/vnd\.usdz\+zip/);
+  assert.match(usdzRoute, /redirectPublicDishAsset/);
+  assert.match(usdzRoute, /kind: "usdz"/);
+  assert.match(redirectHelper, /photoStorageBucket/);
+  assert.match(redirectHelper, /photoStoragePath/);
+  assert.match(redirectHelper, /webModel3dStoragePath/);
+  assert.match(redirectHelper, /arModel3dStoragePath/);
+  assert.match(redirectHelper, /arUsdzStoragePath/);
+  assert.match(redirectHelper, /modelAssetVersion/);
+  assert.match(redirectHelper, /storage\.info\(storagePath\)/);
+  assert.match(redirectHelper, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });

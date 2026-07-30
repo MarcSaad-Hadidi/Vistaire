@@ -381,6 +381,59 @@ test("maps real photo and 3D/AR fields without inventing missing assets", () => 
   assert.equal(soupe.modelStatus, "missing");
 });
 
+test("versions only the canonical same-origin photo route for its dish", () => {
+  const canonicalDishId = "84226092-1b25-4174-a635-50e2b8319580";
+  const otherDishId = "74226092-1b25-4174-a635-50e2b8319580";
+  const photoSha256 = "c".repeat(64);
+  const rows = [
+    {
+      id: canonicalDishId,
+      restaurant_id: restoMarcId,
+      name: "Photo canonique",
+      image_url: `/api/public/menu-dishes/${canonicalDishId}/photo`,
+      metadata: { photoSha256 }
+    },
+    {
+      id: otherDishId,
+      restaurant_id: restoMarcId,
+      name: "Route d'un autre plat",
+      image_url: `/api/public/menu-dishes/${canonicalDishId}/photo`,
+      metadata: { photoSha256 }
+    },
+    {
+      id: "external-photo",
+      restaurant_id: restoMarcId,
+      name: "Photo externe",
+      image_url: `https://cdn.example.test/api/public/menu-dishes/${canonicalDishId}/photo`,
+      metadata: { photoSha256 }
+    },
+    {
+      id: "legacy-relative",
+      restaurant_id: restoMarcId,
+      name: "Photo relative non canonique",
+      image_url: "/images/resto-marc/legacy.jpg",
+      metadata: { photoSha256 }
+    }
+  ];
+
+  const menu = buildSupabasePublicMenu("resto-marc", restoMarc, rows);
+
+  assert.equal(
+    menu.dishes[0].imageUrl,
+    `/api/public/menu-dishes/${canonicalDishId}/photo?v=${photoSha256}`
+  );
+  assert.equal(menu.dishes[0].thumbnailUrl, menu.dishes[0].imageUrl);
+  assert.equal(
+    menu.dishes[1].imageUrl,
+    `/api/public/menu-dishes/${canonicalDishId}/photo`
+  );
+  assert.equal(
+    menu.dishes[2].imageUrl,
+    `https://cdn.example.test/api/public/menu-dishes/${canonicalDishId}/photo`
+  );
+  assert.equal(menu.dishes[3].imageUrl, "/images/resto-marc/legacy.jpg");
+});
+
 test("ignores stale media flags and statuses when Supabase has no real asset", () => {
   const dishId = "84226092-1b25-4174-a635-50e2b8319580";
   const menu = buildSupabasePublicMenu(

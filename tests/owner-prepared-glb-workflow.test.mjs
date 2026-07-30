@@ -168,6 +168,7 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
     "app/api/public/menu-dishes/[dishId]/model/glb/route.ts",
     "utf8"
   );
+  const publicAssetRedirect = await readFile("lib/publicDishAssetRedirect.ts", "utf8");
   const dish3dManifest = await readFile("lib/dish3dManifest.ts", "utf8");
   const packageJson = await readFile("package.json", "utf8");
   const nextConfig = await readFile("next.config.ts", "utf8");
@@ -220,7 +221,12 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   assert.match(iosBuilder, /createOwnerDish/);
   assert.doesNotMatch(iosBuilder, /Unknown dish slug/);
   assert.match(publicGlbRoute, /variant === "ar-lite"/);
-  assert.match(publicGlbRoute, /arModel3dStoragePath/);
+  assert.match(publicGlbRoute, /kind: variant === "ar-lite" \? "ar-lite-glb" : "web-glb"/);
+  assert.match(publicAssetRedirect, /webModel3dStoragePath/);
+  assert.match(publicAssetRedirect, /arModel3dStoragePath/);
+  assert.match(publicAssetRedirect, /storage\.info\(storagePath\)/);
+  assert.match(publicAssetRedirect, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.doesNotMatch(publicAssetRedirect, /\.download\s*\(|\.arrayBuffer\s*\(/);
   assert.match(dish3dManifest, /PUBLIC_MODEL_ROUTE_PATTERN/);
   assert.match(dish3dManifest, /variant=ar-lite/);
   assert.match(nextConfig, /OWNER_MODEL_PIPELINE_TRACE_EXCLUDES/);

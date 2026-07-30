@@ -18,6 +18,7 @@ import {
 import styles from "./SaugeNoireBookMenu.module.css";
 import {
   resolveSaugeNoireOriginalPage,
+  SaugeNoirePhysicalPageMediaContext,
   SaugeNoireOriginalPageRegistryContext
 } from "./SaugeNoireFlipPage";
 import {
@@ -191,6 +192,7 @@ const FLICK_DISTANCE = 24;
 const FLICK_VELOCITY = 0.3;
 const FLICK_RECENCY_MS = 160;
 const RESIZE_ROUNDING_NOISE_PX = 1;
+const TARGET_MEDIA_DECODE_TIMEOUT_MS = 2_000;
 
 function parsePageIndex(event: PageFlipEvent | number): number | null {
   const value = typeof event === "number" ? event : event.data;
@@ -198,6 +200,78 @@ function parsePageIndex(event: PageFlipEvent | number): number | null {
   return typeof index === "number" && Number.isInteger(index) && index >= 0
     ? index
     : null;
+}
+
+type PhysicalMediaPhase = "rest" | "flip";
+
+function applyPhysicalMediaPolicy(
+  viewport: ParentNode,
+  preparedPageIndexes: ReadonlySet<number>,
+  phase: PhysicalMediaPhase
+) {
+  viewport
+    .querySelectorAll<HTMLImageElement>("img[data-sauge-deferred-src]")
+    .forEach((image) => {
+      const page = image.closest<HTMLElement>("[data-sauge-flip-page-index]");
+      const pageIndex = Number(
+        page?.getAttribute("data-sauge-flip-page-index")
+      );
+      const source = image.getAttribute("data-sauge-deferred-src")?.trim() ?? "";
+      const shouldPrepare =
+        Number.isInteger(pageIndex) &&
+        preparedPageIndexes.has(pageIndex) &&
+        Boolean(source);
+
+      if (!shouldPrepare) {
+        image.removeAttribute("src");
+        image.loading = "lazy";
+        image.fetchPriority = "low";
+        return;
+      }
+
+      image.loading = phase === "flip" ? "eager" : "lazy";
+      image.fetchPriority = "low";
+      if (image.getAttribute("src") !== source) {
+        image.setAttribute("src", source);
+      }
+    });
+}
+
+async function waitForPreparedPhysicalPageMedia(
+  viewport: ParentNode,
+  targetPageIndex: number
+) {
+  const targetPage = resolveSaugeNoireOriginalPage(
+    viewport,
+    targetPageIndex
+  );
+  const leadingImage = targetPage?.querySelector<HTMLImageElement>(
+    "img[data-sauge-deferred-src]"
+  );
+  if (
+    !leadingImage ||
+    (leadingImage.complete && leadingImage.naturalWidth > 0)
+  ) {
+    return;
+  }
+
+  leadingImage.loading = "eager";
+  leadingImage.fetchPriority = "high";
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      leadingImage.fetchPriority = "low";
+      resolve();
+    };
+    const timeout = window.setTimeout(
+      finish,
+      TARGET_MEDIA_DECODE_TIMEOUT_MS
+    );
+    void leadingImage.decode().then(finish, finish);
+  });
 }
 
 function isPageFlipProtectedTarget(
@@ -358,6 +432,7 @@ export function SaugeNoirePageFlipExperiment({
   const [readyBookKey, setReadyBookKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [engineState, setEngineState] = useState("idle");
+  const [mediaPreparing, setMediaPreparing] = useState(false);
   const [actualPageIndex, setActualPageIndex] = useState(startPage);
   const [singleFlipJumpPhase, setSingleFlipJumpPhase] =
     useState<SingleFlipJumpPhase>("idle");
@@ -381,6 +456,10 @@ export function SaugeNoirePageFlipExperiment({
     scrollTop: number;
   } | null>(null);
   const animationSourceClearFrameRef = useRef(0);
+  const flipPreparationTokenRef = useRef(0);
+  const preparedPhysicalPageIndexesRef = useRef<Set<number>>(
+    new Set([startPage])
+  );
   const initCountRef = useRef(0);
   const hasReadingSurface = readingPage !== undefined || readingPages !== undefined;
   // The DOM identity belongs to the logical book, not to a volatile viewport
@@ -467,6 +546,12 @@ export function SaugeNoirePageFlipExperiment({
     (sourcePageIndex: number, targetPageIndex: number) => {
       const viewport = viewportRef.current;
       if (!viewport) return;
+      const preparedPageIndexes = new Set([
+        sourcePageIndex,
+        targetPageIndex
+      ]);
+      preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+      applyPhysicalMediaPolicy(viewport, preparedPageIndexes, "flip");
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
       const sourcePage = resolveSaugeNoireOriginalPage(viewport, sourcePageIndex);
       const targetPage = resolveSaugeNoireOriginalPage(viewport, targetPageIndex);
@@ -496,6 +581,29 @@ export function SaugeNoirePageFlipExperiment({
   );
 
   useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (
+      !viewport ||
+      dimensions === null ||
+      !bookIsReady ||
+      failed ||
+      engineState !== "read"
+    ) {
+      return;
+    }
+    const preparedPageIndexes = new Set([actualPageIndex]);
+    preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+    applyPhysicalMediaPolicy(viewport, preparedPageIndexes, "rest");
+  }, [
+    actualPageIndex,
+    bookIsReady,
+    dimensions,
+    engineState,
+    failed,
+    pages
+  ]);
+
+  useLayoutEffect(() => {
     if (engineState !== "flipping") return;
     const source = animationSourceScrollRef.current;
     const viewport = viewportRef.current;
@@ -510,12 +618,122 @@ export function SaugeNoirePageFlipExperiment({
   }, [engineState]);
 
   const revealEngineForFlip = useCallback(
-    (sourcePageIndex: number, targetPageIndex: number) => {
+    async (sourcePageIndex: number, targetPageIndex: number) => {
+      const preparationToken = ++flipPreparationTokenRef.current;
+      const preparedBookKey = bookKey;
+      if (hasReadingSurface) setMediaPreparing(true);
       preparePageFlip(sourcePageIndex, targetPageIndex);
-      if (hasReadingSurface) setEngineState("flipping");
+      const viewport = viewportRef.current;
+      if (!viewport) {
+        if (preparationToken === flipPreparationTokenRef.current) {
+          setMediaPreparing(false);
+        }
+        return false;
+      }
+      await waitForPreparedPhysicalPageMedia(viewport, targetPageIndex);
+      const pageFlip = bookRef.current?.pageFlip();
+      if (
+        preparationToken !== flipPreparationTokenRef.current ||
+        readyBookKeyRef.current !== preparedBookKey ||
+        viewport !== viewportRef.current ||
+        failedRef.current ||
+        !pageFlip ||
+        pageFlip.getState() !== "read" ||
+        pageFlip.getCurrentPageIndex() !== sourcePageIndex
+      ) {
+        if (preparationToken === flipPreparationTokenRef.current) {
+          setMediaPreparing(false);
+        }
+        return false;
+      }
+      setMediaPreparing(false);
+      return true;
     },
-    [hasReadingSurface, preparePageFlip]
+    [bookKey, hasReadingSurface, preparePageFlip]
   );
+
+  const startPreparedFlip = useCallback(
+    (
+      sourcePageIndex: number,
+      requestedTargetPageIndex: number,
+      onPrepared?: () => void
+    ) => {
+      const direction =
+        requestedTargetPageIndex > sourcePageIndex ? "next" : "previous";
+      const targetPageIndex =
+        sourcePageIndex + (direction === "next" ? 1 : -1);
+      const preparedBookKey = bookKey;
+      void revealEngineForFlip(sourcePageIndex, targetPageIndex).then(
+        (prepared) => {
+          if (!prepared) return;
+          const pageFlip = bookRef.current?.pageFlip();
+          if (
+            readyBookKeyRef.current !== preparedBookKey ||
+            !pageFlip ||
+            pageFlip.getState() !== "read" ||
+            pageFlip.getCurrentPageIndex() !== sourcePageIndex
+          ) {
+            return;
+          }
+          onPrepared?.();
+          if (hasReadingSurface) setEngineState("flipping");
+          if (direction === "next") {
+            pageFlip.flipNext();
+          } else {
+            pageFlip.flipPrev();
+          }
+        }
+      );
+    },
+    [bookKey, hasReadingSurface, revealEngineForFlip]
+  );
+
+  const turnToPreparedPage = useCallback(
+    (sourcePageIndex: number, targetPageIndex: number) => {
+      const preparedBookKey = bookKey;
+      void revealEngineForFlip(sourcePageIndex, targetPageIndex).then(
+        (prepared) => {
+          if (!prepared) return;
+          const pageFlip = bookRef.current?.pageFlip();
+          if (
+            readyBookKeyRef.current !== preparedBookKey ||
+            !pageFlip ||
+            pageFlip.getState() !== "read" ||
+            pageFlip.getCurrentPageIndex() !== sourcePageIndex
+          ) {
+            return;
+          }
+          animationTargetPageRef.current = null;
+          reportedFlipPageRef.current = null;
+          pageFlip.turnToPage(targetPageIndex);
+        }
+      );
+    },
+    [bookKey, revealEngineForFlip]
+  );
+
+  useLayoutEffect(() => {
+    const pendingTarget =
+      animationTargetPageRef.current ?? requestedPageIndexRef.current;
+    if (
+      requestedPageIndexRef.current === null ||
+      pendingTarget === null ||
+      pendingTarget === pageIndex ||
+      reportedFlipPageRef.current === pageIndex
+    ) {
+      return;
+    }
+
+    const pageFlip = bookRef.current?.pageFlip();
+    if (!pageFlip || pageFlip.getState() === "flipping") return;
+
+    flipPreparationTokenRef.current += 1;
+    setMediaPreparing(false);
+    requestedPageIndexRef.current = pageIndex;
+    animationTargetPageRef.current = null;
+    reportedFlipPageRef.current = null;
+    turnToPreparedPage(pageFlip.getCurrentPageIndex(), pageIndex);
+  }, [pageIndex, turnToPreparedPage]);
 
   useEffect(() => {
     if (!bookIsReady) return;
@@ -749,13 +967,18 @@ export function SaugeNoirePageFlipExperiment({
           (control) => control.setAttribute("tabindex", "-1")
         );
       });
+      applyPhysicalMediaPolicy(
+        viewport,
+        preparedPhysicalPageIndexesRef.current,
+        engineState === "flipping" ? "flip" : "rest"
+      );
     };
 
     markClones();
     const observer = new MutationObserver(markClones);
     observer.observe(viewport, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [bookIsReady, dimensions, failed]);
+  }, [bookIsReady, dimensions, engineState, failed]);
 
   useEffect(() => {
     const pageFlip = bookRef.current?.pageFlip();
@@ -771,6 +994,8 @@ export function SaugeNoirePageFlipExperiment({
     }
 
     lastResetKeyRef.current = resetKey;
+    flipPreparationTokenRef.current += 1;
+    setMediaPreparing(false);
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
     pageFlip.turnToPage(startPage);
@@ -787,15 +1012,25 @@ export function SaugeNoirePageFlipExperiment({
     ) {
       return;
     }
-    const frame = window.requestAnimationFrame(() => {
+
+    flipPreparationTokenRef.current += 1;
+    setMediaPreparing(false);
+    requestedPageIndexRef.current = null;
+    animationTargetPageRef.current = null;
+    reportedFlipPageRef.current = recenterPage;
+
+    let frame = 0;
+    const applyRecenter = () => {
       const pageFlip = bookRef.current?.pageFlip();
-      if (!pageFlip || pageFlip.getState() === "flipping") return;
-      lastRecenterTokenRef.current = recenterToken;
-      requestedPageIndexRef.current = null;
-      animationTargetPageRef.current = null;
-      reportedFlipPageRef.current = recenterPage;
+      if (!pageFlip) return;
+      if (pageFlip.getState() !== "read") {
+        frame = window.requestAnimationFrame(applyRecenter);
+        return;
+      }
       pageFlip.turnToPage(recenterPage);
-    });
+      lastRecenterTokenRef.current = recenterToken;
+    };
+    frame = window.requestAnimationFrame(applyRecenter);
     return () => window.cancelAnimationFrame(frame);
   }, [bookIsReady, dimensions, failed, recenterPage, recenterToken]);
 
@@ -855,13 +1090,10 @@ export function SaugeNoirePageFlipExperiment({
       animationTargetPageRef.current = null;
       requestedPageIndexRef.current = adjacentPage;
       reportedFlipPageRef.current = null;
-      setSingleFlipJumpPhase("single-flip-started");
-      revealEngineForFlip(currentPage, adjacentPage);
-      if (direction === "next") {
-        pageFlip.flipNext();
-      } else {
-        pageFlip.flipPrev();
-      }
+      setSingleFlipJumpPhase("requested");
+      startPreparedFlip(currentPage, adjacentPage, () => {
+        setSingleFlipJumpPhase("single-flip-started");
+      });
     });
     singleFlipJumpFrameRef.current = startFrame;
 
@@ -873,7 +1105,7 @@ export function SaugeNoirePageFlipExperiment({
     failed,
     onPageFlip,
     pages.length,
-    revealEngineForFlip,
+    startPreparedFlip,
     singleFlipJumpRequest
   ]);
 
@@ -900,12 +1132,7 @@ export function SaugeNoirePageFlipExperiment({
       }
 
       requestedPageIndexRef.current = targetPage;
-      revealEngineForFlip(currentPage, targetPage);
-      if (targetPage > currentPage) {
-        pageFlip.flipNext();
-      } else {
-        pageFlip.flipPrev();
-      }
+      startPreparedFlip(currentPage, targetPage);
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -915,7 +1142,7 @@ export function SaugeNoirePageFlipExperiment({
     engineState,
     failed,
     pageIndex,
-    revealEngineForFlip,
+    startPreparedFlip,
     singleFlipJumpRequest
   ]);
 
@@ -926,6 +1153,7 @@ export function SaugeNoirePageFlipExperiment({
       const pageFlip = activeBookRef.current?.pageFlip();
       window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      flipPreparationTokenRef.current += 1;
       activeSingleFlipJumpRef.current = null;
       if (!pageFlip) return;
       queueMicrotask(() => {
@@ -991,7 +1219,10 @@ export function SaugeNoirePageFlipExperiment({
       "data-page-flip-init-count",
       String(initCountRef.current)
     );
-    setActualPageIndex(bookRef.current?.pageFlip()?.getCurrentPageIndex() ?? startPage);
+    const initialPageIndex =
+      bookRef.current?.pageFlip()?.getCurrentPageIndex() ?? startPage;
+    setActualPageIndex(initialPageIndex);
+    preparedPhysicalPageIndexesRef.current = new Set([initialPageIndex]);
     readyBookKeyRef.current = bookKey;
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
@@ -1093,7 +1324,46 @@ export function SaugeNoirePageFlipExperiment({
             ) {
               return;
             }
-            currentPageFlip.turnToPage(currentCommand.finalPage);
+            const viewport = viewportRef.current;
+            if (!viewport) return;
+            const preparedPageIndexes = new Set([
+              currentCommand.adjacentPage,
+              currentCommand.finalPage
+            ]);
+            const preparationToken = ++flipPreparationTokenRef.current;
+            const preparedBookKey = bookKey;
+            setMediaPreparing(true);
+            preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+            applyPhysicalMediaPolicy(
+              viewport,
+              preparedPageIndexes,
+              "flip"
+            );
+            void waitForPreparedPhysicalPageMedia(
+              viewport,
+              currentCommand.finalPage
+            ).then(() => {
+              const latestCommand = activeSingleFlipJumpRef.current;
+              const latestPageFlip = bookRef.current?.pageFlip();
+              if (
+                preparationToken !== flipPreparationTokenRef.current ||
+                readyBookKeyRef.current !== preparedBookKey ||
+                viewport !== viewportRef.current ||
+                latestCommand?.token !== currentCommand.token ||
+                latestCommand.phase !== "instant-jump" ||
+                !latestPageFlip ||
+                latestPageFlip.getState() !== "read" ||
+                latestPageFlip.getCurrentPageIndex() !==
+                  currentCommand.adjacentPage
+              ) {
+                if (preparationToken === flipPreparationTokenRef.current) {
+                  setMediaPreparing(false);
+                }
+                return;
+              }
+              setMediaPreparing(false);
+              latestPageFlip.turnToPage(currentCommand.finalPage);
+            });
           });
         });
       }
@@ -1122,12 +1392,7 @@ export function SaugeNoirePageFlipExperiment({
         }
 
         requestedPageIndexRef.current = targetPage;
-        revealEngineForFlip(currentPage, targetPage);
-        if (targetPage > currentPage) {
-          pageFlip.flipNext();
-        } else {
-          pageFlip.flipPrev();
-        }
+        startPreparedFlip(currentPage, targetPage);
       });
     }
     if (state === "read" && pendingStructuralDimensionsRef.current) {
@@ -1135,7 +1400,13 @@ export function SaugeNoirePageFlipExperiment({
         window.requestAnimationFrame(updatePageFlipBounds);
       });
     }
-  }, [handleFlip, onPageFlip, revealEngineForFlip, updatePageFlipBounds]);
+  }, [
+    bookKey,
+    handleFlip,
+    onPageFlip,
+    startPreparedFlip,
+    updatePageFlipBounds
+  ]);
 
   const releaseGestureCapture = (
     target: HTMLDivElement,
@@ -1222,12 +1493,7 @@ export function SaugeNoirePageFlipExperiment({
 
     consumeGesture(gesture, direction, preventDefault);
     requestedPageIndexRef.current = nextPage;
-    revealEngineForFlip(currentPage, nextPage);
-    if (direction === "next") {
-      pageFlip.flipNext();
-    } else {
-      pageFlip.flipPrev();
-    }
+    startPreparedFlip(currentPage, nextPage);
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1556,6 +1822,8 @@ export function SaugeNoirePageFlipExperiment({
                   null;
                 window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
                 window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+                flipPreparationTokenRef.current += 1;
+                setMediaPreparing(false);
                 activeSingleFlipJumpRef.current = null;
                 requestedPageIndexRef.current = null;
                 animationTargetPageRef.current = null;
@@ -1570,7 +1838,8 @@ export function SaugeNoirePageFlipExperiment({
                 onError?.();
               }}
             >
-              <HTMLFlipBook
+              <SaugeNoirePhysicalPageMediaContext.Provider value>
+                <HTMLFlipBook
               key={bookKey ?? undefined}
               ref={bookRef}
               // PageFlip adds `.stf__parent` to this root. Keep React's class
@@ -1606,9 +1875,10 @@ export function SaugeNoirePageFlipExperiment({
               onFlip={handleFlip}
               onChangeState={handleChangeState}
               onInit={handleInit}
-              >
-                {pages}
-              </HTMLFlipBook>
+                >
+                  {pages}
+                </HTMLFlipBook>
+              </SaugeNoirePhysicalPageMediaContext.Provider>
             </PageFlipErrorBoundary>
           </SaugeNoireOriginalPageRegistryContext.Provider>
         </div>
@@ -1631,6 +1901,17 @@ export function SaugeNoirePageFlipExperiment({
         >
           {activeReadingPage}
         </SaugeNoireReadingSurface>
+      ) : null}
+      {mediaPreparing && hasReadingSurface ? (
+        <div
+          className={styles.pageFlipMediaPreparing}
+          data-page-flip-media-preparing="true"
+          aria-hidden="true"
+        >
+          <span />
+          <span />
+          <span />
+        </div>
       ) : null}
       {shouldShowTransientFallback ? (
         <div
