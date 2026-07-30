@@ -187,8 +187,7 @@ const HORIZONTAL_CLAIM_RATIO = 1.15;
 const VERTICAL_CLAIM_RATIO = 1.3;
 const SWIPE_DISTANCE = 44;
 const FLICK_DISTANCE = 24;
-const FLICK_VELOCITY = 0.45;
-const FLICK_MAX_DURATION_MS = 260;
+const FLICK_VELOCITY = 0.3;
 const RESIZE_ROUNDING_NOISE_PX = 1;
 
 function parsePageIndex(event: PageFlipEvent | number): number | null {
@@ -247,6 +246,65 @@ function idleGesture(sequence = 0): GestureSession {
     suppressClick: false,
     direction: null
   };
+}
+
+function updateGestureSample(
+  gesture: GestureSession,
+  x: number,
+  y: number,
+  timeStamp: number
+) {
+  const sampleDeltaX = x - gesture.lastX;
+  const sampleDuration = Math.max(1, timeStamp - gesture.lastTime);
+  if (Math.abs(sampleDeltaX) > 0.5) {
+    gesture.velocityX = sampleDeltaX / sampleDuration;
+  }
+  gesture.lastX = x;
+  gesture.lastY = y;
+  gesture.lastTime = timeStamp;
+  gesture.deltaX = x - gesture.startX;
+  gesture.deltaY = y - gesture.startY;
+}
+
+function classifyGesture(gesture: GestureSession) {
+  if (gesture.phase !== "candidate") return;
+  const absX = Math.abs(gesture.deltaX);
+  const absY = Math.abs(gesture.deltaY);
+  if (Math.max(absX, absY) < GESTURE_SLOP) return;
+  if (
+    absX >= GESTURE_CLAIM_DISTANCE &&
+    absX >= absY * HORIZONTAL_CLAIM_RATIO
+  ) {
+    gesture.phase = "horizontal";
+    return;
+  }
+  if (
+    absY >= GESTURE_CLAIM_DISTANCE &&
+    absY >= absX * VERTICAL_CLAIM_RATIO
+  ) {
+    gesture.phase = "vertical";
+  }
+}
+
+type GestureTouchList = ArrayLike<{
+  identifier: number;
+  clientX: number;
+  clientY: number;
+}>;
+
+function touchForGesture(
+  changedTouches: GestureTouchList,
+  touches: GestureTouchList,
+  gesture: GestureSession
+) {
+  return (
+    Array.from(changedTouches).find(
+      (touch) => touch.identifier === gesture.pointerId
+    ) ??
+    Array.from(touches).find(
+      (touch) => touch.identifier === gesture.pointerId
+    )
+  );
 }
 
 function isCurrentCleanupGeneration(ref: { current: number }, generation: number): boolean {
@@ -330,8 +388,15 @@ export function SaugeNoirePageFlipExperiment({
   const readingIdentity = `${bookKey}:${
     readingKey ?? pageIndex
   }`;
+  const singleFlipJumpKeepsEngineVisible =
+    singleFlipJumpPhase === "single-flip-started" ||
+    singleFlipJumpPhase === "adjacent-page-reached" ||
+    singleFlipJumpPhase === "read-after-single-flip" ||
+    singleFlipJumpPhase === "instant-jump-to-target";
   const pageFlipEngineVisible =
-    !hasReadingSurface || (!failed && engineState === "flipping");
+    !hasReadingSurface ||
+    (!failed &&
+      (engineState === "flipping" || singleFlipJumpKeepsEngineVisible));
   const originalPageRegistry = useMemo(
     () => ({
       bookId: bookKey,
@@ -1083,41 +1148,6 @@ export function SaugeNoirePageFlipExperiment({
     gesture.captured = false;
   };
 
-  const updateGestureSample = (
-    gesture: GestureSession,
-    x: number,
-    y: number,
-    timeStamp: number
-  ) => {
-    gesture.lastX = x;
-    gesture.lastY = y;
-    gesture.lastTime = timeStamp;
-    gesture.deltaX = x - gesture.startX;
-    gesture.deltaY = y - gesture.startY;
-    const duration = Math.max(1, timeStamp - gesture.startTime);
-    gesture.velocityX = gesture.deltaX / duration;
-  };
-
-  const classifyGesture = (gesture: GestureSession) => {
-    if (gesture.phase !== "candidate") return;
-    const absX = Math.abs(gesture.deltaX);
-    const absY = Math.abs(gesture.deltaY);
-    if (Math.max(absX, absY) < GESTURE_SLOP) return;
-    if (
-      absX >= GESTURE_CLAIM_DISTANCE &&
-      absX >= absY * HORIZONTAL_CLAIM_RATIO
-    ) {
-      gesture.phase = "horizontal";
-      return;
-    }
-    if (
-      absY >= GESTURE_CLAIM_DISTANCE &&
-      absY >= absX * VERTICAL_CLAIM_RATIO
-    ) {
-      gesture.phase = "vertical";
-    }
-  };
-
   const resetGesture = () => {
     gestureRef.current = idleGesture(gestureSequenceRef.current);
   };
@@ -1154,12 +1184,10 @@ export function SaugeNoirePageFlipExperiment({
 
     const absX = Math.abs(gesture.deltaX);
     const absY = Math.abs(gesture.deltaY);
-    const duration = Math.max(1, gesture.lastTime - gesture.startTime);
     const hasHorizontalIntent = absX >= absY * HORIZONTAL_CLAIM_RATIO;
     const hasDistance = absX >= SWIPE_DISTANCE;
     const isFlick =
       absX >= FLICK_DISTANCE &&
-      duration <= FLICK_MAX_DURATION_MS &&
       Math.abs(gesture.velocityX) >= FLICK_VELOCITY;
     if (!hasHorizontalIntent || (!hasDistance && !isFlick)) return;
 
@@ -1214,10 +1242,10 @@ export function SaugeNoirePageFlipExperiment({
       clickScope: clickScopeForTarget(event.target),
       startX: event.clientX,
       startY: event.clientY,
-      startTime: event.timeStamp,
+      startTime: performance.now(),
       lastX: event.clientX,
       lastY: event.clientY,
-      lastTime: event.timeStamp
+      lastTime: performance.now()
     };
     gestureRef.current = nextGesture;
 
@@ -1252,7 +1280,7 @@ export function SaugeNoirePageFlipExperiment({
       gesture,
       event.clientX,
       event.clientY,
-      event.timeStamp
+      performance.now()
     );
     classifyGesture(gesture);
     if (gesture.phase !== "horizontal") return;
@@ -1276,7 +1304,7 @@ export function SaugeNoirePageFlipExperiment({
       gesture,
       event.clientX,
       event.clientY,
-      event.timeStamp
+      performance.now()
     );
     classifyGesture(gesture);
     handleSwipeEnd(gesture, () => event.preventDefault());
@@ -1361,10 +1389,10 @@ export function SaugeNoirePageFlipExperiment({
       clickScope: clickScopeForTarget(event.target),
       startX: touch.clientX,
       startY: touch.clientY,
-      startTime: event.timeStamp,
+      startTime: performance.now(),
       lastX: touch.clientX,
       lastY: touch.clientY,
-      lastTime: event.timeStamp
+      lastTime: performance.now()
     };
     gestureRef.current = nextGesture;
     if (
@@ -1379,50 +1407,20 @@ export function SaugeNoirePageFlipExperiment({
     }
   };
 
-  const touchForGesture = (
-    event: ReactTouchEvent<HTMLDivElement>,
-    gesture: GestureSession
-  ) =>
-    Array.from(event.changedTouches).find(
-      (touch) => touch.identifier === gesture.pointerId
-    ) ??
-    Array.from(event.touches).find(
-      (touch) => touch.identifier === gesture.pointerId
-    );
-
-  const handleTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
-    const gesture = gestureRef.current;
-    if (
-      gesture.pointerType !== "touch" ||
-      gesture.phase === "idle" ||
-      gesture.phase === "vertical" ||
-      gesture.phase === "cancelled" ||
-      gesture.phase === "consumed"
-    ) {
-      return;
-    }
-    const touch = touchForGesture(event, gesture);
-    if (!touch) return;
-    updateGestureSample(
-      gesture,
-      touch.clientX,
-      touch.clientY,
-      event.timeStamp
-    );
-    classifyGesture(gesture);
-    if (gesture.phase === "horizontal") event.preventDefault();
-  };
-
   const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
     const gesture = gestureRef.current;
     if (gesture.pointerType !== "touch" || gesture.phase === "idle") return;
-    const touch = touchForGesture(event, gesture);
+    const touch = touchForGesture(
+      event.changedTouches,
+      event.touches,
+      gesture
+    );
     if (touch) {
       updateGestureSample(
         gesture,
         touch.clientX,
         touch.clientY,
-        event.timeStamp
+        performance.now()
       );
       classifyGesture(gesture);
     }
@@ -1437,6 +1435,43 @@ export function SaugeNoirePageFlipExperiment({
     consumedClickRef.current = null;
     resetGesture();
   };
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const gesture = gestureRef.current;
+      if (
+        gesture.pointerType !== "touch" ||
+        gesture.phase === "idle" ||
+        gesture.phase === "vertical" ||
+        gesture.phase === "cancelled" ||
+        gesture.phase === "consumed"
+      ) {
+        return;
+      }
+      const touch = touchForGesture(
+        event.changedTouches,
+        event.touches,
+        gesture
+      );
+      if (!touch) return;
+      updateGestureSample(
+        gesture,
+        touch.clientX,
+        touch.clientY,
+        performance.now()
+      );
+      classifyGesture(gesture);
+      if (gesture.phase === "horizontal") event.preventDefault();
+    };
+
+    viewport.addEventListener("touchmove", handleTouchMove, {
+      passive: false
+    });
+    return () => viewport.removeEventListener("touchmove", handleTouchMove);
+  }, []);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -1458,7 +1493,6 @@ export function SaugeNoirePageFlipExperiment({
       className={styles.pageFlipViewport}
       onClickCapture={handleClickCapture}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       onPointerDown={handlePointerDown}
@@ -1544,7 +1578,9 @@ export function SaugeNoirePageFlipExperiment({
           visible={hasReadingSurface}
           scrollOwner={readingSurfaceOwnsScroll}
           contentInert={
-            (!failed && engineState === "flipping") ||
+            (!failed &&
+              (engineState === "flipping" ||
+                singleFlipJumpKeepsEngineVisible)) ||
             !readingSurfaceOwnsScroll
           }
           onGestureActiveChange={onReadingGestureActiveChange}

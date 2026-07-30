@@ -363,11 +363,11 @@ test("a permanent PageFlip error returns to the canonical reading surface", asyn
   );
   assert.match(
     experiment,
-    /!hasReadingSurface \|\| \(!failed && engineState === "flipping"\)/
+    /!hasReadingSurface \|\|[\s\S]*engineState === "flipping" \|\| singleFlipJumpKeepsEngineVisible/
   );
   assert.match(
     experiment,
-    /contentInert=\{[\s\S]*\(!failed && engineState === "flipping"\)[\s\S]*!readingSurfaceOwnsScroll/
+    /contentInert=\{[\s\S]*engineState === "flipping"[\s\S]*singleFlipJumpKeepsEngineVisible[\s\S]*!readingSurfaceOwnsScroll/
   );
   assert.match(
     experiment,
@@ -459,7 +459,14 @@ test("lab uses real HTML pages, hard covers, soft internals, and the supported S
   assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
   assert.match(experiment, /onPointerUp=\{handlePointerUp\}/);
   assert.match(experiment, /onTouchStart=\{handleTouchStart\}/);
-  assert.match(experiment, /onTouchMove=\{handleTouchMove\}/);
+  assert.match(
+    experiment,
+    /addEventListener\("touchmove", handleTouchMove, \{[\s\S]*passive: false/
+  );
+  assert.match(
+    experiment,
+    /removeEventListener\("touchmove", handleTouchMove\)/
+  );
   assert.match(experiment, /onTouchEnd=\{handleTouchEnd\}/);
   assert.match(experiment, /onTouchCancel=\{handleTouchCancel\}/);
   assert.match(experiment, /animationTargetPageRef/);
@@ -481,7 +488,7 @@ test("page swipes can start on dish links without hijacking real controls", asyn
   assert.match(experiment, /type GesturePhase =[\s\S]*"candidate"[\s\S]*"consumed"/);
   assert.match(experiment, /event\.currentTarget\.setPointerCapture/);
   assert.match(experiment, /const SWIPE_DISTANCE = 44/);
-  assert.match(experiment, /const FLICK_VELOCITY = 0\.45/);
+  assert.match(experiment, /const FLICK_VELOCITY = 0\.3/);
   assert.match(experiment, /onClickCapture=\{handleClickCapture\}/);
   assert.match(experiment, /event\.detail === 0/);
   assert.match(experiment, /!event\.isTrusted/);
