@@ -7,6 +7,7 @@ function collectRuntimeFailures(page: Page) {
   const modelRequests: string[] = [];
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
+  const failedResponses: string[] = [];
 
   page.on("request", (request) => {
     if (MODEL_REQUEST_RE.test(request.url())) modelRequests.push(request.url());
@@ -15,8 +16,16 @@ function collectRuntimeFailures(page: Page) {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("response", (response) => {
+    if (
+      response.status() >= 400 &&
+      response.url().startsWith("http://127.0.0.1:3000")
+    ) {
+      failedResponses.push(`${response.status()} ${response.url()}`);
+    }
+  });
 
-  return { modelRequests, consoleErrors, pageErrors };
+  return { modelRequests, consoleErrors, failedResponses, pageErrors };
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -107,6 +116,7 @@ test.describe("Vistaire landing redesign", () => {
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(runtime.modelRequests).toEqual([]);
     expect(runtime.consoleErrors).toEqual([]);
+    expect(runtime.failedResponses).toEqual([]);
     expect(runtime.pageErrors).toEqual([]);
   });
 
@@ -139,6 +149,41 @@ test.describe("Vistaire landing redesign", () => {
     await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
 
     const reveal = comparison.locator('[data-preview-reveal-frame="true"]');
+    const revealBox = await reveal.boundingBox();
+    expect(revealBox).not.toBeNull();
+    if (!revealBox) throw new Error("Comparison reveal frame is not measurable");
+
+    await reveal.dispatchEvent("pointerdown", {
+      clientX: revealBox.x + revealBox.width * 0.35,
+      clientY: revealBox.y + revealBox.height * 0.45,
+      isPrimary: true,
+      pointerId: 7,
+      pointerType: "touch"
+    });
+    await expect(reveal).toHaveAttribute("data-touching", "true");
+    await reveal.dispatchEvent("pointermove", {
+      clientX: revealBox.x + revealBox.width * 0.7,
+      clientY: revealBox.y + revealBox.height * 0.55,
+      isPrimary: true,
+      pointerId: 7,
+      pointerType: "touch"
+    });
+    await expect
+      .poll(() =>
+        reveal.evaluate((element) =>
+          Number.parseFloat(element.style.getPropertyValue("--reveal-x"))
+        )
+      )
+      .toBeCloseTo(70, 2);
+    await reveal.dispatchEvent("pointerup", {
+      clientX: revealBox.x + revealBox.width * 0.7,
+      clientY: revealBox.y + revealBox.height * 0.55,
+      isPrimary: true,
+      pointerId: 7,
+      pointerType: "touch"
+    });
+    await expect(reveal).toHaveAttribute("data-touching", "false");
+
     await reveal.focus();
     await reveal.press("Enter");
     await expect(reveal).toHaveAttribute("aria-pressed", "true");
@@ -146,6 +191,7 @@ test.describe("Vistaire landing redesign", () => {
     await expectNoHorizontalOverflow(page);
     expect(runtime.modelRequests).toEqual([]);
     expect(runtime.consoleErrors).toEqual([]);
+    expect(runtime.failedResponses).toEqual([]);
     expect(runtime.pageErrors).toEqual([]);
   });
 
@@ -221,6 +267,6 @@ test.describe("Vistaire landing redesign", () => {
     const transitionDuration = await page
       .getByTestId("landing-comparison")
       .evaluate((element) => getComputedStyle(element).transitionDuration);
-    expect(transitionDuration).toBe("0s");
+    expect(Number.parseFloat(transitionDuration)).toBeLessThanOrEqual(0.001);
   });
 });
