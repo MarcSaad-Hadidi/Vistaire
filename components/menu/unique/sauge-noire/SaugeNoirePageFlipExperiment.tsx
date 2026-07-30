@@ -965,17 +965,25 @@ export function SaugeNoirePageFlipExperiment({
     ) {
       return;
     }
-    const frame = window.requestAnimationFrame(() => {
+
+    lastRecenterTokenRef.current = recenterToken;
+    flipPreparationTokenRef.current += 1;
+    setMediaPreparing(false);
+    requestedPageIndexRef.current = null;
+    animationTargetPageRef.current = null;
+    reportedFlipPageRef.current = recenterPage;
+
+    let frame = 0;
+    const applyRecenter = () => {
       const pageFlip = bookRef.current?.pageFlip();
-      if (!pageFlip || pageFlip.getState() === "flipping") return;
-      lastRecenterTokenRef.current = recenterToken;
-      flipPreparationTokenRef.current += 1;
-      setMediaPreparing(false);
-      requestedPageIndexRef.current = null;
-      animationTargetPageRef.current = null;
-      reportedFlipPageRef.current = recenterPage;
+      if (!pageFlip) return;
+      if (pageFlip.getState() !== "read") {
+        frame = window.requestAnimationFrame(applyRecenter);
+        return;
+      }
       pageFlip.turnToPage(recenterPage);
-    });
+    };
+    frame = window.requestAnimationFrame(applyRecenter);
     return () => window.cancelAnimationFrame(frame);
   }, [bookIsReady, dimensions, failed, recenterPage, recenterToken]);
 
