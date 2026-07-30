@@ -40,7 +40,10 @@ import {
   SaugeNoireBookRail,
   SectionPage
 } from "./SaugeNoireBookMenu";
-import { SaugeNoireFlipPage } from "./SaugeNoireFlipPage";
+import {
+  SaugeNoireFlipPage,
+  useSaugeNoirePhysicalPageMedia
+} from "./SaugeNoireFlipPage";
 import { SaugeNoirePageFlipExperiment } from "./SaugeNoirePageFlipExperiment";
 import { useSaugeNoireTransition } from "./SaugeNoireTransitionCoordinator";
 import styles from "./SaugeNoireDishDetail.module.css";
@@ -388,6 +391,7 @@ export function SaugeNoireDishSheet({
   onMenuLinkClick,
   onMenuLinkIntent
 }: SaugeNoireDishSheetProps) {
+  const isPhysicalPageMedia = useSaugeNoirePhysicalPageMedia();
   const dishCount = Math.max(menu.dishes.length, 1);
   const targetDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
   const targetPreviousDish = menu.dishes[(targetDishIndex - 1 + dishCount) % dishCount] ?? dish;
@@ -444,9 +448,15 @@ export function SaugeNoireDishSheet({
           {dish.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={dish.imageUrl}
+              key={`${dish.imageUrl}:${isPhysicalPageMedia ? "physical" : "canonical"}`}
+              src={isPhysicalPageMedia ? undefined : dish.imageUrl}
+              data-sauge-deferred-src={
+                isPhysicalPageMedia ? dish.imageUrl : undefined
+              }
               alt={`Image du plat ${dish.name}`}
               draggable={false}
+              loading={isPhysicalPageMedia ? "lazy" : "eager"}
+              fetchPriority={isPhysicalPageMedia ? "low" : "high"}
             />
           ) : null}
         </div>

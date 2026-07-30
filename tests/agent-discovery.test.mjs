@@ -143,6 +143,23 @@ test("public OpenAPI document excludes owner admin and auth server endpoints", (
   assert.doesNotMatch(serialized, /\/oauth\/token|\/oauth\/authorize|jwks/i);
   assert.ok(paths.every((path) => openApi.paths[path].get));
   assert.ok(paths.every((path) => !openApi.paths[path].post));
+
+  for (const path of paths.filter((path) =>
+    path.startsWith("/api/public/menu-dishes/")
+  )) {
+    const responses = openApi.paths[path].get.responses;
+    assert.equal(Object.hasOwn(responses, "200"), false, path);
+    assert.deepEqual(responses["307"], {
+      description: "Empty redirect to the signed Storage object",
+      headers: {
+        Location: {
+          required: true,
+          schema: { type: "string", format: "uri" }
+        }
+      }
+    });
+    assert.equal(Object.hasOwn(responses["307"], "content"), false, path);
+  }
 });
 
 test("mcp server card is explicit about missing backend transport", () => {

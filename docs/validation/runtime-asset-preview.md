@@ -8,10 +8,13 @@ stored or printed.
 ## HTTP proof
 
 The validator derives the three public routes from a Preview base URL, dish ID,
-and asset version. It checks:
+full photo SHA-256, and model asset version. It checks:
 
-- manual `GET`: `307`, `Location`, and a redirect body below 4 KiB;
+- manual `GET`: `307`, an empty body, and a signed `Location` whose host,
+  bucket, object path, and token shape match the requested media kind;
 - manual `HEAD`: `307` with no body;
+- `GET` and `HEAD`: the same Storage object path, without retaining or printing
+  the signed query;
 - followed `GET` with `Range: bytes=0-0`: final Storage host, media type, CORS,
   and at most one buffered byte;
 - direct discovered-Location `GET` with `Range: bytes=0-1023`: `206` and at
@@ -27,12 +30,14 @@ npm run runtime:assets:validate -- `
   --base-url https://preview.example `
   --dish-id fd64dc12-8bd2-4669-be63-51cf0d50b839 `
   --asset-version 20260722-3d95d7da `
+  --photo-version aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa `
   --expected-storage-host project-ref.supabase.co `
   --missing-asset-url /api/public/menu-dishes/known-missing-id/photo
 ```
 
 The CLI also accepts the `VISTAIRE_RUNTIME_BASE_URL`,
 `VISTAIRE_RUNTIME_DISH_ID`, `VISTAIRE_RUNTIME_ASSET_VERSION`,
+`VISTAIRE_RUNTIME_PHOTO_VERSION`,
 `VISTAIRE_RUNTIME_STORAGE_HOST`, and
 `VISTAIRE_RUNTIME_MISSING_ASSET_URL` environment variables. Run with `--help`
 for optional public route overrides and `--json`. Overrides must stay on the
@@ -60,6 +65,10 @@ $env:VISTAIRE_RUNTIME_ASSET_VERSION = "existing-asset-version"
 $env:VISTAIRE_RUNTIME_STORAGE_HOST = "project-ref.supabase.co"
 npm run test:runtime-assets:e2e
 ```
+
+The official browser command runs a preflight first and exits non-zero with the
+missing variable names unless the read-only Preview flag, external web-server
+mode, base URL, dish path/ID, model version, and Storage host are configured.
 
 Chromium and WebKit cover 390px, 430px, and desktop menu/dish views. The spec
 checks visible loaded photos, horizontal overflow, console errors, unexpected

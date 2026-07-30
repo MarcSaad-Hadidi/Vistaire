@@ -21,6 +21,7 @@ type PublicDishAssetProfile = {
     | "webModel3dStoragePath"
     | "arModel3dStoragePath"
     | "arUsdzStoragePath";
+  versionMetadataKey: "photoSha256" | "modelAssetVersion";
   pathSegments: readonly string[];
   extensions: readonly string[];
 };
@@ -32,6 +33,7 @@ const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
     bucket: "vistaire-media",
     bucketMetadataKey: "photoStorageBucket",
     pathMetadataKey: "photoStoragePath",
+    versionMetadataKey: "photoSha256",
     pathSegments: ["photos", "originals"],
     extensions: [".png", ".jpeg", ".jpg", ".webp", ".avif"]
   },
@@ -39,6 +41,7 @@ const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
     bucket: "vistaire-3d",
     bucketMetadataKey: "webModel3dStorageBucket",
     pathMetadataKey: "webModel3dStoragePath",
+    versionMetadataKey: "modelAssetVersion",
     pathSegments: ["models", "web"],
     extensions: [".glb"]
   },
@@ -46,6 +49,7 @@ const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
     bucket: "vistaire-3d",
     bucketMetadataKey: "arModel3dStorageBucket",
     pathMetadataKey: "arModel3dStoragePath",
+    versionMetadataKey: "modelAssetVersion",
     pathSegments: ["models", "ar-lite"],
     extensions: [".glb"]
   },
@@ -53,6 +57,7 @@ const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
     bucket: "vistaire-3d",
     bucketMetadataKey: "arUsdzStorageBucket",
     pathMetadataKey: "arUsdzStoragePath",
+    versionMetadataKey: "modelAssetVersion",
     pathSegments: ["models", "ar-ios"],
     extensions: [".usdz"]
   }
@@ -69,8 +74,36 @@ function metadataString(metadata: Record<string, unknown>, key: string): string 
   return typeof value === "string" ? value.trim() : "";
 }
 
-function jsonError(message: string, status: 404 | 503): Response {
-  return Response.json({ ok: false, error: message }, { status });
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store",
+  "CDN-Cache-Control": "private, no-store",
+  "Vercel-CDN-Cache-Control": "private, no-store"
+} as const;
+
+export function publicDishAssetJsonError(
+  message: string,
+  status: 404 | 503
+): Response {
+  return Response.json(
+    { ok: false, error: message },
+    { status, headers: NO_STORE_HEADERS }
+  );
+}
+
+function boundedDuration(startedAt: number): number {
+  return Math.min(Math.max(performance.now() - startedAt, 0), 9_999.9);
+}
+
+function formatServerTiming(durations: {
+  db: number;
+  storageInfo: number;
+  storageSign: number;
+}): string {
+  return [
+    `db;dur=${durations.db.toFixed(1)}`,
+    `storage-info;dur=${durations.storageInfo.toFixed(1)}`,
+    `storage-sign;dur=${durations.storageSign.toFixed(1)}`
+  ].join(", ");
 }
 
 function hasSafePathSyntax(storagePath: string): boolean {
@@ -176,13 +209,14 @@ export async function redirectPublicDishAsset(args: {
   unavailableMessage: string;
 }): Promise<Response> {
   if (!isCanonicalUuid(args.dishId)) {
-    return jsonError(args.notFoundMessage, 404);
+    return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
   if (!args.admin.ok) {
-    return jsonError(args.unavailableMessage, 503);
+    return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
 
   let dishResult;
+  const dbStartedAt = performance.now();
   try {
     dishResult = await args.admin.client
       .from("menu_dishes")
@@ -190,23 +224,28 @@ export async function redirectPublicDishAsset(args: {
       .eq("id", args.dishId)
       .maybeSingle();
   } catch {
-    return jsonError(args.unavailableMessage, 503);
+    return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
+  const dbDuration = boundedDuration(dbStartedAt);
 
   const dish = dishResult.data as Record<string, unknown> | null;
   if (dishResult.error || !dish || dish.is_available === false) {
-    return jsonError(args.notFoundMessage, 404);
+    return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
 
   const metadata = metadataRecord(dish.metadata);
   const requestedVersion = args.requestedAssetVersion?.trim() ?? "";
-  if (requestedVersion && requestedVersion !== metadataString(metadata, "modelAssetVersion")) {
-    return jsonError(args.notFoundMessage, 404);
+  const profile = ASSET_PROFILES[args.kind];
+  const activeVersion = metadataString(metadata, profile.versionMetadataKey);
+  if (
+    (args.kind === "photo" && Boolean(activeVersion) !== Boolean(requestedVersion)) ||
+    (requestedVersion && requestedVersion !== activeVersion)
+  ) {
+    return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
 
   const restaurantId =
     typeof dish.restaurant_id === "string" ? dish.restaurant_id.trim() : "";
-  const profile = ASSET_PROFILES[args.kind];
   const bucket = metadataString(metadata, profile.bucketMetadataKey) || profile.bucket;
   const storagePath = metadataString(metadata, profile.pathMetadataKey);
   if (
@@ -218,17 +257,21 @@ export async function redirectPublicDishAsset(args: {
       restaurantId
     })
   ) {
-    return jsonError(args.notFoundMessage, 404);
+    return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
 
   const storage = args.admin.client.storage.from(bucket);
   try {
+    const storageInfoStartedAt = performance.now();
     const objectInfo = await storage.info(storagePath);
+    const storageInfoDuration = boundedDuration(storageInfoStartedAt);
     if (objectInfo.error || !objectInfo.data) {
-      return jsonError(args.notFoundMessage, 404);
+      return publicDishAssetJsonError(args.notFoundMessage, 404);
     }
 
+    const storageSignStartedAt = performance.now();
     const signed = await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+    const storageSignDuration = boundedDuration(storageSignStartedAt);
     const signedUrl = signed.data?.signedUrl;
     if (
       signed.error ||
@@ -240,19 +283,35 @@ export async function redirectPublicDishAsset(args: {
         storagePath
       })
     ) {
-      return jsonError(args.unavailableMessage, 503);
+      return publicDishAssetJsonError(args.unavailableMessage, 503);
+    }
+
+    const isVersioned = Boolean(requestedVersion);
+    const headers: Record<string, string> = {
+      Location: signedUrl,
+      "Cache-Control": isVersioned
+        ? "public, max-age=120, must-revalidate"
+        : "private, no-store",
+      "CDN-Cache-Control": isVersioned
+        ? "public, s-maxage=2700"
+        : "private, no-store",
+      "Vercel-CDN-Cache-Control": isVersioned
+        ? "public, s-maxage=2700"
+        : "private, no-store"
+    };
+    if (process.env.VERCEL_ENV === "preview") {
+      headers["Server-Timing"] = formatServerTiming({
+        db: dbDuration,
+        storageInfo: storageInfoDuration,
+        storageSign: storageSignDuration
+      });
     }
 
     return new Response(null, {
       status: 307,
-      headers: {
-        Location: signedUrl,
-        "Cache-Control": "private, no-store",
-        "CDN-Cache-Control": "private, no-store",
-        "Vercel-CDN-Cache-Control": "private, no-store"
-      }
+      headers
     });
   } catch {
-    return jsonError(args.unavailableMessage, 503);
+    return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
 }

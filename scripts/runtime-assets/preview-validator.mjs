@@ -9,6 +9,10 @@ const SIGNED_QUERY_KEY =
 const ASSET_DEFINITIONS = [
   {
     name: "photo",
+    versionKey: "photoVersion",
+    bucket: "vistaire-media",
+    objectSegments: ["photos", "originals"],
+    extensions: [".jpg", ".jpeg", ".png", ".webp", ".avif"],
     path(dishId) {
       return `/api/public/menu-dishes/${encodeURIComponent(dishId)}/photo`;
     },
@@ -19,6 +23,10 @@ const ASSET_DEFINITIONS = [
   },
   {
     name: "glb",
+    versionKey: "assetVersion",
+    bucket: "vistaire-3d",
+    objectSegments: ["models", "web"],
+    extensions: [".glb"],
     path(dishId) {
       return `/api/public/menu-dishes/${encodeURIComponent(dishId)}/model/glb`;
     },
@@ -29,6 +37,10 @@ const ASSET_DEFINITIONS = [
   },
   {
     name: "usdz",
+    versionKey: "assetVersion",
+    bucket: "vistaire-3d",
+    objectSegments: ["models", "ar-ios"],
+    extensions: [".usdz"],
     path(dishId) {
       return `/api/public/menu-dishes/${encodeURIComponent(dishId)}/model/usdz`;
     },
@@ -98,6 +110,14 @@ function assertIdentifier(value, label) {
     throw new TypeError(`${label} must contain only URL-safe identifier characters`);
   }
   return normalized;
+}
+
+function assertPhotoVersion(value) {
+  const normalized = String(value ?? "").trim();
+  if (!/^[a-f0-9]{64}$/i.test(normalized)) {
+    throw new TypeError("photoVersion must be a full SHA-256");
+  }
+  return normalized.toLowerCase();
 }
 
 function isSignedInput(url) {
@@ -203,7 +223,7 @@ async function cancelBody(response) {
   }
 }
 
-function safeStorageLocation(location, expectedStorageHost) {
+function safeStorageLocation(location, expectedStorageHost, asset) {
   let url;
   try {
     url = requireHttpUrl(location, "redirect Location");
@@ -214,6 +234,37 @@ function safeStorageLocation(location, expectedStorageHost) {
     return {
       ok: false,
       reason: `Storage host mismatch: expected ${expectedStorageHost}, got ${url.host}`,
+      url
+    };
+  }
+  const prefix = `/storage/v1/object/sign/${asset.bucket}/`;
+  const objectPath = url.pathname.startsWith(prefix)
+    ? url.pathname.slice(prefix.length)
+    : "";
+  const segments = objectPath.split("/");
+  const expectedPrefix = [
+    "restaurants",
+    segments[1] ?? "",
+    ...asset.objectSegments
+  ];
+  const filename = segments.at(-1)?.toLowerCase() ?? "";
+  if (
+    segments.length !== expectedPrefix.length + 1 ||
+    expectedPrefix.some((segment, index) => segments[index] !== segment) ||
+    !/^[a-f0-9-]{36}$/i.test(segments[1] ?? "") ||
+    !segments.every((segment) => /^[a-z0-9][a-z0-9._-]*$/i.test(segment)) ||
+    !asset.extensions.some((extension) => filename.endsWith(extension))
+  ) {
+    return {
+      ok: false,
+      reason: "redirect Location does not match the expected signed Storage object path",
+      url
+    };
+  }
+  if (!url.searchParams.get("token")) {
+    return {
+      ok: false,
+      reason: "redirect Location is missing its signed Storage token",
       url
     };
   }
@@ -301,19 +352,19 @@ async function validateAsset({
       `${asset.name}: GET expected 307, got ${getResponse.status}`
     );
   }
-  if (!redirectBody.exceeded) {
+  if (!redirectBody.exceeded && redirectBody.bodyBytes === 0) {
     addCheck(
       result,
       "pass",
       `${asset.name}.get.body`,
-      `${asset.name}: redirect body is ${redirectBody.bodyBytes} bytes`
+      `${asset.name}: redirect body is empty`
     );
   } else {
     addCheck(
       result,
       "fail",
       `${asset.name}.get.body`,
-      `${asset.name}: redirect body exceeds ${MAX_REDIRECT_BODY_BYTES} bytes`
+      `${asset.name}: redirect body must be empty`
     );
   }
 
@@ -364,8 +415,16 @@ async function validateAsset({
     return;
   }
 
-  const storageLocation = safeStorageLocation(getLocation, expectedStorageHost);
-  const headStorageLocation = safeStorageLocation(headLocation, expectedStorageHost);
+  const storageLocation = safeStorageLocation(
+    getLocation,
+    expectedStorageHost,
+    asset
+  );
+  const headStorageLocation = safeStorageLocation(
+    headLocation,
+    expectedStorageHost,
+    asset
+  );
   if (!storageLocation.ok || !headStorageLocation.ok) {
     const reason = !storageLocation.ok ? storageLocation.reason : headStorageLocation.reason;
     const discovered = storageLocation.url ?? headStorageLocation.url;
@@ -374,7 +433,12 @@ async function validateAsset({
       evidence.redirect.locationHost = discovered.host;
       evidence.redirect.locationPath = discovered.pathname;
     }
-    addCheck(result, "fail", `${asset.name}.storage.host`, `${asset.name}: ${reason}`);
+    addCheck(
+      result,
+      "fail",
+      `${asset.name}.storage.location`,
+      `${asset.name}: ${reason}`
+    );
     return;
   }
 
@@ -387,6 +451,22 @@ async function validateAsset({
     `${asset.name}.storage.host`,
     `${asset.name}: Storage host is ${expectedStorageHost}`
   );
+  if (storageLocation.url.pathname === headStorageLocation.url.pathname) {
+    addCheck(
+      result,
+      "pass",
+      `${asset.name}.storage.object`,
+      `${asset.name}: GET and HEAD target the same Storage object`
+    );
+  } else {
+    addCheck(
+      result,
+      "fail",
+      `${asset.name}.storage.object`,
+      `${asset.name}: GET and HEAD target different Storage objects`
+    );
+    return;
+  }
 
   let followedResponse;
   try {
@@ -655,6 +735,7 @@ export async function validateRuntimeAssetPreview({
   baseUrl: baseUrlInput,
   dishId: dishIdInput,
   assetVersion: assetVersionInput,
+  photoVersion: photoVersionInput,
   expectedStorageHost: expectedStorageHostInput,
   assetUrls = {},
   missingAssetUrl,
@@ -663,6 +744,7 @@ export async function validateRuntimeAssetPreview({
   const baseUrl = normalizeBaseUrl(baseUrlInput);
   const dishId = assertIdentifier(dishIdInput, "dishId");
   const assetVersion = assertIdentifier(assetVersionInput, "assetVersion");
+  const photoVersion = assertPhotoVersion(photoVersionInput);
   const expectedStorageHost = normalizeExpectedHost(expectedStorageHostInput);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new TypeError("timeoutMs must be a positive number");
@@ -670,7 +752,10 @@ export async function validateRuntimeAssetPreview({
 
   const publicAssets = ASSET_DEFINITIONS.map((asset) => {
     const defaultUrl = new URL(asset.path(dishId), baseUrl);
-    defaultUrl.searchParams.set("v", assetVersion);
+    defaultUrl.searchParams.set(
+      "v",
+      asset.versionKey === "photoVersion" ? photoVersion : assetVersion
+    );
     return {
       asset,
       publicUrl: normalizePublicAssetUrl(

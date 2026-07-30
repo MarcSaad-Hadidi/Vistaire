@@ -27,6 +27,7 @@ import type { UniqueMenuRendererModuleProps } from "@/lib/menu/uniqueMenuRendere
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
 import {
   SaugeNoireFlipPage,
+  useSaugeNoirePhysicalPageMedia,
   type SaugeNoireFlipPageDensity
 } from "./SaugeNoireFlipPage";
 import {
@@ -1407,11 +1408,23 @@ function threeDLabel(locale: Locale): string {
 }
 
 function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: boolean }) {
+  const isPhysicalPageMedia = useSaugeNoirePhysicalPageMedia();
   return (
     <span className={`${styles.photoSlot} ${large ? styles.photoSlotLarge : ""}`} data-photo-slot={dish.slug}>
       {dish.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={dish.imageUrl} alt="" loading="lazy" />
+        <img
+          key={`${dish.imageUrl}:${isPhysicalPageMedia ? "physical" : "canonical"}`}
+          src={isPhysicalPageMedia ? undefined : dish.imageUrl}
+          data-sauge-deferred-src={
+            isPhysicalPageMedia ? dish.imageUrl : undefined
+          }
+          alt=""
+          loading={isPhysicalPageMedia ? "lazy" : large ? "eager" : "lazy"}
+          fetchPriority={
+            isPhysicalPageMedia ? "low" : large ? "high" : "low"
+          }
+        />
       ) : null}
     </span>
   );

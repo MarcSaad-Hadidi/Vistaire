@@ -22,6 +22,12 @@ type SaugeNoireOriginalPageRegistry = {
 export const SaugeNoireOriginalPageRegistryContext =
   createContext<SaugeNoireOriginalPageRegistry | null>(null);
 
+export const SaugeNoirePhysicalPageMediaContext = createContext(false);
+
+export function useSaugeNoirePhysicalPageMedia(): boolean {
+  return useContext(SaugeNoirePhysicalPageMediaContext);
+}
+
 const SAUGE_REACT_ORIGINAL_PAGE = Symbol.for(
   "vistaire.sauge-noire.react-original-page"
 );

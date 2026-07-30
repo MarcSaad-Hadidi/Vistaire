@@ -163,11 +163,20 @@ export function buildDishPhotoStoragePath(args: {
   ].join("/");
 }
 
-export function buildDishPhotoPublicPath(dishId: string): string {
+export function buildDishPhotoPublicPath(
+  dishId: string,
+  options?: { assetVersion?: string }
+): string {
   if (!isCanonicalUuid(dishId)) {
     throw new Error("Identifiant plat invalide.");
   }
-  return `/api/public/menu-dishes/${dishId}/photo`;
+  const basePath = `/api/public/menu-dishes/${dishId}/photo`;
+  const assetVersion = options?.assetVersion?.trim() ?? "";
+  if (!assetVersion) return basePath;
+  if (!SHA256_PATTERN.test(assetVersion)) {
+    throw new Error("Version photo invalide.");
+  }
+  return `${basePath}?v=${assetVersion.toLowerCase()}`;
 }
 
 export function mergeDishPhotoMetadata(

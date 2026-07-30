@@ -126,7 +126,9 @@ export async function POST(
       extension: validated.extension,
       sha256: validated.sha256
     });
-    imageUrl = buildDishPhotoPublicPath(dishId);
+    imageUrl = buildDishPhotoPublicPath(dishId, {
+      assetVersion: validated.sha256
+    });
   } catch {
     return NextResponse.json(
       { ok: false, error: "Identifiants photo invalides." },

@@ -100,6 +100,14 @@ test("dish photo storage path and public path are generated from trusted ids", (
     buildDishPhotoPublicPath(dishId),
     `/api/public/menu-dishes/${dishId}/photo`
   );
+  assert.equal(
+    buildDishPhotoPublicPath(dishId, { assetVersion: "A".repeat(64) }),
+    `/api/public/menu-dishes/${dishId}/photo?v=${"a".repeat(64)}`
+  );
+  assert.throws(
+    () => buildDishPhotoPublicPath(dishId, { assetVersion: "short-sha" }),
+    /version/i
+  );
 });
 
 test("dish photo storage accepts the Maison Elyse legacy restaurant id only as a safe storage segment", () => {

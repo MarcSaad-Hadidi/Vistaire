@@ -130,6 +130,15 @@ export function buildHomepageMarkdown() {
 }
 
 export function buildOpenApiDocument() {
+  const signedStorageRedirect = {
+    description: "Empty redirect to the signed Storage object",
+    headers: {
+      Location: {
+        required: true,
+        schema: { type: "string", format: "uri" }
+      }
+    }
+  };
   return {
     openapi: "3.1.0",
     info: {
@@ -194,10 +203,16 @@ export function buildOpenApiDocument() {
               in: "path",
               required: true,
               schema: { type: "string", format: "uuid" }
+            },
+            {
+              name: "v",
+              in: "query",
+              required: false,
+              schema: { type: "string", pattern: "^[a-fA-F0-9]{64}$" }
             }
           ],
           responses: {
-            "200": { description: "Dish image bytes" },
+            "307": signedStorageRedirect,
             "404": { description: "Dish photo not found" },
             "503": { description: "Media storage unavailable" }
           }
@@ -229,7 +244,7 @@ export function buildOpenApiDocument() {
             }
           ],
           responses: {
-            "200": { description: "GLB model bytes" },
+            "307": signedStorageRedirect,
             "404": { description: "Dish model not found" },
             "503": { description: "Model storage unavailable" }
           }
@@ -255,7 +270,7 @@ export function buildOpenApiDocument() {
             }
           ],
           responses: {
-            "200": { description: "USDZ model bytes" },
+            "307": signedStorageRedirect,
             "404": { description: "Dish model not found" },
             "503": { description: "Model storage unavailable" }
           }

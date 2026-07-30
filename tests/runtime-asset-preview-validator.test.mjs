@@ -6,23 +6,31 @@ import test from "node:test";
 
 const DISH_ID = "dish-123";
 const ASSET_VERSION = "20260722-test";
+const PHOTO_VERSION = "a".repeat(64);
 const REDIRECT_SECRET = "fixture-super-secret-token";
 const RANGE_HEADER = "bytes=0-1023";
+const RESTAURANT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
 const ASSETS = {
   photo: {
     route: `/api/public/menu-dishes/${DISH_ID}/photo`,
-    storagePath: "/storage/v1/object/sign/vistaire-media/dish.jpg",
+    storagePath:
+      `/storage/v1/object/sign/vistaire-media/restaurants/${RESTAURANT_ID}` +
+      "/photos/originals/dish.jpg",
     contentType: "image/jpeg"
   },
   glb: {
     route: `/api/public/menu-dishes/${DISH_ID}/model/glb`,
-    storagePath: "/storage/v1/object/sign/vistaire-3d/dish.glb",
+    storagePath:
+      `/storage/v1/object/sign/vistaire-3d/restaurants/${RESTAURANT_ID}` +
+      "/models/web/dish.glb",
     contentType: "model/gltf-binary"
   },
   usdz: {
     route: `/api/public/menu-dishes/${DISH_ID}/model/usdz`,
-    storagePath: "/storage/v1/object/sign/vistaire-3d/dish.usdz",
+    storagePath:
+      `/storage/v1/object/sign/vistaire-3d/restaurants/${RESTAURANT_ID}` +
+      "/models/ar-ios/dish.usdz",
     contentType: "model/vnd.usdz+zip"
   }
 };
@@ -75,7 +83,10 @@ async function startFixture({
   contentTypeByAsset = {},
   corsOrigin,
   rangeSupported = true,
-  reportedRangeEnd
+  reportedRangeEnd,
+  redirectBody = "",
+  headUsesDifferentObject = false,
+  omitRedirectToken = false
 } = {}) {
   const originRequests = [];
   const storageRequests = [];
@@ -141,16 +152,22 @@ async function startFixture({
     }
 
     const entry = Object.entries(ASSETS).find(([, asset]) => asset.route === url.pathname);
-    if (!entry || url.searchParams.get("v") !== ASSET_VERSION) {
+    const expectedVersion =
+      entry?.[0] === "photo" ? PHOTO_VERSION : ASSET_VERSION;
+    if (!entry || url.searchParams.get("v") !== expectedVersion) {
       response.writeHead(404, { "Content-Type": "application/json" });
       response.end('{"ok":false}');
       return;
     }
 
     const [, asset] = entry;
+    const storagePath =
+      headUsesDifferentObject && request.method === "HEAD"
+        ? asset.storagePath.replace(/(\.[a-z0-9]+)$/i, "-head$1")
+        : asset.storagePath;
     const location =
-      `${storageBaseUrl}${asset.storagePath}` +
-      `?token=${REDIRECT_SECRET}&download=asset`;
+      `${storageBaseUrl}${storagePath}` +
+      `${omitRedirectToken ? "?" : `?token=${REDIRECT_SECRET}&`}download=asset`;
     response.writeHead(307, {
       "Content-Type": "text/plain; charset=utf-8",
       Location: location
@@ -159,7 +176,7 @@ async function startFixture({
       response.end();
       return;
     }
-    response.end("Temporary redirect");
+    response.end(redirectBody);
   });
   const baseUrl = await listen(originServer);
 
@@ -191,6 +208,7 @@ function baseOptions(fixture) {
     baseUrl: fixture.baseUrl,
     dishId: DISH_ID,
     assetVersion: ASSET_VERSION,
+    photoVersion: PHOTO_VERSION,
     expectedStorageHost: new URL(fixture.storageBaseUrl).host,
     missingAssetUrl: "/api/public/menu-dishes/missing/photo"
   };
@@ -210,8 +228,7 @@ test("validates redirect, range, type, CORS, version, and missing-asset contract
     );
     for (const asset of result.assets) {
       assert.equal(asset.redirect.getStatus, 307, asset.name);
-      assert.ok(asset.redirect.getBodyBytes > 0, asset.name);
-      assert.ok(asset.redirect.getBodyBytes < 4_096, asset.name);
+      assert.equal(asset.redirect.getBodyBytes, 0, asset.name);
       assert.equal(asset.redirect.headStatus, 307, asset.name);
       assert.equal(asset.redirect.headBodyBytes, 0, asset.name);
       assert.equal(asset.redirect.locationDiscovered, true, asset.name);
@@ -260,6 +277,31 @@ test("validates redirect, range, type, CORS, version, and missing-asset contract
     }
   } finally {
     await fixture.stop();
+  }
+});
+
+test("fails non-empty 307 bodies, unsigned Locations, and GET/HEAD object mismatches", async () => {
+  for (const fixtureOptions of [
+    { redirectBody: "Temporary redirect", failedId: "photo.get.body" },
+    { omitRedirectToken: true, failedId: "photo.storage.location" },
+    { headUsesDifferentObject: true, failedId: "photo.storage.object" }
+  ]) {
+    const fixture = await startFixture(fixtureOptions);
+    try {
+      const { validateRuntimeAssetPreview } = await loadValidator();
+      const result = await validateRuntimeAssetPreview(baseOptions(fixture));
+      assert.equal(result.ok, false);
+      assert.ok(
+        result.checks.some(
+          (check) =>
+            check.id === fixtureOptions.failedId && check.status === "fail"
+        ),
+        fixtureOptions.failedId
+      );
+      assert.doesNotMatch(JSON.stringify(result), new RegExp(REDIRECT_SECRET));
+    } finally {
+      await fixture.stop();
+    }
   }
 });
 
@@ -338,6 +380,8 @@ test("CLI runs the reusable Preview contract and never prints a discovered token
       DISH_ID,
       "--asset-version",
       ASSET_VERSION,
+      "--photo-version",
+      PHOTO_VERSION,
       "--expected-storage-host",
       new URL(fixture.storageBaseUrl).host,
       "--missing-asset-url",
@@ -353,7 +397,7 @@ test("CLI runs the reusable Preview contract and never prints a discovered token
     assert.doesNotMatch(success.stdout, /[?&](?:token|signature|sig|jwt)=/i);
 
     const failureArgs = [...args];
-    failureArgs[7] = "wrong-storage.example.test";
+    failureArgs[9] = "wrong-storage.example.test";
     const failure = await runCli(failureArgs);
     assert.equal(failure.code, 1);
     assert.match(failure.stdout, /Runtime asset preview validation: FAIL/);

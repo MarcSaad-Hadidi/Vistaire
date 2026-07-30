@@ -1,6 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { buildPreparedModelPublicUsdzPath } from "@/lib/owner/preparedModelWorkflow";
-import { redirectPublicDishAsset } from "@/lib/publicDishAssetRedirect";
+import {
+  publicDishAssetJsonError,
+  redirectPublicDishAsset
+} from "@/lib/publicDishAssetRedirect";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -15,7 +18,7 @@ async function handleUsdzRequest(
   try {
     buildPreparedModelPublicUsdzPath(dishId, { assetVersion: assetVersion || undefined });
   } catch {
-    return NextResponse.json({ ok: false, error: "USDZ introuvable." }, { status: 404 });
+    return publicDishAssetJsonError("USDZ introuvable.", 404);
   }
 
   return redirectPublicDishAsset({

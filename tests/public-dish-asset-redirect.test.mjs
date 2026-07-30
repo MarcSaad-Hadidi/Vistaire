@@ -15,6 +15,7 @@ const DISH_ID = "11111111-2222-4333-8444-555555555555";
 const RESTAURANT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const OTHER_RESTAURANT_ID = "99999999-8888-4777-8666-555555555555";
 const ASSET_VERSION = "meshy-20260729-abcdef123456";
+const PHOTO_SHA256 = "a".repeat(64);
 
 const PHOTO_PATH = `restaurants/${RESTAURANT_ID}/photos/originals/tartare-saumon.webp`;
 const WEB_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/web/tartare-saumon.glb`;
@@ -37,7 +38,8 @@ function assetMetadata(kind, overrides = {}) {
     photo: {
       photoStorageBucket: "vistaire-media",
       photoStoragePath: PHOTO_PATH,
-      photoContentType: "image/webp"
+      photoContentType: "image/webp",
+      photoSha256: PHOTO_SHA256
     },
     web: {
       webModel3dStorageBucket: "vistaire-3d",
@@ -172,6 +174,12 @@ async function invokeRoute({ route, method, url }) {
 
 async function assertJsonError(response, status, error) {
   assert.equal(response.status, status);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(response.headers.get("cdn-cache-control"), "private, no-store");
+  assert.equal(
+    response.headers.get("vercel-cdn-cache-control"),
+    "private, no-store"
+  );
   assert.deepEqual(await response.json(), { ok: false, error });
 }
 
@@ -180,7 +188,7 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
     {
       label: "photo",
       route: photoRoute,
-      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo`,
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`,
       metadata: assetMetadata("photo"),
       bucket: "vistaire-media",
       storagePath: PHOTO_PATH
@@ -231,9 +239,18 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
           signedUrl(entry.bucket, entry.storagePath),
           `${method} ${entry.label}`
         );
-        assert.equal(response.headers.get("cache-control"), "private, no-store");
-        assert.equal(response.headers.get("cdn-cache-control"), "private, no-store");
-        assert.equal(response.headers.get("vercel-cdn-cache-control"), "private, no-store");
+        assert.equal(
+          response.headers.get("cache-control"),
+          "public, max-age=120, must-revalidate"
+        );
+        assert.equal(
+          response.headers.get("cdn-cache-control"),
+          "public, s-maxage=2700"
+        );
+        assert.equal(
+          response.headers.get("vercel-cdn-cache-control"),
+          "public, s-maxage=2700"
+        );
         assert.equal(response.headers.get("content-length"), null);
         assert.equal(response.headers.get("content-type"), null);
         assert.equal(response.body, null);
@@ -253,6 +270,107 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     } else {
       process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+    }
+  }
+});
+
+test("only true legacy photos redirect without a version while modern photos require their photoSha256", async () => {
+  const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+  try {
+    const legacyFixture = createAdminFixture({
+      metadata: assetMetadata("photo", { photoSha256: "" })
+    });
+    installAdmin(legacyFixture);
+    const legacyResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo`
+    });
+    assert.equal(legacyResponse.status, 307);
+    assert.equal(legacyResponse.headers.get("cache-control"), "private, no-store");
+    assert.equal(legacyResponse.headers.get("cdn-cache-control"), "private, no-store");
+    assert.equal(
+      legacyResponse.headers.get("vercel-cdn-cache-control"),
+      "private, no-store"
+    );
+
+    const missingVersionFixture = createAdminFixture({
+      metadata: assetMetadata("photo")
+    });
+    installAdmin(missingVersionFixture);
+    const missingVersionResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo`
+    });
+    await assertJsonError(missingVersionResponse, 404, "Photo introuvable.");
+    assert.deepEqual(missingVersionFixture.calls.storageFrom, []);
+
+    for (const version of ["b".repeat(64), "not-a-sha"]) {
+      const fixture = createAdminFixture({
+        metadata: assetMetadata("photo")
+      });
+      installAdmin(fixture);
+      const response = await invokeRoute({
+        route: photoRoute,
+        method: "GET",
+        url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${version}`
+      });
+      await assertJsonError(response, 404, "Photo introuvable.");
+      assert.deepEqual(fixture.calls.storageFrom, []);
+    }
+  } finally {
+    if (previousSupabaseUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+    }
+  }
+});
+
+test("Preview 307 exposes bounded phase timings without asset data", async () => {
+  const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+  try {
+    for (const vercelEnv of ["preview", "production"]) {
+      process.env.VERCEL_ENV = vercelEnv;
+      const fixture = createAdminFixture({
+        metadata: assetMetadata("photo")
+      });
+      installAdmin(fixture);
+      const response = await invokeRoute({
+        route: photoRoute,
+        method: "GET",
+        url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
+      });
+
+      assert.equal(response.status, 307);
+      const serverTiming = response.headers.get("server-timing");
+      if (vercelEnv === "preview") {
+        assert.match(
+          serverTiming ?? "",
+          /^db;dur=\d+(?:\.\d)?, storage-info;dur=\d+(?:\.\d)?, storage-sign;dur=\d+(?:\.\d)?$/
+        );
+        assert.doesNotMatch(
+          serverTiming ?? "",
+          /11111111|restaurants|supabase|https?|token|signed/i
+        );
+      } else {
+        assert.equal(serverTiming, null);
+      }
+    }
+  } finally {
+    if (previousSupabaseUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+    }
+    if (previousVercelEnv === undefined) {
+      delete process.env.VERCEL_ENV;
+    } else {
+      process.env.VERCEL_ENV = previousVercelEnv;
     }
   }
 });

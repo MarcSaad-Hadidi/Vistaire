@@ -18,6 +18,7 @@ import {
 import styles from "./SaugeNoireBookMenu.module.css";
 import {
   resolveSaugeNoireOriginalPage,
+  SaugeNoirePhysicalPageMediaContext,
   SaugeNoireOriginalPageRegistryContext
 } from "./SaugeNoireFlipPage";
 import {
@@ -198,6 +199,41 @@ function parsePageIndex(event: PageFlipEvent | number): number | null {
   return typeof index === "number" && Number.isInteger(index) && index >= 0
     ? index
     : null;
+}
+
+type PhysicalMediaPhase = "rest" | "flip";
+
+function applyPhysicalMediaPolicy(
+  viewport: ParentNode,
+  preparedPageIndexes: ReadonlySet<number>,
+  phase: PhysicalMediaPhase
+) {
+  viewport
+    .querySelectorAll<HTMLImageElement>("img[data-sauge-deferred-src]")
+    .forEach((image) => {
+      const page = image.closest<HTMLElement>("[data-sauge-flip-page-index]");
+      const pageIndex = Number(
+        page?.getAttribute("data-sauge-flip-page-index")
+      );
+      const source = image.getAttribute("data-sauge-deferred-src")?.trim() ?? "";
+      const shouldPrepare =
+        Number.isInteger(pageIndex) &&
+        preparedPageIndexes.has(pageIndex) &&
+        Boolean(source);
+
+      if (!shouldPrepare) {
+        image.removeAttribute("src");
+        image.loading = "lazy";
+        image.fetchPriority = "low";
+        return;
+      }
+
+      image.loading = phase === "flip" ? "eager" : "lazy";
+      image.fetchPriority = "low";
+      if (image.getAttribute("src") !== source) {
+        image.setAttribute("src", source);
+      }
+    });
 }
 
 function isPageFlipProtectedTarget(
@@ -381,6 +417,9 @@ export function SaugeNoirePageFlipExperiment({
     scrollTop: number;
   } | null>(null);
   const animationSourceClearFrameRef = useRef(0);
+  const preparedPhysicalPageIndexesRef = useRef<Set<number>>(
+    new Set([startPage])
+  );
   const initCountRef = useRef(0);
   const hasReadingSurface = readingPage !== undefined || readingPages !== undefined;
   // The DOM identity belongs to the logical book, not to a volatile viewport
@@ -467,6 +506,12 @@ export function SaugeNoirePageFlipExperiment({
     (sourcePageIndex: number, targetPageIndex: number) => {
       const viewport = viewportRef.current;
       if (!viewport) return;
+      const preparedPageIndexes = new Set([
+        sourcePageIndex,
+        targetPageIndex
+      ]);
+      preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+      applyPhysicalMediaPolicy(viewport, preparedPageIndexes, "flip");
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
       const sourcePage = resolveSaugeNoireOriginalPage(viewport, sourcePageIndex);
       const targetPage = resolveSaugeNoireOriginalPage(viewport, targetPageIndex);
@@ -494,6 +539,29 @@ export function SaugeNoirePageFlipExperiment({
     },
     [readingIdentity, readyScrollTop]
   );
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (
+      !viewport ||
+      dimensions === null ||
+      !bookIsReady ||
+      failed ||
+      engineState !== "read"
+    ) {
+      return;
+    }
+    const preparedPageIndexes = new Set([actualPageIndex]);
+    preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+    applyPhysicalMediaPolicy(viewport, preparedPageIndexes, "rest");
+  }, [
+    actualPageIndex,
+    bookIsReady,
+    dimensions,
+    engineState,
+    failed,
+    pages
+  ]);
 
   useLayoutEffect(() => {
     if (engineState !== "flipping") return;
@@ -749,13 +817,18 @@ export function SaugeNoirePageFlipExperiment({
           (control) => control.setAttribute("tabindex", "-1")
         );
       });
+      applyPhysicalMediaPolicy(
+        viewport,
+        preparedPhysicalPageIndexesRef.current,
+        engineState === "flipping" ? "flip" : "rest"
+      );
     };
 
     markClones();
     const observer = new MutationObserver(markClones);
     observer.observe(viewport, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [bookIsReady, dimensions, failed]);
+  }, [bookIsReady, dimensions, engineState, failed]);
 
   useEffect(() => {
     const pageFlip = bookRef.current?.pageFlip();
@@ -991,7 +1064,10 @@ export function SaugeNoirePageFlipExperiment({
       "data-page-flip-init-count",
       String(initCountRef.current)
     );
-    setActualPageIndex(bookRef.current?.pageFlip()?.getCurrentPageIndex() ?? startPage);
+    const initialPageIndex =
+      bookRef.current?.pageFlip()?.getCurrentPageIndex() ?? startPage;
+    setActualPageIndex(initialPageIndex);
+    preparedPhysicalPageIndexesRef.current = new Set([initialPageIndex]);
     readyBookKeyRef.current = bookKey;
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
@@ -1092,6 +1168,19 @@ export function SaugeNoirePageFlipExperiment({
                 currentCommand.adjacentPage
             ) {
               return;
+            }
+            const viewport = viewportRef.current;
+            if (viewport) {
+              const preparedPageIndexes = new Set([
+                currentCommand.adjacentPage,
+                currentCommand.finalPage
+              ]);
+              preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
+              applyPhysicalMediaPolicy(
+                viewport,
+                preparedPageIndexes,
+                "flip"
+              );
             }
             currentPageFlip.turnToPage(currentCommand.finalPage);
           });
@@ -1570,7 +1659,8 @@ export function SaugeNoirePageFlipExperiment({
                 onError?.();
               }}
             >
-              <HTMLFlipBook
+              <SaugeNoirePhysicalPageMediaContext.Provider value>
+                <HTMLFlipBook
               key={bookKey ?? undefined}
               ref={bookRef}
               // PageFlip adds `.stf__parent` to this root. Keep React's class
@@ -1606,9 +1696,10 @@ export function SaugeNoirePageFlipExperiment({
               onFlip={handleFlip}
               onChangeState={handleChangeState}
               onInit={handleInit}
-              >
-                {pages}
-              </HTMLFlipBook>
+                >
+                  {pages}
+                </HTMLFlipBook>
+              </SaugeNoirePhysicalPageMediaContext.Provider>
             </PageFlipErrorBoundary>
           </SaugeNoireOriginalPageRegistryContext.Provider>
         </div>

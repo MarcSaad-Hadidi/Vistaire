@@ -1,9 +1,12 @@
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import {
   buildPreparedModelPublicArLiteGlbPath,
   buildPreparedModelPublicGlbPath
 } from "@/lib/owner/preparedModelWorkflow";
-import { redirectPublicDishAsset } from "@/lib/publicDishAssetRedirect";
+import {
+  publicDishAssetJsonError,
+  redirectPublicDishAsset
+} from "@/lib/publicDishAssetRedirect";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -25,10 +28,10 @@ async function handleGlbRequest(
       buildPreparedModelPublicGlbPath(dishId, { assetVersion: assetVersion || undefined });
     }
   } catch {
-    return NextResponse.json({ ok: false, error: "Modele introuvable." }, { status: 404 });
+    return publicDishAssetJsonError("Modele introuvable.", 404);
   }
   if (variant && variant !== "ar-lite") {
-    return NextResponse.json({ ok: false, error: "Variante modele introuvable." }, { status: 404 });
+    return publicDishAssetJsonError("Variante modele introuvable.", 404);
   }
 
   return redirectPublicDishAsset({
