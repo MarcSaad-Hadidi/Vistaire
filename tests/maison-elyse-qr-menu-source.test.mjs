@@ -17,18 +17,23 @@ const ownerCreateFormPath = "components/owner/RestaurantCreateForm.tsx";
 const publicMenuPath = "lib/menu/publicMenu.ts";
 const themePresetPath = "lib/menu/menuThemePresets.ts";
 const menuExperiencePath = "lib/menu/trouvableMenuExperience.ts";
+const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 const themePath = "lib/menu/maisonElyseTheme.ts";
 
 test("Maison Elyse public menu is the only dedicated QR table experience", async () => {
-  const source = await readFile(pagePath, "utf8");
+  const [source, renderContext] = await Promise.all([
+    readFile(pagePath, "utf8"),
+    readFile(renderContextPath, "utf8")
+  ]);
 
   assert.match(source, /MaisonElyseQrMenu/);
-  assert.match(source, /resolvePublicMenuExperience/);
+  assert.match(source, /resolvePublicMenuRenderContext/);
+  assert.match(renderContext, /resolvePublicMenuExperience/);
   assert.match(source, /experience\.kind === "maison-elyse"/);
   assert.doesNotMatch(source, /startFullMenu/);
-  assert.match(source, /view: query\.view/);
+  assert.match(renderContext, /view: query\.view/);
   assert.match(source, /PublicMenuRenderer/);
-  assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
+  assert.match(renderContext, /getPublishedMenuUiConfigForRestaurant/);
 });
 
 test("Maison Elyse maps the resolved owner palette into its skin variables", async () => {

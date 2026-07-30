@@ -44,9 +44,9 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   }
 
   assert.match(data, /buildPublicMenuPath/);
-  assert.match(data, /getPublicMenuBySlug/);
+  assert.match(data, /resolvePublicMenuRenderContext/);
   assert.match(data, /buildPublicDishPath/);
-  assert.match(data, /\/demo/);
+  assert.doesNotMatch(data, /\/demo/);
   assert.match(experienceSection, /next\/image/);
   assert.match(experienceSection, /target="_blank"/);
   assert.match(experienceSection, /rel="noopener noreferrer"/);
@@ -59,9 +59,12 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   );
 });
 
-test("landing comparison mounts one lightweight preview with accessible tabs", async () => {
+test("landing comparison mounts one official public-menu renderer with accessible tabs", async () => {
   const comparison = await source(
     "components/landing/comparison/LandingComparison.tsx"
+  );
+  const activeRenderer = await source(
+    "components/landing/comparison/LandingActiveMenuPreview.tsx"
   );
   const previewLayer = await source(
     "components/vistaire-preview/VistairePreviewPdfCompareSlider.tsx"
@@ -77,14 +80,58 @@ test("landing comparison mounts one lightweight preview with accessible tabs", a
   assert.match(comparison, /Home/);
   assert.match(comparison, /End/);
   assert.match(comparison, /VistairePreviewPdfCompareSlider/);
+  assert.match(comparison, /LandingActiveMenuPreview/);
   assert.match(comparison, /data-active-preview/);
   assert.match(previewLayer, /role="slider"/);
   assert.match(previewStyles, /touch-action:\s*pan-y/);
-  assert.match(previewLayer, /preview\.presentation/);
+  assert.match(previewLayer, /digitalLayer/);
 
-  const combined = `${comparison}\n${previewLayer}\n${previewStyles}`;
-  assert.doesNotMatch(combined, /PublicMenuRenderer|SaugeNoireBookMenu/);
-  assert.doesNotMatch(combined, /model-viewer|\.glb|\.usdz/i);
+  assert.match(activeRenderer, /MaisonElyseQrMenu/);
+  assert.match(activeRenderer, /TrouvablePremiumMenuExperience/);
+  assert.match(activeRenderer, /SaugeNoireBookMenu/);
+  assert.match(activeRenderer, /displayMode="phone-preview"/);
+  assert.match(activeRenderer, /mode="phone-preview"/);
+  assert.match(activeRenderer, /showGoogleReview=\{false\}/);
+  assert.match(activeRenderer, /rendererKey === "sauge-noire-book-v1"/);
+  assert.doesNotMatch(activeRenderer, /import\s*\(\s*[`'"].*\$\{/);
+  assert.doesNotMatch(activeRenderer, /model-viewer|\.glb|\.usdz/i);
+});
+
+test("landing and the public menu route share the official render-context resolver", async () => {
+  const route = await source("app/menu/[slug]/page.tsx");
+  const previewRoute = await source(
+    "app/api/public/landing-menu-preview/[experienceId]/route.ts"
+  );
+  const landingData = await source("lib/landing/menuExperiences.ts");
+  const resolver = await source("lib/menu/publicMenuRenderContext.ts");
+
+  assert.match(route, /resolvePublicMenuRenderContext/);
+  assert.match(landingData, /resolvePublicMenuRenderContext/);
+  assert.match(previewRoute, /isLandingExperienceId/);
+  assert.match(previewRoute, /value === "fr" \|\| value === "en"/);
+  assert.doesNotMatch(previewRoute, /import\s*\(\s*[`'"].*\$\{/);
+  assert.match(resolver, /resolvePublicMenuExperience/);
+  assert.match(resolver, /getPublishedMenuUiConfigForRestaurant/);
+  assert.match(resolver, /getExchangeRates/);
+});
+
+test("landing serializes only Maison Elyse and lazy-loads later menu payloads", async () => {
+  const comparison = await source(
+    "components/landing/comparison/LandingComparison.tsx"
+  );
+  const landingData = await source("lib/landing/menuExperiences.ts");
+
+  assert.match(
+    landingData,
+    /experience\.id === "maison-elyse"\s*\?\s*landingRenderPayload/
+  );
+  assert.match(
+    comparison,
+    /\/api\/public\/landing-menu-preview\/\$\{activeExperience\.id\}/
+  );
+  assert.match(comparison, /AbortController/);
+  assert.match(comparison, /previewPayloads/);
+  assert.doesNotMatch(comparison, /display:\s*none/);
 });
 
 test("landing dish cards use current public-menu detail routes", async () => {

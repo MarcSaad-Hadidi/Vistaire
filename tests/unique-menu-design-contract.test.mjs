@@ -168,15 +168,22 @@ test("import/export strips uniqueDesign identity", () => {
 });
 
 test("public menu and dish routes share resolvePublicMenuExperience", async () => {
-  const menuSource = await readFile(
-    new URL("../app/menu/[slug]/page.tsx", import.meta.url),
-    "utf8"
-  );
+  const [menuSource, renderContextSource] = await Promise.all([
+    readFile(
+      new URL("../app/menu/[slug]/page.tsx", import.meta.url),
+      "utf8"
+    ),
+    readFile(
+      new URL("../lib/menu/publicMenuRenderContext.ts", import.meta.url),
+      "utf8"
+    )
+  ]);
   const dishSource = await readFile(
     new URL("../app/menu/[slug]/dishes/[dishSlug]/page.tsx", import.meta.url),
     "utf8"
   );
-  assert.match(menuSource, /resolvePublicMenuExperience/);
+  assert.match(menuSource, /resolvePublicMenuRenderContext/);
+  assert.match(renderContextSource, /resolvePublicMenuExperience/);
   assert.match(dishSource, /resolvePublicMenuExperience/);
   assert.doesNotMatch(menuSource, /if\s*\(\s*menu\.slug\s*===/);
   assert.doesNotMatch(dishSource, /if\s*\(\s*menu\.slug\s*===/);

@@ -7,6 +7,10 @@ import {
 
 const restaurantId = "11111111-1111-4111-8111-111111111111";
 const menuId = "22222222-2222-4222-8222-222222222222";
+const maisonRestaurantId = "11111111-1111-4111-8111-111111111112";
+const maisonMenuId = "22222222-2222-4222-8222-222222222223";
+const maisonCategoryId = "33333333-3333-4333-8333-333333333308";
+const maisonDishId = "44444444-4444-4444-8444-999999999999";
 
 const legacyCategoryNames = [
   ["33333333-3333-4333-8333-333333333301", "Amuse-bouches", "Ouvertures de saison"],
@@ -34,7 +38,8 @@ const dish = ({
   description,
   isSignature = false,
   webModel3dUrl = "",
-  imageUrl = ""
+  imageUrl = "",
+  metadata = {}
 }) => ({
   id,
   restaurant_id: restaurantId,
@@ -53,48 +58,111 @@ const dish = ({
   options: ["À confirmer avec l'équipe en salle"],
   tags: isSignature ? ["Signature"] : [],
   image_url: imageUrl,
+  metadata,
   web_model_3d_url: webModel3dUrl,
   model_3d_url: webModel3dUrl,
   ar_model_3d_url: "",
   ar_usdz_url: ""
 });
 
-const fixtureImageUrls = [
-  "/images/demo/dishes/maison-elyse-n1.png",
-  "/images/demo/dishes/bar-de-ligne-artichaut-citron.png",
-  "/images/demo/dishes/tartare-saumon-label-rouge.png",
-  "/images/demo/dishes/canette-rotie-figues-epices.png",
-  "/images/demo/dishes/risotto-cepes-parmesan.png",
-  "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
-  "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
-  "/images/demo/dishes/negroni-vieilli-fut.png",
-  "/images/demo/dishes/elixir-bergamote-earl-grey.png",
-  "/images/demo/dishes/souffle-chocolat-grand-cru.png"
-];
-
 const categoryIndexByName = new Map(
   CANONICAL_SECTIONS.map((section, index) => [section.name, index])
 );
 
-const canonicalDishes = CANONICAL_DISHES.map((item, index) =>
-  dish({
-    id: `44444444-4444-4444-8444-${String(index).padStart(12, "0")}`,
+const canonicalDishes = CANONICAL_DISHES.map((item, index) => {
+  const id = `44444444-4444-4444-8444-${String(index).padStart(12, "0")}`;
+  const photoSha256 = String(index + 1).padStart(64, "0");
+  const photoStoragePath =
+    `restaurants/${restaurantId}/photos/originals/${id}.png`;
+  return dish({
+    id,
     slug: canonicalDishSlug(item),
     name: item.name,
     categoryIndex: categoryIndexByName.get(item.section) ?? 0,
     displayOrder: canonicalDishDisplayOrder(item),
     price: item.price,
     description: item.description,
-    imageUrl: fixtureImageUrls[index % fixtureImageUrls.length],
+    imageUrl: `/api/public/menu-dishes/${id}/photo`,
+    metadata: {
+      photoSha256,
+      photoStatus: "ready",
+      photoStorageBucket: "vistaire-media",
+      photoStoragePath
+    },
     isSignature: item.badges.includes("Signature"),
     webModel3dUrl: item.name === "Truite des Laurentides"
       ? "/models/demo/maison-elyse-n1.glb"
       : ""
-  })
-);
+  });
+});
+
+const maisonRestaurant = {
+  id: maisonRestaurantId,
+  name: "Maison Elyse",
+  slug: "maison-elyse",
+  location: "Montreal",
+  cuisine_type: "Cuisine francaise gastronomique",
+  status: "active"
+};
+
+const maisonMenu = {
+  id: maisonMenuId,
+  restaurant_id: maisonRestaurantId,
+  name: "La Carte",
+  slug: "principal",
+  status: "published",
+  is_primary: true,
+  settings_json: {
+    defaultLocale: "fr-CA",
+    supportedLocales: ["fr-CA", "en-CA"],
+    baseCurrency: "CAD",
+    defaultCurrency: "CAD",
+    supportedCurrencies: ["CAD"],
+    publicMenuStyle: "maison-elyse",
+    timezone: "America/Toronto",
+    allowCurrencySelector: false,
+    allowLanguageSelector: true,
+    taxIncluded: true
+  }
+};
+
+const maisonCategory = {
+  id: maisonCategoryId,
+  restaurant_id: maisonRestaurantId,
+  menu_id: maisonMenuId,
+  name: "Entrees",
+  slug: "entrees",
+  description: "La carte actuelle de Maison Elyse",
+  display_order: 1
+};
+
+const maisonDish = {
+  id: maisonDishId,
+  restaurant_id: maisonRestaurantId,
+  menu_id: maisonMenuId,
+  category_id: maisonCategoryId,
+  slug: "ravioles-de-chevre-frais-miel-de-monteregie",
+  name: "Ravioles de chevre frais et miel de Monteregie",
+  description: "Beurre noisette, citron confit et herbes du jardin.",
+  display_order: 1,
+  price: 24,
+  price_currency: "CAD",
+  base_currency: "CAD",
+  is_available: true,
+  is_signature: true,
+  ingredients: ["Chevre frais", "Miel", "Herbes"],
+  options: [],
+  tags: ["Signature"],
+  image_url: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
+  metadata: {},
+  web_model_3d_url: "",
+  model_3d_url: "",
+  ar_model_3d_url: "",
+  ar_usdz_url: ""
+};
 
 const rows = {
-  restaurants: [{
+  restaurants: [maisonRestaurant, {
     id: restaurantId,
     name: "Sauge Noire",
     slug: "sauge-noire",
@@ -102,7 +170,7 @@ const rows = {
     cuisine_type: "Cuisine au feu et botanique",
     status: "active"
   }],
-  menus: [{
+  menus: [maisonMenu, {
     id: menuId,
     restaurant_id: restaurantId,
     name: "La Carte",
@@ -122,7 +190,7 @@ const rows = {
       taxIncluded: true
     }
   }],
-  menu_categories: categoryNames.map(([id, name, description], index) => ({
+  menu_categories: [maisonCategory, ...categoryNames.map(([id, name, description], index) => ({
     id,
     restaurant_id: restaurantId,
     menu_id: menuId,
@@ -130,8 +198,8 @@ const rows = {
     slug: name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-"),
     description,
     display_order: index + 1
-  })),
-  menu_dishes: canonicalDishes,
+  }))],
+  menu_dishes: [maisonDish, ...canonicalDishes],
   menu_ui_configs: [{
     id: "55555555-5555-4555-8555-555555555551",
     restaurant_id: restaurantId,

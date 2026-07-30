@@ -12,15 +12,23 @@ const googleReviewTrackingPath = "components/menu/googleReviewTracking.ts";
 const helperPath = "lib/menu/trouvableMenuExperience.ts";
 const controlsPath = "components/menu/trouvableMenuControls.ts";
 const publicMenuPath = "lib/menu/publicMenu.ts";
+const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 
 test("public Trouvable menu is centralized in a targeted premium experience", async () => {
-  const page = await readFile(pagePath, "utf8");
-  const helper = await readFile(helperPath, "utf8");
+  const [page, helper, renderContext] = await Promise.all([
+    readFile(pagePath, "utf8"),
+    readFile(helperPath, "utf8"),
+    readFile(renderContextPath, "utf8")
+  ]);
 
   assert.match(page, /TrouvablePremiumMenuExperience/);
-  assert.match(page, /resolvePublicMenuExperience/);
+  assert.match(page, /resolvePublicMenuRenderContext/);
+  assert.match(renderContext, /resolvePublicMenuExperience/);
   assert.match(page, /experience\.kind === "trouvable"/);
-  assert.match(page, /resolvePublicMenuUiConfig\(menu, configRecord\.config\)/);
+  assert.match(
+    renderContext,
+    /resolvePublicMenuUiConfig\(initialMenu, configRecord\.config\)/
+  );
   assert.match(helper, /matchesMenuIdentity\(menu,\s*"trouvable"\)/);
   assert.match(helper, /theme:\s*"premium-gastronomic"/);
   assert.match(helper, /autoLoad:\s*false/);

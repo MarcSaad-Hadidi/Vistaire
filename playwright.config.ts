@@ -17,16 +17,30 @@ const qrFixture = process.env.VISTAIRE_QR_FIXTURE === "1";
 const qrFunctionalFixture = process.env.VISTAIRE_QR_FUNCTIONAL === "1";
 const cliIncludesSaugeNoireBrowserFlow = process.argv
   .slice(2)
-  .some((argument) => /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(
-    argument.replaceAll("\\", "/")
-  ));
+  .some((argument) => {
+    const normalized = argument.replaceAll("\\", "/");
+    return (
+      /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
+      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
+    );
+  });
+const cliIncludesLandingProductionPhoto = process.argv
+  .slice(2)
+  .some((argument) =>
+    /(?:^|\/)landing-production-photo\.spec\.ts$/.test(
+      argument.replaceAll("\\", "/")
+    )
+  );
 if (cliIncludesSaugeNoireBrowserFlow) process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE = "1";
 const saugeNoireFixture = process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE === "1";
 const saugeNoireFixtureOrigin = "http://127.0.0.1:55434";
 const adminVisualFixturePort = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const adminVisualFixtureOrigin = `http://127.0.0.1:${adminVisualFixturePort}`;
 const qrFixtureOrigin = "http://127.0.0.1:55432";
-const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3000"}`;
+const fixtureStartCommand = `node ./node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port ${new URL(baseURL).port || "3000"}`;
+const fixtureAppStartCommand = cliIncludesLandingProductionPhoto
+  ? startCommand
+  : fixtureStartCommand;
 const ownerE2eToken = shouldStartWebServer
   ? randomBytes(32).toString("base64url")
   : process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN ??
@@ -88,7 +102,7 @@ export default defineConfig({
           gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
           timeout: 30_000
         }, {
-          command: fixtureStartCommand,
+          command: fixtureAppStartCommand,
           env: {
             ...process.env,
             NEXT_PUBLIC_SUPABASE_URL: saugeNoireFixtureOrigin,

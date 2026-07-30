@@ -1,7 +1,11 @@
 import http from "node:http";
+import { readFileSync } from "node:fs";
 import { rows } from "./sauge-noire-fixture-data.mjs";
 
 const port = Number(process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE_PORT || 55434);
+const fixtureImage = readFileSync(
+  new URL("../../public/images/demo/dishes/maison-elyse-n1.png", import.meta.url)
+);
 
 function matches(row, key, expected) {
   const value = row?.[key];
@@ -35,6 +39,41 @@ const server = http.createServer((request, response) => {
   if (url.pathname.startsWith("/rest/v1/")) {
     response.writeHead(200, { "content-type": "application/json", "content-range": "0-0/*", "cache-control": "no-store" });
     response.end(JSON.stringify(readTable(url)));
+    return;
+  }
+  if (url.pathname.startsWith("/storage/v1/object/info/vistaire-media/")) {
+    response.writeHead(200, {
+      "content-type": "application/json",
+      "cache-control": "no-store"
+    });
+    response.end(JSON.stringify({ id: "fixture-photo", size: fixtureImage.length }));
+    return;
+  }
+  if (
+    request.method === "POST" &&
+    url.pathname.startsWith("/storage/v1/object/sign/vistaire-media/")
+  ) {
+    const signedPath = url.pathname.replace("/storage/v1", "");
+    response.writeHead(200, {
+      "content-type": "application/json",
+      "cache-control": "no-store"
+    });
+    response.end(
+      JSON.stringify({ signedURL: `${signedPath}?token=fixture-photo-token` })
+    );
+    return;
+  }
+  if (
+    request.method === "GET" &&
+    url.pathname.startsWith("/storage/v1/object/sign/vistaire-media/") &&
+    url.searchParams.get("token") === "fixture-photo-token"
+  ) {
+    response.writeHead(200, {
+      "content-type": "image/png",
+      "content-length": fixtureImage.length,
+      "cache-control": "private, max-age=3600"
+    });
+    response.end(fixtureImage);
     return;
   }
   response.writeHead(404, { "content-type": "application/json" });

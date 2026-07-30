@@ -28,12 +28,31 @@ const useTrouvableImmersiveFixture = process.argv
   );
 const includesSaugeNoireBrowserFlow = process.argv
   .slice(2)
+  .some((argument) => {
+    const normalized = argument.replaceAll("\\", "/");
+    return (
+      /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
+      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
+    );
+  });
+const includesLandingProductionPhoto = process.argv
+  .slice(2)
   .some((argument) =>
-    /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
+    /(?:^|\/)landing-production-photo\.spec\.ts$/.test(
+      argument.replaceAll("\\", "/")
+    )
   );
 const useDevelopmentServer =
-  useLocalDemoServer || includesSaugeNoireBrowserFlow;
+  useLocalDemoServer ||
+  (includesSaugeNoireBrowserFlow && !includesLandingProductionPhoto);
 const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
+const SAUGE_FIXTURE_ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
+  SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
+  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+  VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
+    '{"CAD":1,"USD":0.72,"EUR":0.6225}'
+};
 
 function waitForServer(url, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
@@ -93,6 +112,17 @@ async function main() {
       );
       await waitForServer(`${SAUGE_FIXTURE_ORIGIN}/fixture/health`);
     }
+    if (includesLandingProductionPhoto && !skipWebServer) {
+      const buildExitCode = await runChild(
+        process.execPath,
+        ["./node_modules/next/dist/bin/next", "build"],
+        { env: { ...process.env, ...SAUGE_FIXTURE_ENV } }
+      );
+      if (buildExitCode !== 0) {
+        process.exitCode = buildExitCode;
+        return;
+      }
+    }
     if (!skipWebServer) {
       const port = parsedBaseURL.port || (parsedBaseURL.protocol === "https:" ? "443" : "80");
       server = spawn(
@@ -100,6 +130,7 @@ async function main() {
         [
           "./node_modules/next/dist/bin/next",
           useDevelopmentServer ? "dev" : "start",
+          ...(useDevelopmentServer ? ["--webpack"] : []),
           "-p",
           port,
           "-H",
@@ -110,15 +141,7 @@ async function main() {
           windowsHide: true,
           env: {
             ...process.env,
-            ...(includesSaugeNoireBrowserFlow
-              ? {
-                  NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
-                  SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
-                  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
-                  VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
-                    '{"CAD":1,"USD":0.72,"EUR":0.6225}'
-                }
-              : {}),
+            ...(includesSaugeNoireBrowserFlow ? SAUGE_FIXTURE_ENV : {}),
             CLERK_SECRET_KEY: LOCAL_E2E_CLERK_SECRET_KEY,
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
               LOCAL_E2E_CLERK_PUBLISHABLE_KEY,

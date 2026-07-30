@@ -1,16 +1,39 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const MODEL_REQUEST_RE =
-  /\.(?:glb|usdz)(?:$|\?)|model-viewer|raw\.githubusercontent\.com/i;
+  /\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:$|[/?#])|model-viewer|babylon|three(?:\.module)?(?:\.min)?\.js|raw\.githubusercontent\.com|\/api\/.*(?:convert|conversion)/i;
+const MENU_ANALYTICS_REQUEST_RE = /\/api\/public\/menu-events(?:$|[/?#])/i;
+const LAZY_PREVIEW_TIMEOUT_MS = 15_000;
 
 function collectRuntimeFailures(page: Page) {
   const modelRequests: string[] = [];
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const failedResponses: string[] = [];
+  const failedRequests: string[] = [];
+  const menuAnalyticsRequests: string[] = [];
+  const previewPayloadRequests: string[] = [];
 
   page.on("request", (request) => {
     if (MODEL_REQUEST_RE.test(request.url())) modelRequests.push(request.url());
+    if (MENU_ANALYTICS_REQUEST_RE.test(request.url())) {
+      menuAnalyticsRequests.push(request.url());
+    }
+    if (/\/api\/public\/landing-menu-preview\//.test(request.url())) {
+      previewPayloadRequests.push(request.url());
+    }
+  });
+  page.on("requestfailed", (request) => {
+    const failure = request.failure()?.errorText;
+    if (
+      failure === "net::ERR_ABORTED" &&
+      /\/videos\/Vistaire2\.mp4(?:$|[?#])/i.test(request.url())
+    ) {
+      return;
+    }
+    failedRequests.push(
+      `${failure ?? "request failed"} ${request.url()}`
+    );
   });
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -29,7 +52,15 @@ function collectRuntimeFailures(page: Page) {
     }
   });
 
-  return { modelRequests, consoleErrors, failedResponses, pageErrors };
+  return {
+    modelRequests,
+    consoleErrors,
+    failedRequests,
+    failedResponses,
+    menuAnalyticsRequests,
+    previewPayloadRequests,
+    pageErrors
+  };
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -50,6 +81,61 @@ async function scrollThroughLanding(page: Page) {
     }
     window.scrollTo(0, 0);
   });
+}
+
+async function expectLoadedImages(images: Locator, minimum = 1) {
+  await expect
+    .poll(
+      async () =>
+        images.evaluateAll((elements) =>
+          elements.filter((element) => {
+            const image = element as HTMLImageElement;
+            const rect = image.getBoundingClientRect();
+            return (
+              rect.width > 0 &&
+              rect.height > 0 &&
+              image.complete &&
+              image.naturalWidth > 0 &&
+              image.naturalHeight > 0
+            );
+          }).length
+        ),
+      { message: "visible menu images should finish loading with real dimensions" }
+    )
+    .toBeGreaterThanOrEqual(minimum);
+}
+
+async function performTouchGesture(
+  page: Page,
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ ...start, id: 1 }]
+    });
+    for (let step = 1; step <= 4; step += 1) {
+      const progress = step / 4;
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          {
+            id: 1,
+            x: start.x + (end.x - start.x) * progress,
+            y: start.y + (end.y - start.y) * progress
+          }
+        ]
+      });
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: []
+    });
+  } finally {
+    await session.detach();
+  }
 }
 
 function landingUrl(path = "/") {
@@ -127,7 +213,9 @@ test.describe("Vistaire landing redesign", () => {
     await expectNoHorizontalOverflow(page);
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(runtime.modelRequests).toEqual([]);
+    expect(runtime.menuAnalyticsRequests).toEqual([]);
     expect(runtime.consoleErrors).toEqual([]);
+    expect(runtime.failedRequests).toEqual([]);
     expect(runtime.failedResponses).toEqual([]);
     expect(runtime.pageErrors).toEqual([]);
   });
@@ -148,12 +236,41 @@ test.describe("Vistaire landing redesign", () => {
     await expect(
       comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
     ).toHaveCount(1);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="maison-elyse"]')
+    ).toHaveCount(1);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="trouvable"]')
+    ).toHaveCount(0);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
+    ).toHaveCount(0);
+    await expectLoadedImages(
+      comparison.locator('[data-public-menu-renderer="maison-elyse"] img')
+    );
+    expect(runtime.previewPayloadRequests).toEqual([]);
     const initialSlider = comparison.getByRole("slider");
     await expect(initialSlider).toHaveAttribute("aria-valuenow", "50");
 
     await tabs.nth(1).click();
     await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
     await expect(comparison.locator('[data-active-preview="trouvable"]')).toHaveCount(1);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="trouvable"]')
+    ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
+    await expect(
+      comparison.locator('[data-public-menu-renderer="maison-elyse"]')
+    ).toHaveCount(0);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
+    ).toHaveCount(0);
+    await expectLoadedImages(
+      comparison.locator('[data-public-menu-renderer="trouvable"] img')
+    );
+    expect(runtime.previewPayloadRequests).toHaveLength(1);
+    expect(runtime.previewPayloadRequests[0]).toContain(
+      "/api/public/landing-menu-preview/trouvable?locale=fr"
+    );
     await expect(
       comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
     ).toHaveCount(1);
@@ -162,10 +279,32 @@ test.describe("Vistaire landing redesign", () => {
       "50"
     );
 
+    const landingLocationBeforeSauge = page.url();
     await tabs.nth(1).press("ArrowRight");
     await expect(tabs.nth(2)).toBeFocused();
     await expect(tabs.nth(2)).toHaveAttribute("aria-selected", "true");
     await expect(comparison.locator('[data-active-preview="sauge-noire"]')).toHaveCount(1);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
+    ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
+    await expect(
+      comparison.locator('[data-public-menu-renderer="maison-elyse"]')
+    ).toHaveCount(0);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="trouvable"]')
+    ).toHaveCount(0);
+    await expect(
+      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
+    ).toHaveAttribute("data-display-mode", "phone-preview");
+    await expectLoadedImages(
+      comparison.locator('[data-public-menu-renderer="sauge-noire"] img')
+    );
+    expect(runtime.previewPayloadRequests).toHaveLength(2);
+    expect(runtime.previewPayloadRequests[1]).toContain(
+      "/api/public/landing-menu-preview/sauge-noire?locale=fr"
+    );
+    await expect(comparison.getByTestId("google-review-cta")).toHaveCount(0);
+    expect(page.url()).toBe(landingLocationBeforeSauge);
 
     await tabs.nth(2).press("Home");
     await expect(tabs.nth(0)).toBeFocused();
@@ -179,10 +318,23 @@ test.describe("Vistaire landing redesign", () => {
     await expect(slider).toHaveAttribute("aria-valuenow", "4");
     await slider.press("End");
     await expect(slider).toHaveAttribute("aria-valuenow", "100");
+    const sliderBox = await slider.boundingBox();
+    expect(sliderBox).not.toBeNull();
+    if (sliderBox) {
+      await page.mouse.move(sliderBox.x + sliderBox.width * 0.8, sliderBox.y + 20);
+      await page.mouse.down();
+      await page.mouse.move(sliderBox.x + sliderBox.width * 0.25, sliderBox.y + 20);
+      await page.mouse.up();
+      await expect
+        .poll(async () => Number(await slider.getAttribute("aria-valuenow")))
+        .toBeLessThan(40);
+    }
 
     await expectNoHorizontalOverflow(page);
     expect(runtime.modelRequests).toEqual([]);
+    expect(runtime.menuAnalyticsRequests).toEqual([]);
     expect(runtime.consoleErrors).toEqual([]);
+    expect(runtime.failedRequests).toEqual([]);
     expect(runtime.failedResponses).toEqual([]);
     expect(runtime.pageErrors).toEqual([]);
   });
@@ -249,10 +401,28 @@ test.describe("Vistaire landing redesign", () => {
       "href",
       /^\/menu\/trouvable\/dishes\/[^?]+\?lang=fr-CA$/
     );
-    await expect(dishLinks.nth(2)).toHaveAttribute(
-      "href",
-      /^\/menu\/sauge-noire\/dishes\/[^?]+\?lang=fr-CA$/
+    const saugeHref = await dishLinks.nth(2).getAttribute("href");
+    expect(saugeHref).not.toBeNull();
+    const saugeUrl = new URL(saugeHref ?? "", "https://vistaire.test");
+    expect(saugeUrl.pathname).toMatch(
+      /^\/menu\/sauge-noire\/dishes\/[^/]+$/
     );
+    expect(saugeUrl.searchParams.get("lang")).toBe("fr-CA");
+    expect(saugeUrl.searchParams.get("view")).toBe("sauge-2");
+  });
+
+  test("loads all three featured dish photos without broken image dimensions", async ({
+    page
+  }) => {
+    const runtime = collectRuntimeFailures(page);
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+    const dishes = page.getByTestId("landing-dishes");
+    await dishes.scrollIntoViewIfNeeded();
+    const images = dishes.locator("img");
+    await expect(images).toHaveCount(3);
+    await expectLoadedImages(images, 3);
+    expect(runtime.failedRequests).toEqual([]);
+    expect(runtime.failedResponses).toEqual([]);
   });
 
   for (const viewport of [
@@ -266,7 +436,7 @@ test.describe("Vistaire landing redesign", () => {
       page
     }) => {
       await page.setViewportSize(viewport);
-      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
       await scrollThroughLanding(page);
       await expectNoHorizontalOverflow(page);
       await expect(page.getByTestId("landing-comparison-phone")).toBeVisible();
@@ -280,18 +450,67 @@ test.describe("Vistaire landing redesign", () => {
         value: { saveData: true }
       });
     });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-hero-media="poster"]')).toBeVisible();
     await expect(page.locator('[data-hero-media="video"]')).toHaveCount(0);
   });
 
   test("simplifies motion when reduced motion is requested", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-hero-media="poster"]')).toBeVisible();
     const transitionDuration = await page
       .getByTestId("landing-comparison")
       .evaluate((element) => getComputedStyle(element).transitionDuration);
     expect(Number.parseFloat(transitionDuration)).toBeLessThanOrEqual(0.001);
+  });
+
+  test("keeps the slider usable in a real touch-enabled mobile context", async ({
+    browser
+  }) => {
+    const context = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      locale: "fr-CA",
+      viewport: { width: 390, height: 844 }
+    });
+    const page = await context.newPage();
+    try {
+      const runtime = collectRuntimeFailures(page);
+      await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+      const comparison = page.getByTestId("landing-comparison");
+      await comparison.scrollIntoViewIfNeeded();
+      await expect(
+        comparison.locator('[data-public-menu-renderer="maison-elyse"]')
+      ).toHaveCount(1);
+      const slider = comparison.getByRole("slider");
+      const box = await slider.boundingBox();
+      expect(box).not.toBeNull();
+      if (box) {
+        await performTouchGesture(
+          page,
+          { x: box.x + box.width * 0.8, y: box.y + box.height / 2 },
+          { x: box.x + box.width * 0.2, y: box.y + box.height / 2 }
+        );
+        await expect
+          .poll(async () => Number(await slider.getAttribute("aria-valuenow")))
+          .toBeLessThan(35);
+
+        const scrollBefore = await page.evaluate(() => window.scrollY);
+        await performTouchGesture(
+          page,
+          { x: box.x + box.width / 2, y: box.y + box.height * 0.7 },
+          { x: box.x + box.width / 2, y: box.y + box.height * 0.35 }
+        );
+        await expect
+          .poll(() => page.evaluate(() => window.scrollY))
+          .toBeGreaterThan(scrollBefore);
+      }
+      await expectNoHorizontalOverflow(page);
+      expect(runtime.modelRequests).toEqual([]);
+      expect(runtime.menuAnalyticsRequests).toEqual([]);
+    } finally {
+      await context.close();
+    }
   });
 });
