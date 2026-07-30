@@ -270,6 +270,10 @@ test("a target sheet decodes its leading photo before the physical flip starts",
   assert.match(experiment, /await waitForPreparedPhysicalPageMedia/);
   assert.match(experiment, /const startPreparedFlip = useCallback/);
   assert.match(experiment, /startPreparedFlip\(/);
+  assert.match(experiment, /const \[mediaPreparing, setMediaPreparing\] = useState\(false\)/);
+  assert.match(experiment, /readyBookKeyRef\.current !== preparedBookKey/);
+  assert.match(experiment, /flipPreparationTokenRef\.current \+= 1;[\s\S]*setMediaPreparing\(false\);[\s\S]*turnToPage/);
+  assert.match(experiment, /data-page-flip-media-preparing="true"/);
 });
 
 test("PageFlip resizes in place for structural width and height changes", async () => {

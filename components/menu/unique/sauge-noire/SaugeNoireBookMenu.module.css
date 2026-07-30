@@ -376,6 +376,52 @@
   visibility: visible;
 }
 
+.pageFlipMediaPreparing {
+  position: absolute;
+  z-index: 4;
+  right: 50%;
+  bottom: 18px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--sn-accent) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sn-paper) 88%, transparent);
+  box-shadow: 0 8px 24px rgb(20 14 10 / 14%);
+  pointer-events: none;
+  transform: translateX(50%);
+  backdrop-filter: blur(10px);
+}
+
+.pageFlipMediaPreparing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--sn-accent);
+  animation: pageFlipMediaPulse 720ms ease-in-out infinite alternate;
+}
+
+.pageFlipMediaPreparing span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.pageFlipMediaPreparing span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+@keyframes pageFlipMediaPulse {
+  from {
+    opacity: 0.32;
+    transform: translateY(1px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
 .pageFlipBook {
   position: relative;
   width: 100%;
