@@ -33,10 +33,14 @@ export type CompareCategoryPreview = Pick<Category, "id" | "slug" | "name"> & {
 };
 
 export type CompareDishPreview = {
+  id?: string;
   slug: string;
   name: string;
   price: string;
   shortDescription: string;
+  categoryId?: string;
+  categorySlug?: string;
+  categoryName?: string;
   image: string | null;
   imageAlt: string;
   imageObjectPosition: string;
@@ -49,6 +53,7 @@ export type CompareDishPreview = {
 
 export type PdfComparePreviewData = {
   restaurant: {
+    menuSlug?: string;
     name: string;
     tagline: string;
     location: string;
@@ -116,10 +121,12 @@ function toPdfRow(dish: Dish): PdfMenuRow {
 
 function toCompareDishPreview(dish: Dish, currency: string): CompareDishPreview {
   return {
+    id: dish.id,
     slug: dish.slug,
     name: dish.name,
     price: formatPrice(dish.price, currency),
     shortDescription: dish.shortDescription,
+    categorySlug: dish.categorySlug,
     image: dish.image,
     imageAlt: `Photo du plat : ${dish.name}`,
     imageObjectPosition: getDishCardImageObjectPosition(dish),
@@ -212,6 +219,7 @@ export function buildPdfComparePreviewData(
 
   return {
     restaurant: {
+      menuSlug: "maison-elyse",
       name: restaurant.name,
       tagline: restaurant.tagline,
       location: restaurant.location,

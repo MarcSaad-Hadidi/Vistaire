@@ -26,7 +26,14 @@ export function LandingDishStorySection({
         </header>
         <div className={styles.dishGrid}>
           {experiences.map((experience) => (
-            <article className={styles.dishCard} key={experience.id}>
+            <article
+              className={styles.dishCard}
+              data-dish-id={experience.featuredDish.id}
+              data-dish-slug={experience.featuredDish.slug}
+              data-image-source={experience.featuredDish.imageSource}
+              data-menu-slug={experience.menuSlug}
+              key={experience.id}
+            >
               <Link
                 className={styles.dishCardLink}
                 href={experience.featuredDish.href}
@@ -36,7 +43,6 @@ export function LandingDishStorySection({
                   <PublicDishImage
                     alt={experience.featuredDish.imageAlt}
                     className={styles.coverImage}
-                    fallbackSrc={experience.image}
                     objectPosition={experience.featuredDish.imagePosition}
                     quality={90}
                     sizes="(max-width: 720px) calc(100vw - 54px), (max-width: 1100px) 46vw, 350px"

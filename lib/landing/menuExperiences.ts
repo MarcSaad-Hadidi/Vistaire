@@ -1,25 +1,16 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
-import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import type { Locale } from "@/lib/i18n";
 import { buildCurrentPublicMenuPreview } from "@/lib/landing/publicMenuPreview";
-import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
-import {
-  buildPublicDishPath,
-  type PublicMenu,
-  type PublicMenuContextQuery
-} from "@/lib/menu/publicMenuCore";
+import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import {
   resolvePublicMenuRenderContext,
   type PublicMenuRenderContext
 } from "@/lib/menu/publicMenuRenderContext";
 import type { UniqueMenuRendererKey } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
-import {
-  buildPdfComparePreviewData,
-  type PdfComparePreviewData
-} from "@/lib/pdfComparePreviewData";
+import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 
 export type LandingExperienceId =
   | "maison-elyse"
@@ -39,39 +30,38 @@ export function isLandingExperienceId(
 }
 
 export type LandingFeaturedDish = {
+  id?: string;
+  slug: string;
   name: string;
   description: string;
   price: string;
   href: string;
   image: string;
+  imageSource: "imageUrl" | "thumbnailUrl" | "posterUrl" | "fallback" | "unavailable";
   imageAlt: string;
   imagePosition: string;
 };
 
 type LandingPreviewBase = {
-  menu: PublicMenu;
-  config: MenuUiConfig;
-  context: string;
-  query: PublicMenuContextQuery;
+  menuSlug: LandingExperienceId;
+  restaurantId: string;
+  menuId?: string;
+  locale: Locale;
   publicMenuHref: string;
+  comparison: PdfComparePreviewData;
 };
 
 export type LandingMenuPreviewPayload =
   | (LandingPreviewBase & {
       kind: "maison-elyse";
-      locale: Locale;
-      localizedMenus: Partial<Record<Locale, PublicMenu>>;
     })
   | (LandingPreviewBase & {
       kind: "trouvable";
-      exchangeRates: MenuExchangeRates;
     })
   | (LandingPreviewBase & {
       kind: "unique-registered";
       rendererKey: UniqueMenuRendererKey;
       rendererVersion: number;
-      locale: Locale;
-      exchangeRates: MenuExchangeRates;
     });
 
 export type LandingExperience = {
@@ -112,13 +102,11 @@ function presentationFor(
 
 function fallbackPreview({
   dish,
-  experienceImage,
   locale,
   name,
   theme
 }: {
   dish: LandingFeaturedDish;
-  experienceImage: string;
   locale: Locale;
   name: LandingExperience["name"];
   theme: LandingExperienceId;
@@ -129,10 +117,13 @@ function fallbackPreview({
       ? "A real dish from the public menu"
       : "Un plat réel de la carte publique";
   const previewDish = {
+    id: dish.id,
     slug: dish.href.split("/dishes/")[1]?.split("?")[0] ?? theme,
     name: dish.name,
     price: dish.price,
     shortDescription: dish.description,
+    categorySlug: "current",
+    categoryName,
     image: dish.image,
     imageAlt: dish.imageAlt,
     imageObjectPosition: dish.imagePosition,
@@ -171,7 +162,7 @@ function fallbackPreview({
         slug: "current",
         name: categoryName,
         description: categoryDescription,
-        image: dish.image || experienceImage,
+        image: dish.image || null,
         imageAlt: dish.imageAlt,
         imageObjectPosition: dish.imagePosition
       }
@@ -183,17 +174,10 @@ function fallbackPreview({
   };
 }
 
-function maisonPreview(locale: Locale): PdfComparePreviewData {
-  const preview = buildPdfComparePreviewData({ locale });
-  return {
-    ...preview,
-    presentation: presentationFor(locale, "maison-elyse", "Maison Élyse")
-  };
-}
-
 function fallbackExperiences(locale: Locale): LandingExperience[] {
   const lang = locale === "en" ? "en-CA" : "fr-CA";
   const maisonDish: LandingFeaturedDish = {
+    slug: "ravioles-de-chevre-frais-miel-de-monteregie",
     name:
       locale === "en"
         ? "Fresh goat cheese ravioli & Montérégie honey"
@@ -208,7 +192,8 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       "ravioles-de-chevre-frais-miel-de-monteregie",
       { lang }
     ),
-    image: "/images/landing/maison-elyse-experience.jpg",
+    image: "",
+    imageSource: "unavailable",
     imageAlt:
       locale === "en"
         ? "Fresh goat cheese ravioli from Maison Élyse"
@@ -216,6 +201,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     imagePosition: "center"
   };
   const trouvableDish: LandingFeaturedDish = {
+    slug: "pesto-burrata-verde",
     name: "Pesto Burrata Verde",
     description:
       locale === "en"
@@ -223,11 +209,13 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         : "Ouvrez la fiche actuelle dans la carte Trouvable.",
     price: "",
     href: buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang }),
-    image: "/images/landing/trouvable-experience.jpg",
+    image: "",
+    imageSource: "unavailable",
     imageAlt: "Pesto Burrata Verde de Trouvable",
     imagePosition: "center"
   };
   const saugeDish: LandingFeaturedDish = {
+    slug: "betterave-sous-la-cendre",
     name: locale === "en" ? "Beetroot under ash" : "Betterave sous la cendre",
     description:
       locale === "en"
@@ -238,7 +226,8 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       lang,
       view: "sauge-2"
     }),
-    image: "/images/landing/sauge-noire-experience.jpg",
+    image: "",
+    imageSource: "unavailable",
     imageAlt:
       locale === "en"
         ? "Beetroot under ash from Sauge Noire"
@@ -264,7 +253,12 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       imagePosition: "center 45%",
       preferredDishSlug: "ravioles-de-chevre-frais-miel-de-monteregie",
       featuredDish: maisonDish,
-      preview: maisonPreview(locale),
+      preview: fallbackPreview({
+        dish: maisonDish,
+        locale,
+        name: "Maison Élyse",
+        theme: "maison-elyse"
+      }),
       renderPayload: null
     },
     {
@@ -284,7 +278,6 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       featuredDish: trouvableDish,
       preview: fallbackPreview({
         dish: trouvableDish,
-        experienceImage: "/images/landing/trouvable-experience.jpg",
         locale,
         name: "Trouvable",
         theme: "trouvable"
@@ -311,7 +304,6 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       featuredDish: saugeDish,
       preview: fallbackPreview({
         dish: saugeDish,
-        experienceImage: "/images/landing/sauge-noire-experience.jpg",
         locale,
         name: "Sauge Noire",
         theme: "sauge-noire"
@@ -323,14 +315,21 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
 
 function landingRenderPayload(
   experience: LandingExperience,
-  context: PublicMenuRenderContext
+  context: PublicMenuRenderContext,
+  comparison: PdfComparePreviewData
 ): LandingMenuPreviewPayload | null {
+  if (context.menu.slug !== experience.menuSlug) {
+    throw new Error(
+      `Landing experience ${experience.id} resolved the wrong menu: ${context.menu.slug}`
+    );
+  }
   const base: LandingPreviewBase = {
-    menu: context.menu,
-    config: context.config,
-    context: context.context,
-    query: context.query,
-    publicMenuHref: experience.publicMenuHref
+    menuSlug: experience.menuSlug,
+    restaurantId: context.menu.restaurantId,
+    ...(context.menu.menuId ? { menuId: context.menu.menuId } : {}),
+    locale: context.locale,
+    publicMenuHref: experience.publicMenuHref,
+    comparison
   };
 
   if (
@@ -339,9 +338,7 @@ function landingRenderPayload(
   ) {
     return {
       ...base,
-      kind: "maison-elyse",
-      locale: context.locale,
-      localizedMenus: context.localizedMenus
+      kind: "maison-elyse"
     };
   }
 
@@ -351,8 +348,7 @@ function landingRenderPayload(
   ) {
     return {
       ...base,
-      kind: "trouvable",
-      exchangeRates: context.exchangeRates
+      kind: "trouvable"
     };
   }
 
@@ -366,9 +362,7 @@ function landingRenderPayload(
       ...base,
       kind: "unique-registered",
       rendererKey: "sauge-noire-book-v1",
-      rendererVersion: 1,
-      locale: context.locale,
-      exchangeRates: context.exchangeRates
+      rendererVersion: 1
     };
   }
 
@@ -381,7 +375,7 @@ async function buildLandingExperiences(
   const lang = locale === "en" ? "en-CA" : "fr-CA";
   const fallbacks = fallbackExperiences(locale);
 
-  return Promise.all(
+  const resolved = await Promise.all(
     fallbacks.map(async (experience) => {
       try {
         const renderContext = await resolvePublicMenuRenderContext({
@@ -405,25 +399,30 @@ async function buildLandingExperiences(
             preview: current.preview,
             renderPayload:
               experience.id === "maison-elyse"
-                ? landingRenderPayload(experience, renderContext)
+                ? landingRenderPayload(experience, renderContext, current.preview)
                 : null
           };
         }
         const dish = current.featuredDish;
-        const image =
-          dish.imageUrl ||
-          dish.thumbnailUrl ||
-          dish.posterUrl ||
-          experience.featuredDish.image;
+        const image = dish.imageUrl || dish.thumbnailUrl || dish.posterUrl || "";
+        const imageSource: LandingFeaturedDish["imageSource"] = dish.imageUrl
+          ? "imageUrl"
+          : dish.thumbnailUrl
+            ? "thumbnailUrl"
+            : dish.posterUrl
+              ? "posterUrl"
+              : "unavailable";
 
         return {
           ...experience,
-          preview: current.preview,
+          preview: experience.preview,
           renderPayload:
             experience.id === "maison-elyse"
-              ? landingRenderPayload(experience, renderContext)
+              ? landingRenderPayload(experience, renderContext, current.preview)
               : null,
           featuredDish: {
+            id: dish.id,
+            slug: dish.slug,
             name: dish.name,
             description: dish.description,
             price: dish.priceLabel,
@@ -432,6 +431,7 @@ async function buildLandingExperiences(
               ...(experience.dishView ? { view: experience.dishView } : {})
             }),
             image,
+            imageSource,
             imageAlt:
               locale === "en"
                 ? `${dish.name}, from ${experience.name}`
@@ -444,6 +444,23 @@ async function buildLandingExperiences(
       }
     })
   );
+
+  const claimedImages = new Set<string>();
+  return resolved.map((experience) => {
+    const image = experience.featuredDish.image;
+    if (!image || !claimedImages.has(image)) {
+      if (image) claimedImages.add(image);
+      return experience;
+    }
+    return {
+      ...experience,
+      featuredDish: {
+        ...experience.featuredDish,
+        image: "",
+        imageSource: "unavailable" as const
+      }
+    };
+  });
 }
 
 const getCachedLandingExperiences = unstable_cache(
@@ -477,12 +494,19 @@ async function buildLandingMenuPreviewPayload(
   });
   if (!renderContext?.menu.dishes.length) return null;
 
-  return landingRenderPayload(experience, renderContext);
+  const current = buildCurrentPublicMenuPreview({
+    locale,
+    menu: renderContext.menu,
+    preferredDishSlug: experience.preferredDishSlug,
+    theme: experience.id
+  });
+
+  return landingRenderPayload(experience, renderContext, current.preview);
 }
 
 const getCachedLandingMenuPreviewPayload = unstable_cache(
   buildLandingMenuPreviewPayload,
-  ["landing-menu-preview-payload-v1"],
+  ["landing-menu-preview-payload-v2"],
   { revalidate: 60 }
 );
 

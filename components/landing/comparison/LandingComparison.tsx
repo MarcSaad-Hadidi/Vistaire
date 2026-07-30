@@ -33,12 +33,12 @@ export function LandingComparison({
   const [activeId, setActiveId] =
     useState<LandingExperienceId>("maison-elyse");
   const [previewPayloads, setPreviewPayloads] = useState<
-    Partial<Record<LandingExperienceId, LandingMenuPreviewPayload | null>>
+    Record<string, LandingMenuPreviewPayload | null | undefined>
   >(() =>
     Object.fromEntries(
       experiences.flatMap((experience) =>
         experience.renderPayload
-          ? [[experience.id, experience.renderPayload] as const]
+          ? [[`${locale}:${experience.id}`, experience.renderPayload] as const]
           : []
       )
     )
@@ -48,7 +48,9 @@ export function LandingComparison({
     experiences.findIndex((experience) => experience.id === activeId)
   );
   const activeExperience = experiences[activeIndex] ?? experiences[0];
-  const activePayload = previewPayloads[activeExperience.id];
+  const activePayloadKey = `${locale}:${activeExperience.id}`;
+  const activePayload = previewPayloads[activePayloadKey];
+  const activePreview = activePayload?.comparison ?? activeExperience.preview;
 
   useEffect(() => {
     if (activePayload !== undefined) return;
@@ -88,19 +90,19 @@ export function LandingComparison({
         }
         setPreviewPayloads((current) => ({
           ...current,
-          [activeExperience.id]: payload
+          [activePayloadKey]: payload
         }));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setPreviewPayloads((current) => ({
           ...current,
-          [activeExperience.id]: null
+          [activePayloadKey]: null
         }));
       });
 
     return () => controller.abort();
-  }, [activeExperience.id, activePayload, locale]);
+  }, [activeExperience.id, activePayload, activePayloadKey, locale]);
 
   const activate = (index: number, focus = false) => {
     const normalizedIndex =
@@ -196,7 +198,7 @@ export function LandingComparison({
             }
             key={activeExperience.id}
             locale={locale}
-            preview={activeExperience.preview}
+            preview={activePreview}
             strings={{
               caption: copy.figureCaption,
               hint: copy.revealHint,

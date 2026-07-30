@@ -6,7 +6,8 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import type {
   CompareDishPreview,
-  PdfComparePreviewData
+  PdfComparePreviewData,
+  PdfMenuSection
 } from "@/lib/pdfComparePreviewData";
 
 type LandingPreviewTheme = NonNullable<
@@ -22,16 +23,20 @@ function monogram(name: string) {
     .toUpperCase();
 }
 
-function imageForDish(dish: PublicMenuDish) {
+export function imageForDish(dish: PublicMenuDish) {
   return dish.imageUrl || dish.thumbnailUrl || dish.posterUrl || null;
 }
 
 function toPreviewDish(dish: PublicMenuDish): CompareDishPreview {
   return {
+    id: dish.id,
     slug: dish.slug,
     name: dish.name,
     price: dish.priceLabel,
     shortDescription: dish.description,
+    categoryId: dish.categoryId,
+    categorySlug: dish.categorySlug,
+    categoryName: dish.category,
     image: imageForDish(dish),
     imageAlt: `Photo du plat : ${dish.name}`,
     imageObjectPosition: "center",
@@ -60,9 +65,12 @@ function pickFeaturedDish(
   preferredDishSlug?: string
 ) {
   const available = dishes.filter((dish) => dish.available);
-  const candidates = available.length ? available : dishes;
+  const candidates = available;
   return (
-    candidates.find((dish) => dish.slug === preferredDishSlug) ??
+    candidates.find(
+      (dish) =>
+        dish.slug === preferredDishSlug && Boolean(imageForDish(dish))
+    ) ??
     candidates.find(
       (dish) =>
         dish.isRecommended && dish.isSignature && Boolean(imageForDish(dish))
@@ -72,8 +80,20 @@ function pickFeaturedDish(
     ) ??
     candidates.find((dish) => dish.isSignature && Boolean(imageForDish(dish))) ??
     candidates.find((dish) => Boolean(imageForDish(dish))) ??
+    candidates.find((dish) => dish.slug === preferredDishSlug) ??
     candidates[0]
   );
+}
+
+export function buildFullPdfMenuData(menu: PublicMenu): PdfMenuSection[] {
+  const availableDishes = menu.dishes.filter((dish) => dish.available);
+  return getVisiblePublicMenuCategories(availableDishes).map((category) => ({
+    title: category.label,
+    rows: categoryDishes(availableDishes, category).map((dish) => ({
+      name: dish.name,
+      price: dish.priceLabel
+    }))
+  }));
 }
 
 export function buildCurrentPublicMenuPreview({
@@ -90,12 +110,10 @@ export function buildCurrentPublicMenuPreview({
   preview: PdfComparePreviewData;
   featuredDish: PublicMenuDish | null;
 } {
-  const dishes = menu.dishes.filter((dish) => dish.available);
-  const currentDishes = dishes.length ? dishes : menu.dishes;
+  const currentDishes = menu.dishes.filter((dish) => dish.available);
   const categories = getVisiblePublicMenuCategories(currentDishes);
-  const visibleCategories = categories.slice(0, 3);
   const featuredDish = pickFeaturedDish(currentDishes, preferredDishSlug) ?? null;
-  const categoryCards = visibleCategories.map((category) => {
+  const categoryCards = categories.map((category) => {
     const dishesInCategory = categoryDishes(currentDishes, category);
     const representative =
       dishesInCategory.find(
@@ -116,7 +134,7 @@ export function buildCurrentPublicMenuPreview({
       imageObjectPosition: "center"
     };
   });
-  const previewDishes = currentDishes.slice(0, 6).map(toPreviewDish);
+  const previewDishes = currentDishes.map(toPreviewDish);
   const featuredPreview = featuredDish
     ? toPreviewDish(featuredDish)
     : previewDishes[0];
@@ -129,21 +147,14 @@ export function buildCurrentPublicMenuPreview({
     featuredDish,
     preview: {
       restaurant: {
+        menuSlug: menu.slug,
         name: menu.name,
         tagline: menu.cuisineType,
         location: menu.location,
         logoMonogram: monogram(menu.name),
         currency: menu.settings.defaultCurrency
       },
-      pdfSections: visibleCategories.map((category) => ({
-        title: category.label,
-        rows: categoryDishes(currentDishes, category)
-          .slice(0, 3)
-          .map((dish) => ({
-            name: dish.name,
-            price: dish.priceLabel
-          }))
-      })),
+      pdfSections: buildFullPdfMenuData(menu),
       categoryTabs: [
         { id: `${menu.slug}-all`, slug: "all", name: allLabel },
         ...categoryCards.map(({ id, slug, name }) => ({ id, slug, name }))

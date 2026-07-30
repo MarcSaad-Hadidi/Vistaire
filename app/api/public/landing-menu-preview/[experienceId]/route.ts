@@ -31,7 +31,26 @@ export async function GET(
     );
   }
 
-  const payload = await getLandingMenuPreviewPayload(experienceId, locale);
+  let payload;
+  try {
+    payload = await getLandingMenuPreviewPayload(experienceId, locale);
+  } catch (error) {
+    console.error("Landing menu preview resolution failed.", {
+      error,
+      experienceId,
+      locale
+    });
+    return NextResponse.json(
+      { ok: false, error: "Landing menu preview temporarily unavailable." },
+      {
+        status: 503,
+        headers: {
+          ...RESPONSE_HEADERS,
+          "Cache-Control": "private, no-store"
+        }
+      }
+    );
+  }
   if (!payload) {
     return NextResponse.json(
       { ok: false, error: "Landing menu preview unavailable." },

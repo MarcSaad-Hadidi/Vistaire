@@ -1,11 +1,27 @@
 import http from "node:http";
-import { readFileSync } from "node:fs";
 import { rows } from "./sauge-noire-fixture-data.mjs";
+import { buildFixtureDishSvg } from "./fixture-dish-images.mjs";
 
 const port = Number(process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE_PORT || 55434);
-const fixtureImage = readFileSync(
-  new URL("../../public/images/demo/dishes/maison-elyse-n1.png", import.meta.url)
-);
+function fixtureImageForPath(pathname) {
+  const storageMatch = decodeURIComponent(pathname).match(
+    /(restaurants\/[^/]+\/photos\/originals\/[^/?]+\.png)/
+  );
+  if (!storageMatch) return null;
+  const sourceKey = storageMatch[1];
+  const dish = rows.menu_dishes.find(
+    (candidate) => candidate.metadata?.photoStoragePath === sourceKey
+  );
+  if (!dish) return null;
+  const restaurant = rows.restaurants.find(
+    (candidate) => candidate.id === dish.restaurant_id
+  );
+  return buildFixtureDishSvg({
+    dishName: dish.name,
+    restaurantName: restaurant?.name ?? "Restaurant",
+    sourceKey
+  });
+}
 
 function matches(row, key, expected) {
   const value = row?.[key];
@@ -42,11 +58,17 @@ const server = http.createServer((request, response) => {
     return;
   }
   if (url.pathname.startsWith("/storage/v1/object/info/vistaire-media/")) {
+    const image = fixtureImageForPath(url.pathname);
+    if (!image) {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "fixture_photo_not_found" }));
+      return;
+    }
     response.writeHead(200, {
       "content-type": "application/json",
       "cache-control": "no-store"
     });
-    response.end(JSON.stringify({ id: "fixture-photo", size: fixtureImage.length }));
+    response.end(JSON.stringify({ id: "fixture-photo", size: image.length }));
     return;
   }
   if (
@@ -68,12 +90,18 @@ const server = http.createServer((request, response) => {
     url.pathname.startsWith("/storage/v1/object/sign/vistaire-media/") &&
     url.searchParams.get("token") === "fixture-photo-token"
   ) {
+    const image = fixtureImageForPath(url.pathname);
+    if (!image) {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "fixture_photo_not_found" }));
+      return;
+    }
     response.writeHead(200, {
-      "content-type": "image/png",
-      "content-length": fixtureImage.length,
+      "content-type": "image/svg+xml",
+      "content-length": image.length,
       "cache-control": "private, max-age=3600"
     });
-    response.end(fixtureImage);
+    response.end(image);
     return;
   }
   response.writeHead(404, { "content-type": "application/json" });

@@ -32,6 +32,7 @@ export function PublicDishImage({
   const [failedSources, setFailedSources] = useState<ReadonlySet<string>>(
     () => new Set()
   );
+  const [loadedSource, setLoadedSource] = useState("");
   const primarySrc = src?.trim() ?? "";
   const safeFallback = fallbackSrc?.trim() ?? "";
   const currentSrc =
@@ -40,6 +41,12 @@ export function PublicDishImage({
       : safeFallback && !failedSources.has(safeFallback)
         ? safeFallback
         : "";
+  const imageState =
+    loadedSource === currentSrc
+      ? currentSrc === primarySrc
+        ? "ready"
+        : "fallback"
+      : "loading";
 
   if (!currentSrc) {
     return (
@@ -56,15 +63,18 @@ export function PublicDishImage({
     <Image
       alt={alt}
       className={className}
-      data-image-state={currentSrc === primarySrc ? "ready" : "fallback"}
+      data-image-source={currentSrc}
+      data-image-state={imageState}
       data-public-dish-image=""
       fill
       onError={() => {
+        setLoadedSource("");
         setFailedSources((current) => {
           if (current.has(currentSrc)) return current;
           return new Set([...current, currentSrc]);
         });
       }}
+      onLoad={() => setLoadedSource(currentSrc)}
       priority={priority}
       quality={quality}
       sizes={sizes}
