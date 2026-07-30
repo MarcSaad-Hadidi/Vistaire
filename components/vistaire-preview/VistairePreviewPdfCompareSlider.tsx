@@ -121,9 +121,11 @@ function FeaturedDishPreview({ dish }: { dish: CompareDishPreview }) {
 }
 
 export function VistairePreviewMenuLayer({
-  preview
+  preview,
+  prioritizeFirstCategory = true
 }: {
   preview: PdfComparePreviewData;
+  prioritizeFirstCategory?: boolean;
 }) {
   const featuredDish = preview.featuredDish ?? preview.vistaireDishes[0];
   const presentation = preview.presentation ?? {
@@ -153,7 +155,7 @@ export function VistairePreviewMenuLayer({
           <CategoryPreviewCard
             category={category}
             key={category.id}
-            priority={index === 0}
+            priority={prioritizeFirstCategory && index === 0}
           />
         ))}
       </div>

@@ -13,6 +13,7 @@ import styles from "./VistairePdfToDigitalHoverReveal.module.css";
 type VistairePdfToDigitalHoverRevealProps = {
   preview: PdfComparePreviewData;
   locale?: Locale;
+  prioritizePreviewImages?: boolean;
   strings?: {
     caption: string;
     hint: string;
@@ -27,6 +28,7 @@ function clampPercent(value: number) {
 export function VistairePdfToDigitalHoverReveal({
   preview,
   locale = "fr",
+  prioritizePreviewImages = true,
   strings
 }: VistairePdfToDigitalHoverRevealProps) {
   const captionId = useId();
@@ -140,7 +142,10 @@ export function VistairePdfToDigitalHoverReveal({
             tabIndex={0}
           >
             <div className={styles.vistaireLayer} data-preview-digital-layer="true">
-              <VistairePreviewMenuLayer preview={preview} />
+              <VistairePreviewMenuLayer
+                preview={preview}
+                prioritizeFirstCategory={prioritizePreviewImages}
+              />
             </div>
             <div className={styles.pdfLayer} aria-hidden="true">
               <VistairePreviewPdfLayer

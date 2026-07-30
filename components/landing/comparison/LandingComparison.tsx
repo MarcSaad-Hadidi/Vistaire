@@ -124,6 +124,7 @@ export function LandingComparison({
             key={activeExperience.id}
             locale={locale}
             preview={activeExperience.preview}
+            prioritizePreviewImages={false}
             strings={{
               caption: copy.figureCaption,
               hint: copy.revealHint,

@@ -9,7 +9,7 @@ export function LandingValueSection({
   return (
     <section
       aria-labelledby="landing-value-title"
-      className={`${styles.section} ${styles.valueSection}`}
+      className={styles.section}
       id="fonctionnalites"
     >
       <div className={`${styles.sectionPanel} ${styles.valuePanel}`}>
