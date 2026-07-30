@@ -371,7 +371,7 @@ test("a permanent PageFlip error returns to the canonical reading surface", asyn
   );
   assert.match(
     experiment,
-    /onError=\{\(\) => \{[\s\S]*cancelAnimationFrame\(animationSourceClearFrameRef\.current\)[\s\S]*animationSourceScrollRef\.current = null;[\s\S]*setFailed\(true\)/
+    /onError=\{\(\) => \{[\s\S]*interruptedSingleFlipJump[\s\S]*cancelAnimationFrame\(singleFlipJumpFrameRef\.current\)[\s\S]*activeSingleFlipJumpRef\.current = null;[\s\S]*requestedPageIndexRef\.current = null;[\s\S]*animationTargetPageRef\.current = null;[\s\S]*onSingleFlipJumpSettledRef\.current\?\.\(interruptedSingleFlipJump\)[\s\S]*setFailed\(true\)/
   );
 });
 
@@ -489,6 +489,15 @@ test("page swipes can start on dish links without hijacking real controls", asyn
   assert.match(experiment, /event\.currentTarget\.setPointerCapture/);
   assert.match(experiment, /const SWIPE_DISTANCE = 44/);
   assert.match(experiment, /const FLICK_VELOCITY = 0\.3/);
+  assert.match(experiment, /const FLICK_RECENCY_MS = 160/);
+  assert.match(
+    experiment,
+    /gesture\.lastTime - gesture\.velocityTime <= FLICK_RECENCY_MS/
+  );
+  assert.match(
+    experiment,
+    /Math\.sign\(gesture\.velocityX\) === Math\.sign\(gesture\.deltaX\)/
+  );
   assert.match(experiment, /onClickCapture=\{handleClickCapture\}/);
   assert.match(experiment, /event\.detail === 0/);
   assert.match(experiment, /!event\.isTrusted/);

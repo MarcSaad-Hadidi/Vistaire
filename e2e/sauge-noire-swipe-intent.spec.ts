@@ -275,7 +275,7 @@ async function dispatchTouchPath(
   session: CDPSession,
   start: Point,
   offsets: readonly Point[],
-  options: { id: number; delayMs?: number }
+  options: { id: number; delayMs?: number; endDelayMs?: number }
 ) {
   const delayMs = options.delayMs ?? 24;
   const send = async (
@@ -308,7 +308,48 @@ async function dispatchTouchPath(
       y: start.y + offset.y
     });
   }
+  if (options.endDelayMs) {
+    await new Promise((resolve) => setTimeout(resolve, options.endDelayMs));
+  }
   await send("touchEnd");
+}
+
+async function dispatchGroupedSyntheticTouchSequence(page: Page, point: Point) {
+  await page.locator('[data-page-flip-state="ready"]').evaluate(
+    (target, start) => {
+      const first = new Touch({
+        identifier: 91,
+        target,
+        clientX: start.x,
+        clientY: start.y
+      });
+      const second = new Touch({
+        identifier: 92,
+        target,
+        clientX: start.x,
+        clientY: start.y + 36
+      });
+      target.dispatchEvent(
+        new TouchEvent("touchstart", {
+          bubbles: true,
+          cancelable: true,
+          touches: [first, second],
+          targetTouches: [first, second],
+          changedTouches: [first, second]
+        })
+      );
+      target.dispatchEvent(
+        new TouchEvent("touchend", {
+          bubbles: true,
+          cancelable: true,
+          touches: [],
+          targetTouches: [],
+          changedTouches: [first, second]
+        })
+      );
+    },
+    point
+  );
 }
 
 async function dispatchTwoFingerGesture(
@@ -379,6 +420,11 @@ const naturalRightSwipe = naturalLeftSwipe.map(({ x, y }) => ({
 const shortFlickLeft = [
   { x: -10, y: -2 },
   { x: -30, y: -4 }
+] as const;
+
+const reversedShortFlickLeft = [
+  { x: -38, y: -3 },
+  { x: -24, y: -3 }
 ] as const;
 
 const rejectedShortDrag = [
@@ -603,6 +649,67 @@ for (const viewport of [
           "2"
         );
         await expect(page).toHaveURL(/\/menu\/sauge-noire\?/);
+        const probe = await readSwipeProbe(page);
+        expect(probe.flippingEntries).toBe(0);
+        expect(probe.clicks.filter((click) => click.isTrusted)).toEqual([]);
+      } finally {
+        await session.detach();
+      }
+    });
+
+    test("a quick short nudge held in place is no longer a fresh flick", async ({
+      page
+    }) => {
+      await page.goto(menuPath("sauge-2"), {
+        waitUntil: "domcontentloaded"
+      });
+      const { owner } = await waitForReady(page);
+      const start = await centerOf(
+        owner.locator('[data-sauge-featured-dish="true"]')
+      );
+      const session = await createTouchSession(page);
+
+      try {
+        await resetSwipeProbe(page);
+        await dispatchTouchPath(session, start, shortFlickLeft, {
+          id: 33,
+          delayMs: 0,
+          endDelayMs: 600
+        });
+        await expect(page.locator('[data-testid="sauge-noire-book"]')).toHaveAttribute(
+          "data-page-index",
+          "2"
+        );
+        const probe = await readSwipeProbe(page);
+        expect(probe.flippingEntries).toBe(0);
+        expect(probe.clicks.filter((click) => click.isTrusted)).toEqual([]);
+      } finally {
+        await session.detach();
+      }
+    });
+
+    test("a short drag whose final velocity reverses is not a flick", async ({
+      page
+    }) => {
+      await page.goto(menuPath("sauge-2"), {
+        waitUntil: "domcontentloaded"
+      });
+      const { owner } = await waitForReady(page);
+      const start = await centerOf(
+        owner.locator('[data-sauge-featured-dish="true"]')
+      );
+      const session = await createTouchSession(page);
+
+      try {
+        await resetSwipeProbe(page);
+        await dispatchTouchPath(session, start, reversedShortFlickLeft, {
+          id: 34,
+          delayMs: 0
+        });
+        await expect(page.locator('[data-testid="sauge-noire-book"]')).toHaveAttribute(
+          "data-page-index",
+          "2"
+        );
         const probe = await readSwipeProbe(page);
         expect(probe.flippingEntries).toBe(0);
         expect(probe.clicks.filter((click) => click.isTrusted)).toEqual([]);
@@ -1053,7 +1160,7 @@ for (const viewport of [
       }
     });
 
-    test("multi-touch cancels cleanly and the next one-finger swipe still works", async ({
+    test("grouped and trusted multi-touch cancel cleanly before the next swipe", async ({
       page
     }) => {
       await page.goto(menuPath("sauge-2"), {
@@ -1068,6 +1175,7 @@ for (const viewport of [
 
       try {
         await resetSwipeProbe(page);
+        await dispatchGroupedSyntheticTouchSequence(page, first);
         await dispatchTwoFingerGesture(session, first, second);
         await expect(page.locator('[data-testid="sauge-noire-book"]')).toHaveAttribute(
           "data-page-index",

@@ -100,6 +100,7 @@ type GestureSession = {
   deltaX: number;
   deltaY: number;
   velocityX: number;
+  velocityTime: number;
   captured: boolean;
   consumed: boolean;
   suppressClick: boolean;
@@ -188,6 +189,7 @@ const VERTICAL_CLAIM_RATIO = 1.3;
 const SWIPE_DISTANCE = 44;
 const FLICK_DISTANCE = 24;
 const FLICK_VELOCITY = 0.3;
+const FLICK_RECENCY_MS = 160;
 const RESIZE_ROUNDING_NOISE_PX = 1;
 
 function parsePageIndex(event: PageFlipEvent | number): number | null {
@@ -241,6 +243,7 @@ function idleGesture(sequence = 0): GestureSession {
     deltaX: 0,
     deltaY: 0,
     velocityX: 0,
+    velocityTime: 0,
     captured: false,
     consumed: false,
     suppressClick: false,
@@ -258,6 +261,7 @@ function updateGestureSample(
   const sampleDuration = Math.max(1, timeStamp - gesture.lastTime);
   if (Math.abs(sampleDeltaX) > 0.5) {
     gesture.velocityX = sampleDeltaX / sampleDuration;
+    gesture.velocityTime = timeStamp;
   }
   gesture.lastX = x;
   gesture.lastY = y;
@@ -1186,9 +1190,16 @@ export function SaugeNoirePageFlipExperiment({
     const absY = Math.abs(gesture.deltaY);
     const hasHorizontalIntent = absX >= absY * HORIZONTAL_CLAIM_RATIO;
     const hasDistance = absX >= SWIPE_DISTANCE;
+    const hasFreshVelocity =
+      gesture.velocityTime > 0 &&
+      gesture.lastTime - gesture.velocityTime <= FLICK_RECENCY_MS;
+    const velocityMatchesDisplacement =
+      Math.sign(gesture.velocityX) === Math.sign(gesture.deltaX);
     const isFlick =
       absX >= FLICK_DISTANCE &&
-      Math.abs(gesture.velocityX) >= FLICK_VELOCITY;
+      Math.abs(gesture.velocityX) >= FLICK_VELOCITY &&
+      hasFreshVelocity &&
+      velocityMatchesDisplacement;
     if (!hasHorizontalIntent || (!hasDistance && !isFlick)) return;
 
     const pageFlip = bookRef.current?.pageFlip();
@@ -1372,8 +1383,23 @@ export function SaugeNoirePageFlipExperiment({
   const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
     consumedClickRef.current = null;
     const current = gestureRef.current;
-    if (event.touches.length !== 1 || current.phase !== "idle") {
+    if (event.touches.length !== 1) {
+      if (current.phase === "idle") {
+        gestureSequenceRef.current += 1;
+        gestureRef.current = {
+          ...idleGesture(gestureSequenceRef.current),
+          phase: "cancelled",
+          pointerType: "touch"
+        };
+      } else {
+        current.phase = "cancelled";
+        current.pointerType = "touch";
+      }
+      return;
+    }
+    if (current.phase !== "idle") {
       current.phase = "cancelled";
+      current.pointerType = "touch";
       return;
     }
     const touch = event.changedTouches[0];
@@ -1409,6 +1435,10 @@ export function SaugeNoirePageFlipExperiment({
 
   const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
     const gesture = gestureRef.current;
+    if (gesture.phase === "cancelled") {
+      if (event.touches.length === 0) resetGesture();
+      return;
+    }
     if (gesture.pointerType !== "touch" || gesture.phase === "idle") return;
     const touch = touchForGesture(
       event.changedTouches,
@@ -1430,7 +1460,7 @@ export function SaugeNoirePageFlipExperiment({
 
   const handleTouchCancel = () => {
     const gesture = gestureRef.current;
-    if (gesture.pointerType !== "touch") return;
+    if (gesture.phase === "idle") return;
     gesture.phase = "cancelled";
     consumedClickRef.current = null;
     resetGesture();
@@ -1520,8 +1550,21 @@ export function SaugeNoirePageFlipExperiment({
             <PageFlipErrorBoundary
               fallback={fallback}
               onError={() => {
+                const interruptedSingleFlipJump =
+                  activeSingleFlipJumpRef.current?.token ??
+                  singleFlipJumpRequest?.token ??
+                  null;
+                window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
                 window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+                activeSingleFlipJumpRef.current = null;
+                requestedPageIndexRef.current = null;
+                animationTargetPageRef.current = null;
                 animationSourceScrollRef.current = null;
+                setSingleFlipJumpPhase("completed");
+                if (interruptedSingleFlipJump !== null) {
+                  lastSingleFlipJumpTokenRef.current = interruptedSingleFlipJump;
+                  onSingleFlipJumpSettledRef.current?.(interruptedSingleFlipJump);
+                }
                 setFailed(true);
                 setReadyBookKey(null);
                 onError?.();

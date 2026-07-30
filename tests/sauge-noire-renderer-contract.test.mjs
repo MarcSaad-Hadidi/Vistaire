@@ -287,7 +287,14 @@ test("dish PageFlip gestures arbitrate intent and protect only explicit surfaces
   assert.match(experiment, /setPointerCapture/);
   assert.match(experiment, /onPointerMove=\{handlePointerMove\}/);
   assert.match(experiment, /onPointerCancel=\{cancelGesture\}/);
-  assert.match(experiment, /onTouchMove=\{handleTouchMove\}/);
+  assert.match(
+    experiment,
+    /addEventListener\("touchmove", handleTouchMove, \{[\s\S]*passive: false/
+  );
+  assert.match(
+    experiment,
+    /removeEventListener\("touchmove", handleTouchMove\)/
+  );
   assert.match(experiment, /isPageFlipProtectedTarget/);
   assert.match(experiment, /onSwipe\(direction\)/);
 });
