@@ -74,6 +74,9 @@ jobs:
       - name: Maison Elyse media tests
         run: npm run test:maison-elyse-media
 
+      - name: Landing renderer and image contracts
+        run: npm run test:landing:contract
+
       - name: Maison Elyse PostgreSQL 17 tests
         env:
           PGDATABASE: vistaire_qr_ci
@@ -100,6 +103,18 @@ jobs:
 
       - name: Install Playwright WebKit
         run: npx --no-install playwright install --with-deps webkit
+
+      - name: Landing production photo redirect
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:landing:production-photo
+
+      - name: Landing redesign critical browser checks
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:landing:e2e
 
       - name: Sauge Noire critical smoke
         timeout-minutes: 5
