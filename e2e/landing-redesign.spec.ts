@@ -192,7 +192,7 @@ test.describe("Vistaire landing redesign", () => {
     const experiences = page.getByTestId("landing-experiences");
     await expect(
       experiences.getByRole("link", { name: /Maison Élyse/ })
-    ).toHaveAttribute("href", "/demo");
+    ).toHaveAttribute("href", "/menu/maison-elyse?lang=fr-CA");
     await expect(
       experiences.getByRole("link", { name: /Maison Élyse/ })
     ).toHaveAttribute("target", "_blank");
@@ -225,7 +225,7 @@ test.describe("Vistaire landing redesign", () => {
     const englishExperiences = page.getByTestId("landing-experiences");
     await expect(
       englishExperiences.getByRole("link", { name: /Maison Élyse/ })
-    ).toHaveAttribute("href", "/en/vistaire-menu");
+    ).toHaveAttribute("href", "/menu/maison-elyse?lang=en-CA");
     await expect(
       englishExperiences.getByRole("link", { name: /Trouvable/ })
     ).toHaveAttribute("href", "/menu/trouvable?lang=en-CA");

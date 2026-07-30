@@ -29,7 +29,7 @@ export function LandingExperienceSection({
             <article className={styles.experienceCard} key={experience.id}>
               <Link
                 className={styles.experienceCardLink}
-                href={experience.href}
+                href={experience.menuHref}
                 prefetch={false}
                 rel="noopener noreferrer"
                 target="_blank"

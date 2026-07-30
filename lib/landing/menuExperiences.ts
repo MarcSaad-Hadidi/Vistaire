@@ -31,6 +31,7 @@ export type LandingExperience = {
   name: "Maison Élyse" | "Trouvable" | "Sauge Noire";
   label: string;
   href: string;
+  menuHref: string;
   image: string;
   imageAlt: string;
   imagePosition: string;
@@ -209,6 +210,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
           ? "Editorial and gastronomic"
           : "Éditoriale et gastronomique",
       href: locale === "en" ? "/en/vistaire-menu" : "/demo",
+      menuHref: buildPublicMenuPath("maison-elyse", { lang }),
       image: "/images/landing/maison-elyse-experience.jpg",
       imageAlt:
         locale === "en"
@@ -226,6 +228,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       label:
         locale === "en" ? "Modern and interactive" : "Moderne et interactive",
       href: buildPublicMenuPath("trouvable", { lang }),
+      menuHref: buildPublicMenuPath("trouvable", { lang }),
       image: "/images/landing/trouvable-experience.jpg",
       imageAlt:
         locale === "en"
@@ -251,6 +254,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
           ? "Distinctive and immersive"
           : "Signature et immersive",
       href: buildPublicMenuPath("sauge-noire", { lang }),
+      menuHref: buildPublicMenuPath("sauge-noire", { lang }),
       image: "/images/landing/sauge-noire-experience.jpg",
       imageAlt:
         locale === "en"
