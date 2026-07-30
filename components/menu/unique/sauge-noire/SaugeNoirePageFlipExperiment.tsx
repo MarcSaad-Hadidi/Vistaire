@@ -457,6 +457,7 @@ export function SaugeNoirePageFlipExperiment({
   } | null>(null);
   const animationSourceClearFrameRef = useRef(0);
   const flipPreparationTokenRef = useRef(0);
+  const preparedFlipLaunchFrameRef = useRef(0);
   const preparedPhysicalPageIndexesRef = useRef<Set<number>>(
     new Set([startPage])
   );
@@ -619,6 +620,8 @@ export function SaugeNoirePageFlipExperiment({
 
   const revealEngineForFlip = useCallback(
     async (sourcePageIndex: number, targetPageIndex: number) => {
+      window.cancelAnimationFrame(preparedFlipLaunchFrameRef.current);
+      preparedFlipLaunchFrameRef.current = 0;
       const preparationToken = ++flipPreparationTokenRef.current;
       const preparedBookKey = bookKey;
       if (hasReadingSurface) setMediaPreparing(true);
@@ -677,11 +680,34 @@ export function SaugeNoirePageFlipExperiment({
           }
           onPrepared?.();
           if (hasReadingSurface) setEngineState("flipping");
-          if (direction === "next") {
-            pageFlip.flipNext();
-          } else {
-            pageFlip.flipPrev();
-          }
+          const launchToken = flipPreparationTokenRef.current;
+          preparedFlipLaunchFrameRef.current = window.requestAnimationFrame(() => {
+            preparedFlipLaunchFrameRef.current = window.requestAnimationFrame(() => {
+              preparedFlipLaunchFrameRef.current = 0;
+              const pageFlip = bookRef.current?.pageFlip();
+              if (
+                launchToken !== flipPreparationTokenRef.current ||
+                readyBookKeyRef.current !== preparedBookKey ||
+                !pageFlip ||
+                pageFlip.getState() !== "read" ||
+                pageFlip.getCurrentPageIndex() !== sourcePageIndex
+              ) {
+                if (
+                  hasReadingSurface &&
+                  launchToken === flipPreparationTokenRef.current &&
+                  readyBookKeyRef.current === preparedBookKey
+                ) {
+                  setEngineState("read");
+                }
+                return;
+              }
+              if (direction === "next") {
+                pageFlip.flipNext();
+              } else {
+                pageFlip.flipPrev();
+              }
+            });
+          });
         }
       );
     },
@@ -1153,6 +1179,7 @@ export function SaugeNoirePageFlipExperiment({
       const pageFlip = activeBookRef.current?.pageFlip();
       window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      window.cancelAnimationFrame(preparedFlipLaunchFrameRef.current);
       flipPreparationTokenRef.current += 1;
       activeSingleFlipJumpRef.current = null;
       if (!pageFlip) return;

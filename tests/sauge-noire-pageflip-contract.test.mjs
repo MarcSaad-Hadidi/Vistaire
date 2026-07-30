@@ -272,6 +272,15 @@ test("a target sheet decodes its leading photo before the physical flip starts",
   assert.match(experiment, /startPreparedFlip\(/);
   assert.match(experiment, /const \[mediaPreparing, setMediaPreparing\] = useState\(false\)/);
   assert.match(experiment, /readyBookKeyRef\.current !== preparedBookKey/);
+  assert.match(experiment, /const preparedFlipLaunchFrameRef = useRef\(0\)/);
+  assert.match(
+    experiment,
+    /preparedFlipLaunchFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{[\s\S]*preparedFlipLaunchFrameRef\.current = window\.requestAnimationFrame/
+  );
+  assert.match(
+    experiment,
+    /window\.cancelAnimationFrame\(preparedFlipLaunchFrameRef\.current\)/
+  );
   assert.match(experiment, /flipPreparationTokenRef\.current \+= 1;[\s\S]*setMediaPreparing\(false\);[\s\S]*turnToPage/);
   assert.match(experiment, /const applyRecenter = \(\) =>/);
   assert.match(experiment, /pageFlip\.getState\(\) !== "read"[\s\S]*requestAnimationFrame\(applyRecenter\)/);
@@ -412,22 +421,45 @@ test("multi-page contents jumps keep animating until the requested page", async 
 });
 
 test("the Sauge browser fixture provides versioned public dish photos", async () => {
-  const { restaurantId, rows } = await import(
+  const {
+    maisonFixture,
+    restaurantId,
+    saugeNoireFixture,
+    trouvableFixture
+  } = await import(
     "../e2e/support/sauge-noire-fixture-data.mjs"
   );
-  const saugeDishes = rows.menu_dishes.filter(
-    (dish) => dish.restaurant_id === restaurantId
+  const { fixtureDishSha256 } = await import(
+    "../e2e/support/fixture-dish-images.mjs"
   );
+  const saugeDishes = saugeNoireFixture.menu_dishes;
 
   assert.equal(saugeDishes.length, 36);
+  assert.equal(maisonFixture.menu_dishes.length, 1);
+  assert.equal(trouvableFixture.menu_dishes.length, 1);
   assert.equal(saugeDishes[1].slug, "betterave-sous-la-cendre");
   assert.ok(
-    saugeDishes.every((dish) =>
-      typeof dish.image_url === "string" &&
-      dish.image_url === `/api/public/menu-dishes/${dish.id}/photo` &&
-      dish.metadata?.photoStatus === "ready" &&
-      /^[0-9a-f]{64}$/i.test(dish.metadata?.photoSha256 ?? "")
-    )
+    !trouvableFixture.menu_dishes[0].image_url.includes("maison-elyse")
+  );
+  assert.ok(
+    !trouvableFixture.menu_dishes[0].image_url.includes("sauge-noire")
+  );
+  assert.ok(
+    saugeDishes.every((dish) => {
+      const photoStoragePath = dish.metadata?.photoStoragePath ?? "";
+      return (
+        dish.restaurant_id === restaurantId &&
+        typeof dish.image_url === "string" &&
+        dish.image_url === `/api/public/menu-dishes/${dish.id}/photo` &&
+        dish.metadata?.photoStatus === "ready" &&
+        dish.metadata?.photoSha256 ===
+          fixtureDishSha256({
+            dishName: dish.name,
+            restaurantName: "Sauge Noire",
+            sourceKey: photoStoragePath
+          })
+      );
+    })
   );
 });
 
