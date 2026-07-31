@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Locale } from "@/lib/i18n";
 import {
   getLandingMenuPreviewPayload,
-  isLandingExperienceId
+  isLandingExperienceId,
+  LandingMenuPreviewError
 } from "@/lib/landing/menuExperiences";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,13 @@ export async function GET(
   const locale = requestedLocale(request);
   if (!isLandingExperienceId(experienceId) || !locale) {
     return NextResponse.json(
-      { ok: false, error: "Invalid landing menu preview request." },
+      {
+        ok: false,
+        error: {
+          code: "invalid_landing_menu_preview_request",
+          message: "Invalid landing menu preview request."
+        }
+      },
       { status: 400, headers: { "Cache-Control": "private, no-store" } }
     );
   }
@@ -35,13 +42,38 @@ export async function GET(
   try {
     payload = await getLandingMenuPreviewPayload(experienceId, locale);
   } catch (error) {
+    if (error instanceof LandingMenuPreviewError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details
+          }
+        },
+        {
+          status: error.status,
+          headers: {
+            ...RESPONSE_HEADERS,
+            "Cache-Control": "private, no-store"
+          }
+        }
+      );
+    }
     console.error("Landing menu preview resolution failed.", {
       error,
       experienceId,
       locale
     });
     return NextResponse.json(
-      { ok: false, error: "Landing menu preview temporarily unavailable." },
+      {
+        ok: false,
+        error: {
+          code: "landing_menu_preview_temporarily_unavailable",
+          message: "Landing menu preview temporarily unavailable."
+        }
+      },
       {
         status: 503,
         headers: {
@@ -53,7 +85,13 @@ export async function GET(
   }
   if (!payload) {
     return NextResponse.json(
-      { ok: false, error: "Landing menu preview unavailable." },
+      {
+        ok: false,
+        error: {
+          code: "landing_menu_preview_unavailable",
+          message: "Landing menu preview unavailable."
+        }
+      },
       { status: 404, headers: { "Cache-Control": "private, no-store" } }
     );
   }

@@ -446,3 +446,57 @@ test("concurrent French and English landing resolution stays isolated per restau
     );
   }
 });
+
+test("landing preview rejects an effective French fallback for an English request", async () => {
+  const { assertLandingMenuPreviewReady } = await import(
+    "../lib/landing/menuExperiences.ts"
+  );
+
+  assert.throws(
+    () =>
+      assertLandingMenuPreviewReady(
+        {
+          locale: "fr",
+          publicLocale: "fr-CA",
+          query: { lang: "fr-CA" },
+          menu: {
+            activeLocale: "fr-CA",
+            translationStatus: { locale: "fr-CA", status: "source" },
+            dishes: [{ id: "dish-1" }]
+          }
+        },
+        "en"
+      ),
+    (error) => {
+      assert.equal(error.code, "landing_locale_mismatch");
+      assert.deepEqual(error.details, {
+        requestedLocale: "en",
+        expectedPublicLocale: "en-CA",
+        actualPublicLocale: "fr-CA",
+        actualActiveLocale: "fr-CA",
+        queryLang: "fr-CA"
+      });
+      return true;
+    }
+  );
+});
+
+test("landing fallback catch is limited to readiness failures and endpoint errors stay structured", () => {
+  const landingSource = readFileSync(
+    "lib/landing/menuExperiences.ts",
+    "utf8"
+  );
+  const endpointSource = readFileSync(
+    "app/api/public/landing-menu-preview/[experienceId]/route.ts",
+    "utf8"
+  );
+
+  assert.match(
+    landingSource,
+    /catch \(error\) \{[\s\S]{0,180}error instanceof LandingMenuPreviewError[\s\S]{0,100}return experience/
+  );
+  assert.doesNotMatch(landingSource, /catch \{\s*return experience/);
+  assert.match(endpointSource, /LandingMenuPreviewError/);
+  assert.match(endpointSource, /code: "landing_menu_preview_unavailable"/);
+  assert.match(endpointSource, /code: error\.code/);
+});

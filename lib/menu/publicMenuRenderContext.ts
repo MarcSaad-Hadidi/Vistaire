@@ -69,6 +69,23 @@ async function resolvePublicMenuBaseRenderContext({
     initialMenu.settings
   );
   const locale = publicLocaleToShortLocale(publicLocale);
+  const menu: PublicMenu = {
+    ...initialMenu,
+    ...(initialMenu.activeLocale
+      ? {}
+      : { activeLocale: publicLocale }),
+    ...(initialMenu.translationStatus || initialMenu.source !== "demo"
+      ? {}
+      : {
+          translationStatus: {
+            locale: publicLocale,
+            status:
+              publicLocale === initialMenu.settings.defaultLocale
+                ? "source"
+                : "up_to_date"
+          }
+        })
+  };
   const context = [
     query.table ? `Table ${query.table}` : "",
     query.zone ? `Zone ${query.zone}` : ""
@@ -98,7 +115,7 @@ async function resolvePublicMenuBaseRenderContext({
   });
 
   return {
-    menu: initialMenu,
+    menu,
     config,
     context,
     query: {

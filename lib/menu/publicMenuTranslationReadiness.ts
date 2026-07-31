@@ -57,7 +57,7 @@ function missingTranslatedFieldReason(
 
 function rowHasUsablePublicTranslationStatus(row: AnyRow): boolean {
   const status = stringInput(row.translation_status);
-  return status === "up_to_date" || status === "stale";
+  return status === "up_to_date";
 }
 
 export function storedTranslationFieldMatches(

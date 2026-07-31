@@ -70,6 +70,71 @@ export type LandingMenuPreviewPayload =
       rendererVersion: number;
     });
 
+export type LandingMenuPreviewErrorCode =
+  | "landing_locale_mismatch"
+  | "landing_translation_not_ready";
+
+export class LandingMenuPreviewError extends Error {
+  readonly status = 424;
+
+  constructor(
+    readonly code: LandingMenuPreviewErrorCode,
+    message: string,
+    readonly details: Record<string, string>
+  ) {
+    super(message);
+    this.name = "LandingMenuPreviewError";
+  }
+}
+
+export function assertLandingMenuPreviewReady(
+  context: Pick<
+    PublicMenuRenderContext,
+    "locale" | "publicLocale" | "query" | "menu"
+  >,
+  requestedLocale: Locale
+): void {
+  const expectedPublicLocale = LOCALE_LANGUAGE_TAG[requestedLocale];
+  const actualActiveLocale = context.menu.activeLocale ?? "";
+  const queryLang = context.query.lang ?? "";
+
+  if (
+    context.locale !== requestedLocale ||
+    context.publicLocale !== expectedPublicLocale ||
+    actualActiveLocale !== expectedPublicLocale ||
+    queryLang !== expectedPublicLocale
+  ) {
+    throw new LandingMenuPreviewError(
+      "landing_locale_mismatch",
+      `Landing menu preview resolved ${context.publicLocale} instead of ${expectedPublicLocale}.`,
+      {
+        requestedLocale,
+        expectedPublicLocale,
+        actualPublicLocale: context.publicLocale,
+        actualActiveLocale,
+        queryLang
+      }
+    );
+  }
+
+  const status = context.menu.translationStatus?.status;
+  const isReady =
+    requestedLocale === "fr"
+      ? status === "source" || status === "up_to_date"
+      : status === "up_to_date";
+  if (!isReady) {
+    throw new LandingMenuPreviewError(
+      "landing_translation_not_ready",
+      `Landing menu preview translation is not ready for ${expectedPublicLocale}.`,
+      {
+        requestedLocale,
+        expectedPublicLocale,
+        translationStatus: status ?? "missing"
+      }
+    );
+  }
+}
+
 export type LandingExperience = {
   id: LandingExperienceId;
   menuSlug: LandingExperienceId;
@@ -373,6 +438,7 @@ function landingRenderPayload(
   context: PublicMenuRenderContext,
   comparison: PdfComparePreviewData
 ): LandingMenuPreviewPayload | null {
+  assertLandingMenuPreviewReady(context, context.locale);
   if (context.menu.slug !== experience.menuSlug) {
     throw new Error(
       `Landing experience ${experience.id} resolved the wrong menu: ${context.menu.slug}`
@@ -455,6 +521,7 @@ async function buildLandingExperiences(
           }
         });
         if (!renderContext?.menu.dishes.length) return experience;
+        assertLandingMenuPreviewReady(renderContext, locale);
         const menu = renderContext.menu;
         const current = buildCurrentPublicMenuPreview({
           locale,
@@ -510,8 +577,9 @@ async function buildLandingExperiences(
             imagePosition: "center"
           }
         };
-      } catch {
-        return experience;
+      } catch (error) {
+        if (error instanceof LandingMenuPreviewError) return experience;
+        throw error;
       }
     })
   );
@@ -579,6 +647,7 @@ async function buildLandingMenuPreviewPayload(
     }
   });
   if (!renderContext?.menu.dishes.length) return null;
+  assertLandingMenuPreviewReady(renderContext, locale);
 
   const current = buildCurrentPublicMenuPreview({
     locale,

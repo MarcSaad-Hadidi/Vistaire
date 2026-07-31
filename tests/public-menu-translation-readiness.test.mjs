@@ -204,6 +204,53 @@ test("stored translation rows require translated content for every source field"
   );
 });
 
+test("public readiness does not promote stale rows even when their fields are complete", () => {
+  const staleRow = rowFor(
+    "de-DE",
+    "dish_id",
+    dish.id,
+    dishFields,
+    {
+      name: "Montrealer Smoked-Meat-Sandwich",
+      description:
+        "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
+      ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
+      allergens: ["Weizen/Roggen", "Senf"],
+      options: ["Extra Smoked Meat", "Senf separat"],
+      houseNote:
+        "Eine direkte Anspielung auf Montrealer Klassiker, warm serviert und grosszugig geschnitten.",
+      tags: ["Empfehlung", "Hausbeilage"]
+    },
+    { translation_status: "stale" }
+  );
+
+  assert.equal(storedTranslationRowMatchesFields(staleRow, dishFields), false);
+
+  const statuses = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    categoryRows: [
+      rowFor("de-DE", "category_id", "sandwichs", categoryFields, {
+        name: "Sandwiches",
+        description: "Warme Klassiker"
+      })
+    ],
+    dishRows: [staleRow]
+  });
+
+  assert.deepEqual(
+    statuses.find((status) => status.locale === "de-DE"),
+    {
+      locale: "de-DE",
+      status: "stale",
+      reason: "row status stale",
+      entityType: "dish",
+      entityId: dish.id,
+      entityLabel: dish.name,
+      field: "name"
+    }
+  );
+});
+
 test("public readiness accepts field-complete rows with stale aggregate hashes only", () => {
   assert.equal(
     storedTranslationRowMatchesFields(
