@@ -30,6 +30,7 @@ export function LandingComparison({
 }) {
   const instanceId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const initialRenderRef = useRef(true);
   const [activeId, setActiveId] =
     useState<LandingExperienceId>("maison-elyse");
   const [previewPayloads, setPreviewPayloads] = useState<
@@ -53,7 +54,10 @@ export function LandingComparison({
   const activePreview = activePayload?.comparison ?? activeExperience.preview;
 
   useEffect(() => {
+    const isInitialRender = initialRenderRef.current;
+    initialRenderRef.current = false;
     if (activePayload !== undefined) return;
+    if (isInitialRender && !activeExperience.renderPayload) return;
 
     const controller = new AbortController();
     const params = new URLSearchParams({ locale });
@@ -102,7 +106,13 @@ export function LandingComparison({
       });
 
     return () => controller.abort();
-  }, [activeExperience.id, activePayload, activePayloadKey, locale]);
+  }, [
+    activeExperience.id,
+    activeExperience.renderPayload,
+    activePayload,
+    activePayloadKey,
+    locale
+  ]);
 
   const activate = (index: number, focus = false) => {
     const normalizedIndex =
