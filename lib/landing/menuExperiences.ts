@@ -57,6 +57,15 @@ type LandingPreviewBase = {
   menuUi: LandingMenuUiPreview;
 };
 
+const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
+  maisonElyse:
+    "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo",
+  trouvable:
+    "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo",
+  saugeNoire:
+    "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo"
+});
+
 export type LandingMenuPreviewPayload =
   | (LandingPreviewBase & {
       kind: "maison-elyse";
@@ -277,23 +286,24 @@ function fallbackPreview({
 function fallbackExperiences(locale: Locale): LandingExperience[] {
   const lang = LOCALE_LANGUAGE_TAG[locale];
   const maisonDish: LandingFeaturedDish = {
+    id: "fd64dc12-8bd2-4669-be63-51cf0d50b839",
     slug: "ravioles-de-chevre-frais-miel-de-monteregie",
     name:
       locale === "en"
-        ? "Fresh goat cheese ravioli & Montérégie honey"
+        ? "Fresh Goat Cheese Ravioli & Montérégie Honey"
         : "Ravioles de chèvre frais & miel de Montérégie",
     description:
       locale === "en"
-        ? "Open the current dish page in the Maison Élyse menu."
-        : "Ouvrez la fiche actuelle dans la carte Maison Élyse.",
-    price: "",
+        ? "Delicate, tender ravioli balanced by the sweetness of honey and the woodland notes of burnt rosemary."
+        : "De délicates ravioles fondantes au chèvre frais, équilibrées par la douceur du miel et les notes boisées du romarin brûlé.",
+    price: "$34",
     href: toLandingPublicMenuHref(buildPublicDishPath(
       "maison-elyse",
       "ravioles-de-chevre-frais-miel-de-monteregie",
       { lang }
     )),
-    image: "",
-    imageSource: "unavailable",
+    image: LANDING_FALLBACK_DISH_PHOTOS.maisonElyse,
+    imageSource: "imageUrl",
     imageAlt:
       locale === "en"
         ? "Fresh goat cheese ravioli from Maison Élyse"
@@ -301,18 +311,20 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     imagePosition: "center"
   };
   const trouvableDish: LandingFeaturedDish = {
+    id: "7a312411-975a-4a12-9e74-d435a7c83406",
     slug: "pesto-burrata-verde",
-    name: "Pesto Burrata Verde",
+    name:
+      locale === "en" ? "Green Pesto Burrata" : "Pesto Burrata Verde",
     description:
       locale === "en"
-        ? "Open the current dish page in the Trouvable menu."
-        : "Ouvrez la fiche actuelle dans la carte Trouvable.",
-    price: "",
+        ? "Basil pesto pasta, creamy burrata, Parmesan, and a drizzle of olive oil."
+        : "Pâtes au pesto de basilic, burrata crémeuse, parmesan et filet d’huile d’olive.",
+    price: "$24.99",
     href: toLandingPublicMenuHref(
       buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang })
     ),
-    image: "",
-    imageSource: "unavailable",
+    image: LANDING_FALLBACK_DISH_PHOTOS.trouvable,
+    imageSource: "imageUrl",
     imageAlt:
       locale === "en"
         ? "Pesto Burrata Verde from Trouvable"
@@ -320,21 +332,23 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     imagePosition: "center"
   };
   const saugeDish: LandingFeaturedDish = {
+    id: "cb7121a7-a8df-4650-8453-df83135defeb",
     slug: "betterave-sous-la-cendre",
-    name: locale === "en" ? "Beetroot under ash" : "Betterave sous la cendre",
+    name:
+      locale === "en" ? "Beetroot Under Ash" : "Betterave sous la cendre",
     description:
       locale === "en"
-        ? "Open the current dish page in the Sauge Noire menu."
-        : "Ouvrez la fiche actuelle dans la carte Sauge Noire.",
-    price: "",
+        ? "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
+        : "La betterave cuite sous la cendre est accompagnée de labneh fumé, de cassis, de pistache et d’un vinaigre de framboise.",
+    price: "$16",
     href: toLandingPublicMenuHref(
       buildPublicDishPath("sauge-noire", "betterave-sous-la-cendre", {
         lang,
         view: "sauge-2"
       })
     ),
-    image: "",
-    imageSource: "unavailable",
+    image: LANDING_FALLBACK_DISH_PHOTOS.saugeNoire,
+    imageSource: "imageUrl",
     imageAlt:
       locale === "en"
         ? "Beetroot under ash from Sauge Noire"
@@ -545,14 +559,20 @@ async function buildLandingExperiences(
           };
         }
         const dish = current.featuredDish;
-        const image = dish.imageUrl || dish.thumbnailUrl || dish.posterUrl || "";
+        const image =
+          dish.imageUrl ||
+          dish.thumbnailUrl ||
+          dish.posterUrl ||
+          experience.featuredDish.image;
         const imageSource: LandingFeaturedDish["imageSource"] = dish.imageUrl
           ? "imageUrl"
           : dish.thumbnailUrl
             ? "thumbnailUrl"
             : dish.posterUrl
               ? "posterUrl"
-              : "unavailable";
+              : experience.featuredDish.image
+                ? "fallback"
+                : "unavailable";
 
         return {
           ...experience,
@@ -617,13 +637,13 @@ async function buildLandingExperiences(
 
 const getCachedFrenchLandingExperiences = unstable_cache(
   () => buildLandingExperiences("fr"),
-  ["landing-menu-experiences-fr-v5"],
+  ["landing-menu-experiences-fr-v6"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingExperiences = unstable_cache(
   () => buildLandingExperiences("en"),
-  ["landing-menu-experiences-en-v5"],
+  ["landing-menu-experiences-en-v6"],
   { revalidate: 60 }
 );
 
@@ -668,14 +688,14 @@ async function buildLandingMenuPreviewPayload(
 const getCachedFrenchLandingMenuPreviewPayload = unstable_cache(
   (experienceId: LandingExperienceId) =>
     buildLandingMenuPreviewPayload(experienceId, "fr"),
-  ["landing-menu-preview-payload-fr-v4"],
+  ["landing-menu-preview-payload-fr-v5"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingMenuPreviewPayload = unstable_cache(
   (experienceId: LandingExperienceId) =>
     buildLandingMenuPreviewPayload(experienceId, "en"),
-  ["landing-menu-preview-payload-en-v4"],
+  ["landing-menu-preview-payload-en-v5"],
   { revalidate: 60 }
 );
 

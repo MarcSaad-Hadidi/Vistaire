@@ -73,10 +73,9 @@ export function LandingComparison({
   const activePayload = previewPayloads[activePayloadKey];
   const activePreview =
     activePayload?.comparison ??
-    pendingPreview(
-      activeExperience,
-      activePayload === null ? copy.unavailableStatus : copy.loadingStatus
-    );
+    (activePayload === null
+      ? activeExperience.preview
+      : pendingPreview(activeExperience, copy.loadingStatus));
 
   useEffect(() => {
     if (activePayload !== undefined) return;
@@ -190,12 +189,13 @@ export function LandingComparison({
         activePayload === undefined
           ? "loading"
           : activePayload === null
-            ? "unavailable"
+            ? "fallback"
             : "ready"
       }
       data-testid="landing-comparison"
       data-translation-status={
-        activePayload?.menuUi.menu.translationStatus?.status ?? "unknown"
+        activePayload?.menuUi.menu.translationStatus?.status ??
+        (activePayload === null ? "fallback" : "unknown")
       }
       style={{ transitionDuration: "var(--landing-transition-duration, 180ms)" }}
     >
@@ -243,6 +243,7 @@ export function LandingComparison({
             digitalLayer={
               <LandingActiveMenuPreview
                 copy={copy}
+                fallbackPreview={activeExperience.preview}
                 key={activeExperience.id}
                 locale={locale}
                 menuSlug={activeExperience.menuSlug}

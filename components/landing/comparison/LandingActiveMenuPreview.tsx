@@ -7,6 +7,8 @@ import {
   type LandingCopy
 } from "@/lib/landing/landingCopy";
 import type { LandingMenuPreviewPayload } from "@/lib/landing/menuExperiences";
+import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
+import { VistairePreviewMenuLayer } from "@/components/vistaire-preview/VistairePreviewPdfCompareSlider";
 import styles from "./LandingActiveMenuPreview.module.css";
 
 const MaisonElyseComparisonPreview = dynamic(
@@ -43,11 +45,13 @@ function PreviewLoading() {
 
 export function LandingActiveMenuPreview({
   copy,
+  fallbackPreview,
   locale,
   payload,
   menuSlug
 }: {
   copy: LandingCopy["comparison"];
+  fallbackPreview: PdfComparePreviewData;
   locale: Locale;
   payload: LandingMenuPreviewPayload | null | undefined;
   menuSlug: string;
@@ -72,18 +76,22 @@ export function LandingActiveMenuPreview({
   if (!payload) {
     return (
       <div
-        aria-live="polite"
-        className={styles.unavailable}
+        aria-label={formatLandingCopyTemplate(copy.digitalRegionLabel, {
+          restaurantName: fallbackPreview.restaurant.name
+        })}
+        className={styles.rendererShell}
+        data-comparison-scroll-root="digital"
+        data-fallback-menu-renderer={menuSlug}
         data-menu-active-locale={LOCALE_LANGUAGE_TAG[locale]}
         data-menu-slug={menuSlug}
         data-preview-locale={LOCALE_LANGUAGE_TAG[locale]}
-        data-preview-status="unavailable"
-        data-public-menu-renderer="unavailable"
-        data-translation-status="unavailable"
+        data-preview-status="fallback"
+        data-translation-status="fallback"
         lang={LOCALE_LANGUAGE_TAG[locale]}
-        role="status"
+        role="region"
+        tabIndex={0}
       >
-        {copy.unavailableStatus}
+        <VistairePreviewMenuLayer preview={fallbackPreview} />
       </div>
     );
   }

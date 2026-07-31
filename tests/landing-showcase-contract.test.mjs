@@ -381,10 +381,10 @@ test("Next landing caches isolate French and English payloads structurally", asy
   const landingData = await source("lib/landing/menuExperiences.ts");
 
   for (const key of [
-    "landing-menu-experiences-fr-v5",
-    "landing-menu-experiences-en-v5",
-    "landing-menu-preview-payload-fr-v4",
-    "landing-menu-preview-payload-en-v4"
+    "landing-menu-experiences-fr-v6",
+    "landing-menu-experiences-en-v6",
+    "landing-menu-preview-payload-fr-v5",
+    "landing-menu-preview-payload-en-v5"
   ]) {
     assert.match(landingData, new RegExp(key));
   }
@@ -423,7 +423,35 @@ test("landing dish cards use current public-menu detail routes", async () => {
   assert.match(section, /data-dish-id/);
   assert.match(section, /data-image-source/);
   assert.match(section, /lang=\{LOCALE_LANGUAGE_TAG\[locale\]\}/);
-  assert.match(section, /fallbackSrc=\{experience\.image\}/);
+  assert.doesNotMatch(section, /fallbackSrc=\{experience\.image\}/);
+});
+
+test("landing fallback cards keep the real dish photos and localized descriptions", async () => {
+  const data = await source("lib/landing/menuExperiences.ts");
+
+  for (const photoId of [
+    "fd64dc12-8bd2-4669-be63-51cf0d50b839",
+    "7a312411-975a-4a12-9e74-d435a7c83406",
+    "cb7121a7-a8df-4650-8453-df83135defeb"
+  ]) {
+    assert.match(
+      data,
+      new RegExp(`/api/public/menu-dishes/${photoId}/photo`)
+    );
+  }
+
+  for (const copy of [
+    "Delicate, tender ravioli",
+    "Basil pesto pasta",
+    "Ash-roasted beetroot"
+  ]) {
+    assert.match(data, new RegExp(copy));
+  }
+
+  assert.doesNotMatch(
+    data,
+    /Open the current dish page|Ouvrez la fiche actuelle/
+  );
 });
 
 test("landing comparison projects complete available menu data without arbitrary slices", async () => {
@@ -489,10 +517,10 @@ test("landing dish photos keep versioned public routes compatible with Next Imag
     ),
     "versioned public dish photo URLs must be allowed without weakening every local image query"
   );
-  assert.doesNotMatch(
+  assert.match(
     data,
-    /\/api\/public\/menu-dishes\/[0-9a-f-]{36}\/photo["']/i,
-    "landing fallbacks must not fabricate an unversioned canonical photo route"
+    /LANDING_FALLBACK_DISH_PHOTOS/,
+    "landing fallbacks must use the verified canonical photo routes"
   );
 });
 
