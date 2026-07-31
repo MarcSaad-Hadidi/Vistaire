@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   CANONICAL_DISHES,
   CANONICAL_SECTIONS,
@@ -48,7 +49,11 @@ const dish = ({
   isSignature = false,
   webModel3dUrl = "",
   imageUrl = "",
-  metadata = {}
+  metadata = {},
+  ingredients = ["Produit de saison", "Herbes fraîches"],
+  allergens = [],
+  options = ["À confirmer avec l'équipe en salle"],
+  houseNote = ""
 }) => ({
   id,
   restaurant_id: restaurantId,
@@ -63,8 +68,10 @@ const dish = ({
   base_currency: "CAD",
   is_available: true,
   is_signature: isSignature,
-  ingredients: ["Produit de saison", "Herbes fraîches"],
-  options: ["À confirmer avec l'équipe en salle"],
+  ingredients,
+  allergens,
+  options,
+  house_note: houseNote,
   tags: isSignature ? ["Signature"] : [],
   image_url: imageUrl,
   metadata,
@@ -102,10 +109,198 @@ const canonicalDishes = CANONICAL_DISHES.map((item, index) => {
       photoStorageBucket: "vistaire-media",
       photoStoragePath
     },
+    ...(index === 1
+      ? {
+          ingredients: item.ingredients,
+          allergens: item.allergensContains,
+          options: item.options,
+          houseNote: item.chefNote
+        }
+      : {}),
     isSignature: item.badges.includes("Signature"),
     webModel3dUrl: ""
   });
 });
+
+const SAUGE_ENGLISH_CATEGORY_COPY = [
+  {
+    name: "First bites",
+    description: "Small plates, bites, and opening seasonal flavors to share."
+  },
+  {
+    name: "Raw & fresh",
+    description: "Seafood, raw preparations, and bright fresh compositions."
+  },
+  {
+    name: "From the fire",
+    description: "Meat, fish, and vegetables cooked over embers or flame."
+  },
+  {
+    name: "Earth & grains",
+    description: "Generous grains, vegetables, pasta, and plant-forward plates."
+  },
+  {
+    name: "Sides & desserts",
+    description: "House accompaniments and sweet creations."
+  },
+  {
+    name: "Signature cocktails",
+    description: "Original cocktails inspired by sage, fire, and the seasons."
+  },
+  {
+    name: "Alcohol-free",
+    description: "Fresh, layered creations without alcohol."
+  }
+];
+
+const SAUGE_ENGLISH_DISH_NAMES = [
+  "Warm rye bread",
+  "Beetroot under ash",
+  "Duck confit croquette",
+  "Braised pointed cabbage",
+  "Warm kombu oysters",
+  "Laurentian trout",
+  "Hamachi with verbena",
+  "Hand-cut raw beef",
+  "Snow crab",
+  "Black maple duck",
+  "Roasted halibut with nori",
+  "Quebec pork chop",
+  "Grilled lamb with sumac",
+  "Grain-fed chicken with preserved lemon",
+  "Charcoal-roasted squash",
+  "Woodland pearl barley",
+  "Parsnip gnocchi",
+  "Smoked white polenta",
+  "Creamy spelt",
+  "Pressed potatoes",
+  "Flame-seared green beans",
+  "Fresh herb salad",
+  "Smoked chocolate",
+  "Long pepper apple",
+  "Corn parfait",
+  "Citrus with Thai basil",
+  "Quebec cheeses",
+  "Sage 75",
+  "Bark",
+  "Pink ash",
+  "Woodland edge",
+  "Amber night",
+  "Cold orchard",
+  "Salt garden",
+  "Wintergreen tea",
+  "Charred lemon"
+];
+
+function sortTranslationValue(value) {
+  if (Array.isArray(value)) return value.map(sortTranslationValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => [key, sortTranslationValue(child)])
+  );
+}
+
+function hashTranslationValue(value) {
+  return createHash("sha256")
+    .update(JSON.stringify(sortTranslationValue(value)))
+    .digest("hex");
+}
+
+function fieldHashesFor(fields) {
+  return Object.fromEntries(
+    Object.entries(fields).map(([field, value]) => [
+      field,
+      hashTranslationValue(value)
+    ])
+  );
+}
+
+function sourceHashFor(fields) {
+  return hashTranslationValue(fields);
+}
+
+function capitalizeFixtureListItems(items) {
+  return items.map((value) => {
+    const item = value.trim();
+    const firstLetterIndex = item.search(/\p{L}/u);
+    if (firstLetterIndex < 0) return item;
+    return (
+      item.slice(0, firstLetterIndex) +
+      item[firstLetterIndex].toLocaleUpperCase("fr-CA") +
+      item.slice(firstLetterIndex + 1)
+    );
+  });
+}
+
+function fixtureDishTranslationFields(dishRow) {
+  return {
+    name: dishRow.name,
+    ...(dishRow.description ? { description: dishRow.description } : {}),
+    ...(dishRow.ingredients?.length
+      ? { ingredients: capitalizeFixtureListItems(dishRow.ingredients) }
+      : {}),
+    ...(dishRow.allergens?.length ? { allergens: dishRow.allergens } : {}),
+    ...(dishRow.options?.length
+      ? { options: capitalizeFixtureListItems(dishRow.options) }
+      : {}),
+    ...(dishRow.house_note ? { houseNote: dishRow.house_note } : {})
+  };
+}
+
+function storedTranslationBase(fields, content) {
+  return {
+    locale: "en-CA",
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(fields),
+    field_hashes: fieldHashesFor(fields),
+    content
+  };
+}
+
+function buildEnglishTranslationTables({
+  menu,
+  categories,
+  dishes,
+  menuName,
+  categoryCopy,
+  dishCopy
+}) {
+  const menuFields = { menuName: menu.name };
+  return {
+    menu_translations: [
+      {
+        menu_id: menu.id,
+        restaurant_id: menu.restaurant_id,
+        ...storedTranslationBase(menuFields, { menuName })
+      }
+    ],
+    menu_category_translations: categories.map((category, index) => {
+      const fields = {
+        name: category.name,
+        ...(category.description
+          ? { description: category.description }
+          : {})
+      };
+      return {
+        menu_id: menu.id,
+        restaurant_id: menu.restaurant_id,
+        category_id: category.id,
+        ...storedTranslationBase(fields, categoryCopy(category, index))
+      };
+    }),
+    menu_dish_translations: dishes.map((dishRow, index) => {
+      const fields = fixtureDishTranslationFields(dishRow);
+      return {
+        menu_id: menu.id,
+        restaurant_id: menu.restaurant_id,
+        dish_id: dishRow.id,
+        ...storedTranslationBase(fields, dishCopy(dishRow, index))
+      };
+    })
+  };
+}
 
 const maisonRestaurant = {
   id: maisonRestaurantId,
@@ -162,7 +357,9 @@ const maisonDish = {
   is_available: true,
   is_signature: true,
   ingredients: ["Chevre frais", "Miel", "Herbes"],
-  options: [],
+  allergens: ["Produits laitiers", "Gluten"],
+  options: ["Beurre noisette a part"],
+  house_note: "Une entree delicate aux saveurs de la Monteregie.",
   tags: ["Signature"],
   image_url: `/api/public/menu-dishes/${maisonDishId}/photo`,
   metadata: {
@@ -237,7 +434,9 @@ const trouvableDish = {
   is_available: true,
   is_signature: true,
   ingredients: ["Burrata", "Pesto", "Herbes"],
-  options: [],
+  allergens: ["Produits laitiers", "Fruits a coque"],
+  options: ["Pesto a part"],
+  house_note: "Une assiette fraiche et genereuse a partager.",
   tags: ["Signature"],
   image_url: `/api/public/menu-dishes/${trouvableDishId}/photo`,
   metadata: {
@@ -333,6 +532,135 @@ const saugeNoireFixture = {
     }
   }]
 };
+
+function completeEnglishDishCopy(fields, englishName, overrides = {}) {
+  return {
+    name: englishName,
+    ...(fields.description
+      ? {
+          description:
+            overrides.description ??
+            `A complete English description of ${englishName}.`
+        }
+      : {}),
+    ...(fields.ingredients
+      ? {
+          ingredients:
+            overrides.ingredients ??
+            fields.ingredients.map((_, index) => `English ingredient ${index + 1}`)
+        }
+      : {}),
+    ...(fields.allergens
+      ? {
+          allergens:
+            overrides.allergens ??
+            fields.allergens.map((_, index) => `English allergen ${index + 1}`)
+        }
+      : {}),
+    ...(fields.options
+      ? {
+          options:
+            overrides.options ??
+            fields.options.map((_, index) => `English option ${index + 1}`)
+        }
+      : {}),
+    ...(fields.houseNote
+      ? {
+          houseNote:
+            overrides.houseNote ?? `The chef's note for ${englishName}.`
+        }
+      : {})
+  };
+}
+
+Object.assign(
+  maisonFixture,
+  buildEnglishTranslationTables({
+    menu: maisonMenu,
+    categories: maisonFixture.menu_categories,
+    dishes: maisonFixture.menu_dishes,
+    menuName: "The Menu",
+    categoryCopy: () => ({
+      name: "Starters",
+      description: "Maison Elyse's current menu."
+    }),
+    dishCopy: (dishRow) =>
+      completeEnglishDishCopy(
+        fixtureDishTranslationFields(dishRow),
+        "Fresh goat cheese ravioli with Monteregie honey",
+        {
+          description:
+            "Brown butter, preserved lemon, and garden herbs.",
+          ingredients: ["Fresh goat cheese", "Honey", "Herbs"],
+          allergens: ["Dairy", "Gluten"],
+          options: ["Brown butter on the side"],
+          houseNote:
+            "A delicate starter inspired by the flavors of Monteregie."
+        }
+      )
+  })
+);
+
+Object.assign(
+  trouvableFixture,
+  buildEnglishTranslationTables({
+    menu: trouvableMenu,
+    categories: trouvableFixture.menu_categories,
+    dishes: trouvableFixture.menu_dishes,
+    menuName: "The Menu",
+    categoryCopy: () => ({
+      name: "Mains",
+      description: "Trouvable's current menu."
+    }),
+    dishCopy: (dishRow) =>
+      completeEnglishDishCopy(
+        fixtureDishTranslationFields(dishRow),
+        "Green pesto burrata",
+        {
+          description: "Burrata, green pesto, and fresh herbs.",
+          ingredients: ["Burrata", "Pesto", "Herbs"],
+          allergens: ["Dairy", "Tree nuts"],
+          options: ["Pesto on the side"],
+          houseNote: "A fresh, generous plate made for sharing."
+        }
+      )
+  })
+);
+
+Object.assign(
+  saugeNoireFixture,
+  buildEnglishTranslationTables({
+    menu: saugeNoireFixture.menus[0],
+    categories: saugeNoireFixture.menu_categories,
+    dishes: saugeNoireFixture.menu_dishes,
+    menuName: "The Menu",
+    categoryCopy: (_category, index) => SAUGE_ENGLISH_CATEGORY_COPY[index],
+    dishCopy: (dishRow, index) => {
+      const fields = fixtureDishTranslationFields(dishRow);
+      if (dishRow.slug === "betterave-sous-la-cendre") {
+        return completeEnglishDishCopy(fields, "Beetroot under ash", {
+          description:
+            "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar.",
+          ingredients: [
+            "Beetroot",
+            "Labneh",
+            "Blackcurrant",
+            "Pistachio",
+            "Raspberry vinegar"
+          ],
+          allergens: ["Dairy", "Tree nuts"],
+          options: ["Labneh on the side", "Without pistachio"],
+          houseNote:
+            "Cooking under ash concentrates the beetroot's flavor and adds a delicate smoky note."
+        });
+      }
+      return completeEnglishDishCopy(
+        fields,
+        SAUGE_ENGLISH_DISH_NAMES[index]
+      );
+    }
+  })
+);
 
 const rows = Object.fromEntries(
   Object.keys(saugeNoireFixture).map((table) => [

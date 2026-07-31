@@ -270,6 +270,125 @@ test("stored English dish names are applied without mutating the French source m
   }
 });
 
+test("Sauge browser fixture resolves complete stored English menus for all landing cards", async () => {
+  const { rows } = await import(
+    "../e2e/support/sauge-noire-fixture-data.mjs"
+  );
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+
+  const readRows = async ({ table, filters, orderBy, limit }) => {
+    const filtered = (rows[table] ?? [])
+      .filter((row) =>
+        Object.entries(filters).every(
+          ([field, value]) => String(row[field] ?? "") === value
+        )
+      )
+      .sort((left, right) => {
+        for (const field of Array.isArray(orderBy) ? orderBy : [orderBy]) {
+          const comparison = String(left[field] ?? "").localeCompare(
+            String(right[field] ?? "")
+          );
+          if (comparison) return comparison;
+        }
+        return 0;
+      });
+    return { ok: true, rows: filtered.slice(0, limit) };
+  };
+
+  globalThis.__vistaireTranslationAdmin = {
+    ok: true,
+    client: {
+      from(table) {
+        const filters = {};
+        return {
+          select() {
+            return this;
+          },
+          eq(field, value) {
+            filters[field] = String(value);
+            return this;
+          },
+          async in(field, values) {
+            return {
+              data: (rows[table] ?? []).filter(
+                (row) =>
+                  Object.entries(filters).every(
+                    ([filterField, value]) =>
+                      String(row[filterField] ?? "") === value
+                  ) && values.includes(row[field])
+              ),
+              error: null
+            };
+          }
+        };
+      }
+    }
+  };
+
+  try {
+    const menuPairs = await Promise.all(
+      ["maison-elyse", "trouvable", "sauge-noire"].map(async (slug) => ({
+        slug,
+        french: await getPublicMenuBySlug(slug, "fr-CA", {
+          readRows,
+          nodeEnv: "production"
+        }),
+        english: await getPublicMenuBySlug(slug, "en-CA", {
+          readRows,
+          nodeEnv: "production"
+        })
+      }))
+    );
+
+    for (const { slug, french, english } of menuPairs) {
+      assert.ok(french, `missing French fixture menu for ${slug}`);
+      assert.ok(english, `missing English fixture menu for ${slug}`);
+      assert.equal(english.activeLocale, "en-CA");
+      assert.equal(
+        english.translationStatus?.status,
+        "up_to_date",
+        `${slug}: ${JSON.stringify(english.translationStatus)}`
+      );
+      assert.notEqual(english.menuName, french.menuName);
+      assert.notEqual(english.dishes[0].category, french.dishes[0].category);
+      assert.notEqual(english.dishes[0].name, french.dishes[0].name);
+      assert.notEqual(
+        english.dishes[0].description,
+        french.dishes[0].description
+      );
+      assert.notDeepEqual(
+        english.dishes[0].ingredients,
+        french.dishes[0].ingredients
+      );
+      assert.notDeepEqual(english.dishes[0].options, french.dishes[0].options);
+    }
+
+    const maison = menuPairs.find(({ slug }) => slug === "maison-elyse").english;
+    assert.equal(maison.menuName, "The Menu");
+    assert.equal(maison.dishes[0].category, "Starters");
+    assert.equal(maison.dishes[0].name, "Fresh goat cheese ravioli with Monteregie honey");
+    assert.match(maison.dishes[0].description, /Brown butter/);
+
+    const trouvable = menuPairs.find(({ slug }) => slug === "trouvable").english;
+    assert.equal(trouvable.dishes[0].category, "Mains");
+    assert.equal(trouvable.dishes[0].name, "Green pesto burrata");
+    assert.match(trouvable.dishes[0].description, /fresh herbs/);
+
+    const sauge = menuPairs.find(({ slug }) => slug === "sauge-noire").english;
+    const beetroot = sauge.dishes.find(
+      (dish) => dish.slug === "betterave-sous-la-cendre"
+    );
+    assert.ok(beetroot);
+    assert.equal(beetroot.category, "First bites");
+    assert.equal(beetroot.name, "Beetroot under ash");
+    assert.match(beetroot.description, /smoked labneh/);
+    assert.ok(beetroot.ingredients.every((value) => !/[àâçéèêëîïôùûü]/i.test(value)));
+    assert.ok(beetroot.options.every((value) => !/[àâçéèêëîïôùûü]/i.test(value)));
+  } finally {
+    delete globalThis.__vistaireTranslationAdmin;
+  }
+});
+
 test("concurrent French and English landing resolution stays isolated per restaurant", async () => {
   const { getLandingExperiences } = await import(
     "../lib/landing/menuExperiences.ts"
