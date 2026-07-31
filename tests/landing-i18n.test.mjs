@@ -24,6 +24,12 @@ registerHooks({
         shortCircuit: true
       };
     }
+    if (specifier === "@/utils/supabase/admin") {
+      return {
+        url: "data:text/javascript,export%20function%20getSupabaseAdminClient()%7Breturn%20globalThis.__vistaireTranslationAdmin%3F%3F%7Bok%3Afalse%2Creason%3A%22test%20admin%20unavailable%22%7D%7D",
+        shortCircuit: true
+      };
+    }
     if (specifier.startsWith("@/")) {
       const baseUrl = new URL(specifier.slice(2), projectRootUrl);
       for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
@@ -157,6 +163,103 @@ test("landing comparison copy and projected image labels follow the locale", asy
     JSON.stringify(englishDemoPreview),
     /Photo du plat|Photo de la catégorie|Catégorie /
   );
+});
+
+test("stored English dish names are applied without mutating the French source menu", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const { applyStoredPublicMenuTranslations } = await import(
+    "../lib/menu/publicMenuTranslations.ts"
+  );
+  const {
+    publicMenuCategoryTranslationSources,
+    publicMenuDishTranslationFields
+  } = await import("../lib/menu/publicMenuTranslationReadiness.ts");
+  const { fieldHashesFor, sourceHashFor } = await import(
+    "../lib/translation/menuTranslationModel.ts"
+  );
+
+  const demo = await getPublicMenuBySlug("trouvable", "fr-CA");
+  assert.ok(demo);
+  const sourceDish = demo.dishes[0];
+  const sourceMenu = {
+    ...demo,
+    menuId: "menu-runtime-translation",
+    source: "supabase",
+    settings: {
+      ...demo.settings,
+      defaultLocale: "fr-CA",
+      supportedLocales: ["fr-CA", "en-CA"]
+    },
+    dishes: [sourceDish]
+  };
+  const dishFields = publicMenuDishTranslationFields(sourceDish);
+  const category = publicMenuCategoryTranslationSources(sourceMenu)[0];
+  assert.ok(category);
+
+  const translationRows = {
+    menu_translations: [],
+    menu_category_translations: [
+      {
+        category_id: category.id,
+        locale: "en-CA",
+        translation_status: "up_to_date",
+        source_hash: sourceHashFor(category.fields),
+        field_hashes: fieldHashesFor(category.fields),
+        content: {
+          name: "Breakfast"
+        }
+      }
+    ],
+    menu_dish_translations: [
+      {
+        dish_id: sourceDish.id,
+        locale: "en-CA",
+        translation_status: "up_to_date",
+        source_hash: sourceHashFor(dishFields),
+        field_hashes: fieldHashesFor(dishFields),
+        content: {
+          ...dishFields,
+          name: "Stored house breakfast"
+        }
+      }
+    ]
+  };
+
+  globalThis.__vistaireTranslationAdmin = {
+    ok: true,
+    client: {
+      from(table) {
+        return {
+          select() {
+            return this;
+          },
+          eq() {
+            return this;
+          },
+          async in() {
+            return {
+              data: translationRows[table],
+              error: null
+            };
+          }
+        };
+      }
+    }
+  };
+
+  try {
+    const english = await applyStoredPublicMenuTranslations(
+      sourceMenu,
+      "en-CA"
+    );
+
+    assert.equal(english.activeLocale, "en-CA");
+    assert.equal(english.dishes[0].name, "Stored house breakfast");
+    assert.equal(sourceMenu.dishes[0].name, "Dejeuner classique maison");
+    assert.notStrictEqual(english.dishes[0], sourceMenu.dishes[0]);
+  } finally {
+    delete globalThis.__vistaireTranslationAdmin;
+  }
 });
 
 test("concurrent French and English landing resolution stays isolated per restaurant", async () => {
