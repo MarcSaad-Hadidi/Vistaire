@@ -375,6 +375,35 @@ test("landing serializes only Maison Elyse and lazy-loads later menu payloads", 
   assert.doesNotMatch(comparison, /display:\s*none/);
 });
 
+test("Next landing caches isolate French and English payloads structurally", async () => {
+  const landingData = await source("lib/landing/menuExperiences.ts");
+
+  for (const key of [
+    "landing-menu-experiences-fr-v5",
+    "landing-menu-experiences-en-v5",
+    "landing-menu-preview-payload-fr-v4",
+    "landing-menu-preview-payload-en-v4"
+  ]) {
+    assert.match(landingData, new RegExp(key));
+  }
+  assert.match(
+    landingData,
+    /buildLandingExperiences\("fr"\)[\s\S]*buildLandingExperiences\("en"\)/
+  );
+  assert.match(
+    landingData,
+    /buildLandingMenuPreviewPayload\(experienceId,\s*"fr"\)[\s\S]*buildLandingMenuPreviewPayload\(experienceId,\s*"en"\)/
+  );
+  assert.doesNotMatch(
+    landingData,
+    /unstable_cache\(\s*buildLandingExperiences/
+  );
+  assert.doesNotMatch(
+    landingData,
+    /unstable_cache\(\s*buildLandingMenuPreviewPayload/
+  );
+});
+
 test("landing dish cards use current public-menu detail routes", async () => {
   const data = await source("lib/landing/menuExperiences.ts");
   const projection = await source("lib/landing/publicMenuPreview.ts");

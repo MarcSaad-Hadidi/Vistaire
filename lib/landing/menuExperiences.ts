@@ -541,16 +541,24 @@ async function buildLandingExperiences(
   });
 }
 
-const getCachedLandingExperiences = unstable_cache(
-  buildLandingExperiences,
-  ["landing-menu-experiences-v4"],
+const getCachedFrenchLandingExperiences = unstable_cache(
+  () => buildLandingExperiences("fr"),
+  ["landing-menu-experiences-fr-v5"],
+  { revalidate: 60 }
+);
+
+const getCachedEnglishLandingExperiences = unstable_cache(
+  () => buildLandingExperiences("en"),
+  ["landing-menu-experiences-en-v5"],
   { revalidate: 60 }
 );
 
 export async function getLandingExperiences(
   locale: Locale
 ): Promise<LandingExperience[]> {
-  return getCachedLandingExperiences(locale);
+  return locale === "en"
+    ? getCachedEnglishLandingExperiences()
+    : getCachedFrenchLandingExperiences();
 }
 
 async function buildLandingMenuPreviewPayload(
@@ -582,9 +590,17 @@ async function buildLandingMenuPreviewPayload(
   return landingRenderPayload(experience, renderContext, current.preview);
 }
 
-const getCachedLandingMenuPreviewPayload = unstable_cache(
-  buildLandingMenuPreviewPayload,
-  ["landing-menu-preview-payload-v3"],
+const getCachedFrenchLandingMenuPreviewPayload = unstable_cache(
+  (experienceId: LandingExperienceId) =>
+    buildLandingMenuPreviewPayload(experienceId, "fr"),
+  ["landing-menu-preview-payload-fr-v4"],
+  { revalidate: 60 }
+);
+
+const getCachedEnglishLandingMenuPreviewPayload = unstable_cache(
+  (experienceId: LandingExperienceId) =>
+    buildLandingMenuPreviewPayload(experienceId, "en"),
+  ["landing-menu-preview-payload-en-v4"],
   { revalidate: 60 }
 );
 
@@ -592,5 +608,7 @@ export async function getLandingMenuPreviewPayload(
   experienceId: LandingExperienceId,
   locale: Locale
 ): Promise<LandingMenuPreviewPayload | null> {
-  return getCachedLandingMenuPreviewPayload(experienceId, locale);
+  return locale === "en"
+    ? getCachedEnglishLandingMenuPreviewPayload(experienceId)
+    : getCachedFrenchLandingMenuPreviewPayload(experienceId);
 }
