@@ -270,16 +270,16 @@ export function VistairePreviewPdfCompareSlider({
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 10 : 4;
-    let next = split;
+    let next = nextSplitRef.current;
 
     switch (event.key) {
       case "ArrowLeft":
       case "ArrowDown":
-        next = split - step;
+        next -= step;
         break;
       case "ArrowRight":
       case "ArrowUp":
-        next = split + step;
+        next += step;
         break;
       case "Home":
         next = 0;
