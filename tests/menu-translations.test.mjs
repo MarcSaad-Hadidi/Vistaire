@@ -262,10 +262,10 @@ test("menu translation source fields stay shared between owner generation and pu
   assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
   assert.ok(ownerDishFields, "owner dishFields source must be found");
   assert.ok(publicDishFields, "public dishFields source must be found");
-  assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*"name"/);
-  assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
+  assert.match(ownerDishFields, /addField\(fields,\s*"name"/);
+  assert.match(publicDishFields, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /field:\s*"restaurantName"/);
-  assert.doesNotMatch(
+  assert.match(
     publicTranslations,
     /name:\s*getTranslatedString\(\{[\s\S]{0,180}source:\s*dish\.name/
   );

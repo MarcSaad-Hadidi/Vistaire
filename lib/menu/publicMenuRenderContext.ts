@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getExchangeRates } from "@/lib/currency/exchangeRates";
-import type { Locale } from "@/lib/i18n";
+import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import { menuUiConfigForRestaurant, type MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import {
@@ -122,10 +122,10 @@ async function resolveLocalizedMenus(
   const [frenchMenu, englishMenu] = await Promise.all([
     renderContext.locale === "fr"
       ? Promise.resolve(renderContext.menu)
-      : getPublicMenuBySlug(slug, "fr"),
+      : getPublicMenuBySlug(slug, LOCALE_LANGUAGE_TAG.fr),
     renderContext.locale === "en"
       ? Promise.resolve(renderContext.menu)
-      : getPublicMenuBySlug(slug, "en")
+      : getPublicMenuBySlug(slug, LOCALE_LANGUAGE_TAG.en)
   ]);
 
   return {

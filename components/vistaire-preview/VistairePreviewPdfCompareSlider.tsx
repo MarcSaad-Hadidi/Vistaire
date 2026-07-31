@@ -17,18 +17,23 @@ import type {
   PdfMenuSection
 } from "@/lib/pdfComparePreviewData";
 import type { Locale } from "@/lib/i18n";
+import { getLandingCopy } from "@/lib/landing/landingCopy";
 import styles from "./VistairePreviewPdfCompareSlider.module.css";
+
+type PdfComparisonStrings = {
+  caption: string;
+  hint: string;
+  label: string;
+  pdfRegionLabel: (restaurantName: string) => string;
+  pdfTitle: string;
+};
 
 type VistairePreviewPdfCompareSliderProps = {
   preview: PdfComparePreviewData;
   digitalLayer: ReactNode;
   className?: string;
   locale?: Locale;
-  strings?: {
-    caption: string;
-    hint: string;
-    label: string;
-  };
+  strings?: Partial<PdfComparisonStrings>;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -46,15 +51,23 @@ function PdfRow({ name, price }: { name: string; price: string }) {
 }
 
 export function VistairePreviewPdfLayer({
+  locale = "fr",
   restaurantName,
-  sections
+  sections,
+  strings
 }: {
+  locale?: Locale;
   restaurantName: string;
   sections: PdfMenuSection[];
+  strings?: Pick<PdfComparisonStrings, "pdfRegionLabel" | "pdfTitle">;
 }) {
+  const localeCopy = getLandingCopy(locale).comparison;
+  const pdfRegionLabel = strings?.pdfRegionLabel ?? localeCopy.pdfRegionLabel;
+  const pdfTitle = strings?.pdfTitle ?? localeCopy.pdfTitle;
+
   return (
     <div
-      aria-label={`Menu PDF complet de ${restaurantName}`}
+      aria-label={pdfRegionLabel(restaurantName)}
       className={styles.pdfScene}
       data-comparison-scroll-root="pdf"
       role="region"
@@ -63,7 +76,7 @@ export function VistairePreviewPdfLayer({
       <span className={`${styles.layerLabel} ${styles.pdfLabel}`}>PDF</span>
       <div className={styles.pdfContent}>
         <p className={styles.pdfRestaurant}>{restaurantName}</p>
-        <h3 className={styles.pdfTitle}>Carte</h3>
+        <h3 className={styles.pdfTitle}>{pdfTitle}</h3>
         <span className={styles.pdfDivider} />
         <div className={styles.pdfSections}>
           {sections.map((section) => (
@@ -194,6 +207,7 @@ export function VistairePreviewPdfCompareSlider({
   locale = "fr",
   strings
 }: VistairePreviewPdfCompareSliderProps) {
+  const localeCopy = getLandingCopy(locale).comparison;
   const sliderId = useId();
   const sliderRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -299,8 +313,14 @@ export function VistairePreviewPdfCompareSlider({
             </div>
             <div className={styles.pdfLayer} id={`${sliderId}-pdf`}>
               <VistairePreviewPdfLayer
+                locale={locale}
                 restaurantName={preview.restaurant.name}
                 sections={preview.pdfSections}
+                strings={{
+                  pdfRegionLabel:
+                    strings?.pdfRegionLabel ?? localeCopy.pdfRegionLabel,
+                  pdfTitle: strings?.pdfTitle ?? localeCopy.pdfTitle
+                }}
               />
             </div>
 
@@ -308,9 +328,7 @@ export function VistairePreviewPdfCompareSlider({
               aria-controls={`${sliderId}-pdf ${sliderId}-vistaire`}
               aria-label={
                 strings?.label ??
-                (locale === "en"
-                  ? "Compare a PDF menu with the current Vistaire digital menu."
-                  : "Comparer un menu PDF avec la carte digitale Vistaire actuelle.")
+                localeCopy.revealLabel
               }
               aria-orientation="horizontal"
               aria-valuemax={100}
@@ -356,7 +374,7 @@ export function VistairePreviewPdfCompareSlider({
             {!hasInteracted ? (
               <span className={styles.hint}>
                 {strings?.hint ??
-                  (locale === "en" ? "Drag to compare" : "Glissez pour comparer")}
+                  localeCopy.revealHint}
               </span>
             ) : null}
           </div>
@@ -367,9 +385,7 @@ export function VistairePreviewPdfCompareSlider({
       </div>
       <figcaption className={styles.srOnly}>
         {strings?.caption ??
-          (locale === "en"
-            ? `Comparison inside one phone: a PDF example and the current ${preview.restaurant.name} digital menu.`
-            : `Comparaison dans un même téléphone : un exemple PDF et la carte digitale actuelle de ${preview.restaurant.name}.`)}
+          localeCopy.figureCaption}
       </figcaption>
     </figure>
   );

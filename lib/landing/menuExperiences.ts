@@ -1,7 +1,7 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
-import type { Locale } from "@/lib/i18n";
+import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import {
   projectLandingMenuUiMenu,
   type LandingMenuUiPreview
@@ -209,7 +209,7 @@ function fallbackPreview({
 }
 
 function fallbackExperiences(locale: Locale): LandingExperience[] {
-  const lang = locale === "en" ? "en-CA" : "fr-CA";
+  const lang = LOCALE_LANGUAGE_TAG[locale];
   const maisonDish: LandingFeaturedDish = {
     slug: "ravioles-de-chevre-frais-miel-de-monteregie",
     name:
@@ -247,7 +247,10 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     ),
     image: "",
     imageSource: "unavailable",
-    imageAlt: "Pesto Burrata Verde de Trouvable",
+    imageAlt:
+      locale === "en"
+        ? "Pesto Burrata Verde from Trouvable"
+        : "Pesto Burrata Verde de Trouvable",
     imagePosition: "center"
   };
   const saugeDish: LandingFeaturedDish = {
@@ -438,7 +441,7 @@ function landingRenderPayload(
 async function buildLandingExperiences(
   locale: Locale
 ): Promise<LandingExperience[]> {
-  const lang = locale === "en" ? "en-CA" : "fr-CA";
+  const lang = LOCALE_LANGUAGE_TAG[locale];
   const fallbacks = fallbackExperiences(locale);
 
   const resolved = await Promise.all(
@@ -481,7 +484,7 @@ async function buildLandingExperiences(
 
         return {
           ...experience,
-          preview: experience.preview,
+          preview: current.preview,
           renderPayload:
             experience.id === "maison-elyse"
               ? landingRenderPayload(experience, renderContext, current.preview)
@@ -540,7 +543,7 @@ async function buildLandingExperiences(
 
 const getCachedLandingExperiences = unstable_cache(
   buildLandingExperiences,
-  ["landing-menu-experiences-v3"],
+  ["landing-menu-experiences-v4"],
   { revalidate: 60 }
 );
 
@@ -559,7 +562,7 @@ async function buildLandingMenuPreviewPayload(
   );
   if (!experience) return null;
 
-  const lang = locale === "en" ? "en-CA" : "fr-CA";
+  const lang = LOCALE_LANGUAGE_TAG[locale];
   const renderContext = await resolvePublicMenuRenderContext({
     slug: experience.menuSlug,
     query: {
@@ -581,7 +584,7 @@ async function buildLandingMenuPreviewPayload(
 
 const getCachedLandingMenuPreviewPayload = unstable_cache(
   buildLandingMenuPreviewPayload,
-  ["landing-menu-preview-payload-v2"],
+  ["landing-menu-preview-payload-v3"],
   { revalidate: 60 }
 );
 

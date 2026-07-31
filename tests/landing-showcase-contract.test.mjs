@@ -380,6 +380,7 @@ test("landing dish cards use current public-menu detail routes", async () => {
   assert.match(section, /data-dish-slug/);
   assert.match(section, /data-dish-id/);
   assert.match(section, /data-image-source/);
+  assert.match(section, /lang=\{LOCALE_LANGUAGE_TAG\[locale\]\}/);
   assert.doesNotMatch(section, /fallbackSrc=\{experience\.image\}/);
 });
 

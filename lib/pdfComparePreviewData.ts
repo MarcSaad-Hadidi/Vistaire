@@ -8,6 +8,7 @@ import {
 } from "@/lib/demoMenuData";
 import { formatPrice } from "@/lib/formatPrice";
 import type { Locale } from "@/lib/i18n";
+import { getLandingCopy } from "@/lib/landing/landingCopy";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 
 export type PdfMenuRow = {
@@ -119,7 +120,12 @@ function toPdfRow(dish: Dish): PdfMenuRow {
   };
 }
 
-function toCompareDishPreview(dish: Dish, currency: string): CompareDishPreview {
+function toCompareDishPreview(
+  dish: Dish,
+  currency: string,
+  locale: Locale
+): CompareDishPreview {
+  const copy = getLandingCopy(locale).comparison;
   return {
     id: dish.id,
     slug: dish.slug,
@@ -128,7 +134,7 @@ function toCompareDishPreview(dish: Dish, currency: string): CompareDishPreview 
     shortDescription: dish.shortDescription,
     categorySlug: dish.categorySlug,
     image: dish.image,
-    imageAlt: `Photo du plat : ${dish.name}`,
+    imageAlt: copy.dishPhotoAlt(dish.name),
     imageObjectPosition: getDishCardImageObjectPosition(dish),
     allergens: dish.allergens,
     isSignature: dish.isSignature,
@@ -147,6 +153,7 @@ function toCompareCategoryPreview(
   category: Category,
   locale: Locale
 ): CompareCategoryPreview {
+  const copy = getLandingCopy(locale).comparison;
   const dishes = getDishesByCategorySlug(category.slug, locale);
   const heroDish =
     dishes.find((dish) => dish.isRecommended && dish.image) ??
@@ -162,8 +169,8 @@ function toCompareCategoryPreview(
       : category.description,
     image: heroDish?.image ?? null,
     imageAlt: heroDish
-      ? `Photo de la catégorie ${category.name} : ${heroDish.name}`
-      : `Catégorie ${category.name}`,
+      ? copy.categoryPhotoAlt(category.name, heroDish.name)
+      : copy.categoryAlt(category.name),
     imageObjectPosition: heroDish ? getDishCardImageObjectPosition(heroDish) : "center 50%"
   };
 }
@@ -187,7 +194,11 @@ export function buildPdfComparePreviewData(
   });
 
   const categoryTabs: CompareCategoryTab[] = [
-    { id: "tab-tous", slug: "tous", name: "Tous" },
+    {
+      id: "tab-tous",
+      slug: "tous",
+      name: locale === "en" ? "All" : "Tous"
+    },
     ...categories.map((category) => ({
       id: category.id,
       slug: category.slug,
@@ -214,7 +225,7 @@ export function buildPdfComparePreviewData(
     if (!dish) {
       throw new Error(`Missing demo dish for PDF compare preview: ${slug}`);
     }
-    return toCompareDishPreview(dish, restaurant.currency);
+    return toCompareDishPreview(dish, restaurant.currency, locale);
   });
 
   return {
@@ -232,7 +243,7 @@ export function buildPdfComparePreviewData(
     activeCategorySlug,
     vistaireDishes,
     featuredDish: featuredDishSource
-      ? toCompareDishPreview(featuredDishSource, restaurant.currency)
+      ? toCompareDishPreview(featuredDishSource, restaurant.currency, locale)
       : undefined
   };
 }

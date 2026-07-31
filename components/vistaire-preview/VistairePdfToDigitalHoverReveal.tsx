@@ -149,6 +149,7 @@ export function VistairePdfToDigitalHoverReveal({
             </div>
             <div className={styles.pdfLayer} aria-hidden="true">
               <VistairePreviewPdfLayer
+                locale={locale}
                 restaurantName={preview.restaurant.name}
                 sections={preview.pdfSections}
               />

@@ -1,5 +1,5 @@
 import { PublicDishImage } from "@/components/public-menu/PublicDishImage";
-import type { Locale } from "@/lib/i18n";
+import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import type { LandingExperience } from "@/lib/landing/menuExperiences";
 import { LandingPublicMenuLink } from "./LandingPublicMenuLink";
@@ -36,6 +36,7 @@ export function LandingDishStorySection({
               data-image-source={experience.featuredDish.imageSource}
               data-menu-slug={experience.menuSlug}
               key={experience.id}
+              lang={LOCALE_LANGUAGE_TAG[locale]}
             >
               <LandingPublicMenuLink
                 className={styles.dishCardLink}

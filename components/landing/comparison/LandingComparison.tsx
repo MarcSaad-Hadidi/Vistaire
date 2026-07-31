@@ -192,7 +192,9 @@ export function LandingComparison({
           <VistairePreviewPdfCompareSlider
             digitalLayer={
               <LandingActiveMenuPreview
+                copy={copy}
                 key={activeExperience.id}
+                locale={locale}
                 payload={activePayload}
               />
             }
@@ -202,7 +204,9 @@ export function LandingComparison({
             strings={{
               caption: copy.figureCaption,
               hint: copy.revealHint,
-              label: copy.revealLabel
+              label: copy.revealLabel,
+              pdfRegionLabel: copy.pdfRegionLabel,
+              pdfTitle: copy.pdfTitle
             }}
           />
         </div>

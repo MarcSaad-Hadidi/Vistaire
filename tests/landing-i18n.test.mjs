@@ -1,0 +1,218 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { registerHooks } from "node:module";
+import { sep } from "node:path";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
+
+const projectRootUrl = pathToFileURL(`${process.cwd()}${sep}`).href;
+process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON =
+  '{"CAD":1,"USD":0.72,"EUR":0.6225}';
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return {
+        url: "data:text/javascript,export%20default%20undefined",
+        shortCircuit: true
+      };
+    }
+    if (specifier === "next/cache") {
+      return {
+        url: "data:text/javascript,const%20caches%3Dnew%20Map()%3Bexport%20const%20unstable_cache%3D(fn%2Ckey)%3D%3Easync(...args)%3D%3E%7Bconst%20cacheKey%3DJSON.stringify(%5Bkey%2Cargs%5D)%3Bif(!caches.has(cacheKey))caches.set(cacheKey%2CPromise.resolve().then(()%3D%3Efn(...args)))%3Breturn%20caches.get(cacheKey)%7D",
+        shortCircuit: true
+      };
+    }
+    if (specifier.startsWith("@/")) {
+      const baseUrl = new URL(specifier.slice(2), projectRootUrl);
+      for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
+        const url = new URL(`${baseUrl.href}${extension}`);
+        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+      }
+    }
+    if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
+      const baseUrl = new URL(specifier, context.parentURL);
+      for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
+        const url = new URL(`${baseUrl.href}${extension}`);
+        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+      }
+    }
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    if (url.endsWith(".ts") || url.endsWith(".tsx")) {
+      return {
+        format: "module",
+        source: ts.transpileModule(readFileSync(new URL(url), "utf8"), {
+          compilerOptions: {
+            jsx: ts.JsxEmit.ReactJSX,
+            module: ts.ModuleKind.ESNext,
+            target: ts.ScriptTarget.ES2022
+          }
+        }).outputText,
+        shortCircuit: true
+      };
+    }
+    return nextLoad(url, context);
+  }
+});
+
+test("Trouvable demo selects canonical English and Greek dish names", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const [french, english, greek] = await Promise.all([
+    getPublicMenuBySlug("trouvable", "fr-CA"),
+    getPublicMenuBySlug("trouvable", "en-CA"),
+    getPublicMenuBySlug("trouvable", "el-GR")
+  ]);
+
+  assert.ok(french);
+  assert.ok(english);
+  assert.ok(greek);
+  assert.equal(english.activeLocale, "en-CA");
+  assert.equal(english.dishes[0].name, "House classic breakfast");
+  assert.equal(
+    english.dishes[0].description,
+    "Farm eggs, crisp potatoes, herb salad, and toasted sourdough."
+  );
+  assert.equal(english.dishes[0].category, "Breakfast");
+  assert.deepEqual(english.dishes[0].ingredients, [
+    "Eggs",
+    "Potatoes",
+    "Fresh herbs",
+    "Sourdough"
+  ]);
+  assert.notEqual(greek.dishes[0].name, french.dishes[0].name);
+});
+
+test("landing comparison copy and projected image labels follow the locale", async () => {
+  const { getLandingCopy } = await import("../lib/landing/landingCopy.ts");
+  const { buildCurrentPublicMenuPreview } = await import(
+    "../lib/landing/publicMenuPreview.ts"
+  );
+  const { buildPdfComparePreviewData } = await import(
+    "../lib/pdfComparePreviewData.ts"
+  );
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const [frenchMenu, englishMenu] = await Promise.all([
+    getPublicMenuBySlug("trouvable", "fr-CA"),
+    getPublicMenuBySlug("trouvable", "en-CA")
+  ]);
+
+  assert.ok(frenchMenu);
+  assert.ok(englishMenu);
+  const frenchCopy = getLandingCopy("fr").comparison;
+  const englishCopy = getLandingCopy("en").comparison;
+  assert.equal(frenchCopy.pdfTitle, "Carte");
+  assert.equal(
+    frenchCopy.pdfRegionLabel("Trouvable"),
+    "Menu PDF complet de Trouvable"
+  );
+  assert.equal(englishCopy.pdfTitle, "Menu");
+  assert.equal(
+    englishCopy.pdfRegionLabel("Trouvable"),
+    "Full PDF menu for Trouvable"
+  );
+  assert.equal(
+    englishCopy.unavailableStatus,
+    "Preview temporarily unavailable"
+  );
+  assert.equal(englishCopy.loadingStatus, "Loading the current menu preview");
+
+  const french = buildCurrentPublicMenuPreview({
+    locale: "fr",
+    menu: frenchMenu,
+    preferredDishSlug: "dejeuner-classique-maison",
+    theme: "trouvable"
+  }).preview;
+  const english = buildCurrentPublicMenuPreview({
+    locale: "en",
+    menu: englishMenu,
+    preferredDishSlug: "dejeuner-classique-maison",
+    theme: "trouvable"
+  }).preview;
+
+  assert.equal(
+    french.featuredDish.imageAlt,
+    "Photo du plat : Dejeuner classique maison"
+  );
+  assert.equal(
+    english.featuredDish.imageAlt,
+    "Dish photo: House classic breakfast"
+  );
+  assert.equal(
+    english.categoryCards.find((category) => category.name === "Desserts")
+      ?.imageAlt,
+    "Category photo for Desserts: Grand cru chocolate souffle"
+  );
+  assert.doesNotMatch(
+    JSON.stringify(english),
+    /Photo du plat|Photo de la catégorie|Catégorie /
+  );
+
+  const englishDemoPreview = buildPdfComparePreviewData({ locale: "en" });
+  assert.equal(englishDemoPreview.categoryTabs[0].name, "All");
+  assert.match(englishDemoPreview.vistaireDishes[0].imageAlt, /^Dish photo: /);
+  assert.doesNotMatch(
+    JSON.stringify(englishDemoPreview),
+    /Photo du plat|Photo de la catégorie|Catégorie /
+  );
+});
+
+test("concurrent French and English landing resolution stays isolated per restaurant", async () => {
+  const { getLandingExperiences } = await import(
+    "../lib/landing/menuExperiences.ts"
+  );
+
+  const [french, english] = await Promise.all([
+    getLandingExperiences("fr"),
+    getLandingExperiences("en")
+  ]);
+
+  assert.equal(french.length, 3);
+  assert.equal(english.length, 3);
+
+  for (const englishExperience of english) {
+    const frenchExperience = french.find(
+      (candidate) => candidate.id === englishExperience.id
+    );
+    assert.ok(frenchExperience, `missing French ${englishExperience.id}`);
+    assert.notEqual(
+      englishExperience.featuredDish.name,
+      frenchExperience.featuredDish.name,
+      `${englishExperience.id} dish name leaked across locales`
+    );
+    assert.notEqual(
+      englishExperience.featuredDish.description,
+      frenchExperience.featuredDish.description,
+      `${englishExperience.id} dish description leaked across locales`
+    );
+    assert.notEqual(
+      englishExperience.featuredDish.imageAlt,
+      frenchExperience.featuredDish.imageAlt,
+      `${englishExperience.id} dish alt leaked across locales`
+    );
+
+    const englishUrl = new URL(
+      englishExperience.featuredDish.href,
+      "https://vistaire.test"
+    );
+    const frenchUrl = new URL(
+      frenchExperience.featuredDish.href,
+      "https://vistaire.test"
+    );
+    assert.equal(englishUrl.searchParams.get("lang"), "en-CA");
+    assert.equal(frenchUrl.searchParams.get("lang"), "fr-CA");
+    assert.notEqual(englishUrl.href, frenchUrl.href);
+    assert.equal(
+      englishExperience.preview.featuredDish?.name,
+      englishExperience.featuredDish.name,
+      `${englishExperience.id} kept a stale English preview`
+    );
+    assert.equal(
+      frenchExperience.preview.featuredDish?.name,
+      frenchExperience.featuredDish.name,
+      `${englishExperience.id} kept a stale French preview`
+    );
+  }
+});

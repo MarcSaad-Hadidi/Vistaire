@@ -48,7 +48,10 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
-  assert.match(source, /name:\s*dish\.nameFr/);
+  assert.match(
+    source,
+    /name:\s*isGreek\s*\?\s*dish\.nameEl\s*:\s*isEnglish\s*\?\s*dish\.nameEn\s*:\s*dish\.nameFr/
+  );
   assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);

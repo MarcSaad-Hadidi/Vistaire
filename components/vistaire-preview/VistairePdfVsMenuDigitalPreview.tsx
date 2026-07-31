@@ -285,6 +285,7 @@ export function VistairePdfVsMenuDigitalPreview({
         ];
   const comparePreview = buildPdfComparePreviewData({
     activeCategorySlug: "tous",
+    locale,
     vistaireDishSlugs: getAllDishes(locale).map((dish) => dish.slug)
   });
 
@@ -343,6 +344,7 @@ export function VistairePdfVsMenuDigitalPreview({
             <VistairePreviewPdfCompareSlider
               preview={comparePreview}
               className={styles.compareSlider}
+              locale={locale}
               digitalLayer={
                 <VistairePreviewMenuLayer preview={comparePreview} />
               }

@@ -99,6 +99,7 @@ export function publicMenuDishTranslationFields(
 ): MenuTranslationFields {
   const tags = storedDishTags(dish);
   return {
+    name: dish.name,
     ...(dish.description ? { description: dish.description } : {}),
     ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
     ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),

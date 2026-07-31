@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
+import type { LandingCopy } from "@/lib/landing/landingCopy";
 import type { LandingMenuPreviewPayload } from "@/lib/landing/menuExperiences";
 import styles from "./LandingActiveMenuPreview.module.css";
 
@@ -37,18 +39,37 @@ function PreviewLoading() {
 }
 
 export function LandingActiveMenuPreview({
+  copy,
+  locale,
   payload
 }: {
+  copy: LandingCopy["comparison"];
+  locale: Locale;
   payload: LandingMenuPreviewPayload | null | undefined;
 }) {
   if (payload === undefined) {
-    return <PreviewLoading />;
+    return (
+      <div
+        aria-live="polite"
+        className={styles.loading}
+        lang={LOCALE_LANGUAGE_TAG[locale]}
+        role="status"
+      >
+        {copy.loadingStatus}
+      </div>
+    );
   }
 
   if (!payload) {
     return (
-      <div className={styles.unavailable} data-public-menu-renderer="unavailable">
-        Aperçu temporairement indisponible
+      <div
+        aria-live="polite"
+        className={styles.unavailable}
+        data-public-menu-renderer="unavailable"
+        lang={LOCALE_LANGUAGE_TAG[locale]}
+        role="status"
+      >
+        {copy.unavailableStatus}
       </div>
     );
   }
@@ -56,12 +77,13 @@ export function LandingActiveMenuPreview({
   if (payload.kind === "maison-elyse") {
     return (
       <div
-        aria-label={`${payload.comparison.restaurant.name}, carte digitale Vistaire`}
+        aria-label={copy.digitalRegionLabel(payload.comparison.restaurant.name)}
         className={styles.rendererShell}
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="maison-elyse"
         data-menu-ui="maison-elyse"
+        lang={LOCALE_LANGUAGE_TAG[locale]}
         role="region"
         tabIndex={0}
       >
@@ -76,12 +98,13 @@ export function LandingActiveMenuPreview({
   if (payload.kind === "trouvable") {
     return (
       <div
-        aria-label={`${payload.comparison.restaurant.name}, carte digitale Vistaire`}
+        aria-label={copy.digitalRegionLabel(payload.comparison.restaurant.name)}
         className={styles.rendererShell}
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="trouvable"
         data-menu-ui="trouvable"
+        lang={LOCALE_LANGUAGE_TAG[locale]}
         role="region"
         tabIndex={0}
       >
@@ -96,12 +119,13 @@ export function LandingActiveMenuPreview({
   ) {
     return (
       <div
-        aria-label={`${payload.comparison.restaurant.name}, carte digitale Vistaire`}
+        aria-label={copy.digitalRegionLabel(payload.comparison.restaurant.name)}
         className={styles.rendererShell}
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="sauge-noire"
         data-menu-ui="sauge-noire"
+        lang={LOCALE_LANGUAGE_TAG[locale]}
         role="region"
         tabIndex={0}
       >

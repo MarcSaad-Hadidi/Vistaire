@@ -52,6 +52,17 @@ export const LANDING_COPY = {
       openCta: "Ouvrir l’expérience complète",
       revealLabel: "Comparer le menu PDF et la carte digitale Vistaire",
       revealHint: "Glissez pour comparer",
+      pdfTitle: "Carte",
+      pdfRegionLabel: (restaurantName: string) =>
+        `Menu PDF complet de ${restaurantName}`,
+      digitalRegionLabel: (restaurantName: string) =>
+        `${restaurantName}, carte digitale Vistaire`,
+      dishPhotoAlt: (dishName: string) => `Photo du plat : ${dishName}`,
+      categoryPhotoAlt: (categoryName: string, dishName: string) =>
+        `Photo de la catégorie ${categoryName} : ${dishName}`,
+      categoryAlt: (categoryName: string) => `Catégorie ${categoryName}`,
+      loadingStatus: "Chargement de l’aperçu de la carte actuelle",
+      unavailableStatus: "Aperçu temporairement indisponible",
       figureCaption:
         "Comparaison interactive entre un menu PDF et une carte digitale Vistaire."
     },
@@ -167,6 +178,17 @@ export const LANDING_COPY = {
       openCta: "Open the full experience",
       revealLabel: "Compare the PDF menu and the Vistaire digital menu",
       revealHint: "Drag to compare",
+      pdfTitle: "Menu",
+      pdfRegionLabel: (restaurantName: string) =>
+        `Full PDF menu for ${restaurantName}`,
+      digitalRegionLabel: (restaurantName: string) =>
+        `${restaurantName}, Vistaire digital menu`,
+      dishPhotoAlt: (dishName: string) => `Dish photo: ${dishName}`,
+      categoryPhotoAlt: (categoryName: string, dishName: string) =>
+        `Category photo for ${categoryName}: ${dishName}`,
+      categoryAlt: (categoryName: string) => `Category ${categoryName}`,
+      loadingStatus: "Loading the current menu preview",
+      unavailableStatus: "Preview temporarily unavailable",
       figureCaption:
         "Interactive comparison between a PDF menu and a Vistaire digital menu."
     },

@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { getLandingCopy, type LandingCopy } from "@/lib/landing/landingCopy";
 import {
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -27,7 +28,10 @@ export function imageForDish(dish: PublicMenuDish) {
   return dish.imageUrl || dish.thumbnailUrl || dish.posterUrl || null;
 }
 
-function toPreviewDish(dish: PublicMenuDish): CompareDishPreview {
+function toPreviewDish(
+  dish: PublicMenuDish,
+  copy: LandingCopy["comparison"]
+): CompareDishPreview {
   return {
     id: dish.id,
     slug: dish.slug,
@@ -38,7 +42,7 @@ function toPreviewDish(dish: PublicMenuDish): CompareDishPreview {
     categorySlug: dish.categorySlug,
     categoryName: dish.category,
     image: imageForDish(dish),
-    imageAlt: `Photo du plat : ${dish.name}`,
+    imageAlt: copy.dishPhotoAlt(dish.name),
     imageObjectPosition: "center",
     allergens: [],
     isSignature: Boolean(dish.isSignature),
@@ -55,7 +59,7 @@ function categoryDishes(
   return dishes.filter(
     (dish) =>
       dish.categoryId === category.id ||
-      dish.categorySlug === category.slug ||
+      (Boolean(category.slug) && dish.categorySlug === category.slug) ||
       dish.category === category.label
   );
 }
@@ -111,6 +115,7 @@ export function buildCurrentPublicMenuPreview({
   featuredDish: PublicMenuDish | null;
 } {
   const currentDishes = menu.dishes.filter((dish) => dish.available);
+  const copy = getLandingCopy(locale).comparison;
   const categories = getVisiblePublicMenuCategories(currentDishes);
   const featuredDish = pickFeaturedDish(currentDishes, preferredDishSlug) ?? null;
   const categoryCards = categories.map((category) => {
@@ -129,14 +134,14 @@ export function buildCurrentPublicMenuPreview({
       description: category.description,
       image: representative ? imageForDish(representative) : null,
       imageAlt: representative
-        ? `Photo de la catégorie ${category.label} : ${representative.name}`
-        : `Catégorie ${category.label}`,
+        ? copy.categoryPhotoAlt(category.label, representative.name)
+        : copy.categoryAlt(category.label),
       imageObjectPosition: "center"
     };
   });
-  const previewDishes = currentDishes.map(toPreviewDish);
+  const previewDishes = currentDishes.map((dish) => toPreviewDish(dish, copy));
   const featuredPreview = featuredDish
-    ? toPreviewDish(featuredDish)
+    ? toPreviewDish(featuredDish, copy)
     : previewDishes[0];
   const allLabel = locale === "en" ? "All" : "Tous";
   const locationLine = [menu.cuisineType, menu.location]

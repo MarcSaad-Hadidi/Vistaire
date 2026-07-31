@@ -251,6 +251,12 @@ export async function applyStoredPublicMenuTranslations(
     const categoryRow = categoryRowsById.get(categoryId);
     return {
       ...dish,
+      name: getTranslatedString({
+        field: "name",
+        source: dish.name,
+        sourceFields,
+        row: dishRow
+      }),
       description: getTranslatedString({
         field: "description",
         source: dish.description,
