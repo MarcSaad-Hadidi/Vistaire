@@ -48,8 +48,7 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   assert.match(data, /buildPublicDishPath/);
   assert.doesNotMatch(data, /\/demo/);
   assert.match(experienceSection, /next\/image/);
-  assert.match(experienceSection, /target="_blank"/);
-  assert.match(experienceSection, /rel="noopener noreferrer"/);
+  assert.match(experienceSection, /LandingPublicMenuLink/);
   assert.match(ownerSection, /restaurateurDashboard/);
   assert.match(copy, /Trois expériences\. Trois identités\./);
   assert.match(copy, /Three experiences\. Three identities\./);
@@ -57,6 +56,36 @@ test("landing showcase presents verified experiences, routes, and owner capabili
     `${data}\n${copy}\n${ownerSection}`,
     /collaborateurs|permissions|augmente vos ventes|plus de ventes|nos clients/i
   );
+});
+
+test("landing public menu links use the shared secure new-tab contract", async () => {
+  const [
+    publicMenuLink,
+    hero,
+    experienceSection,
+    comparison,
+    dishSection
+  ] = await Promise.all([
+    source("components/landing/LandingPublicMenuLink.tsx"),
+    source("components/landing/LandingHero.tsx"),
+    source("components/landing/LandingExperienceSection.tsx"),
+    source("components/landing/comparison/LandingComparison.tsx"),
+    source("components/landing/LandingDishStorySection.tsx")
+  ]);
+
+  assert.ok(
+    publicMenuLink.includes(
+      "export type LandingPublicMenuHref = `/menu/${string}`"
+    )
+  );
+  assert.match(publicMenuLink, /target="_blank"/);
+  assert.match(publicMenuLink, /rel="noopener noreferrer"/);
+  assert.match(publicMenuLink, /Sâ€™ouvre dans un nouvel onglet\./);
+  assert.match(publicMenuLink, /Opens in a new tab\./);
+
+  for (const callSite of [hero, experienceSection, comparison, dishSection]) {
+    assert.match(callSite, /LandingPublicMenuLink/);
+  }
 });
 
 test("landing comparison mounts one official public-menu renderer with accessible tabs", async () => {

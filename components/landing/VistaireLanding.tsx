@@ -45,13 +45,21 @@ export async function VistaireLanding({
         maisonHref={maisonExperience.publicMenuHref}
       />
       <LandingValueSection copy={copy.value} />
-      <LandingExperienceSection copy={copy.experiences} experiences={experiences} />
+      <LandingExperienceSection
+        copy={copy.experiences}
+        experiences={experiences}
+        locale={locale}
+      />
       <LandingComparisonSection
         copy={copy.comparison}
         experiences={experiences}
         locale={locale}
       />
-      <LandingDishStorySection copy={copy.dishes} experiences={experiences} />
+      <LandingDishStorySection
+        copy={copy.dishes}
+        experiences={experiences}
+        locale={locale}
+      />
       <LandingOwnerSection
         copy={copy.owner}
         restaurateurDashboard={routes.restaurateurDashboard}

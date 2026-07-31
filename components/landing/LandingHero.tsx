@@ -1,8 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import { LandingHeroMedia } from "./LandingHeroMedia";
+import {
+  LandingPublicMenuLink,
+  type LandingPublicMenuHref
+} from "./LandingPublicMenuLink";
 import styles from "./VistaireLanding.module.css";
 
 export function LandingHero({
@@ -12,7 +15,7 @@ export function LandingHero({
 }: {
   copy: LandingCopy["hero"];
   locale: Locale;
-  maisonHref: string;
+  maisonHref: LandingPublicMenuHref;
 }) {
   return (
     <section
@@ -29,9 +32,14 @@ export function LandingHero({
             <h1 id="landing-hero-title">{copy.title}</h1>
             <p className={styles.heroBody}>{copy.body}</p>
             <div className={styles.heroActions}>
-              <Link className={styles.primaryButton} href={maisonHref} prefetch={false}>
+              <LandingPublicMenuLink
+                className={styles.primaryButton}
+                href={maisonHref}
+                locale={locale}
+                newTabLabelClassName={styles.srOnly}
+              >
                 {copy.primaryCta}
-              </Link>
+              </LandingPublicMenuLink>
               <a className={styles.secondaryButton} href="#experiences">
                 {copy.secondaryCta}
               </a>
@@ -58,9 +66,14 @@ export function LandingHero({
             <div className={styles.heroVisualCopy}>
               <p className={styles.eyebrow}>{copy.visualEyebrow}</p>
               <h2>{copy.visualTitle}</h2>
-              <Link className={styles.compactButton} href={maisonHref} prefetch={false}>
+              <LandingPublicMenuLink
+                className={styles.compactButton}
+                href={maisonHref}
+                locale={locale}
+                newTabLabelClassName={styles.srOnly}
+              >
                 {copy.visualCta}
-              </Link>
+              </LandingPublicMenuLink>
             </div>
           </article>
 

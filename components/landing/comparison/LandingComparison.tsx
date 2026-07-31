@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useId,
@@ -17,6 +16,7 @@ import type {
 } from "@/lib/landing/menuExperiences";
 import { VistairePreviewPdfCompareSlider } from "@/components/vistaire-preview/VistairePreviewPdfCompareSlider";
 import { LandingActiveMenuPreview } from "./LandingActiveMenuPreview";
+import { LandingPublicMenuLink } from "../LandingPublicMenuLink";
 import styles from "./LandingComparison.module.css";
 
 export function LandingComparison({
@@ -209,13 +209,14 @@ export function LandingComparison({
         <div className={styles.activeCopy}>
           <p>{activeExperience.label}</p>
           <h3>{activeExperience.name}</h3>
-          <Link
+          <LandingPublicMenuLink
             className={styles.activeLink}
             href={activeExperience.publicMenuHref}
-            prefetch={false}
+            locale={locale}
+            newTabLabelClassName={styles.srOnly}
           >
             {copy.openCta}
-          </Link>
+          </LandingPublicMenuLink>
         </div>
       </div>
     </div>

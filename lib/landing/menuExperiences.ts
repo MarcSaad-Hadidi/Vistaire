@@ -15,6 +15,7 @@ import {
 import type { UniqueMenuRendererKey } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
+import type { LandingPublicMenuHref } from "@/components/landing/LandingPublicMenuLink";
 
 export type LandingExperienceId =
   | "maison-elyse"
@@ -39,7 +40,7 @@ export type LandingFeaturedDish = {
   name: string;
   description: string;
   price: string;
-  href: string;
+  href: LandingPublicMenuHref;
   image: string;
   imageSource: "imageUrl" | "thumbnailUrl" | "posterUrl" | "fallback" | "unavailable";
   imageAlt: string;
@@ -51,7 +52,7 @@ type LandingPreviewBase = {
   restaurantId: string;
   menuId?: string;
   locale: Locale;
-  publicMenuHref: string;
+  publicMenuHref: LandingPublicMenuHref;
   comparison: PdfComparePreviewData;
   menuUi: LandingMenuUiPreview;
 };
@@ -74,7 +75,7 @@ export type LandingExperience = {
   menuSlug: LandingExperienceId;
   name: "Maison Élyse" | "Trouvable" | "Sauge Noire";
   label: string;
-  publicMenuHref: string;
+  publicMenuHref: LandingPublicMenuHref;
   image: string;
   imageAlt: string;
   imagePosition: string;
@@ -84,6 +85,13 @@ export type LandingExperience = {
   preview: PdfComparePreviewData;
   renderPayload: LandingMenuPreviewPayload | null;
 };
+
+function toLandingPublicMenuHref(href: string): LandingPublicMenuHref {
+  if (!href.startsWith("/menu/")) {
+    throw new Error(`Landing public menu href must start with /menu/: ${href}`);
+  }
+  return href as LandingPublicMenuHref;
+}
 
 function presentationFor(
   locale: Locale,
@@ -192,11 +200,11 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         ? "Open the current dish page in the Maison Élyse menu."
         : "Ouvrez la fiche actuelle dans la carte Maison Élyse.",
     price: "",
-    href: buildPublicDishPath(
+    href: toLandingPublicMenuHref(buildPublicDishPath(
       "maison-elyse",
       "ravioles-de-chevre-frais-miel-de-monteregie",
       { lang }
-    ),
+    )),
     image: "",
     imageSource: "unavailable",
     imageAlt:
@@ -213,7 +221,9 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         ? "Open the current dish page in the Trouvable menu."
         : "Ouvrez la fiche actuelle dans la carte Trouvable.",
     price: "",
-    href: buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang }),
+    href: toLandingPublicMenuHref(
+      buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang })
+    ),
     image: "",
     imageSource: "unavailable",
     imageAlt: "Pesto Burrata Verde de Trouvable",
@@ -227,10 +237,12 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         ? "Open the current dish page in the Sauge Noire menu."
         : "Ouvrez la fiche actuelle dans la carte Sauge Noire.",
     price: "",
-    href: buildPublicDishPath("sauge-noire", "betterave-sous-la-cendre", {
-      lang,
-      view: "sauge-2"
-    }),
+    href: toLandingPublicMenuHref(
+      buildPublicDishPath("sauge-noire", "betterave-sous-la-cendre", {
+        lang,
+        view: "sauge-2"
+      })
+    ),
     image: "",
     imageSource: "unavailable",
     imageAlt:
@@ -249,7 +261,9 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         locale === "en"
           ? "Editorial and gastronomic"
           : "Éditoriale et gastronomique",
-      publicMenuHref: buildPublicMenuPath("maison-elyse", { lang }),
+      publicMenuHref: toLandingPublicMenuHref(
+        buildPublicMenuPath("maison-elyse", { lang })
+      ),
       image: "/images/landing/maison-elyse-experience.jpg",
       imageAlt:
         locale === "en"
@@ -272,7 +286,9 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       name: "Trouvable",
       label:
         locale === "en" ? "Modern and interactive" : "Moderne et interactive",
-      publicMenuHref: buildPublicMenuPath("trouvable", { lang }),
+      publicMenuHref: toLandingPublicMenuHref(
+        buildPublicMenuPath("trouvable", { lang })
+      ),
       image: "/images/landing/trouvable-experience.jpg",
       imageAlt:
         locale === "en"
@@ -297,7 +313,9 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         locale === "en"
           ? "Distinctive and immersive"
           : "Signature et immersive",
-      publicMenuHref: buildPublicMenuPath("sauge-noire", { lang }),
+      publicMenuHref: toLandingPublicMenuHref(
+        buildPublicMenuPath("sauge-noire", { lang })
+      ),
       image: "/images/landing/sauge-noire-experience.jpg",
       imageAlt:
         locale === "en"
@@ -445,10 +463,12 @@ async function buildLandingExperiences(
             name: dish.name,
             description: dish.description,
             price: dish.priceLabel,
-            href: buildPublicDishPath(menu.slug, dish.slug, {
-              lang,
-              ...(experience.dishView ? { view: experience.dishView } : {})
-            }),
+            href: toLandingPublicMenuHref(
+              buildPublicDishPath(menu.slug, dish.slug, {
+                lang,
+                ...(experience.dishView ? { view: experience.dishView } : {})
+              })
+            ),
             image,
             imageSource,
             imageAlt:

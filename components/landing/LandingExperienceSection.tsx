@@ -1,15 +1,18 @@
 import Image from "next/image";
-import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import type { LandingExperience } from "@/lib/landing/menuExperiences";
+import { LandingPublicMenuLink } from "./LandingPublicMenuLink";
 import styles from "./VistaireLanding.module.css";
 
 export function LandingExperienceSection({
   copy,
-  experiences
+  experiences,
+  locale
 }: {
   copy: LandingCopy["experiences"];
   experiences: LandingExperience[];
+  locale: Locale;
 }) {
   return (
     <section
@@ -27,12 +30,11 @@ export function LandingExperienceSection({
         <div className={styles.experienceGrid}>
           {experiences.map((experience) => (
             <article className={styles.experienceCard} key={experience.id}>
-              <Link
+              <LandingPublicMenuLink
                 className={styles.experienceCardLink}
                 href={experience.publicMenuHref}
-                prefetch={false}
-                rel="noopener noreferrer"
-                target="_blank"
+                locale={locale}
+                newTabLabelClassName={styles.srOnly}
               >
                 <Image
                   alt={experience.imageAlt}
@@ -48,9 +50,8 @@ export function LandingExperienceSection({
                   <span className={styles.experienceLabel}>{experience.label}</span>
                   <h3 className={styles.experienceName}>{experience.name}</h3>
                   <span className={styles.cardLink}>{copy.cta}</span>
-                  <span className={styles.srOnly}> {copy.newTabLabel}</span>
                 </div>
-              </Link>
+              </LandingPublicMenuLink>
             </article>
           ))}
         </div>

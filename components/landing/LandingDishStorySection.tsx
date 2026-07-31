@@ -1,15 +1,18 @@
-import Link from "next/link";
 import { PublicDishImage } from "@/components/public-menu/PublicDishImage";
+import type { Locale } from "@/lib/i18n";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import type { LandingExperience } from "@/lib/landing/menuExperiences";
+import { LandingPublicMenuLink } from "./LandingPublicMenuLink";
 import styles from "./VistaireLanding.module.css";
 
 export function LandingDishStorySection({
   copy,
-  experiences
+  experiences,
+  locale
 }: {
   copy: LandingCopy["dishes"];
   experiences: LandingExperience[];
+  locale: Locale;
 }) {
   return (
     <section
@@ -34,10 +37,11 @@ export function LandingDishStorySection({
               data-menu-slug={experience.menuSlug}
               key={experience.id}
             >
-              <Link
+              <LandingPublicMenuLink
                 className={styles.dishCardLink}
                 href={experience.featuredDish.href}
-                prefetch={false}
+                locale={locale}
+                newTabLabelClassName={styles.srOnly}
               >
                 <span className={styles.dishMedia}>
                   <PublicDishImage
@@ -63,7 +67,7 @@ export function LandingDishStorySection({
                     </span>
                   ) : null}
                 </div>
-              </Link>
+              </LandingPublicMenuLink>
             </article>
           ))}
         </div>
