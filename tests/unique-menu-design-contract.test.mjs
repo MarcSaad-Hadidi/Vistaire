@@ -184,7 +184,7 @@ test("public menu and dish routes share resolvePublicMenuExperience", async () =
   );
   assert.match(menuSource, /resolvePublicMenuRenderContext/);
   assert.match(renderContextSource, /resolvePublicMenuExperience/);
-  assert.match(dishSource, /resolvePublicMenuExperience/);
+  assert.match(dishSource, /resolvePublicDishRenderContext/);
   assert.doesNotMatch(menuSource, /if\s*\(\s*menu\.slug\s*===/);
   assert.doesNotMatch(dishSource, /if\s*\(\s*menu\.slug\s*===/);
   assert.doesNotMatch(menuSource, /import\s*\(\s*[`'"].*\$\{/);

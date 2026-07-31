@@ -112,6 +112,39 @@ test("Trouvable menu sheet and direct route share one dish detail content surfac
   assert.match(detailSource, /<PremiumDishDetailsSheet[\s\S]*dish=\{activeDish\}/);
 });
 
+test("Trouvable wrappers share immersive and review panel bodies while owning their wrappers", async () => {
+  const [menuSource, detailSource, surfaceSource] = await Promise.all([
+    readFile(menuPath, "utf8"),
+    readFile(detailPath, "utf8"),
+    readFile(detailSurfacePath, "utf8")
+  ]);
+
+  for (const source of [menuSource, detailSource]) {
+    assert.match(source, /<TrouvableImmersivePanelBody/);
+    assert.match(source, /<TrouvableDishReviewPanelBody/);
+    assert.doesNotMatch(source, /className=\{styles\.reviewPanel\}/);
+    assert.doesNotMatch(source, /className=\{styles\.inlineModelViewer\}/);
+  }
+
+  assert.match(
+    surfaceSource,
+    /export function TrouvableImmersivePanelBody/
+  );
+  assert.match(
+    surfaceSource,
+    /export function TrouvableDishReviewPanelBody/
+  );
+  assert.match(surfaceSource, /className=\{styles\.inlineModelViewer\}/);
+  assert.match(surfaceSource, /className=\{styles\.arBrowserFallback\}/);
+  assert.match(surfaceSource, /className=\{styles\.reviewPanel\}/);
+  assert.match(surfaceSource, /data-google-review-action="true"/);
+
+  assert.match(menuSource, /role="dialog"/);
+  assert.match(detailSource, /role="dialog"/);
+  assert.match(menuSource, /className=\{styles\.reviewSheet\}/);
+  assert.match(detailSource, /className=\{styles\.reviewSheet\}/);
+});
+
 test("review stars keep selected state visible in light and dark themes", async () => {
   const css = await readFile(menuCssPath, "utf8");
 

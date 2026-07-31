@@ -24,14 +24,8 @@ import {
   getGoogleReviewCta
 } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
-import type {
-  ArFallbackReason,
-  DishModelViewerProps
-} from "@/components/dish/DishModelViewer";
-import {
-  getPublicMenuAnalyticsContext,
-  trackPublicMenuEvent
-} from "@/lib/analytics/client";
+import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   copyTextToClipboard,
@@ -59,7 +53,11 @@ import {
 } from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
-import { TrouvableDishDetailSurface } from "./TrouvableDishDetailSurface";
+import {
+  TrouvableDishDetailSurface,
+  TrouvableDishReviewPanelBody,
+  TrouvableImmersivePanelBody
+} from "./TrouvableDishDetailSurface";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
@@ -97,42 +95,6 @@ function hasPublic3d(dish: PublicMenuDish): boolean {
       "web"
     ) ||
     isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
-
-function modelViewerDishFromPublicDish(
-  dish: PublicMenuDish
-): DishModelViewerProps["dish"] {
-  return {
-    slug: dish.slug,
-    categorySlug: dish.category,
-    name: dish.name,
-    model3dUrl: dish.model3dUrl,
-    webModel3dUrl: dish.webModel3dUrl,
-    arModel3dUrl: dish.arModel3dUrl,
-    arUsdzUrl: dish.arUsdzUrl || dish.usdzUrl,
-    image: dish.imageUrl,
-    imageObjectPosition: "center",
-    imageObjectPositionDetail: "center"
-  };
-}
-
-function BrowserHandoffIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="3.5" y="4" width="17" height="16" rx="2" />
-      <path d="M3.5 8h17M7 6h.01M10 6h.01M13 6h.01" />
-      <path d="m8 14 2.2 2.2L16 10.4" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="8" y="8" width="11" height="12" rx="1.8" />
-      <path d="M16 8V5.8A1.8 1.8 0 0 0 14.2 4H5.8A1.8 1.8 0 0 0 4 5.8v10.4A1.8 1.8 0 0 0 5.8 18H8" />
-    </svg>
   );
 }
 
@@ -284,7 +246,6 @@ export function TrouvableDishDetailExperience({
     activeDish.slug,
     localizedQuery
   );
-  const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
   const arBrowserFallbackTitleId = `trouvable-ar-browser-fallback-${activeDish.slug}`;
   const manualDishUrlId = `trouvable-ar-manual-url-${activeDish.slug}`;
 
@@ -670,105 +631,35 @@ export function TrouvableDishDetailExperience({
         >
 
           {showModelViewer ? (
-            <>
-              <div
-                className={styles.inlineModelViewer}
-                id="trouvable-public-model"
-                data-no-dish-swipe="true"
-              >
-                  {ModelViewerComponent ? (
-                    <ModelViewerComponent
-                      dish={modelViewerDishFromPublicDish(activeDish)}
-                      analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
-                    minimalChrome
-                    quietChrome
-                    copy={{
-                      loadingTitle: copy.modelPreparing,
-                      ...copy.modelViewer,
-                      modelAlt: copy.modelAlt
-                    }}
-                    onReturnToDish={() => {
-                      setShowModelViewer(false);
-                      resetArHandoffState();
-                    }}
-                    onArFallbackNeeded={(reason: ArFallbackReason) => {
-                      if (reason === "missing-ios-usdz") {
-                        resetArHandoffState();
-                        return;
-                      }
-                      setShowArBrowserHelp(true);
-                    }}
-                    onArFallbackCleared={resetArHandoffState}
-                  />
-                ) : modelViewerLoadFailed ? (
-                  <div className={styles.modelLoading} role="status">
-                    {copy.modelUnavailable}
-                  </div>
-                ) : (
-                  <div className={styles.modelLoading} role="status">
-                    {copy.modelPreparing}
-                  </div>
-                )}
-              </div>
-              {showArBrowserHelp ? (
-                <aside
-                  className={styles.arBrowserFallback}
-                  aria-labelledby={arBrowserFallbackTitleId}
-                  dir="auto"
-                >
-                  <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
-                    <BrowserHandoffIcon />
-                  </span>
-                  <div className={styles.arBrowserFallbackContent}>
-                    <h3 id={arBrowserFallbackTitleId}>{platformCopy.title}</h3>
-                    <p>{platformCopy.body}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.arCopyButton}
-                    onClick={() => void copyDishUrl()}
-                    disabled={arCopyStatus === "copying"}
-                  >
-                    <CopyIcon />
-                    {platformCopy.action}
-                  </button>
-                  {arCopyStatus === "success" ? (
-                    <p className={styles.arCopyStatus} role="status" aria-live="polite">
-                      {platformCopy.success}
-                    </p>
-                  ) : null}
-                  {arCopyStatus === "error" ? (
-                    <div className={styles.arManualCopy}>
-                      <p
-                        className={styles.arCopyStatus}
-                        role="alert"
-                        aria-live="assertive"
-                      >
-                        {copy.arBrowserFallback.copyError}
-                      </p>
-                      <label htmlFor={manualDishUrlId}>
-                        {copy.arBrowserFallback.manualCopyLabel}
-                      </label>
-                      <input
-                        ref={manualDishUrlRef}
-                        id={manualDishUrlId}
-                        type="url"
-                        readOnly
-                        value={manualDishUrl}
-                        onFocus={(event) => event.currentTarget.select()}
-                      />
-                      <button
-                        type="button"
-                        className={styles.arSelectLinkButton}
-                        onClick={selectManualDishUrl}
-                      >
-                        {copy.arBrowserFallback.selectLink}
-                      </button>
-                    </div>
-                  ) : null}
-                </aside>
-              ) : null}
-            </>
+            <TrouvableImmersivePanelBody
+              arCopyStatus={arCopyStatus}
+              arHandoffPlatform={arHandoffPlatform}
+              copy={copy}
+              dish={activeDish}
+              fallbackTitleId={arBrowserFallbackTitleId}
+              manualDishUrl={manualDishUrl}
+              manualDishUrlId={manualDishUrlId}
+              manualDishUrlRef={manualDishUrlRef}
+              menu={menu}
+              modelControlsId="trouvable-public-model"
+              modelViewerComponent={ModelViewerComponent}
+              modelViewerLoadFailed={modelViewerLoadFailed}
+              onArFallbackCleared={resetArHandoffState}
+              onArFallbackNeeded={(reason) => {
+                if (reason === "missing-ios-usdz") {
+                  resetArHandoffState();
+                  return;
+                }
+                setShowArBrowserHelp(true);
+              }}
+              onCopyDishUrl={() => void copyDishUrl()}
+              onReturnToDish={() => {
+                setShowModelViewer(false);
+                resetArHandoffState();
+              }}
+              onSelectManualDishUrl={selectManualDishUrl}
+              showArBrowserHelp={showArBrowserHelp}
+            />
           ) : null}
 
         </TrouvableDishDetailSurface>
@@ -798,65 +689,28 @@ export function TrouvableDishDetailExperience({
           data-no-dish-swipe="true"
         >
           <section className={styles.reviewSheet} tabIndex={-1}>
-            <div className={styles.reviewDishGhost} aria-hidden="true">
-              {activeDish.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" src={activeDish.imageUrl} />
-              ) : (
-                <span>{activeDish.name.slice(0, 1)}</span>
-              )}
-            </div>
-            <div className={styles.reviewPanel}>
-              <h2 id="trouvable-route-review-title">{copy.reviewTitle}</h2>
-              <div className={styles.reviewStars} aria-label={copy.reviewStars}>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    key={rating}
-                    type="button"
-                    aria-label={`${rating} ${copy.reviewStars}`}
-                    aria-pressed={reviewRating >= rating}
-                    onClick={() => setReviewRating(rating)}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-              <label className={styles.reviewTextarea}>
-                <span>{copy.reviewComment}</span>
-                <textarea
-                  maxLength={300}
-                  placeholder={copy.reviewPlaceholder}
-                  value={reviewText}
-                  onChange={(event) => setReviewText(event.target.value)}
-                />
-              </label>
-              {googleReviewCta ? (
-                <a
-                  className={styles.reviewPostButton}
-                  data-google-review-action="true"
-                  href={googleReviewCta.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() =>
-                    trackGoogleReviewClick({
-                      dishSlug: activeDish.slug,
-                      menuId: menu.menuId,
-                      restaurantId: menu.restaurantId,
-                      source: menu.source
-                    })
-                  }
-                >
-                  {copy.reviewPost}
-                </a>
-            ) : (
-              <button className={styles.reviewPostButton} type="button" disabled>
-                {copy.reviewPost}
-              </button>
-            )}
-            {!googleReviewCta ? (
-              <p className={styles.reviewNote}>{copy.reviewMissing}</p>
-            ) : null}
-            </div>
+            <TrouvableDishReviewPanelBody
+              copy={copy}
+              dish={activeDish}
+              fallbackInitial={menu.name.slice(0, 1)}
+              googleReviewCta={googleReviewCta}
+              onPostReview={() =>
+                trackGoogleReviewClick({
+                  dishSlug: activeDish.slug,
+                  menuId: menu.menuId,
+                  restaurantId: menu.restaurantId,
+                  source: menu.source
+                })
+              }
+              onRatingChange={setReviewRating}
+              onReviewTextChange={setReviewText}
+              placeholder={copy.reviewPlaceholder}
+              rating={reviewRating}
+              starsLabel={copy.reviewStars}
+              text={reviewText}
+              title={copy.reviewTitle}
+              titleId="trouvable-route-review-title"
+            />
           </section>
         </div>
       ) : null}

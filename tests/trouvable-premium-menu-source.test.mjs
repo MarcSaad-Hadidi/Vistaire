@@ -60,7 +60,10 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
 });
 
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
-  const source = await readFile(componentPath, "utf8");
+  const [source, sharedDetailSurface] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile("components/menu/TrouvableDishDetailSurface.tsx", "utf8")
+  ]);
 
   assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.glb/);
@@ -69,9 +72,9 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
   assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => \{[\s\S]*?return !isVisible;/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
-  assert.match(source, /loadingTitle:\s*copy\.modelPreparing/);
-  assert.match(source, /\.\.\.copy\.modelViewer/);
-  assert.match(source, /modelAlt:\s*copy\.modelAlt/);
+  assert.match(sharedDetailSurface, /loadingTitle:\s*copy\.modelPreparing/);
+  assert.match(sharedDetailSurface, /\.\.\.copy\.modelViewer/);
+  assert.match(sharedDetailSurface, /modelAlt:\s*copy\.modelAlt/);
   assert.match(source, /useTrouvableDocumentLanguage\(\s*selectedLocale,\s*textDirection/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /copyTextToClipboard/);

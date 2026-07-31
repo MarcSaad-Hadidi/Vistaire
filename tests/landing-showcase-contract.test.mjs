@@ -73,6 +73,19 @@ test("featured dish links derive from each experience route contract", async () 
     data,
     /experience\.id !== "sauge-noire"[\s\S]{0,180}view:/
   );
+  assert.match(
+    data,
+    /buildPublicDishPath\(\s*"maison-elyse",\s*"ravioles-de-chevre-frais-miel-de-monteregie",\s*\{\s*lang\s*\}/
+  );
+  assert.match(
+    data,
+    /buildPublicDishPath\("trouvable", "pesto-burrata-verde", \{ lang \}\)/
+  );
+  assert.match(
+    data,
+    /buildPublicDishPath\("sauge-noire", "betterave-sous-la-cendre", \{\s*lang,\s*view: "sauge-2"/
+  );
+  assert.match(data, /locale === "en" \? "en-CA" : "fr-CA"/);
 });
 
 test("landing public menu links use the shared secure new-tab contract", async () => {

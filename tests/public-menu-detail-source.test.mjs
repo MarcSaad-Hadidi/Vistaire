@@ -10,11 +10,15 @@ const trouvableDetailPath =
   "components/menu/TrouvableDishDetailExperience.tsx";
 const saugeDetailPath =
   "components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx";
+const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 
 test("public dish detail route adds dish lookup and renderer selection to the shared render context", async () => {
-  const source = await readFile(detailPagePath, "utf8");
+  const [source, renderContextSource] = await Promise.all([
+    readFile(detailPagePath, "utf8"),
+    readFile(renderContextPath, "utf8")
+  ]);
 
-  assert.match(source, /resolvePublicMenuRenderContext\(\{\s*slug,\s*query\s*\}\)/);
+  assert.match(source, /resolvePublicDishRenderContext\(\{\s*slug,\s*query\s*\}\)/);
   assert.match(source, /getPublicMenuDishBySlug/);
   assert.match(source, /const \{\s*menu,\s*config,\s*context,\s*query:\s*menuQuery,\s*locale,\s*exchangeRates,\s*experience\s*\}\s*=\s*renderContext/);
   assert.doesNotMatch(source, /getExchangeRates/);
@@ -26,6 +30,29 @@ test("public dish detail route adds dish lookup and renderer selection to the sh
   assert.match(source, /notFound\(\)/);
   assert.match(source, /PublicDishDetailExperience/);
   assert.match(source, /query=\{menuQuery\}/);
+
+  assert.match(
+    renderContextSource,
+    /export async function resolvePublicDishRenderContext/
+  );
+  const dishResolverSource = renderContextSource.slice(
+    renderContextSource.indexOf(
+      "export async function resolvePublicDishRenderContext"
+    )
+  );
+  assert.match(
+    dishResolverSource,
+    /experience\.kind === "trouvable"\s*\|\|\s*experience\.kind === "unique-registered"[\s\S]*getRenderContextExchangeRates/
+  );
+  assert.match(
+    renderContextSource,
+    /function getRenderContextExchangeRates[\s\S]*return getExchangeRates/
+  );
+  assert.doesNotMatch(dishResolverSource, /localizedMenus/);
+  assert.doesNotMatch(
+    dishResolverSource,
+    /getPublicMenuBySlug\(\s*slug,\s*"(?:fr|en)"/
+  );
 });
 
 test("direct dish renderers expose stable unique root markers and keep Trouvable dedicated", async () => {

@@ -5,7 +5,7 @@ import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailEx
 import { TrouvableDishDetailExperience } from "@/components/menu/TrouvableDishDetailExperience";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
-import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext";
+import { resolvePublicDishRenderContext } from "@/lib/menu/publicMenuRenderContext";
 import { trouvableTypographyClassName } from "../../trouvableTypography";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export default async function PublicDishPage({
 }: PublicDishPageProps) {
   const { slug, dishSlug } = await params;
   const query = await searchParams;
-  const renderContext = await resolvePublicMenuRenderContext({ slug, query });
+  const renderContext = await resolvePublicDishRenderContext({ slug, query });
 
   if (!renderContext) {
     notFound();
@@ -89,6 +89,8 @@ export default async function PublicDishPage({
   }
 
   if (experience.kind === "trouvable") {
+    if (!exchangeRates) notFound();
+
     return (
       <TrouvableDishDetailExperience
         config={config}
@@ -103,6 +105,8 @@ export default async function PublicDishPage({
   }
 
   if (experience.kind === "unique-registered" && experience.renderer) {
+    if (!exchangeRates) notFound();
+
     const UniqueDishDetail = experience.renderer.dishDetail;
 
     return (
