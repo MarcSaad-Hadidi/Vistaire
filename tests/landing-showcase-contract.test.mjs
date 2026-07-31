@@ -83,8 +83,34 @@ test("landing public menu links use the shared secure new-tab contract", async (
   assert.match(publicMenuLink, /Sâ€™ouvre dans un nouvel onglet\./);
   assert.match(publicMenuLink, /Opens in a new tab\./);
 
+  assert.equal((hero.match(/<LandingPublicMenuLink/g) ?? []).length, 2);
+  assert.equal((hero.match(/href=\{maisonHref\}/g) ?? []).length, 2);
+  assert.equal(
+    (experienceSection.match(/<LandingPublicMenuLink/g) ?? []).length,
+    1
+  );
+  assert.equal(
+    (experienceSection.match(/href=\{experience\.publicMenuHref\}/g) ?? [])
+      .length,
+    1
+  );
+  assert.equal((comparison.match(/<LandingPublicMenuLink/g) ?? []).length, 1);
+  assert.equal(
+    (comparison.match(/href=\{activeExperience\.publicMenuHref\}/g) ?? [])
+      .length,
+    1
+  );
+  assert.equal((dishSection.match(/<LandingPublicMenuLink/g) ?? []).length, 1);
+  assert.equal(
+    (dishSection.match(/href=\{experience\.featuredDish\.href\}/g) ?? [])
+      .length,
+    1
+  );
+
+  const rawPublicMenuLink =
+    /<(?:Link|a)\b[\s\S]{0,240}href=(?:\{(?:maisonHref|experience\.publicMenuHref|activeExperience\.publicMenuHref|experience\.featuredDish\.href)\}|["']\/menu\/)/;
   for (const callSite of [hero, experienceSection, comparison, dishSection]) {
-    assert.match(callSite, /LandingPublicMenuLink/);
+    assert.doesNotMatch(callSite, rawPublicMenuLink);
   }
 });
 
