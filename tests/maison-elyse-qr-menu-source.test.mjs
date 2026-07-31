@@ -119,10 +119,10 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   ]);
 
   assert.match(route, /MaisonElyseDishDetail/);
-  assert.match(route, /resolvePublicMenuExperience/);
+  assert.match(route, /resolvePublicMenuRenderContext/);
   assert.match(route, /experience\.kind === "maison-elyse"/);
   assert.match(route, /PublicDishDetailExperience/);
-  assert.match(route, /getPublishedMenuUiConfigForRestaurant/);
+  assert.doesNotMatch(route, /getPublishedMenuUiConfigForRestaurant/);
 
   for (const text of [
     "Retour",

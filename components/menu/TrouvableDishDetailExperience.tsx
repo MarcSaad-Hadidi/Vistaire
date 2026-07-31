@@ -58,9 +58,8 @@ import {
   resolveDishSwipeGesture
 } from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
-import { AllergenWarning } from "./AllergenDisclosure";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
-import { PremiumDishCardOptionTags } from "./PremiumDishTags";
+import { TrouvableDishDetailSurface } from "./TrouvableDishDetailSurface";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
@@ -534,6 +533,8 @@ export function TrouvableDishDetailExperience({
 
   return (
     <main
+      data-public-dish-renderer="trouvable"
+      data-menu-context={context}
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}
       style={
         config && paletteSource === "restaurant"
@@ -648,57 +649,25 @@ export function TrouvableDishDetailExperience({
       ) : null}
 
       <article className={styles.standaloneDetailCard}>
-        <div
-          className={`${styles.detailVisual} ${
-            activeDish.imageUrl ? styles.hasDishImage : ""
-          }`}
+        <TrouvableDishDetailSurface
+          copy={copy}
+          detailsExpanded={activeSubSheet === "details"}
+          detailsId={moreDetailsId}
+          dish={activeDish}
+          hasModel={hasModel}
+          headingLevel="h1"
+          locale={selectedLocale}
+          menuName={menu.name}
+          modelControlsId="trouvable-public-model"
+          modelExpanded={showModelViewer}
+          onOpenDetails={() => setActiveSubSheet("details")}
+          onOpenReview={openReviewSheet}
+          onToggleModel={toggleModelViewer}
+          price={activePrice}
+          showImmersiveUnavailable
+          textDirection={textDirection}
+          titleId="trouvable-dish-title"
         >
-          {activeDish.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={activeDish.imageUrl} />
-          ) : (
-            <span>{menu.name.slice(0, 1)}</span>
-          )}
-        </div>
-
-        <section className={styles.detailBody} aria-label={copy.moreDetails} dir={textDirection}>
-          <p className={styles.detailRestaurantName}>{context || menu.name}</p>
-          <h1 id="trouvable-dish-title">{activeDish.name}</h1>
-          <AllergenWarning locale={selectedLocale} />
-          {activePrice ? (
-            <strong className={styles.detailPrice}>{activePrice}</strong>
-          ) : null}
-          <button
-            type="button"
-            className={styles.moreDetailsButton}
-            aria-expanded={activeSubSheet === "details"}
-            aria-controls={moreDetailsId}
-            onClick={() => setActiveSubSheet("details")}
-          >
-            <span aria-hidden="true">i</span>
-            {copy.viewDetails}
-          </button>
-          <div className={styles.detailOptionTags} data-no-dish-swipe="true">
-            <PremiumDishCardOptionTags
-              items={activeDish.options}
-              label={copy.cardOptionsLabel}
-              variant="detail"
-            />
-          </div>
-
-          {hasModel ? (
-            <button
-              type="button"
-              className={styles.modelCta}
-              aria-controls="trouvable-public-model"
-              aria-expanded={showModelViewer}
-              onClick={toggleModelViewer}
-            >
-              {copy.threeD}
-            </button>
-          ) : (
-            <p className={styles.modelUnavailable}>{copy.immersiveUnavailable}</p>
-          )}
 
           {showModelViewer ? (
             <>
@@ -802,16 +771,7 @@ export function TrouvableDishDetailExperience({
             </>
           ) : null}
 
-          <button
-            type="button"
-            className={styles.reviewTrigger}
-            aria-haspopup="dialog"
-            onClick={openReviewSheet}
-          >
-            <span aria-hidden="true">★</span>
-            {copy.review}
-          </button>
-        </section>
+        </TrouvableDishDetailSurface>
       </article>
 
       {activeSubSheet === "details" ? (

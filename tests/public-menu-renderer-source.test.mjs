@@ -148,7 +148,7 @@ test("generic public dish sheets render structured allergen declarations and act
   );
   assert.match(
     detailRouteSource,
-    /<PublicDishDetailExperience[\s\S]*locale=\{activeLocale\}/
+    /<PublicDishDetailExperience[\s\S]*locale=\{locale\}/
   );
 });
 

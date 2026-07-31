@@ -3,17 +3,9 @@ import { notFound } from "next/navigation";
 import { MaisonElyseDishDetail } from "@/components/menu/MaisonElyseDishDetail";
 import { PublicDishDetailExperience } from "@/components/menu/PublicDishDetailExperience";
 import { TrouvableDishDetailExperience } from "@/components/menu/TrouvableDishDetailExperience";
-import { getExchangeRates } from "@/lib/currency/exchangeRates";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
-import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuDishBySlug } from "@/lib/menu/publicMenuCore";
-import {
-  normalizePublicMenuLocalePreference,
-  publicLocaleToShortLocale
-} from "@/lib/menu/publicMenuSettings";
-import { resolvePublicMenuExperience } from "@/lib/menu/publicMenuExperienceRoute";
-import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
-import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
+import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext";
 import { trouvableTypographyClassName } from "../../trouvableTypography";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +27,12 @@ export async function generateMetadata({
 }: PublicDishPageProps): Promise<Metadata> {
   const { slug, dishSlug } = await params;
   const query = await searchParams;
-  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const menu = await getPublicMenuBySlug(slug, hasLangParam ? query.lang : undefined);
+  const hasLangParam =
+    typeof query.lang === "string" && query.lang.trim().length > 0;
+  const menu = await getPublicMenuBySlug(
+    slug,
+    hasLangParam ? query.lang : undefined
+  );
   const dish = menu ? getPublicMenuDishBySlug(menu, dishSlug) : null;
 
   if (!menu || !dish) {
@@ -59,85 +55,48 @@ export default async function PublicDishPage({
 }: PublicDishPageProps) {
   const { slug, dishSlug } = await params;
   const query = await searchParams;
-  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const initialMenu = await getPublicMenuBySlug(
-    slug,
-    hasLangParam ? query.lang : undefined
-  );
+  const renderContext = await resolvePublicMenuRenderContext({ slug, query });
 
-  if (!initialMenu) {
+  if (!renderContext) {
     notFound();
   }
 
-  const activePublicLocale = normalizePublicMenuLocalePreference(
-    hasLangParam ? query.lang : undefined,
-    initialMenu.settings
-  );
-  const activeLocale = publicLocaleToShortLocale(activePublicLocale);
-  const menu = initialMenu;
-  const menuQuery = {
-    lang: activePublicLocale,
-    currency: query.currency,
-    table: query.table,
-    zone: query.zone,
-    view: query.view
-  };
-
+  const {
+    menu,
+    config,
+    context,
+    query: menuQuery,
+    locale,
+    exchangeRates,
+    experience
+  } = renderContext;
   const dish = getPublicMenuDishBySlug(menu, dishSlug);
+
   if (!dish) {
     notFound();
   }
-
-  const fallbackConfig = menuUiConfigForRestaurant({
-    name: menu.name,
-    slug: menu.slug
-  });
-  const configRecord = await getPublishedMenuUiConfigForRestaurant(
-    menu.restaurantId,
-    fallbackConfig
-  );
-  const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
-  const experience = resolvePublicMenuExperience(menu, resolvedConfig, {
-    allowPendingUniquePreview:
-      process.env.NODE_ENV !== "production" &&
-      process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
-  });
-  const context = [
-    query.table ? `Table ${query.table}` : "",
-    query.zone ? `Zone ${query.zone}` : ""
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   if (experience.kind === "maison-elyse") {
     return (
       <MaisonElyseDishDetail
         dish={dish}
-        locale={activeLocale}
+        locale={locale}
         menu={menu}
         query={menuQuery}
-        config={resolvedConfig}
+        config={config}
       />
     );
   }
 
   if (experience.kind === "trouvable") {
-    const exchangeRates = await getExchangeRates({
-      baseCurrency: menu.settings.baseCurrency,
-      supportedCurrencies: menu.settings.supportedCurrencies
-    });
-
     return (
       <TrouvableDishDetailExperience
-        config={resolvedConfig}
+        config={config}
         context={context}
         dish={dish}
         exchangeRates={exchangeRates}
         menu={menu}
-        query={{
-          ...menuQuery,
-          lang: hasLangParam ? activePublicLocale : undefined
-        }}
+        query={menuQuery}
         typographyClassName={trouvableTypographyClassName}
       />
     );
@@ -145,17 +104,14 @@ export default async function PublicDishPage({
 
   if (experience.kind === "unique-registered" && experience.renderer) {
     const UniqueDishDetail = experience.renderer.dishDetail;
-    const exchangeRates = await getExchangeRates({
-      baseCurrency: menu.settings.baseCurrency,
-      supportedCurrencies: menu.settings.supportedCurrencies
-    });
+
     return (
       <UniqueDishDetail
         menu={menu}
-        config={resolvedConfig}
+        config={config}
         context={context}
         query={menuQuery}
-        locale={activeLocale}
+        locale={locale}
         exchangeRates={exchangeRates}
         dish={dish}
         mode="public"
@@ -165,10 +121,10 @@ export default async function PublicDishPage({
 
   return (
     <PublicDishDetailExperience
-      config={resolvedConfig}
+      config={config}
       context={context}
       dish={dish}
-      locale={activeLocale}
+      locale={locale}
       menu={menu}
       query={menuQuery}
     />

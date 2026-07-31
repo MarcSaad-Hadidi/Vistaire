@@ -1055,6 +1055,7 @@ export function SaugeNoireDishDetail({
   return (
     <main
       className={styles.detailPage}
+      data-public-dish-renderer="sauge-noire"
       data-testid="sauge-noire-dish-detail"
       data-active-currency={currency}
       data-active-locale={publicLocale}

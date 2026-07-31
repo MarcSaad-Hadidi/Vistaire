@@ -352,6 +352,9 @@ export function MaisonElyseDishDetail({
 
   return (
     <main
+      data-public-dish-renderer={
+        displayMode === "public" ? "maison-elyse" : undefined
+      }
       className={`${styles.page} ${
         displayMode === "phone-preview" ? styles.phonePreview : ""
       }`}

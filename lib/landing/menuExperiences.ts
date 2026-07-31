@@ -93,6 +93,27 @@ function toLandingPublicMenuHref(href: string): LandingPublicMenuHref {
   return href as LandingPublicMenuHref;
 }
 
+function buildLandingFeaturedDishHref(
+  experience: Pick<
+    LandingExperience,
+    "dishView" | "featuredDish" | "id" | "menuSlug"
+  >,
+  locale: Locale
+): LandingPublicMenuHref {
+  return toLandingPublicMenuHref(
+    buildPublicDishPath(
+      experience.menuSlug,
+      experience.featuredDish.slug,
+      {
+        lang: locale === "en" ? "en-CA" : "fr-CA",
+        ...(experience.id === "sauge-noire" && experience.dishView
+          ? { view: experience.dishView }
+          : {})
+      }
+    )
+  );
+}
+
 function presentationFor(
   locale: Locale,
   theme: LandingExperienceId,
@@ -252,7 +273,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     imagePosition: "center"
   };
 
-  return [
+  const experiences: LandingExperience[] = [
     {
       id: "maison-elyse",
       menuSlug: "maison-elyse",
@@ -334,6 +355,14 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       renderPayload: null
     }
   ];
+
+  return experiences.map((experience) => ({
+    ...experience,
+    featuredDish: {
+      ...experience.featuredDish,
+      href: buildLandingFeaturedDishHref(experience, locale)
+    }
+  }));
 }
 
 function landingRenderPayload(
@@ -484,8 +513,15 @@ async function buildLandingExperiences(
     })
   );
 
+  const routedExperiences = resolved.map((experience) => ({
+    ...experience,
+    featuredDish: {
+      ...experience.featuredDish,
+      href: buildLandingFeaturedDishHref(experience, locale)
+    }
+  }));
   const claimedImages = new Set<string>();
-  return resolved.map((experience) => {
+  return routedExperiences.map((experience) => {
     const image = experience.featuredDish.image;
     if (!image || !claimedImages.has(image)) {
       if (image) claimedImages.add(image);

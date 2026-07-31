@@ -5,19 +5,52 @@ import assert from "node:assert/strict";
 const detailPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
 const detailComponentPath = "components/menu/PublicDishDetailExperience.tsx";
 const detailCssPath = "components/menu/PublicDishDetailExperience.module.css";
+const maisonDetailPath = "components/menu/MaisonElyseDishDetail.tsx";
+const trouvableDetailPath =
+  "components/menu/TrouvableDishDetailExperience.tsx";
+const saugeDetailPath =
+  "components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx";
 
-test("public dish detail route scopes dishes to the requested public menu", async () => {
+test("public dish detail route adds dish lookup and renderer selection to the shared render context", async () => {
   const source = await readFile(detailPagePath, "utf8");
 
-  assert.match(source, /getPublicMenuBySlug/);
+  assert.match(source, /resolvePublicMenuRenderContext\(\{\s*slug,\s*query\s*\}\)/);
   assert.match(source, /getPublicMenuDishBySlug/);
-  assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
-  assert.match(source, /resolvePublicMenuUiConfig/);
-  assert.match(source, /config=\{resolvedConfig\}/);
+  assert.match(source, /const \{\s*menu,\s*config,\s*context,\s*query:\s*menuQuery,\s*locale,\s*exchangeRates,\s*experience\s*\}\s*=\s*renderContext/);
+  assert.doesNotMatch(source, /getExchangeRates/);
+  assert.doesNotMatch(source, /getPublishedMenuUiConfigForRestaurant/);
+  assert.doesNotMatch(source, /resolvePublicMenuUiConfig/);
+  assert.doesNotMatch(source, /resolvePublicMenuExperience/);
+  assert.match(source, /config=\{config\}/);
   assert.doesNotMatch(source, /isFreshHomemadeMenu/);
   assert.match(source, /notFound\(\)/);
   assert.match(source, /PublicDishDetailExperience/);
   assert.match(source, /query=\{menuQuery\}/);
+});
+
+test("direct dish renderers expose stable unique root markers and keep Trouvable dedicated", async () => {
+  const [route, maison, trouvable, sauge] = await Promise.all([
+    readFile(detailPagePath, "utf8"),
+    readFile(maisonDetailPath, "utf8"),
+    readFile(trouvableDetailPath, "utf8"),
+    readFile(saugeDetailPath, "utf8")
+  ]);
+
+  assert.match(
+    maison,
+    /data-public-dish-renderer=\{[\s\S]*displayMode === "public" \? "maison-elyse" : undefined/
+  );
+  assert.match(trouvable, /data-public-dish-renderer="trouvable"/);
+  assert.match(sauge, /data-public-dish-renderer="sauge-noire"/);
+  assert.match(
+    route,
+    /experience\.kind === "trouvable"[\s\S]*<TrouvableDishDetailExperience/
+  );
+  const trouvableBranch = route.slice(
+    route.indexOf('if (experience.kind === "trouvable")'),
+    route.indexOf('if (experience.kind === "unique-registered"')
+  );
+  assert.doesNotMatch(trouvableBranch, /PublicDishDetailExperience/);
 });
 
 test("public dish detail component renders the required Resto Marc detail affordances", async () => {

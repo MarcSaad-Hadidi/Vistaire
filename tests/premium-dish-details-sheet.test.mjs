@@ -4,18 +4,22 @@ import assert from "node:assert/strict";
 
 const menuPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const detailPath = "components/menu/TrouvableDishDetailExperience.tsx";
+const detailSurfacePath = "components/menu/TrouvableDishDetailSurface.tsx";
 const sheetPath = "components/menu/PremiumDishDetailsSheet.tsx";
 const allergenDisclosurePath = "components/menu/AllergenDisclosure.tsx";
 const tagsPath = "components/menu/PremiumDishTags.tsx";
 const menuCssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
 
 test("menu cards show only the 3D badge and no option tags or details trigger", async () => {
-  const source = await readFile(menuPath, "utf8");
+  const [source, surfaceSource] = await Promise.all([
+    readFile(menuPath, "utf8"),
+    readFile(detailSurfacePath, "utf8")
+  ]);
 
   assert.match(source, /DishCard3dBadge/);
   assert.match(source, /hasPublicMenu3d\(dish\)/);
   assert.doesNotMatch(source, /PremiumDishCardOptionTags[\s\S]{0,180}items=\{dish\.options\}/);
-  assert.match(source, /PremiumDishCardOptionTags[\s\S]{0,180}items=\{selectedDish\.options\}/);
+  assert.match(surfaceSource, /PremiumDishCardOptionTags[\s\S]{0,180}items=\{dish\.options\}/);
   assert.doesNotMatch(source, /cardDetailsTrigger/);
   assert.doesNotMatch(source, /openDishDetailsPopup\(dish\)/);
   assert.doesNotMatch(source, /copy\.ingredientsCount\(/);
@@ -52,13 +56,14 @@ test("allergen disclosure hides the unconfirmed-information block", async () => 
 test("details popup opens from the dish sheet without a card-level trigger", async () => {
   const menuSource = await readFile(menuPath, "utf8");
   const detailSource = await readFile(detailPath, "utf8");
+  const surfaceSource = await readFile(detailSurfacePath, "utf8");
 
   assert.match(menuSource, /setDishSubSheet\("details"\)/);
   assert.match(menuSource, /PremiumDishDetailsSheet/);
   assert.doesNotMatch(menuSource, /cardDetailsTrigger/);
   assert.doesNotMatch(menuSource, /openDishDetailsPopup\(dish\)/);
   assert.match(detailSource, /PremiumDishDetailsSheet/);
-  assert.match(detailSource, /copy\.viewDetails/);
+  assert.match(surfaceSource, /copy\.viewDetails/);
 });
 
 test("review popup remains separate from premium details sheet", async () => {
@@ -68,6 +73,43 @@ test("review popup remains separate from premium details sheet", async () => {
   assert.match(menuSource, /dishSubSheet === "review"/);
   assert.match(menuSource, /PremiumDishDetailsSheet/);
   assert.match(menuSource, /dishSubSheet === "details"/);
+});
+
+test("Trouvable menu sheet and direct route share one dish detail content surface", async () => {
+  const [menuSource, detailSource, surfaceSource] = await Promise.all([
+    readFile(menuPath, "utf8"),
+    readFile(detailPath, "utf8"),
+    readFile(detailSurfacePath, "utf8")
+  ]);
+
+  assert.match(menuSource, /<TrouvableDishDetailSurface/);
+  assert.match(detailSource, /<TrouvableDishDetailSurface/);
+  assert.equal(
+    (menuSource.match(/<TrouvableDishDetailSurface/g) ?? []).length,
+    1
+  );
+  assert.equal(
+    (detailSource.match(/<TrouvableDishDetailSurface/g) ?? []).length,
+    1
+  );
+
+  for (const contract of [
+    /dish\.imageUrl/,
+    /dish\.category/,
+    /dish\.name/,
+    /dish\.options/,
+    /AllergenWarning/,
+    /copy\.viewDetails/,
+    /copy\.review/,
+    /copy\.threeD/
+  ]) {
+    assert.match(surfaceSource, contract);
+  }
+
+  assert.doesNotMatch(menuSource, /className=\{styles\.detailVisual\}/);
+  assert.doesNotMatch(detailSource, /className=\{styles\.detailVisual\}/);
+  assert.match(menuSource, /<PremiumDishDetailsSheet[\s\S]*dish=\{detailsDish\}/);
+  assert.match(detailSource, /<PremiumDishDetailsSheet[\s\S]*dish=\{activeDish\}/);
 });
 
 test("review stars keep selected state visible in light and dark themes", async () => {

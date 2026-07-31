@@ -213,16 +213,21 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
 test("Trouvable standalone dish detail keeps locale URL navigation and layout direction in sync", async () => {
   const detailSource = await readFile(dishDetailPath, "utf8");
   const pageSource = await readFile(dishPagePath, "utf8");
+  const surfaceSource = await readFile(
+    "components/menu/TrouvableDishDetailSurface.tsx",
+    "utf8"
+  );
 
   assert.match(detailSource, /useRouter/);
   assert.match(detailSource, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
   assert.doesNotMatch(detailSource, /window\.location\.replace/);
   assert.match(detailSource, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
   assert.match(detailSource, /lang=\{selectedLocale\}/);
-  assert.match(detailSource, /dir=\{textDirection\}/);
+  assert.match(detailSource, /textDirection=\{textDirection\}/);
+  assert.match(surfaceSource, /dir=\{textDirection\}/);
   assert.match(
     pageSource,
-    /<TrouvableDishDetailExperience[\s\S]*query=\{\{\s*\.\.\.menuQuery,\s*lang:\s*hasLangParam \? activePublicLocale : undefined\s*\}\}/
+    /<TrouvableDishDetailExperience[\s\S]*query=\{menuQuery\}/
   );
 });
 
@@ -336,6 +341,10 @@ test("Trouvable list keeps the allergen warning inside dish details", async () =
     new URL("../components/menu/TrouvableDishDetailExperience.tsx", import.meta.url),
     "utf8"
   );
+  const detailSurfaceSource = await readFile(
+    new URL("../components/menu/TrouvableDishDetailSurface.tsx", import.meta.url),
+    "utf8"
+  );
   const sheetSource = await readFile(
     new URL("../components/menu/PremiumDishDetailsSheet.tsx", import.meta.url),
     "utf8"
@@ -348,7 +357,8 @@ test("Trouvable list keeps the allergen warning inside dish details", async () =
 
   assert.doesNotMatch(listSource, /<AllergenWarning/);
   assert.doesNotMatch(menuSource, /<AllergenWarning/);
-  assert.match(detailSource, /<AllergenWarning locale=\{selectedLocale\} \/>/);
+  assert.doesNotMatch(detailSource, /<AllergenWarning/);
+  assert.match(detailSurfaceSource, /<AllergenWarning locale=\{locale\} \/>/);
   assert.match(sheetSource, /includeWarning\s*\/>/);
 });
 

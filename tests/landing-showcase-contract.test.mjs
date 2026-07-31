@@ -58,6 +58,23 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   );
 });
 
+test("featured dish links derive from each experience route contract", async () => {
+  const data = await source("lib/landing/menuExperiences.ts");
+
+  assert.match(
+    data,
+    /buildPublicDishPath\(\s*experience\.menuSlug,\s*experience\.featuredDish\.slug,\s*\{[\s\S]*lang: locale === "en" \? "en-CA" : "fr-CA"/
+  );
+  assert.match(
+    data,
+    /experience\.id === "sauge-noire" && experience\.dishView[\s\S]*view: experience\.dishView/
+  );
+  assert.doesNotMatch(
+    data,
+    /experience\.id !== "sauge-noire"[\s\S]{0,180}view:/
+  );
+});
+
 test("landing public menu links use the shared secure new-tab contract", async () => {
   const [
     publicMenuLink,

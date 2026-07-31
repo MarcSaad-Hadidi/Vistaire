@@ -52,7 +52,7 @@ import {
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
-import { PremiumDishCardOptionTags } from "./PremiumDishTags";
+import { TrouvableDishDetailSurface } from "./TrouvableDishDetailSurface";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
@@ -2109,91 +2109,52 @@ export function TrouvablePremiumMenuExperience({
               </button>
             </>
           ) : null}
-          <div
-            className={`${styles.detailVisual} ${
-              selectedDish.imageUrl ? styles.hasDishImage : ""
-            }`}
-          >
-            {selectedDish.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" loading="lazy" src={selectedDish.imageUrl} />
-            ) : (
-              <span>{menu.name.slice(0, 1)}</span>
-            )}
-          </div>
-          <div className={styles.detailBody}>
-            <header className={styles.sheetHeader}>
-              <div>
-                <p>{selectedDish.category}</p>
-                <h2 id="trouvable-dish-title">{selectedDish.name}</h2>
-              </div>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={copy.closeDetail}
-                onClick={closeActiveSheet}
-              >
-                x
-              </button>
-            </header>
-            {detailPrice ? (
-              <strong className={styles.detailPrice}>{detailPrice}</strong>
-            ) : null}
-            <button
-              type="button"
-              className={styles.moreDetailsButton}
-              aria-expanded={dishSubSheet === "details"}
-              aria-controls={moreDetailsId}
-              onClick={() => {
-                setDishSubSheet("details");
-              }}
-            >
-              <span aria-hidden="true">i</span>
-              {copy.viewDetails}
-            </button>
-            <div className={styles.detailOptionTags} data-no-dish-swipe="true">
-              <PremiumDishCardOptionTags
-                items={selectedDish.options}
-                label={copy.cardOptionsLabel}
-                variant="detail"
-              />
-            </div>
-            <div className={styles.detailActions}>
-              <button
-                type="button"
-                className={styles.primaryAction}
-                disabled={!selectedDish.available}
-                onClick={() => addDish(selectedDish)}
-              >
-                {copy.addToSelection}
-              </button>
-              <button type="button" onClick={() => openWaiter("recommendation")}>
-                {copy.askWaiter}
-              </button>
-              {hasModel ? (
+          <TrouvableDishDetailSurface
+            actionContent={
+              <>
                 <button
                   type="button"
-                  className={styles.modelCta}
-                  aria-controls="trouvable-sheet-model"
-                  aria-expanded={showDetailModelViewer}
-                  onClick={() => {
-                    resetArHandoffState();
-                    setShowDetailModelViewer((isVisible) => {
-                      if (displayMode === "public" && !isVisible && selectedDish) {
-                        trackPublicMenuEvent(menu, {
-                          eventName: "dish_3d_clicked",
-                          dishSlug: selectedDish.slug,
-                          categorySlug: selectedDish.categorySlug
-                        });
-                      }
-                      return !isVisible;
-                    });
-                  }}
+                  className={styles.primaryAction}
+                  disabled={!selectedDish.available}
+                  onClick={() => addDish(selectedDish)}
                 >
-                  {copy.threeD}
+                  {copy.addToSelection}
                 </button>
-              ) : null}
-            </div>
+                <button type="button" onClick={() => openWaiter("recommendation")}>
+                  {copy.askWaiter}
+                </button>
+              </>
+            }
+            copy={copy}
+            detailsExpanded={dishSubSheet === "details"}
+            detailsId={moreDetailsId}
+            dish={selectedDish}
+            hasModel={hasModel}
+            headingLevel="h2"
+            locale={selectedLocale}
+            menuName={menu.name}
+            modelControlsId="trouvable-sheet-model"
+            modelExpanded={showDetailModelViewer}
+            onClose={closeActiveSheet}
+            onOpenDetails={() => setDishSubSheet("details")}
+            onOpenReview={openReviewSheet}
+            onToggleModel={() => {
+              resetArHandoffState();
+              setShowDetailModelViewer((isVisible) => {
+                if (displayMode === "public" && !isVisible && selectedDish) {
+                  trackPublicMenuEvent(menu, {
+                    eventName: "dish_3d_clicked",
+                    dishSlug: selectedDish.slug,
+                    categorySlug: selectedDish.categorySlug
+                  });
+                }
+                return !isVisible;
+              });
+            }}
+            price={detailPrice}
+            textDirection={textDirection}
+            titleId="trouvable-dish-title"
+          >
             {showDetailModelViewer ? (
               <>
                 <div
@@ -2295,16 +2256,7 @@ export function TrouvablePremiumMenuExperience({
                 ) : null}
               </>
             ) : null}
-            <button
-              type="button"
-              className={styles.reviewTrigger}
-              aria-haspopup="dialog"
-              onClick={openReviewSheet}
-            >
-              <span aria-hidden="true">★</span>
-              {copy.review}
-            </button>
-          </div>
+          </TrouvableDishDetailSurface>
         </article>
       </div>
     );
