@@ -91,6 +91,11 @@
   font: inherit;
 }
 
+.comparisonPages button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .comparisonPages .page {
   min-height: 660px;
   border-bottom: 1px solid rgba(180, 122, 60, 0.34);

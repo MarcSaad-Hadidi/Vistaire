@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { trouvableTypographyClassName } from "@/app/menu/[slug]/trouvableTypography";
 import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
 import {
   inflateLandingMenuUiMenu,
@@ -25,6 +26,7 @@ export function TrouvableComparisonPreview({
       exchangeRates={menuUi.exchangeRates}
       menu={menu}
       query={menuUi.query}
+      typographyClassName={trouvableTypographyClassName}
     />
   );
 }

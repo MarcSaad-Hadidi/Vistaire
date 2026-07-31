@@ -120,11 +120,12 @@ export function SaugeNoireMenuPages({
       data-display-mode="comparison-preview"
       data-public-menu-renderer="sauge-noire"
     >
-      <CoverPage copy={copy} onOpen={() => undefined} />
+      <CoverPage copy={copy} interactive={false} onOpen={() => undefined} />
       <ContentsPage
         activePage={null}
         categories={categories}
         copy={copy}
+        interactive={false}
         onNext={() => undefined}
         onPrevious={() => undefined}
         onSelect={() => undefined}
@@ -150,6 +151,7 @@ export function SaugeNoireMenuPages({
       ))}
       <EndingPage
         copy={copy}
+        interactive={false}
         onRestart={() => undefined}
         showGoogleReview={false}
       />
@@ -178,7 +180,15 @@ function Rule() {
   );
 }
 
-export function CoverPage({ copy, onOpen }: { copy: SaugeNoirePageCopy; onOpen: () => void }) {
+export function CoverPage({
+  copy,
+  interactive = true,
+  onOpen
+}: {
+  copy: SaugeNoirePageCopy;
+  interactive?: boolean;
+  onOpen: () => void;
+}) {
   return (
     <section
       className={`${styles.page} ${styles.coverPage}`}
@@ -188,8 +198,9 @@ export function CoverPage({ copy, onOpen }: { copy: SaugeNoirePageCopy; onOpen: 
       <button
         type="button"
         className={styles.coverTap}
-        onClick={onOpen}
         aria-label={copy.open}
+        disabled={!interactive}
+        onClick={interactive ? onOpen : undefined}
         data-sauge-static-element="cover-tap"
       >
         <SaugeNoireBotanical className={styles.coverBotanical} />
@@ -214,6 +225,7 @@ export function ContentsPage({
   categories,
   copy,
   activePage,
+  interactive = true,
   onSelect,
   onSelectEnding,
   onPrevious,
@@ -222,6 +234,7 @@ export function ContentsPage({
   categories: PublicMenuCategory[];
   copy: SaugeNoirePageCopy;
   activePage: number | null;
+  interactive?: boolean;
   onSelect: (index: number) => void;
   onSelectEnding: () => void;
   onPrevious: () => void;
@@ -243,19 +256,25 @@ export function ContentsPage({
             type="button"
             key={category.id}
             className={activePage === index ? styles.contentsActive : ""}
-            onClick={() => onSelect(index)}
+            disabled={!interactive}
+            onClick={interactive ? () => onSelect(index) : undefined}
           >
             <span>{category.label}</span>
             <b>{String(index + 1).padStart(2, "0")}</b>
           </button>
         ))}
-        <button type="button" onClick={onSelectEnding}>
+        <button
+          type="button"
+          disabled={!interactive}
+          onClick={interactive ? onSelectEnding : undefined}
+        >
           <span>{copy.thanks}</span>
           <b>08</b>
         </button>
       </nav>
       <PageFooter
         copy={copy.swipeSection}
+        interactive={interactive}
         previousLabel={copy.previous}
         nextLabel={copy.next}
         onPrevious={onPrevious}
@@ -361,6 +380,7 @@ export function SectionPage({
             exchangeRates={exchangeRates}
             compact={isFirstPage}
             isPreview={isPreview}
+            disableNavigation={disableNavigation}
             onDishLinkClick={onDishLinkClick}
             onDishLinkIntent={onDishLinkIntent}
           />
@@ -368,6 +388,7 @@ export function SectionPage({
       </div>
       <PageFooter
         copy={copy.swipePage}
+        interactive={!disableNavigation}
         previousLabel={copy.previous}
         nextLabel={copy.next}
         onPrevious={onPrevious}
@@ -409,24 +430,9 @@ function DishFeatureCard({
   onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void;
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
-  return (
-    <Link
-      href={href}
-      prefetch={false}
-      className={`${styles.featureCard} ${styles[`feature${variant[0].toUpperCase()}${variant.slice(1)}`]}`}
-      data-sauge-featured-dish="true"
-      data-dish-id={dish.id}
-      tabIndex={isPreview || disableNavigation ? -1 : undefined}
-      onClick={
-        isPreview || disableNavigation
-          ? (event) => event.preventDefault()
-          : (event) => onDishLinkClick?.(event, href, dish)
-      }
-      onPointerEnter={() => onDishLinkIntent?.(href, dish)}
-      onFocus={() => onDishLinkIntent?.(href, dish)}
-      onPointerDown={() => onDishLinkIntent?.(href, dish)}
-      onTouchStart={() => onDishLinkIntent?.(href, dish)}
-    >
+  const className = `${styles.featureCard} ${styles[`feature${variant[0].toUpperCase()}${variant.slice(1)}`]}`;
+  const content = (
+    <>
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
         <div className={styles.featureTitle}>
@@ -444,6 +450,37 @@ function DishFeatureCard({
         </strong>
       </div>
       <span className={styles.srOnly}>{copy.menu}</span>
+    </>
+  );
+
+  return disableNavigation ? (
+    <span
+      className={className}
+      data-sauge-featured-dish="true"
+      data-dish-id={dish.id}
+      data-comparison-static-control="true"
+    >
+      {content}
+    </span>
+  ) : (
+    <Link
+      href={href}
+      prefetch={false}
+      className={className}
+      data-sauge-featured-dish="true"
+      data-dish-id={dish.id}
+      tabIndex={isPreview ? -1 : undefined}
+      onClick={
+        isPreview
+          ? (event) => event.preventDefault()
+          : (event) => onDishLinkClick?.(event, href, dish)
+      }
+      onPointerEnter={() => onDishLinkIntent?.(href, dish)}
+      onFocus={() => onDishLinkIntent?.(href, dish)}
+      onPointerDown={() => onDishLinkIntent?.(href, dish)}
+      onTouchStart={() => onDishLinkIntent?.(href, dish)}
+    >
+      {content}
     </Link>
   );
 }
@@ -478,24 +515,9 @@ function DishRow({
   onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void;
 }) {
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
-  return (
-    <Link
-      href={href}
-      prefetch={false}
-      className={`${styles.dishRow} ${compact ? styles.dishRowCompact : ""}`}
-      data-sauge-dish-row="true"
-      data-dish-id={dish.id}
-      tabIndex={isPreview || disableNavigation ? -1 : undefined}
-      onClick={
-        isPreview || disableNavigation
-          ? (event) => event.preventDefault()
-          : (event) => onDishLinkClick?.(event, href, dish)
-      }
-      onPointerEnter={() => onDishLinkIntent?.(href, dish)}
-      onFocus={() => onDishLinkIntent?.(href, dish)}
-      onPointerDown={() => onDishLinkIntent?.(href, dish)}
-      onTouchStart={() => onDishLinkIntent?.(href, dish)}
-    >
+  const className = `${styles.dishRow} ${compact ? styles.dishRowCompact : ""}`;
+  const content = (
+    <>
       <PhotoSlot dish={dish} />
       <span className={styles.dishRowName}>
         <span>{dish.name}</span>
@@ -509,6 +531,37 @@ function DishRow({
       >
         {formatDishPrice(dish, currency, locale, exchangeRates)}
       </span>
+    </>
+  );
+
+  return disableNavigation ? (
+    <span
+      className={className}
+      data-sauge-dish-row="true"
+      data-dish-id={dish.id}
+      data-comparison-static-control="true"
+    >
+      {content}
+    </span>
+  ) : (
+    <Link
+      href={href}
+      prefetch={false}
+      className={className}
+      data-sauge-dish-row="true"
+      data-dish-id={dish.id}
+      tabIndex={isPreview ? -1 : undefined}
+      onClick={
+        isPreview
+          ? (event) => event.preventDefault()
+          : (event) => onDishLinkClick?.(event, href, dish)
+      }
+      onPointerEnter={() => onDishLinkIntent?.(href, dish)}
+      onFocus={() => onDishLinkIntent?.(href, dish)}
+      onPointerDown={() => onDishLinkIntent?.(href, dish)}
+      onTouchStart={() => onDishLinkIntent?.(href, dish)}
+    >
+      {content}
     </Link>
   );
 }
@@ -576,10 +629,12 @@ function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: bool
 
 export function EndingPage({
   copy,
+  interactive = true,
   onRestart,
   showGoogleReview = true
 }: {
   copy: SaugeNoirePageCopy;
+  interactive?: boolean;
   onRestart: () => void;
   showGoogleReview?: boolean;
 }) {
@@ -602,6 +657,7 @@ export function EndingPage({
           className={styles.googleReviewCta}
           data-testid="google-review-cta"
           aria-label={copy.googleReviewAria}
+          disabled={!interactive}
         >
           <span className={styles.googleReviewBrand}>
             <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
@@ -614,7 +670,15 @@ export function EndingPage({
           </span>
         </button>
       ) : null}
-      <button type="button" className={styles.restartButton} onClick={onRestart} data-sauge-static-element="restart">{copy.menu}</button>
+      <button
+        type="button"
+        className={styles.restartButton}
+        disabled={!interactive}
+        onClick={interactive ? onRestart : undefined}
+        data-sauge-static-element="restart"
+      >
+        {copy.menu}
+      </button>
       <p className={styles.endingSoon} data-sauge-static-element="message">{copy.soon}</p>
     </section>
   );
@@ -622,12 +686,14 @@ export function EndingPage({
 
 function PageFooter({
   copy,
+  interactive = true,
   previousLabel,
   nextLabel,
   onPrevious,
   onNext
 }: {
   copy: string;
+  interactive?: boolean;
   previousLabel: string;
   nextLabel: string;
   onPrevious: () => void;
@@ -641,7 +707,8 @@ function PageFooter({
         <button
           type="button"
           className={`${styles.arrowHit} ${styles.arrowHitPrevious}`}
-          onClick={onPrevious}
+          disabled={!interactive}
+          onClick={interactive ? onPrevious : undefined}
           aria-label={previousLabel}
           data-sauge-static-element="previous-control"
         />
@@ -649,7 +716,8 @@ function PageFooter({
         <button
           type="button"
           className={`${styles.arrowHit} ${styles.arrowHitNext}`}
-          onClick={onNext}
+          disabled={!interactive}
+          onClick={interactive ? onNext : undefined}
           aria-label={nextLabel}
           data-sauge-static-element="next-control"
         />

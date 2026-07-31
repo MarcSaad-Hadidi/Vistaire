@@ -339,7 +339,7 @@ function landingRenderPayload(
       menu: projectLandingMenuUiMenu(context.menu),
       localizedMenus: Object.fromEntries(
         Object.entries(context.localizedMenus).flatMap(([locale, menu]) =>
-          menu
+          locale !== context.locale && menu
             ? [[locale, projectLandingMenuUiMenu(menu)]]
             : []
         )

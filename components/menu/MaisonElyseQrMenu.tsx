@@ -450,12 +450,14 @@ function dishBadges(dish: PublicMenuDish, locale: Locale): string[] {
 }
 
 function DishCard({
+  disableNavigation = false,
   dish,
   locale,
   menu,
   onSelectDish,
   query
 }: {
+  disableNavigation?: boolean;
   dish: PublicMenuDish;
   locale: Locale;
   menu: PublicMenu;
@@ -504,7 +506,15 @@ function DishCard({
       data-category-id={dish.categorySlug ?? dish.categoryId ?? dish.category}
       data-available={dish.available}
     >
-      {onSelectDish ? (
+      {disableNavigation ? (
+        <div
+          className={styles.dishCard}
+          data-dish-card="true"
+          data-comparison-static-control="true"
+        >
+          {content}
+        </div>
+      ) : onSelectDish ? (
         <button
           aria-label={ariaLabel}
           className={styles.dishCard}
@@ -530,6 +540,7 @@ function DishCard({
 }
 
 function DishSection({
+  disableNavigation = false,
   dishes,
   locale,
   menu,
@@ -537,6 +548,7 @@ function DishSection({
   query,
   title
 }: {
+  disableNavigation?: boolean;
   dishes: PublicMenuDish[];
   locale: Locale;
   menu: PublicMenu;
@@ -564,6 +576,7 @@ function DishSection({
       <ul className={styles.dishList}>
         {dishes.map((dish) => (
           <DishCard
+            disableNavigation={disableNavigation}
             dish={dish}
             key={dish.id}
             locale={locale}
@@ -1053,11 +1066,7 @@ export function MaisonElyseQrMenu({
   }
 
   const phonePreviewDishSelect =
-    displayMode === "phone-preview"
-      ? openDishInPhonePreview
-      : isComparisonPreview
-        ? () => undefined
-        : undefined;
+    displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
   const currentLanguage =
     LANGUAGE_OPTIONS.find((option) => option.id === selectedLocale) ??
     LANGUAGE_OPTIONS[0];
@@ -1080,10 +1089,10 @@ export function MaisonElyseQrMenu({
   function renderLanguageToggle(className = "") {
     return (
       <button
-        aria-disabled={isComparisonPreview || undefined}
         aria-expanded={activeSheet === "language"}
         aria-label={`${copy.languageToggleAria} (${currentLanguage.label})`}
         className={`${styles.languageToggle} ${className}`}
+        disabled={isComparisonPreview}
         onClick={toggleLanguageSheet}
         type="button"
       >
@@ -1275,7 +1284,7 @@ export function MaisonElyseQrMenu({
                       aria-label={copy.menuToggleAria}
                       className={styles.menuButton}
                       type="button"
-                      aria-disabled={isComparisonPreview || undefined}
+                      disabled={isComparisonPreview}
                       onClick={() => {
                         if (!isComparisonPreview) setActiveSheet("menu");
                       }}
@@ -1309,6 +1318,7 @@ export function MaisonElyseQrMenu({
                   <div className={styles.sectionedDishList}>
                     {visibleDishSections.map((section) => (
                       <DishSection
+                        disableNavigation={isComparisonPreview}
                         dishes={section.dishes}
                         key={section.id}
                         locale={selectedLocale}
@@ -1321,6 +1331,7 @@ export function MaisonElyseQrMenu({
                   </div>
                 ) : (
                   <DishSection
+                    disableNavigation={isComparisonPreview}
                     dishes={visibleDishes}
                     locale={selectedLocale}
                     menu={activeMenu}
@@ -1342,8 +1353,8 @@ export function MaisonElyseQrMenu({
 
             <nav className={styles.bottomBar} aria-label={copy.navAria}>
               <button
-                aria-disabled={isComparisonPreview || undefined}
                 aria-expanded={activeSheet === "menu"}
+                disabled={isComparisonPreview}
                 type="button"
                 onClick={() => {
                   if (isComparisonPreview) return;
@@ -1355,8 +1366,8 @@ export function MaisonElyseQrMenu({
                 {copy.bottomMenu}
               </button>
               <button
-                aria-disabled={isComparisonPreview || undefined}
                 aria-expanded={activeSheet === "filter"}
+                disabled={isComparisonPreview}
                 type="button"
                 onClick={() => {
                   if (isComparisonPreview) return;

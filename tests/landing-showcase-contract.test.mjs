@@ -151,6 +151,97 @@ test("landing comparison shares each public menu UI without the generic preview 
   assert.match(saugePublic, /data-menu-ui="sauge-noire"/);
 });
 
+test("landing Trouvable comparison uses the public route typography contract", async () => {
+  const [trouvablePreview, publicRoute, typography] = await Promise.all([
+    source("components/landing/comparison/TrouvableComparisonPreview.tsx"),
+    source("app/menu/[slug]/page.tsx"),
+    source("app/menu/[slug]/trouvableTypography.ts")
+  ]);
+
+  assert.match(typography, /Inter\(/);
+  assert.match(typography, /Noto_Serif_Display\(/);
+  assert.match(publicRoute, /typographyClassName=\{trouvableTypographyClassName\}/);
+  assert.match(trouvablePreview, /trouvableTypographyClassName/);
+  assert.match(
+    trouvablePreview,
+    /typographyClassName=\{trouvableTypographyClassName\}/
+  );
+});
+
+test("landing menu payload serializes alternate localized menus without duplicating the active locale", async () => {
+  const landingData = await source("lib/landing/menuExperiences.ts");
+
+  assert.match(
+    landingData,
+    /locale !== context\.locale[\s\S]{0,160}projectLandingMenuUiMenu\(menu\)/
+  );
+});
+
+test("comparison renderers remove dead controls from the keyboard and pointer contract", async () => {
+  const [maison, trouvable, saugePages] = await Promise.all([
+    source("components/menu/MaisonElyseQrMenu.tsx"),
+    source("components/menu/TrouvablePremiumMenuExperience.tsx"),
+    source("components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx")
+  ]);
+
+  assert.match(maison, /disableNavigation=\{isComparisonPreview\}/);
+  assert.match(maison, /disabled=\{isComparisonPreview\}/);
+  assert.equal(
+    (maison.match(/disableNavigation=\{isComparisonPreview\}/g) ?? []).length,
+    2
+  );
+  assert.equal(
+    (maison.match(/disabled=\{isComparisonPreview\}/g) ?? []).length,
+    4
+  );
+  assert.doesNotMatch(
+    maison,
+    /isComparisonPreview\s*\?\s*\(\)\s*=>\s*undefined/
+  );
+
+  assert.match(
+    trouvable,
+    /disabled=\{isComparisonPreview \|\| !canChangeCurrency\}/
+  );
+  assert.match(
+    trouvable,
+    /disabled=\{isComparisonPreview \|\| !canChangeLanguage\}/
+  );
+  assert.match(trouvable, /disabled=\{isComparisonPreview\}/);
+  assert.equal(
+    (trouvable.match(/disabled=\{isComparisonPreview\}/g) ?? []).length,
+    3
+  );
+  assert.match(
+    trouvable,
+    /disabled=\{isComparisonPreview \|\| !dish\.available\}/
+  );
+  assert.match(
+    trouvable,
+    /isComparisonPreview\s*\?\s*\(\s*<span[\s\S]{0,900}styles\.dishSummary/
+  );
+
+  assert.match(saugePages, /interactive=\{false\}/);
+  assert.match(saugePages, /disabled=\{!interactive\}/);
+  assert.equal(
+    (saugePages.match(/disabled=\{!interactive\}/g) ?? []).length,
+    7
+  );
+  assert.match(
+    saugePages,
+    /disableNavigation=\{disableNavigation\}/
+  );
+  assert.match(saugePages, /interactive=\{!disableNavigation\}/);
+  assert.match(
+    saugePages,
+    /disableNavigation\s*\?\s*\([\s\S]{0,500}<span[\s\S]{0,500}data-sauge-featured-dish/
+  );
+  assert.match(
+    saugePages,
+    /disableNavigation\s*\?\s*\([\s\S]{0,500}<span[\s\S]{0,500}data-sauge-dish-row/
+  );
+});
+
 test("landing and the public menu route share the official render-context resolver", async () => {
   const route = await source("app/menu/[slug]/page.tsx");
   const previewRoute = await source(

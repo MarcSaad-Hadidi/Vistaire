@@ -1452,42 +1452,56 @@ export function TrouvablePremiumMenuExperience({
       exchangeRates
     );
     const show3dBadge = hasPublicMenu3d(dish);
+    const dishSummaryContent = (
+      <>
+        <DishVisual dish={dish} menu={menu} />
+        <span className={styles.dishCopy}>
+          <span className={styles.dishTopline}>
+            <strong>{dish.name}</strong>
+          </span>
+          <small>{dishMetaLine(dish, copy.soldOut)}</small>
+          {priceLabel || show3dBadge ? (
+            <span className={styles.dishPriceRow}>
+              {priceLabel ? (
+                <span className={styles.dishPrice}>{priceLabel}</span>
+              ) : (
+                <span className={styles.dishPriceSpacer} aria-hidden="true" />
+              )}
+              {show3dBadge ? (
+                <DishCard3dBadge className={styles.dishCard3dBadge} />
+              ) : null}
+            </span>
+          ) : null}
+        </span>
+      </>
+    );
 
     return (
       <li key={dish.id} className={styles.dishItem}>
         <article
           className={`${styles.dishCard} ${isFeatured ? styles.dishCardFeatured : ""}`}
         >
-          <button
-            type="button"
-            className={styles.dishSummary}
-            aria-haspopup="dialog"
-            onClick={() => openDishDetail(dish)}
-          >
-            <DishVisual dish={dish} menu={menu} />
-            <span className={styles.dishCopy}>
-              <span className={styles.dishTopline}>
-                <strong>{dish.name}</strong>
-              </span>
-              <small>{dishMetaLine(dish, copy.soldOut)}</small>
-              {priceLabel || show3dBadge ? (
-                <span className={styles.dishPriceRow}>
-                  {priceLabel ? (
-                    <span className={styles.dishPrice}>{priceLabel}</span>
-                  ) : (
-                    <span className={styles.dishPriceSpacer} aria-hidden="true" />
-                  )}
-                  {show3dBadge ? (
-                    <DishCard3dBadge className={styles.dishCard3dBadge} />
-                  ) : null}
-                </span>
-              ) : null}
+          {isComparisonPreview ? (
+            <span
+              className={styles.dishSummary}
+              data-comparison-static-control="true"
+            >
+              {dishSummaryContent}
             </span>
-          </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.dishSummary}
+              aria-haspopup="dialog"
+              onClick={() => openDishDetail(dish)}
+            >
+              {dishSummaryContent}
+            </button>
+          )}
           <div className={styles.cardActions}>
             <button
               type="button"
-              disabled={!dish.available}
+              disabled={isComparisonPreview || !dish.available}
               onClick={() => addDish(dish)}
             >
               {dish.available ? copy.add : copy.soldOut}
@@ -2401,7 +2415,7 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "currency"}
             aria-label={`${copy.currencyAria}: ${selectedCurrency}`}
-            disabled={!canChangeCurrency}
+            disabled={isComparisonPreview || !canChangeCurrency}
             onClick={() => {
               if (canChangeCurrency) openSheet("currency");
             }}
@@ -2419,7 +2433,7 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "language"}
             aria-label={`${copy.languageAria}: ${getTrouvableLanguageShortCode(selectedLocale)}`}
-            disabled={!canChangeLanguage}
+            disabled={isComparisonPreview || !canChangeLanguage}
             onClick={() => {
               if (canChangeLanguage) openSheet("language");
             }}
@@ -2442,6 +2456,7 @@ export function TrouvablePremiumMenuExperience({
             type="button"
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "selection"}
+            disabled={isComparisonPreview}
             onClick={() => openSheet("selection")}
           >
             {copy.selection} {selectionCount > 0 ? selectionCount : ""}
@@ -2451,6 +2466,7 @@ export function TrouvablePremiumMenuExperience({
             type="button"
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "waiter"}
+            disabled={isComparisonPreview}
             onClick={() => openWaiter("recommendation")}
           >
             {copy.server}
@@ -2568,6 +2584,7 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "filters"}
             aria-label={`${copy.filtersAria}: ${filterButtonLabel}`}
+            disabled={isComparisonPreview}
             onClick={() => openSheet("filters")}
           >
             <span className={styles.filterGlyph} aria-hidden="true">
