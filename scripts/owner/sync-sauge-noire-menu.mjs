@@ -75,6 +75,59 @@ export const CANONICAL_DISHES = [
   dish("Citron brûlé", "Sans alcool", 9, "Le Citron brûlé est composé de citron grillé, de miel, de gingembre et de tonic.", ["citron grillé", "miel", "gingembre", "tonic"], ["moins sucré", "sans gingembre", "tonic à part"], "Le citron grillé apporte une légère amertume qui équilibre la douceur du miel et la chaleur du gingembre.", ["Nouveau", "Vegetarien", "Sans gluten"], [], ["Gluten / céréales"])
 ];
 
+// This is the canonical English editorial dataset used by both the fixture
+// and the guarded translation backfill. Keep it positional with the French
+// canonical arrays so a missing or reordered dish cannot silently fall back to
+// a French name.
+export const CANONICAL_ENGLISH_SECTIONS = [
+  { name: "First bites", description: "Small plates, bites, and opening seasonal flavors to share." },
+  { name: "Raw & fresh", description: "Seafood, raw preparations, and bright fresh compositions." },
+  { name: "From the fire", description: "Meat, fish, and vegetables cooked over embers or flame." },
+  { name: "Earth & grains", description: "Generous grains, vegetables, pasta, and plant-forward plates." },
+  { name: "Sides & desserts", description: "House accompaniments and sweet creations." },
+  { name: "Signature cocktails", description: "Original cocktails inspired by sage, fire, and the seasons." },
+  { name: "Alcohol-free", description: "Fresh, layered creations without alcohol." }
+];
+
+export const CANONICAL_ENGLISH_DISH_NAMES = [
+  "Warm rye bread",
+  "Beetroot under ash",
+  "Duck confit croquette",
+  "Braised pointed cabbage",
+  "Warm kombu oysters",
+  "Laurentian trout",
+  "Hamachi with verbena",
+  "Hand-cut raw beef",
+  "Snow crab",
+  "Black maple duck",
+  "Roasted halibut with nori",
+  "Quebec pork chop",
+  "Grilled lamb with sumac",
+  "Grain-fed chicken with preserved lemon",
+  "Charcoal-roasted squash",
+  "Woodland pearl barley",
+  "Parsnip gnocchi",
+  "Smoked white polenta",
+  "Creamy spelt",
+  "Pressed potatoes",
+  "Flame-seared green beans",
+  "Fresh herb salad",
+  "Smoked chocolate",
+  "Long pepper apple",
+  "Corn parfait",
+  "Citrus with Thai basil",
+  "Quebec cheeses",
+  "Sage 75",
+  "Bark",
+  "Pink ash",
+  "Woodland edge",
+  "Amber night",
+  "Cold orchard",
+  "Salt garden",
+  "Wintergreen tea",
+  "Charred lemon"
+];
+
 export const BADGE_ALLOWLIST = ["Maison", "Signature", "Populaire", "Recommande", "Nouveau", "Vegetarien", "Sans gluten"];
 export const ALLERGEN_IDS = ["gluten", "dairy", "eggs", "tree_nuts", "crustaceans", "shellfish", "molluscs", "peanuts", "sesame", "soy", "mustard", "fish", "sulfites"];
 

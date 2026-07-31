@@ -13,6 +13,8 @@ import {
 import {
   CANONICAL_DISHES,
   CANONICAL_SECTIONS,
+  CANONICAL_ENGLISH_DISH_NAMES,
+  CANONICAL_ENGLISH_SECTIONS,
   canonicalDishSlug
 } from "./owner/sync-sauge-noire-menu.mjs";
 
@@ -155,6 +157,7 @@ export const TRANSLATION_TABLES = {
   category: "menu_category_translations",
   dish: "menu_dish_translations"
 };
+export const TRANSLATION_APPLY_RPC = "owner_apply_menu_translation_backfill";
 
 // This is intentionally explicit instead of deriving English from the source
 // name. These are the real Trouvable slugs supplied for the production menu.
@@ -475,12 +478,20 @@ function normalizeKey(value) {
     .replace(/^-|-$/g, "");
 }
 
-function canonicalSaugeName(entity) {
+function canonicalSaugeName(entity, locale = MAISON_ELYSE_SOURCE_LOCALE) {
   if (entity.type === "category") {
-    return CANONICAL_SECTIONS.find((item) => normalizeKey(item.name) === normalizeKey(entity.slug ?? entity.label))?.name;
+    const index = CANONICAL_SECTIONS.findIndex((item) => normalizeKey(item.name) === normalizeKey(entity.slug ?? entity.label));
+    if (index < 0) return undefined;
+    return locale === DEFAULT_LOCALE
+      ? CANONICAL_ENGLISH_SECTIONS[index]?.name
+      : CANONICAL_SECTIONS[index]?.name;
   }
   if (entity.type === "dish") {
-    return CANONICAL_DISHES.find((item) => canonicalDishSlug(item) === entity.slug)?.name;
+    const index = CANONICAL_DISHES.findIndex((item) => canonicalDishSlug(item) === entity.slug);
+    if (index < 0) return undefined;
+    return locale === DEFAULT_LOCALE
+      ? CANONICAL_ENGLISH_DISH_NAMES[index]
+      : CANONICAL_DISHES[index]?.name;
   }
   return undefined;
 }
@@ -500,15 +511,16 @@ function canonicalNameForTarget(entity, snapshot) {
     if (isPlaceholderName(entity.label)) fail(`Trouvable source name is empty or placeholder for ${entity.slug}`);
     return canonical.en;
   }
-  const canonical = canonicalSaugeName(entity);
-  if (!canonical) fail(`Sauge Noire canonical name is unavailable for ${entity.type} ${entity.slug}`);
-  if (normalizeKey(entity.label) !== normalizeKey(canonical)) {
+  const sourceCanonical = canonicalSaugeName(entity, MAISON_ELYSE_SOURCE_LOCALE);
+  const translatedCanonical = canonicalSaugeName(entity, snapshot.locale);
+  if (!sourceCanonical || !translatedCanonical) fail(`Sauge Noire canonical name is unavailable for ${entity.type} ${entity.slug}`);
+  if (normalizeKey(entity.label) !== normalizeKey(sourceCanonical)) {
     fail(`Sauge Noire source name diverges from its canonical dataset for ${entity.slug}`);
   }
-  return canonical;
+  return translatedCanonical;
 }
 
-function canonicalMappingAvailable(entity, targetSlug) {
+function canonicalMappingAvailable(entity, targetSlug, locale = DEFAULT_LOCALE) {
   if (targetSlug === "trouvable") {
     if (entity.type === "menu") return Boolean(PUBLIC_MENU_NAME.en);
     if (entity.type === "category") return Boolean(TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)]);
@@ -520,13 +532,13 @@ function canonicalMappingAvailable(entity, targetSlug) {
     return Boolean(getDishBySlug(MAISON_CANONICAL_DISH_SLUGS[entity.slug], "en"));
   }
   if (entity.type === "menu") return true;
-  if (entity.type === "category") return Boolean(canonicalSaugeName(entity));
-  return Boolean(canonicalSaugeName(entity));
+  if (entity.type === "category") return Boolean(canonicalSaugeName(entity, locale));
+  return Boolean(canonicalSaugeName(entity, locale));
 }
 
-function canonicalCoverage(entities, targetSlug) {
+function canonicalCoverage(entities, targetSlug, locale = DEFAULT_LOCALE) {
   const missing = entities
-    .filter((entity) => !canonicalMappingAvailable(entity, targetSlug))
+    .filter((entity) => !canonicalMappingAvailable(entity, targetSlug, locale))
     .map((entity) => `${entity.type}:${entity.slug}`);
   const mapped = entities.length - missing.length;
   return {
@@ -660,7 +672,7 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
   const errors = validateSnapshot(snapshot);
   const entities = buildEntities(snapshot);
   const menuSettings = buildMenuSettingsPlan(snapshot);
-  const coverage = canonicalCoverage(entities, snapshot.targetSlug);
+  const coverage = canonicalCoverage(entities, snapshot.targetSlug, snapshot.locale);
   if (!coverage.complete) {
     errors.push(
       `${snapshot.targetSlug} canonical English name mapping is incomplete: ` +
@@ -729,6 +741,7 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
       restaurantName: snapshot.restaurant.name,
       menuId: snapshot.menu.id,
       menuSlug: snapshot.menu.slug,
+      menuUpdatedAt: snapshot.menu.updated_at ?? null,
       defaultLocale: snapshot.defaultLocale,
       locale: snapshot.locale,
       canonicalCoverage: coverage,
@@ -785,7 +798,7 @@ export async function readSnapshot(client, targetSlug, locale) {
   if (restaurants.length !== 1) fail(`${targetSlug}: expected exactly one restaurant row for the exact slug, got ${restaurants.length}`);
   const restaurant = restaurants[0];
   const menus = await readRows(client, "menus", {
-    columns: "id,restaurant_id,name,slug,status,is_primary,settings_json",
+    columns: "id,restaurant_id,name,slug,status,is_primary,settings_json,updated_at",
     filters: { restaurant_id: restaurant.id }
   });
   const menu = choosePrimaryMenu(menus);
@@ -863,42 +876,63 @@ function reportMenuSettings(settings) {
   };
 }
 
-async function applyPlan(client, plan) {
-  if (!plan.ok) fail(`refusing to apply an invalid plan: ${plan.errors.join(" | ")}`);
-  const byTable = new Map();
-  const applied = [];
-  if (plan.menuSettings.changed) {
-    const currentResult = await client
-      .from("menus")
-      .select("settings_json")
-      .eq("id", plan.target.menuId)
-      .eq("restaurant_id", plan.target.restaurantId)
-      .single();
-    if (currentResult.error) fail(`menus settings guard read failed: ${currentResult.error.message}`);
-    const currentHash = hashTranslationValue(objectInput(currentResult.data?.settings_json));
-    if (currentHash !== plan.menuSettings.currentHash) {
-      fail("menus.settings_json changed after the dry-run snapshot; refusing to overwrite concurrent settings");
-    }
-    const updateResult = await client
-      .from("menus")
-      .update({ settings_json: plan.menuSettings.desired })
-      .eq("id", plan.target.menuId)
-      .eq("restaurant_id", plan.target.restaurantId);
-    if (updateResult.error) fail(`menus settings apply failed: ${updateResult.error.message}`);
-    applied.push({ table: "menus", rows: 1, changedFields: plan.menuSettings.changedFields });
+function atomicOperationPayload(operation) {
+  return {
+    action: operation.action,
+    entity_type: operation.entityType,
+    entity_id: operation.entityId,
+    expected: operation.existing
+      ? {
+          id: operation.existing.id,
+          updated_at: operation.existing.updated_at ?? null,
+          source_hash: operation.existing.source_hash ?? null,
+          field_hashes: objectInput(operation.existing.field_hashes),
+          content: objectInput(operation.existing.content),
+          manual_overrides: objectInput(operation.existing.manual_overrides)
+        }
+      : null,
+    patch: operation.patch
+  };
+}
+
+export function buildAtomicApplyPayload(plans) {
+  return {
+    p_plans: plans.map((plan) => ({
+      restaurant_id: plan.target.restaurantId,
+      menu_id: plan.target.menuId,
+      locale: plan.target.locale,
+      expected_menu_updated_at: plan.target.menuUpdatedAt,
+      expected_menu_settings: plan.menuSettings.current,
+      desired_menu_settings: plan.menuSettings.desired,
+      operations: plan.operations
+        .filter((operation) => operation.action !== "noop")
+        .map(atomicOperationPayload)
+    }))
+  };
+}
+
+async function applyPlansAtomically(client, plans) {
+  if (!plans.every((plan) => plan.ok)) {
+    const errors = plans.flatMap((plan) => plan.errors ?? []);
+    fail(`refusing to apply invalid plans: ${errors.join(" | ")}`);
   }
-  for (const operation of plan.operations) {
-    if (operation.action === "noop") continue;
-    const table = TRANSLATION_TABLES[operation.entityType];
-    byTable.set(table, [...(byTable.get(table) ?? []), operation.patch]);
+  if (plans.some((plan) => !plan.target.menuUpdatedAt)) {
+    fail("refusing to apply without an updated_at concurrency token for every menu");
   }
-  for (const [table, rows] of byTable) {
-    const conflict = table === TRANSLATION_TABLES.menu ? "menu_id,locale" : table === TRANSLATION_TABLES.category ? "category_id,locale" : "dish_id,locale";
-    const result = await client.from(table).upsert(rows, { onConflict: conflict });
-    if (result.error) fail(`${table} apply failed: ${result.error.message}`);
-    applied.push({ table, rows: rows.length });
+  if (typeof client.rpc !== "function") {
+    fail(`refusing to apply without the transactional ${TRANSLATION_APPLY_RPC} RPC`);
   }
-  return applied;
+  const result = await client.rpc(TRANSLATION_APPLY_RPC, buildAtomicApplyPayload(plans));
+  if (result.error) fail(`${TRANSLATION_APPLY_RPC} failed: ${result.error.message}`);
+  const row = Array.isArray(result.data) ? result.data[0] : result.data;
+  if (row?.result_status !== "applied") {
+    fail(`${TRANSLATION_APPLY_RPC} returned an invalid result`);
+  }
+  return [{
+    rpc: TRANSLATION_APPLY_RPC,
+    menus: plans.length,
+    rows: Number(row.applied_rows ?? 0)
+  }];
 }
 
 function safeWriteReport(path, report) {
@@ -961,9 +995,7 @@ export async function run({ args, env = process.env, log = console.log, clientFa
       }
     }
     if (planningErrors.length) fail(planningErrors.join(" | "));
-    if (args.apply) {
-      for (const plan of plans) report.applied.push(...await applyPlan(client, plan));
-    }
+    if (args.apply) report.applied.push(...await applyPlansAtomically(client, plans));
     report.ok = true;
     report.note = args.apply ? "apply completed" : "dry-run completed; no rows were written";
   } catch (error) {

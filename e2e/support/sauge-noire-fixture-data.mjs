@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import {
   CANONICAL_DISHES,
   CANONICAL_SECTIONS,
+  CANONICAL_ENGLISH_DISH_NAMES,
+  CANONICAL_ENGLISH_SECTIONS,
   canonicalDishDisplayOrder,
   canonicalDishSlug
 } from "../../scripts/owner/sync-sauge-noire-menu.mjs";
@@ -122,76 +124,6 @@ const canonicalDishes = CANONICAL_DISHES.map((item, index) => {
       index === 5 ? "/models/demo/maison-elyse-n1.glb" : ""
   });
 });
-
-const SAUGE_ENGLISH_CATEGORY_COPY = [
-  {
-    name: "First bites",
-    description: "Small plates, bites, and opening seasonal flavors to share."
-  },
-  {
-    name: "Raw & fresh",
-    description: "Seafood, raw preparations, and bright fresh compositions."
-  },
-  {
-    name: "From the fire",
-    description: "Meat, fish, and vegetables cooked over embers or flame."
-  },
-  {
-    name: "Earth & grains",
-    description: "Generous grains, vegetables, pasta, and plant-forward plates."
-  },
-  {
-    name: "Sides & desserts",
-    description: "House accompaniments and sweet creations."
-  },
-  {
-    name: "Signature cocktails",
-    description: "Original cocktails inspired by sage, fire, and the seasons."
-  },
-  {
-    name: "Alcohol-free",
-    description: "Fresh, layered creations without alcohol."
-  }
-];
-
-const SAUGE_ENGLISH_DISH_NAMES = [
-  "Warm rye bread",
-  "Beetroot under ash",
-  "Duck confit croquette",
-  "Braised pointed cabbage",
-  "Warm kombu oysters",
-  "Laurentian trout",
-  "Hamachi with verbena",
-  "Hand-cut raw beef",
-  "Snow crab",
-  "Black maple duck",
-  "Roasted halibut with nori",
-  "Quebec pork chop",
-  "Grilled lamb with sumac",
-  "Grain-fed chicken with preserved lemon",
-  "Charcoal-roasted squash",
-  "Woodland pearl barley",
-  "Parsnip gnocchi",
-  "Smoked white polenta",
-  "Creamy spelt",
-  "Pressed potatoes",
-  "Flame-seared green beans",
-  "Fresh herb salad",
-  "Smoked chocolate",
-  "Long pepper apple",
-  "Corn parfait",
-  "Citrus with Thai basil",
-  "Quebec cheeses",
-  "Sage 75",
-  "Bark",
-  "Pink ash",
-  "Woodland edge",
-  "Amber night",
-  "Cold orchard",
-  "Salt garden",
-  "Wintergreen tea",
-  "Charred lemon"
-];
 
 function sortTranslationValue(value) {
   if (Array.isArray(value)) return value.map(sortTranslationValue);
@@ -635,7 +567,7 @@ Object.assign(
     categories: saugeNoireFixture.menu_categories,
     dishes: saugeNoireFixture.menu_dishes,
     menuName: "The Menu",
-    categoryCopy: (_category, index) => SAUGE_ENGLISH_CATEGORY_COPY[index],
+    categoryCopy: (_category, index) => CANONICAL_ENGLISH_SECTIONS[index],
     dishCopy: (dishRow, index) => {
       const fields = fixtureDishTranslationFields(dishRow);
       if (dishRow.slug === "betterave-sous-la-cendre") {
@@ -657,7 +589,7 @@ Object.assign(
       }
       return completeEnglishDishCopy(
         fields,
-        SAUGE_ENGLISH_DISH_NAMES[index]
+        CANONICAL_ENGLISH_DISH_NAMES[index]
       );
     }
   })

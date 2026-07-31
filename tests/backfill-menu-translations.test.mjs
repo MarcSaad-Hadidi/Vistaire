@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   buildPlan,
+  buildAtomicApplyPayload,
   buildMenuSettingsPlan,
   MAISON_CANONICAL_DISH_SLUGS,
   MAISON_ENGLISH_DISH_CONTENT,
@@ -38,7 +40,8 @@ function snapshot({ targetSlug = "trouvable", rows = [] } = {}) {
       id: `${targetSlug}-menu-id`,
       restaurant_id: `${targetSlug}-restaurant-id`,
       name: "Menu principal",
-      slug: "principal"
+      slug: "principal",
+      updated_at: "2026-07-31T00:00:00.000Z"
     },
     categories: [
       {
@@ -150,14 +153,14 @@ test("source dish fields follow the production contract and only include non-emp
   );
 });
 
-test("Trouvable and Sauge plans write an explicit canonical name without placeholders", () => {
+test("Trouvable and Sauge plans write an explicit English canonical name without placeholders", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
     const current = snapshot({ targetSlug });
     current.rows = completeStoredRows(current);
     const plan = buildPlan(current);
     assert.equal(plan.ok, true, JSON.stringify(plan.errors));
     const dish = plan.operations.find((operation) => operation.entityType === "dish");
-    assert.equal(dish.patch.content.name, targetSlug === "sauge-noire" ? "Pain de seigle chaud" : "Smoked Meat Saint-Laurent");
+    assert.equal(dish.patch.content.name, targetSlug === "sauge-noire" ? "Warm rye bread" : "Smoked Meat Saint-Laurent");
     assert.ok(!/placeholder|tbd|test/i.test(dish.patch.content.name));
     assert.equal(dish.patch.source_hash.length, 64);
     assert.equal(dish.patch.field_hashes.name.length, 64);
@@ -340,6 +343,29 @@ test("manual overrides are preserved while hashes are recalculated", () => {
   assert.equal(dish.patch.manual_overrides.name, true);
   assert.equal(dish.patch.provider, "human");
   assert.equal(dish.patch.source_hash, sourceHashFor(sourceDishFields(frenchSnapshot.dishes[0])));
+});
+
+test("apply payload carries optimistic snapshots for the transactional RPC", () => {
+  const plan = buildPlan(snapshot({ targetSlug: "sauge-noire" }));
+  assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+  const payload = buildAtomicApplyPayload([plan]);
+  assert.equal(payload.p_plans.length, 1);
+  assert.equal(payload.p_plans[0].expected_menu_updated_at, "2026-07-31T00:00:00.000Z");
+  assert.equal(payload.p_plans[0].operations[0].expected, null);
+  const dishOperation = payload.p_plans[0].operations.find((operation) => operation.entity_type === "dish");
+  assert.equal(dishOperation.patch.content.name, "Warm rye bread");
+});
+
+test("live translation apply is transactional and compare-and-swap guarded", () => {
+  const migration = readFileSync(
+    new URL("../supabase/migrations/20260731100000_menu_translation_backfill_rpc.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(migration, /owner_apply_menu_translation_backfill\(\s*p_plans jsonb/s);
+  assert.match(migration, /for update/s);
+  assert.match(migration, /errcode = '40001'/s);
+  assert.match(migration, /revoke all on function/s);
+  assert.doesNotMatch(migration, /upsert/i);
 });
 
 test("incomplete Maison Élyse translation blocks apply planning", () => {

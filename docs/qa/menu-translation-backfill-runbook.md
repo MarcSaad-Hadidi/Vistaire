@@ -54,9 +54,11 @@ node scripts/backfill-menu-translations.mjs `
 
 The default target set is all three restaurants. Use `--restaurant trouvable` or `--restaurant sauge-noire` for a focused audit. Use `--locale en-CA` unless the operator has a separately reviewed locale contract.
 
+Apply never uses direct table upserts. The migration `20260731100000_menu_translation_backfill_rpc.sql` locks all target menus in deterministic order, compares `updated_at`, hashes, content, and manual overrides, and rolls back the complete batch on any conflict or database error. If that RPC is not installed in the explicitly bound project, `--apply` refuses to write.
+
 ## Apply rules
 
-Preview/local apply requires the same explicit ref binding as dry-run and the service-role key in the trusted process environment. Production requires all of the following:
+Preview/local apply requires the same explicit ref binding as dry-run, the transactional migration installed in that project, and the service-role key in the trusted process environment. Production requires all of the following:
 
 ```powershell
 $env:VERCEL_ENV = "production"
@@ -73,5 +75,7 @@ node scripts/backfill-menu-translations.mjs `
 If a trusted Vercel binding cannot be proven, deliver the dry-run report and stop. Do not substitute the repository's Maison Élyse media ref, a Preview ref, a fixture URL, or a Supabase project name.
 
 ## Audit result for PR #173 reprise
+
+The preview serves the same restaurant/menu record IDs for all three slugs, but the Supabase project ref remains unexposed and the preview/production bindings are therefore not treated as proven.
 
 The executed local dry-run resolved project ref `bkpewsjvxswqruwqljcy` and completed successfully without writes. It reported Maison Élyse `4` categories / `12` dishes / `17` planned inserts plus the locale settings patch; Trouvable `9` / `36` with `44` updates; and Sauge Noire `7` / `36` with `43` updates. Preview/production data remains unverified and no apply was executed.
