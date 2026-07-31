@@ -1,7 +1,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getCategories, getDishBySlug, getRestaurant } from "../lib/demoMenuData.ts";
+import { getCategories, getDishBySlug } from "../lib/demoMenuData.ts";
 import {
   fieldHashesFor,
   hashTranslationValue,
@@ -13,8 +13,6 @@ import {
 import {
   CANONICAL_DISHES,
   CANONICAL_SECTIONS,
-  TARGET_NAME as SAUGE_NOIRE_NAME,
-  TARGET_SLUG as SAUGE_NOIRE_SLUG,
   canonicalDishSlug
 } from "./owner/sync-sauge-noire-menu.mjs";
 
@@ -24,6 +22,134 @@ export const TARGET_SLUGS = ["maison-elyse", "trouvable", "sauge-noire"];
 export const MAISON_ELYSE_SLUG = "maison-elyse";
 export const MAISON_ELYSE_SOURCE_LOCALE = "fr-CA";
 export const MAISON_ELYSE_TRANSLATION_LOCALE = "en-CA";
+export const PUBLIC_MENU_NAME = Object.freeze({
+  fr: "Menu principal",
+  en: "Main Menu"
+});
+export const MAISON_CANONICAL_DISH_SLUGS = Object.freeze({
+  "risotto-aux-cepes-parmesan-reggiano": "risotto-cepe",
+  "homard-bleu-bisque-corsee-fenouil": "homard-bisque",
+  "souffle-tiede-au-chocolat-grand-cru": "souffle-chocolat",
+  "tartare-de-saumon-label-rouge": "tartare-saumon",
+  "tarte-citron-confit-basilic-pourpre": "tarte-citron-basilic",
+  "negroni-vieilli-en-fut": "negroni-fut",
+  "canette-rotie-aux-figues-epices-douces": "canette-aux-figues",
+  "bar-de-ligne-artichaut-poivrade-emulsion-citron-beldi": "bar-ligne",
+  "pave-de-b-uf-mature-puree-ratte-jus-bordelaise": "pave-boeuf",
+  "elixir-bergamote-the-earl-grey": "mocktail-bergamote",
+  "maison-elyse-n-1": "cocktail-maison-elyse",
+  "ravioles-de-chevre-frais-miel-de-monteregie": "ravioles-romarin"
+});
+export const MAISON_ENGLISH_DISH_CONTENT = Object.freeze({
+  "risotto-aux-cepes-parmesan-reggiano": {
+    name: "Porcini & Reggiano Parmesan Risotto",
+    description: "A generously creamy risotto with the woodland flavors of porcini and the delicately salty depth of Reggiano Parmesan.",
+    ingredients: ["Risotto rice", "Porcini mushrooms", "Reggiano Parmesan", "Veal jus", "Flat-leaf parsley", "Butter"],
+    allergens: ["Dairy", "Sulfites"],
+    options: ["Parmesan on the side", "Extra Parmesan", "Extra porcini", "Extra black truffle"],
+    houseNote: "Prepared to order to preserve its silky texture and a slightly firm grain at the center.",
+    tags: ["Signature"]
+  },
+  "homard-bleu-bisque-corsee-fenouil": {
+    name: "Blue Lobster, Rich Bisque & Fennel",
+    description: "A generous, refined seafood dish where delicate lobster meets a deep bisque and the anise notes of fennel.",
+    ingredients: ["Blue lobster", "Lobster bisque", "Fennel", "Baby carrots", "Pastis", "Aromatics"],
+    allergens: ["Crustaceans", "Dairy"],
+    options: ["Bisque on the side", "Extra bisque", "Without the pastis finish", "Extra vegetables"],
+    houseNote: "The bisque is reduced slowly to concentrate its marine flavors without masking the lobster's delicacy.",
+    tags: ["Signature", "Recommended"]
+  },
+  "souffle-tiede-au-chocolat-grand-cru": {
+    name: "Warm Grand Cru Chocolate Soufflé",
+    description: "An airy, intensely chocolate soufflé hiding a molten center, served with delicately Tonka-scented ice cream.",
+    ingredients: ["Grand cru chocolate", "Eggs", "Butter", "Cream", "Vanilla", "Tonka bean", "Cocoa"],
+    allergens: ["Eggs", "Dairy", "Gluten"],
+    options: ["Tonka vanilla ice cream on the side", "Without ice cream", "Extra ice cream", "Extra chocolate sauce"],
+    houseNote: "Enjoy immediately from the oven to fully appreciate its molten center and airy texture.",
+    tags: ["Recommended"]
+  },
+  "tartare-de-saumon-label-rouge": {
+    name: "Label Rouge Salmon Tartare",
+    description: "A fresh, delicate tartare lifted by bright acidity, preserved citrus notes, and a lightly crunchy finish.",
+    ingredients: ["Label Rouge salmon", "Preserved citrus", "Green olive oil", "Buckwheat crisps", "Fresh herbs"],
+    allergens: ["Fish"],
+    options: ["Preserved citrus on the side", "Without preserved citrus", "Extra buckwheat crisps", "Light seasoning"],
+    houseNote: "Served very cold to preserve the salmon's finesse and the precision of its seasoning.",
+    tags: ["Recommended", "Raw"]
+  },
+  "tarte-citron-confit-basilic-pourpre": {
+    name: "Candied Lemon & Purple Basil Tart",
+    description: "A bright, elegant tart combining the intensity of candied lemon, the sweetness of meringue, and the herbal notes of purple basil.",
+    ingredients: ["Candied lemon", "Lime", "Purple basil", "Flour", "Butter", "Eggs", "Sugar"],
+    allergens: ["Gluten", "Dairy", "Eggs"],
+    options: ["Meringue on the side", "Without purple basil", "Extra meringue", "Extra citrus coulis"],
+    houseNote: "The citrus acidity is deliberately balanced by the light sweetness of Italian meringue.",
+    tags: ["Recommended", "Fresh"]
+  },
+  "negroni-vieilli-en-fut": {
+    name: "Barrel-Aged Negroni",
+    description: "A deep, velvety take on the classic Negroni, marked by controlled bitterness and a long, woody finish.",
+    ingredients: ["London Dry gin", "Red vermouth", "Campari", "Toasted wood notes"],
+    allergens: ["Sulfites"],
+    options: ["Served over ice", "Served without ice", "With orange zest", "Without garnish", "Less bitter"],
+    houseNote: "Barrel aging rounds out the cocktail's bitterness and brings greater smoothness and complexity.",
+    tags: ["Barrel-Aged", "Reimagined Classic"]
+  },
+  "canette-rotie-aux-figues-epices-douces": {
+    name: "Roasted Duck with Figs & Gentle Spices",
+    description: "Tender, flavorful duck accompanied by melting figs and a sauce with fruity, spiced, and subtly woody notes.",
+    ingredients: ["Duck", "Figs", "Gentle spices", "Creamy polenta", "Ruby Port", "Poultry jus"],
+    allergens: ["Dairy", "Sulfites"],
+    options: ["Medium-rare", "Medium", "Port jus on the side", "Extra creamy polenta"],
+    houseNote: "Medium-rare is recommended to preserve the duck's tenderness and aromatic richness.",
+    tags: ["Signature", "Recommended"]
+  },
+  "bar-de-ligne-artichaut-poivrade-emulsion-citron-beldi": {
+    name: "Line-Caught Sea Bass, Globe Artichoke & Preserved Lemon Emulsion",
+    description: "Delicate-fleshed fish with crisp skin, brightened by the freshness of preserved lemon and the finesse of braised artichoke.",
+    ingredients: ["Line-caught sea bass", "Globe artichoke", "Preserved lemon", "White wine", "Butter", "Aromatics"],
+    allergens: ["Fish", "Dairy", "Sulfites"],
+    options: ["Lemon emulsion on the side", "Without lemon emulsion", "Extra artichokes", "Extra vegetables"],
+    houseNote: "The skin is seared until perfectly crisp while the flesh remains delicately pearlescent.",
+    tags: ["Recommended", "Light"]
+  },
+  "pave-de-b-uf-mature-puree-ratte-jus-bordelaise": {
+    name: "Aged Beef Pavé, Ratte Purée & Bordelaise Jus",
+    description: "A deeply flavored aged beef cut served with silky purée and a rich, intensely aromatic Bordelaise jus.",
+    ingredients: ["28-day aged beef", "Ratte potatoes", "Butter", "Cream", "Red wine", "Beef jus"],
+    allergens: ["Dairy", "Sulfites"],
+    options: ["Rare", "Medium-rare", "Medium", "Well-done", "Bordelaise jus on the side", "Extra Ratte purée"],
+    houseNote: "Twenty-eight days of aging tenderizes the meat and naturally intensifies its flavor.",
+    tags: ["Signature"]
+  },
+  "elixir-bergamote-the-earl-grey": {
+    name: "Bergamot & Earl Grey Elixir",
+    description: "A fresh, aromatic creation where citrus and bergamot notes extend the finesse of Earl Grey tea.",
+    ingredients: ["Earl Grey tea", "Bergamot", "White grape juice", "Citrus", "Citrus foam"],
+    allergens: ["Eggs", "Only if the foam contains egg white"],
+    options: ["Less sweet", "Without foam", "Foam on the side", "Extra citrus", "Served over ice"],
+    houseNote: "Served very cold to preserve its light, floral, intensely aromatic character.",
+    tags: ["Non-Alcoholic", "Fresh"]
+  },
+  "maison-elyse-n-1": {
+    name: "Maison Élyse N°1",
+    description: "A floral, refined, lightly sparkling creation carried by delicate notes of rose and verbena.",
+    ingredients: ["Rosé Champagne", "Verbena infusion", "Rose water"],
+    allergens: ["Sulfites"],
+    options: ["Less sweet", "Without rose water", "Light ice", "Non-alcoholic version"],
+    houseNote: "An elegant creation conceived as Maison Élyse's liquid signature.",
+    tags: ["Signature", "Recommended"]
+  },
+  "ravioles-de-chevre-frais-miel-de-monteregie": {
+    name: "Fresh Goat Cheese Ravioli & Montérégie Honey",
+    description: "Delicate, tender ravioli balanced by the sweetness of honey and the woodland notes of burnt rosemary.",
+    ingredients: ["Fresh ravioli", "Fresh goat cheese", "Montérégie honey", "Brown butter", "Rosemary", "Fleur de sel"],
+    allergens: ["Gluten", "Dairy", "Eggs"],
+    options: ["Honey on the side", "Without rosemary", "Extra Parmesan", "Extra black truffle"],
+    houseNote: "Brown butter adds aromatic depth that balances the goat cheese's freshness and the honey's sweetness.",
+    tags: ["Recommended", "Vegetarian"]
+  }
+});
 export const TRANSLATION_TABLES = {
   menu: "menu_translations",
   category: "menu_category_translations",
@@ -88,31 +214,7 @@ export const TROUVABLE_CANONICAL_NAMES = Object.freeze({
 
 const PROJECT_REF = /^[a-z0-9]{8,64}$/;
 const ENVIRONMENTS = new Set(["local", "preview", "production", "test"]);
-const VALID_STATUSES = new Set([
-  "source",
-  "missing",
-  "pending",
-  "in_progress",
-  "up_to_date",
-  "stale",
-  "error"
-]);
 const PLACEHOLDER_NAME = /^(?:tbd|todo|test|placeholder|sample|example|dish(?:[-_ ]?\d+)?|item(?:[-_ ]?\d+)?|plat(?:[-_ ]?\d+)?|untitled|sans nom|nom du plat)$/i;
-const STANDARD_TAGS = new Map([
-  ["recommande", "Recommended"],
-  ["recommandé", "Recommended"],
-  ["recommandée", "Recommended"],
-  ["vegetarien", "Vegetarian"],
-  ["végétarien", "Vegetarian"],
-  ["vegetarienne", "Vegetarian"],
-  ["végétarienne", "Vegetarian"],
-  ["sans gluten", "Gluten-free"],
-  ["nouveau", "New"],
-  ["populaire", "Popular"],
-  ["maison", "House"],
-  ["signature", "Signature"]
-]);
-
 function fail(message) {
   throw new Error(message);
 }
@@ -380,31 +482,22 @@ function canonicalSaugeName(entity) {
   if (entity.type === "dish") {
     return CANONICAL_DISHES.find((item) => canonicalDishSlug(item) === entity.slug)?.name;
   }
-  if (entity.type === "menu") return SAUGE_NOIRE_NAME;
   return undefined;
 }
 
-function canonicalTrouvableName(entity) {
-  if (entity.type === "menu") return TROUVABLE_CANONICAL_NAMES.menu.en;
-  if (entity.type === "category") {
-    const key = normalizeKey(entity.slug ?? entity.label);
-    return TROUVABLE_CANONICAL_NAMES.categories[key]?.en;
-  }
-  return TROUVABLE_CANONICAL_NAMES.dishes[entity.slug]?.en;
-}
-
 function canonicalNameForTarget(entity, snapshot) {
+  if (entity.type === "menu") {
+    if (normalizeKey(entity.label) !== normalizeKey(PUBLIC_MENU_NAME.fr)) {
+      fail(`${snapshot.targetSlug} source menu name diverges from the canonical label for ${entity.slug}`);
+    }
+    return PUBLIC_MENU_NAME.en;
+  }
   if (snapshot.targetSlug === "trouvable") {
-    const canonical = entity.type === "menu"
-      ? TROUVABLE_CANONICAL_NAMES.menu
-      : entity.type === "category"
-        ? TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)]
-        : TROUVABLE_CANONICAL_NAMES.dishes[entity.slug];
+    const canonical = entity.type === "category"
+      ? TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)]
+      : TROUVABLE_CANONICAL_NAMES.dishes[entity.slug];
     if (!canonical?.en) fail(`Trouvable canonical English name is unavailable for ${entity.type} ${entity.slug}`);
     if (isPlaceholderName(entity.label)) fail(`Trouvable source name is empty or placeholder for ${entity.slug}`);
-    if (normalizeKey(entity.label) !== normalizeKey(canonical.fr)) {
-      fail(`Trouvable source name diverges from canonical French label for ${entity.slug}`);
-    }
     return canonical.en;
   }
   const canonical = canonicalSaugeName(entity);
@@ -417,14 +510,14 @@ function canonicalNameForTarget(entity, snapshot) {
 
 function canonicalMappingAvailable(entity, targetSlug) {
   if (targetSlug === "trouvable") {
-    if (entity.type === "menu") return Boolean(TROUVABLE_CANONICAL_NAMES.menu);
+    if (entity.type === "menu") return Boolean(PUBLIC_MENU_NAME.en);
     if (entity.type === "category") return Boolean(TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)]);
     return Boolean(TROUVABLE_CANONICAL_NAMES.dishes[entity.slug]);
   }
   if (targetSlug === MAISON_ELYSE_SLUG) {
     if (entity.type === "menu") return true;
     if (entity.type === "category") return Boolean(getCategories("en").find((item) => item.slug === entity.slug));
-    return Boolean(getDishBySlug(entity.slug, "en"));
+    return Boolean(getDishBySlug(MAISON_CANONICAL_DISH_SLUGS[entity.slug], "en"));
   }
   if (entity.type === "menu") return true;
   if (entity.type === "category") return Boolean(canonicalSaugeName(entity));
@@ -445,14 +538,11 @@ function canonicalCoverage(entities, targetSlug) {
 }
 
 function canonicalMaisonFields(entity, snapshot) {
-  const sourceLocale = snapshot.sourceLocale;
-  const sourceRestaurant = getRestaurant(sourceLocale === "en-CA" ? "en" : "fr");
-  const englishRestaurant = getRestaurant("en");
   if (entity.type === "menu") {
-    if (normalizeKey(snapshot.menu.name) !== normalizeKey(sourceRestaurant.name)) {
+    if (normalizeKey(snapshot.menu.name) !== normalizeKey(PUBLIC_MENU_NAME.fr)) {
       fail(`Maison Élyse menu name diverges from the repository source: ${snapshot.menu.name}`);
     }
-    return { menuName: englishRestaurant.name };
+    return { menuName: PUBLIC_MENU_NAME.en };
   }
   if (entity.type === "category") {
     const source = getCategories("fr").find((item) => item.slug === entity.slug);
@@ -465,8 +555,9 @@ function canonicalMaisonFields(entity, snapshot) {
     if (entity.fields.description) result.description = english.description;
     return result;
   }
-  const source = getDishBySlug(entity.slug, "fr");
-  const english = getDishBySlug(entity.slug, "en");
+  const canonicalSlug = MAISON_CANONICAL_DISH_SLUGS[entity.slug];
+  const source = getDishBySlug(canonicalSlug, "fr");
+  const english = MAISON_ENGLISH_DISH_CONTENT[entity.slug];
   if (!source || !english) fail(`Maison Élyse dish slug is not in the canonical dataset: ${entity.slug}`);
   if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
     fail(`Maison Élyse dish name diverges from canonical source: ${entity.slug}`);
@@ -474,18 +565,7 @@ function canonicalMaisonFields(entity, snapshot) {
   const result = {};
   for (const field of Object.keys(entity.fields)) {
     if (field === "name") result.name = english.name;
-    else if (field === "description") {
-      const sourceValue = entity.fields[field];
-      if (sourceValue === source.shortDescription) result.description = english.shortDescription;
-      else if (sourceValue === source.description) result.description = english.description;
-      else fail(`Maison Élyse source description diverges from canonical source: ${entity.slug}`);
-    } else if (field === "ingredients") result.ingredients = english.ingredients;
-    else if (field === "options") result.options = english.options;
-    else if (field === "houseNote") result.houseNote = english.chefRecommendation;
-    else if (field === "allergens") result.allergens = english.allergens;
-    else if (field === "tags") {
-      result.tags = entity.fields.tags.map((tag) => STANDARD_TAGS.get(normalizeKey(tag)) ?? tag);
-    }
+    else if (field in english) result[field] = english[field];
   }
   return result;
 }
@@ -576,7 +656,7 @@ function missingFields(content, fields, requiredFields) {
   return requiredFields.filter((field) => !isUsableValue(content[field]) || !(field in fields));
 }
 
-export function buildPlan(snapshot, { now = "2026-01-01T00:00:00.000Z" } = {}) {
+export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
   const errors = validateSnapshot(snapshot);
   const entities = buildEntities(snapshot);
   const menuSettings = buildMenuSettingsPlan(snapshot);
@@ -688,12 +768,12 @@ async function readRows(client, table, query) {
   return result.data ?? [];
 }
 
-function choosePrimaryMenu(rows, slug) {
-  const scoped = rows.filter((row) => row.slug === slug || row.slug === "principal");
-  return scoped.find((row) => row.is_primary === true && row.status === "published")
-    ?? scoped.find((row) => row.is_primary === true)
-    ?? scoped.find((row) => row.slug === "principal")
-    ?? rows.find((row) => row.status !== "archived")
+function choosePrimaryMenu(rows) {
+  const active = rows.filter((row) => row.status !== "archived");
+  return active.find((row) => row.is_primary === true && row.status === "published")
+    ?? active.find((row) => row.is_primary === true)
+    ?? active.find((row) => row.slug === "principal" || row.slug === "menu-principal")
+    ?? active[0]
     ?? null;
 }
 
@@ -706,10 +786,9 @@ export async function readSnapshot(client, targetSlug, locale) {
   const restaurant = restaurants[0];
   const menus = await readRows(client, "menus", {
     columns: "id,restaurant_id,name,slug,status,is_primary,settings_json",
-    filters: { restaurant_id: restaurant.id },
-    orderBy: "display_order"
+    filters: { restaurant_id: restaurant.id }
   });
-  const menu = choosePrimaryMenu(menus, targetSlug === "maison-elyse" ? "principal" : "principal");
+  const menu = choosePrimaryMenu(menus);
   if (!menu) fail(`${targetSlug}: no non-archived primary menu was found`);
   const [categories, dishes, menuRows, categoryRows, dishRows] = await Promise.all([
     readRows(client, "menu_categories", { columns: "id,restaurant_id,menu_id,name,slug,description,display_order", filters: { restaurant_id: restaurant.id, menu_id: menu.id }, orderBy: "display_order" }),

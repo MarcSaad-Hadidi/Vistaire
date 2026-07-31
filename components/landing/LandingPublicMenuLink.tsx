@@ -1,13 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Locale } from "@/lib/i18n";
+import { getLandingCopy } from "@/lib/landing/landingCopy";
+import styles from "./VistaireLanding.module.css";
 
 export type LandingPublicMenuHref = `/menu/${string}`;
-
-const newTabLabels: Record<Locale, string> = {
-  fr: "Sâ€™ouvre dans un nouvel onglet.",
-  en: "Opens in a new tab."
-};
 
 export function LandingPublicMenuLink({
   children,
@@ -20,7 +17,7 @@ export function LandingPublicMenuLink({
   className?: string;
   href: LandingPublicMenuHref;
   locale: Locale;
-  newTabLabelClassName: string;
+  newTabLabelClassName?: string;
 }) {
   return (
     <Link
@@ -31,7 +28,9 @@ export function LandingPublicMenuLink({
       target="_blank"
     >
       {children}
-      <span className={newTabLabelClassName}> {newTabLabels[locale]}</span>
+      <span className={newTabLabelClassName ?? styles.srOnly}>
+        {getLandingCopy(locale).experiences.newTabLabel}
+      </span>
     </Link>
   );
 }

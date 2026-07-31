@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 import {
   buildPlan,
   buildMenuSettingsPlan,
+  MAISON_CANONICAL_DISH_SLUGS,
+  MAISON_ENGLISH_DISH_CONTENT,
+  PUBLIC_MENU_NAME,
   TROUVABLE_CANONICAL_NAMES,
   run,
   parseArgs,
@@ -20,7 +23,7 @@ import {
   sourceHashFor
 } from "../lib/translation/menuTranslationModel.ts";
 
-function snapshot({ targetSlug = "trouvable", rows = [], dish = {} } = {}) {
+function snapshot({ targetSlug = "trouvable", rows = [] } = {}) {
   const result = {
     targetSlug,
     sourceLocale: "fr-CA",
@@ -34,7 +37,7 @@ function snapshot({ targetSlug = "trouvable", rows = [], dish = {} } = {}) {
     menu: {
       id: `${targetSlug}-menu-id`,
       restaurant_id: `${targetSlug}-restaurant-id`,
-      name: targetSlug === "sauge-noire" ? "Sauge Noire" : targetSlug === "trouvable" ? "Trouvable" : "Menu principal",
+      name: "Menu principal",
       slug: "principal"
     },
     categories: [
@@ -68,6 +71,50 @@ function snapshot({ targetSlug = "trouvable", rows = [], dish = {} } = {}) {
     result.dishes[0].name = TROUVABLE_CANONICAL_NAMES.dishes["smoked-meat-saint-laurent"].fr;
   }
   return result;
+}
+
+function completeStoredRows(current) {
+  const menuFields = { menuName: current.menu.name };
+  const rows = [{
+    id: "menu-translation",
+    entityType: "menu",
+    entityId: current.menu.id,
+    translation_status: "up_to_date",
+    provider: "human",
+    source_hash: sourceHashFor(menuFields),
+    field_hashes: fieldHashesFor(menuFields),
+    content: { menuName: "Main Menu" },
+    manual_overrides: {}
+  }];
+  rows.push(...current.categories.map((category) => {
+    const fields = { name: category.name, description: category.description };
+    return {
+      id: `translation-${category.id}`,
+      entityType: "category",
+      entityId: category.id,
+      translation_status: "up_to_date",
+      provider: "human",
+      source_hash: sourceHashFor(fields),
+      field_hashes: fieldHashesFor(fields),
+      content: { name: category.name, description: "English category description" },
+      manual_overrides: {}
+    };
+  }));
+  rows.push(...current.dishes.map((dish) => {
+    const fields = sourceDishFields(dish);
+    return {
+      id: `translation-${dish.id}`,
+      entityType: "dish",
+      entityId: dish.id,
+      translation_status: "up_to_date",
+      provider: "human",
+      source_hash: sourceHashFor(fields),
+      field_hashes: fieldHashesFor(fields),
+      content: { ...fields },
+      manual_overrides: {}
+    };
+  }));
+  return rows;
 }
 
 test("production hash helpers are used for stable source and field hashes", () => {
@@ -105,7 +152,9 @@ test("source dish fields follow the production contract and only include non-emp
 
 test("Trouvable and Sauge plans write an explicit canonical name without placeholders", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
-    const plan = buildPlan(snapshot({ targetSlug }));
+    const current = snapshot({ targetSlug });
+    current.rows = completeStoredRows(current);
+    const plan = buildPlan(current);
     assert.equal(plan.ok, true, JSON.stringify(plan.errors));
     const dish = plan.operations.find((operation) => operation.entityType === "dish");
     assert.equal(dish.patch.content.name, targetSlug === "sauge-noire" ? "Pain de seigle chaud" : "Smoked Meat Saint-Laurent");
@@ -125,12 +174,13 @@ test("Trouvable refuses an unlisted slug instead of falling back to French", () 
   assert.equal(plan.canonicalCoverage.complete, false);
 });
 
-test("complete new canonical rows are public-ready immediately", () => {
+test("complete stored canonical rows are public-ready immediately", () => {
   const current = snapshot();
   current.categories[0].description = "";
   current.dishes[0].short_description = "";
   current.dishes[0].description = "";
   current.dishes[0].metadata = {};
+  current.rows = completeStoredRows(current);
   const plan = buildPlan(current);
   assert.equal(plan.ok, true, JSON.stringify(plan.errors));
   assert.ok(
@@ -139,8 +189,20 @@ test("complete new canonical rows are public-ready immediately", () => {
   );
 });
 
+test("Maison Élyse real dish coverage has complete English content", () => {
+  assert.equal(Object.keys(MAISON_CANONICAL_DISH_SLUGS).length, 12);
+  assert.deepEqual(Object.keys(MAISON_CANONICAL_DISH_SLUGS), Object.keys(MAISON_ENGLISH_DISH_CONTENT));
+  assert.deepEqual(PUBLIC_MENU_NAME, { fr: "Menu principal", en: "Main Menu" });
+  for (const content of Object.values(MAISON_ENGLISH_DISH_CONTENT)) {
+    for (const field of ["name", "description", "ingredients", "allergens", "options", "houseNote", "tags"]) {
+      assert.ok(content[field], `missing Maison Élyse English ${field}`);
+    }
+  }
+});
+
 test("Trouvable only plans readiness when all nine categories and 36 dishes are mapped", () => {
   const current = snapshot();
+  current.menu.name = "Menu principal";
   current.categories = Object.keys(TROUVABLE_CANONICAL_NAMES.categories).map((slug, index) => ({
     id: `category-${index}`,
     restaurant_id: current.restaurant.id,
@@ -170,7 +232,7 @@ test("Trouvable only plans readiness when all nine categories and 36 dishes are 
       provider: "canonical-backfill",
       source_hash: sourceHashFor(menuFields),
       field_hashes: fieldHashesFor(menuFields),
-      content: { menuName: current.menu.name },
+      content: { menuName: "Main Menu" },
       manual_overrides: {}
     },
     ...current.categories.map((category) => {
@@ -249,7 +311,7 @@ test("manual overrides are preserved while hashes are recalculated", () => {
     dish: source
   });
   frenchSnapshot.restaurant.name = "Maison Élyse";
-  frenchSnapshot.menu.name = "Maison Élyse";
+  frenchSnapshot.menu.name = "Menu principal";
   frenchSnapshot.categories[0].name = "Entrées";
   frenchSnapshot.categories[0].slug = "entrees";
   frenchSnapshot.dishes = [{
@@ -257,7 +319,7 @@ test("manual overrides are preserved while hashes are recalculated", () => {
     restaurant_id: frenchSnapshot.restaurant.id,
     menu_id: frenchSnapshot.menu.id,
     category_id: frenchSnapshot.categories[0].id,
-    slug: source.slug,
+    slug: "ravioles-de-chevre-frais-miel-de-monteregie",
     name: source.name,
     short_description: source.shortDescription,
     description: source.description,
@@ -284,12 +346,12 @@ test("incomplete Maison Élyse translation blocks apply planning", () => {
   const source = getDishBySlug("ravioles-romarin", "fr");
   const current = snapshot({ targetSlug: "maison-elyse" });
   current.restaurant.name = "Maison Élyse";
-  current.menu.name = "Maison Élyse";
+  current.menu.name = "Menu principal";
   current.categories[0].name = "Entrées";
   current.categories[0].slug = "entrees";
   current.dishes[0] = {
     ...current.dishes[0],
-    slug: source.slug,
+    slug: "ravioles-de-chevre-frais-miel-de-monteregie",
     name: source.name,
     short_description: source.shortDescription,
     description: source.description,

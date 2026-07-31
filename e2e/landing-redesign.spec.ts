@@ -105,32 +105,57 @@ async function expectLoadedImages(images: Locator, minimum = 1) {
     .toBeGreaterThanOrEqual(minimum);
 }
 
+async function expectAccessibleNewTabLink(
+  link: Locator,
+  label: string,
+  unexpectedLabel: string
+) {
+  const hiddenLabel = link.locator('span[class*="srOnly"]');
+  await expect(hiddenLabel).toHaveCount(1);
+  await expect(hiddenLabel).toHaveText(label);
+  await expect(hiddenLabel).not.toHaveAttribute("aria-hidden", "true");
+  await expect(link).toHaveAccessibleName(new RegExp(label.replace(".", "\\.")));
+  await expect(link).not.toHaveAccessibleName(
+    new RegExp(unexpectedLabel.replace(".", "\\."))
+  );
+
+  const hiddenLabelStyles = await hiddenLabel.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      clip: style.clip,
+      height: style.height,
+      overflow: style.overflow,
+      position: style.position,
+      whiteSpace: style.whiteSpace,
+      width: style.width
+    };
+  });
+  expect(hiddenLabelStyles).toEqual(
+    expect.objectContaining({
+      height: "1px",
+      overflow: "hidden",
+      position: "absolute",
+      whiteSpace: "nowrap",
+      width: "1px"
+    })
+  );
+  expect(hiddenLabelStyles.clip).toContain("0px");
+}
+
 async function expectIndependentComparisonScrollRoots(comparison: Locator) {
   const roots = comparison.locator("[data-comparison-scroll-root]");
   await expect(roots).toHaveCount(2);
   await expect
-    .poll(() =>
+    .poll(
+      () =>
       roots.evaluateAll((elements) =>
-        elements.map((element) => ({
-          clientHeight: element.clientHeight,
-          scrollHeight: element.scrollHeight
-        }))
-      )
+          elements.map(
+            (element) => element.scrollHeight - element.clientHeight > 24
+          )
+        ),
+      { timeout: LAZY_PREVIEW_TIMEOUT_MS }
     )
-    .toEqual([
-      expect.objectContaining({
-        clientHeight: expect.any(Number),
-        scrollHeight: expect.any(Number)
-      }),
-      expect.objectContaining({
-        clientHeight: expect.any(Number),
-        scrollHeight: expect.any(Number)
-      })
-    ]);
-  const overflow = await roots.evaluateAll((elements) =>
-    elements.map((element) => element.scrollHeight - element.clientHeight)
-  );
-  expect(overflow.every((value) => value > 24)).toBe(true);
+    .toEqual([true, true]);
 }
 
 async function performTouchGesture(
@@ -172,6 +197,54 @@ function landingUrl(path = "/") {
   const url = new URL(protectedPreview);
   url.pathname = path;
   return url.toString();
+}
+
+type LandingExperienceId = "maison-elyse" | "trouvable" | "sauge-noire";
+
+const LANDING_EXPERIENCES: readonly {
+  id: LandingExperienceId;
+  name: RegExp;
+}[] = [
+  { id: "maison-elyse", name: /Maison Élyse|Maison Elyse/ },
+  { id: "trouvable", name: /Trouvable/ },
+  { id: "sauge-noire", name: /Sauge Noire/ }
+];
+
+async function expectSecureLandingMenuLinks(page: Page) {
+  const links = page.locator('a[href^="/menu/"]');
+  await expect(links).toHaveCount(9);
+  const attributes = await links.evaluateAll((elements) =>
+    elements.map((element) => ({
+      href: element.getAttribute("href"),
+      rel: element.getAttribute("rel")?.split(/\s+/).filter(Boolean) ?? [],
+      target: element.getAttribute("target")
+    }))
+  );
+
+  for (const attributesForLink of attributes) {
+    expect(attributesForLink.href).toMatch(/^\/menu\//);
+    expect(attributesForLink.target).toBe("_blank");
+    expect(attributesForLink.rel).toContain("noopener");
+    expect(attributesForLink.rel).toContain("noreferrer");
+  }
+}
+
+async function openRealPopup(page: Page, link: Locator) {
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    link.click()
+  ]);
+  await popup.waitForLoadState("domcontentloaded");
+  return popup;
+}
+
+async function expectPopupRoute(
+  popup: Page,
+  pathname: RegExp,
+  locale: "fr-CA" | "en-CA"
+) {
+  await expect.poll(() => new URL(popup.url()).pathname).toMatch(pathname);
+  expect(new URL(popup.url()).searchParams.get("lang")).toBe(locale);
 }
 
 test.describe("Vistaire landing redesign", () => {
@@ -257,6 +330,7 @@ test.describe("Vistaire landing redesign", () => {
     await comparison.scrollIntoViewIfNeeded();
     const tabs = comparison.getByRole("tab");
     await expect(tabs).toHaveCount(3);
+    await expect(tabs).toHaveText(["Maison \u00c9lyse", "Trouvable", "Sauge Noire"]);
     await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
     await expect(comparison.locator('[data-active-preview="maison-elyse"]')).toHaveCount(
       1
@@ -268,10 +342,20 @@ test.describe("Vistaire landing redesign", () => {
       comparison.locator('[data-public-menu-renderer="maison-elyse"]')
     ).toHaveCount(1);
     await expect(
+      comparison.locator(
+        '[data-landing-menu-renderer="maison-elyse"][data-menu-ui="maison-elyse"]'
+      )
+    ).toHaveCount(1);
+    await expect(
       comparison.locator('[data-public-menu-renderer="trouvable"]')
     ).toHaveCount(0);
     await expect(
       comparison.locator('[data-public-menu-renderer="sauge-noire"]')
+    ).toHaveCount(0);
+    await expect(comparison.locator("[data-comparison-preview]")).toHaveCount(0);
+    await expect(comparison.locator("iframe")).toHaveCount(0);
+    await expect(
+      comparison.locator(".stf__parent, [data-page-flip-fallback]")
     ).toHaveCount(0);
     await expectLoadedImages(
       comparison.locator('[data-public-menu-renderer="maison-elyse"] img')
@@ -286,6 +370,11 @@ test.describe("Vistaire landing redesign", () => {
     await expect(
       comparison.locator('[data-public-menu-renderer="trouvable"]')
     ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
+    await expect(
+      comparison.locator(
+        '[data-landing-menu-renderer="trouvable"][data-menu-ui="trouvable"]'
+      )
+    ).toHaveCount(1);
     await expect(
       comparison.locator('[data-public-menu-renderer="maison-elyse"]')
     ).toHaveCount(0);
@@ -315,6 +404,11 @@ test.describe("Vistaire landing redesign", () => {
     await expect(
       comparison.locator('[data-public-menu-renderer="sauge-noire"]')
     ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
+    await expect(
+      comparison.locator(
+        '[data-landing-menu-renderer="sauge-noire"][data-menu-ui="sauge-noire"]'
+      )
+    ).toHaveCount(1);
     await expect(
       comparison.locator('[data-public-menu-renderer="maison-elyse"]')
     ).toHaveCount(0);
@@ -391,7 +485,17 @@ test.describe("Vistaire landing redesign", () => {
 
   test("keeps the restaurant links real and bilingual", async ({ page }) => {
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+    await expectSecureLandingMenuLinks(page);
     const experiences = page.getByTestId("landing-experiences");
+    const frenchExperienceLinks = experiences.getByRole("link");
+    await expect(frenchExperienceLinks).toHaveCount(3);
+    for (const link of await frenchExperienceLinks.all()) {
+      await expectAccessibleNewTabLink(
+        link,
+        "S\u2019ouvre dans un nouvel onglet.",
+        "Opens in a new tab."
+      );
+    }
     await expect(
       experiences.getByRole("link", { name: /Maison Élyse/ })
     ).toHaveAttribute("href", "/menu/maison-elyse?lang=fr-CA");
@@ -418,6 +522,7 @@ test.describe("Vistaire landing redesign", () => {
     ).toHaveAttribute("href", "/prendre-rendez-vous");
 
     await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
+    await expectSecureLandingMenuLinks(page);
     await expect(
       page.getByRole("heading", {
         level: 1,
@@ -425,6 +530,15 @@ test.describe("Vistaire landing redesign", () => {
       })
     ).toBeVisible();
     const englishExperiences = page.getByTestId("landing-experiences");
+    const englishExperienceLinks = englishExperiences.getByRole("link");
+    await expect(englishExperienceLinks).toHaveCount(3);
+    for (const link of await englishExperienceLinks.all()) {
+      await expectAccessibleNewTabLink(
+        link,
+        "Opens in a new tab.",
+        "S\u2019ouvre dans un nouvel onglet."
+      );
+    }
     await expect(
       englishExperiences.getByRole("link", { name: /Maison Élyse/ })
     ).toHaveAttribute("href", "/menu/maison-elyse?lang=en-CA");
@@ -434,6 +548,263 @@ test.describe("Vistaire landing redesign", () => {
     await expect(
       englishExperiences.getByRole("link", { name: /Sauge Noire/ })
     ).toHaveAttribute("href", "/menu/sauge-noire?lang=en-CA");
+  });
+
+  test("matches public menu markers with every active comparison renderer through real popups", async ({
+    page
+  }) => {
+    const runtime = collectRuntimeFailures(page);
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+    const comparison = page.getByTestId("landing-comparison");
+    await comparison.scrollIntoViewIfNeeded();
+    const tabs = comparison.getByRole("tab");
+    const landingLocation = page.url();
+
+    for (const [index, experience] of LANDING_EXPERIENCES.entries()) {
+      await tabs.nth(index).click();
+      await expect(tabs.nth(index)).toHaveAttribute("aria-selected", "true");
+      await expect(
+        comparison.locator(
+          `[data-landing-menu-renderer="${experience.id}"][data-menu-ui="${experience.id}"]`
+        )
+      ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
+      await expect(
+        comparison.locator("[data-public-menu-renderer]")
+      ).toHaveCount(1);
+      await expect(comparison.locator("[data-comparison-preview]")).toHaveCount(
+        0
+      );
+
+      const link = comparison.getByRole("link", {
+        name: /Ouvrir l’expérience complète/
+      });
+      const popup = await openRealPopup(page, link);
+      try {
+        await expectPopupRoute(
+          popup,
+          new RegExp(`^/menu/${experience.id}$`),
+          "fr-CA"
+        );
+        await expect(
+          popup.locator(
+            `[data-menu-ui="${experience.id}"][data-public-menu-renderer="${experience.id}"]`
+          )
+        ).toBeVisible();
+      } finally {
+        await popup.close();
+      }
+      expect(page.url()).toBe(landingLocation);
+      await expect(page.getByTestId("landing-comparison")).toBeVisible();
+      await expect(
+        comparison.locator(`[data-active-preview="${experience.id}"]`)
+      ).toHaveCount(1);
+    }
+
+    expect(runtime.modelRequests).toEqual([]);
+    expect(runtime.menuAnalyticsRequests).toEqual([]);
+  });
+
+  test("opens all three featured dishes in real renderer popups", async ({
+    page
+  }) => {
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+    const landingDishes = page.getByTestId("landing-dishes");
+    const cards = landingDishes.locator("[data-menu-slug]");
+    await expect(cards).toHaveCount(3);
+
+    for (const [index, experience] of LANDING_EXPERIENCES.entries()) {
+      const card = cards.nth(index);
+      await expect(card).toHaveAttribute("data-menu-slug", experience.id);
+      const link = card.getByRole("link");
+      const expectedName = (await card.locator("h3").textContent())?.trim() ?? "";
+      const expectedDescription =
+        (await card.locator("h3 + span").textContent())?.trim() ?? "";
+      const expectedDishId = await card.getAttribute("data-dish-id");
+      const popup = await openRealPopup(page, link);
+
+      try {
+        await expectPopupRoute(
+          popup,
+          new RegExp(`^/menu/${experience.id}/dishes/[^/]+$`),
+          "fr-CA"
+        );
+        await expect(
+          popup.locator(
+            `[data-public-dish-renderer="${experience.id}"]`
+          )
+        ).toBeVisible();
+
+        if (experience.id === "trouvable") {
+          await expect(
+            popup.locator('[data-public-dish-renderer="trouvable"]')
+          ).toHaveAttribute("data-palette-source", "reference");
+          await expect(popup.getByText(expectedName, { exact: true })).toBeVisible();
+          await expect(
+            popup.getByText(expectedDescription, { exact: true })
+          ).toHaveCount(0);
+          const detailsButton = popup.getByRole("button", {
+            name: "Voir détails"
+          });
+          await expect
+            .poll(async () => {
+              await detailsButton.click();
+              return detailsButton.getAttribute("aria-expanded");
+            })
+            .toBe("true");
+          const detailSheet = popup.locator(
+            '[role="dialog"][data-sheet-state="open"]'
+          );
+          await expect(detailSheet).toBeVisible();
+          await expect(
+            detailSheet.getByText(expectedDescription, { exact: true })
+          ).toHaveCount(1);
+          expect(expectedDishId).toBeTruthy();
+          await expect(
+            popup.locator(
+              `[data-public-dish-renderer="trouvable"] img[src*="/api/public/menu-dishes/${expectedDishId}/photo"]`
+            )
+          ).toBeVisible();
+          await expect(
+            popup.locator('a[href^="/menu/trouvable"]').first()
+          ).toHaveAttribute("href", "/menu/trouvable?lang=fr-CA");
+          await expect(
+            popup.locator(
+              'main[data-theme][data-blueprint]:not([data-public-dish-renderer="trouvable"])'
+            )
+          ).toHaveCount(0);
+          await expect(
+            popup.locator(
+              '[data-public-dish-renderer="maison-elyse"], [data-public-dish-renderer="sauge-noire"]'
+            )
+          ).toHaveCount(0);
+        }
+      } finally {
+        await popup.close();
+      }
+      await expect(page.getByTestId("landing-dishes")).toBeVisible();
+    }
+  });
+
+  test("renders complete English comparison and featured-dish proof without targeted French leaks", async ({
+    page
+  }) => {
+    await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
+    await expectSecureLandingMenuLinks(page);
+
+    const comparison = page.getByTestId("landing-comparison");
+    await comparison.scrollIntoViewIfNeeded();
+    const tabs = comparison.getByRole("tab");
+    const expectedEnglish = [
+      {
+        category: "Starters",
+        categoryDescription: "Maison Elyse's current menu.",
+        dish: "Fresh goat cheese ravioli with Monteregie honey",
+        dishDescription:
+          "Brown butter, preserved lemon, and garden herbs."
+      },
+      {
+        category: "Mains",
+        categoryDescription: "Trouvable's current menu.",
+        dish: "Green pesto burrata",
+        dishDescription: "Burrata, green pesto, and fresh herbs."
+      },
+      {
+        category: "First bites",
+        categoryDescription:
+          "Small plates, bites, and opening seasonal flavors to share.",
+        dish: "Beetroot under ash",
+        dishDescription:
+          "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
+      }
+    ];
+
+    for (const [index, experience] of LANDING_EXPERIENCES.entries()) {
+      await tabs.nth(index).click();
+      await expect(tabs.nth(index)).toHaveAttribute("aria-selected", "true");
+      const active = comparison.locator(
+        `[data-landing-menu-renderer="${experience.id}"][data-menu-ui="${experience.id}"][lang="en-CA"]`
+      );
+      await expect(active).toBeVisible({ timeout: LAZY_PREVIEW_TIMEOUT_MS });
+      await expect(comparison.getByText("Menu", { exact: true }).first()).toBeVisible();
+      await expect(
+        comparison.locator('[data-comparison-scroll-root="pdf"]')
+      ).toHaveAttribute(
+        "aria-label",
+        new RegExp(`^Full PDF menu for (?:${experience.name.source})$`)
+      );
+      await expect(active.getByText(expectedEnglish[index].category).first()).toBeVisible();
+      await expect(active.getByText(expectedEnglish[index].dish).first()).toBeVisible();
+
+      const payloadResponse = await page.request.get(
+        new URL(
+          `/api/public/landing-menu-preview/${experience.id}?locale=en`,
+          page.url()
+        ).toString()
+      );
+      expect(payloadResponse.ok()).toBe(true);
+      const payload = (await payloadResponse.json()) as {
+        payload?: {
+          menuUi?: {
+            menu?: {
+              dishes?: Array<{
+                category: string;
+                categoryDescription?: string;
+                description: string;
+                name: string;
+              }>;
+            };
+          };
+        };
+      };
+      const expectedDish = payload.payload?.menuUi?.menu?.dishes?.find(
+        (dish) => dish.name === expectedEnglish[index].dish
+      );
+      expect(expectedDish).toEqual(
+        expect.objectContaining({
+          category: expectedEnglish[index].category,
+          categoryDescription: expectedEnglish[index].categoryDescription,
+          description: expectedEnglish[index].dishDescription
+        })
+      );
+    }
+
+    const dishes = page.getByTestId("landing-dishes");
+    await expect(dishes.locator("[data-menu-slug]")).toHaveCount(3);
+    const expectedEnglishFeaturedDescriptions = [
+      "Brown butter, preserved lemon, and garden herbs.",
+      "Burrata, green pesto, and fresh herbs.",
+      "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
+    ];
+    for (const [index, card] of (
+      await dishes.locator("[data-menu-slug]").all()
+    ).entries()) {
+      await expect(card).toHaveAttribute("lang", "en-CA");
+      await expect(card.locator("img")).toHaveAttribute(
+        "alt",
+        /, from (Maison Élyse|Trouvable|Sauge Noire)$/
+      );
+      await expect(card.locator("h3 + span")).toHaveText(
+        expectedEnglishFeaturedDescriptions[index]
+      );
+    }
+    await expect(dishes).toContainText(
+      "Fresh goat cheese ravioli with Monteregie honey"
+    );
+    await expect(dishes).toContainText("Green pesto burrata");
+    await expect(dishes).toContainText("Beetroot under ash");
+    await expect(page.getByText("Open the full experience").first()).toBeVisible();
+
+    const englishPageText = await page.locator("body").innerText();
+    for (const forbiddenFrench of [
+      "La carte du moment",
+      "Herbier de la carte",
+      "Menu PDF complet de",
+      "Photo du plat",
+      "Ouvrez la fiche actuelle",
+      "dans la carte"
+    ]) {
+      expect(englishPageText).not.toContain(forbiddenFrench);
+    }
   });
 
   test("links one current dish from each experience to its real detail page", async ({

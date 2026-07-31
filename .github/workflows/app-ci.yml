@@ -77,6 +77,18 @@ jobs:
       - name: Landing renderer and image contracts
         run: npm run test:landing:contract
 
+      - name: Landing locale and translation contracts
+        run: npm run test:landing:i18n
+
+      - name: Landing fixture locale integration
+        run: npm run test:landing:fixture-i18n
+
+      - name: Landing comparison keyboard contract
+        run: npm run test:landing:keyboard
+
+      - name: Translation backfill contracts
+        run: npm run test:translation:backfill
+
       - name: Maison Elyse PostgreSQL 17 tests
         env:
           PGDATABASE: vistaire_qr_ci

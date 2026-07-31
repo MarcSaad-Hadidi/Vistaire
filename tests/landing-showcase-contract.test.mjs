@@ -110,8 +110,9 @@ test("landing public menu links use the shared secure new-tab contract", async (
   );
   assert.match(publicMenuLink, /target="_blank"/);
   assert.match(publicMenuLink, /rel="noopener noreferrer"/);
-  assert.match(publicMenuLink, /Sâ€™ouvre dans un nouvel onglet\./);
-  assert.match(publicMenuLink, /Opens in a new tab\./);
+  assert.match(publicMenuLink, /getLandingCopy\(locale\)\.experiences\.newTabLabel/);
+  assert.match(publicMenuLink, /styles\.srOnly/);
+  assert.doesNotMatch(publicMenuLink, /S(?:Ã|â).*nouvel onglet/);
 
   assert.equal((hero.match(/<LandingPublicMenuLink/g) ?? []).length, 2);
   assert.equal((hero.match(/href=\{maisonHref\}/g) ?? []).length, 2);
