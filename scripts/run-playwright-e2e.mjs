@@ -35,6 +35,13 @@ const includesSaugeNoireBrowserFlow = process.argv
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
   });
+const includesSaugeNoireFixture =
+  includesSaugeNoireBrowserFlow ||
+  process.argv
+    .slice(2)
+    .some((argument) =>
+      /(?:^|\/)seo-smoke\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
+    );
 const includesLandingProductionPhoto = process.argv
   .slice(2)
   .some((argument) =>
@@ -44,7 +51,7 @@ const includesLandingProductionPhoto = process.argv
   );
 const useDevelopmentServer =
   useLocalDemoServer ||
-  (includesSaugeNoireBrowserFlow && !includesLandingProductionPhoto);
+  (includesSaugeNoireFixture && !includesLandingProductionPhoto);
 const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 const SAUGE_FIXTURE_ENV = {
   NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
@@ -100,7 +107,7 @@ async function main() {
   let saugeFixture = null;
 
   try {
-    if (includesSaugeNoireBrowserFlow) {
+    if (includesSaugeNoireFixture) {
       saugeFixture = spawn(
         process.execPath,
         ["e2e/support/sauge-noire-fixture-server.mjs"],
@@ -141,7 +148,7 @@ async function main() {
           windowsHide: true,
           env: {
             ...process.env,
-            ...(includesSaugeNoireBrowserFlow ? SAUGE_FIXTURE_ENV : {}),
+            ...(includesSaugeNoireFixture ? SAUGE_FIXTURE_ENV : {}),
             CLERK_SECRET_KEY: LOCAL_E2E_CLERK_SECRET_KEY,
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
               LOCAL_E2E_CLERK_PUBLISHABLE_KEY,
