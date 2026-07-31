@@ -900,7 +900,7 @@ test.describe("Vistaire landing redesign", () => {
     });
   }
 
-  test("uses the poster instead of autoplay for Save-Data", async ({ page }) => {
+  test("keeps the hero video looping when Save-Data is enabled", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "connection", {
         configurable: true,
@@ -908,39 +908,61 @@ test.describe("Vistaire landing redesign", () => {
       });
     });
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    await expect(page.locator('[data-hero-media="poster"]')).toBeVisible();
-    const video = page.locator('[data-hero-media="poster"] video');
+    const video = page.locator("#landing-hero-video");
     await expect(video).toHaveCount(1);
-    await expect(video).toHaveAttribute("preload", "none");
-    await expect(page.getByRole("button", { name: "Lire la vidéo" })).toBeVisible();
+    await expect(video).toHaveAttribute("preload", "metadata");
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
   });
 
-  test("simplifies motion when reduced motion is requested", async ({ page }) => {
+  test("keeps the hero video loop configured with reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    await expect(page.locator('[data-hero-media="poster"]')).toBeVisible();
-    const video = page.locator('[data-hero-media="poster"] video');
+    const video = page.locator("#landing-hero-video");
     await expect(video).toHaveCount(1);
-    await expect(video).toHaveAttribute("preload", "none");
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
     const transitionDuration = await page
       .getByTestId("landing-comparison")
       .evaluate((element) => getComputedStyle(element).transitionDuration);
     expect(Number.parseFloat(transitionDuration)).toBeLessThanOrEqual(0.001);
   });
 
-  test("keeps a localized manual control when autoplay is refused", async ({ page }) => {
+  test("keeps the loop contract without a manual playback control", async ({ page }) => {
     await page.addInitScript(() => {
       HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException("Autoplay refused", "NotAllowedError"));
     });
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
 
-    const video = page.locator('[data-hero-media="poster"] video');
+    const video = page.locator("#landing-hero-video");
     await expect(video).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Lire la vidéo" })).toBeVisible();
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
     await expect(video).toHaveAttribute("poster", "/frames/menualive/frame_0200.webp");
 
     await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("button", { name: "Play video" })).toBeVisible();
+    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
+  });
+
+  test("autoplays the optimized mobile hero video without a control", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+
+    const video = page.locator("#landing-hero-video");
+    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video).toHaveAttribute("muted", "");
+    await expect(video).toHaveAttribute("playsinline", "");
+    await expect
+      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc))
+      .toContain("/videos/optimized/upscaled-video-mobile-scrub.mp4");
+    await expect
+      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
+      .toBeGreaterThan(0.05);
   });
 
   test("keeps the slider usable in a real touch-enabled mobile context", async ({

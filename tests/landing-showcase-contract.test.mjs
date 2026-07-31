@@ -24,7 +24,8 @@ test("landing showcase keeps the existing chrome and promoted video contract", a
   assert.match(media, /muted/);
   assert.match(media, /loop/);
   assert.match(media, /playsInline/);
-  assert.match(media, /saveData/);
+  assert.match(media, /preload="metadata"/);
+  assert.doesNotMatch(media, /<button/);
   assert.match(media, /onError/);
   assert.match(adapter, /VistaireLanding/);
 });
@@ -422,7 +423,7 @@ test("landing dish cards use current public-menu detail routes", async () => {
   assert.match(section, /data-dish-id/);
   assert.match(section, /data-image-source/);
   assert.match(section, /lang=\{LOCALE_LANGUAGE_TAG\[locale\]\}/);
-  assert.doesNotMatch(section, /fallbackSrc=\{experience\.image\}/);
+  assert.match(section, /fallbackSrc=\{experience\.image\}/);
 });
 
 test("landing comparison projects complete available menu data without arbitrary slices", async () => {
