@@ -162,11 +162,11 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
   );
   assert.match(
     workflow,
-    /- name: Sauge Noire static-page parity\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
+    /- name: Sauge Noire static-page parity\s+(?:if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}\s+)?timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
   );
   assert.match(
     workflow,
-    /- name: Sauge Noire contents single flip\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:contents-single-flip/
+    /- name: Sauge Noire contents single flip\s+(?:if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}\s+)?timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:contents-single-flip/
   );
   assert.ok(
     workflow.indexOf("run: npm run build") <
