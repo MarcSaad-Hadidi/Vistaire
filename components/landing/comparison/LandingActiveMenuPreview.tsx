@@ -2,7 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
-import type { LandingCopy } from "@/lib/landing/landingCopy";
+import {
+  formatLandingCopyTemplate,
+  type LandingCopy
+} from "@/lib/landing/landingCopy";
 import type { LandingMenuPreviewPayload } from "@/lib/landing/menuExperiences";
 import styles from "./LandingActiveMenuPreview.module.css";
 
@@ -77,7 +80,9 @@ export function LandingActiveMenuPreview({
   if (payload.kind === "maison-elyse") {
     return (
       <div
-        aria-label={copy.digitalRegionLabel(payload.comparison.restaurant.name)}
+        aria-label={formatLandingCopyTemplate(copy.digitalRegionLabel, {
+          restaurantName: payload.comparison.restaurant.name
+        })}
         className={styles.rendererShell}
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
@@ -98,7 +103,9 @@ export function LandingActiveMenuPreview({
   if (payload.kind === "trouvable") {
     return (
       <div
-        aria-label={copy.digitalRegionLabel(payload.comparison.restaurant.name)}
+        aria-label={formatLandingCopyTemplate(copy.digitalRegionLabel, {
+          restaurantName: payload.comparison.restaurant.name
+        })}
         className={styles.rendererShell}
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
@@ -119,7 +126,9 @@ export function LandingActiveMenuPreview({
   ) {
     return (
       <div
-        aria-label={copy.digitalRegionLabel(payload.comparison.restaurant.name)}
+        aria-label={formatLandingCopyTemplate(copy.digitalRegionLabel, {
+          restaurantName: payload.comparison.restaurant.name
+        })}
         className={styles.rendererShell}
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"

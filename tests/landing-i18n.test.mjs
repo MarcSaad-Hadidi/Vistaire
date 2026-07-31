@@ -92,7 +92,9 @@ test("Trouvable demo selects canonical English and Greek dish names", async () =
 });
 
 test("landing comparison copy and projected image labels follow the locale", async () => {
-  const { getLandingCopy } = await import("../lib/landing/landingCopy.ts");
+  const { formatLandingCopyTemplate, getLandingCopy } = await import(
+    "../lib/landing/landingCopy.ts"
+  );
   const { buildCurrentPublicMenuPreview } = await import(
     "../lib/landing/publicMenuPreview.ts"
   );
@@ -109,14 +111,20 @@ test("landing comparison copy and projected image labels follow the locale", asy
   assert.ok(englishMenu);
   const frenchCopy = getLandingCopy("fr").comparison;
   const englishCopy = getLandingCopy("en").comparison;
+  assert.doesNotThrow(() => structuredClone(frenchCopy));
+  assert.doesNotThrow(() => structuredClone(englishCopy));
   assert.equal(frenchCopy.pdfTitle, "Carte");
   assert.equal(
-    frenchCopy.pdfRegionLabel("Trouvable"),
+    formatLandingCopyTemplate(frenchCopy.pdfRegionLabel, {
+      restaurantName: "Trouvable"
+    }),
     "Menu PDF complet de Trouvable"
   );
   assert.equal(englishCopy.pdfTitle, "Menu");
   assert.equal(
-    englishCopy.pdfRegionLabel("Trouvable"),
+    formatLandingCopyTemplate(englishCopy.pdfRegionLabel, {
+      restaurantName: "Trouvable"
+    }),
     "Full PDF menu for Trouvable"
   );
   assert.equal(

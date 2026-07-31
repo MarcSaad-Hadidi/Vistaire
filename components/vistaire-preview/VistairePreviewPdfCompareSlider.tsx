@@ -17,14 +17,17 @@ import type {
   PdfMenuSection
 } from "@/lib/pdfComparePreviewData";
 import type { Locale } from "@/lib/i18n";
-import { getLandingCopy } from "@/lib/landing/landingCopy";
+import {
+  formatLandingCopyTemplate,
+  getLandingCopy
+} from "@/lib/landing/landingCopy";
 import styles from "./VistairePreviewPdfCompareSlider.module.css";
 
 type PdfComparisonStrings = {
   caption: string;
   hint: string;
   label: string;
-  pdfRegionLabel: (restaurantName: string) => string;
+  pdfRegionLabel: string;
   pdfTitle: string;
 };
 
@@ -67,7 +70,9 @@ export function VistairePreviewPdfLayer({
 
   return (
     <div
-      aria-label={pdfRegionLabel(restaurantName)}
+      aria-label={formatLandingCopyTemplate(pdfRegionLabel, {
+        restaurantName
+      })}
       className={styles.pdfScene}
       data-comparison-scroll-root="pdf"
       role="region"

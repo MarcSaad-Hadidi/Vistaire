@@ -1,5 +1,9 @@
 import type { Locale } from "@/lib/i18n";
-import { getLandingCopy, type LandingCopy } from "@/lib/landing/landingCopy";
+import {
+  formatLandingCopyTemplate,
+  getLandingCopy,
+  type LandingCopy
+} from "@/lib/landing/landingCopy";
 import {
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -42,7 +46,9 @@ function toPreviewDish(
     categorySlug: dish.categorySlug,
     categoryName: dish.category,
     image: imageForDish(dish),
-    imageAlt: copy.dishPhotoAlt(dish.name),
+    imageAlt: formatLandingCopyTemplate(copy.dishPhotoAlt, {
+      dishName: dish.name
+    }),
     imageObjectPosition: "center",
     allergens: [],
     isSignature: Boolean(dish.isSignature),
@@ -134,8 +140,13 @@ export function buildCurrentPublicMenuPreview({
       description: category.description,
       image: representative ? imageForDish(representative) : null,
       imageAlt: representative
-        ? copy.categoryPhotoAlt(category.label, representative.name)
-        : copy.categoryAlt(category.label),
+        ? formatLandingCopyTemplate(copy.categoryPhotoAlt, {
+            categoryName: category.label,
+            dishName: representative.name
+          })
+        : formatLandingCopyTemplate(copy.categoryAlt, {
+            categoryName: category.label
+          }),
       imageObjectPosition: "center"
     };
   });

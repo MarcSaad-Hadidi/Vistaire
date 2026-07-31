@@ -8,7 +8,10 @@ import {
 } from "@/lib/demoMenuData";
 import { formatPrice } from "@/lib/formatPrice";
 import type { Locale } from "@/lib/i18n";
-import { getLandingCopy } from "@/lib/landing/landingCopy";
+import {
+  formatLandingCopyTemplate,
+  getLandingCopy
+} from "@/lib/landing/landingCopy";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 
 export type PdfMenuRow = {
@@ -134,7 +137,9 @@ function toCompareDishPreview(
     shortDescription: dish.shortDescription,
     categorySlug: dish.categorySlug,
     image: dish.image,
-    imageAlt: copy.dishPhotoAlt(dish.name),
+    imageAlt: formatLandingCopyTemplate(copy.dishPhotoAlt, {
+      dishName: dish.name
+    }),
     imageObjectPosition: getDishCardImageObjectPosition(dish),
     allergens: dish.allergens,
     isSignature: dish.isSignature,
@@ -169,8 +174,13 @@ function toCompareCategoryPreview(
       : category.description,
     image: heroDish?.image ?? null,
     imageAlt: heroDish
-      ? copy.categoryPhotoAlt(category.name, heroDish.name)
-      : copy.categoryAlt(category.name),
+      ? formatLandingCopyTemplate(copy.categoryPhotoAlt, {
+          categoryName: category.name,
+          dishName: heroDish.name
+        })
+      : formatLandingCopyTemplate(copy.categoryAlt, {
+          categoryName: category.name
+        }),
     imageObjectPosition: heroDish ? getDishCardImageObjectPosition(heroDish) : "center 50%"
   };
 }

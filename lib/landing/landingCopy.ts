@@ -53,14 +53,12 @@ export const LANDING_COPY = {
       revealLabel: "Comparer le menu PDF et la carte digitale Vistaire",
       revealHint: "Glissez pour comparer",
       pdfTitle: "Carte",
-      pdfRegionLabel: (restaurantName: string) =>
-        `Menu PDF complet de ${restaurantName}`,
-      digitalRegionLabel: (restaurantName: string) =>
-        `${restaurantName}, carte digitale Vistaire`,
-      dishPhotoAlt: (dishName: string) => `Photo du plat : ${dishName}`,
-      categoryPhotoAlt: (categoryName: string, dishName: string) =>
-        `Photo de la catégorie ${categoryName} : ${dishName}`,
-      categoryAlt: (categoryName: string) => `Catégorie ${categoryName}`,
+      pdfRegionLabel: "Menu PDF complet de {restaurantName}",
+      digitalRegionLabel: "{restaurantName}, carte digitale Vistaire",
+      dishPhotoAlt: "Photo du plat : {dishName}",
+      categoryPhotoAlt:
+        "Photo de la catégorie {categoryName} : {dishName}",
+      categoryAlt: "Catégorie {categoryName}",
       loadingStatus: "Chargement de l’aperçu de la carte actuelle",
       unavailableStatus: "Aperçu temporairement indisponible",
       figureCaption:
@@ -179,14 +177,12 @@ export const LANDING_COPY = {
       revealLabel: "Compare the PDF menu and the Vistaire digital menu",
       revealHint: "Drag to compare",
       pdfTitle: "Menu",
-      pdfRegionLabel: (restaurantName: string) =>
-        `Full PDF menu for ${restaurantName}`,
-      digitalRegionLabel: (restaurantName: string) =>
-        `${restaurantName}, Vistaire digital menu`,
-      dishPhotoAlt: (dishName: string) => `Dish photo: ${dishName}`,
-      categoryPhotoAlt: (categoryName: string, dishName: string) =>
-        `Category photo for ${categoryName}: ${dishName}`,
-      categoryAlt: (categoryName: string) => `Category ${categoryName}`,
+      pdfRegionLabel: "Full PDF menu for {restaurantName}",
+      digitalRegionLabel: "{restaurantName}, Vistaire digital menu",
+      dishPhotoAlt: "Dish photo: {dishName}",
+      categoryPhotoAlt:
+        "Category photo for {categoryName}: {dishName}",
+      categoryAlt: "Category {categoryName}",
       loadingStatus: "Loading the current menu preview",
       unavailableStatus: "Preview temporarily unavailable",
       figureCaption:
@@ -259,4 +255,14 @@ export type LandingCopy = (typeof LANDING_COPY)[keyof typeof LANDING_COPY];
 
 export function getLandingCopy(locale: Locale) {
   return LANDING_COPY[locale];
+}
+
+export function formatLandingCopyTemplate(
+  template: string,
+  values: Record<string, string>
+): string {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, value),
+    template
+  );
 }

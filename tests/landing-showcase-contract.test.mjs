@@ -185,6 +185,17 @@ test("landing comparison mounts one official public-menu renderer with accessibl
   assert.doesNotMatch(activeRenderer, /model-viewer|\.glb|\.usdz/i);
 });
 
+test("server landing comparison copy stays serializable across the client boundary", async () => {
+  const landingCopy = await source("lib/landing/landingCopy.ts");
+  const section = await source("components/landing/LandingComparisonSection.tsx");
+
+  assert.match(section, /<LandingComparison copy=\{copy\}/);
+  assert.doesNotMatch(
+    landingCopy,
+    /(?:pdfRegionLabel|digitalRegionLabel|dishPhotoAlt|categoryPhotoAlt|categoryAlt):\s*\([^)]*\)\s*=>/
+  );
+});
+
 test("landing comparison shares each public menu UI without the generic preview renderer", async () => {
   const [
     activeRenderer,
