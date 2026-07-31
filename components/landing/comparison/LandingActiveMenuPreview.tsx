@@ -44,17 +44,23 @@ function PreviewLoading() {
 export function LandingActiveMenuPreview({
   copy,
   locale,
-  payload
+  payload,
+  menuSlug
 }: {
   copy: LandingCopy["comparison"];
   locale: Locale;
   payload: LandingMenuPreviewPayload | null | undefined;
+  menuSlug: string;
 }) {
   if (payload === undefined) {
     return (
       <div
         aria-live="polite"
         className={styles.loading}
+        data-menu-slug={menuSlug}
+        data-preview-locale={LOCALE_LANGUAGE_TAG[locale]}
+        data-preview-status="loading"
+        data-translation-status="unknown"
         lang={LOCALE_LANGUAGE_TAG[locale]}
         role="status"
       >
@@ -68,7 +74,12 @@ export function LandingActiveMenuPreview({
       <div
         aria-live="polite"
         className={styles.unavailable}
+        data-menu-active-locale={LOCALE_LANGUAGE_TAG[locale]}
+        data-menu-slug={menuSlug}
+        data-preview-locale={LOCALE_LANGUAGE_TAG[locale]}
+        data-preview-status="unavailable"
         data-public-menu-renderer="unavailable"
+        data-translation-status="unavailable"
         lang={LOCALE_LANGUAGE_TAG[locale]}
         role="status"
       >
@@ -87,7 +98,12 @@ export function LandingActiveMenuPreview({
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="maison-elyse"
+        data-menu-active-locale={payload.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[payload.locale]}
+        data-menu-slug={payload.menuSlug}
         data-menu-ui="maison-elyse"
+        data-preview-locale={LOCALE_LANGUAGE_TAG[payload.locale]}
+        data-preview-status="ready"
+        data-translation-status={payload.menuUi.menu.translationStatus?.status ?? "unknown"}
         lang={LOCALE_LANGUAGE_TAG[locale]}
         role="region"
         tabIndex={0}
@@ -110,7 +126,12 @@ export function LandingActiveMenuPreview({
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="trouvable"
+        data-menu-active-locale={payload.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[payload.locale]}
+        data-menu-slug={payload.menuSlug}
         data-menu-ui="trouvable"
+        data-preview-locale={LOCALE_LANGUAGE_TAG[payload.locale]}
+        data-preview-status="ready"
+        data-translation-status={payload.menuUi.menu.translationStatus?.status ?? "unknown"}
         lang={LOCALE_LANGUAGE_TAG[locale]}
         role="region"
         tabIndex={0}
@@ -133,7 +154,12 @@ export function LandingActiveMenuPreview({
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="sauge-noire"
+        data-menu-active-locale={payload.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[payload.locale]}
+        data-menu-slug={payload.menuSlug}
         data-menu-ui="sauge-noire"
+        data-preview-locale={LOCALE_LANGUAGE_TAG[payload.locale]}
+        data-preview-status="ready"
+        data-translation-status={payload.menuUi.menu.translationStatus?.status ?? "unknown"}
         lang={LOCALE_LANGUAGE_TAG[locale]}
         role="region"
         tabIndex={0}

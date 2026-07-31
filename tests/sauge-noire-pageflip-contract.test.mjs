@@ -342,26 +342,34 @@ test("the canonical reading surface is visible while PageFlip initializes", asyn
 test("a short vertical gesture during a flip survives the reading-page commit", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
+  assert.match(experiment, /type ScrollHandoffTransition/);
+  assert.match(experiment, /sourceSurface: HTMLDivElement \| null/);
+  assert.match(experiment, /captureSourceScrollHandoff/);
   assert.match(
     experiment,
-    /source && source\.readingIdentity !== readingIdentity[\s\S]*readingSurface\.scrollTop - source\.scrollTop/
+    /transition\.latestSourceScrollTop - transition\.sourceScrollTop/
   );
-  assert.match(experiment, /readingIdentity,\s*scrollTop: sourceScrollTop/);
+  assert.match(experiment, /sourceIdentity: readingIdentity/);
+  assert.match(experiment, /targetIdentity: null/);
+  assert.match(experiment, /sequence: \+\+scrollHandoffSequenceRef\.current/);
   assert.match(
     experiment,
     /\(readyScrollTop \?\? 0\) \+ gestureDelta/
   );
   assert.match(experiment, /data-page-flip-gesture-delta/);
   assert.match(experiment, /data-page-flip-prepared-scroll-top/);
+  assert.match(experiment, /transition\.handoffApplied = true/);
+  assert.match(experiment, /stableFrames < 2/);
+  assert.match(experiment, /new ResizeObserver/);
   assert.match(experiment, /animationSourceClearFrameRef = useRef\(0\)/);
   assert.match(
     experiment,
-    /requestAnimationFrame\(\(\) => \{[\s\S]*animationSourceScrollRef\.current === completedSource[\s\S]*animationSourceScrollRef\.current = null/
+    /clearAnimationSourceIfApplied[\s\S]*animationSourceScrollRef\.current === candidate[\s\S]*animationSourceScrollRef\.current = null/
   );
   assert.doesNotMatch(experiment, /settledSurface\.scrollTop\s*=/);
   assert.match(
     experiment,
-    /state === "read"[\s\S]*requestAnimationFrame\(\(\) => \{[\s\S]*animationSourceScrollRef\.current = null/
+    /state === "read"[\s\S]*clearAnimationSourceIfApplied\(\)/
   );
   assert.doesNotMatch(
     experiment,

@@ -116,6 +116,23 @@ type ConsumedClickSuppression = {
   clickScope: Element | null;
 };
 
+type ScrollHandoffTransition = {
+  sequence: number;
+  pageIndex: number;
+  readingIdentity: string;
+  scrollTop: number;
+  sourcePageIndex: number;
+  targetPageIndex: number;
+  direction: "next" | "previous";
+  sourceIdentity: string;
+  targetIdentity: string | null;
+  sourceSurface: HTMLDivElement | null;
+  sourceScrollTop: number;
+  latestSourceScrollTop: number;
+  gestureDelta: number;
+  handoffApplied: boolean;
+};
+
 type PageFlipErrorBoundaryProps = {
   children: ReactNode;
   fallback: ReactNode;
@@ -441,6 +458,7 @@ export function SaugeNoirePageFlipExperiment({
   const onChangeStateRef = useRef(onChangeState);
   const onReadyRef = useRef(onReady);
   const onSingleFlipJumpSettledRef = useRef(onSingleFlipJumpSettled);
+  const engineStateRef = useRef(engineState);
   const appliedDimensionKeyRef = useRef<string | null>(null);
   const appliedDimensionsRef = useRef<FlipDimensions | null>(null);
   const pendingStructuralDimensionsRef = useRef<FlipDimensions | null>(null);
@@ -450,12 +468,11 @@ export function SaugeNoirePageFlipExperiment({
   const cleanupGenerationRef = useRef(0);
   const reportedFlipPageRef = useRef<number | null>(null);
   const sawFlipStateRef = useRef(false);
-  const animationSourceScrollRef = useRef<{
-    pageIndex: number;
-    readingIdentity: string;
-    scrollTop: number;
-  } | null>(null);
+  const animationSourceScrollRef = useRef<ScrollHandoffTransition | null>(null);
   const animationSourceClearFrameRef = useRef(0);
+  const scrollHandoffSequenceRef = useRef(0);
+  const scrollHandoffFrameRef = useRef(0);
+  const scrollHandoffResizeObserverRef = useRef<ResizeObserver | null>(null);
   const flipPreparationTokenRef = useRef(0);
   const preparedFlipLaunchFrameRef = useRef(0);
   const preparedPhysicalPageIndexesRef = useRef<Set<number>>(
@@ -472,6 +489,7 @@ export function SaugeNoirePageFlipExperiment({
   const readingIdentity = `${bookKey}:${
     readingKey ?? pageIndex
   }`;
+  const readingIdentityRef = useRef(readingIdentity);
   const singleFlipJumpKeepsEngineVisible =
     singleFlipJumpPhase === "single-flip-started" ||
     singleFlipJumpPhase === "adjacent-page-reached" ||
@@ -509,39 +527,183 @@ export function SaugeNoirePageFlipExperiment({
     failedRef.current = failed;
   }, [dimensions, failed, onChangeState, onReady, onSingleFlipJumpSettled]);
 
-  useLayoutEffect(() => {
-    const readingSurface = readingSurfaceRef.current;
-    if (!readingSurface) return;
-    const source = animationSourceScrollRef.current;
-    const gestureDelta =
-      source && source.readingIdentity !== readingIdentity
-        ? readingSurface.scrollTop - source.scrollTop
-        : 0;
-    const preparedScrollTop = Math.min(
-      Math.max(0, readingSurface.scrollHeight - readingSurface.clientHeight),
-      Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
-    );
-    readingSurface.setAttribute(
-      "data-page-flip-prepared-scroll-top",
-      String(preparedScrollTop)
-    );
-    readingSurface.setAttribute(
-      "data-page-flip-gesture-delta",
-      String(gestureDelta)
-    );
-    if (readingSurface.scrollTop !== preparedScrollTop) {
-      readingSurface.scrollTop = preparedScrollTop;
+  useEffect(() => {
+    readingIdentityRef.current = readingIdentity;
+    engineStateRef.current = engineState;
+  }, [engineState, readingIdentity]);
+
+  const captureSourceScrollHandoff = useCallback(() => {
+    const transition = animationSourceScrollRef.current;
+    const sourceSurface = transition?.sourceSurface;
+    if (
+      !transition ||
+      transition.handoffApplied ||
+      !sourceSurface ||
+      transition.sourceIdentity !== readingIdentityRef.current
+    ) {
+      return;
     }
-    if (source && source.readingIdentity !== readingIdentity) {
-      const completedSource = source;
+    transition.latestSourceScrollTop = sourceSurface.scrollTop;
+    transition.gestureDelta = Math.max(
+      0,
+      transition.latestSourceScrollTop - transition.sourceScrollTop
+    );
+  }, []);
+
+  const clearAnimationSourceIfApplied = useCallback(
+    (candidate: ScrollHandoffTransition | null = animationSourceScrollRef.current) => {
+      if (!candidate || !candidate.handoffApplied) return;
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
       animationSourceClearFrameRef.current = window.requestAnimationFrame(() => {
-        if (animationSourceScrollRef.current === completedSource) {
+        if (
+          animationSourceScrollRef.current === candidate &&
+          candidate.handoffApplied
+        ) {
           animationSourceScrollRef.current = null;
         }
       });
+    },
+    []
+  );
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const captureSourceScroll = (event: Event) => {
+      const transition = animationSourceScrollRef.current;
+      if (
+        !transition ||
+        transition.handoffApplied ||
+        event.target !== transition.sourceSurface ||
+        transition.sourceIdentity !== readingIdentityRef.current
+      ) {
+        return;
+      }
+      captureSourceScrollHandoff();
+    };
+
+    viewport.addEventListener("scroll", captureSourceScroll, true);
+    return () => viewport.removeEventListener("scroll", captureSourceScroll, true);
+  }, [captureSourceScrollHandoff]);
+
+  useLayoutEffect(() => {
+    const transition = animationSourceScrollRef.current;
+    if (
+      !transition ||
+      transition.handoffApplied ||
+      transition.sourceIdentity === readingIdentity ||
+      !transition.sourceSurface
+    ) {
+      return;
     }
-  }, [readingIdentity, readyScrollTop]);
+
+    transition.targetIdentity = readingIdentity;
+    window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+    scrollHandoffResizeObserverRef.current?.disconnect();
+
+    let cancelled = false;
+    let stableGeometry = "";
+    let stableFrames = 0;
+
+    const finish = () => {
+      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+      scrollHandoffResizeObserverRef.current?.disconnect();
+      scrollHandoffResizeObserverRef.current = null;
+    };
+
+    const applyWhenReady = () => {
+      if (cancelled) return;
+      const currentTransition = animationSourceScrollRef.current;
+      const readingSurface = readingSurfaceRef.current;
+      if (
+        currentTransition !== transition ||
+        transition.targetIdentity !== readingIdentityRef.current ||
+        !readingSurface?.isConnected
+      ) {
+        finish();
+        return;
+      }
+
+      const geometry = `${readingSurface.clientWidth}:${readingSurface.clientHeight}:${readingSurface.scrollHeight}`;
+      stableFrames = geometry === stableGeometry ? stableFrames + 1 : 1;
+      stableGeometry = geometry;
+      const hasScrollableHeight =
+        readingSurface.clientHeight > 0 &&
+        readingSurface.scrollHeight > readingSurface.clientHeight;
+      if (!hasScrollableHeight || stableFrames < 2) {
+        scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+        return;
+      }
+
+      const maxScrollTop = Math.max(
+        0,
+        readingSurface.scrollHeight - readingSurface.clientHeight
+      );
+      const gestureDelta = Math.max(0, transition.gestureDelta);
+      const preparedScrollTop = Math.min(
+        maxScrollTop,
+        Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
+      );
+
+      // Set the token before mutating scrollTop. A scroll event caused by the
+      // write must not be mistaken for a new source gesture.
+      transition.handoffApplied = true;
+      readingSurface.setAttribute(
+        "data-page-flip-transition-sequence",
+        String(transition.sequence)
+      );
+      readingSurface.setAttribute(
+        "data-page-flip-transition-direction",
+        transition.direction
+      );
+      readingSurface.setAttribute(
+        "data-page-flip-prepared-scroll-top",
+        String(preparedScrollTop)
+      );
+      readingSurface.setAttribute(
+        "data-page-flip-gesture-delta",
+        String(gestureDelta)
+      );
+      if (readingSurface.scrollTop !== preparedScrollTop) {
+        readingSurface.scrollTop = preparedScrollTop;
+      }
+
+      if (
+        animationSourceScrollRef.current !== transition ||
+        readingIdentityRef.current !== transition.targetIdentity ||
+        Math.abs(readingSurface.scrollTop - preparedScrollTop) > 1
+      ) {
+        transition.handoffApplied = false;
+        stableFrames = 0;
+        stableGeometry = "";
+        scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+        return;
+      }
+
+      finish();
+      if (engineStateRef.current === "read") {
+        clearAnimationSourceIfApplied(transition);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      stableFrames = 0;
+      stableGeometry = "";
+      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+      scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+    });
+    const targetSurface = readingSurfaceRef.current;
+    if (!targetSurface) return;
+    scrollHandoffResizeObserverRef.current = resizeObserver;
+    resizeObserver.observe(targetSurface);
+    scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+
+    return () => {
+      cancelled = true;
+      finish();
+    };
+  }, [clearAnimationSourceIfApplied, readingIdentity, readyScrollTop]);
 
   const preparePageFlip = useCallback(
     (sourcePageIndex: number, targetPageIndex: number) => {
@@ -554,14 +716,37 @@ export function SaugeNoirePageFlipExperiment({
       preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
       applyPhysicalMediaPolicy(viewport, preparedPageIndexes, "flip");
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+      scrollHandoffResizeObserverRef.current?.disconnect();
+      scrollHandoffResizeObserverRef.current = null;
       const sourcePage = resolveSaugeNoireOriginalPage(viewport, sourcePageIndex);
       const targetPage = resolveSaugeNoireOriginalPage(viewport, targetPageIndex);
-      const sourceScrollTop = readingSurfaceRef.current?.scrollTop ?? 0;
+      const sourceSurface = readingSurfaceRef.current;
+      const sourceScrollTop = sourceSurface?.scrollTop ?? 0;
       animationSourceScrollRef.current = {
+        sequence: ++scrollHandoffSequenceRef.current,
         pageIndex: sourcePageIndex,
         readingIdentity,
-        scrollTop: sourceScrollTop
+        scrollTop: sourceScrollTop,
+        sourcePageIndex,
+        targetPageIndex,
+        direction: targetPageIndex > sourcePageIndex ? "next" : "previous",
+        sourceIdentity: readingIdentity,
+        targetIdentity: null,
+        sourceSurface,
+        sourceScrollTop,
+        latestSourceScrollTop: sourceScrollTop,
+        gestureDelta: 0,
+        handoffApplied: !sourceSurface
       };
+      viewport.setAttribute(
+        "data-page-flip-transition-sequence",
+        String(scrollHandoffSequenceRef.current)
+      );
+      viewport.setAttribute(
+        "data-page-flip-transition-direction",
+        targetPageIndex > sourcePageIndex ? "next" : "previous"
+      );
       viewport.setAttribute(
         "data-page-flip-source-scroll-top",
         String(sourceScrollTop)
@@ -1179,6 +1364,9 @@ export function SaugeNoirePageFlipExperiment({
       const pageFlip = activeBookRef.current?.pageFlip();
       window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
       window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+      scrollHandoffResizeObserverRef.current?.disconnect();
+      scrollHandoffResizeObserverRef.current = null;
       window.cancelAnimationFrame(preparedFlipLaunchFrameRef.current);
       flipPreparationTokenRef.current += 1;
       activeSingleFlipJumpRef.current = null;
@@ -1201,6 +1389,7 @@ export function SaugeNoirePageFlipExperiment({
     if (readyBookKeyRef.current !== bookKey) return;
     const nextIndex = parsePageIndex(event);
     if (nextIndex === null) return;
+    captureSourceScrollHandoff();
     setActualPageIndex(nextIndex);
     const singleFlipJump = activeSingleFlipJumpRef.current;
     if (singleFlipJump) {
@@ -1238,7 +1427,7 @@ export function SaugeNoirePageFlipExperiment({
     requestedPageIndexRef.current = null;
     animationTargetPageRef.current = null;
     onPageFlip(nextIndex);
-  }, [bookKey, onPageFlip]);
+  }, [bookKey, captureSourceScrollHandoff, onPageFlip]);
 
   const handleInit = () => {
     initCountRef.current += 1;
@@ -1269,13 +1458,8 @@ export function SaugeNoirePageFlipExperiment({
       sawFlipStateRef.current = true;
     }
     if (state === "read") {
-      const completedSource = animationSourceScrollRef.current;
-      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
-      animationSourceClearFrameRef.current = window.requestAnimationFrame(() => {
-        if (animationSourceScrollRef.current === completedSource) {
-          animationSourceScrollRef.current = null;
-        }
-      });
+      captureSourceScrollHandoff();
+      clearAnimationSourceIfApplied();
     }
     if (
       state === "flipping" &&
@@ -1429,6 +1613,8 @@ export function SaugeNoirePageFlipExperiment({
     }
   }, [
     bookKey,
+    captureSourceScrollHandoff,
+    clearAnimationSourceIfApplied,
     handleFlip,
     onPageFlip,
     startPreparedFlip,
@@ -1849,6 +2035,9 @@ export function SaugeNoirePageFlipExperiment({
                   null;
                 window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
                 window.cancelAnimationFrame(animationSourceClearFrameRef.current);
+                window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+                scrollHandoffResizeObserverRef.current?.disconnect();
+                scrollHandoffResizeObserverRef.current = null;
                 flipPreparationTokenRef.current += 1;
                 setMediaPreparing(false);
                 activeSingleFlipJumpRef.current = null;

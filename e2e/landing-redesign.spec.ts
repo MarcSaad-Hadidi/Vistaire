@@ -309,6 +309,9 @@ test.describe("Vistaire landing redesign", () => {
     await expect
       .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc))
       .toContain("/videos/Vistaire2.mp4");
+    await expect
+      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
+      .toBeGreaterThan(0.05);
 
     await scrollThroughLanding(page);
     await expectNoHorizontalOverflow(page);
@@ -725,6 +728,11 @@ test.describe("Vistaire landing redesign", () => {
         `[data-landing-menu-renderer="${experience.id}"][data-menu-ui="${experience.id}"][lang="en-CA"]`
       );
       await expect(active).toBeVisible({ timeout: LAZY_PREVIEW_TIMEOUT_MS });
+      await expect(active).toHaveAttribute("data-menu-slug", experience.id);
+      await expect(active).toHaveAttribute("data-preview-locale", "en-CA");
+      await expect(active).toHaveAttribute("data-preview-status", "ready");
+      await expect(active).toHaveAttribute("data-menu-active-locale", "en-CA");
+      await expect(active).toHaveAttribute("data-translation-status", "up_to_date");
       await expect(comparison.getByText("Menu", { exact: true }).first()).toBeVisible();
       await expect(
         comparison.locator('[data-comparison-scroll-root="pdf"]')
@@ -744,11 +752,21 @@ test.describe("Vistaire landing redesign", () => {
       expect(payloadResponse.ok()).toBe(true);
       const payload = (await payloadResponse.json()) as {
         payload?: {
+          locale?: string;
+          menuSlug?: string;
+          comparison?: {
+            pdfSections?: unknown[];
+            categoryTabs?: unknown[];
+            categoryCards?: unknown[];
+          };
           menuUi?: {
             menu?: {
+              activeLocale?: string;
+              translationStatus?: { status?: string };
               dishes?: Array<{
                 category: string;
                 categoryDescription?: string;
+                categorySlug?: string;
                 description: string;
                 name: string;
               }>;
@@ -756,6 +774,24 @@ test.describe("Vistaire landing redesign", () => {
           };
         };
       };
+      expect(payload.payload?.locale).toBe("en");
+      expect(payload.payload?.menuSlug).toBe(experience.id);
+      expect(payload.payload?.menuUi?.menu?.activeLocale).toBe("en-CA");
+      expect(payload.payload?.menuUi?.menu?.translationStatus?.status).toBe(
+        "up_to_date"
+      );
+      expect(payload.payload?.comparison?.pdfSections?.length ?? 0).toBeGreaterThan(0);
+      expect(payload.payload?.comparison?.categoryTabs?.length ?? 0).toBeGreaterThan(1);
+      expect(payload.payload?.comparison?.categoryCards?.length ?? 0).toBeGreaterThan(0);
+      expect(payload.payload?.menuUi?.menu?.dishes?.length ?? 0).toBeGreaterThan(0);
+      expect(
+        payload.payload?.menuUi?.menu?.dishes?.some(
+          (dish) =>
+            dish.category === "Current selection" ||
+            dish.categoryDescription === "A real dish from the public menu" ||
+            dish.categorySlug === "current"
+        )
+      ).toBe(false);
       const expectedDish = payload.payload?.menuUi?.menu?.dishes?.find(
         (dish) => dish.name === expectedEnglish[index].dish
       );
@@ -873,17 +909,38 @@ test.describe("Vistaire landing redesign", () => {
     });
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-hero-media="poster"]')).toBeVisible();
-    await expect(page.locator('[data-hero-media="video"]')).toHaveCount(0);
+    const video = page.locator('[data-hero-media="poster"] video');
+    await expect(video).toHaveCount(1);
+    await expect(video).toHaveAttribute("preload", "none");
+    await expect(page.getByRole("button", { name: "Lire la vidéo" })).toBeVisible();
   });
 
   test("simplifies motion when reduced motion is requested", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-hero-media="poster"]')).toBeVisible();
+    const video = page.locator('[data-hero-media="poster"] video');
+    await expect(video).toHaveCount(1);
+    await expect(video).toHaveAttribute("preload", "none");
     const transitionDuration = await page
       .getByTestId("landing-comparison")
       .evaluate((element) => getComputedStyle(element).transitionDuration);
     expect(Number.parseFloat(transitionDuration)).toBeLessThanOrEqual(0.001);
+  });
+
+  test("keeps a localized manual control when autoplay is refused", async ({ page }) => {
+    await page.addInitScript(() => {
+      HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException("Autoplay refused", "NotAllowedError"));
+    });
+    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+
+    const video = page.locator('[data-hero-media="poster"] video');
+    await expect(video).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Lire la vidéo" })).toBeVisible();
+    await expect(video).toHaveAttribute("poster", "/frames/menualive/frame_0200.webp");
+
+    await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "Play video" })).toBeVisible();
   });
 
   test("keeps the slider usable in a real touch-enabled mobile context", async ({

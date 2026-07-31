@@ -14,6 +14,9 @@ export function LandingDishStorySection({
   experiences: LandingExperience[];
   locale: Locale;
 }) {
+  const liveExperiences = experiences.filter((experience) => experience.hasLiveData);
+  if (liveExperiences.length === 0) return null;
+
   return (
     <section
       aria-labelledby="landing-dishes-title"
@@ -28,7 +31,7 @@ export function LandingDishStorySection({
           <p>{copy.body}</p>
         </header>
         <div className={styles.dishGrid}>
-          {experiences.map((experience) => (
+          {liveExperiences.map((experience) => (
             <article
               className={styles.dishCard}
               data-dish-id={experience.featuredDish.id}

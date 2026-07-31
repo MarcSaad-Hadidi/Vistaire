@@ -149,6 +149,7 @@ export type LandingExperience = {
   featuredDish: LandingFeaturedDish;
   preview: PdfComparePreviewData;
   renderPayload: LandingMenuPreviewPayload | null;
+  hasLiveData: boolean;
 };
 
 function toLandingPublicMenuHref(href: string): LandingPublicMenuHref {
@@ -367,7 +368,8 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         name: "Maison Élyse",
         theme: "maison-elyse"
       }),
-      renderPayload: null
+      renderPayload: null,
+      hasLiveData: false
     },
     {
       id: "trouvable",
@@ -392,7 +394,8 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         name: "Trouvable",
         theme: "trouvable"
       }),
-      renderPayload: null
+      renderPayload: null,
+      hasLiveData: false
     },
     {
       id: "sauge-noire",
@@ -420,7 +423,8 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
         name: "Sauge Noire",
         theme: "sauge-noire"
       }),
-      renderPayload: null
+      renderPayload: null,
+      hasLiveData: false
     }
   ];
 
@@ -533,6 +537,7 @@ async function buildLandingExperiences(
           return {
             ...experience,
             preview: current.preview,
+            hasLiveData: false,
             renderPayload:
               experience.id === "maison-elyse"
                 ? landingRenderPayload(experience, renderContext, current.preview)
@@ -552,6 +557,7 @@ async function buildLandingExperiences(
         return {
           ...experience,
           preview: current.preview,
+          hasLiveData: true,
           renderPayload:
             experience.id === "maison-elyse"
               ? landingRenderPayload(experience, renderContext, current.preview)

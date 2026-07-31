@@ -124,8 +124,7 @@ export async function applyStoredPublicMenuTranslations(
       menu.settings,
       translationLocales
     );
-    const publicSettings =
-      menu.settings.publicMenuStyle === "unique" ? menu.settings : filteredSettings;
+    const publicSettings = filteredSettings;
     const activeLocale = normalizePublicMenuLocalePreference(
       requestedLocale,
       publicSettings
@@ -146,21 +145,27 @@ export async function applyStoredPublicMenuTranslations(
     translationCandidateLocales.length > 0
       ? admin.client
           .from("menu_translations")
-          .select("locale,translation_status,source_hash,field_hashes,content")
+          .select(
+            "locale,translation_status,source_hash,field_hashes,content,manual_overrides"
+          )
           .eq("menu_id", menu.menuId)
           .in("locale", translationCandidateLocales)
       : Promise.resolve({ data: [], error: null }),
     translationCandidateLocales.length > 0
       ? admin.client
           .from("menu_category_translations")
-          .select("category_id,locale,translation_status,source_hash,field_hashes,content")
+          .select(
+            "category_id,locale,translation_status,source_hash,field_hashes,content,manual_overrides"
+          )
           .eq("menu_id", menu.menuId)
           .in("locale", translationCandidateLocales)
       : Promise.resolve({ data: [], error: null }),
     translationCandidateLocales.length > 0
       ? admin.client
           .from("menu_dish_translations")
-          .select("dish_id,locale,translation_status,source_hash,field_hashes,content")
+          .select(
+            "dish_id,locale,translation_status,source_hash,field_hashes,content,manual_overrides"
+          )
           .eq("menu_id", menu.menuId)
           .in("locale", translationCandidateLocales)
       : Promise.resolve({ data: [], error: null })
@@ -172,8 +177,7 @@ export async function applyStoredPublicMenuTranslations(
       menu.settings,
       translationLocales
     );
-    const publicSettings =
-      menu.settings.publicMenuStyle === "unique" ? menu.settings : filteredSettings;
+    const publicSettings = filteredSettings;
     const activeLocale = normalizePublicMenuLocalePreference(
       requestedLocale,
       publicSettings
@@ -200,8 +204,7 @@ export async function applyStoredPublicMenuTranslations(
     menu.settings,
     translationLocales
   );
-  const publicSettings =
-    menu.settings.publicMenuStyle === "unique" ? menu.settings : filteredSettings;
+  const publicSettings = filteredSettings;
   const activeLocale = normalizePublicMenuLocalePreference(
     requestedLocale,
     publicSettings

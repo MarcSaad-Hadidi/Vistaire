@@ -7,7 +7,7 @@ import {
   useState,
   type KeyboardEvent
 } from "react";
-import type { Locale } from "@/lib/i18n";
+import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import type {
   LandingExperience,
@@ -18,6 +18,27 @@ import { VistairePreviewPdfCompareSlider } from "@/components/vistaire-preview/V
 import { LandingActiveMenuPreview } from "./LandingActiveMenuPreview";
 import { LandingPublicMenuLink } from "../LandingPublicMenuLink";
 import styles from "./LandingComparison.module.css";
+
+function pendingPreview(experience: LandingExperience, message: string) {
+  return {
+    ...experience.preview,
+    pdfSections: [],
+    categoryTabs: [],
+    categoryCards: [],
+    activeCategorySlug: "",
+    vistaireDishes: [],
+    featuredDish: undefined,
+    presentation: experience.preview.presentation
+      ? {
+          ...experience.preview.presentation,
+          tagline: message,
+          featuredKicker: "",
+          featuredTitle: "",
+          cta: ""
+        }
+      : undefined
+  };
+}
 
 export function LandingComparison({
   copy,
@@ -30,7 +51,6 @@ export function LandingComparison({
 }) {
   const instanceId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const initialRenderRef = useRef(true);
   const [activeId, setActiveId] =
     useState<LandingExperienceId>("maison-elyse");
   const [previewPayloads, setPreviewPayloads] = useState<
@@ -51,13 +71,15 @@ export function LandingComparison({
   const activeExperience = experiences[activeIndex] ?? experiences[0];
   const activePayloadKey = `${locale}:${activeExperience.id}`;
   const activePayload = previewPayloads[activePayloadKey];
-  const activePreview = activePayload?.comparison ?? activeExperience.preview;
+  const activePreview =
+    activePayload?.comparison ??
+    pendingPreview(
+      activeExperience,
+      activePayload === null ? copy.unavailableStatus : copy.loadingStatus
+    );
 
   useEffect(() => {
-    const isInitialRender = initialRenderRef.current;
-    initialRenderRef.current = false;
     if (activePayload !== undefined) return;
-    if (isInitialRender && !activeExperience.renderPayload) return;
 
     const controller = new AbortController();
     const params = new URLSearchParams({ locale });
@@ -108,7 +130,6 @@ export function LandingComparison({
     return () => controller.abort();
   }, [
     activeExperience.id,
-    activeExperience.renderPayload,
     activePayload,
     activePayloadKey,
     locale
@@ -156,7 +177,26 @@ export function LandingComparison({
   return (
     <div
       className={styles.comparison}
+      data-menu-active-locale={
+        activePayload?.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[locale]
+      }
+      data-menu-slug={activePayload?.menuSlug ?? activeExperience.menuSlug}
+      data-preview-locale={
+        activePayload?.locale
+          ? LOCALE_LANGUAGE_TAG[activePayload.locale]
+          : LOCALE_LANGUAGE_TAG[locale]
+      }
+      data-preview-status={
+        activePayload === undefined
+          ? "loading"
+          : activePayload === null
+            ? "unavailable"
+            : "ready"
+      }
       data-testid="landing-comparison"
+      data-translation-status={
+        activePayload?.menuUi.menu.translationStatus?.status ?? "unknown"
+      }
       style={{ transitionDuration: "var(--landing-transition-duration, 180ms)" }}
     >
       <div
@@ -205,6 +245,7 @@ export function LandingComparison({
                 copy={copy}
                 key={activeExperience.id}
                 locale={locale}
+                menuSlug={activeExperience.menuSlug}
                 payload={activePayload}
               />
             }
