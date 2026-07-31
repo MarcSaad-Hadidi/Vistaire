@@ -527,7 +527,7 @@ export function SaugeNoirePageFlipExperiment({
     failedRef.current = failed;
   }, [dimensions, failed, onChangeState, onReady, onSingleFlipJumpSettled]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     readingIdentityRef.current = readingIdentity;
     engineStateRef.current = engineState;
   }, [engineState, readingIdentity]);
