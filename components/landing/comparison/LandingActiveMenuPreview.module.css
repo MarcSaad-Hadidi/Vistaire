@@ -1,4 +1,5 @@
 .rendererShell {
+  container-type: inline-size;
   position: absolute;
   inset: 0;
   min-width: 0;

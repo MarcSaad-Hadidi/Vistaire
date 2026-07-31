@@ -1,12 +1,39 @@
 "use client";
 
-import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
-import { ComparisonPreviewMenu } from "./ComparisonPreviewMenu";
+import { useMemo } from "react";
+import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
+import type { Locale } from "@/lib/i18n";
+import {
+  inflateLandingLocalizedMenus,
+  inflateLandingMenuUiMenu,
+  type LandingMenuUiPreview
+} from "@/lib/landing/landingMenuUiPreview";
 
 export function MaisonElyseComparisonPreview({
-  preview
+  locale,
+  menuUi
 }: {
-  preview: PdfComparePreviewData;
+  locale: Locale;
+  menuUi: LandingMenuUiPreview;
 }) {
-  return <ComparisonPreviewMenu preview={preview} theme="maison-elyse" />;
+  const menu = useMemo(
+    () => inflateLandingMenuUiMenu(menuUi.menu),
+    [menuUi.menu]
+  );
+  const localizedMenus = useMemo(
+    () => inflateLandingLocalizedMenus(menuUi.localizedMenus),
+    [menuUi.localizedMenus]
+  );
+
+  return (
+    <MaisonElyseQrMenu
+      config={menuUi.config}
+      displayMode="comparison-preview"
+      locale={locale}
+      localizedMenus={localizedMenus}
+      menu={menu}
+      query={menuUi.query}
+      showGoogleReview={false}
+    />
+  );
 }

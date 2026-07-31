@@ -59,6 +59,51 @@
   isolation: isolate;
 }
 
+.comparisonPages,
+.comparisonPages * {
+  box-sizing: border-box;
+}
+
+.comparisonPages {
+  --sn-forest: #26372b;
+  --sn-forest-dark: #172219;
+  --sn-cream: #f3eadb;
+  --sn-paper: #faf4e9;
+  --sn-paper-texture:
+    radial-gradient(circle at 12% 16%, rgba(180, 122, 60, 0.06) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 75% 62%, rgba(38, 55, 43, 0.035) 0 1px, transparent 1.5px);
+  --sn-paper-texture-size: 16px 17px, 23px 24px;
+  --sn-bronze: #b47a3c;
+  --sn-ink: #26372b;
+  --sn-muted: #6c6f61;
+  --sn-line: rgba(38, 55, 43, 0.2);
+  display: grid;
+  width: 100%;
+  min-height: 100%;
+  overflow: visible;
+  background: var(--sn-forest-dark);
+  color: var(--sn-ink);
+  font-family: "BT Suave", Georgia, serif;
+}
+
+.comparisonPages :where(button, a) {
+  color: inherit;
+  font: inherit;
+}
+
+.comparisonPages .page {
+  min-height: 660px;
+  border-bottom: 1px solid rgba(180, 122, 60, 0.34);
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  container: sn-sheet / inline-size;
+}
+
+.comparisonPages .staticPageFrame {
+  min-height: 660px;
+}
+
 .book[data-display-mode="phone-preview"] {
   position: absolute;
   width: 100%;

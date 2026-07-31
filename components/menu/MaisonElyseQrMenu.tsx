@@ -53,7 +53,7 @@ type MaisonElyseQrMenuProps = {
   menu: PublicMenu;
   context?: string;
   query?: PublicMenuContextQuery;
-  displayMode?: "public" | "phone-preview";
+  displayMode?: "public" | "phone-preview" | "comparison-preview";
   locale?: Locale;
   localizedMenus?: Partial<Record<Locale, PublicMenu>>;
   config?: MenuUiConfig;
@@ -631,6 +631,8 @@ export function MaisonElyseQrMenu({
   const [activeDish, setActiveDish] = useState<PublicMenuDish | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
+  const isEmbeddedPreview = displayMode !== "public";
+  const isComparisonPreview = displayMode === "comparison-preview";
   const menuRef = useRef<HTMLElement | null>(null);
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const phonePreviewScrollParentRef = useRef<HTMLElement | null>(null);
@@ -639,13 +641,20 @@ export function MaisonElyseQrMenu({
   const lastSeenQueryLocaleRef = useRef<Locale | null>(queryLocale);
   const getPhonePreviewScrollParent = useCallback(() => {
     const currentScrollParent = phonePreviewScrollParentRef.current;
-    if (currentScrollParent?.isConnected && currentScrollParent.hasAttribute("data-phone-mockup-scroll")) {
+    if (
+      currentScrollParent?.isConnected &&
+      (currentScrollParent.hasAttribute("data-phone-mockup-scroll") ||
+        currentScrollParent.getAttribute("data-comparison-scroll-root") ===
+          "digital")
+    ) {
       return currentScrollParent;
     }
 
+    const embeddedScrollSelector =
+      '[data-phone-mockup-scroll], [data-comparison-scroll-root="digital"]';
     const scrollParent =
-      menuScrollAreaRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
-      menuRef.current?.closest<HTMLElement>("[data-phone-mockup-scroll]") ??
+      menuScrollAreaRef.current?.closest<HTMLElement>(embeddedScrollSelector) ??
+      menuRef.current?.closest<HTMLElement>(embeddedScrollSelector) ??
       null;
 
     phonePreviewScrollParentRef.current = scrollParent;
@@ -674,7 +683,7 @@ export function MaisonElyseQrMenu({
     );
   }, [getPhonePreviewScrollParent]);
   const updateBackToTopVisibility = useCallback(() => {
-    if (displayMode !== "phone-preview") {
+    if (!isEmbeddedPreview) {
       setShowBackToTop(window.scrollY > BACK_TO_TOP_SCROLL_THRESHOLD);
       return;
     }
@@ -685,7 +694,7 @@ export function MaisonElyseQrMenu({
       0
     );
     setShowBackToTop(scrollOffset > BACK_TO_TOP_SCROLL_THRESHOLD);
-  }, [displayMode, getPhonePreviewScrollTargets]);
+  }, [getPhonePreviewScrollTargets, isEmbeddedPreview]);
   const groups = useMemo(
     () => getPublicMenuCategoryGroups(activeMenu.dishes),
     [activeMenu.dishes]
@@ -806,7 +815,7 @@ export function MaisonElyseQrMenu({
       const section = document.getElementById(sectionId);
       const scrollTarget = getPhonePreviewScrollTarget();
 
-      if (displayMode === "phone-preview" && section && scrollTarget?.contains(section)) {
+      if (isEmbeddedPreview && section && scrollTarget?.contains(section)) {
         const scrollTargetRect = scrollTarget.getBoundingClientRect();
         const sectionRect = section.getBoundingClientRect();
         scrollTarget.scrollTo({
@@ -826,7 +835,7 @@ export function MaisonElyseQrMenu({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, displayMode, getPhonePreviewScrollTarget, pendingSectionLabel, selectedLocale]);
+  }, [activeCategory, getPhonePreviewScrollTarget, isEmbeddedPreview, pendingSectionLabel, selectedLocale]);
 
   useEffect(() => {
     if (displayMode !== "phone-preview" || pendingSectionLabel) {
@@ -876,8 +885,7 @@ export function MaisonElyseQrMenu({
   ]);
 
   useEffect(() => {
-    const isPhonePreview = displayMode === "phone-preview";
-    if (!isPhonePreview) {
+    if (!isEmbeddedPreview) {
       const frameId = window.requestAnimationFrame(updateBackToTopVisibility);
       window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
       return () => {
@@ -904,10 +912,27 @@ export function MaisonElyseQrMenu({
       );
       window.removeEventListener("scroll", updateBackToTopVisibility, true);
     };
-  }, [displayMode, getPhonePreviewScrollTargets, updateBackToTopVisibility]);
+  }, [getPhonePreviewScrollTargets, isEmbeddedPreview, updateBackToTopVisibility]);
 
   function scrollToMenu() {
     requestAnimationFrame(() => {
+      if (isEmbeddedPreview) {
+        const scrollTarget = getPhonePreviewScrollTarget();
+        const menuElement = menuRef.current;
+        if (scrollTarget && menuElement && scrollTarget.contains(menuElement)) {
+          const scrollTargetRect = scrollTarget.getBoundingClientRect();
+          const menuRect = menuElement.getBoundingClientRect();
+          scrollTarget.scrollTo({
+            behavior: getScrollBehavior(),
+            top: Math.max(
+              0,
+              menuRect.top - scrollTargetRect.top + scrollTarget.scrollTop
+            )
+          });
+          return;
+        }
+        return;
+      }
       menuRef.current?.scrollIntoView({
         behavior: getScrollBehavior(),
         block: "start"
@@ -916,7 +941,7 @@ export function MaisonElyseQrMenu({
   }
 
   function scrollToTop() {
-    if (displayMode === "phone-preview") {
+    if (isEmbeddedPreview) {
       getPhonePreviewScrollTargets().forEach((scrollTarget) => {
         scrollTarget.scrollTo({
           top: 0,
@@ -944,7 +969,7 @@ export function MaisonElyseQrMenu({
   function openCategoryInFullMenu(categoryId: string) {
     const categoryLabel =
       categories.find((category) => category.id === categoryId)?.label ?? categoryId;
-    skipNextPhonePreviewAutoScrollRef.current = displayMode === "phone-preview";
+    skipNextPhonePreviewAutoScrollRef.current = isEmbeddedPreview;
     setPendingSectionLabel(categoryLabel);
     setActiveCategory(ALL_CATEGORY_ID);
     setActiveFilter("all");
@@ -993,6 +1018,7 @@ export function MaisonElyseQrMenu({
   }
 
   function toggleLanguageSheet() {
+    if (isComparisonPreview) return;
     setActiveSheet((currentSheet) =>
       currentSheet === "language" ? null : "language"
     );
@@ -1027,7 +1053,11 @@ export function MaisonElyseQrMenu({
   }
 
   const phonePreviewDishSelect =
-    displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
+    displayMode === "phone-preview"
+      ? openDishInPhonePreview
+      : isComparisonPreview
+        ? () => undefined
+        : undefined;
   const currentLanguage =
     LANGUAGE_OPTIONS.find((option) => option.id === selectedLocale) ??
     LANGUAGE_OPTIONS[0];
@@ -1050,6 +1080,7 @@ export function MaisonElyseQrMenu({
   function renderLanguageToggle(className = "") {
     return (
       <button
+        aria-disabled={isComparisonPreview || undefined}
         aria-expanded={activeSheet === "language"}
         aria-label={`${copy.languageToggleAria} (${currentLanguage.label})`}
         className={`${styles.languageToggle} ${className}`}
@@ -1195,6 +1226,8 @@ export function MaisonElyseQrMenu({
     );
   }
 
+  const MenuRoot = displayMode === "public" ? "main" : "div";
+
   if (displayMode === "phone-preview" && activeDish) {
     return (
       <PhonePreviewDishDetail
@@ -1210,11 +1243,12 @@ export function MaisonElyseQrMenu({
   }
 
   return (
-    <main
+    <MenuRoot
       className={`${styles.page} ${styles.isMenuMode} ${
-        displayMode === "phone-preview" ? styles.phonePreview : ""
-      }`}
+        isEmbeddedPreview ? styles.phonePreview : ""
+      } ${isComparisonPreview ? styles.comparisonPreview : ""}`}
       data-display-mode={displayMode}
+      data-menu-ui="maison-elyse"
       data-public-menu-renderer="maison-elyse"
       style={maisonElyseThemeStyle(config)}
     >
@@ -1241,7 +1275,10 @@ export function MaisonElyseQrMenu({
                       aria-label={copy.menuToggleAria}
                       className={styles.menuButton}
                       type="button"
-                      onClick={() => setActiveSheet("menu")}
+                      aria-disabled={isComparisonPreview || undefined}
+                      onClick={() => {
+                        if (!isComparisonPreview) setActiveSheet("menu");
+                      }}
                     >
                       <span aria-hidden="true" />
                       <span aria-hidden="true" />
@@ -1305,24 +1342,28 @@ export function MaisonElyseQrMenu({
 
             <nav className={styles.bottomBar} aria-label={copy.navAria}>
               <button
+                aria-disabled={isComparisonPreview || undefined}
                 aria-expanded={activeSheet === "menu"}
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  if (isComparisonPreview) return;
                   setActiveSheet((currentSheet) =>
                     currentSheet === "menu" ? null : "menu"
-                  )
-                }
+                  );
+                }}
               >
                 {copy.bottomMenu}
               </button>
               <button
+                aria-disabled={isComparisonPreview || undefined}
                 aria-expanded={activeSheet === "filter"}
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  if (isComparisonPreview) return;
                   setActiveSheet((currentSheet) =>
                     currentSheet === "filter" ? null : "filter"
-                  )
-                }
+                  );
+                }}
               >
                 {copy.bottomFilter}
               </button>
@@ -1344,6 +1385,6 @@ export function MaisonElyseQrMenu({
         <BackToTopIcon />
       </button>
       {renderBottomSheet()}
-    </main>
+    </MenuRoot>
   );
 }

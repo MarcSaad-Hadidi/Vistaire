@@ -100,6 +100,57 @@ test("landing comparison mounts one official public-menu renderer with accessibl
   assert.doesNotMatch(activeRenderer, /model-viewer|\.glb|\.usdz/i);
 });
 
+test("landing comparison shares each public menu UI without the generic preview renderer", async () => {
+  const [
+    activeRenderer,
+    maisonPreview,
+    trouvablePreview,
+    saugePreview,
+    saugePages,
+    maisonPublic,
+    trouvablePublic,
+    saugePublic
+  ] = await Promise.all([
+    source("components/landing/comparison/LandingActiveMenuPreview.tsx"),
+    source("components/landing/comparison/MaisonElyseComparisonPreview.tsx"),
+    source("components/landing/comparison/TrouvableComparisonPreview.tsx"),
+    source("components/landing/comparison/SaugeNoireComparisonPreview.tsx"),
+    source(
+      "components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx"
+    ).catch(() => ""),
+    source("components/menu/MaisonElyseQrMenu.tsx"),
+    source("components/menu/TrouvablePremiumMenuExperience.tsx"),
+    source("components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx")
+  ]);
+
+  for (const preview of [maisonPreview, trouvablePreview, saugePreview]) {
+    assert.doesNotMatch(preview, /ComparisonPreviewMenu/);
+  }
+
+  assert.match(maisonPreview, /MaisonElyseQrMenu/);
+  assert.match(maisonPreview, /displayMode="comparison-preview"/);
+  assert.match(trouvablePreview, /TrouvablePremiumMenuExperience/);
+  assert.match(trouvablePreview, /displayMode="comparison-preview"/);
+  assert.match(saugePreview, /SaugeNoireMenuPages/);
+  assert.match(saugePages, /CoverPage/);
+  assert.match(saugePages, /ContentsPage/);
+  assert.match(saugePages, /SectionPage/);
+  assert.match(saugePages, /EndingPage/);
+  assert.doesNotMatch(
+    `${saugePreview}\n${saugePages}`,
+    /react-pageflip|from\s+["'][^"']*SaugeNoireBookMenu["']|SaugeNoirePageFlip|useRouter|usePathname|useSearchParams/
+  );
+
+  for (const menuUi of ["maison-elyse", "trouvable", "sauge-noire"]) {
+    assert.match(activeRenderer, new RegExp(`data-menu-ui="${menuUi}"`));
+  }
+  assert.doesNotMatch(activeRenderer, /data-comparison-preview/);
+
+  assert.match(maisonPublic, /data-menu-ui="maison-elyse"/);
+  assert.match(trouvablePublic, /data-menu-ui="trouvable"/);
+  assert.match(saugePublic, /data-menu-ui="sauge-noire"/);
+});
+
 test("landing and the public menu route share the official render-context resolver", async () => {
   const route = await source("app/menu/[slug]/page.tsx");
   const previewRoute = await source(
@@ -161,8 +212,8 @@ test("landing comparison projects complete available menu data without arbitrary
   const activeRenderer = await source(
     "components/landing/comparison/LandingActiveMenuPreview.tsx"
   );
-  const comparisonRenderer = await source(
-    "components/landing/comparison/ComparisonPreviewMenu.tsx"
+  const menuUiProjection = await source(
+    "lib/landing/landingMenuUiPreview.ts"
   );
 
   assert.match(projection, /buildFullPdfMenuData/);
@@ -173,19 +224,26 @@ test("landing comparison projects complete available menu data without arbitrary
     projection,
     /categoryDishes\([^)]*\)[\s\S]{0,80}\.slice\(/
   );
-  assert.match(comparisonRenderer, /preview\.categoryCards\.map/);
-  assert.match(comparisonRenderer, /dishes\.map/);
+  assert.match(menuUiProjection, /menu\.dishes\.map/);
   assert.match(activeRenderer, /data-comparison-scroll-root="digital"/);
 });
 
 test("landing preview payload is sanitized and excludes immersive asset fields", async () => {
   const data = await source("lib/landing/menuExperiences.ts");
+  const menuUiProjection = await source(
+    "lib/landing/landingMenuUiPreview.ts"
+  );
   const activeRenderer = await source(
     "components/landing/comparison/LandingActiveMenuPreview.tsx"
   );
+  const serializedProjection =
+    menuUiProjection.split("export function inflateLandingMenuUiMenu")[0];
 
   assert.match(data, /comparison:\s*PdfComparePreviewData/);
   assert.doesNotMatch(data, /type LandingPreviewBase[\s\S]{0,300}menu:\s*PublicMenu/);
+  assert.match(data, /menuUi:\s*LandingMenuUiPreview/);
+  assert.doesNotMatch(serializedProjection, /model3dUrl|usdzUrl|has3d|hasAr/);
+  assert.doesNotMatch(menuUiProjection, /as PublicMenu/);
   assert.doesNotMatch(activeRenderer, /PageFlip|model-viewer|\.glb|\.usdz/i);
 });
 

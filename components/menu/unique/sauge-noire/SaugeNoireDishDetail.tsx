@@ -37,9 +37,9 @@ import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
 import {
   SaugeNoireBookHeader,
-  SaugeNoireBookRail,
-  SectionPage
+  SaugeNoireBookRail
 } from "./SaugeNoireBookMenu";
+import { SectionPage } from "./SaugeNoireMenuPages";
 import {
   SaugeNoireFlipPage,
   useSaugeNoirePhysicalPageMedia

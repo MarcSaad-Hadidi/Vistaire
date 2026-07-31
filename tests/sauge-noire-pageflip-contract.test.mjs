@@ -6,6 +6,10 @@ const bookPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx",
   import.meta.url
 );
+const menuPagesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx",
+  import.meta.url
+);
 const experimentPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoirePageFlipExperiment.tsx",
   import.meta.url
@@ -490,11 +494,11 @@ test("a direct WebKit project selection remains available inside Playwright work
 });
 
 test("short non-split sections keep navigation below the final dish", async () => {
-  const book = await readFile(bookPath, "utf8");
+  const menuPages = await readFile(menuPagesPath, "utf8");
   const styles = await readFile(stylesPath, "utf8");
 
-  assert.match(book, /const isShortSection = !isSplit && dishes\.length <= 4/);
-  assert.match(book, /isShortSection \? styles\.shortSectionPage : ""/);
+  assert.match(menuPages, /const isShortSection = !isSplit && dishes\.length <= 4/);
+  assert.match(menuPages, /isShortSection \? styles\.shortSectionPage : ""/);
   assert.match(styles, /\.shortSectionPage \.pageFooter\s*\{\s*transform: none/);
 });
 
@@ -619,12 +623,16 @@ test("the table of contents is compact enough to stay inside the sheet", async (
 });
 
 test("the ending page is compact and includes a Google review CTA without the old domain", async () => {
-  const book = await readFile(bookPath, "utf8");
+  const [book, menuPages] = await Promise.all([
+    readFile(bookPath, "utf8"),
+    readFile(menuPagesPath, "utf8")
+  ]);
   const styles = await readFile(stylesPath, "utf8");
 
-  assert.doesNotMatch(book, /saugenoire\.com/);
-  assert.match(book, /data-testid="google-review-cta"/);
+  assert.doesNotMatch(`${book}\n${menuPages}`, /saugenoire\.com/);
+  assert.match(menuPages, /data-testid="google-review-cta"/);
   assert.match(book, /Laisser un avis Google/);
+  assert.match(menuPages, /\{copy\.googleReview\}/);
   assert.match(styles, /\.endingPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*34px;[\s\S]*padding-bottom:\s*22px;/);
   assert.match(styles, /\.endingBotanical\s*\{[\s\S]*height:\s*clamp\(150px, 28vh, 260px\);/);
   assert.match(styles, /\.googleReviewCta\s*\{[\s\S]*width:\s*fit-content;[\s\S]*max-width:\s*min\(100%, 300px\);[\s\S]*min-height:\s*44px;[\s\S]*border-radius:\s*13px;[\s\S]*background:\s*var\(--sn-paper\);/);

@@ -1,12 +1,30 @@
 "use client";
 
-import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
-import { ComparisonPreviewMenu } from "./ComparisonPreviewMenu";
+import { useMemo } from "react";
+import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
+import {
+  inflateLandingMenuUiMenu,
+  type LandingMenuUiPreview
+} from "@/lib/landing/landingMenuUiPreview";
 
 export function TrouvableComparisonPreview({
-  preview
+  menuUi
 }: {
-  preview: PdfComparePreviewData;
+  menuUi: LandingMenuUiPreview;
 }) {
-  return <ComparisonPreviewMenu preview={preview} theme="trouvable" />;
+  const menu = useMemo(
+    () => inflateLandingMenuUiMenu(menuUi.menu),
+    [menuUi.menu]
+  );
+
+  return (
+    <TrouvablePremiumMenuExperience
+      config={menuUi.config}
+      context={menuUi.context}
+      displayMode="comparison-preview"
+      exchangeRates={menuUi.exchangeRates}
+      menu={menu}
+      query={menuUi.query}
+    />
+  );
 }

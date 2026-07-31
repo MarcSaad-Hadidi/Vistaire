@@ -2,6 +2,10 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import type { Locale } from "@/lib/i18n";
+import {
+  projectLandingMenuUiMenu,
+  type LandingMenuUiPreview
+} from "@/lib/landing/landingMenuUiPreview";
 import { buildCurrentPublicMenuPreview } from "@/lib/landing/publicMenuPreview";
 import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import {
@@ -49,6 +53,7 @@ type LandingPreviewBase = {
   locale: Locale;
   publicMenuHref: string;
   comparison: PdfComparePreviewData;
+  menuUi: LandingMenuUiPreview;
 };
 
 export type LandingMenuPreviewPayload =
@@ -329,7 +334,21 @@ function landingRenderPayload(
     ...(context.menu.menuId ? { menuId: context.menu.menuId } : {}),
     locale: context.locale,
     publicMenuHref: experience.publicMenuHref,
-    comparison
+    comparison,
+    menuUi: {
+      menu: projectLandingMenuUiMenu(context.menu),
+      localizedMenus: Object.fromEntries(
+        Object.entries(context.localizedMenus).flatMap(([locale, menu]) =>
+          menu
+            ? [[locale, projectLandingMenuUiMenu(menu)]]
+            : []
+        )
+      ),
+      config: context.config,
+      context: context.context,
+      query: context.query,
+      exchangeRates: context.exchangeRates
+    }
   };
 
   if (

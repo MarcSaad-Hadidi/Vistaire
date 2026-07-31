@@ -181,7 +181,11 @@ test("Maison Elyse QR menu starts directly with the complete menu", async () => 
   assert.match(component, /FILTER_OPTIONS/);
   assert.match(component, /backToTop/);
   assert.match(component, /scrollToTop/);
-  assert.match(component, /closest<HTMLElement>\("\[data-phone-mockup-scroll\]"\)/);
+  assert.match(component, /closest<HTMLElement>\(embeddedScrollSelector\)/);
+  assert.match(
+    component,
+    /\[data-phone-mockup-scroll\], \[data-comparison-scroll-root="digital"\]/
+  );
   assert.match(component, /getPhonePreviewScrollTarget/);
   assert.match(component, /menuCover/);
   assert.match(component, /bottomBar/);
@@ -284,7 +288,10 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
   assert.match(englishDemoPage, /menuLocale=\{menuLocale\}/);
   assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
-  assert.match(menuComponent, /displayMode\?: "public" \| "phone-preview"/);
+  assert.match(
+    menuComponent,
+    /displayMode\?: "public" \| "phone-preview" \| "comparison-preview"/
+  );
   assert.match(menuComponent, /showGoogleReview\?: boolean/);
   assert.match(menuComponent, /styles\.phonePreview/);
   assert.match(menuCss, /\.phonePreview/);

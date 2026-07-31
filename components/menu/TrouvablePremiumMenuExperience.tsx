@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
   type ComponentType,
   type CSSProperties,
+  type ElementType,
   type PointerEvent
 } from "react";
 import type {
@@ -94,7 +95,7 @@ type TrouvablePremiumMenuExperienceProps = {
   exchangeRates: MenuExchangeRates;
   query?: PublicMenuContextQuery;
   typographyClassName?: string;
-  displayMode?: "public" | "phone-preview";
+  displayMode?: "public" | "phone-preview" | "comparison-preview";
 };
 
 type QuickFilterId =
@@ -460,6 +461,8 @@ export function TrouvablePremiumMenuExperience({
   typographyClassName = "",
   displayMode = "public"
 }: TrouvablePremiumMenuExperienceProps) {
+  const isEmbeddedPreview = displayMode !== "public";
+  const isComparisonPreview = displayMode === "comparison-preview";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -523,7 +526,7 @@ export function TrouvablePremiumMenuExperience({
   const topBarRef = useRef<HTMLElement | null>(null);
   const toolsSentinelRef = useRef<HTMLDivElement | null>(null);
   const backToTopSentinelRef = useRef<HTMLDivElement | null>(null);
-  const pageTopRef = useRef<HTMLElement | null>(null);
+  const pageTopRef = useRef<HTMLDivElement | null>(null);
   const manualDishUrlRef = useRef<HTMLInputElement | null>(null);
   const arCopyResetTimeoutRef = useRef<number | null>(null);
   const categoryRailRef = useRef<HTMLElement | null>(null);
@@ -817,26 +820,35 @@ export function TrouvablePremiumMenuExperience({
   }
 
   const handleBackToTop = useCallback(() => {
-    const phonePreviewScroller =
-      displayMode === "phone-preview"
-        ? pageTopRef.current?.closest('[data-display-mode="phone-preview"]')?.parentElement
-        : null;
+    const embeddedScroller =
+      displayMode === "comparison-preview"
+        ? pageTopRef.current?.closest(
+            '[data-comparison-scroll-root="digital"]'
+          )
+        : displayMode === "phone-preview"
+          ? pageTopRef.current?.closest(
+              '[data-display-mode="phone-preview"]'
+            )?.parentElement
+          : null;
 
-    if (phonePreviewScroller instanceof HTMLElement) {
-      phonePreviewScroller.scrollTo({
+    if (embeddedScroller instanceof HTMLElement) {
+      embeddedScroller.scrollTo({
         top: 0,
         behavior: prefersReducedMotion ? "auto" : "smooth"
       });
+    } else if (isEmbeddedPreview) {
+      return;
     } else {
       window.scrollTo({
         top: 0,
         behavior: prefersReducedMotion ? "auto" : "smooth"
       });
     }
+    if (isComparisonPreview) return;
     window.requestAnimationFrame(() => {
       pageTopRef.current?.focus({ preventScroll: true });
     });
-  }, [displayMode, prefersReducedMotion]);
+  }, [displayMode, isComparisonPreview, isEmbeddedPreview, prefersReducedMotion]);
 
   const restoreFocus = useCallback(() => {
     window.setTimeout(() => {
@@ -852,12 +864,13 @@ export function TrouvablePremiumMenuExperience({
 
   const openSheet = useCallback(
     (sheet: Exclude<ActiveSheet, null>) => {
+      if (isComparisonPreview) return;
       if (!activeSheet && document.activeElement instanceof HTMLElement) {
         lastFocusRef.current = document.activeElement;
       }
       setActiveSheet(sheet);
     },
-    [activeSheet]
+    [activeSheet, isComparisonPreview]
   );
 
   const closeActiveSheet = useCallback(() => {
@@ -1077,7 +1090,7 @@ export function TrouvablePremiumMenuExperience({
   }, []);
 
   useEffect(() => {
-    if (displayMode === "phone-preview" || !activeSheet) return;
+    if (isEmbeddedPreview || !activeSheet) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1133,7 +1146,7 @@ export function TrouvablePremiumMenuExperience({
     closeActiveSheet,
     closeDishSubSheet,
     dishSubSheet,
-    displayMode
+    isEmbeddedPreview
   ]);
 
   useEffect(() => {
@@ -2288,16 +2301,20 @@ export function TrouvablePremiumMenuExperience({
     activeSheet === null &&
     renderedSheet === null &&
     !showDetailModelViewer;
+  const MenuRoot: ElementType = displayMode === "public" ? "main" : "div";
 
   return (
-    <main
+    <MenuRoot
       ref={pageTopRef}
       tabIndex={-1}
       className={`${styles.page} ${typographyClassName} ${
-        displayMode === "phone-preview" ? styles.phonePreview : ""
+        isEmbeddedPreview ? styles.phonePreview : ""
+      } ${
+        isComparisonPreview ? styles.comparisonPreview : ""
       }`.trim()}
       lang={selectedLocale}
       data-display-mode={displayMode}
+      data-menu-ui="trouvable"
       data-public-menu-renderer="trouvable"
       data-text-direction={textDirection}
       data-blueprint={config.experience.blueprint}
@@ -2312,7 +2329,7 @@ export function TrouvablePremiumMenuExperience({
       }
       data-menu-translation-status={menu.translationStatus?.status ?? ""}
       onSubmit={
-        displayMode === "phone-preview"
+        isEmbeddedPreview
           ? (event) => event.preventDefault()
           : undefined
       }
@@ -2648,6 +2665,6 @@ export function TrouvablePremiumMenuExperience({
       {renderFiltersSheet()}
       {renderLanguageSheet()}
       {renderReviewSheet()}
-    </main>
+    </MenuRoot>
   );
 }

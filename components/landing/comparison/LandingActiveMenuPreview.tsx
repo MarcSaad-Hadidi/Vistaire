@@ -61,11 +61,14 @@ export function LandingActiveMenuPreview({
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="maison-elyse"
-        data-public-menu-renderer="maison-elyse"
+        data-menu-ui="maison-elyse"
         role="region"
         tabIndex={0}
       >
-        <MaisonElyseComparisonPreview preview={payload.comparison} />
+        <MaisonElyseComparisonPreview
+          locale={payload.locale}
+          menuUi={payload.menuUi}
+        />
       </div>
     );
   }
@@ -78,11 +81,11 @@ export function LandingActiveMenuPreview({
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="trouvable"
-        data-public-menu-renderer="trouvable"
+        data-menu-ui="trouvable"
         role="region"
         tabIndex={0}
       >
-        <TrouvableComparisonPreview preview={payload.comparison} />
+        <TrouvableComparisonPreview menuUi={payload.menuUi} />
       </div>
     );
   }
@@ -98,11 +101,14 @@ export function LandingActiveMenuPreview({
         data-comparison-scroll-root="digital"
         data-display-mode="comparison-preview"
         data-landing-menu-renderer="sauge-noire"
-        data-public-menu-renderer="sauge-noire"
+        data-menu-ui="sauge-noire"
         role="region"
         tabIndex={0}
       >
-        <SaugeNoireComparisonPreview preview={payload.comparison} />
+        <SaugeNoireComparisonPreview
+          locale={payload.locale}
+          menuUi={payload.menuUi}
+        />
       </div>
     );
   }
