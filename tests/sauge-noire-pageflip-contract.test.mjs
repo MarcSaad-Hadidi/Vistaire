@@ -467,6 +467,22 @@ test("the Sauge browser fixture provides versioned public dish photos", async ()
   );
 });
 
+test("the Sauge browser fixture exposes one lightweight local 3D model", async () => {
+  const { saugeNoireFixture } = await import(
+    "../e2e/support/sauge-noire-fixture-data.mjs"
+  );
+  const truite = saugeNoireFixture.menu_dishes.find(
+    (dish) => dish.slug === "truite-des-laurentides"
+  );
+  assert.equal(truite?.web_model_3d_url, "/models/demo/maison-elyse-n1.glb");
+  assert.equal(truite?.model_3d_url, truite?.web_model_3d_url);
+  assert.equal(
+    saugeNoireFixture.menu_dishes.filter((dish) => dish.web_model_3d_url).length,
+    1
+  );
+  assert.ok(truite?.web_model_3d_url.startsWith("/models/demo/"));
+});
+
 test("a direct WebKit project selection remains available inside Playwright workers", async () => {
   const config = await readFile(playwrightConfigPath, "utf8");
 

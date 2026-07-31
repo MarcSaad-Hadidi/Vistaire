@@ -118,7 +118,8 @@ const canonicalDishes = CANONICAL_DISHES.map((item, index) => {
         }
       : {}),
     isSignature: item.badges.includes("Signature"),
-    webModel3dUrl: ""
+    webModel3dUrl:
+      index === 5 ? "/models/demo/maison-elyse-n1.glb" : ""
   });
 });
 
