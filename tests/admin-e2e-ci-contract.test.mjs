@@ -39,7 +39,7 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   assert.match(runner, /includes\("e2e\/ci-smoke\.spec\.ts"\)/);
   assert.match(
     runner,
-    /const useDevelopmentServer =\s*useLocalDemoServer \|\| includesSaugeNoireBrowserFlow/
+    /const useDevelopmentServer\s*=\s*useLocalDemoServer\s*\|\|\s*\(?includesSaugeNoireBrowserFlow/
   );
   assert.match(runner, /useDevelopmentServer \? "dev" : "start"/);
   assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
@@ -242,7 +242,7 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
     /canonical\.frame\.scrollHeight/,
     /canonical\.horizontalOverflow/,
     /document\.fonts\.ready/,
-    /data-page-flip-engine-state",\s*"flipping"/,
+    /getAttribute\("data-page-flip-engine-state"\)\s*===\s*"flipping"/,
     /engineState:\s*"read"/
   ]) {
     assert.match(staticParitySpec, invariant);
