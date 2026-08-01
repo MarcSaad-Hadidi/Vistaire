@@ -26,9 +26,9 @@ The known Maison Élyse identifiers in repository-owned media policy are not use
 - `source_hash` and `field_hashes` use the production SHA-256 helpers from `lib/translation/menuTranslationModel.ts`.
 - Existing translated content, providers, valid `manual_overrides`, and per-field hashes are preserved. A preserved field keeps its old hash. An overridden field is excluded from automatic freshness proof, keeps its translated value and old hash, and does not prove any other field fresh. `source_hash` becomes current only after every non-overridden required field has current evidence. `translated_at` changes only when translated content is generated/refreshed.
 - Maison Élyse requires `fr-CA` as the default/source locale and a complete canonical `en-CA` content set for every real source field. A source divergence or incomplete field blocks apply.
-- Trouvable receives an explicit English `content.name` for all 9 category slugs and all 36 production dish slugs. A missing or extra real slug makes the complete plan fail closed; the five-item demo fixture is not sufficient. Sauge Noire follows the same rule through its canonical dataset. Placeholder names are rejected, and incomplete content remains non-ready; complete content receives `up_to_date` with recalculated hashes.
+- Dish names remain French identity labels and are never generated into translated `content`, `source_hash`, `field_hashes`, `requiredFields`, or readiness. Existing legacy `content.name` values are preserved but ignored. Category and menu names remain translatable under their existing contracts; missing dish canonical English-name mappings cannot block freshness.
 - Maison Élyse plans a guarded `menus.settings_json` patch when needed: it preserves existing keys, sets `defaultLocale` to `fr-CA`, and adds `fr-CA`/`en-CA` to `supportedLocales`. Apply rereads and hashes the row before updating so concurrent settings changes refuse the write.
-- Update operations carry a complete CAS snapshot: `id`, `updated_at`, `translation_status`, `provider`, `source_hash`, `field_hashes`, `content`, `manual_overrides`, `error_message`, and `translated_at`. Inserts carry an explicit `expected: null`; nullable columns remain explicit JSON `null` values. The RPC validates required maps, hashes, and freshness fields before locking rows and rolls back the transaction on any conflict or database error.
+- Update operations carry a complete CAS snapshot: `id`, `updated_at`, `translation_status`, `provider`, `source_hash`, `field_hashes`, `content`, `manual_overrides`, `error_message`, and `translated_at`. Inserts carry an explicit `expected: null`; nullable columns remain explicit JSON `null` values. The hardening migration `20260801090000_harden_menu_translation_backfill_rpc.sql` wraps the historical RPC, validates locale/relations/payloads before delegation, and preserves transaction rollback on any conflict or database error. The historical `20260731100000_menu_translation_backfill_rpc.sql` is unchanged.
 - The report includes environment/ref identity, restaurant/menu IDs and slugs, category/dish counts, per-table translation row counts, operation diffs, statuses, current/desired `source_hash` and `field_hashes`, explicit hash divergences, and settings hashes. Secrets are never printed. Planning errors are collected per target before the command refuses the run.
 
 ## Read-only commands
@@ -59,7 +59,16 @@ node scripts/backfill-menu-translations.mjs `
 
 The default target set is all three restaurants. Use `--restaurant trouvable` or `--restaurant sauge-noire` for a focused audit. There is no separately reviewed locale contract accepted by this backfill: use exactly `--locale en-CA`.
 
-Apply never uses direct table upserts. The migration `20260731100000_menu_translation_backfill_rpc.sql` locks all target menus in deterministic order, compares `updated_at`, hashes, content, and manual overrides, and rolls back the complete batch on any conflict or database error. If that RPC is not installed in the explicitly bound project, `--apply` refuses to write.
+Apply never uses direct table upserts. The historical RPC locks all target menus in deterministic order, while the hardening wrapper validates complete CAS snapshots and exact `en-CA` before delegation. If the migrations are not installed in the explicitly bound project, `--apply` refuses to write.
+
+For a real PostgreSQL 17 fixture (CI or an explicitly named local test database), run:
+
+```powershell
+$env:VISTAIRE_TRANSLATION_BACKFILL_POSTGRES_TEST = "1"
+npm run test:translation:backfill:postgres
+```
+
+The fixture applies the historical and hardening migrations, inserts a real restaurant/menu/category/dish graph, executes insert and noop paths, checks exact `en-CA` and complete-snapshot rejection, verifies a CAS conflict leaves content unchanged, and asserts that dish names are absent from generated content. The local checkout used for this review has no `psql` executable; CI's PostgreSQL 17 service is the executable evidence path.
 
 ## Apply rules
 

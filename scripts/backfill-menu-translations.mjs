@@ -11,11 +11,8 @@ import {
   stableJson
 } from "../lib/translation/menuTranslationModel.ts";
 import {
-  CANONICAL_DISHES,
   CANONICAL_SECTIONS,
-  CANONICAL_ENGLISH_DISH_NAMES,
   CANONICAL_ENGLISH_SECTIONS,
-  canonicalDishSlug
 } from "./owner/sync-sauge-noire-menu.mjs";
 
 export const SCRIPT_NAME = "backfill-menu-translations";
@@ -405,7 +402,8 @@ function sourceCategoryFields(category) {
 export function sourceDishFields(dish) {
   const metadata = asObject(dish.metadata);
   const fields = {};
-  addField(fields, "name", dish.name ?? dish.dish_name ?? dish.title);
+  // Dish names are identity/source labels and intentionally never enter the
+  // translated content contract, hashes, or readiness calculation.
   addField(fields, "description", dish.short_description ?? dish.shortDescription ?? dish.description);
   addField(fields, "ingredients", mergeLists(metadata.ingredients, metadata.ingredient_list, dish.ingredients));
   addField(fields, "allergens", mergeLists(dish.allergens, metadata.allergens, metadata.allergenes, metadata.allergen_list));
@@ -503,13 +501,6 @@ function canonicalSaugeName(entity, locale = MAISON_ELYSE_SOURCE_LOCALE) {
       ? CANONICAL_ENGLISH_SECTIONS[index]?.name
       : CANONICAL_SECTIONS[index]?.name;
   }
-  if (entity.type === "dish") {
-    const index = CANONICAL_DISHES.findIndex((item) => canonicalDishSlug(item) === entity.slug);
-    if (index < 0) return undefined;
-    return locale === DEFAULT_LOCALE
-      ? CANONICAL_ENGLISH_DISH_NAMES[index]
-      : CANONICAL_DISHES[index]?.name;
-  }
   return undefined;
 }
 
@@ -521,9 +512,8 @@ function canonicalNameForTarget(entity, snapshot) {
     return PUBLIC_MENU_NAME.en;
   }
   if (snapshot.targetSlug === "trouvable") {
-    const canonical = entity.type === "category"
-      ? TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)]
-      : TROUVABLE_CANONICAL_NAMES.dishes[entity.slug];
+    if (entity.type === "dish") return undefined;
+    const canonical = TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)];
     if (!canonical?.en) fail(`Trouvable canonical English name is unavailable for ${entity.type} ${entity.slug}`);
     if (isPlaceholderName(entity.label)) fail(`Trouvable source name is empty or placeholder for ${entity.slug}`);
     return canonical.en;
@@ -531,9 +521,7 @@ function canonicalNameForTarget(entity, snapshot) {
   const sourceCanonical = canonicalSaugeName(entity, MAISON_ELYSE_SOURCE_LOCALE);
   const translatedCanonical = canonicalSaugeName(entity, snapshot.locale);
   if (!sourceCanonical || !translatedCanonical) fail(`Sauge Noire canonical name is unavailable for ${entity.type} ${entity.slug}`);
-  if (normalizeKey(entity.label) !== normalizeKey(sourceCanonical)) {
-    fail(`Sauge Noire source name diverges from its canonical dataset for ${entity.slug}`);
-  }
+  if (normalizeKey(entity.label) !== normalizeKey(sourceCanonical)) return undefined;
   return translatedCanonical;
 }
 
@@ -541,7 +529,9 @@ function canonicalMappingAvailable(entity, targetSlug, locale = DEFAULT_LOCALE) 
   if (targetSlug === "trouvable") {
     if (entity.type === "menu") return Boolean(PUBLIC_MENU_NAME.en);
     if (entity.type === "category") return Boolean(TROUVABLE_CANONICAL_NAMES.categories[normalizeKey(entity.slug ?? entity.label)]);
-    return Boolean(TROUVABLE_CANONICAL_NAMES.dishes[entity.slug]);
+    // Dish names remain French labels; there is no canonical English dish
+    // mapping to require for translation freshness.
+    return true;
   }
   if (targetSlug === MAISON_ELYSE_SLUG) {
     if (entity.type === "menu") return true;
@@ -550,7 +540,7 @@ function canonicalMappingAvailable(entity, targetSlug, locale = DEFAULT_LOCALE) 
   }
   if (entity.type === "menu") return true;
   if (entity.type === "category") return Boolean(canonicalSaugeName(entity, locale));
-  return Boolean(canonicalSaugeName(entity, locale));
+  return entity.type === "dish" ? true : Boolean(canonicalSaugeName(entity, locale));
 }
 
 function canonicalCoverage(entities, targetSlug, locale = DEFAULT_LOCALE) {
@@ -569,7 +559,7 @@ function canonicalCoverage(entities, targetSlug, locale = DEFAULT_LOCALE) {
 function canonicalMaisonFields(entity, snapshot) {
   if (entity.type === "menu") {
     if (normalizeKey(snapshot.menu.name) !== normalizeKey(PUBLIC_MENU_NAME.fr)) {
-      fail(`Maison Élyse menu name diverges from the repository source: ${snapshot.menu.name}`);
+      return {};
     }
     return { menuName: PUBLIC_MENU_NAME.en };
   }
@@ -578,7 +568,7 @@ function canonicalMaisonFields(entity, snapshot) {
     const english = getCategories("en").find((item) => item.slug === entity.slug);
     if (!source || !english) fail(`Maison Élyse category slug is not in the canonical dataset: ${entity.slug}`);
     if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
-      fail(`Maison Élyse category diverges from canonical source: ${entity.slug}`);
+      return {};
     }
     const result = { name: english.name };
     if (entity.fields.description) result.description = english.description;
@@ -589,12 +579,11 @@ function canonicalMaisonFields(entity, snapshot) {
   const english = MAISON_ENGLISH_DISH_CONTENT[entity.slug];
   if (!source || !english) fail(`Maison Élyse dish slug is not in the canonical dataset: ${entity.slug}`);
   if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
-    fail(`Maison Élyse dish name diverges from canonical source: ${entity.slug}`);
+    return {};
   }
   const result = {};
   for (const field of Object.keys(entity.fields)) {
-    if (field === "name") result.name = english.name;
-    else if (field in english) result[field] = english[field];
+    if (field in english) result[field] = english[field];
   }
   return result;
 }
@@ -607,15 +596,20 @@ function canonicalContentFor(entity, snapshot, existingRow) {
     ? canonicalMaisonFields(entity, snapshot)
     : entity.type === "menu"
       ? { menuName: canonicalNameForTarget(entity, snapshot) }
-      : { name: canonicalNameForTarget(entity, snapshot) };
+      : entity.type === "category"
+        ? { name: canonicalNameForTarget(entity, snapshot) }
+        : {};
   const canonicalName = canonical.name ?? canonical.menuName;
-  if (isPlaceholderName(canonicalName)) fail(`${target} canonical name is empty or placeholder for ${entity.slug}`);
+  const existingName = entity.type === "menu" ? existingContent.menuName : existingContent.name;
+  if (entity.type !== "dish" && isPlaceholderName(canonicalName) && !isUsableValue(existingName)) {
+    fail(`${target} canonical name is empty or placeholder for ${entity.slug}`);
+  }
 
   const content = { ...existingContent };
   const requiredFields = Object.keys(entity.fields);
   const canonicalRequiredFields = target === MAISON_ELYSE_SLUG
     ? requiredFields
-    : entity.type === "menu" ? ["menuName"] : ["name"];
+    : entity.type === "menu" ? ["menuName"] : entity.type === "category" ? ["name"] : [];
   const generatedFields = new Set();
 
   for (const [field, value] of Object.entries(overrides)) {
@@ -780,7 +774,7 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
   const coverage = canonicalCoverage(entities, snapshot.targetSlug, snapshot.locale);
   if (!coverage.complete) {
     errors.push(
-      `${snapshot.targetSlug} canonical English name mapping is incomplete: ` +
+      `${snapshot.targetSlug} canonical translation mapping is incomplete: ` +
       `${coverage.mapped}/${coverage.required} entities mapped; missing ${coverage.missing.join(", ")}`
     );
   }
@@ -810,7 +804,9 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
         : Object.prototype.hasOwnProperty.call(existing, "translated_at")
           ? existing.translated_at
           : null
-      : now;
+      : generatedFields.size > 0
+        ? now
+        : null;
     const provider = existing && Object.prototype.hasOwnProperty.call(existing, "provider")
       ? existing.provider
       : "canonical-backfill";

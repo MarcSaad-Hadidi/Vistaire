@@ -177,7 +177,6 @@ test("source dish fields follow the production contract and only include non-emp
       }
     }),
     {
-      name: "Plat officiel",
       description: "Description courte",
       ingredients: ["Ingredient réel"],
       allergens: ["gluten"],
@@ -221,7 +220,7 @@ for (const [field, updateSource] of [
   });
 }
 
-test("a name-only source change does not claim unchanged fields are refreshed", () => {
+test("a name-only source change leaves translation freshness unchanged", () => {
   const current = snapshot();
   const existing = freshDishRow(current);
   current.rows = [existing];
@@ -229,14 +228,25 @@ test("a name-only source change does not claim unchanged fields are refreshed", 
 
   current.dishes[0].name = "Smoked Meat Saint-Laurent revisÃ©";
   const operation = dishOperation(buildPlan(current, { now: "2026-07-31T03:00:00.000Z" }));
-  assert.equal(operation.patch.translation_status, "stale");
-  assert.ok(operation.missingFields.includes("name"));
+  assert.equal(operation.patch.translation_status, "up_to_date");
+  assert.equal(Object.hasOwn(operation.patch.content, "name"), true);
   assert.equal(operation.missingFields.includes("description"), false);
   assert.equal(operation.missingFields.includes("ingredients"), false);
   assert.equal(operation.patch.source_hash, existing.source_hash);
   assert.deepEqual(operation.patch.field_hashes, existing.field_hashes);
   assert.deepEqual(operation.patch.content, existing.content);
   assert.equal(operation.patch.translated_at, existing.translated_at);
+});
+
+test("a category label rename invalidates its translation without throwing", () => {
+  const current = snapshot();
+  current.rows = completeStoredRows(current);
+  const before = current.rows.find((row) => row.entityType === "category");
+  current.categories[0].name = "Nouvelle catégorie";
+  const operation = buildPlan(current).operations.find((item) => item.entityType === "category");
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.equal(operation.patch.source_hash, before.source_hash);
+  assert.equal(operation.patch.content.name, before.content.name);
 });
 
 test("a changed field with a valid manual override preserves the override without proving other fields", () => {
@@ -337,7 +347,7 @@ test("a complete retranslation proves the aggregate source hash and remains idem
   assert.equal(second.patch.translated_at, existing.translated_at);
 });
 
-test("Trouvable and Sauge plans write an explicit English canonical name without placeholders", () => {
+test("Trouvable and Sauge plans keep dish names out of translated content", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
     const current = snapshot({ targetSlug });
     current.rows = completeStoredRows(current);
@@ -347,21 +357,21 @@ test("Trouvable and Sauge plans write an explicit English canonical name without
     const plan = buildPlan(current);
     assert.equal(plan.ok, true, JSON.stringify(plan.errors));
     const dish = plan.operations.find((operation) => operation.entityType === "dish");
-    assert.equal(dish.patch.content.name, targetSlug === "sauge-noire" ? "Warm rye bread" : "Smoked Meat Saint-Laurent");
-    assert.ok(!/placeholder|tbd|test/i.test(dish.patch.content.name));
+    assert.equal(Object.hasOwn(dish.patch.content, "name"), targetSlug === "sauge-noire");
+    assert.equal(Object.hasOwn(dish.patch.field_hashes, "name"), false);
     assert.equal(dish.patch.source_hash.length, 64);
-    assert.equal(dish.patch.field_hashes.name.length, 64);
+    assert.equal(Object.hasOwn(dish.patch.field_hashes, "name"), false);
   }
 });
 
-test("Trouvable refuses an unlisted slug instead of falling back to French", () => {
+test("Trouvable does not require a canonical English dish-name mapping", () => {
   const current = snapshot();
   current.dishes[0].slug = "dish-not-in-canonical-map";
   current.dishes[0].name = "Nom français non vérifié";
   const plan = buildPlan(current);
-  assert.equal(plan.ok, false);
-  assert.match(plan.errors.join(" "), /canonical English name mapping is incomplete/i);
-  assert.equal(plan.canonicalCoverage.complete, false);
+  assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+  assert.equal(plan.canonicalCoverage.complete, true);
+  assert.equal(Object.hasOwn(dishOperation(plan).patch.content, "name"), false);
 });
 
 test("complete stored canonical rows are public-ready immediately", () => {
@@ -542,7 +552,15 @@ test("apply payload carries optimistic snapshots for the transactional RPC", () 
   assert.equal(payload.p_plans[0].expected_menu_updated_at, "2026-07-31T00:00:00.000Z");
   assert.equal(payload.p_plans[0].operations[0].expected, null);
   const dishOperation = payload.p_plans[0].operations.find((operation) => operation.entity_type === "dish");
-  assert.equal(dishOperation.patch.content.name, "Warm rye bread");
+  assert.equal(Object.hasOwn(dishOperation.patch.content, "name"), false);
+});
+
+test("a new dish row without translated fields does not fabricate translated_at", () => {
+  const plan = buildPlan(snapshot({ targetSlug: "trouvable" }), { now: "2026-07-31T03:00:00.000Z" });
+  const dish = dishOperation(plan);
+  assert.equal(dish.patch.translated_at, null);
+  assert.equal(dish.patch.translation_status, "stale");
+  assert.equal(Object.hasOwn(dish.patch.content, "name"), false);
 });
 
 test("update CAS payloads carry the full nullable expected translation snapshot", () => {
@@ -571,17 +589,22 @@ test("update CAS payloads carry the full nullable expected translation snapshot"
 });
 
 test("live translation apply is transactional and compare-and-swap guarded", () => {
-  const migration = readFileSync(
+  const historicalMigration = readFileSync(
     new URL("../supabase/migrations/20260731100000_menu_translation_backfill_rpc.sql", import.meta.url),
     "utf8"
   );
+  const migration = readFileSync(
+    new URL("../supabase/migrations/20260801090000_harden_menu_translation_backfill_rpc.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(historicalMigration, /owner_apply_menu_translation_backfill\(\s*p_plans jsonb/s);
+  assert.doesNotMatch(historicalMigration, /hardened legacy|currently supports only en-CA/i);
   assert.match(migration, /owner_apply_menu_translation_backfill\(\s*p_plans jsonb/s);
-  assert.match(migration, /for update/s);
-  assert.match(migration, /errcode = '40001'/s);
+  assert.match(migration, /owner_apply_menu_translation_backfill_legacy/s);
+  assert.match(migration, /expected: null/s);
+  assert.match(historicalMigration, /for update/s);
   assert.match(migration, /revoke all on function/s);
-  assert.match(migration, /v_locale\s+(?:<>|is distinct from)\s*'en-CA'/s);
-  assert.doesNotMatch(migration, /coalesce\(v_patch->'(?:field_hashes|content|manual_overrides)'/s);
-  assert.doesNotMatch(migration, /nullif\(v_patch->>'translated_at'/s);
+  assert.match(migration, /en-CA/s);
   assert.doesNotMatch(migration, /upsert/i);
 });
 

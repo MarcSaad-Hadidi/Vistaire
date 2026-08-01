@@ -89,6 +89,15 @@ jobs:
       - name: Translation backfill contracts
         run: npm run test:translation:backfill
 
+      - name: Translation backfill PostgreSQL 17 tests
+        env:
+          PGDATABASE: vistaire_qr_ci
+          PGHOST: 127.0.0.1
+          PGPASSWORD: vistaire_qr_ci_password
+          PGPORT: "5432"
+          PGUSER: postgres
+        run: npm run test:translation:backfill:postgres
+
       - name: Maison Elyse PostgreSQL 17 tests
         env:
           PGDATABASE: vistaire_qr_ci
