@@ -59,12 +59,20 @@ type LandingPreviewBase = {
 
 const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
   maisonElyse:
-    "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo",
+    "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo?v=a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f",
   trouvable:
-    "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo",
+    "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo?v=8701433fa5746feec3c320d717f3aea74980e9db52715ad9d0109ff7dd3d3d29",
   saugeNoire:
-    "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo"
+    "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo?v=bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894"
 });
+
+function isUnversionedCanonicalDishPhoto(
+  image: string | undefined,
+  dishId: string | undefined
+): boolean {
+  if (!image || !dishId) return false;
+  return image.split("?", 1)[0] === `/api/public/menu-dishes/${dishId}/photo`;
+}
 
 export type LandingMenuPreviewPayload =
   | (LandingPreviewBase & {
@@ -303,7 +311,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       { lang }
     )),
     image: LANDING_FALLBACK_DISH_PHOTOS.maisonElyse,
-    imageSource: "imageUrl",
+    imageSource: "fallback",
     imageAlt:
       locale === "en"
         ? "Fresh goat cheese ravioli from Maison Élyse"
@@ -324,7 +332,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       buildPublicDishPath("trouvable", "pesto-burrata-verde", { lang })
     ),
     image: LANDING_FALLBACK_DISH_PHOTOS.trouvable,
-    imageSource: "imageUrl",
+    imageSource: "fallback",
     imageAlt:
       locale === "en"
         ? "Pesto Burrata Verde from Trouvable"
@@ -348,7 +356,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
       })
     ),
     image: LANDING_FALLBACK_DISH_PHOTOS.saugeNoire,
-    imageSource: "imageUrl",
+    imageSource: "fallback",
     imageAlt:
       locale === "en"
         ? "Beetroot under ash from Sauge Noire"
@@ -559,19 +567,24 @@ async function buildLandingExperiences(
           };
         }
         const dish = current.featuredDish;
-        const image =
-          dish.imageUrl ||
-          dish.thumbnailUrl ||
-          dish.posterUrl ||
-          experience.featuredDish.image;
-        const imageSource: LandingFeaturedDish["imageSource"] = dish.imageUrl
-          ? "imageUrl"
-          : dish.thumbnailUrl
-            ? "thumbnailUrl"
-            : dish.posterUrl
-              ? "posterUrl"
-              : experience.featuredDish.image
-                ? "fallback"
+        const liveImage = dish.imageUrl || dish.thumbnailUrl || dish.posterUrl;
+        const useVerifiedFallback =
+          !liveImage ||
+          isUnversionedCanonicalDishPhoto(liveImage, dish.id) ||
+          isUnversionedCanonicalDishPhoto(liveImage, experience.featuredDish.id);
+        const image = useVerifiedFallback
+          ? experience.featuredDish.image
+          : liveImage;
+        const imageSource: LandingFeaturedDish["imageSource"] = useVerifiedFallback
+          ? experience.featuredDish.image
+            ? "fallback"
+            : "unavailable"
+          : dish.imageUrl
+            ? "imageUrl"
+            : dish.thumbnailUrl
+              ? "thumbnailUrl"
+              : dish.posterUrl
+                ? "posterUrl"
                 : "unavailable";
 
         return {
@@ -637,13 +650,13 @@ async function buildLandingExperiences(
 
 const getCachedFrenchLandingExperiences = unstable_cache(
   () => buildLandingExperiences("fr"),
-  ["landing-menu-experiences-fr-v6"],
+  ["landing-menu-experiences-fr-v7"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingExperiences = unstable_cache(
   () => buildLandingExperiences("en"),
-  ["landing-menu-experiences-en-v6"],
+  ["landing-menu-experiences-en-v7"],
   { revalidate: 60 }
 );
 
@@ -688,14 +701,14 @@ async function buildLandingMenuPreviewPayload(
 const getCachedFrenchLandingMenuPreviewPayload = unstable_cache(
   (experienceId: LandingExperienceId) =>
     buildLandingMenuPreviewPayload(experienceId, "fr"),
-  ["landing-menu-preview-payload-fr-v5"],
+  ["landing-menu-preview-payload-fr-v6"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingMenuPreviewPayload = unstable_cache(
   (experienceId: LandingExperienceId) =>
     buildLandingMenuPreviewPayload(experienceId, "en"),
-  ["landing-menu-preview-payload-en-v5"],
+  ["landing-menu-preview-payload-en-v6"],
   { revalidate: 60 }
 );
 

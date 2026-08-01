@@ -381,10 +381,10 @@ test("Next landing caches isolate French and English payloads structurally", asy
   const landingData = await source("lib/landing/menuExperiences.ts");
 
   for (const key of [
-    "landing-menu-experiences-fr-v6",
-    "landing-menu-experiences-en-v6",
-    "landing-menu-preview-payload-fr-v5",
-    "landing-menu-preview-payload-en-v5"
+    "landing-menu-experiences-fr-v7",
+    "landing-menu-experiences-en-v7",
+    "landing-menu-preview-payload-fr-v6",
+    "landing-menu-preview-payload-en-v6"
   ]) {
     assert.match(landingData, new RegExp(key));
   }
