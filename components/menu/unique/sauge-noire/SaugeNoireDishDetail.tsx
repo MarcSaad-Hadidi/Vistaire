@@ -614,6 +614,24 @@ export function SaugeNoireDishDetail({
   );
   const publicLocale = query?.lang ?? locale;
   const selectedCopyLocale = copyLocale(publicLocale);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousLang = root.lang;
+    const previousDir = root.getAttribute("dir");
+    root.lang = publicLocale.trim() || "fr-CA";
+    root.dir = selectedCopyLocale === "ar" ? "rtl" : "ltr";
+
+    return () => {
+      root.lang = previousLang;
+      if (previousDir === null) {
+        root.removeAttribute("dir");
+      } else {
+        root.setAttribute("dir", previousDir);
+      }
+    };
+  }, [publicLocale, selectedCopyLocale]);
+
   const routeTransition = useSaugeNoireTransition();
   const beginRouteTransition = routeTransition?.beginTransition;
   const prefetchRouteDestination = routeTransition?.prefetchDestination;

@@ -8,7 +8,10 @@ import {
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import type { PublicMenu, PublicMenuTranslationStatus } from "./publicMenuCore";
 import { normalizePublicMenuLocalePreference } from "./publicMenuSettings";
-import { buildMaisonEnglishPublicMenu } from "./publicMenuEnglishFallback";
+import {
+  applyCanonicalEnglishPresentation,
+  buildMaisonEnglishPublicMenu
+} from "./publicMenuEnglishFallback";
 import {
   filterPublicMenuSettingsForReadyTranslations,
   publicMenuCategoryTranslationSources,
@@ -251,7 +254,7 @@ export async function applyStoredPublicMenuTranslations(
     : translationLocales;
 
   if (activeLocale === publicSettings.defaultLocale) {
-    return {
+    const result = {
       ...menu,
       settings: publicSettings,
       activeLocale,
@@ -261,6 +264,9 @@ export async function applyStoredPublicMenuTranslations(
         activeLocale
       )
     };
+    return allowLegacyEnglishTranslation
+      ? applyCanonicalEnglishPresentation(result)
+      : result;
   }
 
   const activeMenuRows = rowsForLocale(translationRows.menuRows, activeLocale);
@@ -370,7 +376,7 @@ export async function applyStoredPublicMenuTranslations(
     };
   });
 
-  return {
+  const result = {
     ...menu,
     settings: publicSettings,
     activeLocale,
@@ -383,4 +389,7 @@ export async function applyStoredPublicMenuTranslations(
       activeLocale
     )
   };
+  return allowLegacyEnglishTranslation
+    ? applyCanonicalEnglishPresentation(result)
+    : result;
 }

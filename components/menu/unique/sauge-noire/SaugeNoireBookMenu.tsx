@@ -266,6 +266,25 @@ export function SaugeNoireBookMenu({
   const copy = COPY[copyLocale(activeLocaleValue)];
   const availableLocales = menu.settings.supportedLocales;
   const availableCurrencies = menu.settings.supportedCurrencies;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousLang = root.lang;
+    const previousDir = root.getAttribute("dir");
+    const language = activeLocaleValue.trim() || "fr-CA";
+    root.lang = language;
+    root.dir = copyLocale(language) === "ar" ? "rtl" : "ltr";
+
+    return () => {
+      root.lang = previousLang;
+      if (previousDir === null) {
+        root.removeAttribute("dir");
+      } else {
+        root.setAttribute("dir", previousDir);
+      }
+    };
+  }, [activeLocaleValue]);
+
   const currencyFromUrl = normalizePublicMenuCurrencyPreference(
     searchParams.get("currency") ?? query?.currency,
     menu.settings
