@@ -237,6 +237,75 @@ test("legacy dish hashes remain fresh when only the removed name field changed",
   );
 });
 
+test("legacy aggregate hashes remain fresh after an optional field is removed", () => {
+  const currentFields = {
+    description: "Description source",
+    tags: ["Maison"]
+  };
+  const legacyFields = {
+    description: "Description source",
+    houseNote: "Note retirée",
+    tags: ["Maison"]
+  };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(legacyFields),
+    content: {
+      description: "Translated description",
+      tags: ["House"]
+    }
+  };
+
+  assert.deepEqual(
+    resolveEntityTranslationStatus(
+      { type: "dish", id: "dish-optional-field", fields: currentFields },
+      stored
+    ),
+    { status: "up_to_date", estimatedCharacters: 0 }
+  );
+  assert.equal(
+    resolveEntityTranslationStatus(
+      {
+        type: "dish",
+        id: "dish-optional-field",
+        fields: { ...currentFields, description: "Description source updated" }
+      },
+      stored
+    ).status,
+    "stale"
+  );
+});
+
+test("legacy derived badge hashes remain fresh regardless of badge position", () => {
+  const fields = {
+    description: "Description source",
+    tags: ["Maison"]
+  };
+  const legacyFields = {
+    name: "Nom source",
+    ...fields,
+    tags: ["Signature", "Maison"]
+  };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(legacyFields),
+    content: {
+      description: "Translated description",
+      tags: ["House"]
+    }
+  };
+
+  assert.deepEqual(
+    resolveEntityTranslationStatus(
+      { type: "dish", id: "dish-derived-badge", fields },
+      stored
+    ),
+    { status: "up_to_date", estimatedCharacters: 0 }
+  );
+});
+
 test("owner translation settings use the public menu settings fallback resolver", async () => {
   const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
   const ownerMutations = await readRepoFile("lib/owner/menuMutations.ts");

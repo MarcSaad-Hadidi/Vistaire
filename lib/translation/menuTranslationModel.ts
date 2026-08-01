@@ -76,7 +76,6 @@ export function sourceHashFor(fields: MenuTranslationFields): string {
  * Rows written before dish names became source identity may still carry a
  * `name` field hash and an aggregate hash that includes it. Keep those rows
  * readable while requiring every current translatable field hash to match.
- * This compatibility path is deliberately limited to dish entities.
  */
 export function sourceHashMatchesFields(
   fields: MenuTranslationFields,
@@ -85,18 +84,24 @@ export function sourceHashMatchesFields(
 ): boolean {
   if (!row) return false;
   if (row.source_hash === sourceHashFor(fields)) return true;
-  if (entityType !== "dish") return false;
-
   const storedFieldHashes = objectInput(row.field_hashes);
   const expectedFieldHashes = fieldHashesFor(fields);
+  const currentFieldHashesMatch = Object.entries(expectedFieldHashes).every(
+    ([field, hash]) => storedFieldHashes[field] === hash
+  );
+  // Optional source fields can be removed after a row was generated. When
+  // every current field hash still matches and the stored row contains an
+  // extra field hash, the aggregate hash is stale only because that field was
+  // removed; treat the row as current so generation/readiness can continue.
   if (
-    typeof storedFieldHashes.name === "string" &&
-    Object.entries(expectedFieldHashes).every(
-      ([field, hash]) => storedFieldHashes[field] === hash
-    )
+    currentFieldHashesMatch &&
+    Object.keys(storedFieldHashes).some((field) => !(field in expectedFieldHashes))
   ) {
     return true;
   }
+
+  if (entityType !== "dish") return false;
+
   const nonTagFieldsMatch = Object.entries(expectedFieldHashes)
     .filter(([field]) => field !== "tags")
     .every(([field, hash]) => storedFieldHashes[field] === hash);
@@ -104,18 +109,31 @@ export function sourceHashMatchesFields(
 
   const tags = fields.tags;
   if (!Array.isArray(tags)) return false;
-  const tagVariants = [
-    tags,
-    [...tags, "Signature"],
-    [...tags, "Recommande"],
-    [...tags, "Signature", "Recommande"]
-  ];
+  const tagVariants = legacyTagVariants(tags);
   return tagVariants.some(
     (variant) =>
       storedFieldHashes.tags === hashTranslationValue(variant) &&
       (typeof storedFieldHashes.name === "string" ||
         row.source_hash === sourceHashFor({ ...fields, tags: variant }))
   );
+}
+
+function legacyTagVariants(tags: string[]): string[][] {
+  const variants: string[][] = [tags];
+  for (const badge of ["Signature", "Recommande"]) {
+    const current = [...variants];
+    for (const variant of current) {
+      if (variant.some((tag) => tag.toLowerCase() === badge.toLowerCase())) continue;
+      for (let index = 0; index <= variant.length; index += 1) {
+        variants.push([
+          ...variant.slice(0, index),
+          badge,
+          ...variant.slice(index)
+        ]);
+      }
+    }
+  }
+  return variants;
 }
 
 export function fieldHashMatchesFields(
@@ -131,12 +149,7 @@ export function fieldHashMatchesFields(
   if (entityType !== "dish" || field !== "tags" || !Array.isArray(fields.tags)) {
     return false;
   }
-  const tagVariants = [
-    fields.tags,
-    [...fields.tags, "Signature"],
-    [...fields.tags, "Recommande"],
-    [...fields.tags, "Signature", "Recommande"]
-  ];
+  const tagVariants = legacyTagVariants(fields.tags);
   return tagVariants.some(
     (variant) =>
       storedFieldHashes.tags === hashTranslationValue(variant) &&

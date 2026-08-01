@@ -332,7 +332,9 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     ) {
       return false;
     }
-    const media = readinessMediaForSurface(activePage);
+    const media = readinessMediaForSurface(activePage, {
+      projectedScrollTop: settledPreviewScrollTopRef.current
+    });
     for (const element of media) {
       const rect = element.getBoundingClientRect();
       if (!mediaIsPrepared(element) || rect.width <= 0 || rect.height <= 0) return false;
@@ -395,7 +397,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       const activePage = renderer?.querySelector<HTMLElement>(
         '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
       );
-      const media = activePage ? readinessMediaForSurface(activePage) : [];
+      const media = activePage
+        ? readinessMediaForSurface(activePage, {
+            projectedScrollTop: settledPreviewScrollTopRef.current
+          })
+        : [];
       const handleMediaSignal = () => checkDestinationReadiness();
       for (const element of media) {
         element.addEventListener("load", handleMediaSignal);
