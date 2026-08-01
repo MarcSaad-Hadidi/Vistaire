@@ -606,6 +606,69 @@ const rows = Object.fromEntries(
   ])
 );
 
+// The production landing intentionally keeps the real public fallback photo
+// URLs. Keep those UUIDs resolvable in CI without adding the aliases to any
+// restaurant menu, which would change the menu-rendering fixtures themselves.
+const landingFallbackPhotoAliases = [
+  {
+    id: "fd64dc12-8bd2-4669-be63-51cf0d50b839",
+    name: "Ravioles de chèvre frais & miel de Montérégie",
+    photoSha256:
+      "a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f",
+    restaurantId: "11111111-1111-4111-8111-111111111114"
+  },
+  {
+    id: "7a312411-975a-4a12-9e74-d435a7c83406",
+    name: "Pesto Burrata Verde",
+    photoSha256:
+      "8701433fa5746feec3c320d717f3aea74980e9db52715ad9d0109ff7dd3d3d29",
+    restaurantId: "11111111-1111-4111-8111-111111111115"
+  },
+  {
+    id: "cb7121a7-a8df-4650-8453-df83135defeb",
+    name: "Betterave sous la cendre",
+    photoSha256:
+      "bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894",
+    restaurantId: "11111111-1111-4111-8111-111111111116"
+  }
+].map((alias) => {
+  const photoStoragePath =
+    `restaurants/${alias.restaurantId}/photos/originals/${alias.id}.png`;
+  return {
+    id: alias.id,
+    restaurant_id: alias.restaurantId,
+    menu_id: "22222222-2222-4222-8222-222222222225",
+    category_id: "33333333-3333-4333-8333-333333333310",
+    slug: alias.id,
+    name: alias.name,
+    description: "Landing fallback photo fixture.",
+    display_order: 1,
+    price: 0,
+    price_currency: "CAD",
+    base_currency: "CAD",
+    is_available: true,
+    is_signature: false,
+    ingredients: [],
+    allergens: [],
+    options: [],
+    house_note: "",
+    tags: [],
+    image_url: `/api/public/menu-dishes/${alias.id}/photo`,
+    metadata: {
+      photoSha256: alias.photoSha256,
+      photoStatus: "ready",
+      photoStorageBucket: "vistaire-media",
+      photoStoragePath
+    },
+    web_model_3d_url: "",
+    model_3d_url: "",
+    ar_model_3d_url: "",
+    ar_usdz_url: ""
+  };
+});
+
+rows.menu_dishes.push(...landingFallbackPhotoAliases);
+
 export {
   maisonFixture,
   restaurantId,

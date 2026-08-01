@@ -35,13 +35,13 @@ const includesSaugeNoireBrowserFlow = process.argv
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
   });
+const includesSeoSmoke = process.argv
+  .slice(2)
+  .some((argument) =>
+    /(?:^|\/)seo-smoke\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
+  );
 const includesSaugeNoireFixture =
-  includesSaugeNoireBrowserFlow ||
-  process.argv
-    .slice(2)
-    .some((argument) =>
-      /(?:^|\/)seo-smoke\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
-    );
+  includesSaugeNoireBrowserFlow || includesSeoSmoke;
 const includesLandingProductionPhoto = process.argv
   .slice(2)
   .some((argument) =>
@@ -51,7 +51,8 @@ const includesLandingProductionPhoto = process.argv
   );
 const useDevelopmentServer =
   useLocalDemoServer ||
-  (includesSaugeNoireFixture && !includesLandingProductionPhoto);
+  (includesSaugeNoireBrowserFlow && !includesLandingProductionPhoto) ||
+  (includesSeoSmoke && !includesLandingProductionPhoto);
 const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 const SAUGE_FIXTURE_ENV = {
   NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
