@@ -231,19 +231,35 @@ export async function applyStoredPublicMenuTranslations(
     menu.settings,
     translationLocales
   );
-  const publicSettings = filteredSettings;
-  const activeLocale = normalizePublicMenuLocalePreference(
-    requestedLocale,
-    publicSettings
-  );
+  const compatibilitySupportedLocales = Array.from(
+    new Set([...filteredSettings.supportedLocales, "en-CA"])
+  ) as typeof filteredSettings.supportedLocales;
+  const publicSettings = allowLegacyEnglishTranslation
+    ? {
+        ...filteredSettings,
+        supportedLocales: compatibilitySupportedLocales
+      }
+    : filteredSettings;
+  const activeLocale = allowLegacyEnglishTranslation
+    ? "en-CA"
+    : normalizePublicMenuLocalePreference(requestedLocale, publicSettings);
+  const effectiveTranslationLocales = allowLegacyEnglishTranslation
+    ? [
+        ...translationLocales.filter((status) => status.locale !== "en-CA"),
+        { locale: "en-CA", status: "up_to_date" as const }
+      ]
+    : translationLocales;
 
   if (activeLocale === publicSettings.defaultLocale) {
     return {
       ...menu,
       settings: publicSettings,
       activeLocale,
-      translationLocales,
-      translationStatus: statusForLocale(translationLocales, activeLocale)
+      translationLocales: effectiveTranslationLocales,
+      translationStatus: statusForLocale(
+        effectiveTranslationLocales,
+        activeLocale
+      )
     };
   }
 
@@ -361,7 +377,10 @@ export async function applyStoredPublicMenuTranslations(
     name: menu.name,
     menuName: translatedMenuName,
     dishes: translatedDishes,
-    translationLocales,
-    translationStatus: statusForLocale(translationLocales, activeLocale)
+    translationLocales: effectiveTranslationLocales,
+    translationStatus: statusForLocale(
+      effectiveTranslationLocales,
+      activeLocale
+    )
   };
 }
