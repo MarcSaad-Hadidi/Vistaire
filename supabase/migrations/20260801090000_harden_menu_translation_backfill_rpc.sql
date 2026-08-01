@@ -25,6 +25,7 @@ declare
   v_patch jsonb;
   v_expected jsonb;
   v_current jsonb;
+  v_restaurant_id uuid;
   v_menu_id uuid;
   v_menus_locked boolean := false;
   v_action text;
@@ -66,20 +67,15 @@ begin
       v_patch := v_operation->'patch';
       v_entity_type := v_operation->>'entity_type';
       if not v_menus_locked then
-        for v_menu_id in
-          select (value->>'menu_id')::uuid
+        for v_restaurant_id, v_menu_id in
+          select (value->>'restaurant_id')::uuid, (value->>'menu_id')::uuid
             from jsonb_array_elements(p_plans) as plans(value)
-           order by 1
+           order by 2, 1
         loop
           perform 1
             from public.menus m
            where m.id = v_menu_id
-             and m.restaurant_id = (
-               select (value->>'restaurant_id')::uuid
-                 from jsonb_array_elements(p_plans) as plans(value)
-                where value->>'menu_id' = v_menu_id::text
-                limit 1
-             )
+             and m.restaurant_id = v_restaurant_id
            for update;
           if not found then
             raise exception using errcode = 'P0002', message = 'Translation backfill menu was not found.';
@@ -100,6 +96,7 @@ begin
          or jsonb_typeof(v_patch->'translation_status') is distinct from 'string'
          or v_patch->>'translation_status' not in ('source','missing','pending','in_progress','up_to_date','stale','error')
          or jsonb_typeof(v_patch->'source_hash') is distinct from 'string'
+         or v_patch->>'source_hash' = ''
          or jsonb_typeof(v_patch->'field_hashes') is distinct from 'object'
          or jsonb_typeof(v_patch->'content') is distinct from 'object'
          or jsonb_typeof(v_patch->'manual_overrides') is distinct from 'object'
@@ -110,6 +107,7 @@ begin
          or not (v_patch ? 'provider')
          or not (v_patch ? 'error_message')
          or not (v_patch ? 'translated_at')
+         or not (v_patch ? 'updated_at')
          or jsonb_typeof(v_patch->'provider') not in ('string','null')
          or jsonb_typeof(v_patch->'error_message') not in ('string','null')
          or jsonb_typeof(v_patch->'translated_at') not in ('string','null') then
@@ -130,6 +128,18 @@ begin
           end if;
         end loop;
         v_expected := v_operation->'expected';
+        if nullif(v_expected->>'updated_at', '') is null then
+          raise exception using errcode = '22023', message = 'Update expected snapshot requires a typed updated_at.';
+        end if;
+        perform (v_expected->>'updated_at')::timestamptz;
+        if jsonb_typeof(v_expected->'translated_at') = 'string' then
+          perform (v_expected->>'translated_at')::timestamptz;
+        elsif jsonb_typeof(v_expected->'translated_at') is distinct from 'null' then
+          raise exception using errcode = '22023', message = 'Update expected translated_at must be a timestamp or null.';
+        end if;
+        if v_expected->>'source_hash' = '' then
+          raise exception using errcode = '22023', message = 'Update expected source_hash must be non-empty.';
+        end if;
         if jsonb_typeof(v_expected->'field_hashes') is distinct from 'object'
            or jsonb_typeof(v_expected->'content') is distinct from 'object'
            or jsonb_typeof(v_expected->'manual_overrides') is distinct from 'object' then

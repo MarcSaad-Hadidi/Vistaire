@@ -43,6 +43,7 @@ begin
         'dish_id', '44444444-4444-4444-8444-444444444444', 'locale', 'en-CA', 'translation_status', 'up_to_date',
         'provider', 'human', 'source_hash', 'source-hash', 'field_hashes', '{"description":"description-hash"}'::jsonb,
         'content', '{"description":"English description"}'::jsonb, 'manual_overrides', '{}'::jsonb,
+        'updated_at', '2026-08-01 00:01:00+00',
         'error_message', null, 'translated_at', '2026-08-01 00:01:00+00'
       )
     ))
@@ -118,7 +119,7 @@ begin
         'operations',jsonb_build_array(jsonb_build_object(
           'action','update','entity_type','dish','entity_id','44444444-4444-4444-8444-444444444444',
           'expected',jsonb_build_object('id',row_id,'updated_at',row_updated_at,'translation_status','up_to_date','provider','human','source_hash','wrong','field_hashes','{}'::jsonb,'content',before_content,'manual_overrides','{}'::jsonb,'error_message',null,'translated_at','2026-08-01 00:01:00+00'),
-          'patch',jsonb_build_object('restaurant_id','11111111-1111-4111-8111-111111111111','menu_id','22222222-2222-4222-8222-222222222222','dish_id','44444444-4444-4444-8444-444444444444','locale','en-CA','translation_status','stale','provider','human','source_hash','wrong','field_hashes','{}'::jsonb,'content',before_content,'manual_overrides','{}'::jsonb,'error_message',null,'translated_at','2026-08-01 00:01:00+00')
+          'patch',jsonb_build_object('restaurant_id','11111111-1111-4111-8111-111111111111','menu_id','22222222-2222-4222-8222-222222222222','dish_id','44444444-4444-4444-8444-444444444444','locale','en-CA','translation_status','stale','provider','human','source_hash','wrong','field_hashes','{}'::jsonb,'content',before_content,'manual_overrides','{}'::jsonb,'error_message',null,'translated_at','2026-08-01 00:01:00+00','updated_at','2026-08-01 00:01:00+00')
         ))
       ))
     );
