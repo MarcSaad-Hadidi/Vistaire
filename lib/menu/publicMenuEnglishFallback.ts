@@ -16,84 +16,6 @@ const MAISON_LIVE_TO_DEMO_SLUG = Object.freeze({
   "ravioles-de-chevre-frais-miel-de-monteregie": "ravioles-romarin"
 });
 
-const TROUVABLE_ENGLISH_DISH_NAMES = Object.freeze({
-  "poulet-maison-sur-riz-parfume": "House Chicken with Fragrant Rice",
-  "orange-pressee-soleil": "Sun-Pressed Orange",
-  "rouge-selection-maison": "House Red Selection",
-  "rosee-maison": "House Rosé",
-  "crepes-nuage-aux-fruits": "Cloud Crepes with Fresh Fruit",
-  "pesto-burrata-verde": "Green Pesto Burrata",
-  "bol-fraicheur-verger": "Orchard Fruit Bowl",
-  "dejeuner-du-marche": "Market Breakfast",
-  "smoothie-fraise-banane": "Strawberry-Banana Smoothie",
-  "smoked-meat-saint-laurent": "Smoked Meat Saint-Laurent",
-  "ailes-bbq-caramelisees": "Caramelized BBQ Wings",
-  "pepperoni-classico": "Pepperoni Classico",
-  "saumon-des-saisons": "Seasonal Salmon",
-  "fish-chips-du-quai": "Quayside Fish & Chips",
-  "cesar-grillee-au-poulet": "Grilled Chicken Caesar",
-  "steak-frites-au-feu": "Fire-Grilled Steak Frites",
-  "plateau-sushi-horizon": "Horizon Sushi Platter",
-  "lasagne-gratina": "Gratina Lasagna",
-  "burrata-prosciutto-royale": "Burrata Prosciutto Royale",
-  "carbonara-romaine": "Roman Carbonara",
-  "poutine-du-vieux-montreal": "Old Montreal Poutine",
-  "mac-cremeux-trois-fromages": "Creamy Three-Cheese Mac",
-  "bol-teriyaki-tokyo": "Tokyo Teriyaki Bowl",
-  "margherita-basilico": "Basilico Margherita",
-  "tiramisu-milano": "Tiramisu Milano",
-  "quesadilla-fondante": "Melty Quesadilla",
-  "spritz-riviera": "Spritz Riviera",
-  "tacos-de-b-uf-el-fuego": "El Fuego Beef Tacos",
-  "alfredo-velours": "Velvet Alfredo",
-  "fondant-chocolat-noir": "Dark Chocolate Fondant",
-  "ipa-boreale": "Boreal IPA",
-  "nachos-dores-du-comptoir": "Golden Counter Nachos",
-  "panna-cotta-vanille-coulis": "Vanilla Panna Cotta & Coulis",
-  "coupe-elegance": "Elegance Coupe",
-  "chocolat-chaud-velours": "Velvet Hot Chocolate",
-  "burger-signature-maison": "House Signature Burger"
-});
-
-const SAUGE_ENGLISH_DISH_NAMES = Object.freeze({
-  "pain-de-seigle-chaud": "Warm rye bread",
-  "betterave-sous-la-cendre": "Beetroot under ash",
-  "croquette-de-canard-confit": "Duck confit croquette",
-  "chou-pointu-braise": "Braised pointed cabbage",
-  "huitres-tiedes-au-kombu": "Warm kombu oysters",
-  "truite-des-laurentides": "Laurentian trout",
-  "hamachi-a-la-verveine": "Hamachi with verbena",
-  "boeuf-cru-au-couteau": "Hand-cut raw beef",
-  "crabe-des-neiges": "Snow crab",
-  "canard-a-l-erable-noir": "Black maple duck",
-  "fletan-roti-au-nori": "Roasted halibut with nori",
-  "cote-de-porc-du-quebec": "Quebec pork chop",
-  "agneau-grille-au-sumac": "Grilled lamb with sumac",
-  "poulet-de-grain-au-citron-confit": "Grain-fed chicken with preserved lemon",
-  "courge-au-charbon": "Charcoal-roasted squash",
-  "orge-perle-des-sous-bois": "Woodland pearl barley",
-  "gnocchi-de-panais": "Parsnip gnocchi",
-  "polenta-blanche-fumee": "Smoked white polenta",
-  "epeautre-cremeux": "Creamy spelt",
-  "pommes-de-terre-pressees": "Pressed potatoes",
-  "haricots-verts-a-la-flamme": "Flame-seared green beans",
-  "salade-d-herbes-fraiches": "Fresh herb salad",
-  "chocolat-fume": "Smoked chocolate",
-  "pomme-au-poivre-long": "Long pepper apple",
-  "parfait-de-mais": "Corn parfait",
-  "agrumes-au-basilic-thai": "Citrus with Thai basil",
-  "fromages-du-quebec": "Quebec cheeses",
-  "sauge-75": "Sage 75",
-  ecorce: "Bark",
-  "cendre-rose": "Pink ash",
-  lisiere: "Woodland edge",
-  "nuit-d-ambre": "Amber night",
-  "verger-froid": "Cold orchard",
-  "jardin-salin": "Salt garden",
-  "the-des-bois": "Wintergreen tea",
-  "citron-brule": "Charred lemon"
-});
-
 type EnglishCategoryPresentation = {
   name: string;
   description?: string;
@@ -192,28 +114,21 @@ function canonicalEnglishCategoryForDish(
 
 /**
  * Completes legacy English menu rows whose translation status is trusted by
- * the public compatibility path but whose canonical names were not persisted.
- * All operational dish fields stay sourced from the live public menu.
+ * the public compatibility path but whose translated category labels were not
+ * persisted. Dish names intentionally remain the source/menu names; only the
+ * surrounding editorial content is localized.
  */
 export function applyCanonicalEnglishPresentation(menu: PublicMenu): PublicMenu {
   const menuSlug = menu.slug.toLowerCase();
-  const dishNames =
-    menuSlug === "trouvable"
-      ? TROUVABLE_ENGLISH_DISH_NAMES
-      : menuSlug === "sauge-noire"
-        ? SAUGE_ENGLISH_DISH_NAMES
-        : null;
-  if (!dishNames) return menu;
+  if (menuSlug !== "trouvable" && menuSlug !== "sauge-noire") return menu;
 
   let changed = false;
   const dishes = menu.dishes.map((dish) => {
-    const name = dishNames[dish.slug as keyof typeof dishNames];
     const category = canonicalEnglishCategoryForDish(dish, menuSlug);
-    if (!name && !category) return dish;
+    if (!category) return dish;
 
     const nextDish = {
       ...dish,
-      ...(name && name !== dish.name ? { name } : {}),
       ...(category
         ? {
             category: category.name,
@@ -224,7 +139,6 @@ export function applyCanonicalEnglishPresentation(menu: PublicMenu): PublicMenu 
         : {})
     };
     if (
-      nextDish.name !== dish.name ||
       nextDish.category !== dish.category ||
       nextDish.categoryDescription !== dish.categoryDescription
     ) {

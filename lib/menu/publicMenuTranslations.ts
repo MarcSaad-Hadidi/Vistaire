@@ -304,13 +304,9 @@ export async function applyStoredPublicMenuTranslations(
     const categoryRow = categoryRowsById.get(categoryId);
     return {
       ...dish,
-      name: getTranslatedString({
-        field: "name",
-        source: dish.name,
-        sourceFields,
-        row: dishRow,
-        readinessOptions
-      }),
+      // Dish names stay in the menu's source language. Descriptions and the
+      // other editorial fields below remain localized for the active locale.
+      name: dish.name,
       description: getTranslatedString({
         field: "description",
         source: dish.description,

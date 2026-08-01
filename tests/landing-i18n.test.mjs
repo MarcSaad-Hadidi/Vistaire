@@ -64,7 +64,7 @@ registerHooks({
   }
 });
 
-test("Trouvable demo selects canonical English and Greek dish names", async () => {
+test("Trouvable demo keeps source dish names while translating English copy", async () => {
   const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
   const [french, english, greek] = await Promise.all([
     getPublicMenuBySlug("trouvable", "fr-CA"),
@@ -76,7 +76,7 @@ test("Trouvable demo selects canonical English and Greek dish names", async () =
   assert.ok(english);
   assert.ok(greek);
   assert.equal(english.activeLocale, "en-CA");
-  assert.equal(english.dishes[0].name, "House classic breakfast");
+  assert.equal(english.dishes[0].name, french.dishes[0].name);
   assert.equal(
     english.dishes[0].description,
     "Farm eggs, crisp potatoes, herb salad, and toasted sourdough."
@@ -88,7 +88,7 @@ test("Trouvable demo selects canonical English and Greek dish names", async () =
     "Fresh herbs",
     "Sourdough"
   ]);
-  assert.notEqual(greek.dishes[0].name, french.dishes[0].name);
+  assert.equal(greek.dishes[0].name, french.dishes[0].name);
 });
 
 test("landing comparison copy and projected image labels follow the locale", async () => {
@@ -152,12 +152,12 @@ test("landing comparison copy and projected image labels follow the locale", asy
   );
   assert.equal(
     english.featuredDish.imageAlt,
-    "Dish photo: House classic breakfast"
+    "Dish photo: Dejeuner classique maison"
   );
-  assert.equal(
+  assert.match(
     english.categoryCards.find((category) => category.name === "Desserts")
-      ?.imageAlt,
-    "Category photo for Desserts: Grand cru chocolate souffle"
+      ?.imageAlt ?? "",
+    /^Category photo for Desserts: /
   );
   assert.doesNotMatch(
     JSON.stringify(english),
@@ -173,7 +173,7 @@ test("landing comparison copy and projected image labels follow the locale", asy
   );
 });
 
-test("stored English dish names are applied without mutating the French source menu", async () => {
+test("stored English copy keeps the French source dish name", async () => {
   const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
   const { applyStoredPublicMenuTranslations } = await import(
     "../lib/menu/publicMenuTranslations.ts"
@@ -262,7 +262,7 @@ test("stored English dish names are applied without mutating the French source m
     );
 
     assert.equal(english.activeLocale, "en-CA");
-    assert.equal(english.dishes[0].name, "Stored house breakfast");
+    assert.equal(english.dishes[0].name, sourceMenu.dishes[0].name);
     assert.equal(sourceMenu.dishes[0].name, "Dejeuner classique maison");
     assert.notStrictEqual(english.dishes[0], sourceMenu.dishes[0]);
   } finally {
@@ -351,7 +351,7 @@ test("Sauge browser fixture resolves complete stored English menus for all landi
       );
       assert.notEqual(english.menuName, french.menuName);
       assert.notEqual(english.dishes[0].category, french.dishes[0].category);
-      assert.notEqual(english.dishes[0].name, french.dishes[0].name);
+      assert.equal(english.dishes[0].name, french.dishes[0].name);
       assert.notEqual(
         english.dishes[0].description,
         french.dishes[0].description
@@ -366,12 +366,12 @@ test("Sauge browser fixture resolves complete stored English menus for all landi
     const maison = menuPairs.find(({ slug }) => slug === "maison-elyse").english;
     assert.equal(maison.menuName, "The Menu");
     assert.equal(maison.dishes[0].category, "Starters");
-    assert.equal(maison.dishes[0].name, "Fresh goat cheese ravioli with Monteregie honey");
+    assert.equal(maison.dishes[0].name, menuPairs.find(({ slug }) => slug === "maison-elyse").french.dishes[0].name);
     assert.match(maison.dishes[0].description, /Brown butter/);
 
     const trouvable = menuPairs.find(({ slug }) => slug === "trouvable").english;
     assert.equal(trouvable.dishes[0].category, "Mains");
-    assert.equal(trouvable.dishes[0].name, "Green pesto burrata");
+    assert.equal(trouvable.dishes[0].name, menuPairs.find(({ slug }) => slug === "trouvable").french.dishes[0].name);
     assert.match(trouvable.dishes[0].description, /fresh herbs/);
 
     const sauge = menuPairs.find(({ slug }) => slug === "sauge-noire").english;
@@ -380,7 +380,13 @@ test("Sauge browser fixture resolves complete stored English menus for all landi
     );
     assert.ok(beetroot);
     assert.equal(beetroot.category, "First bites");
-    assert.equal(beetroot.name, "Beetroot under ash");
+    assert.equal(
+      beetroot.name,
+      menuPairs
+        .find(({ slug }) => slug === "sauge-noire")
+        .french.dishes.find((dish) => dish.slug === "betterave-sous-la-cendre")
+        .name
+    );
     assert.match(beetroot.description, /smoked labneh/);
     assert.ok(beetroot.ingredients.every((value) => !/[àâçéèêëîïôùûü]/i.test(value)));
     assert.ok(beetroot.options.every((value) => !/[àâçéèêëîïôùûü]/i.test(value)));
@@ -407,10 +413,10 @@ test("concurrent French and English landing resolution stays isolated per restau
       (candidate) => candidate.id === englishExperience.id
     );
     assert.ok(frenchExperience, `missing French ${englishExperience.id}`);
-    assert.notEqual(
+    assert.equal(
       englishExperience.featuredDish.name,
       frenchExperience.featuredDish.name,
-      `${englishExperience.id} dish name leaked across locales`
+      `${englishExperience.id} dish name must stay in the source language`
     );
     assert.notEqual(
       englishExperience.featuredDish.description,

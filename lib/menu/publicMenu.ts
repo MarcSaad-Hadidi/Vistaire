@@ -421,11 +421,7 @@ function trouvableDemoMenu(
       return {
         id: dish.slug,
         slug: dish.slug,
-        name: isGreek
-          ? dish.nameEl
-          : isEnglish
-            ? dish.nameEn
-            : dish.nameFr,
+        name: dish.nameFr,
         description: isGreek
           ? dish.descriptionEl
           : isEnglish

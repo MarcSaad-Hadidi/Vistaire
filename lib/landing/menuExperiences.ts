@@ -296,10 +296,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
   const maisonDish: LandingFeaturedDish = {
     id: "fd64dc12-8bd2-4669-be63-51cf0d50b839",
     slug: "ravioles-de-chevre-frais-miel-de-monteregie",
-    name:
-      locale === "en"
-        ? "Fresh Goat Cheese Ravioli & Montérégie Honey"
-        : "Ravioles de chèvre frais & miel de Montérégie",
+    name: "Ravioles de chèvre frais & miel de Montérégie",
     description:
       locale === "en"
         ? "Delicate, tender ravioli balanced by the sweetness of honey and the woodland notes of burnt rosemary."
@@ -314,15 +311,14 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     imageSource: "fallback",
     imageAlt:
       locale === "en"
-        ? "Fresh goat cheese ravioli from Maison Élyse"
+        ? "Ravioles de chèvre frais from Maison Élyse"
         : "Ravioles de chèvre frais de Maison Élyse",
     imagePosition: "center"
   };
   const trouvableDish: LandingFeaturedDish = {
     id: "7a312411-975a-4a12-9e74-d435a7c83406",
     slug: "pesto-burrata-verde",
-    name:
-      locale === "en" ? "Green Pesto Burrata" : "Pesto Burrata Verde",
+    name: "Pesto Burrata Verde",
     description:
       locale === "en"
         ? "Basil pesto pasta, creamy burrata, Parmesan, and a drizzle of olive oil."
@@ -342,8 +338,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
   const saugeDish: LandingFeaturedDish = {
     id: "cb7121a7-a8df-4650-8453-df83135defeb",
     slug: "betterave-sous-la-cendre",
-    name:
-      locale === "en" ? "Beetroot Under Ash" : "Betterave sous la cendre",
+    name: "Betterave sous la cendre",
     description:
       locale === "en"
         ? "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
@@ -359,7 +354,7 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
     imageSource: "fallback",
     imageAlt:
       locale === "en"
-        ? "Beetroot under ash from Sauge Noire"
+        ? "Betterave sous la cendre from Sauge Noire"
         : "Betterave sous la cendre de Sauge Noire",
     imagePosition: "center"
   };
