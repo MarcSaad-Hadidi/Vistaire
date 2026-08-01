@@ -1,6 +1,14 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import styles from "./VistaireLanding.module.css";
+
+const OWNER_LOGOS = [
+  "/images/landing/logos/owner-menu-content.webp",
+  "/images/landing/logos/owner-allergens.webp",
+  "/images/landing/logos/owner-languages.webp",
+  "/images/landing/logos/owner-signals.webp"
+] as const;
 
 export function LandingOwnerSection({
   copy,
@@ -31,6 +39,15 @@ export function LandingOwnerSection({
         <ol className={styles.ownerGrid}>
           {copy.items.map((item, index) => (
             <li key={item.title}>
+              <div aria-hidden="true" className={styles.landingLogo}>
+                <Image
+                  alt=""
+                  className={styles.landingLogoImage}
+                  fill
+                  sizes="(max-width: 620px) calc(100vw - 52px), (max-width: 920px) 70vw, (max-width: 1100px) 35vw, 25vw"
+                  src={OWNER_LOGOS[index]}
+                />
+              </div>
               <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
               <h3>{item.title}</h3>
               <p>{item.body}</p>
