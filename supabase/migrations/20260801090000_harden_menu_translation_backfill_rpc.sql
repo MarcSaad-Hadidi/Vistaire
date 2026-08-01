@@ -137,8 +137,11 @@ begin
         elsif jsonb_typeof(v_expected->'translated_at') is distinct from 'null' then
           raise exception using errcode = '22023', message = 'Update expected translated_at must be a timestamp or null.';
         end if;
-        if v_expected->>'source_hash' = '' then
-          raise exception using errcode = '22023', message = 'Update expected source_hash must be non-empty.';
+        -- A legacy row may still carry the schema-default empty hash. It is
+        -- safe as a CAS value when the patch itself has a proven non-empty
+        -- hash (validated above), so allow the planner to repair that row.
+        if jsonb_typeof(v_expected->'source_hash') is distinct from 'string' then
+          raise exception using errcode = '22023', message = 'Update expected source_hash must be a string.';
         end if;
         if jsonb_typeof(v_expected->'field_hashes') is distinct from 'object'
            or jsonb_typeof(v_expected->'content') is distinct from 'object'

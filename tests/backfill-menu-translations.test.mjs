@@ -488,6 +488,27 @@ test("empty source_hash is rejected at the atomic payload boundary for every cha
   assert.throws(() => buildAtomicApplyPayload([invalid, invalid]), /empty source_hash/i);
 });
 
+test("legacy empty source_hash can be repaired through a non-empty update patch", () => {
+  const current = snapshot({ targetSlug: "trouvable" });
+  current.rows = completeStoredRows(current);
+  const dishRow = current.rows.find((row) => row.entityType === "dish");
+  dishRow.source_hash = "";
+
+  const plan = buildPlan(current);
+  const operation = dishOperation(plan);
+  assert.equal(plan.ok, true);
+  assert.equal(operation.action, "update");
+  assert.equal(operation.existing.source_hash, "");
+  assert.equal(operation.patch.source_hash.length, 64);
+
+  const payload = buildAtomicApplyPayload([plan]);
+  const payloadOperation = payload.p_plans[0].operations.find(
+    (candidate) => candidate.entity_type === "dish"
+  );
+  assert.equal(payloadOperation.expected.source_hash, "");
+  assert.equal(payloadOperation.patch.source_hash.length, 64);
+});
+
 test("Trouvable only plans readiness when all nine categories and 36 dishes are mapped", () => {
   const current = snapshot();
   current.menu.name = "Menu principal";
@@ -699,6 +720,8 @@ test("live translation apply is transactional and compare-and-swap guarded", () 
   assert.match(migration, /v_field\s+in\s*\('updated_at',\s*'translated_at'\)/s);
   assert.match(migration, /nullif\(v_current->>v_field,\s*''\)::timestamptz/s);
   assert.match(migration, /nullif\(v_expected->>v_field,\s*''\)::timestamptz/s);
+  assert.match(migration, /jsonb_typeof\(v_expected->'source_hash'\)\s+is distinct from\s+'string'/s);
+  assert.doesNotMatch(migration, /Update expected source_hash must be non-empty/i);
   assert.match(
     migration,
     /select\s+legacy\.result_status\s*,\s*legacy\.applied_rows\s+from\s+public\.owner_apply_menu_translation_backfill_legacy\(p_plans\)\s+as\s+legacy/s
