@@ -319,29 +319,53 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 25px 22px;
+  justify-content: flex-start;
+  padding: 20px 20px 18px;
 }
 
-.cardIndex {
-  position: absolute;
-  top: 20px;
-  left: 22px;
-  color: rgba(232, 207, 155, 0.72);
-  font-family: var(--vistaire-font-display);
-  font-size: 16px;
+.heroMiniLogo {
+  position: relative;
+  width: 100%;
+  height: 84px;
+  margin: 2px 0 8px;
+  flex: 0 0 auto;
+}
+
+.heroMiniLogoImage {
+  object-fit: contain;
+  opacity: 0.96;
+  mix-blend-mode: screen;
+}
+
+.heroMiniCopy {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .heroMiniCard h2 {
-  font-size: clamp(24px, 2.5vw, 34px);
+  font-size: clamp(22px, 2.2vw, 32px);
   line-height: 1;
 }
 
 .heroMiniCard p {
-  margin: 12px 0 0;
+  margin: 9px 0 0;
   color: var(--landing-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
+}
+
+.heroMiniButton {
+  width: 100%;
+  min-height: 40px;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-inline: 14px;
+  border-color: rgba(232, 207, 155, 0.72);
+  font-size: 12px;
+  text-align: left;
 }
 
 .section {
@@ -411,21 +435,8 @@
   position: relative;
   height: 104px;
   margin: -2px -2px 12px;
-  overflow: hidden;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  border-radius: 13px;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(232, 174, 70, 0.2), transparent 68%),
-    rgba(7, 4, 2, 0.48);
-  isolation: isolate;
-}
-
-.landingLogo::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 58%, rgba(7, 4, 2, 0.3));
-  content: "";
-  pointer-events: none;
+  overflow: visible;
+  background: transparent;
 }
 
 .landingLogoImage {
@@ -720,9 +731,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 32px;
-  background:
-    linear-gradient(90deg, rgba(8, 5, 3, 0.84), rgba(8, 5, 3, 0.44)),
-    url("/images/landing/trouvable-experience.jpg") center 48% / cover;
 }
 
 .finalCta > div {
@@ -901,7 +909,11 @@
   }
 
   .heroMiniCard {
-    min-height: 230px;
+    min-height: 340px;
+  }
+
+  .heroMiniLogo {
+    height: 132px;
   }
 
   .section {
@@ -971,9 +983,6 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-end;
-    background:
-      linear-gradient(180deg, rgba(8, 5, 3, 0.38), rgba(8, 5, 3, 0.9)),
-      url("/images/landing/trouvable-experience.jpg") center 48% / cover;
   }
 
   .finalCta h2 {

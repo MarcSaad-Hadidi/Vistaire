@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import type { LandingCopy } from "@/lib/landing/landingCopy";
 import { LandingHeroMedia } from "./LandingHeroMedia";
@@ -8,16 +9,25 @@ import {
 } from "./LandingPublicMenuLink";
 import styles from "./VistaireLanding.module.css";
 
+const HERO_LOGOS = {
+  mobile: "/images/landing/logos/hero-mobile.webp",
+  management: "/images/landing/logos/hero-management.webp"
+} as const;
+
 export function LandingHero({
   copy,
   locale,
   maisonHref,
-  saugeHref
+  saugeHref,
+  restaurateurHref,
+  digitalMenuHref
 }: {
   copy: LandingCopy["hero"];
   locale: Locale;
   maisonHref: LandingPublicMenuHref;
   saugeHref: LandingPublicMenuHref;
+  restaurateurHref: string;
+  digitalMenuHref: string;
 }) {
   return (
     <section
@@ -81,18 +91,54 @@ export function LandingHero({
 
           <div className={styles.heroMiniGrid}>
             <article className={`${styles.glassCard} ${styles.heroMiniCard}`}>
-              <span aria-hidden="true" className={styles.cardIndex}>
-                01
-              </span>
-              <h2>{copy.mobileTitle}</h2>
-              <p>{copy.mobileBody}</p>
+              <div aria-hidden="true" className={styles.heroMiniLogo}>
+                <Image
+                  alt=""
+                  className={styles.heroMiniLogoImage}
+                  fill
+                  sizes="(max-width: 620px) 70vw, 20vw"
+                  src={HERO_LOGOS.mobile}
+                />
+              </div>
+              <div className={styles.heroMiniCopy}>
+                <h2>{copy.mobileTitle}</h2>
+                <p>{copy.mobileBody}</p>
+                <Link
+                  className={`${styles.secondaryButton} ${styles.heroMiniButton}`}
+                  href={digitalMenuHref}
+                  prefetch={false}
+                >
+                  {copy.mobileCta}
+                  <span aria-hidden="true" className={styles.linkArrow}>
+                    ↗
+                  </span>
+                </Link>
+              </div>
             </article>
             <article className={`${styles.glassCard} ${styles.heroMiniCard}`}>
-              <span aria-hidden="true" className={styles.cardIndex}>
-                02
-              </span>
-              <h2>{copy.simpleTitle}</h2>
-              <p>{copy.simpleBody}</p>
+              <div aria-hidden="true" className={styles.heroMiniLogo}>
+                <Image
+                  alt=""
+                  className={styles.heroMiniLogoImage}
+                  fill
+                  sizes="(max-width: 620px) 70vw, 20vw"
+                  src={HERO_LOGOS.management}
+                />
+              </div>
+              <div className={styles.heroMiniCopy}>
+                <h2>{copy.simpleTitle}</h2>
+                <p>{copy.simpleBody}</p>
+                <Link
+                  className={`${styles.secondaryButton} ${styles.heroMiniButton}`}
+                  href={restaurateurHref}
+                  prefetch={false}
+                >
+                  {copy.simpleCta}
+                  <span aria-hidden="true" className={styles.linkArrow}>
+                    ↗
+                  </span>
+                </Link>
+              </div>
             </article>
           </div>
         </div>

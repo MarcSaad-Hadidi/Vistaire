@@ -17,7 +17,9 @@ export const LANDING_COPY = {
         "Une navigation fluide, pensée pour le service à table et l’identité du lieu.",
       simpleTitle: "Simple pour vous, mémorable pour eux.",
       simpleBody:
-        "Une carte facile à faire évoluer et agréable à découvrir, sans application."
+        "Une carte facile à faire évoluer et agréable à découvrir, sans application.",
+      mobileCta: "Découvrir le menu digital",
+      simpleCta: "Voir l’aperçu restaurateur"
     },
     value: {
       eyebrow: "Valeur",
@@ -141,7 +143,9 @@ export const LANDING_COPY = {
         "Fluid navigation designed for table service and the identity of the venue.",
       simpleTitle: "Simple for you, memorable for them.",
       simpleBody:
-        "A menu that is easy to evolve and pleasant to explore, with no app required."
+        "A menu that is easy to evolve and pleasant to explore, with no app required.",
+      mobileCta: "Explore digital menus",
+      simpleCta: "View the restaurant preview"
     },
     value: {
       eyebrow: "Value",
