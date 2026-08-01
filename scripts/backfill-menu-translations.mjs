@@ -559,7 +559,7 @@ function canonicalCoverage(entities, targetSlug, locale = DEFAULT_LOCALE) {
 function canonicalMaisonFields(entity, snapshot) {
   if (entity.type === "menu") {
     if (normalizeKey(snapshot.menu.name) !== normalizeKey(PUBLIC_MENU_NAME.fr)) {
-      return {};
+      fail(`${snapshot.targetSlug} source menu name diverges from the canonical label for ${entity.slug}`);
     }
     return { menuName: PUBLIC_MENU_NAME.en };
   }
@@ -568,7 +568,7 @@ function canonicalMaisonFields(entity, snapshot) {
     const english = getCategories("en").find((item) => item.slug === entity.slug);
     if (!source || !english) fail(`Maison Élyse category slug is not in the canonical dataset: ${entity.slug}`);
     if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
-      return {};
+      fail(`Maison Elyse category identity diverges from the canonical dataset: ${entity.slug}`);
     }
     const result = { name: english.name };
     if (entity.fields.description) result.description = english.description;
@@ -579,13 +579,58 @@ function canonicalMaisonFields(entity, snapshot) {
   const english = MAISON_ENGLISH_DISH_CONTENT[entity.slug];
   if (!source || !english) fail(`Maison Élyse dish slug is not in the canonical dataset: ${entity.slug}`);
   if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
-    return {};
+    fail(`Maison Elyse dish identity diverges from the canonical dataset: ${entity.slug}`);
   }
   const result = {};
   for (const field of Object.keys(entity.fields)) {
     if (field in english) result[field] = english[field];
   }
   return result;
+}
+
+function maisonCanonicalErrors(snapshot, entities) {
+  if (snapshot.targetSlug !== MAISON_ELYSE_SLUG) return [];
+  const errors = [];
+  if (normalizeKey(snapshot.menu?.name) !== normalizeKey(PUBLIC_MENU_NAME.fr)) {
+    errors.push("Maison Elyse source menu name diverges from the canonical dataset");
+  }
+  for (const entity of entities) {
+    if (entity.type === "menu") continue;
+    if (entity.type === "category") {
+      const source = getCategories("fr").find((item) => item.slug === entity.slug);
+      const english = getCategories("en").find((item) => item.slug === entity.slug);
+      if (!source || !english) {
+        errors.push(`Maison Elyse canonical category is missing: ${entity.slug}`);
+        continue;
+      }
+      if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
+        errors.push(`Maison Elyse category identity diverges from the canonical dataset: ${entity.slug}`);
+      }
+      if (!isUsableValue(english.name)) {
+        errors.push(`Maison Elyse canonical category content is missing: ${entity.slug}.name`);
+      }
+      if (entity.fields.description && !isUsableValue(english.description)) {
+        errors.push(`Maison Elyse canonical category content is missing: ${entity.slug}.description`);
+      }
+      continue;
+    }
+    const canonicalSlug = MAISON_CANONICAL_DISH_SLUGS[entity.slug];
+    const source = getDishBySlug(canonicalSlug, "fr");
+    const english = MAISON_ENGLISH_DISH_CONTENT[entity.slug];
+    if (!canonicalSlug || !source || !english) {
+      errors.push(`Maison Elyse canonical dish is missing: ${entity.slug}`);
+      continue;
+    }
+    if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
+      errors.push(`Maison Elyse dish identity diverges from the canonical dataset: ${entity.slug}`);
+    }
+    for (const field of Object.keys(entity.fields)) {
+      if (!isUsableValue(english[field])) {
+        errors.push(`Maison Elyse canonical dish content is missing: ${entity.slug}.${field}`);
+      }
+    }
+  }
+  return errors;
 }
 
 function canonicalContentFor(entity, snapshot, existingRow) {
@@ -771,6 +816,7 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
   const errors = validateSnapshot(snapshot);
   const entities = buildEntities(snapshot);
   const menuSettings = buildMenuSettingsPlan(snapshot);
+  errors.push(...maisonCanonicalErrors(snapshot, entities));
   const coverage = canonicalCoverage(entities, snapshot.targetSlug, snapshot.locale);
   if (!coverage.complete) {
     errors.push(
@@ -781,7 +827,7 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
   const rowsByKey = new Map((snapshot.rows ?? []).map((row) => [entityKey(row.entityType, row.entityId), row]));
   const operations = [];
 
-  for (const entity of coverage.complete ? entities : []) {
+  for (const entity of errors.length === 0 && coverage.complete ? entities : []) {
     const existing = rowFromMap(rowsByKey, entity);
     const { content, overrides, requiredFields, generatedFields } = canonicalContentFor(entity, snapshot, existing);
     const freshness = buildFreshnessState(
@@ -844,6 +890,17 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
   const incomplete = operations.filter((operation) => operation.patch.translation_status === "missing");
   if (incomplete.length > 0) {
     errors.push(`translation content is incomplete for ${incomplete.length} Maison Élyse entities; no apply is permitted`);
+  }
+  const emptySourceHash = operations.filter((operation) =>
+    operation.action !== "noop" &&
+    (typeof operation.patch.source_hash !== "string" || operation.patch.source_hash.length === 0)
+  );
+  if (emptySourceHash.length > 0) {
+    errors.push(
+      `refusing translation writes with an empty source_hash: ${emptySourceHash
+        .map((operation) => `${operation.entityType}:${operation.slug}`)
+        .join(", ")}`
+    );
   }
   return {
     ok: errors.length === 0,
@@ -1016,7 +1073,16 @@ function atomicOperationPayload(operation) {
 }
 
 export function buildAtomicApplyPayload(plans) {
-  for (const plan of plans) assertSupportedBackfillLocale(plan.target.locale);
+  for (const plan of plans) {
+    assertSupportedBackfillLocale(plan.target.locale);
+    const invalid = plan.operations.filter((operation) =>
+      operation.action !== "noop" &&
+      (typeof operation.patch?.source_hash !== "string" || operation.patch.source_hash.length === 0)
+    );
+    if (invalid.length > 0) {
+      fail(`refusing to build apply payload with an empty source_hash: ${invalid.map((operation) => `${operation.entityType}:${operation.entityId}`).join(", ")}`);
+    }
+  }
   return {
     p_plans: plans.map((plan) => ({
       restaurant_id: plan.target.restaurantId,
@@ -1115,7 +1181,12 @@ export async function run({ args, env = process.env, log = console.log, clientFa
         planningErrors.push(`${slug}: ${message}`);
       }
     }
-    if (planningErrors.length) fail(planningErrors.join(" | "));
+    if (planningErrors.length) {
+      report.note = args.apply
+        ? "apply refused; no rows were written"
+        : "dry-run refused; no rows were written";
+      fail(planningErrors.join(" | "));
+    }
     if (args.apply) report.applied.push(...await applyPlansAtomically(client, plans));
     report.ok = true;
     report.note = args.apply ? "apply completed" : "dry-run completed; no rows were written";

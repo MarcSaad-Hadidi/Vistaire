@@ -2,6 +2,8 @@
 
 This runbook covers the controlled data-only backfill for Maison Élyse, Trouvable, and Sauge Noire. The tool is `scripts/backfill-menu-translations.mjs`. It reads the relational menu by the exact restaurant slug, uses the primary non-archived menu relation, and writes only the three translation tables plus the guarded Maison Élyse `menus.settings_json` locale contract when needed.
 
+Integration order: PR #175 (`fix/menu-translation-backfill-safety`) is the data-safety prerequisite and must land before PR #174 (`fix/pr173-runtime-production-safety`). After #175 lands, update #174 from the latest `main` and rerun the combined backfill/readiness checks; this branch intentionally does not copy the runtime implementation from #174.
+
 ## Verified environment inventory for this checkout
 
 No remote or local Supabase execution is claimed by this runbook. Preview, production, and local project bindings must be independently supplied and explicitly allowlisted before a read; a dry-run report is not evidence that an apply target is safe.
