@@ -50,6 +50,8 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   assert.doesNotMatch(data, /\/demo/);
   assert.match(experienceSection, /next\/image/);
   assert.match(experienceSection, /LandingPublicMenuLink/);
+  assert.match(experienceSection, /showArrow=\{false\}/);
+  assert.match(experienceSection, /styles\.linkArrow/);
   assert.match(ownerSection, /restaurateurDashboard/);
   assert.match(copy, /Trois expériences\. Trois identités\./);
   assert.match(copy, /Three experiences\. Three identities\./);
@@ -116,7 +118,8 @@ test("landing public menu links use the shared secure new-tab contract", async (
   assert.doesNotMatch(publicMenuLink, /S(?:Ã|â).*nouvel onglet/);
 
   assert.equal((hero.match(/<LandingPublicMenuLink/g) ?? []).length, 2);
-  assert.equal((hero.match(/href=\{maisonHref\}/g) ?? []).length, 2);
+  assert.equal((hero.match(/href=\{maisonHref\}/g) ?? []).length, 1);
+  assert.equal((hero.match(/href=\{saugeHref\}/g) ?? []).length, 1);
   assert.equal(
     (experienceSection.match(/<LandingPublicMenuLink/g) ?? []).length,
     1

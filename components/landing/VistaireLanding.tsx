@@ -26,7 +26,12 @@ export async function VistaireLanding({
   const copy = getLandingCopy(locale);
   const experiences = await getLandingExperiences(locale);
   const routes = getVistaireChromeRoutes(routeMode, locale);
-  const maisonExperience = experiences[0];
+  const maisonExperience =
+    experiences.find((experience) => experience.id === "maison-elyse") ??
+    experiences[0];
+  const saugeExperience =
+    experiences.find((experience) => experience.id === "sauge-noire") ??
+    experiences[0];
 
   return (
     <main className={styles.page}>
@@ -43,6 +48,7 @@ export async function VistaireLanding({
         copy={copy.hero}
         locale={locale}
         maisonHref={maisonExperience.publicMenuHref}
+        saugeHref={saugeExperience.publicMenuHref}
       />
       <LandingValueSection copy={copy.value} />
       <LandingExperienceSection

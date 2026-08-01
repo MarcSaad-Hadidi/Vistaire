@@ -34,6 +34,9 @@ export function LandingOwnerSection({
             prefetch={false}
           >
             {copy.cta}
+            <span aria-hidden="true" className={styles.linkArrow}>
+              ↗
+            </span>
           </Link>
         </header>
         <ol className={styles.ownerGrid}>

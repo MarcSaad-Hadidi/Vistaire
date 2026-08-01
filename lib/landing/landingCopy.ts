@@ -7,7 +7,7 @@ export const LANDING_COPY = {
       title: "Donnez envie avant la première bouchée.",
       body:
         "Vistaire transforme votre QR code en une carte mobile claire, visuelle et fidèle à l’identité de votre restaurant.",
-      primaryCta: "Explorer Maison Élyse",
+      primaryCta: "Explorer Sauge Noire",
       secondaryCta: "Découvrir les expériences",
       visualEyebrow: "Des visuels à la hauteur",
       visualTitle: "Valorisez chaque plat avec élégance.",
@@ -131,7 +131,7 @@ export const LANDING_COPY = {
       title: "Make every dish tempting before the first bite.",
       body:
         "Vistaire turns your QR code into a clear, visual mobile menu that stays true to your restaurant.",
-      primaryCta: "Explore Maison Élyse",
+      primaryCta: "Explore Sauge Noire",
       secondaryCta: "Discover the experiences",
       visualEyebrow: "Visuals worthy of the plate",
       visualTitle: "Present every dish with elegance.",

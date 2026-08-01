@@ -11,13 +11,15 @@ export function LandingPublicMenuLink({
   className,
   href,
   locale,
-  newTabLabelClassName
+  newTabLabelClassName,
+  showArrow = true
 }: {
   children: ReactNode;
   className?: string;
   href: LandingPublicMenuHref;
   locale: Locale;
   newTabLabelClassName?: string;
+  showArrow?: boolean;
 }) {
   return (
     <Link
@@ -28,6 +30,11 @@ export function LandingPublicMenuLink({
       target="_blank"
     >
       {children}
+      {showArrow ? (
+        <span aria-hidden="true" className={styles.linkArrow}>
+          ↗
+        </span>
+      ) : null}
       <span className={newTabLabelClassName ?? styles.srOnly}>
         {getLandingCopy(locale).experiences.newTabLabel}
       </span>

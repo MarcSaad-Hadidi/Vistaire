@@ -21,6 +21,9 @@ export function LandingFinalCta({
         </div>
         <Link className={styles.primaryButton} href={appointmentHref} prefetch={false}>
           {copy.cta}
+          <span aria-hidden="true" className={styles.linkArrow}>
+            ↗
+          </span>
         </Link>
       </div>
     </section>

@@ -11,11 +11,13 @@ import styles from "./VistaireLanding.module.css";
 export function LandingHero({
   copy,
   locale,
-  maisonHref
+  maisonHref,
+  saugeHref
 }: {
   copy: LandingCopy["hero"];
   locale: Locale;
   maisonHref: LandingPublicMenuHref;
+  saugeHref: LandingPublicMenuHref;
 }) {
   return (
     <section
@@ -34,7 +36,7 @@ export function LandingHero({
             <div className={styles.heroActions}>
               <LandingPublicMenuLink
                 className={styles.primaryButton}
-                href={maisonHref}
+                href={saugeHref}
                 locale={locale}
                 newTabLabelClassName={styles.srOnly}
               >

@@ -35,6 +35,7 @@ export function LandingExperienceSection({
                 href={experience.publicMenuHref}
                 locale={locale}
                 newTabLabelClassName={styles.srOnly}
+                showArrow={false}
               >
                 <Image
                   alt={experience.imageAlt}
@@ -49,7 +50,12 @@ export function LandingExperienceSection({
                 <div className={styles.experienceCopy}>
                   <span className={styles.experienceLabel}>{experience.label}</span>
                   <h3 className={styles.experienceName}>{experience.name}</h3>
-                  <span className={styles.cardLink}>{copy.cta}</span>
+                  <span className={styles.cardLink}>
+                    {copy.cta}
+                    <span aria-hidden="true" className={styles.linkArrow}>
+                      ↗
+                    </span>
+                  </span>
                 </div>
               </LandingPublicMenuLink>
             </article>

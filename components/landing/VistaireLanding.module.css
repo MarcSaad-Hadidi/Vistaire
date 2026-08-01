@@ -214,6 +214,18 @@
     background-color 180ms ease;
 }
 
+.linkArrow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.72em;
+  color: rgba(255, 248, 235, 0.82);
+  font-size: 1.05em;
+  line-height: 1;
+  transform: translateY(-0.04em);
+}
+
 .primaryButton {
   border: 1px solid rgba(232, 207, 155, 0.72);
   background: rgba(232, 207, 155, 0.16);
@@ -522,12 +534,26 @@
 }
 
 .cardLink {
+  position: relative;
   width: 100%;
   min-height: 46px;
   margin-top: 18px;
   border: 1px solid rgba(255, 248, 235, 0.34);
   background: rgba(6, 4, 3, 0.18);
   color: rgba(255, 248, 235, 0.92);
+  padding-right: 58px;
+}
+
+.cardLink .linkArrow {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: auto;
+  height: auto;
+  margin: 0;
+  color: rgba(255, 248, 235, 0.92);
+  font-size: 16px;
+  transform: translateY(-50%);
 }
 
 .comparisonPanel {
@@ -560,10 +586,23 @@
 }
 
 .dishCardLink {
+  position: relative;
   display: block;
   height: 100%;
   color: inherit;
   text-decoration: none;
+}
+
+.dishCardLink > .linkArrow {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 4;
+  width: auto;
+  height: auto;
+  margin: 0;
+  color: rgba(255, 248, 235, 0.92);
+  font-size: 16px;
 }
 
 .dishCardLink:focus-visible {

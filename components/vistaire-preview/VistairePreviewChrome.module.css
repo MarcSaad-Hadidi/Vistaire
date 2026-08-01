@@ -181,6 +181,15 @@
   display: inline;
 }
 
+.navCtaArrow {
+  display: inline-flex;
+  margin-left: 0.65em;
+  color: rgba(255, 248, 235, 0.8);
+  font-size: 1.05em;
+  line-height: 1;
+  transform: translateY(-0.04em);
+}
+
 .languageSwitcher {
   position: relative;
   z-index: 1;
