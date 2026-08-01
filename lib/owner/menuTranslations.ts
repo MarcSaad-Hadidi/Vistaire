@@ -117,7 +117,8 @@ function addField(
 function dishFields(row: AnyRow): MenuTranslationFields {
   const metadata = getObject(row, ["metadata", "meta"]);
   const fields: MenuTranslationFields = {};
-  addField(fields, "name", getString(row, ["name", "dish_name", "title"]));
+  // Dish names are source identity. They remain French in the public menu and
+  // must never participate in translation hashes, freshness, or readiness.
   addField(fields, "description", getString(row, ["short_description", "shortDescription", "description"]));
   addField(
     fields,

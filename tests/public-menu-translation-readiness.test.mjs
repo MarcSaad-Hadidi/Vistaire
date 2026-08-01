@@ -453,6 +453,73 @@ test("present descriptions and category descriptions must be translated", () => 
   assert.equal(missingCategoryDescription?.field, "description");
 });
 
+test("manual overrides are inspected before source-language rejection but remain fail-closed", () => {
+  const identicalOverride = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...completeRows("de-DE", completeDishContent({ description: dish.description }))
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(identicalOverride?.status, "stale");
+
+  const identicalOverrideRows = completeRows(
+    "de-DE",
+    completeDishContent({ description: dish.description })
+  );
+  identicalOverrideRows.dishRows[0].manual_overrides = { description: true };
+  assert.equal(
+    publicMenuTranslationStatusesForRows(menu, {
+      menuRows: [],
+      ...identicalOverrideRows
+    }).find((status) => status.locale === "de-DE")?.status,
+    "up_to_date"
+  );
+
+  const emptyOverrideRows = completeRows("de-DE", completeDishContent({ description: "" }));
+  emptyOverrideRows.dishRows[0].manual_overrides = { description: true };
+  const emptyOverride = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...emptyOverrideRows
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(emptyOverride?.status, "stale");
+  assert.equal(emptyOverride?.field, "description");
+
+  const invalidOverrideRows = completeRows("de-DE");
+  invalidOverrideRows.dishRows[0].manual_overrides = { description: "yes" };
+  const invalidOverride = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...invalidOverrideRows
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(invalidOverride?.status, "stale");
+  assert.equal(invalidOverride?.field, "description");
+
+  const differentOverrideRows = completeRows(
+    "de-DE",
+    completeDishContent({ description: "Description conservée volontairement." })
+  );
+  differentOverrideRows.dishRows[0].manual_overrides = { description: true };
+  assert.equal(
+    publicMenuTranslationStatusesForRows(menu, {
+      menuRows: [],
+      ...differentOverrideRows
+    }).find((status) => status.locale === "de-DE")?.status,
+    "up_to_date"
+  );
+
+  const mixedRows = completeRows(
+    "de-DE",
+    completeDishContent({
+      description: dish.description,
+      ingredients: ["Only one translated ingredient"]
+    })
+  );
+  mixedRows.dishRows[0].manual_overrides = { description: true };
+  const mixed = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...mixedRows
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(mixed?.status, "stale");
+  assert.equal(mixed?.field, "ingredients");
+});
+
 test("rows with missing or stale hashes are never promoted", () => {
   const completeLegacyDish = rowFor(
     "de-DE",

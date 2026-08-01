@@ -97,14 +97,27 @@ function storedTranslationFieldFailure(
   }
 
   const content = objectInput(row.content);
+  const manualOverrides = objectInput(row.manual_overrides);
+  const overrideValue = manualOverrides[field];
+  if (
+    overrideValue !== undefined &&
+    overrideValue !== true &&
+    overrideValue !== false
+  ) {
+    return "invalid manual override";
+  }
   const contentReason = missingTranslatedFieldReason(content, field, sourceValue);
-  if (contentReason) return contentReason;
+  // A manual override is authoritative only when it still contains usable
+  // content. This lets an owner intentionally keep French copy, while empty
+  // overrides continue to fail closed.
+  if (contentReason && !(manualOverrides[field] === true && contentReason === "source language content")) {
+    return contentReason;
+  }
 
   if (stringInput(row.source_hash) !== sourceHashFor(fields)) {
     return "source hash mismatch";
   }
 
-  const manualOverrides = objectInput(row.manual_overrides);
   if (manualOverrides[field] === true) return "";
 
   const fieldHashes = objectInput(row.field_hashes);

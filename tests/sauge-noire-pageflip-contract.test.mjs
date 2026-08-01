@@ -26,6 +26,10 @@ const transitionCoordinatorPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireTransitionCoordinator.tsx",
   import.meta.url
 );
+const mediaReadinessPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireMediaReadiness.ts",
+  import.meta.url
+);
 const readingSurfacePath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireReadingSurface.tsx",
   import.meta.url
@@ -189,6 +193,7 @@ test("route transitions live in the shared layout until the destination book is 
 
 test("awaiting destination uses readiness signals and has a bounded watchdog", async () => {
   const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+  const mediaReadiness = await readFile(mediaReadinessPath, "utf8");
   const routeTransition = await readFile(routeTransitionPath, "utf8");
 
   assert.match(coordinator, /const AWAITING_DESTINATION_TIMEOUT_MS = 6_000/);
@@ -210,6 +215,11 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   assert.match(coordinator, /new MutationObserver/);
   assert.match(coordinator, /new ResizeObserver/);
   assert.match(coordinator, /destinationRendererIsReady\(\)/);
+  assert.match(mediaReadiness, /mediaIsRelevantForReadiness/);
+  assert.match(mediaReadiness, /loading.*lazy/);
+  assert.match(coordinator, /readinessMediaForSurface\(activePage\)/);
+  assert.match(coordinator, /mediaCleanup\(\)/);
+  assert.match(coordinator, /removeEventListener\("load", handleMediaSignal\)/);
   assert.match(
     coordinator,
     /awaitingDestinationWatchdogRef\.current = window\.setTimeout/
@@ -376,6 +386,22 @@ test("a short vertical gesture during a flip survives the reading-page commit", 
     experiment,
     /if \(state === "read"\) animationSourceScrollRef\.current = null/
   );
+});
+
+test("scroll handoff ignores below-fold lazy media and cleans every readiness signal", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+  const mediaReadiness = await readFile(mediaReadinessPath, "utf8");
+
+  assert.match(mediaReadiness, /element\.getAttribute\("loading"\) !== "lazy"/);
+  assert.match(mediaReadiness, /mediaIsPrepared\(element\)/);
+  assert.match(mediaReadiness, /rect\.bottom > 0/);
+  assert.match(experiment, /readinessMediaForSurface\(targetSurface\)/);
+  assert.match(experiment, /const mediaIsPending = \(\) =>/);
+  assert.match(experiment, /scrollHandoffMediaCleanupRef\.current\?\.\(\)/);
+  assert.match(experiment, /removeEventListener\("loadedmetadata", handleMediaSignal\)/);
+  assert.match(experiment, /scrollHandoffResizeObserverRef\.current\?\.disconnect\(\)/);
+  assert.match(experiment, /scrollHandoffMutationObserverRef\.current\?\.disconnect\(\)/);
+  assert.match(experiment, /readingSurface\.scrollTop = preparedScrollTop/);
 });
 
 test("scroll handoff waits for real layout/media signals and stops after fixed-surface stabilization", async () => {

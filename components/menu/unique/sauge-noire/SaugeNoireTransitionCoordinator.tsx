@@ -4,6 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
+import {
+  mediaIsPrepared,
+  readinessMediaForSurface
+} from "./SaugeNoireMediaReadiness";
 
 export type SaugeNoireRouteTransition = {
   id: string;
@@ -326,10 +330,10 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     ) {
       return false;
     }
-    const image = activePage.querySelector<HTMLImageElement>("img");
-    if (image) {
-      const rect = image.getBoundingClientRect();
-      if (!image.complete || rect.width <= 0 || rect.height <= 0) return false;
+    const media = readinessMediaForSurface(activePage);
+    for (const element of media) {
+      const rect = element.getBoundingClientRect();
+      if (!mediaIsPrepared(element) || rect.width <= 0 || rect.height <= 0) return false;
     }
     return true;
   }, []);
@@ -386,7 +390,10 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       )
         ? routeRendererRef.current
         : null;
-      const media = Array.from(renderer?.querySelectorAll("img, video") ?? []);
+      const activePage = renderer?.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
+      );
+      const media = activePage ? readinessMediaForSurface(activePage) : [];
       const handleMediaSignal = () => checkDestinationReadiness();
       for (const element of media) {
         element.addEventListener("load", handleMediaSignal);

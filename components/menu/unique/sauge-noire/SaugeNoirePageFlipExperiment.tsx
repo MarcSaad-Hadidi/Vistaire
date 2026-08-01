@@ -25,6 +25,10 @@ import {
   SaugeNoireReadingSurface,
   type SaugeNoireReadingKind
 } from "./SaugeNoireReadingSurface";
+import {
+  mediaIsPrepared,
+  readinessMediaForSurface
+} from "./SaugeNoireMediaReadiness";
 
 type PageFlipApi = {
   getCurrentPageIndex: () => number;
@@ -639,7 +643,7 @@ export function SaugeNoirePageFlipExperiment({
 
     const bindMediaSignals = () => {
       scrollHandoffMediaCleanupRef.current?.();
-      const media = Array.from(targetSurface.querySelectorAll("img, video"));
+      const media = readinessMediaForSurface(targetSurface);
       const handleMediaSignal = () => scheduleCheck();
       for (const element of media) {
         element.addEventListener("load", handleMediaSignal);
@@ -658,8 +662,8 @@ export function SaugeNoirePageFlipExperiment({
     };
 
     const mediaIsPending = () =>
-      Array.from(targetSurface.querySelectorAll("img, video")).some((element) => {
-        if (element instanceof HTMLImageElement) return !element.complete;
+      readinessMediaForSurface(targetSurface).some((element) => {
+        if (element instanceof HTMLImageElement) return !mediaIsPrepared(element);
         if (element instanceof HTMLVideoElement) return element.readyState < 2;
         return false;
       }) || document.fonts?.status === "loading";

@@ -115,7 +115,6 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
     type: "dish",
     id: "dish-1",
     fields: {
-      name: "Tomato soup",
       description: "Warm tomato and basil.",
       ingredients: ["tomato", "basil"]
     }
@@ -134,7 +133,7 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
 
   assert.deepEqual(resolveEntityTranslationStatus(entity), {
     status: "missing",
-    estimatedCharacters: 44
+    estimatedCharacters: 33
   });
   assert.deepEqual(resolveEntityTranslationStatus(entity, stored), {
     status: "up_to_date",
@@ -143,20 +142,59 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
 
   const changedEntity = {
     ...entity,
-    fields: { ...entity.fields, name: "Tomato soup of the day" }
+    fields: { ...entity.fields, description: "Warm tomato, basil, and cream." }
   };
   assert.deepEqual(resolveEntityTranslationStatus(changedEntity, stored), {
     status: "stale",
-    estimatedCharacters: 22
+    estimatedCharacters: 30
   });
 
   assert.equal(
-    estimateChangedCharacters(changedEntity, {
+    estimateChangedCharacters(entity, {
       ...stored,
-      manual_overrides: { name: true }
+      manual_overrides: { description: true }
     }),
     0
   );
+});
+
+test("dish names stay source identity across generation, storage, and public readiness", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const publicReadiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
+  const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const sourceFields = {
+    description: "Description source",
+    ingredients: ["Un ingrédient"]
+  };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(sourceFields),
+    field_hashes: fieldHashesFor(sourceFields),
+    content: {
+      description: "Translated description",
+      ingredients: ["One ingredient"],
+      name: "Nom français"
+    }
+  };
+
+  const ownerDishFields = ownerTranslations.match(/function dishFields[\s\S]*?return fields;\s*}\s*function categoryFields/)?.[0] ?? "";
+  const publicDishFields = publicReadiness.match(/function publicMenuDishTranslationFields[\s\S]*?}\s*export function publicMenuTranslationMenuFields/)?.[0] ?? "";
+  assert.ok(ownerDishFields);
+  assert.ok(publicDishFields);
+  assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*["']name["']/);
+  assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
+  assert.match(publicTranslations, /name:\s*dish\.name/);
+  assert.deepEqual(resolveEntityTranslationStatus({ type: "dish", id: "dish-1", fields: sourceFields }, stored), {
+    status: "up_to_date",
+    estimatedCharacters: 0
+  });
+  assert.deepEqual(resolveEntityTranslationStatus(
+    { type: "dish", id: "dish-1", fields: sourceFields },
+    { ...stored, content: { ...stored.content, name: "Nom français modifié" } }
+  ), {
+    status: "up_to_date",
+    estimatedCharacters: 0
+  });
 });
 
 test("owner translation settings use the public menu settings fallback resolver", async () => {
@@ -262,13 +300,10 @@ test("menu translation source fields stay shared between owner generation and pu
   assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
   assert.ok(ownerDishFields, "owner dishFields source must be found");
   assert.ok(publicDishFields, "public dishFields source must be found");
-  assert.match(ownerDishFields, /addField\(fields,\s*"name"/);
-  assert.match(publicDishFields, /name:\s*dish\.name/);
+  assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*"name"/);
+  assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /field:\s*"restaurantName"/);
-  assert.match(
-    publicTranslations,
-    /name:\s*getTranslatedString\(\{[\s\S]{0,180}source:\s*dish\.name/
-  );
+  assert.match(publicTranslations, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /name:\s*translatedName/);
   assert.match(publicCore, /menuName\?: string/);
   assert.match(publicCore, /menuName:\s*getString\(args\.menuRow/);
