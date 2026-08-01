@@ -103,6 +103,43 @@ function mergeStringLists(...values: string[][]): string[] {
   return result;
 }
 
+function booleanInput(row: AnyRow, keys: string[]): boolean {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true" || normalized === "available") return true;
+      if (normalized === "false" || normalized === "unavailable") return false;
+    }
+  }
+  return false;
+}
+
+function firstStringList(row: AnyRow, keys: string[]): string[] {
+  for (const key of keys) {
+    const values = stringListInput(row[key]);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
+function sourceDishTags(row: AnyRow, metadata: AnyRow): string[] {
+  const metadataTags = firstStringList(metadata, ["tags", "labels"]);
+  const rowTags = firstStringList(row, ["tags", "labels"]);
+  const tags = mergeStringLists(
+    metadataTags.length > 0 ? metadataTags : rowTags,
+    stringListInput(metadata.badges)
+  );
+  const isSignature = booleanInput(row, ["is_signature", "isSignature"]);
+  const isRecommended = booleanInput(row, ["is_recommended", "isRecommended"]);
+  return tags.filter((tag) => {
+    const normalized = tag.toLowerCase();
+    return !(isSignature && normalized === "signature") &&
+      !(isRecommended && normalized === "recommande");
+  });
+}
+
 function addField(
   fields: MenuTranslationFields,
   field: string,
@@ -157,11 +194,7 @@ function dishFields(row: AnyRow): MenuTranslationFields {
   addField(
     fields,
     "tags",
-    mergeStringLists(
-      stringListInput(metadata.tags),
-      stringListInput(metadata.labels),
-      stringListInput(metadata.badges)
-    )
+    sourceDishTags(row, metadata)
   );
   return fields;
 }

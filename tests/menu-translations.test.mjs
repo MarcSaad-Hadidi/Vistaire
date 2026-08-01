@@ -182,6 +182,8 @@ test("dish names stay source identity across generation, storage, and public rea
   assert.ok(ownerDishFields);
   assert.ok(publicDishFields);
   assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*["']name["']/);
+  assert.match(ownerDishFields, /sourceDishTags\(row, metadata\)/);
+  assert.match(ownerTranslations, /is_signature|isSignature/);
   assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
   assert.match(publicTranslations, /name:\s*dish\.name/);
   assert.deepEqual(resolveEntityTranslationStatus({ type: "dish", id: "dish-1", fields: sourceFields }, stored), {
@@ -195,6 +197,43 @@ test("dish names stay source identity across generation, storage, and public rea
     status: "up_to_date",
     estimatedCharacters: 0
   });
+});
+
+test("legacy dish hashes remain fresh when only the removed name field changed", () => {
+  const fields = {
+    description: "Description source",
+    ingredients: ["Un ingrédient"],
+    tags: ["Maison"]
+  };
+  const legacyFields = { name: "Ancien nom", ...fields };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(legacyFields),
+    content: {
+      description: "Translated description",
+      ingredients: ["One ingredient"],
+      tags: ["House"]
+    }
+  };
+  assert.deepEqual(
+    resolveEntityTranslationStatus(
+      { type: "dish", id: "dish-legacy", fields },
+      stored
+    ),
+    { status: "up_to_date", estimatedCharacters: 0 }
+  );
+  assert.equal(
+    resolveEntityTranslationStatus(
+      {
+        type: "dish",
+        id: "dish-legacy",
+        fields: { ...fields, description: "Description source updated" }
+      },
+      stored
+    ).status,
+    "stale"
+  );
 });
 
 test("owner translation settings use the public menu settings fallback resolver", async () => {

@@ -29,6 +29,11 @@ export type StoredMenuTranslation = {
   error_message?: string | null;
 };
 
+type TranslationHashRow = {
+  source_hash?: unknown;
+  field_hashes?: unknown;
+};
+
 export type MenuTranslationStatusSummary = {
   locale: string;
   status: MenuTranslationStatus;
@@ -65,6 +70,79 @@ export function fieldHashesFor(fields: MenuTranslationFields): Record<string, st
 
 export function sourceHashFor(fields: MenuTranslationFields): string {
   return hashTranslationValue(fields);
+}
+
+/**
+ * Rows written before dish names became source identity may still carry a
+ * `name` field hash and an aggregate hash that includes it. Keep those rows
+ * readable while requiring every current translatable field hash to match.
+ * This compatibility path is deliberately limited to dish entities.
+ */
+export function sourceHashMatchesFields(
+  fields: MenuTranslationFields,
+  row: TranslationHashRow | undefined | null,
+  entityType?: MenuTranslationEntityType
+): boolean {
+  if (!row) return false;
+  if (row.source_hash === sourceHashFor(fields)) return true;
+  if (entityType !== "dish") return false;
+
+  const storedFieldHashes = objectInput(row.field_hashes);
+  const expectedFieldHashes = fieldHashesFor(fields);
+  if (
+    typeof storedFieldHashes.name === "string" &&
+    Object.entries(expectedFieldHashes).every(
+      ([field, hash]) => storedFieldHashes[field] === hash
+    )
+  ) {
+    return true;
+  }
+  const nonTagFieldsMatch = Object.entries(expectedFieldHashes)
+    .filter(([field]) => field !== "tags")
+    .every(([field, hash]) => storedFieldHashes[field] === hash);
+  if (!nonTagFieldsMatch) return false;
+
+  const tags = fields.tags;
+  if (!Array.isArray(tags)) return false;
+  const tagVariants = [
+    tags,
+    [...tags, "Signature"],
+    [...tags, "Recommande"],
+    [...tags, "Signature", "Recommande"]
+  ];
+  return tagVariants.some(
+    (variant) =>
+      storedFieldHashes.tags === hashTranslationValue(variant) &&
+      (typeof storedFieldHashes.name === "string" ||
+        row.source_hash === sourceHashFor({ ...fields, tags: variant }))
+  );
+}
+
+export function fieldHashMatchesFields(
+  fields: MenuTranslationFields,
+  row: TranslationHashRow | undefined | null,
+  field: string,
+  entityType?: MenuTranslationEntityType
+): boolean {
+  if (!row) return false;
+  const storedFieldHashes = objectInput(row.field_hashes);
+  const expectedFieldHashes = fieldHashesFor(fields);
+  if (storedFieldHashes[field] === expectedFieldHashes[field]) return true;
+  if (entityType !== "dish" || field !== "tags" || !Array.isArray(fields.tags)) {
+    return false;
+  }
+  const tagVariants = [
+    fields.tags,
+    [...fields.tags, "Signature"],
+    [...fields.tags, "Recommande"],
+    [...fields.tags, "Signature", "Recommande"]
+  ];
+  return tagVariants.some(
+    (variant) =>
+      storedFieldHashes.tags === hashTranslationValue(variant) &&
+      (typeof storedFieldHashes.name === "string" ||
+        row.source_hash === sourceHashFor({ ...fields, tags: variant }))
+  );
 }
 
 export function objectInput(value: unknown): Record<string, unknown> {
@@ -124,18 +202,14 @@ export function estimateChangedCharacters(
   entity: MenuTranslationSourceEntity,
   row?: StoredMenuTranslation | null
 ): number {
-  const expectedFieldHashes = fieldHashesFor(entity.fields);
-  const storedFieldHashes = objectInput(row?.field_hashes);
   const content = objectInput(row?.content);
   const manualOverrides = objectInput(row?.manual_overrides);
 
   return Object.entries(entity.fields).reduce((total, [field, value]) => {
     if (isEmptyTranslationValue(value)) return total;
     if (isManualOverride(manualOverrides, field)) return total;
-    if (
-      storedFieldHashes[field] === expectedFieldHashes[field] &&
-      hasTranslatedValue(content, field)
-    ) {
+    if (fieldHashMatchesFields(entity.fields, row, field, entity.type) &&
+      hasTranslatedValue(content, field)) {
       return total;
     }
     return total + translationTextLength(value);
@@ -165,9 +239,8 @@ export function resolveEntityTranslationStatus(
     };
   }
 
-  const sourceHash = sourceHashFor(entity.fields);
   const estimatedCharacters = estimateChangedCharacters(entity, row);
-  if (row.source_hash !== sourceHash || estimatedCharacters > 0) {
+  if (!sourceHashMatchesFields(entity.fields, row, entity.type) || estimatedCharacters > 0) {
     return { status: "stale", estimatedCharacters };
   }
 

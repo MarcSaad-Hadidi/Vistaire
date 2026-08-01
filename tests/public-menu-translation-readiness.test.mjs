@@ -308,6 +308,45 @@ test("public readiness rejects rows with stale aggregate hashes", () => {
   );
 });
 
+test("public readiness keeps legacy dish rows valid when only identity or derived tags changed the old hash", () => {
+  const legacyFields = { name: dish.name, ...dishFields };
+  const legacyIdentityRow = rowFor(
+    "de-DE",
+    "dish_id",
+    dish.id,
+    legacyFields,
+    completeDishContent()
+  );
+  assert.equal(
+    storedTranslationRowMatchesFields(legacyIdentityRow, dishFields),
+    true
+  );
+
+  const legacyDerivedTagFields = {
+    ...legacyFields,
+    tags: [...dishFields.tags, "Recommande"]
+  };
+  const legacyDerivedTagRow = rowFor(
+    "de-DE",
+    "dish_id",
+    dish.id,
+    legacyDerivedTagFields,
+    completeDishContent()
+  );
+  assert.equal(
+    storedTranslationRowMatchesFields(legacyDerivedTagRow, dishFields),
+    true
+  );
+
+  assert.equal(
+    storedTranslationRowMatchesFields(
+      legacyIdentityRow,
+      { ...dishFields, description: `${dish.description} updated` }
+    ),
+    false
+  );
+});
+
 test("derived recommended tags do not block stored content readiness", () => {
   const recommendedDish = {
     ...dish,

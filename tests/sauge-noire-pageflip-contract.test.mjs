@@ -250,6 +250,19 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   );
 });
 
+test("aborted route handoffs release their scheduled frame for later transitions", async () => {
+  const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+
+  assert.match(
+    coordinator,
+    /cancelAnimationFrame\(handoffFrameRef\.current\);\s*handoffFrameRef\.current = 0;/g
+  );
+  assert.match(
+    coordinator,
+    /window\.cancelAnimationFrame\(handoffFrameRef\.current\);\s*handoffFrameRef\.current = 0;\s*window\.clearTimeout\(awaitingDestinationWatchdogRef\.current\)/
+  );
+});
+
 test("the real PageFlip wrapper exposes the stable-child and lifecycle controls", async () => {
   const experiment = await readFile(experimentPath, "utf8");
   const flipPage = await readFile(flipPagePath, "utf8");

@@ -1,7 +1,7 @@
 import {
-  fieldHashesFor,
+  fieldHashMatchesFields,
   objectInput,
-  sourceHashFor,
+  sourceHashMatchesFields,
   stringInput,
   type MenuTranslationFields
 } from "../translation/menuTranslationModel.ts";
@@ -114,15 +114,15 @@ function storedTranslationFieldFailure(
     return contentReason;
   }
 
-  if (stringInput(row.source_hash) !== sourceHashFor(fields)) {
+  const inferredEntityType =
+    "menuName" in fields ? "menu" : "name" in fields ? "category" : "dish";
+  if (!sourceHashMatchesFields(fields, row, inferredEntityType)) {
     return "source hash mismatch";
   }
 
   if (manualOverrides[field] === true) return "";
 
-  const fieldHashes = objectInput(row.field_hashes);
-  const expectedFieldHashes = fieldHashesFor(fields);
-  if (fieldHashes[field] === expectedFieldHashes[field]) return "";
+  if (fieldHashMatchesFields(fields, row, field, inferredEntityType)) return "";
   return "field hash mismatch";
 }
 

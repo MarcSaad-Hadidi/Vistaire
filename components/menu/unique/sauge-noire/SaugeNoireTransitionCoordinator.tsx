@@ -272,6 +272,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   useEffect(() => {
     return () => {
       window.cancelAnimationFrame(handoffFrameRef.current);
+      handoffFrameRef.current = 0;
       window.clearTimeout(awaitingDestinationWatchdogRef.current);
       window.cancelAnimationFrame(focusFrameRef.current);
     };
@@ -289,6 +290,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         destinationPathnameObservedRef.current
       ) {
         window.cancelAnimationFrame(handoffFrameRef.current);
+        handoffFrameRef.current = 0;
         window.clearTimeout(awaitingDestinationWatchdogRef.current);
         destinationReadyTransitionIdRef.current = null;
         destinationPathnameObservedRef.current = false;
