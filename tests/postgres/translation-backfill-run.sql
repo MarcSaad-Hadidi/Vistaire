@@ -84,6 +84,12 @@ begin
         case
           when cas_field in ('updated_at', 'translated_at')
             then to_jsonb('2026-08-01 00:02:00+00'::timestamptz)
+          when cas_field = 'field_hashes'
+            then '{"description":"conflict-hash"}'::jsonb
+          when cas_field = 'content'
+            then '{"description":"Conflict content"}'::jsonb
+          when cas_field = 'manual_overrides'
+            then '{"description":true}'::jsonb
           else '"conflict"'::jsonb
         end
       )
