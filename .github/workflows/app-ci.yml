@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright WebKit
+        run: npx --no-install playwright install --with-deps webkit
+
       - name: Check repository assets
         run: npm run assets:check
 
@@ -121,9 +124,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Install Playwright WebKit
-        run: npx --no-install playwright install --with-deps webkit
 
       - name: Landing production photo redirect
         timeout-minutes: 5

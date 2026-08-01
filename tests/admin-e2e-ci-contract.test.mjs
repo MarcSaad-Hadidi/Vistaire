@@ -100,6 +100,15 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
   ]) {
     assert.match(workflow, new RegExp(`run: ${command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`));
   }
+  const npmCiIndex = workflow.indexOf("run: npm ci");
+  const webkitInstallIndex = workflow.indexOf("run: npx --no-install playwright install --with-deps webkit");
+  const firstRepositoryCheckIndex = workflow.indexOf("run: npm run assets:check");
+  assert.ok(npmCiIndex >= 0, "App CI must install npm dependencies");
+  assert.ok(webkitInstallIndex > npmCiIndex, "WebKit must be installed after npm ci");
+  assert.ok(
+    webkitInstallIndex < firstRepositoryCheckIndex,
+    "WebKit must be installed before any blocking repository/test suite can fail"
+  );
   assert.ok(
     workflow.indexOf("run: npm run build") <
       workflow.indexOf("run: npm run test:qr:functional") &&

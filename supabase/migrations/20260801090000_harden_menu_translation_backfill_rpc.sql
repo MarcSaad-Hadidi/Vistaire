@@ -187,8 +187,8 @@ begin
   end loop;
 
   return query
-    select result_status, applied_rows
-      from public.owner_apply_menu_translation_backfill_legacy(p_plans);
+    select legacy.result_status, legacy.applied_rows
+      from public.owner_apply_menu_translation_backfill_legacy(p_plans) as legacy;
 end;
 $$;
 

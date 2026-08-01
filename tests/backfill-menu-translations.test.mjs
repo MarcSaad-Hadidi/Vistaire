@@ -601,6 +601,14 @@ test("live translation apply is transactional and compare-and-swap guarded", () 
   assert.doesNotMatch(historicalMigration, /hardened legacy|currently supports only en-CA/i);
   assert.match(migration, /owner_apply_menu_translation_backfill\(\s*p_plans jsonb/s);
   assert.match(migration, /owner_apply_menu_translation_backfill_legacy/s);
+  assert.match(
+    migration,
+    /select\s+legacy\.result_status\s*,\s*legacy\.applied_rows\s+from\s+public\.owner_apply_menu_translation_backfill_legacy\(p_plans\)\s+as\s+legacy/s
+  );
+  assert.doesNotMatch(
+    migration,
+    /select\s+result_status\s*,\s*applied_rows\s+from\s+public\.owner_apply_menu_translation_backfill_legacy/s
+  );
   assert.match(migration, /expected: null/s);
   assert.match(historicalMigration, /for update/s);
   assert.match(migration, /revoke all on function/s);
