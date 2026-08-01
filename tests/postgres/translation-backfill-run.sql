@@ -75,7 +75,19 @@ begin
     'translated_at', '2026-08-01 00:01:00+00'
   );
   foreach cas_field in array array['updated_at','translation_status','provider','source_hash','field_hashes','content','manual_overrides','error_message','translated_at'] loop
-    mutated := jsonb_set(update_plan, '{0,operations,0,expected}', jsonb_set(expected, array[cas_field], '"conflict"'::jsonb));
+    mutated := jsonb_set(
+      update_plan,
+      '{0,operations,0,expected}',
+      jsonb_set(
+        expected,
+        array[cas_field],
+        case
+          when cas_field in ('updated_at', 'translated_at')
+            then to_jsonb('2026-08-01 00:02:00+00'::timestamptz)
+          else '"conflict"'::jsonb
+        end
+      )
+    );
     begin
       perform * from public.owner_apply_menu_translation_backfill(mutated);
       raise exception 'expected CAS conflict for %', cas_field;

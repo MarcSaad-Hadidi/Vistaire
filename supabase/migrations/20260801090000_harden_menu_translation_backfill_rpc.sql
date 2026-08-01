@@ -178,7 +178,16 @@ begin
           raise exception using errcode = '40001', message = 'Translation backfill update target disappeared.';
         end if;
         foreach v_field in array v_required_expected loop
-          if v_current->v_field is distinct from v_expected->v_field then
+          if v_field in ('updated_at', 'translated_at') then
+            -- JSON serialization of timestamptz is canonicalized by PostgreSQL
+            -- (for example, `2026-08-01T00:01:00+00:00`), while callers may
+            -- send any equivalent timestamp spelling. Compare typed values so
+            -- formatting differences do not create false CAS conflicts.
+            if nullif(v_current->>v_field, '')::timestamptz is distinct from
+               nullif(v_expected->>v_field, '')::timestamptz then
+              raise exception using errcode = '40001', message = 'Translation backfill translation row conflict.';
+            end if;
+          elsif v_current->v_field is distinct from v_expected->v_field then
             raise exception using errcode = '40001', message = 'Translation backfill translation row conflict.';
           end if;
         end loop;
