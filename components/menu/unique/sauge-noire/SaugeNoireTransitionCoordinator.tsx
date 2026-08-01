@@ -73,6 +73,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const overlayReadyPendingRef = useRef(false);
   const overlayFallbackPendingRef = useRef(false);
   const settledPreviewGestureActiveRef = useRef(false);
+  const routeRendererRef = useRef<HTMLDivElement | null>(null);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
 
   const prefetchDestination = useCallback((href: string) => {
@@ -180,9 +181,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, [router, updatePhase]);
 
   const transferDestinationScroll = useCallback(() => {
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const activePage = renderer?.querySelector<HTMLElement>(
       '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
     );
@@ -239,9 +242,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     focusAfterHandoffRef.current = false;
     window.cancelAnimationFrame(focusFrameRef.current);
     focusFrameRef.current = window.requestAnimationFrame(() => {
-      const renderer = document.querySelector<HTMLElement>(
+      const renderer = routeRendererRef.current?.matches(
         '[data-sauge-route-renderer-pending-handoff="false"]'
-      );
+      )
+        ? routeRendererRef.current
+        : null;
       const activePage = renderer?.querySelector<HTMLElement>(
         '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
       );
@@ -295,9 +300,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, [pathname, tryCompleteHandoff]);
 
   const destinationRendererIsReady = useCallback(() => {
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
     if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
@@ -328,9 +335,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, []);
 
   const destinationRendererIsUsable = useCallback(() => {
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
     if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
@@ -372,9 +381,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     let mediaCleanup = () => {};
     const bindMediaSignals = () => {
       mediaCleanup();
-      const renderer = document.querySelector<HTMLElement>(
+      const renderer = routeRendererRef.current?.matches(
         '[data-sauge-route-renderer-pending-handoff="true"]'
-      );
+      )
+        ? routeRendererRef.current
+        : null;
       const media = Array.from(renderer?.querySelectorAll("img, video") ?? []);
       const handleMediaSignal = () => checkDestinationReadiness();
       for (const element of media) {
@@ -417,15 +428,17 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver(checkDestinationReadiness);
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const activePage = renderer?.querySelector<HTMLElement>(
       '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
     );
     const observeReadiness = () => {
-      if (document.body) {
-        mutationObserver?.observe(document.body, {
+      if (renderer) {
+        mutationObserver?.observe(renderer, {
           attributes: true,
           childList: true,
           subtree: true
@@ -521,6 +534,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   return (
     <TransitionContext.Provider value={contextValue}>
       <div
+        ref={routeRendererRef}
         style={{
           display: "contents"
         }}

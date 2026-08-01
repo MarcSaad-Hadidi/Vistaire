@@ -764,7 +764,10 @@ export function SaugeNoirePageFlipExperiment({
     const resizeObserver = new ResizeObserver(handleLayoutSignal);
     const mutationObserver = new MutationObserver(handleLayoutSignal);
     const handleWindowResize = () => handleLayoutSignal();
-    const handleFontSignal = () => handleLayoutSignal();
+    const handleFontSignal = () => {
+      if (cancelled) return;
+      handleLayoutSignal();
+    };
 
     resizeObserver.observe(targetSurface);
     const readingContent = targetSurface.querySelector<HTMLElement>(
@@ -780,7 +783,10 @@ export function SaugeNoirePageFlipExperiment({
     window.addEventListener("resize", handleWindowResize);
     document.fonts?.addEventListener("loadingdone", handleFontSignal);
     document.fonts?.addEventListener("loadingerror", handleFontSignal);
-    void document.fonts?.ready.then(handleFontSignal);
+    void document.fonts?.ready.then(() => {
+      if (cancelled) return;
+      handleFontSignal();
+    });
     scrollHandoffResizeObserverRef.current = resizeObserver;
     scrollHandoffMutationObserverRef.current = mutationObserver;
     bindMediaSignals();

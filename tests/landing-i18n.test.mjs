@@ -277,7 +277,7 @@ test("stored English copy keeps the French source dish name", async () => {
   }
 });
 
-test("Maison English fallback keeps source dish names when translation storage is unavailable", async () => {
+test("Maison English requests stay on the source locale when translation storage is unavailable", async () => {
   const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
   const { applyStoredPublicMenuTranslations } = await import(
     "../lib/menu/publicMenuTranslations.ts"
@@ -309,15 +309,13 @@ test("Maison English fallback keeps source dish names when translation storage i
     "en-CA"
   );
 
-  assert.equal(english.activeLocale, "en-CA");
+  assert.equal(english.activeLocale, "fr-CA");
+  assert.equal(english.translationStatus?.status, "source");
   assert.equal(
     english.dishes[0].name,
     "Ravioles de chèvre frais & miel de Montérégie"
   );
-  assert.equal(
-    english.dishes[0].description,
-    "Fine ravioli filled with fresh goat cheese and Quebec honey, finished with whipped brown butter and a trace of burned rosemary. A controlled sweet-savoury balance."
-  );
+  assert.equal(english.dishes[0].description, sourceDish.description);
 });
 
 test("Sauge browser fixture resolves complete stored English menus for all landing cards", async () => {

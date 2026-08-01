@@ -205,6 +205,8 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
     /Math\.abs\(activePage\.scrollTop - desiredScrollTop\) > 1[\s\S]*activePage\.scrollTop = desiredScrollTop/
   );
   assert.doesNotMatch(coordinator, /const pollDestinationReadiness/);
+  assert.doesNotMatch(coordinator, /mutationObserver\?\.observe\(document\.body/);
+  assert.match(coordinator, /routeRendererRef/);
   assert.match(coordinator, /new MutationObserver/);
   assert.match(coordinator, /new ResizeObserver/);
   assert.match(coordinator, /destinationRendererIsReady\(\)/);
@@ -398,6 +400,7 @@ test("scroll handoff waits for real layout/media signals and stops after fixed-s
   assert.match(handoff, /resizeObserver\.observe\(readingContent\)/);
   assert.match(handoff, /mutationObserver\.observe\(targetSurface/);
   assert.match(handoff, /window\.addEventListener\("resize", handleWindowResize\)/);
+  assert.match(handoff, /document\.fonts\?\.ready\.then\(\(\) => \{[\s\S]*cancelled/);
 
   assert.match(handoff, /const hasScrollableHeight/);
   assert.match(

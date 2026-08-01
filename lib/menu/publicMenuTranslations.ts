@@ -9,17 +9,12 @@ import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import type { PublicMenu, PublicMenuTranslationStatus } from "./publicMenuCore";
 import { normalizePublicMenuLocalePreference } from "./publicMenuSettings";
 import {
-  applyCanonicalEnglishPresentation,
-  buildMaisonEnglishPublicMenu
-} from "./publicMenuEnglishFallback";
-import {
   filterPublicMenuSettingsForReadyTranslations,
   publicMenuCategoryTranslationSources,
   publicMenuDishTranslationFields,
   publicMenuTranslationMenuFields,
   publicMenuTranslationStatusesForRows,
   storedTranslationFieldMatches,
-  type PublicMenuTranslationReadinessOptions,
   type PublicMenuTranslationRows
 } from "./publicMenuTranslationReadiness.ts";
 
@@ -65,7 +60,6 @@ function getTranslatedString(args: {
   source: string;
   sourceFields: MenuTranslationFields;
   row?: AnyRow;
-  readinessOptions?: PublicMenuTranslationReadinessOptions;
 }): string {
   if (!args.source.trim()) return args.source;
   const content = objectInput(args.row?.content);
@@ -74,8 +68,7 @@ function getTranslatedString(args: {
       args.row,
       args.sourceFields,
       args.field,
-      args.source,
-      args.readinessOptions
+      args.source
     )
   ) {
     return args.source;
@@ -89,7 +82,6 @@ function getTranslatedList(args: {
   source: string[];
   sourceFields: MenuTranslationFields;
   row?: AnyRow;
-  readinessOptions?: PublicMenuTranslationReadinessOptions;
 }): string[] {
   if (args.source.length === 0) return args.source;
   const content = objectInput(args.row?.content);
@@ -98,8 +90,7 @@ function getTranslatedList(args: {
       args.row,
       args.sourceFields,
       args.field,
-      args.source,
-      args.readinessOptions
+      args.source
     )
   ) {
     return args.source;
@@ -112,16 +103,6 @@ export async function applyStoredPublicMenuTranslations(
   menu: PublicMenu,
   requestedLocale: unknown
 ): Promise<PublicMenu> {
-  const requestedEnglish =
-    typeof requestedLocale === "string" &&
-    /^en(?:-|$)/i.test(requestedLocale.trim());
-  const allowLegacyEnglishTranslation =
-    requestedEnglish &&
-    (menu.slug === "trouvable" || menu.slug === "sauge-noire");
-  const readinessOptions: PublicMenuTranslationReadinessOptions =
-    allowLegacyEnglishTranslation
-      ? { allowUpToDateHashMismatch: true }
-      : {};
   const requestedActiveLocale = normalizePublicMenuLocalePreference(
     requestedLocale,
     menu.settings
@@ -138,9 +119,6 @@ export async function applyStoredPublicMenuTranslations(
 
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
-    if (requestedEnglish && menu.slug === "maison-elyse") {
-      return buildMaisonEnglishPublicMenu(menu);
-    }
     const translationLocales = missingTranslationStatuses(menu);
     const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
       menu.settings,
@@ -194,9 +172,6 @@ export async function applyStoredPublicMenuTranslations(
   ]);
 
   if (menuRows.error || categoryRows.error || dishRows.error) {
-    if (requestedEnglish && menu.slug === "maison-elyse") {
-      return buildMaisonEnglishPublicMenu(menu);
-    }
     const translationLocales = missingTranslationStatuses(menu);
     const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
       menu.settings,
@@ -223,22 +198,9 @@ export async function applyStoredPublicMenuTranslations(
   };
   const translationLocales = publicMenuTranslationStatusesForRows(
     menu,
-    translationRows,
-    readinessOptions
+    translationRows
   );
 
-  if (
-    requestedEnglish &&
-    menu.slug === "maison-elyse" &&
-    translationLocales.find((status) => status.locale === "en-CA")?.status !==
-      "up_to_date"
-  ) {
-    return buildMaisonEnglishPublicMenu(menu);
-  }
-
-  const legacyEnglishReady =
-    allowLegacyEnglishTranslation &&
-    statusForLocale(translationLocales, "en-CA").status === "up_to_date";
   const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
     menu.settings,
     translationLocales
@@ -257,9 +219,7 @@ export async function applyStoredPublicMenuTranslations(
       translationLocales,
       translationStatus: statusForLocale(translationLocales, activeLocale)
     };
-    return legacyEnglishReady
-      ? applyCanonicalEnglishPresentation(result)
-      : result;
+    return result;
   }
 
   const activeMenuRows = rowsForLocale(translationRows.menuRows, activeLocale);
@@ -281,8 +241,7 @@ export async function applyStoredPublicMenuTranslations(
         field: "menuName",
         source: menu.menuName,
         sourceFields: translatedMenuFields,
-        row: menuRow,
-        readinessOptions
+        row: menuRow
       })
     : menu.menuName;
 
@@ -304,8 +263,7 @@ export async function applyStoredPublicMenuTranslations(
         field: "description",
         source: dish.description,
         sourceFields,
-        row: dishRow,
-        readinessOptions
+        row: dishRow
       }),
       category:
         categoryFields && categoryRow
@@ -313,8 +271,7 @@ export async function applyStoredPublicMenuTranslations(
               field: "name",
               source: dish.category,
               sourceFields: categoryFields,
-              row: categoryRow,
-              readinessOptions
+              row: categoryRow
             })
           : dish.category,
       categoryDescription:
@@ -323,44 +280,38 @@ export async function applyStoredPublicMenuTranslations(
               field: "description",
               source: dish.categoryDescription ?? "",
               sourceFields: categoryFields,
-              row: categoryRow,
-              readinessOptions
+              row: categoryRow
             })
           : dish.categoryDescription,
       ingredients: getTranslatedList({
         field: "ingredients",
         source: dish.ingredients,
         sourceFields,
-        row: dishRow,
-        readinessOptions
+        row: dishRow
       }),
       allergens: getTranslatedList({
         field: "allergens",
         source: dish.allergens,
         sourceFields,
-        row: dishRow,
-        readinessOptions
+        row: dishRow
       }),
       options: getTranslatedList({
         field: "options",
         source: dish.options,
         sourceFields,
-        row: dishRow,
-        readinessOptions
+        row: dishRow
       }),
       houseNote: getTranslatedString({
         field: "houseNote",
         source: dish.houseNote,
         sourceFields,
-        row: dishRow,
-        readinessOptions
+        row: dishRow
       }),
       tags: getTranslatedList({
         field: "tags",
         source: translatableTags,
         sourceFields,
-        row: dishRow,
-        readinessOptions
+        row: dishRow
       })
     };
   });
@@ -375,7 +326,5 @@ export async function applyStoredPublicMenuTranslations(
     translationLocales,
     translationStatus: statusForLocale(translationLocales, activeLocale)
   };
-  return legacyEnglishReady
-    ? applyCanonicalEnglishPresentation(result)
-    : result;
+  return result;
 }

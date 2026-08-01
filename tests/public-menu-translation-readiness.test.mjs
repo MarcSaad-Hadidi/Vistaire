@@ -251,7 +251,7 @@ test("public readiness does not promote stale rows even when their fields are co
   );
 });
 
-test("public readiness accepts field-complete rows with stale aggregate hashes only", () => {
+test("public readiness rejects rows with stale aggregate hashes", () => {
   assert.equal(
     storedTranslationRowMatchesFields(
       rowFor(
@@ -276,7 +276,7 @@ test("public readiness accepts field-complete rows with stale aggregate hashes o
       ),
       dishFields
     ),
-    true
+    false
   );
 
   assert.equal(
@@ -419,8 +419,7 @@ test("public readiness never promotes missing or non-ready row states", () => {
         menuRows: [],
         categoryRows: rows.categoryRows,
         dishRows
-      },
-      { allowUpToDateHashMismatch: true }
+      }
     ).find((status) => status.locale === "de-DE");
   });
 
@@ -454,7 +453,7 @@ test("present descriptions and category descriptions must be translated", () => 
   assert.equal(missingCategoryDescription?.field, "description");
 });
 
-test("legacy hash compatibility is limited to complete up-to-date content", () => {
+test("rows with missing or stale hashes are never promoted", () => {
   const completeLegacyDish = rowFor(
     "de-DE",
     "dish_id",
@@ -469,10 +468,30 @@ test("legacy hash compatibility is limited to complete up-to-date content", () =
       menuRows: [],
       categoryRows: completeRows("de-DE").categoryRows,
       dishRows: [completeLegacyDish]
-    },
-    { allowUpToDateHashMismatch: true }
+    }
   ).find((status) => status.locale === "de-DE");
-  assert.deepEqual(completeLegacy, { locale: "de-DE", status: "up_to_date" });
+  assert.equal(completeLegacy?.status, "stale");
+  assert.equal(completeLegacy?.reason, "source hash mismatch");
+
+  const emptyFieldHashes = publicMenuTranslationStatusesForRows(
+    menu,
+    {
+      menuRows: [],
+      categoryRows: completeRows("de-DE").categoryRows,
+      dishRows: [
+        rowFor(
+          "de-DE",
+          "dish_id",
+          dish.id,
+          dishFields,
+          completeDishContent(),
+          { source_hash: sourceHashFor(dishFields), field_hashes: {} }
+        )
+      ]
+    }
+  ).find((status) => status.locale === "de-DE");
+  assert.equal(emptyFieldHashes?.status, "stale");
+  assert.equal(emptyFieldHashes?.reason, "field hash mismatch");
 
   const incompleteLegacy = publicMenuTranslationStatusesForRows(
     menu,
@@ -485,8 +504,7 @@ test("legacy hash compatibility is limited to complete up-to-date content", () =
           content: completeDishContent({ description: "" })
         }
       ]
-    },
-    { allowUpToDateHashMismatch: true }
+    }
   ).find((status) => status.locale === "de-DE");
   assert.equal(incompleteLegacy?.status, "stale");
   assert.equal(incompleteLegacy?.field, "description");
@@ -497,8 +515,7 @@ test("legacy hash compatibility is limited to complete up-to-date content", () =
       menuRows: [],
       categoryRows: completeRows("de-DE").categoryRows,
       dishRows: [{ ...completeLegacyDish, translation_status: "pending" }]
-    },
-    { allowUpToDateHashMismatch: true }
+    }
   ).find((status) => status.locale === "de-DE");
   assert.equal(pendingLegacy?.status, "pending");
 });

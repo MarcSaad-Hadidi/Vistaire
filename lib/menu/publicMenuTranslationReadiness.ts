@@ -1,6 +1,7 @@
 import {
   fieldHashesFor,
   objectInput,
+  sourceHashFor,
   stringInput,
   type MenuTranslationFields
 } from "../translation/menuTranslationModel.ts";
@@ -19,15 +20,6 @@ export type PublicMenuTranslationRows = {
   menuRows: AnyRow[];
   categoryRows: AnyRow[];
   dishRows: AnyRow[];
-};
-
-export type PublicMenuTranslationReadinessOptions = {
-  /**
-   * Some existing owner-managed rows were marked up_to_date before the
-   * current hash format was introduced. Keep this opt-in so the normal
-   * freshness guard remains strict for every other menu and locale.
-   */
-  allowUpToDateHashMismatch?: boolean;
 };
 
 function storedDishTags(dish: PublicMenuDish): string[] {
@@ -88,24 +80,16 @@ export function storedTranslationFieldMatches(
   row: AnyRow | undefined,
   fields: MenuTranslationFields,
   field: string,
-  sourceValue: MenuTranslationFields[string],
-  options: PublicMenuTranslationReadinessOptions = {}
+  sourceValue: MenuTranslationFields[string]
 ): boolean {
-  return !storedTranslationFieldFailure(
-    row,
-    fields,
-    field,
-    sourceValue,
-    options
-  );
+  return !storedTranslationFieldFailure(row, fields, field, sourceValue);
 }
 
 function storedTranslationFieldFailure(
   row: AnyRow | undefined,
   fields: MenuTranslationFields,
   field: string,
-  sourceValue: MenuTranslationFields[string],
-  options: PublicMenuTranslationReadinessOptions = {}
+  sourceValue: MenuTranslationFields[string]
 ): string {
   if (!row) return "missing row";
   if (!rowHasUsablePublicTranslationStatus(row)) {
@@ -116,16 +100,17 @@ function storedTranslationFieldFailure(
   const contentReason = missingTranslatedFieldReason(content, field, sourceValue);
   if (contentReason) return contentReason;
 
+  if (stringInput(row.source_hash) !== sourceHashFor(fields)) {
+    return "source hash mismatch";
+  }
+
   const manualOverrides = objectInput(row.manual_overrides);
   if (manualOverrides[field] === true) return "";
 
   const fieldHashes = objectInput(row.field_hashes);
   const expectedFieldHashes = fieldHashesFor(fields);
   if (fieldHashes[field] === expectedFieldHashes[field]) return "";
-  return options.allowUpToDateHashMismatch &&
-    rowHasUsablePublicTranslationStatus(row)
-    ? ""
-    : "field hash mismatch";
+  return "field hash mismatch";
 }
 
 export function publicMenuDishTranslationFields(
@@ -209,7 +194,7 @@ function statusForRows(args: {
   categoryFieldsById: Map<string, MenuTranslationFields>;
   dishRowsById: Map<string, AnyRow>;
   dishes: PublicMenuDish[];
-} & PublicMenuTranslationReadinessOptions): PublicMenuTranslationStatus {
+}): PublicMenuTranslationStatus {
   const rows = [
     ...(Object.keys(args.menuFields).length > 0 ? [args.menuRow] : []),
     ...args.categoryRowsById.values(),
@@ -238,8 +223,7 @@ function statusForRows(args: {
       args.menuRow,
       args.menuFields,
       field,
-      sourceValue,
-      args
+      sourceValue
     );
     if (!reason) continue;
     return {
@@ -258,8 +242,7 @@ function statusForRows(args: {
         row,
         fields,
         field,
-        sourceValue,
-        args
+        sourceValue
       );
       if (!reason) continue;
       return {
@@ -282,8 +265,7 @@ function statusForRows(args: {
         row,
         fields,
         field,
-        sourceValue,
-        args
+        sourceValue
       );
       if (!reason) continue;
 
@@ -340,8 +322,7 @@ function statusForRows(args: {
 
 export function publicMenuTranslationStatusesForRows(
   menu: PublicMenu,
-  rows: PublicMenuTranslationRows,
-  options: PublicMenuTranslationReadinessOptions = {}
+  rows: PublicMenuTranslationRows
 ): PublicMenuTranslationStatus[] {
   const menuFields = publicMenuTranslationMenuFields(menu);
   const categoryFieldsById = new Map(
@@ -366,8 +347,7 @@ export function publicMenuTranslationStatusesForRows(
       categoryRowsById: rowsById(categoryRowsByLocale.get(locale) ?? [], "category_id"),
       categoryFieldsById,
       dishRowsById: rowsById(dishRowsByLocale.get(locale) ?? [], "dish_id"),
-      dishes: menu.dishes,
-      ...options
+      dishes: menu.dishes
     });
   });
 }
