@@ -480,6 +480,14 @@ function isUsableValue(value) {
     : Boolean(nonEmpty(value));
 }
 
+function translatedValueIsComplete(sourceValue, translatedValue) {
+  if (!Array.isArray(sourceValue)) return isUsableValue(translatedValue);
+  const sourceCount = sourceValue.filter((item) => nonEmpty(item)).length;
+  if (sourceCount === 0) return true;
+  return Array.isArray(translatedValue) &&
+    translatedValue.filter((item) => nonEmpty(item)).length >= sourceCount;
+}
+
 function isPlaceholderName(value) {
   return !nonEmpty(value) || PLACEHOLDER_NAME.test(nonEmpty(value));
 }
@@ -668,7 +676,7 @@ function canonicalContentFor(entity, snapshot, existingRow) {
 
   for (const field of canonicalRequiredFields) {
     if (overrides[field] === true) continue;
-    if (isUsableValue(content[field])) continue;
+    if (translatedValueIsComplete(entity.fields[field], content[field])) continue;
     if (!isUsableValue(canonical[field])) {
       fail(`${target} canonical content is incomplete for ${entity.slug}.${field}`);
     }
@@ -725,19 +733,24 @@ function buildFreshnessState(entity, existing, content, generatedFields, overrid
   const provenFields = [];
   for (const field of freshnessFields) {
     if (generatedFields.has(field)) {
-      if (!isUsableValue(content[field])) {
+      if (!translatedValueIsComplete(entity.fields[field], content[field])) {
         fail(`${label}.${field} was generated without usable translated content`);
       }
       fieldHashes[field] = currentFieldHashes[field];
       provenFields.push(field);
       continue;
     }
-    if (isUsableValue(content[field]) && fieldHashes[field] === currentFieldHashes[field]) {
+    if (
+      translatedValueIsComplete(entity.fields[field], content[field]) &&
+      fieldHashes[field] === currentFieldHashes[field]
+    ) {
       provenFields.push(field);
     }
   }
 
-  const complete = Object.keys(entity.fields).every((field) => isUsableValue(content[field])) &&
+  const complete = Object.keys(entity.fields).every((field) =>
+    translatedValueIsComplete(entity.fields[field], content[field])
+  ) &&
     freshnessFields.every((field) => fieldHashes[field] === currentFieldHashes[field]);
   const currentSourceHash = sourceHashFor(entity.fields);
   const previousSourceHash = storedSourceHash(existing, label);
@@ -807,7 +820,9 @@ function diffFields(before, after) {
 function missingFields(content, fields, requiredFields, fieldHashes, overrides) {
   const currentFieldHashes = fieldHashesFor(fields);
   return requiredFields.filter((field) =>
-    overrides[field] !== true && (!isUsableValue(content[field]) || fieldHashes[field] !== currentFieldHashes[field])
+    overrides[field] !== true &&
+    (!translatedValueIsComplete(fields[field], content[field]) ||
+      fieldHashes[field] !== currentFieldHashes[field])
   );
 }
 

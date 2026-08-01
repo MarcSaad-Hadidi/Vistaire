@@ -360,6 +360,24 @@ test("partial retranslation updates only fields with explicit current hashes", (
   assert.equal(operation.patch.translated_at, existing.translated_at);
 });
 
+test("partial translated lists never become fresh from a current list hash", () => {
+  const current = snapshot();
+  current.dishes[0].metadata.ingredients = ["Premier ingrédient", "Deuxième ingrédient"];
+  const fields = sourceDishFields(current.dishes[0]);
+  const existing = freshDishRow(current);
+  existing.source_hash = sourceHashFor(fields);
+  existing.field_hashes = fieldHashesFor(fields);
+  existing.content.ingredients = ["One ingredient"];
+  current.rows = [existing];
+
+  const plan = buildPlan(current);
+  const operation = dishOperation(plan);
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.ok(operation.missingFields.includes("ingredients"));
+  assert.equal(operation.patch.source_hash, "");
+  assert.match(plan.errors.join(" "), /empty source_hash/i);
+});
+
 test("a complete retranslation proves the aggregate source hash and remains idempotent", () => {
   const current = snapshot();
   const existing = freshDishRow(current);
