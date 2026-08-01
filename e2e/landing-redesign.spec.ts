@@ -258,18 +258,29 @@ test.describe("Vistaire landing redesign", () => {
     await expect(nav.getByText("Vistaire", { exact: true })).toBeVisible();
     await expect(nav.getByText("Carte digitale premium")).toBeVisible();
     await expect(nav.getByRole("link")).toHaveCount(8);
-    await expect(
-      nav.getByRole("link").allTextContents()
-    ).resolves.toEqual([
-      "VistaireCarte digitale premium",
-      "Accueil",
-      "Carte",
-      "À propos",
-      "Contact",
-      "FR",
-      "EN",
-      "Prendre rendez-vousRendez-vous"
-    ]);
+    for (const label of ["Accueil", "Carte", "\u00c0 propos", "Contact"]) {
+      await expect(
+        nav.getByRole("link", { name: label, exact: true })
+      ).toBeVisible();
+    }
+    for (const label of ["FR", "EN"]) {
+      await expect(nav.getByText(label, { exact: true })).toBeVisible();
+    }
+    const appointmentCta = nav.getByRole("link", {
+      name: /Prendre rendez-vous/
+    });
+    await expect(appointmentCta).toBeVisible();
+    await expect(appointmentCta).toHaveAttribute(
+      "href",
+      "/prendre-rendez-vous"
+    );
+    await expect(appointmentCta).toHaveAccessibleName(
+      "Prendre rendez-vous"
+    );
+    const decorativeArrow = appointmentCta.locator('[aria-hidden="true"]');
+    await expect(decorativeArrow).toHaveCount(1);
+    await expect(decorativeArrow).toHaveText("↗");
+    await expect(decorativeArrow).toHaveAttribute("aria-hidden", "true");
 
     await expect(
       page.getByRole("heading", {
@@ -688,7 +699,7 @@ test.describe("Vistaire landing redesign", () => {
     }
   });
 
-  test("renders complete English comparison and featured-dish proof without targeted French leaks", async ({
+  test("renders English menu copy while preserving source-language dish names", async ({
     page
   }) => {
     await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
@@ -701,21 +712,21 @@ test.describe("Vistaire landing redesign", () => {
       {
         category: "Starters",
         categoryDescription: "Maison Elyse's current menu.",
-        dish: "Fresh goat cheese ravioli with Monteregie honey",
+        dish: "Ravioles de chevre frais et miel de Monteregie",
         dishDescription:
           "Brown butter, preserved lemon, and garden herbs."
       },
       {
         category: "Mains",
         categoryDescription: "Trouvable's current menu.",
-        dish: "Green pesto burrata",
+        dish: "Pesto Burrata Verde",
         dishDescription: "Burrata, green pesto, and fresh herbs."
       },
       {
         category: "First bites",
         categoryDescription:
           "Small plates, bites, and opening seasonal flavors to share.",
-        dish: "Beetroot under ash",
+        dish: "Betterave sous la cendre",
         dishDescription:
           "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
       }
@@ -824,10 +835,10 @@ test.describe("Vistaire landing redesign", () => {
       );
     }
     await expect(dishes).toContainText(
-      "Fresh goat cheese ravioli with Monteregie honey"
+      "Ravioles de chevre frais et miel de Monteregie"
     );
-    await expect(dishes).toContainText("Green pesto burrata");
-    await expect(dishes).toContainText("Beetroot under ash");
+    await expect(dishes).toContainText("Pesto Burrata Verde");
+    await expect(dishes).toContainText("Betterave sous la cendre");
     await expect(page.getByText("Open the full experience").first()).toBeVisible();
 
     const englishPageText = await page.locator("body").innerText();
