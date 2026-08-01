@@ -183,6 +183,7 @@ test("dish names stay source identity across generation, storage, and public rea
   assert.ok(publicDishFields);
   assert.doesNotMatch(ownerDishFields, /addField\(fields,\s*["']name["']/);
   assert.match(ownerDishFields, /sourceDishTags\(row, metadata\)/);
+  assert.match(ownerDishFields, /capitalizeListItems/);
   assert.match(ownerTranslations, /is_signature|isSignature/);
   assert.doesNotMatch(publicDishFields, /name:\s*dish\.name/);
   assert.match(publicTranslations, /name:\s*dish\.name/);

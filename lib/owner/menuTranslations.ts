@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
+import { capitalizeListItems } from "@/lib/menu/listText";
 import {
   persistGeneratedLocalizedUiCopy,
   readPublicMenuSettingsBundleWithFallbacks
@@ -160,11 +161,11 @@ function dishFields(row: AnyRow): MenuTranslationFields {
   addField(
     fields,
     "ingredients",
-    mergeStringLists(
+    capitalizeListItems(mergeStringLists(
       stringListInput(metadata.ingredients),
       stringListInput(metadata.ingredient_list),
       stringListInput(row.ingredients)
-    )
+    ))
   );
   addField(
     fields,
@@ -179,12 +180,12 @@ function dishFields(row: AnyRow): MenuTranslationFields {
   addField(
     fields,
     "options",
-    mergeStringLists(
+    capitalizeListItems(mergeStringLists(
       stringListInput(metadata.options),
       stringListInput(metadata.option_list),
       stringListInput(metadata.extras),
       stringListInput(metadata.accompaniments)
-    )
+    ))
   );
   addField(
     fields,
