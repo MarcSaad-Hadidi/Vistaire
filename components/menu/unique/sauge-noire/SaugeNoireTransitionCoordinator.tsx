@@ -65,7 +65,6 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const destinationPathnameObservedRef = useRef(false);
   const prefetchedDestinationsRef = useRef(new Set<string>());
   const handoffFrameRef = useRef(0);
-  const readinessFrameRef = useRef(0);
   const awaitingDestinationWatchdogRef = useRef(0);
   const focusFrameRef = useRef(0);
   const focusAfterHandoffRef = useRef(false);
@@ -209,19 +208,16 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathnameRef.current !== expectedPathname) return;
     if (settledPreviewGestureActiveRef.current) return;
-    window.cancelAnimationFrame(handoffFrameRef.current);
-    window.cancelAnimationFrame(readinessFrameRef.current);
+    if (handoffFrameRef.current) return;
     const completeOnFrame = () => {
+      handoffFrameRef.current = 0;
       const latest = transitionRef.current;
       if (!latest || latest.id !== current.id || latest.phase !== "awaiting-destination") return;
       if (destinationReadyTransitionIdRef.current !== latest.id) return;
       const latestExpectedPathname = new URL(latest.href, window.location.origin).pathname;
       if (pathnameRef.current !== latestExpectedPathname) return;
       if (settledPreviewGestureActiveRef.current) return;
-      if (!transferDestinationScroll()) {
-        handoffFrameRef.current = window.requestAnimationFrame(completeOnFrame);
-        return;
-      }
+      if (!transferDestinationScroll()) return;
       window.clearTimeout(awaitingDestinationWatchdogRef.current);
       destinationReadyTransitionIdRef.current = null;
       transitionRef.current = null;
@@ -267,7 +263,6 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   useEffect(() => {
     return () => {
       window.cancelAnimationFrame(handoffFrameRef.current);
-      window.cancelAnimationFrame(readinessFrameRef.current);
       window.clearTimeout(awaitingDestinationWatchdogRef.current);
       window.cancelAnimationFrame(focusFrameRef.current);
     };
@@ -285,7 +280,6 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         destinationPathnameObservedRef.current
       ) {
         window.cancelAnimationFrame(handoffFrameRef.current);
-        window.cancelAnimationFrame(readinessFrameRef.current);
         window.clearTimeout(awaitingDestinationWatchdogRef.current);
         destinationReadyTransitionIdRef.current = null;
         destinationPathnameObservedRef.current = false;
@@ -375,7 +369,32 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathname !== expectedPathname) return;
 
-    const pollDestinationReadiness = () => {
+    let mediaCleanup = () => {};
+    const bindMediaSignals = () => {
+      mediaCleanup();
+      const renderer = document.querySelector<HTMLElement>(
+        '[data-sauge-route-renderer-pending-handoff="true"]'
+      );
+      const media = Array.from(renderer?.querySelectorAll("img, video") ?? []);
+      const handleMediaSignal = () => checkDestinationReadiness();
+      for (const element of media) {
+        element.addEventListener("load", handleMediaSignal);
+        element.addEventListener("error", handleMediaSignal);
+        element.addEventListener("loadeddata", handleMediaSignal);
+        element.addEventListener("loadedmetadata", handleMediaSignal);
+      }
+      mediaCleanup = () => {
+        for (const element of media) {
+          element.removeEventListener("load", handleMediaSignal);
+          element.removeEventListener("error", handleMediaSignal);
+          element.removeEventListener("loadeddata", handleMediaSignal);
+          element.removeEventListener("loadedmetadata", handleMediaSignal);
+        }
+      };
+    };
+
+    const checkDestinationReadiness = () => {
+      bindMediaSignals();
       const latest = transitionRef.current;
       if (
         !latest ||
@@ -384,22 +403,54 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       ) {
         return;
       }
-      if (!destinationRendererIsReady()) {
-        readinessFrameRef.current = window.requestAnimationFrame(
-          pollDestinationReadiness
-        );
-        return;
-      }
+      if (pathnameRef.current !== expectedPathname) return;
+      if (!destinationRendererIsReady()) return;
       destinationReadyTransitionIdRef.current = current.id;
       tryCompleteHandoff();
     };
 
-    readinessFrameRef.current = window.requestAnimationFrame(
-      pollDestinationReadiness
+    const mutationObserver =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(checkDestinationReadiness);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(checkDestinationReadiness);
+    const renderer = document.querySelector<HTMLElement>(
+      '[data-sauge-route-renderer-pending-handoff="true"]'
     );
+    const activePage = renderer?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
+    );
+    const observeReadiness = () => {
+      if (document.body) {
+        mutationObserver?.observe(document.body, {
+          attributes: true,
+          childList: true,
+          subtree: true
+        });
+      }
+      if (renderer) resizeObserver?.observe(renderer);
+      if (activePage) resizeObserver?.observe(activePage);
+    };
+    const handleWindowLoad = () => checkDestinationReadiness();
+    const handleFontSignal = () => checkDestinationReadiness();
+
+    bindMediaSignals();
+    observeReadiness();
+    window.addEventListener("load", handleWindowLoad);
+    document.fonts?.addEventListener("loadingdone", handleFontSignal);
+    document.fonts?.addEventListener("loadingerror", handleFontSignal);
+    checkDestinationReadiness();
 
     return () => {
-      window.cancelAnimationFrame(readinessFrameRef.current);
+      mutationObserver?.disconnect();
+      resizeObserver?.disconnect();
+      mediaCleanup();
+      window.removeEventListener("load", handleWindowLoad);
+      document.fonts?.removeEventListener("loadingdone", handleFontSignal);
+      document.fonts?.removeEventListener("loadingerror", handleFontSignal);
     };
   }, [
     destinationRendererIsReady,
@@ -425,7 +476,6 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         latest.href,
         window.location.origin
       ).pathname;
-      window.cancelAnimationFrame(readinessFrameRef.current);
       if (
         pathnameRef.current === latestExpectedPathname &&
         destinationRendererIsUsable()

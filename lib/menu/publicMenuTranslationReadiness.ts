@@ -11,6 +11,7 @@ import type {
   PublicMenuTranslationStatus
 } from "./publicMenuCore.ts";
 import type { PublicMenuSettings } from "./publicMenuSettings.ts";
+import { publicMenuUiCopyReadiness } from "../translation/publicMenuUiCopyTranslation.ts";
 
 type AnyRow = Record<string, unknown>;
 
@@ -59,9 +60,23 @@ function missingTranslatedFieldReason(
       ? ""
       : `missing translated content (${translatedCount}/${sourceCount})`;
   }
-  return !sourceValue.trim() || stringInput(content[field])
-    ? ""
-    : "missing translated content";
+  if (!sourceValue.trim()) return "";
+  const translatedValue = stringInput(content[field]);
+  if (!translatedValue) return "missing translated content";
+
+  // Prose that is byte-for-byte identical to the source is still the source
+  // copy. Dish names intentionally are not part of the public translation
+  // fields, while descriptions must not silently fall back to French.
+  if (
+    (field === "description" ||
+      field === "categoryDescription" ||
+      field === "houseNote") &&
+    translatedValue === sourceValue.trim()
+  ) {
+    return "source language content";
+  }
+
+  return "";
 }
 
 function rowHasUsablePublicTranslationStatus(row: AnyRow): boolean {
@@ -118,7 +133,6 @@ export function publicMenuDishTranslationFields(
 ): MenuTranslationFields {
   const tags = storedDishTags(dish);
   return {
-    name: dish.name,
     ...(dish.description ? { description: dish.description } : {}),
     ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
     ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),
@@ -188,6 +202,7 @@ function rowsById(rows: AnyRow[], idField: string): Map<string, AnyRow> {
 
 function statusForRows(args: {
   locale: string;
+  menu: PublicMenu;
   menuRow?: AnyRow;
   menuFields: MenuTranslationFields;
   categoryRowsById: Map<string, AnyRow>;
@@ -282,6 +297,7 @@ function statusForRows(args: {
         row &&
         stringInput(row.translation_status) === "up_to_date" &&
         stringInput(row.source_hash) &&
+        reason === "field hash mismatch" &&
         listInput(objectInput(row.content).tags).length >= listInput(sourceValue).length
       ) {
         continue;
@@ -297,6 +313,26 @@ function statusForRows(args: {
         field
       };
     }
+  }
+
+  const uiCopyReadiness = publicMenuUiCopyReadiness(
+    {
+      defaultLocale: args.menu.settings.defaultLocale,
+      publicMenuStyle: args.menu.settings.publicMenuStyle
+    },
+    args.locale,
+    args.menu.localizedUiCopy
+  );
+  if (!uiCopyReadiness.isReady) {
+    return {
+      locale: args.locale,
+      status: uiCopyReadiness.dynamicSource === "none" ? "missing" : "stale",
+      reason: uiCopyReadiness.missingKeys.length
+        ? `missing UI copy (${uiCopyReadiness.missingKeys.join(", ")})`
+        : "incomplete UI copy",
+      entityType: "menu",
+      field: "uiCopy"
+    };
   }
 
   return { locale: args.locale, status: "up_to_date" };
@@ -324,6 +360,7 @@ export function publicMenuTranslationStatusesForRows(
     }
     return statusForRows({
       locale,
+      menu,
       menuRow: menuRowsByLocale.get(locale)?.[0],
       menuFields,
       categoryRowsById: rowsById(categoryRowsByLocale.get(locale) ?? [], "category_id"),

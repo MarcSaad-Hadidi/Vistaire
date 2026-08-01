@@ -101,7 +101,6 @@ const categoryFields = {
 };
 
 const dishFields = {
-  name: dish.name,
   description: dish.description,
   ingredients: dish.ingredients,
   allergens: dish.allergens,
@@ -110,8 +109,9 @@ const dishFields = {
   tags: dish.tags
 };
 
-test("dish translation readiness includes the public dish name", () => {
+test("dish translation readiness keeps the source dish name out of translatable fields", () => {
   assert.deepEqual(publicMenuDishTranslationFields(dish), dishFields);
+  assert.equal("name" in publicMenuDishTranslationFields(dish), false);
 });
 
 test("public menu readiness only exposes locales with complete stored menu content", () => {
@@ -163,7 +163,7 @@ test("public menu readiness only exposes locales with complete stored menu conte
       entityType: "dish",
       entityId: dish.id,
       entityLabel: dish.name,
-      field: "name"
+      field: "description"
     }
   );
 });
@@ -246,7 +246,7 @@ test("public readiness does not promote stale rows even when their fields are co
       entityType: "dish",
       entityId: dish.id,
       entityLabel: dish.name,
-      field: "name"
+      field: "description"
     }
   );
 });
@@ -350,5 +350,193 @@ test("derived recommended tags do not block stored content readiness", () => {
   assert.deepEqual(
     statuses.find((status) => status.locale === "de-DE"),
     { locale: "de-DE", status: "up_to_date" }
+  );
+});
+
+function completeDishContent(overrides = {}) {
+  return {
+    description:
+      "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
+    ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
+    allergens: ["Weizen/Roggen", "Senf"],
+    options: ["Extra Smoked Meat", "Senf separat"],
+    houseNote:
+      "Eine direkte Anspielung auf Montrealer Klassiker, warm serviert und grosszugig geschnitten.",
+    tags: ["Empfehlung", "Hausbeilage"],
+    ...overrides
+  };
+}
+
+function completeRows(locale, dishContent = completeDishContent(), categoryContent = {
+  name: "Sandwiches",
+  description: "Warme Klassiker"
+}) {
+  return {
+    categoryRows: [
+      rowFor(locale, "category_id", "sandwichs", categoryFields, categoryContent)
+    ],
+    dishRows: [rowFor(locale, "dish_id", dish.id, dishFields, dishContent)]
+  };
+}
+
+test("public readiness never promotes missing or non-ready row states", () => {
+  const statuses = [
+    {
+      label: "missing",
+      rows: completeRows("de-DE")
+    },
+    {
+      label: "pending",
+      rows: completeRows("de-DE", completeDishContent(), undefined)
+    },
+    {
+      label: "in_progress",
+      rows: completeRows("de-DE")
+    },
+    {
+      label: "error",
+      rows: completeRows("de-DE")
+    },
+    {
+      label: "stale",
+      rows: completeRows("de-DE")
+    }
+  ].map(({ label, rows }) => {
+    const dishRows =
+      label === "missing"
+        ? []
+        : rows.dishRows.map((row) => ({
+            ...row,
+            ...(label === "pending" || label === "in_progress" || label === "error"
+              ? { translation_status: label }
+              : label === "stale"
+                ? { translation_status: "stale" }
+                : {})
+          }));
+    return publicMenuTranslationStatusesForRows(
+      menu,
+      {
+        menuRows: [],
+        categoryRows: rows.categoryRows,
+        dishRows
+      },
+      { allowUpToDateHashMismatch: true }
+    ).find((status) => status.locale === "de-DE");
+  });
+
+  assert.deepEqual(
+    statuses.map((status) => status.status),
+    ["missing", "pending", "in_progress", "error", "stale"]
+  );
+});
+
+test("present descriptions and category descriptions must be translated", () => {
+  const missingDescription = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...completeRows("de-DE", completeDishContent({ description: "" }))
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(missingDescription?.status, "stale");
+  assert.equal(missingDescription?.field, "description");
+
+  const sourceDescription = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...completeRows("de-DE", completeDishContent({ description: dish.description }))
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(sourceDescription?.status, "stale");
+  assert.equal(sourceDescription?.reason, "source language content");
+
+  const missingCategoryDescription = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...completeRows("de-DE", completeDishContent(), { name: "Sandwiches", description: "" })
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(missingCategoryDescription?.status, "stale");
+  assert.equal(missingCategoryDescription?.entityType, "category");
+  assert.equal(missingCategoryDescription?.field, "description");
+});
+
+test("legacy hash compatibility is limited to complete up-to-date content", () => {
+  const completeLegacyDish = rowFor(
+    "de-DE",
+    "dish_id",
+    dish.id,
+    dishFields,
+    completeDishContent(),
+    { source_hash: "legacy-source", field_hashes: {} }
+  );
+  const completeLegacy = publicMenuTranslationStatusesForRows(
+    menu,
+    {
+      menuRows: [],
+      categoryRows: completeRows("de-DE").categoryRows,
+      dishRows: [completeLegacyDish]
+    },
+    { allowUpToDateHashMismatch: true }
+  ).find((status) => status.locale === "de-DE");
+  assert.deepEqual(completeLegacy, { locale: "de-DE", status: "up_to_date" });
+
+  const incompleteLegacy = publicMenuTranslationStatusesForRows(
+    menu,
+    {
+      menuRows: [],
+      categoryRows: completeRows("de-DE").categoryRows,
+      dishRows: [
+        {
+          ...completeLegacyDish,
+          content: completeDishContent({ description: "" })
+        }
+      ]
+    },
+    { allowUpToDateHashMismatch: true }
+  ).find((status) => status.locale === "de-DE");
+  assert.equal(incompleteLegacy?.status, "stale");
+  assert.equal(incompleteLegacy?.field, "description");
+
+  const pendingLegacy = publicMenuTranslationStatusesForRows(
+    menu,
+    {
+      menuRows: [],
+      categoryRows: completeRows("de-DE").categoryRows,
+      dishRows: [{ ...completeLegacyDish, translation_status: "pending" }]
+    },
+    { allowUpToDateHashMismatch: true }
+  ).find((status) => status.locale === "de-DE");
+  assert.equal(pendingLegacy?.status, "pending");
+});
+
+test("French dish names remain allowed because dish names are source identity", () => {
+  const status = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...completeRows("de-DE", {
+      ...completeDishContent(),
+      name: dish.name
+    })
+  }).find((candidate) => candidate.locale === "de-DE");
+
+  assert.deepEqual(status, { locale: "de-DE", status: "up_to_date" });
+});
+
+test("UI copy readiness also gates the public locale list", () => {
+  const uiMenu = {
+    ...menu,
+    settings: {
+      ...settings,
+      supportedLocales: ["fr-CA", "de-DE", "ja-JP"]
+    }
+  };
+  const deRows = completeRows("de-DE");
+  const jaRows = completeRows("ja-JP");
+  const statuses = publicMenuTranslationStatusesForRows(uiMenu, {
+    menuRows: [],
+    categoryRows: [...deRows.categoryRows, ...jaRows.categoryRows],
+    dishRows: [...deRows.dishRows, ...jaRows.dishRows]
+  });
+
+  assert.equal(statuses.find((status) => status.locale === "de-DE")?.status, "up_to_date");
+  assert.equal(statuses.find((status) => status.locale === "ja-JP")?.status, "missing");
+  assert.equal(statuses.find((status) => status.locale === "ja-JP")?.field, "uiCopy");
+  assert.deepEqual(
+    filterPublicMenuSettingsForReadyTranslations(uiMenu.settings, statuses)
+      .supportedLocales,
+    ["fr-CA", "de-DE"]
   );
 });

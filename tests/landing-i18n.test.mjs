@@ -214,7 +214,8 @@ test("stored English copy keeps the French source dish name", async () => {
         source_hash: sourceHashFor(category.fields),
         field_hashes: fieldHashesFor(category.fields),
         content: {
-          name: "Breakfast"
+          name: "Breakfast",
+          description: "House breakfast classics"
         }
       }
     ],
@@ -227,6 +228,12 @@ test("stored English copy keeps the French source dish name", async () => {
         field_hashes: fieldHashesFor(dishFields),
         content: {
           ...dishFields,
+          description: "Farm eggs with crisp potatoes and herb salad.",
+          ingredients: ["Farm eggs", "Crisp potatoes", "Herb salad", "Sourdough"],
+          allergens: ["Eggs", "Gluten"],
+          options: ["Crisp bacon", "Lemon avocado", "Gluten-free on request"],
+          houseNote: "Served warm for the table.",
+          tags: ["Signature", "House favourite"],
           name: "Stored house breakfast"
         }
       }

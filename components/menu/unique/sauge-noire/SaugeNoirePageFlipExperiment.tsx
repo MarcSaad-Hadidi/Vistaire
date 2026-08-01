@@ -469,10 +469,11 @@ export function SaugeNoirePageFlipExperiment({
   const reportedFlipPageRef = useRef<number | null>(null);
   const sawFlipStateRef = useRef(false);
   const animationSourceScrollRef = useRef<ScrollHandoffTransition | null>(null);
-  const animationSourceClearFrameRef = useRef(0);
   const scrollHandoffSequenceRef = useRef(0);
   const scrollHandoffFrameRef = useRef(0);
   const scrollHandoffResizeObserverRef = useRef<ResizeObserver | null>(null);
+  const scrollHandoffMutationObserverRef = useRef<MutationObserver | null>(null);
+  const scrollHandoffMediaCleanupRef = useRef<(() => void) | null>(null);
   const flipPreparationTokenRef = useRef(0);
   const preparedFlipLaunchFrameRef = useRef(0);
   const preparedPhysicalPageIndexesRef = useRef<Set<number>>(
@@ -553,18 +554,23 @@ export function SaugeNoirePageFlipExperiment({
   const clearAnimationSourceIfApplied = useCallback(
     (candidate: ScrollHandoffTransition | null = animationSourceScrollRef.current) => {
       if (!candidate || !candidate.handoffApplied) return;
-      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
-      animationSourceClearFrameRef.current = window.requestAnimationFrame(() => {
-        if (
-          animationSourceScrollRef.current === candidate &&
-          candidate.handoffApplied
-        ) {
-          animationSourceScrollRef.current = null;
-        }
-      });
+      if (animationSourceScrollRef.current === candidate) {
+        animationSourceScrollRef.current = null;
+      }
     },
     []
   );
+
+  const cancelScrollHandoff = useCallback(() => {
+    window.cancelAnimationFrame(scrollHandoffFrameRef.current);
+    scrollHandoffFrameRef.current = 0;
+    scrollHandoffResizeObserverRef.current?.disconnect();
+    scrollHandoffResizeObserverRef.current = null;
+    scrollHandoffMutationObserverRef.current?.disconnect();
+    scrollHandoffMutationObserverRef.current = null;
+    scrollHandoffMediaCleanupRef.current?.();
+    scrollHandoffMediaCleanupRef.current = null;
+  }, []);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -592,24 +598,74 @@ export function SaugeNoirePageFlipExperiment({
     if (
       !transition ||
       transition.handoffApplied ||
-      transition.sourceIdentity === readingIdentity ||
-      !transition.sourceSurface
+      transition.sourceIdentity === readingIdentity
     ) {
       return;
     }
 
     transition.targetIdentity = readingIdentity;
-    window.cancelAnimationFrame(scrollHandoffFrameRef.current);
-    scrollHandoffResizeObserverRef.current?.disconnect();
+    cancelScrollHandoff();
 
     let cancelled = false;
     let stableGeometry = "";
     let stableFrames = 0;
+    let writeRetryAvailable = true;
+
+    const targetSurface = readingSurfaceRef.current;
+    if (!targetSurface) return;
+
+    const resetGeometry = () => {
+      stableFrames = 0;
+      stableGeometry = "";
+    };
+
+    const scheduleCheck = (reset = true) => {
+      if (cancelled) return;
+      if (reset) resetGeometry();
+      if (scrollHandoffFrameRef.current) return;
+      const viewport = viewportRef.current;
+      const requestedFrames = Number(
+        viewport?.getAttribute("data-page-flip-handoff-raf-requested") ?? "0"
+      );
+      viewport?.setAttribute(
+        "data-page-flip-handoff-raf-requested",
+        String(Number.isFinite(requestedFrames) ? requestedFrames + 1 : 1)
+      );
+      scrollHandoffFrameRef.current = window.requestAnimationFrame(() => {
+        scrollHandoffFrameRef.current = 0;
+        applyWhenReady();
+      });
+    };
+
+    const bindMediaSignals = () => {
+      scrollHandoffMediaCleanupRef.current?.();
+      const media = Array.from(targetSurface.querySelectorAll("img, video"));
+      const handleMediaSignal = () => scheduleCheck();
+      for (const element of media) {
+        element.addEventListener("load", handleMediaSignal);
+        element.addEventListener("error", handleMediaSignal);
+        element.addEventListener("loadeddata", handleMediaSignal);
+        element.addEventListener("loadedmetadata", handleMediaSignal);
+      }
+      scrollHandoffMediaCleanupRef.current = () => {
+        for (const element of media) {
+          element.removeEventListener("load", handleMediaSignal);
+          element.removeEventListener("error", handleMediaSignal);
+          element.removeEventListener("loadeddata", handleMediaSignal);
+          element.removeEventListener("loadedmetadata", handleMediaSignal);
+        }
+      };
+    };
+
+    const mediaIsPending = () =>
+      Array.from(targetSurface.querySelectorAll("img, video")).some((element) => {
+        if (element instanceof HTMLImageElement) return !element.complete;
+        if (element instanceof HTMLVideoElement) return element.readyState < 2;
+        return false;
+      }) || document.fonts?.status === "loading";
 
     const finish = () => {
-      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
-      scrollHandoffResizeObserverRef.current?.disconnect();
-      scrollHandoffResizeObserverRef.current = null;
+      cancelScrollHandoff();
     };
 
     const applyWhenReady = () => {
@@ -626,13 +682,21 @@ export function SaugeNoirePageFlipExperiment({
       }
 
       const geometry = `${readingSurface.clientWidth}:${readingSurface.clientHeight}:${readingSurface.scrollHeight}`;
+      const isLaidOut =
+        readingSurface.clientWidth > 0 &&
+        readingSurface.clientHeight > 0 &&
+        readingSurface.scrollHeight > 0;
+      if (!isLaidOut || mediaIsPending()) {
+        resetGeometry();
+        return;
+      }
       stableFrames = geometry === stableGeometry ? stableFrames + 1 : 1;
       stableGeometry = geometry;
       const hasScrollableHeight =
         readingSurface.clientHeight > 0 &&
         readingSurface.scrollHeight > readingSurface.clientHeight;
-      if (!hasScrollableHeight || stableFrames < 2) {
-        scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+      if (stableFrames < 2) {
+        scheduleCheck(false);
         return;
       }
 
@@ -641,10 +705,12 @@ export function SaugeNoirePageFlipExperiment({
         readingSurface.scrollHeight - readingSurface.clientHeight
       );
       const gestureDelta = Math.max(0, transition.gestureDelta);
-      const preparedScrollTop = Math.min(
-        maxScrollTop,
-        Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
-      );
+      const preparedScrollTop = hasScrollableHeight
+        ? Math.min(
+            maxScrollTop,
+            Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
+          )
+        : 0;
 
       // Set the token before mutating scrollTop. A scroll event caused by the
       // write must not be mistaken for a new source gesture.
@@ -653,6 +719,7 @@ export function SaugeNoirePageFlipExperiment({
         "data-page-flip-transition-sequence",
         String(transition.sequence)
       );
+      readingSurface.setAttribute("data-page-flip-handoff-applied", "true");
       readingSurface.setAttribute(
         "data-page-flip-transition-direction",
         transition.direction
@@ -675,9 +742,12 @@ export function SaugeNoirePageFlipExperiment({
         Math.abs(readingSurface.scrollTop - preparedScrollTop) > 1
       ) {
         transition.handoffApplied = false;
-        stableFrames = 0;
-        stableGeometry = "";
-        scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+        if (!writeRetryAvailable) {
+          finish();
+          return;
+        }
+        writeRetryAvailable = false;
+        scheduleCheck();
         return;
       }
 
@@ -687,23 +757,43 @@ export function SaugeNoirePageFlipExperiment({
       }
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      stableFrames = 0;
-      stableGeometry = "";
-      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
-      scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
-    });
-    const targetSurface = readingSurfaceRef.current;
-    if (!targetSurface) return;
-    scrollHandoffResizeObserverRef.current = resizeObserver;
+    const handleLayoutSignal = () => {
+      bindMediaSignals();
+      scheduleCheck();
+    };
+    const resizeObserver = new ResizeObserver(handleLayoutSignal);
+    const mutationObserver = new MutationObserver(handleLayoutSignal);
+    const handleWindowResize = () => handleLayoutSignal();
+    const handleFontSignal = () => handleLayoutSignal();
+
     resizeObserver.observe(targetSurface);
-    scrollHandoffFrameRef.current = window.requestAnimationFrame(applyWhenReady);
+    const readingContent = targetSurface.querySelector<HTMLElement>(
+      '[data-sauge-reading-content="true"]'
+    );
+    if (readingContent) resizeObserver.observe(readingContent);
+    mutationObserver.observe(targetSurface, {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true
+    });
+    window.addEventListener("resize", handleWindowResize);
+    document.fonts?.addEventListener("loadingdone", handleFontSignal);
+    document.fonts?.addEventListener("loadingerror", handleFontSignal);
+    void document.fonts?.ready.then(handleFontSignal);
+    scrollHandoffResizeObserverRef.current = resizeObserver;
+    scrollHandoffMutationObserverRef.current = mutationObserver;
+    bindMediaSignals();
+    scheduleCheck(false);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("resize", handleWindowResize);
+      document.fonts?.removeEventListener("loadingdone", handleFontSignal);
+      document.fonts?.removeEventListener("loadingerror", handleFontSignal);
       finish();
     };
-  }, [clearAnimationSourceIfApplied, readingIdentity, readyScrollTop]);
+  }, [cancelScrollHandoff, clearAnimationSourceIfApplied, readingIdentity, readyScrollTop]);
 
   const preparePageFlip = useCallback(
     (sourcePageIndex: number, targetPageIndex: number) => {
@@ -715,10 +805,7 @@ export function SaugeNoirePageFlipExperiment({
       ]);
       preparedPhysicalPageIndexesRef.current = preparedPageIndexes;
       applyPhysicalMediaPolicy(viewport, preparedPageIndexes, "flip");
-      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
-      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
-      scrollHandoffResizeObserverRef.current?.disconnect();
-      scrollHandoffResizeObserverRef.current = null;
+      cancelScrollHandoff();
       const sourcePage = resolveSaugeNoireOriginalPage(viewport, sourcePageIndex);
       const targetPage = resolveSaugeNoireOriginalPage(viewport, targetPageIndex);
       const sourceSurface = readingSurfaceRef.current;
@@ -737,7 +824,7 @@ export function SaugeNoirePageFlipExperiment({
         sourceScrollTop,
         latestSourceScrollTop: sourceScrollTop,
         gestureDelta: 0,
-        handoffApplied: !sourceSurface
+        handoffApplied: false
       };
       viewport.setAttribute(
         "data-page-flip-transition-sequence",
@@ -763,7 +850,7 @@ export function SaugeNoirePageFlipExperiment({
         targetPage.scrollTop = targetScrollTop;
       }
     },
-    [readingIdentity, readyScrollTop]
+    [cancelScrollHandoff, readingIdentity, readyScrollTop]
   );
 
   useLayoutEffect(() => {
@@ -1326,6 +1413,14 @@ export function SaugeNoirePageFlipExperiment({
       if (!pageFlip || dimensions === null || !bookIsReady || failed) return;
       if (singleFlipJumpRequest || activeSingleFlipJumpRef.current) return;
       if (pageFlip.getState() === "flipping") return;
+      const pendingHandoff = animationSourceScrollRef.current;
+      if (
+        pendingHandoff &&
+        pendingHandoff.targetPageIndex === pageIndex &&
+        !pendingHandoff.handoffApplied
+      ) {
+        return;
+      }
 
       const currentPage = pageFlip.getCurrentPageIndex();
       if (animationTargetPageRef.current === null) {
@@ -1363,10 +1458,7 @@ export function SaugeNoirePageFlipExperiment({
     return () => {
       const pageFlip = activeBookRef.current?.pageFlip();
       window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
-      window.cancelAnimationFrame(animationSourceClearFrameRef.current);
-      window.cancelAnimationFrame(scrollHandoffFrameRef.current);
-      scrollHandoffResizeObserverRef.current?.disconnect();
-      scrollHandoffResizeObserverRef.current = null;
+      cancelScrollHandoff();
       window.cancelAnimationFrame(preparedFlipLaunchFrameRef.current);
       flipPreparationTokenRef.current += 1;
       activeSingleFlipJumpRef.current = null;
@@ -1383,7 +1475,7 @@ export function SaugeNoirePageFlipExperiment({
         }
       });
     };
-  }, []);
+  }, [cancelScrollHandoff]);
 
   const handleFlip = useCallback((event: PageFlipEvent) => {
     if (readyBookKeyRef.current !== bookKey) return;
@@ -2034,10 +2126,7 @@ export function SaugeNoirePageFlipExperiment({
                   singleFlipJumpRequest?.token ??
                   null;
                 window.cancelAnimationFrame(singleFlipJumpFrameRef.current);
-                window.cancelAnimationFrame(animationSourceClearFrameRef.current);
-                window.cancelAnimationFrame(scrollHandoffFrameRef.current);
-                scrollHandoffResizeObserverRef.current?.disconnect();
-                scrollHandoffResizeObserverRef.current = null;
+                cancelScrollHandoff();
                 flipPreparationTokenRef.current += 1;
                 setMediaPreparing(false);
                 activeSingleFlipJumpRef.current = null;
