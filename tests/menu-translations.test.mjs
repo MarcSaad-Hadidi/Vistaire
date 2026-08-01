@@ -299,7 +299,12 @@ test("legacy derived badge hashes remain fresh regardless of badge position", ()
 
   assert.deepEqual(
     resolveEntityTranslationStatus(
-      { type: "dish", id: "dish-derived-badge", fields },
+      {
+        type: "dish",
+        id: "dish-derived-badge",
+        fields,
+        legacyDerivedTags: ["Signature"]
+      },
       stored
     ),
     { status: "up_to_date", estimatedCharacters: 0 }

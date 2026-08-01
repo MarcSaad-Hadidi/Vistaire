@@ -77,6 +77,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const overlayReadyPendingRef = useRef(false);
   const overlayFallbackPendingRef = useRef(false);
   const settledPreviewGestureActiveRef = useRef(false);
+  const destinationReadinessCheckRef = useRef<(() => void) | null>(null);
   const routeRendererRef = useRef<HTMLDivElement | null>(null);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
 
@@ -236,7 +237,10 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const handleSettledPreviewGestureActiveChange = useCallback(
     (active: boolean) => {
       settledPreviewGestureActiveRef.current = active;
-      if (!active) tryCompleteHandoff();
+      if (!active) {
+        destinationReadinessCheckRef.current?.();
+        tryCompleteHandoff();
+      }
     },
     [tryCompleteHandoff]
   );
@@ -367,7 +371,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, []);
 
   const handleSettledPreviewScrollTopChange = useCallback((scrollTop: number) => {
-    settledPreviewScrollTopRef.current = Math.max(0, scrollTop);
+    const nextScrollTop = Math.max(0, scrollTop);
+    if (Math.abs(nextScrollTop - settledPreviewScrollTopRef.current) <= 1) return;
+    settledPreviewScrollTopRef.current = nextScrollTop;
+    destinationReadyTransitionIdRef.current = null;
+    destinationReadinessCheckRef.current?.();
   }, []);
 
   const notifyDestinationReady = useCallback((readyPathname: string) => {
@@ -434,6 +442,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       destinationReadyTransitionIdRef.current = current.id;
       tryCompleteHandoff();
     };
+    destinationReadinessCheckRef.current = checkDestinationReadiness;
 
     const mutationObserver =
       typeof MutationObserver === "undefined"
@@ -473,6 +482,9 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     checkDestinationReadiness();
 
     return () => {
+      if (destinationReadinessCheckRef.current === checkDestinationReadiness) {
+        destinationReadinessCheckRef.current = null;
+      }
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();
       mediaCleanup();

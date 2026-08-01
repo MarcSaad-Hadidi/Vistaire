@@ -2,6 +2,7 @@ import {
   fieldHashMatchesFields,
   objectInput,
   sourceHashMatchesFields,
+  sourceHashCompatibleWithManualOverrides,
   stringInput,
   type MenuTranslationFields
 } from "../translation/menuTranslationModel.ts";
@@ -71,6 +72,13 @@ function missingTranslatedFieldReason(
   return "";
 }
 
+function derivedDishTags(dish: PublicMenuDish): string[] {
+  return [
+    ...(dish.isSignature ? ["Signature"] : []),
+    ...(dish.isRecommended ? ["Recommande"] : [])
+  ];
+}
+
 function rowHasUsablePublicTranslationStatus(row: AnyRow): boolean {
   const status = stringInput(row.translation_status);
   return status === "up_to_date";
@@ -80,16 +88,24 @@ export function storedTranslationFieldMatches(
   row: AnyRow | undefined,
   fields: MenuTranslationFields,
   field: string,
-  sourceValue: MenuTranslationFields[string]
+  sourceValue: MenuTranslationFields[string],
+  legacyDerivedTags: readonly string[] = []
 ): boolean {
-  return !storedTranslationFieldFailure(row, fields, field, sourceValue);
+  return !storedTranslationFieldFailure(
+    row,
+    fields,
+    field,
+    sourceValue,
+    legacyDerivedTags
+  );
 }
 
 function storedTranslationFieldFailure(
   row: AnyRow | undefined,
   fields: MenuTranslationFields,
   field: string,
-  sourceValue: MenuTranslationFields[string]
+  sourceValue: MenuTranslationFields[string],
+  legacyDerivedTags: readonly string[] = []
 ): string {
   if (!row) return "missing row";
   if (!rowHasUsablePublicTranslationStatus(row)) {
@@ -116,13 +132,32 @@ function storedTranslationFieldFailure(
 
   const inferredEntityType =
     "menuName" in fields ? "menu" : "name" in fields ? "category" : "dish";
-  if (!sourceHashMatchesFields(fields, row, inferredEntityType)) {
+  const sourceHashReady =
+    sourceHashMatchesFields(fields, row, inferredEntityType, legacyDerivedTags) ||
+    sourceHashCompatibleWithManualOverrides(
+      fields,
+      row,
+      inferredEntityType,
+      legacyDerivedTags
+    );
+  if (manualOverrides[field] === true && !contentReason.startsWith("missing")) {
+    return "";
+  }
+  if (!sourceHashReady) {
     return "source hash mismatch";
   }
 
   if (manualOverrides[field] === true) return "";
 
-  if (fieldHashMatchesFields(fields, row, field, inferredEntityType)) return "";
+  if (
+    fieldHashMatchesFields(
+      fields,
+      row,
+      field,
+      inferredEntityType,
+      legacyDerivedTags
+    )
+  ) return "";
   return "field hash mismatch";
 }
 
@@ -169,14 +204,21 @@ export function publicMenuCategoryTranslationSources(menu: PublicMenu): Array<{
 
 export function storedTranslationRowMatchesFields(
   row: AnyRow | undefined,
-  fields: MenuTranslationFields
+  fields: MenuTranslationFields,
+  legacyDerivedTags: readonly string[] = []
 ): boolean {
   const entries = Object.entries(fields);
   if (entries.length === 0) return true;
 
   return entries.every(
     ([field, sourceValue]) =>
-      storedTranslationFieldMatches(row, fields, field, sourceValue)
+      storedTranslationFieldMatches(
+        row,
+        fields,
+        field,
+        sourceValue,
+        legacyDerivedTags
+      )
   );
 }
 
@@ -273,12 +315,14 @@ function statusForRows(args: {
   for (const dish of args.dishes) {
     const row = args.dishRowsById.get(dish.id);
     const fields = publicMenuDishTranslationFields(dish);
+    const legacyDerivedTags = derivedDishTags(dish);
     for (const [field, sourceValue] of Object.entries(fields)) {
       const reason = storedTranslationFieldFailure(
         row,
         fields,
         field,
-        sourceValue
+        sourceValue,
+        legacyDerivedTags
       );
       if (!reason) continue;
 
@@ -289,6 +333,7 @@ function statusForRows(args: {
       // tag hash differs.
       if (
         field === "tags" &&
+        legacyDerivedTags.length > 0 &&
         row &&
         stringInput(row.translation_status) === "up_to_date" &&
         stringInput(row.source_hash) &&

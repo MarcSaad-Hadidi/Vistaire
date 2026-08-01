@@ -141,6 +141,15 @@ function sourceDishTags(row: AnyRow, metadata: AnyRow): string[] {
   });
 }
 
+function sourceDishDerivedTags(row: AnyRow): string[] {
+  const derived: string[] = [];
+  if (booleanInput(row, ["is_signature", "isSignature"])) derived.push("Signature");
+  if (booleanInput(row, ["is_recommended", "isRecommended"])) {
+    derived.push("Recommande");
+  }
+  return derived;
+}
+
 function addField(
   fields: MenuTranslationFields,
   field: string,
@@ -224,7 +233,8 @@ function buildEntities(ctx: Omit<TranslationContext, "entities">): MenuTranslati
     ...ctx.dishes.map((dish) => ({
       type: "dish" as const,
       id: getString(dish, ["id"]),
-      fields: dishFields(dish)
+      fields: dishFields(dish),
+      legacyDerivedTags: sourceDishDerivedTags(dish)
     }))
   ].filter((entity) => entity.id && Object.keys(entity.fields).length > 0);
 }
@@ -431,6 +441,21 @@ function flattenTranslationTasks(entity: MenuTranslationSourceEntity, row?: Stor
   return tasks;
 }
 
+function translationHashesNeedRepair(
+  entity: MenuTranslationSourceEntity,
+  row: StoredMenuTranslation | null | undefined
+): boolean {
+  if (!row || row.source_hash !== sourceHashFor(entity.fields)) return Boolean(row);
+  const expectedFieldHashes = fieldHashesFor(entity.fields);
+  const storedFieldHashes = objectInput(row.field_hashes);
+  if (Object.keys(storedFieldHashes).length !== Object.keys(expectedFieldHashes).length) {
+    return true;
+  }
+  return Object.entries(expectedFieldHashes).some(
+    ([field, hash]) => storedFieldHashes[field] !== hash
+  );
+}
+
 function applyTaskTranslations(
   entity: MenuTranslationSourceEntity,
   row: StoredMenuTranslation | undefined,
@@ -622,7 +647,18 @@ export async function generateOwnerMenuTranslations(args: {
       for (const entity of ctx.entities) {
         const row = rowsByKey.get(`${entity.type}:${entity.id}`);
         const entityStatus = resolveEntityTranslationStatus(entity, row);
-        if (entityStatus.status === "up_to_date") continue;
+        if (entityStatus.status === "up_to_date") {
+          if (translationHashesNeedRepair(entity, row)) {
+            await upsertEntityTranslation({
+              ctx,
+              entity,
+              locale: args.locale,
+              provider: translator.provider,
+              content: objectInput(row?.content)
+            });
+          }
+          continue;
+        }
 
         const tasks = flattenTranslationTasks(entity, row);
         if (tasks.length === 0) continue;

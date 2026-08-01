@@ -334,7 +334,7 @@ test("public readiness keeps legacy dish rows valid when only identity or derive
     completeDishContent()
   );
   assert.equal(
-    storedTranslationRowMatchesFields(legacyDerivedTagRow, dishFields),
+    storedTranslationRowMatchesFields(legacyDerivedTagRow, dishFields, ["Recommande"]),
     true
   );
 
@@ -539,6 +539,22 @@ test("manual overrides are inspected before source-language rejection but remain
     publicMenuTranslationStatusesForRows(menu, {
       menuRows: [],
       ...differentOverrideRows
+    }).find((status) => status.locale === "de-DE")?.status,
+    "up_to_date"
+  );
+
+  const staleAggregateOverrideRows = completeRows(
+    "de-DE",
+    completeDishContent({ description: "Description conservée volontairement." })
+  );
+  staleAggregateOverrideRows.dishRows[0].manual_overrides = {
+    description: true
+  };
+  staleAggregateOverrideRows.dishRows[0].source_hash = "stale-aggregate-hash";
+  assert.equal(
+    publicMenuTranslationStatusesForRows(menu, {
+      menuRows: [],
+      ...staleAggregateOverrideRows
     }).find((status) => status.locale === "de-DE")?.status,
     "up_to_date"
   );

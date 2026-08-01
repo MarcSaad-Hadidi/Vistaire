@@ -17,6 +17,7 @@ export type MenuTranslationSourceEntity = {
   type: MenuTranslationEntityType;
   id: string;
   fields: MenuTranslationFields;
+  legacyDerivedTags?: string[];
 };
 
 export type StoredMenuTranslation = {
@@ -32,6 +33,7 @@ export type StoredMenuTranslation = {
 type TranslationHashRow = {
   source_hash?: unknown;
   field_hashes?: unknown;
+  manual_overrides?: unknown;
 };
 
 export type MenuTranslationStatusSummary = {
@@ -80,7 +82,8 @@ export function sourceHashFor(fields: MenuTranslationFields): string {
 export function sourceHashMatchesFields(
   fields: MenuTranslationFields,
   row: TranslationHashRow | undefined | null,
-  entityType?: MenuTranslationEntityType
+  entityType?: MenuTranslationEntityType,
+  legacyDerivedTags: readonly string[] = []
 ): boolean {
   if (!row) return false;
   if (row.source_hash === sourceHashFor(fields)) return true;
@@ -109,7 +112,7 @@ export function sourceHashMatchesFields(
 
   const tags = fields.tags;
   if (!Array.isArray(tags)) return false;
-  const tagVariants = legacyTagVariants(tags);
+  const tagVariants = legacyTagVariants(tags, legacyDerivedTags);
   return tagVariants.some(
     (variant) =>
       storedFieldHashes.tags === hashTranslationValue(variant) &&
@@ -118,9 +121,16 @@ export function sourceHashMatchesFields(
   );
 }
 
-function legacyTagVariants(tags: string[]): string[][] {
+function legacyTagVariants(
+  tags: string[],
+  legacyDerivedTags: readonly string[] = []
+): string[][] {
   const variants: string[][] = [tags];
-  for (const badge of ["Signature", "Recommande"]) {
+  const badges = legacyDerivedTags
+    .map((tag) => tag.trim().toLowerCase())
+    .map((tag) => tag === "signature" ? "Signature" : tag === "recommande" ? "Recommande" : "")
+    .filter((tag, index, values) => tag && values.indexOf(tag) === index);
+  for (const badge of badges) {
     const current = [...variants];
     for (const variant of current) {
       if (variant.some((tag) => tag.toLowerCase() === badge.toLowerCase())) continue;
@@ -140,7 +150,8 @@ export function fieldHashMatchesFields(
   fields: MenuTranslationFields,
   row: TranslationHashRow | undefined | null,
   field: string,
-  entityType?: MenuTranslationEntityType
+  entityType?: MenuTranslationEntityType,
+  legacyDerivedTags: readonly string[] = []
 ): boolean {
   if (!row) return false;
   const storedFieldHashes = objectInput(row.field_hashes);
@@ -149,7 +160,7 @@ export function fieldHashMatchesFields(
   if (entityType !== "dish" || field !== "tags" || !Array.isArray(fields.tags)) {
     return false;
   }
-  const tagVariants = legacyTagVariants(fields.tags);
+  const tagVariants = legacyTagVariants(fields.tags, legacyDerivedTags);
   return tagVariants.some(
     (variant) =>
       storedFieldHashes.tags === hashTranslationValue(variant) &&
@@ -162,6 +173,21 @@ export function objectInput(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+export function sourceHashCompatibleWithManualOverrides(
+  fields: MenuTranslationFields,
+  row: TranslationHashRow | undefined | null,
+  entityType?: MenuTranslationEntityType,
+  legacyDerivedTags: readonly string[] = []
+): boolean {
+  const manualOverrides = objectInput(row?.manual_overrides);
+  if (!Object.values(manualOverrides).some((value) => value === true)) return false;
+  return Object.entries(fields)
+    .filter(([field]) => manualOverrides[field] !== true)
+    .every(([field]) =>
+      fieldHashMatchesFields(fields, row, field, entityType, legacyDerivedTags)
+    );
 }
 
 export function stringInput(value: unknown): string {
@@ -221,7 +247,13 @@ export function estimateChangedCharacters(
   return Object.entries(entity.fields).reduce((total, [field, value]) => {
     if (isEmptyTranslationValue(value)) return total;
     if (isManualOverride(manualOverrides, field)) return total;
-    if (fieldHashMatchesFields(entity.fields, row, field, entity.type) &&
+    if (fieldHashMatchesFields(
+      entity.fields,
+      row,
+      field,
+      entity.type,
+      entity.legacyDerivedTags
+    ) &&
       hasTranslatedValue(content, field)) {
       return total;
     }
@@ -253,7 +285,20 @@ export function resolveEntityTranslationStatus(
   }
 
   const estimatedCharacters = estimateChangedCharacters(entity, row);
-  if (!sourceHashMatchesFields(entity.fields, row, entity.type) || estimatedCharacters > 0) {
+  const sourceHashReady =
+    sourceHashMatchesFields(
+      entity.fields,
+      row,
+      entity.type,
+      entity.legacyDerivedTags
+    ) ||
+    sourceHashCompatibleWithManualOverrides(
+      entity.fields,
+      row,
+      entity.type,
+      entity.legacyDerivedTags
+    );
+  if (!sourceHashReady || estimatedCharacters > 0) {
     return { status: "stale", estimatedCharacters };
   }
 

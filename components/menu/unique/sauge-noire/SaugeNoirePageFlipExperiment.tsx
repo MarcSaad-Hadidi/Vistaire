@@ -618,6 +618,18 @@ export function SaugeNoirePageFlipExperiment({
     const targetSurface = readingSurfaceRef.current;
     if (!targetSurface) return;
 
+    const projectedHandoffScrollTop = () => {
+      const maxScrollTop = Math.max(
+        0,
+        targetSurface.scrollHeight - targetSurface.clientHeight
+      );
+      const gestureDelta = Math.max(0, transition.gestureDelta);
+      return Math.min(
+        maxScrollTop,
+        Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
+      );
+    };
+
     const resetGeometry = () => {
       stableFrames = 0;
       stableGeometry = "";
@@ -643,7 +655,9 @@ export function SaugeNoirePageFlipExperiment({
 
     const bindMediaSignals = () => {
       scrollHandoffMediaCleanupRef.current?.();
-      const media = readinessMediaForSurface(targetSurface);
+      const media = readinessMediaForSurface(targetSurface, {
+        projectedScrollTop: projectedHandoffScrollTop()
+      });
       const handleMediaSignal = () => scheduleCheck();
       for (const element of media) {
         element.addEventListener("load", handleMediaSignal);
@@ -662,7 +676,9 @@ export function SaugeNoirePageFlipExperiment({
     };
 
     const mediaIsPending = () =>
-      readinessMediaForSurface(targetSurface).some((element) => {
+      readinessMediaForSurface(targetSurface, {
+        projectedScrollTop: projectedHandoffScrollTop()
+      }).some((element) => {
         if (element instanceof HTMLImageElement) return !mediaIsPrepared(element);
         if (element instanceof HTMLVideoElement) return element.readyState < 2;
         return false;
