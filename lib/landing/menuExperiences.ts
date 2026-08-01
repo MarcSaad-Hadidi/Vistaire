@@ -645,13 +645,13 @@ async function buildLandingExperiences(
 
 const getCachedFrenchLandingExperiences = unstable_cache(
   () => buildLandingExperiences("fr"),
-  ["landing-menu-experiences-fr-v9"],
+  ["landing-menu-experiences-fr-v10"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingExperiences = unstable_cache(
   () => buildLandingExperiences("en"),
-  ["landing-menu-experiences-en-v9"],
+  ["landing-menu-experiences-en-v10"],
   { revalidate: 60 }
 );
 
@@ -696,14 +696,14 @@ async function buildLandingMenuPreviewPayload(
 const getCachedFrenchLandingMenuPreviewPayload = unstable_cache(
   (experienceId: LandingExperienceId) =>
     buildLandingMenuPreviewPayload(experienceId, "fr"),
-  ["landing-menu-preview-payload-fr-v8"],
+  ["landing-menu-preview-payload-fr-v9"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingMenuPreviewPayload = unstable_cache(
   (experienceId: LandingExperienceId) =>
     buildLandingMenuPreviewPayload(experienceId, "en"),
-  ["landing-menu-preview-payload-en-v8"],
+  ["landing-menu-preview-payload-en-v9"],
   { revalidate: 60 }
 );
 

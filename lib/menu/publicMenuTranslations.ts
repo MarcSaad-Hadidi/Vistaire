@@ -138,6 +138,9 @@ export async function applyStoredPublicMenuTranslations(
 
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
+    if (requestedEnglish && menu.slug === "maison-elyse") {
+      return buildMaisonEnglishPublicMenu(menu);
+    }
     const translationLocales = missingTranslationStatuses(menu);
     const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
       menu.settings,
@@ -191,6 +194,9 @@ export async function applyStoredPublicMenuTranslations(
   ]);
 
   if (menuRows.error || categoryRows.error || dishRows.error) {
+    if (requestedEnglish && menu.slug === "maison-elyse") {
+      return buildMaisonEnglishPublicMenu(menu);
+    }
     const translationLocales = missingTranslationStatuses(menu);
     const filteredSettings = filterPublicMenuSettingsForReadyTranslations(
       menu.settings,

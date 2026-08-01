@@ -196,7 +196,9 @@ function translatedMaisonDish(
 
   return {
     ...dish,
-    name: demoDish.name,
+    // Dish names are the restaurant's source labels. Keep them unchanged
+    // while using the English demo copy for the surrounding fields.
+    name: dish.name,
     description: demoDish.description,
     ...(category
       ? {
@@ -224,12 +226,6 @@ export function buildMaisonEnglishPublicMenu(menu: PublicMenu): PublicMenu {
   const dishes = menu.dishes.map((dish) =>
     translatedMaisonDish(dish, demoDishes, categories)
   );
-  const matchedDishes = dishes.filter(
-    (dish, index) => dish.name !== menu.dishes[index]?.name
-  ).length;
-
-  if (matchedDishes === 0) return menu;
-
   const supportedLocales = Array.from(
     new Set([...menu.settings.supportedLocales, "fr-CA", "en-CA"])
   ) as typeof menu.settings.supportedLocales;

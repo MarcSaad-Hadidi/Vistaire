@@ -270,6 +270,49 @@ test("stored English copy keeps the French source dish name", async () => {
   }
 });
 
+test("Maison English fallback keeps source dish names when translation storage is unavailable", async () => {
+  const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
+  const { applyStoredPublicMenuTranslations } = await import(
+    "../lib/menu/publicMenuTranslations.ts"
+  );
+
+  const demo = await getPublicMenuBySlug("maison-elyse", "fr-CA");
+  assert.ok(demo);
+  const sourceDish = demo.dishes.find(
+    (dish) => dish.slug === "ravioles-romarin"
+  );
+  assert.ok(sourceDish);
+
+  const sourceMenu = {
+    ...demo,
+    menuId: "menu-maison-fallback",
+    source: "supabase",
+    dishes: [
+      {
+        ...sourceDish,
+        id: "live-ravioles",
+        slug: "ravioles-de-chevre-frais-miel-de-monteregie",
+        name: "Ravioles de chèvre frais & miel de Montérégie"
+      }
+    ]
+  };
+
+  const english = await applyStoredPublicMenuTranslations(
+    sourceMenu,
+    "en-CA"
+  );
+
+  assert.equal(english.activeLocale, "en-CA");
+  assert.equal(
+    english.dishes[0].name,
+    "Ravioles de chèvre frais & miel de Montérégie"
+  );
+  assert.equal(
+    english.dishes[0].description,
+    "Fine ravioli filled with fresh goat cheese and Quebec honey, finished with whipped brown butter and a trace of burned rosemary. A controlled sweet-savoury balance."
+  );
+});
+
 test("Sauge browser fixture resolves complete stored English menus for all landing cards", async () => {
   const { rows } = await import(
     "../e2e/support/sauge-noire-fixture-data.mjs"
