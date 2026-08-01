@@ -25,3 +25,31 @@
 - Mobile spacing and the book rail were checked at both required widths; no horizontal overflow remains.
 
 final result: passed
+
+# Design QA — Landing Vistaire showcase
+
+- Source visuelle principale : `9-Photo-9.jpg`, complétée par les neuf sections jointes et la dernière ambiance Trouvable.
+- Preuves d’implémentation : `vistaire-landing-1440-full.png`, `vistaire-landing-390-full.png`, `vistaire-landing-430-hero.png` et `vistaire-reference-vs-implementation.jpg`, conservées hors du dépôt dans le dossier de visualisations Codex.
+- Viewports comparés : 390×844, 430×932 et 1440×900 CSS px.
+- Routes : `/` et `/en`, sur le build production local et sur la preview Vercel du PR.
+
+## Fidélité et écarts intentionnels
+
+- La hiérarchie de la référence est conservée : mosaïque vidéo/culinaire, valeur, trois expériences, comparaison, plats, outils restaurateur, CTA et footer.
+- Le langage Vistaire existant reste prioritaire : BT Suave, Neue Montreal, surfaces espresso translucides, accents champagne, bordures fines et lumière ambre.
+- Le hero emploie la vidéo Vistaire réelle plutôt que le mockup de téléphone statique de la référence.
+- Les trois expériences utilisent des photos d’ambiance approuvées, sans les présenter comme des établissements clients vérifiés.
+- La comparaison conserve le téléphone et la révélation circulaire existants; le tableau marketing statique de la référence n’a pas été reproduit.
+- Les sections sont volontairement plus hautes que la maquette compacte afin de garder une typographie lisible et des cibles tactiles adaptées à 390 px.
+- Les claims non prouvés, statistiques, faux clients, permissions/collaborateurs et promesses de vente ont été retirés.
+
+## Vérifications visuelles
+
+- Aucun débordement horizontal à 390, 430, 768, 1280 ou 1440 px.
+- Le hero, les images des trois expériences, le téléphone de comparaison, le CTA final et le footer sont entièrement visibles.
+- Le crop Trouvable conserve le bar, la lumière ambre, la végétation et les matières de la dernière photo fournie.
+- Le top bar est le composant existant, sans reconstruction de son DOM ni de ses styles internes.
+- Les états focus, le tablist et la comparaison restent lisibles sur les surfaces photographiques.
+- La comparaison côte à côte finale confirme la filiation de composition sans copier les faux contenus de la maquette.
+
+final result: passed

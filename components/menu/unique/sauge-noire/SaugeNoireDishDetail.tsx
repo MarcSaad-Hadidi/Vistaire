@@ -37,9 +37,9 @@ import { AllergenWarning } from "@/components/menu/AllergenDisclosure";
 import { SaugeNoireBotanical } from "./SaugeNoireBotanical";
 import {
   SaugeNoireBookHeader,
-  SaugeNoireBookRail,
-  SectionPage
+  SaugeNoireBookRail
 } from "./SaugeNoireBookMenu";
+import { SectionPage } from "./SaugeNoireMenuPages";
 import {
   SaugeNoireFlipPage,
   useSaugeNoirePhysicalPageMedia
@@ -614,6 +614,24 @@ export function SaugeNoireDishDetail({
   );
   const publicLocale = query?.lang ?? locale;
   const selectedCopyLocale = copyLocale(publicLocale);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousLang = root.lang;
+    const previousDir = root.getAttribute("dir");
+    root.lang = publicLocale.trim() || "fr-CA";
+    root.dir = selectedCopyLocale === "ar" ? "rtl" : "ltr";
+
+    return () => {
+      root.lang = previousLang;
+      if (previousDir === null) {
+        root.removeAttribute("dir");
+      } else {
+        root.setAttribute("dir", previousDir);
+      }
+    };
+  }, [publicLocale, selectedCopyLocale]);
+
   const routeTransition = useSaugeNoireTransition();
   const beginRouteTransition = routeTransition?.beginTransition;
   const prefetchRouteDestination = routeTransition?.prefetchDestination;
@@ -1055,6 +1073,7 @@ export function SaugeNoireDishDetail({
   return (
     <main
       className={styles.detailPage}
+      data-public-dish-renderer="sauge-noire"
       data-testid="sauge-noire-dish-detail"
       data-active-currency={currency}
       data-active-locale={publicLocale}

@@ -1180,3 +1180,41 @@
     position: absolute;
   }
 }
+
+.page.comparisonPreview,
+.page.comparisonPreview.isMenuMode {
+  height: auto;
+  min-height: 100%;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+
+.comparisonPreview .sections,
+.comparisonPreview.isMenuMode .sections,
+.comparisonPreview .menuPanel {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.comparisonPreview .menuScrollArea {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.comparisonPreview .bottomBar {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: calc(100% - 24px);
+  margin: 12px auto 18px;
+  transform: none;
+}
+
+.comparisonPreview .sheetBackdrop {
+  display: none;
+}

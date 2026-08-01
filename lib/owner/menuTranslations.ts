@@ -117,6 +117,7 @@ function addField(
 function dishFields(row: AnyRow): MenuTranslationFields {
   const metadata = getObject(row, ["metadata", "meta"]);
   const fields: MenuTranslationFields = {};
+  addField(fields, "name", getString(row, ["name", "dish_name", "title"]));
   addField(fields, "description", getString(row, ["short_description", "shortDescription", "description"]));
   addField(
     fields,

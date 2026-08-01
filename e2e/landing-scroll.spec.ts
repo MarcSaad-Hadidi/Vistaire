@@ -95,12 +95,14 @@ test.describe("Landing production experience", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(
-      page.getByRole("heading", { level: 1, name: /VISTAIRE/ })
+      page.getByRole("heading", {
+        level: 1,
+        name: /Donnez envie avant la première bouchée/
+      })
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: "Explorer" })).toHaveAttribute(
-      "href",
-      "/demo"
-    );
+    await expect(
+      page.getByRole("link", { name: "Explorer Maison Élyse" })
+    ).toHaveAttribute("href", "/demo");
     await expect(
       page.getByRole("link", { name: "Prendre rendez-vous" }).first()
     ).toHaveAttribute("href", "/prendre-rendez-vous");

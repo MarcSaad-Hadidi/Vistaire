@@ -3,11 +3,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 test("public menu route loads the published UI config and shared renderer", async () => {
-  const source = await readFile("app/menu/[slug]/page.tsx", "utf8");
+  const [source, renderContext] = await Promise.all([
+    readFile("app/menu/[slug]/page.tsx", "utf8"),
+    readFile("lib/menu/publicMenuRenderContext.ts", "utf8")
+  ]);
 
-  assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
+  assert.match(source, /resolvePublicMenuRenderContext/);
+  assert.match(renderContext, /getPublishedMenuUiConfigForRestaurant/);
   assert.match(source, /PublicMenuRenderer/);
-  assert.match(source, /resolvePublicMenuExperience/);
+  assert.match(renderContext, /resolvePublicMenuExperience/);
   assert.doesNotMatch(source, /<PublicMenuExperience[\s/>]/);
   assert.doesNotMatch(source, /from ["']@\/components\/menu\/PublicMenuExperience["']/);
 });
@@ -144,7 +148,7 @@ test("generic public dish sheets render structured allergen declarations and act
   );
   assert.match(
     detailRouteSource,
-    /<PublicDishDetailExperience[\s\S]*locale=\{activeLocale\}/
+    /<PublicDishDetailExperience[\s\S]*locale=\{locale\}/
   );
 });
 

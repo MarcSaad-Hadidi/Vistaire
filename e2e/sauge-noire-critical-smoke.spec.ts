@@ -139,8 +139,12 @@ test("moves to the next dish and back to the initial dish", async ({ page }) => 
 
 test("mounts the 3D stage only after user intent", async ({ page }) => {
   const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
   const glbRequests: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
   page.on("request", (request) => {
     if (/\.glb(?:$|\?)/i.test(request.url())) glbRequests.push(request.url());
   });
@@ -157,8 +161,17 @@ test("mounts the 3D stage only after user intent", async ({ page }) => {
   await expect(page.locator("model-viewer")).toHaveCount(0);
   expect(glbRequests).toEqual([]);
 
-  await surface.getByRole("button", { name: "VOIR EN 3D" }).click();
+  const viewerButton = surface.getByRole("button", { name: "VOIR EN 3D" });
+  await expect(viewerButton).toBeVisible();
+  await viewerButton.click();
 
   await expect(page.locator('[data-viewer-copy-locale="fr"]')).toBeVisible();
+  await expect.poll(() => glbRequests.length).toBeGreaterThan(0);
+  expect(
+    glbRequests.some(
+      (url) => new URL(url).pathname === "/models/demo/maison-elyse-n1.glb"
+    )
+  ).toBe(true);
   expect(pageErrors).toEqual([]);
+  expect(consoleErrors).toEqual([]);
 });

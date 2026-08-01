@@ -10,16 +10,11 @@ import {
   useSyncExternalStore,
   type ComponentType,
   type CSSProperties,
+  type ElementType,
   type PointerEvent
 } from "react";
-import type {
-  ArFallbackReason,
-  DishModelViewerProps
-} from "@/components/dish/DishModelViewer";
-import {
-  getPublicMenuAnalyticsContext,
-  trackPublicMenuEvent
-} from "@/lib/analytics/client";
+import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
@@ -51,7 +46,11 @@ import {
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
-import { PremiumDishCardOptionTags } from "./PremiumDishTags";
+import {
+  TrouvableDishDetailSurface,
+  TrouvableDishReviewPanelBody,
+  TrouvableImmersivePanelBody
+} from "./TrouvableDishDetailSurface";
 import { trackGoogleReviewClick } from "./googleReviewTracking";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
@@ -94,7 +93,7 @@ type TrouvablePremiumMenuExperienceProps = {
   exchangeRates: MenuExchangeRates;
   query?: PublicMenuContextQuery;
   typographyClassName?: string;
-  displayMode?: "public" | "phone-preview";
+  displayMode?: "public" | "phone-preview" | "comparison-preview";
 };
 
 type QuickFilterId =
@@ -298,23 +297,6 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   return true;
 }
 
-function modelViewerDishFromPublicDish(
-  dish: PublicMenuDish
-): DishModelViewerProps["dish"] {
-  return {
-    slug: dish.slug,
-    categorySlug: dish.category,
-    name: dish.name,
-    model3dUrl: dish.model3dUrl,
-    webModel3dUrl: dish.webModel3dUrl,
-    arModel3dUrl: dish.arModel3dUrl,
-    arUsdzUrl: dish.arUsdzUrl || dish.usdzUrl,
-    image: dish.imageUrl,
-    imageObjectPosition: "center",
-    imageObjectPositionDetail: "center"
-  };
-}
-
 function DishVisual({ dish, menu }: { dish: PublicMenuDish; menu: PublicMenu }) {
   if (dish.imageUrl) {
     return (
@@ -432,25 +414,6 @@ function BackToTopIcon() {
   );
 }
 
-function BrowserHandoffIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="3.5" y="4" width="17" height="16" rx="2" />
-      <path d="M3.5 8h17M7 6h.01M10 6h.01M13 6h.01" />
-      <path d="m8 14 2.2 2.2L16 10.4" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="8" y="8" width="11" height="12" rx="1.8" />
-      <path d="M16 8V5.8A1.8 1.8 0 0 0 14.2 4H5.8A1.8 1.8 0 0 0 4 5.8v10.4A1.8 1.8 0 0 0 5.8 18H8" />
-    </svg>
-  );
-}
-
 export function TrouvablePremiumMenuExperience({
   menu,
   config,
@@ -460,6 +423,8 @@ export function TrouvablePremiumMenuExperience({
   typographyClassName = "",
   displayMode = "public"
 }: TrouvablePremiumMenuExperienceProps) {
+  const isEmbeddedPreview = displayMode !== "public";
+  const isComparisonPreview = displayMode === "comparison-preview";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -523,7 +488,7 @@ export function TrouvablePremiumMenuExperience({
   const topBarRef = useRef<HTMLElement | null>(null);
   const toolsSentinelRef = useRef<HTMLDivElement | null>(null);
   const backToTopSentinelRef = useRef<HTMLDivElement | null>(null);
-  const pageTopRef = useRef<HTMLElement | null>(null);
+  const pageTopRef = useRef<HTMLDivElement | null>(null);
   const manualDishUrlRef = useRef<HTMLInputElement | null>(null);
   const arCopyResetTimeoutRef = useRef<number | null>(null);
   const categoryRailRef = useRef<HTMLElement | null>(null);
@@ -817,26 +782,35 @@ export function TrouvablePremiumMenuExperience({
   }
 
   const handleBackToTop = useCallback(() => {
-    const phonePreviewScroller =
-      displayMode === "phone-preview"
-        ? pageTopRef.current?.closest('[data-display-mode="phone-preview"]')?.parentElement
-        : null;
+    const embeddedScroller =
+      displayMode === "comparison-preview"
+        ? pageTopRef.current?.closest(
+            '[data-comparison-scroll-root="digital"]'
+          )
+        : displayMode === "phone-preview"
+          ? pageTopRef.current?.closest(
+              '[data-display-mode="phone-preview"]'
+            )?.parentElement
+          : null;
 
-    if (phonePreviewScroller instanceof HTMLElement) {
-      phonePreviewScroller.scrollTo({
+    if (embeddedScroller instanceof HTMLElement) {
+      embeddedScroller.scrollTo({
         top: 0,
         behavior: prefersReducedMotion ? "auto" : "smooth"
       });
+    } else if (isEmbeddedPreview) {
+      return;
     } else {
       window.scrollTo({
         top: 0,
         behavior: prefersReducedMotion ? "auto" : "smooth"
       });
     }
+    if (isComparisonPreview) return;
     window.requestAnimationFrame(() => {
       pageTopRef.current?.focus({ preventScroll: true });
     });
-  }, [displayMode, prefersReducedMotion]);
+  }, [displayMode, isComparisonPreview, isEmbeddedPreview, prefersReducedMotion]);
 
   const restoreFocus = useCallback(() => {
     window.setTimeout(() => {
@@ -852,12 +826,13 @@ export function TrouvablePremiumMenuExperience({
 
   const openSheet = useCallback(
     (sheet: Exclude<ActiveSheet, null>) => {
+      if (isComparisonPreview) return;
       if (!activeSheet && document.activeElement instanceof HTMLElement) {
         lastFocusRef.current = document.activeElement;
       }
       setActiveSheet(sheet);
     },
-    [activeSheet]
+    [activeSheet, isComparisonPreview]
   );
 
   const closeActiveSheet = useCallback(() => {
@@ -1077,7 +1052,7 @@ export function TrouvablePremiumMenuExperience({
   }, []);
 
   useEffect(() => {
-    if (!activeSheet) return;
+    if (isEmbeddedPreview || !activeSheet) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1128,10 +1103,17 @@ export function TrouvablePremiumMenuExperience({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSheet, closeActiveSheet, closeDishSubSheet, dishSubSheet]);
+  }, [
+    activeSheet,
+    closeActiveSheet,
+    closeDishSubSheet,
+    dishSubSheet,
+    isEmbeddedPreview
+  ]);
 
   useEffect(() => {
     if (
+      displayMode !== "public" ||
       !showDetailModelViewer ||
       ModelViewerComponent ||
       modelViewerLoadFailed
@@ -1155,7 +1137,12 @@ export function TrouvablePremiumMenuExperience({
     return () => {
       cancelled = true;
     };
-  }, [ModelViewerComponent, modelViewerLoadFailed, showDetailModelViewer]);
+  }, [
+    ModelViewerComponent,
+    displayMode,
+    modelViewerLoadFailed,
+    showDetailModelViewer
+  ]);
 
   // Once the sheet layer has fully closed (past its exit animation), drop the dish-scoped
   // state so a reopened sheet starts clean and the model viewer never lingers.
@@ -1427,42 +1414,56 @@ export function TrouvablePremiumMenuExperience({
       exchangeRates
     );
     const show3dBadge = hasPublicMenu3d(dish);
+    const dishSummaryContent = (
+      <>
+        <DishVisual dish={dish} menu={menu} />
+        <span className={styles.dishCopy}>
+          <span className={styles.dishTopline}>
+            <strong>{dish.name}</strong>
+          </span>
+          <small>{dishMetaLine(dish, copy.soldOut)}</small>
+          {priceLabel || show3dBadge ? (
+            <span className={styles.dishPriceRow}>
+              {priceLabel ? (
+                <span className={styles.dishPrice}>{priceLabel}</span>
+              ) : (
+                <span className={styles.dishPriceSpacer} aria-hidden="true" />
+              )}
+              {show3dBadge ? (
+                <DishCard3dBadge className={styles.dishCard3dBadge} />
+              ) : null}
+            </span>
+          ) : null}
+        </span>
+      </>
+    );
 
     return (
       <li key={dish.id} className={styles.dishItem}>
         <article
           className={`${styles.dishCard} ${isFeatured ? styles.dishCardFeatured : ""}`}
         >
-          <button
-            type="button"
-            className={styles.dishSummary}
-            aria-haspopup="dialog"
-            onClick={() => openDishDetail(dish)}
-          >
-            <DishVisual dish={dish} menu={menu} />
-            <span className={styles.dishCopy}>
-              <span className={styles.dishTopline}>
-                <strong>{dish.name}</strong>
-              </span>
-              <small>{dishMetaLine(dish, copy.soldOut)}</small>
-              {priceLabel || show3dBadge ? (
-                <span className={styles.dishPriceRow}>
-                  {priceLabel ? (
-                    <span className={styles.dishPrice}>{priceLabel}</span>
-                  ) : (
-                    <span className={styles.dishPriceSpacer} aria-hidden="true" />
-                  )}
-                  {show3dBadge ? (
-                    <DishCard3dBadge className={styles.dishCard3dBadge} />
-                  ) : null}
-                </span>
-              ) : null}
+          {isComparisonPreview ? (
+            <span
+              className={styles.dishSummary}
+              data-comparison-static-control="true"
+            >
+              {dishSummaryContent}
             </span>
-          </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.dishSummary}
+              aria-haspopup="dialog"
+              onClick={() => openDishDetail(dish)}
+            >
+              {dishSummaryContent}
+            </button>
+          )}
           <div className={styles.cardActions}>
             <button
               type="button"
-              disabled={!dish.available}
+              disabled={isComparisonPreview || !dish.available}
               onClick={() => addDish(dish)}
             >
               {dish.available ? copy.add : copy.soldOut}
@@ -1877,70 +1878,29 @@ export function TrouvablePremiumMenuExperience({
           className={styles.reviewSheet}
           tabIndex={-1}
         >
-          <div className={styles.reviewDishGhost} aria-hidden="true">
-            {reviewDish?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" src={reviewDish.imageUrl} />
-            ) : reviewDish ? (
-              <span>{reviewDish.name.slice(0, 1)}</span>
-            ) : (
-              <span>{menu.name.slice(0, 1)}</span>
-            )}
-          </div>
-          <div className={styles.reviewPanel}>
-            <h2 id="trouvable-review-title">{reviewTitle}</h2>
-            <div className={styles.reviewStars} aria-label={reviewStarsLabel}>
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <button
-                  key={rating}
-                  type="button"
-                  aria-label={`${rating} ${reviewStarsLabel}`}
-                  aria-pressed={reviewRating >= rating}
-                  onClick={() => setReviewRating(rating)}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
-            <label className={styles.reviewTextarea}>
-              <span>{copy.reviewComment}</span>
-              <textarea
-                maxLength={300}
-                placeholder={reviewPlaceholder}
-                value={reviewText}
-                onChange={(event) => setReviewText(event.target.value)}
-              />
-            </label>
-            {googleReviewCta ? (
-              <a
-                className={styles.reviewPostButton}
-                data-google-review-action="true"
-                href={googleReviewCta.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => {
-                  trackGoogleReviewClick({
-                    dishSlug: reviewDish?.slug,
-                    menuId: menu.menuId,
-                    restaurantId: menu.restaurantId,
-                    source: menu.source
-                  });
-                  setLocalMessage(copy.reviewOpened);
-                }}
-              >
-                {copy.reviewPost}
-              </a>
-            ) : (
-              <button className={styles.reviewPostButton} type="button" disabled>
-                {copy.reviewPost}
-              </button>
-            )}
-            {!googleReviewCta ? (
-              <p className={styles.reviewNote}>
-                {copy.reviewMissing}
-              </p>
-            ) : null}
-          </div>
+          <TrouvableDishReviewPanelBody
+            copy={copy}
+            dish={reviewDish}
+            fallbackInitial={menu.name.slice(0, 1)}
+            googleReviewCta={googleReviewCta}
+            onPostReview={() => {
+              trackGoogleReviewClick({
+                dishSlug: reviewDish?.slug,
+                menuId: menu.menuId,
+                restaurantId: menu.restaurantId,
+                source: menu.source
+              });
+              setLocalMessage(copy.reviewOpened);
+            }}
+            onRatingChange={setReviewRating}
+            onReviewTextChange={setReviewText}
+            placeholder={reviewPlaceholder}
+            rating={reviewRating}
+            starsLabel={reviewStarsLabel}
+            text={reviewText}
+            title={reviewTitle}
+            titleId="trouvable-review-title"
+          />
         </section>
       </div>
     );
@@ -1972,7 +1932,8 @@ export function TrouvablePremiumMenuExperience({
   function renderDishDetailSheet() {
     if (renderedSheet !== "dish" || !selectedDish) return null;
 
-    const hasModel = hasPublicMenu3d(selectedDish);
+    const hasModel =
+      displayMode === "public" && hasPublicMenu3d(selectedDish);
     const detailPrice = formatTrouvableDishPrice(
       selectedDish,
       selectedCurrency,
@@ -1985,7 +1946,6 @@ export function TrouvablePremiumMenuExperience({
       selectedDish.slug,
       localizedQuery
     );
-    const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
     const arBrowserFallbackTitleId = `trouvable-ar-browser-fallback-${selectedDish.slug}`;
     const manualDishUrlId = `trouvable-ar-manual-url-${selectedDish.slug}`;
 
@@ -2069,202 +2029,84 @@ export function TrouvablePremiumMenuExperience({
               </button>
             </>
           ) : null}
-          <div
-            className={`${styles.detailVisual} ${
-              selectedDish.imageUrl ? styles.hasDishImage : ""
-            }`}
-          >
-            {selectedDish.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" loading="lazy" src={selectedDish.imageUrl} />
-            ) : (
-              <span>{menu.name.slice(0, 1)}</span>
-            )}
-          </div>
-          <div className={styles.detailBody}>
-            <header className={styles.sheetHeader}>
-              <div>
-                <p>{selectedDish.category}</p>
-                <h2 id="trouvable-dish-title">{selectedDish.name}</h2>
-              </div>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={copy.closeDetail}
-                onClick={closeActiveSheet}
-              >
-                x
-              </button>
-            </header>
-            {detailPrice ? (
-              <strong className={styles.detailPrice}>{detailPrice}</strong>
-            ) : null}
-            <button
-              type="button"
-              className={styles.moreDetailsButton}
-              aria-expanded={dishSubSheet === "details"}
-              aria-controls={moreDetailsId}
-              onClick={() => {
-                setDishSubSheet("details");
-              }}
-            >
-              <span aria-hidden="true">i</span>
-              {copy.viewDetails}
-            </button>
-            <div className={styles.detailOptionTags} data-no-dish-swipe="true">
-              <PremiumDishCardOptionTags
-                items={selectedDish.options}
-                label={copy.cardOptionsLabel}
-                variant="detail"
-              />
-            </div>
-            <div className={styles.detailActions}>
-              <button
-                type="button"
-                className={styles.primaryAction}
-                disabled={!selectedDish.available}
-                onClick={() => addDish(selectedDish)}
-              >
-                {copy.addToSelection}
-              </button>
-              <button type="button" onClick={() => openWaiter("recommendation")}>
-                {copy.askWaiter}
-              </button>
-              {hasModel ? (
+          <TrouvableDishDetailSurface
+            actionContent={
+              <>
                 <button
                   type="button"
-                  className={styles.modelCta}
-                  aria-controls="trouvable-sheet-model"
-                  aria-expanded={showDetailModelViewer}
-                  onClick={() => {
-                    resetArHandoffState();
-                    setShowDetailModelViewer((isVisible) => {
-                      if (displayMode === "public" && !isVisible && selectedDish) {
-                        trackPublicMenuEvent(menu, {
-                          eventName: "dish_3d_clicked",
-                          dishSlug: selectedDish.slug,
-                          categorySlug: selectedDish.categorySlug
-                        });
-                      }
-                      return !isVisible;
-                    });
-                  }}
+                  className={styles.primaryAction}
+                  disabled={!selectedDish.available}
+                  onClick={() => addDish(selectedDish)}
                 >
-                  {copy.threeD}
+                  {copy.addToSelection}
                 </button>
-              ) : null}
-            </div>
-            {showDetailModelViewer ? (
-              <>
-                <div
-                  className={styles.inlineModelViewer}
-                  id="trouvable-sheet-model"
-                  data-no-dish-swipe="true"
-                >
-                  {ModelViewerComponent ? (
-                    <ModelViewerComponent
-                      dish={modelViewerDishFromPublicDish(selectedDish)}
-                      analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
-                      minimalChrome
-                      quietChrome
-                      copy={{
-                        loadingTitle: copy.modelPreparing,
-                        ...copy.modelViewer,
-                        modelAlt: copy.modelAlt
-                      }}
-                      onReturnToDish={() => {
-                        setShowDetailModelViewer(false);
-                        resetArHandoffState();
-                      }}
-                      onArFallbackNeeded={(reason: ArFallbackReason) => {
-                        if (reason === "missing-ios-usdz") {
-                          resetArHandoffState();
-                          return;
-                        }
-                        setShowArBrowserHelp(true);
-                      }}
-                      onArFallbackCleared={resetArHandoffState}
-                    />
-                  ) : modelViewerLoadFailed ? (
-                    <div className={styles.modelLoading} role="status">
-                      {copy.modelUnavailable}
-                    </div>
-                  ) : (
-                    <div className={styles.modelLoading} role="status">
-                      {copy.modelPreparing}
-                    </div>
-                  )}
-                </div>
-                {showArBrowserHelp ? (
-                  <aside
-                    className={styles.arBrowserFallback}
-                    aria-labelledby={arBrowserFallbackTitleId}
-                    dir="auto"
-                  >
-                    <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
-                      <BrowserHandoffIcon />
-                    </span>
-                    <div className={styles.arBrowserFallbackContent}>
-                      <h3 id={arBrowserFallbackTitleId}>{platformCopy.title}</h3>
-                      <p>{platformCopy.body}</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.arCopyButton}
-                      onClick={() => void copyDishUrl()}
-                      disabled={arCopyStatus === "copying"}
-                    >
-                      <CopyIcon />
-                      {platformCopy.action}
-                    </button>
-                    {arCopyStatus === "success" ? (
-                      <p className={styles.arCopyStatus} role="status" aria-live="polite">
-                        {platformCopy.success}
-                      </p>
-                    ) : null}
-                    {arCopyStatus === "error" ? (
-                      <div className={styles.arManualCopy}>
-                        <p
-                          className={styles.arCopyStatus}
-                          role="alert"
-                          aria-live="assertive"
-                        >
-                          {copy.arBrowserFallback.copyError}
-                        </p>
-                        <label htmlFor={manualDishUrlId}>
-                          {copy.arBrowserFallback.manualCopyLabel}
-                        </label>
-                        <input
-                          ref={manualDishUrlRef}
-                          id={manualDishUrlId}
-                          type="url"
-                          readOnly
-                          value={manualDishUrl}
-                          onFocus={(event) => event.currentTarget.select()}
-                        />
-                        <button
-                          type="button"
-                          className={styles.arSelectLinkButton}
-                          onClick={selectManualDishUrl}
-                        >
-                          {copy.arBrowserFallback.selectLink}
-                        </button>
-                      </div>
-                    ) : null}
-                  </aside>
-                ) : null}
+                <button type="button" onClick={() => openWaiter("recommendation")}>
+                  {copy.askWaiter}
+                </button>
               </>
+            }
+            copy={copy}
+            detailsExpanded={dishSubSheet === "details"}
+            detailsId={moreDetailsId}
+            dish={selectedDish}
+            hasModel={hasModel}
+            headingLevel="h2"
+            locale={selectedLocale}
+            menuName={menu.name}
+            modelControlsId="trouvable-sheet-model"
+            modelExpanded={showDetailModelViewer}
+            onClose={closeActiveSheet}
+            onOpenDetails={() => setDishSubSheet("details")}
+            onOpenReview={openReviewSheet}
+            onToggleModel={() => {
+              resetArHandoffState();
+              setShowDetailModelViewer((isVisible) => {
+                if (displayMode === "public" && !isVisible && selectedDish) {
+                  trackPublicMenuEvent(menu, {
+                    eventName: "dish_3d_clicked",
+                    dishSlug: selectedDish.slug,
+                    categorySlug: selectedDish.categorySlug
+                  });
+                }
+                return !isVisible;
+              });
+            }}
+            price={detailPrice}
+            textDirection={textDirection}
+            titleId="trouvable-dish-title"
+          >
+            {showDetailModelViewer ? (
+              <TrouvableImmersivePanelBody
+                arCopyStatus={arCopyStatus}
+                arHandoffPlatform={arHandoffPlatform}
+                copy={copy}
+                dish={selectedDish}
+                fallbackTitleId={arBrowserFallbackTitleId}
+                manualDishUrl={manualDishUrl}
+                manualDishUrlId={manualDishUrlId}
+                manualDishUrlRef={manualDishUrlRef}
+                menu={menu}
+                modelControlsId="trouvable-sheet-model"
+                modelViewerComponent={ModelViewerComponent}
+                modelViewerLoadFailed={modelViewerLoadFailed}
+                onArFallbackCleared={resetArHandoffState}
+                onArFallbackNeeded={(reason) => {
+                  if (reason === "missing-ios-usdz") {
+                    resetArHandoffState();
+                    return;
+                  }
+                  setShowArBrowserHelp(true);
+                }}
+                onCopyDishUrl={() => void copyDishUrl()}
+                onReturnToDish={() => {
+                  setShowDetailModelViewer(false);
+                  resetArHandoffState();
+                }}
+                onSelectManualDishUrl={selectManualDishUrl}
+                showArBrowserHelp={showArBrowserHelp}
+              />
             ) : null}
-            <button
-              type="button"
-              className={styles.reviewTrigger}
-              aria-haspopup="dialog"
-              onClick={openReviewSheet}
-            >
-              <span aria-hidden="true">★</span>
-              {copy.review}
-            </button>
-          </div>
+          </TrouvableDishDetailSurface>
         </article>
       </div>
     );
@@ -2275,16 +2117,21 @@ export function TrouvablePremiumMenuExperience({
     activeSheet === null &&
     renderedSheet === null &&
     !showDetailModelViewer;
+  const MenuRoot: ElementType = displayMode === "public" ? "main" : "div";
 
   return (
-    <main
+    <MenuRoot
       ref={pageTopRef}
       tabIndex={-1}
       className={`${styles.page} ${typographyClassName} ${
-        displayMode === "phone-preview" ? styles.phonePreview : ""
+        isEmbeddedPreview ? styles.phonePreview : ""
+      } ${
+        isComparisonPreview ? styles.comparisonPreview : ""
       }`.trim()}
       lang={selectedLocale}
       data-display-mode={displayMode}
+      data-menu-ui="trouvable"
+      data-public-menu-renderer="trouvable"
       data-text-direction={textDirection}
       data-blueprint={config.experience.blueprint}
       data-copy-built-in-locale={copyResolution.builtInLocale}
@@ -2298,7 +2145,7 @@ export function TrouvablePremiumMenuExperience({
       }
       data-menu-translation-status={menu.translationStatus?.status ?? ""}
       onSubmit={
-        displayMode === "phone-preview"
+        isEmbeddedPreview
           ? (event) => event.preventDefault()
           : undefined
       }
@@ -2370,7 +2217,7 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "currency"}
             aria-label={`${copy.currencyAria}: ${selectedCurrency}`}
-            disabled={!canChangeCurrency}
+            disabled={isComparisonPreview || !canChangeCurrency}
             onClick={() => {
               if (canChangeCurrency) openSheet("currency");
             }}
@@ -2388,7 +2235,7 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "language"}
             aria-label={`${copy.languageAria}: ${getTrouvableLanguageShortCode(selectedLocale)}`}
-            disabled={!canChangeLanguage}
+            disabled={isComparisonPreview || !canChangeLanguage}
             onClick={() => {
               if (canChangeLanguage) openSheet("language");
             }}
@@ -2411,6 +2258,7 @@ export function TrouvablePremiumMenuExperience({
             type="button"
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "selection"}
+            disabled={isComparisonPreview}
             onClick={() => openSheet("selection")}
           >
             {copy.selection} {selectionCount > 0 ? selectionCount : ""}
@@ -2420,6 +2268,7 @@ export function TrouvablePremiumMenuExperience({
             type="button"
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "waiter"}
+            disabled={isComparisonPreview}
             onClick={() => openWaiter("recommendation")}
           >
             {copy.server}
@@ -2537,6 +2386,7 @@ export function TrouvablePremiumMenuExperience({
             aria-haspopup="dialog"
             aria-expanded={activeSheet === "filters"}
             aria-label={`${copy.filtersAria}: ${filterButtonLabel}`}
+            disabled={isComparisonPreview}
             onClick={() => openSheet("filters")}
           >
             <span className={styles.filterGlyph} aria-hidden="true">
@@ -2634,6 +2484,6 @@ export function TrouvablePremiumMenuExperience({
       {renderFiltersSheet()}
       {renderLanguageSheet()}
       {renderReviewSheet()}
-    </main>
+    </MenuRoot>
   );
 }

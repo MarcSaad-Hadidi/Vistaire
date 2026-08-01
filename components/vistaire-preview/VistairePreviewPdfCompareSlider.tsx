@@ -1,25 +1,42 @@
 "use client";
 
-import Image from "next/image";
 import {
   useEffect,
   useId,
   useRef,
   useState,
   type KeyboardEvent,
-  type PointerEvent
+  type PointerEvent,
+  type ReactNode
 } from "react";
+import { PublicDishImage } from "@/components/public-menu/PublicDishImage";
 import type {
   CompareCategoryPreview,
   CompareDishPreview,
   PdfComparePreviewData,
   PdfMenuSection
 } from "@/lib/pdfComparePreviewData";
+import type { Locale } from "@/lib/i18n";
+import {
+  formatLandingCopyTemplate,
+  getLandingCopy
+} from "@/lib/landing/landingCopy";
 import styles from "./VistairePreviewPdfCompareSlider.module.css";
+
+type PdfComparisonStrings = {
+  caption: string;
+  hint: string;
+  label: string;
+  pdfRegionLabel: string;
+  pdfTitle: string;
+};
 
 type VistairePreviewPdfCompareSliderProps = {
   preview: PdfComparePreviewData;
+  digitalLayer: ReactNode;
   className?: string;
+  locale?: Locale;
+  strings?: Partial<PdfComparisonStrings>;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -37,18 +54,34 @@ function PdfRow({ name, price }: { name: string; price: string }) {
 }
 
 export function VistairePreviewPdfLayer({
+  locale = "fr",
   restaurantName,
-  sections
+  sections,
+  strings
 }: {
+  locale?: Locale;
   restaurantName: string;
   sections: PdfMenuSection[];
+  strings?: Pick<PdfComparisonStrings, "pdfRegionLabel" | "pdfTitle">;
 }) {
+  const localeCopy = getLandingCopy(locale).comparison;
+  const pdfRegionLabel = strings?.pdfRegionLabel ?? localeCopy.pdfRegionLabel;
+  const pdfTitle = strings?.pdfTitle ?? localeCopy.pdfTitle;
+
   return (
-    <div className={styles.pdfScene} aria-hidden="true">
+    <div
+      aria-label={formatLandingCopyTemplate(pdfRegionLabel, {
+        restaurantName
+      })}
+      className={styles.pdfScene}
+      data-comparison-scroll-root="pdf"
+      role="region"
+      tabIndex={0}
+    >
       <span className={`${styles.layerLabel} ${styles.pdfLabel}`}>PDF</span>
       <div className={styles.pdfContent}>
         <p className={styles.pdfRestaurant}>{restaurantName}</p>
-        <h3 className={styles.pdfTitle}>Carte</h3>
+        <h3 className={styles.pdfTitle}>{pdfTitle}</h3>
         <span className={styles.pdfDivider} />
         <div className={styles.pdfSections}>
           {sections.map((section) => (
@@ -76,15 +109,13 @@ function CategoryPreviewCard({
     <article className={styles.categoryCard}>
       <span className={styles.categoryImage} aria-hidden="true">
         {category.image ? (
-          <Image
+          <PublicDishImage
             alt=""
-            fill
             priority={priority}
             quality={90}
             sizes="(max-width: 520px) 260px, 330px"
             src={category.image}
-            style={{ objectPosition: category.imageObjectPosition }}
-            unoptimized
+            objectPosition={category.imageObjectPosition}
           />
         ) : null}
       </span>
@@ -102,14 +133,12 @@ function FeaturedDishPreview({ dish }: { dish: CompareDishPreview }) {
     <article className={styles.featuredDish}>
       <span className={styles.featuredImage} aria-hidden="true">
         {dish.image ? (
-          <Image
+          <PublicDishImage
             alt=""
-            fill
             quality={90}
             sizes="72px"
             src={dish.image}
-            style={{ objectPosition: dish.imageObjectPosition }}
-            unoptimized
+            objectPosition={dish.imageObjectPosition}
           />
         ) : null}
       </span>
@@ -123,21 +152,33 @@ function FeaturedDishPreview({ dish }: { dish: CompareDishPreview }) {
 }
 
 export function VistairePreviewMenuLayer({
-  preview
+  preview,
+  prioritizeFirstCategory = true
 }: {
   preview: PdfComparePreviewData;
+  prioritizeFirstCategory?: boolean;
 }) {
   const featuredDish = preview.featuredDish ?? preview.vistaireDishes[0];
+  const presentation = preview.presentation ?? {
+    theme: "maison-elyse" as const,
+    eyebrow: "Carte à table",
+    title: "Bienvenue chez Maison Élyse",
+    tagline:
+      "Découvrez les entrées, plats signatures, desserts et cocktails de la maison, pensés pour être explorés directement à table.",
+    featuredKicker: "Suggestion du chef",
+    featuredTitle: "À découvrir ce soir",
+    cta: "Voir toute la carte"
+  };
 
   return (
-    <div className={styles.previewMenu}>
+    <div
+      className={styles.previewMenu}
+      data-preview-theme={presentation.theme}
+    >
       <header className={styles.previewHeader}>
-        <p className={styles.previewEyebrow}>Carte à table</p>
-        <h3>Bienvenue chez Maison Élyse</h3>
-        <p className={styles.previewTagline}>
-          Découvrez les entrées, plats signatures, desserts et cocktails de la
-          maison, pensés pour être explorés directement à table.
-        </p>
+        <p className={styles.previewEyebrow}>{presentation.eyebrow}</p>
+        <h3>{presentation.title}</h3>
+        <p className={styles.previewTagline}>{presentation.tagline}</p>
       </header>
 
       <div className={styles.categoryGrid}>
@@ -145,17 +186,19 @@ export function VistairePreviewMenuLayer({
           <CategoryPreviewCard
             category={category}
             key={category.id}
-            priority={index === 0}
+            priority={prioritizeFirstCategory && index === 0}
           />
         ))}
       </div>
 
       {featuredDish ? (
         <section className={styles.featuredSection}>
-          <p className={styles.featuredKicker}>Suggestion du chef</p>
-          <h4>À découvrir ce soir</h4>
+          <p className={styles.featuredKicker}>
+            {presentation.featuredKicker}
+          </p>
+          <h4>{presentation.featuredTitle}</h4>
           <FeaturedDishPreview dish={featuredDish} />
-          <span className={styles.previewCta}>Voir toute la carte</span>
+          <span className={styles.previewCta}>{presentation.cta}</span>
         </section>
       ) : null}
     </div>
@@ -164,8 +207,12 @@ export function VistairePreviewMenuLayer({
 
 export function VistairePreviewPdfCompareSlider({
   preview,
-  className = ""
+  digitalLayer,
+  className = "",
+  locale = "fr",
+  strings
 }: VistairePreviewPdfCompareSliderProps) {
+  const localeCopy = getLandingCopy(locale).comparison;
   const sliderId = useId();
   const sliderRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -228,16 +275,16 @@ export function VistairePreviewPdfCompareSlider({
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 10 : 4;
-    let next = split;
+    let next = nextSplitRef.current;
 
     switch (event.key) {
       case "ArrowLeft":
       case "ArrowDown":
-        next = split - step;
+        next -= step;
         break;
       case "ArrowRight":
       case "ArrowUp":
-        next = split + step;
+        next += step;
         break;
       case "Home":
         next = 0;
@@ -264,37 +311,51 @@ export function VistairePreviewPdfCompareSlider({
         <div className={styles.screen}>
           <div
             ref={sliderRef}
-            role="slider"
-            tabIndex={0}
-            aria-label="Comparer un menu PDF et le nouveau menu preview Vistaire."
-            aria-orientation="horizontal"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={split}
-            aria-valuetext={`${split} pour cent PDF, ${100 - split} pour cent Vistaire`}
-            aria-controls={`${sliderId}-pdf ${sliderId}-vistaire`}
             className={styles.slider}
-            onKeyDown={onKeyDown}
-            onPointerCancel={onPointerUp}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
           >
             <div className={styles.vistaireLayer} id={`${sliderId}-vistaire`}>
-              <VistairePreviewMenuLayer preview={preview} />
+              {digitalLayer}
             </div>
-            <div
-              aria-hidden="true"
-              className={styles.pdfLayer}
-              id={`${sliderId}-pdf`}
-            >
+            <div className={styles.pdfLayer} id={`${sliderId}-pdf`}>
               <VistairePreviewPdfLayer
+                locale={locale}
                 restaurantName={preview.restaurant.name}
                 sections={preview.pdfSections}
+                strings={{
+                  pdfRegionLabel:
+                    strings?.pdfRegionLabel ?? localeCopy.pdfRegionLabel,
+                  pdfTitle: strings?.pdfTitle ?? localeCopy.pdfTitle
+                }}
               />
             </div>
 
-            <span className={styles.handle} aria-hidden="true">
+            <div
+              aria-controls={`${sliderId}-pdf ${sliderId}-vistaire`}
+              aria-label={
+                strings?.label ??
+                localeCopy.revealLabel
+              }
+              aria-orientation="horizontal"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={split}
+              aria-valuetext={
+                locale === "en"
+                  ? `${split} percent PDF, ${100 - split} percent Vistaire`
+                  : `${split} pour cent PDF, ${100 - split} pour cent Vistaire`
+              }
+              className={styles.handle}
+              onKeyDown={onKeyDown}
+              onLostPointerCapture={() => {
+                draggingRef.current = false;
+              }}
+              onPointerCancel={onPointerUp}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              role="slider"
+              tabIndex={0}
+            >
               <span className={styles.handleLine} />
               <span className={styles.handleButton}>
                 <svg
@@ -313,10 +374,13 @@ export function VistairePreviewPdfCompareSlider({
                   />
                 </svg>
               </span>
-            </span>
+            </div>
 
             {!hasInteracted ? (
-              <span className={styles.hint}>Glissez pour comparer</span>
+              <span className={styles.hint}>
+                {strings?.hint ??
+                  localeCopy.revealHint}
+              </span>
             ) : null}
           </div>
         </div>
@@ -325,9 +389,8 @@ export function VistairePreviewPdfCompareSlider({
         </span>
       </div>
       <figcaption className={styles.srOnly}>
-        Comparaison dans le même téléphone : menu PDF dense et carte digitale
-        Vistaire preview avec accueil Maison Élyse, catégories visuelles et
-        suggestion du chef.
+        {strings?.caption ??
+          localeCopy.figureCaption}
       </figcaption>
     </figure>
   );

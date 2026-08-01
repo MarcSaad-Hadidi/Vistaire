@@ -40,15 +40,9 @@
 
   position: absolute;
   inset: 0;
-  cursor: ew-resize;
   overflow: hidden;
   touch-action: pan-y;
   user-select: none;
-}
-
-.slider:focus-visible {
-  outline: 2px solid rgba(232, 207, 155, 0.92);
-  outline-offset: 3px;
 }
 
 .vistaireLayer,
@@ -72,19 +66,27 @@
 .pdfScene {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #f3ece0;
   color: #2a2118;
   font-family: Georgia, "Times New Roman", serif;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: rgba(94, 74, 54, 0.55) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-y;
+}
+
+.pdfScene:focus-visible {
+  outline: 2px solid rgba(94, 74, 54, 0.88);
+  outline-offset: -3px;
 }
 
 .pdfContent {
   display: flex;
-  min-height: 0;
-  flex: 1;
+  min-height: 100%;
   flex-direction: column;
-  overflow: hidden;
   padding: 9% 9% 5%;
 }
 
@@ -136,7 +138,7 @@
   gap: 5px;
   color: #2a2118;
   font-family: Arial, sans-serif;
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.24;
 }
 
@@ -170,6 +172,34 @@
   color: #fff7ea;
   font-family: var(--vistaire-font-body);
   padding: 29px 12px 12px;
+}
+
+.previewMenu[data-preview-theme="trouvable"] {
+  background:
+    radial-gradient(circle at 82% 4%, rgba(194, 126, 58, 0.24), transparent 34%),
+    linear-gradient(180deg, #211108 0%, #130b06 42%, #080604 100%);
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] {
+  background:
+    radial-gradient(circle at 14% 4%, rgba(94, 108, 67, 0.2), transparent 34%),
+    linear-gradient(180deg, #15170f 0%, #0c0d09 44%, #050504 100%);
+}
+
+.previewMenu[data-preview-theme="trouvable"] .previewEyebrow,
+.previewMenu[data-preview-theme="trouvable"] .featuredKicker,
+.previewMenu[data-preview-theme="trouvable"] .featuredPrice {
+  color: #e0a864;
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] .previewEyebrow,
+.previewMenu[data-preview-theme="sauge-noire"] .featuredKicker,
+.previewMenu[data-preview-theme="sauge-noire"] .featuredPrice {
+  color: #b9b28b;
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] .categoryCard {
+  border-color: rgba(185, 178, 139, 0.2);
 }
 
 .previewHeader {
@@ -391,10 +421,17 @@
   inset-block: 0;
   left: var(--split);
   z-index: 24;
-  width: 58px;
+  width: 52px;
   transform: translateX(-50%);
   will-change: left;
-  pointer-events: none;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.handle:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.96);
+  outline-offset: -5px;
 }
 
 .handleLine {

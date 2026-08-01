@@ -6,6 +6,10 @@ const bookPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx",
   import.meta.url
 );
+const menuPagesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx",
+  import.meta.url
+);
 const experimentPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoirePageFlipExperiment.tsx",
   import.meta.url
@@ -272,6 +276,15 @@ test("a target sheet decodes its leading photo before the physical flip starts",
   assert.match(experiment, /startPreparedFlip\(/);
   assert.match(experiment, /const \[mediaPreparing, setMediaPreparing\] = useState\(false\)/);
   assert.match(experiment, /readyBookKeyRef\.current !== preparedBookKey/);
+  assert.match(experiment, /const preparedFlipLaunchFrameRef = useRef\(0\)/);
+  assert.match(
+    experiment,
+    /preparedFlipLaunchFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{[\s\S]*preparedFlipLaunchFrameRef\.current = window\.requestAnimationFrame/
+  );
+  assert.match(
+    experiment,
+    /window\.cancelAnimationFrame\(preparedFlipLaunchFrameRef\.current\)/
+  );
   assert.match(experiment, /flipPreparationTokenRef\.current \+= 1;[\s\S]*setMediaPreparing\(false\);[\s\S]*turnToPage/);
   assert.match(experiment, /const applyRecenter = \(\) =>/);
   assert.match(experiment, /pageFlip\.getState\(\) !== "read"[\s\S]*requestAnimationFrame\(applyRecenter\)/);
@@ -329,26 +342,34 @@ test("the canonical reading surface is visible while PageFlip initializes", asyn
 test("a short vertical gesture during a flip survives the reading-page commit", async () => {
   const experiment = await readFile(experimentPath, "utf8");
 
+  assert.match(experiment, /type ScrollHandoffTransition/);
+  assert.match(experiment, /sourceSurface: HTMLDivElement \| null/);
+  assert.match(experiment, /captureSourceScrollHandoff/);
   assert.match(
     experiment,
-    /source && source\.readingIdentity !== readingIdentity[\s\S]*readingSurface\.scrollTop - source\.scrollTop/
+    /transition\.latestSourceScrollTop - transition\.sourceScrollTop/
   );
-  assert.match(experiment, /readingIdentity,\s*scrollTop: sourceScrollTop/);
+  assert.match(experiment, /sourceIdentity: readingIdentity/);
+  assert.match(experiment, /targetIdentity: null/);
+  assert.match(experiment, /sequence: \+\+scrollHandoffSequenceRef\.current/);
   assert.match(
     experiment,
     /\(readyScrollTop \?\? 0\) \+ gestureDelta/
   );
   assert.match(experiment, /data-page-flip-gesture-delta/);
   assert.match(experiment, /data-page-flip-prepared-scroll-top/);
+  assert.match(experiment, /transition\.handoffApplied = true/);
+  assert.match(experiment, /stableFrames < 2/);
+  assert.match(experiment, /new ResizeObserver/);
   assert.match(experiment, /animationSourceClearFrameRef = useRef\(0\)/);
   assert.match(
     experiment,
-    /requestAnimationFrame\(\(\) => \{[\s\S]*animationSourceScrollRef\.current === completedSource[\s\S]*animationSourceScrollRef\.current = null/
+    /clearAnimationSourceIfApplied[\s\S]*animationSourceScrollRef\.current === candidate[\s\S]*animationSourceScrollRef\.current = null/
   );
   assert.doesNotMatch(experiment, /settledSurface\.scrollTop\s*=/);
   assert.match(
     experiment,
-    /state === "read"[\s\S]*requestAnimationFrame\(\(\) => \{[\s\S]*animationSourceScrollRef\.current = null/
+    /state === "read"[\s\S]*clearAnimationSourceIfApplied\(\)/
   );
   assert.doesNotMatch(
     experiment,
@@ -411,17 +432,63 @@ test("multi-page contents jumps keep animating until the requested page", async 
   assert.match(experiment, /reportedFlipPageRef/);
 });
 
-test("the Sauge browser fixture provides local dish photos", async () => {
-  const { rows } = await import("../e2e/support/sauge-noire-fixture-data.mjs");
-
-  assert.equal(rows.menu_dishes.length, 36);
-  assert.equal(rows.menu_dishes[1].slug, "betterave-sous-la-cendre");
-  assert.ok(
-    rows.menu_dishes.every((dish) =>
-      typeof dish.image_url === "string" &&
-      dish.image_url.startsWith("/images/demo/dishes/")
-    )
+test("the Sauge browser fixture provides versioned public dish photos", async () => {
+  const {
+    maisonFixture,
+    restaurantId,
+    saugeNoireFixture,
+    trouvableFixture
+  } = await import(
+    "../e2e/support/sauge-noire-fixture-data.mjs"
   );
+  const { fixtureDishSha256 } = await import(
+    "../e2e/support/fixture-dish-images.mjs"
+  );
+  const saugeDishes = saugeNoireFixture.menu_dishes;
+
+  assert.equal(saugeDishes.length, 36);
+  assert.equal(maisonFixture.menu_dishes.length, 1);
+  assert.equal(trouvableFixture.menu_dishes.length, 1);
+  assert.equal(saugeDishes[1].slug, "betterave-sous-la-cendre");
+  assert.ok(
+    !trouvableFixture.menu_dishes[0].image_url.includes("maison-elyse")
+  );
+  assert.ok(
+    !trouvableFixture.menu_dishes[0].image_url.includes("sauge-noire")
+  );
+  assert.ok(
+    saugeDishes.every((dish) => {
+      const photoStoragePath = dish.metadata?.photoStoragePath ?? "";
+      return (
+        dish.restaurant_id === restaurantId &&
+        typeof dish.image_url === "string" &&
+        dish.image_url === `/api/public/menu-dishes/${dish.id}/photo` &&
+        dish.metadata?.photoStatus === "ready" &&
+        dish.metadata?.photoSha256 ===
+          fixtureDishSha256({
+            dishName: dish.name,
+            restaurantName: "Sauge Noire",
+            sourceKey: photoStoragePath
+          })
+      );
+    })
+  );
+});
+
+test("the Sauge browser fixture exposes one lightweight local 3D model", async () => {
+  const { saugeNoireFixture } = await import(
+    "../e2e/support/sauge-noire-fixture-data.mjs"
+  );
+  const truite = saugeNoireFixture.menu_dishes.find(
+    (dish) => dish.slug === "truite-des-laurentides"
+  );
+  assert.equal(truite?.web_model_3d_url, "/models/demo/maison-elyse-n1.glb");
+  assert.equal(truite?.model_3d_url, truite?.web_model_3d_url);
+  assert.equal(
+    saugeNoireFixture.menu_dishes.filter((dish) => dish.web_model_3d_url).length,
+    1
+  );
+  assert.ok(truite?.web_model_3d_url.startsWith("/models/demo/"));
 });
 
 test("a direct WebKit project selection remains available inside Playwright workers", async () => {
@@ -451,11 +518,11 @@ test("a direct WebKit project selection remains available inside Playwright work
 });
 
 test("short non-split sections keep navigation below the final dish", async () => {
-  const book = await readFile(bookPath, "utf8");
+  const menuPages = await readFile(menuPagesPath, "utf8");
   const styles = await readFile(stylesPath, "utf8");
 
-  assert.match(book, /const isShortSection = !isSplit && dishes\.length <= 4/);
-  assert.match(book, /isShortSection \? styles\.shortSectionPage : ""/);
+  assert.match(menuPages, /const isShortSection = !isSplit && dishes\.length <= 4/);
+  assert.match(menuPages, /isShortSection \? styles\.shortSectionPage : ""/);
   assert.match(styles, /\.shortSectionPage \.pageFooter\s*\{\s*transform: none/);
 });
 
@@ -580,12 +647,16 @@ test("the table of contents is compact enough to stay inside the sheet", async (
 });
 
 test("the ending page is compact and includes a Google review CTA without the old domain", async () => {
-  const book = await readFile(bookPath, "utf8");
+  const [book, menuPages] = await Promise.all([
+    readFile(bookPath, "utf8"),
+    readFile(menuPagesPath, "utf8")
+  ]);
   const styles = await readFile(stylesPath, "utf8");
 
-  assert.doesNotMatch(book, /saugenoire\.com/);
-  assert.match(book, /data-testid="google-review-cta"/);
+  assert.doesNotMatch(`${book}\n${menuPages}`, /saugenoire\.com/);
+  assert.match(menuPages, /data-testid="google-review-cta"/);
   assert.match(book, /Laisser un avis Google/);
+  assert.match(menuPages, /\{copy\.googleReview\}/);
   assert.match(styles, /\.endingPage\s*\{[\s\S]*min-height:\s*calc\(100% - 132px\);[\s\S]*padding-top:\s*34px;[\s\S]*padding-bottom:\s*22px;/);
   assert.match(styles, /\.endingBotanical\s*\{[\s\S]*height:\s*clamp\(150px, 28vh, 260px\);/);
   assert.match(styles, /\.googleReviewCta\s*\{[\s\S]*width:\s*fit-content;[\s\S]*max-width:\s*min\(100%, 300px\);[\s\S]*min-height:\s*44px;[\s\S]*border-radius:\s*13px;[\s\S]*background:\s*var\(--sn-paper\);/);

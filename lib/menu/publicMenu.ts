@@ -76,11 +76,42 @@ const TROUVABLE_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   taxIncluded: true
 });
 
+type TrouvableDemoDishSource = {
+  slug: string;
+  nameFr: string;
+  nameEn: string;
+  nameEl: string;
+  descriptionFr: string;
+  descriptionEn: string;
+  descriptionEl: string;
+  categoryFr: string;
+  categoryEn: string;
+  categoryEl: string;
+  priceCents: number;
+  imageUrl: string;
+  ingredientsFr: string[];
+  ingredientsEn: string[];
+  ingredientsEl: string[];
+  allergensFr: string[];
+  allergensEn: string[];
+  allergensEl: string[];
+  optionsFr: string[];
+  optionsEn: string[];
+  optionsEl: string[];
+  houseNoteFr: string;
+  houseNoteEn: string;
+  houseNoteEl: string;
+  tagsFr: string[];
+  tagsEn: string[];
+  tagsEl: string[];
+};
+
 const TROUVABLE_DISHES = [
   {
     slug: "dejeuner-classique-maison",
     nameFr: "Dejeuner classique maison",
     nameEn: "House classic breakfast",
+    nameEl: "Σπιτικό κλασικό πρωινό",
     descriptionFr:
       "Oeufs fermiers, pommes de terre croustillantes, salade d'herbes et pain au levain grille.",
     descriptionEn:
@@ -116,6 +147,7 @@ const TROUVABLE_DISHES = [
     slug: "ravioles-chevre-miel-monteregie",
     nameFr: "Ravioles chevre et miel de Monteregie",
     nameEn: "Goat cheese and Monteregie honey ravioli",
+    nameEl: "Ραβιόλια με κατσικίσιο τυρί και μέλι Monteregie",
     descriptionFr:
       "Ravioles fondantes, beurre noisette, citron confit et herbes du jardin.",
     descriptionEn:
@@ -147,6 +179,7 @@ const TROUVABLE_DISHES = [
     slug: "tartare-saumon-label-rouge",
     nameFr: "Tartare de saumon Label Rouge",
     nameEn: "Label Rouge salmon tartare",
+    nameEl: "Ταρτάρ σολομού Label Rouge",
     descriptionFr:
       "Saumon coupe minute, pomme verte, aneth, creme sure et chips fines.",
     descriptionEn:
@@ -178,6 +211,7 @@ const TROUVABLE_DISHES = [
     slug: "risotto-cepes-parmesan",
     nameFr: "Risotto cepes et parmesan",
     nameEn: "Porcini and parmesan risotto",
+    nameEl: "Ριζότο με πορτσίνι και παρμεζάνα",
     descriptionFr:
       "Riz carnaroli, cepes, parmesan affine et jus court aux champignons.",
     descriptionEn:
@@ -209,6 +243,7 @@ const TROUVABLE_DISHES = [
     slug: "souffle-chocolat-grand-cru",
     nameFr: "Souffle chocolat grand cru",
     nameEn: "Grand cru chocolate souffle",
+    nameEl: "Σουφλέ σοκολάτας grand cru",
     descriptionFr:
       "Souffle chaud, coeur chocolat noir, creme anglaise vanillee.",
     descriptionEn:
@@ -236,7 +271,7 @@ const TROUVABLE_DISHES = [
     tagsEn: ["Signature"],
     tagsEl: ["Πρόταση"]
   }
-];
+] satisfies readonly TrouvableDemoDishSource[];
 
 function parseDemoPriceCents(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {

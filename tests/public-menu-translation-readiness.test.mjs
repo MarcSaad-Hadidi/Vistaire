@@ -101,6 +101,7 @@ const categoryFields = {
 };
 
 const dishFields = {
+  name: dish.name,
   description: dish.description,
   ingredients: dish.ingredients,
   allergens: dish.allergens,
@@ -108,6 +109,10 @@ const dishFields = {
   houseNote: dish.houseNote,
   tags: dish.tags
 };
+
+test("dish translation readiness includes the public dish name", () => {
+  assert.deepEqual(publicMenuDishTranslationFields(dish), dishFields);
+});
 
 test("public menu readiness only exposes locales with complete stored menu content", () => {
   const statuses = publicMenuTranslationStatusesForRows(menu, {
@@ -124,6 +129,7 @@ test("public menu readiness only exposes locales with complete stored menu conte
     ],
     dishRows: [
       rowFor("de-DE", "dish_id", dish.id, dishFields, {
+        name: "Montrealer Smoked-Meat-Sandwich",
         description:
           "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
         ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
@@ -157,7 +163,7 @@ test("public menu readiness only exposes locales with complete stored menu conte
       entityType: "dish",
       entityId: dish.id,
       entityLabel: dish.name,
-      field: "description"
+      field: "name"
     }
   );
 });
@@ -166,6 +172,7 @@ test("stored translation rows require translated content for every source field"
   assert.equal(
     storedTranslationRowMatchesFields(
       rowFor("de-DE", "dish_id", dish.id, dishFields, {
+        name: "",
         description: "",
         ingredients: ["Smoked Meat"],
         allergens: ["Senf"],
@@ -181,6 +188,7 @@ test("stored translation rows require translated content for every source field"
   assert.equal(
     storedTranslationRowMatchesFields(
       rowFor("de-DE", "dish_id", dish.id, dishFields, {
+        name: "Montrealer Smoked-Meat-Sandwich",
         description:
           "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
         ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
@@ -196,6 +204,53 @@ test("stored translation rows require translated content for every source field"
   );
 });
 
+test("public readiness does not promote stale rows even when their fields are complete", () => {
+  const staleRow = rowFor(
+    "de-DE",
+    "dish_id",
+    dish.id,
+    dishFields,
+    {
+      name: "Montrealer Smoked-Meat-Sandwich",
+      description:
+        "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
+      ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
+      allergens: ["Weizen/Roggen", "Senf"],
+      options: ["Extra Smoked Meat", "Senf separat"],
+      houseNote:
+        "Eine direkte Anspielung auf Montrealer Klassiker, warm serviert und grosszugig geschnitten.",
+      tags: ["Empfehlung", "Hausbeilage"]
+    },
+    { translation_status: "stale" }
+  );
+
+  assert.equal(storedTranslationRowMatchesFields(staleRow, dishFields), false);
+
+  const statuses = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    categoryRows: [
+      rowFor("de-DE", "category_id", "sandwichs", categoryFields, {
+        name: "Sandwiches",
+        description: "Warme Klassiker"
+      })
+    ],
+    dishRows: [staleRow]
+  });
+
+  assert.deepEqual(
+    statuses.find((status) => status.locale === "de-DE"),
+    {
+      locale: "de-DE",
+      status: "stale",
+      reason: "row status stale",
+      entityType: "dish",
+      entityId: dish.id,
+      entityLabel: dish.name,
+      field: "name"
+    }
+  );
+});
+
 test("public readiness accepts field-complete rows with stale aggregate hashes only", () => {
   assert.equal(
     storedTranslationRowMatchesFields(
@@ -205,6 +260,7 @@ test("public readiness accepts field-complete rows with stale aggregate hashes o
         dish.id,
         dishFields,
         {
+          name: "Montrealer Smoked-Meat-Sandwich",
           description:
             "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
           ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
@@ -231,6 +287,7 @@ test("public readiness accepts field-complete rows with stale aggregate hashes o
         dish.id,
         dishFields,
         {
+          name: "Montrealer Smoked-Meat-Sandwich",
           description:
             "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
           ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],
@@ -277,6 +334,7 @@ test("derived recommended tags do not block stored content readiness", () => {
     ],
     dishRows: [
       rowFor("de-DE", "dish_id", dish.id, dishFields, {
+        name: "Montrealer Smoked-Meat-Sandwich",
         description:
           "Roggenbrot mit Montreal Smoked Meat, klassischem Senf und hausgemachter Beilage.",
         ingredients: ["Smoked Meat", "Roggenbrot", "Senf"],

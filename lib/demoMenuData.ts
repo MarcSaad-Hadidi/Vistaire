@@ -813,7 +813,10 @@ function localizeDish(dish: Dish, locale: Locale): Dish {
   if (locale !== "en") return dish;
   return {
     ...dish,
-    ...(DISH_TRANSLATIONS_EN[dish.slug] ?? {})
+    ...(DISH_TRANSLATIONS_EN[dish.slug] ?? {}),
+    // Dish names are editorial source labels and are intentionally not
+    // localized; the rest of the dish presentation can be translated.
+    name: dish.name
   };
 }
 

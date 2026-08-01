@@ -74,6 +74,21 @@ jobs:
       - name: Maison Elyse media tests
         run: npm run test:maison-elyse-media
 
+      - name: Landing renderer and image contracts
+        run: npm run test:landing:contract
+
+      - name: Landing locale and translation contracts
+        run: npm run test:landing:i18n
+
+      - name: Landing fixture locale integration
+        run: npm run test:landing:fixture-i18n
+
+      - name: Landing comparison keyboard contract
+        run: npm run test:landing:keyboard
+
+      - name: Translation backfill contracts
+        run: npm run test:translation:backfill
+
       - name: Maison Elyse PostgreSQL 17 tests
         env:
           PGDATABASE: vistaire_qr_ci
@@ -101,6 +116,18 @@ jobs:
       - name: Install Playwright WebKit
         run: npx --no-install playwright install --with-deps webkit
 
+      - name: Landing production photo redirect
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:landing:production-photo
+
+      - name: Landing redesign critical browser checks
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:landing:e2e
+
       - name: Sauge Noire critical smoke
         timeout-minutes: 5
         env:
@@ -114,46 +141,73 @@ jobs:
         run: npm run test:sauge-noire:scroll
 
       - name: Sauge Noire swipe intent
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:sauge-noire:swipe
 
       - name: Sauge Noire contents single flip
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:sauge-noire:contents-single-flip
 
       - name: Sauge Noire static-page parity
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:sauge-noire:static-parity
 
+      - name: Sauge Noire comparison geometry
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+        run: npm run test:sauge-noire:comparison-geometry
+
       - name: QR functional Playwright tests
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:qr:functional
 
       - name: SEO hardening tests
+        if: ${{ !cancelled() }}
         run: npm run test:seo
 
       - name: Admin and owner QR tests
+        if: ${{ !cancelled() }}
         run: npm run test:admin
 
       - name: Bootstrap smoke e2e
+        if: ${{ !cancelled() }}
         timeout-minutes: 5
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:smoke:bootstrap
 
       - name: SEO smoke e2e
+        if: ${{ !cancelled() }}
         timeout-minutes: 5
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
         run: npm run test:seo:e2e
+
+      - name: Upload Playwright failure artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-artifacts-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            blob-report/
+          if-no-files-found: ignore
+          retention-days: 7
 
   app-ci:
     name: App CI

@@ -12,15 +12,23 @@ const googleReviewTrackingPath = "components/menu/googleReviewTracking.ts";
 const helperPath = "lib/menu/trouvableMenuExperience.ts";
 const controlsPath = "components/menu/trouvableMenuControls.ts";
 const publicMenuPath = "lib/menu/publicMenu.ts";
+const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 
 test("public Trouvable menu is centralized in a targeted premium experience", async () => {
-  const page = await readFile(pagePath, "utf8");
-  const helper = await readFile(helperPath, "utf8");
+  const [page, helper, renderContext] = await Promise.all([
+    readFile(pagePath, "utf8"),
+    readFile(helperPath, "utf8"),
+    readFile(renderContextPath, "utf8")
+  ]);
 
   assert.match(page, /TrouvablePremiumMenuExperience/);
-  assert.match(page, /resolvePublicMenuExperience/);
+  assert.match(page, /resolvePublicMenuRenderContext/);
+  assert.match(renderContext, /resolvePublicMenuExperience/);
   assert.match(page, /experience\.kind === "trouvable"/);
-  assert.match(page, /resolvePublicMenuUiConfig\(menu, configRecord\.config\)/);
+  assert.match(
+    renderContext,
+    /resolvePublicMenuUiConfig\(initialMenu, configRecord\.config\)/
+  );
   assert.match(helper, /matchesMenuIdentity\(menu,\s*"trouvable"\)/);
   assert.match(helper, /theme:\s*"premium-gastronomic"/);
   assert.match(helper, /autoLoad:\s*false/);
@@ -40,7 +48,10 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
-  assert.match(source, /name:\s*dish\.nameFr/);
+  assert.match(
+    source,
+    /name:\s*isGreek\s*\?\s*dish\.nameEl\s*:\s*isEnglish\s*\?\s*dish\.nameEn\s*:\s*dish\.nameFr/
+  );
   assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);
@@ -52,7 +63,10 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
 });
 
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
-  const source = await readFile(componentPath, "utf8");
+  const [source, sharedDetailSurface] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile("components/menu/TrouvableDishDetailSurface.tsx", "utf8")
+  ]);
 
   assert.doesNotMatch(source, /<model-viewer/);
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.glb/);
@@ -61,9 +75,9 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
   assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => \{[\s\S]*?return !isVisible;/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
-  assert.match(source, /loadingTitle:\s*copy\.modelPreparing/);
-  assert.match(source, /\.\.\.copy\.modelViewer/);
-  assert.match(source, /modelAlt:\s*copy\.modelAlt/);
+  assert.match(sharedDetailSurface, /loadingTitle:\s*copy\.modelPreparing/);
+  assert.match(sharedDetailSurface, /\.\.\.copy\.modelViewer/);
+  assert.match(sharedDetailSurface, /modelAlt:\s*copy\.modelAlt/);
   assert.match(source, /useTrouvableDocumentLanguage\(\s*selectedLocale,\s*textDirection/);
   assert.match(source, /buildPublicDishPath/);
   assert.match(source, /copyTextToClipboard/);
@@ -205,16 +219,21 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
 test("Trouvable standalone dish detail keeps locale URL navigation and layout direction in sync", async () => {
   const detailSource = await readFile(dishDetailPath, "utf8");
   const pageSource = await readFile(dishPagePath, "utf8");
+  const surfaceSource = await readFile(
+    "components/menu/TrouvableDishDetailSurface.tsx",
+    "utf8"
+  );
 
   assert.match(detailSource, /useRouter/);
   assert.match(detailSource, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
   assert.doesNotMatch(detailSource, /window\.location\.replace/);
   assert.match(detailSource, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
   assert.match(detailSource, /lang=\{selectedLocale\}/);
-  assert.match(detailSource, /dir=\{textDirection\}/);
+  assert.match(detailSource, /textDirection=\{textDirection\}/);
+  assert.match(surfaceSource, /dir=\{textDirection\}/);
   assert.match(
     pageSource,
-    /<TrouvableDishDetailExperience[\s\S]*query=\{\{\s*\.\.\.menuQuery,\s*lang:\s*hasLangParam \? activePublicLocale : undefined\s*\}\}/
+    /<TrouvableDishDetailExperience[\s\S]*query=\{menuQuery\}/
   );
 });
 
@@ -328,6 +347,10 @@ test("Trouvable list keeps the allergen warning inside dish details", async () =
     new URL("../components/menu/TrouvableDishDetailExperience.tsx", import.meta.url),
     "utf8"
   );
+  const detailSurfaceSource = await readFile(
+    new URL("../components/menu/TrouvableDishDetailSurface.tsx", import.meta.url),
+    "utf8"
+  );
   const sheetSource = await readFile(
     new URL("../components/menu/PremiumDishDetailsSheet.tsx", import.meta.url),
     "utf8"
@@ -340,7 +363,8 @@ test("Trouvable list keeps the allergen warning inside dish details", async () =
 
   assert.doesNotMatch(listSource, /<AllergenWarning/);
   assert.doesNotMatch(menuSource, /<AllergenWarning/);
-  assert.match(detailSource, /<AllergenWarning locale=\{selectedLocale\} \/>/);
+  assert.doesNotMatch(detailSource, /<AllergenWarning/);
+  assert.match(detailSurfaceSource, /<AllergenWarning locale=\{locale\} \/>/);
   assert.match(sheetSource, /includeWarning\s*\/>/);
 });
 

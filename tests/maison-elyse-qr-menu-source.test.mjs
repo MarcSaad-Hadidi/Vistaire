@@ -17,18 +17,23 @@ const ownerCreateFormPath = "components/owner/RestaurantCreateForm.tsx";
 const publicMenuPath = "lib/menu/publicMenu.ts";
 const themePresetPath = "lib/menu/menuThemePresets.ts";
 const menuExperiencePath = "lib/menu/trouvableMenuExperience.ts";
+const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 const themePath = "lib/menu/maisonElyseTheme.ts";
 
 test("Maison Elyse public menu is the only dedicated QR table experience", async () => {
-  const source = await readFile(pagePath, "utf8");
+  const [source, renderContext] = await Promise.all([
+    readFile(pagePath, "utf8"),
+    readFile(renderContextPath, "utf8")
+  ]);
 
   assert.match(source, /MaisonElyseQrMenu/);
-  assert.match(source, /resolvePublicMenuExperience/);
+  assert.match(source, /resolvePublicMenuRenderContext/);
+  assert.match(renderContext, /resolvePublicMenuExperience/);
   assert.match(source, /experience\.kind === "maison-elyse"/);
   assert.doesNotMatch(source, /startFullMenu/);
-  assert.match(source, /view: query\.view/);
+  assert.match(renderContext, /view: query\.view/);
   assert.match(source, /PublicMenuRenderer/);
-  assert.match(source, /getPublishedMenuUiConfigForRestaurant/);
+  assert.match(renderContext, /getPublishedMenuUiConfigForRestaurant/);
 });
 
 test("Maison Elyse maps the resolved owner palette into its skin variables", async () => {
@@ -114,10 +119,10 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   ]);
 
   assert.match(route, /MaisonElyseDishDetail/);
-  assert.match(route, /resolvePublicMenuExperience/);
+  assert.match(route, /resolvePublicDishRenderContext/);
   assert.match(route, /experience\.kind === "maison-elyse"/);
   assert.match(route, /PublicDishDetailExperience/);
-  assert.match(route, /getPublishedMenuUiConfigForRestaurant/);
+  assert.doesNotMatch(route, /getPublishedMenuUiConfigForRestaurant/);
 
   for (const text of [
     "Retour",
@@ -176,7 +181,11 @@ test("Maison Elyse QR menu starts directly with the complete menu", async () => 
   assert.match(component, /FILTER_OPTIONS/);
   assert.match(component, /backToTop/);
   assert.match(component, /scrollToTop/);
-  assert.match(component, /closest<HTMLElement>\("\[data-phone-mockup-scroll\]"\)/);
+  assert.match(component, /closest<HTMLElement>\(embeddedScrollSelector\)/);
+  assert.match(
+    component,
+    /\[data-phone-mockup-scroll\], \[data-comparison-scroll-root="digital"\]/
+  );
   assert.match(component, /getPhonePreviewScrollTarget/);
   assert.match(component, /menuCover/);
   assert.match(component, /bottomBar/);
@@ -279,7 +288,10 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
   assert.match(englishDemoPage, /menuLocale=\{menuLocale\}/);
   assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
-  assert.match(menuComponent, /displayMode\?: "public" \| "phone-preview"/);
+  assert.match(
+    menuComponent,
+    /displayMode\?: "public" \| "phone-preview" \| "comparison-preview"/
+  );
   assert.match(menuComponent, /showGoogleReview\?: boolean/);
   assert.match(menuComponent, /styles\.phonePreview/);
   assert.match(menuCss, /\.phonePreview/);

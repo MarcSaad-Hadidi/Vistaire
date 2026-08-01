@@ -10,6 +10,10 @@ const bookPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx",
   import.meta.url
 );
+const menuPagesPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx",
+  import.meta.url
+);
 const detailPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx",
   import.meta.url
@@ -35,7 +39,11 @@ test("Sauge Noire renderer is statically bound to the canonical design identity"
 });
 
 test("book pages and dish rows derive from PublicMenu data", async () => {
-  const source = await readFile(bookPath, "utf8");
+  const [book, menuPages] = await Promise.all([
+    readFile(bookPath, "utf8"),
+    readFile(menuPagesPath, "utf8")
+  ]);
+  const source = `${book}\n${menuPages}`;
   assert.match(source, /getVisiblePublicMenuCategories\(menu\.dishes\)/);
   assert.match(source, /getPublicMenuCategoryGroups\(menu\.dishes\)/);
   assert.match(source, /groups\.get\(category\.id\)/);
@@ -46,7 +54,7 @@ test("book pages and dish rows derive from PublicMenu data", async () => {
 });
 
 test("featured dishes use stable ids and never render a second row", async () => {
-  const source = await readFile(bookPath, "utf8");
+  const source = await readFile(menuPagesPath, "utf8");
   const singleDishId = "single-dish";
   const singleDishRemaining = [{ id: singleDishId }].filter(
     (dish) => dish.id !== singleDishId
@@ -64,20 +72,23 @@ test("featured dishes use stable ids and never render a second row", async () =>
 });
 
 test("Sauge Noire keeps empty media slots and defers real 3D to intent", async () => {
-  const book = await readFile(bookPath, "utf8");
+  const menuPages = await readFile(menuPagesPath, "utf8");
   const detail = await readFile(detailPath, "utf8");
-  assert.match(book, /data-photo-slot/);
-  assert.match(book, /dish\.imageUrl \?/);
-  assert.match(book, /dish\.has3d \? <SaugeNoire3dIndicator/);
-  assert.equal((book.match(/dish\.has3d \? <SaugeNoire3dIndicator/g) ?? []).length, 2);
-  assert.match(book, /data-sauge-3d-indicator="true"/);
-  assert.match(book, /function SaugeNoire3dIndicator/);
+  assert.match(menuPages, /data-photo-slot/);
+  assert.match(menuPages, /dish\.imageUrl \?/);
+  assert.match(menuPages, /dish\.has3d \? <SaugeNoire3dIndicator/);
+  assert.equal(
+    (menuPages.match(/dish\.has3d \? <SaugeNoire3dIndicator/g) ?? []).length,
+    2
+  );
+  assert.match(menuPages, /data-sauge-3d-indicator="true"/);
+  assert.match(menuPages, /function SaugeNoire3dIndicator/);
   assert.match(detail, /hasReal3d/);
   assert.match(detail, /function SaugeNoireDish3dSection/);
   assert.match(detail, /setIsOpen/);
   assert.match(detail, /onViewerMounted/);
   assert.match(detail, /dynamic<.*DishModelViewer/);
-  assert.doesNotMatch(book, /\.glb|\.usdz|model-viewer/);
+  assert.doesNotMatch(menuPages, /\.glb|\.usdz|model-viewer/);
 });
 
 test("locale and currency remain part of menu and dish navigation state", async () => {

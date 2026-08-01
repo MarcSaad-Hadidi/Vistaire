@@ -92,6 +92,8 @@ async function waitForRead(page: Page, kind: StaticPageKind) {
         kind: book?.getAttribute("data-page-kind") ?? null,
         engineState:
           viewport?.getAttribute("data-page-flip-engine-state") ?? null,
+        singleFlipJumpPhase:
+          viewport?.getAttribute("data-page-flip-single-jump-phase") ?? null,
         indicesAligned:
           bookIndex !== null &&
           bookIndex === currentPage &&
@@ -101,12 +103,14 @@ async function waitForRead(page: Page, kind: StaticPageKind) {
   await expect.poll(stableState, { timeout: 30_000 }).toEqual({
     kind,
     engineState: "read",
+    singleFlipJumpPhase: "idle",
     indicesAligned: true
   });
   await nextFrames(page, 4);
   expect(await stableState()).toEqual({
     kind,
     engineState: "read",
+    singleFlipJumpPhase: "idle",
     indicesAligned: true
   });
   await expect(staticFrame(page, kind)).toHaveCount(1);
@@ -235,11 +239,17 @@ async function captureFlipHandoff(
   kind: StaticPageKind,
   action: () => Promise<unknown>
 ) {
+  const flipStarted = page.waitForFunction(
+    () =>
+      document
+        .querySelector<HTMLElement>("[data-page-flip-state]")
+        ?.getAttribute("data-page-flip-engine-state") === "flipping",
+    undefined,
+    { timeout: 10_000 }
+  );
   await action();
+  await flipStarted;
   const viewport = page.locator("[data-page-flip-state]");
-  await expect(viewport).toHaveAttribute("data-page-flip-engine-state", "flipping", {
-    timeout: 10_000
-  });
   await expect(
     viewport.locator('[data-page-flip-engine-visible="true"]')
   ).toHaveCount(1);

@@ -20,6 +20,15 @@ export type PublicMenuTranslationRows = {
   dishRows: AnyRow[];
 };
 
+export type PublicMenuTranslationReadinessOptions = {
+  /**
+   * Some existing owner-managed rows were marked up_to_date before the
+   * current hash format was introduced. Keep this opt-in so the normal
+   * freshness guard remains strict for every other menu and locale.
+   */
+  allowUpToDateHashMismatch?: boolean;
+};
+
 function storedDishTags(dish: PublicMenuDish): string[] {
   let tags = dish.tags;
   if (dish.isRecommended) {
@@ -57,23 +66,31 @@ function missingTranslatedFieldReason(
 
 function rowHasUsablePublicTranslationStatus(row: AnyRow): boolean {
   const status = stringInput(row.translation_status);
-  return status === "up_to_date" || status === "stale";
+  return status === "up_to_date";
 }
 
 export function storedTranslationFieldMatches(
   row: AnyRow | undefined,
   fields: MenuTranslationFields,
   field: string,
-  sourceValue: MenuTranslationFields[string]
+  sourceValue: MenuTranslationFields[string],
+  options: PublicMenuTranslationReadinessOptions = {}
 ): boolean {
-  return !storedTranslationFieldFailure(row, fields, field, sourceValue);
+  return !storedTranslationFieldFailure(
+    row,
+    fields,
+    field,
+    sourceValue,
+    options
+  );
 }
 
 function storedTranslationFieldFailure(
   row: AnyRow | undefined,
   fields: MenuTranslationFields,
   field: string,
-  sourceValue: MenuTranslationFields[string]
+  sourceValue: MenuTranslationFields[string],
+  options: PublicMenuTranslationReadinessOptions = {}
 ): string {
   if (!row) return "missing row";
   if (!rowHasUsablePublicTranslationStatus(row)) {
@@ -89,7 +106,9 @@ function storedTranslationFieldFailure(
 
   const fieldHashes = objectInput(row.field_hashes);
   const expectedFieldHashes = fieldHashesFor(fields);
-  return fieldHashes[field] === expectedFieldHashes[field]
+  if (fieldHashes[field] === expectedFieldHashes[field]) return "";
+  return options.allowUpToDateHashMismatch &&
+    rowHasUsablePublicTranslationStatus(row)
     ? ""
     : "field hash mismatch";
 }
@@ -99,6 +118,7 @@ export function publicMenuDishTranslationFields(
 ): MenuTranslationFields {
   const tags = storedDishTags(dish);
   return {
+    name: dish.name,
     ...(dish.description ? { description: dish.description } : {}),
     ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
     ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),
@@ -174,7 +194,7 @@ function statusForRows(args: {
   categoryFieldsById: Map<string, MenuTranslationFields>;
   dishRowsById: Map<string, AnyRow>;
   dishes: PublicMenuDish[];
-}): PublicMenuTranslationStatus {
+} & PublicMenuTranslationReadinessOptions): PublicMenuTranslationStatus {
   const rows = [
     ...(Object.keys(args.menuFields).length > 0 ? [args.menuRow] : []),
     ...args.categoryRowsById.values(),
@@ -203,7 +223,8 @@ function statusForRows(args: {
       args.menuRow,
       args.menuFields,
       field,
-      sourceValue
+      sourceValue,
+      args
     );
     if (!reason) continue;
     return {
@@ -218,7 +239,13 @@ function statusForRows(args: {
   for (const [categoryId, fields] of args.categoryFieldsById.entries()) {
     const row = args.categoryRowsById.get(categoryId);
     for (const [field, sourceValue] of Object.entries(fields)) {
-      const reason = storedTranslationFieldFailure(row, fields, field, sourceValue);
+      const reason = storedTranslationFieldFailure(
+        row,
+        fields,
+        field,
+        sourceValue,
+        args
+      );
       if (!reason) continue;
       return {
         locale: args.locale,
@@ -236,7 +263,13 @@ function statusForRows(args: {
     const row = args.dishRowsById.get(dish.id);
     const fields = publicMenuDishTranslationFields(dish);
     for (const [field, sourceValue] of Object.entries(fields)) {
-      const reason = storedTranslationFieldFailure(row, fields, field, sourceValue);
+      const reason = storedTranslationFieldFailure(
+        row,
+        fields,
+        field,
+        sourceValue,
+        args
+      );
       if (!reason) continue;
 
       // Signature/recommended labels are derived presentation tags. The
@@ -271,7 +304,8 @@ function statusForRows(args: {
 
 export function publicMenuTranslationStatusesForRows(
   menu: PublicMenu,
-  rows: PublicMenuTranslationRows
+  rows: PublicMenuTranslationRows,
+  options: PublicMenuTranslationReadinessOptions = {}
 ): PublicMenuTranslationStatus[] {
   const menuFields = publicMenuTranslationMenuFields(menu);
   const categoryFieldsById = new Map(
@@ -295,7 +329,8 @@ export function publicMenuTranslationStatusesForRows(
       categoryRowsById: rowsById(categoryRowsByLocale.get(locale) ?? [], "category_id"),
       categoryFieldsById,
       dishRowsById: rowsById(dishRowsByLocale.get(locale) ?? [], "dish_id"),
-      dishes: menu.dishes
+      dishes: menu.dishes,
+      ...options
     });
   });
 }

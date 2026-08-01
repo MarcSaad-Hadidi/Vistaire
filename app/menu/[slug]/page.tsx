@@ -3,16 +3,7 @@ import { notFound } from "next/navigation";
 import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import { PublicMenuRenderer } from "@/components/menu/PublicMenuRenderer";
 import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
-import { getExchangeRates } from "@/lib/currency/exchangeRates";
-import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
-import {
-  normalizePublicMenuLocalePreference,
-  publicLocaleToShortLocale
-} from "@/lib/menu/publicMenuSettings";
-import { menuUiConfigForRestaurant } from "@/lib/menu/menuUiConfig";
-import { resolvePublicMenuExperience } from "@/lib/menu/publicMenuExperienceRoute";
-import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
-import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
+import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext";
 import { trouvableTypographyClassName } from "./trouvableTypography";
 
 export const dynamic = "force-dynamic";
@@ -38,69 +29,30 @@ export default async function PublicMenuPage({
 }: MenuPageProps) {
   const { slug } = await params;
   const query = await searchParams;
-  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const initialMenu = await getPublicMenuBySlug(
-    slug,
-    hasLangParam ? query.lang : undefined
-  );
+  const renderContext = await resolvePublicMenuRenderContext({ slug, query });
 
-  if (!initialMenu) {
+  if (!renderContext) {
     notFound();
   }
 
-  const activePublicLocale = normalizePublicMenuLocalePreference(
-    hasLangParam ? query.lang : undefined,
-    initialMenu.settings
-  );
-  const activeLocale = publicLocaleToShortLocale(activePublicLocale);
-  const menu = initialMenu;
-  const context = [
-    query.table ? `Table ${query.table}` : "",
-    query.zone ? `Zone ${query.zone}` : ""
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const menuQuery = {
-    lang: activePublicLocale,
-    currency: query.currency,
-    table: query.table,
-    zone: query.zone,
-    view: query.view
-  };
-  const fallbackConfig = menuUiConfigForRestaurant({
-    name: menu.name,
-    slug: menu.slug
-  });
-  const configRecord = await getPublishedMenuUiConfigForRestaurant(
-    menu.restaurantId,
-    fallbackConfig
-  );
-  const resolvedConfig = resolvePublicMenuUiConfig(menu, configRecord.config);
-  const experience = resolvePublicMenuExperience(menu, resolvedConfig, {
-    allowPendingUniquePreview:
-      process.env.NODE_ENV !== "production" &&
-      process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
-  });
-  const exchangeRates = await getExchangeRates({
-    baseCurrency: menu.settings.baseCurrency,
-    supportedCurrencies: menu.settings.supportedCurrencies
-  });
+  const {
+    config,
+    context,
+    exchangeRates,
+    experience,
+    locale,
+    localizedMenus,
+    menu,
+    query: menuQuery
+  } = renderContext;
 
   if (experience.kind === "maison-elyse") {
-    const [frenchMenu, englishMenu] = await Promise.all([
-      activeLocale === "fr" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "fr"),
-      activeLocale === "en" ? Promise.resolve(menu) : getPublicMenuBySlug(slug, "en")
-    ]);
-
     return (
       <MaisonElyseQrMenu
         menu={menu}
-        config={resolvedConfig}
-        locale={activeLocale}
-        localizedMenus={{
-          ...(frenchMenu ? { fr: frenchMenu } : {}),
-          ...(englishMenu ? { en: englishMenu } : {})
-        }}
+        config={config}
+        locale={locale}
+        localizedMenus={localizedMenus}
         context={context}
         query={menuQuery}
       />
@@ -111,13 +63,10 @@ export default async function PublicMenuPage({
     return (
       <TrouvablePremiumMenuExperience
         menu={menu}
-        config={resolvedConfig}
+        config={config}
         context={context}
         exchangeRates={exchangeRates}
-        query={{
-          ...menuQuery,
-          lang: hasLangParam ? activePublicLocale : undefined
-        }}
+        query={menuQuery}
         typographyClassName={trouvableTypographyClassName}
       />
     );
@@ -128,11 +77,11 @@ export default async function PublicMenuPage({
     return (
       <UniqueMenu
         menu={menu}
-        config={resolvedConfig}
+        config={config}
         context={context}
         exchangeRates={exchangeRates}
         query={menuQuery}
-        locale={activeLocale}
+        locale={locale}
         mode="public"
       />
     );
@@ -141,12 +90,12 @@ export default async function PublicMenuPage({
   return (
     <PublicMenuRenderer
       menu={menu}
-      config={resolvedConfig}
+      config={config}
       context={context}
       query={menuQuery}
       mode="public"
       disableHeavyAssets={false}
-      locale={activeLocale}
+      locale={locale}
     />
   );
 }

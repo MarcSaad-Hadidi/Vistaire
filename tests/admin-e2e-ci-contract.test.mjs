@@ -39,7 +39,7 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   assert.match(runner, /includes\("e2e\/ci-smoke\.spec\.ts"\)/);
   assert.match(
     runner,
-    /const useDevelopmentServer =\s*useLocalDemoServer \|\| includesSaugeNoireBrowserFlow/
+    /const useDevelopmentServer\s*=\s*useLocalDemoServer\s*\|\|\s*\(?includesSaugeNoireBrowserFlow/
   );
   assert.match(runner, /useDevelopmentServer \? "dev" : "start"/);
   assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
@@ -162,11 +162,11 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
   );
   assert.match(
     workflow,
-    /- name: Sauge Noire static-page parity\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
+    /- name: Sauge Noire static-page parity\s+(?:if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}\s+)?timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
   );
   assert.match(
     workflow,
-    /- name: Sauge Noire contents single flip\s+timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:contents-single-flip/
+    /- name: Sauge Noire contents single flip\s+(?:if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}\s+)?timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:contents-single-flip/
   );
   assert.ok(
     workflow.indexOf("run: npm run build") <
@@ -242,7 +242,7 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
     /canonical\.frame\.scrollHeight/,
     /canonical\.horizontalOverflow/,
     /document\.fonts\.ready/,
-    /data-page-flip-engine-state",\s*"flipping"/,
+    /getAttribute\("data-page-flip-engine-state"\)\s*===\s*"flipping"/,
     /engineState:\s*"read"/
   ]) {
     assert.match(staticParitySpec, invariant);

@@ -59,10 +59,72 @@
   isolation: isolate;
 }
 
+.comparisonPages,
+.comparisonPages * {
+  box-sizing: border-box;
+}
+
+.comparisonPages {
+  --sn-forest: #26372b;
+  --sn-forest-dark: #172219;
+  --sn-cream: #f3eadb;
+  --sn-paper: #faf4e9;
+  --sn-paper-texture:
+    radial-gradient(circle at 12% 16%, rgba(180, 122, 60, 0.06) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 75% 62%, rgba(38, 55, 43, 0.035) 0 1px, transparent 1.5px);
+  --sn-paper-texture-size: 16px 17px, 23px 24px;
+  --sn-bronze: #b47a3c;
+  --sn-ink: #26372b;
+  --sn-muted: #6c6f61;
+  --sn-line: rgba(38, 55, 43, 0.2);
+  display: grid;
+  width: 100%;
+  min-height: 100%;
+  overflow: visible;
+  background: var(--sn-forest-dark);
+  color: var(--sn-ink);
+  font-family: "BT Suave", Georgia, serif;
+}
+
+.comparisonPages :where(button, a) {
+  color: inherit;
+  font: inherit;
+}
+
+.comparisonPages button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.comparisonPages .page {
+  min-height: 660px;
+  border-bottom: 1px solid rgba(180, 122, 60, 0.34);
+  background-color: var(--sn-paper);
+  background-image: var(--sn-paper-texture);
+  background-size: var(--sn-paper-texture-size);
+  container: sn-sheet / inline-size;
+}
+
+.comparisonPages .staticPageFrame {
+  min-height: 660px;
+}
+
+.book[data-display-mode="phone-preview"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+}
+
 @supports (height: 100dvh) {
   .book {
     height: 100dvh;
     max-height: 100dvh;
+  }
+
+  .book[data-display-mode="phone-preview"] {
+    height: 100%;
+    max-height: 100%;
   }
 }
 
@@ -1979,6 +2041,165 @@
 
 .staticPageFrame .endingSoon {
   max-width: min(100%, 450px);
+}
+
+/*
+ * The landing comparison is rendered inside a narrow phone frame even when
+ * the host viewport is desktop-sized. Keep this preview's geometry relative
+ * to its own container so viewport-sized ornaments cannot widen the renderer.
+ */
+.comparisonPages {
+  container-type: inline-size;
+  container-name: sauge-comparison;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.comparisonPages > .page {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding:
+    clamp(5px, 1.4cqw, 36px)
+    clamp(14px, 6cqw, 92px)
+    clamp(28px, 3.6cqw, 46px);
+}
+
+.comparisonPages .coverBotanical {
+  width: clamp(116px, 25cqw, 260px);
+  height: clamp(160px, 25cqw, 240px);
+}
+
+.comparisonPages .coverTitle h1,
+.comparisonPages .endingWordmark {
+  font-size: clamp(3rem, 14cqw, 8.8rem);
+}
+
+.comparisonPages .coverTitle p,
+.comparisonPages .endingPage > p,
+.comparisonPages .instruction,
+.comparisonPages .pageFooter p,
+.comparisonPages .endingSoon {
+  font-size: clamp(0.83rem, 3.9cqw, 1.52rem);
+}
+
+.comparisonPages .coverMenuTitle {
+  font-size: clamp(1.2rem, 6.5cqw, 2.4rem);
+}
+
+.comparisonPages .coverCity,
+.comparisonPages .coverYear,
+.comparisonPages .endingCity {
+  font-size: clamp(0.9rem, 4.5cqw, 1.7rem);
+}
+
+.comparisonPages .sectionPage {
+  padding-top: clamp(10px, 13cqw, 52px);
+}
+
+.comparisonPages .sectionKicker {
+  font-size: clamp(1.1rem, 6cqw, 2.3rem);
+}
+
+.comparisonPages .sectionTitleRow {
+  min-width: 0;
+  max-width: 100%;
+  gap: clamp(8px, 4cqw, 56px);
+  overflow: hidden;
+}
+
+.comparisonPages .sectionTitleRow h1 {
+  min-width: 0;
+  font-size: clamp(1.7rem, 8cqw, 5.8rem);
+  overflow-wrap: anywhere;
+}
+
+.comparisonPages .titleBranchLeft,
+.comparisonPages .titleBranchRight {
+  width: clamp(28px, 12cqw, 68px);
+  flex: 0 1 clamp(28px, 12cqw, 68px);
+}
+
+.comparisonPages .sectionBotanical {
+  width: clamp(100px, 24cqw, 260px);
+  height: clamp(66px, 12cqw, 140px);
+}
+
+.comparisonPages .contentsList {
+  width: calc(100% - 2px);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.comparisonPages .contentsPage {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.comparisonPages .contentsPage > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.comparisonPages .contentsPage h1 {
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(1.75rem, 10cqw, 3.4rem);
+  letter-spacing: 0.075em;
+  line-height: 0.92;
+  text-wrap: balance;
+}
+
+.comparisonPages .contentsList button {
+  width: 100%;
+  min-width: 0;
+  gap: clamp(6px, 2cqw, 12px);
+  padding-inline: clamp(8px, 4cqw, 18px);
+}
+
+.comparisonPages .contentsList button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.comparisonPages .contentsList button b {
+  flex: 0 0 auto;
+}
+
+.comparisonPages .featureCard {
+  width: 100%;
+  margin-top: clamp(12px, 5cqw, 22px);
+}
+
+.comparisonPages .dishList {
+  width: 100%;
+  margin-top: clamp(10px, 5cqw, 20px);
+}
+
+.comparisonPages .dishRow,
+.comparisonPages .dishRowCompact {
+  grid-template-columns: clamp(62px, 28cqw, 112px) minmax(0, 1fr) auto;
+  gap: clamp(9px, 3cqw, 30px);
+}
+
+.comparisonPages .photoSlot {
+  width: clamp(62px, 28cqw, 106px);
+}
+
+.comparisonPages .dishRowName > span:first-child {
+  font-size: clamp(0.9rem, 4.3cqw, 1.8rem);
+}
+
+.comparisonPages .dishRowPrice {
+  font-size: clamp(0.86rem, 4cqw, 1.7rem);
+}
+
+.comparisonPages .endingPage h1 {
+  max-width: 100%;
+  font-size: clamp(1.8rem, 9cqw, 7rem);
+  overflow-wrap: anywhere;
 }
 
 @container sn-sheet (max-height: 800px) {

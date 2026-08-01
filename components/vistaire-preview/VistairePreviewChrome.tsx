@@ -277,6 +277,9 @@ export function PreviewNav({
         <span className={styles.navCtaShort}>
           {locale === "en" ? "Book" : "Rendez-vous"}
         </span>
+        <span aria-hidden="true" className={styles.navCtaArrow}>
+          ↗
+        </span>
       </Link>
     </nav>
   );
