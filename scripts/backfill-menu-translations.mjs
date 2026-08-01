@@ -158,6 +158,9 @@ export const TRANSLATION_TABLES = {
   dish: "menu_dish_translations"
 };
 export const TRANSLATION_APPLY_RPC = "owner_apply_menu_translation_backfill";
+export const SUPPORTED_BACKFILL_LOCALES = Object.freeze([DEFAULT_LOCALE]);
+export const BACKFILL_LOCALE_ERROR =
+  "translation backfill currently supports only en-CA because the current datasets are exclusively Canadian English";
 
 // This is intentionally explicit instead of deriving English from the source
 // name. These are the real Trouvable slugs supplied for the production menu.
@@ -220,6 +223,17 @@ const ENVIRONMENTS = new Set(["local", "preview", "production", "test"]);
 const PLACEHOLDER_NAME = /^(?:tbd|todo|test|placeholder|sample|example|dish(?:[-_ ]?\d+)?|item(?:[-_ ]?\d+)?|plat(?:[-_ ]?\d+)?|untitled|sans nom|nom du plat)$/i;
 function fail(message) {
   throw new Error(message);
+}
+
+export function isSupportedBackfillLocale(value) {
+  return typeof value === "string" && SUPPORTED_BACKFILL_LOCALES.includes(value);
+}
+
+export function assertSupportedBackfillLocale(value) {
+  if (!isSupportedBackfillLocale(value)) {
+    fail(`${BACKFILL_LOCALE_ERROR}; received ${JSON.stringify(value ?? "")}`);
+  }
+  return value;
 }
 
 function asObject(value) {
@@ -298,7 +312,14 @@ export function parseArgs(argv = []) {
     else if (value === "--project-ref") args.projectRef = next().toLowerCase();
     else if (value === "--allow-project-ref") args.allowedProjectRefs.push(next().toLowerCase());
     else if (value === "--restaurant") args.restaurants = [next().toLowerCase()];
-    else if (value === "--locale") args.locale = next();
+    else if (value === "--locale") {
+      const locale = argv[index + 1];
+      if (!locale || locale.startsWith("--")) {
+        fail(`${BACKFILL_LOCALE_ERROR}; --locale must be exactly en-CA`);
+      }
+      index += 1;
+      args.locale = assertSupportedBackfillLocale(locale);
+    }
     else if (value === "--report") args.reportPath = next();
     else if (value === "--authorize-production") args.authorizeProduction = true;
     else if (value === "--production-binding") args.productionBinding = next().toLowerCase();
@@ -325,7 +346,10 @@ export function validateArgs(args) {
   if (!args.restaurants.length || args.restaurants.some((slug) => !TARGET_SLUGS.includes(slug))) {
     errors.push(`--restaurant must be one of: ${TARGET_SLUGS.join(", ")}`);
   }
-  if (!args.locale.trim()) errors.push("--locale cannot be empty");
+  if (!isSupportedBackfillLocale(args.locale)) errors.push(`${BACKFILL_LOCALE_ERROR}; pass --locale en-CA`);
+  if (args.apply && !["local", "test"].includes(args.environment)) {
+    errors.push("--apply is permitted only for local or test fixtures; preview and production are dry-run only");
+  }
   if (args.apply && args.environment === "production") {
     if (!args.authorizeProduction) {
       errors.push("production apply requires --authorize-production");
@@ -339,6 +363,7 @@ export function validateArgs(args) {
 
 export function assertExplicitBinding({ args, url, env = process.env }) {
   const errors = validateArgs(args);
+  if (errors.length) fail(errors.join("; "));
   const actualRef = projectRefFromUrl(url);
   if (!actualRef) errors.push("NEXT_PUBLIC_SUPABASE_URL must be an https Supabase project URL");
   if (actualRef && actualRef !== args.projectRef) {
@@ -455,14 +480,6 @@ function isUsableValue(value) {
   return Array.isArray(value)
     ? value.length > 0 && value.every((item) => nonEmpty(item))
     : Boolean(nonEmpty(value));
-}
-
-function hasAllFields(content, fields) {
-  return Object.entries(fields).every(([field, value]) => {
-    const translated = content[field];
-    if (Array.isArray(value)) return Array.isArray(translated) && translated.length >= value.length && translated.every((item) => nonEmpty(item));
-    return isUsableValue(translated);
-  });
 }
 
 function isPlaceholderName(value) {
@@ -583,8 +600,8 @@ function canonicalMaisonFields(entity, snapshot) {
 }
 
 function canonicalContentFor(entity, snapshot, existingRow) {
-  const existingContent = objectInput(existingRow?.content);
-  const overrides = objectInput(existingRow?.manual_overrides);
+  const existingContent = storedObject(existingRow?.content, `${snapshot.targetSlug} ${entity.type} ${entity.slug} content`);
+  const overrides = storedObject(existingRow?.manual_overrides, `${snapshot.targetSlug} ${entity.type} ${entity.slug} manual_overrides`);
   const target = snapshot.targetSlug;
   const canonical = target === MAISON_ELYSE_SLUG
     ? canonicalMaisonFields(entity, snapshot)
@@ -595,26 +612,110 @@ function canonicalContentFor(entity, snapshot, existingRow) {
   if (isPlaceholderName(canonicalName)) fail(`${target} canonical name is empty or placeholder for ${entity.slug}`);
 
   const content = { ...existingContent };
-  const requiredFields = target === MAISON_ELYSE_SLUG
-    ? Object.keys(entity.fields)
+  const requiredFields = Object.keys(entity.fields);
+  const canonicalRequiredFields = target === MAISON_ELYSE_SLUG
+    ? requiredFields
     : entity.type === "menu" ? ["menuName"] : ["name"];
-  for (const field of requiredFields) {
-    if (overrides[field] === true) {
-      if (!isUsableValue(existingContent[field])) {
-        fail(`${target} manual override for ${entity.slug}.${field} has no usable content`);
-      }
-      continue;
+  const generatedFields = new Set();
+
+  for (const [field, value] of Object.entries(overrides)) {
+    if (value !== true && value !== false) {
+      fail(`${target} manual override ${entity.slug}.${field} must be boolean`);
     }
+    if (value === true && field in entity.fields && !isUsableValue(existingContent[field])) {
+      fail(`${target} manual override for ${entity.slug}.${field} has no usable content`);
+    }
+  }
+
+  for (const field of canonicalRequiredFields) {
+    if (overrides[field] === true) continue;
+    if (isUsableValue(content[field])) continue;
     if (!isUsableValue(canonical[field])) {
       fail(`${target} canonical content is incomplete for ${entity.slug}.${field}`);
     }
     content[field] = canonical[field];
+    generatedFields.add(field);
   }
-  return { content, overrides, requiredFields };
+  return { content, overrides, requiredFields, generatedFields };
+}
+
+function storedObject(value, label) {
+  if (value === undefined) return {};
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail(`${label} must be a JSON object; null, arrays, and scalar values are not writable`);
+  }
+  return value;
+}
+
+function storedSourceHash(existing, label) {
+  if (!existing || !Object.prototype.hasOwnProperty.call(existing, "source_hash")) return "";
+  if (existing.source_hash === null || typeof existing.source_hash !== "string") {
+    fail(`${label} source_hash must be a non-null string`);
+  }
+  return existing.source_hash;
+}
+
+function requiredExistingField(existing, field, label) {
+  if (!Object.prototype.hasOwnProperty.call(existing, field) || existing[field] === undefined) {
+    fail(`${label} expected snapshot is missing ${field}`);
+  }
+  return existing[field];
+}
+
+function nullableText(value, field, label) {
+  if (value !== null && typeof value !== "string") {
+    fail(`${label} expected snapshot ${field} must be a string or null`);
+  }
+  return value;
+}
+
+function buildFreshnessState(entity, existing, content, generatedFields, overrides, label) {
+  const currentFieldHashes = fieldHashesFor(entity.fields);
+  const storedFieldHashes = storedObject(existing?.field_hashes, `${label} field_hashes`);
+  const fieldHashes = { ...storedFieldHashes };
+  // A valid manual override owns its translated field; it is not retranslated
+  // or used as evidence that any other source field is fresh.
+  const freshnessFields = Object.keys(entity.fields).filter((field) => overrides[field] !== true);
+
+  for (const [field, value] of Object.entries(storedFieldHashes)) {
+    if (typeof value !== "string" || !value) {
+      fail(`${label} field_hashes.${field} must be a non-empty string`);
+    }
+  }
+
+  const provenFields = [];
+  for (const field of freshnessFields) {
+    if (generatedFields.has(field)) {
+      if (!isUsableValue(content[field])) {
+        fail(`${label}.${field} was generated without usable translated content`);
+      }
+      fieldHashes[field] = currentFieldHashes[field];
+      provenFields.push(field);
+      continue;
+    }
+    if (isUsableValue(content[field]) && fieldHashes[field] === currentFieldHashes[field]) {
+      provenFields.push(field);
+    }
+  }
+
+  const complete = Object.keys(entity.fields).every((field) => isUsableValue(content[field])) &&
+    freshnessFields.every((field) => fieldHashes[field] === currentFieldHashes[field]);
+  const currentSourceHash = sourceHashFor(entity.fields);
+  const previousSourceHash = storedSourceHash(existing, label);
+  return {
+    sourceHash: complete
+      ? currentSourceHash
+      : previousSourceHash === currentSourceHash ? "" : previousSourceHash,
+    fieldHashes,
+    currentFieldHashes,
+    provenFields,
+    complete
+  };
 }
 
 export function validateSnapshot(snapshot) {
   const errors = [];
+  if (!isSupportedBackfillLocale(snapshot.locale)) errors.push(`${BACKFILL_LOCALE_ERROR}; pass locale en-CA`);
   if (!snapshot.restaurant || snapshot.restaurant.slug !== snapshot.targetSlug) {
     errors.push("restaurant identity does not match the requested slug");
   }
@@ -658,17 +759,21 @@ function rowFromMap(rowsByKey, entity) {
 
 function diffFields(before, after) {
   const changes = [];
-  for (const key of ["translation_status", "provider", "source_hash", "field_hashes", "content", "manual_overrides"]) {
+  for (const key of ["translation_status", "provider", "source_hash", "field_hashes", "content", "manual_overrides", "error_message", "translated_at"]) {
     if (stableJson(before?.[key]) !== stableJson(after[key])) changes.push(key);
   }
   return changes;
 }
 
-function missingFields(content, fields, requiredFields) {
-  return requiredFields.filter((field) => !isUsableValue(content[field]) || !(field in fields));
+function missingFields(content, fields, requiredFields, fieldHashes, overrides) {
+  const currentFieldHashes = fieldHashesFor(fields);
+  return requiredFields.filter((field) =>
+    overrides[field] !== true && (!isUsableValue(content[field]) || fieldHashes[field] !== currentFieldHashes[field])
+  );
 }
 
 export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
+  assertSupportedBackfillLocale(snapshot.locale);
   const errors = validateSnapshot(snapshot);
   const entities = buildEntities(snapshot);
   const menuSettings = buildMenuSettingsPlan(snapshot);
@@ -684,20 +789,31 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
 
   for (const entity of coverage.complete ? entities : []) {
     const existing = rowFromMap(rowsByKey, entity);
-    const { content, overrides, requiredFields } = canonicalContentFor(entity, snapshot, existing);
-    const hashes = {
-      source_hash: sourceHashFor(entity.fields),
-      field_hashes: fieldHashesFor(entity.fields)
-    };
-    const existingFieldHashes = objectInput(existing?.field_hashes);
-    const preservedFieldsProven = Object.keys(entity.fields)
-      .filter((field) => !["name", "menuName"].includes(field) && overrides[field] !== true)
-      .every((field) => existingFieldHashes[field] === hashes.field_hashes[field]);
-    const complete = hasAllFields(content, entity.fields) &&
-      (snapshot.targetSlug === MAISON_ELYSE_SLUG || preservedFieldsProven);
-    const status = snapshot.targetSlug === MAISON_ELYSE_SLUG
-      ? complete ? "up_to_date" : "missing"
-      : complete ? "up_to_date" : "stale";
+    const { content, overrides, requiredFields, generatedFields } = canonicalContentFor(entity, snapshot, existing);
+    const freshness = buildFreshnessState(
+      entity,
+      existing,
+      content,
+      generatedFields,
+      overrides,
+      `${snapshot.targetSlug} ${entity.type} ${entity.slug}`
+    );
+    const hasStoredContent = Boolean(existing) && requiredFields.some((field) => isUsableValue(content[field]));
+    const status = freshness.complete
+      ? "up_to_date"
+      : hasStoredContent || snapshot.targetSlug !== MAISON_ELYSE_SLUG
+        ? "stale"
+        : "missing";
+    const translatedAt = existing
+      ? generatedFields.size > 0
+        ? now
+        : Object.prototype.hasOwnProperty.call(existing, "translated_at")
+          ? existing.translated_at
+          : null
+      : now;
+    const provider = existing && Object.prototype.hasOwnProperty.call(existing, "provider")
+      ? existing.provider
+      : "canonical-backfill";
     const patch = {
       ...(existing?.id ? { id: existing.id } : {}),
       restaurant_id: snapshot.restaurant.id,
@@ -705,12 +821,13 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
       [rowIdColumn(entity.type)]: entity.id,
       locale: snapshot.locale,
       translation_status: status,
-      provider: existing?.provider ?? "canonical-backfill",
-      ...hashes,
+      provider,
+      source_hash: freshness.sourceHash,
+      field_hashes: freshness.fieldHashes,
       content,
       manual_overrides: overrides,
-      error_message: null,
-      translated_at: now,
+      error_message: existing?.error_message ?? null,
+      translated_at: translatedAt,
       updated_at: now
     };
     const changed = diffFields(existing, patch);
@@ -722,7 +839,7 @@ export function buildPlan(snapshot, { now = new Date().toISOString() } = {}) {
       existing,
       patch,
       requiredFields,
-      missingFields: missingFields(content, entity.fields, requiredFields),
+      missingFields: missingFields(content, entity.fields, requiredFields, freshness.fieldHashes, overrides),
       changed,
       action: existing ? (changed.length ? "update" : "noop") : "insert"
     });
@@ -791,6 +908,7 @@ function choosePrimaryMenu(rows) {
 }
 
 export async function readSnapshot(client, targetSlug, locale) {
+  assertSupportedBackfillLocale(locale);
   const restaurants = await readRows(client, "restaurants", {
     columns: "id,name,slug,status",
     filters: { slug: targetSlug }
@@ -877,18 +995,24 @@ function reportMenuSettings(settings) {
 }
 
 function atomicOperationPayload(operation) {
+  const label = `${operation.entityType} ${operation.entityId}`;
+  const existing = operation.existing;
   return {
     action: operation.action,
     entity_type: operation.entityType,
     entity_id: operation.entityId,
-    expected: operation.existing
+    expected: existing
       ? {
-          id: operation.existing.id,
-          updated_at: operation.existing.updated_at ?? null,
-          source_hash: operation.existing.source_hash ?? null,
-          field_hashes: objectInput(operation.existing.field_hashes),
-          content: objectInput(operation.existing.content),
-          manual_overrides: objectInput(operation.existing.manual_overrides)
+          id: requiredExistingField(existing, "id", label),
+          updated_at: requiredExistingField(existing, "updated_at", label),
+          translation_status: requiredExistingField(existing, "translation_status", label),
+          provider: nullableText(requiredExistingField(existing, "provider", label), "provider", label),
+          source_hash: requiredExistingField(existing, "source_hash", label),
+          field_hashes: storedObject(requiredExistingField(existing, "field_hashes", label), `${label} expected field_hashes`),
+          content: storedObject(requiredExistingField(existing, "content", label), `${label} expected content`),
+          manual_overrides: storedObject(requiredExistingField(existing, "manual_overrides", label), `${label} expected manual_overrides`),
+          error_message: nullableText(requiredExistingField(existing, "error_message", label), "error_message", label),
+          translated_at: nullableText(requiredExistingField(existing, "translated_at", label), "translated_at", label)
         }
       : null,
     patch: operation.patch
@@ -896,6 +1020,7 @@ function atomicOperationPayload(operation) {
 }
 
 export function buildAtomicApplyPayload(plans) {
+  for (const plan of plans) assertSupportedBackfillLocale(plan.target.locale);
   return {
     p_plans: plans.map((plan) => ({
       restaurant_id: plan.target.restaurantId,
@@ -912,6 +1037,7 @@ export function buildAtomicApplyPayload(plans) {
 }
 
 async function applyPlansAtomically(client, plans) {
+  for (const plan of plans) assertSupportedBackfillLocale(plan.target.locale);
   if (!plans.every((plan) => plan.ok)) {
     const errors = plans.flatMap((plan) => plan.errors ?? []);
     fail(`refusing to apply invalid plans: ${errors.join(" | ")}`);
@@ -958,7 +1084,6 @@ export async function run({ args, env = process.env, log = console.log, clientFa
   if (argumentErrors.length) {
     report.errors = argumentErrors;
     log(JSON.stringify(report, null, 2));
-    safeWriteReport(args.reportPath, report);
     return report;
   }
   try {
@@ -1007,7 +1132,7 @@ export async function run({ args, env = process.env, log = console.log, clientFa
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/backfill-menu-translations.mjs --environment <local|preview|production|test> --project-ref <ref> --allow-project-ref <ref> [options]\n\nDry-run is the default. Writes require --apply. Production additionally requires --authorize-production --production-binding <same-ref>.\nOptions: --restaurant <slug> --locale <locale> --report <new-json-path>`);
+  console.log(`Usage: node scripts/backfill-menu-translations.mjs --environment <local|preview|production|test> --project-ref <ref> --allow-project-ref <ref> [options]\n\nDry-run is the default. --locale must be exactly en-CA. Writes require --apply and are restricted to local/test fixtures; preview and production are dry-run only.\nOptions: --restaurant <slug> --locale en-CA --report <new-json-path>`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
