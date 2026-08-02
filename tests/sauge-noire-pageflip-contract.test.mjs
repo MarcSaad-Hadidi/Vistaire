@@ -250,7 +250,7 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   );
   assert.match(
     coordinator,
-    /if \(!destinationRendererIsReady\(\)\) \{[\s\S]*destinationReadyTransitionIdRef\.current = null;[\s\S]*cancelAnimationFrame\(handoffFrameRef\.current\)[\s\S]*return;[\s\S]*\}\s*destinationReadyTransitionIdRef\.current = current\.id;[\s\S]*tryCompleteHandoff\(\)/
+    /if \(!destinationRendererIsReady\(\)\) \{[\s\S]*watchdogFallbackTransitionIdRef\.current !== current\.id[\s\S]*destinationReadyTransitionIdRef\.current = null;[\s\S]*cancelAnimationFrame\(handoffFrameRef\.current\)[\s\S]*return;[\s\S]*\}\s*watchdogFallbackTransitionIdRef\.current = null;[\s\S]*destinationReadyTransitionIdRef\.current = current\.id;[\s\S]*tryCompleteHandoff\(\)/
   );
   assert.doesNotMatch(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
@@ -273,6 +273,19 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
 test("watchdog readiness survives a settled gesture until handoff completion", async () => {
   const coordinator = await readFile(transitionCoordinatorPath, "utf8");
 
+  assert.match(coordinator, /watchdogFallbackTransitionIdRef = useRef<string \| null>\(null\)/);
+  assert.match(
+    coordinator,
+    /watchdogFallbackTransitionIdRef\.current = latest\.id;[\s\S]*destinationReadyTransitionIdRef\.current = latest\.id/
+  );
+  assert.match(
+    coordinator,
+    /watchdogFallbackTransitionIdRef\.current === current\.id[\s\S]*destinationReadyTransitionIdRef\.current = watchdogFallbackForCurrent\s*\?\s*current\.id\s*:\s*null/
+  );
+  assert.match(
+    coordinator,
+    /if \(watchdogFallbackTransitionIdRef\.current !== current\.id\) \{[\s\S]*destinationReadyTransitionIdRef\.current = null/
+  );
   assert.match(
     coordinator,
     /const current = transitionRef\.current;[\s\S]*handoffReadyForCurrent[\s\S]*destinationReadyTransitionIdRef\.current === current\.id/

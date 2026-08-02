@@ -77,6 +77,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const overlayReadyPendingRef = useRef(false);
   const overlayFallbackPendingRef = useRef(false);
   const settledPreviewGestureActiveRef = useRef(false);
+  const watchdogFallbackTransitionIdRef = useRef<string | null>(null);
   const destinationReadinessCheckRef = useRef<(() => void) | null>(null);
   const routeRendererRef = useRef<HTMLDivElement | null>(null);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
@@ -121,6 +122,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     overlayReadyPendingRef.current = false;
     overlayFallbackPendingRef.current = false;
     settledPreviewGestureActiveRef.current = false;
+    watchdogFallbackTransitionIdRef.current = null;
     destinationReadyTransitionIdRef.current = null;
     destinationPathnameObservedRef.current = false;
     transitionRef.current = active;
@@ -227,6 +229,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       if (settledPreviewGestureActiveRef.current) return;
       if (!transferDestinationScroll()) return;
       window.clearTimeout(awaitingDestinationWatchdogRef.current);
+      watchdogFallbackTransitionIdRef.current = null;
       destinationReadyTransitionIdRef.current = null;
       transitionRef.current = null;
       setTransition(null);
@@ -307,6 +310,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         overlayReadyPendingRef.current = false;
         overlayFallbackPendingRef.current = false;
         settledPreviewGestureActiveRef.current = false;
+        watchdogFallbackTransitionIdRef.current = null;
         transitionRef.current = null;
         setTransition(null);
         return;
@@ -381,7 +385,13 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const nextScrollTop = Math.max(0, scrollTop);
     if (Math.abs(nextScrollTop - settledPreviewScrollTopRef.current) <= 1) return;
     settledPreviewScrollTopRef.current = nextScrollTop;
-    destinationReadyTransitionIdRef.current = null;
+    const current = transitionRef.current;
+    const watchdogFallbackForCurrent =
+      current?.phase === "awaiting-destination" &&
+      watchdogFallbackTransitionIdRef.current === current.id;
+    destinationReadyTransitionIdRef.current = watchdogFallbackForCurrent
+      ? current.id
+      : null;
     destinationReadinessCheckRef.current?.();
   }, []);
 
@@ -391,6 +401,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (readyPathname !== expectedPathname) return;
     if (!destinationRendererIsReady()) return;
+    watchdogFallbackTransitionIdRef.current = null;
     destinationReadyTransitionIdRef.current = current.id;
     tryCompleteHandoff();
   }, [destinationRendererIsReady, tryCompleteHandoff]);
@@ -447,13 +458,16 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       }
       if (pathnameRef.current !== expectedPathname) return;
       if (!destinationRendererIsReady()) {
-        destinationReadyTransitionIdRef.current = null;
-        if (handoffFrameRef.current) {
-          window.cancelAnimationFrame(handoffFrameRef.current);
-          handoffFrameRef.current = 0;
+        if (watchdogFallbackTransitionIdRef.current !== current.id) {
+          destinationReadyTransitionIdRef.current = null;
+          if (handoffFrameRef.current) {
+            window.cancelAnimationFrame(handoffFrameRef.current);
+            handoffFrameRef.current = 0;
+          }
         }
         return;
       }
+      watchdogFallbackTransitionIdRef.current = null;
       destinationReadyTransitionIdRef.current = current.id;
       tryCompleteHandoff();
     };
@@ -535,6 +549,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         pathnameRef.current === latestExpectedPathname &&
         destinationRendererIsUsable()
       ) {
+        watchdogFallbackTransitionIdRef.current = latest.id;
         destinationReadyTransitionIdRef.current = latest.id;
         tryCompleteHandoff();
         return;
