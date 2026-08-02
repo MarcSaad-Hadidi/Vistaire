@@ -55,11 +55,27 @@ function listInput(value: unknown): string[] {
     : [];
 }
 
+function mergeTags(...lists: string[][]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const list of lists) {
+    for (const tag of list) {
+      const value = tag.trim();
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) continue;
+      seen.add(key);
+      result.push(value);
+    }
+  }
+  return result;
+}
+
 function getTranslatedString(args: {
   field: string;
   source: string;
   sourceFields: MenuTranslationFields;
   row?: AnyRow;
+  legacyDerivedTags?: readonly string[];
 }): string {
   if (!args.source.trim()) return args.source;
   const content = objectInput(args.row?.content);
@@ -68,7 +84,8 @@ function getTranslatedString(args: {
       args.row,
       args.sourceFields,
       args.field,
-      args.source
+      args.source,
+      args.legacyDerivedTags
     )
   ) {
     return args.source;
@@ -82,6 +99,7 @@ function getTranslatedList(args: {
   source: string[];
   sourceFields: MenuTranslationFields;
   row?: AnyRow;
+  legacyDerivedTags?: readonly string[];
 }): string[] {
   if (args.source.length === 0) return args.source;
   const content = objectInput(args.row?.content);
@@ -90,7 +108,8 @@ function getTranslatedList(args: {
       args.row,
       args.sourceFields,
       args.field,
-      args.source
+      args.source,
+      args.legacyDerivedTags
     )
   ) {
     return args.source;
@@ -247,6 +266,10 @@ export async function applyStoredPublicMenuTranslations(
 
   const translatedDishes = menu.dishes.map((dish) => {
     const sourceFields = publicMenuDishTranslationFields(dish);
+    const legacyDerivedTags = [
+      ...(dish.isSignature ? ["Signature"] : []),
+      ...(dish.isRecommended ? ["Recommande"] : [])
+    ];
     const dishRow = dishRowsById.get(dish.id);
     const translatableTags = Array.isArray(sourceFields.tags)
       ? sourceFields.tags
@@ -263,7 +286,8 @@ export async function applyStoredPublicMenuTranslations(
         field: "description",
         source: dish.description,
         sourceFields,
-        row: dishRow
+        row: dishRow,
+        legacyDerivedTags
       }),
       category:
         categoryFields && categoryRow
@@ -287,32 +311,45 @@ export async function applyStoredPublicMenuTranslations(
         field: "ingredients",
         source: dish.ingredients,
         sourceFields,
-        row: dishRow
+        row: dishRow,
+        legacyDerivedTags
       }),
       allergens: getTranslatedList({
         field: "allergens",
         source: dish.allergens,
         sourceFields,
-        row: dishRow
+        row: dishRow,
+        legacyDerivedTags
       }),
       options: getTranslatedList({
         field: "options",
         source: dish.options,
         sourceFields,
-        row: dishRow
+        row: dishRow,
+        legacyDerivedTags
       }),
       houseNote: getTranslatedString({
         field: "houseNote",
         source: dish.houseNote,
         sourceFields,
-        row: dishRow
+        row: dishRow,
+        legacyDerivedTags
       }),
-      tags: getTranslatedList({
-        field: "tags",
-        source: translatableTags,
-        sourceFields,
-        row: dishRow
-      })
+      tags: mergeTags(
+        getTranslatedList({
+          field: "tags",
+          source: translatableTags,
+          sourceFields,
+          row: dishRow,
+          legacyDerivedTags
+        }).filter(
+          (tag) =>
+            !legacyDerivedTags.some(
+              (derivedTag) => derivedTag.toLowerCase() === tag.toLowerCase()
+            )
+        ),
+        legacyDerivedTags
+      )
     };
   });
 

@@ -188,7 +188,12 @@ test("stored English copy keeps the French source dish name", async () => {
 
   const demo = await getPublicMenuBySlug("trouvable", "fr-CA");
   assert.ok(demo);
-  const sourceDish = demo.dishes[0];
+  const sourceDish = {
+    ...demo.dishes[0],
+    isSignature: true,
+    isRecommended: true,
+    tags: [...demo.dishes[0].tags, "Signature", "Recommande"]
+  };
   const sourceMenu = {
     ...demo,
     menuId: "menu-runtime-translation",
@@ -201,6 +206,10 @@ test("stored English copy keeps the French source dish name", async () => {
     dishes: [sourceDish]
   };
   const dishFields = publicMenuDishTranslationFields(sourceDish);
+  const producerDishFields = {
+    ...dishFields,
+    tags: [...dishFields.tags, "Signature", "Recommande"]
+  };
   const category = publicMenuCategoryTranslationSources(sourceMenu)[0];
   assert.ok(category);
 
@@ -224,8 +233,8 @@ test("stored English copy keeps the French source dish name", async () => {
         dish_id: sourceDish.id,
         locale: "en-CA",
         translation_status: "up_to_date",
-        source_hash: sourceHashFor(dishFields),
-        field_hashes: fieldHashesFor(dishFields),
+        source_hash: sourceHashFor(producerDishFields),
+        field_hashes: fieldHashesFor(producerDishFields),
         content: {
           ...dishFields,
           description: "Farm eggs with crisp potatoes and herb salad.",
@@ -271,6 +280,11 @@ test("stored English copy keeps the French source dish name", async () => {
     assert.equal(english.activeLocale, "en-CA");
     assert.equal(english.dishes[0].name, sourceMenu.dishes[0].name);
     assert.equal(sourceMenu.dishes[0].name, "Dejeuner classique maison");
+    assert.deepEqual(english.dishes[0].tags, [
+      "House favourite",
+      "Signature",
+      "Recommande"
+    ]);
     assert.notStrictEqual(english.dishes[0], sourceMenu.dishes[0]);
   } finally {
     delete globalThis.__vistaireTranslationAdmin;

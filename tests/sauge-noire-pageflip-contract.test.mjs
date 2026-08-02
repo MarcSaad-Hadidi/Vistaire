@@ -218,6 +218,10 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   assert.match(mediaReadiness, /mediaIsRelevantForReadiness/);
   assert.match(mediaReadiness, /loading.*lazy/);
   assert.match(mediaReadiness, /projectedScrollTop/);
+  assert.match(mediaReadiness, /triggerLazy/);
+  assert.match(mediaReadiness, /element\.loading = "eager"/);
+  assert.match(mediaReadiness, /element\.preload = "metadata"/);
+  assert.match(mediaReadiness, /element\.load\(\)/);
   assert.match(
     coordinator,
     /readinessMediaForSurface\(activePage,\s*\{[\s\S]*projectedScrollTop:\s*settledPreviewScrollTopRef\.current/
@@ -243,6 +247,10 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   assert.match(
     coordinator,
     /destinationReadinessCheckRef\.current = checkDestinationReadiness/
+  );
+  assert.match(
+    coordinator,
+    /destinationReadyTransitionIdRef\.current = null;[\s\S]*cancelAnimationFrame\(handoffFrameRef\.current\)[\s\S]*bindMediaSignals\(\)/
   );
   assert.doesNotMatch(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
@@ -420,9 +428,10 @@ test("scroll handoff ignores below-fold lazy media and cleans every readiness si
   assert.match(mediaReadiness, /element\.getAttribute\("loading"\) !== "lazy"/);
   assert.match(mediaReadiness, /mediaIsPrepared\(element\)/);
   assert.match(mediaReadiness, /projectedBottom > viewportTop/);
+  assert.match(mediaReadiness, /triggerLazy/);
   assert.match(
     experiment,
-    /readinessMediaForSurface\(targetSurface,\s*\{[\s\S]*projectedScrollTop:\s*projectedHandoffScrollTop\(\)/
+    /readinessMediaForSurface\(targetSurface,\s*\{[\s\S]*projectedScrollTop:\s*projectedHandoffScrollTop\(\)[\s\S]*triggerLazy: true/
   );
   assert.match(experiment, /const mediaIsPending = \(\) =>/);
   assert.match(experiment, /scrollHandoffMediaCleanupRef\.current\?\.\(\)/);

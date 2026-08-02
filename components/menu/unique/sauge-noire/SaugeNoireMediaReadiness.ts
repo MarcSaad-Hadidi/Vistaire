@@ -2,6 +2,7 @@ export type SaugeNoireReadinessMedia = HTMLImageElement | HTMLVideoElement;
 
 export type SaugeNoireReadinessOptions = {
   projectedScrollTop?: number;
+  triggerLazy?: boolean;
 };
 
 export function mediaIsPrepared(element: SaugeNoireReadinessMedia): boolean {
@@ -43,7 +44,19 @@ export function readinessMediaForSurface(
   surface: ParentNode,
   options: SaugeNoireReadinessOptions = {}
 ): SaugeNoireReadinessMedia[] {
-  return Array.from(
+  const media = Array.from(
     surface.querySelectorAll<HTMLImageElement | HTMLVideoElement>("img, video")
   ).filter((element) => mediaIsRelevantForReadiness(element, options));
+  if (options.triggerLazy) {
+    for (const element of media) {
+      if (mediaIsPrepared(element) || element.getAttribute("loading") !== "lazy") continue;
+      if (element instanceof HTMLImageElement) {
+        element.loading = "eager";
+      } else {
+        element.preload = "metadata";
+        element.load();
+      }
+    }
+  }
+  return media;
 }

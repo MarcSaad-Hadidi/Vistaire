@@ -656,7 +656,8 @@ export function SaugeNoirePageFlipExperiment({
     const bindMediaSignals = () => {
       scrollHandoffMediaCleanupRef.current?.();
       const media = readinessMediaForSurface(targetSurface, {
-        projectedScrollTop: projectedHandoffScrollTop()
+        projectedScrollTop: projectedHandoffScrollTop(),
+        triggerLazy: true
       });
       const handleMediaSignal = () => scheduleCheck();
       for (const element of media) {
@@ -677,7 +678,8 @@ export function SaugeNoirePageFlipExperiment({
 
     const mediaIsPending = () =>
       readinessMediaForSurface(targetSurface, {
-        projectedScrollTop: projectedHandoffScrollTop()
+        projectedScrollTop: projectedHandoffScrollTop(),
+        triggerLazy: true
       }).some((element) => {
         if (element instanceof HTMLImageElement) return !mediaIsPrepared(element);
         if (element instanceof HTMLVideoElement) return element.readyState < 2;

@@ -337,7 +337,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       return false;
     }
     const media = readinessMediaForSurface(activePage, {
-      projectedScrollTop: settledPreviewScrollTopRef.current
+      projectedScrollTop: settledPreviewScrollTopRef.current,
+      triggerLazy: true
     });
     for (const element of media) {
       const rect = element.getBoundingClientRect();
@@ -407,7 +408,8 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       );
       const media = activePage
         ? readinessMediaForSurface(activePage, {
-            projectedScrollTop: settledPreviewScrollTopRef.current
+            projectedScrollTop: settledPreviewScrollTopRef.current,
+            triggerLazy: true
           })
         : [];
       const handleMediaSignal = () => checkDestinationReadiness();
@@ -428,6 +430,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     };
 
     const checkDestinationReadiness = () => {
+      destinationReadyTransitionIdRef.current = null;
+      if (handoffFrameRef.current) {
+        window.cancelAnimationFrame(handoffFrameRef.current);
+        handoffFrameRef.current = 0;
+      }
       bindMediaSignals();
       const latest = transitionRef.current;
       if (
