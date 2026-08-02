@@ -10,6 +10,7 @@ import {
   resolveEntityTranslationStatus,
   sourceHashFor,
   summarizeLocaleTranslationStatus,
+  translationValueIsSourceIdentical,
   translationRowCanRepairMetadata
 } from "../lib/translation/menuTranslationModel.ts";
 import {
@@ -312,6 +313,54 @@ test("canonical dish fields normalize exact lists and derived tags consistently"
     }
   );
   assert.deepEqual(canonicalDishDerivedTags({ isRecommended: true }), ["Recommande"]);
+});
+
+test("owner freshness rejects source-identical prose and queues it again", async () => {
+  const entity = {
+    type: "dish",
+    id: "dish-source-identical",
+    fields: {
+      description: "Source description",
+      houseNote: "Source note",
+      tags: ["Maison"]
+    }
+  };
+  const row = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(entity.fields),
+    field_hashes: fieldHashesFor(entity.fields),
+    content: {
+      description: "Source description",
+      houseNote: "Translated note",
+      tags: ["House"]
+    },
+    manual_overrides: {}
+  };
+
+  assert.equal(
+    translationValueIsSourceIdentical(
+      "description",
+      entity.fields.description,
+      row.content.description
+    ),
+    true
+  );
+  assert.ok(estimateChangedCharacters(entity, row) > 0);
+  assert.equal(resolveEntityTranslationStatus(entity, row).status, "stale");
+});
+
+test("owner and backfill source lists follow public alias precedence", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const backfill = await readRepoFile("scripts/backfill-menu-translations.mjs");
+
+  assert.match(ownerTranslations, /ingredients:\s*firstStringListFromSources\(/);
+  assert.match(ownerTranslations, /allergens:\s*firstStringListFromSources\(/);
+  assert.match(backfill, /ingredients:\s*firstNonEmptyList\(/);
+  assert.match(backfill, /allergens:\s*firstNonEmptyList\(/);
+  assert.doesNotMatch(
+    ownerTranslations,
+    /ingredients:\s*mergeStringLists\(\s*stringListInput\(metadata\.ingredients\)/s
+  );
 });
 
 test("legacy aggregate hashes remain fresh after an optional field is removed", () => {

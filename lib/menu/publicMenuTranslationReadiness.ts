@@ -4,6 +4,7 @@ import {
   sourceHashMatchesFields,
   sourceHashCompatibleWithManualOverrides,
   stringInput,
+  translationValueIsSourceIdentical,
   type MenuTranslationFields
 } from "../translation/menuTranslationModel.ts";
 import {
@@ -55,12 +56,7 @@ function missingTranslatedFieldReason(
   // Prose that is byte-for-byte identical to the source is still the source
   // copy. Dish names intentionally are not part of the public translation
   // fields, while descriptions must not silently fall back to French.
-  if (
-    (field === "description" ||
-      field === "categoryDescription" ||
-      field === "houseNote") &&
-    translatedValue === sourceValue.trim()
-  ) {
+  if (translationValueIsSourceIdentical(field, sourceValue, translatedValue)) {
     return "source language content";
   }
 

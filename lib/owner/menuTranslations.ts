@@ -19,6 +19,7 @@ import {
   sourceHashFor,
   stringInput,
   stringListInput,
+  translationValueIsSourceIdentical,
   summarizeLocaleTranslationStatus,
   translationRowCanRepairMetadata,
   type MenuTranslationFieldValue,
@@ -129,6 +130,16 @@ function firstStringList(row: AnyRow, keys: string[]): string[] {
   return [];
 }
 
+function firstStringListFromSources(
+  row: AnyRow,
+  metadata: AnyRow,
+  keys: string[]
+): string[] {
+  return firstStringList(metadata, keys).length > 0
+    ? firstStringList(metadata, keys)
+    : firstStringList(row, keys);
+}
+
 function sourceDishTags(row: AnyRow, metadata: AnyRow): string[] {
   return mergeStringLists(
     firstStringList(metadata, ["tags", "labels"]),
@@ -161,24 +172,28 @@ function dishFields(row: AnyRow): MenuTranslationFields {
   // must never participate in translation hashes, freshness, or readiness.
   return canonicalDishTranslationFields({
     description: getString(row, ["short_description", "shortDescription", "description"]),
-    ingredients: mergeStringLists(
-      stringListInput(metadata.ingredients),
-      stringListInput(metadata.ingredient_list),
-      stringListInput(row.ingredients)
-    ),
-    allergens: mergeStringLists(
-      stringListInput(row.allergens),
-      stringListInput(metadata.allergens),
-      stringListInput(metadata.allergenes),
-      stringListInput(metadata.allergen_list)
-    ),
+    ingredients: firstStringListFromSources(row, metadata, [
+      "ingredients",
+      "ingredient_list"
+    ]),
+    allergens: firstStringListFromSources(row, metadata, [
+      "allergens",
+      "allergenes",
+      "allergen_list"
+    ]),
     options: mergeStringLists(
+      stringListInput(row.options),
+      stringListInput(row.option_list),
+      stringListInput(row.extras),
+      stringListInput(row.accompaniments),
       stringListInput(metadata.options),
       stringListInput(metadata.option_list),
       stringListInput(metadata.extras),
       stringListInput(metadata.accompaniments)
     ),
-    houseNote: getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"]),
+    houseNote:
+      getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"]) ||
+      getString(row, ["house_note", "houseNote", "chef_note", "chefNote", "note"]),
     tags: sourceDishTags(row, metadata),
     isSignature: booleanInput(row, ["is_signature", "isSignature"]),
     isRecommended: booleanInput(row, ["is_recommended", "isRecommended"])
@@ -401,7 +416,8 @@ function flattenTranslationTasks(entity: MenuTranslationSourceEntity, row?: Stor
     if (manualOverrides[field] === true) continue;
     if (
       storedFieldHashes[field] === expectedFieldHashes[field] &&
-      content[field] !== undefined
+      content[field] !== undefined &&
+      !translationValueIsSourceIdentical(field, value, content[field])
     ) {
       continue;
     }

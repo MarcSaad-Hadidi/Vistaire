@@ -252,6 +252,14 @@ function nonEmptyList(value) {
   return stringListInput(value);
 }
 
+function firstNonEmptyList(...values) {
+  for (const value of values) {
+    const list = nonEmptyList(value);
+    if (list.length > 0) return list;
+  }
+  return [];
+}
+
 function addField(fields, key, value) {
   const valid = Array.isArray(value)
     ? value.some((item) => nonEmpty(item))
@@ -404,29 +412,47 @@ export function sourceDishFields(dish) {
   const metadata = asObject(dish.metadata);
   return canonicalDishTranslationFields({
     description: dish.short_description ?? dish.shortDescription ?? dish.description,
-    ingredients: [
-      ...nonEmptyList(metadata.ingredients),
-      ...nonEmptyList(metadata.ingredient_list),
-      ...nonEmptyList(dish.ingredients)
-    ],
-    allergens: [
-      ...nonEmptyList(dish.allergens),
-      ...nonEmptyList(metadata.allergens),
-      ...nonEmptyList(metadata.allergenes),
-      ...nonEmptyList(metadata.allergen_list)
-    ],
+    ingredients: firstNonEmptyList(
+      metadata.ingredients,
+      metadata.ingredient_list,
+      dish.ingredients,
+      dish.ingredient_list
+    ),
+    allergens: firstNonEmptyList(
+      metadata.allergens,
+      metadata.allergenes,
+      metadata.allergen_list,
+      dish.allergens,
+      dish.allergenes,
+      dish.allergen_list
+    ),
     options: [
+      ...nonEmptyList(dish.options),
+      ...nonEmptyList(dish.option_list),
+      ...nonEmptyList(dish.extras),
+      ...nonEmptyList(dish.accompaniments),
       ...nonEmptyList(metadata.options),
       ...nonEmptyList(metadata.option_list),
       ...nonEmptyList(metadata.extras),
       ...nonEmptyList(metadata.accompaniments)
     ],
-    houseNote: metadata.chefNote ?? metadata.chef_note ?? metadata.houseNote ?? metadata.house_note,
+    houseNote:
+      metadata.chefNote ??
+      metadata.chef_note ??
+      metadata.houseNote ??
+      metadata.house_note ??
+      dish.house_note ??
+      dish.houseNote ??
+      dish.chef_note ??
+      dish.chefNote ??
+      dish.note,
     tags: [
-      ...nonEmptyList(dish.tags),
-      ...nonEmptyList(dish.labels),
-      ...nonEmptyList(metadata.tags),
-      ...nonEmptyList(metadata.labels),
+      ...firstNonEmptyList(
+        metadata.tags,
+        metadata.labels,
+        dish.tags,
+        dish.labels
+      ),
       ...nonEmptyList(metadata.badges)
     ],
     isSignature: dish.is_signature ?? dish.isSignature,

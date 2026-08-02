@@ -233,6 +233,21 @@ export function stringInput(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export function translationValueIsSourceIdentical(
+  field: string,
+  sourceValue: MenuTranslationFieldValue,
+  translatedValue: unknown
+): boolean {
+  if (
+    Array.isArray(sourceValue) ||
+    !["description", "categoryDescription", "houseNote"].includes(field)
+  ) {
+    return false;
+  }
+  const source = sourceValue.trim();
+  return Boolean(source) && stringInput(translatedValue) === source;
+}
+
 export function stringListInput(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -357,7 +372,8 @@ export function estimateChangedCharacters(
       entity.type,
       entity.legacyDerivedTags
     ) &&
-      hasTranslatedValue(content, field)) {
+      hasTranslatedValue(content, field) &&
+      !translationValueIsSourceIdentical(field, value, content[field])) {
       return total;
     }
     return total + translationTextLength(value);
