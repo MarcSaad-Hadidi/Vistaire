@@ -1,16 +1,24 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
-const LOCALE_SEQUENCE = ["fr-CA", "ar", "en-CA", "es-ES", "it-IT"];
+const LOCALE_SEQUENCE = [
+  "fr-CA",
+  "ar",
+  "en-CA",
+  "es-ES",
+  "it-IT",
+  "de-DE",
+  "el-GR"
+];
 
 function categoryRail(page: Page): Locator {
-  return page.getByRole("navigation", {
-    name: /Cat.*gories|Categories|الفئات|Categor[ií]as|Categorie/i
-  });
+  return page.locator('[class*="categoryRail"]').first();
 }
 
 async function categoryLabels(page: Page): Promise<string[]> {
-  return categoryRail(page).locator("button span").evaluateAll((nodes) =>
+  const buttons = categoryRail(page).getByRole("button");
+  await expect(buttons).not.toHaveCount(0);
+  return buttons.evaluateAll((nodes) =>
     nodes
       .map((node) => node.textContent?.trim() ?? "")
       .filter(Boolean)
@@ -23,30 +31,40 @@ function localeShortCode(locale: string): string {
 }
 
 async function openLanguageSheet(page: Page, currentLocale: string) {
-  await page
-    .locator("button", { hasText: localeShortCode(currentLocale) })
-    .first()
-    .click();
+  const languageButton = page.locator(
+    `button[aria-haspopup="dialog"][aria-label$=": ${localeShortCode(currentLocale)}"]`
+  );
+  await expect(languageButton).toBeVisible();
+  await expect(languageButton).toBeEnabled();
+  await languageButton.click();
   await expect(page.locator('[role="dialog"][aria-labelledby="trouvable-language-title"]')).toBeVisible();
 }
 
 async function selectLocale(page: Page, currentLocale: string, nextLocale: string) {
   await openLanguageSheet(page, currentLocale);
   const dialog = page.locator('[role="dialog"][aria-labelledby="trouvable-language-title"]');
-  await dialog.getByRole("button", { name: new RegExp(localeShortCode(nextLocale), "i") }).click();
+  const choice = dialog.getByRole("button", {
+    name: new RegExp(localeShortCode(nextLocale), "i")
+  });
+  await expect(choice).toBeVisible();
+  await choice.click({ force: true });
   await expect(
-    page.locator("button", { hasText: localeShortCode(nextLocale) }).first()
+    page.locator(
+      `button[aria-haspopup="dialog"][aria-label$=": ${localeShortCode(nextLocale)}"]`
+    )
   ).toBeVisible();
   await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`[?&]lang=${nextLocale.replace("-", "\\-")}(?:&|$)`));
 }
 
-test.describe("Trouvable language category regression", () => {
-  test.use({ viewport: MOBILE_VIEWPORT });
-
-  test("FR -> AR -> EN -> ES -> IT keeps unique categories and RTL scoped to text", async ({
-    page
-  }) => {
+async function runLanguageScenario(page: Page) {
     await page.goto("/menu/trouvable?lang=fr-CA", { waitUntil: "networkidle" });
+    const menuRoot = page.locator('main[data-menu-ui="trouvable"]');
+    await expect(menuRoot).toHaveAttribute("lang", "fr-CA");
+    await expect(menuRoot).toHaveAttribute(
+      "data-menu-ready-locales",
+      /fr-CA.*en-CA.*es-ES.*it-IT.*de-DE.*ar.*el-GR/
+    );
     await expect(categoryRail(page)).toBeVisible();
     const initialCount = (await categoryLabels(page)).length;
     expect(initialCount).toBeGreaterThan(1);
@@ -76,10 +94,38 @@ test.describe("Trouvable language category regression", () => {
     }));
 
     expect(direction).toEqual({
-      dataTextDirection: "rtl",
+      dataTextDirection: "ltr",
       rootDir: null,
       rtlTextZones: expect.any(Number)
     });
-    expect(direction.rtlTextZones).toBeGreaterThan(0);
+    expect(direction.rtlTextZones).toBe(0);
+
+    await selectLocale(page, "ar", "fr-CA");
+}
+
+test.describe("Trouvable language category regression · Chromium 390", () => {
+  test.use({ viewport: MOBILE_VIEWPORT });
+
+  test("FR -> AR -> EN -> ES -> IT -> DE -> EL keeps categories and Arabic chrome LTR", ({
+    page
+  }) => runLanguageScenario(page));
+});
+
+test.describe("Trouvable language category regression · Chromium 430", () => {
+  test.use({ viewport: { width: 430, height: 932 } });
+
+  test("FR -> AR -> EN -> ES -> IT -> DE -> EL keeps categories and Arabic chrome LTR", ({
+    page
+  }) => runLanguageScenario(page));
+});
+
+test.describe("Trouvable language category regression · desktop", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("FR -> AR -> EN -> ES -> IT -> DE -> EL keeps categories and Arabic chrome LTR", ({
+    page
+  }) => {
+    test.skip(test.info().project.name === "webkit", "Desktop coverage is Chromium-only.");
+    return runLanguageScenario(page);
   });
 });

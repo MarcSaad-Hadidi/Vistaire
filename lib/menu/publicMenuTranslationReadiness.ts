@@ -5,6 +5,7 @@ import {
   sourceHashCompatibleWithManualOverrides,
   stringInput,
   translationValueIsSourceIdentical,
+  LEGACY_PRESENTATION_SOURCE_FIELDS,
   type MenuTranslationFields
 } from "../translation/menuTranslationModel.ts";
 import {
@@ -157,7 +158,7 @@ function storedTranslationFieldFailure(
 export function publicMenuDishTranslationFields(
   dish: PublicMenuDish
 ): MenuTranslationFields {
-  return canonicalDishTranslationFields({
+  const fields = canonicalDishTranslationFields({
     description: dish.description,
     ingredients: dish.ingredients,
     allergens: dish.allergens,
@@ -167,6 +168,13 @@ export function publicMenuDishTranslationFields(
     isSignature: dish.isSignature,
     isRecommended: dish.isRecommended
   });
+  if (dish.translationSourceLists) {
+    Object.defineProperty(fields, LEGACY_PRESENTATION_SOURCE_FIELDS, {
+      value: dish.translationSourceLists,
+      enumerable: false
+    });
+  }
+  return fields;
 }
 
 export function publicMenuTranslationMenuFields(
