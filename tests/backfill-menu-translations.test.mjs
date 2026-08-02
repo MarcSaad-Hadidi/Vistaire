@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import {
   buildPlan,
@@ -16,21 +18,23 @@ import {
   redactError,
   sourceDishFields,
   validateArgs,
+  validateSnapshot,
+  readSnapshot,
   assertExplicitBinding
 } from "../scripts/backfill-menu-translations.mjs";
-import { getDishBySlug } from "../lib/demoMenuData.ts";
+import { getCategories, getDishBySlug } from "../lib/demoMenuData.ts";
 import {
   fieldHashesFor,
   hashTranslationValue,
   sourceHashFor
 } from "../lib/translation/menuTranslationModel.ts";
 
-function snapshot({ targetSlug = "trouvable", rows = [] } = {}) {
+function snapshot({ targetSlug = "trouvable", rows = [], locale = "en-CA" } = {}) {
   const result = {
     targetSlug,
     sourceLocale: "fr-CA",
     defaultLocale: "fr-CA",
-    locale: "en-CA",
+    locale,
     restaurant: {
       id: `${targetSlug}-restaurant-id`,
       name: targetSlug === "sauge-noire" ? "Sauge Noire" : targetSlug,
@@ -76,6 +80,66 @@ function snapshot({ targetSlug = "trouvable", rows = [] } = {}) {
   return result;
 }
 
+function canonicalMaisonSnapshot() {
+  const current = snapshot({ targetSlug: "maison-elyse" });
+  const category = getCategories("fr")[0];
+  const dish = getDishBySlug("ravioles-romarin", "fr");
+  current.menu.name = "Menu principal";
+  current.categories = [{
+    id: "maison-category",
+    restaurant_id: current.restaurant.id,
+    menu_id: current.menu.id,
+    slug: category.slug,
+    name: category.name,
+    description: category.description
+  }];
+  current.dishes = [{
+    id: "maison-dish",
+    restaurant_id: current.restaurant.id,
+    menu_id: current.menu.id,
+    category_id: "maison-category",
+    slug: "ravioles-de-chevre-frais-miel-de-monteregie",
+    name: dish.name,
+    short_description: dish.shortDescription,
+    description: dish.description,
+    allergens: dish.allergens,
+    metadata: { ingredients: dish.ingredients, options: dish.options, chefNote: dish.chefRecommendation, tags: ["Signature"] }
+  }];
+  current.rows = completeStoredRows(current);
+  return current;
+}
+
+function freshDishRow(current, {
+  manualOverrides = {},
+  translatedAt = "2026-07-31T01:00:00.000Z",
+  provider = "human"
+} = {}) {
+  const fields = sourceDishFields(current.dishes[0]);
+  return {
+    id: `translation-${current.dishes[0].id}`,
+    entityType: "dish",
+    entityId: current.dishes[0].id,
+    translation_status: "up_to_date",
+    provider,
+    source_hash: sourceHashFor(fields),
+    field_hashes: fieldHashesFor(fields),
+    content: {
+      name: "Smoked Meat Saint-Laurent",
+      description: "Established English description",
+      ingredients: ["Established English ingredient"],
+      options: ["Established English option"]
+    },
+    manual_overrides: manualOverrides,
+    error_message: null,
+    translated_at: translatedAt,
+    updated_at: translatedAt
+  };
+}
+
+function dishOperation(plan) {
+  return plan.operations.find((operation) => operation.entityType === "dish");
+}
+
 function completeStoredRows(current) {
   const menuFields = { menuName: current.menu.name };
   const rows = [{
@@ -87,7 +151,10 @@ function completeStoredRows(current) {
     source_hash: sourceHashFor(menuFields),
     field_hashes: fieldHashesFor(menuFields),
     content: { menuName: "Main Menu" },
-    manual_overrides: {}
+    manual_overrides: {},
+    error_message: null,
+    translated_at: "2026-07-31T01:00:00.000Z",
+    updated_at: "2026-07-31T01:00:00.000Z"
   }];
   rows.push(...current.categories.map((category) => {
     const fields = { name: category.name, description: category.description };
@@ -100,7 +167,10 @@ function completeStoredRows(current) {
       source_hash: sourceHashFor(fields),
       field_hashes: fieldHashesFor(fields),
       content: { name: category.name, description: "English category description" },
-      manual_overrides: {}
+      manual_overrides: {},
+      error_message: null,
+      translated_at: "2026-07-31T01:00:00.000Z",
+      updated_at: "2026-07-31T01:00:00.000Z"
     };
   }));
   rows.push(...current.dishes.map((dish) => {
@@ -114,7 +184,10 @@ function completeStoredRows(current) {
       source_hash: sourceHashFor(fields),
       field_hashes: fieldHashesFor(fields),
       content: { ...fields },
-      manual_overrides: {}
+      manual_overrides: {},
+      error_message: null,
+      translated_at: "2026-07-31T01:00:00.000Z",
+      updated_at: "2026-07-31T01:00:00.000Z"
     };
   }));
   return rows;
@@ -128,8 +201,7 @@ test("production hash helpers are used for stable source and field hashes", () =
 });
 
 test("source dish fields follow the production contract and only include non-empty fields", () => {
-  assert.deepEqual(
-    sourceDishFields({
+  const fields = sourceDishFields({
       name: "Plat officiel",
       short_description: "Description courte",
       description: "Description longue",
@@ -140,7 +212,10 @@ test("source dish fields follow the production contract and only include non-emp
         chefNote: "Note maison",
         tags: ["Signature"]
       }
-    }),
+    });
+  assert.equal("name" in fields, false);
+  assert.deepEqual(
+    fields,
     {
       description: "Description courte",
       ingredients: ["Ingredient réel"],
@@ -152,28 +227,217 @@ test("source dish fields follow the production contract and only include non-emp
   );
 });
 
-test("Trouvable and Sauge plans write an explicit English canonical name without placeholders", () => {
+test("backfill contract documents the PR175 then PR174 integration order", () => {
+  const runbook = readFileSync(new URL("../docs/qa/menu-translation-backfill-runbook.md", import.meta.url), "utf8");
+  assert.match(runbook, /PR #175.*PR #174/s);
+  assert.match(runbook, /update #174 from the latest `main`/i);
+  assert.match(runbook, /does not copy the runtime implementation/i);
+});
+
+for (const [field, updateSource] of [
+  ["description", (current) => { current.dishes[0].short_description = "Une description modifiÃ©e."; }],
+  ["ingredients", (current) => { current.dishes[0].metadata.ingredients = ["Nouvel ingrÃ©dient"]; }],
+  ["options", (current) => { current.dishes[0].metadata.options = ["Nouvelle option"]; }]
+]) {
+  test(`a changed ${field} stays stale across a second planning pass`, () => {
+    const current = snapshot();
+    const existing = freshDishRow(current);
+    current.rows = [existing];
+
+    const initial = dishOperation(buildPlan(current, { now: "2026-07-31T02:00:00.000Z" }));
+    assert.equal(initial.patch.translation_status, "up_to_date");
+
+    updateSource(current);
+    const first = dishOperation(buildPlan(current, { now: "2026-07-31T03:00:00.000Z" }));
+    assert.equal(first.patch.translation_status, "stale");
+    assert.equal(first.patch.source_hash, existing.source_hash);
+    assert.deepEqual(first.patch.field_hashes, existing.field_hashes);
+    assert.deepEqual(first.patch.content, existing.content);
+    assert.equal(first.patch.provider, existing.provider);
+    assert.equal(first.patch.translated_at, existing.translated_at);
+
+    current.rows = [{ ...existing, ...first.patch }];
+    const second = dishOperation(buildPlan(current, { now: "2026-07-31T04:00:00.000Z" }));
+    assert.equal(second.patch.translation_status, "stale");
+    assert.equal(second.action, "noop");
+    assert.equal(second.patch.source_hash, existing.source_hash);
+    assert.deepEqual(second.patch.field_hashes, existing.field_hashes);
+    assert.deepEqual(second.patch.content, existing.content);
+    assert.equal(second.patch.translated_at, existing.translated_at);
+  });
+}
+
+test("a name-only source change leaves translation freshness unchanged", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current);
+  current.rows = [existing];
+  assert.equal(dishOperation(buildPlan(current)).patch.translation_status, "up_to_date");
+
+  current.dishes[0].name = "Smoked Meat Saint-Laurent revisÃ©";
+  const operation = dishOperation(buildPlan(current, { now: "2026-07-31T03:00:00.000Z" }));
+  assert.equal(operation.patch.translation_status, "up_to_date");
+  assert.equal(Object.hasOwn(operation.patch.content, "name"), true);
+  assert.equal(operation.missingFields.includes("description"), false);
+  assert.equal(operation.missingFields.includes("ingredients"), false);
+  assert.equal(operation.patch.source_hash, existing.source_hash);
+  assert.deepEqual(operation.patch.field_hashes, existing.field_hashes);
+  assert.deepEqual(operation.patch.content, existing.content);
+  assert.equal(operation.patch.translated_at, existing.translated_at);
+});
+
+test("a category label rename invalidates its translation without throwing", () => {
+  const current = snapshot();
+  current.rows = completeStoredRows(current);
+  const before = current.rows.find((row) => row.entityType === "category");
+  current.categories[0].name = "Nouvelle catégorie";
+  const operation = buildPlan(current).operations.find((item) => item.entityType === "category");
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.equal(operation.patch.source_hash, before.source_hash);
+  assert.equal(operation.patch.content.name, before.content.name);
+});
+
+test("a changed field with a valid manual override preserves the override without proving other fields", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current, { manualOverrides: { description: true } });
+  current.rows = [existing];
+  current.dishes[0].short_description = "Description rÃ©visÃ©e.";
+  current.dishes[0].metadata.ingredients = ["IngrÃ©dient rÃ©visÃ©"];
+
+  const operation = dishOperation(buildPlan(current, { now: "2026-07-31T03:00:00.000Z" }));
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.ok(operation.missingFields.includes("ingredients"));
+  assert.equal(operation.missingFields.includes("description"), false);
+  assert.equal(operation.patch.source_hash, existing.source_hash);
+  assert.deepEqual(operation.patch.field_hashes, existing.field_hashes);
+  assert.deepEqual(operation.patch.content, existing.content);
+  assert.deepEqual(operation.patch.manual_overrides, { description: true });
+  assert.equal(operation.patch.provider, "human");
+  assert.equal(operation.patch.translated_at, existing.translated_at);
+});
+
+test("an override-only source change preserves its old hash while allowing non-overridden proof", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current, { manualOverrides: { description: true } });
+  current.rows = [existing];
+  current.dishes[0].short_description = "Description rÃƒÂ©visÃƒÂ©e.";
+
+  const operation = dishOperation(buildPlan(current, { now: "2026-07-31T03:00:00.000Z" }));
+  assert.equal(operation.patch.translation_status, "up_to_date");
+  assert.equal(operation.patch.source_hash, sourceHashFor(sourceDishFields(current.dishes[0])));
+  assert.equal(operation.patch.field_hashes.description, existing.field_hashes.description);
+  assert.equal(operation.patch.content.description, existing.content.description);
+  assert.deepEqual(operation.patch.manual_overrides, { description: true });
+  assert.equal(operation.patch.translated_at, existing.translated_at);
+  assert.deepEqual(operation.missingFields, []);
+});
+
+test("partial retranslation updates only fields with explicit current hashes", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current);
+  const oldFields = sourceDishFields(current.dishes[0]);
+  current.dishes[0].short_description = "Description rÃ©visÃ©e.";
+  current.dishes[0].metadata.ingredients = ["IngrÃ©dient rÃ©visÃ©"];
+  current.dishes[0].metadata.options = ["Option rÃ©visÃ©e"];
+  const currentFields = sourceDishFields(current.dishes[0]);
+  existing.content = {
+    ...existing.content,
+    description: "Fresh English description",
+    options: ["Fresh English option"]
+  };
+  existing.field_hashes = {
+    ...existing.field_hashes,
+    description: fieldHashesFor(currentFields).description,
+    options: fieldHashesFor(currentFields).options
+  };
+  current.rows = [existing];
+
+  const operation = dishOperation(buildPlan(current, { now: "2026-07-31T03:00:00.000Z" }));
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.equal(operation.patch.source_hash, sourceHashFor(oldFields));
+  assert.equal(operation.patch.field_hashes.description, fieldHashesFor(currentFields).description);
+  assert.equal(operation.patch.field_hashes.options, fieldHashesFor(currentFields).options);
+  assert.equal(operation.patch.field_hashes.ingredients, fieldHashesFor(oldFields).ingredients);
+  assert.equal(operation.patch.content.description, "Fresh English description");
+  assert.deepEqual(operation.patch.content.ingredients, existing.content.ingredients);
+  assert.equal(operation.patch.translated_at, existing.translated_at);
+});
+
+test("partial translated lists never become fresh from a current list hash", () => {
+  const current = snapshot();
+  current.dishes[0].metadata.ingredients = ["Premier ingrédient", "Deuxième ingrédient"];
+  const fields = sourceDishFields(current.dishes[0]);
+  const existing = freshDishRow(current);
+  existing.source_hash = sourceHashFor(fields);
+  existing.field_hashes = fieldHashesFor(fields);
+  existing.content.ingredients = ["One ingredient"];
+  current.rows = [existing];
+
+  const plan = buildPlan(current);
+  const operation = dishOperation(plan);
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.ok(operation.missingFields.includes("ingredients"));
+  assert.equal(operation.patch.source_hash, "");
+  assert.match(plan.errors.join(" "), /empty source_hash/i);
+});
+
+test("a complete retranslation proves the aggregate source hash and remains idempotent", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current);
+  current.dishes[0].short_description = "Description rÃ©visÃ©e.";
+  current.dishes[0].metadata.ingredients = ["IngrÃ©dient rÃ©visÃ©"];
+  current.dishes[0].metadata.options = ["Option rÃ©visÃ©e"];
+  const fields = sourceDishFields(current.dishes[0]);
+  existing.content = {
+    ...existing.content,
+    description: "Fresh English description",
+    ingredients: ["Fresh English ingredient"],
+    options: ["Fresh English option"]
+  };
+  existing.source_hash = sourceHashFor(fields);
+  existing.field_hashes = fieldHashesFor(fields);
+  existing.translated_at = "2026-07-31T03:00:00.000Z";
+  current.rows = [existing];
+
+  const first = dishOperation(buildPlan(current, { now: "2026-07-31T04:00:00.000Z" }));
+  assert.equal(first.patch.translation_status, "up_to_date");
+  assert.equal(first.patch.source_hash, sourceHashFor(fields));
+  assert.deepEqual(first.patch.field_hashes, fieldHashesFor(fields));
+  assert.equal(first.patch.translated_at, existing.translated_at);
+  assert.equal(first.action, "noop");
+
+  current.rows = [{ ...existing, ...first.patch }];
+  const second = dishOperation(buildPlan(current, { now: "2026-07-31T05:00:00.000Z" }));
+  assert.equal(second.patch.translation_status, "up_to_date");
+  assert.equal(second.action, "noop");
+  assert.equal(second.patch.translated_at, existing.translated_at);
+});
+
+test("Trouvable and Sauge plans keep dish names out of translated content", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
     const current = snapshot({ targetSlug });
     current.rows = completeStoredRows(current);
+    if (targetSlug === "sauge-noire") {
+      current.rows.find((row) => row.entityType === "dish").content.name = "Warm rye bread";
+    }
     const plan = buildPlan(current);
     assert.equal(plan.ok, true, JSON.stringify(plan.errors));
     const dish = plan.operations.find((operation) => operation.entityType === "dish");
-    assert.equal(dish.patch.content.name, targetSlug === "sauge-noire" ? "Warm rye bread" : "Smoked Meat Saint-Laurent");
-    assert.ok(!/placeholder|tbd|test/i.test(dish.patch.content.name));
+    assert.equal(Object.hasOwn(dish.patch.content, "name"), targetSlug === "sauge-noire");
+    assert.equal(Object.hasOwn(dish.patch.field_hashes, "name"), false);
     assert.equal(dish.patch.source_hash.length, 64);
     assert.equal("name" in dish.patch.field_hashes, false);
   }
 });
 
-test("Trouvable refuses an unlisted slug instead of falling back to French", () => {
+test("Trouvable does not require a canonical English dish-name mapping", () => {
   const current = snapshot();
+  current.rows = completeStoredRows(current);
   current.dishes[0].slug = "dish-not-in-canonical-map";
   current.dishes[0].name = "Nom français non vérifié";
   const plan = buildPlan(current);
-  assert.equal(plan.ok, false);
-  assert.match(plan.errors.join(" "), /canonical English name mapping is incomplete/i);
-  assert.equal(plan.canonicalCoverage.complete, false);
+  assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+  assert.equal(plan.canonicalCoverage.complete, true);
+  assert.equal(Object.hasOwn(dishOperation(plan).patch.content, "name"), false);
 });
 
 test("complete stored canonical rows are public-ready immediately", () => {
@@ -200,6 +464,69 @@ test("Maison Élyse real dish coverage has complete English content", () => {
       assert.ok(content[field], `missing Maison Élyse English ${field}`);
     }
   }
+});
+
+test("Maison Elyse canonical identity divergence fails closed even with stored rows", () => {
+  for (const mutate of [
+    (current) => { current.menu.name = "Menu historique"; },
+    (current) => { current.categories[0].name = "Section renommée"; },
+    (current) => { current.dishes[0].name = "Plat renommé"; }
+  ]) {
+    const current = canonicalMaisonSnapshot();
+    mutate(current);
+    const plan = buildPlan(current);
+    assert.equal(plan.ok, false);
+    assert.match(plan.errors.join(" "), /canonical|diverge|identity/i);
+  }
+});
+
+test("Maison Elyse missing canonical content fails closed instead of preserving an old translation", () => {
+  const current = canonicalMaisonSnapshot();
+  const slug = current.dishes[0].slug;
+  const canonical = MAISON_ENGLISH_DISH_CONTENT[slug];
+  const previous = canonical.description;
+  delete canonical.description;
+  try {
+    const plan = buildPlan(current);
+    assert.equal(plan.ok, false);
+    assert.match(plan.errors.join(" "), /canonical.*content|missing/i);
+  } finally {
+    canonical.description = previous;
+  }
+});
+
+test("empty source_hash is rejected at the atomic payload boundary for every changed operation", () => {
+  const plan = buildPlan(snapshot({ targetSlug: "trouvable" }));
+  const invalid = {
+    ...plan,
+    operations: plan.operations.slice(0, 1).map((operation) => ({
+      ...operation,
+      action: "insert",
+      patch: { ...operation.patch, source_hash: "" }
+    }))
+  };
+  assert.throws(() => buildAtomicApplyPayload([invalid, invalid]), /empty source_hash/i);
+});
+
+test("legacy empty source_hash can be repaired through a non-empty update patch", () => {
+  const current = snapshot({ targetSlug: "trouvable" });
+  current.rows = completeStoredRows(current);
+  const dishRow = current.rows.find((row) => row.entityType === "dish");
+  dishRow.source_hash = "";
+
+  const plan = buildPlan(current);
+  const operation = dishOperation(plan);
+  assert.equal(plan.ok, true);
+  assert.equal(operation.action, "update");
+  assert.equal(operation.existing.source_hash, "");
+  assert.equal(operation.patch.source_hash.length, 64);
+
+  const payload = buildAtomicApplyPayload([plan]);
+  const payloadOperation = payload.p_plans[0].operations.find(
+    (candidate) => candidate.entity_type === "dish"
+  );
+  assert.equal(payloadOperation.expected.source_hash, "");
+  assert.equal(payloadOperation.patch.source_hash.length, 64);
 });
 
 test("Trouvable only plans readiness when all nine categories and 36 dishes are mapped", () => {
@@ -296,7 +623,7 @@ test("Maison settings patch is preserved and idempotent", () => {
   assert.equal(second.currentHash, second.desiredHash);
 });
 
-test("manual overrides are preserved while hashes are recalculated", () => {
+test("manual overrides are preserved without rewriting their hash", () => {
   const existing = {
     id: "existing-row",
     entityType: "dish",
@@ -341,29 +668,92 @@ test("manual overrides are preserved while hashes are recalculated", () => {
   assert.equal(dish.patch.content.name, "Nom éditorial validé");
   assert.equal(dish.patch.manual_overrides.name, true);
   assert.equal(dish.patch.provider, "human");
+  assert.equal(dish.patch.translation_status, "up_to_date");
   assert.equal(dish.patch.source_hash, sourceHashFor(sourceDishFields(frenchSnapshot.dishes[0])));
+  assert.equal(dish.patch.field_hashes.name, undefined);
 });
 
 test("apply payload carries optimistic snapshots for the transactional RPC", () => {
-  const plan = buildPlan(snapshot({ targetSlug: "sauge-noire" }));
+  const current = snapshot({ targetSlug: "sauge-noire" });
+  current.rows = completeStoredRows(current);
+  current.dishes[0].metadata.ingredients = ["Ingredient modifié"];
+  const plan = buildPlan(current);
   assert.equal(plan.ok, true, JSON.stringify(plan.errors));
   const payload = buildAtomicApplyPayload([plan]);
   assert.equal(payload.p_plans.length, 1);
   assert.equal(payload.p_plans[0].expected_menu_updated_at, "2026-07-31T00:00:00.000Z");
-  assert.equal(payload.p_plans[0].operations[0].expected, null);
+  assert.ok(payload.p_plans[0].operations.length > 0);
   const dishOperation = payload.p_plans[0].operations.find((operation) => operation.entity_type === "dish");
-  assert.equal(dishOperation.patch.content.name, "Warm rye bread");
+  assert.equal(Object.hasOwn(dishOperation.patch.content, "name"), false);
+});
+
+test("a new dish row without translated fields does not fabricate translated_at", () => {
+  const plan = buildPlan(snapshot({ targetSlug: "trouvable" }), { now: "2026-07-31T03:00:00.000Z" });
+  const dish = dishOperation(plan);
+  assert.equal(plan.ok, false);
+  assert.match(plan.errors.join(" "), /empty source_hash/i);
+  assert.equal(dish.patch.translated_at, null);
+  assert.equal(dish.patch.translation_status, "stale");
+  assert.equal(Object.hasOwn(dish.patch.content, "name"), false);
+});
+
+test("update CAS payloads carry the full nullable expected translation snapshot", () => {
+  const current = snapshot();
+  current.categories = [];
+  current.rows = completeStoredRows(current);
+  const existing = current.rows.find((row) => row.entityType === "dish");
+  assert.ok(existing);
+  existing.provider = null;
+  existing.translated_at = null;
+  current.dishes[0].short_description = "Description rÃ©visÃ©e.";
+  const plan = buildPlan(current, { now: "2026-07-31T03:00:00.000Z" });
+  const payload = buildAtomicApplyPayload([plan]);
+  const operation = payload.p_plans[0].operations.find((item) => item.entity_type === "dish");
+
+  assert.deepEqual(operation.expected, {
+    id: existing.id,
+    updated_at: existing.updated_at,
+    translation_status: existing.translation_status,
+    provider: existing.provider,
+    source_hash: existing.source_hash,
+    field_hashes: existing.field_hashes,
+    content: existing.content,
+    manual_overrides: existing.manual_overrides,
+    error_message: existing.error_message,
+    translated_at: existing.translated_at
+  });
 });
 
 test("live translation apply is transactional and compare-and-swap guarded", () => {
-  const migration = readFileSync(
+  const historicalMigration = readFileSync(
     new URL("../supabase/migrations/20260731100000_menu_translation_backfill_rpc.sql", import.meta.url),
     "utf8"
   );
+  const migration = readFileSync(
+    new URL("../supabase/migrations/20260801090000_harden_menu_translation_backfill_rpc.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(historicalMigration, /owner_apply_menu_translation_backfill\(\s*p_plans jsonb/s);
+  assert.doesNotMatch(historicalMigration, /hardened legacy|currently supports only en-CA/i);
   assert.match(migration, /owner_apply_menu_translation_backfill\(\s*p_plans jsonb/s);
-  assert.match(migration, /for update/s);
-  assert.match(migration, /errcode = '40001'/s);
+  assert.match(migration, /owner_apply_menu_translation_backfill_legacy/s);
+  assert.match(migration, /v_field\s+in\s*\('updated_at',\s*'translated_at'\)/s);
+  assert.match(migration, /nullif\(v_current->>v_field,\s*''\)::timestamptz/s);
+  assert.match(migration, /nullif\(v_expected->>v_field,\s*''\)::timestamptz/s);
+  assert.match(migration, /jsonb_typeof\(v_expected->'source_hash'\)\s+is distinct from\s+'string'/s);
+  assert.doesNotMatch(migration, /Update expected source_hash must be non-empty/i);
+  assert.match(
+    migration,
+    /select\s+legacy\.result_status\s*,\s*legacy\.applied_rows\s+from\s+public\.owner_apply_menu_translation_backfill_legacy\(p_plans\)\s+as\s+legacy/s
+  );
+  assert.doesNotMatch(
+    migration,
+    /select\s+result_status\s*,\s*applied_rows\s+from\s+public\.owner_apply_menu_translation_backfill_legacy/s
+  );
+  assert.match(migration, /expected: null/s);
+  assert.match(historicalMigration, /for update/s);
   assert.match(migration, /revoke all on function/s);
+  assert.match(migration, /en-CA/s);
   assert.doesNotMatch(migration, /upsert/i);
 });
 
@@ -395,6 +785,101 @@ test("incomplete Maison Élyse translation blocks apply planning", () => {
   );
 });
 
+test("the backfill parser rejects every locale except normalized en-CA", () => {
+  for (const locale of ["en", "en-US", "fr-CA", "es-ES", "ar", "", " en-CA", "en-CA ", "en-ca"]) {
+    assert.throws(
+      () => parseArgs([
+        "--environment", "test",
+        "--project-ref", "testref123",
+        "--allow-project-ref", "testref123",
+        "--locale", locale
+      ]),
+      /only en-CA|Canadian English/i,
+      locale || "empty locale"
+    );
+  }
+});
+
+test("locale validation is repeated at argument, snapshot, plan, and payload boundaries", async () => {
+  const args = parseArgs([
+    "--environment", "test",
+    "--project-ref", "testref123",
+    "--allow-project-ref", "testref123"
+  ]);
+  args.locale = "fr-CA";
+  assert.match(validateArgs(args).join(" "), /only en-CA|Canadian English/i);
+  assert.match(validateSnapshot(snapshot({ locale: "fr-CA" })).join(" "), /only en-CA|Canadian English/i);
+  assert.throws(() => buildPlan(snapshot({ locale: "fr-CA" })), /only en-CA|Canadian English/i);
+
+  let readCalls = 0;
+  await assert.rejects(
+    () => readSnapshot({ from() { readCalls += 1; throw new Error("remote read must not happen"); } }, "trouvable", "fr-CA"),
+    /only en-CA|Canadian English/i
+  );
+  assert.equal(readCalls, 0);
+
+  const validPlan = buildPlan(snapshot());
+  validPlan.target.locale = "fr-CA";
+  assert.throws(() => buildAtomicApplyPayload([validPlan]), /only en-CA|Canadian English/i);
+});
+
+test("preview and production apply are refused before a client or RPC can be reached", async () => {
+  let factoryCalls = 0;
+  for (const environment of ["preview", "production"]) {
+    const argv = [
+      "--apply",
+      "--environment", environment,
+      "--project-ref", `${environment}ref123`,
+      "--allow-project-ref", `${environment}ref123`
+    ];
+    if (environment === "production") {
+      argv.push("--authorize-production", "--production-binding", "productionref123");
+    }
+    const report = await run({
+      args: parseArgs(argv),
+      env: {
+        NEXT_PUBLIC_SUPABASE_URL: `https://${environment}ref123.supabase.co`,
+        SUPABASE_SERVICE_ROLE_KEY: "test-only-key",
+        VERCEL_ENV: "production",
+        VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "productionref123"
+      },
+      clientFactory: async () => {
+        factoryCalls += 1;
+        throw new Error("remote client must not be created");
+      },
+      log: () => {}
+    });
+    assert.equal(report.ok, false);
+    assert.match(report.errors.join(" "), /local|test|never.*apply/i);
+  }
+  assert.equal(factoryCalls, 0);
+});
+
+test("an invalid locale refuses before writing a requested report", async () => {
+  const reportPath = join(tmpdir(), `vistaire-invalid-locale-${process.pid}.json`);
+  rmSync(reportPath, { force: true });
+  const args = parseArgs([
+    "--environment", "test",
+    "--project-ref", "testref123",
+    "--allow-project-ref", "testref123",
+    "--report", reportPath
+  ]);
+  args.locale = "en-US";
+  try {
+    const report = await run({
+      args,
+      env: { NEXT_PUBLIC_SUPABASE_URL: "https://testref123.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "test-only-key" },
+      clientFactory: async () => { throw new Error("client must not be created"); },
+      log: () => {}
+    });
+    assert.equal(report.ok, false);
+    assert.match(report.errors.join(" "), /only en-CA|Canadian English/i);
+    assert.equal(existsSync(reportPath), false);
+  } finally {
+    rmSync(reportPath, { force: true });
+  }
+});
+
 test("binding checks require an explicit allowlist and keep refs separate from secrets", () => {
   assert.equal(projectRefFromUrl("https://previewref123.supabase.co"), "previewref123");
   assert.equal(projectRefFromUrl("https://example.com"), "");
@@ -423,16 +908,9 @@ test("production apply requires a proven Vercel environment/ref binding", () => 
       url: "https://productionref123.supabase.co",
       env: { VERCEL_ENV: "preview", VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "previewref123" }
     }),
-    /VERCEL_ENV=production.*expected.*ref/i
+    /local|test|never.*apply/i
   );
-  assert.deepEqual(
-    assertExplicitBinding({
-      args,
-      url: "https://productionref123.supabase.co",
-      env: { VERCEL_ENV: "production", VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "productionref123" }
-    }).proof,
-    { vercelEnvironment: "production", expectedRefEnvironmentVariable: true }
-  );
+  assert.match(validateArgs(args).join(" "), /local|test|never.*apply/i);
 });
 
 test("run reports every requested target before refusing an incomplete plan", async () => {
@@ -495,12 +973,18 @@ test("run reports every requested target before refusing an incomplete plan", as
     }
   };
   const logs = [];
+  let rpcCalls = 0;
+  client.rpc = async () => {
+    rpcCalls += 1;
+    return { data: [{ result_status: "applied", applied_rows: 999 }], error: null };
+  };
+  const args = parseArgs([
+    "--environment", "test",
+    "--project-ref", "testref123",
+    "--allow-project-ref", "testref123"
+  ]);
   const report = await run({
-    args: parseArgs([
-      "--environment", "test",
-      "--project-ref", "testref123",
-      "--allow-project-ref", "testref123"
-    ]),
+    args,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "https://testref123.supabase.co",
       SUPABASE_SERVICE_ROLE_KEY: "test-only-key"
@@ -512,5 +996,19 @@ test("run reports every requested target before refusing an incomplete plan", as
   assert.equal(report.ok, false);
   assert.deepEqual(report.targets.map((target) => target.slug), ["maison-elyse", "trouvable", "sauge-noire"]);
   assert.match(report.errors.join(" "), /canonical|Maison/i);
+  assert.equal(report.note, "dry-run refused; no rows were written");
   assert.equal(logs.length, 1);
+
+  const applyReport = await run({
+    args: { ...args, apply: true },
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://testref123.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "test-only-key"
+    },
+    clientFactory: async () => client,
+    log: () => {}
+  });
+  assert.equal(applyReport.ok, false);
+  assert.equal(applyReport.note, "apply refused; no rows were written");
+  assert.equal(rpcCalls, 0);
 });

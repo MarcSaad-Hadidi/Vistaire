@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright WebKit
+        run: npx --no-install playwright install --with-deps webkit
+
       - name: Check repository assets
         run: npm run assets:check
 
@@ -89,6 +92,15 @@ jobs:
       - name: Translation backfill contracts
         run: npm run test:translation:backfill
 
+      - name: Translation backfill PostgreSQL 17 tests
+        env:
+          PGDATABASE: vistaire_qr_ci
+          PGHOST: 127.0.0.1
+          PGPASSWORD: vistaire_qr_ci_password
+          PGPORT: "5432"
+          PGUSER: postgres
+        run: npm run test:translation:backfill:postgres
+
       - name: Maison Elyse PostgreSQL 17 tests
         env:
           PGDATABASE: vistaire_qr_ci
@@ -112,9 +124,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Install Playwright WebKit
-        run: npx --no-install playwright install --with-deps webkit
 
       - name: Landing production photo redirect
         timeout-minutes: 5
