@@ -273,10 +273,11 @@ export async function applyStoredPublicMenuTranslations(
     const sourceFields = publicMenuDishTranslationFields(dish);
     const legacyDerivedTags = canonicalDishDerivedTags(dish);
     const dishRow = dishRowsById.get(dish.id);
+    const manualOverrides = objectInput(dishRow?.manual_overrides);
     const legacyDerivedTagIndexesForRow = legacyDerivedTagIndexes(
       sourceFields,
       dishRow,
-      legacyDerivedTags
+      manualOverrides.tags === true ? [] : legacyDerivedTags
     );
     const translatableTags = Array.isArray(sourceFields.tags)
       ? sourceFields.tags

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCategories, getDishBySlug } from "../lib/demoMenuData.ts";
 import {
+  fieldHashMatchesFields,
   fieldHashesFor,
   hashTranslationValue,
   objectInput,
@@ -767,10 +768,25 @@ function buildFreshnessState(entity, existing, content, generatedFields, overrid
       provenFields.push(field);
       continue;
     }
+    const currentHashMatches =
+      fieldHashes[field] === currentFieldHashes[field] ||
+      (entity.type === "dish" &&
+        field === "tags" &&
+        fieldHashMatchesFields(
+          entity.fields,
+          existing,
+          field,
+          entity.type,
+          entity.legacyDerivedTags
+        ));
     if (
       translatedValueIsComplete(entity.fields[field], content[field]) &&
-      fieldHashes[field] === currentFieldHashes[field]
+      currentHashMatches
     ) {
+      // Normalize a legacy derived-badge hash once the translated content is
+      // still complete. This is metadata-only: no provider call or content
+      // replacement is needed.
+      fieldHashes[field] = currentFieldHashes[field];
       provenFields.push(field);
     }
   }

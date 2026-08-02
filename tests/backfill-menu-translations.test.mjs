@@ -412,6 +412,37 @@ test("a complete retranslation proves the aggregate source hash and remains idem
   assert.equal(second.patch.translated_at, existing.translated_at);
 });
 
+test("legacy derived badge hashes are repaired without retranslating complete dishes", () => {
+  const current = snapshot();
+  current.dishes[0].is_signature = true;
+  current.dishes[0].tags = ["Maison"];
+  const fields = sourceDishFields(current.dishes[0]);
+  const legacyFields = { ...fields, tags: ["Signature", "Maison"] };
+  const existing = freshDishRow(current, {
+    provider: "human",
+    translatedAt: "2026-07-31T01:00:00.000Z"
+  });
+  existing.source_hash = sourceHashFor(legacyFields);
+  existing.field_hashes = fieldHashesFor(legacyFields);
+  existing.content = {
+    ...existing.content,
+    tags: ["House favourite", "Signature"]
+  };
+  current.rows = [existing];
+
+  const operation = dishOperation(
+    buildPlan(current, { now: "2026-07-31T03:00:00.000Z" })
+  );
+  assert.equal(operation.patch.translation_status, "up_to_date");
+  assert.equal(operation.patch.source_hash, sourceHashFor(fields));
+  assert.deepEqual(operation.patch.field_hashes, fieldHashesFor(fields));
+  assert.equal(operation.patch.provider, existing.provider);
+  assert.deepEqual(operation.patch.content, existing.content);
+  assert.deepEqual(operation.patch.manual_overrides, existing.manual_overrides);
+  assert.equal(operation.patch.translated_at, existing.translated_at);
+  assert.equal(operation.action, "update");
+});
+
 test("Trouvable and Sauge plans keep dish names out of translated content", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
     const current = snapshot({ targetSlug });

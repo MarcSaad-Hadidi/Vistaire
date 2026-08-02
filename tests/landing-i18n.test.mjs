@@ -295,6 +295,20 @@ test("stored English copy keeps the French source dish name", async () => {
       "Signature",
       "Recommande"
     ]);
+
+    translationRows.menu_dish_translations[0].manual_overrides = {
+      tags: true
+    };
+    translationRows.menu_dish_translations[0].content.tags = ["Chef choice"];
+    const overridden = await applyStoredPublicMenuTranslations(
+      sourceMenu,
+      "en-CA"
+    );
+    assert.deepEqual(overridden.dishes[0].tags, [
+      "Chef choice",
+      "Signature",
+      "Recommande"
+    ]);
     assert.notStrictEqual(english.dishes[0], sourceMenu.dishes[0]);
   } finally {
     delete globalThis.__vistaireTranslationAdmin;
