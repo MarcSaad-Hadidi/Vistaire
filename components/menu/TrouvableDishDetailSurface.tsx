@@ -71,6 +71,7 @@ type TrouvableDishDetailSurfaceProps = {
   detailsExpanded: boolean;
   detailsId: string;
   dish: PublicMenuDish;
+  eyebrow: string;
   hasModel: boolean;
   headingLevel: "h1" | "h2";
   locale: TrouvableLocale;
@@ -82,6 +83,7 @@ type TrouvableDishDetailSurfaceProps = {
   onOpenReview: () => void;
   onToggleModel: () => void;
   price: string;
+  secondaryEyebrow?: string;
   showImmersiveUnavailable?: boolean;
   textDirection: "ltr" | "rtl";
   titleId: string;
@@ -319,6 +321,7 @@ export function TrouvableDishDetailSurface({
   detailsExpanded,
   detailsId,
   dish,
+  eyebrow,
   hasModel,
   headingLevel,
   locale,
@@ -330,6 +333,7 @@ export function TrouvableDishDetailSurface({
   onOpenReview,
   onToggleModel,
   price,
+  secondaryEyebrow,
   showImmersiveUnavailable = false,
   textDirection,
   titleId
@@ -357,7 +361,12 @@ export function TrouvableDishDetailSurface({
       >
         <header className={styles.sheetHeader}>
           <div>
-            <p>{dish.category}</p>
+            <p>{eyebrow}</p>
+            {secondaryEyebrow ? (
+              <span className={styles.detailEyebrowSecondary}>
+                {secondaryEyebrow}
+              </span>
+            ) : null}
             <Heading id={titleId}>{dish.name}</Heading>
           </div>
           {onClose ? (

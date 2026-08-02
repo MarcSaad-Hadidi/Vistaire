@@ -175,6 +175,11 @@ function completeStoredRows(current) {
   }));
   rows.push(...current.dishes.map((dish) => {
     const fields = sourceDishFields(dish);
+    const translatedContent = {
+      ...fields,
+      ...(fields.description ? { description: "English dish description" } : {}),
+      ...(fields.houseNote ? { houseNote: "English house note" } : {})
+    };
     return {
       id: `translation-${dish.id}`,
       entityType: "dish",
@@ -183,7 +188,7 @@ function completeStoredRows(current) {
       provider: "human",
       source_hash: sourceHashFor(fields),
       field_hashes: fieldHashesFor(fields),
-      content: { ...fields },
+      content: translatedContent,
       manual_overrides: {},
       error_message: null,
       translated_at: "2026-07-31T01:00:00.000Z",
@@ -201,8 +206,7 @@ test("production hash helpers are used for stable source and field hashes", () =
 });
 
 test("source dish fields follow the production contract and only include non-empty fields", () => {
-  assert.deepEqual(
-    sourceDishFields({
+  const fields = sourceDishFields({
       name: "Plat officiel",
       short_description: "Description courte",
       description: "Description longue",
@@ -213,7 +217,10 @@ test("source dish fields follow the production contract and only include non-emp
         chefNote: "Note maison",
         tags: ["Signature"]
       }
-    }),
+    });
+  assert.equal("name" in fields, false);
+  assert.deepEqual(
+    fields,
     {
       description: "Description courte",
       ingredients: ["Ingredient réel"],
@@ -221,6 +228,21 @@ test("source dish fields follow the production contract and only include non-emp
       options: ["Option réelle"],
       houseNote: "Note maison",
       tags: ["Signature"]
+    }
+  );
+});
+
+test("source dish fields use the first non-empty prose aliases like public mapping", () => {
+  assert.deepEqual(
+    sourceDishFields({
+      short_description: "  ",
+      description: "Description longue",
+      metadata: { chefNote: "  " },
+      house_note: "Note maison"
+    }),
+    {
+      description: "Description longue",
+      houseNote: "Note maison"
     }
   );
 });
@@ -410,6 +432,50 @@ test("a complete retranslation proves the aggregate source hash and remains idem
   assert.equal(second.patch.translated_at, existing.translated_at);
 });
 
+test("legacy derived badge hashes are repaired without retranslating complete dishes", () => {
+  const current = snapshot();
+  current.dishes[0].is_signature = true;
+  current.dishes[0].tags = ["Maison"];
+  const fields = sourceDishFields(current.dishes[0]);
+  const legacyFields = { ...fields, tags: ["Signature", "Maison"] };
+  const existing = freshDishRow(current, {
+    provider: "human",
+    translatedAt: "2026-07-31T01:00:00.000Z"
+  });
+  existing.source_hash = sourceHashFor(legacyFields);
+  existing.field_hashes = fieldHashesFor(legacyFields);
+  existing.content = {
+    ...existing.content,
+    tags: ["House favourite", "Signature"]
+  };
+  current.rows = [existing];
+
+  const operation = dishOperation(
+    buildPlan(current, { now: "2026-07-31T03:00:00.000Z" })
+  );
+  assert.equal(operation.patch.translation_status, "up_to_date");
+  assert.equal(operation.patch.source_hash, sourceHashFor(fields));
+  assert.deepEqual(operation.patch.field_hashes, fieldHashesFor(fields));
+  assert.equal(operation.patch.provider, existing.provider);
+  assert.deepEqual(operation.patch.content, existing.content);
+  assert.deepEqual(operation.patch.manual_overrides, existing.manual_overrides);
+  assert.equal(operation.patch.translated_at, existing.translated_at);
+  assert.equal(operation.action, "update");
+});
+
+test("backfill freshness rejects source-identical prose", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current);
+  existing.content.description = current.dishes[0].short_description;
+  current.rows = [existing];
+
+  const plan = buildPlan(current);
+  const operation = dishOperation(plan);
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.ok(plan.errors.some((error) => /empty source_hash/i.test(error)));
+  assert.ok(operation.missingFields.includes("description"));
+});
+
 test("Trouvable and Sauge plans keep dish names out of translated content", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
     const current = snapshot({ targetSlug });
@@ -423,7 +489,7 @@ test("Trouvable and Sauge plans keep dish names out of translated content", () =
     assert.equal(Object.hasOwn(dish.patch.content, "name"), targetSlug === "sauge-noire");
     assert.equal(Object.hasOwn(dish.patch.field_hashes, "name"), false);
     assert.equal(dish.patch.source_hash.length, 64);
-    assert.equal(Object.hasOwn(dish.patch.field_hashes, "name"), false);
+    assert.equal("name" in dish.patch.field_hashes, false);
   }
 });
 
@@ -586,7 +652,11 @@ test("Trouvable only plans readiness when all nine categories and 36 dishes are 
         provider: "canonical-backfill",
         source_hash: sourceHashFor(fields),
         field_hashes: fieldHashesFor(fields),
-        content: { ...fields, name: TROUVABLE_CANONICAL_NAMES.dishes[dish.slug].en },
+        content: {
+          ...fields,
+          description: "English dish description",
+          name: TROUVABLE_CANONICAL_NAMES.dishes[dish.slug].en
+        },
         manual_overrides: {}
       };
     })

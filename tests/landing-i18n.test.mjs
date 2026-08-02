@@ -188,7 +188,16 @@ test("stored English copy keeps the French source dish name", async () => {
 
   const demo = await getPublicMenuBySlug("trouvable", "fr-CA");
   assert.ok(demo);
-  const sourceDish = demo.dishes[0];
+  const sourceDish = {
+    ...demo.dishes[0],
+    isSignature: true,
+    isRecommended: true,
+    ingredients: [
+      ...demo.dishes[0].ingredients,
+      demo.dishes[0].ingredients[0]
+    ],
+    tags: [...demo.dishes[0].tags, "Signature", "Recommande"]
+  };
   const sourceMenu = {
     ...demo,
     menuId: "menu-runtime-translation",
@@ -201,6 +210,10 @@ test("stored English copy keeps the French source dish name", async () => {
     dishes: [sourceDish]
   };
   const dishFields = publicMenuDishTranslationFields(sourceDish);
+  const producerDishFields = {
+    ...dishFields,
+    tags: [...dishFields.tags, "Signature", "Recommande"]
+  };
   const category = publicMenuCategoryTranslationSources(sourceMenu)[0];
   assert.ok(category);
 
@@ -214,7 +227,8 @@ test("stored English copy keeps the French source dish name", async () => {
         source_hash: sourceHashFor(category.fields),
         field_hashes: fieldHashesFor(category.fields),
         content: {
-          name: "Breakfast"
+          name: "Breakfast",
+          description: "House breakfast classics"
         }
       }
     ],
@@ -223,10 +237,16 @@ test("stored English copy keeps the French source dish name", async () => {
         dish_id: sourceDish.id,
         locale: "en-CA",
         translation_status: "up_to_date",
-        source_hash: sourceHashFor(dishFields),
-        field_hashes: fieldHashesFor(dishFields),
+        source_hash: sourceHashFor(producerDishFields),
+        field_hashes: fieldHashesFor(producerDishFields),
         content: {
           ...dishFields,
+          description: "Farm eggs with crisp potatoes and herb salad.",
+          ingredients: ["Farm eggs", "Crisp potatoes", "Herb salad", "Sourdough"],
+          allergens: ["Eggs", "Gluten"],
+          options: ["Crisp bacon", "Lemon avocado", "Gluten-free on request"],
+          houseNote: "Served warm for the table.",
+          tags: ["House favourite", "Firma", "Recomendado"],
           name: "Stored house breakfast"
         }
       }
@@ -264,13 +284,38 @@ test("stored English copy keeps the French source dish name", async () => {
     assert.equal(english.activeLocale, "en-CA");
     assert.equal(english.dishes[0].name, sourceMenu.dishes[0].name);
     assert.equal(sourceMenu.dishes[0].name, "Dejeuner classique maison");
+    assert.deepEqual(english.dishes[0].ingredients, [
+      "Farm eggs",
+      "Crisp potatoes",
+      "Herb salad",
+      "Sourdough"
+    ]);
+    assert.deepEqual(english.dishes[0].tags, [
+      "House favourite",
+      "Signature",
+      "Recommande"
+    ]);
+
+    translationRows.menu_dish_translations[0].manual_overrides = {
+      tags: true
+    };
+    translationRows.menu_dish_translations[0].content.tags = ["Chef choice"];
+    const overridden = await applyStoredPublicMenuTranslations(
+      sourceMenu,
+      "en-CA"
+    );
+    assert.deepEqual(overridden.dishes[0].tags, [
+      "Chef choice",
+      "Signature",
+      "Recommande"
+    ]);
     assert.notStrictEqual(english.dishes[0], sourceMenu.dishes[0]);
   } finally {
     delete globalThis.__vistaireTranslationAdmin;
   }
 });
 
-test("Maison English fallback keeps source dish names when translation storage is unavailable", async () => {
+test("Maison English requests stay on the source locale when translation storage is unavailable", async () => {
   const { getPublicMenuBySlug } = await import("../lib/menu/publicMenu.ts");
   const { applyStoredPublicMenuTranslations } = await import(
     "../lib/menu/publicMenuTranslations.ts"
@@ -302,15 +347,13 @@ test("Maison English fallback keeps source dish names when translation storage i
     "en-CA"
   );
 
-  assert.equal(english.activeLocale, "en-CA");
+  assert.equal(english.activeLocale, "fr-CA");
+  assert.equal(english.translationStatus?.status, "source");
   assert.equal(
     english.dishes[0].name,
     "Ravioles de chèvre frais & miel de Montérégie"
   );
-  assert.equal(
-    english.dishes[0].description,
-    "Fine ravioli filled with fresh goat cheese and Quebec honey, finished with whipped brown butter and a trace of burned rosemary. A controlled sweet-savoury balance."
-  );
+  assert.equal(english.dishes[0].description, sourceDish.description);
 });
 
 test("Sauge browser fixture resolves complete stored English menus for all landing cards", async () => {

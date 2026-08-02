@@ -7,6 +7,10 @@ import {
   type LandingMenuUiPreview
 } from "@/lib/landing/landingMenuUiPreview";
 import { buildCurrentPublicMenuPreview } from "@/lib/landing/publicMenuPreview";
+import {
+  dedupeLandingDishPhotos,
+  resolveLandingDishPhoto
+} from "@/lib/landing/landingDishIdentity";
 import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import {
   resolvePublicMenuRenderContext,
@@ -65,14 +69,6 @@ const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
   saugeNoire:
     "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo?v=bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894"
 });
-
-function isUnversionedCanonicalDishPhoto(
-  image: string | undefined,
-  dishId: string | undefined
-): boolean {
-  if (!image || !dishId) return false;
-  return image.split("?", 1)[0] === `/api/public/menu-dishes/${dishId}/photo`;
-}
 
 export type LandingMenuPreviewPayload =
   | (LandingPreviewBase & {
@@ -547,6 +543,7 @@ async function buildLandingExperiences(
         const current = buildCurrentPublicMenuPreview({
           locale,
           menu,
+          preferredDishId: experience.featuredDish.id,
           preferredDishSlug: experience.preferredDishSlug,
           theme: experience.id
         });
@@ -562,25 +559,14 @@ async function buildLandingExperiences(
           };
         }
         const dish = current.featuredDish;
-        const liveImage = dish.imageUrl || dish.thumbnailUrl || dish.posterUrl;
-        const useVerifiedFallback =
-          !liveImage ||
-          isUnversionedCanonicalDishPhoto(liveImage, dish.id) ||
-          isUnversionedCanonicalDishPhoto(liveImage, experience.featuredDish.id);
-        const image = useVerifiedFallback
-          ? experience.featuredDish.image
-          : liveImage;
-        const imageSource: LandingFeaturedDish["imageSource"] = useVerifiedFallback
-          ? experience.featuredDish.image
-            ? "fallback"
-            : "unavailable"
-          : dish.imageUrl
-            ? "imageUrl"
-            : dish.thumbnailUrl
-              ? "thumbnailUrl"
-              : dish.posterUrl
-                ? "posterUrl"
-                : "unavailable";
+        const resolvedPhoto = resolveLandingDishPhoto(
+          dish,
+          experience.featuredDish,
+          menu.dishes
+        );
+        const image = resolvedPhoto?.url ?? "";
+        const imageSource: LandingFeaturedDish["imageSource"] =
+          resolvedPhoto?.source ?? "unavailable";
 
         return {
           ...experience,
@@ -625,22 +611,7 @@ async function buildLandingExperiences(
       href: buildLandingFeaturedDishHref(experience, locale)
     }
   }));
-  const claimedImages = new Set<string>();
-  return routedExperiences.map((experience) => {
-    const image = experience.featuredDish.image;
-    if (!image || !claimedImages.has(image)) {
-      if (image) claimedImages.add(image);
-      return experience;
-    }
-    return {
-      ...experience,
-      featuredDish: {
-        ...experience.featuredDish,
-        image: "",
-        imageSource: "unavailable" as const
-      }
-    };
-  });
+  return dedupeLandingDishPhotos(routedExperiences);
 }
 
 const getCachedFrenchLandingExperiences = unstable_cache(
@@ -686,6 +657,7 @@ async function buildLandingMenuPreviewPayload(
   const current = buildCurrentPublicMenuPreview({
     locale,
     menu: renderContext.menu,
+    preferredDishId: experience.featuredDish.id,
     preferredDishSlug: experience.preferredDishSlug,
     theme: experience.id
   });

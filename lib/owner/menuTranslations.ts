@@ -6,7 +6,11 @@ import {
   persistGeneratedLocalizedUiCopy,
   readPublicMenuSettingsBundleWithFallbacks
 } from "@/lib/owner/publicMenuSettingsFallback";
-import { menuTranslationFieldsFromNames } from "@/lib/translation/menuTranslationFields";
+import {
+  canonicalDishDerivedTags,
+  canonicalDishTranslationFields,
+  menuTranslationFieldsFromNames
+} from "@/lib/translation/menuTranslationFields";
 import {
   estimateChangedCharacters,
   fieldHashesFor,
@@ -15,7 +19,9 @@ import {
   sourceHashFor,
   stringInput,
   stringListInput,
+  translationValueIsSourceIdentical,
   summarizeLocaleTranslationStatus,
+  translationRowCanRepairMetadata,
   type MenuTranslationFieldValue,
   type MenuTranslationFields,
   type MenuTranslationSourceEntity,
@@ -103,6 +109,51 @@ function mergeStringLists(...values: string[][]): string[] {
   return result;
 }
 
+function booleanInput(row: AnyRow, keys: string[]): boolean {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true" || normalized === "available") return true;
+      if (normalized === "false" || normalized === "unavailable") return false;
+    }
+  }
+  return false;
+}
+
+function firstStringList(row: AnyRow, keys: string[]): string[] {
+  for (const key of keys) {
+    const values = stringListInput(row[key]);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
+function firstStringListFromSources(
+  row: AnyRow,
+  metadata: AnyRow,
+  keys: string[]
+): string[] {
+  return firstStringList(metadata, keys).length > 0
+    ? firstStringList(metadata, keys)
+    : firstStringList(row, keys);
+}
+
+function sourceDishTags(row: AnyRow, metadata: AnyRow): string[] {
+  return mergeStringLists(
+    firstStringListFromSources(row, metadata, ["tags", "labels"]),
+    stringListInput(metadata.badges)
+  );
+}
+
+function sourceDishDerivedTags(row: AnyRow): string[] {
+  return canonicalDishDerivedTags({
+    isSignature: booleanInput(row, ["is_signature", "isSignature"]),
+    isRecommended: booleanInput(row, ["is_recommended", "isRecommended"])
+  });
+}
+
 function addField(
   fields: MenuTranslationFields,
   field: string,
@@ -116,53 +167,36 @@ function addField(
 
 function dishFields(row: AnyRow): MenuTranslationFields {
   const metadata = getObject(row, ["metadata", "meta"]);
-  const fields: MenuTranslationFields = {};
-  addField(fields, "name", getString(row, ["name", "dish_name", "title"]));
-  addField(fields, "description", getString(row, ["short_description", "shortDescription", "description"]));
-  addField(
-    fields,
-    "ingredients",
-    mergeStringLists(
-      stringListInput(metadata.ingredients),
-      stringListInput(metadata.ingredient_list),
-      stringListInput(row.ingredients)
-    )
-  );
-  addField(
-    fields,
-    "allergens",
-    mergeStringLists(
-      stringListInput(row.allergens),
-      stringListInput(metadata.allergens),
-      stringListInput(metadata.allergenes),
-      stringListInput(metadata.allergen_list)
-    )
-  );
-  addField(
-    fields,
-    "options",
-    mergeStringLists(
+  // Dish names are source identity. They remain French in the public menu and
+  // must never participate in translation hashes, freshness, or readiness.
+  return canonicalDishTranslationFields({
+    description: getString(row, ["short_description", "shortDescription", "description"]),
+    ingredients: firstStringListFromSources(row, metadata, [
+      "ingredients",
+      "ingredient_list"
+    ]),
+    allergens: firstStringListFromSources(row, metadata, [
+      "allergens",
+      "allergenes",
+      "allergen_list"
+    ]),
+    options: mergeStringLists(
+      stringListInput(row.options),
+      stringListInput(row.option_list),
+      stringListInput(row.extras),
+      stringListInput(row.accompaniments),
       stringListInput(metadata.options),
       stringListInput(metadata.option_list),
       stringListInput(metadata.extras),
       stringListInput(metadata.accompaniments)
-    )
-  );
-  addField(
-    fields,
-    "houseNote",
-    getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"])
-  );
-  addField(
-    fields,
-    "tags",
-    mergeStringLists(
-      stringListInput(metadata.tags),
-      stringListInput(metadata.labels),
-      stringListInput(metadata.badges)
-    )
-  );
-  return fields;
+    ),
+    houseNote:
+      getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"]) ||
+      getString(row, ["house_note", "houseNote", "chef_note", "chefNote", "note"]),
+    tags: sourceDishTags(row, metadata),
+    isSignature: booleanInput(row, ["is_signature", "isSignature"]),
+    isRecommended: booleanInput(row, ["is_recommended", "isRecommended"])
+  });
 }
 
 function categoryFields(row: AnyRow): MenuTranslationFields {
@@ -189,7 +223,8 @@ function buildEntities(ctx: Omit<TranslationContext, "entities">): MenuTranslati
     ...ctx.dishes.map((dish) => ({
       type: "dish" as const,
       id: getString(dish, ["id"]),
-      fields: dishFields(dish)
+      fields: dishFields(dish),
+      legacyDerivedTags: sourceDishDerivedTags(dish)
     }))
   ].filter((entity) => entity.id && Object.keys(entity.fields).length > 0);
 }
@@ -380,7 +415,8 @@ function flattenTranslationTasks(entity: MenuTranslationSourceEntity, row?: Stor
     if (manualOverrides[field] === true) continue;
     if (
       storedFieldHashes[field] === expectedFieldHashes[field] &&
-      content[field] !== undefined
+      content[field] !== undefined &&
+      !translationValueIsSourceIdentical(field, value, content[field])
     ) {
       continue;
     }
@@ -446,6 +482,28 @@ async function upsertEntityTranslation(args: {
   const { error } = await args.ctx.client
     .from(tableForEntity(args.entity.type))
     .upsert(payload, { onConflict: `${idColumnForEntity(args.entity.type)},locale` });
+  if (error) throw new Error(error.message);
+}
+
+async function repairEntityTranslationMetadata(args: {
+  ctx: TranslationContext;
+  entity: MenuTranslationSourceEntity;
+  locale: string;
+}) {
+  const menuId = getString(args.ctx.menu, ["id"]);
+  const entityId = args.entity.type === "menu" ? menuId : args.entity.id;
+  let query = args.ctx.client
+    .from(tableForEntity(args.entity.type))
+    .update({
+      translation_status: "up_to_date",
+      source_hash: sourceHashFor(args.entity.fields),
+      field_hashes: fieldHashesFor(args.entity.fields),
+      updated_at: new Date().toISOString()
+    })
+    .eq(idColumnForEntity(args.entity.type), entityId)
+    .eq("locale", args.locale);
+  if (args.entity.type !== "menu") query = query.eq("menu_id", menuId);
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
 
@@ -586,8 +644,18 @@ export async function generateOwnerMenuTranslations(args: {
     if (!isDefaultLocale) {
       for (const entity of ctx.entities) {
         const row = rowsByKey.get(`${entity.type}:${entity.id}`);
+        if (translationRowCanRepairMetadata(entity, row)) {
+          await repairEntityTranslationMetadata({
+            ctx,
+            entity,
+            locale: args.locale
+          });
+          continue;
+        }
         const entityStatus = resolveEntityTranslationStatus(entity, row);
-        if (entityStatus.status === "up_to_date") continue;
+        if (entityStatus.status === "up_to_date") {
+          continue;
+        }
 
         const tasks = flattenTranslationTasks(entity, row);
         if (tasks.length === 0) continue;

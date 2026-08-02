@@ -44,6 +44,10 @@ type StaticPageMetrics = {
   horizontalOverflow: number;
 };
 
+type RafProbe = {
+  waitNativeFrames: (count: number) => Promise<void>;
+};
+
 const menuPath = (view: string) =>
   `/menu/sauge-noire?${new URLSearchParams({ ...contextQuery, view })}`;
 
@@ -72,6 +76,70 @@ async function nextFrames(page: Page, count = 2) {
       }),
     count
   );
+}
+
+async function installRafProbe(page: Page) {
+  await page.addInitScript(() => {
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+
+    const waitNativeFrames = (count: number) =>
+      new Promise<void>((resolve) => {
+        const tick = (remaining: number) => {
+          if (remaining <= 0) {
+            resolve();
+            return;
+          }
+          nativeRequestAnimationFrame(() => tick(remaining - 1));
+        };
+        tick(count);
+      });
+
+    (window as Window & { __saugeRafProbe?: RafProbe }).__saugeRafProbe = {
+      waitNativeFrames
+    };
+  });
+}
+
+async function expectNoPostHandoffRaf(page: Page, kind: StaticPageKind) {
+  const result = await page.evaluate(async (expectedKind) => {
+    const surface = document.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-reading-kind="menu"][data-sauge-reading-visible="true"][data-sauge-scroll-owner="true"]'
+    );
+    if (!surface) {
+      throw new Error(`Missing stabilized reading surface for ${expectedKind}`);
+    }
+    if (
+      surface.getAttribute("data-sauge-reading-kind") !== "menu" ||
+      surface.getAttribute("data-sauge-reading-visible") !== "true" ||
+      !surface.querySelector(`[data-sauge-static-frame="${expectedKind}"]`)
+    ) {
+      throw new Error(`Handoff surface is not the visible ${expectedKind} page`);
+    }
+    const probe = (window as Window & { __saugeRafProbe?: RafProbe })
+      .__saugeRafProbe;
+    if (!probe) throw new Error("Missing RAF probe");
+    const viewport = document.querySelector<HTMLElement>("[data-page-flip-state]");
+    if (!viewport) throw new Error("Missing PageFlip viewport");
+    const requestedBefore = Number(
+      viewport.getAttribute("data-page-flip-handoff-raf-requested") ?? "0"
+    );
+    await probe.waitNativeFrames(3);
+    const requestedAfter = Number(
+      viewport.getAttribute("data-page-flip-handoff-raf-requested") ?? "0"
+    );
+    return {
+      requestedBefore,
+      requestedAfter,
+      scrollTop: surface.scrollTop
+    };
+  }, kind);
+
+  expect(result.requestedBefore, `${kind}: handoff scheduled a RAF`).toBeGreaterThan(0);
+  expect(
+    result.requestedAfter,
+    `${kind}: no handoff RAF requested after stabilization`
+  ).toBe(result.requestedBefore);
+  expect(result.scrollTop, `${kind}: fixed surface remains at the top`).toBe(0);
 }
 
 async function waitForRead(page: Page, kind: StaticPageKind) {
@@ -287,6 +355,7 @@ async function captureFlipHandoff(
     "[data-sauge-reading-surface='true']",
     "[data-sauge-reading-content='true']"
   );
+  await expectNoPostHandoffRaf(page, kind);
 
   return { physicalDuringFlip, physical, canonical, stabilized };
 }
@@ -402,6 +471,7 @@ for (const viewport of [
     test("cover, contents and ending keep physical/canonical parity", async ({
       page
     }) => {
+      await installRafProbe(page);
       const pageErrors: string[] = [];
       const consoleErrors: string[] = [];
       const serverErrors: string[] = [];

@@ -26,6 +26,10 @@ const transitionCoordinatorPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireTransitionCoordinator.tsx",
   import.meta.url
 );
+const mediaReadinessPath = new URL(
+  "../components/menu/unique/sauge-noire/SaugeNoireMediaReadiness.ts",
+  import.meta.url
+);
 const readingSurfacePath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireReadingSurface.tsx",
   import.meta.url
@@ -187,8 +191,9 @@ test("route transitions live in the shared layout until the destination book is 
   );
 });
 
-test("awaiting destination polls frame-only readiness and has a bounded watchdog", async () => {
+test("awaiting destination uses readiness signals and has a bounded watchdog", async () => {
   const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+  const mediaReadiness = await readFile(mediaReadinessPath, "utf8");
   const routeTransition = await readFile(routeTransitionPath, "utf8");
 
   assert.match(coordinator, /const AWAITING_DESTINATION_TIMEOUT_MS = 6_000/);
@@ -204,11 +209,25 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
     coordinator,
     /Math\.abs\(activePage\.scrollTop - desiredScrollTop\) > 1[\s\S]*activePage\.scrollTop = desiredScrollTop/
   );
-  assert.match(coordinator, /const pollDestinationReadiness/);
+  assert.doesNotMatch(coordinator, /const pollDestinationReadiness/);
+  assert.doesNotMatch(coordinator, /mutationObserver\?\.observe\(document\.body/);
+  assert.match(coordinator, /routeRendererRef/);
+  assert.match(coordinator, /new MutationObserver/);
+  assert.match(coordinator, /new ResizeObserver/);
+  assert.match(coordinator, /destinationRendererIsReady\(\)/);
+  assert.match(mediaReadiness, /mediaIsRelevantForReadiness/);
+  assert.match(mediaReadiness, /loading.*lazy/);
+  assert.match(mediaReadiness, /projectedScrollTop/);
+  assert.match(mediaReadiness, /triggerLazy/);
+  assert.match(mediaReadiness, /element\.loading = "eager"/);
+  assert.match(mediaReadiness, /element\.preload = "metadata"/);
+  assert.match(mediaReadiness, /element\.load\(\)/);
   assert.match(
     coordinator,
-    /readinessFrameRef\.current = window\.requestAnimationFrame\(\s*pollDestinationReadiness\s*\)/
+    /readinessMediaForSurface\(activePage,\s*\{[\s\S]*projectedScrollTop:\s*settledPreviewScrollTopRef\.current/
   );
+  assert.match(coordinator, /mediaCleanup\(\)/);
+  assert.match(coordinator, /removeEventListener\("load", handleMediaSignal\)/);
   assert.match(
     coordinator,
     /awaitingDestinationWatchdogRef\.current = window\.setTimeout/
@@ -221,6 +240,18 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   assert.match(coordinator, /if \(settledPreviewGestureActiveRef\.current\) return/);
   assert.match(coordinator, /onRouteGestureActiveChange/);
   assert.match(coordinator, /routeScrollOwnerActive/);
+  assert.match(
+    coordinator,
+    /destinationReadyTransitionIdRef\.current = null;[\s\S]*destinationReadinessCheckRef\.current\?\.\(\)/
+  );
+  assert.match(
+    coordinator,
+    /destinationReadinessCheckRef\.current = checkDestinationReadiness/
+  );
+  assert.match(
+    coordinator,
+    /if \(!destinationRendererIsReady\(\)\) \{[\s\S]*watchdogFallbackTransitionIdRef\.current !== current\.id[\s\S]*destinationReadyTransitionIdRef\.current = null;[\s\S]*cancelAnimationFrame\(handoffFrameRef\.current\)[\s\S]*return;[\s\S]*\}\s*watchdogFallbackTransitionIdRef\.current = null;[\s\S]*destinationReadyTransitionIdRef\.current = current\.id;[\s\S]*tryCompleteHandoff\(\)/
+  );
   assert.doesNotMatch(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
   assert.match(routeTransition, /phase !== "preparing"/);
@@ -236,6 +267,45 @@ test("awaiting destination polls frame-only readiness and has a bounded watchdog
   assert.doesNotMatch(
     routeTransition,
     /resolveSaugeNoireOriginalPage\(overlay,\s*targetPage\)/
+  );
+});
+
+test("watchdog readiness survives a settled gesture until handoff completion", async () => {
+  const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+
+  assert.match(coordinator, /watchdogFallbackTransitionIdRef = useRef<string \| null>\(null\)/);
+  assert.match(
+    coordinator,
+    /watchdogFallbackTransitionIdRef\.current = latest\.id;[\s\S]*destinationReadyTransitionIdRef\.current = latest\.id/
+  );
+  assert.match(
+    coordinator,
+    /watchdogFallbackTransitionIdRef\.current === current\.id[\s\S]*destinationReadyTransitionIdRef\.current = watchdogFallbackForCurrent\s*\?\s*current\.id\s*:\s*null/
+  );
+  assert.match(
+    coordinator,
+    /if \(watchdogFallbackTransitionIdRef\.current !== current\.id\) \{[\s\S]*destinationReadyTransitionIdRef\.current = null/
+  );
+  assert.match(
+    coordinator,
+    /const current = transitionRef\.current;[\s\S]*handoffReadyForCurrent[\s\S]*destinationReadyTransitionIdRef\.current === current\.id/
+  );
+  assert.match(
+    coordinator,
+    /if \(!handoffReadyForCurrent\) \{[\s\S]*destinationReadinessCheckRef\.current\?\.\(\);[\s\S]*\}[\s\S]*tryCompleteHandoff\(\)/
+  );
+});
+
+test("aborted route handoffs release their scheduled frame for later transitions", async () => {
+  const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+
+  assert.match(
+    coordinator,
+    /cancelAnimationFrame\(handoffFrameRef\.current\);\s*handoffFrameRef\.current = 0;/g
+  );
+  assert.match(
+    coordinator,
+    /window\.cancelAnimationFrame\(handoffFrameRef\.current\);\s*handoffFrameRef\.current = 0;\s*window\.clearTimeout\(awaitingDestinationWatchdogRef\.current\)/
   );
 });
 
@@ -361,7 +431,7 @@ test("a short vertical gesture during a flip survives the reading-page commit", 
   assert.match(experiment, /transition\.handoffApplied = true/);
   assert.match(experiment, /stableFrames < 2/);
   assert.match(experiment, /new ResizeObserver/);
-  assert.match(experiment, /animationSourceClearFrameRef = useRef\(0\)/);
+  assert.doesNotMatch(experiment, /animationSourceClearFrameRef/);
   assert.match(
     experiment,
     /clearAnimationSourceIfApplied[\s\S]*animationSourceScrollRef\.current === candidate[\s\S]*animationSourceScrollRef\.current = null/
@@ -375,6 +445,68 @@ test("a short vertical gesture during a flip survives the reading-page commit", 
     experiment,
     /if \(state === "read"\) animationSourceScrollRef\.current = null/
   );
+});
+
+test("scroll handoff ignores below-fold lazy media and cleans every readiness signal", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+  const mediaReadiness = await readFile(mediaReadinessPath, "utf8");
+
+  assert.match(mediaReadiness, /element\.getAttribute\("loading"\) !== "lazy"/);
+  assert.match(mediaReadiness, /mediaIsPrepared\(element\)/);
+  assert.match(mediaReadiness, /projectedBottom > viewportTop/);
+  assert.match(mediaReadiness, /triggerLazy/);
+  assert.match(
+    experiment,
+    /readinessMediaForSurface\(targetSurface,\s*\{[\s\S]*projectedScrollTop:\s*projectedHandoffScrollTop\(\)[\s\S]*triggerLazy: true/
+  );
+  assert.match(experiment, /const mediaIsPending = \(\) =>/);
+  assert.match(experiment, /scrollHandoffMediaCleanupRef\.current\?\.\(\)/);
+  assert.match(experiment, /removeEventListener\("loadedmetadata", handleMediaSignal\)/);
+  assert.match(experiment, /scrollHandoffResizeObserverRef\.current\?\.disconnect\(\)/);
+  assert.match(experiment, /scrollHandoffMutationObserverRef\.current\?\.disconnect\(\)/);
+  assert.match(experiment, /readingSurface\.scrollTop = preparedScrollTop/);
+  assert.match(experiment, /gestureDelta[\s\S]*projectedHandoffScrollTop/);
+});
+
+test("scroll handoff waits for real layout/media signals and stops after fixed-surface stabilization", async () => {
+  const experiment = await readFile(experimentPath, "utf8");
+  const handoffStart = experiment.indexOf(
+    "    transition.targetIdentity = readingIdentity;"
+  );
+  const handoffEnd = experiment.indexOf(
+    "  }, [cancelScrollHandoff, clearAnimationSourceIfApplied",
+    handoffStart
+  );
+  assert.notEqual(handoffStart, -1);
+  assert.notEqual(handoffEnd, -1);
+  const handoff = experiment.slice(handoffStart, handoffEnd);
+
+  assert.match(handoff, /const mediaIsPending = \(\) =>/);
+  assert.match(handoff, /document\.fonts\?\.status === "loading"/);
+  assert.match(handoff, /element\.addEventListener\("load"/);
+  assert.match(handoff, /element\.addEventListener\("loadedmetadata"/);
+  assert.match(handoff, /new ResizeObserver\(handleLayoutSignal\)/);
+  assert.match(handoff, /new MutationObserver\(handleLayoutSignal\)/);
+  assert.match(handoff, /resizeObserver\.observe\(readingContent\)/);
+  assert.match(handoff, /mutationObserver\.observe\(targetSurface/);
+  assert.match(handoff, /window\.addEventListener\("resize", handleWindowResize\)/);
+  assert.match(handoff, /document\.fonts\?\.ready\.then\(\(\) => \{[\s\S]*cancelled/);
+
+  assert.match(handoff, /const hasScrollableHeight/);
+  assert.match(
+    handoff,
+    /const preparedScrollTop = hasScrollableHeight[\s\S]*?: 0;/
+  );
+  assert.match(
+    handoff,
+    /readingSurface\.setAttribute\(\s*"data-page-flip-handoff-applied",\s*"true"\s*\)/
+  );
+  assert.match(handoff, /data-page-flip-handoff-raf-requested/);
+  assert.match(handoff, /const finish = \(\) => \{\s*cancelScrollHandoff\(\);\s*\};/);
+  assert.match(handoff, /scrollHandoffResizeObserverRef\.current = resizeObserver/);
+  assert.match(handoff, /scrollHandoffMutationObserverRef\.current = mutationObserver/);
+  assert.doesNotMatch(handoff, /setTimeout/);
+  assert.doesNotMatch(handoff, /animationSourceClearFrameRef/);
 });
 
 test("only static reading pages restore the definite full-height chain", async () => {

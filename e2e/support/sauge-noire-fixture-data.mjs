@@ -169,7 +169,9 @@ function capitalizeFixtureListItems(items) {
 
 function fixtureDishTranslationFields(dishRow) {
   return {
-    name: dishRow.name,
+    // Dish names stay French source identity and are intentionally not
+    // included in translated content or freshness hashes. Legacy rows may
+    // still preserve content.name, but runtime ignores it.
     ...(dishRow.description ? { description: dishRow.description } : {}),
     ...(dishRow.ingredients?.length
       ? { ingredients: capitalizeFixtureListItems(dishRow.ingredients) }

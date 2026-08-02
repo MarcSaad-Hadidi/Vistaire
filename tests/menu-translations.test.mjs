@@ -9,9 +9,15 @@ import {
   fieldHashesFor,
   resolveEntityTranslationStatus,
   sourceHashFor,
-  summarizeLocaleTranslationStatus
+  summarizeLocaleTranslationStatus,
+  translationValueIsSourceIdentical,
+  translationRowCanRepairMetadata
 } from "../lib/translation/menuTranslationModel.ts";
-import { menuTranslationFieldsFromNames } from "../lib/translation/menuTranslationFields.ts";
+import {
+  canonicalDishDerivedTags,
+  canonicalDishTranslationFields,
+  menuTranslationFieldsFromNames
+} from "../lib/translation/menuTranslationFields.ts";
 import {
   getServerTranslator,
   resolveTranslationProviderStatus
@@ -115,7 +121,6 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
     type: "dish",
     id: "dish-1",
     fields: {
-      name: "Tomato soup",
       description: "Warm tomato and basil.",
       ingredients: ["tomato", "basil"]
     }
@@ -134,7 +139,7 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
 
   assert.deepEqual(resolveEntityTranslationStatus(entity), {
     status: "missing",
-    estimatedCharacters: 44
+    estimatedCharacters: 33
   });
   assert.deepEqual(resolveEntityTranslationStatus(entity, stored), {
     status: "up_to_date",
@@ -143,19 +148,303 @@ test("translation hashes detect missing, stale, manual override, and up-to-date 
 
   const changedEntity = {
     ...entity,
-    fields: { ...entity.fields, name: "Tomato soup of the day" }
+    fields: { ...entity.fields, description: "Warm tomato, basil, and cream." }
   };
   assert.deepEqual(resolveEntityTranslationStatus(changedEntity, stored), {
     status: "stale",
-    estimatedCharacters: 22
+    estimatedCharacters: 30
   });
 
   assert.equal(
-    estimateChangedCharacters(changedEntity, {
+    estimateChangedCharacters(entity, {
       ...stored,
-      manual_overrides: { name: true }
+      manual_overrides: { description: true }
     }),
     0
+  );
+});
+
+test("dish names stay source identity across generation, storage, and public readiness", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const publicReadiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
+  const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
+  const sourceFields = {
+    description: "Description source",
+    ingredients: ["Un ingrédient"]
+  };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(sourceFields),
+    field_hashes: fieldHashesFor(sourceFields),
+    content: {
+      description: "Translated description",
+      ingredients: ["One ingredient"],
+      name: "Nom français"
+    }
+  };
+
+  assert.match(ownerTranslations, /canonicalDishTranslationFields/);
+  assert.match(ownerTranslations, /canonicalDishDerivedTags/);
+  assert.match(publicReadiness, /canonicalDishTranslationFields/);
+  const ownerDishFields = ownerTranslations.match(
+    /function dishFields[\s\S]*?function categoryFields/
+  )?.[0] ?? "";
+  assert.ok(ownerDishFields);
+  assert.doesNotMatch(ownerDishFields, /\bname\s*:/);
+  assert.doesNotMatch(publicReadiness, /name:\s*dish\.name/);
+  assert.match(ownerTranslations, /is_signature|isSignature/);
+  assert.match(publicTranslations, /name:\s*dish\.name/);
+  assert.deepEqual(resolveEntityTranslationStatus({ type: "dish", id: "dish-1", fields: sourceFields }, stored), {
+    status: "up_to_date",
+    estimatedCharacters: 0
+  });
+  assert.deepEqual(resolveEntityTranslationStatus(
+    { type: "dish", id: "dish-1", fields: sourceFields },
+    { ...stored, content: { ...stored.content, name: "Nom français modifié" } }
+  ), {
+    status: "up_to_date",
+    estimatedCharacters: 0
+  });
+});
+
+test("legacy dish hashes remain fresh when only the removed name field changed", () => {
+  const fields = {
+    description: "Description source",
+    ingredients: ["Un ingrédient"],
+    tags: ["Maison"]
+  };
+  const legacyFields = { name: "Ancien nom", ...fields };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(legacyFields),
+    content: {
+      description: "Translated description",
+      ingredients: ["One ingredient"],
+      tags: ["House"]
+    }
+  };
+  assert.deepEqual(
+    resolveEntityTranslationStatus(
+      { type: "dish", id: "dish-legacy", fields },
+      stored
+    ),
+    { status: "up_to_date", estimatedCharacters: 0 }
+  );
+  assert.equal(
+    resolveEntityTranslationStatus(
+      {
+        type: "dish",
+        id: "dish-legacy",
+        fields: { ...fields, description: "Description source updated" }
+      },
+      stored
+    ).status,
+    "stale"
+  );
+});
+
+test("legacy metadata repairs require valid current fields and preserve stored content", () => {
+  const fields = {
+    description: "Description source",
+    ingredients: ["Un ingrÃ©dient"],
+    tags: ["Maison"]
+  };
+  const legacyFields = { name: "Ancien nom", ...fields };
+  const row = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(fields),
+    content: {
+      name: "Nom traduit legacy",
+      description: "Description conservee",
+      ingredients: ["One ingredient"],
+      tags: ["Maison custom"]
+    },
+    manual_overrides: { ingredients: true },
+    provider: "human",
+    translated_at: "2026-07-01T00:00:00.000Z",
+    error_message: "legacy note"
+  };
+  const entity = { type: "dish", id: "dish-repair", fields };
+  assert.equal(translationRowCanRepairMetadata(entity, row), true);
+  assert.equal(
+    translationRowCanRepairMetadata(entity, {
+      ...row,
+      field_hashes: fieldHashesFor({ ...fields, description: "Changed" })
+    }),
+    false
+  );
+  assert.equal(
+    translationRowCanRepairMetadata(entity, {
+      ...row,
+      content: { ...row.content, description: "" }
+    }),
+    false
+  );
+  assert.equal(
+    translationRowCanRepairMetadata(entity, {
+      ...row,
+      content: { ...row.content, description: fields.description }
+    }),
+    false
+  );
+  assert.equal(
+    translationRowCanRepairMetadata(entity, {
+      ...row,
+      manual_overrides: { ingredients: "yes" }
+    }),
+    false
+  );
+});
+
+test("canonical dish fields normalize exact lists and derived tags consistently", () => {
+  assert.deepEqual(
+    canonicalDishTranslationFields({
+      description: " desc ",
+      ingredients: [" carrot", "CARROT", ""],
+      allergens: ["Gluten", "gluten"],
+      options: [" extra", "Extra"],
+      houseNote: " note ",
+      tags: [" Recommande", "Recommended", "Signature", "custom", "CUSTOM", ""],
+      isSignature: true,
+      isRecommended: true
+    }),
+    {
+      description: "desc",
+      ingredients: ["Carrot"],
+      allergens: ["Gluten"],
+      options: ["Extra"],
+      houseNote: "note",
+      tags: ["custom"]
+    }
+  );
+  assert.deepEqual(canonicalDishDerivedTags({ isRecommended: true }), ["Recommande"]);
+});
+
+test("owner freshness rejects source-identical prose and queues it again", async () => {
+  const entity = {
+    type: "dish",
+    id: "dish-source-identical",
+    fields: {
+      description: "Source description",
+      houseNote: "Source note",
+      tags: ["Maison"]
+    }
+  };
+  const row = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(entity.fields),
+    field_hashes: fieldHashesFor(entity.fields),
+    content: {
+      description: "Source description",
+      houseNote: "Translated note",
+      tags: ["House"]
+    },
+    manual_overrides: {}
+  };
+
+  assert.equal(
+    translationValueIsSourceIdentical(
+      "description",
+      entity.fields.description,
+      row.content.description
+    ),
+    true
+  );
+  assert.ok(estimateChangedCharacters(entity, row) > 0);
+  assert.equal(resolveEntityTranslationStatus(entity, row).status, "stale");
+});
+
+test("owner and backfill source lists follow public alias precedence", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const backfill = await readRepoFile("scripts/backfill-menu-translations.mjs");
+
+  assert.match(ownerTranslations, /ingredients:\s*firstStringListFromSources\(/);
+  assert.match(ownerTranslations, /allergens:\s*firstStringListFromSources\(/);
+  assert.match(
+    ownerTranslations,
+    /function sourceDishTags[\s\S]*?firstStringListFromSources\(/s
+  );
+  assert.match(backfill, /ingredients:\s*firstNonEmptyList\(/);
+  assert.match(backfill, /allergens:\s*firstNonEmptyList\(/);
+  assert.doesNotMatch(
+    ownerTranslations,
+    /ingredients:\s*mergeStringLists\(\s*stringListInput\(metadata\.ingredients\)/s
+  );
+});
+
+test("legacy aggregate hashes remain fresh after an optional field is removed", () => {
+  const currentFields = {
+    description: "Description source",
+    tags: ["Maison"]
+  };
+  const legacyFields = {
+    description: "Description source",
+    houseNote: "Note retirée",
+    tags: ["Maison"]
+  };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(legacyFields),
+    content: {
+      description: "Translated description",
+      tags: ["House"]
+    }
+  };
+
+  assert.deepEqual(
+    resolveEntityTranslationStatus(
+      { type: "dish", id: "dish-optional-field", fields: currentFields },
+      stored
+    ),
+    { status: "up_to_date", estimatedCharacters: 0 }
+  );
+  assert.equal(
+    resolveEntityTranslationStatus(
+      {
+        type: "dish",
+        id: "dish-optional-field",
+        fields: { ...currentFields, description: "Description source updated" }
+      },
+      stored
+    ).status,
+    "stale"
+  );
+});
+
+test("legacy derived badge hashes remain fresh regardless of badge position", () => {
+  const fields = {
+    description: "Description source",
+    tags: ["Maison"]
+  };
+  const legacyFields = {
+    name: "Nom source",
+    ...fields,
+    tags: ["Signature", "Maison"]
+  };
+  const stored = {
+    translation_status: "up_to_date",
+    source_hash: sourceHashFor(legacyFields),
+    field_hashes: fieldHashesFor(legacyFields),
+    content: {
+      description: "Translated description",
+      tags: ["House"]
+    }
+  };
+
+  assert.deepEqual(
+    resolveEntityTranslationStatus(
+      {
+        type: "dish",
+        id: "dish-derived-badge",
+        fields,
+        legacyDerivedTags: ["Signature"]
+      },
+      stored
+    ),
+    { status: "up_to_date", estimatedCharacters: 0 }
   );
 });
 
@@ -239,12 +528,6 @@ test("menu translation source fields stay shared between owner generation and pu
   const publicTranslations = await readRepoFile("lib/menu/publicMenuTranslations.ts");
   const publicReadiness = await readRepoFile("lib/menu/publicMenuTranslationReadiness.ts");
   const publicCore = await readRepoFile("lib/menu/publicMenuCore.ts");
-  const ownerDishFields =
-    ownerTranslations.match(/function dishFields[\s\S]*?return fields;\s*}\s*function categoryFields/)?.[0] ??
-    "";
-  const publicDishFields =
-    publicReadiness.match(/function publicMenuDishTranslationFields[\s\S]*?}\s*export function publicMenuTranslationMenuFields/)?.[0] ??
-    "";
   const sourceFields = menuTranslationFieldsFromNames({
     restaurantName: "Cafe Vistaire",
     menuName: "Menu principal"
@@ -260,15 +543,17 @@ test("menu translation source fields stay shared between owner generation and pu
   assert.match(ownerTranslations, /menuTranslationFieldsFromNames/);
   assert.match(publicReadiness, /menuTranslationFieldsFromNames/);
   assert.doesNotMatch(ownerTranslations, /restaurantName:\s*getString/);
+  assert.match(ownerTranslations, /canonicalDishTranslationFields/);
+  assert.match(publicReadiness, /canonicalDishTranslationFields/);
+  assert.match(publicTranslations, /canonicalDishDerivedTags/);
+  const ownerDishFields = ownerTranslations.match(
+    /function dishFields[\s\S]*?function categoryFields/
+  )?.[0] ?? "";
   assert.ok(ownerDishFields, "owner dishFields source must be found");
-  assert.ok(publicDishFields, "public dishFields source must be found");
-  assert.match(ownerDishFields, /addField\(fields,\s*"name"/);
-  assert.match(publicDishFields, /name:\s*dish\.name/);
+  assert.doesNotMatch(ownerDishFields, /\bname\s*:/);
+  assert.doesNotMatch(publicReadiness, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /field:\s*"restaurantName"/);
-  assert.match(
-    publicTranslations,
-    /name:\s*getTranslatedString\(\{[\s\S]{0,180}source:\s*dish\.name/
-  );
+  assert.match(publicTranslations, /name:\s*dish\.name/);
   assert.doesNotMatch(publicTranslations, /name:\s*translatedName/);
   assert.match(publicCore, /menuName\?: string/);
   assert.match(publicCore, /menuName:\s*getString\(args\.menuRow/);
@@ -311,6 +596,37 @@ test("owner generator checks translation storage before Azure work", async () =>
   assert.match(ownerTranslations, /menu_category_translations/);
   assert.match(ownerTranslations, /menu_dish_translations/);
   assert.match(ownerTranslations, /Stockage des traductions indisponible/);
+});
+
+test("metadata-only repair runs before provider translation and updates hashes only", async () => {
+  const ownerTranslations = await readRepoFile("lib/owner/menuTranslations.ts");
+  const repairIndex = ownerTranslations.indexOf(
+    "if (translationRowCanRepairMetadata(entity, row))"
+  );
+  const translateIndex = ownerTranslations.indexOf(
+    "await translator.translateTexts"
+  );
+  const repairStart = ownerTranslations.indexOf(
+    "async function repairEntityTranslationMetadata"
+  );
+  const repairEnd = ownerTranslations.indexOf(
+    "function summarizeLocaleTranslationStatusWithUiCopy",
+    repairStart
+  );
+  const repairBody =
+    repairStart >= 0 && repairEnd > repairStart
+      ? ownerTranslations.slice(repairStart, repairEnd)
+      : "";
+
+  assert.ok(repairIndex !== -1, "legacy metadata repair must be wired into generation");
+  assert.ok(translateIndex !== -1, "real stale fields must still use the translator");
+  assert.ok(repairIndex < translateIndex, "repair must short-circuit before translation calls");
+  assert.ok(repairBody);
+  assert.match(repairBody, /translation_status:\s*"up_to_date"/);
+  assert.match(repairBody, /source_hash:\s*sourceHashFor/);
+  assert.match(repairBody, /field_hashes:\s*fieldHashesFor/);
+  assert.match(repairBody, /updated_at:/);
+  assert.doesNotMatch(repairBody, /content:|manual_overrides:|translated_at:|error_message:|provider:/);
 });
 
 test("locale summaries avoid retraduction when only unchanged fields have stored content", () => {

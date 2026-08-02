@@ -4,6 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { SaugeNoireRoutePageFlip } from "./SaugeNoireRoutePageFlip";
+import {
+  mediaIsPrepared,
+  readinessMediaForSurface
+} from "./SaugeNoireMediaReadiness";
 
 export type SaugeNoireRouteTransition = {
   id: string;
@@ -65,7 +69,6 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const destinationPathnameObservedRef = useRef(false);
   const prefetchedDestinationsRef = useRef(new Set<string>());
   const handoffFrameRef = useRef(0);
-  const readinessFrameRef = useRef(0);
   const awaitingDestinationWatchdogRef = useRef(0);
   const focusFrameRef = useRef(0);
   const focusAfterHandoffRef = useRef(false);
@@ -74,6 +77,9 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const overlayReadyPendingRef = useRef(false);
   const overlayFallbackPendingRef = useRef(false);
   const settledPreviewGestureActiveRef = useRef(false);
+  const watchdogFallbackTransitionIdRef = useRef<string | null>(null);
+  const destinationReadinessCheckRef = useRef<(() => void) | null>(null);
+  const routeRendererRef = useRef<HTMLDivElement | null>(null);
   const [transition, setTransition] = useState<ActiveTransition | null>(null);
 
   const prefetchDestination = useCallback((href: string) => {
@@ -116,6 +122,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     overlayReadyPendingRef.current = false;
     overlayFallbackPendingRef.current = false;
     settledPreviewGestureActiveRef.current = false;
+    watchdogFallbackTransitionIdRef.current = null;
     destinationReadyTransitionIdRef.current = null;
     destinationPathnameObservedRef.current = false;
     transitionRef.current = active;
@@ -181,9 +188,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, [router, updatePhase]);
 
   const transferDestinationScroll = useCallback(() => {
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const activePage = renderer?.querySelector<HTMLElement>(
       '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
     );
@@ -209,20 +218,18 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathnameRef.current !== expectedPathname) return;
     if (settledPreviewGestureActiveRef.current) return;
-    window.cancelAnimationFrame(handoffFrameRef.current);
-    window.cancelAnimationFrame(readinessFrameRef.current);
+    if (handoffFrameRef.current) return;
     const completeOnFrame = () => {
+      handoffFrameRef.current = 0;
       const latest = transitionRef.current;
       if (!latest || latest.id !== current.id || latest.phase !== "awaiting-destination") return;
       if (destinationReadyTransitionIdRef.current !== latest.id) return;
       const latestExpectedPathname = new URL(latest.href, window.location.origin).pathname;
       if (pathnameRef.current !== latestExpectedPathname) return;
       if (settledPreviewGestureActiveRef.current) return;
-      if (!transferDestinationScroll()) {
-        handoffFrameRef.current = window.requestAnimationFrame(completeOnFrame);
-        return;
-      }
+      if (!transferDestinationScroll()) return;
       window.clearTimeout(awaitingDestinationWatchdogRef.current);
+      watchdogFallbackTransitionIdRef.current = null;
       destinationReadyTransitionIdRef.current = null;
       transitionRef.current = null;
       setTransition(null);
@@ -233,7 +240,16 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   const handleSettledPreviewGestureActiveChange = useCallback(
     (active: boolean) => {
       settledPreviewGestureActiveRef.current = active;
-      if (!active) tryCompleteHandoff();
+      if (!active) {
+        const current = transitionRef.current;
+        const handoffReadyForCurrent =
+          current?.phase === "awaiting-destination" &&
+          destinationReadyTransitionIdRef.current === current.id;
+        if (!handoffReadyForCurrent) {
+          destinationReadinessCheckRef.current?.();
+        }
+        tryCompleteHandoff();
+      }
     },
     [tryCompleteHandoff]
   );
@@ -243,9 +259,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     focusAfterHandoffRef.current = false;
     window.cancelAnimationFrame(focusFrameRef.current);
     focusFrameRef.current = window.requestAnimationFrame(() => {
-      const renderer = document.querySelector<HTMLElement>(
+      const renderer = routeRendererRef.current?.matches(
         '[data-sauge-route-renderer-pending-handoff="false"]'
-      );
+      )
+        ? routeRendererRef.current
+        : null;
       const activePage = renderer?.querySelector<HTMLElement>(
         '[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"]'
       );
@@ -267,7 +285,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   useEffect(() => {
     return () => {
       window.cancelAnimationFrame(handoffFrameRef.current);
-      window.cancelAnimationFrame(readinessFrameRef.current);
+      handoffFrameRef.current = 0;
       window.clearTimeout(awaitingDestinationWatchdogRef.current);
       window.cancelAnimationFrame(focusFrameRef.current);
     };
@@ -285,13 +303,14 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         destinationPathnameObservedRef.current
       ) {
         window.cancelAnimationFrame(handoffFrameRef.current);
-        window.cancelAnimationFrame(readinessFrameRef.current);
+        handoffFrameRef.current = 0;
         window.clearTimeout(awaitingDestinationWatchdogRef.current);
         destinationReadyTransitionIdRef.current = null;
         destinationPathnameObservedRef.current = false;
         overlayReadyPendingRef.current = false;
         overlayFallbackPendingRef.current = false;
         settledPreviewGestureActiveRef.current = false;
+        watchdogFallbackTransitionIdRef.current = null;
         transitionRef.current = null;
         setTransition(null);
         return;
@@ -301,9 +320,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, [pathname, tryCompleteHandoff]);
 
   const destinationRendererIsReady = useCallback(() => {
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
     if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
@@ -325,18 +346,23 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     ) {
       return false;
     }
-    const image = activePage.querySelector<HTMLImageElement>("img");
-    if (image) {
-      const rect = image.getBoundingClientRect();
-      if (!image.complete || rect.width <= 0 || rect.height <= 0) return false;
+    const media = readinessMediaForSurface(activePage, {
+      projectedScrollTop: settledPreviewScrollTopRef.current,
+      triggerLazy: true
+    });
+    for (const element of media) {
+      const rect = element.getBoundingClientRect();
+      if (!mediaIsPrepared(element) || rect.width <= 0 || rect.height <= 0) return false;
     }
     return true;
   }, []);
 
   const destinationRendererIsUsable = useCallback(() => {
-    const renderer = document.querySelector<HTMLElement>(
+    const renderer = routeRendererRef.current?.matches(
       '[data-sauge-route-renderer-pending-handoff="true"]'
-    );
+    )
+      ? routeRendererRef.current
+      : null;
     const viewport = renderer?.querySelector<HTMLElement>("[data-page-flip-state]");
     if (!viewport) return false;
     if (viewport.getAttribute("data-page-flip-state") === "fallback-error") return true;
@@ -356,7 +382,17 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   }, []);
 
   const handleSettledPreviewScrollTopChange = useCallback((scrollTop: number) => {
-    settledPreviewScrollTopRef.current = Math.max(0, scrollTop);
+    const nextScrollTop = Math.max(0, scrollTop);
+    if (Math.abs(nextScrollTop - settledPreviewScrollTopRef.current) <= 1) return;
+    settledPreviewScrollTopRef.current = nextScrollTop;
+    const current = transitionRef.current;
+    const watchdogFallbackForCurrent =
+      current?.phase === "awaiting-destination" &&
+      watchdogFallbackTransitionIdRef.current === current.id;
+    destinationReadyTransitionIdRef.current = watchdogFallbackForCurrent
+      ? current.id
+      : null;
+    destinationReadinessCheckRef.current?.();
   }, []);
 
   const notifyDestinationReady = useCallback((readyPathname: string) => {
@@ -365,6 +401,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (readyPathname !== expectedPathname) return;
     if (!destinationRendererIsReady()) return;
+    watchdogFallbackTransitionIdRef.current = null;
     destinationReadyTransitionIdRef.current = current.id;
     tryCompleteHandoff();
   }, [destinationRendererIsReady, tryCompleteHandoff]);
@@ -375,7 +412,42 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     const expectedPathname = new URL(current.href, window.location.origin).pathname;
     if (pathname !== expectedPathname) return;
 
-    const pollDestinationReadiness = () => {
+    let mediaCleanup = () => {};
+    const bindMediaSignals = () => {
+      mediaCleanup();
+      const renderer = routeRendererRef.current?.matches(
+        '[data-sauge-route-renderer-pending-handoff="true"]'
+      )
+        ? routeRendererRef.current
+        : null;
+      const activePage = renderer?.querySelector<HTMLElement>(
+        '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
+      );
+      const media = activePage
+        ? readinessMediaForSurface(activePage, {
+            projectedScrollTop: settledPreviewScrollTopRef.current,
+            triggerLazy: true
+          })
+        : [];
+      const handleMediaSignal = () => checkDestinationReadiness();
+      for (const element of media) {
+        element.addEventListener("load", handleMediaSignal);
+        element.addEventListener("error", handleMediaSignal);
+        element.addEventListener("loadeddata", handleMediaSignal);
+        element.addEventListener("loadedmetadata", handleMediaSignal);
+      }
+      mediaCleanup = () => {
+        for (const element of media) {
+          element.removeEventListener("load", handleMediaSignal);
+          element.removeEventListener("error", handleMediaSignal);
+          element.removeEventListener("loadeddata", handleMediaSignal);
+          element.removeEventListener("loadedmetadata", handleMediaSignal);
+        }
+      };
+    };
+
+    const checkDestinationReadiness = () => {
+      bindMediaSignals();
       const latest = transitionRef.current;
       if (
         !latest ||
@@ -384,22 +456,70 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
       ) {
         return;
       }
+      if (pathnameRef.current !== expectedPathname) return;
       if (!destinationRendererIsReady()) {
-        readinessFrameRef.current = window.requestAnimationFrame(
-          pollDestinationReadiness
-        );
+        if (watchdogFallbackTransitionIdRef.current !== current.id) {
+          destinationReadyTransitionIdRef.current = null;
+          if (handoffFrameRef.current) {
+            window.cancelAnimationFrame(handoffFrameRef.current);
+            handoffFrameRef.current = 0;
+          }
+        }
         return;
       }
+      watchdogFallbackTransitionIdRef.current = null;
       destinationReadyTransitionIdRef.current = current.id;
       tryCompleteHandoff();
     };
+    destinationReadinessCheckRef.current = checkDestinationReadiness;
 
-    readinessFrameRef.current = window.requestAnimationFrame(
-      pollDestinationReadiness
+    const mutationObserver =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(checkDestinationReadiness);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(checkDestinationReadiness);
+    const renderer = routeRendererRef.current?.matches(
+      '[data-sauge-route-renderer-pending-handoff="true"]'
+    )
+      ? routeRendererRef.current
+      : null;
+    const activePage = renderer?.querySelector<HTMLElement>(
+      '[data-sauge-reading-surface="true"][data-sauge-handoff-candidate="true"]'
     );
+    const observeReadiness = () => {
+      if (renderer) {
+        mutationObserver?.observe(renderer, {
+          attributes: true,
+          childList: true,
+          subtree: true
+        });
+      }
+      if (renderer) resizeObserver?.observe(renderer);
+      if (activePage) resizeObserver?.observe(activePage);
+    };
+    const handleWindowLoad = () => checkDestinationReadiness();
+    const handleFontSignal = () => checkDestinationReadiness();
+
+    bindMediaSignals();
+    observeReadiness();
+    window.addEventListener("load", handleWindowLoad);
+    document.fonts?.addEventListener("loadingdone", handleFontSignal);
+    document.fonts?.addEventListener("loadingerror", handleFontSignal);
+    checkDestinationReadiness();
 
     return () => {
-      window.cancelAnimationFrame(readinessFrameRef.current);
+      if (destinationReadinessCheckRef.current === checkDestinationReadiness) {
+        destinationReadinessCheckRef.current = null;
+      }
+      mutationObserver?.disconnect();
+      resizeObserver?.disconnect();
+      mediaCleanup();
+      window.removeEventListener("load", handleWindowLoad);
+      document.fonts?.removeEventListener("loadingdone", handleFontSignal);
+      document.fonts?.removeEventListener("loadingerror", handleFontSignal);
     };
   }, [
     destinationRendererIsReady,
@@ -425,11 +545,11 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         latest.href,
         window.location.origin
       ).pathname;
-      window.cancelAnimationFrame(readinessFrameRef.current);
       if (
         pathnameRef.current === latestExpectedPathname &&
         destinationRendererIsUsable()
       ) {
+        watchdogFallbackTransitionIdRef.current = latest.id;
         destinationReadyTransitionIdRef.current = latest.id;
         tryCompleteHandoff();
         return;
@@ -471,6 +591,7 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
   return (
     <TransitionContext.Provider value={contextValue}>
       <div
+        ref={routeRendererRef}
         style={{
           display: "contents"
         }}

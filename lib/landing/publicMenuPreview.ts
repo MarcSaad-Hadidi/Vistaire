@@ -9,6 +9,11 @@ import {
   type PublicMenu,
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import {
+  findLandingDishByIdentity,
+  landingPhotoForDish,
+  type LandingDishPhoto
+} from "@/lib/landing/landingDishIdentity";
 import type {
   CompareDishPreview,
   PdfComparePreviewData,
@@ -29,7 +34,11 @@ function monogram(name: string) {
 }
 
 export function imageForDish(dish: PublicMenuDish) {
-  return dish.imageUrl || dish.thumbnailUrl || dish.posterUrl || null;
+  return landingPhotoForDish(dish)?.url ?? null;
+}
+
+export function photoForDish(dish: PublicMenuDish): LandingDishPhoto | null {
+  return landingPhotoForDish(dish);
 }
 
 function toPreviewDish(
@@ -72,15 +81,17 @@ function categoryDishes(
 
 function pickFeaturedDish(
   dishes: PublicMenuDish[],
+  preferredDishId?: string,
   preferredDishSlug?: string
 ) {
   const available = dishes.filter((dish) => dish.available);
   const candidates = available;
+  const preferredDish = findLandingDishByIdentity(candidates, {
+    id: preferredDishId,
+    slug: preferredDishSlug
+  });
   return (
-    candidates.find(
-      (dish) =>
-        dish.slug === preferredDishSlug && Boolean(imageForDish(dish))
-    ) ??
+    (preferredDish && imageForDish(preferredDish) ? preferredDish : undefined) ??
     candidates.find(
       (dish) =>
         dish.isRecommended && dish.isSignature && Boolean(imageForDish(dish))
@@ -90,7 +101,7 @@ function pickFeaturedDish(
     ) ??
     candidates.find((dish) => dish.isSignature && Boolean(imageForDish(dish))) ??
     candidates.find((dish) => Boolean(imageForDish(dish))) ??
-    candidates.find((dish) => dish.slug === preferredDishSlug) ??
+    (preferredDish ?? undefined) ??
     candidates[0]
   );
 }
@@ -109,11 +120,13 @@ export function buildFullPdfMenuData(menu: PublicMenu): PdfMenuSection[] {
 export function buildCurrentPublicMenuPreview({
   locale,
   menu,
+  preferredDishId,
   preferredDishSlug,
   theme
 }: {
   locale: Locale;
   menu: PublicMenu;
+  preferredDishId?: string;
   preferredDishSlug?: string;
   theme: LandingPreviewTheme;
 }): {
@@ -123,7 +136,8 @@ export function buildCurrentPublicMenuPreview({
   const currentDishes = menu.dishes.filter((dish) => dish.available);
   const copy = getLandingCopy(locale).comparison;
   const categories = getVisiblePublicMenuCategories(currentDishes);
-  const featuredDish = pickFeaturedDish(currentDishes, preferredDishSlug) ?? null;
+  const featuredDish =
+    pickFeaturedDish(currentDishes, preferredDishId, preferredDishSlug) ?? null;
   const categoryCards = categories.map((category) => {
     const dishesInCategory = categoryDishes(currentDishes, category);
     const representative =

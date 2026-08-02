@@ -615,6 +615,7 @@ export function TrouvableDishDetailExperience({
           detailsExpanded={activeSubSheet === "details"}
           detailsId={moreDetailsId}
           dish={activeDish}
+          eyebrow={context || menu.name}
           hasModel={hasModel}
           headingLevel="h1"
           locale={selectedLocale}
@@ -625,6 +626,7 @@ export function TrouvableDishDetailExperience({
           onOpenReview={openReviewSheet}
           onToggleModel={toggleModelViewer}
           price={activePrice}
+          secondaryEyebrow={activeDish.category}
           showImmersiveUnavailable
           textDirection={textDirection}
           titleId="trouvable-dish-title"

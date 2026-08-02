@@ -2049,6 +2049,7 @@ export function TrouvablePremiumMenuExperience({
             detailsExpanded={dishSubSheet === "details"}
             detailsId={moreDetailsId}
             dish={selectedDish}
+            eyebrow={selectedDish.category}
             hasModel={hasModel}
             headingLevel="h2"
             locale={selectedLocale}
@@ -2208,7 +2209,7 @@ export function TrouvablePremiumMenuExperience({
       <header ref={topBarRef} className={styles.topBar}>
         <div className={styles.brandBlock}>
           <VistaireWord />
-          <small>{context || copy.menuContextFallback}</small>
+          <small>{context || menu.name}</small>
         </div>
         <div className={styles.topActions}>
           <button
