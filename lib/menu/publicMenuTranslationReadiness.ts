@@ -6,7 +6,11 @@ import {
   stringInput,
   type MenuTranslationFields
 } from "../translation/menuTranslationModel.ts";
-import { menuTranslationFieldsFromNames } from "../translation/menuTranslationFields.ts";
+import {
+  canonicalDishDerivedTags,
+  canonicalDishTranslationFields,
+  menuTranslationFieldsFromNames
+} from "../translation/menuTranslationFields.ts";
 import type {
   PublicMenu,
   PublicMenuDish,
@@ -23,17 +27,6 @@ export type PublicMenuTranslationRows = {
   dishRows: AnyRow[];
 };
 
-function storedDishTags(dish: PublicMenuDish): string[] {
-  let tags = dish.tags;
-  if (dish.isRecommended) {
-    tags = tags.filter((tag) => tag.toLowerCase() !== "recommande");
-  }
-  if (dish.isSignature) {
-    tags = tags.filter((tag) => tag.toLowerCase() !== "signature");
-  }
-  return tags;
-}
-
 function listInput(value: unknown): string[] {
   return Array.isArray(value)
     ? value.map((item) => stringInput(item)).filter(Boolean)
@@ -43,12 +36,14 @@ function listInput(value: unknown): string[] {
 function missingTranslatedFieldReason(
   content: Record<string, unknown>,
   field: string,
-  sourceValue: MenuTranslationFields[string]
+  sourceValue: MenuTranslationFields[string],
+  manualOverride = false
 ): string {
   if (Array.isArray(sourceValue)) {
     const sourceCount = sourceValue.map((item) => item.trim()).filter(Boolean).length;
     if (sourceCount === 0) return "";
     const translatedCount = listInput(content[field]).length;
+    if (manualOverride && translatedCount > 0) return "";
     return translatedCount >= sourceCount
       ? ""
       : `missing translated content (${translatedCount}/${sourceCount})`;
@@ -73,10 +68,7 @@ function missingTranslatedFieldReason(
 }
 
 function derivedDishTags(dish: PublicMenuDish): string[] {
-  return [
-    ...(dish.isSignature ? ["Signature"] : []),
-    ...(dish.isRecommended ? ["Recommande"] : [])
-  ];
+  return canonicalDishDerivedTags(dish);
 }
 
 function rowHasUsablePublicTranslationStatus(row: AnyRow): boolean {
@@ -122,7 +114,12 @@ function storedTranslationFieldFailure(
   ) {
     return "invalid manual override";
   }
-  const contentReason = missingTranslatedFieldReason(content, field, sourceValue);
+  const contentReason = missingTranslatedFieldReason(
+    content,
+    field,
+    sourceValue,
+    manualOverrides[field] === true
+  );
   // A manual override is authoritative only when it still contains usable
   // content. This lets an owner intentionally keep French copy, while empty
   // overrides continue to fail closed.
@@ -164,15 +161,16 @@ function storedTranslationFieldFailure(
 export function publicMenuDishTranslationFields(
   dish: PublicMenuDish
 ): MenuTranslationFields {
-  const tags = storedDishTags(dish);
-  return {
-    ...(dish.description ? { description: dish.description } : {}),
-    ...(dish.ingredients.length > 0 ? { ingredients: dish.ingredients } : {}),
-    ...(dish.allergens.length > 0 ? { allergens: dish.allergens } : {}),
-    ...(dish.options.length > 0 ? { options: dish.options } : {}),
-    ...(dish.houseNote ? { houseNote: dish.houseNote } : {}),
-    ...(tags.length > 0 ? { tags } : {})
-  };
+  return canonicalDishTranslationFields({
+    description: dish.description,
+    ingredients: dish.ingredients,
+    allergens: dish.allergens,
+    options: dish.options,
+    houseNote: dish.houseNote,
+    tags: dish.tags,
+    isSignature: dish.isSignature,
+    isRecommended: dish.isRecommended
+  });
 }
 
 export function publicMenuTranslationMenuFields(

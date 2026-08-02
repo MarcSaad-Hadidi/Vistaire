@@ -430,11 +430,6 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     };
 
     const checkDestinationReadiness = () => {
-      destinationReadyTransitionIdRef.current = null;
-      if (handoffFrameRef.current) {
-        window.cancelAnimationFrame(handoffFrameRef.current);
-        handoffFrameRef.current = 0;
-      }
       bindMediaSignals();
       const latest = transitionRef.current;
       if (
@@ -445,7 +440,14 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
         return;
       }
       if (pathnameRef.current !== expectedPathname) return;
-      if (!destinationRendererIsReady()) return;
+      if (!destinationRendererIsReady()) {
+        destinationReadyTransitionIdRef.current = null;
+        if (handoffFrameRef.current) {
+          window.cancelAnimationFrame(handoffFrameRef.current);
+          handoffFrameRef.current = 0;
+        }
+        return;
+      }
       destinationReadyTransitionIdRef.current = current.id;
       tryCompleteHandoff();
     };

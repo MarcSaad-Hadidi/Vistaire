@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  canonicalDishDerivedTags,
+  canonicalDishTranslationFields
+} from "@/lib/translation/menuTranslationFields";
+import {
   objectInput,
   stringInput,
   type MenuTranslationFields
@@ -266,10 +270,7 @@ export async function applyStoredPublicMenuTranslations(
 
   const translatedDishes = menu.dishes.map((dish) => {
     const sourceFields = publicMenuDishTranslationFields(dish);
-    const legacyDerivedTags = [
-      ...(dish.isSignature ? ["Signature"] : []),
-      ...(dish.isRecommended ? ["Recommande"] : [])
-    ];
+    const legacyDerivedTags = canonicalDishDerivedTags(dish);
     const dishRow = dishRowsById.get(dish.id);
     const translatableTags = Array.isArray(sourceFields.tags)
       ? sourceFields.tags
@@ -277,6 +278,18 @@ export async function applyStoredPublicMenuTranslations(
     const categoryId = dish.categoryId || dish.category;
     const categoryFields = categoryFieldsById.get(categoryId);
     const categoryRow = categoryRowsById.get(categoryId);
+    const translatedTags = getTranslatedList({
+      field: "tags",
+      source: translatableTags,
+      sourceFields,
+      row: dishRow,
+      legacyDerivedTags
+    });
+    const canonicalTranslatedTags = canonicalDishTranslationFields({
+      tags: translatedTags,
+      isSignature: dish.isSignature,
+      isRecommended: dish.isRecommended
+    }).tags;
     return {
       ...dish,
       // Dish names stay in the menu's source language. Descriptions and the
@@ -336,18 +349,7 @@ export async function applyStoredPublicMenuTranslations(
         legacyDerivedTags
       }),
       tags: mergeTags(
-        getTranslatedList({
-          field: "tags",
-          source: translatableTags,
-          sourceFields,
-          row: dishRow,
-          legacyDerivedTags
-        }).filter(
-          (tag) =>
-            !legacyDerivedTags.some(
-              (derivedTag) => derivedTag.toLowerCase() === tag.toLowerCase()
-            )
-        ),
+        Array.isArray(canonicalTranslatedTags) ? canonicalTranslatedTags : [],
         legacyDerivedTags
       )
     };

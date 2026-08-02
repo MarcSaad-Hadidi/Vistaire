@@ -11,6 +11,10 @@ import {
   stableJson
 } from "../lib/translation/menuTranslationModel.ts";
 import {
+  canonicalDishDerivedTags,
+  canonicalDishTranslationFields
+} from "../lib/translation/menuTranslationFields.ts";
+import {
   CANONICAL_DISHES,
   CANONICAL_SECTIONS,
   CANONICAL_ENGLISH_DISH_NAMES,
@@ -236,10 +240,6 @@ function nonEmptyList(value) {
   return stringListInput(value);
 }
 
-function mergeLists(...values) {
-  return Array.from(new Set(values.flatMap(nonEmptyList)));
-}
-
 function addField(fields, key, value) {
   const valid = Array.isArray(value)
     ? value.some((item) => nonEmpty(item))
@@ -379,15 +379,36 @@ function sourceCategoryFields(category) {
 
 export function sourceDishFields(dish) {
   const metadata = asObject(dish.metadata);
-  const fields = {};
-  addField(fields, "name", dish.name ?? dish.dish_name ?? dish.title);
-  addField(fields, "description", dish.short_description ?? dish.shortDescription ?? dish.description);
-  addField(fields, "ingredients", mergeLists(metadata.ingredients, metadata.ingredient_list, dish.ingredients));
-  addField(fields, "allergens", mergeLists(dish.allergens, metadata.allergens, metadata.allergenes, metadata.allergen_list));
-  addField(fields, "options", mergeLists(metadata.options, metadata.option_list, metadata.extras, metadata.accompaniments));
-  addField(fields, "houseNote", metadata.chefNote ?? metadata.chef_note ?? metadata.houseNote ?? metadata.house_note);
-  addField(fields, "tags", mergeLists(metadata.tags, metadata.labels, metadata.badges));
-  return fields;
+  return canonicalDishTranslationFields({
+    description: dish.short_description ?? dish.shortDescription ?? dish.description,
+    ingredients: [
+      ...nonEmptyList(metadata.ingredients),
+      ...nonEmptyList(metadata.ingredient_list),
+      ...nonEmptyList(dish.ingredients)
+    ],
+    allergens: [
+      ...nonEmptyList(dish.allergens),
+      ...nonEmptyList(metadata.allergens),
+      ...nonEmptyList(metadata.allergenes),
+      ...nonEmptyList(metadata.allergen_list)
+    ],
+    options: [
+      ...nonEmptyList(metadata.options),
+      ...nonEmptyList(metadata.option_list),
+      ...nonEmptyList(metadata.extras),
+      ...nonEmptyList(metadata.accompaniments)
+    ],
+    houseNote: metadata.chefNote ?? metadata.chef_note ?? metadata.houseNote ?? metadata.house_note,
+    tags: [
+      ...nonEmptyList(dish.tags),
+      ...nonEmptyList(dish.labels),
+      ...nonEmptyList(metadata.tags),
+      ...nonEmptyList(metadata.labels),
+      ...nonEmptyList(metadata.badges)
+    ],
+    isSignature: dish.is_signature ?? dish.isSignature,
+    isRecommended: dish.is_recommended ?? dish.isRecommended
+  });
 }
 
 export function sourceFieldsFor(entityType, row) {
@@ -446,7 +467,11 @@ export function buildEntities(snapshot) {
       id: row.id,
       slug: row.slug,
       label: row.name,
-      fields: sourceFieldsFor("dish", row)
+      fields: sourceFieldsFor("dish", row),
+      legacyDerivedTags: canonicalDishDerivedTags({
+        isSignature: row.is_signature ?? row.isSignature,
+        isRecommended: row.is_recommended ?? row.isRecommended
+      })
     }))
   ];
 }
@@ -574,10 +599,12 @@ function canonicalMaisonFields(entity, snapshot) {
   if (normalizeKey(entity.label) !== normalizeKey(source.name)) {
     fail(`Maison Élyse dish name diverges from canonical source: ${entity.slug}`);
   }
-  const result = {};
+  // The dish name remains source identity. Preserve an existing translated
+  // name when present, while seeding the canonical identity for new rows;
+  // it is intentionally excluded from translation fields and hashes.
+  const result = { name: english.name };
   for (const field of Object.keys(entity.fields)) {
-    if (field === "name") result.name = english.name;
-    else if (field in english) result[field] = english[field];
+    if (field in english) result[field] = english[field];
   }
   return result;
 }
@@ -595,6 +622,9 @@ function canonicalContentFor(entity, snapshot, existingRow) {
   if (isPlaceholderName(canonicalName)) fail(`${target} canonical name is empty or placeholder for ${entity.slug}`);
 
   const content = { ...existingContent };
+  if (entity.type === "dish" && !isUsableValue(content.name) && isUsableValue(canonical.name)) {
+    content.name = canonical.name;
+  }
   const requiredFields = target === MAISON_ELYSE_SLUG
     ? Object.keys(entity.fields)
     : entity.type === "menu" ? ["menuName"] : ["name"];
@@ -805,7 +835,7 @@ export async function readSnapshot(client, targetSlug, locale) {
   if (!menu) fail(`${targetSlug}: no non-archived primary menu was found`);
   const [categories, dishes, menuRows, categoryRows, dishRows] = await Promise.all([
     readRows(client, "menu_categories", { columns: "id,restaurant_id,menu_id,name,slug,description,display_order", filters: { restaurant_id: restaurant.id, menu_id: menu.id }, orderBy: "display_order" }),
-    readRows(client, "menu_dishes", { columns: "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,allergens,metadata,display_order", filters: { restaurant_id: restaurant.id, menu_id: menu.id }, orderBy: "display_order" }),
+    readRows(client, "menu_dishes", { columns: "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,allergens,metadata,is_signature,is_recommended,display_order", filters: { restaurant_id: restaurant.id, menu_id: menu.id }, orderBy: "display_order" }),
     readRows(client, TRANSLATION_TABLES.menu, { columns: selectedColumns("menu"), filters: { menu_id: menu.id, locale } }),
     readRows(client, TRANSLATION_TABLES.category, { columns: selectedColumns("category"), filters: { menu_id: menu.id, locale } }),
     readRows(client, TRANSLATION_TABLES.dish, { columns: selectedColumns("dish"), filters: { menu_id: menu.id, locale } })

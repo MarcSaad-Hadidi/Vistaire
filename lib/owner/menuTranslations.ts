@@ -2,12 +2,15 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicMenuSettings } from "@/lib/menu/publicMenuSettings";
-import { capitalizeListItems } from "@/lib/menu/listText";
 import {
   persistGeneratedLocalizedUiCopy,
   readPublicMenuSettingsBundleWithFallbacks
 } from "@/lib/owner/publicMenuSettingsFallback";
-import { menuTranslationFieldsFromNames } from "@/lib/translation/menuTranslationFields";
+import {
+  canonicalDishDerivedTags,
+  canonicalDishTranslationFields,
+  menuTranslationFieldsFromNames
+} from "@/lib/translation/menuTranslationFields";
 import {
   estimateChangedCharacters,
   fieldHashesFor,
@@ -17,6 +20,7 @@ import {
   stringInput,
   stringListInput,
   summarizeLocaleTranslationStatus,
+  translationRowCanRepairMetadata,
   type MenuTranslationFieldValue,
   type MenuTranslationFields,
   type MenuTranslationSourceEntity,
@@ -126,28 +130,18 @@ function firstStringList(row: AnyRow, keys: string[]): string[] {
 }
 
 function sourceDishTags(row: AnyRow, metadata: AnyRow): string[] {
-  const metadataTags = firstStringList(metadata, ["tags", "labels"]);
-  const rowTags = firstStringList(row, ["tags", "labels"]);
-  const tags = mergeStringLists(
-    metadataTags.length > 0 ? metadataTags : rowTags,
+  return mergeStringLists(
+    firstStringList(metadata, ["tags", "labels"]),
+    firstStringList(row, ["tags", "labels"]),
     stringListInput(metadata.badges)
   );
-  const isSignature = booleanInput(row, ["is_signature", "isSignature"]);
-  const isRecommended = booleanInput(row, ["is_recommended", "isRecommended"]);
-  return tags.filter((tag) => {
-    const normalized = tag.toLowerCase();
-    return !(isSignature && normalized === "signature") &&
-      !(isRecommended && normalized === "recommande");
-  });
 }
 
 function sourceDishDerivedTags(row: AnyRow): string[] {
-  const derived: string[] = [];
-  if (booleanInput(row, ["is_signature", "isSignature"])) derived.push("Signature");
-  if (booleanInput(row, ["is_recommended", "isRecommended"])) {
-    derived.push("Recommande");
-  }
-  return derived;
+  return canonicalDishDerivedTags({
+    isSignature: booleanInput(row, ["is_signature", "isSignature"]),
+    isRecommended: booleanInput(row, ["is_recommended", "isRecommended"])
+  });
 }
 
 function addField(
@@ -163,50 +157,32 @@ function addField(
 
 function dishFields(row: AnyRow): MenuTranslationFields {
   const metadata = getObject(row, ["metadata", "meta"]);
-  const fields: MenuTranslationFields = {};
   // Dish names are source identity. They remain French in the public menu and
   // must never participate in translation hashes, freshness, or readiness.
-  addField(fields, "description", getString(row, ["short_description", "shortDescription", "description"]));
-  addField(
-    fields,
-    "ingredients",
-    capitalizeListItems(mergeStringLists(
+  return canonicalDishTranslationFields({
+    description: getString(row, ["short_description", "shortDescription", "description"]),
+    ingredients: mergeStringLists(
       stringListInput(metadata.ingredients),
       stringListInput(metadata.ingredient_list),
       stringListInput(row.ingredients)
-    ))
-  );
-  addField(
-    fields,
-    "allergens",
-    mergeStringLists(
+    ),
+    allergens: mergeStringLists(
       stringListInput(row.allergens),
       stringListInput(metadata.allergens),
       stringListInput(metadata.allergenes),
       stringListInput(metadata.allergen_list)
-    )
-  );
-  addField(
-    fields,
-    "options",
-    capitalizeListItems(mergeStringLists(
+    ),
+    options: mergeStringLists(
       stringListInput(metadata.options),
       stringListInput(metadata.option_list),
       stringListInput(metadata.extras),
       stringListInput(metadata.accompaniments)
-    ))
-  );
-  addField(
-    fields,
-    "houseNote",
-    getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"])
-  );
-  addField(
-    fields,
-    "tags",
-    sourceDishTags(row, metadata)
-  );
-  return fields;
+    ),
+    houseNote: getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"]),
+    tags: sourceDishTags(row, metadata),
+    isSignature: booleanInput(row, ["is_signature", "isSignature"]),
+    isRecommended: booleanInput(row, ["is_recommended", "isRecommended"])
+  });
 }
 
 function categoryFields(row: AnyRow): MenuTranslationFields {
@@ -441,21 +417,6 @@ function flattenTranslationTasks(entity: MenuTranslationSourceEntity, row?: Stor
   return tasks;
 }
 
-function translationHashesNeedRepair(
-  entity: MenuTranslationSourceEntity,
-  row: StoredMenuTranslation | null | undefined
-): boolean {
-  if (!row || row.source_hash !== sourceHashFor(entity.fields)) return Boolean(row);
-  const expectedFieldHashes = fieldHashesFor(entity.fields);
-  const storedFieldHashes = objectInput(row.field_hashes);
-  if (Object.keys(storedFieldHashes).length !== Object.keys(expectedFieldHashes).length) {
-    return true;
-  }
-  return Object.entries(expectedFieldHashes).some(
-    ([field, hash]) => storedFieldHashes[field] !== hash
-  );
-}
-
 function applyTaskTranslations(
   entity: MenuTranslationSourceEntity,
   row: StoredMenuTranslation | undefined,
@@ -506,6 +467,28 @@ async function upsertEntityTranslation(args: {
   const { error } = await args.ctx.client
     .from(tableForEntity(args.entity.type))
     .upsert(payload, { onConflict: `${idColumnForEntity(args.entity.type)},locale` });
+  if (error) throw new Error(error.message);
+}
+
+async function repairEntityTranslationMetadata(args: {
+  ctx: TranslationContext;
+  entity: MenuTranslationSourceEntity;
+  locale: string;
+}) {
+  const menuId = getString(args.ctx.menu, ["id"]);
+  const entityId = args.entity.type === "menu" ? menuId : args.entity.id;
+  let query = args.ctx.client
+    .from(tableForEntity(args.entity.type))
+    .update({
+      translation_status: "up_to_date",
+      source_hash: sourceHashFor(args.entity.fields),
+      field_hashes: fieldHashesFor(args.entity.fields),
+      updated_at: new Date().toISOString()
+    })
+    .eq(idColumnForEntity(args.entity.type), entityId)
+    .eq("locale", args.locale);
+  if (args.entity.type !== "menu") query = query.eq("menu_id", menuId);
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
 
@@ -646,17 +629,16 @@ export async function generateOwnerMenuTranslations(args: {
     if (!isDefaultLocale) {
       for (const entity of ctx.entities) {
         const row = rowsByKey.get(`${entity.type}:${entity.id}`);
+        if (translationRowCanRepairMetadata(entity, row)) {
+          await repairEntityTranslationMetadata({
+            ctx,
+            entity,
+            locale: args.locale
+          });
+          continue;
+        }
         const entityStatus = resolveEntityTranslationStatus(entity, row);
         if (entityStatus.status === "up_to_date") {
-          if (translationHashesNeedRepair(entity, row)) {
-            await upsertEntityTranslation({
-              ctx,
-              entity,
-              locale: args.locale,
-              provider: translator.provider,
-              content: objectInput(row?.content)
-            });
-          }
           continue;
         }
 

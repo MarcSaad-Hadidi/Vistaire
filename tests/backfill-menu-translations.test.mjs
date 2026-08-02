@@ -142,7 +142,6 @@ test("source dish fields follow the production contract and only include non-emp
       }
     }),
     {
-      name: "Plat officiel",
       description: "Description courte",
       ingredients: ["Ingredient réel"],
       allergens: ["gluten"],
@@ -163,7 +162,7 @@ test("Trouvable and Sauge plans write an explicit English canonical name without
     assert.equal(dish.patch.content.name, targetSlug === "sauge-noire" ? "Warm rye bread" : "Smoked Meat Saint-Laurent");
     assert.ok(!/placeholder|tbd|test/i.test(dish.patch.content.name));
     assert.equal(dish.patch.source_hash.length, 64);
-    assert.equal(dish.patch.field_hashes.name.length, 64);
+    assert.equal("name" in dish.patch.field_hashes, false);
   }
 });
 

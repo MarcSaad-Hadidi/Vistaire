@@ -573,6 +573,31 @@ test("manual overrides are inspected before source-language rejection but remain
   }).find((status) => status.locale === "de-DE");
   assert.equal(mixed?.status, "stale");
   assert.equal(mixed?.field, "ingredients");
+
+  const partialListOverrideRows = completeRows(
+    "de-DE",
+    completeDishContent({ ingredients: ["Only one translated ingredient"] })
+  );
+  partialListOverrideRows.dishRows[0].manual_overrides = { ingredients: true };
+  assert.equal(
+    publicMenuTranslationStatusesForRows(menu, {
+      menuRows: [],
+      ...partialListOverrideRows
+    }).find((status) => status.locale === "de-DE")?.status,
+    "up_to_date"
+  );
+
+  const emptyListOverrideRows = completeRows(
+    "de-DE",
+    completeDishContent({ ingredients: [] })
+  );
+  emptyListOverrideRows.dishRows[0].manual_overrides = { ingredients: true };
+  const emptyListOverride = publicMenuTranslationStatusesForRows(menu, {
+    menuRows: [],
+    ...emptyListOverrideRows
+  }).find((status) => status.locale === "de-DE");
+  assert.equal(emptyListOverride?.status, "stale");
+  assert.equal(emptyListOverride?.field, "ingredients");
 });
 
 test("rows with missing or stale hashes are never promoted", () => {

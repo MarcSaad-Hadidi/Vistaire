@@ -242,7 +242,7 @@ test("stored English copy keeps the French source dish name", async () => {
           allergens: ["Eggs", "Gluten"],
           options: ["Crisp bacon", "Lemon avocado", "Gluten-free on request"],
           houseNote: "Served warm for the table.",
-          tags: ["Signature", "House favourite"],
+          tags: ["Recommended", "Signature", "House favourite"],
           name: "Stored house breakfast"
         }
       }

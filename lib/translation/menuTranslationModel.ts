@@ -216,6 +216,70 @@ export function stringListInput(value: unknown): string[] {
   return [];
 }
 
+function usableStoredFieldValue(
+  content: Record<string, unknown>,
+  field: string,
+  sourceValue: MenuTranslationFieldValue,
+  manualOverride: boolean
+): boolean {
+  const stored = content[field];
+  if (Array.isArray(sourceValue)) {
+    if (!Array.isArray(stored)) return false;
+    const values = stored
+      .map((item) => stringInput(item))
+      .filter(Boolean);
+    if (values.length === 0) return false;
+    return manualOverride || values.length >= sourceValue.length;
+  }
+  return Boolean(stringInput(stored));
+}
+
+/**
+ * Legacy rows can need only hash metadata repair. This predicate is deliberately
+ * strict: every current field hash must match and every stored value must remain
+ * usable, while a non-empty manual override may intentionally have fewer list
+ * items than the source. No content or audit columns are changed by the repair.
+ */
+export function translationRowCanRepairMetadata(
+  entity: MenuTranslationSourceEntity,
+  row: StoredMenuTranslation | null | undefined
+): boolean {
+  if (!row || row.translation_status === "error") return false;
+  const storedFieldHashes = objectInput(row.field_hashes);
+  const expectedFieldHashes = fieldHashesFor(entity.fields);
+  if (
+    Object.entries(expectedFieldHashes).some(
+      ([field, hash]) => storedFieldHashes[field] !== hash
+    )
+  ) {
+    return false;
+  }
+  const manualOverrides = objectInput(row.manual_overrides);
+  if (
+    Object.values(manualOverrides).some(
+      (value) => value !== true && value !== false
+    )
+  ) {
+    return false;
+  }
+  const content = objectInput(row.content);
+  if (
+    Object.entries(entity.fields).some(([field, value]) =>
+      !usableStoredFieldValue(content, field, value, manualOverrides[field] === true)
+    )
+  ) {
+    return false;
+  }
+  const expectedSourceHash = sourceHashFor(entity.fields);
+  const storedKeys = Object.keys(storedFieldHashes).sort();
+  const expectedKeys = Object.keys(expectedFieldHashes).sort();
+  return (
+    row.source_hash !== expectedSourceHash ||
+    storedKeys.length !== expectedKeys.length ||
+    storedKeys.some((field, index) => field !== expectedKeys[index])
+  );
+}
+
 export function translationTextLength(value: MenuTranslationFieldValue): number {
   if (Array.isArray(value)) {
     return value.reduce((total, item) => total + item.length, 0);

@@ -250,7 +250,7 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   );
   assert.match(
     coordinator,
-    /destinationReadyTransitionIdRef\.current = null;[\s\S]*cancelAnimationFrame\(handoffFrameRef\.current\)[\s\S]*bindMediaSignals\(\)/
+    /if \(!destinationRendererIsReady\(\)\) \{[\s\S]*destinationReadyTransitionIdRef\.current = null;[\s\S]*cancelAnimationFrame\(handoffFrameRef\.current\)[\s\S]*return;[\s\S]*\}\s*destinationReadyTransitionIdRef\.current = current\.id;[\s\S]*tryCompleteHandoff\(\)/
   );
   assert.doesNotMatch(coordinator, /resolveSaugeNoireOriginalPage/);
   assert.match(coordinator, /window\.location\.assign\(latest\.href\)/);
