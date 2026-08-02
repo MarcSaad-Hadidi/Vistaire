@@ -232,6 +232,21 @@ test("source dish fields follow the production contract and only include non-emp
   );
 });
 
+test("source dish fields use the first non-empty prose aliases like public mapping", () => {
+  assert.deepEqual(
+    sourceDishFields({
+      short_description: "  ",
+      description: "Description longue",
+      metadata: { chefNote: "  " },
+      house_note: "Note maison"
+    }),
+    {
+      description: "Description longue",
+      houseNote: "Note maison"
+    }
+  );
+});
+
 test("backfill contract documents the PR175 then PR174 integration order", () => {
   const runbook = readFileSync(new URL("../docs/qa/menu-translation-backfill-runbook.md", import.meta.url), "utf8");
   assert.match(runbook, /PR #175.*PR #174/s);

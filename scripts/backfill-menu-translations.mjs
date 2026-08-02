@@ -261,6 +261,14 @@ function firstNonEmptyList(...values) {
   return [];
 }
 
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    const text = nonEmpty(value);
+    if (text) return text;
+  }
+  return "";
+}
+
 function addField(fields, key, value) {
   const valid = Array.isArray(value)
     ? value.some((item) => nonEmpty(item))
@@ -412,7 +420,11 @@ function sourceCategoryFields(category) {
 export function sourceDishFields(dish) {
   const metadata = asObject(dish.metadata);
   return canonicalDishTranslationFields({
-    description: dish.short_description ?? dish.shortDescription ?? dish.description,
+    description: firstNonEmptyString(
+      dish.short_description,
+      dish.shortDescription,
+      dish.description
+    ),
     ingredients: firstNonEmptyList(
       metadata.ingredients,
       metadata.ingredient_list,
@@ -437,16 +449,17 @@ export function sourceDishFields(dish) {
       ...nonEmptyList(metadata.extras),
       ...nonEmptyList(metadata.accompaniments)
     ],
-    houseNote:
-      metadata.chefNote ??
-      metadata.chef_note ??
-      metadata.houseNote ??
-      metadata.house_note ??
-      dish.house_note ??
-      dish.houseNote ??
-      dish.chef_note ??
-      dish.chefNote ??
-      dish.note,
+    houseNote: firstNonEmptyString(
+      metadata.chefNote,
+      metadata.chef_note,
+      metadata.houseNote,
+      metadata.house_note,
+      dish.house_note,
+      dish.houseNote,
+      dish.chef_note,
+      dish.chefNote,
+      dish.note
+    ),
     tags: [
       ...firstNonEmptyList(
         metadata.tags,
