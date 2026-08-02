@@ -238,7 +238,13 @@ export function SaugeNoireTransitionCoordinator({ children }: { children: ReactN
     (active: boolean) => {
       settledPreviewGestureActiveRef.current = active;
       if (!active) {
-        destinationReadinessCheckRef.current?.();
+        const current = transitionRef.current;
+        const handoffReadyForCurrent =
+          current?.phase === "awaiting-destination" &&
+          destinationReadyTransitionIdRef.current === current.id;
+        if (!handoffReadyForCurrent) {
+          destinationReadinessCheckRef.current?.();
+        }
         tryCompleteHandoff();
       }
     },

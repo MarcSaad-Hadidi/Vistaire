@@ -270,6 +270,19 @@ test("awaiting destination uses readiness signals and has a bounded watchdog", a
   );
 });
 
+test("watchdog readiness survives a settled gesture until handoff completion", async () => {
+  const coordinator = await readFile(transitionCoordinatorPath, "utf8");
+
+  assert.match(
+    coordinator,
+    /const current = transitionRef\.current;[\s\S]*handoffReadyForCurrent[\s\S]*destinationReadyTransitionIdRef\.current === current\.id/
+  );
+  assert.match(
+    coordinator,
+    /if \(!handoffReadyForCurrent\) \{[\s\S]*destinationReadinessCheckRef\.current\?\.\(\);[\s\S]*\}[\s\S]*tryCompleteHandoff\(\)/
+  );
+});
+
 test("aborted route handoffs release their scheduled frame for later transitions", async () => {
   const coordinator = await readFile(transitionCoordinatorPath, "utf8");
 
