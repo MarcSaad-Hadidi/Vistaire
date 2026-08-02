@@ -9,7 +9,8 @@ import {
   objectInput,
   sourceHashFor,
   stringListInput,
-  stableJson
+  stableJson,
+  translationValueIsSourceIdentical
 } from "../lib/translation/menuTranslationModel.ts";
 import {
   canonicalDishDerivedTags,
@@ -787,7 +788,14 @@ function buildFreshnessState(entity, existing, content, generatedFields, overrid
   const provenFields = [];
   for (const field of freshnessFields) {
     if (generatedFields.has(field)) {
-      if (!translatedValueIsComplete(entity.fields[field], content[field])) {
+      if (
+        !translatedValueIsComplete(entity.fields[field], content[field]) ||
+        translationValueIsSourceIdentical(
+          field,
+          entity.fields[field],
+          content[field]
+        )
+      ) {
         fail(`${label}.${field} was generated without usable translated content`);
       }
       fieldHashes[field] = currentFieldHashes[field];
@@ -807,6 +815,11 @@ function buildFreshnessState(entity, existing, content, generatedFields, overrid
         ));
     if (
       translatedValueIsComplete(entity.fields[field], content[field]) &&
+      !translationValueIsSourceIdentical(
+        field,
+        entity.fields[field],
+        content[field]
+      ) &&
       currentHashMatches
     ) {
       // Normalize a legacy derived-badge hash once the translated content is
@@ -818,7 +831,13 @@ function buildFreshnessState(entity, existing, content, generatedFields, overrid
   }
 
   const complete = Object.keys(entity.fields).every((field) =>
-    translatedValueIsComplete(entity.fields[field], content[field])
+    translatedValueIsComplete(entity.fields[field], content[field]) &&
+    (overrides[field] === true ||
+      !translationValueIsSourceIdentical(
+        field,
+        entity.fields[field],
+        content[field]
+      ))
   ) &&
     freshnessFields.every((field) => fieldHashes[field] === currentFieldHashes[field]);
   const currentSourceHash = sourceHashFor(entity.fields);
@@ -891,6 +910,7 @@ function missingFields(content, fields, requiredFields, fieldHashes, overrides) 
   return requiredFields.filter((field) =>
     overrides[field] !== true &&
     (!translatedValueIsComplete(fields[field], content[field]) ||
+      translationValueIsSourceIdentical(field, fields[field], content[field]) ||
       fieldHashes[field] !== currentFieldHashes[field])
   );
 }

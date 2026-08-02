@@ -319,7 +319,9 @@ export function translationRowCanRepairMetadata(
   const content = objectInput(row.content);
   if (
     Object.entries(entity.fields).some(([field, value]) =>
-      !usableStoredFieldValue(content, field, value, manualOverrides[field] === true)
+      !usableStoredFieldValue(content, field, value, manualOverrides[field] === true) ||
+      (manualOverrides[field] !== true &&
+        translationValueIsSourceIdentical(field, value, content[field]))
     )
   ) {
     return false;

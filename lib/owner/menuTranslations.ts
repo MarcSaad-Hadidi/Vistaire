@@ -142,8 +142,7 @@ function firstStringListFromSources(
 
 function sourceDishTags(row: AnyRow, metadata: AnyRow): string[] {
   return mergeStringLists(
-    firstStringList(metadata, ["tags", "labels"]),
-    firstStringList(row, ["tags", "labels"]),
+    firstStringListFromSources(row, metadata, ["tags", "labels"]),
     stringListInput(metadata.badges)
   );
 }

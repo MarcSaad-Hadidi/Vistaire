@@ -175,6 +175,11 @@ function completeStoredRows(current) {
   }));
   rows.push(...current.dishes.map((dish) => {
     const fields = sourceDishFields(dish);
+    const translatedContent = {
+      ...fields,
+      ...(fields.description ? { description: "English dish description" } : {}),
+      ...(fields.houseNote ? { houseNote: "English house note" } : {})
+    };
     return {
       id: `translation-${dish.id}`,
       entityType: "dish",
@@ -183,7 +188,7 @@ function completeStoredRows(current) {
       provider: "human",
       source_hash: sourceHashFor(fields),
       field_hashes: fieldHashesFor(fields),
-      content: { ...fields },
+      content: translatedContent,
       manual_overrides: {},
       error_message: null,
       translated_at: "2026-07-31T01:00:00.000Z",
@@ -443,6 +448,19 @@ test("legacy derived badge hashes are repaired without retranslating complete di
   assert.equal(operation.action, "update");
 });
 
+test("backfill freshness rejects source-identical prose", () => {
+  const current = snapshot();
+  const existing = freshDishRow(current);
+  existing.content.description = current.dishes[0].short_description;
+  current.rows = [existing];
+
+  const plan = buildPlan(current);
+  const operation = dishOperation(plan);
+  assert.equal(operation.patch.translation_status, "stale");
+  assert.ok(plan.errors.some((error) => /empty source_hash/i.test(error)));
+  assert.ok(operation.missingFields.includes("description"));
+});
+
 test("Trouvable and Sauge plans keep dish names out of translated content", () => {
   for (const targetSlug of ["trouvable", "sauge-noire"]) {
     const current = snapshot({ targetSlug });
@@ -619,7 +637,11 @@ test("Trouvable only plans readiness when all nine categories and 36 dishes are 
         provider: "canonical-backfill",
         source_hash: sourceHashFor(fields),
         field_hashes: fieldHashesFor(fields),
-        content: { ...fields, name: TROUVABLE_CANONICAL_NAMES.dishes[dish.slug].en },
+        content: {
+          ...fields,
+          description: "English dish description",
+          name: TROUVABLE_CANONICAL_NAMES.dishes[dish.slug].en
+        },
         manual_overrides: {}
       };
     })

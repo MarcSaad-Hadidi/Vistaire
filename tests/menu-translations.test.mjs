@@ -285,6 +285,13 @@ test("legacy metadata repairs require valid current fields and preserve stored c
   assert.equal(
     translationRowCanRepairMetadata(entity, {
       ...row,
+      content: { ...row.content, description: fields.description }
+    }),
+    false
+  );
+  assert.equal(
+    translationRowCanRepairMetadata(entity, {
+      ...row,
       manual_overrides: { ingredients: "yes" }
     }),
     false
@@ -355,6 +362,10 @@ test("owner and backfill source lists follow public alias precedence", async () 
 
   assert.match(ownerTranslations, /ingredients:\s*firstStringListFromSources\(/);
   assert.match(ownerTranslations, /allergens:\s*firstStringListFromSources\(/);
+  assert.match(
+    ownerTranslations,
+    /function sourceDishTags[\s\S]*?firstStringListFromSources\(/s
+  );
   assert.match(backfill, /ingredients:\s*firstNonEmptyList\(/);
   assert.match(backfill, /allergens:\s*firstNonEmptyList\(/);
   assert.doesNotMatch(
