@@ -11,6 +11,9 @@ import {
   fieldHashesFor,
   sourceHashFor
 } from "../lib/translation/menuTranslationModel.ts";
+import {
+  registerPublicMenuDishTranslationSourceLists
+} from "../lib/menu/publicMenuCore.ts";
 import { getTrouvableReadyLanguageOptions } from "../components/menu/trouvableMenuControls.ts";
 
 const settings = {
@@ -290,12 +293,12 @@ test("production dishes use their exact raw lists without a variant-size cap", (
   );
   const currentDish = {
     ...baseDish,
-    ingredients: currentIngredients,
-    translationSourceLists: {
-      ingredients: legacyIngredients,
-      options: baseDish.options
-    }
+    ingredients: currentIngredients
   };
+  registerPublicMenuDishTranslationSourceLists(currentDish, {
+    ingredients: legacyIngredients,
+    options: baseDish.options
+  });
   const fields = publicMenuDishTranslationFields(currentDish);
   const legacyFields = { ...fields, ingredients: legacyIngredients };
   const row = rowFor(

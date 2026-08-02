@@ -13,10 +13,11 @@ import {
   canonicalDishTranslationFields,
   menuTranslationFieldsFromNames
 } from "../translation/menuTranslationFields.ts";
-import type {
-  PublicMenu,
-  PublicMenuDish,
-  PublicMenuTranslationStatus
+import {
+  getPublicMenuDishTranslationSourceLists,
+  type PublicMenu,
+  type PublicMenuDish,
+  type PublicMenuTranslationStatus
 } from "./publicMenuCore.ts";
 import type { PublicMenuSettings } from "./publicMenuSettings.ts";
 import { publicMenuUiCopyReadiness } from "../translation/publicMenuUiCopyTranslation.ts";
@@ -168,9 +169,10 @@ export function publicMenuDishTranslationFields(
     isSignature: dish.isSignature,
     isRecommended: dish.isRecommended
   });
-  if (dish.translationSourceLists) {
+  const sourceLists = getPublicMenuDishTranslationSourceLists(dish);
+  if (sourceLists) {
     Object.defineProperty(fields, LEGACY_PRESENTATION_SOURCE_FIELDS, {
-      value: dish.translationSourceLists,
+      value: sourceLists,
       enumerable: false
     });
   }

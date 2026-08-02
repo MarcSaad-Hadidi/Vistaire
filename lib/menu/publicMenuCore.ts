@@ -114,16 +114,36 @@ export type PublicMenuDish = {
   options: string[];
   houseNote: string;
   tags: string[];
-  /**
-   * Raw source lists retained only for translation-readiness compatibility.
-   * `mapDishRow` defines this property as non-enumerable so it never becomes
-   * part of the public menu payload.
-   */
-  translationSourceLists?: {
-    ingredients: string[];
-    options: string[];
-  };
 };
+
+/**
+ * Historical translation hashes were generated before presentation-only list
+ * capitalization. Keep the raw lists in a server-side WeakMap instead of on
+ * the dish object: dishes cross the Server/Client boundary and even
+ * non-enumerable symbol properties trigger Next's serializability warnings.
+ */
+export type PublicMenuDishTranslationSourceLists = Readonly<{
+  ingredients: readonly string[];
+  options: readonly string[];
+}>;
+
+const publicMenuDishTranslationSourceLists = new WeakMap<
+  PublicMenuDish,
+  PublicMenuDishTranslationSourceLists
+>();
+
+export function registerPublicMenuDishTranslationSourceLists(
+  dish: PublicMenuDish,
+  sourceLists: PublicMenuDishTranslationSourceLists
+): void {
+  publicMenuDishTranslationSourceLists.set(dish, sourceLists);
+}
+
+export function getPublicMenuDishTranslationSourceLists(
+  dish: PublicMenuDish
+): PublicMenuDishTranslationSourceLists | undefined {
+  return publicMenuDishTranslationSourceLists.get(dish);
+}
 
 export type GoogleReviewConfig = {
   enabled: boolean;
@@ -1123,12 +1143,9 @@ function mapDishRow(
       isRecommended ? ["Recommande"] : []
     )
   };
-  Object.defineProperty(dish, "translationSourceLists", {
-    value: {
-      ingredients: sourceIngredients,
-      options: sourceOptions
-    },
-    enumerable: false
+  registerPublicMenuDishTranslationSourceLists(dish, {
+    ingredients: sourceIngredients,
+    options: sourceOptions
   });
   return dish;
 }
