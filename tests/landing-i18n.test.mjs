@@ -192,6 +192,10 @@ test("stored English copy keeps the French source dish name", async () => {
     ...demo.dishes[0],
     isSignature: true,
     isRecommended: true,
+    ingredients: [
+      ...demo.dishes[0].ingredients,
+      demo.dishes[0].ingredients[0]
+    ],
     tags: [...demo.dishes[0].tags, "Signature", "Recommande"]
   };
   const sourceMenu = {
@@ -242,7 +246,7 @@ test("stored English copy keeps the French source dish name", async () => {
           allergens: ["Eggs", "Gluten"],
           options: ["Crisp bacon", "Lemon avocado", "Gluten-free on request"],
           houseNote: "Served warm for the table.",
-          tags: ["Recommended", "Signature", "House favourite"],
+          tags: ["House favourite", "Firma", "Recomendado"],
           name: "Stored house breakfast"
         }
       }
@@ -280,6 +284,12 @@ test("stored English copy keeps the French source dish name", async () => {
     assert.equal(english.activeLocale, "en-CA");
     assert.equal(english.dishes[0].name, sourceMenu.dishes[0].name);
     assert.equal(sourceMenu.dishes[0].name, "Dejeuner classique maison");
+    assert.deepEqual(english.dishes[0].ingredients, [
+      "Farm eggs",
+      "Crisp potatoes",
+      "Herb salad",
+      "Sourdough"
+    ]);
     assert.deepEqual(english.dishes[0].tags, [
       "House favourite",
       "Signature",

@@ -6,6 +6,7 @@ import {
 } from "@/lib/translation/menuTranslationFields";
 import {
   objectInput,
+  legacyDerivedTagIndexes,
   stringInput,
   type MenuTranslationFields
 } from "@/lib/translation/menuTranslationModel";
@@ -272,6 +273,11 @@ export async function applyStoredPublicMenuTranslations(
     const sourceFields = publicMenuDishTranslationFields(dish);
     const legacyDerivedTags = canonicalDishDerivedTags(dish);
     const dishRow = dishRowsById.get(dish.id);
+    const legacyDerivedTagIndexesForRow = legacyDerivedTagIndexes(
+      sourceFields,
+      dishRow,
+      legacyDerivedTags
+    );
     const translatableTags = Array.isArray(sourceFields.tags)
       ? sourceFields.tags
       : [];
@@ -286,7 +292,10 @@ export async function applyStoredPublicMenuTranslations(
       legacyDerivedTags
     });
     const canonicalTranslatedTags = canonicalDishTranslationFields({
-      tags: translatedTags,
+      tags: translatedTags.filter(
+        (_tag, index) =>
+          !legacyDerivedTagIndexesForRow.includes(index)
+      ),
       isSignature: dish.isSignature,
       isRecommended: dish.isRecommended
     }).tags;
@@ -322,21 +331,27 @@ export async function applyStoredPublicMenuTranslations(
           : dish.categoryDescription,
       ingredients: getTranslatedList({
         field: "ingredients",
-        source: dish.ingredients,
+        source: Array.isArray(sourceFields.ingredients)
+          ? sourceFields.ingredients
+          : [],
         sourceFields,
         row: dishRow,
         legacyDerivedTags
       }),
       allergens: getTranslatedList({
         field: "allergens",
-        source: dish.allergens,
+        source: Array.isArray(sourceFields.allergens)
+          ? sourceFields.allergens
+          : [],
         sourceFields,
         row: dishRow,
         legacyDerivedTags
       }),
       options: getTranslatedList({
         field: "options",
-        source: dish.options,
+        source: Array.isArray(sourceFields.options)
+          ? sourceFields.options
+          : [],
         sourceFields,
         row: dishRow,
         legacyDerivedTags

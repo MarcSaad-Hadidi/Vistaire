@@ -121,7 +121,7 @@ export function sourceHashMatchesFields(
   );
 }
 
-function legacyTagVariants(
+export function legacyTagVariants(
   tags: string[],
   legacyDerivedTags: readonly string[] = []
 ): string[][] {
@@ -144,6 +144,45 @@ function legacyTagVariants(
     }
   }
   return variants;
+}
+
+function normalizedTagKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Return the positions occupied by legacy derived badges in a stored dish
+ * translation. The position is recovered from the stored tag hash, so the
+ * translated value may be any locale-specific spelling; no language list is
+ * needed to remove it safely before adding the canonical badge.
+ */
+export function legacyDerivedTagIndexes(
+  fields: MenuTranslationFields,
+  row: TranslationHashRow | undefined | null,
+  legacyDerivedTags: readonly string[] = []
+): number[] {
+  if (!row || !Array.isArray(fields.tags) || legacyDerivedTags.length === 0) {
+    return [];
+  }
+
+  const storedFieldHashes = objectInput(row.field_hashes);
+  const legacyVariant = legacyTagVariants(fields.tags, legacyDerivedTags).find(
+    (variant) =>
+      storedFieldHashes.tags === hashTranslationValue(variant) &&
+      (typeof storedFieldHashes.name === "string" ||
+        row.source_hash === sourceHashFor({ ...fields, tags: variant }))
+  );
+  if (!legacyVariant) return [];
+
+  const derivedKeys = new Set(legacyDerivedTags.map(normalizedTagKey));
+  return legacyVariant.reduce<number[]>((indexes, tag, index) => {
+    if (derivedKeys.has(normalizedTagKey(tag))) indexes.push(index);
+    return indexes;
+  }, []);
 }
 
 export function fieldHashMatchesFields(
