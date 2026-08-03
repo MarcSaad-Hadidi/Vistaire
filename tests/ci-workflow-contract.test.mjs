@@ -102,7 +102,7 @@ test("PR graph fetch is bounded and fail-closed", () => {
   assert.match(fetchGraph, /--filter=blob:none/);
   assert.match(fetchGraph, /refs\/pull\//);
   assert.match(fetchGraph, /--deepen=/);
-  assert.match(fetchGraph, /GIT_CONFIG_KEY_0:\s*"http\.extraheader"/);
+  assert.match(fetchGraph, /GIT_CONFIG_KEY_0:\s*"http\.https:\/\/github\.com\/.extraheader"/);
   assert.match(fetchGraph, /Buffer\.from\(`\$\{token\}:x-oauth-basic`/);
   assert.match(fetchGraph, /GIT_CONFIG_VALUE_0:\s*`AUTHORIZATION: basic \$\{basicAuth\}`/);
   assert.doesNotMatch(fetchGraph, /\["-c", `http\.extraheader=AUTHORIZATION/);

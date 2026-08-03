@@ -55,7 +55,9 @@ const git = (args, options = {}) => {
       ...process.env,
       ...extraEnv,
       GIT_CONFIG_COUNT: "1",
-      GIT_CONFIG_KEY_0: "http.extraheader",
+      // Match actions/checkout's host-scoped header so the temporary auth
+      // value takes precedence over any runner-level Git configuration.
+      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
       GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicAuth}`
     }
   });
