@@ -241,8 +241,19 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Build Next.js once
-        run: npm run build
+      - name: Build Next.js once against the hermetic fixture
+        run: |
+          node e2e/support/sauge-noire-fixture-server.mjs > "$RUNNER_TEMP/sauge-fixture.log" 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
+          npm run build
       - name: Upload verified Next.js build
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
