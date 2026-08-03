@@ -218,6 +218,9 @@ async function main() {
             VISTAIRE_OWNER_E2E_EMAIL: "owner-e2e@localhost",
             VISTAIRE_OWNER_3D_JOBS_FALLBACK: "1",
             VISTAIRE_OWNER_3D_RESTAURANT_SLUGS: "*",
+            ...(includesLandingProductionPhoto
+              ? { VISTAIRE_E2E_LANDING_CANONICAL: "1" }
+              : {}),
             ...(useTrouvableImmersiveFixture
               ? { VISTAIRE_E2E_TROUVABLE_3D: "1" }
               : {})
