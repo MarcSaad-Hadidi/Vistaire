@@ -116,6 +116,35 @@ export type PublicMenuDish = {
   tags: string[];
 };
 
+/**
+ * Historical translation hashes were generated before presentation-only list
+ * capitalization. Keep the raw lists in a server-side WeakMap instead of on
+ * the dish object: dishes cross the Server/Client boundary and even
+ * non-enumerable symbol properties trigger Next's serializability warnings.
+ */
+export type PublicMenuDishTranslationSourceLists = Readonly<{
+  ingredients: readonly string[];
+  options: readonly string[];
+}>;
+
+const publicMenuDishTranslationSourceLists = new WeakMap<
+  PublicMenuDish,
+  PublicMenuDishTranslationSourceLists
+>();
+
+export function registerPublicMenuDishTranslationSourceLists(
+  dish: PublicMenuDish,
+  sourceLists: PublicMenuDishTranslationSourceLists
+): void {
+  publicMenuDishTranslationSourceLists.set(dish, sourceLists);
+}
+
+export function getPublicMenuDishTranslationSourceLists(
+  dish: PublicMenuDish
+): PublicMenuDishTranslationSourceLists | undefined {
+  return publicMenuDishTranslationSourceLists.get(dish);
+}
+
 export type GoogleReviewConfig = {
   enabled: boolean;
   googleReviewUrl: string;
@@ -956,6 +985,18 @@ function mapDishRow(
     "allergenes",
     "allergen_list"
   ]);
+  const sourceIngredients = getStringListFromSources(row, metadata, [
+    "ingredients",
+    "ingredient_list"
+  ]);
+  const sourceOptions = mergeStringLists(
+    getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+    getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+    getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
+    getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
+    getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
+    getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
+  );
   const customAllergenSource = getExplicitStringListFromSources(row, metadata, [
     "customAllergens",
     "custom_allergens"
@@ -976,7 +1017,7 @@ function mapDishRow(
   );
   const categorySlug = getString(row, ["category_slug", "categorySlug"], "");
 
-  return {
+  const dish: PublicMenuDish = {
     id: dishId,
     slug: slug || `dish-${index}`,
     name,
@@ -1079,24 +1120,13 @@ function mapDishRow(
     available: isDishAvailable(row),
     ...(isSignature ? { isSignature } : {}),
     ...(isRecommended ? { isRecommended } : {}),
-    ingredients: capitalizeListItems(
-      getStringListFromSources(row, metadata, ["ingredients", "ingredient_list"])
-    ),
+    ingredients: capitalizeListItems(sourceIngredients),
     allergens: legacyAllergens,
     ...(customAllergens === undefined ? {} : { customAllergens }),
     allergenDeclarations: allergenData.declarations,
     allergenLegacyValues: allergenData.legacyValues,
     allergenReviewRequired: allergenData.reviewRequired,
-    options: capitalizeListItems(
-      mergeStringLists(
-        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
-        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
-        getStringList(row, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4)),
-        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(0, 2)),
-        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(2, 3)),
-        getStringList(metadata, PUBLIC_MENU_OPTION_FIELD_KEYS.slice(3, 4))
-      )
-    ),
+    options: capitalizeListItems(sourceOptions),
     houseNote:
       getString(metadata, ["chefNote", "chef_note", "houseNote", "house_note"], "") ||
       getString(row, [
@@ -1113,6 +1143,11 @@ function mapDishRow(
       isRecommended ? ["Recommande"] : []
     )
   };
+  registerPublicMenuDishTranslationSourceLists(dish, {
+    ingredients: sourceIngredients,
+    options: sourceOptions
+  });
+  return dish;
 }
 
 function rowMatchesMenu(row: PublicMenuRow, menuId: string): boolean {
