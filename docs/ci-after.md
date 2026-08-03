@@ -224,3 +224,27 @@ Chromium a été installé dans le cache Playwright local pour les smoke tests.
 Les exécutions Vercel, les probes GitHub distantes, actionlint/zizmor et la
 merge queue restent non vérifiés ici; aucun run ou artefact distant n'est
 inventé dans ce rapport.
+
+## Vérification distante de la continuation #177
+
+Après les corrections d’encodage et de sécurité, le head distant est
+`56b9b73269eda4285648bdb0f1345a32c7406e26` (commit sans force-push). Les runs
+réels suivants sont verts:
+
+- App CI `30853839277` (classification, fast-gate, static, PostgreSQL, build,
+  quatre familles navigateur, CI Gate et CI metrics);
+- Workflow Security `30853839402` (actionlint, zizmor, npm audit baseline);
+- CodeQL Advanced `30853839482`;
+- Asset Policy `30853839425`.
+
+Les rapports E2E du run App CI totalisent 111 tests: 28 public Chromium,
+66 Sauge Chromium, 7 Admin QR Chromium et 10 WebKit, tous passés, sans skip,
+flaky ni interruption. L’artefact `ci-metrics-30853839277` (ID `8871794612`,
+digest `f0b4f3a0bd0a5e1850d9f274d6f86fa0dd9b04ec3f4de96ee48c6c966d8a3acb`)
+est archivé par GitHub.
+
+Ces preuves valident la topologie à 7 `npm ci`, 3 installations Chromium,
+1 WebKit et 4 downloads `.next` sur un run complet. Elles ne prouvent pas
+encore les huit PR probes synthétiques, un Preview Gate protégé avec le secret
+Vercel, la merge queue, une validation iPhone/Safari réelle ou une review
+humaine. La PR reste donc draft et aucun merge automatique n’a été effectué.

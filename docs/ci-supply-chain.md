@@ -73,6 +73,11 @@ disabled. These checks cover workflow syntax, action pinning, permissions, and
 dangerous interpolation patterns. A local machine without Docker/actionlint/
 zizmor cannot claim these checks passed; the GitHub job is the source of truth.
 
+The GitHub run `30853839402` on head `56b9b73269eda4285648bdb0f1345a32c7406e26`
+passed actionlint, zizmor, and the npm audit baseline. The audit job therefore
+validated the canonical lockfile hash and the three explicitly tracked
+high-severity advisories on the Linux checkout; it did not run `npm audit fix`.
+
 ## Fork safety
 
 The bounded PR graph fetch receives the read-only GitHub token only when the PR
@@ -83,6 +88,6 @@ deployment smoke workflow exposes a protected Vercel secret to PR code.
 
 ## Local tool availability
 
-`actionlint`, `zizmor`, and Docker were not installed in the validation
-environment used for this change. Their absence is a residual verification gap,
-not a reason to claim those scans passed.
+`actionlint`, `zizmor`, and Docker were not installed in the local validation
+environment used for this change. The remote GitHub run above is the evidence
+for those scanners; local tool absence remains a reproducibility gap only.

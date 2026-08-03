@@ -69,8 +69,16 @@ parcours Sauge Noire critique court; les rapports restent distincts par famille
 avant agrégation. `e2e-sauge-chromium` conserve les suites Sauge profondes,
 `e2e-admin-qr-chromium` garde les contrats QR sensibles et `webkit-critical`
 reste isolé. Le full CI cible ainsi sept `npm ci`, trois installations
-Chromium, une installation WebKit et quatre downloads `.next`; ces chiffres
-restent à confirmer par un run GitHub propre.
+Chromium, une installation WebKit et quatre downloads `.next`; cette topologie
+a été confirmée par le run GitHub `30853839277`.
+
+Sur ce run réel, les rapports structurés ont compté 28 tests public Chromium,
+66 tests Sauge Chromium, 7 tests QR et 10 tests WebKit: 111 passés, 0 échoué,
+0 ignoré, 0 flaky et 0 interrompu. L’artefact `ci-metrics-30853839277`
+(`8871794612`) contient le JSON machine-readable et le résumé humain provient
+du même fichier. Les runner-minutes et la fenêtre murale doivent être lus dans
+cet artefact pour chaque run; ils ne sont jamais déduits du seul nombre de
+jobs.
 
 ## Événements et dispatch manuel
 

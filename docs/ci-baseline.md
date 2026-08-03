@@ -72,5 +72,30 @@ résultat de chaque famille. En cas d’échec, commencer par `classify-changes`
 vérifier la décision du gate, puis télécharger l’artefact de la famille fautive.
 
 Non vérifiés dans cet environnement : activation réelle de la merge queue,
-protection de branche GitHub, service PostgreSQL 17, taille/temps d’upload de
-l’artefact `.next` sur un run propre et validation réelle Safari/iPhone.
+protection de branche GitHub, service PostgreSQL 17, taille/temps d'upload de
+l'artefact `.next` sur un run propre et validation réelle Safari/iPhone.
+
+## Run distant de la continuation
+
+Le head `56b9b73269eda4285648bdb0f1345a32c7406e26` a été validé par App CI
+`30853839277`, Workflow Security `30853839402`, CodeQL `30853839482` et Asset
+Policy `30853839425`, tous en succès. App CI a exécuté la topologie attendue:
+`e2e-public-chromium`, `e2e-sauge-chromium`, `e2e-admin-qr-chromium` et
+`webkit-critical`, puis `CI Gate` et `CI metrics`.
+
+Les rapports structurés publiés par les jobs navigateur sont:
+
+| Groupe | Total | Passés | Échecs | Skips/flaky/interrompus |
+| --- | ---: | ---: | ---: | ---: |
+| Public Chromium (core/landing/menu/SEO) | 28 | 28 | 0 | 0/0/0 |
+| Sauge Chromium | 66 | 66 | 0 | 0/0/0 |
+| Admin QR Chromium | 7 | 7 | 0 | 0/0/0 |
+| WebKit critique | 10 | 10 | 0 | 0/0/0 |
+| Total | 111 | 111 | 0 | 0/0/0 |
+
+L’artefact `ci-metrics-30853839277` (ID `8871794612`, digest
+`f0b4f3a0bd0a5e1850d9f274d6f86fa0dd9b04ec3f4de96ee48c6c966d8a3acb`) est
+présent et contient les mesures machine-readable. Cette preuve confirme la
+topologie et les résultats; elle ne constitue pas une activation de la merge
+queue ni une preuve de Preview Gate protégé, qui restent des validations
+administratives séparées.
