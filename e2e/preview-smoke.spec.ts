@@ -61,7 +61,7 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
   });
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText;
-    if (failure === "net::ERR_ABORTED" && /\\/videos\\//i.test(request.url())) return;
+    if (failure === "net::ERR_ABORTED" && /\/videos\//i.test(request.url())) return;
     try {
       if (new URL(request.url()).origin === expectedOrigin) {
         issues.failedRequests.push(`${failure ?? "request failed"} ${request.url()}`);
