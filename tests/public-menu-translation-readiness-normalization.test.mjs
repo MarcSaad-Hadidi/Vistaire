@@ -8,7 +8,10 @@ import {
   storedTranslationRowMatchesFields
 } from "../lib/menu/publicMenuTranslationReadiness.ts";
 import {
+  LEGACY_PRESENTATION_SOURCE_FIELDS,
   fieldHashesFor,
+  fieldHashMatchesFields,
+  legacyDerivedTagIndexes,
   sourceHashFor
 } from "../lib/translation/menuTranslationModel.ts";
 import {
@@ -174,6 +177,24 @@ test("legacy capitalization-only list hashes remain ready after the compatibilit
   );
 });
 
+test("empty raw presentation lists do not create legacy hash variants", () => {
+  const fields = publicMenuDishTranslationFields(baseDish);
+  Object.defineProperty(fields, LEGACY_PRESENTATION_SOURCE_FIELDS, {
+    value: { ingredients: [], options: [] },
+    enumerable: false
+  });
+  const legacyFields = { ...fields, ingredients: [], options: [] };
+  const row = rowFor(
+    "en-CA",
+    "dish_id",
+    baseDish.id,
+    legacyFields,
+    translatedContent(fields)
+  );
+
+  assert.equal(storedTranslationRowMatchesFields(row, fields), false);
+});
+
 test("a semantic list change remains stale", () => {
   const historicalDish = baseDish;
   const currentDish = {
@@ -310,6 +331,37 @@ test("production dishes use their exact raw lists without a variant-size cap", (
   );
 
   assert.equal(statusForDish(currentDish, legacyFields, row.content)?.status, "up_to_date");
+});
+
+test("derived tag indexes use the same legacy presentation variant as list hashes", () => {
+  const signatureDish = { ...baseDish, isSignature: true };
+  registerPublicMenuDishTranslationSourceLists(signatureDish, {
+    ingredients: ["poulet marinÃ©", "riz", "lÃ©gumes", "sauce maison"],
+    options: ["extra fromage"]
+  });
+  const fields = publicMenuDishTranslationFields(signatureDish);
+  const legacyFields = {
+    ...fields,
+    ingredients: ["poulet marinÃ©", "riz", "lÃ©gumes", "sauce maison"],
+    options: ["extra fromage"],
+    tags: ["Signature", "Maison"]
+  };
+  const row = rowFor(
+    "en-CA",
+    "dish_id",
+    signatureDish.id,
+    legacyFields,
+    translatedContent(fields)
+  );
+
+  assert.deepEqual(
+    legacyDerivedTagIndexes(fields, row, ["Signature"]),
+    [0]
+  );
+  assert.equal(
+    fieldHashMatchesFields(fields, row, "tags", "dish", ["Signature"]),
+    true
+  );
 });
 
 test("manual overrides remain authoritative only when their content is usable", () => {

@@ -130,8 +130,10 @@ function legacyPresentationFieldVariantsForRow(
     let hasExplicitList = false;
     for (const field of LEGACY_PRESENTATION_LIST_FIELDS) {
       const value = explicitSourceFields[field];
-      if (!Array.isArray(value)) continue;
-      legacyVariant[field] = value;
+      if (!(field in fields) || !Array.isArray(value)) continue;
+      const nonEmptyValue = value.filter((item) => item.trim());
+      if (nonEmptyValue.length === 0) continue;
+      legacyVariant[field] = nonEmptyValue;
       hasExplicitList = true;
     }
     return hasExplicitList ? [fields, legacyVariant] : [fields];
@@ -142,7 +144,7 @@ function legacyPresentationFieldVariantsForRow(
 
   for (const field of LEGACY_PRESENTATION_LIST_FIELDS) {
     const value = fields[field];
-    if (!Array.isArray(value)) continue;
+    if (!Array.isArray(value) || value.length === 0) continue;
 
     // The stored field hash selects the exact historical casing variant. This
     // avoids hashing the full combinatorial set for every row at runtime.
@@ -201,6 +203,32 @@ function storedDishHashVariantMatches(
         row.source_hash === sourceHashFor(variantFields))
     );
   });
+}
+
+function matchingLegacyDishTagVariant(
+  fields: MenuTranslationFields,
+  row: TranslationHashRow,
+  legacyDerivedTags: readonly string[]
+): { fields: MenuTranslationFields; tags: string[] } | undefined {
+  const storedFieldHashes = objectInput(row.field_hashes);
+  for (const presentationFields of legacyPresentationFieldVariantsForRow(
+    fields,
+    row
+  )) {
+    if (!Array.isArray(presentationFields.tags)) continue;
+    const tags = legacyTagVariants(
+      presentationFields.tags,
+      legacyDerivedTags
+    ).find(
+      (variant) =>
+        storedFieldHashes.tags === hashTranslationValue(variant) &&
+        (typeof storedFieldHashes.name === "string" ||
+          row.source_hash ===
+            sourceHashFor({ ...presentationFields, tags: variant }))
+    );
+    if (tags) return { fields: presentationFields, tags };
+  }
+  return undefined;
 }
 
 /**
@@ -287,17 +315,15 @@ export function legacyDerivedTagIndexes(
     return [];
   }
 
-  const storedFieldHashes = objectInput(row.field_hashes);
-  const legacyVariant = legacyTagVariants(fields.tags, legacyDerivedTags).find(
-    (variant) =>
-      storedFieldHashes.tags === hashTranslationValue(variant) &&
-      (typeof storedFieldHashes.name === "string" ||
-        row.source_hash === sourceHashFor({ ...fields, tags: variant }))
+  const matchedVariant = matchingLegacyDishTagVariant(
+    fields,
+    row,
+    legacyDerivedTags
   );
-  if (!legacyVariant) return [];
+  if (!matchedVariant) return [];
 
   const derivedKeys = new Set(legacyDerivedTags.map(normalizedTagKey));
-  return legacyVariant.reduce<number[]>((indexes, tag, index) => {
+  return matchedVariant.tags.reduce<number[]>((indexes, tag, index) => {
     if (derivedKeys.has(normalizedTagKey(tag))) indexes.push(index);
     return indexes;
   }, []);
@@ -330,12 +356,8 @@ export function fieldHashMatchesFields(
   }
 
   if (field !== "tags" || !Array.isArray(fields.tags)) return false;
-  const tagVariants = legacyTagVariants(fields.tags, legacyDerivedTags);
-  return tagVariants.some(
-    (variant) =>
-      storedFieldHashes.tags === hashTranslationValue(variant) &&
-      (typeof storedFieldHashes.name === "string" ||
-        row.source_hash === sourceHashFor({ ...fields, tags: variant }))
+  return Boolean(
+    matchingLegacyDishTagVariant(fields, row, legacyDerivedTags)
   );
 }
 
