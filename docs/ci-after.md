@@ -34,9 +34,41 @@ Mesures cumulées observées sur les jobs du run 30779748386 :
 | Downloads `.next` | 22 s | étapes `download-artifact` |
 
 Le checkout du classificateur de cette baseline a consommé environ 28 s avec
-`fetch-depth: 0`. Le nouveau checkout borné et son fetch de graphe PR sont
-présents dans le code, mais leur temps réel n'est pas encore mesuré sur un run
-GitHub de cette révision.
+`fetch-depth: 0`.
+
+## Nouveau full CI publié et vérifié
+
+Le commit de cette révision a été publié sur la branche de la PR :
+
+- head : `8eee0c93aa2f82759d18729beacd9561a2b269e6` ;
+- App CI run : `30787239845` ;
+- Full CI : `success` ;
+- CI Gate : `success` ;
+- PostgreSQL 17 : `success` ;
+- Chromium : `success` ;
+- WebKit : `success` ;
+- Asset Policy : `30787239761`, `success` ;
+- CodeQL : `30787239782`, `success` ;
+- Vercel Preview : `success`, `https://vistaire-qpndg2myq-capoships-projects.vercel.app`.
+
+Mesures réelles du run `30787239845` :
+
+| Mesure | Valeur | Méthode |
+| --- | ---: | --- |
+| Temps mural run | 302 s (5 min 02 s) | création du run → fin du Gate |
+| Fenêtre jobs | 298 s | premier job → dernier job terminé |
+| Temps runner brut | 998 s (16,63 min) | somme des durées de jobs |
+| Estimation de facturation | ~24 runner-min | arrondi par job |
+| `npm ci` cumulé | 159 s | étapes d'installation |
+| Installations navigateurs | 156 s | six Chromium + un WebKit |
+| Upload `.next` | 6 s | `Upload verified Next.js build` |
+| Downloads `.next` | 19 s | `download-artifact` |
+| Checkout classifier | 10 s | étape `Checkout` |
+| Fetch PR graph | 1 s | `Fetch minimal PR graph for merge-base` |
+
+Le fetch borné a donc été exécuté avec succès sur une vraie PR et n'a pas
+déclenché le fallback full CI. Ce run est exhaustif parce que cette PR modifie
+l'infrastructure CI; il ne prouve pas encore les branches ciblées minimales.
 
 ## Preuves de ciblage disponibles
 
@@ -99,11 +131,7 @@ partagé.
 
 ## Vérifications restantes
 
-- un run GitHub de cette nouvelle tête pour mesurer le fetch borné et les
-  scénarios ciblés ;
-- PostgreSQL 17, Chromium, WebKit et CI Gate sur cette nouvelle tête ;
-- statut Preview Vercel de cette nouvelle tête (le statut ci-dessus est celui
-  du run de référence) ;
+- des branches/PR synthétiques minimales pour chaque scénario ciblé ;
 - validation réelle d'un appareil Safari/iPhone et de la merge queue.
 
 Les checks locaux complets et le nettoyage final doivent être relancés avant
