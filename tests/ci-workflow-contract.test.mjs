@@ -40,6 +40,7 @@ test("WebKit is isolated to the critical browser job", () => {
   const webkitJob = workflow.indexOf("  webkit-critical:");
   assert.ok(install > webkitJob, "WebKit installation must not happen in static or database jobs");
   assert.match(workflow, /sauge_renderer.*pageflip_gestures/s);
+  assert.equal((workflow.match(/playwright install --with-deps chromium/g) ?? []).length, 6);
 });
 
 test("CI uses read-only permissions, bounded jobs, and concurrency", () => {
