@@ -176,7 +176,15 @@ async function main() {
       const buildExitCode = await runChild(
         process.execPath,
         ["./node_modules/next/dist/bin/next", "build"],
-        { env: { ...process.env, ...SAUGE_FIXTURE_ENV } }
+        {
+          env: {
+            ...process.env,
+            ...SAUGE_FIXTURE_ENV,
+            ...(includesLandingProductionPhoto
+              ? { VISTAIRE_E2E_LANDING_CANONICAL: "1" }
+              : {})
+          }
+        }
       );
       if (buildExitCode !== 0) {
         process.exitCode = buildExitCode;

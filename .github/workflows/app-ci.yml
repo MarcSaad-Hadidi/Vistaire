@@ -227,6 +227,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55434
       SUPABASE_SERVICE_ROLE_KEY: sauge-noire-fixture-service-role-key
       VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+      VISTAIRE_E2E_LANDING_CANONICAL: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
