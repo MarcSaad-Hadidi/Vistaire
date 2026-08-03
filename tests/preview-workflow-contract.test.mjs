@@ -55,10 +55,14 @@ test("Preview Gate fails closed and requires a complete green report", () => {
   assert.match(previewWorkflow, /url\.username \|\| url\.password \|\| url\.port/);
 });
 
-test("Preview smoke scopes the bypass secret to the validated origin", () => {
-  assert.match(smokeSpec, /context\.route/);
-  assert.match(smokeSpec, /requestUrl\.origin === expectedOrigin/);
+test("Preview smoke establishes access without forwarding the bypass secret", () => {
+  assert.match(smokeSpec, /context\.request\.get/);
+  assert.match(smokeSpec, /maxRedirects: 0/);
   assert.match(smokeSpec, /x-vercel-protection-bypass/);
+  assert.match(smokeSpec, /x-vercel-set-bypass-cookie/);
+  assert.match(smokeSpec, /redirect left the validated origin/);
+  assert.doesNotMatch(smokeSpec, /context\.route/);
+  assert.doesNotMatch(smokeSpec, /route\.continue/);
   assert.doesNotMatch(smokeSpec, /extraHTTPHeaders/);
   assert.match(smokeSpec, /Preview Gate requires VERCEL_AUTOMATION_BYPASS_SECRET/);
   for (const route of [
