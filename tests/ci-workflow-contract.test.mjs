@@ -30,7 +30,9 @@ test("CI Gate is fail-closed and receives every job result", () => {
   assert.match(workflow, /name: CI Gate/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
   for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
-    assert.match(workflow, new RegExp(`needs\.${job.replaceAll("-", "\\-")}\.result`));
+    const jobResultPattern = new RegExp(`needs\\.${job.replaceAll("-", "\\-")}\\.result`);
+    assert.match(workflow, jobResultPattern);
+    assert.doesNotMatch(`needsX${job}Yresult`, jobResultPattern);
   }
   assert.match(workflow, /expected but completed/);
   assert.match(workflow, /unexpected result/);
