@@ -24,7 +24,7 @@ function assertPinnedActions(workflow) {
 
 test("Preview Gate is deployment-status-only and checks out trusted main", () => {
   assert.match(previewWorkflow, /deployment_status:/);
-  assert.match(previewWorkflow, /github\.repository == 'MarcSaad-Hadidi\\/Vistaire'/);
+  assert.match(previewWorkflow, /github\.repository == 'MarcSaad-Hadidi\/Vistaire'/);
   assert.match(previewWorkflow, /environment == 'Preview'/);
   assert.match(previewWorkflow, /state == 'success'/);
   assert.match(previewWorkflow, /permissions:\s+contents: read/);
