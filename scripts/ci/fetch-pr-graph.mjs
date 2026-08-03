@@ -40,10 +40,28 @@ if (!/^[0-9a-f]{40}$/i.test(String(baseSha)) || !/^[0-9a-f]{40}$/i.test(String(h
 }
 
 const pullRef = `refs/pull/${pullNumber}/head`;
-// GitHub accepts the short-lived Actions token through HTTP Basic auth.  Keep
-// the encoded value in the child environment so neither Git's argv nor its
-// normal command log can expose the raw token.
-const basicAuth = Buffer.from(`${token}:x-oauth-basic`, "utf8").toString("base64");
+// Override only the child process' remote URL. This avoids putting the token
+// in Git's argv while remaining compatible with the Actions checkout's Git
+// configuration, which may ignore transient HTTP headers after cleanup.
+let authenticatedOrigin;
+try {
+  const origin = execFileSync("git", ["remote", "get-url", "origin"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  }).trim();
+  authenticatedOrigin = origin.replace(
+    /^(https?:\/\/)(github\.com\/)/i,
+    `$1x-access-token:${encodeURIComponent(token)}@$2`
+  );
+  if (authenticatedOrigin === origin) {
+    report("PR graph unavailable: origin is not an HTTPS GitHub remote; classifier will use full CI.");
+    process.exit(0);
+  }
+} catch {
+  report("PR graph unavailable: origin remote could not be read; classifier will use full CI.");
+  process.exit(0);
+}
+
 const git = (args, options = {}) => {
   const { env: extraEnv, ...execOptions } = options;
   return execFileSync("git", args, {
@@ -55,10 +73,9 @@ const git = (args, options = {}) => {
       ...process.env,
       ...extraEnv,
       GIT_CONFIG_COUNT: "1",
-      // Match actions/checkout's host-scoped header so the temporary auth
-      // value takes precedence over any runner-level Git configuration.
-      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
-      GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicAuth}`
+      GIT_CONFIG_KEY_0: "remote.origin.url",
+      GIT_CONFIG_VALUE_0: authenticatedOrigin,
+      GIT_TERMINAL_PROMPT: "0"
     }
   });
 };
