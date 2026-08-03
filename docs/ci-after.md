@@ -38,8 +38,8 @@ Le checkout du classificateur de cette baseline a consommé environ 28 s avec
 
 ## Nouveau full CI publié et vérifié
 
-Après correction de l'authentification du fetch borné, le head courant de la
-PR est :
+Après correction de l'authentification du fetch borné, le head de code mesuré
+est :
 
 - head : `d26c6390c6455607ca18c93d67439731939ca93e` ;
 - App CI run : `30788750665` ;
@@ -72,6 +72,13 @@ Le log GitHub confirme `PR graph ready: merge-base found after additional depth
 déclenché le fallback d'absence de graphe. Ce run reste exhaustif parce que
 cette PR modifie l'infrastructure CI et le graphe de dépendances ; il ne prouve
 pas encore les branches ciblées minimales.
+
+Le commit documentaire `19347ad3df9b6d5a5cb922545b90ddec93b6608c` qui porte ce
+rapport a ensuite été validé par l'App CI `30789181292`, l'Asset Policy
+`30789181259`, CodeQL `30789181264` et le Preview Vercel
+`https://vistaire-50ofo0i9c-capoships-projects.vercel.app`, tous en succès. Le
+fetch merge-base y est également `PR graph ready`; la matrice reste exhaustive
+pour la même raison d'infrastructure.
 
 ## Preuves de ciblage disponibles
 
