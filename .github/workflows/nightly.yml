@@ -18,7 +18,6 @@ jobs:
     uses: ./.github/workflows/app-ci.yml
     with:
       target: full
-    secrets: inherit
 
   nightly-report:
     name: Nightly report

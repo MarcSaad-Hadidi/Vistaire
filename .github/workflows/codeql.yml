@@ -65,7 +65,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@bce182f857edf1feab116e9795a3393d21977282 # v4
+      uses: github/codeql-action/init@bce182f857edf1feab116e9795a3393d21977282 # v4 (immutable commit pin)
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
@@ -94,7 +94,6 @@ jobs:
         exit 1
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@bce182f857edf1feab116e9795a3393d21977282 # v4
+      uses: github/codeql-action/analyze@bce182f857edf1feab116e9795a3393d21977282 # v4 (immutable commit pin)
       with:
         category: "/language:${{matrix.language}}"
-        upload: never

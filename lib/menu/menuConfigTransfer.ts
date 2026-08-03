@@ -93,6 +93,11 @@ function hasUnsafeImportContent(value: unknown, depth = 0): boolean {
       FORBIDDEN_IMPORT_KEYS.has(normalizedKey) ||
       FORBIDDEN_IMPORT_KEY_PATTERN.test(key)
     ) {
+      // Schema v2 adds `uniqueDesign` to the runtime config. The default
+      // config carries it as null, which is harmless and must remain
+      // backwards-compatible with design-only transfers; any actual unique
+      // design payload is still rejected below as menu/runtime data.
+      if (normalizedKey === "uniquedesign" && nested === null) continue;
       return true;
     }
     if (hasUnsafeImportContent(nested, depth + 1)) return true;

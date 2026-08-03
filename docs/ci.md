@@ -4,6 +4,27 @@ Le workflow requis pour les pull requests est **CI Gate**
 (`.github/workflows/app-ci.yml`). Il démarre toujours et refuse une
 classification invalide, un job attendu en échec, annulé, absent ou sauté.
 
+## Fast gate and dependency barrier
+
+`fast-gate` validates the classifier, workflow contracts, and CI scripts without
+running `npm ci` or installing a browser. Browser jobs explicitly require
+successful `classify-changes`, `fast-gate`, `static-quality`, and `build-app`
+results; a failed root job therefore produces downstream skips instead of
+secondary browser failures. `Asset Policy` remains independent and owns the
+only `assets:check` and `lfs:check` invocations.
+
+The separate `CI metrics` job publishes a machine-readable `ci-metrics.json`
+artifact. It records the wall-clock window, raw runner-seconds, billed-minute
+estimate, npm/browser/artifact timings, skipped jobs, first failure, root
+failure, and merge-base depth. Values not exposed by the Actions API (such as
+exact test counts from log text) remain `null`.
+
+`Preview Gate` and `Production Smoke` listen to `deployment_status`, verify the
+environment and exact deployment SHA, and run a smoke harness checked out from
+trusted `main`. Preview validation requires the official Vercel bypass secret
+in the protected `preview-gate` environment; no protected secret is passed to
+PR code.
+
 ## Source de vérité du ciblage
 
 `classify-changes` exécute `scripts/ci/detect-changes.mjs` et publie les

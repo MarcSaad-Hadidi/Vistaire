@@ -146,3 +146,73 @@ partagé.
 
 Les checks locaux complets et le nettoyage final doivent être relancés avant
 de déclarer la PR prête. Le merge de #177 reste volontairement hors périmètre.
+
+## Continuation sur le head synchronisé
+
+La branche a ensuite intégré `origin/main` par le merge non destructif
+`292202b01ceee24b7e39ac38b4a760b63ddffcc6`. La baseline distante la plus
+récente avant cette continuation reste App CI `30789584185` sur `1c6382e` :
+
+| Mesure | Valeur vérifiée |
+| --- | ---: |
+| Fenêtre murale | 369 s |
+| Temps runner brut | 1 285 s |
+| Estimation minimale facturable | 22 runner-min (environ 25 min avec l'arrondi par job) |
+| Installations de dépendances | 10 occurrences (7 étapes nommées `Run npm ci`), 108 s cumulées mesurées pour ces 7 étapes |
+| Navigateurs | 6 Chromium + 1 WebKit, 164 s cumulées |
+| Artefact `.next` | 65 349 631 octets |
+| Upload `.next` | 6 s |
+| Downloads `.next` | 7 occurrences, 35 s cumulées |
+| Fetch du graphe PR | 4 s |
+| Profondeur merge-base | 33 objets (fetch initial 1 + deepen 32) |
+
+Cette continuation ajoute un `fast-gate` sans npm, rend les dépendances E2E
+explicites, centralise les diagnostics de cause racine et publie un artefact
+`ci-metrics.json`. Elle supprime les répétitions Asset Policy/QR/admin/SEO et
+le smoke Sauge partagé en double. Les gains de runner-minutes et les scénarios
+targeted distants doivent encore être mesurés sur de vrais runs après push ; ils
+ne sont pas déduits de la baseline full CI.
+
+Le Preview existant associé à `1c6382e` était `READY`, mais ses routes étaient
+protégées par le SSO Vercel dans cet environnement. Aucun smoke Preview n'est
+revendiqué pour le nouveau merge `292202b` sans un `deployment_status` et le
+secret de bypass officiel configuré dans l'environnement protégé.
+
+## Validation locale de cette continuation
+
+Les contrôles exécutés après les derniers ajustements sont :
+
+| Contrôle | Résultat |
+| --- | --- |
+| `assets:check` | passé, 1 528 fichiers inspectés |
+| `lfs:check` | passé, aucun pointeur actif |
+| `lint` | passé |
+| `typecheck` | passé |
+| `build` hermétique avec fixture Supabase | passé |
+| contrats CI/Preview/QR/config | 72/72 |
+| QR Node | 196/196 |
+| admin Node | 388/388 |
+| SEO Node | 40/40 |
+| Chromium CI smoke | 3/3 |
+| Chromium landing ciblé | 19/19 |
+| Chromium Sauge critique | 4/4 |
+| Chromium SEO simulé localement | 3/3 |
+| Preview smoke local hermétique | 10/10 |
+| QR fonctionnel sensible | premier passage 6/7 (timeout PATCH), puis rerun frais 7/7 |
+
+La suite brute `node --test tests/*.test.mjs` a été tentée mais a dépassé la
+limite de 300 secondes; elle n'est donc pas déclarée comme passée. Le test de
+transfert de configuration qui échouait après la synchronisation `origin/main`
+a été corrigé pour accepter `uniqueDesign: null` dans un export design-only,
+puis validé en 5/5.
+
+`npm ci` a rencontré un verrouillage `EPERM` du cache npm utilisateur puis un
+`ENOTEMPTY` sur un dossier `node_modules` tenu par des processus existants. Une
+restauration de validation isolée avec `npm install --legacy-peer-deps
+--ignore-scripts --package-lock=false` a réussi; `package-lock.json` n'a pas
+changé. Le cache temporaire a été supprimé.
+
+Chromium a été installé dans le cache Playwright local pour les smoke tests.
+Les exécutions Vercel, les probes GitHub distantes, actionlint/zizmor et la
+merge queue restent non vérifiés ici; aucun run ou artefact distant n'est
+inventé dans ce rapport.

@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: vistaire-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
@@ -68,6 +69,7 @@ jobs:
       changed_files: ${{ steps.classify.outputs.changed_files }}
       categories: ${{ steps.classify.outputs.categories }}
       reason: ${{ steps.classify.outputs.reason }}
+      merge_base_depth: ${{ steps.graph.outputs.merge_base_depth }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -76,7 +78,8 @@ jobs:
           lfs: false
           persist-credentials: false
       - name: Fetch minimal PR graph for merge-base
-        if: ${{ github.event_name == 'pull_request' }}
+        id: graph
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -120,6 +123,39 @@ jobs:
             printf '%s\n' "- Changed files: ${CLASSIFY_CHANGED_FILES}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  fast-gate:
+    name: fast-gate
+    needs: classify-changes
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+      - name: Validate CI policy without installing dependencies
+        run: |
+          node --check scripts/ci/detect-changes.mjs
+          node --check scripts/ci/fetch-pr-graph.mjs
+          node --check scripts/ci/collect-metrics.mjs
+          node --check scripts/run-playwright-e2e.mjs
+          node --test tests/ci-change-detection.test.mjs tests/ci-workflow-contract.test.mjs tests/preview-workflow-contract.test.mjs
+      - name: Publish fast-gate summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+          REASON: ${{ needs.classify-changes.outputs.reason }}
+        run: |
+          {
+            echo '## fast-gate'
+            echo "- Categories: \`${CATEGORIES}\`"
+            echo "- Reason: ${REASON}"
+            echo '- No npm install or browser setup is performed here.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   static-quality:
     name: static-quality
     needs: classify-changes
@@ -141,8 +177,6 @@ jobs:
         run: npm ci
       - name: Repository and static checks
         run: |
-          npm run assets:check
-          npm run lfs:check
           npm run lint
           npm run typecheck
           npm run test:unique-menu-design
@@ -175,7 +209,8 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:17
+        # postgres:17.10 multi-platform index digest verified 2026-08-03.
+        image: postgres:17.10@sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
         env:
           POSTGRES_DB: vistaire_qr_ci
           POSTGRES_PASSWORD: vistaire_qr_ci_password
@@ -272,8 +307,8 @@ jobs:
 
   e2e-core:
     name: e2e-core
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_core == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_core == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -287,7 +322,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
@@ -313,8 +349,8 @@ jobs:
 
   e2e-landing:
     name: e2e-landing
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_landing == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -328,7 +364,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
@@ -353,8 +390,8 @@ jobs:
 
   e2e-menu-shared:
     name: e2e-menu-shared
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_menu == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_menu == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -368,7 +405,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
@@ -393,8 +431,8 @@ jobs:
 
   e2e-sauge-deep:
     name: e2e-sauge-deep
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_sauge == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_sauge == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -408,7 +446,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
@@ -433,8 +472,8 @@ jobs:
 
   e2e-admin-qr:
     name: e2e-admin-qr
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_admin_qr == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_admin_qr == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -448,13 +487,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
       - run: |
-          npm run test:qr:node
-          npm run test:admin
           npm run test:qr:functional
       - if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
@@ -475,8 +513,8 @@ jobs:
 
   e2e-seo:
     name: e2e-seo
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_seo == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_seo == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -490,12 +528,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
       - run: |
-          npm run test:seo
           npm run test:seo:e2e
       - if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
@@ -516,8 +554,8 @@ jobs:
 
   webkit-critical:
     name: webkit-critical
-    needs: [classify-changes, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.outputs.run_webkit == 'true' }}
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_webkit == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -531,7 +569,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps webkit
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: next-build-${{ github.run_id }}
           path: .next
@@ -557,7 +596,9 @@ jobs:
   ci-gate:
     name: CI Gate
     if: ${{ always() }}
-    needs: [classify-changes, static-quality, database-contracts, build-app, e2e-core, e2e-landing, e2e-menu-shared, e2e-sauge-deep, e2e-admin-qr, e2e-seo, webkit-critical]
+    outputs:
+      root_failure: ${{ steps.diagnostics.outputs.root_failure }}
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-core, e2e-landing, e2e-menu-shared, e2e-sauge-deep, e2e-admin-qr, e2e-seo, webkit-critical]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -566,6 +607,7 @@ jobs:
           CLASSIFY: ${{ needs.classify-changes.result }}
           CLASSIFY_FULL: ${{ needs.classify-changes.outputs.full_ci }}
           CLASSIFICATION_VALID: ${{ needs.classify-changes.outputs.classification_valid }}
+          FAST_GATE: ${{ needs.fast-gate.result }}
           STATIC: ${{ needs.static-quality.result }}
           DATABASE: ${{ needs.database-contracts.result }}
           BUILD: ${{ needs.build-app.result }}
@@ -595,26 +637,118 @@ jobs:
           for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT"; do
             [[ "$output" == true || "$output" == false ]] || { echo "invalid run_* output: $output"; exit 1; }
           done
-          declare -A results=( [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-core]="$CORE" [e2e-landing]="$LANDING" [e2e-menu-shared]="$MENU" [e2e-sauge-deep]="$SAUGE" [e2e-admin-qr]="$ADMIN_QR" [e2e-seo]="$SEO" [webkit-critical]="$WEBKIT" )
-          declare -A expected=( [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-core]="$RUN_CORE" [e2e-landing]="$RUN_LANDING" [e2e-menu-shared]="$RUN_MENU" [e2e-sauge-deep]="$RUN_SAUGE" [e2e-admin-qr]="$RUN_ADMIN_QR" [e2e-seo]="$RUN_SEO" [webkit-critical]="$RUN_WEBKIT" )
+          declare -A results=( [fast-gate]="$FAST_GATE" [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-core]="$CORE" [e2e-landing]="$LANDING" [e2e-menu-shared]="$MENU" [e2e-sauge-deep]="$SAUGE" [e2e-admin-qr]="$ADMIN_QR" [e2e-seo]="$SEO" [webkit-critical]="$WEBKIT" )
+          declare -A expected=( [fast-gate]="true" [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-core]="$RUN_CORE" [e2e-landing]="$RUN_LANDING" [e2e-menu-shared]="$RUN_MENU" [e2e-sauge-deep]="$RUN_SAUGE" [e2e-admin-qr]="$RUN_ADMIN_QR" [e2e-seo]="$RUN_SEO" [webkit-critical]="$RUN_WEBKIT" )
+          ordered_jobs=(fast-gate static-quality database-contracts build-app e2e-core e2e-landing e2e-menu-shared e2e-sauge-deep e2e-admin-qr e2e-seo webkit-critical)
           failed=0
-          # Expected failure, cancelled, timed_out, absent, or incorrectly
-          # skipped results all fail here; only a non-expected skipped job is
-          # permitted.
-          for job in "${!results[@]}"; do
+          root_failure=none
+          for root_job in classify-changes fast-gate build-app static-quality database-contracts; do
+            if [[ "$root_job" == classify-changes ]]; then
+              root_result="$CLASSIFY"
+              root_expected=true
+            else
+              root_result="${results[$root_job]}"
+              root_expected="${expected[$root_job]}"
+            fi
+            if [[ "$root_expected" == true && "$root_result" != success ]]; then
+              root_failure="$root_job"
+              break
+            fi
+          done
+          for job in "${ordered_jobs[@]}"; do
             result="${results[$job]}"
             if [[ "${expected[$job]}" == true && "$result" != success ]]; then
-              echo "::error::$job was expected but completed as ${result:-missing}"
-              failed=1
+              if [[ "$result" == skipped && "$root_failure" != none && "$job" == e2e-* ]]; then
+                echo "::notice::$job was blocked by root failure ${root_failure}"
+              else
+                echo "::error::$job was expected but completed as ${result:-missing}"
+                failed=1
+              fi
             elif [[ "${expected[$job]}" == false && "$result" != success && "$result" != skipped ]]; then
               echo "::error::$job has unexpected result ${result:-missing}"
               failed=1
             fi
           done
+          if [[ "$root_failure" != none ]]; then
+            echo "::error::Root failure: $root_failure"
+            failed=1
+          fi
           if (( failed )); then exit 1; fi
           {
             echo '## CI Gate'
             echo "- Classification: \`$CLASSIFY_FULL\` (event: \`$EVENT\`)"
+            echo "- Fast gate: ${FAST_GATE}"
             echo '- Applicable jobs must be success; skipped jobs are accepted only when the classifier marked them not applicable.'
-            for job in "${!results[@]}"; do echo "- $job: ${results[$job]}"; done
+            for job in "${ordered_jobs[@]}"; do echo "- $job: ${results[$job]} (expected=${expected[$job]})"; done
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish root-cause diagnostics
+        id: diagnostics
+        if: ${{ always() }}
+        env:
+          CLASSIFY: ${{ needs.classify-changes.result }}
+          FAST_GATE: ${{ needs.fast-gate.result }}
+          STATIC: ${{ needs.static-quality.result }}
+          DATABASE: ${{ needs.database-contracts.result }}
+          BUILD: ${{ needs.build-app.result }}
+          RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
+          RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
+          RUN_BUILD: ${{ needs.classify-changes.outputs.run_build }}
+        run: |
+          set -u
+          root_failure=none
+          [[ "$CLASSIFY" == success ]] || root_failure=classify-changes
+          if [[ "$root_failure" == none && "$FAST_GATE" != success ]]; then root_failure=fast-gate; fi
+          if [[ "$root_failure" == none && "$RUN_BUILD" == true && "$BUILD" != success ]]; then root_failure=build-app; fi
+          if [[ "$root_failure" == none && "$RUN_STATIC" == true && "$STATIC" != success ]]; then root_failure=static-quality; fi
+          if [[ "$root_failure" == none && "$RUN_DATABASE" == true && "$DATABASE" != success ]]; then root_failure=database-contracts; fi
+          echo "root_failure=${root_failure}" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Root failure diagnosis'
+            echo "- Root failure: \`${root_failure}\`"
+            echo '- E2E jobs blocked by a failed classifier, fast gate, static-quality job, or build are reported as downstream skips.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ci-metrics:
+    name: CI metrics
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-core, e2e-landing, e2e-menu-shared, e2e-sauge-deep, e2e-admin-qr, e2e-seo, webkit-critical, ci-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout metrics collector
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+      - name: Collect machine-readable CI metrics
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CI_METRICS_OUTPUT: ci-metrics.json
+          CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
+          CLASSIFY_EVENT: ${{ needs.classify-changes.outputs.event }}
+          CLASSIFY_CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+          CLASSIFY_REASON: ${{ needs.classify-changes.outputs.reason }}
+          CLASSIFY_CHANGED_FILES: ${{ needs.classify-changes.outputs.changed_files }}
+          MERGE_BASE_DEPTH: ${{ needs.classify-changes.outputs.merge_base_depth }}
+          ROOT_FAILURE: ${{ needs.ci-gate.outputs.root_failure }}
+          RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
+          RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
+          RUN_BUILD: ${{ needs.classify-changes.outputs.run_build }}
+          RUN_CORE: ${{ needs.classify-changes.outputs.run_core }}
+          RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
+          RUN_MENU: ${{ needs.classify-changes.outputs.run_menu }}
+          RUN_SAUGE: ${{ needs.classify-changes.outputs.run_sauge }}
+          RUN_ADMIN_QR: ${{ needs.classify-changes.outputs.run_admin_qr }}
+          RUN_SEO: ${{ needs.classify-changes.outputs.run_seo }}
+          RUN_WEBKIT: ${{ needs.classify-changes.outputs.run_webkit }}
+        run: node scripts/ci/collect-metrics.mjs
+      - name: Upload CI metrics JSON
+        if: ${{ always() && hashFiles('ci-metrics.json') != '' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: ci-metrics-${{ github.run_id }}
+          path: ci-metrics.json
+          if-no-files-found: error
+          retention-days: 14

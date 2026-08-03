@@ -57,12 +57,13 @@ test("the retained PostgreSQL fixture uses the versioned rotation RPC", async ()
   );
 });
 
-test("App CI supplies PostgreSQL 17 and uses the hermetic bootstrap smoke gate", async () => {
+test("App CI supplies pinned PostgreSQL 17 and keeps asset policy separate", async () => {
   const workflow = await source(".github/workflows/app-ci.yml");
-  assert.match(workflow, /image:\s*postgres:17(?:\s|$)/);
+  const assetWorkflow = await source(".github/workflows/asset-policy.yml");
+  assert.match(workflow, /image:\s*postgres:17\.10@sha256:[0-9a-f]{64}/);
+  assert.match(assetWorkflow, /npm run assets:check/);
+  assert.match(assetWorkflow, /npm run lfs:check/);
   for (const command of [
-    "npm run assets:check",
-    "npm run lfs:check",
     "npm run lint",
     "npm run typecheck",
     "npm run test:qr:node",

@@ -63,8 +63,9 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
 });
 
 test("App CI uses targeted jobs and keeps the data-dependent smoke available locally", async () => {
-  const [workflow, packageJson, fullSmoke] = await Promise.all([
+  const [workflow, assetWorkflow, packageJson, fullSmoke] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
+    source(".github/workflows/asset-policy.yml"),
     source("package.json"),
     source("e2e/mvp-smoke.spec.ts")
   ]);
@@ -88,8 +89,6 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
   );
   for (const command of [
     "npm ci",
-    "npm run assets:check",
-    "npm run lfs:check",
     "npm run lint",
     "npm run typecheck",
     "npm run test:qr:node",
@@ -103,13 +102,16 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
   ]) {
     assert.match(workflow, new RegExp(command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
   }
-  for (const job of ["classify-changes", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
+  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
     assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
   }
   assert.match(workflow, /merge_group:/);
   assert.match(workflow, /name: CI Gate/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
   assert.match(workflow, /playwright install --with-deps webkit/);
+  assert.match(assetWorkflow, /npm run assets:check/);
+  assert.match(assetWorkflow, /npm run lfs:check/);
+  assert.doesNotMatch(workflow.slice(workflow.indexOf("  static-quality:"), workflow.indexOf("  database-contracts:")), /assets:check|lfs:check/);
   assert.ok(workflow.indexOf("npm run build") < workflow.indexOf("npm run test:ci:e2e:core"), "build is declared before browser jobs");
   assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
   assert.doesNotMatch(fullSmoke, /test\.skip/);
@@ -231,13 +233,14 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
   assert.match(noSkipReporter, /return \{ status: "failed" as const \}/);
 });
 
-test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {
+test("CodeQL keeps analysis failures blocking and publishes SARIF", async () => {
   const workflow = await source(".github/workflows/codeql.yml");
 
   assert.match(workflow, /uses:\s*github\/codeql-action\/analyze@[0-9a-f]{40}\s+# v4/);
   assert.match(workflow, /uses:\s*github\/codeql-action\/init@[0-9a-f]{40}\s+# v4/);
   assert.match(workflow, /uses:\s*actions\/checkout@[0-9a-f]{40}\s+# v4\.4\.0/);
-  assert.match(workflow, /upload:\s*never/);
+  assert.doesNotMatch(workflow, /upload:\s*never/);
+  assert.match(workflow, /security-events:\s*write/);
   assert.doesNotMatch(workflow, /continue-on-error/);
 });
 

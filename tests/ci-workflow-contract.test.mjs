@@ -11,7 +11,7 @@ const packageJson = JSON.parse(await readFile(new URL("../package.json", import.
 
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
-    "classify-changes", "static-quality", "database-contracts", "build-app",
+    "classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app",
     "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep",
     "e2e-admin-qr", "e2e-seo", "webkit-critical"
   ]) assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
@@ -29,7 +29,7 @@ test("App CI exposes the production job topology and all event modes", () => {
 test("CI Gate is fail-closed and receives every job result", () => {
   assert.match(workflow, /name: CI Gate/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
-  for (const job of ["classify-changes", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
+  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
     assert.match(workflow, new RegExp(`needs\.${job.replaceAll("-", "\\-")}\.result`));
   }
   assert.match(workflow, /expected but completed/);
@@ -41,6 +41,8 @@ test("CI Gate is fail-closed and receives every job result", () => {
   assert.doesNotMatch(workflow, /echo .*steps\.classify\.outputs\.(?:reason|changed_files)/);
   assert.match(workflow, /CLASSIFY_REASON:/);
   assert.match(workflow, /CLASSIFY_CHANGED_FILES:/);
+  assert.match(workflow, /Root failure diagnosis/);
+  assert.match(workflow, /blocked by root failure/);
 });
 
 test("WebKit is isolated to the critical browser job", () => {
@@ -96,6 +98,21 @@ test("each App CI job has exactly one classifier-owned run output", () => {
   }
   const gate = workflow.slice(workflow.indexOf("  ci-gate:"));
   assert.doesNotMatch(gate, /needs\.classify-changes\.outputs\.(?:docs_only|database|translations|landing|menu_shared|sauge_renderer|pageflip_gestures|admin|qr)/);
+  assert.match(workflow, /name: fast-gate/);
+  assert.match(workflow, /node --test tests\/ci-change-detection\.test\.mjs tests\/ci-workflow-contract\.test\.mjs tests\/preview-workflow-contract\.test\.mjs/);
+  for (const job of ["e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
+    const start = workflow.indexOf(`  ${job}:`);
+    const nextJobOffset = workflow.slice(start + 3).search(/^\n  [A-Za-z0-9_-]+:/m);
+    const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
+    const block = workflow.slice(start, end < 0 ? workflow.length : end);
+    assert.match(block, /needs: \[classify-changes, fast-gate, static-quality, build-app\]/, job);
+    assert.match(block, /needs\.fast-gate\.result == 'success'/, job);
+    assert.match(block, /needs\.static-quality\.result == 'success'/, job);
+    assert.match(block, /needs\.build-app\.result == 'success'/, job);
+  }
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /ci-metrics:/);
+  assert.match(workflow, /ci-metrics-\$\{\{ github\.run_id \}\}/);
 });
 
 test("PR graph fetch is bounded and fail-closed", () => {
@@ -109,12 +126,15 @@ test("PR graph fetch is bounded and fail-closed", () => {
   assert.doesNotMatch(fetchGraph, /\["-c", `http\.extraheader=AUTHORIZATION/);
   assert.match(fetchGraph, /classifier will use full CI/);
   assert.doesNotMatch(fetchGraph, /fetch-depth:\s*0/);
+  assert.match(workflow, /head\.repo\.full_name == github\.repository/);
 });
 
 test("CI uses read-only permissions, bounded jobs, and concurrency", () => {
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.match(workflow, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
   assert.equal((workflow.match(/timeout-minutes:/g) ?? []).length >= 10, true);
+  assert.match(workflow, /postgres:17\.10@sha256:[0-9a-f]{64}/);
+  assert.doesNotMatch(workflow, /image:\s*postgres:17\s*$/m);
 });
 
 test("CI browser families use one grouped runner invocation", () => {
@@ -129,9 +149,12 @@ test("CI browser families use one grouped runner invocation", () => {
     assert.match(packageJson.scripts[script], /scripts\/run-playwright-e2e\.mjs/);
   }
   assert.match(packageJson.scripts["test:ci:e2e:landing"], /landing-production-photo\.spec\.ts[\s\S]*landing-redesign\.spec\.ts/);
-  assert.match(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-critical-smoke\.spec\.ts[\s\S]*sauge-noire-swipe-intent\.spec\.ts/);
-  assert.match(packageJson.scripts["test:ci:e2e:menu"], /ci-smoke\.spec\.ts[\s\S]*sauge-noire-critical-smoke\.spec\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-first-gesture-scroll\.spec\.ts[\s\S]*sauge-noire-swipe-intent\.spec\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-critical-smoke\.spec\.ts/);
+  assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /ci-smoke\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-(?:first-gesture-scroll|swipe-intent|contents-single-flip|static-page-handoff)\.spec\.ts/);
+  assert.doesNotMatch(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-critical-smoke\.spec\.ts/);
+  assert.match(packageJson.scripts["test:seo:e2e"], /forbid-only/);
 });
 
 test("the shared production artifact is built against the hermetic menu fixture", () => {
@@ -146,4 +169,12 @@ test("the shared production artifact is built against the hermetic menu fixture"
 test("landing E2E uses the production readiness path", () => {
   assert.doesNotMatch(menuExperiences, /VISTAIRE_E2E_LANDING_CANONICAL/);
   assert.doesNotMatch(e2eRunner, /VISTAIRE_E2E_LANDING_CANONICAL/);
+});
+
+test("Asset Policy owns the repository asset checks", async () => {
+  const assetWorkflow = await readFile(new URL("../.github/workflows/asset-policy.yml", import.meta.url), "utf8");
+  const staticJob = workflow.slice(workflow.indexOf("  static-quality:"), workflow.indexOf("  database-contracts:"));
+  assert.match(assetWorkflow, /npm run assets:check/);
+  assert.match(assetWorkflow, /npm run lfs:check/);
+  assert.doesNotMatch(staticJob, /assets:check|lfs:check/);
 });

@@ -10,7 +10,15 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const event = String(process.env.GITHUB_EVENT_NAME ?? "").toLowerCase();
-if (event !== "pull_request") process.exit(0);
+function setOutput(name, value) {
+  const output = process.env.GITHUB_OUTPUT;
+  if (output) appendFileSync(output, `${name}=${String(value)}\n`);
+}
+
+if (event !== "pull_request") {
+  setOutput("merge_base_depth", "");
+  process.exit(0);
+}
 
 function readPayload() {
   const payloadPath = process.env.GITHUB_EVENT_PATH;
@@ -33,6 +41,7 @@ const baseSha = payload.pull_request?.base?.sha;
 const headSha = payload.pull_request?.head?.sha;
 const pullNumber = payload.pull_request?.number;
 const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "";
+setOutput("merge_base_depth", "");
 if (!/^[0-9a-f]{40}$/i.test(String(baseSha)) || !/^[0-9a-f]{40}$/i.test(String(headSha)) ||
     !/^\d+$/.test(String(pullNumber)) || !token) {
   report("PR graph unavailable: malformed payload or missing read token; classifier will use full CI.");
@@ -93,6 +102,7 @@ const hasMergeBase = () => {
 try {
   git(["fetch", "--no-tags", "--filter=blob:none", "--depth=1", "origin", baseSha, pullRef]);
   if (hasMergeBase()) {
+    setOutput("merge_base_depth", "1");
     report("PR graph ready: merge-base found after depth 1 fetch.");
     process.exit(0);
   }
@@ -103,6 +113,7 @@ try {
   for (const increment of [32, 128, 512, 2048]) {
     git(["fetch", "--no-tags", "--filter=blob:none", `--deepen=${increment}`, "origin", baseSha, pullRef]);
     if (hasMergeBase()) {
+      setOutput("merge_base_depth", String(1 + increment));
       report(`PR graph ready: merge-base found after additional depth ${increment}.`);
       process.exit(0);
     }
