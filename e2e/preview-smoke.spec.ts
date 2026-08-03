@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 const previewBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 if (!previewBaseUrl) throw new Error("Preview Gate requires PLAYWRIGHT_BASE_URL.");
@@ -13,19 +13,27 @@ if (!protectionBypass) {
   throw new Error("Preview Gate requires VERCEL_AUTOMATION_BYPASS_SECRET.");
 }
 
-test.beforeEach(async ({ context }) => {
-  await context.route("**/*", async (route) => {
-    const requestUrl = new URL(route.request().url());
-    const headers = { ...route.request().headers() };
-    if (requestUrl.origin === expectedOrigin) {
-      headers["x-vercel-protection-bypass"] = protectionBypass;
-      headers["x-vercel-set-bypass-cookie"] = "true";
-    } else {
-      delete headers["x-vercel-protection-bypass"];
-      delete headers["x-vercel-set-bypass-cookie"];
-    }
-    await route.continue({ headers });
+async function establishPreviewAccess(context: BrowserContext) {
+  // Keep the secret on one direct API request. maxRedirects: 0 ensures a
+  // Preview-controlled redirect cannot forward it to another origin.
+  const response = await context.request.get(`${expectedOrigin}/`, {
+    headers: {
+      "x-vercel-protection-bypass": protectionBypass,
+      "x-vercel-set-bypass-cookie": "true"
+    },
+    maxRedirects: 0
   });
+  const location = response.headers().location;
+  if (location && new URL(location, expectedOrigin).origin !== expectedOrigin) {
+    throw new Error("Preview access bootstrap redirect left the validated origin.");
+  }
+  if (response.status() >= 400) {
+    throw new Error(`Preview access bootstrap returned HTTP ${response.status()}.`);
+  }
+}
+
+test.beforeEach(async ({ context }) => {
+  await establishPreviewAccess(context);
 });
 
 type RuntimeIssues = {
@@ -53,7 +61,7 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
   });
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText;
-    if (failure === "net::ERR_ABORTED" && /\/videos\//i.test(request.url())) return;
+    if (failure === "net::ERR_ABORTED" && /\\/videos\\//i.test(request.url())) return;
     try {
       if (new URL(request.url()).origin === expectedOrigin) {
         issues.failedRequests.push(`${failure ?? "request failed"} ${request.url()}`);
