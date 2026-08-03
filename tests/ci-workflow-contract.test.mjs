@@ -68,4 +68,5 @@ test("the shared production artifact is built against the hermetic menu fixture"
   assert.match(buildJob, /NEXT_PUBLIC_SUPABASE_URL:\s+http:\/\/127\.0\.0\.1:55434/);
   assert.match(buildJob, /SUPABASE_SERVICE_ROLE_KEY:\s+sauge-noire-fixture-service-role-key/);
   assert.match(buildJob, /VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF:\s+""/);
+  assert.match(buildJob, /include-hidden-files:\s+true/);
 });

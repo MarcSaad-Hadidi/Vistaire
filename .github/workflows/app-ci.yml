@@ -249,6 +249,7 @@ jobs:
           path: .next
           if-no-files-found: error
           retention-days: 1
+          include-hidden-files: true
       - name: Job summary
         if: ${{ always() }}
         run: |
