@@ -102,7 +102,7 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
   ]) {
     assert.match(workflow, new RegExp(command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
   }
-  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
+  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]) {
     assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
   }
   assert.match(workflow, /merge_group:/);
@@ -131,10 +131,10 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
-  assert.match(workflow, /^\s{2}e2e-sauge-deep:\s*$/m);
+  assert.match(workflow, /^\s{2}e2e-sauge-chromium:\s*$/m);
   assert.match(workflow, /^\s{2}webkit-critical:\s*$/m);
   assert.match(workflow, /name: CI Gate\s+if: \$\{\{ always\(\) \}\}/);
-  assert.match(workflow, /needs\.e2e-sauge-deep\.result/);
+  assert.match(workflow, /needs\.e2e-sauge-chromium\.result/);
   assert.equal(
     scripts["test:sauge-noire:scroll"],
     "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-first-gesture-scroll.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"

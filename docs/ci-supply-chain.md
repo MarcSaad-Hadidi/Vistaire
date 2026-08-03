@@ -45,10 +45,33 @@ manual update until an image-update owner is assigned.
 The current lockfile has integrity metadata for all 666 installed packages, but
 the audit report still contains high-severity advisories. This PR does not run
 `npm audit fix --force` and does not silently change production dependencies.
-Remediation belongs in a separate dependency PR. The follow-up gate should
-compare the current report with an expiring advisory baseline and fail only on a
-new high/critical advisory; each baseline entry must include its advisory ID,
-affected path, owner, issue, reason, and expiry date.
+Remediation belongs in a separate dependency PR. The `Workflow Security`
+workflow runs `npm audit --json` and
+`scripts/ci/check-npm-audit-baseline.mjs` on every pull request and push to
+`main`. The checked-in baseline is
+[`ci/npm-audit-baseline.json`](../ci/npm-audit-baseline.json); every entry has an
+advisory ID, package, dependency path, runtime/dev scope, severity,
+exploitability, owner, tracking issue, reason, and expiry date. The gate fails
+when a high/critical advisory is not listed or when any baseline entry expires.
+An advisory that disappears and later returns is therefore detected again as a
+live, unbaselined finding unless its baseline is still explicitly valid. The
+baseline also pins the audited `package-lock.json` SHA-256; any dependency
+change (including a corrected advisory being reintroduced) requires an
+intentional baseline refresh and review.
+
+The audit job installs with `--ignore-scripts`, never runs `npm audit fix`, and
+does not receive repository secrets. A failed or malformed audit response is a
+failure, not an implicit clean result.
+
+## Workflow static analysis
+
+`Workflow Security` also runs actionlint (`devops-actions/actionlint` immutable
+revision `e7ee33f…`, release `v0.1.3`) and zizmor (`zizmorcore/zizmor-action`
+immutable revision `3dc1ecc…`, tool version `1.21.0`). Both jobs have only
+`contents: read`, use no repository secrets, and run zizmor with online audits
+disabled. These checks cover workflow syntax, action pinning, permissions, and
+dangerous interpolation patterns. A local machine without Docker/actionlint/
+zizmor cannot claim these checks passed; the GitHub job is the source of truth.
 
 ## Fork safety
 

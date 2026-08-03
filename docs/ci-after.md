@@ -133,8 +133,13 @@ statuts `source`/`up_to_date`, traductions anglaises, hashes de contenu et de
 photos, renderer Maison Élyse et payload attendu. Les contrats fixture,
 landing/i18n et les suites Node correspondantes passent localement.
 
-`e2e-menu-shared` conserve uniquement le smoke commun et la preuve Sauge
-critique courte d'un composant partagé; il ne lance pas la suite Sauge profonde.
+`e2e-public-chromium` conserve le smoke commun `sauge-noire-menu-shared-smoke`:
+démo générique (menu/plat/retour), Trouvable (catégories, langue, photo ou
+fallback, plat/retour) et une navigation Sauge Noire critique courte. Le groupe
+réutilise une seule installation Chromium, la fixture Supabase et le serveur;
+il ne lance pas la suite Sauge profonde. `e2e-sauge-chromium` et
+`e2e-admin-qr-chromium` restent spécialisés, tandis que `webkit-critical`
+conserve WebKit isolé.
 Le WebKit Sauge est conditionné par `run_webkit` et ne peut donc plus être
 déclenché par une simple modification landing, SEO, QR, SQL, admin ou menu
 partagé.
@@ -175,10 +180,11 @@ ne sont pas déduits de la baseline full CI.
 
 Le Preview existant associé à `1c6382e` était `READY`, mais ses routes étaient
 protégées par le SSO Vercel dans cet environnement. Le `Preview Gate` vérifie
-donc le secret de bypass officiel avant d'exécuter une page distante : s'il est
-absent de l'environnement protégé, le smoke est ignoré avec un avertissement
-explicite et aucune requête protégée n'est exécutée. Le contrôle sera activé dès
-que `VERCEL_AUTOMATION_BYPASS_SECRET` sera configuré.
+donc le secret de bypass officiel avant d'exécuter une page distante. S'il est
+absent de l'environnement protégé, le gate échoue explicitement et aucune
+requête protégée n'est exécutée : un contrôle nommé Gate ne peut pas être vert
+sans smoke réel. Le runbook d'administration est
+[`docs/qa/preview-gate-runbook.md`](qa/preview-gate-runbook.md).
 
 ## Validation locale de cette continuation
 

@@ -12,8 +12,7 @@ const packageJson = JSON.parse(await readFile(new URL("../package.json", import.
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
     "classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app",
-    "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep",
-    "e2e-admin-qr", "e2e-seo", "webkit-critical"
+    "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"
   ]) assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /push:/);
@@ -29,8 +28,8 @@ test("App CI exposes the production job topology and all event modes", () => {
 test("CI Gate is fail-closed and receives every job result", () => {
   assert.match(workflow, /name: CI Gate/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
-  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
-    const jobResultPattern = new RegExp(`needs\\.${job.replaceAll("-", "\\-")}\\.result`);
+  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]) {
+    const jobResultPattern = new RegExp(`needs\\.${job}\\.result`);
     assert.match(workflow, jobResultPattern);
     assert.doesNotMatch(`needsX${job}Yresult`, jobResultPattern);
   }
@@ -81,12 +80,9 @@ test("each App CI job has exactly one classifier-owned run output", () => {
     "static-quality": "run_static",
     "database-contracts": "run_database",
     "build-app": "run_build",
-    "e2e-core": "run_core",
-    "e2e-landing": "run_landing",
-    "e2e-menu-shared": "run_menu",
-    "e2e-sauge-deep": "run_sauge",
-    "e2e-admin-qr": "run_admin_qr",
-    "e2e-seo": "run_seo",
+    "e2e-public-chromium": "run_core",
+    "e2e-sauge-chromium": "run_sauge",
+    "e2e-admin-qr-chromium": "run_admin_qr",
     "webkit-critical": "run_webkit"
   };
   for (const [job, output] of Object.entries(jobOutputs)) {
@@ -95,14 +91,21 @@ test("each App CI job has exactly one classifier-owned run output", () => {
     const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
     const block = workflow.slice(start, end < 0 ? workflow.length : end);
     const condition = block.match(/^    if: (.+)$/m)?.[1] ?? "";
-    assert.match(condition, new RegExp(`needs\\.classify-changes\\.outputs\\.${output} == 'true'`), job);
+    if (job === "e2e-public-chromium") {
+      assert.match(block, /outputs\.run_core == 'true'/, job);
+      assert.match(block, /outputs\.run_landing == 'true'/, job);
+      assert.match(block, /outputs\.run_menu == 'true'/, job);
+      assert.match(block, /outputs\.run_seo == 'true'/, job);
+    } else {
+      assert.match(condition, new RegExp(`needs\\.classify-changes\\.outputs\\.${output} == 'true'`), job);
+    }
     assert.doesNotMatch(condition, /needs\.classify-changes\.outputs\.(?!run_)/, job);
   }
   const gate = workflow.slice(workflow.indexOf("  ci-gate:"));
   assert.doesNotMatch(gate, /needs\.classify-changes\.outputs\.(?:docs_only|database|translations|landing|menu_shared|sauge_renderer|pageflip_gestures|admin|qr)/);
   assert.match(workflow, /name: fast-gate/);
-  assert.match(workflow, /node --test tests\/ci-change-detection\.test\.mjs tests\/ci-workflow-contract\.test\.mjs tests\/preview-workflow-contract\.test\.mjs/);
-  for (const job of ["e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
+  assert.match(workflow, /node --test tests\/ci-change-detection\.test\.mjs tests\/ci-workflow-contract\.test\.mjs tests\/preview-workflow-contract\.test\.mjs tests\/workflow-security-contract\.test\.mjs/);
+  for (const job of ["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]) {
     const start = workflow.indexOf(`  ${job}:`);
     const nextJobOffset = workflow.slice(start + 3).search(/^\n  [A-Za-z0-9_-]+:/m);
     const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
@@ -115,6 +118,22 @@ test("each App CI job has exactly one classifier-owned run output", () => {
   assert.match(workflow, /actions: read/);
   assert.match(workflow, /ci-metrics:/);
   assert.match(workflow, /ci-metrics-\$\{\{ github\.run_id \}\}/);
+});
+
+test("browser jobs publish structured reports to the metrics collector", () => {
+  const browserJobs = ["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"];
+  for (const job of browserJobs) {
+    const start = workflow.indexOf(`  ${job}:`);
+    const nextJobOffset = workflow.slice(start + 3).search(/^\n  [A-Za-z0-9_-]+:/m);
+    const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
+    const block = workflow.slice(start, end);
+    assert.match(block, /outputs:\s+test_report:/s, `${job} must expose a report output`);
+    assert.match(block, /CI_TEST_REPORT_PATH:/, `${job} must configure the report path`);
+    assert.match(block, /id: publish-test-report/, `${job} must publish its report`);
+    assert.match(block, /did not publish|no selected browser family/, `${job} must fail when the report is absent`);
+  }
+  assert.match(workflow, /CI_TEST_REPORTS_JSON: \$\{\{ toJSON\(needs\) \}\}/);
+  assert.match(workflow, /Publish human-readable metrics summary/);
 });
 
 test("PR graph fetch is bounded and fail-closed", () => {
@@ -152,15 +171,16 @@ test("CI browser families use one grouped runner invocation", () => {
   }
   assert.match(packageJson.scripts["test:ci:e2e:landing"], /landing-production-photo\.spec\.ts[\s\S]*landing-redesign\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-first-gesture-scroll\.spec\.ts[\s\S]*sauge-noire-swipe-intent\.spec\.ts/);
-  assert.match(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-critical-smoke\.spec\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-menu-shared-smoke\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /ci-smoke\.spec\.ts/);
+  assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-critical-smoke\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-(?:first-gesture-scroll|swipe-intent|contents-single-flip|static-page-handoff)\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-critical-smoke\.spec\.ts/);
   assert.match(packageJson.scripts["test:seo:e2e"], /forbid-only/);
 });
 
 test("the shared production artifact is built against the hermetic menu fixture", () => {
-  const buildJob = workflow.slice(workflow.indexOf("  build-app:"), workflow.indexOf("  e2e-core:"));
+  const buildJob = workflow.slice(workflow.indexOf("  build-app:"), workflow.indexOf("  e2e-public-chromium:"));
   assert.match(buildJob, /NEXT_PUBLIC_SUPABASE_URL:\s+http:\/\/127\.0\.0\.1:55434/);
   assert.match(buildJob, /SUPABASE_SERVICE_ROLE_KEY:\s+sauge-noire-fixture-service-role-key/);
   assert.match(buildJob, /VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF:\s+""/);

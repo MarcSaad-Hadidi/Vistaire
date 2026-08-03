@@ -14,18 +14,24 @@ secondary browser failures. `Asset Policy` remains independent and owns the
 only `assets:check` and `lfs:check` invocations.
 
 The separate `CI metrics` job publishes a machine-readable `ci-metrics.json`
-artifact. It records the wall-clock window, raw runner-seconds, billed-minute
-estimate, npm/browser/artifact timings, skipped jobs, first failure, root
-failure, and merge-base depth. Values not exposed by the Actions API (such as
-exact test counts from log text) remain `null`.
+artifact and a human-readable summary from that same file. It records the
+wall-clock window, raw runner-seconds, billed-minute estimate,
+npm/browser/artifact timings, skipped jobs, first failure, root failure, and
+merge-base depth. Browser jobs publish structured Playwright JSON reports;
+`failed_tests` and the passed/failed/skipped/flaky/interrupted totals are only
+reported when those reports are available. Missing API fields are listed in
+`data_quality.fields_unavailable`; they are never represented by ambiguous
+`null` values. A temporary GitHub API failure leaves the job non-blocking but
+sets `collection_complete` to `false` and records a warning.
 
 `Preview Gate` and `Production Smoke` listen to `deployment_status`, verify the
 environment and exact deployment SHA, and run a smoke harness checked out from
 trusted `main`. Preview validation uses the official Vercel bypass secret when
 it is configured in the protected `preview-gate` environment. If that secret is
-not configured, Preview Gate emits a warning and skips the remote smoke safely;
-it never executes a protected request without the secret. No protected secret
-is passed to PR code.
+not configured, Preview Gate fails closed with an explicit error and does not
+execute the remote smoke; it never reports a green gate without a test. No
+protected secret is passed to PR code. The exact administrator setup is
+documented in [`docs/qa/preview-gate-runbook.md`](qa/preview-gate-runbook.md).
 
 ## Source de vérité du ciblage
 
@@ -54,12 +60,17 @@ compile une fois avec la fixture Supabase hermétique puis publie `.next`.
 Static et PostgreSQL n'installent aucun navigateur. Chromium est installé
 uniquement par les familles Chromium ; WebKit uniquement par `webkit-critical`.
 
-`e2e-menu-shared` exécute le smoke menu générique et une preuve Sauge critique
-courte pour les composants réellement partagés. La suite Sauge profonde et
-les specs PageFlip WebKit ne tournent que pour `full_ci`, Sauge/PageFlip,
-l'infrastructure Playwright pertinente, un dispatch Sauge, `main`, la merge
-queue ou le nightly. Une modification landing, SEO, QR, SQL, admin ou menu
-partagé ne lance pas WebKit Sauge comme proxy.
+Le groupe `e2e-public-chromium` regroupe conditionnellement core, landing, SEO
+et `e2e/sauge-noire-menu-shared-smoke.spec.ts` avec une seule installation
+Chromium, une seule fixture Supabase et un seul download `.next`. Le smoke menu
+couvre le parcours menu → plat → retour de la démo générique, le menu Trouvable
+(catégories, changement de langue, photo/fallback, ouverture et retour) et un
+parcours Sauge Noire critique court; les rapports restent distincts par famille
+avant agrégation. `e2e-sauge-chromium` conserve les suites Sauge profondes,
+`e2e-admin-qr-chromium` garde les contrats QR sensibles et `webkit-critical`
+reste isolé. Le full CI cible ainsi sept `npm ci`, trois installations
+Chromium, une installation WebKit et quatre downloads `.next`; ces chiffres
+restent à confirmer par un run GitHub propre.
 
 ## Événements et dispatch manuel
 

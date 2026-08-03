@@ -61,24 +61,50 @@ jobs:
         run: npm ci
       - name: Install Chromium
         run: npx --no-install playwright install --with-deps chromium
-      - name: Run protected Preview smoke (when configured)
+      - name: Run protected Preview smoke
         env:
           CI: true
           PLAYWRIGHT_SKIP_WEB_SERVER: '1'
           PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          CI_TEST_REPORT_PATH: ${{ runner.temp }}/vistoire-preview-gate.json
         run: |
           if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
-            echo '::warning::Preview smoke skipped: VERCEL_AUTOMATION_BYPASS_SECRET is not configured in the protected preview-gate environment.'
+            echo '::error::Preview Gate cannot run without VERCEL_AUTOMATION_BYPASS_SECRET in the protected preview-gate environment.'
             {
-              echo '### Preview smoke skipped'
+              echo '### Preview Gate failed closed'
               echo '- `VERCEL_AUTOMATION_BYPASS_SECRET` is not configured in the protected `preview-gate` environment.'
-              echo '- No remote page was executed and no protected secret was exposed.'
-              echo '- Configure the secret to activate the protected Preview smoke.'
+              echo '- No remote page was executed; this check is intentionally not green when validation did not run.'
+              echo '- Configure the secret and rerun the deployment status check.'
             } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            exit 1
           fi
           node ./node_modules/@playwright/test/cli.js test e2e/preview-smoke.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts
+      - name: Validate Preview structured report
+        if: ${{ success() }}
+        env:
+          REPORT_PATH: ${{ runner.temp }}/vistoire-preview-gate.json
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync(process.env.REPORT_PATH, 'utf8'));
+          if (!Number.isInteger(report.total) || report.total < 1) throw new Error('Preview Gate produced no test results');
+          for (const key of ['passed', 'failed', 'skipped', 'flaky', 'interrupted']) {
+            if (!Number.isInteger(report[key]) || report[key] < 0) throw new Error(`Preview report field ${key} is invalid`);
+          }
+          if (report.skipped !== 0 || report.interrupted !== 0) throw new Error('Preview Gate must not skip or interrupt tests');
+          if (report.passed + report.failed + report.flaky !== report.total) throw new Error('Preview report totals are inconsistent');
+          const lines = [
+            '### Preview Gate test report',
+            `- Total: ${report.total}`,
+            `- Passed: ${report.passed}`,
+            `- Failed: ${report.failed}`,
+            `- Flaky: ${report.flaky}`,
+            `- Skipped: ${report.skipped}`,
+            `- Interrupted: ${report.interrupted}`
+          ];
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\\n')}\\n`);
+          NODE
       - name: Upload Preview diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0

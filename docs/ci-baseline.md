@@ -22,9 +22,10 @@ la seconde et ne constituent pas un benchmark local.
 | Premier échec utile | environ 6 min 03 s dans l’exemple analysé |
 | Travail après le premier échec | environ 9 min 15 s dans ce run |
 
-La nouvelle architecture vise un build uploadé une fois, un processus par groupe
-Playwright, une installation WebKit uniquement dans `webkit-critical` et des
-familles Sauge conditionnelles. Le run de référence `30779748386` est vert
+La nouvelle architecture vise un build uploadé une fois, un processus public
+Chromium regroupant core/landing/menu/SEO, un job Sauge Chromium, un job QR
+Chromium et une installation WebKit uniquement dans `webkit-critical`. Le run
+de référence `30779748386` est vert
 (environ 5 min 33 s annoncées, contre une médiane historique de 15 min 08 s),
 mais les scénarios ciblés de cette nouvelle politique restent à exécuter sur
 GitHub avant de conclure sur le coût total.
@@ -47,15 +48,16 @@ regroupent les specs partageant le même serveur et la même fixture :
 
 - `core` : landing, démo hermétique, admin protégé, robots/sitemap et responsive 390/430 px;
 - `landing` : production photo et redesign;
-- `menu` : smoke générique + preuve Sauge critique courte pour les composants
-  réellement partagés; la suite profonde appartient à `e2e-sauge-deep` quand
-  `run_sauge=true`;
-- `sauge` : smoke + scroll, swipe, contents-single-flip et static parity;
+- `e2e-public-chromium` : core, landing, menu et SEO selon les sorties `run_*`,
+  avec une installation Chromium et des rapports par famille;
+- `e2e-sauge-chromium` : smoke + scroll, swipe, contents-single-flip et static
+  parity;
 - `webkit` : contents-single-flip et static parity sous WebKit;
-- `admin-qr` et `seo` : scripts Node/fixtures existants sans Sauge profond.
+- `e2e-admin-qr-chromium` et SEO : scripts/fixtures existants sans Sauge
+  profond; SEO est exécuté dans le groupe public.
 
 Aucun fichier `e2e/` n’a été supprimé. Les suites Sauge profondes sont déplacées
-du job séquentiel historique vers `e2e-sauge-deep` et `webkit-critical`; les
+du job séquentiel historique vers `e2e-sauge-chromium` et `webkit-critical`; les
 contrats Node restent dans `static-quality` ou `database-contracts`.
 
 ## Rollout, diagnostic et limites
