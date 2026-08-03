@@ -24,9 +24,10 @@ la seconde et ne constituent pas un benchmark local.
 
 La nouvelle architecture vise un build uploadé une fois, un processus par groupe
 Playwright, une installation WebKit uniquement dans `webkit-critical` et des
-familles Sauge conditionnelles. Les résultats après déploiement doivent être
-ajoutés à un run comparable; aucun gain n’est présenté comme acquis avant cette
-mesure.
+familles Sauge conditionnelles. Le run de référence `30779748386` est vert
+(environ 5 min 33 s annoncées, contre une médiane historique de 15 min 08 s),
+mais les scénarios ciblés de cette nouvelle politique restent à exécuter sur
+GitHub avant de conclure sur le coût total.
 
 ## Matrice événement → validation
 
@@ -46,7 +47,9 @@ regroupent les specs partageant le même serveur et la même fixture :
 
 - `core` : landing, démo hermétique, admin protégé, robots/sitemap et responsive 390/430 px;
 - `landing` : production photo et redesign;
-- `menu` : smoke générique et smoke Sauge critique;
+- `menu` : smoke générique + preuve Sauge critique courte pour les composants
+  réellement partagés; la suite profonde appartient à `e2e-sauge-deep` quand
+  `run_sauge=true`;
 - `sauge` : smoke + scroll, swipe, contents-single-flip et static parity;
 - `webkit` : contents-single-flip et static parity sous WebKit;
 - `admin-qr` et `seo` : scripts Node/fixtures existants sans Sauge profond.

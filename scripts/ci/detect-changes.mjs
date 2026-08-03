@@ -31,6 +31,22 @@ export const CATEGORIES = Object.freeze([
   "full_ci"
 ]);
 
+// These are the only job-policy outputs consumed by App CI.  Keeping the
+// decision here means workflow `if:` expressions and CI Gate cannot drift
+// apart when a category is added or reclassified.
+export const RUN_OUTPUTS = Object.freeze([
+  "run_static",
+  "run_database",
+  "run_build",
+  "run_core",
+  "run_landing",
+  "run_menu",
+  "run_sauge",
+  "run_admin_qr",
+  "run_seo",
+  "run_webkit"
+]);
+
 const OPERATIONAL_CATEGORIES = CATEGORIES.filter((name) => name !== "docs_only" && name !== "full_ci");
 const ZERO_SHA = /^0+$/;
 
@@ -56,9 +72,13 @@ export function classifyPath(input) {
   const lower = file.toLowerCase();
   const base = path.posix.basename(lower);
 
-  // Documentation is intentionally narrow.  A markdown file in a runtime
-  // directory is still docs-only, but generated/config files are not.
-  if (/^(?:docs?|documentation)\//.test(lower) || /\.(?:md|mdx|txt)$/.test(lower)) {
+  // Documentation is intentionally an allowlist.  Runtime content with a
+  // documentation-like extension must never evade its owning test family.
+  const docsOnlyPath = lower === "readme.md" ||
+    lower === "contributing.md" ||
+    lower === "security.md" ||
+    /^(?:docs|documentation)\//.test(lower);
+  if (docsOnlyPath) {
     return { path: file, categories: new Set(["docs_only"]), known: true };
   }
 
@@ -127,11 +147,13 @@ export function classifyPath(input) {
   if (/qr|qr-codes|qrcode/.test(lower)) add(categories, "qr");
 
   // Explicitly recognised application/source trees are core even when a
-  // specialised rule above did not match.  This prevents ordinary source
-  // changes being mistaken for unknown files.
-  if (/^(?:app|components|lib|scripts|tests|e2e|styles|config|types|supabase)\//.test(lower) ||
+  // specialised rule above did not match.  Database migrations and SQL test
+  // fixtures are deliberately database-only so a SQL-only PR does not build
+  // or launch browser suites as a side effect of the generic source rule.
+  const databaseOnlyPath = /^(?:supabase\/|tests\/postgres\/|scripts\/.*(?:postgres|migration|backfill))/.test(lower);
+  if (!databaseOnlyPath && /^(?:app|components|content|fixtures|lib|scripts|tests|e2e|styles|config|types)\//.test(lower) ||
       /^(?:next|tsconfig|tailwind|postcss|eslint)\.config\./.test(base) ||
-      /\.(?:css|scss|sass|less|tsx?|jsx?|mjs|cjs|mts|cts)$/.test(lower)) {
+      (!databaseOnlyPath && /\.(?:css|scss|sass|less|tsx?|jsx?|mjs|cjs|mts|cts|mdx|txt)$/.test(lower))) {
     add(categories, "core");
   }
 
@@ -172,7 +194,7 @@ function allOperationalFlags() {
 
 function isMainRef(input) {
   const ref = input.ref ?? input.refName ?? input.branch ?? input.baseRef;
-  return ref === "main" || ref === "refs/heads/main" || String(ref ?? "").endsWith("/main");
+  return ref === "main" || ref === "refs/heads/main";
 }
 
 function dispatchTarget(input) {
@@ -192,6 +214,37 @@ function applyDispatchTarget(target, flags) {
   };
   for (const category of targetCategories[target] ?? []) flags[category] = true;
   return Boolean(targetCategories[target]);
+}
+
+/**
+ * Derive the exact App CI job matrix from category flags.  This function is
+ * deliberately exported so policy tests can assert the complete matrix
+ * without parsing shell expressions or duplicating conditions in a gate.
+ */
+export function deriveRunOutputs(flags) {
+  const full = flags.full_ci === true;
+  const docsOnly = flags.docs_only === true;
+  return {
+    run_static: full || !docsOnly,
+    run_database: full || flags.database === true || flags.translations === true || flags.qr === true,
+    run_build: full || flags.core === true || flags.assets === true || flags.landing === true ||
+      flags.menu_shared === true || flags.translations === true || flags.sauge_renderer === true ||
+      flags.pageflip_gestures === true || flags.admin === true || flags.qr === true ||
+      flags.seo === true || flags.dependencies === true,
+    // Specialised families own their browser coverage.  A generic core smoke
+    // is retained for landing/assets, while SQL, translations, menu, admin,
+    // QR and SEO changes stay in their precise families.
+    run_core: full || flags.assets === true || flags.landing === true ||
+      (flags.core === true && flags.database !== true && flags.translations !== true &&
+        flags.menu_shared !== true && flags.admin !== true && flags.qr !== true &&
+        flags.seo !== true && flags.sauge_renderer !== true && flags.pageflip_gestures !== true),
+    run_landing: full || flags.landing === true,
+    run_menu: full || flags.menu_shared === true || flags.translations === true,
+    run_sauge: full || flags.sauge_renderer === true || flags.pageflip_gestures === true,
+    run_admin_qr: full || flags.admin === true || flags.qr === true,
+    run_seo: full || flags.seo === true,
+    run_webkit: full || flags.sauge_renderer === true || flags.pageflip_gestures === true
+  };
 }
 
 /**
@@ -257,6 +310,7 @@ export function classifyChanges(input = {}) {
   flags.docs_only = docsOnly && !fullCi;
   flags.full_ci = fullCi;
 
+  const runOutputs = deriveRunOutputs(flags);
   const categories = CATEGORIES.filter((name) => flags[name]);
   const result = {
     event,
@@ -266,7 +320,9 @@ export function classifyChanges(input = {}) {
     categories,
     flags,
     reason: reasons.length ? reasons.join("; ") : "classified by deterministic path rules",
-    ...flags
+    ...flags,
+    ...runOutputs,
+    classification_valid: RUN_OUTPUTS.every((name) => typeof runOutputs[name] === "boolean")
   };
   // JS-friendly aliases are useful to workflow adapters and preserve a small,
   // stable interface if output names are consumed outside Actions.
@@ -277,6 +333,9 @@ export function classifyChanges(input = {}) {
   result.fullCi = flags.full_ci;
   result.changedFiles = result.changed_files;
   result.unknownFiles = result.unknown_files;
+  for (const name of RUN_OUTPUTS) {
+    result[name.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())] = runOutputs[name];
+  }
   return result;
 }
 
@@ -290,14 +349,42 @@ function readEventPayload() {
   try { return JSON.parse(readFileSync(eventPath, "utf8")); } catch { return {}; }
 }
 
-function gitDiffPaths(base, head) {
+export function gitDiffPaths(base, head, options = {}) {
   if (!base || !head || ZERO_SHA.test(base) || ZERO_SHA.test(head)) return null;
+  // Event payload SHAs are full hexadecimal object ids.  Reject anything
+  // else before passing values to Git so malformed payloads fail closed rather
+  // than becoming options or ambiguous revisions.
+  if (!/^[0-9a-f]{40}$/i.test(String(base)) || !/^[0-9a-f]{40}$/i.test(String(head))) return null;
   try {
-    const text = execFileSync("git", ["diff", "--name-status", "-M", base, head], { encoding: "utf8" });
-    const entries = text.split(/\r?\n/).filter(Boolean).map((line) => {
-      const fields = line.split("\t");
-      return { status: fields[0], path: fields.at(-1), oldPath: fields.length > 2 ? fields[1] : undefined };
-    });
+    const gitOptions = {
+      encoding: "utf8",
+      cwd: options.cwd,
+      stdio: ["ignore", "pipe", "ignore"]
+    };
+    const mergeBase = execFileSync("git", ["merge-base", base, head], gitOptions).trim();
+    if (!/^[0-9a-f]{40}$/i.test(mergeBase)) return null;
+    // NUL-delimited records are required for safe rename/deletion handling;
+    // tabs and newlines are valid Git path bytes.
+    const text = execFileSync(
+      "git",
+      ["diff", "--name-status", "-M", "-z", mergeBase, head],
+      gitOptions
+    );
+    const fields = text.split("\0");
+    const entries = [];
+    for (let index = 0; index < fields.length;) {
+      const status = fields[index++];
+      if (!status) break;
+      const pathCount = /^[RC]/i.test(status) ? 2 : 1;
+      const firstPath = fields[index++];
+      const secondPath = pathCount === 2 ? fields[index++] : undefined;
+      if (!firstPath || (pathCount === 2 && !secondPath)) return null;
+      entries.push({
+        status,
+        path: secondPath ?? firstPath,
+        ...(secondPath ? { oldPath: firstPath } : {})
+      });
+    }
     return pathsFromEntries(entries);
   } catch {
     return null;
@@ -340,15 +427,24 @@ function cliInput(payload) {
 }
 
 export function toGitHubOutputs(result) {
+  const escapeOutputText = (value) => String(value)
+    .replaceAll("\r", "\\r")
+    .replaceAll("\n", "\\n");
   const outputs = [];
   for (const name of CATEGORIES) outputs.push(`${name}=${result.flags[name] ? "true" : "false"}`);
-  outputs.push(`changed_files=${result.changed_files.join(" ")}`);
-  outputs.push(`unknown_files=${result.unknown_files.join(" ")}`);
-  outputs.push(`categories=${result.categories.join(",")}`);
-  outputs.push(`event=${result.event}`);
-  outputs.push(`dispatch_target=${result.dispatch_target ?? "targeted"}`);
-  outputs.push(`reason<<CI_CLASSIFIER_REASON`);
-  outputs.push(result.reason);
+  for (const name of RUN_OUTPUTS) outputs.push(`${name}=${result[name] ? "true" : "false"}`);
+  outputs.push(`classification_valid=${result.classification_valid ? "true" : "false"}`);
+  // Keep attacker-controlled path bytes on one output line. Escaping control
+  // characters prevents a PR filename containing a newline or output
+  // delimiter from corrupting GITHUB_OUTPUT; `$()` and backticks are then
+  // passed through env and printf in the workflow summary, never shell source.
+  outputs.push(`changed_files=${escapeOutputText(result.changed_files.join(" "))}`);
+  outputs.push(`unknown_files=${escapeOutputText(result.unknown_files.join(" "))}`);
+  outputs.push(`categories=${escapeOutputText(result.categories.join(","))}`);
+  outputs.push(`event=${escapeOutputText(result.event)}`);
+  outputs.push(`dispatch_target=${escapeOutputText(result.dispatch_target ?? "targeted")}`);
+  outputs.push("reason<<CI_CLASSIFIER_REASON");
+  outputs.push(escapeOutputText(result.reason));
   outputs.push("CI_CLASSIFIER_REASON");
   return outputs.join("\n");
 }

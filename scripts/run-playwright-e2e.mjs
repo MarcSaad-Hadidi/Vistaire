@@ -41,6 +41,7 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
   });
+const requestsWebkit = playwrightInputArgs.some((argument) => argument === "--project=webkit");
 const includesSeoSmoke = playwrightInputArgs
   .some((argument) =>
     /(?:^|\/)seo-smoke\.spec\.ts$/.test(argument.replaceAll("\\", "/"))
@@ -179,10 +180,7 @@ async function main() {
         {
           env: {
             ...process.env,
-            ...SAUGE_FIXTURE_ENV,
-            ...(includesLandingProductionPhoto
-              ? { VISTAIRE_E2E_LANDING_CANONICAL: "1" }
-              : {})
+            ...SAUGE_FIXTURE_ENV
           }
         }
       );
@@ -226,9 +224,6 @@ async function main() {
             VISTAIRE_OWNER_E2E_EMAIL: "owner-e2e@localhost",
             VISTAIRE_OWNER_3D_JOBS_FALLBACK: "1",
             VISTAIRE_OWNER_3D_RESTAURANT_SLUGS: "*",
-            ...(includesLandingProductionPhoto
-              ? { VISTAIRE_E2E_LANDING_CANONICAL: "1" }
-              : {}),
             ...(useTrouvableImmersiveFixture
               ? { VISTAIRE_E2E_TROUVABLE_3D: "1" }
               : {})
@@ -244,7 +239,7 @@ async function main() {
         ...process.env,
         PLAYWRIGHT_SKIP_WEB_SERVER: "1",
         PLAYWRIGHT_BASE_URL: baseURL,
-        ...(includesSaugeNoireBrowserFlow ? { PLAYWRIGHT_INCLUDE_WEBKIT: "1" } : {}),
+        ...(requestsWebkit ? { PLAYWRIGHT_INCLUDE_WEBKIT: "1" } : {}),
         VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: OWNER_E2E_TOKEN
       }
     });

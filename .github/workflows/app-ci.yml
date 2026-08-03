@@ -53,6 +53,17 @@ jobs:
       admin: ${{ steps.classify.outputs.admin }}
       qr: ${{ steps.classify.outputs.qr }}
       full_ci: ${{ steps.classify.outputs.full_ci }}
+      run_static: ${{ steps.classify.outputs.run_static }}
+      run_database: ${{ steps.classify.outputs.run_database }}
+      run_build: ${{ steps.classify.outputs.run_build }}
+      run_core: ${{ steps.classify.outputs.run_core }}
+      run_landing: ${{ steps.classify.outputs.run_landing }}
+      run_menu: ${{ steps.classify.outputs.run_menu }}
+      run_sauge: ${{ steps.classify.outputs.run_sauge }}
+      run_admin_qr: ${{ steps.classify.outputs.run_admin_qr }}
+      run_seo: ${{ steps.classify.outputs.run_seo }}
+      run_webkit: ${{ steps.classify.outputs.run_webkit }}
+      classification_valid: ${{ steps.classify.outputs.classification_valid }}
       event: ${{ steps.classify.outputs.event }}
       changed_files: ${{ steps.classify.outputs.changed_files }}
       categories: ${{ steps.classify.outputs.categories }}
@@ -61,9 +72,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: false
           persist-credentials: false
+      - name: Fetch minimal PR graph for merge-base
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: node scripts/ci/fetch-pr-graph.mjs
       - name: Classify changed files (fail closed)
         id: classify
         env:
@@ -77,8 +95,8 @@ jobs:
         run: |
           node --input-type=module - <<'NODE'
           const outputs = JSON.parse(process.env.OUTPUTS_JSON);
-          const categories = ['docs_only','ci_infrastructure','dependencies','assets','core','database','translations','landing','seo','menu_shared','sauge_renderer','pageflip_gestures','admin','qr','full_ci'];
-          for (const key of categories) {
+          const outputNames = ['docs_only','ci_infrastructure','dependencies','assets','core','database','translations','landing','seo','menu_shared','sauge_renderer','pageflip_gestures','admin','qr','full_ci','run_static','run_database','run_build','run_core','run_landing','run_menu','run_sauge','run_admin_qr','run_seo','run_webkit','classification_valid'];
+          for (const key of outputNames) {
             if (!['true','false'].includes(outputs[key])) throw new Error(`classifier output ${key} is invalid`);
           }
           if (!outputs.event || !outputs.categories || !outputs.reason) throw new Error('classifier metadata is incomplete');
@@ -86,24 +104,26 @@ jobs:
       - name: Test classifier contract
         run: node --test tests/ci-change-detection.test.mjs
       - name: Publish classification summary
+        env:
+          CLASSIFY_EVENT: ${{ steps.classify.outputs.event }}
+          CLASSIFY_CATEGORIES: ${{ steps.classify.outputs.categories }}
+          CLASSIFY_FULL: ${{ steps.classify.outputs.full_ci }}
+          CLASSIFY_REASON: ${{ steps.classify.outputs.reason }}
+          CLASSIFY_CHANGED_FILES: ${{ steps.classify.outputs.changed_files }}
         run: |
           {
-            echo '## Change classification'
-            echo "- Event: \`${{ steps.classify.outputs.event }}\`"
-            echo "- Categories: \`${{ steps.classify.outputs.categories }}\`"
-            echo "- Full CI: \`${{ steps.classify.outputs.full_ci }}\`"
-            echo "- Reason: ${{ steps.classify.outputs.reason }}"
-            echo "- Changed files: ${{ steps.classify.outputs.changed_files }}"
+            printf '%s\n' '## Change classification'
+            printf '%s\n' "- Event: ${CLASSIFY_EVENT}"
+            printf '%s\n' "- Categories: ${CLASSIFY_CATEGORIES}"
+            printf '%s\n' "- Full CI: ${CLASSIFY_FULL}"
+            printf '%s\n' "- Reason: ${CLASSIFY_REASON}"
+            printf '%s\n' "- Changed files: ${CLASSIFY_CHANGED_FILES}"
           } >> "$GITHUB_STEP_SUMMARY"
 
   static-quality:
     name: static-quality
     needs: classify-changes
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.docs_only != 'true' ||
-      needs.classify-changes.outputs.ci_infrastructure == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'targeted')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_static == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -150,12 +170,7 @@ jobs:
   database-contracts:
     name: database-contracts
     needs: classify-changes
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.database == 'true' ||
-      needs.classify-changes.outputs.translations == 'true' ||
-      needs.classify-changes.outputs.qr == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'database')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -205,19 +220,7 @@ jobs:
   build-app:
     name: build-app
     needs: classify-changes
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.core == 'true' ||
-      needs.classify-changes.outputs.assets == 'true' ||
-      needs.classify-changes.outputs.landing == 'true' ||
-      needs.classify-changes.outputs.menu_shared == 'true' ||
-      needs.classify-changes.outputs.sauge_renderer == 'true' ||
-      needs.classify-changes.outputs.pageflip_gestures == 'true' ||
-      needs.classify-changes.outputs.admin == 'true' ||
-      needs.classify-changes.outputs.qr == 'true' ||
-      needs.classify-changes.outputs.seo == 'true' ||
-      needs.classify-changes.outputs.dependencies == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'targeted' && github.event.inputs.target != 'database')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Next replaces NEXT_PUBLIC_* values in the server bundle at build time.
@@ -227,7 +230,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55434
       SUPABASE_SERVICE_ROLE_KEY: sauge-noire-fixture-service-role-key
       VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
-      VISTAIRE_E2E_LANDING_CANONICAL: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -271,14 +273,7 @@ jobs:
   e2e-core:
     name: e2e-core
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.core == 'true' ||
-      needs.classify-changes.outputs.assets == 'true' ||
-      needs.classify-changes.outputs.menu_shared == 'true' ||
-      needs.classify-changes.outputs.landing == 'true' ||
-      needs.classify-changes.outputs.admin == 'true' ||
-      needs.classify-changes.outputs.seo == 'true')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_core == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -319,10 +314,7 @@ jobs:
   e2e-landing:
     name: e2e-landing
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.landing == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'landing')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -362,10 +354,7 @@ jobs:
   e2e-menu-shared:
     name: e2e-menu-shared
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.menu_shared == 'true' ||
-      needs.classify-changes.outputs.translations == 'true')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_menu == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -405,12 +394,7 @@ jobs:
   e2e-sauge-deep:
     name: e2e-sauge-deep
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.sauge_renderer == 'true' ||
-      needs.classify-changes.outputs.pageflip_gestures == 'true' ||
-      needs.classify-changes.outputs.ci_infrastructure == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'sauge')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_sauge == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -450,11 +434,7 @@ jobs:
   e2e-admin-qr:
     name: e2e-admin-qr
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.admin == 'true' ||
-      needs.classify-changes.outputs.qr == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'admin_qr')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_admin_qr == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -496,10 +476,7 @@ jobs:
   e2e-seo:
     name: e2e-seo
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.seo == 'true' ||
-      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'seo')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_seo == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -540,14 +517,7 @@ jobs:
   webkit-critical:
     name: webkit-critical
     needs: [classify-changes, build-app]
-    if: >-
-      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
-      needs.classify-changes.outputs.sauge_renderer == 'true' ||
-      needs.classify-changes.outputs.pageflip_gestures == 'true' ||
-      needs.classify-changes.outputs.menu_shared == 'true' ||
-      needs.classify-changes.outputs.landing == 'true' ||
-      needs.classify-changes.outputs.ci_infrastructure == 'true')
-      || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'sauge')
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_webkit == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -595,6 +565,7 @@ jobs:
         env:
           CLASSIFY: ${{ needs.classify-changes.result }}
           CLASSIFY_FULL: ${{ needs.classify-changes.outputs.full_ci }}
+          CLASSIFICATION_VALID: ${{ needs.classify-changes.outputs.classification_valid }}
           STATIC: ${{ needs.static-quality.result }}
           DATABASE: ${{ needs.database-contracts.result }}
           BUILD: ${{ needs.build-app.result }}
@@ -606,30 +577,37 @@ jobs:
           SEO: ${{ needs.e2e-seo.result }}
           WEBKIT: ${{ needs.webkit-critical.result }}
           EVENT: ${{ needs.classify-changes.outputs.event }}
-          EXPECT_STATIC: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.docs_only != 'true' || needs.classify-changes.outputs.ci_infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'targeted')) && 'true' || 'false' }}
-          EXPECT_DATABASE: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.database == 'true' || needs.classify-changes.outputs.translations == 'true' || needs.classify-changes.outputs.qr == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'database')) && 'true' || 'false' }}
-          EXPECT_BUILD: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.core == 'true' || needs.classify-changes.outputs.assets == 'true' || needs.classify-changes.outputs.landing == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.translations == 'true' || needs.classify-changes.outputs.sauge_renderer == 'true' || needs.classify-changes.outputs.pageflip_gestures == 'true' || needs.classify-changes.outputs.admin == 'true' || needs.classify-changes.outputs.qr == 'true' || needs.classify-changes.outputs.seo == 'true' || needs.classify-changes.outputs.dependencies == 'true') && 'true' || 'false' }}
-          EXPECT_CORE: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.core == 'true' || needs.classify-changes.outputs.assets == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.landing == 'true' || needs.classify-changes.outputs.admin == 'true' || needs.classify-changes.outputs.seo == 'true') && 'true' || 'false' }}
-          EXPECT_LANDING: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.landing == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'landing')) && 'true' || 'false' }}
-          EXPECT_MENU: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.translations == 'true') && 'true' || 'false' }}
-          EXPECT_SAUGE: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.sauge_renderer == 'true' || needs.classify-changes.outputs.pageflip_gestures == 'true' || needs.classify-changes.outputs.ci_infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'sauge')) && 'true' || 'false' }}
-          EXPECT_ADMIN_QR: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.admin == 'true' || needs.classify-changes.outputs.qr == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'admin_qr')) && 'true' || 'false' }}
-          EXPECT_SEO: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.seo == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'seo')) && 'true' || 'false' }}
-          EXPECT_WEBKIT: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.sauge_renderer == 'true' || needs.classify-changes.outputs.pageflip_gestures == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.landing == 'true' || needs.classify-changes.outputs.ci_infrastructure == 'true') && 'true' || 'false' }}
+          RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
+          RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
+          RUN_BUILD: ${{ needs.classify-changes.outputs.run_build }}
+          RUN_CORE: ${{ needs.classify-changes.outputs.run_core }}
+          RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
+          RUN_MENU: ${{ needs.classify-changes.outputs.run_menu }}
+          RUN_SAUGE: ${{ needs.classify-changes.outputs.run_sauge }}
+          RUN_ADMIN_QR: ${{ needs.classify-changes.outputs.run_admin_qr }}
+          RUN_SEO: ${{ needs.classify-changes.outputs.run_seo }}
+          RUN_WEBKIT: ${{ needs.classify-changes.outputs.run_webkit }}
         run: |
           set -euo pipefail
           [[ "$CLASSIFY" == success ]] || { echo "classifier result: $CLASSIFY"; exit 1; }
           [[ "$CLASSIFY_FULL" == true || "$CLASSIFY_FULL" == false ]] || { echo "invalid full_ci output"; exit 1; }
+          [[ "$CLASSIFICATION_VALID" == true ]] || { echo "invalid classifier policy output"; exit 1; }
+          for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT"; do
+            [[ "$output" == true || "$output" == false ]] || { echo "invalid run_* output: $output"; exit 1; }
+          done
           declare -A results=( [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-core]="$CORE" [e2e-landing]="$LANDING" [e2e-menu-shared]="$MENU" [e2e-sauge-deep]="$SAUGE" [e2e-admin-qr]="$ADMIN_QR" [e2e-seo]="$SEO" [webkit-critical]="$WEBKIT" )
-          declare -A expected=( [static-quality]="$EXPECT_STATIC" [database-contracts]="$EXPECT_DATABASE" [build-app]="$EXPECT_BUILD" [e2e-core]="$EXPECT_CORE" [e2e-landing]="$EXPECT_LANDING" [e2e-menu-shared]="$EXPECT_MENU" [e2e-sauge-deep]="$EXPECT_SAUGE" [e2e-admin-qr]="$EXPECT_ADMIN_QR" [e2e-seo]="$EXPECT_SEO" [webkit-critical]="$EXPECT_WEBKIT" )
+          declare -A expected=( [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-core]="$RUN_CORE" [e2e-landing]="$RUN_LANDING" [e2e-menu-shared]="$RUN_MENU" [e2e-sauge-deep]="$RUN_SAUGE" [e2e-admin-qr]="$RUN_ADMIN_QR" [e2e-seo]="$RUN_SEO" [webkit-critical]="$RUN_WEBKIT" )
           failed=0
+          # Expected failure, cancelled, timed_out, absent, or incorrectly
+          # skipped results all fail here; only a non-expected skipped job is
+          # permitted.
           for job in "${!results[@]}"; do
             result="${results[$job]}"
             if [[ "${expected[$job]}" == true && "$result" != success ]]; then
               echo "::error::$job was expected but completed as ${result:-missing}"
               failed=1
-            elif [[ "$result" == failure || "$result" == cancelled || "$result" == timed_out || -z "$result" ]]; then
-              echo "::error::$job is $result"
+            elif [[ "${expected[$job]}" == false && "$result" != success && "$result" != skipped ]]; then
+              echo "::error::$job has unexpected result ${result:-missing}"
               failed=1
             fi
           done

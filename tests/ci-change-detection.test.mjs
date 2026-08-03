@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
-import { classifyChanges, classifyPath, normalizePath, toGitHubOutputs } from "../scripts/ci/detect-changes.mjs";
+import {
+  classifyChanges,
+  classifyPath,
+  deriveRunOutputs,
+  gitDiffPaths,
+  normalizePath,
+  RUN_OUTPUTS,
+  toGitHubOutputs
+} from "../scripts/ci/detect-changes.mjs";
 
 const classify = (files, extra = {}) => classifyChanges({ eventName: "pull_request", changedFiles: files, ...extra });
 
@@ -9,6 +21,16 @@ test("documentation only", () => {
   const result = classify(["docs/ci.md", "README.md"]);
   assert.equal(result.docs_only, true);
   assert.equal(result.full_ci, false);
+});
+test("documentation is an explicit allowlist, not an extension rule", () => {
+  assert.equal(classifyPath("README.md").categories.has("docs_only"), true);
+  assert.equal(classifyPath("docs/ci.md").categories.has("docs_only"), true);
+  assert.equal(classifyPath("app/help/page.mdx").categories.has("docs_only"), false);
+  assert.equal(classifyPath("app/help/page.mdx").known, true);
+  assert.equal(classifyPath("content/landing-copy.mdx").categories.has("landing"), true);
+  assert.equal(classifyPath("content/landing-copy.mdx").categories.has("docs_only"), false);
+  assert.equal(classifyPath("fixtures/runtime-data.txt").categories.has("docs_only"), false);
+  assert.equal(classifyPath("fixtures/runtime-data.txt").known, true);
 });
 test("landing CSS", () => assert.equal(classify(["styles/landing.css"]).landing, true));
 test("landing public media", () => assert.equal(classify(["public/videos/Vistaire2.mp4"]).landing, true));
@@ -59,6 +81,9 @@ test("workflow dispatch family targets are explicit and bounded", () => {
   assert.equal(result.admin, true);
   assert.equal(result.qr, true);
   assert.equal(result.sauge_renderer, false);
+  assert.deepEqual(RUN_OUTPUTS.filter((output) => result[output]), [
+    "run_static", "run_database", "run_build", "run_admin_qr"
+  ]);
 });
 test("invalid workflow dispatch target fails closed", () => {
   const result = classifyChanges({
@@ -73,11 +98,120 @@ test("push main is exhaustive", () => {
   assert.equal(result.full_ci, true);
   assert.equal(result.pageflip_gestures, true);
 });
+test("a branch named feature/main is not treated as the main branch", () => {
+  const result = classifyChanges({
+    eventName: "push",
+    ref: "refs/heads/feature/main",
+    changedFiles: ["README.md"]
+  });
+  assert.equal(result.full_ci, false);
+  assert.equal(result.docs_only, true);
+});
+
+test("exact run_* policy matrix is stable", () => {
+  const cases = [
+    ["documentation", ["README.md"], []],
+    ["SQL", ["supabase/migrations/20260101_menu.sql"], ["run_static", "run_database"]],
+    ["translation", ["content/translations/en.json"], ["run_static", "run_database", "run_build", "run_menu"]],
+    ["QR", ["app/api/owner/qr-codes/route.ts"], ["run_static", "run_database", "run_build", "run_admin_qr"]],
+    ["SEO", ["app/seo/page.tsx"], ["run_static", "run_build", "run_seo"]],
+    ["landing", ["app/(landing)/page.tsx"], ["run_static", "run_build", "run_core", "run_landing"]],
+    ["menu shared", ["components/menu/MenuCard.tsx"], ["run_static", "run_build", "run_menu"]],
+    ["Sauge", ["components/menu/unique/sauge-noire/Renderer.tsx"], [
+      "run_static", "run_build", "run_menu", "run_sauge", "run_webkit"
+    ]]
+  ];
+  for (const [name, files, expected] of cases) {
+    const result = classify(files);
+    const actual = RUN_OUTPUTS.filter((output) => result[output]);
+    assert.deepEqual(actual, expected, `${name} outputs`);
+    assert.deepEqual(result.categories.includes("full_ci"), false, `${name} should stay targeted`);
+  }
+  const exhaustive = classifyChanges({
+    eventName: "push",
+    ref: "refs/heads/main",
+    changedFiles: ["README.md"]
+  });
+  assert.deepEqual(RUN_OUTPUTS.filter((output) => exhaustive[output]), [...RUN_OUTPUTS]);
+  assert.deepEqual(deriveRunOutputs(exhaustive.flags), Object.fromEntries(RUN_OUTPUTS.map((name) => [name, true])));
+  for (const event of ["merge_group", "workflow_call"]) {
+    const result = classifyChanges({ eventName: event, changedFiles: event === "merge_group" ? [] : undefined });
+    assert.deepEqual(RUN_OUTPUTS.filter((output) => result[output]), [...RUN_OUTPUTS], `${event} outputs`);
+  }
+  const nightly = classifyChanges({ eventName: "workflow_dispatch", dispatchInput: { target: "full" } });
+  assert.deepEqual(RUN_OUTPUTS.filter((output) => nightly[output]), [...RUN_OUTPUTS], "nightly/full outputs");
+});
+
+test("pull_request diff uses merge-base when main advances", () => {
+  const repo = mkdtempSync(path.join(os.tmpdir(), "vistaire-ci-"));
+  const git = (...args) => execFileSync("git", args, { cwd: repo, stdio: "ignore" });
+  const sha = () => execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
+  try {
+    git("init", "-b", "main");
+    git("config", "user.email", "ci@example.test");
+    git("config", "user.name", "CI test");
+    writeFileSync(path.join(repo, "README.md"), "root\n");
+    writeFileSync(path.join(repo, "app-seo-old.ts"), "old\n");
+    writeFileSync(path.join(repo, "app-seo-delete.ts"), "delete\n");
+    git("add", ".");
+    git("commit", "-m", "root");
+    git("switch", "-c", "feature/seo");
+    const branchBase = sha();
+    git("mv", "app-seo-old.ts", "app-seo-new.ts");
+    execFileSync("git", ["rm", "app-seo-delete.ts"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "seo-page.ts"), "seo\n");
+    git("add", ".");
+    git("commit", "-m", "seo change");
+    const head = sha();
+    git("switch", "main");
+    writeFileSync(path.join(repo, "main-only.txt"), "main\n");
+    git("add", ".");
+    git("commit", "-m", "main advanced");
+    const advancedBase = sha();
+
+    assert.notEqual(advancedBase, branchBase);
+    const files = gitDiffPaths(advancedBase, head, { cwd: repo });
+    assert.deepEqual(files, ["app-seo-delete.ts", "app-seo-new.ts", "app-seo-old.ts", "seo-page.ts"]);
+    assert.equal(files.includes("main-only.txt"), false);
+    const result = classifyChanges({ eventName: "pull_request", changedFiles: files });
+    assert.equal(result.seo, true);
+    assert.equal(result.full_ci, false);
+    assert.equal(result.run_seo, true);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("merge-base failure is fail-closed to full CI", () => {
+  const missing = "f".repeat(40);
+  assert.equal(gitDiffPaths(missing, "e".repeat(40)), null);
+  const result = classifyChanges({
+    eventName: "pull_request",
+    changedFiles: undefined
+  });
+  assert.equal(result.full_ci, true);
+  assert.deepEqual(RUN_OUTPUTS.filter((output) => result[output]), [...RUN_OUTPUTS]);
+});
 test("stable GitHub output protocol", () => {
   const output = toGitHubOutputs(classify(["docs/ci.md"]));
   assert.match(output, /docs_only=true/);
   assert.match(output, /full_ci=false/);
   assert.match(output, /categories=docs_only/);
+  assert.match(output, /run_static=false/);
+  assert.match(output, /classification_valid=true/);
+});
+
+test("GitHub outputs escape hostile filenames and reasons", () => {
+  const hostile = "vendor/$(`touch nope`)\nCI_CLASSIFIER_REASON.weird";
+  const output = toGitHubOutputs(classify([hostile]));
+  const lines = output.split("\n");
+  assert.equal(
+    lines.find((line) => line.startsWith("changed_files="))?.slice("changed_files=".length),
+    "vendor/$(`touch nope`)\\nCI_CLASSIFIER_REASON.weird"
+  );
+  const reasonStart = lines.indexOf("reason<<CI_CLASSIFIER_REASON");
+  assert.equal(lines[reasonStart + 1], "unclassified path(s): vendor/$(`touch nope`)\\nCI_CLASSIFIER_REASON.weird");
+  assert.equal(lines[reasonStart + 2], "CI_CLASSIFIER_REASON");
 });
 
 test("classifyPath exposes known status", () => {

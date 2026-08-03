@@ -27,9 +27,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: false
           persist-credentials: false
+
+      - name: Fetch minimal PR graph for merge-base
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: node scripts/ci/fetch-pr-graph.mjs
 
       - name: Classify asset impact
         id: classify
