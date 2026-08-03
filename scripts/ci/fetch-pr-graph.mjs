@@ -40,6 +40,10 @@ if (!/^[0-9a-f]{40}$/i.test(String(baseSha)) || !/^[0-9a-f]{40}$/i.test(String(h
 }
 
 const pullRef = `refs/pull/${pullNumber}/head`;
+// GitHub accepts the short-lived Actions token through HTTP Basic auth.  Keep
+// the encoded value in the child environment so neither Git's argv nor its
+// normal command log can expose the raw token.
+const basicAuth = Buffer.from(`${token}:x-oauth-basic`, "utf8").toString("base64");
 const git = (args, options = {}) => {
   const { env: extraEnv, ...execOptions } = options;
   return execFileSync("git", args, {
@@ -52,7 +56,7 @@ const git = (args, options = {}) => {
       ...extraEnv,
       GIT_CONFIG_COUNT: "1",
       GIT_CONFIG_KEY_0: "http.extraheader",
-      GIT_CONFIG_VALUE_0: `AUTHORIZATION: bearer ${token}`
+      GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicAuth}`
     }
   });
 };
