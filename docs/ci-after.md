@@ -38,37 +38,40 @@ Le checkout du classificateur de cette baseline a consommé environ 28 s avec
 
 ## Nouveau full CI publié et vérifié
 
-Le commit de cette révision a été publié sur la branche de la PR :
+Après correction de l'authentification du fetch borné, le head courant de la
+PR est :
 
-- head : `8eee0c93aa2f82759d18729beacd9561a2b269e6` ;
-- App CI run : `30787239845` ;
+- head : `d26c6390c6455607ca18c93d67439731939ca93e` ;
+- App CI run : `30788750665` ;
 - Full CI : `success` ;
 - CI Gate : `success` ;
 - PostgreSQL 17 : `success` ;
 - Chromium : `success` ;
 - WebKit : `success` ;
-- Asset Policy : `30787239761`, `success` ;
-- CodeQL : `30787239782`, `success` ;
-- Vercel Preview : `success`, `https://vistaire-qpndg2myq-capoships-projects.vercel.app`.
+- Asset Policy : `30788750675`, `success` ;
+- CodeQL : `30788750672`, `success` ;
+- Vercel Preview : `success`, `https://vistaire-kakblh48y-capoships-projects.vercel.app`.
 
-Mesures réelles du run `30787239845` :
+Mesures réelles du run `30788750665` :
 
 | Mesure | Valeur | Méthode |
 | --- | ---: | --- |
-| Temps mural run | 302 s (5 min 02 s) | création du run → fin du Gate |
-| Fenêtre jobs | 298 s | premier job → dernier job terminé |
-| Temps runner brut | 998 s (16,63 min) | somme des durées de jobs |
-| Estimation de facturation | ~24 runner-min | arrondi par job |
+| Temps mural run | 343 s (5 min 43 s) | création du run → fin du Gate |
+| Fenêtre jobs | 343 s | premier job → dernier job terminé |
+| Temps runner brut | 1 073 s (17,88 min) | somme des durées de jobs |
+| Estimation de facturation | ~25 runner-min | arrondi par job |
 | `npm ci` cumulé | 159 s | étapes d'installation |
-| Installations navigateurs | 156 s | six Chromium + un WebKit |
+| Installations navigateurs | 239 s | six Chromium + un WebKit |
 | Upload `.next` | 6 s | `Upload verified Next.js build` |
-| Downloads `.next` | 19 s | `download-artifact` |
-| Checkout classifier | 10 s | étape `Checkout` |
-| Fetch PR graph | 1 s | `Fetch minimal PR graph for merge-base` |
+| Downloads `.next` | 22 s | `download-artifact` |
+| Checkout classifier | 11 s | étape `Checkout` |
+| Fetch PR graph | 4 s | `Fetch minimal PR graph for merge-base` |
 
-Le fetch borné a donc été exécuté avec succès sur une vraie PR et n'a pas
-déclenché le fallback full CI. Ce run est exhaustif parce que cette PR modifie
-l'infrastructure CI; il ne prouve pas encore les branches ciblées minimales.
+Le log GitHub confirme `PR graph ready: merge-base found after additional depth
+32`. Le fetch borné a donc été exécuté avec succès sur une vraie PR et n'a pas
+déclenché le fallback d'absence de graphe. Ce run reste exhaustif parce que
+cette PR modifie l'infrastructure CI et le graphe de dépendances ; il ne prouve
+pas encore les branches ciblées minimales.
 
 ## Preuves de ciblage disponibles
 
