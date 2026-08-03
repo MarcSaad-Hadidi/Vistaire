@@ -67,6 +67,6 @@ jobs:
         run: |
           {
             echo '## Asset policy'
-            echo '- Asset/infrastructure impact: `${{ steps.classify.outputs.assets }}` / `${{ steps.classify.outputs.full_ci }}`'
+            echo "- Asset/infrastructure impact: \`${{ steps.classify.outputs.assets }}\` / \`${{ steps.classify.outputs.full_ci }}\`"
             echo '- Documentation-only changes intentionally skip npm installation.'
           } >> "$GITHUB_STEP_SUMMARY"

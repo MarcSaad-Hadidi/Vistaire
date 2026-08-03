@@ -21,7 +21,9 @@ if (!Array.isArray(baseline.entries)) throw new Error("npm audit baseline must c
 if (!/^[a-f0-9]{64}$/i.test(String(baseline.lockfile_sha256 ?? ""))) {
   throw new Error("npm audit baseline must pin the audited package-lock hash");
 }
-const lockfileHash = createHash("sha256").update(readFileSync("package-lock.json")).digest("hex");
+const lockfileHash = createHash("sha256")
+  .update(readFileSync("package-lock.json", "utf8").replace(/\r\n/g, "\n"))
+  .digest("hex");
 if (lockfileHash !== String(baseline.lockfile_sha256).toLowerCase()) {
   throw new Error("package-lock.json changed since the audit baseline was recorded; refresh the baseline deliberately");
 }

@@ -79,6 +79,7 @@ jobs:
           PRODUCTION_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
           DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
         run: |
+          # shellcheck disable=SC2016 # Scope: this summary block; GitHub deployment expressions are rendered before Bash. Owner: Vistaire maintainers. Review: 2026-09-30.
           {
             echo '## Production Smoke'
             echo "- URL: ${PRODUCTION_URL}"

@@ -69,6 +69,7 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           CI_TEST_REPORT_PATH: ${{ runner.temp }}/vistoire-preview-gate.json
         run: |
+          # shellcheck disable=SC2016 # Scope: this summary/smoke block; GitHub renders expressions before Bash. Owner: Vistaire maintainers. Review: 2026-09-30.
           if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
             echo '::error::Preview Gate cannot run without VERCEL_AUTOMATION_BYPASS_SECRET in the protected preview-gate environment.'
             {
@@ -121,6 +122,7 @@ jobs:
           PREVIEW_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
           DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
         run: |
+          # shellcheck disable=SC2016 # Scope: this summary block; quoted Node heredoc/template literals are intentional. Owner: Vistaire maintainers. Review: 2026-09-30.
           {
             echo '## Preview Gate'
             echo "- Preview URL: ${PREVIEW_URL}"
