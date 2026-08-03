@@ -32,6 +32,19 @@ test("Preview Gate is deployment-status-only and never checks out a PR ref", () 
   assert.match(previewWorkflow, /allowlisted Vistaire Vercel preview host/);
 });
 
+test("Preview Gate skips safely when the protected bypass secret is unavailable", () => {
+  const smokeStep = previewWorkflow.slice(
+    previewWorkflow.indexOf("- name: Run protected Preview smoke"),
+    previewWorkflow.indexOf("- name: Upload Preview diagnostics"),
+  );
+  assert.ok(smokeStep.includes('if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then'));
+  assert.match(smokeStep, /::warning::Preview smoke skipped/);
+  assert.match(smokeStep, /No remote page was executed/);
+  assert.match(smokeStep, /exit 0/);
+  assert.doesNotMatch(smokeStep, /\bexit 1\b/);
+  assert.match(smokeStep, /preview-smoke\.spec\.ts/);
+});
+
 test("Production smoke is a separate trusted deployment check", () => {
   assertSafeDeploymentWorkflow(productionWorkflow, "Production");
   assert.doesNotMatch(productionWorkflow, /VERCEL_AUTOMATION_BYPASS_SECRET/);

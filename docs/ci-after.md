@@ -174,9 +174,11 @@ targeted distants doivent encore être mesurés sur de vrais runs après push ; 
 ne sont pas déduits de la baseline full CI.
 
 Le Preview existant associé à `1c6382e` était `READY`, mais ses routes étaient
-protégées par le SSO Vercel dans cet environnement. Aucun smoke Preview n'est
-revendiqué pour le nouveau merge `292202b` sans un `deployment_status` et le
-secret de bypass officiel configuré dans l'environnement protégé.
+protégées par le SSO Vercel dans cet environnement. Le `Preview Gate` vérifie
+donc le secret de bypass officiel avant d'exécuter une page distante : s'il est
+absent de l'environnement protégé, le smoke est ignoré avec un avertissement
+explicite et aucune requête protégée n'est exécutée. Le contrôle sera activé dès
+que `VERCEL_AUTOMATION_BYPASS_SECRET` sera configuré.
 
 ## Validation locale de cette continuation
 

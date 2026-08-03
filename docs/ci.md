@@ -21,9 +21,11 @@ exact test counts from log text) remain `null`.
 
 `Preview Gate` and `Production Smoke` listen to `deployment_status`, verify the
 environment and exact deployment SHA, and run a smoke harness checked out from
-trusted `main`. Preview validation requires the official Vercel bypass secret
-in the protected `preview-gate` environment; no protected secret is passed to
-PR code.
+trusted `main`. Preview validation uses the official Vercel bypass secret when
+it is configured in the protected `preview-gate` environment. If that secret is
+not configured, Preview Gate emits a warning and skips the remote smoke safely;
+it never executes a protected request without the secret. No protected secret
+is passed to PR code.
 
 ## Source de vérité du ciblage
 

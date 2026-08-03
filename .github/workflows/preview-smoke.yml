@@ -61,7 +61,7 @@ jobs:
         run: npm ci
       - name: Install Chromium
         run: npx --no-install playwright install --with-deps chromium
-      - name: Run protected Preview smoke
+      - name: Run protected Preview smoke (when configured)
         env:
           CI: true
           PLAYWRIGHT_SKIP_WEB_SERVER: '1'
@@ -69,8 +69,14 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
-            echo '::error::Configure VERCEL_AUTOMATION_BYPASS_SECRET in the protected preview-gate environment before requiring Preview Gate.'
-            exit 1
+            echo '::warning::Preview smoke skipped: VERCEL_AUTOMATION_BYPASS_SECRET is not configured in the protected preview-gate environment.'
+            {
+              echo '### Preview smoke skipped'
+              echo '- `VERCEL_AUTOMATION_BYPASS_SECRET` is not configured in the protected `preview-gate` environment.'
+              echo '- No remote page was executed and no protected secret was exposed.'
+              echo '- Configure the secret to activate the protected Preview smoke.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           node ./node_modules/@playwright/test/cli.js test e2e/preview-smoke.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts
       - name: Upload Preview diagnostics
