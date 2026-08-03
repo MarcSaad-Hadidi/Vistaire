@@ -23,10 +23,10 @@ test("Maison Elyse media tests are explicit and mandatory in App CI", () => {
     assert.match(script, new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
-  const ciCommand = "run: npm run test:maison-elyse-media";
-  const typecheckIndex = appCi.indexOf("run: npm run typecheck");
+  const ciCommand = "npm run test:maison-elyse-media";
+  const typecheckIndex = appCi.indexOf("npm run typecheck");
   const mediaIndex = appCi.indexOf(ciCommand);
-  const buildIndex = appCi.indexOf("run: npm run build");
+  const buildIndex = appCi.indexOf("npm run build");
 
   assert.ok(typecheckIndex >= 0, "App CI must run typecheck");
   assert.ok(mediaIndex > typecheckIndex, "Maison Elyse tests must run after typecheck");
@@ -35,8 +35,8 @@ test("Maison Elyse media tests are explicit and mandatory in App CI", () => {
 
 test("Maison Elyse PostgreSQL 17 tests are explicit and run before build", () => {
   assert.equal(packageJson.scripts?.["test:maison-elyse-postgres"], "node scripts/run-maison-elyse-postgres-tests.mjs");
-  assert.match(appCi, /name: Maison Elyse PostgreSQL 17 tests/);
-  assert.match(appCi, /run: npm run test:maison-elyse-postgres/);
-  assert.ok(appCi.indexOf("run: npm run test:maison-elyse-postgres") > appCi.indexOf("run: npm run test:maison-elyse-media"));
-  assert.ok(appCi.indexOf("run: npm run build") > appCi.indexOf("run: npm run test:maison-elyse-postgres"));
+  assert.match(appCi, /name: database-contracts/);
+  assert.match(appCi, /npm run test:maison-elyse-postgres/);
+  assert.ok(appCi.indexOf("npm run test:maison-elyse-postgres") > appCi.indexOf("npm run test:maison-elyse-media"));
+  assert.ok(appCi.indexOf("npm run build") > appCi.indexOf("npm run test:maison-elyse-postgres"));
 });

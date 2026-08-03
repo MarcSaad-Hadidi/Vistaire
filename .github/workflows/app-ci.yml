@@ -2,21 +2,162 @@ name: App CI
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: [main]
   push:
-    branches: ["main"]
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Validation scope (targeted is the normal PR mode)
+        required: true
+        default: targeted
+        type: choice
+        options: [targeted, full, sauge, database, admin_qr, landing, seo]
+  workflow_call:
+    inputs:
+      target:
+        required: false
+        default: full
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: app-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: vistaire-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: 24
+  CI: true
 
 jobs:
-  checks:
-    name: App checks
+  classify-changes:
+    name: classify-changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      ci_infrastructure: ${{ steps.classify.outputs.ci_infrastructure }}
+      dependencies: ${{ steps.classify.outputs.dependencies }}
+      assets: ${{ steps.classify.outputs.assets }}
+      core: ${{ steps.classify.outputs.core }}
+      database: ${{ steps.classify.outputs.database }}
+      translations: ${{ steps.classify.outputs.translations }}
+      landing: ${{ steps.classify.outputs.landing }}
+      seo: ${{ steps.classify.outputs.seo }}
+      menu_shared: ${{ steps.classify.outputs.menu_shared }}
+      sauge_renderer: ${{ steps.classify.outputs.sauge_renderer }}
+      pageflip_gestures: ${{ steps.classify.outputs.pageflip_gestures }}
+      admin: ${{ steps.classify.outputs.admin }}
+      qr: ${{ steps.classify.outputs.qr }}
+      full_ci: ${{ steps.classify.outputs.full_ci }}
+      event: ${{ steps.classify.outputs.event }}
+      changed_files: ${{ steps.classify.outputs.changed_files }}
+      categories: ${{ steps.classify.outputs.categories }}
+      reason: ${{ steps.classify.outputs.reason }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          lfs: false
+          persist-credentials: false
+      - name: Classify changed files (fail closed)
+        id: classify
+        env:
+          VISTAIRE_CI_TARGET: ${{ inputs.target || github.event.inputs.target || 'targeted' }}
+          VISTAIRE_CI_EVENT: ${{ github.event_name }}
+          VISTAIRE_CI_REF: ${{ github.ref }}
+        run: node scripts/ci/detect-changes.mjs
+      - name: Validate classifier outputs
+        env:
+          OUTPUTS_JSON: ${{ toJSON(steps.classify.outputs) }}
+        run: |
+          node --input-type=module - <<'NODE'
+          const outputs = JSON.parse(process.env.OUTPUTS_JSON);
+          const categories = ['docs_only','ci_infrastructure','dependencies','assets','core','database','translations','landing','seo','menu_shared','sauge_renderer','pageflip_gestures','admin','qr','full_ci'];
+          for (const key of categories) {
+            if (!['true','false'].includes(outputs[key])) throw new Error(`classifier output ${key} is invalid`);
+          }
+          if (!outputs.event || !outputs.categories || !outputs.reason) throw new Error('classifier metadata is incomplete');
+          NODE
+      - name: Test classifier contract
+        run: node --test tests/ci-change-detection.test.mjs
+      - name: Publish classification summary
+        run: |
+          {
+            echo '## Change classification'
+            echo "- Event: \`${{ steps.classify.outputs.event }}\`"
+            echo "- Categories: \`${{ steps.classify.outputs.categories }}\`"
+            echo "- Full CI: \`${{ steps.classify.outputs.full_ci }}\`"
+            echo "- Reason: ${{ steps.classify.outputs.reason }}"
+            echo "- Changed files: ${{ steps.classify.outputs.changed_files }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  static-quality:
+    name: static-quality
+    needs: classify-changes
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.docs_only != 'true' ||
+      needs.classify-changes.outputs.ci_infrastructure == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'targeted')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Repository and static checks
+        run: |
+          npm run assets:check
+          npm run lfs:check
+          npm run lint
+          npm run typecheck
+          npm run test:unique-menu-design
+          npm run test:qr:node
+          npm run test:admin
+          npm run test:maison-elyse-media
+      - name: Deterministic Node contracts
+        run: |
+          npm run test:landing:contract
+          npm run test:landing:i18n
+          npm run test:landing:fixture-i18n
+          npm run test:landing:keyboard
+          npm run test:translation:backfill
+          npm run test:seo
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+          REASON: ${{ needs.classify-changes.outputs.reason }}
+        run: |
+          echo "## static-quality" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reason: ${REASON}" >> "$GITHUB_STEP_SUMMARY"
+
+  database-contracts:
+    name: database-contracts
+    needs: classify-changes
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.database == 'true' ||
+      needs.classify-changes.outputs.translations == 'true' ||
+      needs.classify-changes.outputs.qr == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'database')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17
@@ -24,212 +165,459 @@ jobs:
           POSTGRES_DB: vistaire_qr_ci
           POSTGRES_PASSWORD: vistaire_qr_ci_password
           POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres -d vistaire_qr_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           lfs: false
-
+          persist-credentials: false
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Install Playwright WebKit
-        run: npx --no-install playwright install --with-deps webkit
-
-      - name: Check repository assets
-        run: npm run assets:check
-
-      - name: Check Git LFS policy
-        run: npm run lfs:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unique menu Node tests
-        run: npm run test:unique-menu-design
-
-      - name: Unique menu PostgreSQL 17 tests
+      - name: PostgreSQL contracts
         env:
           PGDATABASE: vistaire_qr_ci
           PGHOST: 127.0.0.1
           PGPASSWORD: vistaire_qr_ci_password
-          PGPORT: "5432"
+          PGPORT: '5432'
           PGUSER: postgres
-        run: npm run test:unique-menu-design:postgres
-
-      - name: Maison Elyse media tests
-        run: npm run test:maison-elyse-media
-
-      - name: Landing renderer and image contracts
-        run: npm run test:landing:contract
-
-      - name: Landing locale and translation contracts
-        run: npm run test:landing:i18n
-
-      - name: Landing fixture locale integration
-        run: npm run test:landing:fixture-i18n
-
-      - name: Landing comparison keyboard contract
-        run: npm run test:landing:keyboard
-
-      - name: Translation backfill contracts
-        run: npm run test:translation:backfill
-
-      - name: Translation backfill PostgreSQL 17 tests
+        run: |
+          npm run test:unique-menu-design:postgres
+          npm run test:translation:backfill:postgres
+          npm run test:maison-elyse-postgres
+          npm run test:qr:postgres
+      - name: Job summary
+        if: ${{ always() }}
         env:
-          PGDATABASE: vistaire_qr_ci
-          PGHOST: 127.0.0.1
-          PGPASSWORD: vistaire_qr_ci_password
-          PGPORT: "5432"
-          PGUSER: postgres
-        run: npm run test:translation:backfill:postgres
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## database-contracts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Maison Elyse PostgreSQL 17 tests
-        env:
-          PGDATABASE: vistaire_qr_ci
-          PGHOST: 127.0.0.1
-          PGPASSWORD: vistaire_qr_ci_password
-          PGPORT: "5432"
-          PGUSER: postgres
-        run: npm run test:maison-elyse-postgres
-
-      - name: QR Node tests
-        run: npm run test:qr:node
-
-      - name: QR PostgreSQL 17 tests
-        env:
-          PGDATABASE: vistaire_qr_ci
-          PGHOST: 127.0.0.1
-          PGPASSWORD: vistaire_qr_ci_password
-          PGPORT: "5432"
-          PGUSER: postgres
-        run: npm run test:qr:postgres
-
-      - name: Build
-        run: npm run build
-
-      - name: Landing production photo redirect
-        timeout-minutes: 5
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:landing:production-photo
-
-      - name: Landing redesign critical browser checks
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:landing:e2e
-
-      - name: Sauge Noire critical smoke
-        timeout-minutes: 5
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:smoke
-
-      - name: Sauge Noire first-gesture scroll
-        timeout-minutes: 5
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:scroll
-
-      - name: Sauge Noire swipe intent
-        if: ${{ !cancelled() }}
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:swipe
-
-      - name: Sauge Noire contents single flip
-        if: ${{ !cancelled() }}
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:contents-single-flip
-
-      - name: Sauge Noire static-page parity
-        if: ${{ !cancelled() }}
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:static-parity
-
-      - name: Sauge Noire comparison geometry
-        if: ${{ !cancelled() }}
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:sauge-noire:comparison-geometry
-
-      - name: QR functional Playwright tests
-        if: ${{ !cancelled() }}
-        timeout-minutes: 10
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:qr:functional
-
-      - name: SEO hardening tests
-        if: ${{ !cancelled() }}
-        run: npm run test:seo
-
-      - name: Admin and owner QR tests
-        if: ${{ !cancelled() }}
-        run: npm run test:admin
-
-      - name: Bootstrap smoke e2e
-        if: ${{ !cancelled() }}
-        timeout-minutes: 5
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:smoke:bootstrap
-
-      - name: SEO smoke e2e
-        if: ${{ !cancelled() }}
-        timeout-minutes: 5
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
-        run: npm run test:seo:e2e
-
-      - name: Upload Playwright failure artifacts
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+  build-app:
+    name: build-app
+    needs: classify-changes
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.core == 'true' ||
+      needs.classify-changes.outputs.assets == 'true' ||
+      needs.classify-changes.outputs.landing == 'true' ||
+      needs.classify-changes.outputs.menu_shared == 'true' ||
+      needs.classify-changes.outputs.sauge_renderer == 'true' ||
+      needs.classify-changes.outputs.pageflip_gestures == 'true' ||
+      needs.classify-changes.outputs.admin == 'true' ||
+      needs.classify-changes.outputs.qr == 'true' ||
+      needs.classify-changes.outputs.seo == 'true' ||
+      needs.classify-changes.outputs.dependencies == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'targeted' && github.event.inputs.target != 'database')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Next replaces NEXT_PUBLIC_* values in the server bundle at build time.
+    # Use the hermetic fixture endpoint so production E2E jobs and the single
+    # uploaded .next artifact resolve the same deterministic menu dataset.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55434
+      SUPABASE_SERVICE_ROLE_KEY: sauge-noire-fixture-service-role-key
+      VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          name: playwright-failure-artifacts-${{ github.run_id }}
+          lfs: false
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Next.js once
+        run: npm run build
+      - name: Upload verified Next.js build
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+          if-no-files-found: error
+          retention-days: 1
+      - name: Job summary
+        if: ${{ always() }}
+        run: |
+          echo '## build-app' >> "$GITHUB_STEP_SUMMARY"
+          { du -sh .next 2>/dev/null || true; } >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-core:
+    name: e2e-core
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.core == 'true' ||
+      needs.classify-changes.outputs.assets == 'true' ||
+      needs.classify-changes.outputs.menu_shared == 'true' ||
+      needs.classify-changes.outputs.landing == 'true' ||
+      needs.classify-changes.outputs.admin == 'true' ||
+      needs.classify-changes.outputs.seo == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - name: Core browser smoke
+        run: npm run test:ci:e2e:core
+      - name: Upload browser diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-core-failure-${{ github.run_id }}
           path: |
             test-results/
             playwright-report/
-            blob-report/
           if-no-files-found: ignore
           retention-days: 7
-
-  app-ci:
-    name: App CI
-    if: ${{ always() }}
-    needs:
-      - checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify required jobs
+      - name: Job summary
+        if: ${{ always() }}
         env:
-          CHECKS_RESULT: ${{ needs.checks.result }}
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
         run: |
-          if [[ "$CHECKS_RESULT" != "success" ]]; then
-            echo "App checks: $CHECKS_RESULT"
-            exit 1
-          fi
+          echo "## e2e-core" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-landing:
+    name: e2e-landing
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.landing == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'landing')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:ci:e2e:landing
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-landing-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## e2e-landing" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-menu-shared:
+    name: e2e-menu-shared
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.menu_shared == 'true' ||
+      needs.classify-changes.outputs.translations == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:ci:e2e:menu
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-menu-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## e2e-menu-shared" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-sauge-deep:
+    name: e2e-sauge-deep
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.sauge_renderer == 'true' ||
+      needs.classify-changes.outputs.pageflip_gestures == 'true' ||
+      needs.classify-changes.outputs.ci_infrastructure == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'sauge')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:ci:e2e:sauge
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-sauge-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## e2e-sauge-deep" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-admin-qr:
+    name: e2e-admin-qr
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.admin == 'true' ||
+      needs.classify-changes.outputs.qr == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'admin_qr')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:qr:node
+          npm run test:admin
+          npm run test:qr:functional
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-admin-qr-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## e2e-admin-qr" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-seo:
+    name: e2e-seo
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.seo == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'seo')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:seo
+          npm run test:seo:e2e
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-seo-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## e2e-seo" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  webkit-critical:
+    name: webkit-critical
+    needs: [classify-changes, build-app]
+    if: >-
+      !cancelled() && (needs.classify-changes.outputs.full_ci == 'true' ||
+      needs.classify-changes.outputs.sauge_renderer == 'true' ||
+      needs.classify-changes.outputs.pageflip_gestures == 'true' ||
+      needs.classify-changes.outputs.menu_shared == 'true' ||
+      needs.classify-changes.outputs.landing == 'true' ||
+      needs.classify-changes.outputs.ci_infrastructure == 'true')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'sauge')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps webkit
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:ci:e2e:webkit
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: webkit-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## webkit-critical" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  ci-gate:
+    name: CI Gate
+    if: ${{ always() }}
+    needs: [classify-changes, static-quality, database-contracts, build-app, e2e-core, e2e-landing, e2e-menu-shared, e2e-sauge-deep, e2e-admin-qr, e2e-seo, webkit-critical]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fail closed on missing or failed applicable jobs
+        env:
+          CLASSIFY: ${{ needs.classify-changes.result }}
+          CLASSIFY_FULL: ${{ needs.classify-changes.outputs.full_ci }}
+          STATIC: ${{ needs.static-quality.result }}
+          DATABASE: ${{ needs.database-contracts.result }}
+          BUILD: ${{ needs.build-app.result }}
+          CORE: ${{ needs.e2e-core.result }}
+          LANDING: ${{ needs.e2e-landing.result }}
+          MENU: ${{ needs.e2e-menu-shared.result }}
+          SAUGE: ${{ needs.e2e-sauge-deep.result }}
+          ADMIN_QR: ${{ needs.e2e-admin-qr.result }}
+          SEO: ${{ needs.e2e-seo.result }}
+          WEBKIT: ${{ needs.webkit-critical.result }}
+          EVENT: ${{ needs.classify-changes.outputs.event }}
+          EXPECT_STATIC: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.docs_only != 'true' || needs.classify-changes.outputs.ci_infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target != 'targeted')) && 'true' || 'false' }}
+          EXPECT_DATABASE: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.database == 'true' || needs.classify-changes.outputs.translations == 'true' || needs.classify-changes.outputs.qr == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'database')) && 'true' || 'false' }}
+          EXPECT_BUILD: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.core == 'true' || needs.classify-changes.outputs.assets == 'true' || needs.classify-changes.outputs.landing == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.translations == 'true' || needs.classify-changes.outputs.sauge_renderer == 'true' || needs.classify-changes.outputs.pageflip_gestures == 'true' || needs.classify-changes.outputs.admin == 'true' || needs.classify-changes.outputs.qr == 'true' || needs.classify-changes.outputs.seo == 'true' || needs.classify-changes.outputs.dependencies == 'true') && 'true' || 'false' }}
+          EXPECT_CORE: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.core == 'true' || needs.classify-changes.outputs.assets == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.landing == 'true' || needs.classify-changes.outputs.admin == 'true' || needs.classify-changes.outputs.seo == 'true') && 'true' || 'false' }}
+          EXPECT_LANDING: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.landing == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'landing')) && 'true' || 'false' }}
+          EXPECT_MENU: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.translations == 'true') && 'true' || 'false' }}
+          EXPECT_SAUGE: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.sauge_renderer == 'true' || needs.classify-changes.outputs.pageflip_gestures == 'true' || needs.classify-changes.outputs.ci_infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'sauge')) && 'true' || 'false' }}
+          EXPECT_ADMIN_QR: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.admin == 'true' || needs.classify-changes.outputs.qr == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'admin_qr')) && 'true' || 'false' }}
+          EXPECT_SEO: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.seo == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'seo')) && 'true' || 'false' }}
+          EXPECT_WEBKIT: ${{ (needs.classify-changes.outputs.full_ci == 'true' || needs.classify-changes.outputs.sauge_renderer == 'true' || needs.classify-changes.outputs.pageflip_gestures == 'true' || needs.classify-changes.outputs.menu_shared == 'true' || needs.classify-changes.outputs.landing == 'true' || needs.classify-changes.outputs.ci_infrastructure == 'true') && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          [[ "$CLASSIFY" == success ]] || { echo "classifier result: $CLASSIFY"; exit 1; }
+          [[ "$CLASSIFY_FULL" == true || "$CLASSIFY_FULL" == false ]] || { echo "invalid full_ci output"; exit 1; }
+          declare -A results=( [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-core]="$CORE" [e2e-landing]="$LANDING" [e2e-menu-shared]="$MENU" [e2e-sauge-deep]="$SAUGE" [e2e-admin-qr]="$ADMIN_QR" [e2e-seo]="$SEO" [webkit-critical]="$WEBKIT" )
+          declare -A expected=( [static-quality]="$EXPECT_STATIC" [database-contracts]="$EXPECT_DATABASE" [build-app]="$EXPECT_BUILD" [e2e-core]="$EXPECT_CORE" [e2e-landing]="$EXPECT_LANDING" [e2e-menu-shared]="$EXPECT_MENU" [e2e-sauge-deep]="$EXPECT_SAUGE" [e2e-admin-qr]="$EXPECT_ADMIN_QR" [e2e-seo]="$EXPECT_SEO" [webkit-critical]="$EXPECT_WEBKIT" )
+          failed=0
+          for job in "${!results[@]}"; do
+            result="${results[$job]}"
+            if [[ "${expected[$job]}" == true && "$result" != success ]]; then
+              echo "::error::$job was expected but completed as ${result:-missing}"
+              failed=1
+            elif [[ "$result" == failure || "$result" == cancelled || "$result" == timed_out || -z "$result" ]]; then
+              echo "::error::$job is $result"
+              failed=1
+            fi
+          done
+          if (( failed )); then exit 1; fi
+          {
+            echo '## CI Gate'
+            echo "- Classification: \`$CLASSIFY_FULL\` (event: \`$EVENT\`)"
+            echo '- Applicable jobs must be success; skipped jobs are accepted only when the classifier marked them not applicable.'
+            for job in "${!results[@]}"; do echo "- $job: ${results[$job]}"; done
+          } >> "$GITHUB_STEP_SUMMARY"

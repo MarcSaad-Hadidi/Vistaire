@@ -1,0 +1,365 @@
+#!/usr/bin/env node
+
+/**
+ * Deterministic, fail-closed change classifier used by CI.
+ *
+ * The module deliberately has no npm dependencies.  Consumers can call
+ * classifyChanges({ eventName, changedFiles, ref, dispatchInput }) in tests,
+ * while the executable form reads the GitHub event payload and writes stable
+ * key=value records to GITHUB_OUTPUT.
+ */
+import { execFileSync } from "node:child_process";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+export const CATEGORIES = Object.freeze([
+  "docs_only",
+  "ci_infrastructure",
+  "dependencies",
+  "assets",
+  "core",
+  "database",
+  "translations",
+  "landing",
+  "seo",
+  "menu_shared",
+  "sauge_renderer",
+  "pageflip_gestures",
+  "admin",
+  "qr",
+  "full_ci"
+]);
+
+const OPERATIONAL_CATEGORIES = CATEGORIES.filter((name) => name !== "docs_only" && name !== "full_ci");
+const ZERO_SHA = /^0+$/;
+
+export function normalizePath(value) {
+  if (typeof value !== "string") return "";
+  return value
+    .trim()
+    .replaceAll("\\", "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+/g, "/");
+}
+
+function add(set, ...values) {
+  values.forEach((value) => set.add(value));
+}
+
+/** Return path categories and whether the path is covered by an explicit rule. */
+export function classifyPath(input) {
+  const file = normalizePath(input);
+  const categories = new Set();
+  if (!file) return { path: file, categories, known: false };
+
+  const lower = file.toLowerCase();
+  const base = path.posix.basename(lower);
+
+  // Documentation is intentionally narrow.  A markdown file in a runtime
+  // directory is still docs-only, but generated/config files are not.
+  if (/^(?:docs?|documentation)\//.test(lower) || /\.(?:md|mdx|txt)$/.test(lower)) {
+    return { path: file, categories: new Set(["docs_only"]), known: true };
+  }
+
+  if (/^\.github\/(?:workflows|actions)\//.test(lower) || lower === ".github/dependabot.yml" ||
+      /^scripts\/ci\//.test(lower) || lower === "scripts/run-playwright-e2e.mjs" ||
+      /^playwright\.config\.(?:[cm]?js|ts|mts|cts)$/.test(lower) ||
+      /(?:ci|contract).*\.test\.(?:mjs|js|ts)$/.test(base)) {
+    add(categories, "ci_infrastructure");
+  }
+
+  if (/^(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(lower) ||
+      /(?:^|\/)package-lock\.json$/.test(lower)) {
+    add(categories, "dependencies");
+  }
+
+  if (/^(?:public|assets)\//.test(lower) || /\.(?:avif|gif|ico|jpeg|jpg|png|svg|webp|glb|gltf|usdz|mp4|webm)$/.test(lower)) {
+    add(categories, "assets");
+  }
+
+  if (/^public\/(?:images\/landing|videos\/|frames\/menualive)/.test(lower)) {
+    add(categories, "landing");
+  }
+
+  if (/^supabase\//.test(lower) || /^tests\/postgres\//.test(lower) ||
+      /^scripts\/.*(?:postgres|migration|backfill)/.test(lower) ||
+      /^(?:lib\/translation|lib\/menu|lib\/owner)\//.test(lower) ||
+      /(?:migration|rpc|postgres|transaction|atomic|cas|permission)/.test(base)) {
+    add(categories, "database");
+  }
+
+  if (/(?:translation|translations|i18n|locale|locales|messages|bilingual)/.test(lower) ||
+      /^tests\/backfill-menu-translations\.test\./.test(lower)) {
+    add(categories, "translations");
+  }
+
+  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/))|components\/landing\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
+      /(?:landing|marketing|showcase)/.test(base)) {
+    add(categories, "landing");
+  }
+
+  if (/^(?:lib\/seo|app\/(?:robots|sitemap)(?:\.|\/|$)|app\/(?:seo|geo)(?:\/|$)|e2e\/seo[-/])/.test(lower) ||
+      /(?:^|[-_.])seo(?:[-_.]|$)|metadata|json-ld/.test(base)) {
+    add(categories, "seo");
+  }
+
+  if (/^(?:components\/menu\/|lib\/menu\/|app\/(?:menu|api\/(?:public\/)?menu(?:[-/]))|e2e\/menu[-/])/.test(lower) ||
+      /(?:trouvable|menu-(?:navigation|photo|translation)|public-menu)/.test(lower)) {
+    add(categories, "menu_shared");
+  }
+
+  if (/sauge-noire|sauge_noire|sauge\/|unique\/sauge|renderer\/sauge|sauge-renderer/.test(lower) ||
+      /^e2e\/sauge[-/]/.test(lower) || /sauge/.test(base)) {
+    add(categories, "sauge_renderer");
+  }
+
+  if (/pageflip|page-flip|gesture|swipe|transition-coordinator|handoff/.test(lower) ||
+      /react-pageflip/.test(lower)) {
+    add(categories, "pageflip_gestures");
+  }
+
+  if (/^(?:app\/admin|components\/admin|lib\/admin|e2e\/admin[-/])/.test(lower) ||
+      /(?:admin|owner-dashboard|owner-cockpit)/.test(base)) {
+    add(categories, "admin");
+  }
+
+  if (/qr|qr-codes|qrcode/.test(lower)) add(categories, "qr");
+
+  // Explicitly recognised application/source trees are core even when a
+  // specialised rule above did not match.  This prevents ordinary source
+  // changes being mistaken for unknown files.
+  if (/^(?:app|components|lib|scripts|tests|e2e|styles|config|types|supabase)\//.test(lower) ||
+      /^(?:next|tsconfig|tailwind|postcss|eslint)\.config\./.test(base) ||
+      /\.(?:css|scss|sass|less|tsx?|jsx?|mjs|cjs|mts|cts)$/.test(lower)) {
+    add(categories, "core");
+  }
+
+  // A path with no explicit rule is intentionally unknown.  The caller will
+  // force full CI, rather than silently allowing an incomplete validation.
+  return { path: file, categories, known: categories.size > 0 };
+}
+
+function pathsFromEntries(entries) {
+  const paths = [];
+  for (const entry of entries ?? []) {
+    if (typeof entry === "string") {
+      const normalized = normalizePath(entry);
+      if (normalized) paths.push(normalized);
+      continue;
+    }
+    if (!entry || typeof entry !== "object") continue;
+    const candidates = [entry.path, entry.file, entry.to, entry.newPath, entry.filename, entry.name,
+      entry.from, entry.oldPath, entry.previousPath, entry.source];
+    // Git's rename/copy records have two paths.  Classify both sides so a
+    // rename out of (or into) a sensitive area cannot evade a gate.
+    if (entry.status && /^[RC]/i.test(String(entry.status))) {
+      candidates.push(entry.from, entry.oldPath, entry.previousPath, entry.source);
+    } else if (/delete|rename/i.test(String(entry.status ?? ""))) {
+      candidates.push(entry.from, entry.oldPath, entry.previousPath, entry.source);
+    }
+    for (const candidate of candidates) {
+      const normalized = normalizePath(candidate);
+      if (normalized) paths.push(normalized);
+    }
+  }
+  return [...new Set(paths)].sort();
+}
+
+function allOperationalFlags() {
+  return Object.fromEntries(OPERATIONAL_CATEGORIES.map((name) => [name, true]));
+}
+
+function isMainRef(input) {
+  const ref = input.ref ?? input.refName ?? input.branch ?? input.baseRef;
+  return ref === "main" || ref === "refs/heads/main" || String(ref ?? "").endsWith("/main");
+}
+
+function dispatchTarget(input) {
+  const value = input.dispatchInput ?? input.workflowDispatch ?? input.inputs ?? input.input;
+  if (typeof value === "string") return value.toLowerCase();
+  if (value && typeof value === "object") return String(value.target ?? value.mode ?? value.validation ?? "targeted").toLowerCase();
+  return "targeted";
+}
+
+function applyDispatchTarget(target, flags) {
+  const targetCategories = {
+    database: ["database"],
+    admin_qr: ["admin", "qr"],
+    landing: ["landing"],
+    seo: ["seo"],
+    sauge: ["sauge_renderer", "pageflip_gestures", "menu_shared"]
+  };
+  for (const category of targetCategories[target] ?? []) flags[category] = true;
+  return Boolean(targetCategories[target]);
+}
+
+/**
+ * Classify a change set.  Missing diffs and unrecognised paths are fail-closed
+ * and set full_ci.  The result contains both snake_case output names and
+ * camelCase aliases for JavaScript callers.
+ */
+export function classifyChanges(input = {}) {
+  const event = String(input.eventName ?? input.event ?? input.GITHUB_EVENT_NAME ?? "").toLowerCase();
+  const changedFiles = pathsFromEntries(input.changedFiles ?? input.files ?? input.paths);
+  const exhaustiveEvent = event === "merge_group" ||
+    (event === "push" && isMainRef(input)) ||
+    (event === "workflow_dispatch" && dispatchTarget(input) === "full");
+  const missingDiff = !Array.isArray(input.changedFiles ?? input.files ?? input.paths);
+  const forceForEvent = exhaustiveEvent || (event === "workflow_dispatch" && missingDiff);
+
+  const flags = Object.fromEntries(CATEGORIES.map((name) => [name, false]));
+  const unknownFiles = [];
+  const reasons = [];
+  for (const file of changedFiles) {
+    const result = classifyPath(file);
+    if (!result.known) unknownFiles.push(file);
+    for (const category of result.categories) flags[category] = true;
+  }
+
+  const manualTarget = event === "workflow_dispatch" ? dispatchTarget(input) : "";
+  const explicitManualSelection = event === "workflow_dispatch" && !missingDiff && applyDispatchTarget(manualTarget, flags);
+  const targetedManualWithoutDiff = event === "workflow_dispatch" && missingDiff && applyDispatchTarget(manualTarget, flags);
+  const validManualTarget = event !== "workflow_dispatch" ||
+    manualTarget === "full" ||
+    manualTarget === "targeted" ||
+    explicitManualSelection ||
+    targetedManualWithoutDiff;
+
+  if (changedFiles.length === 0 && missingDiff) {
+    reasons.push("changed file list unavailable");
+  }
+  if (unknownFiles.length > 0) reasons.push("unclassified path(s): " + unknownFiles.join(", "));
+  if (exhaustiveEvent) reasons.push(`${event} requires exhaustive validation`);
+  if (event === "pull_request" && missingDiff) reasons.push("pull_request diff unavailable");
+  if (event === "push" && !isMainRef(input) && missingDiff) reasons.push("push diff unavailable");
+  if (event === "workflow_dispatch") reasons.push(`manual target: ${manualTarget}`);
+
+  const docsOnly = changedFiles.length > 0 && changedFiles.every((file) => {
+    const result = classifyPath(file);
+    return result.known && result.categories.size === 1 && result.categories.has("docs_only");
+  }) && !unknownFiles.length &&
+    !(event === "workflow_dispatch" && manualTarget !== "targeted");
+
+  // CI definitions and the package graph can invalidate every downstream
+  // assumption, so they always request the exhaustive matrix.
+  const infrastructureChange = flags.ci_infrastructure || flags.dependencies;
+  if (infrastructureChange) reasons.push("CI infrastructure or dependency graph changed");
+  // Explicit manual family targets are intentional, while an unqualified
+  // targeted dispatch remains fail-closed because no diff is available.
+  const manualFamilyTarget = targetedManualWithoutDiff || explicitManualSelection;
+  const fullCi = !validManualTarget ||
+    (forceForEvent && !manualFamilyTarget) ||
+    infrastructureChange ||
+    unknownFiles.length > 0 ||
+    (missingDiff && !docsOnly && !manualFamilyTarget);
+  if (fullCi) Object.assign(flags, allOperationalFlags());
+  flags.docs_only = docsOnly && !fullCi;
+  flags.full_ci = fullCi;
+
+  const categories = CATEGORIES.filter((name) => flags[name]);
+  const result = {
+    event,
+    dispatch_target: manualTarget || "targeted",
+    changed_files: changedFiles,
+    unknown_files: [...new Set(unknownFiles)].sort(),
+    categories,
+    flags,
+    reason: reasons.length ? reasons.join("; ") : "classified by deterministic path rules",
+    ...flags
+  };
+  // JS-friendly aliases are useful to workflow adapters and preserve a small,
+  // stable interface if output names are consumed outside Actions.
+  for (const name of CATEGORIES) {
+    result[name.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())] = flags[name];
+  }
+  result.docsOnly = flags.docs_only;
+  result.fullCi = flags.full_ci;
+  result.changedFiles = result.changed_files;
+  result.unknownFiles = result.unknown_files;
+  return result;
+}
+
+// Backwards-compatible, descriptive aliases for workflow/test consumers.
+export const detectChanges = classifyChanges;
+export const classifyChangedFiles = classifyChanges;
+
+function readEventPayload() {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath || !existsSync(eventPath)) return {};
+  try { return JSON.parse(readFileSync(eventPath, "utf8")); } catch { return {}; }
+}
+
+function gitDiffPaths(base, head) {
+  if (!base || !head || ZERO_SHA.test(base) || ZERO_SHA.test(head)) return null;
+  try {
+    const text = execFileSync("git", ["diff", "--name-status", "-M", base, head], { encoding: "utf8" });
+    const entries = text.split(/\r?\n/).filter(Boolean).map((line) => {
+      const fields = line.split("\t");
+      return { status: fields[0], path: fields.at(-1), oldPath: fields.length > 2 ? fields[1] : undefined };
+    });
+    return pathsFromEntries(entries);
+  } catch {
+    return null;
+  }
+}
+
+function eventInput(payload) {
+  const event = String(process.env.GITHUB_EVENT_NAME ?? process.env.VISTAIRE_CI_EVENT ?? "").toLowerCase();
+  if (event === "pull_request") {
+    return { eventName: event, baseSha: payload.pull_request?.base?.sha, headSha: payload.pull_request?.head?.sha, changedFiles: gitDiffPaths(payload.pull_request?.base?.sha, payload.pull_request?.head?.sha), ref: payload.pull_request?.base?.ref };
+  }
+  if (event === "push") {
+    return { eventName: event, baseSha: payload.before, headSha: payload.after, changedFiles: gitDiffPaths(payload.before, payload.after), ref: process.env.GITHUB_REF ?? process.env.VISTAIRE_CI_REF ?? payload.ref };
+  }
+  if (event === "merge_group") return { eventName: event, ref: process.env.GITHUB_REF ?? process.env.VISTAIRE_CI_REF, changedFiles: [] };
+  if (event === "workflow_dispatch") return { eventName: event, ref: process.env.GITHUB_REF ?? process.env.VISTAIRE_CI_REF, dispatchInput: payload.inputs ?? process.env.VISTAIRE_CI_TARGET ?? {} };
+  return { eventName: event, changedFiles: gitDiffPaths(process.env.GITHUB_BASE_SHA ?? process.env.VISTAIRE_CI_BASE_SHA, process.env.GITHUB_SHA ?? process.env.VISTAIRE_CI_HEAD_SHA) };
+}
+
+function cliInput(payload) {
+  const args = process.argv.slice(2);
+  const value = (name) => {
+    const index = args.indexOf(name);
+    return index >= 0 ? args[index + 1] : undefined;
+  };
+  const event = value("--event") ?? process.env.GITHUB_EVENT_NAME ?? process.env.VISTAIRE_CI_EVENT;
+  const filesArg = value("--files");
+  if (!args.some((arg) => arg.startsWith("--"))) return eventInput(payload);
+  const files = filesArg === undefined ? undefined : filesArg.split(",").flatMap((item) => item.split(/\r?\n/)).filter(Boolean);
+  const input = {
+    eventName: event,
+    ref: value("--ref") ?? process.env.GITHUB_REF ?? process.env.VISTAIRE_CI_REF,
+    dispatchInput: value("--dispatch-target") ?? payload.inputs ?? {},
+    changedFiles: files,
+    baseSha: value("--base"),
+    headSha: value("--head")
+  };
+  if (files === undefined && input.baseSha && input.headSha) input.changedFiles = gitDiffPaths(input.baseSha, input.headSha);
+  return input;
+}
+
+export function toGitHubOutputs(result) {
+  const outputs = [];
+  for (const name of CATEGORIES) outputs.push(`${name}=${result.flags[name] ? "true" : "false"}`);
+  outputs.push(`changed_files=${result.changed_files.join(" ")}`);
+  outputs.push(`unknown_files=${result.unknown_files.join(" ")}`);
+  outputs.push(`categories=${result.categories.join(",")}`);
+  outputs.push(`event=${result.event}`);
+  outputs.push(`dispatch_target=${result.dispatch_target ?? "targeted"}`);
+  outputs.push(`reason<<CI_CLASSIFIER_REASON`);
+  outputs.push(result.reason);
+  outputs.push("CI_CLASSIFIER_REASON");
+  return outputs.join("\n");
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  const result = classifyChanges(cliInput(readEventPayload()));
+  const output = toGitHubOutputs(result);
+  const outputFlag = process.argv.indexOf("--github-output");
+  const outputPath = outputFlag >= 0 && process.argv[outputFlag + 1] && !process.argv[outputFlag + 1].startsWith("--")
+    ? process.argv[outputFlag + 1]
+    : process.env.GITHUB_OUTPUT;
+  if (outputPath) appendFileSync(outputPath, `${output}\n`);
+  else process.stdout.write(`${output}\n`);
+}

@@ -69,9 +69,9 @@ test("App CI supplies PostgreSQL 17 and uses the hermetic bootstrap smoke gate",
     "npm run test:qr:postgres",
     "npm run test:qr:functional",
     "npm run build",
-    "npm run test:smoke:bootstrap"
+    "npm run test:ci:e2e:core"
   ]) {
-    assert.match(workflow, new RegExp(`run:\\s*${command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`));
+    assert.match(workflow, new RegExp(command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
   }
   assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
 });

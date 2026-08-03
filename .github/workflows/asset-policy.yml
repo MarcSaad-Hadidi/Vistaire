@@ -2,35 +2,63 @@ name: Asset Policy
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: [main]
   push:
-    branches: ["main"]
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: vistaire-asset-policy-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: true
 
 jobs:
   asset-policy:
     name: Asset policy
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          fetch-depth: 0
           lfs: false
+          persist-credentials: false
+
+      - name: Classify asset impact
+        id: classify
+        run: node scripts/ci/detect-changes.mjs
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        if: ${{ steps.classify.outputs.assets == 'true' || steps.classify.outputs.full_ci == 'true' }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
 
       - name: Install dependencies
+        if: ${{ steps.classify.outputs.assets == 'true' || steps.classify.outputs.full_ci == 'true' }}
         run: npm ci
 
       - name: Large file guard
+        if: ${{ steps.classify.outputs.assets == 'true' || steps.classify.outputs.full_ci == 'true' }}
         run: npm run assets:check
 
       - name: LFS policy guard
+        if: ${{ steps.classify.outputs.assets == 'true' || steps.classify.outputs.full_ci == 'true' }}
         run: npm run lfs:check
+
+      - name: Publish summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo '## Asset policy'
+            echo '- Asset/infrastructure impact: `${{ steps.classify.outputs.assets }}` / `${{ steps.classify.outputs.full_ci }}`'
+            echo '- Documentation-only changes intentionally skip npm installation.'
+          } >> "$GITHUB_STEP_SUMMARY"

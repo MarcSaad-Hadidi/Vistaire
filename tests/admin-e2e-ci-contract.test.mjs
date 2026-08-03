@@ -39,9 +39,12 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   assert.match(runner, /includes\("e2e\/ci-smoke\.spec\.ts"\)/);
   assert.match(
     runner,
-    /const useDevelopmentServer\s*=\s*useLocalDemoServer\s*\|\|\s*\(?includesSaugeNoireBrowserFlow/
+    /const useDevelopmentServer\s*=/
   );
   assert.match(runner, /useDevelopmentServer \? "dev" : "start"/);
+  assert.match(runner, /buildRequested/);
+  assert.match(runner, /A production E2E group requires \.next\/BUILD_ID/);
+  assert.doesNotMatch(runner, /includesLandingProductionPhoto && !skipWebServer/);
   assert.match(runner, /import \{ randomBytes \} from "node:crypto"/);
   assert.match(runner, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.doesNotMatch(runner, /vistaire-owner-e2e-local-token/);
@@ -59,7 +62,7 @@ test("local Playwright smoke uses only synthetic Clerk fixture keys by default",
   );
 });
 
-test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smoke available locally", async () => {
+test("App CI uses targeted jobs and keeps the data-dependent smoke available locally", async () => {
   const [workflow, packageJson, fullSmoke] = await Promise.all([
     source(".github/workflows/app-ci.yml"),
     source("package.json"),
@@ -95,27 +98,19 @@ test("App CI uses the hermetic bootstrap smoke and keeps the data-dependent smok
     "npm run test:qr:functional",
     "npm run test:seo",
     "npm run test:admin",
-    "npm run test:smoke:bootstrap",
+    "npm run test:ci:e2e:core",
     "npm run test:seo:e2e"
   ]) {
-    assert.match(workflow, new RegExp(`run: ${command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`));
+    assert.match(workflow, new RegExp(command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
   }
-  const npmCiIndex = workflow.indexOf("run: npm ci");
-  const webkitInstallIndex = workflow.indexOf("run: npx --no-install playwright install --with-deps webkit");
-  const firstRepositoryCheckIndex = workflow.indexOf("run: npm run assets:check");
-  assert.ok(npmCiIndex >= 0, "App CI must install npm dependencies");
-  assert.ok(webkitInstallIndex > npmCiIndex, "WebKit must be installed after npm ci");
-  assert.ok(
-    webkitInstallIndex < firstRepositoryCheckIndex,
-    "WebKit must be installed before any blocking repository/test suite can fail"
-  );
-  assert.ok(
-    workflow.indexOf("run: npm run build") <
-      workflow.indexOf("run: npm run test:qr:functional") &&
-      workflow.indexOf("run: npm run build") <
-        workflow.indexOf("run: npm run test:smoke:bootstrap"),
-    "next start Playwright suites and hermetic smoke must run after build"
-  );
+  for (const job of ["classify-changes", "static-quality", "database-contracts", "build-app", "e2e-core", "e2e-landing", "e2e-menu-shared", "e2e-sauge-deep", "e2e-admin-qr", "e2e-seo", "webkit-critical"]) {
+    assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
+  }
+  assert.match(workflow, /merge_group:/);
+  assert.match(workflow, /name: CI Gate/);
+  assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
+  assert.match(workflow, /playwright install --with-deps webkit/);
+  assert.ok(workflow.indexOf("npm run build") < workflow.indexOf("npm run test:ci:e2e:core"), "build is declared before browser jobs");
   assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
   assert.doesNotMatch(fullSmoke, /test\.skip/);
   assert.match(workflow, /image:\s*postgres:17/);
@@ -134,13 +129,10 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
-  assert.match(workflow, /^\s{2}checks:\s*$/m);
-  assert.match(workflow, /^\s{2}app-ci:\s*$/m);
-  assert.match(
-    workflow,
-    /name: App CI\s+if: \$\{\{ always\(\) \}\}\s+needs:\s+- checks\s+runs-on:/
-  );
-  assert.match(workflow, /CHECKS_RESULT:\s*\$\{\{ needs\.checks\.result \}\}/);
+  assert.match(workflow, /^\s{2}e2e-sauge-deep:\s*$/m);
+  assert.match(workflow, /^\s{2}webkit-critical:\s*$/m);
+  assert.match(workflow, /name: CI Gate\s+if: \$\{\{ always\(\) \}\}/);
+  assert.match(workflow, /needs\.e2e-sauge-deep\.result/);
   assert.equal(
     scripts["test:sauge-noire:scroll"],
     "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-first-gesture-scroll.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
@@ -157,35 +149,13 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
     scripts["test:sauge-noire:contents-single-flip"],
     "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-contents-single-flip.spec.ts --project=chromium --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
   );
-  assert.match(
-    workflow,
-    /- name: Install Playwright WebKit\s+run: npx --no-install playwright install --with-deps webkit/
-  );
-  assert.match(
-    workflow,
-    /- name: Sauge Noire critical smoke\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:smoke/
-  );
-  assert.match(
-    workflow,
-    /- name: Sauge Noire first-gesture scroll\s+timeout-minutes: 5\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:scroll/
-  );
-  assert.match(
-    workflow,
-    /- name: Sauge Noire static-page parity\s+(?:if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}\s+)?timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:static-parity/
-  );
-  assert.match(
-    workflow,
-    /- name: Sauge Noire contents single flip\s+(?:if:\s+\$\{\{\s*!cancelled\(\)\s*\}\}\s+)?timeout-minutes: 10\s+env:\s+PLAYWRIGHT_BROWSER_CHANNEL: chrome\s+run: npm run test:sauge-noire:contents-single-flip/
-  );
+  assert.match(workflow, /webkit-critical:/);
+  assert.match(workflow, /playwright install --with-deps webkit/);
+  assert.match(workflow, /npm run test:ci:e2e:sauge/);
+  assert.match(workflow, /npm run test:ci:e2e:webkit/);
   assert.ok(
-    workflow.indexOf("run: npm run build") <
-      workflow.indexOf("run: npm run test:sauge-noire:smoke") &&
-      workflow.indexOf("run: npm run build") <
-        workflow.indexOf("run: npm run test:sauge-noire:scroll") &&
-      workflow.indexOf("run: npm run build") <
-        workflow.indexOf("run: npm run test:sauge-noire:contents-single-flip") &&
-      workflow.indexOf("run: npm run build") <
-        workflow.indexOf("run: npm run test:sauge-noire:static-parity"),
+    workflow.indexOf("npm run build") <
+      workflow.indexOf("npm run test:ci:e2e:sauge"),
     "the built Next server must exist before the Sauge Noire browser proofs start"
   );
   assert.doesNotMatch(
@@ -264,7 +234,9 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
 test("CodeQL keeps analysis failures blocking without uploading SARIF", async () => {
   const workflow = await source(".github/workflows/codeql.yml");
 
-  assert.match(workflow, /uses:\s*github\/codeql-action\/analyze@v4/);
+  assert.match(workflow, /uses:\s*github\/codeql-action\/analyze@[0-9a-f]{40}\s+# v4/);
+  assert.match(workflow, /uses:\s*github\/codeql-action\/init@[0-9a-f]{40}\s+# v4/);
+  assert.match(workflow, /uses:\s*actions\/checkout@[0-9a-f]{40}\s+# v4\.4\.0/);
   assert.match(workflow, /upload:\s*never/);
   assert.doesNotMatch(workflow, /continue-on-error/);
 });
