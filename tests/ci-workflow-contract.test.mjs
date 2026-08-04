@@ -150,29 +150,23 @@ test("PR graph fetch is bounded and fail-closed", () => {
   assert.match(workflow, /head\.repo\.full_name == github\.repository/);
 });
 
-test("tokenized CI helpers run from the trusted base checkout", async () => {
+test("PR-controlled CI helpers never receive the GitHub token", async () => {
   const assetWorkflow = await readFile(new URL("../.github/workflows/asset-policy.yml", import.meta.url), "utf8");
   for (const source of [workflow, assetWorkflow]) {
-    const start = source.indexOf("Checkout trusted graph helper");
-    const end = source.indexOf("Fetch minimal PR graph for merge-base", start);
+    const start = source.indexOf("Fetch minimal PR graph for merge-base");
+    const end = source.indexOf("Classify", start);
     const block = source.slice(start, end);
-    assert.match(block, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
-    assert.match(block, /path: \.ci-trusted/);
-    assert.match(block, /sparse-checkout: scripts\/ci\/fetch-pr-graph\.mjs/);
     assert.doesNotMatch(block, /GITHUB_TOKEN/);
-
-    const graphStart = source.indexOf("Fetch minimal PR graph for merge-base", start);
-    const graphEnd = source.indexOf("Classify", graphStart);
-    assert.match(source.slice(graphStart, graphEnd), /run: node \.ci-trusted\/scripts\/ci\/fetch-pr-graph\.mjs/);
+    assert.match(block, /run: node scripts\/ci\/fetch-pr-graph\.mjs/);
   }
 
   const metricsStart = workflow.indexOf("  ci-metrics:");
   const metrics = workflow.slice(metricsStart);
-  const checkoutStart = metrics.indexOf("Checkout metrics collector");
-  const collectStart = metrics.indexOf("Collect machine-readable CI metrics", checkoutStart);
-  const checkout = metrics.slice(checkoutStart, collectStart);
-  assert.match(checkout, /ref: \$\{\{ github\.event_name == 'pull_request' && github\.event\.pull_request\.base\.sha \|\| github\.sha \}\}/);
-  assert.match(checkout, /sparse-checkout: scripts\/ci\/collect-metrics\.mjs/);
+  const collectStart = metrics.indexOf("Collect machine-readable CI metrics");
+  const collectEnd = metrics.indexOf("Upload CI metrics JSON", collectStart);
+  const collect = metrics.slice(collectStart, collectEnd);
+  assert.match(collect, /GITHUB_TOKEN: \$\{\{ github\.ref == 'refs\/heads\/main' && github\.token \|\| '' \}\}/);
+  assert.match(collect, /run: node scripts\/ci\/collect-metrics\.mjs/);
 });
 
 test("CI uses read-only permissions, bounded jobs, and concurrency", () => {
