@@ -61,9 +61,12 @@ test("Preview smoke establishes access without forwarding the bypass secret", ()
   assert.match(smokeSpec, /expectReadyMedia/);
   assert.match(smokeSpec, /readyState >= 2/);
   assert.match(smokeSpec, /mediaElement\.error !== null/);
+  assert.match(smokeSpec, /pendingMediaRequests/);
+  assert.match(smokeSpec, /requestfinished/);
+  assert.match(smokeSpec, /resourceType\(\) !== "media"/);
   assert.match(
     smokeSpec,
-    /await expectReadyMedia\(page\);[\s\S]*expect\(issues\.failedResponses\)/
+    /await expectReadyMedia\\(page, issues\\);[\\s\\S]*expect\\(issues\\.failedResponses\\)/
   );
   assert.match(smokeSpec, /x-vercel-protection-bypass/);
   assert.match(smokeSpec, /x-vercel-set-bypass-cookie/);
