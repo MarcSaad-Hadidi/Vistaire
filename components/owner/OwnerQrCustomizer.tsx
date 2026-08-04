@@ -856,6 +856,23 @@ export function OwnerQrCustomizer({
   return (
     <div className={`${styles.qrCustomizer} ${className}`}>
       <div className={styles.qrPreviewCol}>
+        <div className={styles.qrPreviewHeader}>
+          <div className={styles.qrPreviewTitle}>
+            <span className={styles.qrPreviewIcon} aria-hidden="true">◉</span>
+            <strong>{targetKind === "menu" ? "QR MENU PRINCIPAL" : "QR ACCÈS RESTAURANT"}</strong>
+            <span className={styles.qrStatusBadge}>
+              {canonicalRecord ? STATUS_LABELS[canonicalRecord.status].toUpperCase() : "À PRÉPARER"}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.appearanceJump}
+            aria-controls={`qr-appearance-${targetKind}`}
+            onClick={() => document.getElementById(`qr-appearance-${targetKind}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            Personnaliser l’apparence
+          </button>
+        </div>
         <div className={styles.qrPreviewFrame} aria-busy={machineState === "loading"}>
           {qrValue && svgMarkup ? (
             <span
@@ -893,6 +910,24 @@ export function OwnerQrCustomizer({
           <span>{canonicalRecord ? STATUS_LABELS[canonicalRecord.status] : "Non créé"}</span>
           <p>{stateCopy}</p>
         </div>
+        {canonicalRecord ? (
+          <>
+            <div className={styles.qrMetaRow}><span>Créé le</span><strong>{new Date(canonicalRecord.createdAt).toLocaleDateString("fr-CA")}</strong></div>
+            <div className={styles.qrMetaRow}><span>Scans totaux</span><strong>{canonicalRecord.scanCount}</strong></div>
+            <div className={styles.qrMetaRow}><span>Dernier scan</span><strong>{canonicalRecord.lastScannedAt ? new Date(canonicalRecord.lastScannedAt).toLocaleString("fr-CA") : "Jamais"}</strong></div>
+          </>
+        ) : null}
+        <div className={styles.qrPreviewActions}>
+          <button type="button" className={styles.btn} onClick={copyUrl} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
+            Lien QR
+          </button>
+          <button type="button" className={styles.btn} onClick={downloadPng} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
+            PNG
+          </button>
+          <button type="button" className={styles.btn} onClick={downloadSvg} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
+            SVG
+          </button>
+        </div>
         {targetKind === "admin" ? (
           <p className={styles.qrWarning}>
             Interne restaurant. Ne pas imprimer pour les clients. Ce QR ouvre le
@@ -911,6 +946,8 @@ export function OwnerQrCustomizer({
       </div>
 
       <div className={styles.qrControlsCol}>
+        <section className={styles.appearanceEditor} aria-labelledby={`qr-appearance-${targetKind}`}>
+          <h3 id={`qr-appearance-${targetKind}`}>Apparence du QR</h3>
         <div>
           <p className={styles.fieldLabel}>Presets</p>
           <div className={styles.presetRow}>
@@ -1082,9 +1119,9 @@ export function OwnerQrCustomizer({
             </button>
           )}
         </div>
+        </section>
 
-        {canonicalRecord ? (
-          <section className={styles.lifecyclePanel} aria-labelledby={`qr-lifecycle-${targetKind}`}>
+        <section className={styles.lifecyclePanel} aria-labelledby={`qr-lifecycle-${targetKind}`}>
             <h3 id={`qr-lifecycle-${targetKind}`}>
               {publicInventory ? "Créer un nouveau QR public" : "Cycle de vie accès restaurant"}
             </h3>
@@ -1093,8 +1130,23 @@ export function OwnerQrCustomizer({
                 ? "Ajoutez un QR pour une table, une terrasse ou un support imprimé. Tous les QR publics existants resteront actifs."
                 : "Les actions de cet accès privé sont isolées et ne modifient jamais les QR publics."}
             </p>
+            {publicInventory ? (
+              <p className={styles.qrPermanenceNotice}>
+                Tous les QR publics existants resteront actifs et continueront d’ouvrir ce menu.
+              </p>
+            ) : null}
           <div className={styles.qrLifecycleActions} aria-label="Cycle de vie du QR">
-            {!terminalState ? (
+            {publicInventory && !canonicalRecord ? (
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={mutationBusy || machineState !== "absent"}
+                onClick={saveStyle}
+                aria-describedby={statusReasonId}
+              >
+                Créer un nouveau QR
+              </button>
+            ) : !terminalState ? (
               <button
                 type="button"
                 className={styles.btn}
@@ -1105,7 +1157,7 @@ export function OwnerQrCustomizer({
                 {publicInventory ? "Créer un nouveau QR" : rotationActionLabel}
               </button>
             ) : null}
-            {canonicalRecord.status === "active" ? (
+            {targetKind === "admin" && canonicalRecord?.status === "active" ? (
               <button
                 type="button"
                 className={styles.btn}
@@ -1116,7 +1168,7 @@ export function OwnerQrCustomizer({
                 Suspendre temporairement
               </button>
             ) : null}
-            {canonicalRecord.status === "paused" ? (
+            {targetKind === "admin" && canonicalRecord?.status === "paused" ? (
               <button
                 type="button"
                 className={styles.btn}
@@ -1127,8 +1179,8 @@ export function OwnerQrCustomizer({
                 Réactiver
               </button>
             ) : null}
-            {canonicalRecord.status === "active" || canonicalRecord.status === "paused" ? (
-              <span className={targetKind === "admin" ? styles.adminDangerZone : ""}>
+            {targetKind === "admin" && canonicalRecord && (canonicalRecord.status === "active" || canonicalRecord.status === "paused") ? (
+              <span className={styles.adminDangerZone}>
                 <button
                   type="button"
                   className={styles.btn}
@@ -1151,7 +1203,6 @@ export function OwnerQrCustomizer({
             ) : null}
           </div>
           </section>
-        ) : null}
 
         {requiresReload ? (
           <button

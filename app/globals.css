@@ -18,14 +18,9 @@
 
 /* The QR management reference is a focused workspace rather than the portfolio shell. */
 .console:has(.qrManagementPage) {
-  display: block;
+  display: grid;
   min-height: 100svh;
   background: #0d0b09;
-}
-
-.console:has(.qrManagementPage) .sidebar,
-.console:has(.qrManagementPage) .sidebarBackdrop {
-  display: none;
 }
 
 .console:has(.qrManagementPage) .qrManagementHeader {
@@ -33,7 +28,6 @@
 }
 
 .console:has(.qrManagementPage) .consoleMain {
-  margin-left: 0;
   min-height: 100svh;
 }
 
@@ -42,6 +36,20 @@
   max-width: 1600px;
   margin: 0 auto;
   padding: 0;
+}
+
+.console:has(.qrManagementPage) .consoleTopbar {
+  padding: 11px 20px;
+}
+
+.console:has(.qrManagementPage) .topbarTitle {
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.console:has(.qrManagementPage) .topbarSub {
+  margin-top: 4px;
+  font-size: 14px;
 }
 
 html {

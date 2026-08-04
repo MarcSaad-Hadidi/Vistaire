@@ -243,8 +243,8 @@ export function OwnerShell({
             Menu
           </button>
           <div className={styles.topbarTitleWrap}>
-            <h1 className={styles.topbarTitle}>{label}</h1>
-            <p className={styles.topbarSub}>{hint}</p>
+            <h1 className={`${styles.topbarTitle} topbarTitle`}>{label}</h1>
+            <p className={`${styles.topbarSub} topbarSub`}>{hint}</p>
           </div>
           <div className={styles.topbarActions}>
             <Link className={styles.btn} href="/apercu-restaurateur" prefetch={false}>

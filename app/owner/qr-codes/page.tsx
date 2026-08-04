@@ -52,7 +52,7 @@ export default async function OwnerQrCodesPage({ searchParams }: OwnerQrCodesPag
       </div>
 
       <p className={styles.sourceTag}>
-        <span aria-hidden="true">⌕</span> Sécurisé : chaque QR utilise un token unique et sécurisé. Ne partagez jamais le lien de votre dashboard.
+        <span aria-hidden="true">⌕</span> Tous les QR publics restent actifs après la création d’un nouveau QR. Sécurisé : chaque QR utilise un token unique ; ne partagez jamais le lien de votre dashboard.
       </p>
     </div>
   );

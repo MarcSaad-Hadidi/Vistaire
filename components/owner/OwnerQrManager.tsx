@@ -119,7 +119,7 @@ export function OwnerQrManager({
       </div>
 
       {selectedTarget ? (
-        <div className={styles.qrTargetBanner}>
+        <div className={`${styles.qrTargetBanner} ${selectedTarget.targetKind === "admin" ? styles.qrAdminBanner : ""}`}>
           <span className={styles.badge}>{selectedTarget.badgeLabel}</span>
           <div>
             <strong>Destination exacte</strong>
