@@ -149,6 +149,7 @@ async function expectHealthyRoute(page: Page, path: string, html = true) {
     await expect(page.locator("main")).toBeVisible();
     await expectLoadedImages(page);
     await expectNoHorizontalOverflow(page);
+    await expectReadyMedia(page);
   }
   expect(issues.failedResponses).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
