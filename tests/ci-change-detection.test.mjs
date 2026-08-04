@@ -25,12 +25,22 @@ test("documentation only", () => {
 test("documentation is an explicit allowlist, not an extension rule", () => {
   assert.equal(classifyPath("README.md").categories.has("docs_only"), true);
   assert.equal(classifyPath("docs/ci.md").categories.has("docs_only"), true);
+  assert.equal(classifyPath("docs/demo.mp4").categories.has("assets"), true);
+  assert.equal(classifyPath("docs/demo.mp4").categories.has("docs_only"), false);
   assert.equal(classifyPath("app/help/page.mdx").categories.has("docs_only"), false);
   assert.equal(classifyPath("app/help/page.mdx").known, true);
   assert.equal(classifyPath("content/landing-copy.mdx").categories.has("landing"), true);
   assert.equal(classifyPath("content/landing-copy.mdx").categories.has("docs_only"), false);
   assert.equal(classifyPath("fixtures/runtime-data.txt").categories.has("docs_only"), false);
   assert.equal(classifyPath("fixtures/runtime-data.txt").known, true);
+});
+test("documentation media runs asset guards", () => {
+  const result = classify(["docs/demo.mp4", "docs/raw.mov", "documentation/source.blend"]);
+  assert.equal(result.assets, true);
+  assert.equal(result.docs_only, false);
+  assert.equal(result.full_ci, false);
+  assert.equal(result.run_build, true);
+  assert.equal(result.run_core, true);
 });
 test("landing CSS", () => assert.equal(classify(["styles/landing.css"]).landing, true));
 test("landing public media", () => assert.equal(classify(["public/videos/Vistaire2.mp4"]).landing, true));

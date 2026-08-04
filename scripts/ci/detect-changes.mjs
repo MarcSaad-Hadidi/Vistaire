@@ -49,6 +49,10 @@ export const RUN_OUTPUTS = Object.freeze([
 
 const OPERATIONAL_CATEGORIES = CATEGORIES.filter((name) => name !== "docs_only" && name !== "full_ci");
 const ZERO_SHA = /^0+$/;
+// Keep documentation media on the same path as the large-file/LFS guards.
+// This includes ordinary runtime formats and the dangerous/source/archive
+// extensions rejected by scripts/check-large-files.mjs.
+const ASSET_EXTENSION = /\.(?:7z|ai|avi|avif|blend|exr|fbx|fig|gif|glb|gltf|gz|hdr|ico|jpeg|jpg|m4v|mov|mp4|obj|png|psd|rar|sketch|stl|svg|tar|usd|usda|usdc|usdz|webm|webp|zip)$/;
 
 export function normalizePath(value) {
   if (typeof value !== "string") return "";
@@ -71,13 +75,14 @@ export function classifyPath(input) {
 
   const lower = file.toLowerCase();
   const base = path.posix.basename(lower);
+  const mediaPath = ASSET_EXTENSION.test(lower);
 
   // Documentation is intentionally an allowlist.  Runtime content with a
   // documentation-like extension must never evade its owning test family.
   const docsOnlyPath = lower === "readme.md" ||
     lower === "contributing.md" ||
     lower === "security.md" ||
-    /^(?:docs|documentation)\//.test(lower);
+    /^(?:docs|documentation)\//.test(lower) && !mediaPath;
   if (docsOnlyPath) {
     return { path: file, categories: new Set(["docs_only"]), known: true };
   }
@@ -94,7 +99,7 @@ export function classifyPath(input) {
     add(categories, "dependencies");
   }
 
-  if (/^(?:public|assets)\//.test(lower) || /\.(?:avif|gif|ico|jpeg|jpg|png|svg|webp|glb|gltf|usdz|mp4|webm)$/.test(lower)) {
+  if (/^(?:public|assets)\//.test(lower) || mediaPath) {
     add(categories, "assets");
   }
 
