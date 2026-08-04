@@ -21,8 +21,7 @@ const cliIncludesSaugeNoireBrowserFlow = process.argv
     const normalized = argument.replaceAll("\\", "/");
     return (
       /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
-      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized) ||
-      /(?:^|\/)seo-smoke\.spec\.ts$/.test(normalized)
+      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
   });
 const cliIncludesLandingProductionPhoto = process.argv

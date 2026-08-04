@@ -6,7 +6,7 @@ import type {
 import { writeFile } from "node:fs/promises";
 
 class ForbidSkippedTestsReporter implements Reporter {
-  private readonly skippedTests: string[] = [];
+  private readonly skippedTests = new Set<string>();
   private readonly results = new Map<
     string,
     { result: TestResult; hadRetry: boolean }
@@ -20,7 +20,7 @@ class ForbidSkippedTestsReporter implements Reporter {
       hadRetry: Boolean(previous?.hadRetry || result.retry > 0)
     });
     if (result.status !== "skipped" && test.expectedStatus !== "skipped") return;
-    this.skippedTests.push(test.titlePath().join(" > "));
+    this.skippedTests.add(test.titlePath().join(" > "));
   }
 
   async onEnd() {
@@ -34,9 +34,9 @@ class ForbidSkippedTestsReporter implements Reporter {
     }
     const outputPath = process.env.CI_TEST_REPORT_PATH;
     if (outputPath) await writeFile(outputPath, `${JSON.stringify(counts)}\n`, "utf8");
-    if (this.skippedTests.length === 0) return;
+    if (this.skippedTests.size === 0) return;
     console.error(
-      `Preview Gate must not skip tests:\n${this.skippedTests
+      `Sauge Noire / Preview Gate must not skip tests:\n${[...this.skippedTests]
         .map((title) => `- ${title}`)
         .join("\n")}`
     );

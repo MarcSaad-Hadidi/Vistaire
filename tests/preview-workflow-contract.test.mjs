@@ -6,6 +6,10 @@ const previewWorkflow = await readFile(
   new URL("../.github/workflows/preview-smoke.yml", import.meta.url),
   "utf8"
 );
+const productionWorkflow = await readFile(
+  new URL("../.github/workflows/production-smoke.yml", import.meta.url),
+  "utf8"
+);
 const smokeSpec = await readFile(
   new URL("../e2e/preview-smoke.spec.ts", import.meta.url),
   "utf8"
@@ -142,4 +146,18 @@ test("Preview reporter emits structured totals and rejects skipped tests", () =>
   assert.match(reporter, /flaky/);
   assert.match(reporter, /interrupted/);
   assert.match(reporter, /status: "failed"/);
+});
+
+test("Production Smoke remains a separate trusted deployment check", () => {
+  assert.match(productionWorkflow, /deployment_status:/);
+  assert.match(productionWorkflow, /environment == 'Production'/);
+  assert.match(productionWorkflow, /state == 'success'/);
+  assert.match(productionWorkflow, /github\.repository == 'MarcSaad-Hadidi\/Vistaire'/);
+  assert.match(productionWorkflow, /Production deployment must originate from main/);
+  assert.match(productionWorkflow, /canonical Vistaire host/);
+  assert.match(productionWorkflow, /ref: main/);
+  assert.match(productionWorkflow, /persist-credentials: false/);
+  assert.match(productionWorkflow, /e2e\/ci-smoke\.spec\.ts/);
+  assert.doesNotMatch(productionWorkflow, /e2e\/preview-smoke\.spec\.ts/);
+  assert.doesNotMatch(productionWorkflow, /VERCEL_AUTOMATION_BYPASS_SECRET/);
 });

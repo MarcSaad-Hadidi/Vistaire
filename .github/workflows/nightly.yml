@@ -1,0 +1,45 @@
+name: Nightly exhaustive CI
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vistaire-nightly
+  cancel-in-progress: false
+
+jobs:
+  exhaustive:
+    name: Nightly (all suites)
+    uses: ./.github/workflows/app-ci.yml
+    with:
+      target: full
+
+  nightly-report:
+    name: Nightly report
+    if: ${{ always() }}
+    needs: exhaustive
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Publish nightly result
+        env:
+          EXHAUSTIVE_RESULT: ${{ needs.exhaustive.result }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Nightly exhaustive CI'
+            echo "- Reusable pipeline result: \`${EXHAUSTIVE_RESULT}\`"
+            echo "- Run: ${RUN_URL}"
+            echo '- Scope: all static, PostgreSQL, Chromium, WebKit, Sauge, landing, menu, admin/QR and SEO families.'
+            echo '- Flakiness policy: retries remain disabled for critical Sauge/WebKit suites; skipped tests are blocking in their reporters.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$EXHAUSTIVE_RESULT" != success ]]; then
+            echo "::error::Nightly exhaustive CI completed as ${EXHAUSTIVE_RESULT:-missing}."
+            exit 1
+          fi

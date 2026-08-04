@@ -13,7 +13,16 @@ await cleanGeneratedOutput();
 
 const child = spawn(
   process.execPath,
-  ["./node_modules/@playwright/test/cli.js", "test", "e2e/qr-functional.spec.ts"],
+  [
+    "./node_modules/@playwright/test/cli.js",
+    "test",
+    "e2e/qr-functional.spec.ts",
+    "--project=chromium",
+    "--workers=1",
+    "--retries=0",
+    "--forbid-only",
+    "--reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts"
+  ],
   {
     stdio: "inherit",
     windowsHide: true,

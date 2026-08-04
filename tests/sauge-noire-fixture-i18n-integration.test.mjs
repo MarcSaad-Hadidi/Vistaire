@@ -117,6 +117,7 @@ test("HTTP fixture projects English public menus into landing payloads", async (
       "../lib/menu/publicMenuRenderContext.ts"
     );
     const {
+      assertLandingMenuPreviewReady,
       getLandingExperiences,
       getLandingMenuPreviewPayload
     } = await import("../lib/landing/menuExperiences.ts");
@@ -128,6 +129,11 @@ test("HTTP fixture projects English public menus into landing payloads", async (
     assert.ok(context);
     assert.equal(context.locale, "en");
     assert.equal(context.menu.activeLocale, "en-CA");
+    assert.equal(context.publicLocale, "en-CA");
+    assert.equal(context.query.lang, "en-CA");
+    assert.equal(context.menu.translationStatus?.status, "up_to_date");
+    assert.equal(context.experience.kind, "maison-elyse");
+    assert.doesNotThrow(() => assertLandingMenuPreviewReady(context, "en"));
     assert.equal(context.menu.menuName, "The Menu");
     assert.equal(context.menu.dishes[0].category, "Starters");
     assert.equal(
@@ -135,12 +141,24 @@ test("HTTP fixture projects English public menus into landing payloads", async (
       "Ravioles de chevre frais et miel de Monteregie"
     );
 
+    const frenchContext = await resolvePublicMenuRenderContext({
+      slug: "maison-elyse",
+      query: { lang: "fr-CA" }
+    });
+    assert.ok(frenchContext);
+    assert.equal(frenchContext.publicLocale, "fr-CA");
+    assert.equal(frenchContext.query.lang, "fr-CA");
+    assert.equal(frenchContext.menu.translationStatus?.status, "source");
+    assert.equal(frenchContext.experience.kind, "maison-elyse");
+    assert.doesNotThrow(() => assertLandingMenuPreviewReady(frenchContext, "fr"));
+
     const experiences = await getLandingExperiences("en");
     assert.equal(experiences.length, 3);
     const maisonExperience = experiences.find(
       (experience) => experience.id === "maison-elyse"
     );
     assert.ok(maisonExperience?.renderPayload);
+    assert.equal(maisonExperience.renderPayload.kind, "maison-elyse");
     assert.equal(maisonExperience.renderPayload.locale, "en");
     assert.equal(
       maisonExperience.renderPayload.menuUi.menu.activeLocale,

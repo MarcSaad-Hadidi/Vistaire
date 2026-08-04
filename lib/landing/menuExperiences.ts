@@ -455,6 +455,9 @@ function landingRenderPayload(
   context: PublicMenuRenderContext,
   comparison: PdfComparePreviewData
 ): LandingMenuPreviewPayload | null {
+  // E2E uses the same readiness contract as production.  Hermetic fixtures
+  // must provide valid locale, translation and renderer data rather than
+  // activating a product-only compatibility path.
   assertLandingMenuPreviewReady(context, context.locale);
   if (context.menu.slug !== experience.menuSlug) {
     throw new Error(

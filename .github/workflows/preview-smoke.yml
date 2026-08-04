@@ -38,7 +38,7 @@ jobs:
           if (!/^[0-9a-f]{40}$/i.test(String(deployment.sha ?? ''))) throw new Error('deployment SHA is not exact');
           const url = new URL(process.env.PREVIEW_URL ?? '');
           if (url.protocol !== 'https:') throw new Error('Preview URL must use HTTPS');
-           if (url.username || url.password || url.port || url.pathname !== '/') throw new Error('Preview URL must be an origin without credentials or a non-default port');
+          if (url.username || url.password || url.port || url.pathname !== '/') throw new Error('Preview URL must be an origin without credentials or a non-default port');
           if (!/^vistaire-[a-z0-9-]+-capoships-projects\.vercel\.app$/i.test(url.hostname)) throw new Error('Preview URL is not the allowlisted Vistaire Vercel preview host');
           console.log(`Validated Preview ${url.origin} for ${deployment.sha}`);
           NODE
@@ -95,7 +95,7 @@ jobs:
             if (!Number.isInteger(report[key]) || report[key] < 0) throw new Error(`Preview report field ${key} is invalid`);
           }
           if (report.skipped !== 0 || report.interrupted !== 0) throw new Error('Preview Gate must not skip or interrupt tests');
-           if (report.failed !== 0 || report.flaky !== 0 || report.passed !== report.total) throw new Error('Preview Gate requires every test to pass');
+          if (report.failed !== 0 || report.flaky !== 0 || report.passed !== report.total) throw new Error('Preview Gate requires every test to pass');
           if (report.passed + report.failed + report.flaky !== report.total) throw new Error('Preview report totals are inconsistent');
           const lines = [
             '### Preview Gate test report',

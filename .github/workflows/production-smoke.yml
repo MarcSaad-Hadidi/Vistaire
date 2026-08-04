@@ -1,0 +1,90 @@
+name: Production Smoke
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vistaire-production-smoke
+  cancel-in-progress: false
+
+jobs:
+  production-smoke:
+    name: Production Smoke
+    if: >-
+      github.repository == 'MarcSaad-Hadidi/Vistaire' &&
+      github.event.deployment_status.environment == 'Production' &&
+      github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate trusted production identity
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          PRODUCTION_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+        run: |
+          node --input-type=module - <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const status = event.deployment_status ?? {};
+          const deployment = event.deployment ?? {};
+          if (event.repository?.full_name !== process.env.EXPECTED_REPOSITORY) throw new Error('unexpected deployment repository');
+          if (deployment.repository?.full_name && deployment.repository.full_name !== process.env.EXPECTED_REPOSITORY) throw new Error('unexpected deployment repository metadata');
+          if (status.environment !== 'Production' || status.state !== 'success') throw new Error('deployment is not a successful Production deployment');
+          if (!/^[0-9a-f]{40}$/i.test(String(deployment.sha ?? ''))) throw new Error('deployment SHA is not exact');
+          if (String(deployment.ref ?? deployment.meta?.githubCommitRef ?? '') !== 'main') throw new Error('Production deployment must originate from main');
+          const url = new URL(process.env.PRODUCTION_URL ?? '');
+          if (url.protocol !== 'https:') throw new Error('Production URL must use HTTPS');
+          if (!/^(?:www\.)?vistaire\.ca$/i.test(url.hostname)) throw new Error('Production URL is not the canonical Vistaire host');
+          console.log(`Validated Production ${url.origin} for ${deployment.sha}`);
+          NODE
+      - name: Checkout trusted smoke harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install trusted smoke dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run Production smoke
+        env:
+          CI: true
+          PLAYWRIGHT_SKIP_WEB_SERVER: '1'
+          PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+        # Production is trusted and does not need the protected Preview bypass
+        # cookie. Keep its smoke separate from the Preview Gate harness.
+        run: node ./node_modules/@playwright/test/cli.js test e2e/ci-smoke.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts
+      - name: Upload Production diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: production-smoke-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Publish Production summary
+        if: ${{ always() }}
+        env:
+          PRODUCTION_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+        run: |
+          # shellcheck disable=SC2016 # Scope: this summary block; GitHub deployment expressions are rendered before Bash. Owner: Vistaire maintainers. Review: 2026-09-30.
+          {
+            echo '## Production Smoke'
+            echo "- URL: ${PRODUCTION_URL}"
+            echo "- Deployment SHA: ${DEPLOYMENT_SHA}"
+            echo '- Harness: trusted `main` checkout; no deployment secret is used.'
+          } >> "$GITHUB_STEP_SUMMARY"
