@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import styles from "@/components/owner/OwnerCockpit.module.css";
+import styles from "@/components/owner/OwnerQrManagement.module.css";
 import {
   DEFAULT_OWNER_QR_STYLE,
   OWNER_QR_LOGO_MAX_PERCENT,
@@ -840,6 +840,8 @@ export function OwnerQrCustomizer({
       : dialogAction === "archive"
         ? "Archiver le QR"
         : "Révoquer définitivement";
+  const publicInventory = targetKind === "menu";
+  const inventoryCount = history.length + (canonicalRecord ? 1 : 0);
   const dialogDescription =
     dialogAction === "rotate"
       ? "Un nouveau QR canonique sera créé. Choisissez explicitement le sort de l’ancien QR."
@@ -1078,6 +1080,15 @@ export function OwnerQrCustomizer({
         </div>
 
         {canonicalRecord ? (
+          <section className={styles.lifecyclePanel} aria-labelledby={`qr-lifecycle-${targetKind}`}>
+            <h3 id={`qr-lifecycle-${targetKind}`}>
+              {publicInventory ? "Créer un nouveau QR public" : "Cycle de vie accès restaurant"}
+            </h3>
+            <p>
+              {publicInventory
+                ? "Ajoutez un QR pour une table, une terrasse ou un support imprimé. Tous les QR publics existants resteront actifs."
+                : "Les actions de cet accès privé sont isolées et ne modifient jamais les QR publics."}
+            </p>
           <div className={styles.qrLifecycleActions} aria-label="Cycle de vie du QR">
             {!terminalState ? (
               <button
@@ -1087,7 +1098,7 @@ export function OwnerQrCustomizer({
                 onClick={(event) => openDialog("rotate", event.currentTarget)}
                 aria-describedby={statusReasonId}
               >
-                {rotationActionLabel}
+                {publicInventory ? "Créer un nouveau QR" : rotationActionLabel}
               </button>
             ) : null}
             {canonicalRecord.status === "active" ? (
@@ -1113,7 +1124,7 @@ export function OwnerQrCustomizer({
               </button>
             ) : null}
             {canonicalRecord.status === "active" || canonicalRecord.status === "paused" ? (
-              <>
+              <span className={targetKind === "admin" ? styles.adminDangerZone : ""}>
                 <button
                   type="button"
                   className={styles.btn}
@@ -1132,9 +1143,10 @@ export function OwnerQrCustomizer({
                 >
                   Révoquer définitivement
                 </button>
-              </>
+              </span>
             ) : null}
           </div>
+          </section>
         ) : null}
 
         {requiresReload ? (
@@ -1162,8 +1174,10 @@ export function OwnerQrCustomizer({
 
         <section className={styles.qrHistory} aria-labelledby={`qr-history-${targetKind}`}>
             <div className={styles.qrHistoryHeader}>
-              <h3 id={`qr-history-${targetKind}`}>Historique sûr</h3>
-              <span>{history.length} QR précédent{history.length > 1 ? "s" : ""}</span>
+              <h3 id={`qr-history-${targetKind}`}>
+                {publicInventory ? "Tous les QR publics" : "Historique accès privé"}
+              </h3>
+              <span>{inventoryCount} QR{inventoryCount > 1 ? "s" : ""}</span>
             </div>
             {historyLoadState === "loading" ? (
               <p className={styles.qrHistoryNotice}>Chargement de l’historique…</p>
@@ -1171,8 +1185,22 @@ export function OwnerQrCustomizer({
               <p className={styles.qrHistoryNotice}>
                 Historique indisponible. Aucune donnée sensible n’est affichée.
               </p>
-            ) : history.length ? (
+            ) : history.length || canonicalRecord ? (
               <ul>
+                {canonicalRecord && publicInventory ? (
+                  <li key={canonicalRecord.id}>
+                    <div>
+                      <strong>{canonicalRecord.label || "QR menu principal"} <em>QR actuel</em></strong>
+                      <span>{STATUS_LABELS[canonicalRecord.status]}</span>
+                    </div>
+                    <p>
+                      {canonicalRecord.scanCount} scan{canonicalRecord.scanCount > 1 ? "s" : ""} ·{" "}
+                      <button type="button" className={styles.inventoryDownloadButton} onClick={downloadSvg} disabled={!canExportQr}>
+                        Télécharger
+                      </button>
+                    </p>
+                  </li>
+                ) : null}
                 {history.map((item) => (
                   <li key={item.id}>
                     <div>

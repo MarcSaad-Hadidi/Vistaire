@@ -1471,7 +1471,10 @@ export function createOwnerQrCustomizerHarness(options = {}) {
     require(specifier) {
       if (specifier === "react") return react;
       if (specifier === "react/jsx-runtime") return jsxRuntime;
-      if (specifier.includes("OwnerCockpit.module.css")) {
+      if (
+        specifier.includes("OwnerCockpit.module.css") ||
+        specifier.includes("OwnerQrManagement.module.css")
+      ) {
         return new Proxy({}, { get: (_target, property) => String(property) });
       }
       if (specifier === "@/lib/owner/qrStyle") return styleModule;
