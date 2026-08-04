@@ -129,6 +129,7 @@ async function expectReadyMedia(page: Page) {
     )
     .toBe(true);
 }
+
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
     .poll(() =>
