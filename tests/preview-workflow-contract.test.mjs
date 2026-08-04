@@ -14,6 +14,10 @@ const reporter = await readFile(
   new URL("../e2e/support/forbid-skipped-tests-reporter.ts", import.meta.url),
   "utf8"
 );
+const requestPolicy = await readFile(
+  new URL("../e2e/support/preview-request-policy.mjs", import.meta.url),
+  "utf8"
+);
 
 function assertPinnedActions(workflow) {
   for (const match of workflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
@@ -60,13 +64,23 @@ test("Preview smoke establishes access without forwarding the bypass secret", ()
   assert.match(smokeSpec, /maxRedirects: 0/);
   assert.match(smokeSpec, /expectReadyMedia/);
   assert.match(smokeSpec, /readyState >= 2/);
-  assert.match(smokeSpec, /mediaElement\.error !== null/);
+  assert.match(smokeSpec, /error !== null/);
+  assert.match(smokeSpec, /expect\(latest\.healthy/);
   assert.match(smokeSpec, /pendingMediaRequests/);
+  assert.match(smokeSpec, /pendingCriticalRequests/);
   assert.match(smokeSpec, /requestfinished/);
   assert.match(smokeSpec, /resourceType\(\) !== "media"/);
+  assert.match(smokeSpec, /classifyFailedRequest/);
+  assert.match(smokeSpec, /classifyFailedResponse/);
+  assert.match(smokeSpec, /isMediaCurrentSrcCoherent/);
+  assert.match(smokeSpec, /prefetchHeaders/);
+  assert.match(smokeSpec, /isNavigationRequest/);
+  assert.match(smokeSpec, /primaryNavigation/);
+  assert.match(smokeSpec, /ignoredRequests/);
+  assert.match(smokeSpec, /sanitizeDiagnosticUrl/);
   assert.match(
     smokeSpec,
-    /await expectReadyMedia\(page, issues\);[\s\S]*expect\(issues\.failedResponses\)/
+    /issues\.finalize\(mediaState\);[\s\S]*expect\(issues\.failedResponses,/
   );
   assert.match(smokeSpec, /x-vercel-protection-bypass/);
   assert.match(smokeSpec, /x-vercel-set-bypass-cookie/);
@@ -95,6 +109,21 @@ test("Preview smoke establishes access without forwarding the bypass secret", ()
   assert.match(smokeSpec, /failedRequests/);
   assert.match(smokeSpec, /consoleErrors/);
   assert.match(smokeSpec, /pageErrors/);
+  assert.doesNotMatch(smokeSpec, /mediaElement\.error\s*!==\s*null/);
+  assert.doesNotMatch(smokeSpec, /pathname\s*===\s*["']\/["']/);
+});
+
+test("Preview request policy only ignores explicit benign cancellations", () => {
+  assert.match(requestPolicy, /ERR_ABORTED/);
+  assert.match(requestPolicy, /VERCEL_JWE_PATH/);
+  assert.match(requestPolicy, /startsWith\("\/.well-known\/"\)/);
+  assert.match(requestPolicy, /healthy-media-cancellation/);
+  assert.match(requestPolicy, /explicit-prefetch-cancellation/);
+  assert.match(requestPolicy, /critical script or stylesheet cancellation is always blocking/);
+  assert.match(requestPolicy, /same-origin request cancellation has no explicit benign classification/);
+  assert.match(requestPolicy, /request left the validated Preview origin/);
+  assert.match(requestPolicy, /pickPrefetchHeaders/);
+  assert.doesNotMatch(requestPolicy, /\.well-known\/[^"]*\*/);
 });
 
 test("Preview reporter emits structured totals and rejects skipped tests", () => {
