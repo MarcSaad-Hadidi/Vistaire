@@ -109,6 +109,8 @@ test("Preview smoke establishes access without forwarding the bypass secret", ()
   assert.match(smokeSpec, /failedRequests/);
   assert.match(smokeSpec, /consoleErrors/);
   assert.match(smokeSpec, /pageErrors/);
+  assert.match(smokeSpec, /Keep raw URLs for every readiness decision/);
+  assert.match(smokeSpec, /refreshIfFinalized\(\);/);
   assert.doesNotMatch(smokeSpec, /mediaElement\.error\s*!==\s*null/);
   assert.doesNotMatch(smokeSpec, /pathname\s*===\s*["']\/["']/);
 });
@@ -118,11 +120,13 @@ test("Preview request policy only ignores explicit benign cancellations", () => 
   assert.match(requestPolicy, /VERCEL_JWE_PATH/);
   assert.match(requestPolicy, /startsWith\("\/.well-known\/"\)/);
   assert.match(requestPolicy, /healthy-media-cancellation/);
+  assert.match(requestPolicy, /allowCancellation === true/);
   assert.match(requestPolicy, /explicit-prefetch-cancellation/);
   assert.match(requestPolicy, /critical script or stylesheet cancellation is always blocking/);
   assert.match(requestPolicy, /same-origin request cancellation has no explicit benign classification/);
   assert.match(requestPolicy, /request left the validated Preview origin/);
   assert.match(requestPolicy, /pickPrefetchHeaders/);
+  assert.match(requestPolicy, /pathname: sanitizePathname/);
   assert.doesNotMatch(requestPolicy, /\.well-known\/[^"]*\*/);
 });
 

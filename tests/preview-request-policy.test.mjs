@@ -66,11 +66,23 @@ test("an aborted media request is accepted only with healthy critical-media DOM 
     failedRequest({
       url: `${expectedOrigin}/videos/Vistaire2.mp4`,
       resourceType: "media",
-      mediaState: { healthy: true }
+      mediaState: { healthy: true, allowCancellation: true }
     })
   );
   assert.equal(result.classification, REQUEST_CLASSIFICATIONS.HEALTHY_MEDIA_CANCELLATION);
   assert.equal(result.ignored, true);
+});
+
+test("media cancellation requires explicit DOM-backed cancellation permission", () => {
+  const result = classifyFailedRequest(
+    failedRequest({
+      url: `${expectedOrigin}/videos/Vistaire2.mp4`,
+      resourceType: "media",
+      mediaState: { healthy: true }
+    })
+  );
+  assert.equal(result.ignored, false);
+  assert.match(result.reason, /healthy critical-media DOM state/);
 });
 
 test("a media error keeps an aborted media request blocking", () => {
@@ -197,6 +209,17 @@ test("media source validation accepts the responsive source selected at 390px", 
   );
 });
 
+test("media source validation keeps distinct signed URLs distinct", () => {
+  assert.equal(
+    isMediaCurrentSrcCoherent(
+      "https://vistaire-preview.capoships-projects.vercel.app/videos/Vistaire2.mp4?sig=bad",
+      ["https://vistaire-preview.capoships-projects.vercel.app/videos/Vistaire2.mp4?sig=good"],
+      expectedOrigin
+    ),
+    false
+  );
+});
+
 test("diagnostic URL and text sanitizers redact unknown signed values", () => {
   const unsafeUrl = `${expectedOrigin}/q/opaqueTokenThatIsLongEnoughToHide?sig=abc123&foo=bar&jwt=secret`;
   const safeUrl = sanitizeDiagnosticUrl(unsafeUrl);
@@ -206,4 +229,8 @@ test("diagnostic URL and text sanitizers redact unknown signed values", () => {
     `failed {"token":"secret-value","authorization":"Bearer abc"} ${unsafeUrl}`
   );
   assert.doesNotMatch(safeText, /secret-value|Bearer abc|abc123|opaqueTokenThatIsLongEnoughToHide/);
+  const diagnostic = classifyFailedRequest(
+    failedRequest({ url: unsafeUrl, failureCode: "net::ERR_FAILED" })
+  );
+  assert.equal(diagnostic.pathname, "/q/[redacted]");
 });

@@ -65,7 +65,8 @@ Only these cancellations can be reported as benign:
   a coherent `currentSrc`, no `MediaError`, `readyState >= HAVE_CURRENT_DATA`,
   and no pending critical request;
 - a request with explicit prefetch evidence (`purpose`, `sec-purpose`, or a
-  Next Router prefetch header).
+  Next Router prefetch header). Prefetch markers never exempt critical script
+  or stylesheet cancellations.
 
 Primary navigation, documents, application XHR/fetch without an explicit
 prefetch marker, non-aborted failures, HTTP 4xx/5xx responses, out-of-origin

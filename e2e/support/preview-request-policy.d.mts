@@ -7,7 +7,7 @@ export type RequestClassification =
 
 export type MediaState = {
   healthy: boolean;
-  allowCancellation?: boolean;
+  allowCancellation: boolean;
   reason?: string;
 };
 

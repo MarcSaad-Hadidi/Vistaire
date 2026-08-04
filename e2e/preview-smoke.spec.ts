@@ -238,6 +238,7 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     });
     issues.consoleErrors.push(signal.message);
     issues.blockingSignals.push(signal);
+    refreshIfFinalized();
   });
   page.on("pageerror", (error) => {
     const signal = classifyRuntimeSignal({
@@ -326,16 +327,22 @@ async function readMediaReadiness(page: Page, issues: RuntimeIssues): Promise<Me
       if (criticalUrls.has(url)) pendingCriticalRequests += count;
     }
   }
-  const annotatedMedia = criticalRawMedia.map((entry) => ({
-    ...entry,
-    sources: entry.sources.map(sanitizeDiagnosticUrl),
-    source: sanitizeDiagnosticUrl(entry.source),
-    currentSrc: sanitizeDiagnosticUrl(entry.currentSrc),
-    currentSrcCoherent: isMediaCurrentSrcCoherent(entry.currentSrc, entry.sources, page.url()),
-    pendingRequests: [...entry.sources, entry.currentSrc]
+  const annotatedMedia = criticalRawMedia.map((entry) => {
+    // Keep raw URLs for every readiness decision. Sanitization is diagnostic-only;
+    // signed query values must not collapse two distinct media sources.
+    const currentSrcCoherent = isMediaCurrentSrcCoherent(entry.currentSrc, entry.sources, page.url());
+    const pendingRequests = [...entry.sources, entry.currentSrc]
       .filter(Boolean)
-      .reduce((total, url) => total + (pendingMediaByUrl?.get(url) ?? 0), 0)
-  }));
+      .reduce((total, url) => total + (pendingMediaByUrl?.get(url) ?? 0), 0);
+    return {
+      ...entry,
+      sources: entry.sources.map(sanitizeDiagnosticUrl),
+      source: sanitizeDiagnosticUrl(entry.source),
+      currentSrc: sanitizeDiagnosticUrl(entry.currentSrc),
+      currentSrcCoherent,
+      pendingRequests
+    };
+  });
   const settled = annotatedMedia.every(
     (entry) => entry.hasActiveSource && (entry.readyState >= 2 || entry.error !== null)
   ) && pendingCriticalRequests === 0;

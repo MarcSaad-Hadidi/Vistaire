@@ -107,9 +107,10 @@ function baseDiagnostic(input, classification, ignored, reason) {
   const isNavigationRequest = input.isNavigationRequest === true;
   const frame = normalizeFrame(input.frame, input.isMainFrame, isNavigationRequest);
   const prefetchHeaders = pickPrefetchHeaders(input.prefetchHeaders);
+  const pathname = parsed?.pathname ?? input.pathname ?? "<invalid-url>";
   return {
     url: safeUrl(input.url),
-    pathname: parsed?.pathname ?? input.pathname ?? "<invalid-url>",
+    pathname: sanitizePathname(pathname),
     method: String(input.method ?? "GET").toUpperCase(),
     resourceType: String(input.resourceType ?? "other"),
     isNavigationRequest,
@@ -153,7 +154,7 @@ export function classifyFailedRequest(input) {
   }
 
   if (input.resourceType === "media") {
-    if (input.mediaState?.healthy === true && input.mediaState.allowCancellation !== false) {
+    if (input.mediaState?.healthy === true && input.mediaState.allowCancellation === true) {
       return baseDiagnostic(
         input,
         REQUEST_CLASSIFICATIONS.HEALTHY_MEDIA_CANCELLATION,
