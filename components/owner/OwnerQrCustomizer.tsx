@@ -350,22 +350,33 @@ export function OwnerQrCustomizer({
     return new URL(value, window.location.origin).toString();
   }, []);
 
+  const renderQrSvg = useCallback(
+    async (
+      value: string,
+      renderStyle: OwnerQrStyle,
+      record: QrLifecycleRecord | null
+    ) => {
+      const { renderOwnerQrSvg } = await import("@/lib/owner/qrRenderer");
+      return renderOwnerQrSvg({
+        url: qrValueForBrowser(value),
+        style: renderStyle,
+        restaurantName,
+        targetKind,
+        qrId: record?.id,
+        configVersion: record?.configVersion,
+        dimensions: 320,
+        mode: "preview"
+      });
+    },
+    [qrValueForBrowser, restaurantName, targetKind]
+  );
+
   useEffect(() => {
     if (!qrValue) return;
     let active = true;
     async function render() {
       try {
-        const { renderOwnerQrSvg } = await import("@/lib/owner/qrRenderer");
-        const svg = await renderOwnerQrSvg({
-          url: qrValueForBrowser(qrValue),
-          style,
-          restaurantName,
-          targetKind,
-          qrId: canonicalRecord?.id,
-          configVersion: canonicalRecord?.configVersion,
-          dimensions: 320,
-          mode: "preview"
-        });
+        const svg = await renderQrSvg(qrValue, style, canonicalRecord);
         if (active) setSvgMarkup(svg);
       } catch {
         if (active) setSvgMarkup("");
@@ -375,7 +386,7 @@ export function OwnerQrCustomizer({
     return () => {
       active = false;
     };
-  }, [canonicalRecord?.configVersion, canonicalRecord?.id, qrValue, qrValueForBrowser, restaurantName, style, targetKind]);
+  }, [canonicalRecord, qrValue, renderQrSvg, style]);
 
   const loadCanonicalQr = useCallback(async () => {
     const sequence = ++loadSequence.current;
@@ -732,6 +743,25 @@ export function OwnerQrCustomizer({
           message: "Réponse QR invalide. Aucune modification n’est confirmée."
         });
         return;
+      }
+      const persistedQrValue =
+        record.redirectUrl && isOpaqueQrRedirect(record.redirectUrl)
+          ? record.redirectUrl
+          : isUpdate && qrValue
+            ? qrValue
+            : "";
+      if (record.recoverable && record.status === "active" && persistedQrValue) {
+        try {
+          const renderedSvg = await renderQrSvg(
+            persistedQrValue,
+            record.style,
+            record
+          );
+          setSvgMarkup(renderedSvg);
+        } catch {
+          // The render effect retries in the browser. A renderer hiccup must
+          // not turn a persisted QR mutation into a false failed save.
+        }
       }
       setOutcome({
         kind: "success",

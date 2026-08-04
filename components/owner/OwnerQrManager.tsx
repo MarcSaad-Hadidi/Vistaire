@@ -74,13 +74,12 @@ export function OwnerQrManager({
 
   return (
     <div className={styles.qrManager}>
-      <div className={styles.qrTabs} role="tablist" aria-label="Type de QR">
+      <div className={styles.qrTabs} role="group" aria-label="Type de QR">
         <button
           id="qr-tab-public"
           type="button"
-          role="tab"
           aria-label="QR menu public"
-          aria-selected={targetKind === "menu"}
+          aria-pressed={targetKind === "menu"}
           className={`${styles.qrTab} ${targetKind === "menu" ? styles.qrTabActive : ""}`}
           onClick={() => setTargetKind("menu")}
         >
@@ -90,9 +89,8 @@ export function OwnerQrManager({
         <button
           id="qr-tab-admin"
           type="button"
-          role="tab"
           aria-label="QR dashboard restaurant — Interne restaurant"
-          aria-selected={targetKind === "admin"}
+          aria-pressed={targetKind === "admin"}
           className={`${styles.qrTab} ${targetKind === "admin" ? styles.qrTabActive : ""}`}
           onClick={() => setTargetKind("admin")}
         >

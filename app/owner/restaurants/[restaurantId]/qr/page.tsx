@@ -8,7 +8,8 @@ import { getOwnerMenuData } from "@/lib/owner/menuData";
 import { getOwnerCanonicalQrCode } from "@/lib/owner/qrStore";
 import type {
   OwnerQrCanonicalRead,
-  OwnerQrCodeRecord
+  OwnerQrCodeRecord,
+  OwnerQrTargetKind
 } from "@/lib/owner/types";
 import {
   buildOwnerRestaurantPreparation,
@@ -16,6 +17,12 @@ import {
 } from "@/lib/owner/restaurantPreparation";
 
 export const dynamic = "force-dynamic";
+
+type SearchParams = Promise<{ target?: string | string[] }>;
+
+function normalizeTarget(value: string | string[] | undefined): OwnerQrTargetKind {
+  return (Array.isArray(value) ? value[0] : value) === "admin" ? "admin" : "menu";
+}
 
 function isCanonicalRead(
   value: Awaited<ReturnType<typeof getOwnerCanonicalQrCode>>
@@ -40,10 +47,36 @@ function statusLabel(record: OwnerQrCodeRecord | null): string {
   return "QR archivé";
 }
 
+function qrStatusLabel(
+  record: OwnerQrCodeRecord | null,
+  targetKind: OwnerQrTargetKind
+): string {
+  if (!record) return targetKind === "admin" ? "QR admin absent" : "QR public generable";
+  return statusLabel(record);
+}
+
 function statusTone(record: OwnerQrCodeRecord | null): "ready" | "warn" | "danger" {
   if (!record || record.status === "paused") return "warn";
   if (!isUsableQr(record)) return "danger";
   return "ready";
+}
+
+function qrStatusTone(
+  record: OwnerQrCodeRecord | null,
+  targetKind: OwnerQrTargetKind
+): "ready" | "warn" | "danger" {
+  if (!record) return targetKind === "admin" ? "danger" : "warn";
+  return statusTone(record);
+}
+
+function isUsableCanonical(
+  record: OwnerQrCodeRecord | null
+): record is OwnerQrCodeRecord & { redirectUrl: string } {
+  return isUsableQr(record);
+}
+
+function canonicalRedirectUrl(record: OwnerQrCodeRecord | null): string {
+  return isUsableCanonical(record) ? record.redirectUrl : "";
 }
 
 function LineIcon({ kind }: { kind: "info" | "menu" | "tag" | "image" | "qr" | "eye" | "link" | "download" | "map" }) {
@@ -72,11 +105,15 @@ function StatusDot({ tone }: { tone: "ready" | "warn" | "danger" }) {
 }
 
 export default async function OwnerRestaurantQrPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ restaurantId: string }>;
+  searchParams: SearchParams;
 }) {
   const { restaurantId } = await params;
+  const query = await searchParams;
+  const targetKind = normalizeTarget(query.target);
   const dashboard = await getOwnerRestaurantDashboardData(restaurantId);
   if (!dashboard.restaurant) notFound();
 
@@ -86,38 +123,44 @@ export default async function OwnerRestaurantQrPage({
     restaurant,
     menuData.ok ? menuData.dishes : []
   );
-  const canonicalQr = await getOwnerCanonicalQrCode({
-    restaurantId: restaurant.id,
-    targetKind: "menu",
-    purposeKey: "default"
-  });
+  const canonicalQr = targetKind === "menu"
+    ? await getOwnerCanonicalQrCode({
+        restaurantId: restaurant.id,
+        targetKind: "menu",
+        purposeKey: "default"
+      })
+    : await getOwnerCanonicalQrCode({
+        restaurantId: restaurant.id,
+        targetKind,
+        purposeKey: "default"
+      });
   const canonicalRead = isCanonicalRead(canonicalQr) ? canonicalQr : null;
   const canonicalReadError = canonicalRead === null;
   const canonicalRecord = canonicalRead?.record ?? null;
-  const usableQr = isUsableQr(canonicalRecord);
-  const qrUrl = usableQr ? canonicalRecord.redirectUrl : "";
+  const usableCanonical = isUsableCanonical(canonicalRecord);
+  const usableQr = usableCanonical;
+  const qrUrl = canonicalRedirectUrl(canonicalRecord);
+  const shouldShowQrEmpty = !usableCanonical;
   const publicDestination = restaurant.publicMenuUrl || restaurant.menuUrl;
-  const qrStatus = canonicalReadError
-    ? "Vérification impossible"
-    : statusLabel(canonicalRecord);
-  const qrTone = canonicalReadError ? "danger" : statusTone(canonicalRecord);
+  const selectedQrDestination = targetKind === "admin" ? qrUrl : publicDestination;
+  const selectedStatus = qrStatusLabel(canonicalRecord, targetKind);
+  const selectedTone = qrStatusTone(canonicalRecord, targetKind);
+  const qrStatus = canonicalReadError ? "Vérification impossible" : selectedStatus;
+  const qrTone = canonicalReadError ? "danger" as const : selectedTone;
 
-  const checklist = preparation.checklist.filter((item) =>
+  const selectedChecklist = preparation.checklist.map((item) =>
+    item.id === "qr"
+      ? {
+          ...item,
+          detail: selectedStatus,
+          status: usableCanonical && !canonicalReadError ? "OK" : "À vérifier",
+          tone: canonicalReadError ? "danger" as const : selectedTone
+        }
+      : item
+  );
+  const checklist = selectedChecklist.filter((item) =>
     ["profile", "dishes", "prices", "photos", "qr", "preview"].includes(item.id)
-  ).map((item) => {
-    if (item.id !== "qr") return item;
-    return {
-      ...item,
-      detail: canonicalReadError ? "Lecture du QR impossible" : qrStatus,
-      status: usableQr && !canonicalReadError ? "OK" : "À vérifier",
-      tone:
-        canonicalReadError
-          ? "danger" as const
-          : usableQr
-            ? "ready" as const
-            : "warn" as const
-    };
-  });
+  );
 
   return (
     <div className={styles.publicationPage}>
@@ -184,14 +227,20 @@ export default async function OwnerRestaurantQrPage({
               downloadLabel="Télécharger le QR"
               fileNamePrefix="vistaire-menu-qr"
             />
-          ) : (
+          ) : shouldShowQrEmpty ? (
             <div className={styles.qrEmpty}>
               <LineIcon kind="qr" />
-              <strong>QR public à préparer</strong>
-              <p>Créez le QR canonique depuis la gestion QR avant de l’imprimer ou de le partager.</p>
+              <strong>
+                {targetKind === "admin" ? "Aucun QR admin canonique actif." : "QR public à préparer"}
+              </strong>
+              <p>
+                {targetKind === "admin"
+                  ? "Le QR admin n’est jamais créé par le simple changement de cible."
+                  : "Créez le QR canonique depuis la gestion QR avant de l’imprimer ou de le partager."}
+              </p>
               <Link className={styles.primaryButton} href={`/owner/qr-codes?restaurantId=${encodeURIComponent(restaurant.id)}&target=menu`} prefetch={false}>Gérer les QR</Link>
             </div>
-          )}
+          ) : null}
           <div className={styles.publicQrNote}><LineIcon kind="info" /><span>Tous les QR publics restent actifs. Créer un nouveau QR ne désactive pas les QR déjà imprimés.</span></div>
         </section>
 
@@ -213,7 +262,7 @@ export default async function OwnerRestaurantQrPage({
         <div className={styles.panelHeading}><h3 id="public-url-title">URL publique</h3></div>
         <div className={styles.urlInner}>
           <span className={styles.kicker}>Destination sélectionnée</span>
-          <p>{publicDestination}</p>
+          <p>{selectedQrDestination}</p>
           <div className={styles.urlActions}>
             <Link className={styles.secondaryButton} href={ownerRestaurantRoute(restaurant, "preview")} prefetch={false}><LineIcon kind="eye" />Vérifier l’aperçu</Link>
             <Link className={styles.secondaryButton} href={ownerRestaurantRoute(restaurant, "menu")} prefetch={false}><LineIcon kind="map" />Corriger la carte</Link>
