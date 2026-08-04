@@ -1,18 +1,40 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page, type Request } from "@playwright/test";
 
 const previewBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 if (!previewBaseUrl) throw new Error("Preview Gate requires PLAYWRIGHT_BASE_URL.");
 
-const expectedOrigin = new URL(previewBaseUrl).origin;
+const previewUrl = new URL(previewBaseUrl);
+if (previewUrl.username || previewUrl.password || previewUrl.port) {
+  throw new Error("Preview Gate requires an origin URL without credentials or an explicit port.");
+}
+const expectedOrigin = previewUrl.origin;
 const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+if (!protectionBypass) {
+  throw new Error("Preview Gate requires VERCEL_AUTOMATION_BYPASS_SECRET.");
+}
+const validatedProtectionBypass: string = protectionBypass;
 
-test.use({
-  extraHTTPHeaders: protectionBypass
-    ? {
-        "x-vercel-protection-bypass": protectionBypass,
-        "x-vercel-set-bypass-cookie": "true"
-      }
-    : undefined
+async function establishPreviewAccess(context: BrowserContext) {
+  // Keep the secret on one direct API request. maxRedirects: 0 ensures a
+  // Preview-controlled redirect cannot forward it to another origin.
+  const response = await context.request.get(`${expectedOrigin}/`, {
+    headers: {
+      "x-vercel-protection-bypass": validatedProtectionBypass,
+      "x-vercel-set-bypass-cookie": "true"
+    },
+    maxRedirects: 0
+  });
+  const location = response.headers().location;
+  if (location && new URL(location, expectedOrigin).origin !== expectedOrigin) {
+    throw new Error("Preview access bootstrap redirect left the validated origin.");
+  }
+  if (response.status() >= 400) {
+    throw new Error(`Preview access bootstrap returned HTTP ${response.status()}.`);
+  }
+}
+
+test.beforeEach(async ({ context }) => {
+  await establishPreviewAccess(context);
 });
 
 type RuntimeIssues = {
@@ -20,15 +42,37 @@ type RuntimeIssues = {
   failedRequests: string[];
   consoleErrors: string[];
   pageErrors: string[];
+  pendingMediaRequests: number;
 };
+
+function isSameOriginMediaRequest(request: Request) {
+  if (request.resourceType() !== "media") return false;
+  try {
+    return new URL(request.url()).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
 
 function observeRuntimeIssues(page: Page): RuntimeIssues {
   const issues: RuntimeIssues = {
     failedResponses: [],
     failedRequests: [],
     consoleErrors: [],
-    pageErrors: []
+    pageErrors: [],
+    pendingMediaRequests: 0
   };
+  const settleMediaRequest = (request: Request) => {
+    if (isSameOriginMediaRequest(request)) {
+      issues.pendingMediaRequests = Math.max(0, issues.pendingMediaRequests - 1);
+    }
+  };
+  page.on("request", (request) => {
+    if (isSameOriginMediaRequest(request)) issues.pendingMediaRequests += 1;
+  });
+  page.on("requestfinished", settleMediaRequest);
+  page.on("requestfailed", settleMediaRequest);
+
   page.on("response", (response) => {
     try {
       if (new URL(response.url()).origin === expectedOrigin && response.status() >= 400) {
@@ -40,7 +84,6 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
   });
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText;
-    if (failure === "net::ERR_ABORTED" && /\/videos\//i.test(request.url())) return;
     try {
       if (new URL(request.url()).origin === expectedOrigin) {
         issues.failedRequests.push(`${failure ?? "request failed"} ${request.url()}`);
@@ -88,6 +131,32 @@ async function expectLoadedImages(page: Page) {
   await expect.poll(loadedInViewportCount).toBe(count);
 }
 
+async function expectReadyMedia(page: Page, issues: RuntimeIssues) {
+  const media = page.locator("video, audio");
+  if (!(await media.count())) return;
+  await expect
+    .poll(
+      () =>
+        media.evaluateAll((elements) =>
+          elements.every((element) => {
+            const mediaElement = element as HTMLMediaElement;
+            return mediaElement.readyState >= 2 || mediaElement.error !== null;
+          })
+        ),
+      {
+        message: "Expected media to load or report an error before runtime checks.",
+        timeout: 15_000
+      }
+    )
+    .toBe(true);
+  await expect
+    .poll(() => issues.pendingMediaRequests, {
+      message: "Expected same-origin media requests to settle before runtime checks.",
+      timeout: 15_000
+    })
+    .toBe(0);
+}
+
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
     .poll(() =>
@@ -107,6 +176,7 @@ async function expectHealthyRoute(page: Page, path: string, html = true) {
     await expect(page.locator("main")).toBeVisible();
     await expectLoadedImages(page);
     await expectNoHorizontalOverflow(page);
+    await expectReadyMedia(page, issues);
   }
   expect(issues.failedResponses).toEqual([]);
   expect(issues.failedRequests).toEqual([]);

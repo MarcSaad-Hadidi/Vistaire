@@ -11,7 +11,9 @@ running `npm ci` or installing a browser. Browser jobs explicitly require
 successful `classify-changes`, `fast-gate`, `static-quality`, and `build-app`
 results; a failed root job therefore produces downstream skips instead of
 secondary browser failures. `Asset Policy` remains independent and owns the
-only `assets:check` and `lfs:check` invocations.
+only `assets:check` and `lfs:check` invocations. The Preview workflow contract
+is owned by `fast-gate` through `test:preview-workflow-contract`; the landing
+contract remains landing-only so the Preview contract is not executed twice.
 
 The separate `CI metrics` job publishes a machine-readable `ci-metrics.json`
 artifact and a human-readable summary from that same file. It records the

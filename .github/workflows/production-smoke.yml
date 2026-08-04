@@ -62,7 +62,9 @@ jobs:
           CI: true
           PLAYWRIGHT_SKIP_WEB_SERVER: '1'
           PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
-        run: node ./node_modules/@playwright/test/cli.js test e2e/preview-smoke.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts
+        # Production is trusted and does not need the protected Preview bypass
+        # cookie. Keep its smoke separate from the Preview Gate harness.
+        run: node ./node_modules/@playwright/test/cli.js test e2e/ci-smoke.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts
       - name: Upload Production diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0

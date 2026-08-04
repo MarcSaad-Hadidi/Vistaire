@@ -52,3 +52,12 @@ permission or verify the resulting Vercel/GitHub binding from a local checkout.
 If the secret cannot be configured, leave `Preview Gate` non-required and treat
 the missing run as an explicit external blocker. Do not turn a skipped smoke
 into a green gate.
+
+
+## Bootstrap merge boundary
+
+This bootstrap PR installs the trusted harness on `main`. Because the workflow
+deliberately checks out `ref: main`, a Preview Gate smoke cannot be considered
+available until this PR is merged. Do not add the Vercel bypass secret before
+the trusted harness is present on `main`; keep the environment protected and
+the check non-required until a post-merge deployment runs the smoke.
