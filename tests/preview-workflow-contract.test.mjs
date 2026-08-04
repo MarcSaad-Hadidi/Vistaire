@@ -111,6 +111,8 @@ test("Preview smoke establishes access without forwarding the bypass secret", ()
   assert.match(smokeSpec, /pageErrors/);
   assert.match(smokeSpec, /Keep raw URLs for every readiness decision/);
   assert.match(smokeSpec, /refreshIfFinalized\(\);/);
+  assert.match(smokeSpec, /settle: \(\) => Promise<void>/);
+  assert.match(smokeSpec, /await issues\.settle\(\);[\s\S]*issues\.finalize\(mediaState\);[\s\S]*await issues\.settle\(\);/);
   assert.doesNotMatch(smokeSpec, /mediaElement\.error\s*!==\s*null/);
   assert.doesNotMatch(smokeSpec, /pathname\s*===\s*["']\/["']/);
 });

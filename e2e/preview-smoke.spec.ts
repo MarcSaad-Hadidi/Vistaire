@@ -97,6 +97,7 @@ type RuntimeIssues = {
   };
   navigationError?: string;
   finalize: (mediaState?: MediaReadiness) => void;
+  settle: () => Promise<void>;
 };
 
 function safeFrameScope(request: Request, page: Page): FrameScope {
@@ -171,13 +172,15 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     pageErrors: [],
     blockingSignals: [],
     pendingMediaRequests: 0,
-    finalize: () => undefined
+    finalize: () => undefined,
+    settle: async () => undefined
   };
   const failedRequests: ReturnType<typeof readRequestDetails>[] = [];
   const failedResponses: Array<ReturnType<typeof readRequestDetails> & { status: number }> = [];
   const pendingMediaByUrl = new Map<string, number>();
   let currentMediaState = emptyMediaReadiness();
   let hasFinalized = false;
+  let eventVersion = 0;
 
   const refreshClassifications = () => {
     issues.failedResponses = failedResponses.map((input) => ({
@@ -198,6 +201,11 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     if (hasFinalized) refreshClassifications();
   };
 
+  const markEvent = () => {
+    eventVersion += 1;
+    refreshIfFinalized();
+  };
+
   const settleMediaRequest = (request: Request) => {
     if (!isSameOriginMediaRequest(request)) return;
     const current = pendingMediaByUrl.get(request.url()) ?? 0;
@@ -210,9 +218,12 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     if (!isSameOriginMediaRequest(request)) return;
     pendingMediaByUrl.set(request.url(), (pendingMediaByUrl.get(request.url()) ?? 0) + 1);
     issues.pendingMediaRequests += 1;
+    markEvent();
   });
-  page.on("requestfinished", settleMediaRequest);
-  page.on("requestfailed", settleMediaRequest);
+  page.on("requestfinished", (request) => {
+    settleMediaRequest(request);
+    markEvent();
+  });
 
   page.on("response", (response) => {
     try {
@@ -221,14 +232,14 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
         ...readRequestDetails(response.request(), page),
         status: response.status()
       });
-      refreshIfFinalized();
+      markEvent();
     } catch {
       // Ignore browser-internal URLs.
     }
   });
   page.on("requestfailed", (request) => {
     failedRequests.push(readRequestDetails(request, page));
-    refreshIfFinalized();
+    markEvent();
   });
   page.on("console", (message) => {
     if (message.type() !== "error") return;
@@ -238,7 +249,7 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     });
     issues.consoleErrors.push(signal.message);
     issues.blockingSignals.push(signal);
-    refreshIfFinalized();
+    markEvent();
   });
   page.on("pageerror", (error) => {
     const signal = classifyRuntimeSignal({
@@ -247,7 +258,7 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     });
     issues.pageErrors.push(signal.message);
     issues.blockingSignals.push(signal);
-    refreshIfFinalized();
+    markEvent();
   });
 
   issues.finalize = (mediaState = emptyMediaReadiness()) => {
@@ -255,6 +266,22 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     hasFinalized = true;
     issues.mediaState = mediaState;
     refreshClassifications();
+  };
+
+  issues.settle = async () => {
+    // Give Playwright two quiet event-loop turns so late request/response and
+    // runtime signals are observed before the final green/red assertions.
+    let lastVersion = eventVersion;
+    let quietTurns = 0;
+    for (let attempt = 0; attempt < 5 && quietTurns < 2; attempt += 1) {
+      await page.waitForTimeout(0);
+      refreshClassifications();
+      if (eventVersion === lastVersion) quietTurns += 1;
+      else {
+        lastVersion = eventVersion;
+        quietTurns = 0;
+      }
+    }
   };
 
   issues.pendingMediaRequests = 0;
@@ -474,16 +501,22 @@ async function expectHealthyRoute(page: Page, path: string, html = true) {
       await expectLoadedImages(page);
       await expectNoHorizontalOverflow(page);
       mediaState = await expectReadyMedia(page, issues);
+      await issues.settle();
+      mediaState = await expectReadyMedia(page, issues);
     }
   } catch (error) {
     issues.navigationError = sanitizeDiagnosticText(error instanceof Error ? error.message : String(error));
+    await issues.settle();
     issues.finalize(issues.mediaState ?? mediaState);
+    await issues.settle();
     throw new Error(
       `${issues.navigationError}\nPreview diagnostics:\n${formatDiagnostics(issues) || "none"}`
     );
   }
 
+  await issues.settle();
   issues.finalize(mediaState);
+  await issues.settle();
   const diagnostics = formatDiagnostics(issues);
   expect(issues.failedResponses, `Unexpected HTTP responses.\n${diagnostics}`).toEqual([]);
   expect(issues.failedRequests, `Unexpected failed requests.\n${diagnostics}`).toEqual([]);
