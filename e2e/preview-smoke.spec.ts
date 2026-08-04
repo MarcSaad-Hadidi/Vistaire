@@ -110,6 +110,25 @@ async function expectLoadedImages(page: Page) {
   await expect.poll(loadedInViewportCount).toBe(count);
 }
 
+async function expectReadyMedia(page: Page) {
+  const media = page.locator("video, audio");
+  if (!(await media.count())) return;
+  await expect
+    .poll(
+      () =>
+        media.evaluateAll((elements) =>
+          elements.every((element) => {
+            const mediaElement = element as HTMLMediaElement;
+            return mediaElement.readyState >= 2 || mediaElement.error !== null;
+          })
+        ),
+      {
+        message: "Expected media to load or report an error before runtime checks.",
+        timeout: 15_000
+      }
+    )
+    .toBe(true);
+}
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
     .poll(() =>
