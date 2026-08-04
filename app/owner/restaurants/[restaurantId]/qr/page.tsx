@@ -1,24 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MenuQrCode } from "@/components/owner/MenuQrCode";
-import { OwnerRestaurantQrTargetSwitcher } from "@/components/owner/OwnerRestaurantQrTargetSwitcher";
-import styles from "@/components/owner/OwnerCockpit.module.css";
 import { OwnerCopyLinkButton } from "@/components/owner/OwnerCopyLinkButton";
-import {
-  Badge,
-  ModuleHeader,
-  Panel,
-  StatGroup,
-  StatTile,
-  type BadgeTone
-} from "@/components/owner/OwnerUi";
+import styles from "./QrPublicationPage.module.css";
 import { getOwnerRestaurantDashboardData } from "@/lib/owner/data";
 import { getOwnerMenuData } from "@/lib/owner/menuData";
 import { getOwnerCanonicalQrCode } from "@/lib/owner/qrStore";
 import type {
   OwnerQrCanonicalRead,
-  OwnerQrCodeRecord,
-  OwnerQrTargetKind
+  OwnerQrCodeRecord
 } from "@/lib/owner/types";
 import {
   buildOwnerRestaurantPreparation,
@@ -27,56 +17,66 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ target?: string | string[] }>;
-
-function normalizeTarget(value: string | string[] | undefined): OwnerQrTargetKind {
-  return (Array.isArray(value) ? value[0] : value) === "admin" ? "admin" : "menu";
-}
-
 function isCanonicalRead(
   value: Awaited<ReturnType<typeof getOwnerCanonicalQrCode>>
 ): value is OwnerQrCanonicalRead {
   return "found" in value;
 }
 
-function qrStatusLabel(record: OwnerQrCodeRecord | null, targetKind: OwnerQrTargetKind): string {
-  if (!record) return targetKind === "admin" ? "QR admin absent" : "QR public generable";
-  if (!record.recoverable || !record.redirectUrl) return "URL non récupérable";
+function isUsableQr(
+  record: OwnerQrCodeRecord | null
+): record is OwnerQrCodeRecord & { redirectUrl: string } {
+  return Boolean(
+    record?.status === "active" && record.recoverable && record.redirectUrl
+  );
+}
+
+function statusLabel(record: OwnerQrCodeRecord | null): string {
+  if (!record) return "À préparer";
+  if (!record.recoverable || !record.redirectUrl) return "Indisponible";
   if (record.status === "active") return "QR actif";
   if (record.status === "paused") return "QR en pause";
   if (record.status === "revoked") return "QR révoqué";
   return "QR archivé";
 }
 
-function qrStatusTone(record: OwnerQrCodeRecord | null, targetKind: OwnerQrTargetKind): BadgeTone {
-  if (!record) return targetKind === "admin" ? "danger" : "warn";
-  if (!record.recoverable || !record.redirectUrl) return "danger";
-  if (record.status === "active") return "ready";
-  if (record.status === "paused") return "warn";
-  return "muted";
+function statusTone(record: OwnerQrCodeRecord | null): "ready" | "warn" | "danger" {
+  if (!record || record.status === "paused") return "warn";
+  if (!isUsableQr(record)) return "danger";
+  return "ready";
 }
 
-function isUsableCanonicalRecord(
-  record: OwnerQrCodeRecord | null
-): record is OwnerQrCodeRecord & { redirectUrl: string } {
-  return Boolean(
-    record &&
-      record.status === "active" &&
-      record.recoverable &&
-      record.redirectUrl
+function LineIcon({ kind }: { kind: "info" | "menu" | "tag" | "image" | "qr" | "eye" | "link" | "download" | "map" }) {
+  const paths: Record<string, string> = {
+    info: "M12 8.4v.1M12 11.5v5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+    menu: "M5 4.5h14v15H5zM8 8h8M8 12h8M8 16h5",
+    tag: "m20.5 13-7.4 7.4a2 2 0 0 1-2.8 0l-7.7-7.7V4h8.7l7.7 7.7a2 2 0 0 1 1.5 1.3Z",
+    image: "M4 5h16v14H4zM7 15l3-3 2.3 2.2 1.8-1.8L18 16M8 9h.1",
+    qr: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z",
+    eye: "M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z",
+    link: "M9.5 14.5 14.5 9.5M7 17H5.5a3.5 3.5 0 0 1 0-7H9M15 7h1.5a3.5 3.5 0 0 1 0 7H15",
+    download: "M12 3v11M8 10l4 4 4-4M5 20h14",
+    map: "M4 5.5 9 3l6 3 5-2.5v14L15 20l-6-3-5 2.5zM9 3v14M15 6v14"
+  };
+  return (
+    <svg className={styles.lineIcon} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      {paths[kind].split(" M").map((path, index) => (
+        <path key={`${kind}-${index}`} d={`${index ? "M" : ""}${path}`} />
+      ))}
+    </svg>
   );
 }
 
+function StatusDot({ tone }: { tone: "ready" | "warn" | "danger" }) {
+  return <span className={`${styles.statusDot} ${styles[`statusDot${tone}`]}`} aria-hidden="true" />;
+}
+
 export default async function OwnerRestaurantQrPage({
-  params,
-  searchParams
+  params
 }: {
   params: Promise<{ restaurantId: string }>;
-  searchParams: SearchParams;
 }) {
   const { restaurantId } = await params;
-  const query = await searchParams;
-  const targetKind = normalizeTarget(query.target);
   const dashboard = await getOwnerRestaurantDashboardData(restaurantId);
   if (!dashboard.restaurant) notFound();
 
@@ -88,191 +88,119 @@ export default async function OwnerRestaurantQrPage({
   );
   const canonicalQr = await getOwnerCanonicalQrCode({
     restaurantId: restaurant.id,
-    targetKind,
+    targetKind: "menu",
     purposeKey: "default"
   });
   const canonicalRead = isCanonicalRead(canonicalQr) ? canonicalQr : null;
   const canonicalRecord = canonicalRead?.record ?? null;
-  const canonicalError = !canonicalRead && "error" in canonicalQr ? canonicalQr.error : null;
-  const usableCanonical = isUsableCanonicalRecord(canonicalRecord);
-  const publicDestination = restaurant.publicMenuUrl;
-  const publicQrDestination = usableCanonical && targetKind === "menu"
-    ? canonicalRecord.redirectUrl
-    : "";
-  const adminDestination = usableCanonical && targetKind === "admin"
-    ? canonicalRecord.redirectUrl
-    : "";
-  const targetLabel = targetKind === "admin" ? "QR admin privé" : "QR client public";
-  const persistentQrHref = `/owner/qr-codes?restaurantId=${encodeURIComponent(
-    restaurant.id
-  )}&target=${targetKind}`;
-  const selectedDestination = targetKind === "admin" ? adminDestination : publicDestination;
-  const selectedQrDestination = targetKind === "admin" ? adminDestination : publicQrDestination;
-  const selectedStatus = qrStatusLabel(canonicalRecord, targetKind);
-  const selectedTone = qrStatusTone(canonicalRecord, targetKind);
-  const selectedChecklist = preparation.checklist.map((item) =>
-    item.id === "qr"
-      ? {
-          ...item,
-          detail: selectedStatus,
-          status: usableCanonical ? "OK" : "À préparer",
-          tone: selectedTone
-        }
-      : item
-  );
+  const usableQr = isUsableQr(canonicalRecord);
+  const qrUrl = usableQr ? canonicalRecord.redirectUrl : "";
+  const publicDestination = restaurant.publicMenuUrl || restaurant.menuUrl;
+  const qrStatus = statusLabel(canonicalRecord);
+  const qrTone = statusTone(canonicalRecord);
+
+  const checklist = preparation.checklist.filter((item) =>
+    ["profile", "dishes", "prices", "photos", "qr", "preview"].includes(item.id)
+  ).map((item) => {
+    if (item.id !== "qr") return item;
+    return {
+      ...item,
+      detail: qrStatus,
+      status: usableQr ? "OK" : "À vérifier",
+      tone: usableQr ? "ready" as const : "warn" as const
+    };
+  });
 
   return (
-    <>
-      <ModuleHeader
-        title={`QR & publication — ${restaurant.name}`}
-        description="Choisissez une cible, vérifiez l’URL canonique et préparez le rendu à imprimer. La cible sélectionnée est lue sans rotation ni mutation."
-        actions={
-          <>
-            {targetKind === "menu" ? (
-              <>
-                <a
-                  className={`${styles.btnPrimary} ${styles.btn}`}
-                  href={restaurant.menuUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Ouvrir comme client
-                </a>
-                <OwnerCopyLinkButton value={restaurant.menuUrl} />
-              </>
-            ) : usableCanonical ? (
-              <>
-                <a
-                  className={`${styles.btnPrimary} ${styles.btn}`}
-                  href={adminDestination}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Tester l’accès admin
-                </a>
-                <OwnerCopyLinkButton value={adminDestination} />
-              </>
-            ) : null}
-            <Link className={styles.btn} href={persistentQrHref} prefetch={false}>
-              Personnaliser QR
-            </Link>
-          </>
-        }
-      />
+    <div className={styles.publicationPage}>
+      <header className={styles.publicationIntro}>
+        <div>
+          <h2>QR &amp; publication — {restaurant.name}</h2>
+          <p>Aperçu global de votre publication : lien public, QR et readiness avant la mise en ligne.</p>
+        </div>
+        <div className={styles.introActions}>
+          <a className={styles.primaryButton} href={restaurant.menuUrl} target="_blank" rel="noreferrer">
+            Ouvrir comme client
+          </a>
+          {usableQr ? <OwnerCopyLinkButton value={qrUrl} label="Copier le lien" /> : null}
+          <Link className={styles.secondaryButton} href={`/owner/qr-codes?restaurantId=${encodeURIComponent(restaurant.id)}&target=menu`} prefetch={false}>
+            Gérer les QR
+          </Link>
+        </div>
+      </header>
 
-      <OwnerRestaurantQrTargetSwitcher
-        restaurantId={restaurant.id}
-        targetKind={targetKind}
-      />
+      <section className={styles.statGrid} aria-label="Résumé de publication">
+        <article className={`${styles.statCard} ${styles.statCardWide}`}>
+          <span>Cible sélectionnée</span>
+          <strong>QR client public</strong>
+        </article>
+        <article className={styles.statCard}>
+          <span>Statut QR</span>
+          <strong className={styles.statStatus}><StatusDot tone={qrTone} />{qrStatus}</strong>
+        </article>
+        <article className={styles.statCard}><span>Plats</span><strong>{preparation.summary.dishCount}</strong></article>
+        <article className={styles.statCard}><span>Photos manquantes</span><strong>{preparation.summary.missingPhotoCount}</strong></article>
+        <article className={styles.statCard}><span>Prix manquants</span><strong>{preparation.summary.missingPriceCount}</strong></article>
+      </section>
 
-      <StatGroup title="Publication">
-        <StatTile label="Cible sélectionnée" value={targetLabel} primary />
-        <StatTile label="Statut QR" value={selectedStatus} />
-        <StatTile label="Plats" value={preparation.summary.dishCount} />
-        <StatTile label="Photos manquantes" value={preparation.summary.missingPhotoCount} />
-        <StatTile label="Prix manquants" value={preparation.summary.missingPriceCount} />
-      </StatGroup>
-
-      <div className={styles.restaurantOverviewGrid}>
-        <Panel
-          title={targetLabel}
-          action={<Badge tone={selectedTone}>{selectedStatus}</Badge>}
-        >
-          {targetKind === "admin" && !canonicalRecord ? (
-            <div className={styles.emptyState}>
-              <strong>Aucun QR admin canonique actif.</strong>
-              <p className={styles.sourceNote}>
-                Le QR admin n’est jamais généré par le simple changement de cible. Créez-le
-                explicitement dans le customizer si vous avez besoin d’un support privé.
-              </p>
-            </div>
-          ) : targetKind === "admin" && !usableCanonical ? (
-            <div className={styles.emptyState}>
-              <strong>QR admin non utilisable.</strong>
-              <p className={styles.sourceNote}>
-                Son état est {qrStatusLabel(canonicalRecord, targetKind).toLowerCase()}.
-                Aucun lien ni token n’est affiché tant qu’il n’est pas récupérable et actif.
-              </p>
-            </div>
-          ) : !usableCanonical ? (
-            <div className={styles.emptyState}>
-              <strong>
-                {targetKind === "admin"
-                  ? "QR admin non utilisable."
-                  : "QR public canonique non utilisable."}
-              </strong>
-              <p className={styles.sourceNote}>
-                Aucun QR n’est affiché tant qu’il n’est pas actif et récupérable. La
-                cible ne crée ni ne fait tourner de QR automatiquement.
-              </p>
-            </div>
-          ) : (
-            <MenuQrCode
-              menuUrl={selectedQrDestination}
-              restaurantName={restaurant.name}
-              qrLabel={targetKind === "admin" ? "QR admin privé" : "QR public client"}
-              copyLabel="Copier l’URL canonique"
-              downloadLabel="Télécharger le QR sélectionné"
-              fileNamePrefix={targetKind === "admin" ? "vistaire-admin-qr" : "vistaire-menu-qr"}
-            />
-          )}
-          {canonicalError ? (
-            <p className={styles.errorText} role="alert">
-              Le statut canonique n’a pas pu être vérifié. Aucun QR non récupérable n’est présenté.
-            </p>
-          ) : null}
-          {targetKind === "menu" && !canonicalRecord ? (
-            <p className={styles.sourceNote}>
-              Aucun QR canonique public n’est encore enregistré. L’URL publique reste disponible
-              pour la prévisualisation; utilisez le customizer pour créer le QR persistant.
-            </p>
-          ) : null}
-        </Panel>
-
-        <Panel title="Checklist avant publication">
-          <div className={styles.checklist}>
-            {selectedChecklist
-              .filter((item) => ["profile", "dishes", "prices", "photos", "qr", "preview"].includes(item.id))
-              .map((item) => (
-                <div key={item.id} className={styles.checkItem}>
-                  <span>
-                    <strong>{item.label}</strong>
-                    <small>{item.detail}</small>
-                  </span>
-                  <Badge tone={item.tone}>{item.status}</Badge>
-                </div>
-              ))}
+      <div className={styles.primaryGrid}>
+        <section className={styles.surfacePanel} aria-labelledby="public-qr-title">
+          <div className={styles.panelHeading}>
+            <h3 id="public-qr-title">QR client public</h3>
+            <span className={`${styles.smallStatus} ${styles[`tone${qrTone}`]}`}><StatusDot tone={qrTone} />{qrStatus}</span>
           </div>
-        </Panel>
+          {usableQr ? (
+            <MenuQrCode
+              className={styles.publicQr}
+              menuUrl={qrUrl}
+              displayUrl={publicDestination}
+              restaurantName={restaurant.name}
+              style={canonicalRecord.style}
+              targetKind="menu"
+              configVersion={canonicalRecord.configVersion}
+              qrId={canonicalRecord.id}
+              qrLabel="QR client public"
+              copyLabel="Copier le lien du QR"
+              downloadLabel="Télécharger le QR"
+              fileNamePrefix="vistaire-menu-qr"
+            />
+          ) : (
+            <div className={styles.qrEmpty}>
+              <LineIcon kind="qr" />
+              <strong>QR public à préparer</strong>
+              <p>Créez le QR canonique depuis la gestion QR avant de l’imprimer ou de le partager.</p>
+              <Link className={styles.primaryButton} href={`/owner/qr-codes?restaurantId=${encodeURIComponent(restaurant.id)}&target=menu`} prefetch={false}>Gérer les QR</Link>
+            </div>
+          )}
+          <div className={styles.publicQrNote}><LineIcon kind="info" /><span>Tous les QR publics restent actifs. Créer un nouveau QR ne désactive pas les QR déjà imprimés.</span></div>
+        </section>
+
+        <section className={styles.surfacePanel} aria-labelledby="checklist-title">
+          <div className={styles.panelHeading}><h3 id="checklist-title">Checklist avant publication</h3></div>
+          <div className={styles.checklist}>
+            {checklist.map((item) => (
+              <div className={styles.checkItem} key={item.id}>
+                <span className={styles.checkIcon}><LineIcon kind={item.id === "profile" || item.id === "dishes" ? "menu" : item.id === "prices" ? "tag" : item.id === "photos" ? "image" : item.id === "qr" ? "qr" : "eye"} /></span>
+                <span className={styles.checkCopy}><strong>{item.label}</strong><small>{item.detail}</small></span>
+                <span className={`${styles.checkBadge} ${styles[`tone${item.tone}`]}`}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
-      <Panel title={targetKind === "admin" ? "Destination admin canonique" : "URL publique"}>
-        <div className={styles.urlPreview}>
-          <p className={styles.metricLabel}>Destination sélectionnée</p>
-          <p className={`${styles.bodyText} ${styles.breakText}`}>
-            {selectedDestination || "URL non récupérable"}
-          </p>
-          <div className={styles.restaurantActionGrid}>
-            {targetKind === "menu" ? (
-              <>
-                <Link className={styles.btn} href={ownerRestaurantRoute(restaurant, "preview")} prefetch={false}>
-                  Vérifier l’aperçu
-                </Link>
-                <Link className={styles.btn} href={ownerRestaurantRoute(restaurant, "menu")} prefetch={false}>
-                  Corriger la carte
-                </Link>
-                <Link className={styles.btn} href={ownerRestaurantRoute(restaurant, "medias")} prefetch={false}>
-                  Corriger les médias
-                </Link>
-              </>
-            ) : (
-              <Link className={styles.btn} href={persistentQrHref} prefetch={false}>
-                Gérer le cycle de vie du QR
-              </Link>
-            )}
+      <section className={styles.urlPanel} aria-labelledby="public-url-title">
+        <div className={styles.panelHeading}><h3 id="public-url-title">URL publique</h3></div>
+        <div className={styles.urlInner}>
+          <span className={styles.kicker}>Destination sélectionnée</span>
+          <p>{publicDestination}</p>
+          <div className={styles.urlActions}>
+            <Link className={styles.secondaryButton} href={ownerRestaurantRoute(restaurant, "preview")} prefetch={false}><LineIcon kind="eye" />Vérifier l’aperçu</Link>
+            <Link className={styles.secondaryButton} href={ownerRestaurantRoute(restaurant, "menu")} prefetch={false}><LineIcon kind="map" />Corriger la carte</Link>
+            <Link className={styles.secondaryButton} href={ownerRestaurantRoute(restaurant, "medias")} prefetch={false}><LineIcon kind="image" />Corriger les médias</Link>
           </div>
         </div>
-      </Panel>
-    </>
+      </section>
+    </div>
   );
 }

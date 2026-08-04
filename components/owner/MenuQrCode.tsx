@@ -16,6 +16,8 @@ type MenuQrCodeProps = {
   copyLabel?: string;
   downloadLabel?: string;
   fileNamePrefix?: string;
+  /** Optional readable destination shown below the secure QR payload. */
+  displayUrl?: string;
   style?: Partial<OwnerQrStyle>;
   targetKind?: OwnerQrTargetKind;
   configVersion?: number;
@@ -40,6 +42,7 @@ export function MenuQrCode({
   copyLabel = "Copier l'URL",
   downloadLabel = "Télécharger QR",
   fileNamePrefix = "vistaire-menu",
+  displayUrl,
   style,
   targetKind = "menu",
   configVersion,
@@ -118,9 +121,10 @@ export function MenuQrCode({
 
   return (
     <div className={className ? `${styles.qrRoot} ${className}` : styles.qrRoot}>
-      <div className={styles.qrBox}>
+      <div className={styles.qrBox} data-qr-part="box">
         <div
           className={styles.qrCanvas}
+          data-qr-part="canvas"
           aria-label={`${qrLabel} pour ${restaurantName}`}
           role="img"
         >
@@ -136,11 +140,11 @@ export function MenuQrCode({
         </div>
       </div>
 
-      <p className={styles.qrUrl}>
-        {menuUrl}
+      <p className={styles.qrUrl} data-qr-part="url">
+        {displayUrl ?? menuUrl}
       </p>
 
-      <div className={styles.qrActions}>
+      <div className={styles.qrActions} data-qr-part="actions">
         <button
           type="button"
           onClick={copyMenuUrl}

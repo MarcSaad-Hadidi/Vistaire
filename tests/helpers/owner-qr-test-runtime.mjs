@@ -180,6 +180,10 @@ export async function loadQrStatusRoute() {
   return import("../../app/api/owner/qr-codes/[id]/status/route.ts");
 }
 
+export async function loadQrRenderer() {
+  return import("../../lib/owner/qrRenderer.ts");
+}
+
 function storedHash(token) {
   return `sha256:${createHash("sha256").update(token, "utf8").digest("hex")}`;
 }
@@ -1471,6 +1475,9 @@ export function createOwnerQrCustomizerHarness(options = {}) {
     require(specifier) {
       if (specifier === "react") return react;
       if (specifier === "react/jsx-runtime") return jsxRuntime;
+      if (specifier === "next/navigation") {
+        return { useRouter: () => ({ refresh() {} }) };
+      }
       if (
         specifier.includes("OwnerCockpit.module.css") ||
         specifier.includes("OwnerQrManagement.module.css")

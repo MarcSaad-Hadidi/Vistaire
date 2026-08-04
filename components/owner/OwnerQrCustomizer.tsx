@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import styles from "@/components/owner/OwnerQrManagement.module.css";
 import {
   DEFAULT_OWNER_QR_STYLE,
@@ -224,6 +225,7 @@ export function OwnerQrCustomizer({
   initialQrStyle,
   className = ""
 }: OwnerQrCustomizerProps) {
+  const router = useRouter();
   const [style, setStyle] = useState<OwnerQrStyle>(() => ({
     ...DEFAULT_OWNER_QR_STYLE,
     logoText: monogramFromName(restaurantName),
@@ -673,6 +675,8 @@ export function OwnerQrCustomizer({
             ? "QR sécurisé créé et enregistré. URL opaque /q/... disponible."
             : `QR sécurisé créé et enregistré. Type ${record.targetKind}; destination ${record.targetPath}.`
       });
+      // Keep the route cache aligned with the canonical style/version.
+      router.refresh();
     } catch {
       setOutcome({
         kind: "error",
