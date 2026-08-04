@@ -113,14 +113,6 @@ const STATUS_LABELS: Record<QrLifecycleStatus, string> = {
   revoked: "Révoqué"
 };
 
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function isOpaqueQrRedirect(value: string): boolean {
   try {
     const url = new URL(value, "https://vistaire.local");
@@ -217,42 +209,6 @@ function statusAfterAction(action: StatusAction): QrLifecycleStatus {
   if (action === "resume") return "active";
   if (action === "archive") return "archived";
   return "revoked";
-}
-
-function injectLogo(svg: string, style: OwnerQrStyle): string {
-  if (style.logoMode === "none") return svg;
-  const viewBoxMatch = svg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
-  const size = viewBoxMatch ? Number(viewBoxMatch[1]) : 0;
-  if (!size) return svg;
-
-  const logoSize = (size * style.logoSizePercent) / 100;
-  const plate = logoSize * 1.32;
-  const center = size / 2;
-  const x = center - plate / 2;
-  const y = center - plate / 2;
-
-  let inner = "";
-  if (style.logoMode === "monogram") {
-    inner = `<text x="${center}" y="${center}" text-anchor="middle" dominant-baseline="central" font-family="Georgia, 'Times New Roman', serif" font-size="${(
-      logoSize * 0.66
-    ).toFixed(2)}" font-weight="700" fill="${escapeXml(
-      style.foregroundColor
-    )}">${escapeXml(style.logoText || "V")}</text>`;
-  } else if (style.logoMode === "imageUrl" && style.logoImageUrl) {
-    const ix = center - logoSize / 2;
-    const iy = center - logoSize / 2;
-    inner = `<image href="${escapeXml(
-      style.logoImageUrl
-    )}" x="${ix}" y="${iy}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet" />`;
-  }
-
-  const overlay = `<g><rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${(
-    plate * 0.18
-  ).toFixed(2)}" fill="${escapeXml(style.backgroundColor)}" stroke="${escapeXml(
-    style.accentColor
-  )}" stroke-width="${(size * 0.01).toFixed(2)}" />${inner}</g>`;
-
-  return svg.replace("</svg>", `${overlay}</svg>`);
 }
 
 export function OwnerQrCustomizer({
@@ -375,17 +331,18 @@ export function OwnerQrCustomizer({
     let active = true;
     async function render() {
       try {
-        const QRCode = await import("qrcode");
-        const base = await QRCode.toString(qrValueForBrowser(qrValue), {
-          type: "svg",
-          errorCorrectionLevel: style.errorCorrectionLevel,
-          margin: style.padding,
-          color: {
-            dark: style.foregroundColor,
-            light: style.backgroundColor
-          }
+        const { renderOwnerQrSvg } = await import("@/lib/owner/qrRenderer");
+        const svg = await renderOwnerQrSvg({
+          url: qrValueForBrowser(qrValue),
+          style,
+          restaurantName,
+          targetKind,
+          qrId: canonicalRecord?.id,
+          configVersion: canonicalRecord?.configVersion,
+          dimensions: 320,
+          mode: "preview"
         });
-        if (active) setSvgMarkup(injectLogo(base, style));
+        if (active) setSvgMarkup(svg);
       } catch {
         if (active) setSvgMarkup("");
       }
@@ -394,7 +351,7 @@ export function OwnerQrCustomizer({
     return () => {
       active = false;
     };
-  }, [qrValue, qrValueForBrowser, style]);
+  }, [canonicalRecord?.configVersion, canonicalRecord?.id, qrValue, qrValueForBrowser, restaurantName, style, targetKind]);
 
   const loadCanonicalQr = useCallback(async () => {
     const sequence = ++loadSequence.current;
