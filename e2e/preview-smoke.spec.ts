@@ -18,7 +18,7 @@ async function establishPreviewAccess(context: BrowserContext) {
   // Preview-controlled redirect cannot forward it to another origin.
   const response = await context.request.get(`${expectedOrigin}/`, {
     headers: {
-      "x-vercel-protection-bypass": protectionBypass,
+      "x-vercel-protection-bypass": validatedProtectionBypass,
       "x-vercel-set-bypass-cookie": "true"
     },
     maxRedirects: 0
