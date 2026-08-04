@@ -238,6 +238,7 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
     }
   });
   page.on("requestfailed", (request) => {
+    settleMediaRequest(request);
     failedRequests.push(readRequestDetails(request, page));
     markEvent();
   });

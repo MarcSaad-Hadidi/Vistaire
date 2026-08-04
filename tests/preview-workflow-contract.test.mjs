@@ -69,6 +69,7 @@ test("Preview smoke establishes access without forwarding the bypass secret", ()
   assert.match(smokeSpec, /pendingMediaRequests/);
   assert.match(smokeSpec, /pendingCriticalRequests/);
   assert.match(smokeSpec, /requestfinished/);
+  assert.match(smokeSpec, /page\.on\("requestfailed", \(request\) => \{\s*settleMediaRequest\(request\);/);
   assert.match(smokeSpec, /resourceType\(\) !== "media"/);
   assert.match(smokeSpec, /classifyFailedRequest/);
   assert.match(smokeSpec, /classifyFailedResponse/);
