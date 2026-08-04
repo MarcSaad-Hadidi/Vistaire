@@ -15,13 +15,6 @@
   font-family: "Neue Montreal", Arial, sans-serif;
 }
 
-/* The management reference is a focused workspace rather than the portfolio shell. */
-:global(.console:has(.managementPage)) :global(.sidebar) { display: none; }
-:global(.console:has(.managementPage)) { display: block; min-height: 100svh; background: var(--qr-bg); }
-:global(.console:has(.managementPage)) :global(.consoleMain) { margin-left: 0; min-height: 100svh; }
-:global(.console:has(.managementPage)) :global(.consoleTopbar) { display: none; }
-:global(.console:has(.managementPage)) :global(.consoleContent) { width: 100%; max-width: 1600px; margin: 0 auto; padding: 0; }
-
 .managementHeader {
   display: flex;
   align-items: flex-start;
@@ -34,13 +27,12 @@
 .brandBlock p { margin: 5px 0 0; color: var(--qr-muted); font-size: 14px; }
 .headerActions { display: flex; align-items: center; gap: 10px; }
 .headerActions a, .headerActions button { min-height: 42px; }
-.accountDot { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #9a4cff; color: #fff; font-size: 12px; box-shadow: inset 0 0 0 5px rgba(255,255,255,.22); }
 .managementBody { display: grid; gap: 0; }
 
 .restaurantPicker { display: grid; gap: 7px; width: min(360px, 100%); margin: 14px 0 11px; }
 .eyebrow, .fieldLabel { color: var(--qr-gold); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .select, .input { width: 100%; border: 1px solid var(--qr-line-strong); border-radius: 7px; background: #0f0d0b; color: var(--qr-cream); padding: 11px 12px; font: inherit; }
-.select:focus-visible, .input:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--qr-gold); outline-offset: 2px; }
+.select:focus-visible, .input:focus-visible, .managementPage button:focus-visible, .managementPage input:focus-visible { outline: 2px solid var(--qr-gold); outline-offset: 2px; }
 
 .qrTabs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--qr-line); border-bottom: 0; border-radius: 10px 10px 0 0; overflow: hidden; }
 .qrTab { display: grid; grid-template-columns: auto 1fr; gap: 11px; align-items: center; border: 0; border-bottom: 2px solid transparent; background: #0f0d0b; color: var(--qr-muted); padding: 14px 18px; text-align: left; cursor: pointer; }
@@ -81,7 +73,7 @@
 .btnPrimary:hover { background: #f4dca0; }
 .qrDangerButton { border-color: #b66f65; color: #f4aca0; }
 .adminDangerZone { display: inline-flex; flex-wrap: wrap; gap: 8px; border-left: 1px solid rgba(182, 111, 101, .55); padding-left: 8px; }
-button:disabled { cursor: not-allowed; opacity: .5; }
+.managementPage button:disabled { cursor: not-allowed; opacity: .5; }
 .colorGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .colorField { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center; border: 1px solid var(--qr-line); border-radius: 7px; padding: 8px; }
 .colorField input[type="color"] { width: 30px; height: 30px; border: 0; background: transparent; padding: 0; }
@@ -136,6 +128,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .brandBlock h1 { font-size: 28px; }
   .headerActions { display: grid; grid-template-columns: 1fr 1fr; }
   .headerActions > * { width: 100%; }
+  .headerActions > :only-child { grid-column: 1 / -1; }
   .managerFrame { padding: 8px; }
   .qrPreviewCol, .qrControlsCol { padding: 10px; }
   .colorGrid { grid-template-columns: 1fr; }

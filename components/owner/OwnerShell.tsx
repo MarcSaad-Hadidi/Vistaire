@@ -131,18 +131,18 @@ export function OwnerShell({
     : "Restaurant sélectionné";
 
   return (
-    <div className={styles.console}>
+    <div className={`${styles.console} console`}>
       {mobileOpen ? (
         <button
           type="button"
           aria-label="Fermer le menu"
-          className={styles.sidebarBackdrop}
+          className={`${styles.sidebarBackdrop} sidebarBackdrop`}
           onClick={() => setMobileOpen(false)}
         />
       ) : null}
 
       <aside
-        className={`${styles.sidebar} ${mobileOpen ? styles.sidebarMobileOpen : ""}`}
+        className={`${styles.sidebar} sidebar ${mobileOpen ? styles.sidebarMobileOpen : ""}`}
         aria-label="Navigation Vistaire Owner"
         aria-hidden={sidebarHidden ? "true" : undefined}
       >
@@ -231,8 +231,8 @@ export function OwnerShell({
         <div className={styles.sidebarFooter}>Studio interne · accès owner-only</div>
       </aside>
 
-      <div className={styles.consoleMain}>
-        <header className={styles.consoleTopbar}>
+      <div className={`${styles.consoleMain} consoleMain`}>
+        <header className={`${styles.consoleTopbar} consoleTopbar`}>
           <button
             type="button"
             className={styles.menuToggle}
@@ -253,7 +253,7 @@ export function OwnerShell({
             {accountControl}
           </div>
         </header>
-        <main className={styles.consoleContent}>{children}</main>
+        <main className={`${styles.consoleContent} consoleContent`}>{children}</main>
       </div>
     </div>
   );

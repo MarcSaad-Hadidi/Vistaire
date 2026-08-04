@@ -28,7 +28,11 @@ export const OWNER_ACCOUNT_NAV_ITEMS: OwnerNavItem[] = [
 ];
 
 export const OWNER_LEGACY_NAV_ITEMS: OwnerNavItem[] = [
-  { href: "/owner/qr-codes", label: "QR Codes", hint: "Tables & tests" },
+  {
+    href: "/owner/qr-codes",
+    label: "QR Codes",
+    hint: "Gérez vos QR codes pour vos menus publics et l’accès à votre dashboard."
+  },
   { href: "/owner/3d-ar", label: "3D / AR", hint: "Pipeline immersif" },
   { href: "/owner/leads", label: "Leads", hint: "Contacts" }
 ];

@@ -27,8 +27,8 @@ export default async function OwnerQrCodesPage({ searchParams }: OwnerQrCodesPag
   const params = await searchParams;
 
   return (
-    <div className={styles.managementPage}>
-      <header className={styles.managementHeader}>
+    <div className={`${styles.managementPage} qrManagementPage`}>
+      <header className={`${styles.managementHeader} qrManagementHeader`}>
         <div className={styles.brandBlock}>
           <h1>QR Codes</h1>
           <p>Gérez vos QR codes pour vos menus publics et l’accès à votre dashboard.</p>
@@ -37,7 +37,6 @@ export default async function OwnerQrCodesPage({ searchParams }: OwnerQrCodesPag
           <Link className={styles.btn} href="/apercu-restaurateur" prefetch={false}>
             Aperçu public
           </Link>
-          <span aria-label="Compte owner" className={styles.accountDot}>●</span>
         </div>
       </header>
 
