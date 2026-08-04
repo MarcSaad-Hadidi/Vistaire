@@ -12,6 +12,7 @@ const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
 if (!protectionBypass) {
   throw new Error("Preview Gate requires VERCEL_AUTOMATION_BYPASS_SECRET.");
 }
+const validatedProtectionBypass: string = protectionBypass;
 
 async function establishPreviewAccess(context: BrowserContext) {
   // Keep the secret on one direct API request. maxRedirects: 0 ensures a
