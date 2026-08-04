@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page, type Request } from "@playwright/test";
 
 const previewBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 if (!previewBaseUrl) throw new Error("Preview Gate requires PLAYWRIGHT_BASE_URL.");
@@ -42,15 +42,37 @@ type RuntimeIssues = {
   failedRequests: string[];
   consoleErrors: string[];
   pageErrors: string[];
+  pendingMediaRequests: number;
 };
+
+function isSameOriginMediaRequest(request: Request) {
+  if (request.resourceType() !== "media") return false;
+  try {
+    return new URL(request.url()).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
 
 function observeRuntimeIssues(page: Page): RuntimeIssues {
   const issues: RuntimeIssues = {
     failedResponses: [],
     failedRequests: [],
     consoleErrors: [],
-    pageErrors: []
+    pageErrors: [],
+    pendingMediaRequests: 0
   };
+  const settleMediaRequest = (request: Request) => {
+    if (isSameOriginMediaRequest(request)) {
+      issues.pendingMediaRequests = Math.max(0, issues.pendingMediaRequests - 1);
+    }
+  };
+  page.on("request", (request) => {
+    if (isSameOriginMediaRequest(request)) issues.pendingMediaRequests += 1;
+  });
+  page.on("requestfinished", settleMediaRequest);
+  page.on("requestfailed", settleMediaRequest);
+
   page.on("response", (response) => {
     try {
       if (new URL(response.url()).origin === expectedOrigin && response.status() >= 400) {
@@ -62,7 +84,6 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
   });
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText;
-    if (failure === "net::ERR_ABORTED" && /\/videos\//i.test(request.url())) return;
     try {
       if (new URL(request.url()).origin === expectedOrigin) {
         issues.failedRequests.push(`${failure ?? "request failed"} ${request.url()}`);
@@ -110,7 +131,7 @@ async function expectLoadedImages(page: Page) {
   await expect.poll(loadedInViewportCount).toBe(count);
 }
 
-async function expectReadyMedia(page: Page) {
+async function expectReadyMedia(page: Page, issues: RuntimeIssues) {
   const media = page.locator("video, audio");
   if (!(await media.count())) return;
   await expect
@@ -128,6 +149,12 @@ async function expectReadyMedia(page: Page) {
       }
     )
     .toBe(true);
+  await expect
+    .poll(() => issues.pendingMediaRequests, {
+      message: "Expected same-origin media requests to settle before runtime checks.",
+      timeout: 15_000
+    })
+    .toBe(0);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -149,7 +176,7 @@ async function expectHealthyRoute(page: Page, path: string, html = true) {
     await expect(page.locator("main")).toBeVisible();
     await expectLoadedImages(page);
     await expectNoHorizontalOverflow(page);
-    await expectReadyMedia(page);
+    await expectReadyMedia(page, issues);
   }
   expect(issues.failedResponses).toEqual([]);
   expect(issues.failedRequests).toEqual([]);
