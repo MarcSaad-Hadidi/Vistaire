@@ -54,6 +54,10 @@ type SafeHistoryRecord = Pick<
   | "updatedAt"
 >;
 
+type SafePublicHistoryRecord = SafeHistoryRecord & {
+  targetPath: string;
+};
+
 type QrMachineState =
   | "loading"
   | "absent"
@@ -159,7 +163,7 @@ function normalizeSafeHistory(
     targetKind: OwnerQrTargetKind;
     canonicalId?: string | null;
   }
-): SafeHistoryRecord[] {
+): SafePublicHistoryRecord[] {
   return records.flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
       return [];
@@ -183,6 +187,8 @@ function normalizeSafeHistory(
         status: record.status,
         isCanonical: false,
         recoverable: Boolean(record.recoverable),
+        targetPath:
+          typeof record.targetPath === "string" ? record.targetPath : "",
         scanCount:
           typeof record.scanCount === "number" && Number.isFinite(record.scanCount)
             ? record.scanCount
@@ -199,6 +205,22 @@ function inventoryRecords(payload: QrInventoryPayload): unknown[] {
   if (Array.isArray(payload.inventory)) return payload.inventory;
   if (Array.isArray(payload.history)) return payload.history;
   return [];
+}
+
+function safePublicDestination(path: string): string {
+  if (!path || typeof window === "undefined") return "";
+  try {
+    const url = new URL(path, window.location.origin);
+    if (
+      url.origin !== window.location.origin ||
+      !/^\/(?:menu|demo)(?:\/|$)/.test(url.pathname)
+    ) {
+      return "";
+    }
+    return url.toString();
+  } catch {
+    return "";
+  }
 }
 
 function mutationError(payload: QrApiPayload, fallback: string): string {
@@ -241,7 +263,7 @@ export function OwnerQrCustomizer({
   const [operation, setOperation] = useState<Operation>(null);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const [configVersion, setConfigVersion] = useState<ConfigVersion | null>(null);
-  const [history, setHistory] = useState<SafeHistoryRecord[]>([]);
+  const [history, setHistory] = useState<SafePublicHistoryRecord[]>([]);
   const [historyLoadState, setHistoryLoadState] =
     useState<"loading" | "ready" | "error">("loading");
   const [savedStyleFingerprint, setSavedStyleFingerprint] = useState("");
@@ -509,6 +531,50 @@ export function OwnerQrCustomizer({
     } catch {
       setCopyState("error");
     }
+  }
+
+  function closeInventoryMenu(target: HTMLElement) {
+    target.closest("details")?.removeAttribute("open");
+  }
+
+  async function copyPublicDestination(
+    path: string,
+    trigger: HTMLButtonElement
+  ) {
+    closeInventoryMenu(trigger);
+    const destination = safePublicDestination(path);
+    if (!destination) {
+      setOutcome({
+        kind: "error",
+        message: "Destination publique indisponible pour ce QR."
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(destination);
+      setOutcome({
+        kind: "success",
+        message: "Destination publique copiée. Le QR sécurisé reste inchangé."
+      });
+    } catch {
+      setOutcome({
+        kind: "error",
+        message: "Copie impossible. Ouvrez le menu pour copier son adresse."
+      });
+    }
+  }
+
+  function openPublicDestination(path: string, trigger: HTMLButtonElement) {
+    closeInventoryMenu(trigger);
+    const destination = safePublicDestination(path);
+    if (!destination) {
+      setOutcome({
+        kind: "error",
+        message: "Destination publique indisponible pour ce QR."
+      });
+      return;
+    }
+    window.open(destination, "_blank", "noopener,noreferrer");
   }
 
   function downloadSvg() {
@@ -852,6 +918,89 @@ export function OwnerQrCustomizer({
       : dialogAction === "archive"
         ? "L’archivage arrête ce QR et ne peut pas être annulé depuis cet écran."
         : "La révocation invalide définitivement ce QR. Cette action est irréversible.";
+
+  function renderInventoryActions(args: {
+    id: string;
+    label: string;
+    status: QrLifecycleStatus;
+    isCurrent?: boolean;
+    destination?: string;
+  }) {
+    if (!publicInventory) return null;
+    return (
+      <details className={styles.inventoryActions}>
+        <summary aria-label={`Actions pour ${args.label}`} title="Actions">
+          <span aria-hidden="true">⋮</span>
+        </summary>
+        <div className={styles.inventoryActionMenu} role="menu">
+          {args.isCurrent ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) => {
+                  closeInventoryMenu(event.currentTarget);
+                  downloadSvg();
+                }}
+                disabled={!canExportQr}
+              >
+                Télécharger SVG
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) => {
+                  closeInventoryMenu(event.currentTarget);
+                  downloadPng();
+                }}
+                disabled={!canExportQr}
+              >
+                Télécharger PNG
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) => {
+                  closeInventoryMenu(event.currentTarget);
+                  void copyUrl();
+                }}
+                disabled={!canExportQr}
+              >
+                Copier le lien QR
+              </button>
+            </>
+          ) : null}
+          {!args.isCurrent && args.status === "active" && args.destination ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) =>
+                  openPublicDestination(args.destination!, event.currentTarget)
+                }
+              >
+                Ouvrir le menu public
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) =>
+                  void copyPublicDestination(args.destination!, event.currentTarget)
+                }
+              >
+                Copier l’URL publique
+              </button>
+            </>
+          ) : null}
+          {!args.isCurrent && args.status === "active" ? (
+            <span className={styles.inventoryActionNote}>
+              QR conservé actif. Le lien sécurisé n’est jamais affiché dans l’inventaire.
+            </span>
+          ) : null}
+        </div>
+      </details>
+    );
+  }
 
   return (
     <div className={`${styles.qrCustomizer} ${className}`}>
@@ -1244,28 +1393,45 @@ export function OwnerQrCustomizer({
               <ul>
                 {canonicalRecord && publicInventory ? (
                   <li key={canonicalRecord.id}>
-                    <div>
+                    <div className={styles.inventoryRowMain}>
                       <strong>{canonicalRecord.label || "QR menu principal"} <em>QR actuel</em></strong>
                       <span>{STATUS_LABELS[canonicalRecord.status]}</span>
                     </div>
-                    <p>
-                      {canonicalRecord.scanCount} scan{canonicalRecord.scanCount > 1 ? "s" : ""} ·{" "}
-                      <button type="button" className={styles.inventoryDownloadButton} onClick={downloadSvg} disabled={!canExportQr}>
-                        Télécharger
-                      </button>
-                    </p>
+                    <div className={styles.inventoryRowAside}>
+                      <p>
+                        {canonicalRecord.scanCount} scan{canonicalRecord.scanCount > 1 ? "s" : ""} ·{" "}
+                        <button type="button" className={styles.inventoryDownloadButton} onClick={downloadSvg} disabled={!canExportQr}>
+                          Télécharger
+                        </button>
+                      </p>
+                      {renderInventoryActions({
+                        id: canonicalRecord.id,
+                        label: canonicalRecord.label || "QR menu principal",
+                        status: canonicalRecord.status,
+                        isCurrent: true,
+                        destination: canonicalRecord.targetPath
+                      })}
+                    </div>
                   </li>
                 ) : null}
                 {history.map((item) => (
                   <li key={item.id}>
-                    <div>
+                    <div className={styles.inventoryRowMain}>
                       <strong>{item.label || "QR sans libellé"}</strong>
                       <span>{STATUS_LABELS[item.status]}</span>
                     </div>
-                    <p>
-                      {item.scanCount} scan{item.scanCount > 1 ? "s" : ""} · aucune
-                      donnée de jeton exposée
-                    </p>
+                    <div className={styles.inventoryRowAside}>
+                      <p>
+                        {item.scanCount} scan{item.scanCount > 1 ? "s" : ""} · aucune
+                        donnée de jeton exposée
+                      </p>
+                      {renderInventoryActions({
+                        id: item.id,
+                        label: item.label || "QR sans libellé",
+                        status: item.status,
+                        destination: item.targetPath
+                      })}
+                    </div>
                   </li>
                 ))}
               </ul>

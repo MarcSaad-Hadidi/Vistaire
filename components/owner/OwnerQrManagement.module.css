@@ -121,10 +121,22 @@
 .qrHistoryHeader span { color: var(--qr-gold); font-size: 11px; }
 .qrHistory ul { display: grid; gap: 7px; margin: 10px 0 0; padding: 0; list-style: none; }
 .qrHistory li { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid rgba(236, 213, 163, .16); border-radius: 7px; padding: 9px 10px; }
+.inventoryRowMain { min-width: 0; }
+.inventoryRowAside { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
 .qrHistory li strong { display: block; font-size: 13px; }
 .qrHistory li span { color: #9be5a6; font-size: 11px; }
 .qrHistory li p { margin: 0; color: var(--qr-muted); font-size: 11px; text-align: right; }
 .qrHistoryNotice { color: var(--qr-muted); font-size: 12px; }
+.inventoryActions { position: relative; flex: 0 0 auto; }
+.inventoryActions summary { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--qr-line-strong); border-radius: 6px; background: transparent; color: var(--qr-cream); cursor: pointer; list-style: none; }
+.inventoryActions summary::-webkit-details-marker { display: none; }
+.inventoryActions summary:hover { background: rgba(232, 201, 130, .1); }
+.inventoryActions summary:focus-visible { outline: 2px solid var(--qr-gold); outline-offset: 2px; }
+.inventoryActionMenu { position: absolute; z-index: 5; top: calc(100% + 5px); right: 0; display: grid; min-width: 190px; gap: 3px; border: 1px solid var(--qr-line-strong); border-radius: 7px; background: #17130f; padding: 5px; box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
+.inventoryActionMenu button { border: 0; border-radius: 5px; background: transparent; color: var(--qr-cream); padding: 8px 9px; font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.inventoryActionMenu button:hover:not(:disabled) { background: rgba(232, 201, 130, .12); color: var(--qr-gold); }
+.inventoryActionMenu button:disabled { cursor: not-allowed; opacity: .45; }
+.inventoryActionNote { display: block; max-width: 220px; color: var(--qr-muted); padding: 7px 8px; font-size: 10px; line-height: 1.35; }
 
 .qrDialogBackdrop { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .72); padding: 20px; }
 .qrDialog { width: min(520px, 100%); border: 1px solid var(--qr-line-strong); border-radius: 10px; background: #17130f; padding: 20px; box-shadow: 0 20px 80px rgba(0, 0, 0, .5); }
@@ -164,4 +176,6 @@
   .colorGrid { grid-template-columns: 1fr; }
   .qrHistory li { align-items: flex-start; flex-direction: column; }
   .qrHistory li p { text-align: left; }
+  .inventoryRowAside { width: 100%; justify-content: space-between; }
+  .inventoryActionMenu { right: 0; }
 }

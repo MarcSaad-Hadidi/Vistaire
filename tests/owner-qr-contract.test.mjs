@@ -90,6 +90,17 @@ test("owner QR customizer cannot expose or export a direct destination before se
   assert.match(source, /jeton d.accès/i);
 });
 
+test("public QR inventory keeps active historical rows actionable without exposing tokens", async () => {
+  const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
+
+  assert.match(source, /Actions pour/);
+  assert.match(source, /Ouvrir le menu public/);
+  assert.match(source, /Copier l’URL publique/);
+  assert.match(source, /Le lien sécurisé n’est jamais affiché dans l’inventaire/);
+  assert.match(source, /safePublicDestination/);
+  assert.doesNotMatch(source, /item\.token(?:Hash|Preview|Ciphertext|Nonce)/i);
+});
+
 test("QR scan RPC is not executable by public browser roles", async () => {
   const migration = await readFile(
     "supabase/migrations/0002_qr_resolve_scan_rpc.sql",
