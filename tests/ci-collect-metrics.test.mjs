@@ -86,3 +86,27 @@ test("incomplete GitHub API produces an explicit non-complete artifact", async (
   assert.deepEqual(JSON.parse(await readFile(outputPath, "utf8")), output);
   await rm(directory, { recursive: true, force: true });
 });
+
+test("structured PR reports remain measurable when the API token is withheld", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vistoire-metrics-"));
+  const outputPath = join(directory, "metrics.json");
+  const report = (total) => JSON.stringify({ total, passed: total, failed: 0, skipped: 0, flaky: 0, interrupted: 0 });
+  const env = {
+    GITHUB_REPOSITORY: "example/repo",
+    GITHUB_RUN_ID: "42",
+    CI_METRICS_OUTPUT: outputPath,
+    CI_TEST_REPORTS_JSON: JSON.stringify({
+      "e2e-public-chromium": { outputs: { test_report: report(28) } },
+      "e2e-sauge-chromium": { outputs: { test_report: report(66) } },
+      "e2e-admin-qr-chromium": { outputs: { test_report: report(7) } },
+      "webkit-critical": { outputs: { test_report: report(10) } }
+    })
+  };
+  const output = await collectMetrics({ env, fetchImpl: async () => ({ ok: false, status: 503 }) });
+  assert.deepEqual(output.tests, { total: 111, passed: 111, failed: 0, skipped: 0, flaky: 0, interrupted: 0, report_sources: 4 });
+  assert.equal(output.data_quality.collection_complete, false);
+  assert.deepEqual(output.data_quality.collection_warnings, ["github_api_unavailable"]);
+  assert.equal(output.data_quality.fields_unavailable.includes("tests"), false);
+  assert.deepEqual(JSON.parse(await readFile(outputPath, "utf8")), output);
+  await rm(directory, { recursive: true, force: true });
+});

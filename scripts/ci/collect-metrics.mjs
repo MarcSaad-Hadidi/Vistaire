@@ -378,6 +378,22 @@ export async function collectMetrics({ env = process.env, fetchImpl = globalThis
       warnings.push("inconsistent_metrics");
     }
   }
+  if (!analysis && Object.keys(reportsByJob).length) {
+    const reports = aggregateReports(Object.values(reportsByJob).map((report) => ({ test_report: report })));
+    analysis = {
+      jobs: undefined,
+      completed: [],
+      summary: {
+        failed_tests: reports.totals?.failed,
+        test_report_sources: reports.sources
+      },
+      timings: undefined,
+      reports
+    };
+    fieldsUnavailable.push("summary");
+    const testsIndex = fieldsUnavailable.indexOf("tests");
+    if (testsIndex >= 0) fieldsUnavailable.splice(testsIndex, 1);
+  }
   if (!analysis) fieldsUnavailable.push("summary", "timings");
   else if (!analysis.reports.totals && env.CI_TEST_REPORTS_JSON && !env.CI_TEST_REPORTS_JSON.trim().startsWith("{")) {
     const fileTotals = await readStructuredReportFiles(env.CI_TEST_REPORTS_JSON);
