@@ -101,6 +101,18 @@ test("public QR inventory keeps active historical rows actionable without exposi
   assert.doesNotMatch(source, /item\.token(?:Hash|Preview|Ciphertext|Nonce)/i);
 });
 
+test("public QR rotation always preserves the previous printed QR", async () => {
+  const source = await readFile("components/owner/OwnerQrCustomizer.tsx", "utf8");
+
+  assert.match(
+    source,
+    /const disposition = targetKind === "menu" \? "keep-active" : previousDisposition/
+  );
+  assert.match(source, /previousDisposition: disposition/);
+  assert.match(source, /targetKind === "admin" \? \(/);
+  assert.match(source, /Ce nouveau QR public est additif/);
+});
+
 test("QR scan RPC is not executable by public browser roles", async () => {
   const migration = await readFile(
     "supabase/migrations/0002_qr_resolve_scan_rpc.sql",

@@ -92,12 +92,15 @@ export default async function OwnerRestaurantQrPage({
     purposeKey: "default"
   });
   const canonicalRead = isCanonicalRead(canonicalQr) ? canonicalQr : null;
+  const canonicalReadError = canonicalRead === null;
   const canonicalRecord = canonicalRead?.record ?? null;
   const usableQr = isUsableQr(canonicalRecord);
   const qrUrl = usableQr ? canonicalRecord.redirectUrl : "";
   const publicDestination = restaurant.publicMenuUrl || restaurant.menuUrl;
-  const qrStatus = statusLabel(canonicalRecord);
-  const qrTone = statusTone(canonicalRecord);
+  const qrStatus = canonicalReadError
+    ? "Vérification impossible"
+    : statusLabel(canonicalRecord);
+  const qrTone = canonicalReadError ? "danger" : statusTone(canonicalRecord);
 
   const checklist = preparation.checklist.filter((item) =>
     ["profile", "dishes", "prices", "photos", "qr", "preview"].includes(item.id)
@@ -105,9 +108,14 @@ export default async function OwnerRestaurantQrPage({
     if (item.id !== "qr") return item;
     return {
       ...item,
-      detail: qrStatus,
-      status: usableQr ? "OK" : "À vérifier",
-      tone: usableQr ? "ready" as const : "warn" as const
+      detail: canonicalReadError ? "Lecture du QR impossible" : qrStatus,
+      status: usableQr && !canonicalReadError ? "OK" : "À vérifier",
+      tone:
+        canonicalReadError
+          ? "danger" as const
+          : usableQr
+            ? "ready" as const
+            : "warn" as const
     };
   });
 
@@ -149,7 +157,19 @@ export default async function OwnerRestaurantQrPage({
             <h3 id="public-qr-title">QR client public</h3>
             <span className={`${styles.smallStatus} ${styles[`tone${qrTone}`]}`}><StatusDot tone={qrTone} />{qrStatus}</span>
           </div>
-          {usableQr ? (
+          {canonicalReadError ? (
+            <div className={styles.qrEmpty}>
+              <LineIcon kind="info" />
+              <strong>QR indisponible</strong>
+              <p>
+                Le statut du QR canonique n’a pas pu être vérifié. Aucun QR ne
+                doit être créé ou imprimé pendant cette indisponibilité.
+              </p>
+              <Link className={styles.secondaryButton} href={`/owner/qr-codes?restaurantId=${encodeURIComponent(restaurant.id)}&target=menu`} prefetch={false}>
+                Réessayer dans la gestion QR
+              </Link>
+            </div>
+          ) : usableQr ? (
             <MenuQrCode
               className={styles.publicQr}
               menuUrl={qrUrl}

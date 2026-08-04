@@ -827,6 +827,7 @@ export function OwnerQrCustomizer({
     }
     setOperation("rotating");
     setOutcome({ kind: "idle" });
+    const disposition = targetKind === "menu" ? "keep-active" : previousDisposition;
     try {
       const response = await fetch(
         `/api/owner/qr-codes/${encodeURIComponent(canonicalRecord.id)}/rotate`,
@@ -836,7 +837,7 @@ export function OwnerQrCustomizer({
           body: JSON.stringify({
             confirmed: true,
             idempotencyKey: crypto.randomUUID(),
-            previousDisposition,
+            previousDisposition: disposition,
             expectedConfigVersion: configVersion
           })
         }
@@ -867,7 +868,10 @@ export function OwnerQrCustomizer({
       }
       setOutcome({
         kind: "success",
-        message: "Nouveau QR actif. La disposition de l’ancien QR a été appliquée."
+        message:
+          targetKind === "menu"
+            ? "Nouveau QR public actif. L’ancien QR public reste actif."
+            : "Nouveau QR actif. La disposition de l’ancien QR a été appliquée."
       });
     } catch {
       setOutcome({ kind: "error", message: "Erreur réseau pendant la rotation." });
@@ -1457,45 +1461,50 @@ export function OwnerQrCustomizer({
           onConfirm={confirmDialog}
         >
           {dialogAction === "rotate" ? (
-            <fieldset className={styles.qrDispositionFieldset}>
-              <legend>Disposition de l’ancien QR</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="previousDisposition"
-                  value="keep-active"
-                  checked={previousDisposition === "keep-active"}
-                  onChange={() => setPreviousDisposition("keep-active")}
-                />
-                Conserver l’ancien QR actif
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="previousDisposition"
-                  value="pause"
-                  checked={previousDisposition === "pause"}
-                  onChange={() => setPreviousDisposition("pause")}
-                />
-                Mettre l’ancien QR en pause
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="previousDisposition"
-                  value="revoke"
-                  checked={previousDisposition === "revoke"}
-                  onChange={() => setPreviousDisposition("revoke")}
-                />
-                Révoquer définitivement l’ancien QR
-              </label>
-              {targetKind === "admin" ? (
+            targetKind === "admin" ? (
+              <fieldset className={styles.qrDispositionFieldset}>
+                <legend>Disposition de l’ancien QR</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="previousDisposition"
+                    value="keep-active"
+                    checked={previousDisposition === "keep-active"}
+                    onChange={() => setPreviousDisposition("keep-active")}
+                  />
+                  Conserver l’ancien QR actif
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="previousDisposition"
+                    value="pause"
+                    checked={previousDisposition === "pause"}
+                    onChange={() => setPreviousDisposition("pause")}
+                  />
+                  Mettre l’ancien QR en pause
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="previousDisposition"
+                    value="revoke"
+                    checked={previousDisposition === "revoke"}
+                    onChange={() => setPreviousDisposition("revoke")}
+                  />
+                  Révoquer définitivement l’ancien QR
+                </label>
                 <p className={styles.qrWarning}>
                   Sécurité admin : conserver l’ancien QR actif maintient l’accès pour
                   toute personne qui en possède une photo ou une impression.
                 </p>
-              ) : null}
-            </fieldset>
+              </fieldset>
+            ) : (
+              <p className={styles.qrPermanenceNotice}>
+                Ce nouveau QR public est additif : tous les QR publics déjà imprimés
+                restent actifs. Leur disposition ne peut pas être modifiée ici.
+              </p>
+            )
           ) : null}
         </QrConfirmationDialog>
       ) : null}
