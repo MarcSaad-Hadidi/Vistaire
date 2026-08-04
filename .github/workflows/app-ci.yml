@@ -77,6 +77,17 @@ jobs:
           fetch-depth: 1
           lfs: false
           persist-credentials: false
+      - name: Checkout trusted graph helper
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .ci-trusted
+          sparse-checkout: scripts/ci/fetch-pr-graph.mjs
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
       - name: Fetch minimal PR graph for merge-base
         id: graph
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
@@ -84,7 +95,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
-        run: node scripts/ci/fetch-pr-graph.mjs
+        run: node .ci-trusted/scripts/ci/fetch-pr-graph.mjs
       - name: Classify changed files (fail closed)
         id: classify
         env:
@@ -705,6 +716,9 @@ jobs:
       - name: Checkout metrics collector
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          sparse-checkout: scripts/ci/collect-metrics.mjs
+          sparse-checkout-cone-mode: false
           fetch-depth: 1
           lfs: false
           persist-credentials: false
