@@ -1,0 +1,43 @@
+.rendererShell {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #080706;
+  scrollbar-color: rgba(232, 207, 155, 0.46) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rendererShell > :global(*) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.rendererShell:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.92);
+  outline-offset: -3px;
+}
+
+.status,
+.error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #080706;
+  color: rgba(232, 207, 155, 0.82);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.error {
+  color: rgba(255, 247, 234, 0.86);
+}

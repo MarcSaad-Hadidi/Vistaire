@@ -16,26 +16,26 @@ import {
   resolvePublicMenuRenderContext,
   type PublicMenuRenderContext
 } from "@/lib/menu/publicMenuRenderContext";
-import type { UniqueMenuRendererKey } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 import type { LandingPublicMenuHref } from "@/components/landing/LandingPublicMenuLink";
+import {
+  isRestaurantExperienceId,
+  type RestaurantExperienceId,
+  type RestaurantMenuPreviewBase,
+  type RestaurantMenuPreviewPayload
+} from "@/lib/restaurant-experiences/contracts";
 
-export type LandingExperienceId =
-  | "maison-elyse"
-  | "trouvable"
-  | "sauge-noire";
+export type LandingExperienceId = RestaurantExperienceId;
 
-const LANDING_EXPERIENCE_IDS: readonly LandingExperienceId[] = [
-  "maison-elyse",
-  "trouvable",
-  "sauge-noire"
-];
+type LandingPreviewBase = RestaurantMenuPreviewBase & {
+  menuUi: LandingMenuUiPreview;
+};
 
 export function isLandingExperienceId(
   value: string
 ): value is LandingExperienceId {
-  return LANDING_EXPERIENCE_IDS.includes(value as LandingExperienceId);
+  return isRestaurantExperienceId(value);
 }
 
 export type LandingFeaturedDish = {
@@ -51,16 +51,6 @@ export type LandingFeaturedDish = {
   imagePosition: string;
 };
 
-type LandingPreviewBase = {
-  menuSlug: LandingExperienceId;
-  restaurantId: string;
-  menuId?: string;
-  locale: Locale;
-  publicMenuHref: LandingPublicMenuHref;
-  comparison: PdfComparePreviewData;
-  menuUi: LandingMenuUiPreview;
-};
-
 const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
   maisonElyse:
     "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo?v=a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f",
@@ -70,18 +60,7 @@ const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
     "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo?v=bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894"
 });
 
-export type LandingMenuPreviewPayload =
-  | (LandingPreviewBase & {
-      kind: "maison-elyse";
-    })
-  | (LandingPreviewBase & {
-      kind: "trouvable";
-    })
-  | (LandingPreviewBase & {
-      kind: "unique-registered";
-      rendererKey: UniqueMenuRendererKey;
-      rendererVersion: number;
-    });
+export type LandingMenuPreviewPayload = RestaurantMenuPreviewPayload;
 
 export type LandingMenuPreviewErrorCode =
   | "landing_locale_mismatch"

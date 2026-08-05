@@ -1,0 +1,63 @@
+.root {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.tabList {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 4px;
+  border: 1px solid rgba(255, 250, 240, 0.24);
+  border-radius: 999px;
+  background: rgba(6, 4, 3, 0.1);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  min-width: max-content;
+  min-height: 44px;
+  flex: 1 0 auto;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 247, 234, 0.72);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 8px 14px;
+}
+
+.tab[aria-selected="true"] {
+  border-color: rgba(232, 207, 155, 0.46);
+  background: rgba(232, 207, 155, 0.13);
+  color: #fffaf0;
+}
+
+.tab:focus-visible {
+  outline: 2px solid rgba(232, 207, 155, 0.94);
+  outline-offset: 3px;
+}
+
+.panel {
+  min-width: 0;
+}
+
+@media (max-width: 430px) {
+  .tabList {
+    border-radius: 18px;
+  }
+
+  .tab {
+    min-height: 48px;
+    border-radius: 14px;
+    font-size: 11px;
+    padding-inline: 12px;
+  }
+}
