@@ -178,7 +178,6 @@ export function VistaireMenu3dArRestaurantPreview({
 
       <div className={styles.topNav}>
         <PreviewNav
-          activeSection="home"
           currentPath={routes.menu3dAr}
           locale={locale}
           routeMode={routeMode}

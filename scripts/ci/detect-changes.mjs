@@ -19,6 +19,7 @@ export const CATEGORIES = Object.freeze([
   "dependencies",
   "assets",
   "core",
+  "public_navigation",
   "database",
   "translations",
   "landing",
@@ -29,6 +30,14 @@ export const CATEGORIES = Object.freeze([
   "admin",
   "qr",
   "full_ci"
+]);
+
+const PUBLIC_NAVIGATION_CALLSITES = new Set([
+  "app/demo/page.tsx",
+  "app/en/pricing-digital-restaurant-menu/page.tsx",
+  "app/en/vistaire-menu/page.tsx",
+  "components/landing/vistairelanding.tsx",
+  "components/seo/seogeoaeopage.tsx"
 ]);
 
 // These are the only job-policy outputs consumed by App CI.  Keeping the
@@ -151,6 +160,18 @@ export function classifyPath(input) {
 
   if (/qr|qr-codes|qrcode/.test(lower)) add(categories, "qr");
 
+  // Public preview chrome owns the navigation contract.  Keep this signal
+  // alongside specialised categories (for example the QR preview) so a
+  // mixed diff still runs the public browser family without weakening the
+  // admin QR classification.
+  if (
+    /^components\/vistaire-preview\//.test(lower) ||
+    PUBLIC_NAVIGATION_CALLSITES.has(lower) ||
+    lower === "e2e/public-navigation.spec.ts"
+  ) {
+    add(categories, "public_navigation");
+  }
+
   // Explicitly recognised application/source trees are core even when a
   // specialised rule above did not match.  Database migrations and SQL test
   // fixtures are deliberately database-only so a SQL-only PR does not build
@@ -237,9 +258,11 @@ export function deriveRunOutputs(flags) {
       flags.pageflip_gestures === true || flags.admin === true || flags.qr === true ||
       flags.seo === true || flags.dependencies === true,
     // Specialised families own their browser coverage.  A generic core smoke
-    // is retained for landing/assets, while SQL, translations, menu, admin,
-    // QR and SEO changes stay in their precise families.
+    // is retained for landing/assets and the explicit public-navigation
+    // family, while SQL, translations, menu, admin, QR and SEO changes stay
+    // in their precise families.
     run_core: full || flags.assets === true || flags.landing === true ||
+      flags.public_navigation === true ||
       (flags.core === true && flags.database !== true && flags.translations !== true &&
         flags.menu_shared !== true && flags.admin !== true && flags.qr !== true &&
         flags.seo !== true && flags.sauge_renderer !== true && flags.pageflip_gestures !== true),

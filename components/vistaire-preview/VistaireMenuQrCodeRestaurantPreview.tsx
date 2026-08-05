@@ -263,7 +263,6 @@ export async function VistaireMenuQrCodeRestaurantPreview({
 
       <div className={styles.topNav}>
         <PreviewNav
-          activeSection="home"
           currentPath={routes.menuQrCode}
           locale={locale}
           routeMode={routeMode}

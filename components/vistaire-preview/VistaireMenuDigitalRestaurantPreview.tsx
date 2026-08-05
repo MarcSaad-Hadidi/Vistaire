@@ -297,7 +297,6 @@ export function VistaireMenuDigitalRestaurantPreview({
 
       <div className={styles.topNav}>
         <PreviewNav
-          activeSection="home"
           currentPath={routes.menuDigital}
           locale={locale}
           routeMode={routeMode}

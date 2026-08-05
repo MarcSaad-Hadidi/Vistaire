@@ -59,6 +59,41 @@ test("Playwright runner forces full CI", () => {
   assert.equal(result.ci_infrastructure, true);
   assert.equal(result.full_ci, true);
 });
+test("public navigation chrome changes run the core browser family", () => {
+  const result = classify(["components/vistaire-preview/VistairePreviewChrome.tsx"]);
+  assert.equal(result.core, true);
+  assert.equal(result.public_navigation, true);
+  assert.equal(result.run_core, true);
+  assert.equal(result.run_build, true);
+  assert.equal(result.run_static, true);
+  assert.equal(result.run_landing, false);
+  assert.equal(result.run_menu, false);
+  assert.equal(result.run_seo, false);
+});
+test("public navigation remains covered when a QR preview change overlaps", () => {
+  const result = classify([
+    "components/vistaire-preview/VistairePreviewChrome.tsx",
+    "components/vistaire-preview/VistaireMenuQrCodeRestaurantPreview.tsx",
+    "e2e/public-navigation.spec.ts"
+  ]);
+  assert.equal(result.public_navigation, true);
+  assert.equal(result.qr, true);
+  assert.equal(result.run_core, true);
+  assert.equal(result.run_admin_qr, true);
+});
+test("public navigation callsites stay in the core browser family", () => {
+  for (const path of [
+    "app/demo/page.tsx",
+    "app/en/pricing-digital-restaurant-menu/page.tsx",
+    "app/en/vistaire-menu/page.tsx",
+    "components/landing/VistaireLanding.tsx",
+    "components/seo/SeoGeoAeoPage.tsx"
+  ]) {
+    const result = classify([path]);
+    assert.equal(result.public_navigation, true, path);
+    assert.equal(result.run_core, true, path);
+  }
+});
 test("workflow forces full CI", () => assert.equal(classify([".github/workflows/app-ci.yml"]).full_ci, true));
 test("lockfile forces full CI", () => assert.equal(classify(["package-lock.json"]).full_ci, true));
 test("unknown path fails closed", () => {

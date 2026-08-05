@@ -188,6 +188,14 @@ test("CI browser families use one grouped runner invocation", () => {
     assert.equal(typeof packageJson.scripts[script], "string", `${script} must exist`);
     assert.match(packageJson.scripts[script], /scripts\/run-playwright-e2e\.mjs/);
   }
+  assert.match(
+    packageJson.scripts["test:ci:e2e:core"],
+    /ci-smoke\.spec\.ts[\s\S]*public-navigation\.spec\.ts/
+  );
+  assert.match(
+    packageJson.scripts["test:ci:e2e:core"],
+    /--forbid-only[\s\S]*forbid-skipped-tests-reporter\.ts/
+  );
   assert.match(packageJson.scripts["test:ci:e2e:landing"], /landing-production-photo\.spec\.ts[\s\S]*landing-redesign\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-first-gesture-scroll\.spec\.ts[\s\S]*sauge-noire-swipe-intent\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-menu-shared-smoke\.spec\.ts/);
@@ -196,6 +204,24 @@ test("CI browser families use one grouped runner invocation", () => {
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-(?:first-gesture-scroll|swipe-intent|contents-single-flip|static-page-handoff)\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-critical-smoke\.spec\.ts/);
   assert.match(packageJson.scripts["test:seo:e2e"], /forbid-only/);
+});
+
+test("App CI validates and executes the public navigation family", () => {
+  assert.match(workflow, /public_navigation/);
+  assert.match(
+    workflow,
+    /public_navigation:\s+\$\{\{ steps\.classify\.outputs\.public_navigation \}\}/
+  );
+  const start = workflow.indexOf("  e2e-public-chromium:");
+  const end = workflow.indexOf("  e2e-sauge-chromium:", start);
+  const publicJob = workflow.slice(start, end);
+  assert.match(publicJob, /outputs\.run_core == 'true'/);
+  assert.match(publicJob, /run: npm run test:ci:e2e:core/);
+
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"));
+  assert.match(gate, /RUN_CORE/);
+  assert.match(gate, /public_expected=false/);
+  assert.match(gate, /\$RUN_CORE.*== true/);
 });
 
 test("the shared production artifact is built against the hermetic menu fixture", () => {

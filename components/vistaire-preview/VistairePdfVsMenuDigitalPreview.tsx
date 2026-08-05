@@ -305,7 +305,6 @@ export function VistairePdfVsMenuDigitalPreview({
 
       <div className={styles.topNav}>
         <PreviewNav
-          activeSection="home"
           currentPath={routes.pdfVsDigital}
           locale={locale}
           routeMode={routeMode}
