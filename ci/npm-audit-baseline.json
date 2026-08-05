@@ -1,43 +1,6 @@
 {
   "schema_version": 1,
   "owner": "Vistaire maintainers",
-  "lockfile_sha256": "faca2a228d9f7caa9419ede0192885f444c11868e29ee51ecf7183e14f6cfa5a",
-  "entries": [
-    {
-      "advisory_id": "GHSA-mh99-v99m-4gvg",
-      "package": "brace-expansion",
-      "dependency_path": "node_modules/brace-expansion (eslint/minimatch tooling)",
-      "scope": "dev",
-      "severity": "high",
-      "exploitability": "build-time tooling only; no production request path",
-      "owner": "Vistaire maintainers",
-      "issue": "https://github.com/MarcSaad-Hadidi/Vistaire/issues/177",
-      "reason": "Existing npm audit debt is tracked while the dependency upgrade is prepared separately.",
-      "expires_on": "2026-09-30"
-    },
-    {
-      "advisory_id": "GHSA-rgw5-rvv9-x895",
-      "package": "brace-expansion",
-      "dependency_path": "node_modules/brace-expansion (eslint/minimatch tooling)",
-      "scope": "dev",
-      "severity": "high",
-      "exploitability": "build-time tooling only; no production request path",
-      "owner": "Vistaire maintainers",
-      "issue": "https://github.com/MarcSaad-Hadidi/Vistaire/issues/177",
-      "reason": "Existing npm audit debt is tracked while the dependency upgrade is prepared separately.",
-      "expires_on": "2026-09-30"
-    },
-    {
-      "advisory_id": "GHSA-r28c-9q8g-f849",
-      "package": "postcss",
-      "dependency_path": "node_modules/postcss (Next.js/Tailwind build tooling)",
-      "scope": "dev",
-      "severity": "high",
-      "exploitability": "build-time source-map handling; no production request path",
-      "owner": "Vistaire maintainers",
-      "issue": "https://github.com/MarcSaad-Hadidi/Vistaire/issues/177",
-      "reason": "Existing npm audit debt is tracked while the dependency upgrade is prepared separately.",
-      "expires_on": "2026-09-30"
-    }
-  ]
+  "lockfile_sha256": "db33f45e2b6b9c7061733d7ef430300ab87e6ad14dc9401d3f1f28e969a8d943",
+  "entries": []
 }
