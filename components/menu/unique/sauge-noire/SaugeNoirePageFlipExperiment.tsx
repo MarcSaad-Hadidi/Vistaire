@@ -29,6 +29,7 @@ import {
   mediaIsPrepared,
   readinessMediaForSurface
 } from "./SaugeNoireMediaReadiness";
+import { resolveSaugeNoireImageUrl } from "@/lib/saugeNoireImageUrl";
 
 type PageFlipApi = {
   getCurrentPageIndex: () => number;
@@ -237,13 +238,14 @@ function applyPhysicalMediaPolicy(
       const pageIndex = Number(
         page?.getAttribute("data-sauge-flip-page-index")
       );
-      const source = image.getAttribute("data-sauge-deferred-src")?.trim() ?? "";
-      const shouldPrepare =
-        Number.isInteger(pageIndex) &&
-        preparedPageIndexes.has(pageIndex) &&
-        Boolean(source);
-
-      if (!shouldPrepare) {
+      const source = resolveSaugeNoireImageUrl(
+        image.getAttribute("data-sauge-deferred-src")
+      );
+      if (
+        !Number.isInteger(pageIndex) ||
+        !preparedPageIndexes.has(pageIndex) ||
+        !source
+      ) {
         image.removeAttribute("src");
         image.loading = "lazy";
         image.fetchPriority = "low";
@@ -253,7 +255,9 @@ function applyPhysicalMediaPolicy(
       image.loading = phase === "flip" ? "eager" : "lazy";
       image.fetchPriority = "low";
       if (image.getAttribute("src") !== source) {
-        image.setAttribute("src", source);
+        // Assign through the typed image property only after the URL has
+        // passed the Vistaire-origin/protocol/credential checks above.
+        image.src = source;
       }
     });
 }

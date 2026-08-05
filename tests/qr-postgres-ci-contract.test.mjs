@@ -6,6 +6,21 @@ async function source(path) {
   return readFile(path, "utf8");
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+test("the QR contract regex helper escapes every regex metacharacter", () => {
+  const literal = "owner.*+?^$\\{}()|[]";
+  assert.equal(
+    escapeRegExp(literal),
+    "owner\\.\\*\\+\\?\\^\\$\\\\\\{\\}\\(\\)\\|\\[\\]"
+  );
+  const pattern = new RegExp(escapeRegExp(literal));
+  assert.match(literal, pattern);
+  assert.doesNotMatch("ownerXfoo?^$\\{}()|[]", pattern);
+});
+
 test("QR package scripts expose separate Node, PostgreSQL, functional, and aggregate gates", async () => {
   const packageJson = JSON.parse(await source("package.json"));
   assert.equal(packageJson.scripts["test:qr:node"], "node scripts/run-qr-node-tests.mjs");
@@ -66,7 +81,7 @@ test("the retained PostgreSQL fixture uses the versioned rotation RPC", async ()
   const modernSignature =
     "owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean,text,uuid,integer)";
 
-  assert.match(fixture, new RegExp(modernSignature.replace(/[()]/g, "\\$&")));
+  assert.match(fixture, new RegExp(escapeRegExp(modernSignature)));
   assert.doesNotMatch(
     fixture,
     /owner_rotate_canonical_qr\(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean\)/
