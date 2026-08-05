@@ -1,6 +1,13 @@
 "use client";
 
-import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode
+} from "react";
 import type { Locale } from "@/lib/i18n";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 import {
@@ -14,6 +21,7 @@ type VistairePdfToDigitalHoverRevealProps = {
   preview: PdfComparePreviewData;
   locale?: Locale;
   prioritizePreviewImages?: boolean;
+  digitalLayer?: ReactNode;
   strings?: {
     caption: string;
     hint: string;
@@ -29,12 +37,13 @@ export function VistairePdfToDigitalHoverReveal({
   preview,
   locale = "fr",
   prioritizePreviewImages = true,
+  digitalLayer,
   strings
 }: VistairePdfToDigitalHoverRevealProps) {
   const captionId = useId();
   const frameId = useId();
   const activeTouchRectRef = useRef<DOMRect | null>(null);
-  const [revealed, setRevealed] = useState(false);
+  const [locked, setLocked] = useState(false);
   const [fingerActive, setFingerActive] = useState(false);
   const copy = strings ?? {
     caption:
@@ -89,9 +98,15 @@ export function VistairePdfToDigitalHoverReveal({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    setRevealed((current) => !current);
+    if (event.key === "Escape") {
+      setLocked(false);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setLocked((current) => !current);
+    }
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
@@ -101,7 +116,7 @@ export function VistairePdfToDigitalHoverReveal({
     }
 
     if (event.pointerType !== "mouse") return;
-    setRevealed((current) => !current);
+    setLocked((current) => !current);
   };
 
   const onPointerCancel = (event: PointerEvent<HTMLDivElement>) => {
@@ -125,10 +140,11 @@ export function VistairePdfToDigitalHoverReveal({
           <div
             aria-describedby={captionId}
             aria-label={copy.label}
-            aria-pressed={revealed || fingerActive}
+            aria-pressed={locked || fingerActive}
             className={styles.frame}
             data-preview-reveal-frame="true"
-            data-revealed={revealed ? "true" : "false"}
+            data-revealed={locked ? "true" : "false"}
+            data-reveal-locked={locked ? "true" : "false"}
             data-touching={fingerActive ? "true" : "false"}
             id={frameId}
             onKeyDown={onKeyDown}
@@ -142,10 +158,12 @@ export function VistairePdfToDigitalHoverReveal({
             tabIndex={0}
           >
             <div className={styles.vistaireLayer} data-preview-digital-layer="true">
-              <VistairePreviewMenuLayer
-                preview={preview}
-                prioritizeFirstCategory={prioritizePreviewImages}
-              />
+              {digitalLayer ?? (
+                <VistairePreviewMenuLayer
+                  preview={preview}
+                  prioritizeFirstCategory={prioritizePreviewImages}
+                />
+              )}
             </div>
             <div className={styles.pdfLayer} aria-hidden="true">
               <VistairePreviewPdfLayer

@@ -4,19 +4,13 @@ import type { ReactNode } from "react";
 import comparisonPhoto from "@/Framer/PhotoComparaisonPDF.png";
 import detailComparisonPhoto from "@/Framer/PhotoPDFvsDigitalDetail.png";
 import restaurantBackground from "@/Framer/PhotoRestoComplet3.png";
-import { getAllDishes } from "@/lib/demoMenuData";
 import type { Locale } from "@/lib/i18n";
-import { buildPdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
   type VistaireRouteMode
 } from "./VistairePreviewChrome";
-import {
-  VistairePreviewMenuLayer,
-  VistairePreviewPdfCompareSlider
-} from "./VistairePreviewPdfCompareSlider";
 import styles from "./VistairePdfVsMenuDigitalPreview.module.css";
 
 function ArrowIcon() {
@@ -42,12 +36,14 @@ export function VistairePdfVsMenuDigitalPreview({
   h1,
   locale = "fr",
   routeMode = "production",
-  seoAppendix
+  seoAppendix,
+  interactiveShowcase
 }: {
   h1?: string;
   locale?: Locale;
   routeMode?: VistaireRouteMode;
   seoAppendix?: ReactNode;
+  interactiveShowcase?: ReactNode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const copy =
@@ -283,12 +279,6 @@ export function VistairePdfVsMenuDigitalPreview({
           { label: copy.understand, href: routes.about },
           { label: copy.talk, href: routes.contact }
         ];
-  const comparePreview = buildPdfComparePreviewData({
-    activeCategorySlug: "tous",
-    locale,
-    vistaireDishSlugs: getAllDishes(locale).map((dish) => dish.slug)
-  });
-
   return (
     <main className={styles.page}>
       <Image
@@ -340,14 +330,7 @@ export function VistairePdfVsMenuDigitalPreview({
               <p>{copy.sliderEyebrow}</p>
               <h2>{copy.sliderTitle}</h2>
             </div>
-            <VistairePreviewPdfCompareSlider
-              preview={comparePreview}
-              className={styles.compareSlider}
-              locale={locale}
-              digitalLayer={
-                <VistairePreviewMenuLayer preview={comparePreview} />
-              }
-            />
+            {interactiveShowcase}
           </article>
 
           <article className={`${styles.card} ${styles.problemCard}`}>

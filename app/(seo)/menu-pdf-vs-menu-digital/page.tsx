@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
+import { SeoInteractiveComparison } from "@/components/landing/SeoInteractiveComparison";
 import { VistairePdfVsMenuDigitalPreview } from "@/components/vistaire-preview/VistairePdfVsMenuDigitalPreview";
 import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
@@ -42,6 +43,9 @@ export default function MenuPdfVsMenuDigitalRoute() {
       <JsonLd data={buildSeoPillarJsonLd(page)} />
       <VistairePdfVsMenuDigitalPreview
         h1={page.h1}
+        interactiveShowcase={
+          <SeoInteractiveComparison locale="fr" interaction="slider" />
+        }
         routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />

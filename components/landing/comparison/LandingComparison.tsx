@@ -15,6 +15,7 @@ import type {
   LandingMenuPreviewPayload
 } from "@/lib/landing/menuExperiences";
 import { VistairePreviewPdfCompareSlider } from "@/components/vistaire-preview/VistairePreviewPdfCompareSlider";
+import { VistairePdfToDigitalHoverReveal } from "@/components/vistaire-preview/VistairePdfToDigitalHoverReveal";
 import { LandingActiveMenuPreview } from "./LandingActiveMenuPreview";
 import { LandingPublicMenuLink } from "../LandingPublicMenuLink";
 import styles from "./LandingComparison.module.css";
@@ -43,11 +44,13 @@ function pendingPreview(experience: LandingExperience, message: string) {
 export function LandingComparison({
   copy,
   experiences,
-  locale
+  locale,
+  interaction = "slider"
 }: {
   copy: LandingCopy["comparison"];
   experiences: LandingExperience[];
   locale: Locale;
+  interaction?: "slider" | "reveal";
 }) {
   const instanceId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -215,6 +218,7 @@ export function LandingComparison({
               key={experience.id}
               onClick={() => activate(index)}
               onKeyDown={(event) => onTabKeyDown(event, index)}
+              onPointerDown={() => activate(index)}
               ref={(element) => {
                 tabRefs.current[index] = element;
               }}
@@ -239,28 +243,51 @@ export function LandingComparison({
           className={styles.phone}
           data-testid="landing-comparison-phone"
         >
-          <VistairePreviewPdfCompareSlider
-            digitalLayer={
-              <LandingActiveMenuPreview
-                copy={copy}
-                fallbackPreview={activeExperience.preview}
-                key={activeExperience.id}
-                locale={locale}
-                menuSlug={activeExperience.menuSlug}
-                payload={activePayload}
-              />
-            }
-            key={activeExperience.id}
-            locale={locale}
-            preview={activePreview}
-            strings={{
-              caption: copy.figureCaption,
-              hint: copy.revealHint,
-              label: copy.revealLabel,
-              pdfRegionLabel: copy.pdfRegionLabel,
-              pdfTitle: copy.pdfTitle
-            }}
-          />
+          {interaction === "reveal" ? (
+            <VistairePdfToDigitalHoverReveal
+              digitalLayer={
+                <LandingActiveMenuPreview
+                  copy={copy}
+                  fallbackPreview={activeExperience.preview}
+                  key={activeExperience.id}
+                  locale={locale}
+                  menuSlug={activeExperience.menuSlug}
+                  payload={activePayload}
+                />
+              }
+              key={activeExperience.id}
+              locale={locale}
+              preview={activePreview}
+              strings={{
+                caption: copy.figureCaption,
+                hint: copy.revealHint,
+                label: copy.revealLabel
+              }}
+            />
+          ) : (
+            <VistairePreviewPdfCompareSlider
+              digitalLayer={
+                <LandingActiveMenuPreview
+                  copy={copy}
+                  fallbackPreview={activeExperience.preview}
+                  key={activeExperience.id}
+                  locale={locale}
+                  menuSlug={activeExperience.menuSlug}
+                  payload={activePayload}
+                />
+              }
+              key={activeExperience.id}
+              locale={locale}
+              preview={activePreview}
+              strings={{
+                caption: copy.figureCaption,
+                hint: copy.revealHint,
+                label: copy.revealLabel,
+                pdfRegionLabel: copy.pdfRegionLabel,
+                pdfTitle: copy.pdfTitle
+              }}
+            />
+          )}
         </div>
         <div className={styles.activeCopy}>
           <p>{activeExperience.label}</p>
