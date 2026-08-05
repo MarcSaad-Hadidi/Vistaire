@@ -91,6 +91,15 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
   assert.doesNotMatch(menuPages, /\.glb|\.usdz|model-viewer/);
 });
 
+test("Sauge Noire gives each dish its own closed 3D viewer lifecycle", async () => {
+  const detail = await readFile(detailPath, "utf8");
+
+  assert.match(
+    detail,
+    /<SaugeNoireDish3dSection\s+key=\{dish\.id\}[\s\S]*dish=\{dish\}/
+  );
+});
+
 test("locale and currency remain part of menu and dish navigation state", async () => {
   const book = await readFile(bookPath, "utf8");
   const detail = await readFile(detailPath, "utf8");
