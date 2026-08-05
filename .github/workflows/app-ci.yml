@@ -44,6 +44,7 @@ jobs:
       dependencies: ${{ steps.classify.outputs.dependencies }}
       assets: ${{ steps.classify.outputs.assets }}
       core: ${{ steps.classify.outputs.core }}
+      public_navigation: ${{ steps.classify.outputs.public_navigation }}
       database: ${{ steps.classify.outputs.database }}
       translations: ${{ steps.classify.outputs.translations }}
       landing: ${{ steps.classify.outputs.landing }}
@@ -97,7 +98,7 @@ jobs:
         run: |
           node --input-type=module - <<'NODE'
           const outputs = JSON.parse(process.env.OUTPUTS_JSON);
-          const outputNames = ['docs_only','ci_infrastructure','dependencies','assets','core','database','translations','landing','seo','menu_shared','sauge_renderer','pageflip_gestures','admin','qr','full_ci','run_static','run_database','run_build','run_core','run_landing','run_menu','run_sauge','run_admin_qr','run_seo','run_webkit','classification_valid'];
+          const outputNames = ['docs_only','ci_infrastructure','dependencies','assets','core','public_navigation','database','translations','landing','seo','menu_shared','sauge_renderer','pageflip_gestures','admin','qr','full_ci','run_static','run_database','run_build','run_core','run_landing','run_menu','run_sauge','run_admin_qr','run_seo','run_webkit','classification_valid'];
           for (const key of outputNames) {
             if (!['true','false'].includes(outputs[key])) throw new Error(`classifier output ${key} is invalid`);
           }

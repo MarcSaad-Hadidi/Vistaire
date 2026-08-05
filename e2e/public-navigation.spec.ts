@@ -53,6 +53,17 @@ function topNavigation(page: Page) {
   ).first();
 }
 
+async function expectNoCurrent(
+  nav: ReturnType<typeof topNavigation>,
+  labels: readonly string[]
+) {
+  for (const label of labels) {
+    await expect(nav.getByRole("link", { name: label, exact: true })).not.toHaveAttribute(
+      "aria-current"
+    );
+  }
+}
+
 async function expectHomeNavigation(
   page: Page,
   scenario: HomeScenario
@@ -63,6 +74,11 @@ async function expectHomeNavigation(
 
   await expect(home).toHaveAttribute("href", scenario.expectedPath);
   await expect(home).not.toHaveAttribute("aria-current");
+  await expectNoCurrent(nav, [
+    scenario.label === "Accueil" ? "Carte" : "Menu",
+    scenario.label === "Accueil" ? "À propos" : "About",
+    "Contact"
+  ]);
 
   await home.click();
   await expect
@@ -92,14 +108,15 @@ test.describe("Vistaire public navigation", () => {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       const nav = topNavigation(page);
       const home = nav.getByRole("link", { name: scenario.label, exact: true });
-      const href = await home.getAttribute("href");
 
-      if (href?.startsWith("#")) {
-        await expect(page.locator(href)).toHaveCount(1);
-        await expect(home).toHaveAttribute("aria-current", "page");
-      } else {
-        await expect(home).toHaveAttribute("href", scenario.expectedPath);
-      }
+      await expect(home).toHaveAttribute("href", "#accueil");
+      await expect(page.locator("#accueil")).toHaveCount(1);
+      await expect(home).toHaveAttribute("aria-current", "page");
+      await expectNoCurrent(nav, [
+        scenario.label === "Accueil" ? "Carte" : "Menu",
+        scenario.label === "Accueil" ? "À propos" : "About",
+        "Contact"
+      ]);
     }
   });
 
@@ -118,6 +135,11 @@ test.describe("Vistaire public navigation", () => {
       await expect(page.locator("#carte")).toHaveCount(1);
       await expect(menu).toHaveAttribute("aria-current", "page");
       await expect(home).toHaveAttribute("href", scenario.expectedPath);
+      await expectNoCurrent(nav, [
+        homeLabel,
+        scenario.label === "Carte" ? "À propos" : "About",
+        "Contact"
+      ]);
     }
   });
 
@@ -157,6 +179,10 @@ test.describe("Vistaire public navigation", () => {
       await expect(link).toHaveAttribute("href", scenario.href);
       await expect(page.locator(scenario.anchor)).toHaveCount(1);
       await expect(link).toHaveAttribute("aria-current", "page");
+      const labels = scenario.path.startsWith("/en")
+        ? ["Home", "Menu", "About", "Contact"]
+        : ["Accueil", "Carte", "À propos", "Contact"];
+      await expectNoCurrent(nav, labels.filter((label) => label !== scenario.label));
     }
   });
 
@@ -188,6 +214,12 @@ test.describe("Vistaire public navigation", () => {
       await expect(
         nav.getByRole("link", { name: scenario.aboutLabel, exact: true })
       ).toHaveAttribute("href", scenario.aboutPath);
+      await expectNoCurrent(nav, [
+        scenario.path.startsWith("/en") ? "Home" : "Accueil",
+        scenario.menuLabel,
+        scenario.aboutLabel,
+        "Contact"
+      ]);
     }
   });
 
@@ -214,6 +246,12 @@ test.describe("Vistaire public navigation", () => {
 
       await expect(contact).toHaveAttribute("href", scenario.expectedContact);
       await expect(home).toHaveAttribute("href", scenario.home);
+      await expectNoCurrent(nav, [
+        scenario.home === "/" ? "Accueil" : "Home",
+        scenario.home === "/" ? "Carte" : "Menu",
+        scenario.home === "/" ? "À propos" : "About",
+        "Contact"
+      ]);
     }
   });
 
