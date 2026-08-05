@@ -58,5 +58,8 @@ migration("tests/postgres/qr-lifecycle/run.sql");
 // The canonical suite installs the production migration once. A second real
 // psql application here is a blocking proof that its complete DDL is rerunnable.
 migration("supabase/migrations/20260717120000_owner_qr_canonical_lifecycle.sql");
+// Re-apply the additive permanence boundary after the historical migration
+// rerun so the final installed RPC definitions remain protected as well.
+migration("supabase/migrations/20260805090000_enforce_public_qr_permanence.sql");
 
 console.log("QR PostgreSQL 17 migration, history, security, RPC, rotation, and concurrency checks passed.");

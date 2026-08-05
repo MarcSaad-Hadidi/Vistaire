@@ -16,8 +16,10 @@
 \ir ../../../supabase/migrations/20260709180000_admin_qr_access.sql
 \ir snapshot-fixture.sql
 \ir ../../../supabase/migrations/20260717120000_owner_qr_canonical_lifecycle.sql
+\ir ../../../supabase/migrations/20260805090000_enforce_public_qr_permanence.sql
 
 \ir migration-security.test.sql
+\ir public-permanence.test.sql
 \ir lifecycle.test.sql
 \ir concurrency.test.sql
 

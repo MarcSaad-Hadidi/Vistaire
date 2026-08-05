@@ -512,6 +512,15 @@ export function createQrSupabaseFixture(options = {}) {
         error: { code: "22023", message: "QR rotation disposition is invalid" }
       };
     }
+    if (
+      previous.target_kind === "menu" &&
+      params.p_disposition !== "keep-active"
+    ) {
+      return {
+        data: null,
+        error: { code: "P0001", message: "public_qr_permanent" }
+      };
+    }
     if (!params.p_rotation_request_id) {
       return {
         data: null,
@@ -630,6 +639,15 @@ export function createQrSupabaseFixture(options = {}) {
       return {
         data: null,
         error: { code: "P0002", message: "canonical QR was not found" }
+      };
+    }
+    if (
+      row.target_kind === "menu" &&
+      ["pause", "archive", "revoke"].includes(action)
+    ) {
+      return {
+        data: null,
+        error: { code: "P0001", message: "public_qr_permanent" }
       };
     }
     const existingEvent = lifecycleEvents.find(

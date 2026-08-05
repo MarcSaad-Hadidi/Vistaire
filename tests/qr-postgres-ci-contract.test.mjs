@@ -20,6 +20,7 @@ test("QR package scripts expose separate Node, PostgreSQL, functional, and aggre
 test("the PostgreSQL runner applies the production QR migrations with real psql", async () => {
   const runner = await source("scripts/run-qr-postgres-tests.mjs");
   assert.match(runner, /20260717120000_owner_qr_canonical_lifecycle\.sql/);
+  assert.match(runner, /20260805090000_enforce_public_qr_permanence\.sql/);
   assert.match(runner, /spawnSync\("psql"/);
   assert.match(runner, /VISTAIRE_QR_POSTGRES_TEST/);
   assert.match(runner, /server_version_num/);
@@ -29,6 +30,25 @@ test("the PostgreSQL runner applies the production QR migrations with real psql"
       runner.lastIndexOf("20260717120000_owner_qr_canonical_lifecycle.sql"),
     "the blocking SQL suite must run before the explicit rerun of the production migration"
   );
+  assert.ok(
+    runner.lastIndexOf("20260717120000_owner_qr_canonical_lifecycle.sql") <
+      runner.lastIndexOf("20260805090000_enforce_public_qr_permanence.sql"),
+    "the additive permanence migration must be the final installed RPC boundary"
+  );
+});
+
+test("the additive QR migration protects menu RPCs and keeps private helpers unreachable", async () => {
+  const migration = await source(
+    "supabase/migrations/20260805090000_enforce_public_qr_permanence.sql"
+  );
+  assert.match(migration, /owner_rotate_canonical_qr\(/);
+  assert.match(migration, /owner_set_canonical_qr_lifecycle\(/);
+  assert.match(migration, /owner_clear_canonical_qr\(/);
+  assert.match(migration, /v_previous\.target_kind\s*=\s*'menu'[\s\S]*v_disposition\s*<>\s*'keep-active'/i);
+  assert.match(migration, /v_current\.target_kind\s*=\s*'menu'[\s\S]*v_action\s+in\s*\('pause',\s*'revoke'\)/i);
+  assert.match(migration, /v_current\.target_kind\s*=\s*'menu'[\s\S]*message\s*=\s*'public_qr_permanent'/i);
+  assert.match(migration, /security\s+definer/i);
+  assert.match(migration, /revoke execute on function public\._owner_rotate_canonical_qr_unchecked/i);
 });
 
 test("the PostgreSQL fixture supplies the minimal Supabase storage bucket contract", async () => {

@@ -679,6 +679,14 @@ export function OwnerQrCustomizer({
     payload: QrApiPayload,
     fallback: string
   ) {
+    if (payload.code === "public-qr-permanent") {
+      setOutcome({
+        kind: "error",
+        message:
+          payload.error ?? "Les QR publics existants doivent rester actifs."
+      });
+      return;
+    }
     if (response.status === 409) {
       setOutcome({
         kind: "conflict",
