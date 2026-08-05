@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { DemoPhoneShowcase } from "@/components/vistaire-preview/DemoPhoneShowcase";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i18n";
-import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
-import { absoluteUrl } from "@/lib/seo";
-import { buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { getLandingExperiences } from "@/lib/landing/menuExperiences";
+import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 const canonicalPath = "/demo";
-const title = "Menu client exemple | Maison Élyse";
+const title = "Menu client exemple | Vistaire";
 const description =
-  "Maison Élyse est un restaurant exemple de présentation Vistaire : menu client, fiches plats, allergènes, accords et vues immersives.";
+  "Explorez trois expériences de menu client Vistaire, pensées pour une lecture fluide à table.";
 
 export const metadata: Metadata = {
   title,
@@ -31,44 +29,30 @@ export const metadata: Metadata = {
 };
 
 type DemoPageProps = {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; experience?: string }>;
 };
 
 export default async function DemoPage({ searchParams }: DemoPageProps) {
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const menuLocale = hasLangParam ? normalizeLocale(query.lang) : "fr";
-  const [frenchMenu, englishMenu] = await Promise.all([
-    getPublicMenuBySlug("maison-elyse", "fr"),
-    getPublicMenuBySlug("maison-elyse", "en")
-  ]);
-
-  if (!frenchMenu || !englishMenu) {
-    notFound();
-  }
-
-  const menu = menuLocale === "en" ? englishMenu : frenchMenu;
+  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const experiences = await getLandingExperiences(locale);
 
   return (
     <>
       <JsonLd
         data={[
-          buildWebPageJsonLd({
-            path: canonicalPath,
-            name: title,
-            description
-          }),
+          buildWebPageJsonLd({ path: canonicalPath, name: title, description }),
           buildBreadcrumbJsonLd([
             { name: "Accueil", path: "/" },
-            { name: "Menu client exemple", path: canonicalPath }
+            { name: "Menu client Vistaire", path: canonicalPath }
           ])
         ]}
       />
       <DemoPhoneShowcase
-        localizedMenus={{ fr: frenchMenu, en: englishMenu }}
-        menu={menu}
-        menuLocale={menuLocale}
-        menuQuery={hasLangParam ? { lang: menuLocale } : undefined}
+        experiences={experiences}
+        locale={locale}
+        menuLocale={locale}
       />
     </>
   );
