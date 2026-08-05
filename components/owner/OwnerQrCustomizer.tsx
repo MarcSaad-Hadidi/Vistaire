@@ -1098,13 +1098,13 @@ export function OwnerQrCustomizer({
         ) : null}
         <div className={styles.qrPreviewActions}>
           <button type="button" className={styles.btn} onClick={copyUrl} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
-            Lien QR
+            Copier URL QR
           </button>
           <button type="button" className={styles.btn} onClick={downloadPng} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
-            PNG
+            Télécharger PNG
           </button>
           <button type="button" className={styles.btn} onClick={downloadSvg} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
-            SVG
+            Télécharger SVG
           </button>
         </div>
         {targetKind === "admin" ? (
@@ -1684,6 +1684,11 @@ function triggerDownload(href: string, fileName: string) {
   const link = document.createElement("a");
   link.href = href;
   link.download = fileName;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  if (href.startsWith("blob:")) URL.revokeObjectURL(href);
+  window.setTimeout(() => {
+    link.remove();
+    if (href.startsWith("blob:")) URL.revokeObjectURL(href);
+  }, 1_000);
 }
