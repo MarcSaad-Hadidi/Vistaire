@@ -155,7 +155,6 @@ export function VistaireRestaurateurDashboardPreview({
 
       <div className={styles.topNav}>
         <PreviewNav
-          activeSection="home"
           currentPath={routes.restaurateurDashboard}
           locale={locale}
           routeMode={routeMode}

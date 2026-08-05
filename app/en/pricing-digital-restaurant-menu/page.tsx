@@ -173,7 +173,6 @@ export default function PricingDigitalRestaurantMenuRouteEn() {
 
         <div className={styles.topNav}>
           <PreviewNav
-            activeSection="home"
             currentPath={page.path}
             locale="en"
             routeMode="production"

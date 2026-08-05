@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLocalizedPath, type Locale } from "@/lib/i18n";
+import { getLocalizedPath, normalizePathname, type Locale } from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
 import {
   CONTACT_PHONE_DISPLAY,
@@ -144,29 +144,37 @@ function getPreviewNav(
   routes: VistaireChromeRoutes,
   activeSection?: PreviewNavSection,
   contactHref = "#contact-preview",
-  locale: Locale = "fr"
+  locale: Locale = "fr",
+  currentPath = routes.home
 ): PreviewNavItem[] {
   const labels = navLabels[locale];
+  const normalizedCurrentPath = normalizePathname(currentPath);
+  const isCurrentRoute = (route: string) =>
+    normalizedCurrentPath === normalizePathname(route);
+  const isLocalHref = (href: string) => href.startsWith("#") && href.length > 1;
 
   return [
     {
       label: labels.home,
-      href: activeSection === "home" ? "#accueil" : routes.home,
+      href: isCurrentRoute(routes.home) ? "#accueil" : routes.home,
       active: activeSection === "home"
     },
     {
       label: labels.menu,
-      href: activeSection === "menu" ? "#carte" : routes.menu,
+      href: isCurrentRoute(routes.menu) ? "#carte" : routes.menu,
       active: activeSection === "menu"
     },
     {
       label: labels.about,
-      href: activeSection === "about" ? "#a-propos" : routes.about,
+      href: isCurrentRoute(routes.about) ? "#a-propos" : routes.about,
       active: activeSection === "about"
     },
     {
       label: labels.contact,
-      href: activeSection === "contact" ? contactHref : routes.contact,
+      href:
+        isCurrentRoute(routes.contact) && isLocalHref(contactHref)
+          ? contactHref
+          : routes.contact,
       active: activeSection === "contact"
     }
   ];
@@ -227,7 +235,7 @@ export function PreviewNav({
   routeMode?: VistaireRouteMode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
-  const resolvedCurrentPath = currentPath ?? routes.home;
+  const resolvedCurrentPath = normalizePathname(currentPath ?? routes.home);
 
   return (
     <nav
@@ -247,7 +255,13 @@ export function PreviewNav({
       </Link>
 
       <div className={styles.navLinks}>
-        {getPreviewNav(routes, activeSection, contactHref, locale).map((item) => {
+        {getPreviewNav(
+          routes,
+          activeSection,
+          contactHref,
+          locale,
+          resolvedCurrentPath
+        ).map((item) => {
           const isCurrentPage = item.active && item.href.startsWith("#");
 
           return (
