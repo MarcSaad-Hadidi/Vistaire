@@ -534,10 +534,11 @@ async function buildLandingExperiences(
             ...experience,
             preview: current.preview,
             hasLiveData: false,
-            renderPayload:
-              experience.id === "maison-elyse"
-                ? landingRenderPayload(experience, renderContext, current.preview)
-                : null
+            renderPayload: landingRenderPayload(
+              experience,
+              renderContext,
+              current.preview
+            )
           };
         }
         const dish = current.featuredDish;
@@ -554,10 +555,11 @@ async function buildLandingExperiences(
           ...experience,
           preview: current.preview,
           hasLiveData: true,
-          renderPayload:
-            experience.id === "maison-elyse"
-              ? landingRenderPayload(experience, renderContext, current.preview)
-              : null,
+          renderPayload: landingRenderPayload(
+            experience,
+            renderContext,
+            current.preview
+          ),
           featuredDish: {
             id: dish.id,
             slug: dish.slug,

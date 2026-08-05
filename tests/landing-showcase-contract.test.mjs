@@ -361,13 +361,17 @@ test("landing and the public menu route share the official render-context resolv
   assert.match(resolver, /getExchangeRates/);
 });
 
-test("landing serializes only Maison Elyse and lazy-loads later menu payloads", async () => {
+test("landing serializes renderer payloads for every approved restaurant", async () => {
   const comparison = await source(
     "components/landing/comparison/LandingComparison.tsx"
   );
   const landingData = await source("lib/landing/menuExperiences.ts");
 
-  assert.match(
+  assert.equal(
+    (landingData.match(/renderPayload:\s*landingRenderPayload\s*\(/g) ?? []).length,
+    2
+  );
+  assert.doesNotMatch(
     landingData,
     /experience\.id === "maison-elyse"\s*\?\s*landingRenderPayload/
   );
