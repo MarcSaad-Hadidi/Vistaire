@@ -62,6 +62,9 @@ test("keeps the 3D viewer closed after next and previous dish navigation", async
   // The stage is the loading boundary: model-viewer/GLB availability can vary
   // with the fixture's media response, but the open state must be observable.
   await expect(page.locator("[data-viewer-copy-locale]")).toHaveCount(1);
+  await expect
+    .poll(() => glbRequests.length, { timeout: 15_000 })
+    .toBeGreaterThan(0);
   const openedRequestCount = glbRequests.length;
 
   await surface.getByRole("link", { name: /prochain plat/i }).click();
