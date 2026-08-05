@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import styles from "@/components/owner/OwnerCockpit.module.css";
+import styles from "@/components/owner/OwnerQrManagement.module.css";
 import { OwnerQrCustomizer } from "@/components/owner/OwnerQrCustomizer";
 import {
   buildOwnerQrTarget,
@@ -74,6 +74,30 @@ export function OwnerQrManager({
 
   return (
     <div className={styles.qrManager}>
+      <div className={styles.qrTabs} role="group" aria-label="Type de QR">
+        <button
+          id="qr-tab-public"
+          type="button"
+          aria-label="QR menu public"
+          aria-pressed={targetKind === "menu"}
+          className={`${styles.qrTab} ${targetKind === "menu" ? styles.qrTabActive : ""}`}
+          onClick={() => setTargetKind("menu")}
+        >
+          <span className={styles.qrTabIcon} aria-hidden="true">◎</span>
+          <span><strong>Menu public</strong><small>QR codes pour vos clients</small></span>
+        </button>
+        <button
+          id="qr-tab-admin"
+          type="button"
+          aria-label="QR dashboard restaurant — Interne restaurant"
+          aria-pressed={targetKind === "admin"}
+          className={`${styles.qrTab} ${targetKind === "admin" ? styles.qrTabActive : ""}`}
+          onClick={() => setTargetKind("admin")}
+        >
+          <span className={styles.qrTabIcon} aria-hidden="true">▣</span>
+          <span><strong>Accès restaurant</strong><small>QR privé pour le dashboard interne · Ne pas imprimer pour les clients</small></span>
+        </button>
+      </div>
       <div className={styles.qrSetupGrid}>
         <label className={styles.field}>
           <span className={styles.fieldLabel}>Restaurant</span>
@@ -90,39 +114,10 @@ export function OwnerQrManager({
           </select>
         </label>
 
-        <div
-          className={styles.qrTypeGroup}
-          role="group"
-          aria-label="Type de QR"
-        >
-          <button
-            type="button"
-            className={`${styles.qrTypeButton} ${
-              targetKind === "menu" ? styles.qrTypeButtonActive : ""
-            }`}
-            aria-pressed={targetKind === "menu"}
-            onClick={() => setTargetKind("menu")}
-          >
-            <span>QR menu public</span>
-            <small>A imprimer sur les tables ou a donner aux clients.</small>
-          </button>
-          <button
-            type="button"
-            className={`${styles.qrTypeButton} ${
-              targetKind === "admin" ? styles.qrTypeButtonActive : ""
-            }`}
-            aria-pressed={targetKind === "admin"}
-            onClick={() => setTargetKind("admin")}
-          >
-            <span>QR dashboard restaurant</span>
-            <em>Interne restaurant</em>
-            <small>Ne pas imprimer pour les clients.</small>
-          </button>
-        </div>
       </div>
 
       {selectedTarget ? (
-        <div className={styles.qrTargetBanner}>
+        <div className={`${styles.qrTargetBanner} ${selectedTarget.targetKind === "admin" ? styles.qrAdminBanner : ""}`}>
           <span className={styles.badge}>{selectedTarget.badgeLabel}</span>
           <div>
             <strong>Destination exacte</strong>

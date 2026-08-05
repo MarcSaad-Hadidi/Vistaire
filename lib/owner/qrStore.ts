@@ -914,6 +914,41 @@ export async function rotateOwnerQrCode(
   const admin = getSupabaseAdminClient();
   if (!admin.ok) return canonicalConfigFailure("canonical-rotate", admin.reason);
 
+  // Read the persisted row before looking at idempotency state so a direct
+  // request cannot replay or reach the RPC with a destructive public
+  // disposition. The database row, never a client-supplied target kind, is
+  // authoritative for this policy.
+  const { data: policyRow, error: policyReadError } = await admin.client
+    .from(QR_TABLE)
+    .select(CANONICAL_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (policyReadError && !isSupabaseMiss(policyReadError)) {
+    const incidentId = logQrSupabaseIncident({
+      operation: "canonical-rotate",
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      supabaseError: policyReadError
+    });
+    return buildQrSupabaseFailure({
+      code: "QR_CANONICAL_ROTATE_FAILED",
+      incidentId
+    });
+  }
+  if (!policyRow) {
+    return { ok: false, code: "not-found", error: "QR canonique introuvable." };
+  }
+  const policyPrevious = mapQrRow(policyRow as unknown as AnyRow);
+  if (
+    policyPrevious.targetKind === "menu" &&
+    args.previousDisposition !== "keep-active"
+  ) {
+    return {
+      ok: false,
+      code: "public-qr-permanent",
+      error: "Les QR publics existants doivent rester actifs."
+    };
+  }
+
   const completed = await recoverCompletedRotation(admin.client, {
     previousId: id,
     idempotencyKey: args.idempotencyKey,
@@ -950,6 +985,16 @@ export async function rotateOwnerQrCode(
       ok: false,
       code: "config-version-conflict",
       error: "Le QR a ete modifie ailleurs. Rechargez avant de reessayer."
+    };
+  }
+  if (
+    previous.targetKind === "menu" &&
+    args.previousDisposition !== "keep-active"
+  ) {
+    return {
+      ok: false,
+      code: "public-qr-permanent",
+      error: "Les QR publics existants doivent rester actifs."
     };
   }
   const verifiedPrevious = await recoverCanonicalRecord(previousData);
@@ -1038,6 +1083,13 @@ export async function rotateOwnerQrCode(
     if (completedAfterRace) return completedAfterRace;
   }
   const errorText = `${error?.message ?? ""}\n${error?.details ?? ""}`;
+  if (error && (error.code === "P0001" || /public[_ -]qr[_ -]permanent/i.test(errorText))) {
+    return {
+      ok: false,
+      code: "public-qr-permanent",
+      error: "Les QR publics existants doivent rester actifs."
+    };
+  }
   if (error && (error.code === "P0002" || /canonical QR.*not found/i.test(errorText))) {
     return classifyRotationCanonicalMiss(admin.client, id);
   }
@@ -1328,6 +1380,16 @@ export async function transitionOwnerQrLifecycle(
     return { ok: false, code: "not-found", error: "QR canonique introuvable." };
   }
   const current = mapInventoryRow(currentRow as unknown as AnyRow);
+  if (
+    current.targetKind === "menu" &&
+    ["pause", "archive", "revoke"].includes(args.action)
+  ) {
+    return {
+      ok: false,
+      code: "public-qr-permanent",
+      error: "Un QR public ne peut pas être désactivé."
+    };
+  }
   const rpcName =
     args.action === "archive"
       ? "owner_clear_canonical_qr"
@@ -1350,6 +1412,13 @@ export async function transitionOwnerQrLifecycle(
         };
   const { data, error } = await admin.client.rpc(rpcName, rpcArgs);
   const errorText = `${error?.message ?? ""}\n${error?.details ?? ""}`;
+  if (error && (error.code === "P0001" || /public[_ -]qr[_ -]permanent/i.test(errorText))) {
+    return {
+      ok: false,
+      code: "public-qr-permanent",
+      error: "Un QR public ne peut pas être désactivé."
+    };
+  }
   if (error && (error.code === "P0002" || /canonical QR.*not found/i.test(errorText))) {
     return classifyLifecycleCanonicalMiss(
       admin.client,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import styles from "@/components/owner/OwnerCockpit.module.css";
+import styles from "@/components/owner/OwnerQrManagement.module.css";
 import {
   DEFAULT_OWNER_QR_STYLE,
   OWNER_QR_LOGO_MAX_PERCENT,
@@ -52,6 +52,10 @@ type SafeHistoryRecord = Pick<
   | "createdAt"
   | "updatedAt"
 >;
+
+type SafePublicHistoryRecord = SafeHistoryRecord & {
+  targetPath: string;
+};
 
 type QrMachineState =
   | "loading"
@@ -113,14 +117,6 @@ const STATUS_LABELS: Record<QrLifecycleStatus, string> = {
   revoked: "Révoqué"
 };
 
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function isOpaqueQrRedirect(value: string): boolean {
   try {
     const url = new URL(value, "https://vistaire.local");
@@ -166,7 +162,7 @@ function normalizeSafeHistory(
     targetKind: OwnerQrTargetKind;
     canonicalId?: string | null;
   }
-): SafeHistoryRecord[] {
+): SafePublicHistoryRecord[] {
   return records.flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
       return [];
@@ -190,6 +186,8 @@ function normalizeSafeHistory(
         status: record.status,
         isCanonical: false,
         recoverable: Boolean(record.recoverable),
+        targetPath:
+          typeof record.targetPath === "string" ? record.targetPath : "",
         scanCount:
           typeof record.scanCount === "number" && Number.isFinite(record.scanCount)
             ? record.scanCount
@@ -208,6 +206,22 @@ function inventoryRecords(payload: QrInventoryPayload): unknown[] {
   return [];
 }
 
+function safePublicDestination(path: string): string {
+  if (!path || typeof window === "undefined") return "";
+  try {
+    const url = new URL(path, window.location.origin);
+    if (
+      url.origin !== window.location.origin ||
+      !/^\/(?:menu|demo)(?:\/|$)/.test(url.pathname)
+    ) {
+      return "";
+    }
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 function mutationError(payload: QrApiPayload, fallback: string): string {
   return payload.error?.trim() || fallback;
 }
@@ -217,42 +231,6 @@ function statusAfterAction(action: StatusAction): QrLifecycleStatus {
   if (action === "resume") return "active";
   if (action === "archive") return "archived";
   return "revoked";
-}
-
-function injectLogo(svg: string, style: OwnerQrStyle): string {
-  if (style.logoMode === "none") return svg;
-  const viewBoxMatch = svg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
-  const size = viewBoxMatch ? Number(viewBoxMatch[1]) : 0;
-  if (!size) return svg;
-
-  const logoSize = (size * style.logoSizePercent) / 100;
-  const plate = logoSize * 1.32;
-  const center = size / 2;
-  const x = center - plate / 2;
-  const y = center - plate / 2;
-
-  let inner = "";
-  if (style.logoMode === "monogram") {
-    inner = `<text x="${center}" y="${center}" text-anchor="middle" dominant-baseline="central" font-family="Georgia, 'Times New Roman', serif" font-size="${(
-      logoSize * 0.66
-    ).toFixed(2)}" font-weight="700" fill="${escapeXml(
-      style.foregroundColor
-    )}">${escapeXml(style.logoText || "V")}</text>`;
-  } else if (style.logoMode === "imageUrl" && style.logoImageUrl) {
-    const ix = center - logoSize / 2;
-    const iy = center - logoSize / 2;
-    inner = `<image href="${escapeXml(
-      style.logoImageUrl
-    )}" x="${ix}" y="${iy}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet" />`;
-  }
-
-  const overlay = `<g><rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${(
-    plate * 0.18
-  ).toFixed(2)}" fill="${escapeXml(style.backgroundColor)}" stroke="${escapeXml(
-    style.accentColor
-  )}" stroke-width="${(size * 0.01).toFixed(2)}" />${inner}</g>`;
-
-  return svg.replace("</svg>", `${overlay}</svg>`);
 }
 
 export function OwnerQrCustomizer({
@@ -283,7 +261,7 @@ export function OwnerQrCustomizer({
   const [operation, setOperation] = useState<Operation>(null);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const [configVersion, setConfigVersion] = useState<ConfigVersion | null>(null);
-  const [history, setHistory] = useState<SafeHistoryRecord[]>([]);
+  const [history, setHistory] = useState<SafePublicHistoryRecord[]>([]);
   const [historyLoadState, setHistoryLoadState] =
     useState<"loading" | "ready" | "error">("loading");
   const [savedStyleFingerprint, setSavedStyleFingerprint] = useState("");
@@ -370,22 +348,34 @@ export function OwnerQrCustomizer({
     return new URL(value, window.location.origin).toString();
   }, []);
 
+  const renderQrSvg = useCallback(
+    async (
+      value: string,
+      renderStyle: OwnerQrStyle,
+      record: QrLifecycleRecord | null
+    ) => {
+      const { renderOwnerQrSvg } = await import("@/lib/owner/qrRenderer");
+      return renderOwnerQrSvg({
+        url: qrValueForBrowser(value),
+        style: renderStyle,
+        restaurantName,
+        targetKind,
+        qrId: record?.id,
+        configVersion: record?.configVersion,
+        dimensions: 320,
+        mode: "preview"
+      });
+    },
+    [qrValueForBrowser, restaurantName, targetKind]
+  );
+
   useEffect(() => {
     if (!qrValue) return;
     let active = true;
     async function render() {
       try {
-        const QRCode = await import("qrcode");
-        const base = await QRCode.toString(qrValueForBrowser(qrValue), {
-          type: "svg",
-          errorCorrectionLevel: style.errorCorrectionLevel,
-          margin: style.padding,
-          color: {
-            dark: style.foregroundColor,
-            light: style.backgroundColor
-          }
-        });
-        if (active) setSvgMarkup(injectLogo(base, style));
+        const svg = await renderQrSvg(qrValue, style, canonicalRecord);
+        if (active) setSvgMarkup(svg);
       } catch {
         if (active) setSvgMarkup("");
       }
@@ -394,7 +384,7 @@ export function OwnerQrCustomizer({
     return () => {
       active = false;
     };
-  }, [qrValue, qrValueForBrowser, style]);
+  }, [canonicalRecord, qrValue, renderQrSvg, style]);
 
   const loadCanonicalQr = useCallback(async () => {
     const sequence = ++loadSequence.current;
@@ -552,6 +542,50 @@ export function OwnerQrCustomizer({
     }
   }
 
+  function closeInventoryMenu(target: HTMLElement) {
+    target.closest("details")?.removeAttribute("open");
+  }
+
+  async function copyPublicDestination(
+    path: string,
+    trigger: HTMLButtonElement
+  ) {
+    closeInventoryMenu(trigger);
+    const destination = safePublicDestination(path);
+    if (!destination) {
+      setOutcome({
+        kind: "error",
+        message: "Destination publique indisponible pour ce QR."
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(destination);
+      setOutcome({
+        kind: "success",
+        message: "Destination publique copiée. Le QR sécurisé reste inchangé."
+      });
+    } catch {
+      setOutcome({
+        kind: "error",
+        message: "Copie impossible. Ouvrez le menu pour copier son adresse."
+      });
+    }
+  }
+
+  function openPublicDestination(path: string, trigger: HTMLButtonElement) {
+    closeInventoryMenu(trigger);
+    const destination = safePublicDestination(path);
+    if (!destination) {
+      setOutcome({
+        kind: "error",
+        message: "Destination publique indisponible pour ce QR."
+      });
+      return;
+    }
+    window.open(destination, "_blank", "noopener,noreferrer");
+  }
+
   function downloadSvg() {
     if (!canExportQr) return;
     const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
@@ -645,6 +679,14 @@ export function OwnerQrCustomizer({
     payload: QrApiPayload,
     fallback: string
   ) {
+    if (payload.code === "public-qr-permanent") {
+      setOutcome({
+        kind: "error",
+        message:
+          payload.error ?? "Les QR publics existants doivent rester actifs."
+      });
+      return;
+    }
     if (response.status === 409) {
       setOutcome({
         kind: "conflict",
@@ -707,6 +749,25 @@ export function OwnerQrCustomizer({
           message: "Réponse QR invalide. Aucune modification n’est confirmée."
         });
         return;
+      }
+      const persistedQrValue =
+        record.redirectUrl && isOpaqueQrRedirect(record.redirectUrl)
+          ? record.redirectUrl
+          : isUpdate && qrValue
+            ? qrValue
+            : "";
+      if (record.recoverable && record.status === "active" && persistedQrValue) {
+        try {
+          const renderedSvg = await renderQrSvg(
+            persistedQrValue,
+            record.style,
+            record
+          );
+          setSvgMarkup(renderedSvg);
+        } catch {
+          // The render effect retries in the browser. A renderer hiccup must
+          // not turn a persisted QR mutation into a false failed save.
+        }
       }
       setOutcome({
         kind: "success",
@@ -800,6 +861,7 @@ export function OwnerQrCustomizer({
     }
     setOperation("rotating");
     setOutcome({ kind: "idle" });
+    const disposition = targetKind === "menu" ? "keep-active" : previousDisposition;
     try {
       const response = await fetch(
         `/api/owner/qr-codes/${encodeURIComponent(canonicalRecord.id)}/rotate`,
@@ -809,7 +871,7 @@ export function OwnerQrCustomizer({
           body: JSON.stringify({
             confirmed: true,
             idempotencyKey: crypto.randomUUID(),
-            previousDisposition,
+            previousDisposition: disposition,
             expectedConfigVersion: configVersion
           })
         }
@@ -840,7 +902,10 @@ export function OwnerQrCustomizer({
       }
       setOutcome({
         kind: "success",
-        message: "Nouveau QR actif. La disposition de l’ancien QR a été appliquée."
+        message:
+          targetKind === "menu"
+            ? "Nouveau QR public actif. L’ancien QR public reste actif."
+            : "Nouveau QR actif. La disposition de l’ancien QR a été appliquée."
       });
     } catch {
       setOutcome({ kind: "error", message: "Erreur réseau pendant la rotation." });
@@ -883,6 +948,8 @@ export function OwnerQrCustomizer({
       : dialogAction === "archive"
         ? "Archiver le QR"
         : "Révoquer définitivement";
+  const publicInventory = targetKind === "menu";
+  const inventoryCount = history.length + (canonicalRecord ? 1 : 0);
   const dialogDescription =
     dialogAction === "rotate"
       ? "Un nouveau QR canonique sera créé. Choisissez explicitement le sort de l’ancien QR."
@@ -890,9 +957,109 @@ export function OwnerQrCustomizer({
         ? "L’archivage arrête ce QR et ne peut pas être annulé depuis cet écran."
         : "La révocation invalide définitivement ce QR. Cette action est irréversible.";
 
+  function renderInventoryActions(args: {
+    id: string;
+    label: string;
+    status: QrLifecycleStatus;
+    isCurrent?: boolean;
+    destination?: string;
+  }) {
+    if (!publicInventory) return null;
+    return (
+      <details className={styles.inventoryActions}>
+        <summary aria-label={`Actions pour ${args.label}`} title="Actions">
+          <span aria-hidden="true">⋮</span>
+        </summary>
+        <div className={styles.inventoryActionMenu} role="menu">
+          {args.isCurrent ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) => {
+                  closeInventoryMenu(event.currentTarget);
+                  downloadSvg();
+                }}
+                disabled={!canExportQr}
+              >
+                Télécharger SVG
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) => {
+                  closeInventoryMenu(event.currentTarget);
+                  downloadPng();
+                }}
+                disabled={!canExportQr}
+              >
+                Télécharger PNG
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) => {
+                  closeInventoryMenu(event.currentTarget);
+                  void copyUrl();
+                }}
+                disabled={!canExportQr}
+              >
+                Copier le lien QR
+              </button>
+            </>
+          ) : null}
+          {!args.isCurrent && args.status === "active" && args.destination ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) =>
+                  openPublicDestination(args.destination!, event.currentTarget)
+                }
+              >
+                Ouvrir le menu public
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(event) =>
+                  void copyPublicDestination(args.destination!, event.currentTarget)
+                }
+              >
+                Copier l’URL publique
+              </button>
+            </>
+          ) : null}
+          {!args.isCurrent && args.status === "active" ? (
+            <span className={styles.inventoryActionNote}>
+              QR conservé actif. Le lien sécurisé n’est jamais affiché dans l’inventaire.
+            </span>
+          ) : null}
+        </div>
+      </details>
+    );
+  }
+
   return (
     <div className={`${styles.qrCustomizer} ${className}`}>
       <div className={styles.qrPreviewCol}>
+        <div className={styles.qrPreviewHeader}>
+          <div className={styles.qrPreviewTitle}>
+            <span className={styles.qrPreviewIcon} aria-hidden="true">◉</span>
+            <strong>{targetKind === "menu" ? "QR MENU PRINCIPAL" : "QR ACCÈS RESTAURANT"}</strong>
+            <span className={styles.qrStatusBadge}>
+              {canonicalRecord ? STATUS_LABELS[canonicalRecord.status].toUpperCase() : "À PRÉPARER"}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.appearanceJump}
+            aria-controls={`qr-appearance-${targetKind}`}
+            onClick={() => document.getElementById(`qr-appearance-${targetKind}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            Personnaliser l’apparence
+          </button>
+        </div>
         <div className={styles.qrPreviewFrame} aria-busy={machineState === "loading"}>
           {qrValue && svgMarkup ? (
             <span
@@ -930,6 +1097,24 @@ export function OwnerQrCustomizer({
           <span>{canonicalRecord ? STATUS_LABELS[canonicalRecord.status] : "Non créé"}</span>
           <p>{stateCopy}</p>
         </div>
+        {canonicalRecord ? (
+          <>
+            <div className={styles.qrMetaRow}><span>Créé le</span><strong>{new Date(canonicalRecord.createdAt).toLocaleDateString("fr-CA")}</strong></div>
+            <div className={styles.qrMetaRow}><span>Scans totaux</span><strong>{canonicalRecord.scanCount}</strong></div>
+            <div className={styles.qrMetaRow}><span>Dernier scan</span><strong>{canonicalRecord.lastScannedAt ? new Date(canonicalRecord.lastScannedAt).toLocaleString("fr-CA") : "Jamais"}</strong></div>
+          </>
+        ) : null}
+        <div className={styles.qrPreviewActions}>
+          <button type="button" className={styles.btn} onClick={copyUrl} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
+            Copier URL QR
+          </button>
+          <button type="button" className={styles.btn} onClick={downloadPng} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
+            Télécharger PNG
+          </button>
+          <button type="button" className={styles.btn} onClick={downloadSvg} disabled={!canExportQr || mutationBusy} aria-describedby={!canExportQr ? statusReasonId : undefined}>
+            Télécharger SVG
+          </button>
+        </div>
         {targetKind === "admin" ? (
           <p className={styles.qrWarning}>
             Interne restaurant. Ne pas imprimer pour les clients. Ce QR ouvre le
@@ -948,6 +1133,8 @@ export function OwnerQrCustomizer({
       </div>
 
       <div className={styles.qrControlsCol}>
+        <section className={styles.appearanceEditor} aria-labelledby={`qr-appearance-${targetKind}`}>
+          <h3 id={`qr-appearance-${targetKind}`}>Apparence du QR</h3>
         <div>
           <p className={styles.fieldLabel}>Presets</p>
           <div className={styles.presetRow}>
@@ -1119,10 +1306,34 @@ export function OwnerQrCustomizer({
             </button>
           )}
         </div>
+        </section>
 
-        {canonicalRecord ? (
+        <section className={styles.lifecyclePanel} aria-labelledby={`qr-lifecycle-${targetKind}`}>
+            <h3 id={`qr-lifecycle-${targetKind}`}>
+              {publicInventory ? "Créer un nouveau QR public" : "Cycle de vie accès restaurant"}
+            </h3>
+            <p>
+              {publicInventory
+                ? "Ajoutez un QR pour une table, une terrasse ou un support imprimé. Tous les QR publics existants resteront actifs."
+                : "Les actions de cet accès privé sont isolées et ne modifient jamais les QR publics."}
+            </p>
+            {publicInventory ? (
+              <p className={styles.qrPermanenceNotice}>
+                Tous les QR publics existants resteront actifs et continueront d’ouvrir ce menu.
+              </p>
+            ) : null}
           <div className={styles.qrLifecycleActions} aria-label="Cycle de vie du QR">
-            {!terminalState ? (
+            {publicInventory && !canonicalRecord ? (
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={mutationBusy || machineState !== "absent"}
+                onClick={saveStyle}
+                aria-describedby={statusReasonId}
+              >
+                Créer un nouveau QR
+              </button>
+            ) : !terminalState ? (
               <button
                 type="button"
                 className={styles.btn}
@@ -1130,10 +1341,10 @@ export function OwnerQrCustomizer({
                 onClick={(event) => openDialog("rotate", event.currentTarget)}
                 aria-describedby={statusReasonId}
               >
-                {rotationActionLabel}
+                {publicInventory ? "Créer un nouveau QR" : rotationActionLabel}
               </button>
             ) : null}
-            {canonicalRecord.status === "active" ? (
+            {targetKind === "admin" && canonicalRecord?.status === "active" ? (
               <button
                 type="button"
                 className={styles.btn}
@@ -1144,7 +1355,7 @@ export function OwnerQrCustomizer({
                 Suspendre temporairement
               </button>
             ) : null}
-            {canonicalRecord.status === "paused" ? (
+            {targetKind === "admin" && canonicalRecord?.status === "paused" ? (
               <button
                 type="button"
                 className={styles.btn}
@@ -1155,8 +1366,8 @@ export function OwnerQrCustomizer({
                 Réactiver
               </button>
             ) : null}
-            {canonicalRecord.status === "active" || canonicalRecord.status === "paused" ? (
-              <>
+            {targetKind === "admin" && canonicalRecord && (canonicalRecord.status === "active" || canonicalRecord.status === "paused") ? (
+              <span className={styles.adminDangerZone}>
                 <button
                   type="button"
                   className={styles.btn}
@@ -1175,10 +1386,10 @@ export function OwnerQrCustomizer({
                 >
                   Révoquer définitivement
                 </button>
-              </>
+              </span>
             ) : null}
           </div>
-        ) : null}
+          </section>
 
         {requiresReload ? (
           <button
@@ -1205,8 +1416,10 @@ export function OwnerQrCustomizer({
 
         <section className={styles.qrHistory} aria-labelledby={`qr-history-${targetKind}`}>
             <div className={styles.qrHistoryHeader}>
-              <h3 id={`qr-history-${targetKind}`}>Historique sûr</h3>
-              <span>{history.length} QR précédent{history.length > 1 ? "s" : ""}</span>
+              <h3 id={`qr-history-${targetKind}`}>
+                {publicInventory ? "Tous les QR publics" : "Historique accès privé"}
+              </h3>
+              <span>{inventoryCount} QR{inventoryCount > 1 ? "s" : ""}</span>
             </div>
             {historyLoadState === "loading" ? (
               <p className={styles.qrHistoryNotice}>Chargement de l’historique…</p>
@@ -1214,18 +1427,49 @@ export function OwnerQrCustomizer({
               <p className={styles.qrHistoryNotice}>
                 Historique indisponible. Aucune donnée sensible n’est affichée.
               </p>
-            ) : history.length ? (
+            ) : history.length || canonicalRecord ? (
               <ul>
+                {canonicalRecord && publicInventory ? (
+                  <li key={canonicalRecord.id}>
+                    <div className={styles.inventoryRowMain}>
+                      <strong>{canonicalRecord.label || "QR menu principal"} <em>QR actuel</em></strong>
+                      <span>{STATUS_LABELS[canonicalRecord.status]}</span>
+                    </div>
+                    <div className={styles.inventoryRowAside}>
+                      <p>
+                        {canonicalRecord.scanCount} scan{canonicalRecord.scanCount > 1 ? "s" : ""} ·{" "}
+                        <button type="button" className={styles.inventoryDownloadButton} onClick={downloadSvg} disabled={!canExportQr}>
+                          Télécharger
+                        </button>
+                      </p>
+                      {renderInventoryActions({
+                        id: canonicalRecord.id,
+                        label: canonicalRecord.label || "QR menu principal",
+                        status: canonicalRecord.status,
+                        isCurrent: true,
+                        destination: canonicalRecord.targetPath
+                      })}
+                    </div>
+                  </li>
+                ) : null}
                 {history.map((item) => (
                   <li key={item.id}>
-                    <div>
+                    <div className={styles.inventoryRowMain}>
                       <strong>{item.label || "QR sans libellé"}</strong>
                       <span>{STATUS_LABELS[item.status]}</span>
                     </div>
-                    <p>
-                      {item.scanCount} scan{item.scanCount > 1 ? "s" : ""} · aucune
-                      donnée de jeton exposée
-                    </p>
+                    <div className={styles.inventoryRowAside}>
+                      <p>
+                        {item.scanCount} scan{item.scanCount > 1 ? "s" : ""} · aucune
+                        donnée de jeton exposée
+                      </p>
+                      {renderInventoryActions({
+                        id: item.id,
+                        label: item.label || "QR sans libellé",
+                        status: item.status,
+                        destination: item.targetPath
+                      })}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -1251,45 +1495,50 @@ export function OwnerQrCustomizer({
           onConfirm={confirmDialog}
         >
           {dialogAction === "rotate" ? (
-            <fieldset className={styles.qrDispositionFieldset}>
-              <legend>Disposition de l’ancien QR</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="previousDisposition"
-                  value="keep-active"
-                  checked={previousDisposition === "keep-active"}
-                  onChange={() => setPreviousDisposition("keep-active")}
-                />
-                Conserver l’ancien QR actif
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="previousDisposition"
-                  value="pause"
-                  checked={previousDisposition === "pause"}
-                  onChange={() => setPreviousDisposition("pause")}
-                />
-                Mettre l’ancien QR en pause
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="previousDisposition"
-                  value="revoke"
-                  checked={previousDisposition === "revoke"}
-                  onChange={() => setPreviousDisposition("revoke")}
-                />
-                Révoquer définitivement l’ancien QR
-              </label>
-              {targetKind === "admin" ? (
+            targetKind === "admin" ? (
+              <fieldset className={styles.qrDispositionFieldset}>
+                <legend>Disposition de l’ancien QR</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="previousDisposition"
+                    value="keep-active"
+                    checked={previousDisposition === "keep-active"}
+                    onChange={() => setPreviousDisposition("keep-active")}
+                  />
+                  Conserver l’ancien QR actif
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="previousDisposition"
+                    value="pause"
+                    checked={previousDisposition === "pause"}
+                    onChange={() => setPreviousDisposition("pause")}
+                  />
+                  Mettre l’ancien QR en pause
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="previousDisposition"
+                    value="revoke"
+                    checked={previousDisposition === "revoke"}
+                    onChange={() => setPreviousDisposition("revoke")}
+                  />
+                  Révoquer définitivement l’ancien QR
+                </label>
                 <p className={styles.qrWarning}>
                   Sécurité admin : conserver l’ancien QR actif maintient l’accès pour
                   toute personne qui en possède une photo ou une impression.
                 </p>
-              ) : null}
-            </fieldset>
+              </fieldset>
+            ) : (
+              <p className={styles.qrPermanenceNotice}>
+                Ce nouveau QR public est additif : tous les QR publics déjà imprimés
+                restent actifs. Leur disposition ne peut pas être modifiée ici.
+              </p>
+            )
           ) : null}
         </QrConfirmationDialog>
       ) : null}
@@ -1443,6 +1692,11 @@ function triggerDownload(href: string, fileName: string) {
   const link = document.createElement("a");
   link.href = href;
   link.download = fileName;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  if (href.startsWith("blob:")) URL.revokeObjectURL(href);
+  window.setTimeout(() => {
+    link.remove();
+    if (href.startsWith("blob:")) URL.revokeObjectURL(href);
+  }, 1_000);
 }

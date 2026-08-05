@@ -70,6 +70,8 @@ export async function handleQrLifecycleMutation(
       result.code === "config-version-conflict" ||
       result.code === "idempotency-conflict"
         ? 409
+        : result.code === "public-qr-permanent"
+          ? 409
         : result.code === "not-found"
           ? 404
           : result.code === "invalid-input"

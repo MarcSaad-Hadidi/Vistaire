@@ -21,6 +21,8 @@ test("scoped QR page reads only the selected canonical target", () => {
   assert.match(pageSource, /const selectedStatus = qrStatusLabel\(canonicalRecord, targetKind\)/);
   assert.match(pageSource, /const selectedTone = qrStatusTone\(canonicalRecord, targetKind\)/);
   assert.match(pageSource, /const selectedChecklist = preparation\.checklist\.map/);
+  assert.match(pageSource, /const canonicalReadError = canonicalRead === null/);
+  assert.match(pageSource, /Aucun QR ne\s*doit[\s\S]*être créé ou imprimé/);
   assert.match(pageSource, /detail: selectedStatus/);
   assert.match(pageSource, /!usableCanonical/);
   assert.match(pageSource, /Aucun QR admin canonique actif/);

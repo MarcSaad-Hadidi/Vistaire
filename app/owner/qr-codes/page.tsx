@@ -1,6 +1,6 @@
-import styles from "@/components/owner/OwnerCockpit.module.css";
+import Link from "next/link";
+import styles from "@/components/owner/OwnerQrManagement.module.css";
 import { OwnerQrManager } from "@/components/owner/OwnerQrManager";
-import { ModuleHeader, Panel } from "@/components/owner/OwnerUi";
 import { getOwnerRestaurantsData } from "@/lib/owner/data";
 import type { OwnerQrTargetKind } from "@/lib/owner/menuUrlCore";
 
@@ -15,46 +15,45 @@ function getSearchParam(
   key: string
 ): string | undefined {
   const value = params?.[key];
-  if (Array.isArray(value)) return value[0];
-  return value;
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function normalizeTargetKind(value: string | undefined): OwnerQrTargetKind {
   return value === "admin" ? "admin" : "menu";
 }
 
-export default async function OwnerQrCodesPage({
-  searchParams
-}: OwnerQrCodesPageProps) {
+export default async function OwnerQrCodesPage({ searchParams }: OwnerQrCodesPageProps) {
   const data = await getOwnerRestaurantsData();
   const params = await searchParams;
-  const initialRestaurantId = getSearchParam(params, "restaurantId");
-  const initialRestaurantSlug =
-    getSearchParam(params, "restaurantSlug") ?? getSearchParam(params, "restaurant");
-  const initialTargetKind = normalizeTargetKind(getSearchParam(params, "target"));
 
   return (
-    <>
-      <ModuleHeader
-        title="QR Codes"
-        description="Generer, personnaliser, tester et telecharger les QR securises par restaurant : menu public pour les clients ou dashboard restaurant interne."
-      />
+    <div className={`${styles.managementPage} qrManagementPage`}>
+      <header className={`${styles.managementHeader} qrManagementHeader`}>
+        <div className={styles.brandBlock}>
+          <h1>QR Codes</h1>
+          <p>Gérez vos QR codes pour vos menus publics et l’accès à votre dashboard.</p>
+        </div>
+        <div className={styles.headerActions}>
+          <Link className={styles.btn} href="/apercu-restaurateur" prefetch={false}>
+            Aperçu public
+          </Link>
+        </div>
+      </header>
 
-      <Panel title="Customizer QR Vistaire">
+      <div className={styles.managementBody}>
         <OwnerQrManager
           restaurants={data.restaurants}
-          initialRestaurantId={initialRestaurantId}
-          initialRestaurantSlug={initialRestaurantSlug}
-          initialTargetKind={initialTargetKind}
+          initialRestaurantId={getSearchParam(params, "restaurantId")}
+          initialRestaurantSlug={
+            getSearchParam(params, "restaurantSlug") ?? getSearchParam(params, "restaurant")
+          }
+          initialTargetKind={normalizeTargetKind(getSearchParam(params, "target"))}
         />
-      </Panel>
+      </div>
 
       <p className={styles.sourceTag}>
-        Securite : le token est genere cote serveur (crypto), seul son hash est
-        stocke. Persistance via la table <code>qr_codes</code> (voir
-        docs/owner-qr-schema.md). Sans Supabase, seul un QR menu peut utiliser
-        le fallback signe non persiste ; un QR dashboard doit etre enregistre.
+        <span aria-hidden="true">⌕</span> Tous les QR publics restent actifs après la création d’un nouveau QR. Sécurisé : chaque QR utilise un token unique ; ne partagez jamais le lien de votre dashboard.
       </p>
-    </>
+    </div>
   );
 }

@@ -135,7 +135,8 @@ export type OwnerQrRequestError = {
     | "not-found"
     | "invalid-input"
     | "config-version-conflict"
-    | "idempotency-conflict";
+    | "idempotency-conflict"
+    | "public-qr-permanent";
   current?: OwnerQrInventoryRecord;
 };
 

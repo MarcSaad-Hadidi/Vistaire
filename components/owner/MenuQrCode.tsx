@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styles from "@/components/owner/OwnerCockpit.module.css";
+import { normalizeOwnerQrStyle } from "@/lib/owner/qrStyle";
+import type {
+  OwnerQrStyle,
+  OwnerQrTargetKind
+} from "@/lib/owner/types";
 
 type MenuQrCodeProps = {
   menuUrl: string;
@@ -11,6 +16,12 @@ type MenuQrCodeProps = {
   copyLabel?: string;
   downloadLabel?: string;
   fileNamePrefix?: string;
+  /** Optional readable destination shown below the secure QR payload. */
+  displayUrl?: string;
+  style?: Partial<OwnerQrStyle>;
+  targetKind?: OwnerQrTargetKind;
+  configVersion?: number;
+  qrId?: string;
 };
 
 function qrFileSlug(value: string): string {
@@ -30,7 +41,12 @@ export function MenuQrCode({
   qrLabel = "Menu QR",
   copyLabel = "Copier l'URL",
   downloadLabel = "Télécharger QR",
-  fileNamePrefix = "vistaire-menu"
+  fileNamePrefix = "vistaire-menu",
+  displayUrl,
+  style,
+  targetKind = "menu",
+  configVersion,
+  qrId
 }: MenuQrCodeProps) {
   const [qrState, setQrState] = useState({ url: "", svgMarkup: "" });
   const [status, setStatus] = useState<"idle" | "copied" | "downloaded" | "error">(
@@ -41,22 +57,26 @@ export function MenuQrCode({
     () => `${fileNamePrefix}-${qrFileSlug(restaurantName) || "restaurant"}.svg`,
     [fileNamePrefix, restaurantName]
   );
+  const styleFingerprint = useMemo(
+    () => JSON.stringify(normalizeOwnerQrStyle(style)),
+    [style]
+  );
 
   useEffect(() => {
     let isCurrent = true;
 
     async function renderQr() {
       try {
-        const QRCode = await import("qrcode");
-        const svg = await QRCode.toString(menuUrl, {
-          type: "svg",
-          errorCorrectionLevel: "M",
-          margin: 3,
-          width: 236,
-          color: {
-            dark: "#080706",
-            light: "#fff8ea"
-          }
+        const { renderOwnerQrSvg } = await import("@/lib/owner/qrRenderer");
+        const svg = await renderOwnerQrSvg({
+          url: menuUrl,
+          style,
+          restaurantName,
+          targetKind,
+          configVersion,
+          qrId,
+          dimensions: 236,
+          mode: "preview"
         });
 
         if (isCurrent) {
@@ -73,7 +93,7 @@ export function MenuQrCode({
     return () => {
       isCurrent = false;
     };
-  }, [menuUrl]);
+  }, [configVersion, menuUrl, qrId, restaurantName, style, styleFingerprint, targetKind]);
 
   async function copyMenuUrl() {
     try {
@@ -101,9 +121,10 @@ export function MenuQrCode({
 
   return (
     <div className={className ? `${styles.qrRoot} ${className}` : styles.qrRoot}>
-      <div className={styles.qrBox}>
+      <div className={styles.qrBox} data-qr-part="box">
         <div
           className={styles.qrCanvas}
+          data-qr-part="canvas"
           aria-label={`${qrLabel} pour ${restaurantName}`}
           role="img"
         >
@@ -119,11 +140,11 @@ export function MenuQrCode({
         </div>
       </div>
 
-      <p className={styles.qrUrl}>
-        {menuUrl}
+      <p className={styles.qrUrl} data-qr-part="url">
+        {displayUrl ?? menuUrl}
       </p>
 
-      <div className={styles.qrActions}>
+      <div className={styles.qrActions} data-qr-part="actions">
         <button
           type="button"
           onClick={copyMenuUrl}
