@@ -16,11 +16,10 @@ function originOf(value: string): string | null {
 }
 
 function configuredImageOrigins(): string[] {
-  const env = typeof process === "undefined" ? undefined : process.env;
   const configured = [
-    env?.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
     // Existing deployments use this allowlist for their static media CDN.
-    env?.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS
+    process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS
   ];
   return configured
     .flatMap((value) => (value ?? "").split(","))
@@ -53,6 +52,10 @@ export function resolveSaugeNoireImageUrl(
   ) {
     return null;
   }
+
+  const authority =
+    trimmed.match(/^[A-Za-z][A-Za-z0-9+.-]*:\/\/([^/?#]*)/)?.[1] ?? "";
+  if (authority.includes("@")) return null;
 
   const baseOrigin =
     originOf(

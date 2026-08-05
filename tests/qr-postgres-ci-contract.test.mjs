@@ -11,10 +11,14 @@ function escapeRegExp(value) {
 }
 
 test("the QR contract regex helper escapes every regex metacharacter", () => {
-  const literal = "owner.(uuid)[text]+\\suffix?";
+  const literal = "owner.*+?^$\\{}()|[]";
+  assert.equal(
+    escapeRegExp(literal),
+    "owner\\.\\*\\+\\?\\^\\$\\\\\\{\\}\\(\\)\\|\\[\\]"
+  );
   const pattern = new RegExp(escapeRegExp(literal));
   assert.match(literal, pattern);
-  assert.doesNotMatch("ownerXuuidYtextZsuffix", pattern);
+  assert.doesNotMatch("ownerXfoo?^$\\{}()|[]", pattern);
 });
 
 test("QR package scripts expose separate Node, PostgreSQL, functional, and aggregate gates", async () => {

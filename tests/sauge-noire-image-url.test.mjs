@@ -35,14 +35,49 @@ registerHooks({
   }
 });
 
+function source(path) {
+  return readFileSync(path, "utf8");
+}
+
 const { resolveSaugeNoireImageUrl } = await import(
   "../lib/saugeNoireImageUrl.ts"
 );
+
+const publicImageEnvKeys = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS"
+];
+
+async function withPublicImageEnv(values, callback) {
+  const previous = Object.fromEntries(
+    publicImageEnvKeys.map((key) => [key, process.env[key]])
+  );
+  try {
+    for (const key of publicImageEnvKeys) {
+      if (values[key] === undefined) delete process.env[key];
+      else process.env[key] = values[key];
+    }
+    return await callback();
+  } finally {
+    for (const key of publicImageEnvKeys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+}
 
 const options = {
   baseOrigin: "https://menu.vistaire.test",
   allowedOrigins: ["https://images.vistaire.test"]
 };
+
+test("public image origins keep statically analyzable Next.js env references", async () => {
+  const helper = await source("lib/saugeNoireImageUrl.ts");
+  assert.match(helper, /process\.env\.NEXT_PUBLIC_SUPABASE_URL/);
+  assert.match(helper, /process\.env\.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS/);
+  assert.doesNotMatch(helper, /\b(?:const|let|var)\s+env\b/);
+  assert.doesNotMatch(helper, /SUPABASE_SERVICE_ROLE_KEY/);
+});
 
 test("accepts relative Vistaire paths, photo endpoints, and an allowlisted CDN", () => {
   assert.equal(
@@ -82,6 +117,7 @@ test("rejects active protocols, credentials, controls, and untrusted origins", (
     "data:image/svg+xml,<svg/onload=alert(1)>",
     "vbscript:msgbox(1)",
     "https://user:password@images.vistaire.test/photo.webp",
+    "https://@images.vistaire.test/photo.webp",
     "https://evil.example/photo.webp",
     "http://menu.vistaire.test/images/demo/dishes/plat.webp",
     "//evil.example/photo.webp",
@@ -93,6 +129,99 @@ test("rejects active protocols, credentials, controls, and untrusted origins", (
   ]) {
     assert.equal(resolveSaugeNoireImageUrl(value, options), null, value);
   }
+});
+
+test("accepts explicitly configured Supabase and comma-separated CDN origins", async () => {
+  await withPublicImageEnv(
+    {
+      NEXT_PUBLIC_SUPABASE_URL: "https://storage.supabase.test",
+      NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS:
+        "https://cdn-one.vistaire.test, https://cdn-two.vistaire.test"
+    },
+    () => {
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://storage.supabase.test/object/sign/menu/photo.webp?token=signed",
+          options
+        ),
+        "https://storage.supabase.test/object/sign/menu/photo.webp?token=signed"
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://cdn-one.vistaire.test/menu/photo.webp",
+          options
+        ),
+        "https://cdn-one.vistaire.test/menu/photo.webp"
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://cdn-two.vistaire.test/menu/photo.webp",
+          options
+        ),
+        "https://cdn-two.vistaire.test/menu/photo.webp"
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://cdn-one.vistaire.test.evil.example/menu/photo.webp",
+          options
+        ),
+        null
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://sub.cdn-one.vistaire.test/menu/photo.webp",
+          options
+        ),
+        null
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "http://cdn-one.vistaire.test/menu/photo.webp",
+          options
+        ),
+        null
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://user:password@cdn-one.vistaire.test/menu/photo.webp",
+          options
+        ),
+        null
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://cdn-one.vistaire.test:8443/menu/photo.webp",
+          options
+        ),
+        null
+      );
+    }
+  );
+});
+
+test("accepts a configured port only as an exact origin", async () => {
+  await withPublicImageEnv(
+    {
+      NEXT_PUBLIC_SUPABASE_URL: "",
+      NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS: "https://cdn-one.vistaire.test:8443"
+    },
+    () => {
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://cdn-one.vistaire.test:8443/menu/photo.webp",
+          options
+        ),
+        "https://cdn-one.vistaire.test:8443/menu/photo.webp"
+      );
+      assert.equal(
+        resolveSaugeNoireImageUrl(
+          "https://cdn-one.vistaire.test/menu/photo.webp",
+          options
+        ),
+        null
+      );
+    }
+  );
 });
 
 test("allows a Supabase signed origin only when it is explicitly configured", () => {
