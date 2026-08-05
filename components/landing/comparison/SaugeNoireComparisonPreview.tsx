@@ -5,6 +5,7 @@ import {
   SaugeNoireMenuPages,
   type SaugeNoirePageCopy
 } from "@/components/menu/unique/sauge-noire/SaugeNoireMenuPages";
+import { SaugeNoireBookMenu } from "@/components/menu/unique/sauge-noire/SaugeNoireRendererBindings";
 import type { Locale } from "@/lib/i18n";
 import {
   inflateLandingMenuUiMenu,
@@ -47,9 +48,11 @@ const COPY: Record<Locale, SaugeNoirePageCopy> = {
 };
 
 export function SaugeNoireComparisonPreview({
+  displayMode = "comparison-preview",
   locale,
   menuUi
 }: {
+  displayMode?: "comparison-preview" | "phone-preview";
   locale: Locale;
   menuUi: LandingMenuUiPreview;
 }) {
@@ -61,6 +64,20 @@ export function SaugeNoireComparisonPreview({
     menuUi.query.lang?.toString() ?? (locale === "en" ? "en-CA" : "fr-CA");
   const currency =
     menuUi.query.currency ?? menu.settings.defaultCurrency;
+
+  if (displayMode === "phone-preview") {
+    return (
+      <SaugeNoireBookMenu
+        config={menuUi.config}
+        context={menuUi.context}
+        exchangeRates={menuUi.exchangeRates}
+        locale={locale}
+        menu={menu}
+        mode="phone-preview"
+        query={menuUi.query}
+      />
+    );
+  }
 
   return (
     <SaugeNoireMenuPages

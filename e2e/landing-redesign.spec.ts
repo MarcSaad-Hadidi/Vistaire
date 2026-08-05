@@ -398,10 +398,7 @@ test.describe("Vistaire landing redesign", () => {
     await expectLoadedImages(
       comparison.locator('[data-public-menu-renderer="trouvable"] img')
     );
-    expect(runtime.previewPayloadRequests).toHaveLength(1);
-    expect(runtime.previewPayloadRequests[0]).toContain(
-      "/api/public/landing-menu-preview/trouvable?locale=fr"
-    );
+    expect(runtime.previewPayloadRequests).toEqual([]);
     await expect(
       comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
     ).toHaveCount(1);
@@ -436,10 +433,7 @@ test.describe("Vistaire landing redesign", () => {
       comparison.locator('[data-public-menu-renderer="sauge-noire"] img')
     );
     await expectIndependentComparisonScrollRoots(comparison);
-    expect(runtime.previewPayloadRequests).toHaveLength(2);
-    expect(runtime.previewPayloadRequests[1]).toContain(
-      "/api/public/landing-menu-preview/sauge-noire?locale=fr"
-    );
+    expect(runtime.previewPayloadRequests).toEqual([]);
     await expect(comparison.getByTestId("google-review-cta")).toHaveCount(0);
     expect(page.url()).toBe(landingLocationBeforeSauge);
 

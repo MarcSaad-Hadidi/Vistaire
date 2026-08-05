@@ -10,9 +10,11 @@ import {
 } from "@/lib/landing/landingMenuUiPreview";
 
 export function MaisonElyseComparisonPreview({
+  displayMode = "comparison-preview",
   locale,
   menuUi
 }: {
+  displayMode?: "comparison-preview" | "phone-preview";
   locale: Locale;
   menuUi: LandingMenuUiPreview;
 }) {
@@ -28,7 +30,7 @@ export function MaisonElyseComparisonPreview({
   return (
     <MaisonElyseQrMenu
       config={menuUi.config}
-      displayMode="comparison-preview"
+      displayMode={displayMode}
       locale={locale}
       localizedMenus={localizedMenus}
       menu={menu}

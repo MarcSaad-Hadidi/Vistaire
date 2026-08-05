@@ -42,6 +42,8 @@ test("active restaurant preview selects only the payload-matched renderer and ha
   assert.match(preview, /status="error"/);
   assert.match(preview, /expectedExperienceId/);
   assert.match(preview, /payloadMatchesExperience/);
+  assert.match(preview, /displayMode = \"comparison-preview\"/);
+  assert.match(preview, /rendererFor\(payload, displayMode\)/);
   assert.match(preview, /scrollTop = 0/);
   assert.match(preview, /key=\{previewKey\}/);
   assert.doesNotMatch(preview, /lib\/landing\/menuExperiences/);

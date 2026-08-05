@@ -52,17 +52,28 @@ function PreviewStatus({ children, status }: PreviewStatusProps) {
   );
 }
 
-function rendererFor(payload: RestaurantMenuPreviewPayload): ReactNode {
+type PreviewDisplayMode = "comparison-preview" | "phone-preview";
+
+function rendererFor(
+  payload: RestaurantMenuPreviewPayload,
+  displayMode: PreviewDisplayMode
+): ReactNode {
   if (payload.kind === "maison-elyse") {
     return (
       <MaisonElyseComparisonPreview
+        displayMode={displayMode}
         locale={payload.locale}
         menuUi={payload.menuUi}
       />
     );
   }
   if (payload.kind === "trouvable") {
-    return <TrouvableComparisonPreview menuUi={payload.menuUi} />;
+    return (
+      <TrouvableComparisonPreview
+        displayMode={displayMode}
+        menuUi={payload.menuUi}
+      />
+    );
   }
   if (
     payload.rendererKey === "sauge-noire-book-v1" &&
@@ -70,6 +81,7 @@ function rendererFor(payload: RestaurantMenuPreviewPayload): ReactNode {
   ) {
     return (
       <SaugeNoireComparisonPreview
+        displayMode={displayMode}
         locale={payload.locale}
         menuUi={payload.menuUi}
       />
@@ -84,7 +96,8 @@ export function ActiveRestaurantMenuPreview({
   fallback,
   fallbackMessage = "The selected restaurant preview is unavailable.",
   loadingMessage = "Loading menu preview…",
-  payload
+  payload,
+  displayMode = "comparison-preview"
 }: {
   errorMessage?: string;
   expectedExperienceId: RestaurantExperienceId;
@@ -92,6 +105,7 @@ export function ActiveRestaurantMenuPreview({
   fallbackMessage?: string;
   loadingMessage?: string;
   payload: RestaurantMenuPreviewPayload | null | undefined;
+  displayMode?: PreviewDisplayMode;
 }) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const rendererIdentity =
@@ -106,8 +120,9 @@ export function ActiveRestaurantMenuPreview({
     payload !== undefined &&
     payloadMatchesExperience(payload, expectedExperienceId);
   const renderer = useMemo(
-    () => (isExpectedPayload && payload ? rendererFor(payload) : null),
-    [isExpectedPayload, payload]
+    () =>
+      isExpectedPayload && payload ? rendererFor(payload, displayMode) : null,
+    [displayMode, isExpectedPayload, payload]
   );
 
   useEffect(() => {
@@ -138,7 +153,7 @@ export function ActiveRestaurantMenuPreview({
       aria-label={`${payload.comparison.restaurant.name} menu preview`}
       className={styles.rendererShell}
       data-comparison-scroll-root="digital"
-      data-display-mode="comparison-preview"
+      data-display-mode={displayMode}
       data-landing-menu-renderer={expectedExperienceId}
       data-menu-active-locale={
         payload.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[payload.locale]

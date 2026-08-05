@@ -14,6 +14,7 @@ test("demo pages share the three restaurant experiences and preserve the generic
 
   assert.match(showcase, /RestaurantExperienceTabs/);
   assert.match(showcase, /ActiveRestaurantMenuPreview/);
+  assert.match(showcase, /displayMode=\"phone-preview\"/);
   for (const id of ["maison-elyse", "trouvable", "sauge-noire"]) {
     assert.match(showcase, new RegExp(`"${id}"`));
   }

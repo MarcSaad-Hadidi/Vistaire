@@ -144,6 +144,7 @@ export function DemoPhoneShowcase({
                       <span>{isEnglish ? "This menu preview is unavailable." : "Cet aperçu de menu est indisponible."}</span>
                     }
                     payload={activePayload}
+                    displayMode="phone-preview"
                   />
                 </div>
               </div>
