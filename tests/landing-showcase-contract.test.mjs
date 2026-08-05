@@ -229,10 +229,14 @@ test("landing comparison shares each public menu UI without the generic preview 
   }
 
   assert.match(maisonPreview, /MaisonElyseQrMenu/);
-  assert.match(maisonPreview, /displayMode="comparison-preview"/);
+  assert.match(maisonPreview, /displayMode = "comparison-preview"/);
+  assert.match(maisonPreview, /displayMode=\{displayMode\}/);
   assert.match(trouvablePreview, /TrouvablePremiumMenuExperience/);
-  assert.match(trouvablePreview, /displayMode="comparison-preview"/);
+  assert.match(trouvablePreview, /displayMode = "comparison-preview"/);
+  assert.match(trouvablePreview, /displayMode=\{displayMode\}/);
   assert.match(saugePreview, /SaugeNoireMenuPages/);
+  assert.match(saugePreview, /SaugeNoireBookMenu/);
+  assert.match(saugePreview, /displayMode = "comparison-preview"/);
   assert.match(saugePages, /CoverPage/);
   assert.match(saugePages, /ContentsPage/);
   assert.match(saugePages, /SectionPage/);
