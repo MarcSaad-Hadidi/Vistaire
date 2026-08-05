@@ -93,7 +93,8 @@ test.describe("restaurant demo experience selector", () => {
       "aria-selected",
       "true"
     );
-    await expect(page.getByText("Vistaire experience")).toBeVisible();
+    await expect(page.getByText("Vistaire experience")).toHaveCount(1);
+    await expect(page.getByTestId("demo-phone-mockup")).toBeVisible();
     expect(modelRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
   });
