@@ -34,7 +34,7 @@ export default async function OwnerRestaurantSettingsPage({
     <>
       <ModuleHeader
         title={`Paramètres — ${restaurant.name}`}
-        description="Informations du restaurant et actions de cycle de vie. Les champs restent en lecture tant qu’aucune mutation d’édition dédiée n’est disponible."
+        description="Informations du restaurant et actions de cycle de vie. Les capacités d’édition suivent le profil du restaurant; les actions destructives restent protégées pour les démos."
         actions={
           <>
             <Link className={styles.btn} href={ownerRestaurantRoute(restaurant)} prefetch={false}>
