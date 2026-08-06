@@ -716,7 +716,7 @@ export function OwnerRestaurantSettings({
           ) : null}
           {restaurant.isDemo ? (
             <span className={styles.sourceNote}>
-              Capacités : contenu {capabilities.canEditMenuContent ? "autorisé" : "protégé"}, settings {capabilities.canEditMenuSettings ? "autorisés" : "protégés"}, traductions {capabilities.canManageTranslations ? "autorisées" : "protégées"}; suppression et QR destructif protégés.
+              Capacités : contenu {capabilities.canEditMenuContent ? "autorisé" : "protégé"}, settings {capabilities.canEditMenuSettings ? "autorisés" : "protégés"}, traductions {capabilities.canManageTranslations ? "autorisées" : "protégées"}, médias {capabilities.canManageMedia ? "autorisés" : "protégés"}; suppression et QR destructif protégés.
             </span>
           ) : null}
         </div>
