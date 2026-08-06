@@ -1,7 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode
+} from "react";
 import { LOCALE_LANGUAGE_TAG } from "@/lib/i18n";
 import {
   payloadMatchesExperience,
@@ -152,20 +158,25 @@ export function ActiveRestaurantMenuPreview({
     <div
       aria-label={`${payload.comparison.restaurant.name} menu preview`}
       className={styles.rendererShell}
-      data-comparison-scroll-root="digital"
+      data-comparison-scroll-root={
+        displayMode === "comparison-preview" ? "digital" : undefined
+      }
       data-display-mode={displayMode}
       data-landing-menu-renderer={expectedExperienceId}
       data-menu-active-locale={
         payload.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[payload.locale]
       }
       data-menu-slug={payload.menuSlug}
+      data-phone-mockup-scroll={
+        displayMode === "phone-preview" ? "true" : undefined
+      }
       data-preview-status="ready"
       lang={LOCALE_LANGUAGE_TAG[payload.locale]}
       ref={scrollRootRef}
       role="region"
       tabIndex={0}
     >
-      <div key={previewKey}>{renderer}</div>
+      <Fragment key={previewKey}>{renderer}</Fragment>
     </div>
   );
 }

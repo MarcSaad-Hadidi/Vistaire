@@ -1,6 +1,7 @@
 .rendererShell {
   position: absolute;
   inset: 0;
+  container-type: inline-size;
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;

@@ -37,13 +37,33 @@ test.describe("restaurant demo experience selector", () => {
     expect(new URL(page.url()).hash).toBe("#carte");
 
     const phoneViewport = page.getByTestId("demo-phone-viewport");
-    await phoneViewport.evaluate((element) => {
+    const phoneScroller = phoneViewport.locator(
+      ':scope > [data-display-mode="phone-preview"]'
+    );
+    await expect(phoneScroller).toHaveAttribute(
+      "data-phone-mockup-scroll",
+      "true"
+    );
+    const initialPhoneScrollTop = await phoneScroller.evaluate(
+      (element) => element.scrollTop
+    );
+    await expect
+      .poll(() =>
+        phoneScroller.evaluate(
+          (element) => element.scrollHeight - element.clientHeight
+        )
+      )
+      .toBeGreaterThan(0);
+    await phoneScroller.evaluate((element) => {
       element.scrollTop = Math.min(180, element.scrollHeight);
     });
+    await expect
+      .poll(() => phoneScroller.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(initialPhoneScrollTop);
     await tabs.nth(1).click();
     await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
     await expect
-      .poll(() => phoneViewport.evaluate((element) => element.scrollTop))
+      .poll(() => phoneScroller.evaluate((element) => element.scrollTop))
       .toBe(0);
     expect(new URL(page.url()).searchParams.get("experience")).toBe("trouvable");
     expect(new URL(page.url()).searchParams.get("utm_source")).toBe("qa");
