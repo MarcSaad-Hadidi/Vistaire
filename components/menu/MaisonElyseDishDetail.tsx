@@ -321,12 +321,28 @@ function buildDetailCopy(
   return {
     ...fallback,
     allergens: resolved.allergens,
+    ariaDetail: resolved.details,
     backToMenu: resolved.backToMenu,
+    dishImageAlt: resolved.modelAlt,
+    fallbackImage: resolved.detailFallback,
     fallbackList: resolved.detailFallback,
+    hide3d: resolved.modelViewer.close,
+    hidePreview: resolved.close,
+    immersiveBody3d: resolved.modelViewer.slowNetworkBody,
+    immersiveBodyAr: resolved.modelViewer.arHelp,
+    immersiveKicker: resolved.immersiveFilterLabel,
+    immersivePreview3d: resolved.modelViewer.slowNetworkBody,
+    immersivePreviewAr: resolved.modelViewer.arIosHandoff,
     ingredients: resolved.ingredients,
+    noCategory: resolved.activeCategoryAll,
     note: resolved.detailHouseNoteLabel,
     options: resolved.options,
+    openAr: resolved.viewAr,
     recommendedBadge: resolved.recommendation,
+    show3d: resolved.threeD,
+    title3d: resolved.threeD,
+    titleAr: resolved.modelViewer.safariTitle,
+    topNavAria: resolved.details,
     unavailableBadge: resolved.soldOut
   };
 }

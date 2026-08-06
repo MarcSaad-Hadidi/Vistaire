@@ -128,6 +128,10 @@ const MENU_COPY: Record<
     recommendedBadge: string;
     reset: string;
     resetFilters: string;
+    recommendation: string;
+    signature: string;
+    immersiveFilterLabel: string;
+    available: string;
     sections: string;
     sheetNavigation: string;
     unavailableBadge: string;
@@ -157,6 +161,10 @@ const MENU_COPY: Record<
     navAria: "Navigation carte et filtres",
     preferences: "Préférences",
     recommendedBadge: "Recommandé",
+    recommendation: "Recommandé",
+    signature: "Signature",
+    immersiveFilterLabel: "3D / AR",
+    available: "Disponibles",
     reset: "Réinitialiser",
     resetFilters: "Réinitialiser les filtres",
     sections: "Sections",
@@ -187,6 +195,10 @@ const MENU_COPY: Record<
     navAria: "Menu and filter navigation",
     preferences: "Preferences",
     recommendedBadge: "Recommended",
+    recommendation: "Recommended",
+    signature: "Signature",
+    immersiveFilterLabel: "3D / AR",
+    available: "Available",
     reset: "Reset",
     resetFilters: "Reset filters",
     sections: "Sections",
@@ -236,6 +248,10 @@ function buildMaisonMenuCopy(
     navAria: resolved.menuAria,
     preferences: resolved.languageKicker,
     recommendedBadge: resolved.recommendation,
+    recommendation: resolved.recommendation,
+    signature: resolved.signature,
+    immersiveFilterLabel: resolved.immersiveFilterLabel,
+    available: resolved.available,
     reset: resolved.reset,
     resetFilters: resolved.resetFilters,
     sections: resolved.categories,
@@ -394,8 +410,15 @@ function personalizeBranding<T>(value: T, restaurantName: string): T {
 }
 
 function getFilterLabel(filter: FilterId, locale: PublicMenuLocale = "fr-CA"): string {
-  const copy = MENU_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"];
+  const copy = buildMaisonMenuCopy(locale);
   if (filter === "all") return copy.allMenu;
+  const localizedLabels: Partial<Record<FilterId, string>> = {
+    signature: copy.signature,
+    recommended: copy.recommendation,
+    immersive: copy.immersiveFilterLabel,
+    available: copy.available
+  };
+  if (localizedLabels[filter]) return localizedLabels[filter] as string;
   return (
     FILTER_OPTIONS.find((option) => option.id === filter)?.labels[localeLanguage(locale)] ??
     copy.filterFallback
@@ -716,12 +739,20 @@ export function MaisonElyseQrMenu({
       FILTER_OPTIONS.map((option) => ({
         id: option.id,
         label:
-          option.labels[localeLanguage(selectedLocale)] ??
-          option.labels.fr ??
-          option.labels.en ??
-          ""
+          option.id === "signature"
+            ? copy.signature
+            : option.id === "recommended"
+              ? copy.recommendation
+              : option.id === "immersive"
+                ? copy.immersiveFilterLabel
+                : option.id === "available"
+                  ? copy.available
+                  : option.labels[localeLanguage(selectedLocale)] ??
+                    option.labels.fr ??
+                    option.labels.en ??
+                    ""
       })),
-    [selectedLocale]
+    [copy, selectedLocale]
   );
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_ID);
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
