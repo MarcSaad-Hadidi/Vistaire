@@ -4998,19 +4998,22 @@
 /* Grid cards stack their visual above the copy. The compact phone rules for
    list cards are more specific and otherwise leave only a sliver of width for
    the dish name, which makes every word wrap one character at a time. */
-.page.phonePreview .dishGrid .dishSummary {
+.page.phonePreview .dishGrid .dishSummary,
+.page[data-display-mode="comparison-preview"] .dishGrid .dishSummary {
   grid-template-columns: minmax(0, 1fr);
   gap: 9px;
 }
 
-.page.phonePreview .dishGrid .dishVisual {
+.page.phonePreview .dishGrid .dishVisual,
+.page[data-display-mode="comparison-preview"] .dishGrid .dishVisual {
   width: 100%;
   min-width: 0;
   height: auto;
   aspect-ratio: 1.08;
 }
 
-.page.phonePreview .dishGrid .dishTopline {
+.page.phonePreview .dishGrid .dishTopline,
+.page[data-display-mode="comparison-preview"] .dishGrid .dishTopline {
   min-height: 0;
 }
 

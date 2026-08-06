@@ -67,3 +67,63 @@ test("digital restaurant menu keeps the circular reveal lock and Escape reset", 
   ).toBe(true);
   expect(pageErrors).toEqual([]);
 });
+
+test("digital restaurant Trouvable grid cards keep dish names readable", async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await page.goto("/menu-digital-restaurant", {
+    waitUntil: "domcontentloaded"
+  });
+
+  expect(response?.status()).toBeLessThan(400);
+  const trouvableTab = page.getByRole("tab", { name: "Trouvable" });
+  await trouvableTab.click();
+  await expect(trouvableTab).toHaveAttribute("aria-selected", "true");
+
+  const reveal = page.locator('[data-preview-reveal-frame="true"]');
+  await reveal.focus();
+  await reveal.press("Enter");
+  await expect(reveal).toHaveAttribute("data-reveal-locked", "true");
+
+  const menu = page.locator(
+    '[data-active-preview="trouvable"] [data-menu-ui="trouvable"]'
+  );
+  await expect(menu).toBeVisible();
+  await menu.getByRole("button", { name: "Afficher en grille" }).click();
+
+  const metrics = await menu
+    .locator("ul")
+    .first()
+    .locator("article")
+    .first()
+    .evaluate((article) => {
+      const summary = article.querySelector('[class*="dishSummary"]');
+      const visual = article.querySelector('[class*="dishVisual"]');
+      const copy = article.querySelector('[class*="dishCopy"]');
+      const title = article.querySelector("strong");
+      if (!summary || !visual || !copy || !title) {
+        throw new Error("SEO Trouvable grid card structure is incomplete");
+      }
+      const summaryWidth = summary.getBoundingClientRect().width;
+      const titleStyle = getComputedStyle(title);
+      return {
+        summaryWidth,
+        visualWidth: visual.getBoundingClientRect().width,
+        copyWidth: copy.getBoundingClientRect().width,
+        titleLines: Math.round(
+          title.getBoundingClientRect().height /
+            parseFloat(titleStyle.lineHeight)
+        )
+      };
+    });
+
+  expect(metrics.visualWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
+  expect(metrics.copyWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
+  expect(metrics.titleLines).toBeLessThanOrEqual(3);
+  expect(
+    await page.locator("html").evaluate(
+      (element) => element.scrollWidth - element.clientWidth <= 2
+    )
+  ).toBe(true);
+});
