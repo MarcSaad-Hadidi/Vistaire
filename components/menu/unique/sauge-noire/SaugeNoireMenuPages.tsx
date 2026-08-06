@@ -96,6 +96,7 @@ function isSignature(dish: PublicMenuDish): boolean {
 export function SaugeNoireMenuPages({
   copy,
   currency,
+  displayMode = "comparison-preview",
   exchangeRates,
   locale,
   localeTag,
@@ -104,6 +105,7 @@ export function SaugeNoireMenuPages({
 }: {
   copy: SaugeNoirePageCopy;
   currency: string;
+  displayMode?: "comparison-preview" | "phone-preview";
   exchangeRates?: MenuExchangeRates;
   locale: Locale;
   localeTag: string;
@@ -117,7 +119,7 @@ export function SaugeNoireMenuPages({
     <div
       className={styles.comparisonPages}
       data-sauge-comparison-pages="true"
-      data-display-mode="comparison-preview"
+      data-display-mode={displayMode}
       data-public-menu-renderer="sauge-noire"
     >
       <CoverPage copy={copy} interactive={false} onOpen={() => undefined} />

@@ -235,8 +235,9 @@ test("landing comparison shares each public menu UI without the generic preview 
   assert.match(trouvablePreview, /displayMode = "comparison-preview"/);
   assert.match(trouvablePreview, /displayMode=\{displayMode\}/);
   assert.match(saugePreview, /SaugeNoireMenuPages/);
-  assert.match(saugePreview, /SaugeNoireBookMenu/);
   assert.match(saugePreview, /displayMode = "comparison-preview"/);
+  assert.match(saugePreview, /displayMode=\{displayMode\}/);
+  assert.doesNotMatch(saugePreview, /SaugeNoireBookMenu/);
   assert.match(saugePages, /CoverPage/);
   assert.match(saugePages, /ContentsPage/);
   assert.match(saugePages, /SectionPage/);

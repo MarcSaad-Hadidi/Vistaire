@@ -44,22 +44,6 @@ test.describe("restaurant demo experience selector", () => {
       "data-phone-mockup-scroll",
       "true"
     );
-    const initialPhoneScrollTop = await phoneScroller.evaluate(
-      (element) => element.scrollTop
-    );
-    await expect
-      .poll(() =>
-        phoneScroller.evaluate(
-          (element) => element.scrollHeight - element.clientHeight
-        )
-      )
-      .toBeGreaterThan(0);
-    await phoneScroller.evaluate((element) => {
-      element.scrollTop = Math.min(180, element.scrollHeight);
-    });
-    await expect
-      .poll(() => phoneScroller.evaluate((element) => element.scrollTop))
-      .toBeGreaterThan(initialPhoneScrollTop);
     await tabs.nth(1).click();
     await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
     await expect
@@ -74,6 +58,23 @@ test.describe("restaurant demo experience selector", () => {
     await expect(tabs.nth(2)).toHaveAttribute("aria-selected", "true");
     expect(new URL(page.url()).searchParams.get("experience")).toBe("sauge-noire");
     await expectSinglePreview(page);
+    const saugePages = phoneViewport.locator(
+      '[data-sauge-comparison-pages="true"][data-display-mode="phone-preview"]'
+    );
+    await expect(saugePages).toHaveCount(1);
+    await expect(phoneScroller.locator('[data-testid="sauge-noire-book"]')).toHaveCount(0);
+    const initialSaugeScrollTop = await phoneScroller.evaluate(
+      (element) => element.scrollTop
+    );
+    await expect
+      .poll(() => phoneScroller.evaluate((element) => element.scrollHeight - element.clientHeight))
+      .toBeGreaterThan(0);
+    await phoneScroller.evaluate((element) => {
+      element.scrollTop = Math.min(180, element.scrollHeight);
+    });
+    await expect
+      .poll(() => phoneScroller.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(initialSaugeScrollTop);
     expect(modelRequests).toEqual([]);
 
     await page.goto("/demo?experience=invalid&utm_source=qa#carte", {
