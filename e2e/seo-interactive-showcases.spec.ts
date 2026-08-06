@@ -77,7 +77,9 @@ test("digital restaurant Trouvable grid cards keep dish names readable", async (
   });
 
   expect(response?.status()).toBeLessThan(400);
+  await page.waitForTimeout(500);
   const trouvableTab = page.getByRole("tab", { name: "Trouvable" });
+  await trouvableTab.scrollIntoViewIfNeeded();
   await trouvableTab.click();
   await expect(trouvableTab).toHaveAttribute("aria-selected", "true");
 
@@ -121,6 +123,70 @@ test("digital restaurant Trouvable grid cards keep dish names readable", async (
   expect(metrics.visualWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
   expect(metrics.copyWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
   expect(metrics.titleLines).toBeLessThanOrEqual(3);
+  expect(
+    await page.locator("html").evaluate(
+      (element) => element.scrollWidth - element.clientWidth <= 2
+    )
+  ).toBe(true);
+});
+
+test("digital restaurant Trouvable list cards use one readable column", async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await page.goto("/menu-digital-restaurant", {
+    waitUntil: "domcontentloaded"
+  });
+
+  expect(response?.status()).toBeLessThan(400);
+  await page.waitForTimeout(500);
+  const trouvableTab = page.getByRole("tab", { name: "Trouvable" });
+  await trouvableTab.scrollIntoViewIfNeeded();
+  await trouvableTab.click();
+  await expect(trouvableTab).toHaveAttribute("aria-selected", "true");
+
+  const reveal = page.locator('[data-preview-reveal-frame="true"]');
+  await reveal.focus();
+  await reveal.press("Enter");
+  await expect(reveal).toHaveAttribute("data-reveal-locked", "true");
+
+  const menu = page.locator(
+    '[data-active-preview="trouvable"] [data-menu-ui="trouvable"]'
+  );
+  await expect(menu).toBeVisible();
+  await menu.getByRole("button", { name: "Afficher en liste" }).click();
+
+  const metrics = await menu
+    .locator("ul")
+    .first()
+    .locator("article")
+    .first()
+    .evaluate((article) => {
+      const list = article.closest("ul");
+      const summary = article.querySelector('[class*="dishSummary"]');
+      const copy = article.querySelector('[class*="dishCopy"]');
+      const title = article.querySelector("strong");
+      if (!list || !summary || !copy || !title) {
+        throw new Error("SEO Trouvable list card structure is incomplete");
+      }
+      const titleStyle = getComputedStyle(title);
+      return {
+        listColumns: getComputedStyle(list).gridTemplateColumns,
+        listWidth: list.getBoundingClientRect().width,
+        cardWidth: article.getBoundingClientRect().width,
+        summaryWidth: summary.getBoundingClientRect().width,
+        copyWidth: copy.getBoundingClientRect().width,
+        titleLines: Math.round(
+          title.getBoundingClientRect().height /
+            parseFloat(titleStyle.lineHeight)
+        )
+      };
+    });
+
+  expect(metrics.listColumns.split(" ")).toHaveLength(1);
+  expect(metrics.cardWidth).toBeGreaterThan(metrics.listWidth * 0.85);
+  expect(metrics.copyWidth).toBeGreaterThan(metrics.summaryWidth * 0.35);
+  expect(metrics.titleLines).toBeLessThanOrEqual(4);
   expect(
     await page.locator("html").evaluate(
       (element) => element.scrollWidth - element.clientWidth <= 2

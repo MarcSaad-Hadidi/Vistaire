@@ -5017,6 +5017,14 @@
   min-height: 0;
 }
 
+/* The SEO reveal is rendered inside a phone-sized surface while the document
+   itself is desktop-wide. Reset the desktop list columns here so the list
+   cards keep one full-width row; grid mode remains two columns. */
+.page.phonePreview .dishList:not(.dishGrid),
+.page[data-display-mode="comparison-preview"] .dishList:not(.dishGrid) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* The canonical Trouvable restaurant keeps the pre-builder composition. The
    reference surface is intentionally independent from owner palette tokens. */
 .page[data-palette-source="reference"][data-user-theme="dark"] {
