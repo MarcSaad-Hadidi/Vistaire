@@ -8,6 +8,7 @@ import {
   getOwnerMenuTranslationOverview
 } from "@/lib/owner/menuTranslations";
 import { normalizePublicMenuLocale } from "@/lib/menu/publicMenuSettings";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,16 @@ export async function GET(
   if (!owner.ok) return owner.response;
 
   const { restaurantId } = await params;
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canManageTranslations"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error },
+      { status: capability.status }
+    );
+  }
   const result = await getOwnerMenuTranslationOverview(restaurantId);
   if (!result.ok) {
     return NextResponse.json(
@@ -41,6 +52,16 @@ export async function POST(
   if (originError) return originError;
 
   const { restaurantId } = await params;
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canManageTranslations"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error },
+      { status: capability.status }
+    );
+  }
   const body = (await request.json().catch(() => null)) as
     | { locale?: unknown; dryRun?: unknown }
     | null;

@@ -19,6 +19,7 @@ import {
   type PublicMenuThemeMode
 } from "@/lib/menu/publicMenuSettings";
 import type { OwnerRestaurant } from "@/lib/owner/types";
+import type { RestaurantOwnerCapabilities } from "@/lib/owner/demoCapabilitiesCore";
 
 type RestaurantStatusAction = "archive" | "restore";
 
@@ -117,10 +118,12 @@ function normalizeCurrencyInput(value: string): PublicMenuCurrency | null {
 
 export function OwnerRestaurantSettings({
   restaurant,
-  menuSettings = DEFAULT_PUBLIC_MENU_SETTINGS
+  menuSettings = DEFAULT_PUBLIC_MENU_SETTINGS,
+  capabilities
 }: {
   restaurant: OwnerRestaurant;
   menuSettings?: PublicMenuSettings;
+  capabilities: RestaurantOwnerCapabilities;
 }) {
   const router = useRouter();
   const [settingsDraft, setSettingsDraft] = useState<PublicMenuSettings>(() =>
@@ -237,7 +240,9 @@ export function OwnerRestaurantSettings({
   const actionLabel = isArchived ? "Restaurer le restaurant" : "Archiver le restaurant";
   const deleteConfirmationTarget = restaurant.slug || restaurant.name.trim();
   const deleteConfirmed = deleteConfirmation.trim() === deleteConfirmationTarget;
-  const isDisabled = restaurant.isDemo || statusPending !== null || deletePending;
+  const canEditSettings = capabilities.canEditMenuSettings;
+  const isDisabled =
+    !capabilities.canDeleteRestaurant || statusPending !== null || deletePending;
 
   function updateSettings(patch: Partial<PublicMenuSettings>) {
     setSettingsDraft((current) => serializePublicMenuSettings({ ...current, ...patch }));
@@ -412,7 +417,7 @@ export function OwnerRestaurantSettings({
                   settingsDraft.publicMenuStyle === option.value ? styles.toggleCardActive : ""
                 }`}
                 aria-pressed={settingsDraft.publicMenuStyle === option.value}
-                disabled={settingsPending}
+                disabled={!canEditSettings || settingsPending}
                 onClick={() =>
                   setSettingsDraft((current) => ({
                     ...current,
@@ -433,7 +438,7 @@ export function OwnerRestaurantSettings({
             <select
               className={styles.control}
               value=""
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               aria-label="Ajouter une langue au menu public"
               onChange={(event) => addLocale(event.target.value)}
             >
@@ -450,7 +455,7 @@ export function OwnerRestaurantSettings({
             <input
               className={styles.control}
               value={customLocale}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               placeholder="ex: ja-JP, ar, es-MX"
               onChange={(event) => setCustomLocale(event.target.value)}
               onKeyDown={(event) => {
@@ -463,7 +468,7 @@ export function OwnerRestaurantSettings({
             <button
               type="button"
               className={`${styles.btn} ${styles.btnSmall}`}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onClick={addCustomLocale}
             >
               Ajouter
@@ -478,7 +483,7 @@ export function OwnerRestaurantSettings({
               <small>{locale}</small>
               <button
                 type="button"
-                disabled={settingsPending || settingsDraft.supportedLocales.length === 1}
+                disabled={!canEditSettings || settingsPending || settingsDraft.supportedLocales.length === 1}
                 onClick={() => toggleLocale(locale)}
               >
                 Retirer
@@ -493,7 +498,7 @@ export function OwnerRestaurantSettings({
             <select
               className={styles.control}
               value={settingsDraft.defaultLocale}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onChange={(event) =>
                 updateSettings({ defaultLocale: event.target.value as PublicMenuLocale })
               }
@@ -510,7 +515,7 @@ export function OwnerRestaurantSettings({
             <input
               className={styles.control}
               value={settingsDraft.timezone}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onChange={(event) => updateSettings({ timezone: event.target.value })}
             />
           </label>
@@ -522,7 +527,7 @@ export function OwnerRestaurantSettings({
             <select
               className={styles.control}
               value=""
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               aria-label="Ajouter une devise au menu public"
               onChange={(event) => addCurrency(event.target.value)}
             >
@@ -539,7 +544,7 @@ export function OwnerRestaurantSettings({
             <input
               className={styles.control}
               value={customCurrency}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               placeholder="ex: GBP, JPY, CHF"
               maxLength={3}
               onChange={(event) => setCustomCurrency(event.target.value.toUpperCase())}
@@ -553,7 +558,7 @@ export function OwnerRestaurantSettings({
             <button
               type="button"
               className={`${styles.btn} ${styles.btnSmall}`}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onClick={addCustomCurrency}
             >
               Ajouter
@@ -568,7 +573,7 @@ export function OwnerRestaurantSettings({
               <small>{currency === "CAD" ? "Base recommandee" : "Conversion client"}</small>
               <button
                 type="button"
-                disabled={settingsPending || settingsDraft.supportedCurrencies.length === 1}
+                disabled={!canEditSettings || settingsPending || settingsDraft.supportedCurrencies.length === 1}
                 onClick={() => toggleCurrency(currency)}
               >
                 Retirer
@@ -583,7 +588,7 @@ export function OwnerRestaurantSettings({
             <select
               className={styles.control}
               value={settingsDraft.baseCurrency}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               aria-describedby="settings-base-currency-help"
               onChange={(event) =>
                 updateSettings({ baseCurrency: event.target.value as PublicMenuCurrency })
@@ -605,7 +610,7 @@ export function OwnerRestaurantSettings({
               <select
                 className={styles.control}
                 value={settingsDraft.defaultCurrency}
-                disabled={settingsPending}
+                disabled={!canEditSettings || settingsPending}
                 aria-describedby="settings-default-currency-help"
                 onChange={(event) =>
                   updateSettings({ defaultCurrency: event.target.value as PublicMenuCurrency })
@@ -637,7 +642,7 @@ export function OwnerRestaurantSettings({
             <select
               className={styles.control}
               value={settingsDraft.defaultThemeMode}
-              disabled={settingsPending}
+                disabled={!canEditSettings || settingsPending}
               onChange={(event) =>
                 updateSettings({ defaultThemeMode: event.target.value as PublicMenuThemeMode })
               }
@@ -653,7 +658,7 @@ export function OwnerRestaurantSettings({
             <input
               type="checkbox"
               checked={settingsDraft.allowLanguageSelector}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onChange={(event) =>
                 updateSettings({ allowLanguageSelector: event.target.checked })
               }
@@ -664,7 +669,7 @@ export function OwnerRestaurantSettings({
             <input
               type="checkbox"
               checked={settingsDraft.allowCurrencySelector}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onChange={(event) =>
                 updateSettings({ allowCurrencySelector: event.target.checked })
               }
@@ -675,7 +680,7 @@ export function OwnerRestaurantSettings({
             <input
               type="checkbox"
               checked={settingsDraft.allowThemeToggle}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onChange={(event) =>
                 updateSettings({ allowThemeToggle: event.target.checked })
               }
@@ -686,7 +691,7 @@ export function OwnerRestaurantSettings({
             <input
               type="checkbox"
               checked={settingsDraft.taxIncluded}
-              disabled={settingsPending}
+              disabled={!canEditSettings || settingsPending}
               onChange={(event) => updateSettings({ taxIncluded: event.target.checked })}
             />
             <span>Taxes incluses</span>
@@ -697,14 +702,21 @@ export function OwnerRestaurantSettings({
           <button
             type="button"
             className={`${styles.btnPrimary} ${styles.btn}`}
-            disabled={restaurant.isDemo || settingsPending}
+            disabled={!canEditSettings || settingsPending}
             onClick={() => void saveMenuSettings()}
           >
             {settingsPending ? "Sauvegarde..." : "Sauvegarder les settings menu"}
           </button>
-          {restaurant.isDemo ? (
+          {!canEditSettings ? (
             <span className={styles.sourceNote}>
               Restaurant de demonstration protege contre l&apos;edition.
+            </span>
+          ) : restaurant.isDemo ? (
+            <span className={styles.sourceNote}>Démo éditable — les actions destructives restent protégées.</span>
+          ) : null}
+          {restaurant.isDemo ? (
+            <span className={styles.sourceNote}>
+              Capacités : contenu {capabilities.canEditMenuContent ? "autorisé" : "protégé"}, settings {capabilities.canEditMenuSettings ? "autorisés" : "protégés"}, traductions {capabilities.canManageTranslations ? "autorisées" : "protégées"}; suppression et QR destructif protégés.
             </span>
           ) : null}
         </div>
@@ -721,7 +733,7 @@ export function OwnerRestaurantSettings({
         <OwnerMenuTranslationPanel
           restaurantId={restaurant.id}
           settings={settingsDraft}
-          disabled={restaurant.isDemo || settingsPending}
+          disabled={!capabilities.canManageTranslations || settingsPending}
         />
       </section>
 
@@ -796,7 +808,7 @@ export function OwnerRestaurantSettings({
               value={deleteConfirmation}
               onChange={(event) => setDeleteConfirmation(event.target.value)}
               placeholder={deleteConfirmationTarget}
-              disabled={restaurant.isDemo || deletePending}
+              disabled={!capabilities.canDeleteRestaurant || deletePending}
             />
           </label>
 
@@ -805,7 +817,7 @@ export function OwnerRestaurantSettings({
               type="checkbox"
               checked={deleteStorage}
               onChange={(event) => setDeleteStorage(event.target.checked)}
-              disabled={restaurant.isDemo || deletePending}
+              disabled={!capabilities.canDeleteRestaurant || deletePending}
             />
             <span>
               Tenter aussi de supprimer les fichiers Storage/CDN sous les chemins du
