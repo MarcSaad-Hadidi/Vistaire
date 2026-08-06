@@ -327,6 +327,46 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   expect(publicDishes).toEqual(adminDishes);
 });
 
+test("full-menu admin thumbnails fall back without broken-image icons", async ({ page }) => {
+  test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && message.text() !== "Failed to load resource: net::ERR_FAILED") {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route("**/_next/image**", async (route) => {
+    const url = new URL(route.request().url());
+    const source = decodeURIComponent(url.searchParams.get("url") ?? "");
+    if (source.includes("ravioles-chevre-miel-monteregie.png")) {
+      await route.abort();
+      return;
+    }
+    await route.continue();
+  });
+
+  await enterPreview(page);
+  await page.goto("/admin/availability", { waitUntil: "networkidle" });
+  const rows = page.locator("[data-admin-menu-dish]");
+  await expect(rows).toHaveCount(12);
+  expect(await page.locator('article[data-available="true"]').count()).toBeGreaterThan(0);
+  expect(await page.locator('article[data-available="false"]').count()).toBeGreaterThan(0);
+  await expect(page.locator("[data-admin-dish-thumbnail-fallback]").first()).toBeVisible();
+
+  for (const row of await rows.all()) {
+    await row.scrollIntoViewIfNeeded();
+  }
+  await page.waitForLoadState("networkidle");
+  const brokenImages = await page.locator("[data-admin-dish-thumbnail] img").evaluateAll((images) =>
+    images.filter((image): image is HTMLImageElement => image instanceof HTMLImageElement && image.complete && image.naturalWidth === 0).length
+  );
+  expect(brokenImages).toBe(0);
+  expect(consoleErrors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
 test("period changes replace chart evidence and replay bounded animations", async ({ page }) => {
   await page.addInitScript(() => {
     const runtime = window as typeof window & { __chartAnimationEvidence?: Array<{ duration: number; iterations: number }> };

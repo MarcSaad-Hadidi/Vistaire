@@ -1,13 +1,20 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isCanonicalUuid } from "@/lib/owner/storageSafeIdentifier";
+import {
+  isCanonicalUuid,
+  isStorageSafeIdentifier
+} from "@/lib/owner/storageSafeIdentifier";
 
 export type PublicDishAssetKind = "photo" | "web-glb" | "ar-lite-glb" | "usdz";
 
-type PublicDishAssetAdmin =
+type DishAssetAdmin =
   | { ok: true; client: SupabaseClient }
   | { ok: false; reason: string };
+
+export type DishAssetVisibilityPolicy =
+  | { kind: "public-available-only" }
+  | { kind: "authorized-admin"; restaurantId: string };
 
 type PublicDishAssetProfile = {
   bucket: "vistaire-media" | "vistaire-3d";
@@ -26,7 +33,8 @@ type PublicDishAssetProfile = {
   extensions: readonly string[];
 };
 
-const SIGNED_URL_TTL_SECONDS = 3600;
+const PUBLIC_SIGNED_URL_TTL_SECONDS = 3600;
+const ADMIN_SIGNED_URL_TTL_SECONDS = 600;
 
 const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
   photo: {
@@ -154,6 +162,8 @@ export function isAllowedPublicDishAssetLocation(args: {
   return profile.extensions.some((extension) => filename.endsWith(extension));
 }
 
+export const isAllowedDishAssetLocation = isAllowedPublicDishAssetLocation;
+
 function configuredSupabaseOrigin(supabaseUrl: string | undefined): string | null {
   if (!supabaseUrl) return null;
   try {
@@ -199,14 +209,15 @@ export function isExpectedSignedStorageUrl(args: {
   }
 }
 
-export async function redirectPublicDishAsset(args: {
-  admin: PublicDishAssetAdmin;
+async function redirectDishAsset(args: {
+  admin: DishAssetAdmin;
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
   supabaseUrl: string | undefined;
   notFoundMessage: string;
   unavailableMessage: string;
+  assetVisibilityPolicy: DishAssetVisibilityPolicy;
 }): Promise<Response> {
   if (!isCanonicalUuid(args.dishId)) {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
@@ -218,18 +229,45 @@ export async function redirectPublicDishAsset(args: {
   let dishResult;
   const dbStartedAt = performance.now();
   try {
-    dishResult = await args.admin.client
+    const dishQuery = args.admin.client
       .from("menu_dishes")
       .select("id,restaurant_id,is_available,metadata")
-      .eq("id", args.dishId)
-      .maybeSingle();
+      .eq("id", args.dishId);
+    if (args.assetVisibilityPolicy.kind === "authorized-admin") {
+      dishQuery.eq("restaurant_id", args.assetVisibilityPolicy.restaurantId);
+    }
+    dishResult = await dishQuery.maybeSingle();
   } catch {
     return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
   const dbDuration = boundedDuration(dbStartedAt);
 
   const dish = dishResult.data as Record<string, unknown> | null;
-  if (dishResult.error || !dish || dish.is_available === false) {
+  if (dishResult.error) {
+    return publicDishAssetJsonError(
+      args.assetVisibilityPolicy.kind === "authorized-admin"
+        ? args.unavailableMessage
+        : args.notFoundMessage,
+      args.assetVisibilityPolicy.kind === "authorized-admin" ? 503 : 404
+    );
+  }
+  if (!dish) {
+    return publicDishAssetJsonError(args.notFoundMessage, 404);
+  }
+
+  const dishRestaurantId =
+    typeof dish.restaurant_id === "string" ? dish.restaurant_id.trim() : "";
+  if (
+    args.assetVisibilityPolicy.kind === "public-available-only" &&
+    dish.is_available === false
+  ) {
+    return publicDishAssetJsonError(args.notFoundMessage, 404);
+  }
+  if (
+    args.assetVisibilityPolicy.kind === "authorized-admin" &&
+    (!isStorageSafeIdentifier(args.assetVisibilityPolicy.restaurantId) ||
+      dishRestaurantId !== args.assetVisibilityPolicy.restaurantId)
+  ) {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
 
@@ -246,13 +284,12 @@ export async function redirectPublicDishAsset(args: {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
 
-  const restaurantId =
-    typeof dish.restaurant_id === "string" ? dish.restaurant_id.trim() : "";
+  const restaurantId = dishRestaurantId;
   const bucket = metadataString(metadata, profile.bucketMetadataKey) || profile.bucket;
   const storagePath = metadataString(metadata, profile.pathMetadataKey);
   if (
     !restaurantId ||
-    !isAllowedPublicDishAssetLocation({
+    !isAllowedDishAssetLocation({
       kind: args.kind,
       bucket,
       storagePath,
@@ -267,12 +304,27 @@ export async function redirectPublicDishAsset(args: {
     const storageInfoStartedAt = performance.now();
     const objectInfo = await storage.info(storagePath);
     const storageInfoDuration = boundedDuration(storageInfoStartedAt);
-    if (objectInfo.error || !objectInfo.data) {
+    if (objectInfo.error) {
+      const status =
+        typeof objectInfo.error === "object" && objectInfo.error
+          ? Number((objectInfo.error as { status?: unknown }).status)
+          : Number.NaN;
+      return publicDishAssetJsonError(
+        status === 404 ? args.notFoundMessage : args.unavailableMessage,
+        status === 404 ? 404 : 503
+      );
+    }
+    if (!objectInfo.data) {
       return publicDishAssetJsonError(args.notFoundMessage, 404);
     }
 
     const storageSignStartedAt = performance.now();
-    const signed = await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+    const signed = await storage.createSignedUrl(
+      storagePath,
+      args.assetVisibilityPolicy.kind === "authorized-admin"
+        ? ADMIN_SIGNED_URL_TTL_SECONDS
+        : PUBLIC_SIGNED_URL_TTL_SECONDS
+    );
     const storageSignDuration = boundedDuration(storageSignStartedAt);
     const signedUrl = signed.data?.signedUrl;
     if (
@@ -289,15 +341,23 @@ export async function redirectPublicDishAsset(args: {
     }
 
     const isVersioned = Boolean(requestedVersion);
+    const isAuthorizedAdmin =
+      args.assetVisibilityPolicy.kind === "authorized-admin";
     const headers: Record<string, string> = {
       Location: signedUrl,
-      "Cache-Control": isVersioned
+      "Cache-Control": isAuthorizedAdmin
+        ? "private, no-store"
+        : isVersioned
         ? "public, max-age=120, must-revalidate"
         : "private, no-store",
-      "CDN-Cache-Control": isVersioned
+      "CDN-Cache-Control": isAuthorizedAdmin
+        ? "private, no-store"
+        : isVersioned
         ? "public, s-maxage=2700"
         : "private, no-store",
-      "Vercel-CDN-Cache-Control": isVersioned
+      "Vercel-CDN-Cache-Control": isAuthorizedAdmin
+        ? "private, no-store"
+        : isVersioned
         ? "public, s-maxage=2700"
         : "private, no-store"
     };
@@ -316,4 +376,38 @@ export async function redirectPublicDishAsset(args: {
   } catch {
     return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
+}
+
+export async function redirectPublicDishAsset(args: {
+  admin: DishAssetAdmin;
+  dishId: string;
+  kind: PublicDishAssetKind;
+  requestedAssetVersion?: string;
+  supabaseUrl: string | undefined;
+  notFoundMessage: string;
+  unavailableMessage: string;
+}): Promise<Response> {
+  return redirectDishAsset({
+    ...args,
+    assetVisibilityPolicy: { kind: "public-available-only" }
+  });
+}
+
+export async function redirectAuthorizedAdminDishAsset(args: {
+  admin: DishAssetAdmin;
+  dishId: string;
+  kind: PublicDishAssetKind;
+  requestedAssetVersion?: string;
+  supabaseUrl: string | undefined;
+  restaurantId: string;
+  notFoundMessage: string;
+  unavailableMessage: string;
+}): Promise<Response> {
+  return redirectDishAsset({
+    ...args,
+    assetVisibilityPolicy: {
+      kind: "authorized-admin",
+      restaurantId: args.restaurantId
+    }
+  });
 }
