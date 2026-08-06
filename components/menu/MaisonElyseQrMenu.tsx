@@ -13,9 +13,10 @@ import {
   type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
 import {
-  getMaisonElyseLanguagePresentation,
+  getMaisonElyseLanguageOptions,
   getMaisonElyseTextDirection,
-  resolveMaisonElyseCopy
+  resolveMaisonElyseCopy,
+  type MaisonElyseLanguageOption
 } from "@/lib/menu/maisonElyseLocalization";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import { useTransitionPresence } from "@/lib/useTransitionPresence";
@@ -85,11 +86,6 @@ const ALL_CATEGORY_ID = "all";
 // Kept slightly above the CSS sheet animation duration so the exit finishes before unmount.
 const SHEET_MOTION_MS = 260;
 const MENU_LOCALE_STORAGE_KEY = "vistaire:maison-elyse-menu-locale";
-const BUILT_IN_LANGUAGE_FALLBACK: Array<{ id: PublicMenuLocale; label: string; shortLabel: string }> = [
-  { id: "fr", label: "Français", shortLabel: "FR" },
-  { id: "en", label: "English", shortLabel: "EN" }
-];
-type LanguageOption = (typeof BUILT_IN_LANGUAGE_FALLBACK)[number];
 const ALLERGEN_FILTER_LABELS = Object.fromEntries(
   ALLERGEN_FILTERS.map((filter) => [filter.id, filter.labels])
 ) as unknown as Record<AllergenFilterId, Record<string, string>>;
@@ -697,33 +693,14 @@ export function MaisonElyseQrMenu({
       ),
     [activeMenu.localizedUiCopy, restaurantDisplayName, selectedLocale]
   );
-  const languageOptions = useMemo<LanguageOption[]>(() => {
-    const statuses = new Map(
-      (activeMenu.translationLocales ?? []).map((status) => [status.locale, status])
-    );
-    const readyLocales = activeMenu.settings.supportedLocales.filter((candidate) => {
-      const status = statuses.get(candidate);
-      return (
-        candidate === activeMenu.settings.defaultLocale ||
-        status?.status === "source" ||
-        status?.status === "up_to_date"
-      );
-    });
-    const locales = readyLocales.length
-      ? readyLocales
-      : [activeMenu.settings.defaultLocale];
-    return locales.map((candidate) => {
-      const presentation = getMaisonElyseLanguagePresentation(candidate);
-      const legacy = BUILT_IN_LANGUAGE_FALLBACK.find(
-        (option) => localeLanguage(option.id) === localeLanguage(candidate)
-      );
-      return {
-        id: candidate,
-        label: presentation.nativeName || legacy?.label || candidate,
-        shortLabel: presentation.shortCode
-      };
-    });
-  }, [activeMenu.settings, activeMenu.translationLocales]);
+  const languageOptions = useMemo<MaisonElyseLanguageOption[]>(
+    () =>
+      getMaisonElyseLanguageOptions(
+        activeMenu.settings,
+        activeMenu.translationLocales
+      ),
+    [activeMenu.settings, activeMenu.translationLocales]
+  );
   const activeQuery = useMemo(
     () =>
       shouldPersistLocaleInLinks

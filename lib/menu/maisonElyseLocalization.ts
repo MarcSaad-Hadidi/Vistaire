@@ -6,8 +6,10 @@ import {
 } from "@/components/menu/trouvableMenuControls";
 import {
   normalizePublicMenuLocale,
+  type PublicMenuSettings,
   type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
+import type { PublicMenuTranslationStatus } from "@/lib/menu/publicMenuCore";
 
 /** The public-menu locale registry is intentionally independent from marketing locales. */
 export type MaisonElyseLocale = PublicMenuLocale;
@@ -21,6 +23,40 @@ export function getMaisonElyseLanguagePresentation(locale: string) {
     ...getTrouvableLanguagePresentation(locale),
     shortCode: getTrouvableLanguageShortCode(locale)
   };
+}
+
+export type MaisonElyseLanguageOption = {
+  id: PublicMenuLocale;
+  label: string;
+  shortLabel: string;
+};
+
+/** Return only configured locales whose complete translation is public-ready. */
+export function getMaisonElyseLanguageOptions(
+  settings: Pick<PublicMenuSettings, "defaultLocale" | "supportedLocales">,
+  translationLocales: PublicMenuTranslationStatus[] = []
+): MaisonElyseLanguageOption[] {
+  const statuses = new Map(
+    translationLocales.map((status) => [status.locale, status.status])
+  );
+  const readyLocales = settings.supportedLocales.filter((candidate) => {
+    const status = statuses.get(candidate);
+    return (
+      candidate === settings.defaultLocale ||
+      status === "source" ||
+      status === "up_to_date"
+    );
+  });
+  const locales = readyLocales.length ? readyLocales : [settings.defaultLocale];
+
+  return locales.map((candidate) => {
+    const presentation = getMaisonElyseLanguagePresentation(candidate);
+    return {
+      id: candidate,
+      label: presentation.nativeName || candidate,
+      shortLabel: presentation.shortCode
+    };
+  });
 }
 
 export function getMaisonElyseTextDirection(locale: string): "ltr" | "rtl" {
