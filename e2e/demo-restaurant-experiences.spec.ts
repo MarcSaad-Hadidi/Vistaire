@@ -119,4 +119,51 @@ test.describe("restaurant demo experience selector", () => {
     expect(modelRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
   });
+
+  test("keeps Trouvable grid dish names readable in the phone preview", async ({
+    page
+  }) => {
+    await page.goto("/demo?experience=trouvable#carte", {
+      waitUntil: "domcontentloaded"
+    });
+
+    const phoneScroller = page.getByTestId("demo-phone-viewport").locator(
+      ':scope > [data-display-mode="phone-preview"]'
+    );
+    const menu = phoneScroller.locator('[data-menu-ui="trouvable"]');
+    await expect(menu).toBeVisible();
+    await menu.getByRole("button", { name: "Afficher en grille" }).click();
+
+    const metrics = await menu
+      .locator("ul")
+      .first()
+      .locator("article")
+      .first()
+      .evaluate((article) => {
+        const summary = article.querySelector('[class*="dishSummary"]');
+        const visual = article.querySelector('[class*="dishVisual"]');
+        const copy = article.querySelector('[class*="dishCopy"]');
+        const title = article.querySelector("strong");
+        if (!summary || !visual || !copy || !title) {
+          throw new Error("Trouvable grid card structure is incomplete");
+        }
+        const summaryWidth = summary.getBoundingClientRect().width;
+        const visualWidth = visual.getBoundingClientRect().width;
+        const copyWidth = copy.getBoundingClientRect().width;
+        const titleStyle = getComputedStyle(title);
+        return {
+          summaryWidth,
+          visualWidth,
+          copyWidth,
+          titleLines: Math.round(
+            title.getBoundingClientRect().height /
+              parseFloat(titleStyle.lineHeight)
+          )
+        };
+      });
+
+    expect(metrics.visualWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
+    expect(metrics.copyWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
+    expect(metrics.titleLines).toBeLessThanOrEqual(3);
+  });
 });

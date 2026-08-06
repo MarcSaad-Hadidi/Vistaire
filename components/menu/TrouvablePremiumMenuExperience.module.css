@@ -4995,6 +4995,25 @@
   min-height: 48px;
 }
 
+/* Grid cards stack their visual above the copy. The compact phone rules for
+   list cards are more specific and otherwise leave only a sliver of width for
+   the dish name, which makes every word wrap one character at a time. */
+.page.phonePreview .dishGrid .dishSummary {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+}
+
+.page.phonePreview .dishGrid .dishVisual {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  aspect-ratio: 1.08;
+}
+
+.page.phonePreview .dishGrid .dishTopline {
+  min-height: 0;
+}
+
 /* The canonical Trouvable restaurant keeps the pre-builder composition. The
    reference surface is intentionally independent from owner palette tokens. */
 .page[data-palette-source="reference"][data-user-theme="dark"] {
