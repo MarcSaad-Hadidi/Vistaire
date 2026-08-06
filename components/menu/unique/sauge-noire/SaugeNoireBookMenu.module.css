@@ -2188,6 +2188,16 @@
   width: clamp(62px, 28cqw, 106px);
 }
 
+/* Featured dishes keep the editorial media block from the SEO/card previews.
+ * The compact row sizing above must not collapse this first image to a
+ * thumbnail when both selectors target the same photo slot. */
+.comparisonPages .featureCard .photoSlotLarge {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
 .comparisonPages .dishRowName > span:first-child {
   font-size: clamp(0.9rem, 4.3cqw, 1.8rem);
 }

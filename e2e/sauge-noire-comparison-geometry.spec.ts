@@ -94,6 +94,22 @@ async function measure(page: Page) {
     const renderer = document.querySelector<HTMLElement>(
       '[data-landing-menu-renderer="sauge-noire"]'
     );
+    const featuredPhotos = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-landing-menu-renderer="sauge-noire"] [data-sauge-featured-dish]'
+      )
+    ).map((card) => {
+      const photo = card.querySelector<HTMLElement>('[data-photo-slot]');
+      const cardRect = card.getBoundingClientRect();
+      const photoRect = photo?.getBoundingClientRect();
+      return {
+        cardWidth: cardRect.width,
+        cardRight: cardRect.right,
+        photoWidth: photoRect?.width ?? 0,
+        photoHeight: photoRect?.height ?? 0,
+        photoRight: photoRect?.right ?? 0
+      };
+    });
     return {
       viewport: {
         innerWidth: window.innerWidth,
@@ -101,7 +117,8 @@ async function measure(page: Page) {
         scrollWidth: document.documentElement.scrollWidth
       },
       renderer: renderer ? box(renderer) : null,
-      pages
+      pages,
+      featuredPhotos
     };
   });
 }
@@ -131,6 +148,18 @@ for (const viewport of [
           expect(metrics.renderer?.scrollWidth ?? 0).toBeLessThanOrEqual(
             (metrics.renderer?.clientWidth ?? 0) + 1
           );
+          expect(metrics.featuredPhotos.length, "featured dish cards").toBeGreaterThan(0);
+          for (const photo of metrics.featuredPhotos) {
+            expect(photo.photoWidth, "featured photo should fill its card").toBeGreaterThan(
+              photo.cardWidth * 0.9
+            );
+            expect(photo.photoHeight, "featured photo should have visible height").toBeGreaterThan(
+              0
+            );
+            expect(photo.photoRight, "featured photo exceeds card right edge").toBeLessThanOrEqual(
+              photo.cardRight + 1
+            );
+          }
           for (const { label, page: pageMetrics, titles } of metrics.pages) {
             expect(pageMetrics.scrollWidth, `${label} page overflow`).toBeLessThanOrEqual(
               pageMetrics.clientWidth + 1
