@@ -161,6 +161,10 @@
   gap: 10px;
 }
 
+.phoneStage > * {
+  width: min(100%, 414px);
+}
+
 .phoneLabel {
   display: flex;
   width: min(100%, 390px);
