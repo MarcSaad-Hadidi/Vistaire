@@ -70,6 +70,7 @@ export default async function PublicDishPage({
     exchangeRates,
     experience
   } = renderContext;
+  const { publicLocale } = renderContext;
   const dish = getPublicMenuDishBySlug(menu, dishSlug);
 
   if (!dish) {
@@ -80,7 +81,7 @@ export default async function PublicDishPage({
     return (
       <MaisonElyseDishDetail
         dish={dish}
-        locale={locale}
+        locale={publicLocale}
         menu={menu}
         query={menuQuery}
         config={config}

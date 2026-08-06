@@ -1,7 +1,8 @@
 import "server-only";
 
 import { getExchangeRates } from "@/lib/currency/exchangeRates";
-import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
+import { type Locale } from "@/lib/i18n";
+import { type PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import { menuUiConfigForRestaurant, type MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import {
@@ -34,9 +35,9 @@ export type PublicMenuRenderContext = {
   context: string;
   query: PublicMenuContextQuery;
   locale: Locale;
-  publicLocale: string;
+  publicLocale: PublicMenuLocale;
   exchangeRates: MenuExchangeRates;
-  localizedMenus: Partial<Record<Locale, PublicMenu>>;
+  localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
   experience: ResolvedPublicMenuExperience;
 };
 
@@ -133,21 +134,19 @@ async function resolvePublicMenuBaseRenderContext({
 async function resolveLocalizedMenus(
   renderContext: PublicMenuBaseRenderContext,
   slug: string
-): Promise<Partial<Record<Locale, PublicMenu>>> {
+): Promise<Partial<Record<PublicMenuLocale, PublicMenu>>> {
   if (renderContext.experience.kind !== "maison-elyse") return {};
 
-  const [frenchMenu, englishMenu] = await Promise.all([
-    renderContext.locale === "fr"
-      ? Promise.resolve(renderContext.menu)
-      : getPublicMenuBySlug(slug, LOCALE_LANGUAGE_TAG.fr),
-    renderContext.locale === "en"
-      ? Promise.resolve(renderContext.menu)
-      : getPublicMenuBySlug(slug, LOCALE_LANGUAGE_TAG.en)
-  ]);
+  const activeLocale = renderContext.publicLocale;
+  const sourceLocale = renderContext.menu.settings.defaultLocale;
+  const sourceMenu =
+    activeLocale === sourceLocale
+      ? renderContext.menu
+      : await getPublicMenuBySlug(slug, sourceLocale);
 
   return {
-    ...(frenchMenu ? { fr: frenchMenu } : {}),
-    ...(englishMenu ? { en: englishMenu } : {})
+    ...(sourceMenu ? { [sourceLocale]: sourceMenu } : {}),
+    [activeLocale]: renderContext.menu
   };
 }
 
