@@ -11,6 +11,7 @@ import {
   sanitizeUsdzOriginalName
 } from "@/lib/owner/usdzRuntimeModel";
 import { createUsdzRuntimeJobToken } from "@/lib/owner/usdzRuntimeJsonFlow";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -47,6 +48,12 @@ export async function POST(
   const originError = requireSameOriginOwnerMutation(request);
   if (originError) return originError;
 
+  const { restaurantId, dishId } = await params;
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
+
   const sourceLimit = parseUsdzSourceUploadLimit(process.env);
   if (!sourceLimit.ok) {
     return NextResponse.json({ ok: false, error: "Optimiseur USDZ mal configure." }, { status: 503 });
@@ -77,7 +84,6 @@ export async function POST(
     return NextResponse.json({ ok: false, error: admin.reason }, { status: 503 });
   }
 
-  const { restaurantId, dishId } = await params;
   const { data: dish, error: dishError } = await admin.client
     .from("menu_dishes")
     .select("id,restaurant_id,menu_id,slug,name")

@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/ownerApi";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { runRestaurantMeshyDishPipeline } from "@/lib/owner/restaurantMeshyPipeline";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -78,12 +79,17 @@ export async function POST(
   const originError = requireSameOriginOwnerMutation(request);
   if (originError) return originError;
 
+  const { restaurantId, dishId } = await params;
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
+
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
     return NextResponse.json({ ok: false, error: admin.reason }, { status: 503 });
   }
 
-  const { restaurantId, dishId } = await params;
   let body: PublishBody = {};
   try {
     body = (await request.json()) as PublishBody;

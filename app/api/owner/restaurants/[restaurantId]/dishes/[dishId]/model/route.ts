@@ -14,6 +14,7 @@ import {
   hasDishModelMetadata,
   type DishModelDeleteTarget
 } from "@/lib/owner/deleteDishModelAssets";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import {
   isCanonicalUuid,
@@ -62,6 +63,10 @@ export async function DELETE(
       { ok: false, error: "Identifiants modele invalides." },
       { status: 400 }
     );
+  }
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
   const admin = getSupabaseAdminClient();
