@@ -33,7 +33,7 @@ type PublicDishAssetProfile = {
   extensions: readonly string[];
 };
 
-const PUBLIC_SIGNED_URL_TTL_SECONDS = 3600;
+const SIGNED_URL_TTL_SECONDS = 3600;
 const ADMIN_SIGNED_URL_TTL_SECONDS = 600;
 
 const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
@@ -319,12 +319,10 @@ async function redirectDishAsset(args: {
     }
 
     const storageSignStartedAt = performance.now();
-    const signed = await storage.createSignedUrl(
-      storagePath,
+    const signed =
       args.assetVisibilityPolicy.kind === "authorized-admin"
-        ? ADMIN_SIGNED_URL_TTL_SECONDS
-        : PUBLIC_SIGNED_URL_TTL_SECONDS
-    );
+        ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
+        : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
     const storageSignDuration = boundedDuration(storageSignStartedAt);
     const signedUrl = signed.data?.signedUrl;
     if (
