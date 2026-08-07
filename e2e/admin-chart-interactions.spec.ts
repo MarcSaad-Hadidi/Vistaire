@@ -11,6 +11,18 @@ async function enterPreview(page: Page) {
   }
 }
 
+async function enterFullMenuPreview(page: Page) {
+  await page.goto("/admin", { waitUntil: "domcontentloaded" });
+  const origin = new URL(page.url()).origin;
+  const response = await page.context().request.post(`${origin}/admin/preview`, {
+    headers: { Origin: origin },
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(303);
+  await page.goto("/admin", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /Maison Élysée/ })).toBeVisible({ timeout: 30_000 });
+}
+
 async function hoverPaintedSvgPath(path: Locator) {
   await path.scrollIntoViewIfNeeded();
   const point = await path.evaluate((element) => {
@@ -295,13 +307,13 @@ test("all required viewports stay within the document width", async ({ page }) =
 
 test("full-menu admin parity matches the public menu including unavailable dishes", async ({ page }) => {
   test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
-  await enterPreview(page);
-  await page.goto("/admin/availability", { waitUntil: "networkidle" });
+  await enterFullMenuPreview(page);
+  await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
   const rows = page.locator("[data-admin-menu-dish]");
   await expect(rows).toHaveCount(12);
   expect(await page.locator('article[data-available="true"]').count()).toBeGreaterThan(0);
   expect(await page.locator('article[data-available="false"]').count()).toBeGreaterThan(0);
-  const names = await rows.getByRole("heading", { level: 3 }).allTextContents();
+  const names = await rows.locator("h3").allTextContents();
   expect(new Set(names).size).toBe(12);
   const categories = await rows.locator("h3 + p").allTextContents();
   expect(new Set(categories).size).toBeGreaterThanOrEqual(4);
@@ -313,7 +325,7 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "other-menu-dish" }));
   expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "foreign-dish" }));
 
-  await page.goto("/menu/maison-elyse", { waitUntil: "networkidle" });
+  await page.goto("/menu/maison-elyse", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("LA COLLECTION")).toBeVisible();
   const publicRows = page.locator("[data-public-menu-dish]");
   await expect(publicRows).toHaveCount(12);
@@ -347,8 +359,8 @@ test("full-menu admin thumbnails fall back without broken-image icons", async ({
     await route.continue();
   });
 
-  await enterPreview(page);
-  await page.goto("/admin/availability", { waitUntil: "networkidle" });
+  await enterFullMenuPreview(page);
+  await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
   const rows = page.locator("[data-admin-menu-dish]");
   await expect(rows).toHaveCount(12);
   expect(await page.locator('article[data-available="true"]').count()).toBeGreaterThan(0);
@@ -358,7 +370,9 @@ test("full-menu admin thumbnails fall back without broken-image icons", async ({
   for (const row of await rows.all()) {
     await row.scrollIntoViewIfNeeded();
   }
-  await page.waitForLoadState("networkidle");
+  await expect.poll(() => page.locator("[data-admin-dish-thumbnail] img").evaluateAll((images) =>
+    images.filter((image) => image instanceof HTMLImageElement && !image.complete).length
+  ), { timeout: 30_000 }).toBe(0);
   const brokenImages = await page.locator("[data-admin-dish-thumbnail] img").evaluateAll((images) =>
     images.filter((image): image is HTMLImageElement => image instanceof HTMLImageElement && image.complete && image.naturalWidth === 0).length
   );

@@ -52,8 +52,10 @@ const includesLandingProductionPhoto = playwrightInputArgs
       argument.replaceAll("\\", "/")
     )
   );
+const useAdminVisualFixture = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1";
 const useDevelopmentServer =
   process.env.VISTAIRE_E2E_DEV_SERVER === "1" ||
+  useAdminVisualFixture ||
   (useLocalDemoServer && process.env.CI !== "true") ||
   (process.env.CI !== "true" &&
     ((includesSaugeNoireBrowserFlow && !includesLandingProductionPhoto) ||
@@ -73,33 +75,103 @@ const SAUGE_FIXTURE_ENV = {
   VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
     '{"CAD":1,"USD":0.72,"EUR":0.6225}'
 };
+const ADMIN_FIXTURE_PORT = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
+const ADMIN_FIXTURE_ORIGIN = `http://127.0.0.1:${ADMIN_FIXTURE_PORT}`;
+const ADMIN_FIXTURE_ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: ADMIN_FIXTURE_ORIGIN,
+  SUPABASE_SERVICE_ROLE_KEY: "visual-fixture-service-role-key",
+  NEXT_PUBLIC_DEMO_RESTAURANT_ID: "11111111-1111-1111-1111-111111111111",
+  VISTAIRE_ADMIN_VISUAL_NOW: "2026-07-10T12:00:00.000Z",
+  VISTAIRE_LOCAL_PREVIEW_SECRET: "admin-visual-fixture-preview-secret-2026"
+};
 let activeChild = null;
 
 function waitForServer(url, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let retryTimer = null;
+    const retry = (error) => {
+      if (settled || retryTimer) return;
+      if (Date.now() > deadline) {
+        settled = true;
+        reject(error);
+        return;
+      }
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        poll();
+      }, 500);
+    };
     const poll = () => {
       const request = http.get(url, (response) => {
+        response.once("error", retry);
+        response.once("aborted", () => retry(new Error(`Response aborted while waiting for ${url}`)));
+        response.once("end", () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        });
         response.resume();
-        resolve();
       });
 
-      request.on("error", (error) => {
-        if (Date.now() > deadline) {
-          reject(error);
-          return;
-        }
-        setTimeout(poll, 500);
-      });
+      request.once("error", retry);
 
       request.setTimeout(2_000, () => {
-        request.destroy();
+        request.destroy(new Error(`Timed out waiting for ${url}`));
       });
     };
 
     poll();
   });
+}
+
+function isServerAvailable(url) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (available) => {
+      if (settled) return;
+      settled = true;
+      resolve(available);
+    };
+    const request = http.get(url, (response) => {
+      response.once("error", () => finish(false));
+      response.once("aborted", () => finish(false));
+      response.once("end", () => finish(true));
+      response.resume();
+    });
+    request.once("error", () => finish(false));
+    request.setTimeout(1_000, () => {
+      request.destroy(new Error(`Timed out checking ${url}`));
+    });
+  });
+}
+
+function waitForExit(child, timeoutMs) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve(true);
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      child.removeListener("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    child.once("exit", onExit);
+  });
+}
+
+async function waitForServerStop(url, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await isServerAvailable(url))) return true;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return false;
 }
 
 function runChild(command, args, options = {}) {
@@ -127,11 +199,18 @@ async function hasProductionBuild() {
   }
 }
 
-function stopProcess(child) {
-  if (!child || child.killed || child.exitCode !== null) return;
+async function stopProcess(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
 
   if (process.platform === "win32") {
-    child.kill();
+    const taskkill = spawn(
+      "taskkill.exe",
+      ["/pid", String(child.pid), "/T", "/F"],
+      { stdio: "ignore", windowsHide: true }
+    );
+    if (!(await waitForExit(taskkill, 10_000))) taskkill.kill();
+    if (!(await waitForExit(child, 3_000))) child.kill();
+    await waitForExit(child, 2_000);
     return;
   }
 
@@ -140,25 +219,59 @@ function stopProcess(child) {
   } catch {
     child.kill("SIGTERM");
   }
+  if (await waitForExit(child, 5_000)) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    child.kill("SIGKILL");
+  }
+  await waitForExit(child, 2_000);
 }
 
 async function main() {
   let server = null;
   let saugeFixture = null;
+  let adminFixture = null;
   const startedAt = Date.now();
 
-  const stopChildren = () => {
-    stopProcess(activeChild);
-    stopProcess(server);
-    stopProcess(saugeFixture);
+  const stopChildren = async () => {
+    await stopProcess(activeChild);
+    await stopProcess(server);
+    await stopProcess(adminFixture);
+    await stopProcess(saugeFixture);
   };
   const onTermination = () => {
-    stopChildren();
+    void stopChildren();
   };
   process.once("SIGINT", onTermination);
   process.once("SIGTERM", onTermination);
 
   try {
+    if (useAdminVisualFixture) {
+      if (
+        (await isServerAvailable(`${ADMIN_FIXTURE_ORIGIN}/rest/v1/restaurants`)) ||
+        (await isServerAvailable(baseURL))
+      ) {
+        throw new Error(
+          `Admin E2E requires unused fixture and app ports (${ADMIN_FIXTURE_PORT}, ${parsedBaseURL.port || "80"}).`
+        );
+      }
+      adminFixture = spawn(
+        process.execPath,
+        ["e2e/support/admin-visual-fixture-server.mjs"],
+        {
+          stdio: "inherit",
+          windowsHide: true,
+          detached: process.platform !== "win32",
+          env: {
+            ...process.env,
+            VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT: ADMIN_FIXTURE_PORT
+          }
+        }
+      );
+      await waitForServer(`${ADMIN_FIXTURE_ORIGIN}/rest/v1/restaurants`, 30_000);
+    }
+
     if (includesSaugeNoireFixture) {
       saugeFixture = spawn(
         process.execPath,
@@ -216,6 +329,7 @@ async function main() {
           env: {
             ...process.env,
             ...(includesSaugeNoireFixture ? SAUGE_FIXTURE_ENV : {}),
+            ...(useAdminVisualFixture ? ADMIN_FIXTURE_ENV : {}),
             CLERK_SECRET_KEY: LOCAL_E2E_CLERK_SECRET_KEY,
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
               LOCAL_E2E_CLERK_PUBLISHABLE_KEY,
@@ -232,6 +346,11 @@ async function main() {
       );
 
       await waitForServer(baseURL);
+      if (useAdminVisualFixture) {
+        for (const route of ["/admin", "/admin/availability", "/menu/maison-elyse"]) {
+          await waitForServer(new URL(route, baseURL).toString());
+        }
+      }
     }
 
     const exitCode = await runChild(process.execPath, playwrightArgs, {
@@ -246,7 +365,17 @@ async function main() {
 
     process.exitCode = exitCode;
   } finally {
-    stopChildren();
+    await stopChildren();
+    if (useAdminVisualFixture) {
+      const [fixtureStopped, appStopped] = await Promise.all([
+        waitForServerStop(`${ADMIN_FIXTURE_ORIGIN}/rest/v1/restaurants`),
+        waitForServerStop(baseURL)
+      ]);
+      if (!fixtureStopped || !appStopped) {
+        console.error("Admin E2E teardown left a fixture or app listener running.");
+        process.exitCode = 1;
+      }
+    }
     const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
     console.log(`Playwright group completed in ${durationSeconds}s (specs: ${playwrightInputArgs.join(" ")})`);
     process.removeListener("SIGINT", onTermination);
