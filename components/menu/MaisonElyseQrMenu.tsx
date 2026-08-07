@@ -233,9 +233,11 @@ function buildMaisonMenuCopy(
     bottomFilter: resolved.filterButton,
     bottomMenu: resolved.activeCategoryAll,
     close: resolved.close,
-    collectionBody: resolved.heroBlurb,
-    collectionKicker: resolved.categories,
-    collectionTitle: resolved.activeCategoryAll,
+    // Keep the Maison Élyse cover editorial distinct from the shared
+    // Trouvable UI-copy contract. `categories` and `activeCategoryAll` are
+    // navigation labels ("CATÉGORIES" / "La carte"), not the Maison cover
+    // lockup ("LA COLLECTION" / "LA CARTE"). Mapping them here silently
+    // replaced the canonical Maison copy and broke the public menu smoke.
     dishDetails: resolved.viewDetails,
     emptySelection: resolved.noResultsTitle,
     filterDialogLabel: resolved.filterTitle,

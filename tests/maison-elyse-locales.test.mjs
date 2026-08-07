@@ -30,6 +30,31 @@ test("Maison Elyse UI copy resolves exact/base/pack sources with diagnostics", a
   assert.match(resolverSource, /usedNeutralFallback/);
 });
 
+test("Maison Elyse keeps its branded collection cover copy", async () => {
+  const source = await readFile(menuPath, "utf8");
+
+  // The shared Trouvable resolver owns generic navigation copy. Its
+  // `categories` and `activeCategoryAll` values must not replace Maison's
+  // cover lockup, which is part of the public restaurant experience.
+  assert.doesNotMatch(source, /collectionKicker:\s*resolved\.categories/);
+  assert.doesNotMatch(source, /collectionTitle:\s*resolved\.activeCategoryAll/);
+  assert.doesNotMatch(source, /collectionBody:\s*resolved\.heroBlurb/);
+  assert.match(source, /collectionKicker:\s*"LA COLLECTION"/);
+  assert.match(source, /collectionKicker:\s*"THE COLLECTION"/);
+});
+
+test("Maison demo showcase indexes localized menus by canonical public locale", async () => {
+  const [showcase, demo, englishDemo] = await Promise.all([
+    readFile("components/vistaire-preview/DemoPhoneShowcase.tsx", "utf8"),
+    readFile("app/demo/page.tsx", "utf8"),
+    readFile("app/en/vistaire-menu/page.tsx", "utf8")
+  ]);
+
+  assert.match(showcase, /Partial<Record<PublicMenuLocale, PublicMenu>>/);
+  assert.match(demo, /"fr-CA": frenchMenu, "en-CA": englishMenu/);
+  assert.match(englishDemo, /"fr-CA": frenchMenu, "en-CA": englishMenu/);
+});
+
 test("Arabic text direction is scoped to text zones, not the menu root", async () => {
   const source = await readFile(menuPath, "utf8");
 
