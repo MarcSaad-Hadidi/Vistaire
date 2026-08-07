@@ -285,7 +285,9 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
   assert.match(englishDemoPage, /DemoPhoneShowcase/);
   assert.match(englishDemoPage, /getLandingExperiences/);
   assert.match(englishDemoPage, /experiences=\{experiences\}/);
-  assert.match(englishDemoPage, /menuLocale="en"/);
+  assert.match(englishDemoPage, /normalizeLocale/);
+  assert.match(englishDemoPage, /getLandingExperiences\(menuLocale\)/);
+  assert.match(englishDemoPage, /menuLocale=\{menuLocale\}/);
   assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
   assert.match(

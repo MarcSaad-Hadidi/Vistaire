@@ -48,7 +48,7 @@ test("SEO interactive showcase mounts one selected real renderer, not mock previ
   assert.doesNotMatch(`${pdfPage}\n${digitalPage}`, /buildPdfComparePreviewData/);
 });
 
-test("circular reveal accepts the selected renderer and can be unlocked with Escape", async () => {
+test("circular reveal keeps nested menu controls usable and can be unlocked with Escape", async () => {
   const [reveal, styles] = await Promise.all([
     source("components/vistaire-preview/VistairePdfToDigitalHoverReveal.tsx"),
     source("components/vistaire-preview/VistairePdfToDigitalHoverReveal.module.css")
@@ -58,6 +58,12 @@ test("circular reveal accepts the selected renderer and can be unlocked with Esc
   assert.match(reveal, /event\.key === "Escape"/);
   assert.match(reveal, /setLocked\(false\)/);
   assert.match(reveal, /data-reveal-locked/);
+  assert.match(reveal, /role=\{locked \? "group" : "button"\}/);
+  assert.match(reveal, /event\.target !== event\.currentTarget/);
+  assert.match(reveal, /nestedControl/);
+  assert.match(reveal, /aria-hidden=\{!locked\}/);
+  assert.match(reveal, /inert=\{!locked\}/);
+  assert.match(reveal, /onClick=\{onClick\}/);
   assert.match(reveal, /touchAction: "pan-y pinch-zoom"/);
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
 });

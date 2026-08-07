@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type ReactNode
 } from "react";
@@ -100,22 +101,32 @@ export function VistairePdfToDigitalHoverReveal({
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
       setLocked(false);
+      event.currentTarget.focus();
       return;
     }
 
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.target !== event.currentTarget) return;
+
+    if (!locked && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
-      setLocked((current) => !current);
+      setLocked(true);
     }
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "touch") {
       clearTouchInteraction(event);
-      return;
     }
+  };
 
-    if (event.pointerType !== "mouse") return;
+  const onClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (target instanceof Element) {
+      const nestedControl = target.closest(
+        'a, button, input, select, textarea, [role="button"], [role="slider"]'
+      );
+      if (nestedControl && nestedControl !== event.currentTarget) return;
+    }
     setLocked((current) => !current);
   };
 
@@ -139,25 +150,32 @@ export function VistairePdfToDigitalHoverReveal({
         <div className={sliderStyles.screen}>
           <div
             aria-describedby={captionId}
+            aria-keyshortcuts="Enter Space Escape"
             aria-label={copy.label}
-            aria-pressed={locked || fingerActive}
+            aria-pressed={locked ? undefined : false}
             className={styles.frame}
             data-preview-reveal-frame="true"
             data-revealed={locked ? "true" : "false"}
             data-reveal-locked={locked ? "true" : "false"}
             data-touching={fingerActive ? "true" : "false"}
             id={frameId}
+            onClick={onClick}
             onKeyDown={onKeyDown}
             onPointerCancel={onPointerCancel}
             onPointerDown={onPointerDown}
             onPointerLeave={onPointerLeave}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
-            role="button"
+            role={locked ? "group" : "button"}
             style={{ touchAction: "pan-y pinch-zoom" }}
             tabIndex={0}
           >
-            <div className={styles.vistaireLayer} data-preview-digital-layer="true">
+            <div
+              aria-hidden={!locked}
+              className={styles.vistaireLayer}
+              data-preview-digital-layer="true"
+              inert={!locked}
+            >
               {digitalLayer ?? (
                 <VistairePreviewMenuLayer
                   preview={preview}

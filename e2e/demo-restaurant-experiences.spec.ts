@@ -12,6 +12,19 @@ async function expectSinglePreview(page: import("@playwright/test").Page) {
   return viewport;
 }
 
+async function expectReadyPreview(
+  page: import("@playwright/test").Page,
+  experienceId: "maison-elyse" | "trouvable" | "sauge-noire"
+) {
+  await expect(
+    page
+      .getByTestId("demo-phone-viewport")
+      .locator(
+        `:scope > [data-preview-status="ready"][data-landing-menu-renderer="${experienceId}"]`
+      )
+  ).toHaveCount(1);
+}
+
 test.describe("restaurant demo experience selector", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -33,6 +46,7 @@ test.describe("restaurant demo experience selector", () => {
     await expect(tabs).toHaveText(["Maison Élyse", "Trouvable", "Sauge Noire"]);
     await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
     await expectSinglePreview(page);
+    await expectReadyPreview(page, "maison-elyse");
     expect(new URL(page.url()).searchParams.get("experience")).toBeNull();
     expect(new URL(page.url()).hash).toBe("#carte");
 
@@ -53,6 +67,7 @@ test.describe("restaurant demo experience selector", () => {
     expect(new URL(page.url()).searchParams.get("utm_source")).toBe("qa");
     expect(new URL(page.url()).hash).toBe("#carte");
     await expectSinglePreview(page);
+    await expectReadyPreview(page, "trouvable");
 
     await tabs.nth(2).click();
     await expect(tabs.nth(2)).toHaveAttribute("aria-selected", "true");
@@ -62,6 +77,7 @@ test.describe("restaurant demo experience selector", () => {
       '[data-sauge-comparison-pages="true"][data-display-mode="phone-preview"]'
     );
     await expect(saugePages).toHaveCount(1);
+    await expectReadyPreview(page, "sauge-noire");
     await expect(phoneScroller.locator('[data-testid="sauge-noire-book"]')).toHaveCount(0);
     const initialSaugeScrollTop = await phoneScroller.evaluate(
       (element) => element.scrollTop
@@ -76,6 +92,19 @@ test.describe("restaurant demo experience selector", () => {
       .poll(() => phoneScroller.evaluate((element) => element.scrollTop))
       .toBeGreaterThan(initialSaugeScrollTop);
     expect(modelRequests).toEqual([]);
+
+    await page.goBack();
+    await expect(page.getByRole("tab").nth(1)).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    await expectReadyPreview(page, "trouvable");
+    await page.goForward();
+    await expect(page.getByRole("tab").nth(2)).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    await expectReadyPreview(page, "sauge-noire");
 
     await page.goto("/demo?experience=invalid&utm_source=qa#carte", {
       waitUntil: "domcontentloaded"
@@ -93,19 +122,23 @@ test.describe("restaurant demo experience selector", () => {
     await page.goto("/demo?experience=trouvable", {
       waitUntil: "domcontentloaded"
     });
+    await expectReadyPreview(page, "trouvable");
     await page.goto("/demo?experience=sauge-noire", {
       waitUntil: "domcontentloaded"
     });
+    await expectReadyPreview(page, "sauge-noire");
     await page.goBack();
     await expect(page.getByRole("tab").nth(1)).toHaveAttribute(
       "aria-selected",
       "true"
     );
+    await expectReadyPreview(page, "trouvable");
     await page.goForward();
     await expect(page.getByRole("tab").nth(2)).toHaveAttribute(
       "aria-selected",
       "true"
     );
+    await expectReadyPreview(page, "sauge-noire");
 
     await page.goto("/en/vistaire-menu?experience=trouvable#carte", {
       waitUntil: "domcontentloaded"
@@ -116,8 +149,24 @@ test.describe("restaurant demo experience selector", () => {
     );
     await expect(page.getByText("Vistaire experience")).toHaveCount(1);
     await expect(page.getByTestId("demo-phone-mockup")).toBeVisible();
+    await expectReadyPreview(page, "trouvable");
     expect(modelRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
+
+    await page.goto(
+      "/en/vistaire-menu?lang=fr&experience=trouvable#carte",
+      { waitUntil: "domcontentloaded" }
+    );
+    await expect(
+      page
+        .getByTestId("demo-phone-viewport")
+        .locator(':scope > [data-menu-active-locale="fr-CA"]')
+    ).toHaveCount(1);
+    await page.getByRole("tab", { name: "Sauge Noire" }).click();
+    await expectReadyPreview(page, "sauge-noire");
+    expect(new URL(page.url()).searchParams.get("lang")).toBe("fr");
+    expect(new URL(page.url()).hash).toBe("#carte");
+    expect(modelRequests).toEqual([]);
   });
 
   test("keeps Trouvable grid dish names readable in the phone preview", async ({
@@ -165,5 +214,24 @@ test.describe("restaurant demo experience selector", () => {
     expect(metrics.visualWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
     expect(metrics.copyWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
     expect(metrics.titleLines).toBeLessThanOrEqual(3);
+  });
+
+  test("fails closed to one explicit fallback when a lazy preview request fails", async ({
+    page
+  }) => {
+    await page.route(
+      "**/api/public/landing-menu-preview/trouvable?**",
+      (route) => route.fulfill({ status: 503, body: "unavailable" })
+    );
+    await page.goto("/demo?experience=trouvable#carte", {
+      waitUntil: "domcontentloaded"
+    });
+
+    const viewport = page.getByTestId("demo-phone-viewport");
+    await expect(
+      viewport.locator(':scope > [data-preview-status="fallback"]')
+    ).toHaveCount(1);
+    await expect(viewport.locator("[data-public-menu-renderer]")).toHaveCount(0);
+    await expect(viewport).toContainText("Cet aperçu de menu est indisponible.");
   });
 });

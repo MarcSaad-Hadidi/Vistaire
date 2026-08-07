@@ -366,26 +366,32 @@ test("landing and the public menu route share the official render-context resolv
   assert.match(resolver, /getExchangeRates/);
 });
 
-test("landing serializes renderer payloads for every approved restaurant", async () => {
+test("landing serializes only the default renderer and lazy-loads inactive restaurants", async () => {
   const comparison = await source(
     "components/landing/comparison/LandingComparison.tsx"
+  );
+  const demo = await source(
+    "components/vistaire-preview/DemoPhoneShowcase.tsx"
   );
   const landingData = await source("lib/landing/menuExperiences.ts");
 
   assert.equal(
     (landingData.match(/renderPayload:\s*landingRenderPayload\s*\(/g) ?? []).length,
-    2
+    0
   );
-  assert.doesNotMatch(
+  assert.match(
     landingData,
     /experience\.id === "maison-elyse"\s*\?\s*landingRenderPayload/
   );
-  assert.match(
-    comparison,
-    /\/api\/public\/landing-menu-preview\/\$\{activeExperience\.id\}/
-  );
-  assert.match(comparison, /AbortController/);
-  assert.match(comparison, /previewPayloads/);
+  for (const client of [comparison, demo]) {
+    assert.match(
+      client,
+      /\/api\/public\/landing-menu-preview\/\$\{activeExperience\.id\}/
+    );
+    assert.match(client, /AbortController/);
+    assert.match(client, /previewPayloads/);
+    assert.match(client, /payloadMatchesExperience/);
+  }
   assert.doesNotMatch(comparison, /display:\s*none/);
 });
 
@@ -393,8 +399,8 @@ test("Next landing caches isolate French and English payloads structurally", asy
   const landingData = await source("lib/landing/menuExperiences.ts");
 
   for (const key of [
-    "landing-menu-experiences-fr-v10",
-    "landing-menu-experiences-en-v10",
+    "landing-menu-experiences-fr-v11",
+    "landing-menu-experiences-en-v11",
     "landing-menu-preview-payload-fr-v9",
     "landing-menu-preview-payload-en-v9"
   ]) {

@@ -38,6 +38,7 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
     const normalized = argument.replaceAll("\\", "/");
     return (
       /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
+      /(?:^|\/)demo-restaurant-experiences\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
   });

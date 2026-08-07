@@ -14,6 +14,7 @@ import type {
   LandingExperienceId,
   LandingMenuPreviewPayload
 } from "@/lib/landing/menuExperiences";
+import { payloadMatchesExperience } from "@/lib/restaurant-experiences/contracts";
 import { VistairePreviewPdfCompareSlider } from "@/components/vistaire-preview/VistairePreviewPdfCompareSlider";
 import { VistairePdfToDigitalHoverReveal } from "@/components/vistaire-preview/VistairePdfToDigitalHoverReveal";
 import { LandingActiveMenuPreview } from "./LandingActiveMenuPreview";
@@ -104,16 +105,7 @@ export function LandingComparison({
         return result.payload;
       })
       .then((payload) => {
-        if (
-          (activeExperience.id === "maison-elyse" &&
-            payload.kind !== "maison-elyse") ||
-          (activeExperience.id === "trouvable" &&
-            payload.kind !== "trouvable") ||
-          (activeExperience.id === "sauge-noire" &&
-            (payload.kind !== "unique-registered" ||
-              payload.rendererKey !== "sauge-noire-book-v1" ||
-              payload.rendererVersion !== 1))
-        ) {
+        if (!payloadMatchesExperience(payload, activeExperience.id)) {
           throw new Error("Unexpected landing menu preview payload.");
         }
         setPreviewPayloads((current) => ({

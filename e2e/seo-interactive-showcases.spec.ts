@@ -93,6 +93,7 @@ test("digital restaurant Trouvable grid cards keep dish names readable", async (
   );
   await expect(menu).toBeVisible();
   await menu.getByRole("button", { name: "Afficher en grille" }).click();
+  await expect(reveal).toHaveAttribute("data-reveal-locked", "true");
 
   const metrics = await menu
     .locator("ul")
@@ -155,6 +156,7 @@ test("digital restaurant Trouvable list cards use one readable column", async ({
   );
   await expect(menu).toBeVisible();
   await menu.getByRole("button", { name: "Afficher en liste" }).click();
+  await expect(reveal).toHaveAttribute("data-reveal-locked", "true");
 
   const metrics = await menu
     .locator("ul")

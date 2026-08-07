@@ -534,11 +534,10 @@ async function buildLandingExperiences(
             ...experience,
             preview: current.preview,
             hasLiveData: false,
-            renderPayload: landingRenderPayload(
-              experience,
-              renderContext,
-              current.preview
-            )
+            renderPayload:
+              experience.id === "maison-elyse"
+                ? landingRenderPayload(experience, renderContext, current.preview)
+                : null
           };
         }
         const dish = current.featuredDish;
@@ -555,11 +554,10 @@ async function buildLandingExperiences(
           ...experience,
           preview: current.preview,
           hasLiveData: true,
-          renderPayload: landingRenderPayload(
-            experience,
-            renderContext,
-            current.preview
-          ),
+          renderPayload:
+            experience.id === "maison-elyse"
+              ? landingRenderPayload(experience, renderContext, current.preview)
+              : null,
           featuredDish: {
             id: dish.id,
             slug: dish.slug,
@@ -600,13 +598,13 @@ async function buildLandingExperiences(
 
 const getCachedFrenchLandingExperiences = unstable_cache(
   () => buildLandingExperiences("fr"),
-  ["landing-menu-experiences-fr-v10"],
+  ["landing-menu-experiences-fr-v11"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingExperiences = unstable_cache(
   () => buildLandingExperiences("en"),
-  ["landing-menu-experiences-en-v10"],
+  ["landing-menu-experiences-en-v11"],
   { revalidate: 60 }
 );
 

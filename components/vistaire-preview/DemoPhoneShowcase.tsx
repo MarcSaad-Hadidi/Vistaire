@@ -2,14 +2,16 @@
 
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import restaurantBackground from "@/Framer/PhotoRestoComplet2.png";
 import menuVisual from "@/Framer/pageCarte.png";
 import { ActiveRestaurantMenuPreview } from "@/components/restaurant-experiences/ActiveRestaurantMenuPreview";
 import { RestaurantExperienceTabs } from "@/components/restaurant-experiences/RestaurantExperienceTabs";
 import {
   isRestaurantExperienceId,
-  type RestaurantExperienceId
+  payloadMatchesExperience,
+  type RestaurantExperienceId,
+  type RestaurantMenuPreviewPayload
 } from "@/lib/restaurant-experiences/contracts";
 import type { Locale } from "@/lib/i18n";
 import type { LandingExperience } from "@/lib/landing/menuExperiences";
@@ -43,11 +45,71 @@ export function DemoPhoneShowcase({
   const resolvedPath = currentPath ?? (isEnglish ? "/en/vistaire-menu" : "/demo");
   const activeExperience =
     experiences.find((experience) => experience.id === activeId) ?? experiences[0];
-  const activePayload = activeExperience?.renderPayload ?? null;
+  const [previewPayloads, setPreviewPayloads] = useState<
+    Record<string, RestaurantMenuPreviewPayload | null | undefined>
+  >(() =>
+    Object.fromEntries(
+      experiences.flatMap((experience) =>
+        experience.renderPayload
+          ? [[`${menuLocale}:${experience.id}`, experience.renderPayload] as const]
+          : []
+      )
+    )
+  );
+  const activePayloadKey = `${menuLocale}:${activeId}`;
+  const activePayload = previewPayloads[activePayloadKey];
+
+  useEffect(() => {
+    if (!activeExperience || activePayload !== undefined) return;
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({ locale: menuLocale });
+    void fetch(
+      `/api/public/landing-menu-preview/${activeExperience.id}?${params.toString()}`,
+      {
+        headers: { Accept: "application/json" },
+        signal: controller.signal
+      }
+    )
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Restaurant menu preview unavailable.");
+        const result = (await response.json()) as {
+          ok?: boolean;
+          payload?: RestaurantMenuPreviewPayload;
+        };
+        if (!result.ok || !result.payload) {
+          throw new Error("Restaurant menu preview unavailable.");
+        }
+        return result.payload;
+      })
+      .then((payload) => {
+        if (!payloadMatchesExperience(payload, activeExperience.id)) {
+          throw new Error("Unexpected restaurant menu preview payload.");
+        }
+        setPreviewPayloads((current) => ({
+          ...current,
+          [activePayloadKey]: payload
+        }));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setPreviewPayloads((current) => ({
+          ...current,
+          [activePayloadKey]: null
+        }));
+      });
+
+    return () => controller.abort();
+  }, [activeExperience, activePayload, activePayloadKey, menuLocale]);
 
   useEffect(() => {
     const requested = searchParams.get("experience");
-    if (!requested || isRestaurantExperienceId(requested)) return;
+    if (
+      !searchParams.has("experience") ||
+      (requested !== null && isRestaurantExperienceId(requested))
+    ) {
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("experience");
     const query = params.toString();
@@ -68,7 +130,7 @@ export function DemoPhoneShowcase({
     else params.set("experience", nextId);
     const query = params.toString();
     const hash = typeof window === "undefined" ? "" : window.location.hash;
-    router.replace(`${pathname}${query ? `?${query}` : ""}${hash}`, {
+    router.push(`${pathname}${query ? `?${query}` : ""}${hash}`, {
       scroll: false
     });
   };
