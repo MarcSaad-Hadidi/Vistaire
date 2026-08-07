@@ -40,7 +40,17 @@ test("a different demo remains fully protected", () => {
 test("a slug alone cannot grant Maison Élyse capabilities", () => {
   assert.deepEqual(
     resolveRestaurantOwnerCapabilities(
-      { id: "99999999-9999-4999-8999-999999999999", slug: "maison-elyse", status: "demo" },
+      { id: "99999999-9999-4999-8999-999999999999", slug: "maison-elyse", status: "active" },
+      canonical
+    ),
+    PROTECTED_DEMO_CAPABILITIES
+  );
+});
+
+test("a canonical id with the wrong slug remains fully protected", () => {
+  assert.deepEqual(
+    resolveRestaurantOwnerCapabilities(
+      { id: canonical.id, slug: "renamed-or-confused", status: "active" },
       canonical
     ),
     PROTECTED_DEMO_CAPABILITIES

@@ -10,6 +10,7 @@ import {
 } from "@/lib/analytics/serverRows";
 import { buildQrRedirectUrl } from "@/lib/owner/menuUrls";
 import { DEFAULT_OWNER_QR_STYLE, normalizeOwnerQrStyle } from "@/lib/owner/qrStyle";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import {
   generateQrToken,
   hashQrTokenForStorage,
@@ -55,6 +56,35 @@ import type {
 } from "@/lib/owner/types";
 
 const QR_TABLE = "qr_codes";
+
+async function requireDestructiveQrCapability(
+  restaurantId: string
+): Promise<OwnerQrRequestError | null> {
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canPerformDestructiveQrActions"
+  );
+  if (capability.ok) return null;
+  if (capability.status === 403) {
+    return {
+      ok: false,
+      code: "capability-denied",
+      error: capability.error
+    };
+  }
+  if (capability.status === 400 || capability.status === 404) {
+    return {
+      ok: false,
+      code: "not-found",
+      error: "Restaurant du QR introuvable."
+    };
+  }
+  return {
+    ok: false,
+    code: "capability-unavailable",
+    error: "Les permissions QR n'ont pas pu etre verifiees."
+  };
+}
 
 type QrIncidentCode =
   | QrSupabaseFailureCode
@@ -948,6 +978,12 @@ export async function rotateOwnerQrCode(
       error: "Les QR publics existants doivent rester actifs."
     };
   }
+  if (args.previousDisposition !== "keep-active") {
+    const capabilityError = await requireDestructiveQrCapability(
+      policyPrevious.restaurantId
+    );
+    if (capabilityError) return capabilityError;
+  }
 
   const completed = await recoverCompletedRotation(admin.client, {
     previousId: id,
@@ -1389,6 +1425,12 @@ export async function transitionOwnerQrLifecycle(
       code: "public-qr-permanent",
       error: "Un QR public ne peut pas être désactivé."
     };
+  }
+  if (["pause", "archive", "revoke"].includes(args.action)) {
+    const capabilityError = await requireDestructiveQrCapability(
+      current.restaurantId
+    );
+    if (capabilityError) return capabilityError;
   }
   const rpcName =
     args.action === "archive"

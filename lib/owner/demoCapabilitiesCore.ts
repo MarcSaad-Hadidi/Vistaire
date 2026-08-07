@@ -75,9 +75,20 @@ export function resolveRestaurantOwnerCapabilities(
     return MAISON_ELYSE_EDITABLE_CAPABILITIES;
   }
 
-  // Any other row marked demo remains fail-closed. This deliberately does not
-  // treat a matching slug alone as Maison Élyse.
-  if ((restaurant.status ?? "").trim().toLowerCase() === "demo") {
+  const restaurantId = restaurant.id.trim();
+  const restaurantSlug = (restaurant.slug ?? "").trim().toLowerCase();
+  const canonicalId = canonical.id.trim();
+  const canonicalSlug = canonical.slug.trim().toLowerCase();
+  const hasPartialCanonicalIdentity =
+    restaurantId === canonicalId || restaurantSlug === canonicalSlug;
+
+  // Demo rows and partial canonical identity collisions remain fail-closed.
+  // Both the server-resolved id and slug must match before Maison Elyse gains
+  // its deliberately narrow editable-demo capabilities.
+  if (
+    hasPartialCanonicalIdentity ||
+    (restaurant.status ?? "").trim().toLowerCase() === "demo"
+  ) {
     return PROTECTED_DEMO_CAPABILITIES;
   }
 
