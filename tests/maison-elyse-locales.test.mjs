@@ -43,6 +43,14 @@ test("Maison Elyse keeps its branded collection cover copy", async () => {
   assert.match(source, /collectionKicker:\s*"THE COLLECTION"/);
 });
 
+test("Maison Elyse detail keeps its restaurant-specific return label", async () => {
+  const source = await readFile("components/menu/MaisonElyseDishDetail.tsx", "utf8");
+
+  assert.doesNotMatch(source, /backToMenu:\s*resolved\.backToMenu/);
+  assert.match(source, /backToMenu:\s*"Retour à la carte"/);
+  assert.match(source, /backToMenu:\s*"Back to menu"/);
+});
+
 test("Maison demo showcase indexes localized menus by canonical public locale", async () => {
   const [showcase, demo, englishDemo] = await Promise.all([
     readFile("components/vistaire-preview/DemoPhoneShowcase.tsx", "utf8"),

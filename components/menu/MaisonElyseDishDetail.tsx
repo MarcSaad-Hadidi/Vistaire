@@ -322,7 +322,10 @@ function buildDetailCopy(
     ...fallback,
     allergens: resolved.allergens,
     ariaDetail: resolved.details,
-    backToMenu: resolved.backToMenu,
+    // Maison Élyse keeps its restaurant-specific return label. The shared
+    // Trouvable copy says “Retour au menu”, while this experience's contract
+    // is the more specific “Retour à la carte” (with the matching English
+    // “Back to menu” fallback).
     dishImageAlt: resolved.modelAlt,
     fallbackImage: resolved.detailFallback,
     fallbackList: resolved.detailFallback,
