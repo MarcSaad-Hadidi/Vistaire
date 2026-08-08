@@ -24,6 +24,7 @@ const ts = requireDependency("typescript");
 const nextServerUrl = pathToFileURL(requireDependency.resolve("next/server")).href;
 const rootUrl = pathToFileURL(`${path.resolve(process.cwd())}${path.sep}`).href;
 const adminStubUrl = "public-dish-asset-test:admin";
+const adminAuthStubUrl = "public-dish-asset-test:admin-auth";
 
 function localModuleUrl(url) {
   const parsed = new URL(url);
@@ -42,6 +43,9 @@ registerHooks({
     }
     if (specifier === "@/utils/supabase/admin") {
       return { url: adminStubUrl, shortCircuit: true };
+    }
+    if (specifier === "@/lib/admin/apiAuth") {
+      return { url: adminAuthStubUrl, shortCircuit: true };
     }
     if (specifier === "next/server") {
       return { url: nextServerUrl, shortCircuit: true };
@@ -73,6 +77,14 @@ registerHooks({
         shortCircuit: true
       };
     }
+    if (url === adminAuthStubUrl) {
+      return {
+        format: "module",
+        source:
+          "export const requireAdminApiAccess = async () => globalThis.__PUBLIC_DISH_ASSET_TEST_ADMIN_ACCESS__;",
+        shortCircuit: true
+      };
+    }
     if (url.endsWith(".ts") || url.endsWith(".tsx")) {
       const filename = new URL(url);
       const source = readFileSync(filename, "utf8");
@@ -97,6 +109,10 @@ export async function createNextRequest(url, init) {
 
 export function loadPhotoRoute() {
   return import("../../app/api/public/menu-dishes/[dishId]/photo/route.ts");
+}
+
+export function loadAdminPhotoRoute() {
+  return import("../../app/admin/api/menu-dishes/[dishId]/photo/route.ts");
 }
 
 export function loadGlbRoute() {
