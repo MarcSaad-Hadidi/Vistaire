@@ -30,6 +30,7 @@ const ADMIN_STUB_URL = "qr-test:admin";
 const AUTH_STUB_URL = "qr-test:owner-auth";
 const ROWS_STUB_URL = "qr-test:rows";
 const MENU_URLS_STUB_URL = "qr-test:menu-urls";
+const INSIGHTS_STUB_URL = "qr-test:insights";
 
 function localModuleUrl(url) {
   const parsed = new URL(url);
@@ -54,6 +55,9 @@ registerHooks({
     }
     if (specifier === "@/lib/analytics/serverRows") {
       return { url: ROWS_STUB_URL, shortCircuit: true };
+    }
+    if (specifier === "@/lib/analytics/insights") {
+      return { url: INSIGHTS_STUB_URL, shortCircuit: true };
     }
     if (specifier === "@/lib/owner/menuUrls") {
       return { url: MENU_URLS_STUB_URL, shortCircuit: true };
@@ -132,6 +136,14 @@ registerHooks({
         format: "module",
         source:
           "export const buildQrRedirectUrl = token => `/q/${encodeURIComponent(token)}`;",
+        shortCircuit: true
+      };
+    }
+    if (url === INSIGHTS_STUB_URL) {
+      return {
+        format: "module",
+        source:
+          'export const getDemoRestaurantId = () => "99999999-9999-4999-8999-999999999999";',
         shortCircuit: true
       };
     }
@@ -1523,7 +1535,9 @@ export function createOwnerQrCustomizerHarness(options = {}) {
     targetUsage: "le dashboard restaurant.",
     targetBadgeLabel: "Interne restaurant",
     targetPath: "/admin",
-    targetDisplayUrl: "/admin"
+    targetDisplayUrl: "/admin",
+    canPerformDestructiveQrActions:
+      options.canPerformDestructiveQrActions ?? true
   };
 
   function render() {

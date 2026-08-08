@@ -10,6 +10,7 @@ import {
 } from "@/lib/owner/menuMutations";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,10 @@ export async function POST(
       { ok: false, error: "Restaurant requis." },
       { status: 400 }
     );
+  }
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canEditMenuContent");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
   const result = await createOwnerMenuDish({
@@ -98,6 +103,10 @@ export async function DELETE(
       { ok: false, error: "Restaurant requis." },
       { status: 400 }
     );
+  }
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canEditMenuContent");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
   const result = await deleteOwnerMenuDish({
@@ -150,6 +159,10 @@ export async function PATCH(
       { ok: false, error: "Restaurant requis." },
       { status: 400 }
     );
+  }
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canEditMenuContent");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
   const result = await updateOwnerMenuDish({

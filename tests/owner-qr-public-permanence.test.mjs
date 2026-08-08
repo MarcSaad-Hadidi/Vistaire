@@ -8,6 +8,7 @@ import {
 } from "./helpers/owner-qr-test-runtime.mjs";
 
 const restaurantId = "11111111-1111-1111-1111-111111111111";
+const maisonElyseRestaurantId = "99999999-9999-4999-8999-999999999999";
 const style = {
   foregroundColor: "#111111",
   backgroundColor: "#ffffff",
@@ -158,6 +159,64 @@ test("public menu lifecycle rejects pause, archive, and revoke without an event"
     assert.deepEqual(fixture.snapshotRows(), before);
     assert.equal(fixture.lifecycleEvents.length, 0);
   }
+});
+
+test("Maison Elyse admin QR destructive actions fail closed before mutation", async (t) => {
+  const fixture = createQrSupabaseFixture({ restaurantSlug: "maison-elyse" });
+  t.after(fixture.install());
+  const currentId = fixture.seedQr({
+    id: "maison-admin-canonical",
+    token: "E".repeat(32),
+    restaurant_id: maisonElyseRestaurantId,
+    target_kind: "admin",
+    purpose_key: "default",
+    target_path: "/owner",
+    status: "active",
+    is_canonical: true,
+    token_ciphertext: "cipher-maison-admin",
+    token_nonce: "nonce-maison-admin",
+    token_key_version: "test-v1",
+    style_json: style
+  });
+  const before = fixture.snapshotRows();
+  const { POST: rotate } = await loadQrRotateRoute();
+  const rotateResponse = await rotate(
+    new Request("https://fixture.invalid/api/owner/qr-codes/maison-admin-canonical/rotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        confirmed: true,
+        idempotencyKey: "44444444-4444-4444-8444-444444444444",
+        previousDisposition: "revoke",
+        expectedConfigVersion: 1
+      })
+    }),
+    { params: Promise.resolve({ id: currentId }) }
+  );
+  const rotatePayload = await rotateResponse.json();
+  assert.equal(rotateResponse.status, 403);
+  assert.equal(rotatePayload.code, "capability-denied");
+
+  const { POST: transition } = await loadQrStatusRoute();
+  const lifecycleResponse = await transition(
+    new Request("https://fixture.invalid/api/owner/qr-codes/maison-admin-canonical/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "pause",
+        expectedConfigVersion: 1,
+        idempotencyKey: "55555555-5555-4555-8555-555555555555"
+      })
+    }),
+    { params: Promise.resolve({ id: currentId }) }
+  );
+  const lifecyclePayload = await lifecycleResponse.json();
+  assert.equal(lifecycleResponse.status, 403);
+  assert.equal(lifecyclePayload.code, "capability-denied");
+  assert.deepEqual(fixture.snapshotRows(), before);
+  assert.equal(fixture.lifecycleEvents.length, 0);
+  assert.equal(fixture.rpcCallCount("owner_rotate_canonical_qr"), 0);
+  assert.equal(fixture.rpcCallCount("owner_set_canonical_qr_lifecycle"), 0);
 });
 
 test("direct RPC calls enforce public permanence while allowing keep-active and historical resume", async (t) => {

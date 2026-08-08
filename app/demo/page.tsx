@@ -65,7 +65,7 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
         ]}
       />
       <DemoPhoneShowcase
-        localizedMenus={{ fr: frenchMenu, en: englishMenu }}
+        localizedMenus={{ "fr-CA": frenchMenu, "en-CA": englishMenu }}
         menu={menu}
         menuLocale={menuLocale}
         menuQuery={hasLangParam ? { lang: menuLocale } : undefined}

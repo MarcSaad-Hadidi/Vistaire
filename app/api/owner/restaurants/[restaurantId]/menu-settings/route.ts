@@ -12,6 +12,7 @@ import {
   type SupabaseMenuSettingsClient
 } from "@/lib/owner/menuSettingsMutation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,17 @@ export async function PATCH(
   const { restaurantId } = await params;
   if (!restaurantId) {
     return NextResponse.json({ ok: false, error: "Restaurant requis." }, { status: 400 });
+  }
+
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canEditMenuSettings"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error },
+      { status: capability.status }
+    );
   }
 
   let body: unknown;

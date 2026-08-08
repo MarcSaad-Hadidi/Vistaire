@@ -74,6 +74,8 @@ export async function handleQrLifecycleMutation(
           ? 409
         : result.code === "not-found"
           ? 404
+          : result.code === "capability-denied"
+            ? 403
           : result.code === "invalid-input"
             ? 400
             : 503;

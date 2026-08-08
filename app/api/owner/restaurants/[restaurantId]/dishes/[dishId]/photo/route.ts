@@ -16,6 +16,7 @@ import {
 } from "@/lib/owner/dishMediaGarbageCollector";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -51,6 +52,10 @@ export async function POST(
   if (originError) return originError;
 
   const { restaurantId, dishId } = await params;
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
   const maxBytes = photoMaxBytes();
   const rawContentLength = request.headers.get("content-length");
   const contentLength = rawContentLength ? Number(rawContentLength) : 0;
@@ -221,6 +226,10 @@ export async function DELETE(
   if (originError) return originError;
 
   const { restaurantId, dishId } = await params;
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
     return NextResponse.json({ ok: false, error: admin.reason }, { status: 503 });

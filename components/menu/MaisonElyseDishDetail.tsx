@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
-import type { Locale } from "@/lib/i18n";
+import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
+import { resolveMaisonElyseCopy } from "@/lib/menu/maisonElyseLocalization";
+type Locale = PublicMenuLocale;
 import { AllergenDisclosure } from "./AllergenDisclosure";
 import {
   type PublicMenu,
@@ -53,7 +55,7 @@ type MaisonElyseDishDetailProps = {
 };
 
 const DETAIL_COPY: Record<
-  Locale,
+  "fr" | "en",
   {
     allergens: string;
     ariaDetail: string;
@@ -178,15 +180,23 @@ function slugify(value: string): string {
     .slice(0, 80);
 }
 
-function categoryLabel(category: string, locale: Locale): string {
+function localeLanguage(locale: string): string {
+  try {
+    return new Intl.Locale(locale).language.toLowerCase();
+  } catch {
+    return locale.toLowerCase().split("-")[0] ?? "fr";
+  }
+}
+
+function categoryLabel(category: string, locale: PublicMenuLocale): string {
   const cleaned = cleanDisplayText(category);
   const normalized = normalizeText(cleaned);
 
   if (normalized.includes("signature")) {
-    return locale === "en" ? "Signature dishes" : "Plats signatures";
+    return localeLanguage(locale) === "en" ? "Signature dishes" : "Plats signatures";
   }
   if (normalized.includes("entree") || normalized.includes("starter")) {
-    return locale === "en" ? "Starters" : "Entrées";
+    return localeLanguage(locale) === "en" ? "Starters" : "Entrées";
   }
   if (normalized.includes("dessert")) return "Desserts";
   if (
@@ -196,7 +206,7 @@ function categoryLabel(category: string, locale: Locale): string {
   ) {
     return "Cocktails";
   }
-  return cleaned || DETAIL_COPY[locale].noCategory;
+  return cleaned || DETAIL_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"].noCategory;
 }
 
 function hasReal3d(dish: PublicMenuDish): boolean {
@@ -221,8 +231,7 @@ function hasRealAr(dish: PublicMenuDish): boolean {
   );
 }
 
-function dishBadges(dish: PublicMenuDish, locale: Locale): string[] {
-  const copy = DETAIL_COPY[locale];
+function dishBadges(dish: PublicMenuDish, locale: PublicMenuLocale, copy: DetailCopy): string[] {
   const badges: string[] = [];
   const tagText = normalizeText(dish.tags.join(" "));
 
@@ -301,16 +310,67 @@ function DetailList({ emptyText, items }: { emptyText: string; items: string[] }
   );
 }
 
+type DetailCopy = (typeof DETAIL_COPY)["fr"];
+
+function buildDetailCopy(
+  locale: PublicMenuLocale,
+  localizedUiCopy?: Record<string, unknown>
+): DetailCopy {
+  const language = localeLanguage(locale);
+  const fallback = DETAIL_COPY[language === "fr" ? "fr" : "en"];
+  const resolvedResult = resolveMaisonElyseCopy(locale, localizedUiCopy);
+  const resolved = resolvedResult.copy;
+  const neutral = resolveMaisonElyseCopy(locale).copy;
+  const preserveMaisonDefaults =
+    resolvedResult.resolution.builtInLocale === (language === "fr" ? "fr" : "en");
+  const sharedOrMaison = <T,>(value: T, neutralValue: T, maisonValue: T): T =>
+    preserveMaisonDefaults && Object.is(value, neutralValue) ? maisonValue : value;
+  return {
+    ...fallback,
+    allergens: resolved.allergens,
+    ariaDetail: sharedOrMaison(resolved.details, neutral.details, fallback.ariaDetail),
+    // Maison Élyse keeps its restaurant-specific return label. The shared
+    // Trouvable copy says “Retour au menu”, while this experience's contract
+    // is the more specific “Retour à la carte” (with the matching English
+    // “Back to menu” fallback).
+    dishImageAlt: sharedOrMaison(resolved.modelAlt, neutral.modelAlt, fallback.dishImageAlt),
+    fallbackImage: resolved.detailFallback,
+    fallbackList: resolved.detailFallback,
+    hide3d: resolved.modelViewer.close,
+    hidePreview: resolved.close,
+    immersiveBody3d: resolved.modelViewer.slowNetworkBody,
+    immersiveBodyAr: resolved.modelViewer.arHelp,
+    immersiveKicker: resolved.immersiveFilterLabel,
+    immersivePreview3d: resolved.modelViewer.slowNetworkBody,
+    immersivePreviewAr: resolved.modelViewer.arIosHandoff,
+    ingredients: resolved.ingredients,
+    noCategory: resolved.activeCategoryAll,
+    note: sharedOrMaison(
+      resolved.detailHouseNoteLabel,
+      neutral.detailHouseNoteLabel,
+      fallback.note
+    ),
+    options: resolved.options,
+    openAr: sharedOrMaison(resolved.viewAr, neutral.viewAr, fallback.openAr),
+    recommendedBadge: resolved.recommendation,
+    show3d: sharedOrMaison(resolved.threeD, neutral.threeD, fallback.show3d),
+    title3d: sharedOrMaison(resolved.threeD, neutral.threeD, fallback.title3d),
+    titleAr: resolved.modelViewer.safariTitle,
+    topNavAria: sharedOrMaison(resolved.details, neutral.details, fallback.topNavAria),
+    unavailableBadge: resolved.soldOut
+  };
+}
+
 export function MaisonElyseDishDetail({
   menu,
   dish,
   query,
   displayMode = "public",
-  locale = "fr",
+  locale = "fr-CA",
   config,
   onBackToMenu
 }: MaisonElyseDishDetailProps) {
-  const copy = DETAIL_COPY[locale];
+  const copy = buildDetailCopy(locale, menu.localizedUiCopy);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const analyticsContext = getPublicMenuAnalyticsContext(menu);
   const menuHref = buildFullMenuHref(menu, query);
@@ -321,7 +381,7 @@ export function MaisonElyseDishDetail({
   const has3d = hasReal3d(dish);
   const hasAr = hasRealAr(dish);
   const canOpenImmersive = displayMode === "public" && (has3d || hasAr);
-  const badges = dishBadges(dish, locale);
+  const badges = dishBadges(dish, locale, copy);
   const ingredients = displayList(dish.ingredients);
   const options = displayList(dish.options);
   const houseNote = cleanDisplayText(dish.houseNote);

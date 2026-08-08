@@ -6,6 +6,10 @@ import { ModuleHeader, Panel } from "@/components/owner/OwnerUi";
 import { getOwnerRestaurantDashboardData } from "@/lib/owner/data";
 import { getOwnerMenuData } from "@/lib/owner/menuData";
 import { ownerRestaurantRoute } from "@/lib/owner/restaurantPreparation";
+import {
+  getMaisonElyseIdentity,
+  resolveRestaurantOwnerCapabilities
+} from "@/lib/owner/demoCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +23,10 @@ export default async function OwnerRestaurantSettingsPage({
   if (!dashboard.restaurant) notFound();
 
   const restaurant = dashboard.restaurant;
+  const capabilities = resolveRestaurantOwnerCapabilities(
+    restaurant,
+    getMaisonElyseIdentity()
+  );
   const menuData = await getOwnerMenuData(restaurant.id);
   const menuSettings = menuData.ok ? menuData.menu.settings : undefined;
 
@@ -26,7 +34,7 @@ export default async function OwnerRestaurantSettingsPage({
     <>
       <ModuleHeader
         title={`Paramètres — ${restaurant.name}`}
-        description="Informations du restaurant et actions de cycle de vie. Les champs restent en lecture tant qu’aucune mutation d’édition dédiée n’est disponible."
+        description="Informations du restaurant et actions de cycle de vie. Les capacités d’édition suivent le profil du restaurant; les actions destructives restent protégées pour les démos."
         actions={
           <>
             <Link className={styles.btn} href={ownerRestaurantRoute(restaurant)} prefetch={false}>
@@ -43,6 +51,7 @@ export default async function OwnerRestaurantSettingsPage({
         <OwnerRestaurantSettings
           restaurant={restaurant}
           menuSettings={menuSettings}
+          capabilities={capabilities}
         />
       </Panel>
     </>

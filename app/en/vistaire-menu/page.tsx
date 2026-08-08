@@ -68,7 +68,7 @@ export default async function VistaireMenuPageEn({
       />
       <DemoPhoneShowcase
         currentPath={canonicalPath}
-        localizedMenus={{ fr: frenchMenu, en: englishMenu }}
+        localizedMenus={{ "fr-CA": frenchMenu, "en-CA": englishMenu }}
         locale="en"
         menu={menu}
         menuLocale={menuLocale}

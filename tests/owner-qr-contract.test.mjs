@@ -106,7 +106,7 @@ test("public QR rotation always preserves the previous printed QR", async () => 
 
   assert.match(
     source,
-    /const disposition = targetKind === "menu" \? "keep-active" : previousDisposition/
+    /targetKind === "menu" \|\| !canPerformDestructiveQrActions[\s\S]*\? "keep-active"[\s\S]*: previousDisposition/
   );
   assert.match(source, /previousDisposition: disposition/);
   assert.match(source, /targetKind === "admin" \? \(/);

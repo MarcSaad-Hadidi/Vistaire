@@ -5,6 +5,7 @@ import { MaisonElyseQrMenu } from "@/components/menu/MaisonElyseQrMenu";
 import type { Locale } from "@/lib/i18n";
 import type { PublicMenu } from "@/lib/menu/publicMenu";
 import type { PublicMenuContextQuery } from "@/lib/menu/publicMenuCore";
+import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
   PreviewFooter,
   PreviewNav
@@ -17,7 +18,7 @@ type DemoPhoneShowcaseProps = {
   menu: PublicMenu;
   menuLocale?: Locale;
   menuQuery?: PublicMenuContextQuery;
-  localizedMenus?: Partial<Record<Locale, PublicMenu>>;
+  localizedMenus?: Partial<Record<PublicMenuLocale, PublicMenu>>;
 };
 
 export function DemoPhoneShowcase({
