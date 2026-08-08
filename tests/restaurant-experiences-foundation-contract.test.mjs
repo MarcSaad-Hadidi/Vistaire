@@ -4,6 +4,59 @@ import test from "node:test";
 
 const source = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+function previewPayload(overrides = {}) {
+  return {
+    kind: "maison-elyse",
+    menuSlug: "maison-elyse",
+    restaurantId: "11111111-1111-1111-1111-111111111111",
+    locale: "fr",
+    publicMenuHref: "/menu/maison-elyse?lang=fr-CA",
+    comparison: {},
+    menuUi: {
+      menu: {
+        slug: "maison-elyse",
+        restaurantId: "11111111-1111-1111-1111-111111111111"
+      }
+    },
+    ...overrides
+  };
+}
+
+test("restaurant preview payload identity fails closed", async () => {
+  const { payloadMatchesExperience } = await import(
+    "../lib/restaurant-experiences/contracts.ts"
+  );
+  assert.equal(payloadMatchesExperience(previewPayload(), "maison-elyse"), true);
+  assert.equal(
+    payloadMatchesExperience(
+      previewPayload({ restaurantId: "22222222-2222-4222-8222-222222222222" }),
+      "maison-elyse"
+    ),
+    false
+  );
+  assert.equal(
+    payloadMatchesExperience(
+      previewPayload({
+        menuUi: {
+          menu: {
+            slug: "trouvable",
+            restaurantId: "11111111-1111-1111-1111-111111111111"
+          }
+        }
+      }),
+      "maison-elyse"
+    ),
+    false
+  );
+  assert.equal(
+    payloadMatchesExperience(
+      previewPayload({ publicMenuHref: "/menu/trouvable" }),
+      "maison-elyse"
+    ),
+    false
+  );
+});
+
 test("restaurant experience tabs expose the three approved restaurants with a keyboard tab contract", async () => {
   const [registry, tabs] = await Promise.all([
     source("lib/restaurant-experiences/contracts.ts"),

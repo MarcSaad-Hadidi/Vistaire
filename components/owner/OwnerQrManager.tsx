@@ -145,6 +145,9 @@ export function OwnerQrManager({
             ? ""
             : selected.publicMenuUrl
         }
+        canPerformDestructiveQrActions={
+          !selected.isDemo && selected.status !== "demo"
+        }
       />
     </div>
   );

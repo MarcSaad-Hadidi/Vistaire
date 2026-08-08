@@ -50,7 +50,7 @@
 
 .page[data-user-theme="light"] .brandBlock strong,
 .page[data-user-theme="light"] .hero p,
-.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .hero :is(h1, h2),
 .page[data-user-theme="light"] .sectionTitle,
 .page[data-user-theme="light"] .detailRestaurantName,
 .page[data-user-theme="light"] .detailNav span,
@@ -199,7 +199,7 @@
 }
 
 .brandBlock strong,
-.hero h1,
+.hero :is(h1, h2),
 .sheetHeader h2 {
   color: #fffaf0;
   font-family: var(--trouvable-font-display);
@@ -275,7 +275,7 @@
   padding: 16px;
 }
 
-.hero h1 {
+.hero :is(h1, h2) {
   margin: 2px 0 0;
   font-size: 42px;
   line-height: 0.96;
@@ -1059,7 +1059,7 @@
     padding-inline: 8px;
   }
 
-  .hero h1 {
+  .hero :is(h1, h2) {
     font-size: 38px;
   }
 
@@ -1149,7 +1149,7 @@
 }
 
 .brandBlock strong,
-.hero h1,
+.hero :is(h1, h2),
 .sheetHeader h2,
 .dishTopline strong,
 .emptyState p,
@@ -1504,7 +1504,7 @@
   text-transform: none;
 }
 
-.hero h1 {
+.hero :is(h1, h2) {
   margin-top: 8px;
   color: #f4f4f4;
   font-size: clamp(64px, 18vw, 92px);
@@ -2937,7 +2937,7 @@
     font-size: 18px;
   }
 
-  .hero h1 {
+  .hero :is(h1, h2) {
     font-size: clamp(48px, 14vw, 60px);
   }
 
@@ -3946,7 +3946,7 @@
   opacity: 0.72;
 }
 
-.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .hero :is(h1, h2),
 .page[data-user-theme="light"] .sectionTitle,
 .page[data-user-theme="light"] .dishTopline strong,
 .page[data-user-theme="light"] .detailBody h1,
@@ -4317,7 +4317,7 @@
 }
 
 .page .brandBlock strong,
-.page .hero h1,
+.page .hero :is(h1, h2),
 .page .sheetHeader h2,
 .page .dishTopline strong,
 .page .emptyState p,
@@ -4446,7 +4446,7 @@
     font-size: 15px;
   }
 
-  .page.phonePreview .hero h1 {
+  .page.phonePreview .hero :is(h1, h2) {
     font-size: 52px;
   }
 
@@ -4788,7 +4788,7 @@
 
 .page[data-user-theme="light"] .brandBlock strong,
 .page[data-user-theme="light"] .hero p,
-.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .hero :is(h1, h2),
 .page[data-user-theme="light"] .sectionTitle,
 .page[data-user-theme="light"] .detailRestaurantName,
 .page[data-user-theme="light"] .detailNav span,
@@ -4910,7 +4910,7 @@
 
 .page[data-user-theme="light"] .brandBlock strong,
 .page[data-user-theme="light"] .hero p,
-.page[data-user-theme="light"] .hero h1,
+.page[data-user-theme="light"] .hero :is(h1, h2),
 .page[data-user-theme="light"] .sectionTitle,
 .page[data-user-theme="light"] .detailRestaurantName,
 .page[data-user-theme="light"] .detailNav span,

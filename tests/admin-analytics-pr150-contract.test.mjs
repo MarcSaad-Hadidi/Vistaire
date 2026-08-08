@@ -267,7 +267,7 @@ test("visual fixture is a full distinct menu with previous evidence and scoped f
 });
 
 test("pixel and full-menu fixtures keep distinct, deliberate menu densities", async () => {
-  const [{ buildAdminVisualFixtureTables }, { getAllDishes, getCategories }] = await Promise.all([
+  const [{ buildAdminVisualFixtureTables, ADMIN_VISUAL_FULL_MENU_DISH_IDS }, { getAllDishes, getCategories }] = await Promise.all([
     import("../e2e/support/adminVisualFixtureData.ts"),
     import("../lib/demoMenuData.ts")
   ]);
@@ -290,7 +290,8 @@ test("pixel and full-menu fixtures keep distinct, deliberate menu densities", as
   assert.ok(fullMenuDishes.some((dish) => !dish.is_available));
   assert.ok(fullMenuTables.menu_dishes.some((dish) => dish.restaurant_id === fullMenuTables.restaurantId && dish.menu_id === "other-menu-same-restaurant"));
   assert.ok(fullMenuDishes.every((dish) => dish.id !== "other-menu-dish"));
-  assert.deepEqual(fullMenuDishes.map((dish) => dish.id), tables.menu_dishes.filter((dish) => canonicalDishes.some((candidate) => candidate.slug === dish.slug)).map((dish) => dish.id));
+  assert.deepEqual(fullMenuDishes.map((dish) => dish.id), ADMIN_VISUAL_FULL_MENU_DISH_IDS);
+  assert.ok(fullMenuDishes.every((dish) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dish.id)));
 });
 
 test("pixel fixture carries exact coherent current and previous analytics below the per-read cap", async () => {

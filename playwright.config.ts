@@ -129,6 +129,7 @@ export default defineConfig({
             SUPABASE_SERVICE_ROLE_KEY: "visual-fixture-service-role-key",
             NEXT_PUBLIC_DEMO_RESTAURANT_ID: "11111111-1111-1111-1111-111111111111",
             VISTAIRE_ADMIN_VISUAL_NOW: "2026-07-10T12:00:00.000Z",
+            VISTAIRE_LOCAL_PREVIEW_SECRET: "admin-visual-fixture-preview-secret-2026",
             VISTAIRE_OWNER_E2E_AUTH_BYPASS: "1",
             VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN: ownerE2eToken,
             VISTAIRE_OWNER_E2E_EMAIL: "owner-e2e@localhost",

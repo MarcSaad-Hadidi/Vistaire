@@ -7,6 +7,8 @@ test("owner menu UI config API is owner-only, same-origin for mutations, and sup
 
   assert.match(source, /requireVistaireOwnerApi/);
   assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
+  assert.match(source, /requireOwnerRestaurantCapability/);
+  assert.match(source, /"canEditMenuSettings"/);
   assert.match(source, /validateMenuUiConfig/);
   assert.match(source, /saveDraftMenuUiConfig/);
   assert.match(source, /publishMenuUiConfig/);
@@ -17,6 +19,13 @@ test("owner menu UI config API is owner-only, same-origin for mutations, and sup
   assert.match(source, /action === "rollback"/);
   assert.match(source, /action === "revert-to-published"/);
   assert.match(source, /status:\s*503/);
+});
+
+test("unique menu design mutations enforce the restaurant settings capability", async () => {
+  const source = await readFile("app/api/owner/unique-menu-design/route.ts", "utf8");
+
+  assert.match(source, /requireOwnerRestaurantCapability/);
+  assert.match(source, /"canEditMenuSettings"/);
 });
 
 test("owner menu UI config store preserves live published rows during publish and rollback", async () => {

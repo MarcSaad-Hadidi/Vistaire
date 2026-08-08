@@ -48,6 +48,17 @@ test("SEO interactive showcase mounts one selected real renderer, not mock previ
   assert.doesNotMatch(`${pdfPage}\n${digitalPage}`, /buildPdfComparePreviewData/);
 });
 
+test("embedded restaurant renderers preserve the SEO page heading hierarchy", async () => {
+  const [trouvable, sauge] = await Promise.all([
+    source("components/menu/TrouvablePremiumMenuExperience.tsx"),
+    source("components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx")
+  ]);
+
+  assert.match(trouvable, /const HeroHeading = isEmbeddedPreview \? "h2" : "h1"/);
+  assert.match(sauge, /headingLevel=\{2\}/);
+  assert.match(sauge, /const Heading = headingLevel === 1 \? "h1" : "h2"/);
+});
+
 test("circular reveal keeps nested menu controls usable and can be unlocked with Escape", async () => {
   const [reveal, styles] = await Promise.all([
     source("components/vistaire-preview/VistairePdfToDigitalHoverReveal.tsx"),

@@ -9,6 +9,7 @@ import {
   parseSourceUploadLimit,
   validateSourceGlbFile
 } from "@/lib/owner/threeDSourceUploadModel";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { runViewerGlbUpload } from "@/lib/owner/viewerGlbUpload";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
@@ -48,6 +49,12 @@ export async function POST(
   const originError = requireSameOriginOwnerMutation(request);
   if (originError) return originError;
 
+  const { restaurantId } = await params;
+  const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
+  if (!capability.ok) {
+    return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
+
   const uploadLimit = parseSourceUploadLimit(process.env);
   if (!uploadLimit.ok) {
     return NextResponse.json(
@@ -70,7 +77,7 @@ export async function POST(
     return NextResponse.json({ ok: false, error: admin.reason }, { status: 503 });
   }
 
-  const { restaurantId, dishId } = await params;
+  const { dishId } = await params;
   const { data: dish, error: dishError } = await admin.client
     .from("menu_dishes")
     .select("id,restaurant_id,menu_id,slug,name,metadata")

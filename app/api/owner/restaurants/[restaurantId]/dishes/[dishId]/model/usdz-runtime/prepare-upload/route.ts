@@ -6,6 +6,7 @@ import {
   prepareUsdzRuntimeSignedUpload,
   verifyUsdzRuntimeJobToken
 } from "@/lib/owner/usdzRuntimeJsonFlow";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -39,6 +40,16 @@ export async function POST(
         usdzSourceStored: false
       },
       { status: 403 }
+    );
+  }
+  const capability = await requireOwnerRestaurantCapability(
+    verified.claims.restaurantId,
+    "canManageMedia"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error, usdzSourceStored: false },
+      { status: capability.status }
     );
   }
 

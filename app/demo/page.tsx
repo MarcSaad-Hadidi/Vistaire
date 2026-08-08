@@ -11,19 +11,19 @@ const description =
   "Explorez trois expériences de menu client Vistaire, pensées pour une lecture fluide à table.";
 
 export const metadata: Metadata = {
-  title,
+  title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
     url: absoluteUrl(canonicalPath),
-    title: `${title} | Vistaire`,
+    title,
     description,
     locale: LOCALE_OPEN_GRAPH.fr,
     type: "website"
   },
   twitter: {
     card: "summary",
-    title: `${title} | Vistaire`,
+    title,
     description
   }
 };
@@ -51,7 +51,6 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
       />
       <DemoPhoneShowcase
         experiences={experiences}
-        locale={locale}
         menuLocale={locale}
       />
     </>

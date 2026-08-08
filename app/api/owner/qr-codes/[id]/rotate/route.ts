@@ -87,6 +87,8 @@ export async function POST(
           ? 409
         : "code" in rotated && rotated.code === "not-found"
           ? 404
+          : "code" in rotated && rotated.code === "capability-denied"
+            ? 403
           : "code" in rotated && rotated.code === "public-qr-permanent"
             ? 409
           : "code" in rotated && rotated.code === "invalid-input"

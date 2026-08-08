@@ -122,11 +122,17 @@ export function SaugeNoireMenuPages({
       data-display-mode={displayMode}
       data-public-menu-renderer="sauge-noire"
     >
-      <CoverPage copy={copy} interactive={false} onOpen={() => undefined} />
+      <CoverPage
+        copy={copy}
+        headingLevel={2}
+        interactive={false}
+        onOpen={() => undefined}
+      />
       <ContentsPage
         activePage={null}
         categories={categories}
         copy={copy}
+        headingLevel={2}
         interactive={false}
         onNext={() => undefined}
         onPrevious={() => undefined}
@@ -141,6 +147,7 @@ export function SaugeNoireMenuPages({
           disableNavigation
           dishes={groups.get(category.id) ?? []}
           exchangeRates={exchangeRates}
+          headingLevel={2}
           key={category.id}
           locale={locale}
           localeTag={localeTag}
@@ -153,6 +160,7 @@ export function SaugeNoireMenuPages({
       ))}
       <EndingPage
         copy={copy}
+        headingLevel={2}
         interactive={false}
         onRestart={() => undefined}
         showGoogleReview={false}
@@ -184,13 +192,16 @@ function Rule() {
 
 export function CoverPage({
   copy,
+  headingLevel = 1,
   interactive = true,
   onOpen
 }: {
   copy: SaugeNoirePageCopy;
+  headingLevel?: 1 | 2;
   interactive?: boolean;
   onOpen: () => void;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <section
       className={`${styles.page} ${styles.coverPage}`}
@@ -207,7 +218,7 @@ export function CoverPage({
       >
         <SaugeNoireBotanical className={styles.coverBotanical} />
         <div className={styles.coverTitle} data-sauge-static-element="wordmark">
-          <h1>SAUGE<br />NOIRE</h1>
+          <Heading>SAUGE<br />NOIRE</Heading>
           <p>{copy.tagline}</p>
         </div>
         <Rule />
@@ -227,6 +238,7 @@ export function ContentsPage({
   categories,
   copy,
   activePage,
+  headingLevel = 1,
   interactive = true,
   onSelect,
   onSelectEnding,
@@ -236,12 +248,14 @@ export function ContentsPage({
   categories: PublicMenuCategory[];
   copy: SaugeNoirePageCopy;
   activePage: number | null;
+  headingLevel?: 1 | 2;
   interactive?: boolean;
   onSelect: (index: number) => void;
   onSelectEnding: () => void;
   onPrevious: () => void;
   onNext: () => void;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <section
       className={`${styles.page} ${styles.contentsPage}`}
@@ -249,7 +263,7 @@ export function ContentsPage({
       data-sauge-static-page="contents"
     >
       <SaugeNoireBotanical className={styles.contentsBotanical} />
-      <h1 data-sauge-typography-role="title">{copy.contents}</h1>
+      <Heading data-sauge-typography-role="title">{copy.contents}</Heading>
       <Rule />
       <p className={styles.instruction} data-sauge-static-element="instruction">{copy.touchSection}</p>
       <nav className={styles.contentsList} aria-label={copy.contents}>
@@ -297,6 +311,7 @@ export function SectionPage({
   copy,
   query,
   exchangeRates,
+  headingLevel = 1,
   onPrevious,
   onNext,
   isPreview = false,
@@ -314,6 +329,7 @@ export function SectionPage({
   copy: SectionPageCopy;
   query?: PublicMenuContextQuery;
   exchangeRates?: MenuExchangeRates;
+  headingLevel?: 1 | 2;
   onPrevious: () => void;
   onNext: () => void;
   isPreview?: boolean;
@@ -325,6 +341,7 @@ export function SectionPage({
   ) => void;
   onDishLinkIntent?: (href: string, targetDish: PublicMenuDish) => void;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   const featured = dishes.find(isSignature) ?? dishes[0];
   const remainingDishes = featured
     ? dishes.filter((dish) => dish.id !== featured.id)
@@ -349,7 +366,7 @@ export function SectionPage({
       </div>
       <div className={styles.sectionTitleRow}>
         {sectionNumber === 2 ? <SaugeNoireBotanical variant="sideSprig" className={styles.titleBranchLeft} /> : null}
-        <h1 data-sauge-typography-role="title">{category.label.toUpperCase()}</h1>
+        <Heading data-sauge-typography-role="title">{category.label.toUpperCase()}</Heading>
         {sectionNumber === 2 ? <SaugeNoireBotanical variant="sideSprig" className={styles.titleBranchRight} /> : null}
       </div>
       {sectionNumber === 1 ? <SaugeNoireBotanical variant="sprig" className={styles.sectionBotanical} /> : null}
@@ -631,22 +648,25 @@ function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: bool
 
 export function EndingPage({
   copy,
+  headingLevel = 1,
   interactive = true,
   onRestart,
   showGoogleReview = true
 }: {
   copy: SaugeNoirePageCopy;
+  headingLevel?: 1 | 2;
   interactive?: boolean;
   onRestart: () => void;
   showGoogleReview?: boolean;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <section
       className={`${styles.page} ${styles.endingPage}`}
       aria-label={copy.thanks}
       data-sauge-static-page="ending"
     >
-      <h1>{copy.thanks.toUpperCase()}</h1>
+      <Heading>{copy.thanks.toUpperCase()}</Heading>
       <SaugeNoireBotanical className={styles.endingBotanical} />
       <div className={styles.endingWordmark} data-sauge-static-element="wordmark">SAUGE<br />NOIRE</div>
       <p data-sauge-static-element="tagline">{copy.tagline}</p>

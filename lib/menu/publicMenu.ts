@@ -23,6 +23,7 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import {
   DEFAULT_PUBLIC_MENU_SETTINGS,
+  normalizePublicMenuLocale,
   normalizePublicMenuLocalePreference,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
@@ -298,6 +299,15 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
     cuisineType: restaurant.cuisineType,
     googleReview: normalizeGoogleReviewConfig(restaurant.googleReview),
     settings: DEMO_PUBLIC_MENU_SETTINGS,
+    activeLocale: locale === "en" ? "en-CA" : "fr-CA",
+    translationLocales: [
+      { locale: "fr-CA", status: "source" },
+      { locale: "en-CA", status: "up_to_date" }
+    ],
+    translationStatus: {
+      locale: locale === "en" ? "en-CA" : "fr-CA",
+      status: locale === "en" ? "up_to_date" : "source"
+    },
     source: "demo",
     dishes: dishes.slice(0, 60).map((dish, index) => ({
       id: dish.slug || `demo-${index}`,
@@ -550,6 +560,7 @@ export async function getPublicMenuBySlug(
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
   const resolvedLocale = normalizeLocale(locale);
+  const resolvedPublicLocale = normalizePublicMenuLocale(locale);
   if (!slug) return null;
 
   const canUseLocalCache =
@@ -571,7 +582,9 @@ export async function getPublicMenuBySlug(
     ) {
       return null;
     }
-    if (slug === "maison-elyse") return demoMenu(slug, resolvedLocale);
+    if (slug === "maison-elyse") {
+      return demoMenu(slug, resolvedLocale);
+    }
     if (slug === "trouvable") return trouvableDemoMenu(slug, locale);
     return null;
   };
@@ -628,7 +641,7 @@ export async function getPublicMenuBySlug(
         legacyPublicMenuSettings,
         legacyMenuLanguages
       });
-      return applyStoredPublicMenuTranslations(menu, locale);
+      return applyStoredPublicMenuTranslations(menu, resolvedPublicLocale);
     }
 
     const menu = buildSupabasePublicMenu(
@@ -637,7 +650,7 @@ export async function getPublicMenuBySlug(
       dishRows,
       { includeUnavailableDishes: true, legacyPublicMenuSettings, legacyMenuLanguages }
     );
-    return applyStoredPublicMenuTranslations(menu, locale);
+    return applyStoredPublicMenuTranslations(menu, resolvedPublicLocale);
   };
 
   if (!canUseLocalCache) return readMenu();

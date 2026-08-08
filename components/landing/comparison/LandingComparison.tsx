@@ -5,6 +5,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent
 } from "react";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
@@ -20,6 +21,10 @@ import { VistairePdfToDigitalHoverReveal } from "@/components/vistaire-preview/V
 import { LandingActiveMenuPreview } from "./LandingActiveMenuPreview";
 import { LandingPublicMenuLink } from "../LandingPublicMenuLink";
 import styles from "./LandingComparison.module.css";
+
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 function pendingPreview(experience: LandingExperience, message: string) {
   return {
@@ -57,6 +62,11 @@ export function LandingComparison({
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeId, setActiveId] =
     useState<LandingExperienceId>("maison-elyse");
+  const isInteractive = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot
+  );
   const [previewPayloads, setPreviewPayloads] = useState<
     Record<string, LandingMenuPreviewPayload | null | undefined>
   >(() =>
@@ -144,12 +154,10 @@ export function LandingComparison({
   ) => {
     switch (event.key) {
       case "ArrowLeft":
-      case "ArrowUp":
         event.preventDefault();
         activate(index - 1, true);
         break;
       case "ArrowRight":
-      case "ArrowDown":
         event.preventDefault();
         activate(index + 1, true);
         break;
@@ -188,6 +196,7 @@ export function LandingComparison({
             : "ready"
       }
       data-testid="landing-comparison"
+      data-tabs-interactive={isInteractive ? "true" : "false"}
       data-translation-status={
         activePayload?.menuUi.menu.translationStatus?.status ??
         (activePayload === null ? "fallback" : "unknown")
@@ -210,7 +219,6 @@ export function LandingComparison({
               key={experience.id}
               onClick={() => activate(index)}
               onKeyDown={(event) => onTabKeyDown(event, index)}
-              onPointerDown={() => activate(index)}
               ref={(element) => {
                 tabRefs.current[index] = element;
               }}

@@ -11,19 +11,19 @@ const description =
   "Explore three Vistaire client menu experiences, designed for a fluid at-table reading experience.";
 
 export const metadata: Metadata = {
-  title,
+  title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
     url: absoluteUrl(canonicalPath),
-    title: `${title} | Vistaire`,
+    title,
     description,
     locale: LOCALE_OPEN_GRAPH.en,
     type: "website"
   },
   twitter: {
     card: "summary",
-    title: `${title} | Vistaire`,
+    title,
     description
   }
 };

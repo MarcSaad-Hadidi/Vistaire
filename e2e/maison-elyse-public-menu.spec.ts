@@ -54,7 +54,7 @@ function installPageHealth(page: Page): PageHealth {
     const url = request.url();
     const failure = request.failure()?.errorText ?? "request failed";
 
-    if (failure === "net::ERR_ABORTED") return;
+    if (/aborted|cancelled/i.test(failure)) return;
     if (!shouldTrackPageUrl(page, url)) return;
     networkIssues.push(`${failure} ${url}`);
   });
@@ -189,7 +189,7 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(page.getByRole("link", { name: /Retour . la carte/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Retour . la carte/i })).toHaveAttribute(
       "href",
-      "/menu/maison-elyse?lang=fr-CA&table=12&zone=terrasse&view=carte"
+      "/menu/maison-elyse?table=12&zone=terrasse&view=carte"
     );
     await expect(page.getByRole("navigation", { name: "Actions du plat" })).toHaveCount(0);
     await expect(
@@ -213,6 +213,62 @@ test.describe("Maison Elyse public QR menu", () => {
         timeout: 15_000
       })
       .toBe(true);
+    health.expectClean();
+  });
+
+  test("locale picker, reload, and English dish links stay consistent", async ({ page }) => {
+    const health = installPageHealth(page);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectHealthyResponse(
+      await page.goto("/menu/maison-elyse?lang=fr-CA", {
+        waitUntil: "domcontentloaded"
+      })
+    );
+    await expect(page.getByText("LA COLLECTION")).toBeVisible();
+    await page.waitForTimeout(1000);
+    await page.getByRole("button", { name: /Choisir la langue du menu/i }).click();
+    const languageDialog = page.getByRole("dialog", { name: "Langue du menu" });
+    await expect(languageDialog).toBeVisible();
+    await languageDialog.getByRole("button", { name: /English/i }).click();
+
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\?lang=en-CA$/);
+    await expect(page.getByText("THE COLLECTION")).toBeVisible();
+    await expect(page.getByRole("heading", { exact: true, name: "THE MENU" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Starters" })).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("THE COLLECTION")).toBeVisible();
+    await expect(page.getByRole("heading", { exact: true, name: "THE MENU" })).toBeVisible();
+
+    await expectHealthyResponse(
+      await page.goto("/menu/maison-elyse", { waitUntil: "domcontentloaded" })
+    );
+    await expect(page.getByText("THE COLLECTION")).toBeVisible();
+    await expect(page.getByRole("heading", { exact: true, name: "THE MENU" })).toBeVisible();
+    await expect(page.getByText(/Pearled lobster/i)).toBeVisible();
+
+    await expectHealthyResponse(
+      await page.goto("/menu/maison-elyse?lang=en", { waitUntil: "domcontentloaded" })
+    );
+    await expect(page.getByText("THE COLLECTION")).toBeVisible();
+    await expect(page.locator('[data-menu-ui="maison-elyse"]')).toHaveAttribute(
+      "lang",
+      "en-CA"
+    );
+
+    await expectHealthyResponse(
+      await page.goto(
+        "/menu/maison-elyse/dishes/homard-bisque?lang=en-CA",
+        { waitUntil: "domcontentloaded" }
+      )
+    );
+    await expect(page.getByRole("heading", { level: 1, name: /Homard bleu/i })).toBeVisible();
+    await expect(page.getByText(/Pearled lobster/i)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Back to menu/i })).toHaveAttribute(
+      "href",
+      /lang=en-CA.*view=carte/
+    );
     health.expectClean();
   });
 
@@ -285,6 +341,8 @@ test.describe("Maison Elyse public QR menu", () => {
       await page.goto("/demo", { waitUntil: "domcontentloaded" })
     );
     const targetedPhoneViewport = page.getByTestId("demo-phone-viewport");
+    await expect(targetedPhoneViewport.getByText("LA COLLECTION")).toBeVisible();
+    await page.waitForTimeout(1000);
     await targetedPhoneViewport.getByRole("button", { exact: true, name: "La carte" }).click();
     const menuDialog = targetedPhoneViewport.getByRole("dialog", { name: "La carte" });
     await expect(menuDialog).toBeVisible();

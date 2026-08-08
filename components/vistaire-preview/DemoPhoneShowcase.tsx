@@ -222,14 +222,14 @@ export function DemoPhoneShowcase({
         <PreviewNav
           activeSection="menu"
           currentPath={resolvedPath}
-          locale={menuLocale}
+          locale={locale}
           routeMode="production"
         />
       </section>
 
       <PreviewFooter
         currentPath={resolvedPath}
-        locale={menuLocale}
+        locale={locale}
         routeMode="production"
         width="wide"
       />

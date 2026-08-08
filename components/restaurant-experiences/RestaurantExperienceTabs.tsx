@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useId,
   useRef,
   type KeyboardEvent,
@@ -41,17 +42,25 @@ export function RestaurantExperienceTabs<
 }) {
   const instanceId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const pendingFocusIndex = useRef<number | null>(null);
   const hasApprovedExperiences = isApprovedRestaurantExperienceSet(experiences);
   const activeIndex = experiences.findIndex((experience) => experience.id === activeId);
   const selectedIndex = activeIndex === -1 ? 0 : activeIndex;
   const selectedExperience = experiences[selectedIndex];
   const panelId = `${instanceId}-panel`;
 
+  useEffect(() => {
+    if (pendingFocusIndex.current !== selectedIndex) return;
+    tabRefs.current[selectedIndex]?.focus();
+    pendingFocusIndex.current = null;
+  }, [selectedIndex]);
+
   const activate = (index: number, focus = false) => {
     if (!experiences.length) return;
     const normalizedIndex = (index + experiences.length) % experiences.length;
     const experience = experiences[normalizedIndex];
     if (!experience) return;
+    if (focus) pendingFocusIndex.current = normalizedIndex;
     onActiveChange(experience.id);
     if (focus) tabRefs.current[normalizedIndex]?.focus();
   };
@@ -62,12 +71,10 @@ export function RestaurantExperienceTabs<
   ) => {
     switch (event.key) {
       case "ArrowLeft":
-      case "ArrowUp":
         event.preventDefault();
         activate(index - 1, true);
         break;
       case "ArrowRight":
-      case "ArrowDown":
         event.preventDefault();
         activate(index + 1, true);
         break;

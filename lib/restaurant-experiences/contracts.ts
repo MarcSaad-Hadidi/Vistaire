@@ -51,6 +51,17 @@ export function payloadMatchesExperience(
   experienceId: RestaurantExperienceId
 ): boolean {
   if (payload.menuSlug !== experienceId) return false;
+  if (payload.menuUi.menu.slug !== experienceId) return false;
+  if (!payload.restaurantId.trim()) return false;
+  if (payload.menuUi.menu.restaurantId !== payload.restaurantId) return false;
+  if (
+    payload.menuId !== undefined &&
+    payload.menuUi.menu.menuId !== payload.menuId
+  ) {
+    return false;
+  }
+  const publicMenuPath = payload.publicMenuHref.split(/[?#]/, 1)[0];
+  if (publicMenuPath !== `/menu/${experienceId}`) return false;
 
   if (experienceId === "maison-elyse") {
     return payload.kind === "maison-elyse";

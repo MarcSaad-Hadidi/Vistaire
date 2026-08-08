@@ -18,6 +18,7 @@ import {
 } from "@/lib/menu/publicMenuRenderContext";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
+import { getMaisonElyseIdentity } from "@/lib/owner/demoCapabilities";
 import type { LandingPublicMenuHref } from "@/components/landing/LandingPublicMenuLink";
 import {
   isRestaurantExperienceId,
@@ -63,6 +64,7 @@ const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
 export type LandingMenuPreviewPayload = RestaurantMenuPreviewPayload;
 
 export type LandingMenuPreviewErrorCode =
+  | "landing_identity_mismatch"
   | "landing_locale_mismatch"
   | "landing_translation_not_ready";
 
@@ -439,9 +441,33 @@ function landingRenderPayload(
   // activating a product-only compatibility path.
   assertLandingMenuPreviewReady(context, context.locale);
   if (context.menu.slug !== experience.menuSlug) {
-    throw new Error(
-      `Landing experience ${experience.id} resolved the wrong menu: ${context.menu.slug}`
+    throw new LandingMenuPreviewError(
+      "landing_identity_mismatch",
+      `Landing experience ${experience.id} resolved the wrong menu identity.`,
+      {
+        expectedSlug: experience.menuSlug,
+        actualSlug: context.menu.slug,
+        actualRestaurantId: context.menu.restaurantId
+      }
     );
+  }
+  if (experience.id === "maison-elyse") {
+    const canonicalMaisonElyse = getMaisonElyseIdentity();
+    if (
+      context.menu.restaurantId !== canonicalMaisonElyse.id ||
+      context.menu.slug !== canonicalMaisonElyse.slug
+    ) {
+      throw new LandingMenuPreviewError(
+        "landing_identity_mismatch",
+        "Maison Elyse landing preview failed its canonical identity check.",
+        {
+          expectedRestaurantId: canonicalMaisonElyse.id,
+          actualRestaurantId: context.menu.restaurantId,
+          expectedSlug: canonicalMaisonElyse.slug,
+          actualSlug: context.menu.slug
+        }
+      );
+    }
   }
   const base: LandingPreviewBase = {
     menuSlug: experience.menuSlug,
@@ -454,7 +480,7 @@ function landingRenderPayload(
       menu: projectLandingMenuUiMenu(context.menu),
       localizedMenus: Object.fromEntries(
         Object.entries(context.localizedMenus).flatMap(([locale, menu]) =>
-          locale !== context.locale && menu
+          locale !== context.publicLocale && menu
             ? [[locale, projectLandingMenuUiMenu(menu)]]
             : []
         )

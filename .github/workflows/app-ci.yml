@@ -470,7 +470,7 @@ jobs:
     needs: [classify-changes, fast-gate, static-quality, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_admin_qr == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     outputs:
       test_report: ${{ steps.publish-test-report.outputs.report }}
     env:
@@ -494,6 +494,10 @@ jobs:
           path: .next
       - name: Admin QR browser suite
         run: npm run test:qr:functional
+      - name: Admin dish image browser suite (Chromium)
+        env:
+          VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium
+        run: npm run test:admin:full-menu
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -528,7 +532,7 @@ jobs:
     needs: [classify-changes, fast-gate, static-quality, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_webkit == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     outputs:
       test_report: ${{ steps.publish-test-report.outputs.report }}
     env:
@@ -551,6 +555,11 @@ jobs:
           path: .next
       - run: |
           npm run test:ci:e2e:webkit
+      - name: Admin dish image browser suite (WebKit)
+        if: ${{ needs.classify-changes.outputs.run_admin_qr == 'true' }}
+        env:
+          VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit
+        run: npm run test:admin:full-menu
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}

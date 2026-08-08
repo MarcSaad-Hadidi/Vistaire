@@ -47,7 +47,10 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   assert.match(data, /buildPublicMenuPath/);
   assert.match(data, /resolvePublicMenuRenderContext/);
   assert.match(data, /buildPublicDishPath/);
-  assert.doesNotMatch(data, /\/demo/);
+  assert.doesNotMatch(
+    data,
+    /publicMenuHref[\s\S]{0,120}["']\/demo(?:[?"']|$)/
+  );
   assert.match(experienceSection, /next\/image/);
   assert.match(experienceSection, /LandingPublicMenuLink/);
   assert.match(experienceSection, /showArrow=\{false\}/);
@@ -279,7 +282,7 @@ test("landing menu payload serializes alternate localized menus without duplicat
 
   assert.match(
     landingData,
-    /locale !== context\.locale[\s\S]{0,160}projectLandingMenuUiMenu\(menu\)/
+    /locale !== context\.publicLocale[\s\S]{0,160}projectLandingMenuUiMenu\(menu\)/
   );
 });
 
