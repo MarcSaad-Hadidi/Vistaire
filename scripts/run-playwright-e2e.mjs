@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { access } from "node:fs/promises";
 import http from "node:http";
+import { maisonRestaurantId } from "../e2e/support/sauge-noire-fixture-data.mjs";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
@@ -38,6 +39,8 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
     const normalized = argument.replaceAll("\\", "/");
     return (
       /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
+      /(?:^|\/)demo-restaurant-experiences\.spec\.ts$/.test(normalized) ||
+      /(?:^|\/)seo-interactive-showcases\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
   });
@@ -71,6 +74,7 @@ const SAUGE_FIXTURE_ORIGIN = "http://127.0.0.1:55434";
 const SAUGE_FIXTURE_ENV = {
   NEXT_PUBLIC_SUPABASE_URL: SAUGE_FIXTURE_ORIGIN,
   SUPABASE_SERVICE_ROLE_KEY: "sauge-noire-fixture-service-role-key",
+  NEXT_PUBLIC_DEMO_RESTAURANT_ID: maisonRestaurantId,
   VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
   VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:
     '{"CAD":1,"USD":0.72,"EUR":0.6225}'

@@ -257,7 +257,7 @@ test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D a
   assert.doesNotMatch(component, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
 });
 
-test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of the legacy preview UI", async () => {
+test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", async () => {
   const [
     demoPage,
     englishDemoPage,
@@ -278,13 +278,15 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
     ]);
 
   assert.match(demoPage, /DemoPhoneShowcase/);
-  assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse",\s*"fr"\)/);
-  assert.match(demoPage, /getPublicMenuBySlug\("maison-elyse",\s*"en"\)/);
-  assert.match(demoPage, /menuLocale=\{menuLocale\}/);
+  assert.match(demoPage, /getLandingExperiences/);
+  assert.match(demoPage, /experiences=\{experiences\}/);
+  assert.match(demoPage, /menuLocale=\{locale\}/);
   assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
   assert.match(englishDemoPage, /DemoPhoneShowcase/);
-  assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse",\s*"en"\)/);
-  assert.match(englishDemoPage, /getPublicMenuBySlug\("maison-elyse",\s*"fr"\)/);
+  assert.match(englishDemoPage, /getLandingExperiences/);
+  assert.match(englishDemoPage, /experiences=\{experiences\}/);
+  assert.match(englishDemoPage, /normalizeLocale/);
+  assert.match(englishDemoPage, /getLandingExperiences\(menuLocale\)/);
   assert.match(englishDemoPage, /menuLocale=\{menuLocale\}/);
   assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
 
@@ -296,11 +298,11 @@ test("/demo and /en/vistaire-menu use the Maison Elyse phone showcase instead of
   assert.match(menuComponent, /styles\.phonePreview/);
   assert.match(menuCss, /\.phonePreview/);
 
-  assert.match(showcase, /MaisonElyseQrMenu/);
-  assert.match(showcase, /displayMode="phone-preview"/);
-  assert.match(showcase, /locale=\{resolvedMenuLocale\}/);
-  assert.match(showcase, /localizedMenus=\{localizedMenus\}/);
-  assert.doesNotMatch(showcase, /showGoogleReview=\{false\}/);
+  assert.match(showcase, /ActiveRestaurantMenuPreview/);
+  assert.match(showcase, /RestaurantExperienceTabs/);
+  assert.match(showcase, /expectedExperienceId=\{activeExperience\.id\}/);
+  assert.match(showcase, /experienceFromQuery/);
+  assert.match(showcase, /router\.replace/);
   assert.doesNotMatch(showcase, /startFullMenu/);
   assert.match(showcase, /data-testid="demo-phone-mockup"/);
   assert.match(showcase, /data-phone-mockup-scroll/);

@@ -425,6 +425,7 @@ export function TrouvablePremiumMenuExperience({
 }: TrouvablePremiumMenuExperienceProps) {
   const isEmbeddedPreview = displayMode !== "public";
   const isComparisonPreview = displayMode === "comparison-preview";
+  const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -2281,7 +2282,7 @@ export function TrouvablePremiumMenuExperience({
         <HeroBotanicalOrnament />
         <div className={styles.heroText} dir={textDirection}>
           <p>{greetingLead}</p>
-          <h1 id="trouvable-hero-title">{menu.name}</h1>
+          <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>
           <span>{copy.heroBlurb}</span>
         </div>
         <button type="button" onClick={() => setActiveCategory(ALL_CATEGORY_ID)}>

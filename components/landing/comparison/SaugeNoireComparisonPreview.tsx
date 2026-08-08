@@ -47,9 +47,11 @@ const COPY: Record<Locale, SaugeNoirePageCopy> = {
 };
 
 export function SaugeNoireComparisonPreview({
+  displayMode = "comparison-preview",
   locale,
   menuUi
 }: {
+  displayMode?: "comparison-preview" | "phone-preview";
   locale: Locale;
   menuUi: LandingMenuUiPreview;
 }) {
@@ -66,6 +68,7 @@ export function SaugeNoireComparisonPreview({
     <SaugeNoireMenuPages
       copy={COPY[locale]}
       currency={currency}
+      displayMode={displayMode}
       exchangeRates={menuUi.exchangeRates}
       locale={locale}
       localeTag={localeTag}

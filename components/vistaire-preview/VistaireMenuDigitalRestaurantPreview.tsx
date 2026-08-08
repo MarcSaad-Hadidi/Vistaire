@@ -5,16 +5,13 @@ import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import pageDigitalPhoto from "@/Framer/PageDigital.png";
 import photoDigital2 from "@/Framer/PhotoDigital2.png";
 import photoDigital3 from "@/Framer/PhotoDigital3.png";
-import { getAllDishes } from "@/lib/demoMenuData";
 import type { Locale } from "@/lib/i18n";
-import { buildPdfComparePreviewData } from "@/lib/pdfComparePreviewData";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
   type VistaireRouteMode
 } from "./VistairePreviewChrome";
-import { VistairePdfToDigitalHoverReveal } from "./VistairePdfToDigitalHoverReveal";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
 const pdfProblems = [
@@ -108,12 +105,14 @@ export function VistaireMenuDigitalRestaurantPreview({
   h1,
   locale = "fr",
   routeMode = "production",
-  seoAppendix
+  seoAppendix,
+  interactiveShowcase
 }: {
   h1?: string;
   locale?: Locale;
   routeMode?: VistaireRouteMode;
   seoAppendix?: ReactNode;
+  interactiveShowcase?: ReactNode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const copy =
@@ -275,12 +274,6 @@ export function VistaireMenuDigitalRestaurantPreview({
           { label: copy.comparePdf, href: routes.pdfVsDigital },
           { label: copy.talk, href: routes.contact }
         ];
-  const comparePreview = buildPdfComparePreviewData({
-    activeCategorySlug: "tous",
-    locale,
-    vistaireDishSlugs: getAllDishes(locale).map((dish) => dish.slug)
-  });
-
   return (
     <main className={styles.page}>
       <Image
@@ -378,10 +371,7 @@ export function VistaireMenuDigitalRestaurantPreview({
               </span>
             </div>
             <div className={styles.revealPreviewWrap}>
-              <VistairePdfToDigitalHoverReveal
-                locale={locale}
-                preview={comparePreview}
-              />
+              {interactiveShowcase}
             </div>
           </article>
 

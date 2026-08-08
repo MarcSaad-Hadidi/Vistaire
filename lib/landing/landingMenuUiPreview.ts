@@ -1,11 +1,11 @@
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
-import type { Locale } from "@/lib/i18n";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import type {
   PublicMenu,
   PublicMenuContextQuery,
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
+import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 
 export type LandingMenuUiDish = Pick<
   PublicMenuDish,
@@ -66,7 +66,7 @@ export type LandingMenuUiMenu = Pick<
 
 export type LandingMenuUiPreview = {
   menu: LandingMenuUiMenu;
-  localizedMenus: Partial<Record<Locale, LandingMenuUiMenu>>;
+  localizedMenus: Partial<Record<PublicMenuLocale, LandingMenuUiMenu>>;
   config: MenuUiConfig;
   context: string;
   query: PublicMenuContextQuery;
@@ -180,12 +180,11 @@ export function inflateLandingMenuUiMenu(menu: LandingMenuUiMenu): PublicMenu {
 }
 
 export function inflateLandingLocalizedMenus(
-  menus: Partial<Record<Locale, LandingMenuUiMenu>>
-): Partial<Record<Locale, PublicMenu>> {
+  menus: Partial<Record<PublicMenuLocale, LandingMenuUiMenu>>
+): Partial<Record<PublicMenuLocale, PublicMenu>> {
   return Object.fromEntries(
-    Object.entries(menus).map(([locale, menu]) => [
-      locale,
-      inflateLandingMenuUiMenu(menu)
-    ])
-  ) as Partial<Record<Locale, PublicMenu>>;
+    Object.entries(menus).flatMap(([locale, menu]) =>
+      menu ? [[locale, inflateLandingMenuUiMenu(menu)]] : []
+    )
+  ) as Partial<Record<PublicMenuLocale, PublicMenu>>;
 }

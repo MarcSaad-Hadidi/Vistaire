@@ -51,16 +51,21 @@ test("Maison Elyse detail keeps its restaurant-specific return label", async () 
   assert.match(source, /backToMenu:\s*"Back to menu"/);
 });
 
-test("Maison demo showcase indexes localized menus by canonical public locale", async () => {
-  const [showcase, demo, englishDemo] = await Promise.all([
+test("Maison demo showcase projects localized menus by canonical public locale", async () => {
+  const [showcase, demo, englishDemo, projection, landingData] = await Promise.all([
     readFile("components/vistaire-preview/DemoPhoneShowcase.tsx", "utf8"),
     readFile("app/demo/page.tsx", "utf8"),
-    readFile("app/en/vistaire-menu/page.tsx", "utf8")
+    readFile("app/en/vistaire-menu/page.tsx", "utf8"),
+    readFile("lib/landing/landingMenuUiPreview.ts", "utf8"),
+    readFile("lib/landing/menuExperiences.ts", "utf8")
   ]);
 
-  assert.match(showcase, /Partial<Record<PublicMenuLocale, PublicMenu>>/);
-  assert.match(demo, /"fr-CA": frenchMenu, "en-CA": englishMenu/);
-  assert.match(englishDemo, /"fr-CA": frenchMenu, "en-CA": englishMenu/);
+  assert.match(showcase, /experiences: LandingExperience\[\]/);
+  assert.match(demo, /getLandingExperiences/);
+  assert.match(englishDemo, /getLandingExperiences/);
+  assert.match(projection, /Partial<Record<PublicMenuLocale, LandingMenuUiMenu>>/);
+  assert.match(landingData, /locale !== context\.publicLocale/);
+  assert.match(landingData, /getMaisonElyseIdentity/);
 });
 
 test("Maison Elyse server context loads every ready locale for reload persistence", async () => {

@@ -5,6 +5,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent
 } from "react";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
@@ -14,10 +15,16 @@ import type {
   LandingExperienceId,
   LandingMenuPreviewPayload
 } from "@/lib/landing/menuExperiences";
+import { payloadMatchesExperience } from "@/lib/restaurant-experiences/contracts";
 import { VistairePreviewPdfCompareSlider } from "@/components/vistaire-preview/VistairePreviewPdfCompareSlider";
+import { VistairePdfToDigitalHoverReveal } from "@/components/vistaire-preview/VistairePdfToDigitalHoverReveal";
 import { LandingActiveMenuPreview } from "./LandingActiveMenuPreview";
 import { LandingPublicMenuLink } from "../LandingPublicMenuLink";
 import styles from "./LandingComparison.module.css";
+
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 function pendingPreview(experience: LandingExperience, message: string) {
   return {
@@ -43,16 +50,23 @@ function pendingPreview(experience: LandingExperience, message: string) {
 export function LandingComparison({
   copy,
   experiences,
-  locale
+  locale,
+  interaction = "slider"
 }: {
   copy: LandingCopy["comparison"];
   experiences: LandingExperience[];
   locale: Locale;
+  interaction?: "slider" | "reveal";
 }) {
   const instanceId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeId, setActiveId] =
     useState<LandingExperienceId>("maison-elyse");
+  const isInteractive = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot
+  );
   const [previewPayloads, setPreviewPayloads] = useState<
     Record<string, LandingMenuPreviewPayload | null | undefined>
   >(() =>
@@ -101,16 +115,7 @@ export function LandingComparison({
         return result.payload;
       })
       .then((payload) => {
-        if (
-          (activeExperience.id === "maison-elyse" &&
-            payload.kind !== "maison-elyse") ||
-          (activeExperience.id === "trouvable" &&
-            payload.kind !== "trouvable") ||
-          (activeExperience.id === "sauge-noire" &&
-            (payload.kind !== "unique-registered" ||
-              payload.rendererKey !== "sauge-noire-book-v1" ||
-              payload.rendererVersion !== 1))
-        ) {
+        if (!payloadMatchesExperience(payload, activeExperience.id)) {
           throw new Error("Unexpected landing menu preview payload.");
         }
         setPreviewPayloads((current) => ({
@@ -149,12 +154,10 @@ export function LandingComparison({
   ) => {
     switch (event.key) {
       case "ArrowLeft":
-      case "ArrowUp":
         event.preventDefault();
         activate(index - 1, true);
         break;
       case "ArrowRight":
-      case "ArrowDown":
         event.preventDefault();
         activate(index + 1, true);
         break;
@@ -193,6 +196,7 @@ export function LandingComparison({
             : "ready"
       }
       data-testid="landing-comparison"
+      data-tabs-interactive={isInteractive ? "true" : "false"}
       data-translation-status={
         activePayload?.menuUi.menu.translationStatus?.status ??
         (activePayload === null ? "fallback" : "unknown")
@@ -239,28 +243,51 @@ export function LandingComparison({
           className={styles.phone}
           data-testid="landing-comparison-phone"
         >
-          <VistairePreviewPdfCompareSlider
-            digitalLayer={
-              <LandingActiveMenuPreview
-                copy={copy}
-                fallbackPreview={activeExperience.preview}
-                key={activeExperience.id}
-                locale={locale}
-                menuSlug={activeExperience.menuSlug}
-                payload={activePayload}
-              />
-            }
-            key={activeExperience.id}
-            locale={locale}
-            preview={activePreview}
-            strings={{
-              caption: copy.figureCaption,
-              hint: copy.revealHint,
-              label: copy.revealLabel,
-              pdfRegionLabel: copy.pdfRegionLabel,
-              pdfTitle: copy.pdfTitle
-            }}
-          />
+          {interaction === "reveal" ? (
+            <VistairePdfToDigitalHoverReveal
+              digitalLayer={
+                <LandingActiveMenuPreview
+                  copy={copy}
+                  fallbackPreview={activeExperience.preview}
+                  key={activeExperience.id}
+                  locale={locale}
+                  menuSlug={activeExperience.menuSlug}
+                  payload={activePayload}
+                />
+              }
+              key={activeExperience.id}
+              locale={locale}
+              preview={activePreview}
+              strings={{
+                caption: copy.figureCaption,
+                hint: copy.revealHint,
+                label: copy.revealLabel
+              }}
+            />
+          ) : (
+            <VistairePreviewPdfCompareSlider
+              digitalLayer={
+                <LandingActiveMenuPreview
+                  copy={copy}
+                  fallbackPreview={activeExperience.preview}
+                  key={activeExperience.id}
+                  locale={locale}
+                  menuSlug={activeExperience.menuSlug}
+                  payload={activePayload}
+                />
+              }
+              key={activeExperience.id}
+              locale={locale}
+              preview={activePreview}
+              strings={{
+                caption: copy.figureCaption,
+                hint: copy.revealHint,
+                label: copy.revealLabel,
+                pdfRegionLabel: copy.pdfRegionLabel,
+                pdfTitle: copy.pdfTitle
+              }}
+            />
+          )}
         </div>
         <div className={styles.activeCopy}>
           <p>{activeExperience.label}</p>

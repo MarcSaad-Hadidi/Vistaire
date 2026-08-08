@@ -1,36 +1,35 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { DemoPhoneShowcase } from "@/components/vistaire-preview/DemoPhoneShowcase";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i18n";
-import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
+import { getLandingExperiences } from "@/lib/landing/menuExperiences";
 import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 const canonicalPath = "/en/vistaire-menu";
-const title = "Sample client menu | Maison Élyse";
+const title = "Sample client menu | Vistaire";
 const description =
-  "Maison Élyse is a Vistaire sample restaurant menu: client menu, dish pages, allergens, pairings and immersive views.";
+  "Explore three Vistaire client menu experiences, designed for a fluid at-table reading experience.";
 
 export const metadata: Metadata = {
-  title,
+  title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
     url: absoluteUrl(canonicalPath),
-    title: `${title} | Vistaire`,
+    title,
     description,
     locale: LOCALE_OPEN_GRAPH.en,
     type: "website"
   },
   twitter: {
     card: "summary",
-    title: `${title} | Vistaire`,
+    title,
     description
   }
 };
 
 type VistaireMenuPageEnProps = {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; experience?: string }>;
 };
 
 export default async function VistaireMenuPageEn({
@@ -39,16 +38,7 @@ export default async function VistaireMenuPageEn({
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
   const menuLocale = hasLangParam ? normalizeLocale(query.lang) : "en";
-  const [frenchMenu, englishMenu] = await Promise.all([
-    getPublicMenuBySlug("maison-elyse", "fr"),
-    getPublicMenuBySlug("maison-elyse", "en")
-  ]);
-
-  if (!frenchMenu || !englishMenu) {
-    notFound();
-  }
-
-  const menu = menuLocale === "en" ? englishMenu : frenchMenu;
+  const experiences = await getLandingExperiences(menuLocale);
 
   return (
     <>
@@ -62,17 +52,15 @@ export default async function VistaireMenuPageEn({
           }),
           buildBreadcrumbJsonLd([
             { name: "Home", path: "/en" },
-            { name: "Sample client menu", path: canonicalPath }
+            { name: "Vistaire client menu", path: canonicalPath }
           ])
         ]}
       />
       <DemoPhoneShowcase
         currentPath={canonicalPath}
-        localizedMenus={{ "fr-CA": frenchMenu, "en-CA": englishMenu }}
+        experiences={experiences}
         locale="en"
-        menu={menu}
         menuLocale={menuLocale}
-        menuQuery={hasLangParam ? { lang: menuLocale } : undefined}
       />
     </>
   );

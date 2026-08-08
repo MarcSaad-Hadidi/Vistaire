@@ -597,7 +597,7 @@
   margin-bottom: 12px;
 }
 
-.coverTitle h1 {
+.coverTitle :is(h1, h2) {
   font-size: clamp(3.1rem, 6.5vw, 6rem);
 }
 
@@ -605,7 +605,7 @@
   margin-top: 12px;
 }
 
-.coverTitle h1,
+.coverTitle :is(h1, h2),
 .endingWordmark {
   margin: 0;
   color: var(--sn-forest);
@@ -805,7 +805,7 @@
   height: clamp(100px, 14vh, 130px);
 }
 
-.contentsPage h1 {
+.contentsPage :is(h1, h2) {
   max-width: 760px;
   margin: 12px 0 0;
   color: var(--sn-forest);
@@ -896,7 +896,7 @@
   margin-top: 16px;
 }
 
-.sectionTitleRow h1 {
+.sectionTitleRow :is(h1, h2) {
   max-width: 100%;
   margin: 0;
   color: var(--sn-forest);
@@ -1160,7 +1160,7 @@
   padding-bottom: 22px;
 }
 
-.endingPage h1 {
+.endingPage :is(h1, h2) {
   max-width: 800px;
   margin: 0;
   color: var(--sn-forest);
@@ -1477,7 +1477,7 @@
     margin-bottom: 10px;
   }
 
-  .coverTitle h1 {
+  .coverTitle :is(h1, h2) {
     font-size: clamp(3rem, 14vw, 5rem);
     letter-spacing: 0.055em;
   }
@@ -1505,7 +1505,7 @@
     height: 104px;
   }
 
-  .contentsPage h1 {
+  .contentsPage :is(h1, h2) {
     margin-top: 8px;
     font-size: clamp(1.85rem, 8.5vw, 3.1rem);
     letter-spacing: 0.08em;
@@ -1552,7 +1552,7 @@
     gap: 8px;
   }
 
-  .sectionTitleRow h1 {
+  .sectionTitleRow :is(h1, h2) {
     font-size: clamp(1.7rem, 8vw, 3rem);
     letter-spacing: 0.055em;
   }
@@ -1673,7 +1673,7 @@
     padding-bottom: 20px;
   }
 
-  .endingPage h1 {
+  .endingPage :is(h1, h2) {
     font-size: clamp(1.8rem, 9vw, 3.5rem);
   }
 
@@ -1833,7 +1833,7 @@
   margin-bottom: 0;
 }
 
-.staticPageFrame .coverTitle h1 {
+.staticPageFrame .coverTitle :is(h1, h2) {
   font-size: clamp(2.15rem, min(13cqw, 8cqh), 5rem);
   letter-spacing: 0.055em;
   line-height: 0.86;
@@ -1916,7 +1916,7 @@
   min-height: 0;
 }
 
-.staticPageFrame .contentsPage h1 {
+.staticPageFrame .contentsPage :is(h1, h2) {
   width: min(100%, 300px);
   margin: 0;
   font-size: clamp(1.75rem, min(11cqw, 6cqh), 3.4rem);
@@ -2004,7 +2004,7 @@
   padding-bottom: max(clamp(6px, 1.4cqh, 20px), var(--sn-safe-bottom));
 }
 
-.staticPageFrame .endingPage h1 {
+.staticPageFrame .endingPage :is(h1, h2) {
   margin: 0;
   font-size: clamp(1.7rem, min(9cqw, 5.8cqh), 4.6rem);
   line-height: 0.9;
@@ -2071,7 +2071,7 @@
   height: clamp(160px, 25cqw, 240px);
 }
 
-.comparisonPages .coverTitle h1,
+.comparisonPages .coverTitle :is(h1, h2),
 .comparisonPages .endingWordmark {
   font-size: clamp(3rem, 14cqw, 8.8rem);
 }
@@ -2109,7 +2109,7 @@
   overflow: hidden;
 }
 
-.comparisonPages .sectionTitleRow h1 {
+.comparisonPages .sectionTitleRow :is(h1, h2) {
   min-width: 0;
   font-size: clamp(1.7rem, 8cqw, 5.8rem);
   overflow-wrap: anywhere;
@@ -2143,7 +2143,7 @@
   max-width: 100%;
 }
 
-.comparisonPages .contentsPage h1 {
+.comparisonPages .contentsPage :is(h1, h2) {
   width: 100%;
   max-width: 100%;
   font-size: clamp(1.75rem, 10cqw, 3.4rem);
@@ -2188,6 +2188,16 @@
   width: clamp(62px, 28cqw, 106px);
 }
 
+/* Featured dishes keep the editorial media block from the SEO/card previews.
+ * The compact row sizing above must not collapse this first image to a
+ * thumbnail when both selectors target the same photo slot. */
+.comparisonPages .featureCard .photoSlotLarge {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
 .comparisonPages .dishRowName > span:first-child {
   font-size: clamp(0.9rem, 4.3cqw, 1.8rem);
 }
@@ -2196,7 +2206,7 @@
   font-size: clamp(0.86rem, 4cqw, 1.7rem);
 }
 
-.comparisonPages .endingPage h1 {
+.comparisonPages .endingPage :is(h1, h2) {
   max-width: 100%;
   font-size: clamp(1.8rem, 9cqw, 7rem);
   overflow-wrap: anywhere;
@@ -2345,7 +2355,7 @@
     grid-row: 6 / span 3;
   }
 
-  .staticPageFrame .coverTitle h1 {
+  .staticPageFrame .coverTitle :is(h1, h2) {
     font-size: clamp(1.8rem, min(8cqw, 12cqh), 3rem);
   }
 
@@ -2407,13 +2417,13 @@
     height: clamp(38px, 18cqh, 64px);
   }
 
-  .staticPageFrame .contentsPage h1,
+  .staticPageFrame .contentsPage :is(h1, h2),
   .staticPageFrame .contentsPage > .rule,
   .staticPageFrame .contentsPage > .instruction {
     grid-column: 2;
   }
 
-  .staticPageFrame .contentsPage h1 {
+  .staticPageFrame .contentsPage :is(h1, h2) {
     grid-row: 1;
     font-size: clamp(1.15rem, min(5cqw, 8cqh), 2rem);
   }
@@ -2463,7 +2473,7 @@
     grid-column: auto;
   }
 
-  .staticPageFrame .endingPage > h1:first-child {
+  .staticPageFrame .endingPage > :is(h1, h2):first-child {
     grid-column: 1;
     grid-row: 1;
     width: 100%;

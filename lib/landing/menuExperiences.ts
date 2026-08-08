@@ -16,26 +16,27 @@ import {
   resolvePublicMenuRenderContext,
   type PublicMenuRenderContext
 } from "@/lib/menu/publicMenuRenderContext";
-import type { UniqueMenuRendererKey } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
+import { getMaisonElyseIdentity } from "@/lib/owner/demoCapabilities";
 import type { LandingPublicMenuHref } from "@/components/landing/LandingPublicMenuLink";
+import {
+  isRestaurantExperienceId,
+  type RestaurantExperienceId,
+  type RestaurantMenuPreviewBase,
+  type RestaurantMenuPreviewPayload
+} from "@/lib/restaurant-experiences/contracts";
 
-export type LandingExperienceId =
-  | "maison-elyse"
-  | "trouvable"
-  | "sauge-noire";
+export type LandingExperienceId = RestaurantExperienceId;
 
-const LANDING_EXPERIENCE_IDS: readonly LandingExperienceId[] = [
-  "maison-elyse",
-  "trouvable",
-  "sauge-noire"
-];
+type LandingPreviewBase = RestaurantMenuPreviewBase & {
+  menuUi: LandingMenuUiPreview;
+};
 
 export function isLandingExperienceId(
   value: string
 ): value is LandingExperienceId {
-  return LANDING_EXPERIENCE_IDS.includes(value as LandingExperienceId);
+  return isRestaurantExperienceId(value);
 }
 
 export type LandingFeaturedDish = {
@@ -51,16 +52,6 @@ export type LandingFeaturedDish = {
   imagePosition: string;
 };
 
-type LandingPreviewBase = {
-  menuSlug: LandingExperienceId;
-  restaurantId: string;
-  menuId?: string;
-  locale: Locale;
-  publicMenuHref: LandingPublicMenuHref;
-  comparison: PdfComparePreviewData;
-  menuUi: LandingMenuUiPreview;
-};
-
 const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
   maisonElyse:
     "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo?v=a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f",
@@ -70,20 +61,10 @@ const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
     "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo?v=bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894"
 });
 
-export type LandingMenuPreviewPayload =
-  | (LandingPreviewBase & {
-      kind: "maison-elyse";
-    })
-  | (LandingPreviewBase & {
-      kind: "trouvable";
-    })
-  | (LandingPreviewBase & {
-      kind: "unique-registered";
-      rendererKey: UniqueMenuRendererKey;
-      rendererVersion: number;
-    });
+export type LandingMenuPreviewPayload = RestaurantMenuPreviewPayload;
 
 export type LandingMenuPreviewErrorCode =
+  | "landing_identity_mismatch"
   | "landing_locale_mismatch"
   | "landing_translation_not_ready";
 
@@ -460,9 +441,33 @@ function landingRenderPayload(
   // activating a product-only compatibility path.
   assertLandingMenuPreviewReady(context, context.locale);
   if (context.menu.slug !== experience.menuSlug) {
-    throw new Error(
-      `Landing experience ${experience.id} resolved the wrong menu: ${context.menu.slug}`
+    throw new LandingMenuPreviewError(
+      "landing_identity_mismatch",
+      `Landing experience ${experience.id} resolved the wrong menu identity.`,
+      {
+        expectedSlug: experience.menuSlug,
+        actualSlug: context.menu.slug,
+        actualRestaurantId: context.menu.restaurantId
+      }
     );
+  }
+  if (experience.id === "maison-elyse") {
+    const canonicalMaisonElyse = getMaisonElyseIdentity();
+    if (
+      context.menu.restaurantId !== canonicalMaisonElyse.id ||
+      context.menu.slug !== canonicalMaisonElyse.slug
+    ) {
+      throw new LandingMenuPreviewError(
+        "landing_identity_mismatch",
+        "Maison Elyse landing preview failed its canonical identity check.",
+        {
+          expectedRestaurantId: canonicalMaisonElyse.id,
+          actualRestaurantId: context.menu.restaurantId,
+          expectedSlug: canonicalMaisonElyse.slug,
+          actualSlug: context.menu.slug
+        }
+      );
+    }
   }
   const base: LandingPreviewBase = {
     menuSlug: experience.menuSlug,
@@ -475,7 +480,7 @@ function landingRenderPayload(
       menu: projectLandingMenuUiMenu(context.menu),
       localizedMenus: Object.fromEntries(
         Object.entries(context.localizedMenus).flatMap(([locale, menu]) =>
-          locale !== context.locale && menu
+          locale !== context.publicLocale && menu
             ? [[locale, projectLandingMenuUiMenu(menu)]]
             : []
         )
@@ -619,13 +624,13 @@ async function buildLandingExperiences(
 
 const getCachedFrenchLandingExperiences = unstable_cache(
   () => buildLandingExperiences("fr"),
-  ["landing-menu-experiences-fr-v10"],
+  ["landing-menu-experiences-fr-v11"],
   { revalidate: 60 }
 );
 
 const getCachedEnglishLandingExperiences = unstable_cache(
   () => buildLandingExperiences("en"),
-  ["landing-menu-experiences-en-v10"],
+  ["landing-menu-experiences-en-v11"],
   { revalidate: 60 }
 );
 

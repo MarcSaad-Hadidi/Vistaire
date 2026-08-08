@@ -9,8 +9,10 @@ import {
 } from "@/lib/landing/landingMenuUiPreview";
 
 export function TrouvableComparisonPreview({
+  displayMode = "comparison-preview",
   menuUi
 }: {
+  displayMode?: "comparison-preview" | "phone-preview";
   menuUi: LandingMenuUiPreview;
 }) {
   const menu = useMemo(
@@ -22,7 +24,7 @@ export function TrouvableComparisonPreview({
     <TrouvablePremiumMenuExperience
       config={menuUi.config}
       context={menuUi.context}
-      displayMode="comparison-preview"
+      displayMode={displayMode}
       exchangeRates={menuUi.exchangeRates}
       menu={menu}
       query={menuUi.query}

@@ -47,7 +47,10 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   assert.match(data, /buildPublicMenuPath/);
   assert.match(data, /resolvePublicMenuRenderContext/);
   assert.match(data, /buildPublicDishPath/);
-  assert.doesNotMatch(data, /\/demo/);
+  assert.doesNotMatch(
+    data,
+    /publicMenuHref[\s\S]{0,120}["']\/demo(?:[?"']|$)/
+  );
   assert.match(experienceSection, /next\/image/);
   assert.match(experienceSection, /LandingPublicMenuLink/);
   assert.match(experienceSection, /showArrow=\{false\}/);
@@ -229,10 +232,15 @@ test("landing comparison shares each public menu UI without the generic preview 
   }
 
   assert.match(maisonPreview, /MaisonElyseQrMenu/);
-  assert.match(maisonPreview, /displayMode="comparison-preview"/);
+  assert.match(maisonPreview, /displayMode = "comparison-preview"/);
+  assert.match(maisonPreview, /displayMode=\{displayMode\}/);
   assert.match(trouvablePreview, /TrouvablePremiumMenuExperience/);
-  assert.match(trouvablePreview, /displayMode="comparison-preview"/);
+  assert.match(trouvablePreview, /displayMode = "comparison-preview"/);
+  assert.match(trouvablePreview, /displayMode=\{displayMode\}/);
   assert.match(saugePreview, /SaugeNoireMenuPages/);
+  assert.match(saugePreview, /displayMode = "comparison-preview"/);
+  assert.match(saugePreview, /displayMode=\{displayMode\}/);
+  assert.doesNotMatch(saugePreview, /SaugeNoireBookMenu/);
   assert.match(saugePages, /CoverPage/);
   assert.match(saugePages, /ContentsPage/);
   assert.match(saugePages, /SectionPage/);
@@ -274,7 +282,7 @@ test("landing menu payload serializes alternate localized menus without duplicat
 
   assert.match(
     landingData,
-    /locale !== context\.locale[\s\S]{0,160}projectLandingMenuUiMenu\(menu\)/
+    /locale !== context\.publicLocale[\s\S]{0,160}projectLandingMenuUiMenu\(menu\)/
   );
 });
 
@@ -361,22 +369,32 @@ test("landing and the public menu route share the official render-context resolv
   assert.match(resolver, /getExchangeRates/);
 });
 
-test("landing serializes only Maison Elyse and lazy-loads later menu payloads", async () => {
+test("landing serializes only the default renderer and lazy-loads inactive restaurants", async () => {
   const comparison = await source(
     "components/landing/comparison/LandingComparison.tsx"
   );
+  const demo = await source(
+    "components/vistaire-preview/DemoPhoneShowcase.tsx"
+  );
   const landingData = await source("lib/landing/menuExperiences.ts");
 
+  assert.equal(
+    (landingData.match(/renderPayload:\s*landingRenderPayload\s*\(/g) ?? []).length,
+    0
+  );
   assert.match(
     landingData,
     /experience\.id === "maison-elyse"\s*\?\s*landingRenderPayload/
   );
-  assert.match(
-    comparison,
-    /\/api\/public\/landing-menu-preview\/\$\{activeExperience\.id\}/
-  );
-  assert.match(comparison, /AbortController/);
-  assert.match(comparison, /previewPayloads/);
+  for (const client of [comparison, demo]) {
+    assert.match(
+      client,
+      /\/api\/public\/landing-menu-preview\/\$\{activeExperience\.id\}/
+    );
+    assert.match(client, /AbortController/);
+    assert.match(client, /previewPayloads/);
+    assert.match(client, /payloadMatchesExperience/);
+  }
   assert.doesNotMatch(comparison, /display:\s*none/);
 });
 
@@ -384,8 +402,8 @@ test("Next landing caches isolate French and English payloads structurally", asy
   const landingData = await source("lib/landing/menuExperiences.ts");
 
   for (const key of [
-    "landing-menu-experiences-fr-v10",
-    "landing-menu-experiences-en-v10",
+    "landing-menu-experiences-fr-v11",
+    "landing-menu-experiences-en-v11",
     "landing-menu-preview-payload-fr-v9",
     "landing-menu-preview-payload-en-v9"
   ]) {

@@ -161,6 +161,10 @@
   gap: 10px;
 }
 
+.phoneStage > * {
+  width: min(100%, 414px);
+}
+
 .phoneLabel {
   display: flex;
   width: min(100%, 390px);
@@ -358,9 +362,9 @@
   }
 
   .phoneViewport {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
+    height: min(734px, calc(100svh - 150px));
+    min-height: min(600px, calc(100svh - 150px));
+    overflow: hidden;
     border-radius: 0;
     transform: none;
   }

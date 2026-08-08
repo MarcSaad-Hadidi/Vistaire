@@ -52,14 +52,14 @@ export async function VistaireLanding({
         restaurateurHref={routes.restaurateurDashboard}
         digitalMenuHref={routes.menuDigital}
       />
-      <LandingValueSection copy={copy.value} />
-      <LandingExperienceSection
-        copy={copy.experiences}
+      <LandingComparisonSection
+        copy={copy.comparison}
         experiences={experiences}
         locale={locale}
       />
-      <LandingComparisonSection
-        copy={copy.comparison}
+      <LandingValueSection copy={copy.value} />
+      <LandingExperienceSection
+        copy={copy.experiences}
         experiences={experiences}
         locale={locale}
       />
