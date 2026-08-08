@@ -223,15 +223,29 @@ function buildMaisonMenuCopy(
 ): MaisonMenuCopy {
   const language = localeLanguage(locale);
   const fallback = MENU_COPY[language === "fr" ? "fr" : "en"];
-  const resolved = resolveMaisonElyseCopy(locale, localizedUiCopy).copy;
+  const resolvedResult = resolveMaisonElyseCopy(locale, localizedUiCopy);
+  const resolved = resolvedResult.copy;
+  const neutral = resolveMaisonElyseCopy(locale).copy;
+  const preserveMaisonDefaults =
+    resolvedResult.resolution.builtInLocale === (language === "fr" ? "fr" : "en");
+  const sharedOrMaison = <T,>(value: T, neutralValue: T, maisonValue: T): T =>
+    preserveMaisonDefaults && Object.is(value, neutralValue) ? maisonValue : value;
   return {
     ...fallback,
     activeFilterPrefix: resolved.activeFilterPrefix,
-    allMenu: resolved.activeCategoryAll,
+    allMenu: sharedOrMaison(
+      resolved.activeCategoryAll,
+      neutral.activeCategoryAll,
+      fallback.allMenu
+    ),
     apply: resolved.filterApply,
     backToTop: resolved.backToTop,
     bottomFilter: resolved.filterButton,
-    bottomMenu: resolved.activeCategoryAll,
+    bottomMenu: sharedOrMaison(
+      resolved.activeCategoryAll,
+      neutral.activeCategoryAll,
+      fallback.bottomMenu
+    ),
     close: resolved.close,
     // Keep the Maison Élyse cover editorial distinct from the shared
     // Trouvable UI-copy contract. `categories` and `activeCategoryAll` are
@@ -240,14 +254,26 @@ function buildMaisonMenuCopy(
     // replaced the canonical Maison copy and broke the public menu smoke.
     dishDetails: resolved.viewDetails,
     emptySelection: resolved.noResultsTitle,
-    filterDialogLabel: resolved.filterTitle,
+    filterDialogLabel: sharedOrMaison(
+      resolved.filterTitle,
+      neutral.filterTitle,
+      fallback.filterDialogLabel
+    ),
     filterFallback: resolved.filterFallback,
     filterGroupLabel: resolved.filterGroupLabel,
     languageDialogLabel: resolved.languageTitle,
     languageToggleAria: resolved.languageAria,
-    menuDialogLabel: resolved.menuAria,
-    menuToggleAria: resolved.menuAria,
-    navAria: resolved.menuAria,
+    menuDialogLabel: sharedOrMaison(
+      resolved.menuAria,
+      neutral.menuAria,
+      fallback.menuDialogLabel
+    ),
+    menuToggleAria: sharedOrMaison(
+      resolved.menuAria,
+      neutral.menuAria,
+      fallback.menuToggleAria
+    ),
+    navAria: sharedOrMaison(resolved.menuAria, neutral.menuAria, fallback.navAria),
     preferences: resolved.languageKicker,
     recommendedBadge: resolved.recommendation,
     recommendation: resolved.recommendation,
@@ -767,6 +793,7 @@ export function MaisonElyseQrMenu({
   const menuRef = useRef<HTMLElement | null>(null);
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const phonePreviewScrollParentRef = useRef<HTMLElement | null>(null);
+  const phonePreviewAutoScrollCompleteRef = useRef(false);
   const skipNextPhonePreviewAutoScrollRef = useRef(false);
   const manualLocaleRef = useRef<PublicMenuLocale | null>(null);
   const lastSeenQueryLocaleRef = useRef<PublicMenuLocale | null>(queryLocale);
@@ -978,14 +1005,28 @@ export function MaisonElyseQrMenu({
       return;
     }
 
+    // The first render can settle more than once while the server-provided
+    // localized menu hydrates. Once the preview has been positioned, later
+    // data/copy updates must not pull a user's scroll position back down.
+    if (phonePreviewAutoScrollCompleteRef.current) return;
+
     const frameId = window.requestAnimationFrame(() => {
       const scrollTarget = getPhonePreviewScrollTarget();
       if (!scrollTarget) return;
+
+      // Respect an interaction that happened before the deferred positioning
+      // frame ran (for example while localized data was hydrating).
+      if (scrollTarget.scrollTop > 0) {
+        phonePreviewAutoScrollCompleteRef.current = true;
+        return;
+      }
 
       scrollTarget.scrollTop = 0;
 
       const firstDish = scrollTarget.querySelector<HTMLElement>('[data-dish-card="true"]');
       if (!firstDish) return;
+
+      phonePreviewAutoScrollCompleteRef.current = true;
 
       const scrollTargetRect = scrollTarget.getBoundingClientRect();
       const firstDishRect = firstDish.getBoundingClientRect();
@@ -1136,6 +1177,9 @@ export function MaisonElyseQrMenu({
     setSelectedLocale(nextLocale);
     setShouldPersistLocaleInLinks(true);
     resetLocaleDependentUi();
+    if (displayMode === "phone-preview") {
+      scrollPhonePreviewToTop();
+    }
 
     if (displayMode === "public") {
       try {

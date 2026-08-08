@@ -316,17 +316,24 @@ function buildDetailCopy(
   locale: PublicMenuLocale,
   localizedUiCopy?: Record<string, unknown>
 ): DetailCopy {
-  const fallback = DETAIL_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"];
-  const resolved = resolveMaisonElyseCopy(locale, localizedUiCopy).copy;
+  const language = localeLanguage(locale);
+  const fallback = DETAIL_COPY[language === "fr" ? "fr" : "en"];
+  const resolvedResult = resolveMaisonElyseCopy(locale, localizedUiCopy);
+  const resolved = resolvedResult.copy;
+  const neutral = resolveMaisonElyseCopy(locale).copy;
+  const preserveMaisonDefaults =
+    resolvedResult.resolution.builtInLocale === (language === "fr" ? "fr" : "en");
+  const sharedOrMaison = <T,>(value: T, neutralValue: T, maisonValue: T): T =>
+    preserveMaisonDefaults && Object.is(value, neutralValue) ? maisonValue : value;
   return {
     ...fallback,
     allergens: resolved.allergens,
-    ariaDetail: resolved.details,
+    ariaDetail: sharedOrMaison(resolved.details, neutral.details, fallback.ariaDetail),
     // Maison Élyse keeps its restaurant-specific return label. The shared
     // Trouvable copy says “Retour au menu”, while this experience's contract
     // is the more specific “Retour à la carte” (with the matching English
     // “Back to menu” fallback).
-    dishImageAlt: resolved.modelAlt,
+    dishImageAlt: sharedOrMaison(resolved.modelAlt, neutral.modelAlt, fallback.dishImageAlt),
     fallbackImage: resolved.detailFallback,
     fallbackList: resolved.detailFallback,
     hide3d: resolved.modelViewer.close,
@@ -338,14 +345,18 @@ function buildDetailCopy(
     immersivePreviewAr: resolved.modelViewer.arIosHandoff,
     ingredients: resolved.ingredients,
     noCategory: resolved.activeCategoryAll,
-    note: resolved.detailHouseNoteLabel,
+    note: sharedOrMaison(
+      resolved.detailHouseNoteLabel,
+      neutral.detailHouseNoteLabel,
+      fallback.note
+    ),
     options: resolved.options,
-    openAr: resolved.viewAr,
+    openAr: sharedOrMaison(resolved.viewAr, neutral.viewAr, fallback.openAr),
     recommendedBadge: resolved.recommendation,
-    show3d: resolved.threeD,
-    title3d: resolved.threeD,
+    show3d: sharedOrMaison(resolved.threeD, neutral.threeD, fallback.show3d),
+    title3d: sharedOrMaison(resolved.threeD, neutral.threeD, fallback.title3d),
     titleAr: resolved.modelViewer.safariTitle,
-    topNavAria: resolved.details,
+    topNavAria: sharedOrMaison(resolved.details, neutral.details, fallback.topNavAria),
     unavailableBadge: resolved.soldOut
   };
 }

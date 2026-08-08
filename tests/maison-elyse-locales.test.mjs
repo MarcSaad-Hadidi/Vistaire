@@ -63,6 +63,16 @@ test("Maison demo showcase indexes localized menus by canonical public locale", 
   assert.match(englishDemo, /"fr-CA": frenchMenu, "en-CA": englishMenu/);
 });
 
+test("Maison Elyse server context loads every ready locale for reload persistence", async () => {
+  const source = await readFile("lib/menu/publicMenuRenderContext.ts", "utf8");
+
+  assert.match(source, /lang: hasLangParam \? publicLocale : undefined/);
+  assert.match(source, /translationLocales/);
+  assert.match(source, /settings\.supportedLocales\.filter/);
+  assert.match(source, /status === "up_to_date"/);
+  assert.match(source, /getPublicMenuBySlug\(slug, candidate\)/);
+});
+
 test("Arabic text direction is scoped to text zones, not the menu root", async () => {
   const source = await readFile(menuPath, "utf8");
 

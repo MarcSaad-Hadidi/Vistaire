@@ -94,7 +94,7 @@ async function resolvePublicMenuBaseRenderContext({
     .filter(Boolean)
     .join(" · ");
   const menuQuery: PublicMenuContextQuery = {
-    lang: publicLocale,
+    lang: hasLangParam ? publicLocale : undefined,
     currency: query.currency,
     table: query.table,
     zone: query.zone,
@@ -137,17 +137,31 @@ async function resolveLocalizedMenus(
 ): Promise<Partial<Record<PublicMenuLocale, PublicMenu>>> {
   if (renderContext.experience.kind !== "maison-elyse") return {};
 
-  const activeLocale = renderContext.publicLocale;
-  const sourceLocale = renderContext.menu.settings.defaultLocale;
-  const sourceMenu =
-    activeLocale === sourceLocale
-      ? renderContext.menu
-      : await getPublicMenuBySlug(slug, sourceLocale);
+  const { settings, translationLocales = [] } = renderContext.menu;
+  const readyLocales = settings.supportedLocales.filter((candidate) => {
+    const status = translationLocales.find((item) => item.locale === candidate)?.status;
+    return (
+      candidate === settings.defaultLocale ||
+      status === "source" ||
+      status === "up_to_date"
+    );
+  });
+  const locales = readyLocales.length ? readyLocales : [settings.defaultLocale];
+  const resolvedMenus = await Promise.all(
+    locales.map(async (candidate) => {
+      const resolved =
+        candidate === renderContext.publicLocale
+          ? renderContext.menu
+          : await getPublicMenuBySlug(slug, candidate);
+      return resolved ? ([candidate, resolved] as const) : null;
+    })
+  );
 
-  return {
-    ...(sourceMenu ? { [sourceLocale]: sourceMenu } : {}),
-    [activeLocale]: renderContext.menu
-  };
+  return Object.fromEntries(
+    resolvedMenus.filter(
+      (entry): entry is readonly [PublicMenuLocale, PublicMenu] => Boolean(entry)
+    )
+  );
 }
 
 function getRenderContextExchangeRates(
