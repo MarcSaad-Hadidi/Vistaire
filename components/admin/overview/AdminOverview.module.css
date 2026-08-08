@@ -75,6 +75,7 @@
 .ranking li { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .rank { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border: 1px solid var(--admin-border); border-radius: 50%; color: var(--admin-accent); font-size: 11px; }
 .rankPhoto { position: relative; width: 56px; height: 46px; flex: 0 0 56px; overflow: hidden; border-radius: 8px; background: var(--admin-border-soft); }
+.rankPhoto :global([data-admin-dish-thumbnail]) { width: 100%; height: 100%; flex-basis: auto; aspect-ratio: auto; border: 0; border-radius: inherit; }
 .rankPhoto img { width: 100% !important; height: 100% !important; object-fit: cover; }
 .ranking li > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 10px; min-width: 0; flex: 1; }
 .ranking strong { overflow: hidden; font-family: var(--admin-display); font-size: 14px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }

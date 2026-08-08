@@ -1,8 +1,22 @@
 import { spawnSync } from "node:child_process";
 
+const requestedProject = process.env.VISTAIRE_ADMIN_FULL_MENU_PROJECT;
+const projects = requestedProject
+  ? [requestedProject]
+  : ["chromium", "webkit"];
+
+for (const project of projects) {
+  if (!new Set(["chromium", "webkit"]).has(project)) {
+    throw new Error(`Unsupported admin full-menu Playwright project: ${project}`);
+  }
+}
+
 const result = spawnSync(process.execPath, [
-  "node_modules/@playwright/test/cli.js", "test", "e2e/admin-chart-interactions.spec.ts",
-  "--project=chromium", "--grep", "full-menu admin parity",
+  "scripts/run-playwright-e2e.mjs", "e2e/admin-chart-interactions.spec.ts",
+  ...projects.map((project) => `--project=${project}`),
+  "--grep", "full-menu admin (?:parity|thumbnails)",
+  "--workers=1", "--retries=0", "--forbid-only",
+  "--reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
 ], {
   cwd: process.cwd(),
   env: {

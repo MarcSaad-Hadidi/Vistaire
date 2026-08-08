@@ -5,6 +5,18 @@ export const ADMIN_VISUAL_MENU_ID = "menu-maison-elysee";
 export const ADMIN_VISUAL_QR_ID = "15000000-0000-0000-0000-000000000150";
 export const ADMIN_VISUAL_OTHER_MENU_ID = "other-menu-same-restaurant";
 
+// Full-menu media coverage uses real UUIDs so the browser exercises the same
+// canonical admin photo route as production. The pixel-reference fixture keeps
+// its historical demo IDs and static image URLs for visual-regression parity.
+export const ADMIN_VISUAL_FULL_MENU_DISH_IDS = Array.from(
+  { length: 12 },
+  (_, index) => `20000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`
+);
+
+export function adminVisualFullMenuPhotoVersion(index: number): string {
+  return `${index.toString(16).padStart(2, "0")}${"a".repeat(62)}`;
+}
+
 export type AdminVisualFixtureScenario = "pixel-reference" | "full-menu";
 
 const periodTotals = {
@@ -83,13 +95,35 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
   });
   const fixtureDishes = scenario === "pixel-reference" ? [...canonicalDishes, ...pixelExtras] : canonicalDishes;
   const pixelUnavailable = new Set([3, 8, 12, 16, 20, 24, 28, 32]);
-  const menu_dishes = fixtureDishes.map((dish, index) => ({
-    id: dish.id,
+  const menu_dishes = fixtureDishes.map((dish, index) => {
+    const usesAdminPhotoRoute = scenario === "full-menu";
+    const id = usesAdminPhotoRoute
+      ? ADMIN_VISUAL_FULL_MENU_DISH_IDS[index]
+      : dish.id;
+    const photoVersion = usesAdminPhotoRoute
+      ? adminVisualFullMenuPhotoVersion(index)
+      : "";
+    const imageUrl = usesAdminPhotoRoute
+      ? `/api/public/menu-dishes/${id}/photo?v=${photoVersion}`
+      : dish.image;
+    const metadata = usesAdminPhotoRoute
+      ? {
+          chefNote: dish.chefRecommendation,
+          photoStorageBucket: "vistaire-media",
+          photoStoragePath: `restaurants/${restaurantId}/photos/originals/${dish.slug}.png`,
+          photoContentType: "image/png",
+          photoSha256: photoVersion
+        }
+      : {
+          chefNote: dish.chefRecommendation
+        };
+    return {
+    id,
     category_id: dish.categorySlug,
     name: dish.name,
     slug: dish.slug,
     price_cents: Math.round(dish.price * 100),
-    image_url: dish.image,
+    image_url: imageUrl,
     // Full-menu QA deliberately covers both final states without altering the
     // canonical pixel-reference fixture or production/demo menu data.
     is_available: scenario === "full-menu" ? index % 5 !== 3 : !pixelUnavailable.has(index),
@@ -109,11 +143,10 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
     ingredients: dish.ingredients,
     allergens: dish.allergens,
     options: dish.options,
-    metadata: {
-      chefNote: dish.chefRecommendation
-    },
+    metadata,
     created_at: `2026-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`
-  }));
+  };
+  });
   const analytics_events: Record<string, string>[] = [];
   const dishWeights = scenario === "pixel-reference" ? pixelDishWeights : fullMenuDishWeights;
   const addEvents = (period: keyof typeof periodTotals, startDay: number, month: number) => {

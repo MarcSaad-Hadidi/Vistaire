@@ -385,17 +385,31 @@ test("admin E2E guide is UTF-8 French and describes the manual live proof honest
   assert.match(guide, /ne constitue pas une preuve de validation live/i);
 });
 
-test("full-menu parity has a dedicated non-skipping package gate", async () => {
-  const [packageJson, runner, spec] = await Promise.all([
+test("full-menu admin image coverage has a dedicated non-skipping cross-browser gate", async () => {
+  const [packageJson, runner, sharedRunner, spec, workflow] = await Promise.all([
     readFile("package.json", "utf8"),
     readFile("scripts/run-admin-full-menu-e2e.mjs", "utf8"),
+    readFile("scripts/run-playwright-e2e.mjs", "utf8"),
     readFile("e2e/admin-chart-interactions.spec.ts", "utf8"),
+    readFile(".github/workflows/app-ci.yml", "utf8"),
   ]);
   assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
   assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
   const grep = runner.match(/--grep", "([^"]+)"/)?.[1];
-  assert.equal(grep, "full-menu admin parity");
-  assert.match(spec, new RegExp(`test\\("${grep.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}`));
+  assert.equal(grep, "full-menu admin (?:parity|thumbnails)");
+  for (const title of [
+    "full-menu admin parity",
+    "full-menu admin thumbnails",
+  ]) {
+    assert.match(spec, new RegExp(`test\\("${title}`));
+  }
+  assert.match(runner, /\["chromium", "webkit"\]/);
+  assert.match(runner, /scripts\/run-playwright-e2e\.mjs/);
+  assert.match(sharedRunner, /useAdminVisualFixture/);
+  assert.match(sharedRunner, /taskkill\.exe/);
+  assert.match(sharedRunner, /Admin E2E teardown left a fixture or app listener running/);
+  assert.match(workflow, /Admin dish image browser suite \(Chromium\)[\s\S]*VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium[\s\S]*npm run test:admin:full-menu/);
+  assert.match(workflow, /Admin dish image browser suite \(WebKit\)[\s\S]*VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit[\s\S]*npm run test:admin:full-menu/);
   assert.match(spec, /toHaveCount\(12\)/);
   assert.match(spec, /data-available="false"/);
 });
