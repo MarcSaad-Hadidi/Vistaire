@@ -31,6 +31,7 @@ type OwnerQrCustomizerProps = {
   targetBadgeLabel: string;
   targetPath: string;
   targetDisplayUrl: string;
+  canPerformDestructiveQrActions: boolean;
   initialQrStyle?: Partial<OwnerQrStyle>;
   className?: string;
 };
@@ -243,6 +244,7 @@ export function OwnerQrCustomizer({
   targetBadgeLabel,
   targetPath,
   targetDisplayUrl,
+  canPerformDestructiveQrActions,
   initialQrStyle,
   className = ""
 }: OwnerQrCustomizerProps) {
@@ -788,6 +790,13 @@ export function OwnerQrCustomizer({
   }
 
   async function mutateStatus(action: StatusAction) {
+    if (action !== "resume" && !canPerformDestructiveQrActions) {
+      setOutcome({
+        kind: "error",
+        message: "Les actions QR destructives sont protegees pour ce restaurant."
+      });
+      return;
+    }
     if (!canonicalRecord || mutationBusy) return;
     if (configVersion === null) {
       setOutcome({
@@ -861,7 +870,10 @@ export function OwnerQrCustomizer({
     }
     setOperation("rotating");
     setOutcome({ kind: "idle" });
-    const disposition = targetKind === "menu" ? "keep-active" : previousDisposition;
+    const disposition =
+      targetKind === "menu" || !canPerformDestructiveQrActions
+        ? "keep-active"
+        : previousDisposition;
     try {
       const response = await fetch(
         `/api/owner/qr-codes/${encodeURIComponent(canonicalRecord.id)}/rotate`,
@@ -1322,6 +1334,11 @@ export function OwnerQrCustomizer({
                 Tous les QR publics existants resteront actifs et continueront d’ouvrir ce menu.
               </p>
             ) : null}
+            {targetKind === "admin" && !canPerformDestructiveQrActions ? (
+              <p className={styles.qrPermanenceNotice}>
+                Les actions QR destructives sont protegees pour ce restaurant de demonstration.
+              </p>
+            ) : null}
           <div className={styles.qrLifecycleActions} aria-label="Cycle de vie du QR">
             {publicInventory && !canonicalRecord ? (
               <button
@@ -1348,7 +1365,11 @@ export function OwnerQrCustomizer({
               <button
                 type="button"
                 className={styles.btn}
-                disabled={mutationBusy || requiresReload}
+                disabled={
+                  mutationBusy ||
+                  requiresReload ||
+                  !canPerformDestructiveQrActions
+                }
                 onClick={() => void mutateStatus("pause")}
                 aria-describedby={statusReasonId}
               >
@@ -1371,7 +1392,11 @@ export function OwnerQrCustomizer({
                 <button
                   type="button"
                   className={styles.btn}
-                  disabled={mutationBusy || requiresReload}
+                  disabled={
+                    mutationBusy ||
+                    requiresReload ||
+                    !canPerformDestructiveQrActions
+                  }
                   onClick={(event) => openDialog("archive", event.currentTarget)}
                   aria-describedby={statusReasonId}
                 >
@@ -1380,7 +1405,11 @@ export function OwnerQrCustomizer({
                 <button
                   type="button"
                   className={styles.qrDangerButton}
-                  disabled={mutationBusy || requiresReload}
+                  disabled={
+                    mutationBusy ||
+                    requiresReload ||
+                    !canPerformDestructiveQrActions
+                  }
                   onClick={(event) => openDialog("revoke", event.currentTarget)}
                   aria-describedby={statusReasonId}
                 >
@@ -1513,6 +1542,7 @@ export function OwnerQrCustomizer({
                     type="radio"
                     name="previousDisposition"
                     value="pause"
+                    disabled={!canPerformDestructiveQrActions}
                     checked={previousDisposition === "pause"}
                     onChange={() => setPreviousDisposition("pause")}
                   />
@@ -1523,6 +1553,7 @@ export function OwnerQrCustomizer({
                     type="radio"
                     name="previousDisposition"
                     value="revoke"
+                    disabled={!canPerformDestructiveQrActions}
                     checked={previousDisposition === "revoke"}
                     onChange={() => setPreviousDisposition("revoke")}
                   />

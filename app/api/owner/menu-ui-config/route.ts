@@ -12,6 +12,7 @@ import {
   rollbackPublishedMenuUiConfig,
   saveDraftMenuUiConfig
 } from "@/lib/owner/menuUiConfigStore";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +77,16 @@ export async function POST(request: NextRequest) {
 
   const restaurantId =
     typeof body.restaurantId === "string" ? body.restaurantId.trim() : "";
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canEditMenuSettings"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error },
+      { status: capability.status }
+    );
+  }
   const action = typeof body.action === "string" ? body.action : "save";
   const result =
     action === "rollback"
@@ -125,6 +136,16 @@ export async function PATCH(request: NextRequest) {
 
   const restaurantId =
     typeof body.restaurantId === "string" ? body.restaurantId.trim() : "";
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canEditMenuSettings"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error },
+      { status: capability.status }
+    );
+  }
   const validated = validateMenuUiConfig(body.config);
   if (!validated.ok) {
     return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });

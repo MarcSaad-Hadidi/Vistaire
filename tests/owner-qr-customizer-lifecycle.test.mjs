@@ -192,3 +192,31 @@ test("lifecycle writes fail closed when the canonical version is absent", async 
   );
   assert.match(harness.renderedText(), /Version de configuration absente/);
 });
+
+test("demo capability blocks destructive lifecycle writes in the customizer", async () => {
+  const harness = createOwnerQrCustomizerHarness({
+    canPerformDestructiveQrActions: false,
+    canonicalRecord: {
+      id: "qr-observable-1",
+      redirectUrl: "/q/opaque-fixture-token",
+      targetPath: "/admin",
+      targetKind: "admin",
+      purposeKey: "default",
+      persisted: true,
+      recoverable: true,
+      status: "active",
+      isCanonical: true,
+      configVersion: 1,
+      tokenPreview: "...token",
+      style: {}
+    }
+  });
+
+  await harness.load();
+  assert.equal(await harness.status("pause"), false);
+  assert.equal(
+    harness.requests.some((request) => request.url.endsWith("/status")),
+    false
+  );
+  assert.match(harness.renderedText(), /actions QR destructives sont protegees/);
+});

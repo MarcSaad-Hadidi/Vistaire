@@ -8,6 +8,7 @@ import {
   getUniqueMenuDesignSnapshot,
   mutateUniqueMenuDesignLifecycle
 } from "@/lib/owner/uniqueMenuDesignStore";
+import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { isUniqueMenuDesignAction } from "@/lib/menu/uniqueMenuDesign";
 
 export const runtime = "nodejs";
@@ -92,6 +93,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { ok: false, error: "restaurantId invalide." },
       { status: 400 }
+    );
+  }
+  const capability = await requireOwnerRestaurantCapability(
+    restaurantId,
+    "canEditMenuSettings"
+  );
+  if (!capability.ok) {
+    return NextResponse.json(
+      { ok: false, error: capability.error },
+      { status: capability.status }
     );
   }
   if (!isUniqueMenuDesignAction(action)) {
