@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { maisonRestaurantId } from "../e2e/support/sauge-noire-fixture-data.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8");
 const nightly = await readFile(new URL("../.github/workflows/nightly.yml", import.meta.url), "utf8");
@@ -228,6 +229,10 @@ test("the shared production artifact is built against the hermetic menu fixture"
   const buildJob = workflow.slice(workflow.indexOf("  build-app:"), workflow.indexOf("  e2e-public-chromium:"));
   assert.match(buildJob, /NEXT_PUBLIC_SUPABASE_URL:\s+http:\/\/127\.0\.0\.1:55434/);
   assert.match(buildJob, /SUPABASE_SERVICE_ROLE_KEY:\s+sauge-noire-fixture-service-role-key/);
+  assert.match(
+    buildJob,
+    new RegExp(`NEXT_PUBLIC_DEMO_RESTAURANT_ID:\\s+${maisonRestaurantId}`)
+  );
   assert.match(buildJob, /VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF:\s+""/);
   assert.match(buildJob, /include-hidden-files:\s+true/);
   assert.doesNotMatch(buildJob, /VISTAIRE_E2E_LANDING_CANONICAL/);
