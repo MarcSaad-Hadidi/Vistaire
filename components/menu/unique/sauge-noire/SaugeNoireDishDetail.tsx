@@ -477,6 +477,7 @@ export function SaugeNoireDishSheet({
         </div>
         {targetCanOpen3d ? (
           <SaugeNoireDish3dSection
+            key={dish.id}
             dish={dish}
             copy={copy}
             publicLocale={publicLocale}
