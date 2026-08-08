@@ -8,6 +8,7 @@ import { registerHooks } from "node:module";
 import { sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
+import { maisonRestaurantId } from "../e2e/support/sauge-noire-fixture-data.mjs";
 
 const projectRootUrl = pathToFileURL(`${process.cwd()}${sep}`).href;
 
@@ -106,6 +107,7 @@ test("HTTP fixture projects English public menus into landing payloads", async (
   process.env.NEXT_PUBLIC_SUPABASE_URL = origin;
   process.env.SUPABASE_SERVICE_ROLE_KEY =
     "sauge-noire-fixture-service-role-key";
+  process.env.NEXT_PUBLIC_DEMO_RESTAURANT_ID = maisonRestaurantId;
   process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "";
   process.env.VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON =
     '{"CAD":1,"USD":0.72,"EUR":0.6225}';
