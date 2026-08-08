@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, type TestInfo, test } from "@playwright/test";
 import {
   ADMIN_VISUAL_FULL_MENU_DISH_IDS,
   adminVisualFullMenuPhotoVersion
@@ -15,18 +15,27 @@ async function enterPreview(page: Page) {
   }
 }
 
-async function enterFullMenuPreview(page: Page) {
-  await page.goto("/admin", { waitUntil: "domcontentloaded" });
-  const origin = new URL(page.url()).origin;
-  const response = await page.context().request.post(`${origin}/admin/preview`, {
-    headers: { Origin: origin },
+async function enterFullMenuPreview(page: Page, testInfo: TestInfo) {
+  const baseURL = testInfo.project.use.baseURL;
+  expect(baseURL, "Playwright baseURL is required for the local preview grant").toBeTruthy();
+  const origin = new URL(baseURL!);
+  const response = await page.context().request.post(new URL("/admin/preview", origin).toString(), {
+    headers: { Origin: origin.origin },
     maxRedirects: 0,
   });
   expect(response.status()).toBe(303);
-  await page.goto("/admin", { waitUntil: "domcontentloaded" });
+
+  const cookies = await page.context().cookies();
+  expect(cookies.some((cookie) =>
+    cookie.name === "vistaire_admin_local_preview" &&
+    cookie.path === "/admin" &&
+    cookie.httpOnly &&
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(cookie.value)
+  )).toBe(true);
+
+  const adminResponse = await page.goto(new URL("/admin", origin).toString(), { waitUntil: "domcontentloaded" });
+  expect(adminResponse?.status()).toBe(200);
   await expect(page.getByRole("heading", { name: /Maison Élysée/ })).toBeVisible({ timeout: 30_000 });
-  // The fixture runner uses Next dev mode locally; WebKit can finish the
-  // first document while the final HMR reload is still pending.
   await page.waitForLoadState("networkidle");
 }
 
@@ -312,9 +321,9 @@ test("all required viewports stay within the document width", async ({ page }) =
   }
 });
 
-test("full-menu admin parity matches the public menu including unavailable dishes", async ({ page }) => {
+test("full-menu admin parity matches the public menu including unavailable dishes", async ({ page }, testInfo) => {
   test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
-  await enterFullMenuPreview(page);
+  await enterFullMenuPreview(page, testInfo);
   await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
   const rows = page.locator("[data-admin-menu-dish]");
   await expect(rows).toHaveCount(12);
@@ -346,7 +355,7 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   expect(publicDishes).toEqual(adminDishes);
 });
 
-test("full-menu admin thumbnails fall back without broken-image icons", async ({ page }) => {
+test("full-menu admin thumbnails fall back without broken-image icons", async ({ page }, testInfo) => {
   test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
@@ -378,7 +387,7 @@ test("full-menu admin thumbnails fall back without broken-image icons", async ({
     await route.continue();
   });
 
-  await enterFullMenuPreview(page);
+  await enterFullMenuPreview(page, testInfo);
   await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
   const rows = page.locator("[data-admin-menu-dish]");
   await expect(rows).toHaveCount(12);
