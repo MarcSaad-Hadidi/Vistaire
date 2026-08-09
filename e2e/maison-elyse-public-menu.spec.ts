@@ -18,6 +18,9 @@ const PUBLIC_EDITABLE_ALLOWLIST: readonly string[] = [];
 // Observe that runtime outcome instead of failing at Playwright's shorter
 // default while the model-viewer chunk is cold on CI.
 const MODEL_VIEWER_INIT_ASSERTION_TIMEOUT_MS = 15_000;
+// The model component declares a load failure after 15 seconds. The AR action
+// is only rendered after that load completes, so assert beyond that boundary.
+const MODEL_VIEWER_LOAD_ASSERTION_TIMEOUT_MS = 18_000;
 const IOS_SAFARI_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
@@ -363,7 +366,9 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(page.locator("model-viewer")).toHaveCount(1, {
       timeout: MODEL_VIEWER_INIT_ASSERTION_TIMEOUT_MS
     });
-    await expect(page.getByRole("link", { name: "Afficher devant moi" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Afficher devant moi" })).toBeVisible({
+      timeout: MODEL_VIEWER_LOAD_ASSERTION_TIMEOUT_MS
+    });
     await expect(page.locator('a[rel="ar"][href$=".usdz"]')).toBeVisible();
     await expect.poll(() =>
       modelRequests.some((url) => {
@@ -488,7 +493,9 @@ test.describe("Maison Elyse public QR menu", () => {
     const dialogButtons = dialog.getByRole("button");
     const firstButton = dialogButtons.first();
     const lastButton = dialogButtons.last();
+    await page.bringToFront();
     await lastButton.focus();
+    await expect(lastButton).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(firstButton).toBeFocused();
     await page.keyboard.press("Shift+Tab");
