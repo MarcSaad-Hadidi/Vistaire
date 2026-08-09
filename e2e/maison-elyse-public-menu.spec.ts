@@ -14,6 +14,10 @@ const PUBLIC_EDITABLE_SELECTOR = [
   '[role="spinbutton"]'
 ].join(",");
 const PUBLIC_EDITABLE_ALLOWLIST: readonly string[] = [];
+// DishModelViewer treats module initialization as failed after 12 seconds.
+// Observe that runtime outcome instead of failing at Playwright's shorter
+// default while the model-viewer chunk is cold on CI.
+const MODEL_VIEWER_INIT_ASSERTION_TIMEOUT_MS = 15_000;
 const IOS_SAFARI_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
@@ -356,9 +360,9 @@ test.describe("Maison Elyse public QR menu", () => {
 
     await page.waitForLoadState("load");
     await page.getByRole("button", { exact: true, name: "Voir en 3D" }).click();
-    await expect
-      .poll(() => page.locator("model-viewer").count())
-      .toBeGreaterThan(0);
+    await expect(page.locator("model-viewer")).toHaveCount(1, {
+      timeout: MODEL_VIEWER_INIT_ASSERTION_TIMEOUT_MS
+    });
     await expect(page.getByRole("link", { name: "Afficher devant moi" })).toBeVisible();
     await expect(page.locator('a[rel="ar"][href$=".usdz"]')).toBeVisible();
     await expect.poll(() =>
@@ -746,7 +750,9 @@ test.describe("Maison Elyse public QR menu", () => {
     await expect(
       dishRoot.getByRole("button", { exact: true, name: "Close" })
     ).toHaveAttribute("aria-expanded", "true");
-    await expect.poll(() => dishRoot.locator("model-viewer").count()).toBeGreaterThan(0);
+    await expect(dishRoot.locator("model-viewer")).toHaveCount(1, {
+      timeout: MODEL_VIEWER_INIT_ASSERTION_TIMEOUT_MS
+    });
     await expect
       .poll(() =>
         modelRequests.some((url) => {
