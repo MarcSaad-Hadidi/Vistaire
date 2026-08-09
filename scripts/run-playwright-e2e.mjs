@@ -34,6 +34,11 @@ const useTrouvableImmersiveFixture = playwrightInputArgs
   .some((argument) =>
     argument.replaceAll("\\", "/").endsWith("e2e/trouvable-back-to-top-ar-handoff.spec.ts")
   );
+const useMaisonPublicMenuFixture = playwrightInputArgs.some((argument) =>
+  argument
+    .replaceAll("\\", "/")
+    .endsWith("e2e/maison-elyse-public-menu.spec.ts")
+);
 const includesSaugeNoireBrowserFlow = playwrightInputArgs
   .some((argument) => {
     const normalized = argument.replaceAll("\\", "/");
@@ -344,6 +349,9 @@ async function main() {
             VISTAIRE_OWNER_3D_RESTAURANT_SLUGS: "*",
             ...(useTrouvableImmersiveFixture
               ? { VISTAIRE_E2E_TROUVABLE_3D: "1" }
+              : {}),
+            ...(useMaisonPublicMenuFixture
+              ? { VISTAIRE_E2E_MAISON_PUBLIC_MENU: "1" }
               : {})
           }
         }

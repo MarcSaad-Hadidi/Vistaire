@@ -140,7 +140,7 @@ test("HTTP fixture projects English public menus into landing payloads", async (
     assert.equal(context.menu.dishes[0].category, "Starters");
     assert.equal(
       context.menu.dishes[0].name,
-      "Ravioles de chevre frais et miel de Monteregie"
+      "Fresh goat cheese ravioli & Monteregie honey"
     );
 
     const frenchContext = await resolvePublicMenuRenderContext({

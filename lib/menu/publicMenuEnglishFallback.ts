@@ -16,6 +16,64 @@ const MAISON_LIVE_TO_DEMO_SLUG = Object.freeze({
   "ravioles-de-chevre-frais-miel-de-monteregie": "ravioles-romarin"
 });
 
+const MAISON_CANONICAL_FRENCH_NAMES = new Map(
+  getAllDishes("fr").map((dish) => [dish.slug, dish.name] as const)
+);
+
+function maisonDemoSlug(dishSlug: string): string {
+  return (
+    MAISON_LIVE_TO_DEMO_SLUG[
+      dishSlug as keyof typeof MAISON_LIVE_TO_DEMO_SLUG
+    ] ?? dishSlug
+  );
+}
+
+const MAISON_NAME_CONNECTORS = new Set([
+  "a",
+  "au",
+  "aux",
+  "d",
+  "de",
+  "des",
+  "du",
+  "et",
+  "l",
+  "la",
+  "le",
+  "les"
+]);
+
+function canonicalNameTokens(value: string): string[] {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token && !MAISON_NAME_CONNECTORS.has(token));
+}
+
+function sourceNameMatchesStableSlug(dish: PublicMenuDish): boolean {
+  const nameTokens = canonicalNameTokens(dish.name);
+  const slugTokens = canonicalNameTokens(dish.slug);
+  return (
+    nameTokens.length > 0 &&
+    nameTokens.length === slugTokens.length &&
+    nameTokens.every((token, index) => token === slugTokens[index])
+  );
+}
+
+function canonicalMaisonEnglishName(
+  dish: PublicMenuDish,
+  demoSlug: string,
+  englishName: string
+): string {
+  const canonicalFrenchName = MAISON_CANONICAL_FRENCH_NAMES.get(demoSlug);
+  return canonicalFrenchName &&
+    (dish.name === canonicalFrenchName || sourceNameMatchesStableSlug(dish))
+    ? englishName
+    : dish.name;
+}
+
 type EnglishCategoryPresentation = {
   name: string;
   description?: string;
@@ -180,10 +238,7 @@ function translatedMaisonDish(
   demoDishes: ReturnType<typeof getAllDishes>,
   categories: ReturnType<typeof getCategories>
 ): PublicMenuDish {
-  const demoSlug =
-    MAISON_LIVE_TO_DEMO_SLUG[
-      dish.slug as keyof typeof MAISON_LIVE_TO_DEMO_SLUG
-    ];
+  const demoSlug = maisonDemoSlug(dish.slug);
   const demoDish = demoDishes.find((candidate) => candidate.slug === demoSlug);
   if (!demoDish) return dish;
 
@@ -196,9 +251,7 @@ function translatedMaisonDish(
 
   return {
     ...dish,
-    // Dish names are the restaurant's source labels. Keep them unchanged
-    // while using the English demo copy for the surrounding fields.
-    name: dish.name,
+    name: canonicalMaisonEnglishName(dish, demoSlug, demoDish.name),
     description: demoDish.description,
     ...(category
       ? {
@@ -213,6 +266,34 @@ function translatedMaisonDish(
     houseNote: demoDish.chefRecommendation,
     tags
   };
+}
+
+/**
+ * Maison's stored translation schema treats dish names as identity, but the
+ * restaurant's canonical bilingual menu already provides verified English
+ * display names. Project only those display names here so owner-managed
+ * descriptions, prices, media, availability, IDs and slugs remain authoritative.
+ */
+export function applyMaisonEnglishDishNames(menu: PublicMenu): PublicMenu {
+  if (menu.slug.toLowerCase() !== "maison-elyse" || menu.activeLocale !== "en-CA") {
+    return menu;
+  }
+
+  const englishNames = new Map(
+    getAllDishes("en").map((dish) => [dish.slug, dish.name] as const)
+  );
+  let changed = false;
+  const dishes = menu.dishes.map((dish) => {
+    const demoSlug = maisonDemoSlug(dish.slug);
+    const name = englishNames.get(demoSlug);
+    if (!name) return dish;
+    const translatedName = canonicalMaisonEnglishName(dish, demoSlug, name);
+    if (translatedName === dish.name) return dish;
+    changed = true;
+    return { ...dish, name: translatedName };
+  });
+
+  return changed ? { ...menu, dishes } : menu;
 }
 
 /**

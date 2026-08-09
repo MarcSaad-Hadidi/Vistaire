@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const MODEL_REQUEST = /\.(?:glb|usdz)(?:$|[?#])|model-viewer/i;
+const MODEL_REQUEST =
+  /(?:\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:\/|$|[?#])|model-viewer)/i;
 
 async function expectSinglePreview(page: import("@playwright/test").Page) {
   const viewport = page.getByTestId("demo-phone-viewport");
@@ -80,6 +81,52 @@ test.describe("restaurant demo experience selector", () => {
       await expect(page.getByRole("tab")).toHaveCount(3);
       await expectSinglePreview(page);
     }
+  });
+
+  test("keeps Maison locale state isolated while switching experiences and history", async ({
+    page
+  }) => {
+    const modelRequests: string[] = [];
+    page.on("request", (request) => {
+      if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
+    });
+    await page.goto("/demo#carte", { waitUntil: "domcontentloaded" });
+    const viewport = page.getByTestId("demo-phone-viewport");
+    const maison = () => viewport.locator('[data-menu-ui="maison-elyse"]');
+    await expectReadyPreview(page, "maison-elyse");
+    await expect(maison()).toHaveAttribute("lang", "fr-CA");
+
+    await maison()
+      .getByRole("button", { name: /Choisir la langue du menu/i })
+      .click();
+    await maison()
+      .getByRole("dialog", { name: "Langue du menu" })
+      .getByRole("button", { name: /English/i })
+      .click();
+    await expect(maison()).toHaveAttribute("lang", "en-CA");
+    await expect(maison().getByText("THE COLLECTION", { exact: true })).toBeVisible();
+
+    await page.getByRole("tab", { name: "Trouvable" }).click();
+    await expectReadyPreview(page, "trouvable");
+    expect(new URL(page.url()).searchParams.get("experience")).toBe("trouvable");
+    await page.getByRole("tab", { name: "Maison Élyse" }).click();
+    await expectReadyPreview(page, "maison-elyse");
+    await expect(maison()).toHaveAttribute("lang", "fr-CA");
+    expect(new URL(page.url()).searchParams.get("experience")).toBeNull();
+
+    await page.getByRole("tab", { name: "Sauge Noire" }).click();
+    await expectReadyPreview(page, "sauge-noire");
+    await page.getByRole("tab", { name: "Maison Élyse" }).click();
+    await expectReadyPreview(page, "maison-elyse");
+    await expect(viewport.locator("[data-public-menu-renderer]")).toHaveCount(1);
+    await expect(maison()).toHaveAttribute("lang", "fr-CA");
+
+    await page.goBack();
+    await expectReadyPreview(page, "sauge-noire");
+    await page.goForward();
+    await expectReadyPreview(page, "maison-elyse");
+    await expect(viewport.locator("[data-public-menu-renderer]")).toHaveCount(1);
+    expect(modelRequests).toEqual([]);
   });
 
   test("keeps one active preview across deep links, query changes, and browser history", async ({
@@ -242,6 +289,43 @@ test.describe("restaurant demo experience selector", () => {
     expect(pageErrors).toEqual([]);
   });
 
+  test("keeps English route chrome stable while Maison menu switches FR and EN", async ({
+    page
+  }) => {
+    const modelRequests: string[] = [];
+    page.on("request", (request) => {
+      if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
+    });
+    await page.goto("/en/vistaire-menu?lang=fr#carte", {
+      waitUntil: "domcontentloaded"
+    });
+
+    await expect(page).toHaveTitle("Sample client menu | Vistaire");
+    await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.lang))
+      .toBe("en-CA");
+    const viewport = page.getByTestId("demo-phone-viewport");
+    const maison = viewport.locator('[data-menu-ui="maison-elyse"]');
+    await expectReadyPreview(page, "maison-elyse");
+    await expect(maison).toHaveAttribute("lang", "fr-CA");
+    await expect(maison.getByText("LA COLLECTION", { exact: true })).toBeVisible();
+
+    await maison
+      .getByRole("button", { name: /Choisir la langue du menu/i })
+      .click();
+    await maison
+      .getByRole("dialog", { name: "Langue du menu" })
+      .getByRole("button", { name: /English/i })
+      .click();
+    await expect(maison).toHaveAttribute("lang", "en-CA");
+    await expect(maison.getByText("THE COLLECTION", { exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("lang")).toBe("fr");
+    expect(new URL(page.url()).hash).toBe("#carte");
+    expect(modelRequests).toEqual([]);
+  });
+
   test("keeps Trouvable grid dish names readable in the phone preview", async ({
     page
   }) => {
@@ -287,6 +371,55 @@ test.describe("restaurant demo experience selector", () => {
     expect(metrics.visualWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
     expect(metrics.copyWidth).toBeGreaterThan(metrics.summaryWidth * 0.8);
     expect(metrics.titleLines).toBeLessThanOrEqual(3);
+  });
+
+  test("localizes the lazy Maison dish-detail loading state in an English phone preview", async ({
+    page
+  }) => {
+    const modelRequests: string[] = [];
+    page.on("request", (request) => {
+      if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
+    });
+    await page.goto("/demo?lang=en#carte", { waitUntil: "domcontentloaded" });
+    await expectReadyPreview(page, "maison-elyse");
+
+    const viewport = page.getByTestId("demo-phone-viewport");
+    const menu = viewport.locator('[data-menu-ui="maison-elyse"]');
+    await expect(menu).toHaveAttribute("lang", "en-CA");
+
+    let releaseChunk = () => {};
+    const chunkGate = new Promise<void>((resolve) => {
+      releaseChunk = resolve;
+    });
+    let heldDetailChunk = false;
+    await page.route(/\/_next\/static\/chunks\/.*\.js(?:\?|$)/, async (route) => {
+      if (!heldDetailChunk) {
+        heldDetailChunk = true;
+        await chunkGate;
+      }
+      await route.continue();
+    });
+
+    try {
+      await menu
+        .getByRole("button", { name: /Fresh goat cheese ravioli/i })
+        .click();
+      await expect.poll(() => heldDetailChunk).toBe(true);
+      await expect(viewport.getByRole("status")).toHaveText(
+        "Loading dish details..."
+      );
+    } finally {
+      releaseChunk();
+    }
+
+    await expect(
+      viewport.getByRole("heading", {
+        level: 1,
+        name: "Fresh goat cheese ravioli & Monteregie honey"
+      })
+    ).toBeVisible();
+    await expect(viewport.getByRole("button", { name: "Back to menu" })).toBeVisible();
+    expect(modelRequests).toEqual([]);
   });
 
   test("fails closed to one explicit fallback when a lazy preview request fails", async ({

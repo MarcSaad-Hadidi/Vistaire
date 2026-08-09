@@ -93,11 +93,14 @@ test("Maison Elyse demo public menu can be built with localized sample data", as
   assert.match(source, /function demoMenu\(slug: string, locale: Locale = "fr"\)/);
   assert.match(source, /getRestaurant\(locale\)/);
   assert.match(source, /getAllDishes\(locale\)/);
-  assert.match(source, /getCategoryBySlug\(dish\.categorySlug \?\? "", locale\)/);
+  assert.match(source, /demoCategoryFields\(dish\.categorySlug \?\? "", locale\)/);
+  assert.match(source, /categoryId:\s*category\?\.id/);
+  assert.match(source, /categorySlug:\s*category\?\.slug \?\? categorySlug/);
   assert.match(source, /recommendedTag/);
   assert.match(source, /unavailableTag/);
   assert.match(source, /getPublicMenuBySlug\([\s\S]*locale: Locale \| string = DEFAULT_LOCALE/);
-  assert.match(source, /const resolvedLocale = normalizeLocale\(locale\)/);
+  assert.match(source, /const resolvedPublicLocale = normalizePublicMenuLocale\(locale\)/);
+  assert.match(source, /const resolvedLocale = publicLocaleToShortLocale\(resolvedPublicLocale\)/);
   assert.match(source, /return demoMenu\(slug, resolvedLocale\)/);
   assert.match(source, /dependencies\.readRows<PublicMenuRow>\(\{ table: "restaurants"[\s\S]*filters: \{ slug \}[\s\S]*limit: 1/);
   for (const table of ["menus", "menu_categories", "menu_dishes", "menu_ui_configs"]) {
@@ -130,11 +133,12 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
     "Ingr",
     "Allerg",
     "Options",
-    "Note du chef",
-    "Plats signatures"
+    "Note du chef"
   ]) {
     assert.match(component, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+
+  assert.match(component, /getMaisonElyseCategoryLabel/);
 
   assert.match(component, /dynamic<DishModelViewerProps>/);
   assert.match(component, /ssr: false/);
@@ -204,6 +208,18 @@ test("Maison Elyse QR menu starts directly with the complete menu", async () => 
   assert.match(css, /\.bottomSheet/);
   assert.doesNotMatch(css, /\.(hero|categoryGrid|categoryCard|featured)\b/);
   assert.match(css, /@media \(max-width: 390px\)/);
+});
+
+test("Maison category editorial stays independent from active dish filters", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /descriptionDishes: PublicMenuDish\[\]/);
+  assert.match(
+    component,
+    /resolveMaisonElyseCategoryDescription\(\s*descriptionDishes,\s*editorial\.description\s*\)/
+  );
+  assert.match(component, /descriptionDishes=\{section\.descriptionDishes\}/);
+  assert.match(component, /descriptionDishes=\{baseDishes\}/);
 });
 
 test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D autoload", async () => {
