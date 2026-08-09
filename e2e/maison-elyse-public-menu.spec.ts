@@ -480,6 +480,14 @@ test.describe("Maison Elyse public QR menu", () => {
     const menu = maisonMenu(page);
     const trigger = menu.getByRole("button", { name: /Choisir la langue du menu/i });
 
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.localStorage.getItem("vistaire:maison-elyse-menu-locale")
+        )
+      )
+      .toBe("fr-CA");
+
     await trigger.focus();
     await trigger.click();
     let dialog = menu.getByRole("dialog", { name: "Langue du menu" });
@@ -493,7 +501,7 @@ test.describe("Maison Elyse public QR menu", () => {
     const dialogButtons = dialog.getByRole("button");
     const firstButton = dialogButtons.first();
     const lastButton = dialogButtons.last();
-    await page.bringToFront();
+    await expect(firstButton).toBeFocused();
     await lastButton.focus();
     await expect(lastButton).toBeFocused();
     await page.keyboard.press("Tab");
