@@ -1,15 +1,32 @@
 import Link from "next/link";
-import { SEO_PAGES } from "@/lib/seoPages";
+import { getEditorialGuides } from "@/lib/editorialGuides";
+import type { Locale } from "@/lib/i18n";
 
-const pricingGuide = {
-  path: "/tarifs-menu-digital-restaurant",
-  eyebrow: "Tarifs",
-  title: "Tarifs menu digital restaurant avec plats 3D inclus",
-  description:
-    "Forfaits Base, Premium et Signature, packs 3D supplémentaires, QR code et service clé en main."
+const copy = {
+  fr: {
+    eyebrow: "Guides Vistaire",
+    title: "Mieux décider avant de numériser la carte.",
+    description:
+      "Trois ressources éditoriales pour structurer le menu, préparer le parcours QR à table et choisir la 3D pour les bonnes raisons.",
+    read: "Lire le guide",
+    pillarLabel: "Explorer aussi les fondamentaux du menu digital",
+    pillarHref: "/menu-digital-restaurant"
+  },
+  en: {
+    eyebrow: "Vistaire guides",
+    title: "Make better decisions before digitizing the menu.",
+    description:
+      "Three editorial resources for structuring the menu, preparing the table-side QR journey and choosing 3D for the right reasons.",
+    read: "Read the guide",
+    pillarLabel: "Explore the digital-menu fundamentals",
+    pillarHref: "/en/digital-restaurant-menu"
+  }
 } as const;
 
-export function GuidesVistaireSection() {
+export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
+  const sectionCopy = copy[locale];
+  const guides = getEditorialGuides(locale);
+
   return (
     <section
       id="guides"
@@ -17,49 +34,44 @@ export function GuidesVistaireSection() {
     >
       <div className="mx-auto max-w-7xl">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-champagne/85">
-          Guides Vistaire
+          {sectionCopy.eyebrow}
         </p>
-        <h2 className="mt-5 max-w-3xl font-display text-[clamp(2.2rem,5vw,4.2rem)] font-normal leading-[1.02] text-cream">
-          Comprendre le menu digital premium, le QR code et la 3D utile.
+        <h2 className="mt-5 max-w-4xl font-display text-[clamp(2.2rem,5vw,4.2rem)] font-normal leading-[1.02] text-cream">
+          {sectionCopy.title}
         </h2>
         <p className="mt-6 max-w-2xl text-base leading-7 text-[#d1c2aa]">
-          Des guides concrets pour restaurateurs, lisibles par Google et par les
-          moteurs de réponse, sans jargon SaaS.
+          {sectionCopy.description}
         </p>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2">
-          <Link
-            href={pricingGuide.path}
-            className="group rounded-lg border border-champagne/30 bg-[#120d09] p-6 transition hover:border-champagne/45 hover:bg-[#17110c] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-          >
-            <p className="text-[10px] font-semibold uppercase text-champagne/70">
-              {pricingGuide.eyebrow}
-            </p>
-            <h3 className="mt-3 font-display text-2xl leading-tight text-cream group-hover:text-champagne">
-              {pricingGuide.title}
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-[#a99984]">
-              {pricingGuide.description}
-            </p>
-          </Link>
-          {SEO_PAGES.map((page) => (
+        <div className="mt-12 grid gap-4 lg:grid-cols-3">
+          {guides.map((guide, index) => (
             <Link
-              key={page.path}
-              href={page.path}
-              className="group rounded-lg border border-white/10 bg-[#0d0907] p-6 transition hover:border-champagne/35 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+              key={guide.path}
+              href={guide.path}
+              className="group flex min-h-72 flex-col rounded-lg border border-white/10 bg-[#0d0907] p-6 transition hover:border-champagne/35 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-champagne/70">
-                {page.eyebrow}
+                {String(index + 1).padStart(2, "0")} · {guide.eyebrow}
               </p>
-              <h3 className="mt-3 font-display text-2xl leading-tight text-cream group-hover:text-champagne">
-                {page.linkTitle ?? page.h1}
+              <h3 className="mt-5 font-display text-3xl leading-[1.05] text-cream group-hover:text-champagne">
+                {guide.cardTitle}
               </h3>
-              <p className="mt-3 text-sm leading-6 text-[#a99984]">
-                {page.cardDescription}
+              <p className="mt-4 text-sm leading-6 text-[#a99984]">
+                {guide.cardDescription}
               </p>
+              <span className="mt-auto flex min-h-11 items-end pt-6 text-xs font-semibold uppercase tracking-[0.16em] text-[#d9bd8d]">
+                {sectionCopy.read} <span aria-hidden="true" className="ml-2">↗</span>
+              </span>
             </Link>
           ))}
         </div>
+
+        <Link
+          className="mt-8 inline-flex min-h-11 items-center text-sm text-[#c7b69e] underline decoration-white/20 underline-offset-4 hover:text-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+          href={sectionCopy.pillarHref}
+        >
+          {sectionCopy.pillarLabel}
+        </Link>
       </div>
     </section>
   );

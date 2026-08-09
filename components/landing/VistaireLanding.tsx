@@ -14,6 +14,7 @@ import { LandingFinalCta } from "./LandingFinalCta";
 import { LandingHero } from "./LandingHero";
 import { LandingOwnerSection } from "./LandingOwnerSection";
 import { LandingValueSection } from "./LandingValueSection";
+import { GuidesVistaireSection } from "./GuidesVistaireSection";
 import styles from "./VistaireLanding.module.css";
 
 export async function VistaireLanding({
@@ -72,6 +73,7 @@ export async function VistaireLanding({
         copy={copy.owner}
         restaurateurDashboard={routes.restaurateurDashboard}
       />
+      <GuidesVistaireSection locale={locale} />
       <LandingFinalCta
         appointmentHref={routes.appointment}
         copy={copy.finalCta}

@@ -512,6 +512,32 @@ export function buildWebPageJsonLd(
   };
 }
 
+export function buildArticleJsonLd(
+  article: {
+    path: string;
+    headline: string;
+    description: string;
+    locale?: Locale;
+  },
+  env?: SiteUrlEnv
+): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `${absoluteUrl(article.path, env)}#article`,
+    url: absoluteUrl(article.path, env),
+    headline: article.headline,
+    description: article.description,
+    inLanguage: LOCALE_LANGUAGE_TAG[article.locale ?? "fr"],
+    mainEntityOfPage: {
+      "@id": `${absoluteUrl(article.path, env)}#webpage`
+    },
+    publisher: {
+      "@id": `${absoluteUrl("/", env)}#organization`
+    }
+  };
+}
+
 export function buildPageServiceJsonLd(
   service: {
     path: string;

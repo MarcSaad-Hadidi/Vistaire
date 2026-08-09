@@ -113,6 +113,27 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     priority: 0.76,
     updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
+  {
+    fr: "/guides/anatomie-menu-digital-premium",
+    en: "/en/guides/premium-digital-menu-anatomy",
+    changeFrequency: "monthly",
+    priority: 0.75,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
+  },
+  {
+    fr: "/guides/menu-qr-mobile-sans-application",
+    en: "/en/guides/mobile-qr-menu-without-app",
+    changeFrequency: "monthly",
+    priority: 0.74,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
+  },
+  {
+    fr: "/guides/3d-restaurant-utile-vs-gadget",
+    en: "/en/guides/restaurant-3d-useful-vs-gimmick",
+    changeFrequency: "monthly",
+    priority: 0.73,
+    updatedAt: PUBLIC_ROUTE_UPDATED_AT
+  },
   ...SEO_GEO_ROUTE_PAIRS.map((route) => ({
     fr: route.fr,
     en: route.en,
