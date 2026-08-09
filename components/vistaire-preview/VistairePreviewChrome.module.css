@@ -646,8 +646,19 @@
   .footerLinkList a,
   .footerLinkList span,
   .footerEmail,
-  .footerCta {
+  .footerCta,
+  .footerSocialLinks a {
+    min-height: 44px;
     font-size: 12px;
+  }
+
+  .footerBottom .languageSwitcher {
+    min-height: 44px;
+  }
+
+  .footerBottom .languageLink {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .footerBottom {

@@ -99,12 +99,10 @@ const useCaseGeoSlugs = [
   "menu-restaurant-allergenes"
 ] as const;
 
-const marketGeoSlugs = [
+const localGeoSlugs = [
   "menu-digital-restaurant-montreal",
   "menu-digital-restaurant-laval",
-  "menu-digital-restaurant-brossard",
-  "menu-digital-restaurant-haut-de-gamme",
-  "menu-digital-restaurant-gastronomique"
+  "menu-digital-restaurant-brossard"
 ] as const;
 
 const useCaseGeoSlugsEn = [
@@ -117,12 +115,10 @@ const useCaseGeoSlugsEn = [
   "restaurant-menu-allergens"
 ] as const;
 
-const marketGeoSlugsEn = [
+const localGeoSlugsEn = [
   "digital-restaurant-menu-montreal",
   "digital-restaurant-menu-laval",
-  "digital-restaurant-menu-brossard",
-  "high-end-restaurant-digital-menu",
-  "fine-dining-restaurant-digital-menu"
+  "digital-restaurant-menu-brossard"
 ] as const;
 
 function getGeoFooterLinks(
@@ -315,41 +311,65 @@ export function PreviewFooter({
   const productLinks =
     locale === "en"
       ? [
-            { label: "Sample menu", href: routes.menu },
-            { label: "Dish pages", href: routes.dish },
-            { label: "Selective 3D / AR", href: routes.menu3dAr },
-            { label: "Restaurant preview", href: routes.restaurateurDashboard }
-          ]
-        : [
-            { label: "Carte digitale", href: routes.menu },
-            { label: "Fiches plats", href: routes.dish },
-            { label: "3D / AR sélective", href: routes.menu3dAr },
-            { label: "Aperçu restaurateur", href: routes.restaurateurDashboard }
-          ];
-  const resourceLinks =
+          { label: "Sample menu", href: routes.menu },
+          { label: "Digital restaurant menu", href: routes.menuDigital },
+          { label: "QR code restaurant menu", href: routes.menuQrCode },
+          { label: "Selective 3D / AR", href: routes.menu3dAr },
+          { label: "Pricing", href: routes.pricing },
+          { label: "Restaurant preview", href: routes.restaurateurDashboard },
+          { label: "About", href: routes.about }
+        ]
+      : [
+          { label: "Carte digitale", href: routes.menu },
+          { label: "Menu digital restaurant", href: routes.menuDigital },
+          { label: "Menu QR code restaurant", href: routes.menuQrCode },
+          { label: "3D / AR sélective", href: routes.menu3dAr },
+          { label: "Tarifs", href: routes.pricing },
+          { label: "Aperçu restaurateur", href: routes.restaurateurDashboard },
+          { label: "À propos", href: routes.about }
+        ];
+  const guideLinks =
     locale === "en"
       ? [
-            { label: "Pricing", href: routes.pricing },
-            { label: "Digital restaurant menu", href: routes.menuDigital },
-            { label: "QR code restaurant menu", href: routes.menuQrCode },
-            { label: "3D / AR restaurant menu", href: routes.menu3dAr },
-            { label: "PDF vs digital menu", href: routes.pdfVsDigital },
-            { label: "High-end restaurants", href: routes.about }
-          ]
-        : [
-            { label: "Tarifs", href: routes.pricing },
-            { label: "Menu digital restaurant", href: routes.menuDigital },
-            { label: "Menu QR code restaurant", href: routes.menuQrCode },
-            { label: "Menu 3D / AR restaurant", href: routes.menu3dAr },
-            { label: "PDF vs menu digital", href: routes.pdfVsDigital },
-            { label: "À propos", href: routes.about }
-          ];
-  const useCaseLinks = getGeoFooterLinks(
-    locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
-    locale
-  );
-  const marketLinks = getGeoFooterLinks(
-    locale === "en" ? marketGeoSlugsEn : marketGeoSlugs,
+          {
+            label: "Anatomy of a premium digital menu",
+            href: "/en/guides/premium-digital-menu-anatomy"
+          },
+          {
+            label: "Mobile QR menu without an app",
+            href: "/en/guides/mobile-qr-menu-without-app"
+          },
+          {
+            label: "Restaurant 3D: useful or gimmick?",
+            href: "/en/guides/restaurant-3d-useful-vs-gimmick"
+          }
+        ]
+      : [
+          {
+            label: "Anatomie d'un menu digital premium",
+            href: "/guides/anatomie-menu-digital-premium"
+          },
+          {
+            label: "Menu QR mobile sans application",
+            href: "/guides/menu-qr-mobile-sans-application"
+          },
+          {
+            label: "3D au restaurant : utile ou gadget ?",
+            href: "/guides/3d-restaurant-utile-vs-gadget"
+          }
+        ];
+  const solutionLinks = [
+    {
+      label: locale === "en" ? "PDF vs digital menu" : "PDF vs menu digital",
+      href: routes.pdfVsDigital
+    },
+    ...getGeoFooterLinks(
+      locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
+      locale
+    )
+  ];
+  const localLinks = getGeoFooterLinks(
+    locale === "en" ? localGeoSlugsEn : localGeoSlugs,
     locale
   );
   const socialProfiles = getVistaireSocialProfiles();
@@ -401,7 +421,7 @@ export function PreviewFooter({
           className={`${styles.footerLinkList} ${styles.footerLinkListBalanced}`}
           aria-label={locale === "en" ? "Vistaire guides" : "Guides Vistaire"}
         >
-          {resourceLinks.map((item) => (
+          {guideLinks.map((item) => (
             <Link href={item.href} key={item.label} prefetch={false}>
               {item.label}
             </Link>
@@ -409,21 +429,23 @@ export function PreviewFooter({
         </nav>
       </section>
 
-      {useCaseLinks.length > 0 ? (
+      {solutionLinks.length > 0 ? (
         <section
           className={styles.footerColumn}
-          aria-label={locale === "en" ? "Restaurant needs" : "Besoins restaurants"}
+          aria-label={
+            locale === "en" ? "Restaurant solutions" : "Besoins restaurants"
+          }
         >
-          <h2>{locale === "en" ? "Needs" : "Besoins"}</h2>
+          <h2>{locale === "en" ? "Solutions" : "Besoins"}</h2>
           <nav
             className={styles.footerLinkList}
             aria-label={
               locale === "en"
-                ? "Guides by restaurant need"
+                ? "Guides by restaurant solution"
                 : "Guides par besoin restaurant"
             }
           >
-            {useCaseLinks.map((item) => (
+            {solutionLinks.map((item) => (
               <Link href={item.href} key={item.href} prefetch={false}>
                 {item.label}
               </Link>
@@ -432,25 +454,21 @@ export function PreviewFooter({
         </section>
       ) : null}
 
-      {marketLinks.length > 0 ? (
+      {localLinks.length > 0 ? (
         <section
           className={styles.footerColumn}
-          aria-label={
-            locale === "en"
-              ? "Local and restaurant types"
-              : "Local et types de restaurants"
-          }
+          aria-label={locale === "en" ? "Local guides" : "Guides locaux"}
         >
           <h2>{locale === "en" ? "Local" : "Local"}</h2>
           <nav
             className={styles.footerLinkList}
             aria-label={
               locale === "en"
-                ? "Local and restaurant guides"
-                : "Guides locaux et restaurants"
+                ? "Local restaurant guides"
+                : "Guides restaurants locaux"
             }
           >
-            {marketLinks.map((item) => (
+            {localLinks.map((item) => (
               <Link href={item.href} key={item.href} prefetch={false}>
                 {item.label}
               </Link>

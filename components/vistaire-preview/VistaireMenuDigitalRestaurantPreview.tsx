@@ -270,10 +270,9 @@ export function VistaireMenuDigitalRestaurantPreview({
   const pageTitle =
     h1 ?? copy.defaultTitle;
   const pageInternalLinks = [
-          { label: copy.viewMenu, href: routes.menu },
-          { label: copy.comparePdf, href: routes.pdfVsDigital },
-          { label: copy.talk, href: routes.contact }
-        ];
+    { label: copy.comparePdf, href: routes.pdfVsDigital },
+    { label: copy.talk, href: routes.contact }
+  ];
   return (
     <main className={styles.page}>
       <Image
