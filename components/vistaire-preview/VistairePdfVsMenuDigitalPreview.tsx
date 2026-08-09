@@ -275,7 +275,6 @@ export function VistairePdfVsMenuDigitalPreview({
         };
   const pageTitle = h1 ?? copy.defaultTitle;
   const pageInternalLinks = [
-          { label: copy.viewMenu, href: routes.menu },
           { label: copy.understand, href: routes.about },
           { label: copy.talk, href: routes.contact }
         ];

@@ -51,12 +51,14 @@ export function LandingComparison({
   copy,
   experiences,
   locale,
-  interaction = "slider"
+  interaction = "slider",
+  deviceEmphasis = false
 }: {
   copy: LandingCopy["comparison"];
   experiences: LandingExperience[];
   locale: Locale;
   interaction?: "slider" | "reveal";
+  deviceEmphasis?: boolean;
 }) {
   const instanceId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -182,6 +184,7 @@ export function LandingComparison({
       data-menu-active-locale={
         activePayload?.menuUi.menu.activeLocale ?? LOCALE_LANGUAGE_TAG[locale]
       }
+      data-device-emphasis={deviceEmphasis ? "true" : "false"}
       data-menu-slug={activePayload?.menuSlug ?? activeExperience.menuSlug}
       data-preview-locale={
         activePayload?.locale
@@ -266,6 +269,7 @@ export function LandingComparison({
             />
           ) : (
             <VistairePreviewPdfCompareSlider
+              className={deviceEmphasis ? styles.emphasizedSlider : undefined}
               digitalLayer={
                 <LandingActiveMenuPreview
                   copy={copy}
