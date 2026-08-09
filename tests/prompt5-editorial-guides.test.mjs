@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const expectedGuides = [
@@ -176,4 +177,37 @@ test("builds an honest Article graph without invented author or date fields", as
   assert.equal("author" in article, false);
   assert.equal("datePublished" in article, false);
   assert.equal("dateModified" in article, false);
+});
+
+test("keeps bilingual guide routes lightweight for shared client imports", async () => {
+  const routeModulePath = join(process.cwd(), "lib", "editorialGuideRoutes.ts");
+  assert.equal(existsSync(routeModulePath), true, "lightweight guide route module must exist");
+
+  const [routeSource, i18nSource, footerSource] = await Promise.all([
+    readFile(routeModulePath, "utf8"),
+    readFile(join(process.cwd(), "lib", "i18n.ts"), "utf8"),
+    readFile(
+      join(process.cwd(), "components", "vistaire-preview", "VistairePreviewChrome.tsx"),
+      "utf8"
+    )
+  ]);
+
+  assert.doesNotMatch(routeSource, /sections|paragraphs|checklist/);
+  assert.match(i18nSource, /from\s+["']\.\/editorialGuideRoutes\.ts["']/);
+  assert.doesNotMatch(i18nSource, /from\s+["']\.\/editorialGuides\.ts["']/);
+  assert.match(footerSource, /@\/lib\/editorialGuideRoutes/);
+  assert.doesNotMatch(footerSource, /@\/lib\/editorialGuides/);
+});
+
+test("lists every published editorial guide in llms.txt", async () => {
+  const { EDITORIAL_GUIDE_ROUTE_PAIRS } = await import(
+    "../lib/editorialGuideRoutes.ts"
+  );
+  const llms = await readFile(join(process.cwd(), "public", "llms.txt"), "utf8");
+
+  for (const pair of EDITORIAL_GUIDE_ROUTE_PAIRS) {
+    for (const path of [pair.fr, pair.en]) {
+      assert.match(llms, new RegExp(`https://www\\.vistaire\\.ca${path.replaceAll("/", "\\/")}(?:\\s|:)`));
+    }
+  }
 });

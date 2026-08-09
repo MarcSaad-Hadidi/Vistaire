@@ -111,4 +111,30 @@ for (const locale of locales) {
       await expectNoHorizontalOverflow(page);
     });
   }
+
+  for (const viewport of [
+    { width: 1024, height: 900 },
+    { width: 1180, height: 900 }
+  ]) {
+    test(`${locale.path} footer stays contained at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(locale.path, { waitUntil: "domcontentloaded" });
+
+      const footer = page.locator("footer#contact");
+      await expect(footer).toBeVisible();
+      const geometry = await footer.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return {
+          columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+          left: box.left,
+          right: box.right,
+          viewportWidth: document.documentElement.clientWidth
+        };
+      });
+      expect(geometry.columns).toBe(3);
+      expect(geometry.left).toBeGreaterThanOrEqual(0);
+      expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
+      await expectNoHorizontalOverflow(page);
+    });
+  }
 }

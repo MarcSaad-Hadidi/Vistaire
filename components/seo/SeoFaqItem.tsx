@@ -50,8 +50,6 @@ export function SeoFaqItem({
       </h3>
       <div
         id={answerId}
-        role="region"
-        aria-labelledby={buttonId}
         data-seo-faq-answer
         hidden={!isOpen}
       >

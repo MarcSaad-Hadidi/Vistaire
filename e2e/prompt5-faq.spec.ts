@@ -58,6 +58,11 @@ async function expectRenderedParity(
 
   await expect(questions).toHaveCount(expectedCount);
   await expect(answers).toHaveCount(expectedCount);
+  expect(
+    await answers.evaluateAll((nodes) =>
+      nodes.some((node) => node.getAttribute("role") === "region")
+    )
+  ).toBe(false);
   expect(faqPage.mainEntity).toHaveLength(expectedCount);
 
   if (options.expandAnswers) {

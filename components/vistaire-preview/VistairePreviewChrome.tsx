@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getEditorialGuides } from "@/lib/editorialGuides";
+import { getEditorialGuideNavigation } from "@/lib/editorialGuideRoutes";
 import { getLocalizedPath, normalizePathname, type Locale } from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
 import {
@@ -329,10 +329,7 @@ export function PreviewFooter({
           { label: "Aperçu restaurateur", href: routes.restaurateurDashboard },
           { label: "À propos", href: routes.about }
         ];
-  const guideLinks = getEditorialGuides(locale).map((guide) => ({
-    label: guide.cardTitle,
-    href: guide.path
-  }));
+  const guideLinks = getEditorialGuideNavigation(locale);
   const solutionLinks = [
     {
       label: locale === "en" ? "PDF vs digital menu" : "PDF vs menu digital",

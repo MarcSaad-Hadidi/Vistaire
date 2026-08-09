@@ -1,9 +1,15 @@
-export type EditorialGuideKey =
-  | "premium-menu-anatomy"
-  | "mobile-qr-without-app"
-  | "restaurant-3d-decision";
+import { getEditorialGuideRoute } from "./editorialGuideRoutes.ts";
+import type {
+  EditorialGuideKey,
+  EditorialGuideLocale
+} from "./editorialGuideRoutes.ts";
 
-export type EditorialGuideLocale = "fr" | "en";
+export { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuideRoutes.ts";
+export type {
+  EditorialGuideKey,
+  EditorialGuideLocale,
+  EditorialGuideRoutePair
+} from "./editorialGuideRoutes.ts";
 
 export type EditorialGuideTable = {
   caption: string;
@@ -49,12 +55,36 @@ export type EditorialGuide = {
   };
 };
 
+const PREMIUM_MENU_ANATOMY_FR = getEditorialGuideRoute(
+  "premium-menu-anatomy",
+  "fr"
+);
+const PREMIUM_MENU_ANATOMY_EN = getEditorialGuideRoute(
+  "premium-menu-anatomy",
+  "en"
+);
+const MOBILE_QR_WITHOUT_APP_FR = getEditorialGuideRoute(
+  "mobile-qr-without-app",
+  "fr"
+);
+const MOBILE_QR_WITHOUT_APP_EN = getEditorialGuideRoute(
+  "mobile-qr-without-app",
+  "en"
+);
+const RESTAURANT_3D_DECISION_FR = getEditorialGuideRoute(
+  "restaurant-3d-decision",
+  "fr"
+);
+const RESTAURANT_3D_DECISION_EN = getEditorialGuideRoute(
+  "restaurant-3d-decision",
+  "en"
+);
+
 export const EDITORIAL_GUIDES: EditorialGuide[] = [
   {
     key: "premium-menu-anatomy",
     locale: "fr",
-    path: "/guides/anatomie-menu-digital-premium",
-    alternatePath: "/en/guides/premium-digital-menu-anatomy",
+    ...PREMIUM_MENU_ANATOMY_FR,
     eyebrow: "Guide de conception",
     metadataTitle: "Anatomie d’un menu digital premium | Vistaire",
     metadataDescription:
@@ -178,8 +208,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
   {
     key: "premium-menu-anatomy",
     locale: "en",
-    path: "/en/guides/premium-digital-menu-anatomy",
-    alternatePath: "/guides/anatomie-menu-digital-premium",
+    ...PREMIUM_MENU_ANATOMY_EN,
     eyebrow: "Design guide",
     metadataTitle: "Premium digital menu anatomy | Vistaire",
     metadataDescription:
@@ -303,8 +332,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
   {
     key: "mobile-qr-without-app",
     locale: "fr",
-    path: "/guides/menu-qr-mobile-sans-application",
-    alternatePath: "/en/guides/mobile-qr-menu-without-app",
+    ...MOBILE_QR_WITHOUT_APP_FR,
     eyebrow: "Guide d’exploitation",
     metadataTitle: "Menu QR mobile sans application | Vistaire",
     metadataDescription:
@@ -428,8 +456,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
   {
     key: "mobile-qr-without-app",
     locale: "en",
-    path: "/en/guides/mobile-qr-menu-without-app",
-    alternatePath: "/guides/menu-qr-mobile-sans-application",
+    ...MOBILE_QR_WITHOUT_APP_EN,
     eyebrow: "Operations guide",
     metadataTitle: "Mobile QR menu without an app | Vistaire",
     metadataDescription:
@@ -553,8 +580,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
   {
     key: "restaurant-3d-decision",
     locale: "fr",
-    path: "/guides/3d-restaurant-utile-vs-gadget",
-    alternatePath: "/en/guides/restaurant-3d-useful-vs-gimmick",
+    ...RESTAURANT_3D_DECISION_FR,
     eyebrow: "Guide de décision",
     metadataTitle: "3D au restaurant : utile ou gadget ? | Vistaire",
     metadataDescription:
@@ -672,8 +698,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
   {
     key: "restaurant-3d-decision",
     locale: "en",
-    path: "/en/guides/restaurant-3d-useful-vs-gimmick",
-    alternatePath: "/guides/3d-restaurant-utile-vs-gadget",
+    ...RESTAURANT_3D_DECISION_EN,
     eyebrow: "Decision guide",
     metadataTitle: "Restaurant 3D: useful or gimmick? | Vistaire",
     metadataDescription:
@@ -789,50 +814,6 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
     }
   }
 ];
-
-export type EditorialGuideRoutePair = {
-  key: EditorialGuideKey;
-  fr: string;
-  en: string;
-  changeFrequency: "monthly";
-  priority: number;
-};
-
-const EDITORIAL_GUIDE_KEYS = [
-  "premium-menu-anatomy",
-  "mobile-qr-without-app",
-  "restaurant-3d-decision"
-] as const satisfies readonly EditorialGuideKey[];
-
-const EDITORIAL_GUIDE_PRIORITIES: Record<EditorialGuideKey, number> = {
-  "premium-menu-anatomy": 0.75,
-  "mobile-qr-without-app": 0.74,
-  "restaurant-3d-decision": 0.73
-};
-
-function editorialGuidePath(
-  key: EditorialGuideKey,
-  locale: EditorialGuideLocale
-): string {
-  const guide = EDITORIAL_GUIDES.find(
-    (candidate) => candidate.key === key && candidate.locale === locale
-  );
-
-  if (!guide) {
-    throw new Error(`Missing editorial guide route: ${key} (${locale})`);
-  }
-
-  return guide.path;
-}
-
-export const EDITORIAL_GUIDE_ROUTE_PAIRS: EditorialGuideRoutePair[] =
-  EDITORIAL_GUIDE_KEYS.map((key) => ({
-    key,
-    fr: editorialGuidePath(key, "fr"),
-    en: editorialGuidePath(key, "en"),
-    changeFrequency: "monthly",
-    priority: EDITORIAL_GUIDE_PRIORITIES[key]
-  }));
 
 export function getEditorialGuide(
   key: EditorialGuideKey,

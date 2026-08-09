@@ -27,12 +27,12 @@ test("shared footer exposes the five bilingual navigation groups with real guide
 
   assert.match(
     chrome,
-    /import\s+\{\s*getEditorialGuides\s*\}\s+from\s+["']@\/lib\/editorialGuides["']/,
-    "footer guide destinations must come from the typed editorial registry"
+    /import\s+\{\s*getEditorialGuideNavigation\s*\}\s+from\s+["']@\/lib\/editorialGuideRoutes["']/,
+    "footer guide destinations must come from the lightweight route registry"
   );
   assert.match(
     chrome,
-    /getEditorialGuides\(locale\)\.map/,
+    /getEditorialGuideNavigation\(locale\)/,
     "footer must derive the localized guide links instead of copying slugs"
   );
   assert.doesNotMatch(
@@ -107,5 +107,21 @@ test("mobile footer uses one column and footer links have 44px targets", async (
     mobile,
     /\.footerLinkList a,[\s\S]*?min-height:\s*44px/,
     "footer links need an explicit mobile touch target"
+  );
+});
+
+test("tablet footer reflows before six fixed tracks can be clipped", async () => {
+  const styles = await source(
+    "components/vistaire-preview/VistairePreviewChrome.module.css"
+  );
+  const tablet = styles.match(
+    /@media \(max-width: 1200px\) and \(min-width: 921px\) \{([\s\S]*?)\n\}/
+  )?.[1];
+
+  assert.ok(tablet, "tablet footer breakpoint must protect 921-1200px widths");
+  assert.match(
+    tablet,
+    /\.previewFooter,[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/,
+    "tablet footer must use three flexible tracks"
   );
 });

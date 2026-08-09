@@ -88,6 +88,14 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
       await expect(page.locator("article li")).not.toHaveCount(0);
       await expect(page.locator("footer")).toHaveCount(1);
 
+      const tableRegions = page.locator("[data-guide-table-scroll]");
+      for (let index = 0; index < (await tableRegions.count()); index += 1) {
+        const region = tableRegions.nth(index);
+        await expect(region).toHaveAttribute("role", "region");
+        await expect(region).toHaveAttribute("tabindex", "0");
+        expect(await region.getAttribute("aria-label")).toBeTruthy();
+      }
+
       const canonical = page.locator('link[rel="canonical"]');
       expect(pathOf(await canonical.getAttribute("href"))).toBe(route.path);
       const alternates = await page.locator('link[rel="alternate"]').evaluateAll((links) =>

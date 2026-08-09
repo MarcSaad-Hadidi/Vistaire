@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuides.ts";
+import { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuideRoutes.ts";
 import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoRoutes.ts";
 
 export const SUPPORTED_LOCALES = ["fr", "en"] as const;

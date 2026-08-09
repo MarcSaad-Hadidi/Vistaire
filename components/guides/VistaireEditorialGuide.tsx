@@ -169,7 +169,13 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
                   </ul>
                 ) : null}
                 {section.table ? (
-                  <div className={styles.tableScroll}>
+                  <div
+                    aria-label={section.table.caption}
+                    className={styles.tableScroll}
+                    data-guide-table-scroll
+                    role="region"
+                    tabIndex={0}
+                  >
                     <table>
                       <caption>{section.table.caption}</caption>
                       <thead>
