@@ -699,7 +699,7 @@ test.describe("Vistaire landing redesign", () => {
     }
   });
 
-  test("renders English menu copy while preserving source-language dish names", async ({
+  test("renders English menu copy while localizing Maison dish names", async ({
     page
   }) => {
     await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
@@ -712,7 +712,7 @@ test.describe("Vistaire landing redesign", () => {
       {
         category: "Starters",
         categoryDescription: "Maison Elyse's current menu.",
-        dish: "Ravioles de chevre frais et miel de Monteregie",
+        dish: "Fresh goat cheese ravioli & Monteregie honey",
         dishDescription:
           "Brown butter, preserved lemon, and garden herbs."
       },
@@ -751,8 +751,12 @@ test.describe("Vistaire landing redesign", () => {
         "aria-label",
         new RegExp(`^Full PDF menu for (?:${experience.name.source})$`)
       );
-      await expect(active.getByText(expectedEnglish[index].category).first()).toBeVisible();
-      await expect(active.getByText(expectedEnglish[index].dish).first()).toBeVisible();
+      await expect(active.getByText(expectedEnglish[index].category).first()).toBeVisible({
+        timeout: LAZY_PREVIEW_TIMEOUT_MS
+      });
+      await expect(active.getByText(expectedEnglish[index].dish).first()).toBeVisible({
+        timeout: LAZY_PREVIEW_TIMEOUT_MS
+      });
 
       const payloadResponse = await page.request.get(
         new URL(
@@ -835,7 +839,7 @@ test.describe("Vistaire landing redesign", () => {
       );
     }
     await expect(dishes).toContainText(
-      "Ravioles de chevre frais et miel de Monteregie"
+      "Fresh goat cheese ravioli & Monteregie honey"
     );
     await expect(dishes).toContainText("Pesto Burrata Verde");
     await expect(dishes).toContainText("Betterave sous la cendre");
