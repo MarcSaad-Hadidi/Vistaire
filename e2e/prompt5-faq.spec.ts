@@ -13,6 +13,11 @@ const ROUTES = [
   { path: "/en/digital-restaurant-menu", count: 8 }
 ] as const;
 
+const STACK_REGRESSION_ROUTE = {
+  path: "/menu-qr-code-restaurant",
+  count: 6
+} as const;
+
 type FaqEntity = {
   "@type": "FAQPage";
   mainEntity: Array<{
@@ -131,7 +136,28 @@ test("FAQ accordion respects reduced motion", async ({ page }) => {
   const chevron = page.locator("[data-seo-faq-chevron]").first();
 
   await expect(chevron).toBeVisible();
-  expect(await chevron.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe("0s");
+  expect(await chevron.evaluate((element) => getComputedStyle(element).transitionProperty)).toBe("none");
+});
+
+test("a shared stack-layout FAQ consumer keeps disclosure and schema parity", async ({ page }) => {
+  await page.goto(STACK_REGRESSION_ROUTE.path, { waitUntil: "domcontentloaded" });
+  const faq = page.locator("[data-seo-faq]");
+  const questions = faq.locator("[data-seo-faq-question]");
+  const answers = faq.locator("[data-seo-faq-answer]");
+
+  await expect(questions).toHaveCount(STACK_REGRESSION_ROUTE.count);
+  await expect(answers).toHaveCount(STACK_REGRESSION_ROUTE.count);
+  await expect(questions.first()).toHaveAttribute("aria-expanded", "true");
+  await expect(answers.first()).toBeVisible();
+  await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "false");
+  await expect(answers.nth(1)).toBeHidden();
+
+  await questions.nth(1).click();
+  await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "true");
+  await expect(answers.nth(1)).toBeVisible();
+  await expectRenderedParity(page, STACK_REGRESSION_ROUTE.count, {
+    expandAnswers: true
+  });
 });
 
 for (const width of [390, 430]) {
