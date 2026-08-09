@@ -101,6 +101,15 @@ test("Maison category labels use exact shared aliases in menu and dish detail", 
   );
 });
 
+test("Maison normalizes the persisted English starter mistranslation exactly", async () => {
+  const { getMaisonElyseCategoryKind, getMaisonElyseCategoryLabel } =
+    await import("../lib/menu/maisonElyseLocalization.ts");
+
+  assert.equal(getMaisonElyseCategoryKind("Inputs"), "starter");
+  assert.equal(getMaisonElyseCategoryLabel("Inputs", "en-CA"), "Starters");
+  assert.equal(getMaisonElyseCategoryKind("Inputs du chef"), null);
+});
+
 function homardContract(menu) {
   const dish = menu.dishes.find((candidate) => candidate.slug === "homard-bisque");
   assert.ok(dish, "homard-bisque should remain addressable by its stable slug");

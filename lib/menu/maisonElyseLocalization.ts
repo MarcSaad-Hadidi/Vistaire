@@ -28,7 +28,7 @@ const MAISON_ELYSE_CATEGORY_ALIASES: Record<
   MaisonElyseCategoryKind,
   ReadonlySet<string>
 > = {
-  starter: new Set(["entree", "entrees", "starter", "starters"]),
+  starter: new Set(["entree", "entrees", "inputs", "starter", "starters"]),
   signature: new Set([
     "plat",
     "plats",
