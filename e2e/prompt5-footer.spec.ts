@@ -47,6 +47,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 for (const locale of locales) {
   test(`${locale.path} renders one focused premium footer`, async ({ page }) => {
+    test.setTimeout(180_000);
     const response = await page.goto(locale.path, { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBeLessThan(400);
 
@@ -73,6 +74,10 @@ for (const locale of locales) {
     );
     expect(sectionHrefs.some((href) => href === "" || href === "#")).toBe(false);
     expect(new Set(sectionHrefs).size).toBe(sectionHrefs.length);
+    for (const href of sectionHrefs.filter((candidate) => candidate.startsWith("/"))) {
+      const targetResponse = await page.request.get(href, { maxRedirects: 5 });
+      expect(targetResponse.status(), `footer target ${href}`).toBeLessThan(400);
+    }
     await expect(footer.locator(`a[href="${locale.appointment}"]`)).toHaveCount(1);
 
     const finalCta = page.locator('section[aria-labelledby="final-cta-title"]');
