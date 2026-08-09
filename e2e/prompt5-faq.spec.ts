@@ -2,6 +2,7 @@ import {
   expect,
   test,
   type ConsoleMessage,
+  type Locator,
   type Page,
   type Response
 } from "@playwright/test";
@@ -46,6 +47,17 @@ async function renderedFaqPage(page: Page) {
   return faqPages[0];
 }
 
+async function openHydratedFaqItem(question: Locator) {
+  await expect(async () => {
+    if ((await question.getAttribute("aria-expanded")) !== "true") {
+      await question.click();
+    }
+    await expect(question).toHaveAttribute("aria-expanded", "true", {
+      timeout: 750
+    });
+  }).toPass({ timeout: 15_000 });
+}
+
 async function expectRenderedParity(
   page: Page,
   expectedCount: number,
@@ -69,7 +81,7 @@ async function expectRenderedParity(
     for (let index = 0; index < expectedCount; index += 1) {
       const question = questions.nth(index);
       if ((await question.getAttribute("aria-expanded")) === "false") {
-        await question.click();
+        await openHydratedFaqItem(question);
       }
       await expect(question).toHaveAttribute("aria-expanded", "true");
       await expect(answers.nth(index)).toBeVisible();
@@ -105,6 +117,11 @@ for (const route of ROUTES) {
     expect(
       await second.evaluate((element) => getComputedStyle(element).boxShadow)
     ).not.toBe("none");
+
+    await openHydratedFaqItem(second);
+    await second.click();
+    await expect(second).toHaveAttribute("aria-expanded", "false");
+    await second.focus();
 
     await page.keyboard.press("Enter");
     await expect(second).toHaveAttribute("aria-expanded", "true");
@@ -157,7 +174,7 @@ test("a shared stack-layout FAQ consumer keeps disclosure and schema parity", as
   await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "false");
   await expect(answers.nth(1)).toBeHidden();
 
-  await questions.nth(1).click();
+  await openHydratedFaqItem(questions.nth(1));
   await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "true");
   await expect(answers.nth(1)).toBeVisible();
   await expectRenderedParity(page, STACK_REGRESSION_ROUTE.count, {

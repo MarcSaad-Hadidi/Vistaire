@@ -75,7 +75,7 @@ for (const locale of locales) {
     expect(new Set(sectionHrefs).size).toBe(sectionHrefs.length);
     await expect(footer.locator(`a[href="${locale.appointment}"]`)).toHaveCount(1);
 
-    const finalCta = page.locator("section", { has: page.locator("#final-cta-title") });
+    const finalCta = page.locator('section[aria-labelledby="final-cta-title"]');
     await expect(finalCta.locator(`a[href="${locale.menu}"]`)).toHaveCount(1);
     await expect(
       finalCta.locator(`nav a[href="${locale.menu}"]`)
