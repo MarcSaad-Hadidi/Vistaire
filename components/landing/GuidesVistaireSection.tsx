@@ -48,6 +48,7 @@ export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
             <Link
               key={guide.path}
               href={guide.path}
+              prefetch={false}
               className="group flex min-h-72 flex-col rounded-lg border border-white/10 bg-[#0d0907] p-6 transition hover:border-champagne/35 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-champagne/70">
@@ -69,6 +70,7 @@ export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
         <Link
           className="mt-8 inline-flex min-h-11 items-center text-sm text-[#c7b69e] underline decoration-white/20 underline-offset-4 hover:text-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
           href={sectionCopy.pillarHref}
+          prefetch={false}
         >
           {sectionCopy.pillarLabel}
         </Link>
