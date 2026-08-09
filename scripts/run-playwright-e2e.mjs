@@ -370,7 +370,7 @@ async function main() {
       );
 
       await waitForServer(
-        includesPrompt5BrowserFlow
+        useDevelopmentServer
           ? new URL("/robots.txt", baseURL).toString()
           : baseURL
       );
@@ -378,6 +378,9 @@ async function main() {
         for (const route of PROMPT5_WARMUP_ROUTES) {
           await waitForServer(new URL(route, baseURL).toString(), 180_000);
         }
+      }
+      if (useLocalDemoServer) {
+        await waitForServer(baseURL, 300_000);
       }
       if (useAdminVisualFixture) {
         for (const route of ["/admin", "/admin/availability", "/menu/maison-elyse"]) {

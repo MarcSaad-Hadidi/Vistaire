@@ -23,4 +23,9 @@ test("Prompt 5 browser specs start the shared public-menu fixture", async () => 
     /PROMPT5_WARMUP_ROUTES[\s\S]*\/menu-pdf-vs-menu-digital[\s\S]*\/en\/pdf-vs-digital-menu[\s\S]*\/menu-qr-code-restaurant/,
     "Prompt 5 must compile its FAQ routes before the browser timeout starts"
   );
+  assert.match(
+    runner,
+    /useLocalDemoServer[\s\S]*waitForServer\(baseURL, 300_000\)/,
+    "the local core suite must precompile its landing route before Playwright starts"
+  );
 });
