@@ -57,7 +57,7 @@ type SitemapDish = {
 
 export type SitemapEntry = {
   url: string;
-  lastModified: Date;
+  lastModified?: Date;
   changeFrequency: "weekly" | "monthly";
   priority: number;
   alternates?: {
@@ -226,13 +226,13 @@ export function buildSitemapEntries(
   void dishes;
   const entries = new Map<string, SitemapEntry>();
   const toAbsolute = (path: string) => absoluteUrl(path, env);
-  const resolveLastModified = (updatedAt = PUBLIC_SITEMAP_UPDATED_AT) =>
-    lastModified ?? sitemapDate(updatedAt);
+  const resolveLastModified = (updatedAt?: string) =>
+    updatedAt ? lastModified ?? sitemapDate(updatedAt) : undefined;
   const setEntry = (
     path: string,
     changeFrequency: SitemapEntry["changeFrequency"],
     priority: number,
-    entryLastModified: Date,
+    entryLastModified?: Date,
     alternates?: SitemapEntry["alternates"]
   ) => {
     const url = toAbsolute(path);
@@ -240,9 +240,11 @@ export function buildSitemapEntries(
 
     entries.set(url, {
       url,
-      lastModified: entryLastModified,
       changeFrequency,
       priority: Math.max(current?.priority ?? 0, priority),
+      ...(entryLastModified ?? current?.lastModified
+        ? { lastModified: entryLastModified ?? current?.lastModified }
+        : {}),
       ...(alternates ?? current?.alternates
         ? { alternates: alternates ?? current?.alternates }
         : {})

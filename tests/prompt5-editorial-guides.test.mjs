@@ -46,8 +46,27 @@ test("publishes six substantial localized editorial guides with unique metadata"
   const modulePath = join(process.cwd(), "lib", "editorialGuides.ts");
   assert.equal(existsSync(modulePath), true, "lib/editorialGuides.ts must exist");
 
-  const { EDITORIAL_GUIDES } = await import("../lib/editorialGuides.ts");
+  const { EDITORIAL_GUIDES, EDITORIAL_GUIDE_ROUTE_PAIRS } = await import(
+    "../lib/editorialGuides.ts"
+  );
   assert.equal(EDITORIAL_GUIDES.length, 6);
+  assert.deepEqual(
+    EDITORIAL_GUIDE_ROUTE_PAIRS.map(({ fr, en }) => ({ fr, en })),
+    [
+      {
+        fr: "/guides/anatomie-menu-digital-premium",
+        en: "/en/guides/premium-digital-menu-anatomy"
+      },
+      {
+        fr: "/guides/menu-qr-mobile-sans-application",
+        en: "/en/guides/mobile-qr-menu-without-app"
+      },
+      {
+        fr: "/guides/3d-restaurant-utile-vs-gadget",
+        en: "/en/guides/restaurant-3d-useful-vs-gimmick"
+      }
+    ]
+  );
   assert.deepEqual(
     EDITORIAL_GUIDES.map(({ key, locale, path, alternatePath }) => ({
       key,
@@ -114,6 +133,15 @@ test("registers exact reciprocal canonical, hreflang and sitemap pairs", async (
       expected.alternatePath
     );
     assert.equal(sitemapPaths.has(expected.path), true, `${expected.path} must be indexed`);
+    const sitemapEntry = entries.find(
+      (entry) => new URL(entry.url).pathname === expected.path
+    );
+    assert.ok(sitemapEntry);
+    assert.equal(
+      "lastModified" in sitemapEntry,
+      false,
+      `${expected.path} must omit an unverified editorial date`
+    );
   }
 });
 

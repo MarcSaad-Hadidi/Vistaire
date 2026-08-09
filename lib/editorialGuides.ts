@@ -1,9 +1,9 @@
-import type { Locale } from "./i18n.ts";
-
 export type EditorialGuideKey =
   | "premium-menu-anatomy"
   | "mobile-qr-without-app"
   | "restaurant-3d-decision";
+
+export type EditorialGuideLocale = "fr" | "en";
 
 export type EditorialGuideTable = {
   caption: string;
@@ -21,7 +21,7 @@ export type EditorialGuideSection = {
 
 export type EditorialGuide = {
   key: EditorialGuideKey;
-  locale: Locale;
+  locale: EditorialGuideLocale;
   path: string;
   alternatePath: string;
   eyebrow: string;
@@ -790,9 +790,53 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
   }
 ];
 
+export type EditorialGuideRoutePair = {
+  key: EditorialGuideKey;
+  fr: string;
+  en: string;
+  changeFrequency: "monthly";
+  priority: number;
+};
+
+const EDITORIAL_GUIDE_KEYS = [
+  "premium-menu-anatomy",
+  "mobile-qr-without-app",
+  "restaurant-3d-decision"
+] as const satisfies readonly EditorialGuideKey[];
+
+const EDITORIAL_GUIDE_PRIORITIES: Record<EditorialGuideKey, number> = {
+  "premium-menu-anatomy": 0.75,
+  "mobile-qr-without-app": 0.74,
+  "restaurant-3d-decision": 0.73
+};
+
+function editorialGuidePath(
+  key: EditorialGuideKey,
+  locale: EditorialGuideLocale
+): string {
+  const guide = EDITORIAL_GUIDES.find(
+    (candidate) => candidate.key === key && candidate.locale === locale
+  );
+
+  if (!guide) {
+    throw new Error(`Missing editorial guide route: ${key} (${locale})`);
+  }
+
+  return guide.path;
+}
+
+export const EDITORIAL_GUIDE_ROUTE_PAIRS: EditorialGuideRoutePair[] =
+  EDITORIAL_GUIDE_KEYS.map((key) => ({
+    key,
+    fr: editorialGuidePath(key, "fr"),
+    en: editorialGuidePath(key, "en"),
+    changeFrequency: "monthly",
+    priority: EDITORIAL_GUIDE_PRIORITIES[key]
+  }));
+
 export function getEditorialGuide(
   key: EditorialGuideKey,
-  locale: Locale = "fr"
+  locale: EditorialGuideLocale = "fr"
 ): EditorialGuide {
   const guide = EDITORIAL_GUIDES.find(
     (candidate) => candidate.key === key && candidate.locale === locale
@@ -805,7 +849,9 @@ export function getEditorialGuide(
   return guide;
 }
 
-export function getEditorialGuides(locale: Locale = "fr"): EditorialGuide[] {
+export function getEditorialGuides(
+  locale: EditorialGuideLocale = "fr"
+): EditorialGuide[] {
   return EDITORIAL_GUIDES.filter((guide) => guide.locale === locale);
 }
 

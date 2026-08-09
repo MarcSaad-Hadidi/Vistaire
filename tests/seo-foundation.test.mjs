@@ -70,6 +70,12 @@ test("builds a focused sitemap for public Vistaire surfaces", () => {
     "https://www.vistaire.ca/en/book-a-call",
     "https://www.vistaire.ca/apercu-restaurateur",
     "https://www.vistaire.ca/en/restaurant-preview",
+    "https://www.vistaire.ca/guides/anatomie-menu-digital-premium",
+    "https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy",
+    "https://www.vistaire.ca/guides/menu-qr-mobile-sans-application",
+    "https://www.vistaire.ca/en/guides/mobile-qr-menu-without-app",
+    "https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget",
+    "https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick",
     "https://www.vistaire.ca/menu-qr-sans-pdf",
     "https://www.vistaire.ca/en/qr-menu-without-pdf",
     "https://www.vistaire.ca/menu-digital-sans-application",
@@ -99,7 +105,22 @@ test("builds a focused sitemap for public Vistaire surfaces", () => {
     assert.equal(urls.some((url) => url.includes(internalPath)), false);
   }
   assert.equal(urls.some((url) => url.includes("/demo/dishes/")), false);
-  assert.equal(entries.every((entry) => entry.lastModified === lastModified), true);
+  const guidePaths = new Set([
+    "/guides/anatomie-menu-digital-premium",
+    "/en/guides/premium-digital-menu-anatomy",
+    "/guides/menu-qr-mobile-sans-application",
+    "/en/guides/mobile-qr-menu-without-app",
+    "/guides/3d-restaurant-utile-vs-gadget",
+    "/en/guides/restaurant-3d-useful-vs-gimmick"
+  ]);
+  for (const entry of entries) {
+    const path = new URL(entry.url).pathname || "/";
+    if (guidePaths.has(path)) {
+      assert.equal("lastModified" in entry, false, `${path} has no verified editorial date`);
+    } else {
+      assert.equal(entry.lastModified, lastModified);
+    }
+  }
   assert.equal(entries.every((entry) => entry.priority > 0 && entry.priority <= 1), true);
 });
 
@@ -385,19 +406,23 @@ test("reads public social profile env vars in a Next client-bundle compatible wa
   assert.doesNotMatch(seoSource, /env\[[^\]]+profile\.key[^\]]*\]/);
 });
 
-test("guide cards use hand-written descriptions without truncation", () => {
-  const guidesSection = readFileSync(
-    join(process.cwd(), "components", "landing", "GuidesVistaireSection.tsx"),
-    "utf8"
-  );
+test("guide registries expose complete hand-written descriptions without truncation", async () => {
+  const { getEditorialGuides } = await import("../lib/editorialGuides.ts");
   const internalLinks = readFileSync(
     join(process.cwd(), "components", "seo", "InternalSeoLinks.tsx"),
     "utf8"
   );
 
-  assert.equal(guidesSection.includes(".slice("), false);
   assert.equal(internalLinks.includes(".slice("), false);
-  assert.match(guidesSection, /page\.cardDescription/);
+  for (const locale of ["fr", "en"]) {
+    const guides = getEditorialGuides(locale);
+    assert.equal(guides.length, 3);
+    for (const guide of guides) {
+      assert.equal(guide.cardDescription.length >= 80, true);
+      assert.equal(guide.cardDescription.length <= 180, true);
+      assert.equal(guide.cardDescription.endsWith("…"), false);
+    }
+  }
   assert.match(internalLinks, /page\.relatedDescription/);
 });
 
