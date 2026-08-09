@@ -138,34 +138,44 @@ export const SEO_PAGES: SeoPageData[] = [
     },
     faq: [
       {
-        question: "Le client doit-il installer une application ?",
+        question: "Comment le menu digital s'intègre-t-il au service à table ?",
         answer:
-          "Non. Le menu Vistaire s'ouvre dans le navigateur mobile après scan du QR code."
+          "Le client scanne le QR code du restaurant, consulte les catégories et ouvre les fiches plats depuis la table. L'équipe en salle reste disponible pour conseiller et accompagner le choix."
       },
       {
-        question: "Tous les plats doivent-ils avoir une vue 3D ou AR ?",
+        question: "Le client doit-il télécharger une application ?",
         answer:
-          "Non. Vistaire privilégie une 3D/AR sélective pour les plats signatures ou les créations qui gagnent à être explorées en volume."
+          "Non. Le menu Vistaire s'ouvre dans le navigateur mobile après le scan du QR code."
       },
       {
-        question: "Que doit contenir un vrai menu digital pour restaurant ?",
+        question: "Le QR code suffit-il à créer une expérience premium ?",
         answer:
-          "Catégories lisibles, fiches plats avec prix et allergènes, visuels food-first, parcours mobile rapide et contenus immersifs seulement quand ils clarifient le plat."
+          "Non. Le QR code est le point d'accès. L'expérience vient ensuite de la lisibilité mobile, de la hiérarchie de la carte et de la qualité des fiches plats."
       },
       {
-        question: "Le menu digital remplace-t-il le menu papier ?",
+        question: "Comment le restaurant met-il la carte à jour ?",
         answer:
-          "Pas nécessairement. Beaucoup de restaurants gardent un menu imprimé et utilisent le digital comme carte complémentaire à table."
+          "Les outils de gestion Vistaire permettent de modifier les catégories, les plats, les prix, les descriptions et les informations déclarées par le restaurant."
       },
       {
-        question: "Vistaire convient-il aux restaurants haut de gamme ?",
+        question: "Chaque plat peut-il présenter une photo ?",
         answer:
-          "Oui, si l'objectif est une présentation sobre, visuelle et fidèle à la salle, pas une interface utilitaire froide."
+          "Oui. Une fiche plat peut afficher une photo fournie par le restaurant. Les plats sans photo conservent leur nom, leur description, leur prix et leurs autres informations disponibles."
       },
       {
-        question: "Comment le restaurateur met-il à jour la carte ?",
+        question: "Où les allergènes apparaissent-ils ?",
         answer:
-          "Via l'aperçu restaurateur Vistaire : plats, catégories, visuels et contenus compatibles peuvent évoluer sans republier un fichier."
+          "Les allergènes déclarés par le restaurant peuvent apparaître sur la fiche du plat. Pour un besoin alimentaire sensible, le client doit aussi confirmer l'information avec l'équipe en salle."
+      },
+      {
+        question: "Tous les plats ont-ils besoin de 3D ou d'AR ?",
+        answer:
+          "Non. Vistaire réserve l'immersion aux plats signatures ou aux créations pour lesquelles le volume apporte une information utile."
+      },
+      {
+        question: "Le menu reste-t-il utile sans contenu immersif ?",
+        answer:
+          "Oui. La navigation, les catégories et les fiches plats fonctionnent avec les contenus disponibles, indépendamment de la présence d'une vue 3D ou AR."
       }
     ],
     service: {
@@ -489,34 +499,34 @@ export const SEO_PAGES: SeoPageData[] = [
     },
     faq: [
       {
-        question: "Un menu PDF est-il mauvais pour tous les restaurants ?",
+        question: "Quelle différence entre un PDF et un menu digital ?",
         answer:
-          "Non. Il peut convenir à une carte très simple, mais il atteint vite ses limites en lecture mobile premium."
+          "Un PDF est un document à mise en page fixe. Un menu digital organise la carte pour l'écran du téléphone avec des catégories, des fiches plats et une navigation dédiée."
       },
       {
-        question: "Comment commencer sans tout refaire ?",
+        question: "Pourquoi la lecture d'un PDF peut-elle gêner sur mobile ?",
         answer:
-          "Le plus sûr est de partir des plats et informations déjà fiables, puis d'enrichir progressivement les fiches qui comptent le plus."
+          "La page conserve ses dimensions de document. Selon sa mise en page, le client peut devoir zoomer, se déplacer dans la page ou chercher une information dans un texte réduit."
       },
       {
-        question: "Un PDF est-il un menu digital ?",
+        question: "Un QR code transforme-t-il un PDF en menu digital ?",
         answer:
-          "Non. Un PDF reste un fichier statique à zoomer. Un menu digital structure la carte pour le mobile avec fiches et navigation."
+          "Non. Le QR code facilite l'accès au fichier, mais la destination reste un document fixe si le lien ouvre un PDF."
       },
       {
-        question: "Quand le PDF reste-t-il acceptable ?",
+        question: "Que se passe-t-il quand la carte change ?",
         answer:
-          "Pour une carte courte, peu modifiée, sans ambition de mise en scène des plats signatures à table."
+          "Le PDF doit être exporté et remplacé pour intégrer les changements. Une carte Vistaire se modifie depuis les données du menu, sans recréer la mise en page d'un document."
       },
       {
-        question: "Le PDF via QR code pose-t-il le même problème ?",
+        question: "Quand un PDF reste-t-il adapté ?",
         answer:
-          "Oui. Le QR code accélère l'accès, mais si un PDF s'ouvre, le client subit toujours zoom et page fixe."
+          "Il peut rester adapté à une carte courte, stable et conçue avec une mise en page suffisamment lisible sur téléphone."
       },
       {
-        question: "Faut-il abandonner le PDF d'un coup ?",
+        question: "Peut-on faire la transition progressivement ?",
         answer:
-          "Non. Beaucoup de restaurants migrent d'abord leurs plats signatures vers des fiches digitales, puis élargissent progressivement."
+          "Oui. Le restaurant peut commencer avec ses informations fiables et ses plats signatures, puis enrichir progressivement les autres fiches."
       }
     ],
     service: {
@@ -610,34 +620,44 @@ export const SEO_PAGES_EN: SeoPageData[] = [
     },
     faq: [
       {
-        question: "Does the guest have to install an app?",
+        question: "How does a digital menu fit table service?",
+        answer:
+          "The guest scans the restaurant's QR code, browses categories and opens dish pages from the table. The dining-room team remains available to guide the choice."
+      },
+      {
+        question: "Does the guest need to download an app?",
         answer:
           "No. A Vistaire menu opens in the mobile browser after the QR code is scanned."
       },
       {
-        question: "Does every dish need 3D or AR?",
+        question: "Is a QR code enough to create a premium experience?",
         answer:
-          "No. Vistaire favors selective 3D/AR for signature dishes or creations that benefit from being explored in volume."
-      },
-      {
-        question: "What should a real digital restaurant menu include?",
-        answer:
-          "Readable categories, dish pages with prices and allergens, food-first visuals, a fast mobile path and immersive content only when it clarifies the dish."
-      },
-      {
-        question: "Does a digital menu replace printed menus?",
-        answer:
-          "Not necessarily. Many restaurants keep printed menus and use digital as a complementary table menu."
-      },
-      {
-        question: "Is Vistaire suitable for high-end restaurants?",
-        answer:
-          "Yes, when the goal is a calm, visual presentation faithful to the dining room, not a cold utility interface."
+          "No. The QR code is the access point. The experience comes from mobile readability, menu hierarchy and the quality of the dish pages."
       },
       {
         question: "How does the restaurant update the menu?",
         answer:
-          "Through the Vistaire restaurant preview and guided service: dishes, categories, visuals and compatible content can evolve without republishing a PDF."
+          "Vistaire's management tools let the restaurant change categories, dishes, prices, descriptions and information declared by the restaurant."
+      },
+      {
+        question: "Can each dish include a photo?",
+        answer:
+          "Yes. A dish page can display a photo supplied by the restaurant. Dishes without a photo keep their name, description, price and other available information."
+      },
+      {
+        question: "Where does allergen information appear?",
+        answer:
+          "Allergens declared by the restaurant can appear on the dish page. For a sensitive dietary need, the guest should also confirm the information with the dining-room team."
+      },
+      {
+        question: "Does every dish need 3D or AR?",
+        answer:
+          "No. Vistaire keeps immersion selective for signature dishes or creations where volume adds useful information."
+      },
+      {
+        question: "Does the menu remain useful without immersive content?",
+        answer:
+          "Yes. Navigation, categories and dish pages work with the available content, whether or not a 3D or AR view is present."
       }
     ],
     service: {
@@ -964,34 +984,34 @@ export const SEO_PAGES_EN: SeoPageData[] = [
     },
     faq: [
       {
-        question: "Is a PDF menu bad for every restaurant?",
+        question: "What is the difference between a PDF and a digital menu?",
         answer:
-          "No. It can suit a very simple menu, but it quickly reaches its limits in premium mobile reading."
+          "A PDF is a fixed-layout document. A digital menu organizes the menu for a phone screen with categories, dish pages and dedicated navigation."
       },
       {
-        question: "How can we start without rebuilding everything?",
+        question: "Why can a PDF be difficult to read on mobile?",
         answer:
-          "The safest approach is to start from reliable dish information, then progressively enrich the pages that matter most."
+          "The page keeps its document dimensions. Depending on the layout, the guest may need to zoom, move around the page or search through reduced text."
       },
       {
-        question: "Is a PDF a digital menu?",
+        question: "Does a QR code turn a PDF into a digital menu?",
         answer:
-          "No. A PDF remains a static file to zoom. A digital menu structures the menu for mobile with pages and navigation."
+          "No. The QR code makes the file easier to reach, but the destination remains a fixed document when the link opens a PDF."
       },
       {
-        question: "When is a PDF still acceptable?",
+        question: "What happens when the menu changes?",
         answer:
-          "For a short, rarely changed menu without a strong goal to present signature dishes at the table."
+          "The PDF must be exported and replaced to include changes. A Vistaire menu is edited from menu data without recreating a document layout."
       },
       {
-        question: "Does a PDF behind a QR code have the same issue?",
+        question: "When is a PDF still suitable?",
         answer:
-          "Yes. The QR code speeds access, but if a PDF opens, the guest still deals with zoom and a fixed page."
+          "It can remain suitable for a short, stable menu designed with a layout that is readable enough on a phone."
       },
       {
-        question: "Do we have to abandon the PDF at once?",
+        question: "Can the transition happen gradually?",
         answer:
-          "No. Many restaurants first move signature dishes into digital pages, then expand gradually."
+          "Yes. The restaurant can begin with reliable information and signature dishes, then progressively enrich the remaining pages."
       }
     ],
     service: {
