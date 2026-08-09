@@ -271,7 +271,8 @@ export function deriveRunOutputs(flags) {
     run_sauge: full || flags.sauge_renderer === true || flags.pageflip_gestures === true,
     run_admin_qr: full || flags.admin === true || flags.qr === true,
     run_seo: full || flags.seo === true,
-    run_webkit: full || flags.sauge_renderer === true || flags.pageflip_gestures === true
+    run_webkit: full || flags.menu_shared === true || flags.translations === true ||
+      flags.sauge_renderer === true || flags.pageflip_gestures === true
   };
 }
 

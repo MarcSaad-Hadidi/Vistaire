@@ -157,11 +157,11 @@ test("exact run_* policy matrix is stable", () => {
   const cases = [
     ["documentation", ["README.md"], []],
     ["SQL", ["supabase/migrations/20260101_menu.sql"], ["run_static", "run_database"]],
-    ["translation", ["content/translations/en.json"], ["run_static", "run_database", "run_build", "run_menu"]],
+    ["translation", ["content/translations/en.json"], ["run_static", "run_database", "run_build", "run_menu", "run_webkit"]],
     ["QR", ["app/api/owner/qr-codes/route.ts"], ["run_static", "run_database", "run_build", "run_admin_qr"]],
     ["SEO", ["app/seo/page.tsx"], ["run_static", "run_build", "run_seo"]],
     ["landing", ["app/(landing)/page.tsx"], ["run_static", "run_build", "run_core", "run_landing"]],
-    ["menu shared", ["components/menu/MenuCard.tsx"], ["run_static", "run_build", "run_menu"]],
+    ["menu shared", ["components/menu/MenuCard.tsx"], ["run_static", "run_build", "run_menu", "run_webkit"]],
     ["Sauge", ["components/menu/unique/sauge-noire/Renderer.tsx"], [
       "run_static", "run_build", "run_menu", "run_sauge", "run_webkit"
     ]]

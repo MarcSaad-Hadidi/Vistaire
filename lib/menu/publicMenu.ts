@@ -11,7 +11,7 @@ import {
   getCategoryBySlug,
   getRestaurant
 } from "@/lib/demoMenuData";
-import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import {
   buildRelationalSupabasePublicMenu,
@@ -25,6 +25,7 @@ import {
   DEFAULT_PUBLIC_MENU_SETTINGS,
   normalizePublicMenuLocale,
   normalizePublicMenuLocalePreference,
+  publicLocaleToShortLocale,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
@@ -285,6 +286,16 @@ function parseDemoPriceCents(value: unknown): number {
   return 0;
 }
 
+function demoCategoryFields(categorySlug: string, locale: Locale) {
+  const category = getCategoryBySlug(categorySlug, locale);
+  return {
+    categoryId: category?.id,
+    categorySlug: category?.slug ?? categorySlug,
+    categoryDescription: category?.description,
+    category: category?.name ?? (locale === "en" ? "Menu" : "Carte")
+  };
+}
+
 function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
   const restaurant = getRestaurant(locale);
   const dishes = getAllDishes(locale);
@@ -314,9 +325,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       slug: dish.slug || `demo-${index}`,
       name: dish.name,
       description: dish.description ?? "",
-      category:
-        getCategoryBySlug(dish.categorySlug ?? "", locale)?.name ??
-        (locale === "en" ? "Menu" : "Carte"),
+      ...demoCategoryFields(dish.categorySlug ?? "", locale),
       priceLabel: dish.price ? `$${dish.price}` : "",
       priceCents: parseDemoPriceCents(dish.price),
       priceCurrency: "CAD",
@@ -559,8 +568,8 @@ export async function getPublicMenuBySlug(
   dependencies: PublicMenuDependencies = { readRows: readSupabaseRowsByFilters, nodeEnv: process.env.NODE_ENV }
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
-  const resolvedLocale = normalizeLocale(locale);
   const resolvedPublicLocale = normalizePublicMenuLocale(locale);
+  const resolvedLocale = publicLocaleToShortLocale(resolvedPublicLocale);
   if (!slug) return null;
 
   const canUseLocalCache =
@@ -574,6 +583,17 @@ export async function getPublicMenuBySlug(
   }
 
   const readMenu = async (): Promise<PublicMenu | null> => {
+
+    // The dedicated public-menu matrix needs the complete tracked Maison data
+    // even when the shared CI Supabase fixture exposes only its landing card.
+    if (
+      slug === "maison-elyse" &&
+      dependencies.readRows === readSupabaseRowsByFilters &&
+      process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1" &&
+      process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
+    ) {
+      return demoMenu(slug, resolvedLocale);
+    }
 
     const localDemo = () => {
     if (

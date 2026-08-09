@@ -3,10 +3,17 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
-import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
+import type {
+  DishModelViewerCopy,
+  DishModelViewerProps
+} from "@/components/dish/DishModelViewer";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
-import { resolveMaisonElyseCopy } from "@/lib/menu/maisonElyseLocalization";
+import {
+  getMaisonElyseCategoryLabel,
+  getMaisonElyseTextDirection,
+  resolveMaisonElyseCopy
+} from "@/lib/menu/maisonElyseLocalization";
 type Locale = PublicMenuLocale;
 import { AllergenDisclosure } from "./AllergenDisclosure";
 import {
@@ -29,16 +36,30 @@ const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS 
   .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
-const LazyDishModelViewer = dynamic<DishModelViewerProps>(
-  () =>
-    import("@/components/dish/DishModelViewer").then(
-      (mod) => mod.DishModelViewer
-    ),
+const loadDishModelViewer = () =>
+  import("@/components/dish/DishModelViewer").then(
+    (mod) => mod.DishModelViewer
+  );
+
+const LazyDishModelViewerFr = dynamic<DishModelViewerProps>(
+  loadDishModelViewer,
   {
     ssr: false,
     loading: () => (
       <div className={styles.modelLoading} role="status" aria-live="polite">
         Préparation de la vue immersive...
+      </div>
+    )
+  }
+);
+
+const LazyDishModelViewerEn = dynamic<DishModelViewerProps>(
+  loadDishModelViewer,
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.modelLoading} role="status" aria-live="polite">
+        Preparing the immersive view...
       </div>
     )
   }
@@ -59,6 +80,7 @@ const DETAIL_COPY: Record<
   {
     allergens: string;
     ariaDetail: string;
+    badgesAria: string;
     backToMenu: string;
     dishImageAlt: (dishName: string) => string;
     fallbackImage: string;
@@ -84,6 +106,7 @@ const DETAIL_COPY: Record<
   }
 > = {
   fr: {
+    badgesAria: "Badges du plat",
     allergens: "Allergènes",
     ariaDetail: "Détail du plat",
     backToMenu: "Retour à la carte",
@@ -111,6 +134,7 @@ const DETAIL_COPY: Record<
     recommendedBadge: "Recommandé"
   },
   en: {
+    badgesAria: "Dish badges",
     allergens: "Allergens",
     ariaDetail: "Dish details",
     backToMenu: "Back to menu",
@@ -190,23 +214,10 @@ function localeLanguage(locale: string): string {
 
 function categoryLabel(category: string, locale: PublicMenuLocale): string {
   const cleaned = cleanDisplayText(category);
-  const normalized = normalizeText(cleaned);
-
-  if (normalized.includes("signature")) {
-    return localeLanguage(locale) === "en" ? "Signature dishes" : "Plats signatures";
-  }
-  if (normalized.includes("entree") || normalized.includes("starter")) {
-    return localeLanguage(locale) === "en" ? "Starters" : "Entrées";
-  }
-  if (normalized.includes("dessert")) return "Desserts";
-  if (
-    normalized.includes("cocktail") ||
-    normalized.includes("boisson") ||
-    normalized.includes("drink")
-  ) {
-    return "Cocktails";
-  }
-  return cleaned || DETAIL_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"].noCategory;
+  return (
+    getMaisonElyseCategoryLabel(cleaned, locale) ||
+    DETAIL_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"].noCategory
+  );
 }
 
 function hasReal3d(dish: PublicMenuDish): boolean {
@@ -310,7 +321,9 @@ function DetailList({ emptyText, items }: { emptyText: string; items: string[] }
   );
 }
 
-type DetailCopy = (typeof DETAIL_COPY)["fr"];
+type DetailCopy = (typeof DETAIL_COPY)["fr"] & {
+  modelViewer: Required<DishModelViewerCopy>;
+};
 
 function buildDetailCopy(
   locale: PublicMenuLocale,
@@ -350,6 +363,11 @@ function buildDetailCopy(
       neutral.detailHouseNoteLabel,
       fallback.note
     ),
+    modelViewer: {
+      loadingTitle: resolved.modelPreparing,
+      ...resolved.modelViewer,
+      modelAlt: resolved.modelAlt
+    },
     options: resolved.options,
     openAr: sharedOrMaison(resolved.viewAr, neutral.viewAr, fallback.openAr),
     recommendedBadge: resolved.recommendation,
@@ -392,6 +410,10 @@ export function MaisonElyseDishDetail({
     : has3d
       ? copy.show3d
       : copy.openAr;
+  const LazyDishModelViewer =
+    localeLanguage(locale) === "fr"
+      ? LazyDishModelViewerFr
+      : LazyDishModelViewerEn;
 
   useEffect(() => {
     if (displayMode !== "public") return;
@@ -412,6 +434,8 @@ export function MaisonElyseDishDetail({
 
   return (
     <main
+      dir={getMaisonElyseTextDirection(locale)}
+      lang={locale}
       data-public-dish-renderer={
         displayMode === "public" ? "maison-elyse" : undefined
       }
@@ -465,7 +489,7 @@ export function MaisonElyseDishDetail({
           </header>
 
           {badges.length > 0 ? (
-            <div className={styles.badges} aria-label="Badges du plat">
+            <div className={styles.badges} aria-label={copy.badgesAria}>
               {badges.map((badge) => (
                 <span key={badge}>{badge}</span>
               ))}
@@ -504,6 +528,7 @@ export function MaisonElyseDishDetail({
                 {showModelViewer ? (
                   <LazyDishModelViewer
                     analyticsContext={analyticsContext ?? undefined}
+                    copy={copy.modelViewer}
                     dish={modelViewerDishFromPublicDish(dish)}
                     minimalChrome
                     quietChrome

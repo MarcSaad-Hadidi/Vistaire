@@ -2,9 +2,15 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
@@ -13,9 +19,12 @@ import {
   type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
 import {
+  getMaisonElyseCategoryKind,
+  getMaisonElyseCategoryLabel,
   getMaisonElyseLanguageOptions,
   getMaisonElyseTextDirection,
   resolveMaisonElyseCopy,
+  resolveMaisonElyseLocalizedMenu,
   type MaisonElyseLanguageOption
 } from "@/lib/menu/maisonElyseLocalization";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
@@ -38,16 +47,30 @@ import {
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import styles from "./MaisonElyseQrMenu.module.css";
 
-const PhonePreviewDishDetail = dynamic(
-  () =>
-    import("@/components/menu/MaisonElyseDishDetail").then(
-      (mod) => mod.MaisonElyseDishDetail
-    ),
+const loadPhonePreviewDishDetail = () =>
+  import("@/components/menu/MaisonElyseDishDetail").then(
+    (mod) => mod.MaisonElyseDishDetail
+  );
+
+const PhonePreviewDishDetailFr = dynamic(
+  loadPhonePreviewDishDetail,
   {
     ssr: false,
     loading: () => (
       <div className={styles.detailLoading} role="status" aria-live="polite">
         Chargement de la fiche...
+      </div>
+    )
+  }
+);
+
+const PhonePreviewDishDetailEn = dynamic(
+  loadPhonePreviewDishDetail,
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.detailLoading} role="status" aria-live="polite">
+        Loading dish details...
       </div>
     )
   }
@@ -303,43 +326,13 @@ function BackToTopIcon() {
   );
 }
 
-function tokenize(value: string): string[] {
-  return normalizeText(value)
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-}
-
 function displayCategoryLabel(label: string, locale: PublicMenuLocale = "fr-CA"): string {
-  const normalized = normalizeText(label);
-  const language = localeLanguage(locale);
-
-  if (normalized.includes("signature") || normalized.includes("plat")) {
-    return language === "en"
-      ? "Signature dishes"
-      : language === "fr"
-        ? "Plats signatures"
-        : label;
-  }
-  if (normalized.includes("entree") || normalized.includes("starter")) {
-    return language === "en" ? "Starters" : language === "fr" ? "Entrées" : label;
-  }
-  if (normalized.includes("dessert")) return "Desserts";
-  if (normalized.includes("cocktail") || normalized.includes("drink")) {
-    return "Cocktails";
-  }
-  if (normalized.includes("boisson")) {
-    return language === "en" ? "Drinks" : language === "fr" ? "Boissons" : label;
-  }
-
-  return label;
+  return getMaisonElyseCategoryLabel(label, locale);
 }
 
-function categoryAnchorId(label: string, locale: PublicMenuLocale = "fr-CA"): string {
-  return tokenize(displayCategoryLabel(label, locale)).join("-");
-}
-
-function sectionDomId(label: string, locale: PublicMenuLocale = "fr-CA"): string {
-  return `section-${categoryAnchorId(label, locale)}`;
+function sectionDomId(category: Pick<PublicMenuCategory, "id" | "slug">): string {
+  const stableIdentity = category.id.trim() || category.slug?.trim() || "category";
+  return `section-${encodeURIComponent(stableIdentity)}`;
 }
 
 function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
@@ -348,9 +341,9 @@ function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
   description: string;
 } {
   const displayLabel = displayCategoryLabel(label, locale);
-  const normalized = normalizeText(displayLabel);
+  const categoryKind = getMaisonElyseCategoryKind(label);
 
-  if (normalized.includes("entree") || normalized.includes("starter")) {
+  if (categoryKind === "starter") {
     return localeLanguage(locale) === "en"
       ? {
           kicker: "TO START",
@@ -364,7 +357,7 @@ function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
         };
   }
 
-  if (normalized.includes("signature") || normalized.includes("plat")) {
+  if (categoryKind === "signature") {
     return localeLanguage(locale) === "en"
       ? {
           kicker: "SIGNATURE",
@@ -378,7 +371,7 @@ function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
         };
   }
 
-  if (normalized.includes("dessert")) {
+  if (categoryKind === "dessert") {
     return localeLanguage(locale) === "en"
       ? {
           kicker: "SWEET FINISH",
@@ -392,11 +385,7 @@ function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
         };
   }
 
-  if (
-    normalized.includes("cocktail") ||
-    normalized.includes("boisson") ||
-    normalized.includes("drink")
-  ) {
+  if (categoryKind === "cocktail" || categoryKind === "drink") {
     return localeLanguage(locale) === "en"
       ? {
           kicker: "THE BAR",
@@ -413,7 +402,10 @@ function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
   return {
     kicker: "Maison Élyse",
     title: displayLabel,
-    description: locale === "en" ? "The selection of the moment." : "La sélection du moment."
+    description:
+      localeLanguage(locale) === "en"
+        ? "The selection of the moment."
+        : "La sélection du moment."
   };
 }
 
@@ -471,23 +463,11 @@ function getStoredMenuLocale(): PublicMenuLocale | null {
 }
 
 function categoryRank(label: string): number {
-  const normalized = normalizeText(label);
-  if (normalized.includes("entree") || normalized.includes("starter")) return 0;
-  if (
-    normalized.includes("signature") ||
-    normalized.includes("plat") ||
-    normalized.includes("main")
-  ) {
-    return 1;
-  }
-  if (normalized.includes("dessert")) return 2;
-  if (
-    normalized.includes("cocktail") ||
-    normalized.includes("boisson") ||
-    normalized.includes("drink")
-  ) {
-    return 3;
-  }
+  const categoryKind = getMaisonElyseCategoryKind(label);
+  if (categoryKind === "starter") return 0;
+  if (categoryKind === "signature") return 1;
+  if (categoryKind === "dessert") return 2;
+  if (categoryKind === "cocktail" || categoryKind === "drink") return 3;
   return 99;
 }
 
@@ -656,25 +636,29 @@ function DishCard({
 }
 
 function DishSection({
+  category,
   disableNavigation = false,
   dishes,
   locale,
   menu,
   onSelectDish,
-  query,
-  title
+  query
 }: {
+  category: PublicMenuCategory;
   disableNavigation?: boolean;
   dishes: PublicMenuDish[];
   locale: PublicMenuLocale;
   menu: PublicMenu;
   onSelectDish?: (dish: PublicMenuDish) => void;
   query?: PublicMenuContextQuery;
-  title: string;
 }) {
-  const sectionId = sectionDomId(title, locale);
+  const sectionId = sectionDomId(category);
   const headingId = `${sectionId}-heading`;
-  const editorial = personalizeBranding(categoryEditorial(title, locale), menu.name);
+  const editorial = personalizeBranding(
+    categoryEditorial(category.label, locale),
+    menu.name
+  );
+  const description = category.description.trim() || editorial.description;
   const textDirection = getMaisonElyseTextDirection(locale);
 
   return (
@@ -687,7 +671,7 @@ function DishSection({
         <div dir={textDirection}>
           <p className={styles.kicker}>{editorial.kicker}</p>
           <h3 id={headingId}>{editorial.title}</h3>
-          <p>{editorial.description}</p>
+          <p>{description}</p>
         </div>
       </div>
       <ul className={styles.dishList}>
@@ -716,7 +700,6 @@ export function MaisonElyseQrMenu({
   query,
   showGoogleReview = true
 }: MaisonElyseQrMenuProps) {
-  const router = useRouter();
   const propLocale = normalizePublicMenuLocale(locale);
   const queryLocale = query?.lang?.toString().trim()
     ? normalizePublicMenuLocale(query.lang)
@@ -727,22 +710,34 @@ export function MaisonElyseQrMenu({
   const [shouldPersistLocaleInLinks, setShouldPersistLocaleInLinks] = useState(
     () => Boolean(queryLocale)
   );
-  const activeMenu =
-    (localizedMenus as Partial<Record<string, PublicMenu>> | undefined)?.[
-      selectedLocale
-    ] ?? menu;
+  const localeResolution = useMemo(
+    () =>
+      resolveMaisonElyseLocalizedMenu({
+        fallbackLocale: propLocale,
+        fallbackMenu: menu,
+        localizedMenus: localizedMenus as
+          | Partial<Record<PublicMenuLocale, PublicMenu>>
+          | undefined,
+        requestedLocale: selectedLocale
+      }),
+    [localizedMenus, menu, propLocale, selectedLocale]
+  );
+  const activeLocale = localeResolution.locale;
+  const activeMenu = localeResolution.menu;
   const restaurantDisplayName = activeMenu.name.trim() || "Restaurant";
+  const menuOpenedTrackedRef = useRef(false);
   useEffect(() => {
-    if (displayMode !== "public") return;
+    if (displayMode !== "public" || menuOpenedTrackedRef.current) return;
+    menuOpenedTrackedRef.current = true;
     trackPublicMenuEvent(activeMenu, { eventName: "menu_opened" });
   }, [activeMenu, displayMode]);
   const copy = useMemo(
     () =>
       personalizeBranding(
-        buildMaisonMenuCopy(selectedLocale, activeMenu.localizedUiCopy),
+        buildMaisonMenuCopy(activeLocale, activeMenu.localizedUiCopy),
         restaurantDisplayName
       ),
-    [activeMenu.localizedUiCopy, restaurantDisplayName, selectedLocale]
+    [activeLocale, activeMenu.localizedUiCopy, restaurantDisplayName]
   );
   const languageOptions = useMemo<MaisonElyseLanguageOption[]>(
     () =>
@@ -757,10 +752,10 @@ export function MaisonElyseQrMenu({
       shouldPersistLocaleInLinks
         ? {
             ...(query ?? {}),
-            lang: selectedLocale
+            lang: activeLocale
           }
         : query,
-    [query, selectedLocale, shouldPersistLocaleInLinks]
+    [activeLocale, query, shouldPersistLocaleInLinks]
   );
   const filterOptions = useMemo(
     () =>
@@ -775,28 +770,33 @@ export function MaisonElyseQrMenu({
                 ? copy.immersiveFilterLabel
                 : option.id === "available"
                   ? copy.available
-                  : option.labels[localeLanguage(selectedLocale)] ??
+                  : option.labels[localeLanguage(activeLocale)] ??
                     option.labels.fr ??
                     option.labels.en ??
                     ""
       })),
-    [copy, selectedLocale]
+    [activeLocale, copy]
   );
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_ID);
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [activeSheet, setActiveSheet] = useState<SheetId>(null);
   const [activeDish, setActiveDish] = useState<PublicMenuDish | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [pendingSectionLabel, setPendingSectionLabel] = useState<string | null>(null);
+  const [pendingSectionId, setPendingSectionId] = useState<string | null>(null);
   const isEmbeddedPreview = displayMode !== "public";
   const isComparisonPreview = displayMode === "comparison-preview";
   const menuRef = useRef<HTMLElement | null>(null);
   const menuScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const sheetDialogRef = useRef<HTMLElement | null>(null);
+  const sheetTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const previousActiveSheetRef = useRef<SheetId>(null);
   const phonePreviewScrollParentRef = useRef<HTMLElement | null>(null);
   const phonePreviewAutoScrollCompleteRef = useRef(false);
   const skipNextPhonePreviewAutoScrollRef = useRef(false);
   const manualLocaleRef = useRef<PublicMenuLocale | null>(null);
   const lastSeenQueryLocaleRef = useRef<PublicMenuLocale | null>(queryLocale);
+  const sheetDialogId = useId();
+  const sheetHeadingId = `${sheetDialogId}-heading`;
   const getPhonePreviewScrollParent = useCallback(() => {
     const currentScrollParent = phonePreviewScrollParentRef.current;
     if (
@@ -884,8 +884,7 @@ export function MaisonElyseQrMenu({
         );
 
         return {
-          id: category.id,
-          label: category.label,
+          category,
           dishes
         };
       })
@@ -894,16 +893,12 @@ export function MaisonElyseQrMenu({
   const selectedCategory = categories.find(
     (category) => category.id === activeCategory
   );
-  const activeCategoryLabel =
-    activeCategory === ALL_CATEGORY_ID
-      ? copy.allMenu
-      : displayCategoryLabel(selectedCategory?.label ?? activeCategory, selectedLocale);
   const hasActiveFilter = activeFilter !== "all";
 
   const resetLocaleDependentUi = useCallback(() => {
     setActiveSheet(null);
     setActiveFilter("all");
-    setPendingSectionLabel(null);
+    setPendingSectionId(null);
     setActiveDish(null);
     setActiveCategory((currentCategory) =>
       currentCategory && currentCategory !== ALL_CATEGORY_ID
@@ -912,64 +907,150 @@ export function MaisonElyseQrMenu({
     );
   }, []);
 
+  const applyExplicitLocale = useCallback(
+    (nextLocale: PublicMenuLocale) => {
+      const resolved = resolveMaisonElyseLocalizedMenu({
+        fallbackLocale: propLocale,
+        fallbackMenu: menu,
+        localizedMenus: localizedMenus as
+          | Partial<Record<PublicMenuLocale, PublicMenu>>
+          | undefined,
+        requestedLocale: nextLocale
+      });
+      manualLocaleRef.current = null;
+      lastSeenQueryLocaleRef.current = nextLocale;
+      try {
+        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, resolved.locale);
+      } catch {
+        // The explicit URL remains authoritative when storage is unavailable.
+      }
+      setShouldPersistLocaleInLinks(true);
+      setSelectedLocale(resolved.locale);
+      resetLocaleDependentUi();
+    },
+    [localizedMenus, menu, propLocale, resetLocaleDependentUi]
+  );
+
   useEffect(() => {
     if (displayMode !== "public") return;
     const frameId = window.requestAnimationFrame(() => {
       const manualLocale = manualLocaleRef.current;
-      if (manualLocale && queryLocale !== manualLocale) return;
-      if (manualLocale && queryLocale === manualLocale) {
-        manualLocaleRef.current = null;
+      if (
+        queryLocale &&
+        lastSeenQueryLocaleRef.current !== queryLocale
+      ) {
+        applyExplicitLocale(queryLocale);
+        return;
       }
 
+      // React can briefly retain the previous query prop after the native
+      // history update. Only a newly observed explicit locale may override the choice.
+      if (manualLocale) return;
       if (queryLocale) {
         try {
-          window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, queryLocale);
+          window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, activeLocale);
         } catch {
-          // Storage can be unavailable in private browsing; the URL still carries the choice.
-        }
-
-        setShouldPersistLocaleInLinks(true);
-
-        if (lastSeenQueryLocaleRef.current !== queryLocale) {
-          lastSeenQueryLocaleRef.current = queryLocale;
-          setSelectedLocale(queryLocale);
-          resetLocaleDependentUi();
+          // The explicit URL remains authoritative when storage is unavailable.
         }
         return;
       }
 
       lastSeenQueryLocaleRef.current = null;
       const storedLocale = getStoredMenuLocale();
-      if (!storedLocale || storedLocale === propLocale) return;
-      setSelectedLocale(storedLocale);
+      if (!storedLocale) return;
+      const resolvedStored = resolveMaisonElyseLocalizedMenu({
+        fallbackLocale: propLocale,
+        fallbackMenu: menu,
+        localizedMenus: localizedMenus as
+          | Partial<Record<PublicMenuLocale, PublicMenu>>
+          | undefined,
+        requestedLocale: storedLocale
+      });
+      if (resolvedStored.locale === propLocale) return;
+      setSelectedLocale(resolvedStored.locale);
       setShouldPersistLocaleInLinks(true);
       resetLocaleDependentUi();
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [displayMode, propLocale, queryLocale, resetLocaleDependentUi]);
+  }, [
+    applyExplicitLocale,
+    activeLocale,
+    displayMode,
+    localizedMenus,
+    menu,
+    propLocale,
+    queryLocale,
+    resetLocaleDependentUi
+  ]);
+
+  useEffect(() => {
+    if (displayMode !== "public") return;
+
+    const handleHistoryNavigation = () => {
+      const rawLocale = new URL(window.location.href).searchParams.get("lang");
+      if (!rawLocale?.trim()) {
+        manualLocaleRef.current = null;
+        lastSeenQueryLocaleRef.current = null;
+        return;
+      }
+      applyExplicitLocale(normalizePublicMenuLocale(rawLocale));
+    };
+
+    window.addEventListener("popstate", handleHistoryNavigation);
+    return () => window.removeEventListener("popstate", handleHistoryNavigation);
+  }, [applyExplicitLocale, displayMode]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
     if (queryLocale) return;
-    if (selectedLocale === propLocale) return;
+    if (activeLocale === propLocale) return;
 
     const frameId = window.requestAnimationFrame(() => {
       try {
-        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, selectedLocale);
+        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, activeLocale);
       } catch {
         // The in-memory selection is enough for this session.
       }
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [displayMode, propLocale, queryLocale, selectedLocale]);
+  }, [activeLocale, displayMode, propLocale, queryLocale]);
 
   useEffect(() => {
-    if (activeCategory !== ALL_CATEGORY_ID || !pendingSectionLabel) return;
+    const previousSheet = previousActiveSheetRef.current;
+    previousActiveSheetRef.current = activeSheet;
+
+    if (activeSheet) {
+      const frameId = window.requestAnimationFrame(() => {
+        const focusable = sheetDialogRef.current?.querySelector<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        focusable?.focus();
+      });
+      return () => window.cancelAnimationFrame(frameId);
+    }
+
+    if (previousSheet) {
+      const frameId = window.requestAnimationFrame(() => {
+        sheetTriggerRef.current?.focus();
+      });
+      return () => window.cancelAnimationFrame(frameId);
+    }
+  }, [activeSheet]);
+
+  useEffect(() => {
+    if (activeCategory !== ALL_CATEGORY_ID || !pendingSectionId) return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const sectionId = sectionDomId(pendingSectionLabel, selectedLocale);
+      const pendingCategory = categories.find(
+        (category) => category.id === pendingSectionId
+      );
+      if (!pendingCategory) {
+        setPendingSectionId(null);
+        return;
+      }
+      const sectionId = sectionDomId(pendingCategory);
       const section = document.getElementById(sectionId);
       const scrollTarget = getPhonePreviewScrollTarget();
 
@@ -989,14 +1070,20 @@ export function MaisonElyseQrMenu({
           block: "start"
         });
       }
-      setPendingSectionLabel(null);
+      setPendingSectionId(null);
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCategory, getPhonePreviewScrollTarget, isEmbeddedPreview, pendingSectionLabel, selectedLocale]);
+  }, [
+    activeCategory,
+    categories,
+    getPhonePreviewScrollTarget,
+    isEmbeddedPreview,
+    pendingSectionId
+  ]);
 
   useEffect(() => {
-    if (displayMode !== "phone-preview" || pendingSectionLabel) {
+    if (displayMode !== "phone-preview" || pendingSectionId) {
       return;
     }
 
@@ -1052,7 +1139,7 @@ export function MaisonElyseQrMenu({
     copy.collectionKicker,
     displayMode,
     getPhonePreviewScrollTarget,
-    pendingSectionLabel,
+    pendingSectionId,
     visibleDishes.length
   ]);
 
@@ -1134,15 +1221,13 @@ export function MaisonElyseQrMenu({
     setActiveCategory(categoryId);
     setActiveFilter("all");
     setActiveSheet(null);
-    setPendingSectionLabel(null);
+    setPendingSectionId(null);
     scrollToMenu();
   }
 
   function openCategoryInFullMenu(categoryId: string) {
-    const categoryLabel =
-      categories.find((category) => category.id === categoryId)?.label ?? categoryId;
     skipNextPhonePreviewAutoScrollRef.current = isEmbeddedPreview;
-    setPendingSectionLabel(categoryLabel);
+    setPendingSectionId(categoryId);
     setActiveCategory(ALL_CATEGORY_ID);
     setActiveFilter("all");
     setActiveSheet(null);
@@ -1166,15 +1251,24 @@ export function MaisonElyseQrMenu({
     if (displayMode !== "public") return;
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set("lang", nextLocale);
-    router.replace(
-      `${currentUrl.pathname}?${currentUrl.searchParams.toString()}${currentUrl.hash}`,
-      { scroll: false }
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${currentUrl.pathname}?${currentUrl.searchParams.toString()}${currentUrl.hash}`
     );
   }
 
   function selectLanguage(nextLocale: PublicMenuLocale) {
-    manualLocaleRef.current = nextLocale;
-    setSelectedLocale(nextLocale);
+    const resolved = resolveMaisonElyseLocalizedMenu({
+      fallbackLocale: propLocale,
+      fallbackMenu: menu,
+      localizedMenus: localizedMenus as
+        | Partial<Record<PublicMenuLocale, PublicMenu>>
+        | undefined,
+      requestedLocale: nextLocale
+    });
+    manualLocaleRef.current = resolved.locale;
+    setSelectedLocale(resolved.locale);
     setShouldPersistLocaleInLinks(true);
     resetLocaleDependentUi();
     if (displayMode === "phone-preview") {
@@ -1183,20 +1277,57 @@ export function MaisonElyseQrMenu({
 
     if (displayMode === "public") {
       try {
-        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, nextLocale);
+        window.localStorage.setItem(MENU_LOCALE_STORAGE_KEY, resolved.locale);
       } catch {
         // The in-memory selection is enough for this session.
       }
     }
 
-    writeLocaleToUrl(nextLocale);
+    writeLocaleToUrl(resolved.locale);
   }
 
-  function toggleLanguageSheet() {
+  function toggleSheet(sheet: Exclude<SheetId, null>, trigger: HTMLButtonElement) {
     if (isComparisonPreview) return;
-    setActiveSheet((currentSheet) =>
-      currentSheet === "language" ? null : "language"
+    setActiveSheet((currentSheet) => {
+      if (currentSheet === sheet) return null;
+      sheetTriggerRef.current = trigger;
+      return sheet;
+    });
+  }
+
+  function handleSheetKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setActiveSheet(null);
+      return;
+    }
+    if (event.key !== "Tab") return;
+
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
     );
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function toggleLanguageSheet(trigger: HTMLButtonElement) {
+    if (isComparisonPreview) return;
+    toggleSheet("language", trigger);
   }
 
   function scrollPhonePreviewToTop() {
@@ -1229,15 +1360,19 @@ export function MaisonElyseQrMenu({
 
   const phonePreviewDishSelect =
     displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
+  const PhonePreviewDishDetail =
+    localeLanguage(activeLocale) === "fr"
+      ? PhonePreviewDishDetailFr
+      : PhonePreviewDishDetailEn;
   const currentLanguage =
-    languageOptions.find((option) => option.id === selectedLocale) ??
+    languageOptions.find((option) => option.id === activeLocale) ??
     languageOptions[0] ?? {
-      id: selectedLocale,
-      label: selectedLocale,
-      shortLabel: selectedLocale
+      id: activeLocale,
+      label: activeLocale,
+      shortLabel: activeLocale
     };
   const prefersReducedMotion = usePrefersReducedMotion();
-  const textDirection = getMaisonElyseTextDirection(selectedLocale);
+  const textDirection = getMaisonElyseTextDirection(activeLocale);
   const sheetPresence = useTransitionPresence(activeSheet, {
     durationMs: SHEET_MOTION_MS,
     disabled: prefersReducedMotion
@@ -1256,11 +1391,12 @@ export function MaisonElyseQrMenu({
   function renderLanguageToggle(className = "") {
     return (
       <button
+        aria-controls={sheetDialogId}
         aria-expanded={activeSheet === "language"}
         aria-label={`${copy.languageToggleAria} (${currentLanguage.label})`}
         className={`${styles.languageToggle} ${className}`}
         disabled={isComparisonPreview}
-        onClick={toggleLanguageSheet}
+        onClick={(event) => toggleLanguageSheet(event.currentTarget)}
         type="button"
       >
         {currentLanguage.shortLabel}
@@ -1274,7 +1410,7 @@ export function MaisonElyseQrMenu({
     return (
       <GoogleReviewCard
         googleReview={activeMenu.googleReview}
-        locale={selectedLocale}
+        locale={activeLocale}
         localizedUiCopy={activeMenu.localizedUiCopy}
         menuId={activeMenu.menuId}
         restaurantId={activeMenu.restaurantId}
@@ -1294,17 +1430,20 @@ export function MaisonElyseQrMenu({
         onClick={() => setActiveSheet(null)}
       >
         <section
-          aria-label={activeSheetLabel}
+          aria-labelledby={sheetHeadingId}
           aria-modal="true"
           className={styles.bottomSheet}
+          id={sheetDialogId}
           onClick={(event) => event.stopPropagation()}
+          onKeyDown={handleSheetKeyDown}
+          ref={sheetDialogRef}
           role="dialog"
         >
           <div className={styles.sheetHandle} aria-hidden="true" />
           <div className={styles.sheetHeader}>
             <div>
               <p className={styles.kicker}>{activeSheetKicker}</p>
-              <h3>{activeSheetLabel}</h3>
+              <h3 id={sheetHeadingId}>{activeSheetLabel}</h3>
             </div>
             <button type="button" onClick={() => setActiveSheet(null)}>
               {copy.close}
@@ -1336,7 +1475,7 @@ export function MaisonElyseQrMenu({
                     type="button"
                     onClick={() => openCategoryInFullMenu(category.id)}
                   >
-                    <span>{displayCategoryLabel(category.label, selectedLocale)}</span>
+                    <span>{displayCategoryLabel(category.label, activeLocale)}</span>
                   </button>
                 );
               })}
@@ -1345,9 +1484,9 @@ export function MaisonElyseQrMenu({
             <div className={styles.sheetList}>
               {languageOptions.map((option) => (
                 <button
-                  aria-pressed={selectedLocale === option.id}
+                  aria-pressed={activeLocale === option.id}
                   className={
-                    selectedLocale === option.id ? styles.isActive : undefined
+                    activeLocale === option.id ? styles.isActive : undefined
                   }
                   key={option.id}
                   onClick={() => selectLanguage(option.id)}
@@ -1409,7 +1548,7 @@ export function MaisonElyseQrMenu({
       <PhonePreviewDishDetail
         dish={activeDish}
         displayMode="phone-preview"
-        locale={selectedLocale}
+        locale={activeLocale}
         menu={activeMenu}
         config={config}
         onBackToMenu={closeDishInPhonePreview}
@@ -1426,8 +1565,8 @@ export function MaisonElyseQrMenu({
       data-display-mode={displayMode}
       data-menu-ui="maison-elyse"
       data-public-menu-renderer="maison-elyse"
-      lang={selectedLocale}
-      dir="ltr"
+      lang={activeLocale}
+      dir={textDirection}
       data-text-direction={textDirection}
       style={maisonElyseThemeStyle(config)}
     >
@@ -1451,13 +1590,13 @@ export function MaisonElyseQrMenu({
                   <div className={styles.menuTopbarActions}>
                     {renderLanguageToggle()}
                     <button
+                      aria-controls={sheetDialogId}
+                      aria-expanded={activeSheet === "menu"}
                       aria-label={copy.menuToggleAria}
                       className={styles.menuButton}
                       type="button"
                       disabled={isComparisonPreview}
-                      onClick={() => {
-                        if (!isComparisonPreview) setActiveSheet("menu");
-                      }}
+                      onClick={(event) => toggleSheet("menu", event.currentTarget)}
                     >
                       <span aria-hidden="true" />
                       <span aria-hidden="true" />
@@ -1475,7 +1614,7 @@ export function MaisonElyseQrMenu({
               {hasActiveFilter ? (
                 <div className={styles.activeFilterNotice} role="status">
                   <span dir={textDirection}>
-                    {copy.activeFilterPrefix} : {getFilterLabel(activeFilter, selectedLocale)}
+                    {copy.activeFilterPrefix} : {getFilterLabel(activeFilter, activeLocale)}
                   </span>
                   <button type="button" onClick={resetFilters}>
                     {copy.reset}
@@ -1488,27 +1627,29 @@ export function MaisonElyseQrMenu({
                   <div className={styles.sectionedDishList}>
                     {visibleDishSections.map((section) => (
                       <DishSection
+                        category={section.category}
                         disableNavigation={isComparisonPreview}
                         dishes={section.dishes}
-                        key={section.id}
-                        locale={selectedLocale}
+                        key={section.category.id}
+                        locale={activeLocale}
                         menu={activeMenu}
                         onSelectDish={phonePreviewDishSelect}
                         query={activeQuery}
-                        title={section.label}
                       />
                     ))}
                   </div>
                 ) : (
-                  <DishSection
-                    disableNavigation={isComparisonPreview}
-                    dishes={visibleDishes}
-                    locale={selectedLocale}
-                    menu={activeMenu}
-                    onSelectDish={phonePreviewDishSelect}
-                    query={activeQuery}
-                    title={activeCategoryLabel}
-                  />
+                  selectedCategory ? (
+                    <DishSection
+                      category={selectedCategory}
+                      disableNavigation={isComparisonPreview}
+                      dishes={visibleDishes}
+                      locale={activeLocale}
+                      menu={activeMenu}
+                      onSelectDish={phonePreviewDishSelect}
+                      query={activeQuery}
+                    />
+                  ) : null
                 )
               ) : (
                 <div className={styles.empty} role="status" dir={textDirection}>
@@ -1523,28 +1664,20 @@ export function MaisonElyseQrMenu({
 
             <nav className={styles.bottomBar} aria-label={copy.navAria}>
               <button
+                aria-controls={sheetDialogId}
                 aria-expanded={activeSheet === "menu"}
                 disabled={isComparisonPreview}
                 type="button"
-                onClick={() => {
-                  if (isComparisonPreview) return;
-                  setActiveSheet((currentSheet) =>
-                    currentSheet === "menu" ? null : "menu"
-                  );
-                }}
+                onClick={(event) => toggleSheet("menu", event.currentTarget)}
               >
                 {copy.bottomMenu}
               </button>
               <button
+                aria-controls={sheetDialogId}
                 aria-expanded={activeSheet === "filter"}
                 disabled={isComparisonPreview}
                 type="button"
-                onClick={() => {
-                  if (isComparisonPreview) return;
-                  setActiveSheet((currentSheet) =>
-                    currentSheet === "filter" ? null : "filter"
-                  );
-                }}
+                onClick={(event) => toggleSheet("filter", event.currentTarget)}
               >
                 {copy.bottomFilter}
               </button>

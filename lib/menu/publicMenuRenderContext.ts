@@ -14,6 +14,7 @@ import {
   type ResolvedPublicMenuExperience
 } from "@/lib/menu/publicMenuExperienceRoute";
 import {
+  normalizePublicMenuLocale,
   normalizePublicMenuLocalePreference,
   publicLocaleToShortLocale
 } from "@/lib/menu/publicMenuSettings";
@@ -153,7 +154,16 @@ async function resolveLocalizedMenus(
         candidate === renderContext.publicLocale
           ? renderContext.menu
           : await getPublicMenuBySlug(slug, candidate);
-      return resolved ? ([candidate, resolved] as const) : null;
+      if (!resolved?.activeLocale) return null;
+
+      const candidateLocale = normalizePublicMenuLocale(candidate);
+      const resolvedLocale = normalizePublicMenuLocale(
+        resolved.activeLocale,
+        resolved.settings.defaultLocale
+      );
+      return resolvedLocale === candidateLocale
+        ? ([candidateLocale, resolved] as const)
+        : null;
     })
   );
 

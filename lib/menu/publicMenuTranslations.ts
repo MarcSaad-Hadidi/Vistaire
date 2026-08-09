@@ -12,6 +12,7 @@ import {
 } from "@/lib/translation/menuTranslationModel";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import type { PublicMenu, PublicMenuTranslationStatus } from "./publicMenuCore";
+import { applyMaisonEnglishDishNames } from "./publicMenuEnglishFallback";
 import { normalizePublicMenuLocalePreference } from "./publicMenuSettings";
 import {
   filterPublicMenuSettingsForReadyTranslations,
@@ -381,5 +382,5 @@ export async function applyStoredPublicMenuTranslations(
     translationLocales,
     translationStatus: statusForLocale(translationLocales, activeLocale)
   };
-  return result;
+  return applyMaisonEnglishDishNames(result);
 }

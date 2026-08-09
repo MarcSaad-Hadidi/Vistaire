@@ -437,7 +437,15 @@ test("Sauge browser fixture resolves complete stored English menus for all landi
       );
       assert.notEqual(english.menuName, french.menuName);
       assert.notEqual(english.dishes[0].category, french.dishes[0].category);
-      assert.equal(english.dishes[0].name, french.dishes[0].name);
+      if (slug === "maison-elyse") {
+        assert.equal(
+          english.dishes[0].name,
+          "Fresh goat cheese ravioli & Monteregie honey"
+        );
+        assert.notEqual(english.dishes[0].name, french.dishes[0].name);
+      } else {
+        assert.equal(english.dishes[0].name, french.dishes[0].name);
+      }
       assert.notEqual(
         english.dishes[0].description,
         french.dishes[0].description
@@ -452,7 +460,10 @@ test("Sauge browser fixture resolves complete stored English menus for all landi
     const maison = menuPairs.find(({ slug }) => slug === "maison-elyse").english;
     assert.equal(maison.menuName, "The Menu");
     assert.equal(maison.dishes[0].category, "Starters");
-    assert.equal(maison.dishes[0].name, menuPairs.find(({ slug }) => slug === "maison-elyse").french.dishes[0].name);
+    assert.equal(
+      maison.dishes[0].name,
+      "Fresh goat cheese ravioli & Monteregie honey"
+    );
     assert.match(maison.dishes[0].description, /Brown butter/);
 
     const trouvable = menuPairs.find(({ slug }) => slug === "trouvable").english;
@@ -499,11 +510,19 @@ test("concurrent French and English landing resolution stays isolated per restau
       (candidate) => candidate.id === englishExperience.id
     );
     assert.ok(frenchExperience, `missing French ${englishExperience.id}`);
-    assert.equal(
-      englishExperience.featuredDish.name,
-      frenchExperience.featuredDish.name,
-      `${englishExperience.id} dish name must stay in the source language`
-    );
+    if (englishExperience.id === "maison-elyse") {
+      assert.notEqual(
+        englishExperience.featuredDish.name,
+        frenchExperience.featuredDish.name,
+        "Maison Elyse dish names must follow the selected menu locale"
+      );
+    } else {
+      assert.equal(
+        englishExperience.featuredDish.name,
+        frenchExperience.featuredDish.name,
+        `${englishExperience.id} dish name must stay in the source language`
+      );
+    }
     assert.notEqual(
       englishExperience.featuredDish.description,
       frenchExperience.featuredDish.description,
