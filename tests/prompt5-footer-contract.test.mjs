@@ -8,19 +8,6 @@ async function source(path) {
   return readFile(new URL(path, root), "utf8");
 }
 
-const guidePaths = {
-  fr: [
-    "/guides/anatomie-menu-digital-premium",
-    "/guides/menu-qr-mobile-sans-application",
-    "/guides/3d-restaurant-utile-vs-gadget"
-  ],
-  en: [
-    "/en/guides/premium-digital-menu-anatomy",
-    "/en/guides/mobile-qr-menu-without-app",
-    "/en/guides/restaurant-3d-useful-vs-gimmick"
-  ]
-};
-
 test("shared footer exposes the five bilingual navigation groups with real guide and local destinations", async () => {
   const chrome = await source(
     "components/vistaire-preview/VistairePreviewChrome.tsx"
@@ -38,9 +25,21 @@ test("shared footer exposes the five bilingual navigation groups with real guide
     assert.ok(chrome.includes(heading), `missing footer heading ${heading}`);
   }
 
-  for (const path of [...guidePaths.fr, ...guidePaths.en]) {
-    assert.ok(chrome.includes(`"${path}"`), `missing published guide ${path}`);
-  }
+  assert.match(
+    chrome,
+    /import\s+\{\s*getEditorialGuides\s*\}\s+from\s+["']@\/lib\/editorialGuides["']/,
+    "footer guide destinations must come from the typed editorial registry"
+  );
+  assert.match(
+    chrome,
+    /getEditorialGuides\(locale\)\.map/,
+    "footer must derive the localized guide links instead of copying slugs"
+  );
+  assert.doesNotMatch(
+    chrome,
+    /href:\s*["']\/(?:en\/)?guides\//,
+    "footer must not duplicate guide paths locally"
+  );
 
   const localSlugs = chrome.match(
     /const localGeoSlugs(?:En)? = \[([\s\S]*?)\] as const;/g

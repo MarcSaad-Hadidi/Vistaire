@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getEditorialGuides } from "@/lib/editorialGuides";
 import { getLocalizedPath, normalizePathname, type Locale } from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
 import {
@@ -328,36 +329,10 @@ export function PreviewFooter({
           { label: "Aperçu restaurateur", href: routes.restaurateurDashboard },
           { label: "À propos", href: routes.about }
         ];
-  const guideLinks =
-    locale === "en"
-      ? [
-          {
-            label: "Anatomy of a premium digital menu",
-            href: "/en/guides/premium-digital-menu-anatomy"
-          },
-          {
-            label: "Mobile QR menu without an app",
-            href: "/en/guides/mobile-qr-menu-without-app"
-          },
-          {
-            label: "Restaurant 3D: useful or gimmick?",
-            href: "/en/guides/restaurant-3d-useful-vs-gimmick"
-          }
-        ]
-      : [
-          {
-            label: "Anatomie d'un menu digital premium",
-            href: "/guides/anatomie-menu-digital-premium"
-          },
-          {
-            label: "Menu QR mobile sans application",
-            href: "/guides/menu-qr-mobile-sans-application"
-          },
-          {
-            label: "3D au restaurant : utile ou gadget ?",
-            href: "/guides/3d-restaurant-utile-vs-gadget"
-          }
-        ];
+  const guideLinks = getEditorialGuides(locale).map((guide) => ({
+    label: guide.cardTitle,
+    href: guide.path
+  }));
   const solutionLinks = [
     {
       label: locale === "en" ? "PDF vs digital menu" : "PDF vs menu digital",
