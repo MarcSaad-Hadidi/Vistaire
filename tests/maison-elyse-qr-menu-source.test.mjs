@@ -210,6 +210,18 @@ test("Maison Elyse QR menu starts directly with the complete menu", async () => 
   assert.match(css, /@media \(max-width: 390px\)/);
 });
 
+test("Maison category editorial stays independent from active dish filters", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /descriptionDishes: PublicMenuDish\[\]/);
+  assert.match(
+    component,
+    /resolveMaisonElyseCategoryDescription\(\s*descriptionDishes,\s*editorial\.description\s*\)/
+  );
+  assert.match(component, /descriptionDishes=\{section\.descriptionDishes\}/);
+  assert.match(component, /descriptionDishes=\{baseDishes\}/);
+});
+
 test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D autoload", async () => {
   const component = await readFile(componentPath, "utf8");
 

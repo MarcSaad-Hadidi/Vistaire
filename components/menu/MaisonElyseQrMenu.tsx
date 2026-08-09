@@ -23,6 +23,7 @@ import {
   getMaisonElyseCategoryLabel,
   getMaisonElyseLanguageOptions,
   getMaisonElyseTextDirection,
+  resolveMaisonElyseCategoryDescription,
   resolveMaisonElyseCopy,
   resolveMaisonElyseLocalizedMenu,
   type MaisonElyseLanguageOption
@@ -637,6 +638,7 @@ function DishCard({
 
 function DishSection({
   category,
+  descriptionDishes,
   disableNavigation = false,
   dishes,
   locale,
@@ -645,6 +647,7 @@ function DishSection({
   query
 }: {
   category: PublicMenuCategory;
+  descriptionDishes: PublicMenuDish[];
   disableNavigation?: boolean;
   dishes: PublicMenuDish[];
   locale: PublicMenuLocale;
@@ -658,7 +661,10 @@ function DishSection({
     categoryEditorial(category.label, locale),
     menu.name
   );
-  const description = category.description.trim() || editorial.description;
+  const description = resolveMaisonElyseCategoryDescription(
+    descriptionDishes,
+    editorial.description
+  );
   const textDirection = getMaisonElyseTextDirection(locale);
 
   return (
@@ -879,12 +885,14 @@ export function MaisonElyseQrMenu({
 
     return categories
       .map((category) => {
-        const dishes = (groups.get(category.id) ?? []).filter((dish) =>
+        const descriptionDishes = groups.get(category.id) ?? [];
+        const dishes = descriptionDishes.filter((dish) =>
           dishMatchesFilter(dish, activeFilter)
         );
 
         return {
           category,
+          descriptionDishes,
           dishes
         };
       })
@@ -1628,6 +1636,7 @@ export function MaisonElyseQrMenu({
                     {visibleDishSections.map((section) => (
                       <DishSection
                         category={section.category}
+                        descriptionDishes={section.descriptionDishes}
                         disableNavigation={isComparisonPreview}
                         dishes={section.dishes}
                         key={section.category.id}
@@ -1642,6 +1651,7 @@ export function MaisonElyseQrMenu({
                   selectedCategory ? (
                     <DishSection
                       category={selectedCategory}
+                      descriptionDishes={baseDishes}
                       disableNavigation={isComparisonPreview}
                       dishes={visibleDishes}
                       locale={activeLocale}

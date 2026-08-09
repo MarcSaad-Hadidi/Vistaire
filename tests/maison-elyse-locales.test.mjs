@@ -86,6 +86,12 @@ test("Maison category labels use exact shared aliases in menu and dish detail", 
     getMaisonElyseCategoryLabel("Plats signatures", "en-CA"),
     "Signature dishes"
   );
+  assert.equal(getMaisonElyseCategoryKind("Signatures"), "signature");
+  assert.equal(
+    getMaisonElyseCategoryLabel("Signatures", "en-CA"),
+    "Signature dishes"
+  );
+  assert.equal(getMaisonElyseCategoryKind("Signatures du chef"), null);
   assert.equal(getMaisonElyseCategoryLabel("Cocktails", "en-CA"), "Cocktails");
   assert.equal(getMaisonElyseCategoryLabel("Boissons", "en-CA"), "Drinks");
   assert.equal(getMaisonElyseCategoryLabel("Drinks", "fr-CA"), "Boissons");
@@ -108,6 +114,31 @@ test("Maison normalizes the persisted English starter mistranslation exactly", a
   assert.equal(getMaisonElyseCategoryKind("Inputs"), "starter");
   assert.equal(getMaisonElyseCategoryLabel("Inputs", "en-CA"), "Starters");
   assert.equal(getMaisonElyseCategoryKind("Inputs du chef"), null);
+});
+
+test("Maison category descriptions fall back to the active locale without explicit content", async () => {
+  const localization = await import("../lib/menu/maisonElyseLocalization.ts");
+  const resolveDescription =
+    localization.resolveMaisonElyseCategoryDescription;
+
+  assert.equal(typeof resolveDescription, "function");
+  assert.equal(
+    resolveDescription(
+      [{ categoryDescription: "" }, {}],
+      "The first house plates: precise, generous and seasonal."
+    ),
+    "The first house plates: precise, generous and seasonal."
+  );
+  assert.equal(
+    resolveDescription(
+      [
+        { categoryDescription: "Ouvertures de saison" },
+        { categoryDescription: "Seasonal openings" }
+      ],
+      "The first house plates: precise, generous and seasonal."
+    ),
+    "Seasonal openings"
+  );
 });
 
 function homardContract(menu) {

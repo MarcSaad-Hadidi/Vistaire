@@ -11,6 +11,7 @@ import {
 } from "@/lib/menu/publicMenuSettings";
 import type {
   PublicMenu,
+  PublicMenuDish,
   PublicMenuTranslationStatus
 } from "@/lib/menu/publicMenuCore";
 
@@ -34,6 +35,7 @@ const MAISON_ELYSE_CATEGORY_ALIASES: Record<
     "plats",
     "plat signature",
     "plats signatures",
+    "signatures",
     "signature dish",
     "signature dishes",
     "main",
@@ -52,6 +54,17 @@ function normalizeMaisonElyseCategory(value: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+export function resolveMaisonElyseCategoryDescription(
+  dishes: ReadonlyArray<Pick<PublicMenuDish, "categoryDescription">>,
+  localizedFallback: string
+): string {
+  for (let index = dishes.length - 1; index >= 0; index -= 1) {
+    const description = dishes[index]?.categoryDescription?.trim();
+    if (description) return description;
+  }
+  return localizedFallback;
 }
 
 export function getMaisonElyseCategoryKind(
