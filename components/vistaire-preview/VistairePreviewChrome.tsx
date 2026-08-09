@@ -414,9 +414,9 @@ export function PreviewFooter({
 
       <section
         className={`${styles.footerColumn} ${styles.footerColumnWide}`}
-        aria-label={locale === "en" ? "Resources" : "Ressources"}
+        aria-label="Guides"
       >
-        <h2>{locale === "en" ? "Guides" : "Guides"}</h2>
+        <h2>Guides</h2>
         <nav
           className={`${styles.footerLinkList} ${styles.footerLinkListBalanced}`}
           aria-label={locale === "en" ? "Vistaire guides" : "Guides Vistaire"}

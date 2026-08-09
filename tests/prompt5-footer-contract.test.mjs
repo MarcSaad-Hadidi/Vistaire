@@ -56,6 +56,20 @@ test("shared footer exposes the five bilingual navigation groups with real guide
   assert.doesNotMatch(chrome, /href\s*=\s*["'](?:#|)["']/);
 });
 
+test("Guides footer region has the same accessible name as its visible heading", async () => {
+  const chrome = await source(
+    "components/vistaire-preview/VistairePreviewChrome.tsx"
+  );
+  const guideSection = chrome.match(
+    /<section\s+className=\{`\$\{styles\.footerColumn\} \$\{styles\.footerColumnWide\}`\}([\s\S]*?)<\/section>/
+  )?.[0];
+
+  assert.ok(guideSection, "shared Guides region must remain identifiable");
+  assert.match(guideSection, /aria-label="Guides"/);
+  assert.match(guideSection, /<h2>Guides<\/h2>/);
+  assert.doesNotMatch(guideSection, /Resources|Ressources/);
+});
+
 test("digital-menu final CTA keeps one sample-menu action without repeating it in the adjacent internal links", async () => {
   const preview = await source(
     "components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.tsx"

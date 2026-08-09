@@ -55,6 +55,9 @@ for (const locale of locales) {
     for (const group of locale.groups) {
       await expect(footer.getByRole("heading", { name: group, exact: true })).toHaveCount(1);
     }
+    await expect(
+      footer.getByRole("region", { name: "Guides", exact: true })
+    ).toHaveCount(1);
 
     for (const href of [...locale.guides, ...locale.locals]) {
       await expect(footer.locator(`a[href="${href}"]`)).toHaveCount(1);
