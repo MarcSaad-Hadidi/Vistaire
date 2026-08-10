@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cloneElement, useId } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { AlertIcon, InfoIcon } from "./AdminIcons";
-import { adminEvidenceReasonCopy } from "@/lib/admin/analyticsPresentationCopy";
+import { adminEvidenceReasonCopy } from "@/lib/adminPresentationCopy";
 import styles from "./AdminSystem.module.css";
 
 const classes = (...values: Array<string | undefined | false>) => values.filter(Boolean).join(" ");

@@ -405,18 +405,39 @@ test("full-menu parity exposes the same stable identity fields on admin and publ
 });
 
 test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {
-  const [insights, primitives, presentationCopy, thumbnailCss] = await Promise.all([
+  const [insights, primitives, presentationCopy, neutralPresentationCopy, thumbnailCss] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/system/AdminPrimitives.tsx"),
     read("lib/admin/analyticsPresentationCopy.ts"),
+    read("lib/adminPresentationCopy.ts").catch(() => ""),
     read("components/admin/AdminDishThumbnail.module.css")
   ]);
   assert.match(insights, /eventIds/);
   assert.doesNotMatch(insights, /metrics\.reduce/);
   assert.match(primitives, /adminEvidenceReasonCopy\(reason\)/);
-  for (const reason of ["incompatible-scope", "configuration", "database", "query", "no-relevant-events", "sample-too-small", "instrumentation-unproven", "incompatible-or-empty-period", "source-incomplete"]) assert.match(presentationCopy, new RegExp(`(?:"${reason}"|${reason})\\s*:`));
+  for (const reason of ["incompatible-scope", "configuration", "database", "query", "no-relevant-events", "sample-too-small", "instrumentation-unproven", "incompatible-or-empty-period", "source-incomplete"]) assert.match(`${presentationCopy}\n${neutralPresentationCopy}`, new RegExp(`(?:"${reason}"|${reason})\\s*:`));
   assert.match(thumbnailCss, /\.compact\{[^}]*width:64px[^}]*flex-basis:64px/s);
   assert.match(thumbnailCss, /@media\(max-width:700px\)\{\.frame:not\(\.compact\)/);
+});
+
+test("admin presentation copy keeps a neutral public-safe dependency boundary with an admin compatibility export", async () => {
+  const [neutral, compatibility, primitives] = await Promise.all([
+    read("lib/adminPresentationCopy.ts").catch(() => ""),
+    read("lib/admin/analyticsPresentationCopy.ts"),
+    read("components/admin/system/AdminPrimitives.tsx"),
+  ]);
+
+  assert.match(neutral, /export type AdminAnalyticsFreshness/);
+  assert.match(neutral, /export function adminFreshnessCopy/);
+  assert.match(neutral, /export function adminEvidenceReasonCopy/);
+  assert.doesNotMatch(neutral, /(?:from\s+["'][^"']*(?:\/admin\/|\/auth\/|supabase)|server-only|next\/headers|cookies\s*\(|headers\s*\()/i);
+
+  assert.match(compatibility, /export\s*\{[^}]*adminFreshnessCopy[^}]*adminEvidenceReasonCopy[^}]*\}\s*from\s*["']\.\.\/adminPresentationCopy\.ts["']/s);
+  assert.match(compatibility, /export\s+type\s*\{\s*AdminAnalyticsFreshness\s*\}\s*from\s*["']\.\.\/adminPresentationCopy\.ts["']/);
+  assert.doesNotMatch(compatibility, /const\s+(?:freshnessCopy|evidenceReasonCopy)/);
+
+  assert.match(primitives, /from\s+["']@\/lib\/adminPresentationCopy["']/);
+  assert.doesNotMatch(primitives, /@\/lib\/admin\/analyticsPresentationCopy/);
 });
 
 test("insights comparison preserves both calendar dates behind every aligned day", async () => {
