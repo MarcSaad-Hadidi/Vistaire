@@ -35,7 +35,7 @@ const forbiddenLocalModules = [
 
 const allowedAdminComponentModules = new Set([
   "components/admin/system/AdminIcons",
-  "components/admin/system/AdminPrimitives",
+  "components/admin/system/AdminPresentationPrimitives",
   "components/admin/system/AdminSystem.module.css",
   "components/admin/charts/CartesianAxes",
   "components/admin/charts/ChartFrame",
@@ -188,6 +188,7 @@ function assertPrivateModulePolicy() {
     import type { AdminDishWorklistProps } from "@/components/admin/AdminDishWorklist";
     export { AdminInsightCard } from "@/components/admin/AdminInsightCard";
     import { AdminPanel } from "@/components/admin/system/AdminPrimitives";
+    import { AdminKpiCard } from "@/components/admin/system/AdminPresentationPrimitives";
     export type { ChartDatum } from "@/components/admin/charts/types";
   `;
   const parsed = importsFrom(source, path.join(root, "components", "preview-policy-probe.ts"));
@@ -200,11 +201,12 @@ function assertPrivateModulePolicy() {
     "components/admin/AdminDishWorklist",
     "components/admin/AdminInsightCard",
     "components/admin/system/AdminPrimitives",
+    "components/admin/system/AdminPresentationPrimitives",
     "components/admin/charts/types"
   ]);
   assert.deepEqual(
     relativeModules.map(isForbiddenLocalModule),
-    [true, true, true, true, true, false, false]
+    [true, true, true, true, true, true, false, false]
   );
 }
 
