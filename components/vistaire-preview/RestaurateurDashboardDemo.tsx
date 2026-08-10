@@ -27,8 +27,9 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
   const [availableById, setAvailableById] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(fixture.dishes.map((dish) => [dish.id, dish.available]))
   );
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState<{ message: string; sequence: number } | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const feedbackSequence = useRef(0);
   const period = fixture.periods[periodId];
   const availableCount = useMemo(() => Object.values(availableById).filter(Boolean).length, [availableById]);
 
@@ -44,8 +45,15 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
   };
 
   const toggleDish = (dishId: string) => {
-    setAvailableById((current) => ({ ...current, [dishId]: !current[dishId] }));
-    setShowFeedback(true);
+    const nextAvailable = !availableById[dishId];
+    const dish = fixture.dishes.find((item) => item.id === dishId);
+    const dishName = dish ? locale === "fr" ? dish.name : dish.nameEn : dishId;
+    setAvailableById((current) => ({ ...current, [dishId]: nextAvailable }));
+    feedbackSequence.current += 1;
+    setFeedback({
+      message: `${copy.simulation} ${dishName} : ${nextAvailable ? copy.available : copy.unavailable}.`,
+      sequence: feedbackSequence.current
+    });
   };
 
   return (
@@ -56,7 +64,7 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
           <h2>{fixture.restaurant.name[locale]}</h2>
           <span>{copy.dashboardSubtitle}</span>
         </div>
-        <div aria-label={copy.periodsLabel} className={styles.periodSelector} role="group">
+        {activeTab !== "availability" ? <div aria-label={copy.periodsLabel} className={styles.periodSelector} role="group">
           {periods.map((id) => (
             <button
               aria-pressed={periodId === id}
@@ -68,7 +76,7 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
               {copy.periods[id]}
             </button>
           ))}
-        </div>
+        </div> : null}
       </header>
       <div aria-label={copy.tabsLabel} className={styles.demoTabs} role="tablist">
         {tabs.map((id, index) => (
@@ -103,7 +111,7 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
           <RestaurateurPreviewInsights availableCount={availableCount} copy={copy} fixture={fixture} locale={locale} period={period} />
         )}
       </div>
-      {showFeedback ? <AdminToast>{copy.simulation}</AdminToast> : null}
+      {feedback ? <AdminToast key={feedback.sequence}>{feedback.message}</AdminToast> : null}
     </section>
   );
 }

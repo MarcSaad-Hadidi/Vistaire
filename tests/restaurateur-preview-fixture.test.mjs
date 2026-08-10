@@ -55,6 +55,13 @@ const count = (item) => {
 };
 const seriesTotal = (items) =>
   sum(items.map((item) => typeof item === "number" ? item : count(item)));
+const serviceWindows = [
+  { startHour: 0, endHour: 5 },
+  { startHour: 5, endHour: 11 },
+  { startHour: 11, endHour: 15 },
+  { startHour: 15, endHour: 18 },
+  { startHour: 18, endHour: 24 }
+];
 
 test("the public restaurateur fixture is deterministic, synthetic, and mathematically coherent", async () => {
   assert.equal(
@@ -146,6 +153,27 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     const activityTotal = sum(metricIds.map((metricId) => period.metrics[metricId]));
     assert.equal(sum(period.serviceBreakdown.map(count)), activityTotal);
     assert.equal(sum(period.heatmap.map(count)), activityTotal);
+    const heatmapByServiceWindow = serviceWindows.map(({ startHour, endHour }) =>
+      sum(period.heatmap
+        .filter(({ hour }) => hour >= startHour && hour < endHour)
+        .map(count))
+    );
+    assert.deepEqual(
+      heatmapByServiceWindow,
+      period.serviceBreakdown.map(count),
+      `${periodId} service activity must be the service-window aggregation of the UTC heatmap`
+    );
+    const dishesById = new Map(fixture.dishes.map((dish) => [dish.id, dish]));
+    const dishViewsByCategory = fixture.categories.map(({ id: categoryId }) =>
+      sum(period.topDishes
+        .filter(({ dishId }) => dishesById.get(dishId)?.categoryId === categoryId)
+        .map(count))
+    );
+    assert.deepEqual(
+      dishViewsByCategory,
+      period.categoryBreakdown.map(count),
+      `${periodId} category activity must be the category aggregation of exact dish views`
+    );
 
     const heatmapTotalForWeekday = (weekday) => sum(
       period.heatmap.filter((cell) => cell.weekday === weekday).map(count)

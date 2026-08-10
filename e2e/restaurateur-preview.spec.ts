@@ -7,6 +7,7 @@ type Scenario = {
   demoLabel: RegExp;
   forbiddenCopy: RegExp;
   metricSelectorLabel: string;
+  periodsLabel: string;
   metricButtons: readonly [string, string, string];
   activityChartTitle: string;
   noDishes: string;
@@ -24,6 +25,7 @@ const scenarios: readonly Scenario[] = [
     demoLabel: /Données de démonstration/i,
     forbiddenCopy: /Demo data|No customer data|Search dishes|View sample menu|this change is not saved/i,
     metricSelectorLabel: "Métrique affichée",
+    periodsLabel: "Période analysée",
     metricButtons: ["Ouvertures du menu", "Consultations de plats", "Recherches"],
     activityChartTitle: "Activité du menu sur la période",
     noDishes: "Aucun plat ne correspond à cette recherche.",
@@ -49,6 +51,7 @@ const scenarios: readonly Scenario[] = [
     demoLabel: /Demo data/i,
     forbiddenCopy: /Données de démonstration|Aucune donnée client|Rechercher un plat|Voir la carte exemple|ce changement n’est pas enregistré/i,
     metricSelectorLabel: "Metric shown",
+    periodsLabel: "Analysis period",
     metricButtons: ["Menu opens", "Dish views", "Searches"],
     activityChartTitle: "Menu activity over the period",
     noDishes: "No dishes match this search.",
@@ -341,6 +344,7 @@ async function exercisePeriods(page: Page) {
 
 async function exerciseAvailability(page: Page, scenario: Scenario) {
   await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
+  await expect(page.getByRole("group", { name: scenario.periodsLabel })).toHaveCount(0);
   const summary = (id: string) => page.locator(`[data-demo-availability-metric="${id}"]`);
   await expect(summary("total")).toContainText("12");
   await expect(summary("available")).toContainText("10");
@@ -377,7 +381,14 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await expect(page.getByRole("status")).toContainText(scenario.simulation);
+  const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });
+  await expect(simulationStatus).toBeVisible();
+  const unavailableAnnouncement = await simulationStatus.innerText();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await expect(simulationStatus).not.toHaveText(unavailableAnnouncement);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
   await expect(summary("available")).toContainText("9");
   await expect(summary("unavailable")).toContainText("3");
 }
@@ -456,6 +467,7 @@ test.describe("public restaurateur dashboard preview", () => {
       await expect(page.getByText(scenario.demoLabel).first()).toBeVisible();
       await expect(page.getByText(/Aucune donnée client|No customer data/i)).toBeVisible();
       await expect(page.getByText(scenario.forbiddenCopy)).toHaveCount(0);
+      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
       await expectTabContract(page, scenario);
 
       const kpis = page.locator("[data-demo-kpi]");
@@ -469,18 +481,24 @@ test.describe("public restaurateur dashboard preview", () => {
       await exerciseAvailability(page, scenario);
 
       await page.getByRole("tab", { name: scenario.tabs[0], exact: true }).click();
+      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
       await expect(availableKpi).toContainText("9 / 12");
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(availableKpi).toContainText("10 / 12");
       await expect(availableKpi).not.toContainText("9 / 12");
 
       await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
+      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
       for (const heading of scenario.insights) {
         await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
       }
       await exerciseInsightsMetricSelector(page, scenario);
       await exercisePeriods(page);
       await exerciseCharts(page);
+      for (const panel of await page.locator('[class*="insightsSecondaryGrid"] > section').all()) {
+        const box = await panel.boundingBox();
+        expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(420);
+      }
       await expectSafeDom(page, scenario);
       await expectSafeSeo(page, scenario);
       await expect(page.locator("model-viewer")).toHaveCount(0);

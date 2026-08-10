@@ -62,8 +62,14 @@ const dishes = [
 const dishIds = dishes.map(({ id }) => id);
 const topDishes = (counts: number[]): PreviewDishCount[] =>
   counts.map((count, index) => ({ dishId: dishIds[index], count }));
-const categoryBreakdown = (counts: number[]): PreviewCategoryCount[] =>
-  counts.map((count, index) => ({ categoryId: categories[index].id, count }));
+const categoryBreakdown = (dishCounts: number[]): PreviewCategoryCount[] =>
+  categories.map((category) => ({
+    categoryId: category.id,
+    count: dishCounts.reduce(
+      (total, count, index) => total + (dishes[index].categoryId === category.id ? count : 0),
+      0
+    )
+  }));
 const searchTerms = [
   text("homard", "lobster"),
   text("sans gluten", "gluten-free"),
@@ -90,17 +96,38 @@ const heatmap = (coordinates: readonly (readonly [number, number])[], counts: nu
     count
   }));
 
+const metricIds = ["menuOpens", "dishOpens", "searches", "immersive"] as const;
+const seriesBucketTotals = (current: MetricSeries) =>
+  current.menuOpens.map((_, index) =>
+    metricIds.reduce((total, metricId) => total + current[metricId][index], 0)
+  );
+const mondayFirstWeekdays = [1, 2, 3, 4, 5, 6, 0] as const;
+const serviceHours = [2, 8, 12, 16, 19] as const;
+
+const heatmapFromMargins = (weekdayTotals: number[], serviceCounts: number[]): PreviewHeatmapCell[] => {
+  const rows = [...weekdayTotals];
+  const columns = [...serviceCounts];
+  const cells: PreviewHeatmapCell[] = [];
+  let row = 0;
+  let column = 0;
+
+  while (row < rows.length && column < columns.length) {
+    const count = Math.min(rows[row], columns[column]);
+    if (count > 0) cells.push({ weekday: mondayFirstWeekdays[row], hour: serviceHours[column], count });
+    rows[row] -= count;
+    columns[column] -= count;
+    if (rows[row] === 0) row += 1;
+    if (columns[column] === 0) column += 1;
+  }
+
+  return cells;
+};
+
 const heatCoordinates24h = [
   [6, 0], [6, 3], [6, 6], [6, 9],
   [6, 12], [6, 15], [6, 18], [6, 21]
 ] as const;
-const heatCoordinates7d = [
-  [1, 19], [2, 19], [3, 19], [4, 19], [5, 19], [6, 19], [0, 19]
-] as const;
-const heatCoordinates30d = [
-  [1, 12], [1, 19], [2, 12], [2, 19], [3, 12], [3, 19], [4, 12],
-  [4, 19], [5, 12], [5, 19], [6, 12], [6, 19], [0, 12], [0, 19]
-] as const;
+const heatWeekdayTotals30d = [2300, 2450, 2600, 2750, 3000, 3200, 3730];
 
 const period = (
   id: RestaurateurPreviewPeriodId,
@@ -110,11 +137,9 @@ const period = (
   previousSeries: MetricSeries,
   labels: LocalizedText[],
   dishCounts: number[],
-  categoryCounts: number[],
   searchCounts: number[],
   serviceCounts: number[],
-  heatCoordinates: readonly (readonly [number, number])[],
-  heatCounts: number[]
+  buildHeatmap: (currentSeries: MetricSeries, serviceCounts: number[]) => PreviewHeatmapCell[]
 ): RestaurateurPreviewPeriod => ({
   id,
   metrics: current,
@@ -123,10 +148,10 @@ const period = (
   previousSeries,
   seriesLabels: labels,
   topDishes: topDishes(dishCounts),
-  categoryBreakdown: categoryBreakdown(categoryCounts),
+  categoryBreakdown: categoryBreakdown(dishCounts),
   searchBreakdown: searchBreakdown(searchCounts),
   serviceBreakdown: serviceBreakdown(serviceCounts),
-  heatmap: heatmap(heatCoordinates, heatCounts)
+  heatmap: buildHeatmap(currentSeries, serviceCounts)
 });
 
 const label = (fr: string, en = fr) => text(fr, en);
@@ -144,7 +169,8 @@ export const RESTAURATEUR_PREVIEW_FIXTURE: RestaurateurPreviewFixture = {
       series([12,18,22,31,27,36,24,14], [28,43,56,82,74,91,55,34], [3,5,8,12,9,11,6,3], [1,2,3,5,6,7,5,3]),
       series([10,16,20,28,25,33,22,12], [25,40,52,76,68,84,51,32], [3,4,7,11,8,10,6,3], [1,2,2,4,5,6,5,3]),
       [label("00 h"),label("03 h"),label("06 h"),label("09 h"),label("12 h"),label("15 h"),label("18 h"),label("21 h")],
-      [78,38,96,66,61,48,30,20,12,7,4,3], [104,313,32,14], [15,11,10,8,7,6], [112,219,116,145,144], heatCoordinates24h, [44,68,89,130,116,145,90,54]
+      [78,38,96,66,61,48,30,20,12,7,4,3], [15,11,10,8,7,6], [112,219,116,145,144],
+      (currentSeries) => heatmap(heatCoordinates24h, seriesBucketTotals(currentSeries))
     ),
     "7d": period(
       "7d",
@@ -153,7 +179,8 @@ export const RESTAURATEUR_PREVIEW_FIXTURE: RestaurateurPreviewFixture = {
       series([132,148,156,171,184,176,153], [348,372,395,426,455,472,392], [44,49,51,56,62,59,51], [21,24,27,31,36,35,30]),
       series([121,135,143,155,166,160,138], [322,345,365,392,422,438,366], [40,45,47,51,56,54,47], [18,21,24,27,32,31,27]),
       [label("Lun", "Mon"),label("Mar", "Tue"),label("Mer", "Wed"),label("Jeu", "Thu"),label("Ven", "Fri"),label("Sam", "Sat"),label("Dim", "Sun")],
-      [500,240,610,410,370,300,170,105,65,42,28,20], [650,1950,170,90], [96,74,62,51,47,42], [204,610,1304,895,1543], heatCoordinates7d, [545,593,629,684,737,742,626]
+      [500,240,610,410,370,300,170,105,65,42,28,20], [96,74,62,51,47,42], [204,610,1304,895,1543],
+      (currentSeries, serviceCounts) => heatmapFromMargins(seriesBucketTotals(currentSeries), serviceCounts)
     ),
     "30d": period(
       "30d",
@@ -162,7 +189,8 @@ export const RESTAURATEUR_PREVIEW_FIXTURE: RestaurateurPreviewFixture = {
       series([420,445,462,478,501,520,538,524,506,496], [1080,1125,1180,1215,1260,1305,1360,1340,1390,1385], [128,135,142,149,155,162,170,178,190,201], [68,72,76,80,84,89,94,99,109,119]),
       series([390,410,430,445,462,478,493,490,476,466], [1010,1050,1100,1135,1175,1220,1270,1255,1300,1295], [120,125,132,138,144,150,158,165,175,183], [58,62,65,69,72,76,80,84,94,100]),
       [label("1–3"),label("4–6"),label("7–9"),label("10–12"),label("13–15"),label("16–18"),label("19–21"),label("22–24"),label("25–27"),label("28–30")],
-      [2200,1050,2680,1810,1640,1310,760,480,300,190,125,95], [2860,8590,780,410], [420,315,270,230,205,170], [890,2740,5670,4020,6710], heatCoordinates30d, [700,1600,750,1700,800,1800,850,1900,900,2100,1000,2200,980,2750]
+      [2200,1050,2680,1810,1640,1310,760,480,300,190,125,95], [420,315,270,230,205,170], [890,2740,5670,4020,6710],
+      (_currentSeries, serviceCounts) => heatmapFromMargins(heatWeekdayTotals30d, serviceCounts)
     )
   }
 };
