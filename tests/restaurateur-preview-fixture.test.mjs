@@ -117,9 +117,17 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
       assert.equal(seriesTotal(period.series[metricId]), period.metrics[metricId]);
       assert.equal(Number.isInteger(period.previousMetrics[metricId]), true);
       assert.ok(period.previousMetrics[metricId] >= 0);
+      assert.equal(
+        seriesTotal(period.previousSeries[metricId]),
+        period.previousMetrics[metricId]
+      );
     }
 
     assert.ok(period.topDishes.length > 0);
+    assert.deepEqual(
+      period.topDishes.map(({ dishId }) => dishId),
+      fixture.dishes.map(({ id }) => id)
+    );
     assert.ok(period.searchBreakdown.length > 0);
     assert.equal(new Set(period.topDishes.map(({ dishId }) => dishId)).size, period.topDishes.length);
     assert.equal(
@@ -157,10 +165,11 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     assert.notDeepEqual(changedComparison.summary, first.summary);
 
     const changedRanking = structuredClone(period);
-    changedRanking.topDishes = [
-      { dishId: fixture.dishes.at(-1).id, count: period.topDishes[0].count + 1 },
-      ...changedRanking.topDishes.slice(1)
-    ];
+    const promotedDishId = fixture.dishes.at(-1).id;
+    const promotedCount = Math.max(...period.topDishes.map(({ count: value }) => value)) + 1;
+    changedRanking.topDishes = changedRanking.topDishes.map((item) =>
+      item.dishId === promotedDishId ? { ...item, count: promotedCount } : item
+    );
     const changedInsights = derivePeriod(changedRanking, fixture, "fr");
     assert.notDeepEqual(changedInsights.keyInsights, first.keyInsights);
   }

@@ -6,6 +6,10 @@ type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
   demoLabel: RegExp;
   forbiddenCopy: RegExp;
+  metricSelectorLabel: string;
+  metricButtons: readonly [string, string, string];
+  activityChartTitle: string;
+  noDishes: string;
   tabs: readonly [string, string, string];
   searchLabel: string;
   filters: readonly [string, string, string];
@@ -19,6 +23,10 @@ const scenarios: readonly Scenario[] = [
     path: "/apercu-restaurateur",
     demoLabel: /Données de démonstration/i,
     forbiddenCopy: /Demo data|No customer data|Search dishes|View sample menu|this change is not saved/i,
+    metricSelectorLabel: "Métrique affichée",
+    metricButtons: ["Ouvertures du menu", "Consultations de plats", "Recherches"],
+    activityChartTitle: "Activité du menu sur la période",
+    noDishes: "Aucun plat ne correspond à cette recherche.",
     tabs: ["Vue d’ensemble", "Disponibilités", "Analyses"],
     searchLabel: "Rechercher un plat",
     filters: ["Tous", "Disponibles", "Indisponibles"],
@@ -40,6 +48,10 @@ const scenarios: readonly Scenario[] = [
     path: "/en/restaurant-preview",
     demoLabel: /Demo data/i,
     forbiddenCopy: /Données de démonstration|Aucune donnée client|Rechercher un plat|Voir la carte exemple|ce changement n’est pas enregistré/i,
+    metricSelectorLabel: "Metric shown",
+    metricButtons: ["Menu opens", "Dish views", "Searches"],
+    activityChartTitle: "Menu activity over the period",
+    noDishes: "No dishes match this search.",
     tabs: ["Overview", "Availability", "Insights"],
     searchLabel: "Search dishes",
     filters: ["All", "Available", "Unavailable"],
@@ -339,7 +351,9 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   for (const row of await matchingRows.all()) await expect(row).toContainText(firstName);
   await search.fill("vistaire-no-matching-dish-zzzz");
   await expect(rows.filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: scenario.noDishes })).toBeVisible();
   await search.fill("");
+  await expect(page.getByText(scenario.noDishes, { exact: true })).toBeHidden();
 
   const all = page.getByRole("button", { name: scenario.filters[0], exact: true });
   const available = page.getByRole("button", { name: scenario.filters[1], exact: true });
@@ -362,7 +376,42 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   await expect(summary("unavailable")).toContainText("3");
 }
 
+async function exerciseInsightsMetricSelector(page: Page, scenario: Scenario) {
+  const selector = page.getByRole("group", { name: scenario.metricSelectorLabel });
+  const buttons = selector.getByRole("button");
+  await expect(buttons).toHaveCount(3);
+  for (const label of scenario.metricButtons) {
+    await expect(selector.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", /true|false/);
+  }
+  const activityChart = page.locator("[data-chart-frame]").filter({
+    has: page.getByRole("heading", { name: scenario.activityChartTitle, exact: true })
+  });
+  await expect(activityChart).toHaveCount(1);
+  const signature = () => activityChart.locator("tbody").innerText();
+  const menu = selector.getByRole("button", { name: scenario.metricButtons[0], exact: true });
+  const dishes = selector.getByRole("button", { name: scenario.metricButtons[1], exact: true });
+  const searches = selector.getByRole("button", { name: scenario.metricButtons[2], exact: true });
+  await expect(menu).toHaveAttribute("aria-pressed", "true");
+  const menuSignature = await signature();
+  await dishes.click();
+  await expect(dishes).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(signature).not.toEqual(menuSignature);
+  const dishSignature = await signature();
+  await searches.click();
+  await expect(searches).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(signature).not.toEqual(dishSignature);
+  await dishes.click();
+  await expect.poll(signature).toEqual(dishSignature);
+  await menu.click();
+  await expect.poll(signature).toEqual(menuSignature);
+}
+
 async function exerciseCharts(page: Page) {
+  const heatmap = page.locator('[role="grid"][data-chart-kind="heatmap"]');
+  await expect(heatmap).toHaveCount(1);
+  await expect(heatmap).toHaveAttribute("aria-rowcount", "7");
+  await expect(heatmap).toHaveAttribute("aria-colcount", "24");
+  await expect(heatmap.getByRole("gridcell")).toHaveCount(168);
   const charts = page.locator("[data-chart-frame]");
   expect(await charts.count()).toBeGreaterThanOrEqual(3);
   for (const chart of await charts.all()) {
@@ -413,6 +462,7 @@ test.describe("public restaurateur dashboard preview", () => {
       for (const heading of scenario.insights) {
         await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
       }
+      await exerciseInsightsMetricSelector(page, scenario);
       await exercisePeriods(page);
       await exerciseCharts(page);
       await expectSafeDom(page, scenario);
