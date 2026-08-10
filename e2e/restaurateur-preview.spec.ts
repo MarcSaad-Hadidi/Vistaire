@@ -389,15 +389,16 @@ test.describe("public restaurateur dashboard preview", () => {
       for (const id of ["menu-opens", "dish-opens", "searches", "immersive", "available"]) {
         await expect(page.locator(`[data-demo-kpi="${id}"]`)).toBeVisible();
       }
-      const initialAvailable = await page.locator('[data-demo-kpi="available"]').innerText();
+      const availableKpi = page.locator('[data-demo-kpi="available"]');
+      await expect(availableKpi).toContainText("10 / 12");
       await exercisePeriods(page);
       await exerciseAvailability(page, scenario);
 
       await page.getByRole("tab", { name: scenario.tabs[0], exact: true }).click();
-      await expect(page.locator('[data-demo-kpi="available"]')).not.toHaveText(initialAvailable);
-      await expect(page.locator('[data-demo-kpi="available"]')).toContainText("9");
+      await expect(availableKpi).toContainText("9 / 12");
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.locator('[data-demo-kpi="available"]')).toHaveText(initialAvailable);
+      await expect(availableKpi).toContainText("10 / 12");
+      await expect(availableKpi).not.toContainText("9 / 12");
 
       await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
       for (const heading of scenario.insights) {
