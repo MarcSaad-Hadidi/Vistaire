@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartFrame, MetricTooltip } from "./ChartFrame";
+import { ChartFrame, MetricTooltip, type ChartFrameCopy } from "./ChartFrame";
 import { buildHeatmapCells, selectAxisLabelIndexes, type HeatCellInput } from "./geometry";
 import { formatChartValue } from "./formatters";
 import { useChartInteraction, useReducedMotion } from "./useChartInteraction";
@@ -14,6 +14,12 @@ const right = 12;
 const top = 26;
 const bottom = 42;
 
+export type InteractiveHeatmapCopy = { scaleLabel: string; cellDescription: string };
+const DEFAULT_HEATMAP_COPY: InteractiveHeatmapCopy = {
+  scaleLabel: "Faible → Forte",
+  cellDescription: "Intensité de faible à élevée, avec une valeur exacte par cellule.",
+};
+
 export function InteractiveHeatmap({
   data,
   rowLabels,
@@ -26,12 +32,15 @@ export function InteractiveHeatmap({
   summary,
   variant = "compact",
   valueFormatter,
-}: AccessibleChartProps & { data: HeatCellInput[]; rowLabels: string[]; columnLabels: string[] }) {
+  numberLocale = "fr-CA",
+  frameCopy,
+  copy = DEFAULT_HEATMAP_COPY,
+}: AccessibleChartProps & { data: HeatCellInput[]; rowLabels: string[]; columnLabels: string[]; numberLocale?: string; frameCopy?: ChartFrameCopy; copy?: InteractiveHeatmapCopy }) {
   const cells = buildHeatmapCells(data, rowLabels.length, columnLabels.length);
   const columns = columnLabels.length;
   const interaction = useChartInteraction(cells.length, columns);
   const reduced = useReducedMotion();
-  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit);
+  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit, numberLocale);
   const active = interaction.active;
   const cell = active === null ? null : cells[active];
   const cellWidth = (width - left - right) / Math.max(1, columns);
@@ -52,9 +61,10 @@ export function InteractiveHeatmap({
     period={period}
     unit={unit}
     summary={summary}
+    copy={frameCopy}
     exactValues={cells.map((item) => ({ label: `${rowLabels[item.row]}, ${columnLabels[item.column]}`, value: text(item.value) }))}
     chrome={variant === "detailed" ? <><span>{period}</span><span>{unit}</span></> : undefined}
-    legend={<div className={styles.heatLegend} data-chart-heat-legend><span>Faible → Forte</span><i aria-hidden="true"/></div>}
+    legend={<div className={styles.heatLegend} data-chart-heat-legend><span>{copy.scaleLabel}</span><i aria-hidden="true"/></div>}
     axes={(ids) => <svg
       className={`${styles.svg} ${styles.heatmapSvg} ${styles.axesOverlay}`}
       viewBox={`0 0 ${width} ${height}`}
@@ -83,7 +93,7 @@ export function InteractiveHeatmap({
       data-reduced-motion={reduced}
     >
       <title id={ids.title}>{title}</title>
-      <desc id={ids.description}>{description}. Intensité de faible à élevée, avec une valeur exacte par cellule. {summary}</desc>
+      <desc id={ids.description}>{description}. {copy.cellDescription} {summary}</desc>
       <g key={animationKey} data-chart-animation-key={animationKey}>
       {rowLabels.map((rowLabel, row) => <g role="row" aria-label={rowLabel} aria-rowindex={row + 1} key={rowLabel}>
         {cells.slice(row * columns, (row + 1) * columns).map((item) => {

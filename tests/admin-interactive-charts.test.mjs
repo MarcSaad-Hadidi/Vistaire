@@ -234,7 +234,8 @@ test("heatmap exposes row and hour axes plus a visible low-to-high scale", async
   assert.match(source, /data-chart-axis="hours"/);
   assert.match(source, /data-chart-axis="rows"/);
   assert.match(source, /data-chart-heat-legend/);
-  assert.match(source, />Faible → Forte</);
+  assert.match(source, /scaleLabel: "Faible → Forte"/);
+  assert.match(source, /<span>\{copy\.scaleLabel\}<\/span>/);
   assert.doesNotMatch(source, /Élevée/);
   assert.doesNotMatch(source, /UTC/);
 });
@@ -285,4 +286,91 @@ test("admin metric icons have distinct path signatures", async () => {
   const signatures = metricNames.map((name) => paths.find((match) => match[1] === name)?.[2]);
   assert.ok(signatures.every(Boolean));
   assert.equal(new Set(signatures).size, metricNames.length);
+});
+
+test("admin KPI and chart frame expose optional localized copy with unchanged French defaults", async () => {
+  const [primitives, frame] = await Promise.all([
+    readFile("components/admin/system/AdminPrimitives.tsx", "utf8"),
+    readFile("components/admin/charts/ChartFrame.tsx", "utf8"),
+  ]);
+
+  assert.match(primitives, /definitionAriaLabel\?: string/);
+  assert.match(primitives, /definitionAriaLabel\s*\?\?\s*`Définition de \$\{label\}`/);
+
+  for (const field of ["unitLabel", "exactValuesLabel", "markerLabel", "seriesLabel", "valueLabel"]) {
+    assert.match(frame, new RegExp(`${field}: string`));
+  }
+  assert.match(frame, /copy\?: ChartFrameCopy/);
+  assert.match(frame, /unitLabel: "Unité"/);
+  assert.match(frame, /exactValuesLabel: "Valeurs exactes"/);
+  assert.match(frame, /markerLabel: "Repère"/);
+  assert.match(frame, /seriesLabel: "Série"/);
+  assert.match(frame, /valueLabel: "Valeur"/);
+  for (const field of ["unitLabel", "exactValuesLabel", "markerLabel", "seriesLabel", "valueLabel"]) {
+    assert.match(frame, new RegExp(`copy\\.${field}`));
+  }
+});
+
+test("line and donut charts accept localized copy and number locales while defaulting to French", async () => {
+  const [line, donut] = await Promise.all([
+    readFile("components/admin/charts/InteractiveLineChart.tsx", "utf8"),
+    readFile("components/admin/charts/InteractiveDonut.tsx", "utf8"),
+  ]);
+
+  for (const source of [line, donut]) {
+    assert.match(source, /numberLocale\?: string/);
+    assert.match(source, /numberLocale = "fr-CA"/);
+    assert.match(source, /frameCopy\?: ChartFrameCopy/);
+  }
+  assert.match(line, /stableActivity: string/);
+  assert.match(line, /stableActivity: "Activité stable sur cette période\."/);
+  assert.match(line, /copy\.stableActivity/);
+  assert.match(line, /formatChartValue\(value, unit, numberLocale\)/);
+  assert.match(line, /copy=\{frameCopy\}/);
+  assert.match(donut, /categoryDescription: string/);
+  assert.match(donut, /categoryDescription: "Chaque catégorie est identifiée par son libellé et sa valeur exacte\."/);
+  assert.match(donut, /copy\.categoryDescription/);
+  assert.match(donut, /Intl\.NumberFormat\(numberLocale/);
+  assert.match(donut, /copy=\{frameCopy\}/);
+});
+
+test("heatmap and comparison charts localize their semantic copy without changing French defaults", async () => {
+  const [heatmap, comparison] = await Promise.all([
+    readFile("components/admin/charts/InteractiveHeatmap.tsx", "utf8"),
+    readFile("components/admin/charts/ComparisonLineChart.tsx", "utf8"),
+  ]);
+
+  for (const source of [heatmap, comparison]) {
+    assert.match(source, /numberLocale\?: string/);
+    assert.match(source, /numberLocale = "fr-CA"/);
+    assert.match(source, /frameCopy\?: ChartFrameCopy/);
+  }
+  assert.match(heatmap, /scaleLabel: string/);
+  assert.match(heatmap, /cellDescription: string/);
+  assert.match(heatmap, /scaleLabel: "Faible → Forte"/);
+  assert.match(heatmap, /cellDescription: "Intensité de faible à élevée, avec une valeur exacte par cellule\."/);
+  assert.match(heatmap, /copy\.scaleLabel/);
+  assert.match(heatmap, /copy\.cellDescription/);
+  assert.match(heatmap, /formatChartValue\(value, unit, numberLocale\)/);
+  assert.match(comparison, /unavailable: string/);
+  assert.match(comparison, /incompatibleSeries: string/);
+  assert.match(comparison, /delta: string/);
+  assert.match(comparison, /unavailable: "Comparaison indisponible\."/);
+  assert.match(comparison, /incompatibleSeries: "Les séries doivent partager exactement les mêmes repères, dans le même ordre\."/);
+  assert.match(comparison, /delta: "Écart"/);
+  assert.match(comparison, /copy\.unavailable/);
+  assert.match(comparison, /copy\.incompatibleSeries/);
+  assert.match(comparison, /copy\.delta/);
+  assert.match(comparison, /Intl\.NumberFormat\(numberLocale/);
+});
+
+test("interactive sparklines localize unavailable values and keep the French default", async () => {
+  const source = await readFile("components/admin/charts/Sparkline.tsx", "utf8");
+  assert.match(source, /copy\?: SparklineCopy/);
+  assert.match(source, /latestValue: string/);
+  assert.match(source, /unavailable: string/);
+  assert.match(source, /latestValue: "dernière valeur"/);
+  assert.match(source, /unavailable: "non disponible"/);
+  assert.match(source, /copy\.latestValue/);
+  assert.match(source, /copy\.unavailable/);
 });
