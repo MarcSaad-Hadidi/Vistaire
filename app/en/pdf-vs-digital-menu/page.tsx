@@ -44,7 +44,11 @@ export default function PdfVsDigitalMenuRouteEn() {
       <VistairePdfVsMenuDigitalPreview
         h1={page.h1}
         interactiveShowcase={
-          <SeoInteractiveComparison locale="en" interaction="slider" />
+          <SeoInteractiveComparison
+            deviceEmphasis
+            locale="en"
+            interaction="slider"
+          />
         }
         locale="en"
         routeMode="production"

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuideRoutes.ts";
 import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoRoutes.ts";
 
 export const SUPPORTED_LOCALES = ["fr", "en"] as const;
@@ -32,7 +33,7 @@ export type BilingualRoutePair = {
   en: string;
   changeFrequency: "weekly" | "monthly";
   priority: number;
-  updatedAt: string;
+  updatedAt?: string;
 };
 
 export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
@@ -113,6 +114,12 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     priority: 0.76,
     updatedAt: PUBLIC_ROUTE_UPDATED_AT
   },
+  ...EDITORIAL_GUIDE_ROUTE_PAIRS.map(({ fr, en, changeFrequency, priority }) => ({
+    fr,
+    en,
+    changeFrequency,
+    priority
+  })),
   ...SEO_GEO_ROUTE_PAIRS.map((route) => ({
     fr: route.fr,
     en: route.en,

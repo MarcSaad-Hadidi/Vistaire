@@ -7,6 +7,23 @@
   transition: opacity var(--landing-transition-duration) ease;
 }
 
+.comparison[data-device-emphasis="true"] {
+  width: 100%;
+}
+
+.comparison[data-device-emphasis="true"] .panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.comparison[data-device-emphasis="true"] .emphasizedSlider {
+  width: min(100%, 440px);
+}
+
+.comparison[data-device-emphasis="true"] .activeCopy {
+  justify-items: center;
+  text-align: center;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -135,6 +152,12 @@
 
   .activeLink {
     justify-self: center;
+  }
+}
+
+@media (min-width: 1360px) {
+  .comparison[data-device-emphasis="true"] .emphasizedSlider {
+    width: min(100%, 530px);
   }
 }
 

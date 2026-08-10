@@ -33,6 +33,18 @@ test("declares a complete bilingual FR/EN route map", async () => {
       ["/contact", "/en/contact"],
       ["/prendre-rendez-vous", "/en/book-a-call"],
       ["/apercu-restaurateur", "/en/restaurant-preview"],
+      [
+        "/guides/anatomie-menu-digital-premium",
+        "/en/guides/premium-digital-menu-anatomy"
+      ],
+      [
+        "/guides/menu-qr-mobile-sans-application",
+        "/en/guides/mobile-qr-menu-without-app"
+      ],
+      [
+        "/guides/3d-restaurant-utile-vs-gadget",
+        "/en/guides/restaurant-3d-useful-vs-gimmick"
+      ],
       ["/menu-qr-sans-pdf", "/en/qr-menu-without-pdf"],
       ["/menu-digital-sans-application", "/en/digital-menu-without-app"],
       ["/remplacer-menu-pdf-restaurant", "/en/replace-restaurant-pdf-menu"],
@@ -150,6 +162,12 @@ test("publishes bilingual sitemap entries with hreflang alternates", async () =>
     "/en/book-a-call",
     "/tarifs-menu-digital-restaurant",
     "/en/pricing-digital-restaurant-menu",
+    "/guides/anatomie-menu-digital-premium",
+    "/en/guides/premium-digital-menu-anatomy",
+    "/guides/menu-qr-mobile-sans-application",
+    "/en/guides/mobile-qr-menu-without-app",
+    "/guides/3d-restaurant-utile-vs-gadget",
+    "/en/guides/restaurant-3d-useful-vs-gimmick",
     "/menu-qr-sans-pdf",
     "/en/qr-menu-without-pdf",
     "/menu-3d-ar-restaurant",
@@ -168,6 +186,14 @@ test("publishes bilingual sitemap entries with hreflang alternates", async () =>
     "en-CA": "https://www.vistaire.ca/en/vistaire-menu",
     "x-default": "https://www.vistaire.ca/demo"
   });
+  assert.deepEqual(
+    byPath.get("/en/guides/restaurant-3d-useful-vs-gimmick")?.alternates?.languages,
+    {
+      "fr-CA": "https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget",
+      "en-CA": "https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick",
+      "x-default": "https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget"
+    }
+  );
   assert.equal(byPath.has("/carte-vistaire"), false);
   assert.equal(byPath.has("/admin"), false);
   assert.equal(byPath.has("/owner"), false);

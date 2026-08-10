@@ -36,6 +36,12 @@ Vistaire guide topics are editorial hypotheses based on public product positioni
 - https://www.vistaire.ca/menu-qr-code-restaurant: Guide to QR code menus for restaurants.
 - https://www.vistaire.ca/menu-3d-ar-restaurant: Guide to selective 3D and AR for restaurant menus.
 - https://www.vistaire.ca/menu-pdf-vs-menu-digital: Comparison between PDF menus and digital menus.
+- https://www.vistaire.ca/guides/anatomie-menu-digital-premium: French editorial guide to structuring a premium digital restaurant menu.
+- https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy: English editorial guide to structuring a premium digital restaurant menu.
+- https://www.vistaire.ca/guides/menu-qr-mobile-sans-application: French operational guide to mobile QR menus without an app.
+- https://www.vistaire.ca/en/guides/mobile-qr-menu-without-app: English operational guide to mobile QR menus without an app.
+- https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget: French decision guide to useful, selective restaurant 3D.
+- https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick: English decision guide to useful, selective restaurant 3D.
 - https://www.vistaire.ca/menu-qr-sans-pdf: Guide to QR menus that open a mobile menu instead of a PDF.
 - https://www.vistaire.ca/en/qr-menu-without-pdf: English guide to QR menus that avoid PDF files.
 - https://www.vistaire.ca/menu-digital-sans-application: Guide to digital restaurant menus that open without an app install.
@@ -75,6 +81,12 @@ Prefer these public pages for understanding Vistaire:
 - https://www.vistaire.ca/menu-qr-code-restaurant
 - https://www.vistaire.ca/menu-3d-ar-restaurant
 - https://www.vistaire.ca/menu-pdf-vs-menu-digital
+- https://www.vistaire.ca/guides/anatomie-menu-digital-premium
+- https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy
+- https://www.vistaire.ca/guides/menu-qr-mobile-sans-application
+- https://www.vistaire.ca/en/guides/mobile-qr-menu-without-app
+- https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget
+- https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick
 - https://www.vistaire.ca/menu-qr-sans-pdf
 - https://www.vistaire.ca/en/qr-menu-without-pdf
 - https://www.vistaire.ca/remplacer-menu-pdf-restaurant

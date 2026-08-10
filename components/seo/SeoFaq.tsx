@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n";
 import type { SeoPageData } from "@/lib/seoPages";
+import { SeoFaqItem } from "@/components/seo/SeoFaqItem";
 
 type SeoFaqProps = {
   faqs: SeoPageData["faq"];
@@ -14,17 +15,26 @@ export function SeoFaq({
   layout = "split",
   locale = "fr"
 }: SeoFaqProps) {
+  const items = (
+    <div
+      className="divide-y divide-white/10 rounded-lg border border-white/10 bg-[#0d0907]"
+      data-seo-faq
+    >
+      {faqs.map((item, index) => (
+        <SeoFaqItem
+          key={item.question}
+          question={item.question}
+          answer={item.answer}
+          initialOpen={index === 0}
+        />
+      ))}
+    </div>
+  );
+
   if (layout === "stack") {
     return (
-      <div className={`divide-y divide-white/10 rounded-lg border border-white/10 bg-[#0d0907] ${className}`}>
-        {faqs.map((item) => (
-          <article key={item.question} className="p-5 sm:p-6">
-            <h3 className="font-display text-xl leading-tight text-cream">
-              {item.question}
-            </h3>
-            <p className="mt-3 text-sm leading-7 text-[#cdbfa9]">{item.answer}</p>
-          </article>
-        ))}
+      <div className={className}>
+        {items}
       </div>
     );
   }
@@ -42,18 +52,7 @@ export function SeoFaq({
               : "Réponses concrètes pour restaurateurs, sans chiffres inventés ni promesses non prouvées."}
           </p>
         </div>
-        <div className="divide-y divide-white/10 rounded-lg border border-white/10 bg-[#0d0907]">
-          {faqs.map((item) => (
-            <article key={item.question} className="p-5 sm:p-6">
-              <h3 className="font-display text-xl leading-tight text-cream">
-                {item.question}
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#cdbfa9]">
-                {item.answer}
-              </p>
-            </article>
-          ))}
-        </div>
+        {items}
       </div>
     </section>
   );

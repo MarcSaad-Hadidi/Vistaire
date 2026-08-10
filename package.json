@@ -79,7 +79,7 @@
     "test:qr:functional": "node scripts/run-qr-functional-e2e.mjs",
     "test:qr:all": "npm run test:qr:node && npm run test:qr:postgres && npm run test:qr:functional",
     "test:admin:full-menu": "node scripts/run-admin-full-menu-e2e.mjs",
-    "test:seo:e2e": "node scripts/run-playwright-e2e.mjs e2e/seo-smoke.spec.ts e2e/seo-interactive-showcases.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
+    "test:seo:e2e": "node scripts/run-playwright-e2e.mjs e2e/seo-smoke.spec.ts e2e/seo-interactive-showcases.spec.ts e2e/prompt5-pdf-comparison.spec.ts e2e/prompt5-faq.spec.ts e2e/prompt5-footer.spec.ts e2e/prompt5-guides.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
     "test:qa": "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts e2e/landing-scroll.spec.ts",
     "test:e2e": "node scripts/run-playwright-e2e.mjs",
     "test:e2e:ui": "playwright test --ui",

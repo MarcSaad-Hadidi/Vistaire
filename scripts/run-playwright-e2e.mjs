@@ -39,6 +39,18 @@ const useMaisonPublicMenuFixture = playwrightInputArgs.some((argument) =>
     .replaceAll("\\", "/")
     .endsWith("e2e/maison-elyse-public-menu.spec.ts")
 );
+const includesPrompt5BrowserFlow = playwrightInputArgs.some((argument) =>
+  /(?:^|\/)prompt5-(?:pdf-comparison|faq|footer|guides)\.spec\.ts$/.test(
+    argument.replaceAll("\\", "/")
+  )
+);
+const PROMPT5_WARMUP_ROUTES = [
+  "/menu-pdf-vs-menu-digital",
+  "/en/pdf-vs-digital-menu",
+  "/menu-digital-restaurant",
+  "/en/digital-restaurant-menu",
+  "/menu-qr-code-restaurant"
+];
 const includesSaugeNoireBrowserFlow = playwrightInputArgs
   .some((argument) => {
     const normalized = argument.replaceAll("\\", "/");
@@ -48,7 +60,7 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
       /(?:^|\/)seo-interactive-showcases\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
     );
-  });
+  }) || includesPrompt5BrowserFlow;
 const requestsWebkit = playwrightInputArgs.some((argument) => argument === "--project=webkit");
 const includesSeoSmoke = playwrightInputArgs
   .some((argument) =>
@@ -357,7 +369,19 @@ async function main() {
         }
       );
 
-      await waitForServer(baseURL);
+      await waitForServer(
+        useDevelopmentServer
+          ? new URL("/robots.txt", baseURL).toString()
+          : baseURL
+      );
+      if (includesPrompt5BrowserFlow) {
+        for (const route of PROMPT5_WARMUP_ROUTES) {
+          await waitForServer(new URL(route, baseURL).toString(), 180_000);
+        }
+      }
+      if (useLocalDemoServer) {
+        await waitForServer(baseURL, 300_000);
+      }
       if (useAdminVisualFixture) {
         for (const route of ["/admin", "/admin/availability", "/menu/maison-elyse"]) {
           await waitForServer(new URL(route, baseURL).toString());

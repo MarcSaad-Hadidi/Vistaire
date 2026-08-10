@@ -10,10 +10,12 @@ import { LandingComparison } from "./comparison/LandingComparison";
  */
 export async function SeoInteractiveComparison({
   locale,
-  interaction
+  interaction,
+  deviceEmphasis = false
 }: {
   locale: Locale;
   interaction: "slider" | "reveal";
+  deviceEmphasis?: boolean;
 }) {
   const experiences = await getLandingExperiences(locale);
 
@@ -23,6 +25,7 @@ export async function SeoInteractiveComparison({
       experiences={experiences}
       interaction={interaction}
       locale={locale}
+      deviceEmphasis={deviceEmphasis}
     />
   );
 }
