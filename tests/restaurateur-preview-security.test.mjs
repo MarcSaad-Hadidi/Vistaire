@@ -30,12 +30,30 @@ const forbiddenLocalModules = [
   /^app\/api(?:\/|$)/,
   /^lib\/admin(?:\/|$)/,
   /^lib\/owner(?:\/|$)/,
-  /^lib\/analytics\/serverRows(?:\.|$)/,
-  /^components\/admin\/(?:AdminDishAvailabilityControl|AdminDishThumbnail|AdminMenuActions|AdminRestaurantDashboard)(?:\.|$)/,
-  /^components\/admin\/availability\/(?:AdminAvailabilityList|AdminAvailabilityPage|availabilityMutation)(?:\.|$)/,
-  /^components\/admin\/(?:overview\/AdminOverview|insights\/AdminInsightsPage)(?:\.|$)/,
-  /^components\/admin\/system\/(?:AdminShell|AdminNav)(?:\.|$)/
+  /^lib\/analytics\/serverRows(?:\.|$)/
 ];
+
+const allowedAdminComponentModules = new Set([
+  "components/admin/system/AdminIcons",
+  "components/admin/system/AdminPrimitives",
+  "components/admin/system/AdminSystem.module.css",
+  "components/admin/charts/CartesianAxes",
+  "components/admin/charts/ChartFrame",
+  "components/admin/charts/Charts.module.css",
+  "components/admin/charts/ComparisonLineChart",
+  "components/admin/charts/InteractiveBars",
+  "components/admin/charts/InteractiveDonut",
+  "components/admin/charts/InteractiveHeatmap",
+  "components/admin/charts/InteractiveLineChart",
+  "components/admin/charts/Sparkline",
+  "components/admin/charts/data",
+  "components/admin/charts/formatters",
+  "components/admin/charts/geometry",
+  "components/admin/charts/index",
+  "components/admin/charts/interaction",
+  "components/admin/charts/types",
+  "components/admin/charts/useChartInteraction"
+]);
 
 const forbiddenSource = [
   ["private admin access", /\brequireAdminRestaurantAccess\b/],
@@ -49,13 +67,34 @@ const forbiddenSource = [
   ["Cookie Store", /\b(?:(?:window|globalThis)\s*\.\s*)?cookieStore\b/],
   ["IndexedDB", /\b(?:(?:window|globalThis)\s*\.\s*)?indexedDB\b/],
   ["Cache Storage", /\bCacheStorage\b|\b(?:window|globalThis)\s*(?:(?:\?\.|\.)\s*caches|\[\s*["']caches["']\s*\])|\bcaches\s*(?:\?\.|\.)\s*(?:delete|has|keys|match|open)\s*\(/],
-  ["storage manager", /\bnavigator\s*(?:(?:\?\.|\.)\s*storage|\[\s*["']storage["']\s*\])/],
+  ["storage manager", /\b(?:(?:window|globalThis)\s*(?:(?:\?\.|\.)\s*navigator|\[\s*["']navigator["']\s*\])|navigator)\s*(?:(?:\?\.|\.)\s*storage|\[\s*["']storage["']\s*\])/],
   ["request cookies or headers", /\b(?:cookies|headers)\s*\(/],
   ["private rendered destination", /\b(?:href|action|formAction)\s*[:=]\s*(?:\{\s*)?["'`]\/(?:admin|owner)(?:\/|["'`])/]
 ];
 
 function normalized(file) {
   return path.relative(root, file).replaceAll("\\", "/");
+}
+
+function canonicalModulePath(file) {
+  return file.replaceAll("\\", "/").replace(/\.(?:[cm]?[jt]sx?)$/, "");
+}
+
+function isForbiddenLocalModule(file) {
+  const modulePath = canonicalModulePath(file);
+  if (/^components\/admin(?:\/|$)/.test(modulePath)) {
+    return !allowedAdminComponentModules.has(modulePath);
+  }
+  return forbiddenLocalModules.some((pattern) => pattern.test(modulePath));
+}
+
+function localSpecifierPath(specifier, importer) {
+  const absolute = specifier.startsWith("@/")
+    ? path.resolve(root, specifier.slice(2))
+    : specifier.startsWith(".")
+      ? path.resolve(path.dirname(importer), specifier)
+      : null;
+  return absolute ? normalized(absolute) : null;
 }
 
 function resolveLocal(specifier, importer) {
@@ -130,11 +169,11 @@ function publicPreviewGraph() {
         violations.push(`${normalized(file)} imports forbidden package ${specifier}`);
       }
       const resolved = resolveLocal(specifier, file);
-      if (!resolved) continue;
-      const relative = normalized(resolved);
-      if (forbiddenLocalModules.some((pattern) => pattern.test(relative))) {
-        violations.push(`${normalized(file)} imports forbidden module ${relative}`);
+      const localPath = resolved ? normalized(resolved) : localSpecifierPath(specifier, file);
+      if (localPath && isForbiddenLocalModule(localPath)) {
+        violations.push(`${normalized(file)} imports forbidden module ${localPath}`);
       }
+      if (!resolved) continue;
       pending.push(resolved);
     }
   }
@@ -146,6 +185,10 @@ function assertPrivateModulePolicy() {
     import type { AdminDashboardData } from "@/lib/admin/dashboardTypes";
     export type { OwnerMutation } from "@/app/api/owner/restaurants/route";
     export { privateLoader } from "@/app/api/private-preview/route";
+    import type { AdminDishWorklistProps } from "@/components/admin/AdminDishWorklist";
+    export { AdminInsightCard } from "@/components/admin/AdminInsightCard";
+    import { AdminPanel } from "@/components/admin/system/AdminPrimitives";
+    export type { ChartDatum } from "@/components/admin/charts/types";
   `;
   const parsed = importsFrom(source, path.join(root, "components", "preview-policy-probe.ts"));
   const relativeModules = parsed.imports.map((specifier) => specifier.replace(/^@\//, ""));
@@ -153,13 +196,15 @@ function assertPrivateModulePolicy() {
   assert.deepEqual(relativeModules, [
     "lib/admin/dashboardTypes",
     "app/api/owner/restaurants/route",
-    "app/api/private-preview/route"
+    "app/api/private-preview/route",
+    "components/admin/AdminDishWorklist",
+    "components/admin/AdminInsightCard",
+    "components/admin/system/AdminPrimitives",
+    "components/admin/charts/types"
   ]);
   assert.deepEqual(
-    relativeModules.map((relative) =>
-      forbiddenLocalModules.some((pattern) => pattern.test(relative))
-    ),
-    [true, true, true]
+    relativeModules.map(isForbiddenLocalModule),
+    [true, true, true, true, true, false, false]
   );
 }
 
@@ -177,6 +222,8 @@ function assertBrowserStatePolicy() {
     "globalThis['caches']",
     "cookieStore.get('preview')",
     "navigator.storage.persist()",
+    "window.navigator.storage.persist()",
+    "globalThis.navigator.storage.persist()",
     "navigator['storage'].persist()",
     "localStorage.setItem('preview', '1')",
     "sessionStorage.getItem('preview')"
