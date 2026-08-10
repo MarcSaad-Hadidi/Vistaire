@@ -90,7 +90,7 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
   const categoryDishCounts = fixture.categories.map(({ id }) =>
     fixture.dishes.filter(({ categoryId }) => categoryId === id).length
   );
-  assert.deepEqual([...categoryDishCounts].sort((a, b) => a - b), [2, 3, 3, 4]);
+  assert.deepEqual([...categoryDishCounts].sort((a, b) => a - b), [2, 2, 3, 5]);
   assert.equal(sum(categoryDishCounts), 12);
   assert.equal(fixture.dishes.filter(({ available }) => available).length, 10);
 
