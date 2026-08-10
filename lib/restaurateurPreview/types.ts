@@ -55,7 +55,7 @@ export type RestaurateurPreviewFixture = {
   generatedAt: string;
   restaurant: {
     demo: true;
-    name: string;
+    name: LocalizedText;
   };
   categories: PreviewCategory[];
   dishes: PreviewDish[];

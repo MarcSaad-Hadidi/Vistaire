@@ -80,8 +80,6 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     "deriveRestaurateurPreviewPeriod must derive comparison, summary, and insights"
   );
   assert.equal(fixture.restaurant.demo, true);
-  assert.match(fixture.restaurant.name, /d[ée]mo/i);
-
   assert.equal(fixture.categories.length, 4);
   assert.equal(fixture.dishes.length, 12);
   assert.equal(new Set(fixture.categories.map(({ id }) => id)).size, 4);
@@ -149,6 +147,41 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     assert.equal(sum(period.serviceBreakdown.map(count)), activityTotal);
     assert.equal(sum(period.heatmap.map(count)), activityTotal);
 
+    const heatmapTotalForWeekday = (weekday) => sum(
+      period.heatmap.filter((cell) => cell.weekday === weekday).map(count)
+    );
+    if (periodId === "24h") {
+      const activeWeekdays = new Set(
+        period.heatmap.filter((cell) => cell.count > 0).map((cell) => cell.weekday)
+      );
+      assert.deepEqual([...activeWeekdays], [6], "the fixed 24 h demo window belongs to Saturday UTC");
+      for (let index = 0; index < period.seriesLabels.length; index += 1) {
+        const expectedBucketTotal = sum(metricIds.map((metricId) => period.series[metricId][index]));
+        const hour = index * 3;
+        const actualBucketTotal = sum(
+          period.heatmap
+            .filter((cell) => cell.weekday === 6 && cell.hour === hour)
+            .map(count)
+        );
+        assert.equal(actualBucketTotal, expectedBucketTotal, `24 h heatmap bucket ${hour}:00 matches its series bucket`);
+      }
+    }
+    if (periodId === "7d") {
+      const mondayFirstWeekdays = [1, 2, 3, 4, 5, 6, 0];
+      for (let index = 0; index < mondayFirstWeekdays.length; index += 1) {
+        const expectedDayTotal = sum(metricIds.map((metricId) => period.series[metricId][index]));
+        assert.equal(
+          heatmapTotalForWeekday(mondayFirstWeekdays[index]),
+          expectedDayTotal,
+          `7 d heatmap weekday ${mondayFirstWeekdays[index]} matches its daily series`
+        );
+      }
+    }
+    if (periodId === "30d") {
+      assert.ok(heatmapTotalForWeekday(6) > 0, "30 d heatmap includes Saturday activity");
+      assert.ok(heatmapTotalForWeekday(0) > 0, "30 d heatmap includes Sunday activity");
+    }
+
     const first = derivePeriod(structuredClone(period), fixture, "fr");
     const second = derivePeriod(structuredClone(period), fixture, "fr");
     assert.deepEqual(second, first);
@@ -186,4 +219,7 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
       true
     );
   }
+
+  assert.equal(fixture.restaurant.name.fr, "Maison Élyse — Démo");
+  assert.equal(fixture.restaurant.name.en, "Maison Élyse — Demo");
 });

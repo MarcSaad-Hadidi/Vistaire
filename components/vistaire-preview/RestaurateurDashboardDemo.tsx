@@ -53,7 +53,7 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
       <header className={styles.demoHeader}>
         <div>
           <p>{copy.dashboardEyebrow}</p>
-          <h2>{fixture.restaurant.name}</h2>
+          <h2>{fixture.restaurant.name[locale]}</h2>
           <span>{copy.dashboardSubtitle}</span>
         </div>
         <div aria-label={copy.periodsLabel} className={styles.periodSelector} role="group">
