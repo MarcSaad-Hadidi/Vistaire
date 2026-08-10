@@ -256,7 +256,10 @@ test("request policy distinguishes Next internals from private product mutations
     import.meta.url
   );
   assert.equal(existsSync(policyPath), true, "Prompt 7 request policy must exist");
-  const { classifyRestaurateurPreviewRequest } = await import(policyPath.href);
+  const {
+    classifyRestaurateurPreviewRequest,
+    shouldIgnoreRestaurateurPreviewRequestFailure
+  } = await import(policyPath.href);
   const base = "http://127.0.0.1:3000";
 
   const nextPost = classifyRestaurateurPreviewRequest({
@@ -319,6 +322,50 @@ test("request policy distinguishes Next internals from private product mutations
   });
   assert.equal(model.modelAsset, true);
   assert.doesNotMatch(JSON.stringify(model), /secret/);
+
+  for (const url of [
+    `${base}/_next/image?url=%2Fimages%2Fdishes%2Fdemo.webp&w=640&q=75`,
+    `${base}/_next/static/chunks/app-demo.js`
+  ]) {
+    assert.equal(
+      shouldIgnoreRestaurateurPreviewRequestFailure({
+        baseOrigin: base,
+        url,
+        errorText: "net::ERR_ABORTED"
+      }),
+      true,
+      `an intentional same-origin Next resource cancellation should be ignored: ${url}`
+    );
+  }
+
+  for (const input of [
+    {
+      baseOrigin: base,
+      url: `${base}/images/dishes/demo.webp`,
+      errorText: "net::ERR_ABORTED"
+    },
+    {
+      baseOrigin: base,
+      url: `${base}/admin/api/menu-dishes/secret/photo`,
+      errorText: "net::ERR_ABORTED"
+    },
+    {
+      baseOrigin: base,
+      url: "https://cdn.example.com/_next/static/chunks/app-demo.js",
+      errorText: "net::ERR_ABORTED"
+    },
+    {
+      baseOrigin: base,
+      url: `${base}/_next/static/chunks/app-demo.js`,
+      errorText: "net::ERR_FAILED"
+    }
+  ]) {
+    assert.equal(
+      shouldIgnoreRestaurateurPreviewRequestFailure(input),
+      false,
+      `the request failure must remain visible: ${input.url}`
+    );
+  }
 });
 
 test("request policy source never captures bodies or raw credential headers", async () => {

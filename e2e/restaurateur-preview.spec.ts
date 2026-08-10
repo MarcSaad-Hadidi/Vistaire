@@ -1,6 +1,9 @@
 import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 // @ts-expect-error -- dependency-free ESM policy is also exercised directly by Node contracts.
-import { classifyRestaurateurPreviewRequest } from "./support/restaurateur-preview-request-policy.mjs";
+import {
+  classifyRestaurateurPreviewRequest,
+  shouldIgnoreRestaurateurPreviewRequestFailure
+} from "./support/restaurateur-preview-request-policy.mjs";
 
 type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
@@ -164,8 +167,14 @@ function observeRuntime(page: Page, baseURL: string) {
     const explicitPrefetch =
       /prefetch/i.test(headers.purpose ?? "") ||
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
-    if (request.failure()?.errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
-    networkErrors.push(`${request.failure()?.errorText ?? "request failed"} ${new URL(request.url()).pathname}`);
+    const errorText = request.failure()?.errorText ?? "request failed";
+    if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
+    if (shouldIgnoreRestaurateurPreviewRequestFailure({
+      baseOrigin: baseURL,
+      url: request.url(),
+      errorText
+    })) return;
+    networkErrors.push(`${errorText} ${new URL(request.url()).pathname}`);
   });
   page.on("response", (response) => {
     if (response.status() === 404 || response.status() >= 500) {

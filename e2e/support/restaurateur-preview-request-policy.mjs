@@ -9,6 +9,14 @@ const ANALYTICS_PATH = /^\/api\/analytics\/events(?:\/|$)/i;
 const SUPABASE_PATH = /^\/(?:auth|realtime|rest)\/v1(?:\/|$)|^\/rpc(?:\/|$)/i;
 const MODEL_ASSET = /(?:^|\/)(?:model\/)?(?:glb|usdz)(?:\/|$)|\.(?:glb|usdz)$/i;
 const VIDEO_ASSET = /\.(?:m4v|mov|mp4|webm)$/i;
+const ABORTABLE_NEXT_RESOURCE = /^\/_next\/(?:image(?:\/|$)|static\/)/i;
+
+export function shouldIgnoreRestaurateurPreviewRequestFailure(input) {
+  if (input.errorText !== "net::ERR_ABORTED") return false;
+  const baseOrigin = new URL(input.baseOrigin).origin;
+  const url = new URL(input.url, baseOrigin);
+  return url.origin === baseOrigin && ABORTABLE_NEXT_RESOURCE.test(url.pathname);
+}
 
 function safePathname(url, privateEndpoint, supabaseRequest) {
   const pathname = url.pathname;
