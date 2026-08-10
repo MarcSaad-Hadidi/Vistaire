@@ -58,6 +58,18 @@ const englishProductPages = [
   "/en/restaurant-preview"
 ];
 
+const editorialGuidePages = [
+  "/guides/anatomie-menu-digital-premium",
+  "/guides/menu-qr-mobile-sans-application",
+  "/guides/3d-restaurant-utile-vs-gadget"
+];
+
+const englishEditorialGuidePages = [
+  "/en/guides/premium-digital-menu-anatomy",
+  "/en/guides/mobile-qr-menu-without-app",
+  "/en/guides/restaurant-3d-useful-vs-gimmick"
+];
+
 const seoGeoSmokeRoutes = [
   {
     path: "/menu-qr-sans-pdf",
@@ -360,6 +372,10 @@ test.describe("Vistaire SEO smoke", () => {
       ...publicProductPages.flatMap((path, index) => [
         path,
         englishProductPages[index]
+      ]),
+      ...editorialGuidePages.flatMap((path, index) => [
+        path,
+        englishEditorialGuidePages[index]
       ]),
       ...seoGeoPages.flatMap((path, index) => [path, englishSeoGeoPages[index]])
     ]);
