@@ -343,8 +343,9 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   expect(await rows.evaluateAll((items) => items.filter((item) => getComputedStyle(item).display !== "none").every((item) => item.getAttribute("data-available") === "true"))).toBe(true);
   await all.click();
 
-  const toggle = page.locator('[role="switch"][aria-checked="true"]').first();
+  const toggle = rows.first().getByRole("switch");
   await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("status")).toContainText(scenario.simulation);
@@ -438,7 +439,7 @@ test.describe("public restaurateur dashboard preview", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/apercu-restaurateur", { waitUntil: "domcontentloaded" });
     const reducedCharts = page.locator('[data-chart-frame] svg[data-reduced-motion="true"]');
-    expect(await reducedCharts.count()).toBeGreaterThan(0);
+    await expect.poll(() => reducedCharts.count()).toBeGreaterThan(0);
     await page.locator('button[data-demo-period="7d"]').click();
     await expect.poll(() => reducedCharts.evaluateAll((elements) => elements.flatMap((element) => element.getAnimations({ subtree: true })).length)).toBe(0);
   });
