@@ -1,0 +1,109 @@
+"use client";
+
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import dynamic from "next/dynamic";
+import { AdminToast } from "@/components/admin/system/AdminPresentationPrimitives";
+import adminStyles from "@/components/admin/system/AdminSystem.module.css";
+import { RESTAURATEUR_PREVIEW_COPY } from "@/lib/restaurateurPreview/copy";
+import { RESTAURATEUR_PREVIEW_FIXTURE } from "@/lib/restaurateurPreview/fixture";
+import type { RestaurateurPreviewLocale, RestaurateurPreviewPeriodId } from "@/lib/restaurateurPreview/types";
+import { RestaurateurPreviewAvailability } from "./RestaurateurPreviewAvailability";
+import { RestaurateurPreviewOverview } from "./RestaurateurPreviewOverview";
+import styles from "./VistaireRestaurateurDashboardPreview.module.css";
+
+type DemoTab = "overview" | "availability" | "insights";
+const tabs: DemoTab[] = ["overview", "availability", "insights"];
+const periods: RestaurateurPreviewPeriodId[] = ["24h", "7d", "30d"];
+const RestaurateurPreviewInsights = dynamic(
+  () => import("./RestaurateurPreviewInsights").then((module) => module.RestaurateurPreviewInsights),
+  { loading: () => <p role="status">…</p> }
+);
+
+export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPreviewLocale }) {
+  const fixture = RESTAURATEUR_PREVIEW_FIXTURE;
+  const copy = RESTAURATEUR_PREVIEW_COPY[locale];
+  const [activeTab, setActiveTab] = useState<DemoTab>("overview");
+  const [periodId, setPeriodId] = useState<RestaurateurPreviewPeriodId>("24h");
+  const [availableById, setAvailableById] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(fixture.dishes.map((dish) => [dish.id, dish.available]))
+  );
+  const [showFeedback, setShowFeedback] = useState(false);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const period = fixture.periods[periodId];
+  const availableCount = useMemo(() => Object.values(availableById).filter(Boolean).length, [availableById]);
+
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    tabRefs.current[next]?.focus();
+  };
+
+  const toggleDish = (dishId: string) => {
+    setAvailableById((current) => ({ ...current, [dishId]: !current[dishId] }));
+    setShowFeedback(true);
+  };
+
+  return (
+    <section className={`${adminStyles.adminRoot} ${styles.dashboardDemo}`} aria-label={copy.tabsLabel}>
+      <header className={styles.demoHeader}>
+        <div>
+          <p>{copy.dashboardEyebrow}</p>
+          <h2>{fixture.restaurant.name}</h2>
+          <span>{copy.dashboardSubtitle}</span>
+        </div>
+        <div aria-label={copy.periodsLabel} className={styles.periodSelector} role="group">
+          {periods.map((id) => (
+            <button
+              aria-pressed={periodId === id}
+              data-demo-period={id}
+              key={id}
+              onClick={() => setPeriodId(id)}
+              type="button"
+            >
+              {copy.periods[id]}
+            </button>
+          ))}
+        </div>
+      </header>
+      <div aria-label={copy.tabsLabel} className={styles.demoTabs} role="tablist">
+        {tabs.map((id, index) => (
+          <button
+            aria-controls={`demo-panel-${id}`}
+            aria-selected={activeTab === id}
+            id={`demo-tab-${id}`}
+            key={id}
+            onClick={() => setActiveTab(id)}
+            onKeyDown={(event) => onTabKeyDown(event, index)}
+            ref={(node) => { tabRefs.current[index] = node; }}
+            role="tab"
+            tabIndex={activeTab === id ? 0 : -1}
+            type="button"
+          >
+            {copy.tabs[id]}
+          </button>
+        ))}
+      </div>
+      <div
+        aria-labelledby={`demo-tab-${activeTab}`}
+        className={styles.demoPanel}
+        id={`demo-panel-${activeTab}`}
+        role="tabpanel"
+        tabIndex={0}
+      >
+        {activeTab === "overview" ? (
+          <RestaurateurPreviewOverview availableById={availableById} copy={copy} fixture={fixture} locale={locale} period={period} />
+        ) : activeTab === "availability" ? (
+          <RestaurateurPreviewAvailability availableById={availableById} copy={copy} fixture={fixture} locale={locale} onToggle={toggleDish} />
+        ) : (
+          <RestaurateurPreviewInsights availableCount={availableCount} copy={copy} fixture={fixture} locale={locale} period={period} />
+        )}
+      </div>
+      {showFeedback ? <AdminToast>{copy.simulation}</AdminToast> : null}
+    </section>
+  );
+}

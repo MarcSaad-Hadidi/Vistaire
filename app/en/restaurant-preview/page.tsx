@@ -13,7 +13,7 @@ import {
 const canonicalPath = "/en/restaurant-preview";
 const title = "Vistaire restaurant preview";
 const description =
-  "Discover the Vistaire restaurant preview: active menu, QR code, popular dishes, readiness and attention signals for a premium menu.";
+  "Explore an interactive demonstration of the Vistaire restaurant dashboard: Overview, Availability and Insights with isolated fictional data.";
 
 export const metadata: Metadata = {
   title,
@@ -59,7 +59,7 @@ export default async function RestaurantPreviewPageEn() {
           buildPageServiceJsonLd({
             path: canonicalPath,
             name: "Vistaire restaurant preview",
-            serviceType: "Restaurant preview for a premium digital menu",
+            serviceType: "Restaurant dashboard demonstration for a premium digital menu",
             description
           }),
           buildBreadcrumbJsonLd([
