@@ -290,7 +290,7 @@ test("admin metric icons have distinct path signatures", async () => {
 
 test("admin KPI and chart frame expose optional localized copy with unchanged French defaults", async () => {
   const [primitives, frame] = await Promise.all([
-    readFile("components/admin/system/AdminPrimitives.tsx", "utf8"),
+    readFile("components/admin/system/AdminPresentationPrimitives.tsx", "utf8"),
     readFile("components/admin/charts/ChartFrame.tsx", "utf8"),
   ]);
 

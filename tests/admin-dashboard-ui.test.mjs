@@ -110,16 +110,49 @@ test("clipboard failures have a visible live alert", async () => {
   assert.match(actions, /Impossible de copier/);
 });
 
+test("presentation primitives stay prop-driven without private navigation, data or server dependencies", async () => {
+  const presentation = await read("components/admin/system/AdminPresentationPrimitives.tsx").catch(() => "");
+  const expected = ["AdminPanel", "AdminKpiCard", "AdminEvidenceState", "AdminStatusBadge", "AdminTooltip", "AdminToggle", "AdminToast", "AdminSkeleton"];
+  const imports = [...presentation.matchAll(/from\s+["']([^"']+)["']/g)].map((match) => match[1]);
+
+  for (const primitive of expected) assert.match(presentation, new RegExp(`export function ${primitive}\\b`));
+  assert.deepEqual([...new Set(imports)].sort(), ["./AdminIcons", "./AdminSystem.module.css", "@/lib/adminPresentationCopy", "react"].sort());
+  assert.doesNotMatch(presentation, /next\/link|<Link\b|\bAdminTabs\b|["'`]\/admin(?:\/|["'`])/);
+  assert.doesNotMatch(presentation, /(?:@\/lib\/admin\/|server-only|next\/headers|cookies\s*\(|headers\s*\(|fetch\s*\(|router\.|supabase)/i);
+});
+
+test("legacy primitives entrypoint re-exports every presentation primitive while keeping AdminTabs unchanged", async () => {
+  const legacy = await read("components/admin/system/AdminPrimitives.tsx");
+  const expected = ["AdminPanel", "AdminKpiCard", "AdminEvidenceState", "AdminStatusBadge", "AdminTooltip", "AdminToggle", "AdminToast", "AdminSkeleton"];
+  const reExport = legacy.match(/export\s*\{([\s\S]*?)\}\s*from\s*["']\.\/AdminPresentationPrimitives["']/)?.[1] ?? "";
+
+  for (const primitive of expected) assert.match(reExport, new RegExp(`\\b${primitive}\\b`));
+  assert.match(legacy, /import Link from ["']next\/link["']/);
+  assert.match(legacy, /export function AdminTabs\b/);
+  assert.match(legacy, /active: "overview" \| "availability" \| "insights"; className\?: string/);
+  assert.match(legacy, /className=\{classes\(styles\.tabs, className\)\}/);
+  assert.match(legacy, /aria-label="Sections principales"/);
+  assert.match(legacy, /href="\/admin" aria-current=\{active === "overview" \? "page" : undefined\}/);
+  assert.match(legacy, /href="\/admin\/availability" aria-current=\{active === "availability" \? "page" : undefined\}/);
+  assert.match(legacy, /href="\/admin\/insights" aria-current=\{active === "insights" \? "page" : undefined\}/);
+  assert.match(legacy, /Vue d.ensemble/);
+  assert.match(legacy, /Disponibilit.s/);
+  assert.match(legacy, /Analyses/);
+  for (const primitive of expected) assert.doesNotMatch(legacy, new RegExp(`export function ${primitive}\\b`));
+});
+
 test("admin visual system is scoped, locally typeset and accessible", async () => {
-  const [shell, nav, primitives, icons, css, layout, loading] = await Promise.all([
+  const [shell, nav, primitivesEntry, presentationPrimitives, icons, css, layout, loading] = await Promise.all([
     read("components/admin/system/AdminShell.tsx"),
     read("components/admin/system/AdminNav.tsx"),
     read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminPresentationPrimitives.tsx"),
     read("components/admin/system/AdminIcons.tsx"),
     read("components/admin/system/AdminSystem.module.css"),
     read("app/admin/layout.tsx"),
     read("app/admin/loading.tsx")
   ]);
+  const primitives = `${primitivesEntry}\n${presentationPrimitives}`;
   const source = `${shell}\n${nav}\n${primitives}\n${icons}\n${layout}\n${loading}`;
 
   assert.match(shell, /<main/);
@@ -151,7 +184,7 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
 
 test("admin compact controls preserve 44px hit areas and direct tooltip semantics", async () => {
   const [primitives, css] = await Promise.all([
-    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminPresentationPrimitives.tsx"),
     read("components/admin/system/AdminSystem.module.css")
   ]);
 
@@ -314,7 +347,7 @@ test("PR150 insights fidelity uses normal flow, premium copy, controlled top-fiv
     read("components/admin/insights/AdminBreakdowns.tsx"),
     read("components/admin/insights/InsightsRows.tsx"),
     read("components/admin/insights/AdminInsights.module.css"),
-    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminPresentationPrimitives.tsx"),
     read("components/admin/charts/Sparkline.tsx"),
     read("components/admin/charts/Charts.module.css")
   ]);
@@ -407,7 +440,7 @@ test("full-menu parity exposes the same stable identity fields on admin and publ
 test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {
   const [insights, primitives, presentationCopy, neutralPresentationCopy, thumbnailCss] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminPresentationPrimitives.tsx"),
     read("lib/admin/analyticsPresentationCopy.ts"),
     read("lib/adminPresentationCopy.ts").catch(() => ""),
     read("components/admin/AdminDishThumbnail.module.css")
@@ -424,7 +457,7 @@ test("admin presentation copy keeps a neutral public-safe dependency boundary wi
   const [neutral, compatibility, primitives] = await Promise.all([
     read("lib/adminPresentationCopy.ts").catch(() => ""),
     read("lib/admin/analyticsPresentationCopy.ts"),
-    read("components/admin/system/AdminPrimitives.tsx"),
+    read("components/admin/system/AdminPresentationPrimitives.tsx"),
   ]);
 
   assert.match(neutral, /export type AdminAnalyticsFreshness/);
@@ -473,7 +506,7 @@ test("search expansion is conditional and reveals additional visible rows", asyn
 });
 
 test("unavailable evidence is assertive while insufficient evidence stays polite", async () => {
-  const primitives = await read("components/admin/system/AdminPrimitives.tsx");
+  const primitives = await read("components/admin/system/AdminPresentationPrimitives.tsx");
   assert.match(primitives, /role=\{evidence\.kind === "unavailable" \? "alert" : "status"\}/);
   assert.match(primitives, /role=\{unavailable \? "alert" : "status"\}/);
 });
