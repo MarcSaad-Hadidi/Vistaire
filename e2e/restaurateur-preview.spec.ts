@@ -1,9 +1,6 @@
 import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 // @ts-expect-error -- dependency-free ESM policy is also exercised directly by Node contracts.
-import {
-  classifyRestaurateurPreviewRequest,
-  shouldIgnoreRestaurateurPreviewRequestFailure
-} from "./support/restaurateur-preview-request-policy.mjs";
+import { classifyRestaurateurPreviewRequest, shouldIgnoreRestaurateurPreviewRequestFailure } from "./support/restaurateur-preview-request-policy.mjs";
 
 type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
