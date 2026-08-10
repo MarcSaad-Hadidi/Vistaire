@@ -102,6 +102,13 @@
 .insightsBottomGrid { display:grid; grid-template-columns:1.3fr 1fr; gap:10px; margin-top:10px; }
 .insightsPrimaryGrid > section { min-height:300px; }
 .insightsPrimaryGrid :global([data-chart-plot-stack]) { min-height:190px; }
+.insightsSecondaryGrid :global([data-chart-kind="donut"]) { --donut-size:136px; column-gap:10px; }
+.insightsSecondaryGrid :global([data-chart-kind="donut"] svg) { width:136px; }
+.insightsSecondaryGrid :global([data-chart-chrome]) { display:none; }
+.insightsSecondaryGrid :global([data-chart-legend]) { gap:5px; font-size:10px; }
+.insightsSecondaryGrid :global([data-chart-legend] li) { grid-template-columns:9px minmax(0,1fr) auto; gap:5px; }
+.insightsSecondaryGrid :global([data-chart-legend] strong) { grid-column:3; white-space:nowrap; }
+.insightsSecondaryGrid :global([data-chart-legend] small) { display:inline; margin-left:3px; }
 .utcNote { margin:0 0 8px; color:var(--admin-accent); font-size:10px; text-align:right; }
 .compactList { display:grid; gap:6px; }
 .compactList li { display:grid; min-height:34px; grid-template-columns:22px minmax(0,1fr) auto; align-items:center; gap:7px; border-bottom:1px solid var(--admin-border-soft); font-size:11px; }
@@ -126,6 +133,14 @@
 .qrCard h2 { font-size:30px; }
 .qrMark { width:132px; margin:0 !important; border-radius:12px; padding:8px; background:#fff7ea; }
 .qrMark svg { display:block; width:100%; height:auto; }
+
+@media(max-width:1400px) and (min-width:1181px) {
+  .insightsSecondaryGrid :global([data-chart-kind="donut"]) { --donut-size:96px; }
+  .insightsSecondaryGrid :global([data-chart-kind="donut"] svg) { width:96px; }
+  .insightsSecondaryGrid :global([data-chart-legend]) { gap:2px; line-height:1.1; }
+  .insightsSecondaryGrid :global([data-chart-legend] li) { grid-template-columns:9px minmax(0,1fr); }
+  .insightsSecondaryGrid :global([data-chart-legend] strong) { grid-column:2; }
+}
 
 @media(max-width:1180px) {
   .kpiGrid { grid-template-columns:repeat(3,minmax(0,1fr)); }
@@ -176,6 +191,10 @@
   .dishList > article > :global([role="switch"]) { grid-column:3; grid-row:1 / span 2; }
   .dishPrice { grid-column:1; text-align:center; }
   .summaryGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .insightsSecondaryGrid :global([data-chart-kind="donut"]) { grid-template-columns:1fr; grid-template-areas:"header" "plot" "legend"; row-gap:8px; --donut-size:164px; }
+  .insightsSecondaryGrid :global([data-chart-kind="donut"] svg) { width:164px; }
+  .insightsSecondaryGrid :global([data-chart-legend] li) { grid-template-columns:9px minmax(0,1fr); }
+  .insightsSecondaryGrid :global([data-chart-legend] strong) { grid-column:2; white-space:normal; }
   .afterDemo { width:calc(100% - 24px); }
   .qrCard { grid-template-columns:1fr; }
   .qrMark { width:116px; }
