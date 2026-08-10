@@ -33,7 +33,9 @@ export const CATEGORIES = Object.freeze([
 ]);
 
 const PUBLIC_NAVIGATION_CALLSITES = new Set([
+  "app/apercu-restaurateur/page.tsx",
   "app/demo/page.tsx",
+  "app/en/restaurant-preview/page.tsx",
   "app/en/pricing-digital-restaurant-menu/page.tsx",
   "app/en/vistaire-menu/page.tsx",
   "components/landing/vistairelanding.tsx",
@@ -166,6 +168,8 @@ export function classifyPath(input) {
   // admin QR classification.
   if (
     /^components\/vistaire-preview\//.test(lower) ||
+    /^lib\/restaurateurpreview\//.test(lower) ||
+    /^e2e\/restaurateur-preview(?:-[^/]+)?\.spec\.ts$/.test(lower) ||
     PUBLIC_NAVIGATION_CALLSITES.has(lower) ||
     lower === "e2e/public-navigation.spec.ts"
   ) {
@@ -271,7 +275,7 @@ export function deriveRunOutputs(flags) {
     run_sauge: full || flags.sauge_renderer === true || flags.pageflip_gestures === true,
     run_admin_qr: full || flags.admin === true || flags.qr === true,
     run_seo: full || flags.seo === true,
-    run_webkit: full || flags.menu_shared === true || flags.translations === true ||
+    run_webkit: full || flags.public_navigation === true || flags.menu_shared === true || flags.translations === true ||
       flags.sauge_renderer === true || flags.pageflip_gestures === true
   };
 }

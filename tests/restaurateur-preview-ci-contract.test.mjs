@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import {
+  classifyChanges,
+  classifyPath,
+  RUN_OUTPUTS
+} from "../scripts/ci/detect-changes.mjs";
+
+const root = new URL("../", import.meta.url);
+const read = (path) => readFile(new URL(path, root), "utf8");
+const packageJson = JSON.parse(await read("package.json"));
+const workflow = await read(".github/workflows/app-ci.yml");
+
+const previewOwnedPaths = [
+  "app/apercu-restaurateur/page.tsx",
+  "app/en/restaurant-preview/page.tsx",
+  "components/vistaire-preview/RestaurateurDashboardDemo.tsx",
+  "lib/restaurateurPreview/fixture.ts",
+  "e2e/restaurateur-preview.spec.ts"
+];
+
+test("every Prompt 7 product path selects public Chromium and critical WebKit", () => {
+  for (const path of previewOwnedPaths) {
+    const classification = classifyPath(path);
+    assert.equal(
+      classification.categories.has("public_navigation"),
+      true,
+      `${path} must remain in the public_navigation family`
+    );
+
+    const result = classifyChanges({
+      eventName: "pull_request",
+      changedFiles: [path]
+    });
+    assert.equal(result.run_core, true, `${path} must select public Chromium`);
+    assert.equal(result.run_webkit, true, `${path} must select critical WebKit`);
+  }
+});
+
+test("the Prompt 7 browser contract executes with fail-closed CI options", () => {
+  for (const scriptName of ["test:ci:e2e:core", "test:ci:e2e:webkit"]) {
+    const script = packageJson.scripts?.[scriptName];
+    assert.equal(typeof script, "string", `${scriptName} must exist`);
+    assert.match(script, /e2e\/restaurateur-preview\.spec\.ts/);
+    assert.match(script, /--workers=1/);
+    assert.match(script, /--retries=0/);
+    assert.match(script, /--forbid-only/);
+    assert.match(script, /forbid-skipped-tests-reporter\.ts/);
+  }
+
+  assert.match(packageJson.scripts["test:ci:e2e:core"], /--project=chromium/);
+  assert.match(packageJson.scripts["test:ci:e2e:webkit"], /--project=webkit/);
+});
+
+test("Prompt 7 Node contracts run in static-quality and the execution lock runs before install", () => {
+  assert.equal(
+    packageJson.scripts?.["test:restaurateur-preview:node"],
+    "node --test tests/restaurateur-preview-fixture.test.mjs tests/restaurateur-preview-security.test.mjs tests/restaurateur-preview-ci-contract.test.mjs"
+  );
+
+  const fastGate = workflow.slice(
+    workflow.indexOf("  fast-gate:"),
+    workflow.indexOf("  static-quality:")
+  );
+  const staticQuality = workflow.slice(
+    workflow.indexOf("  static-quality:"),
+    workflow.indexOf("  database-contracts:")
+  );
+  assert.match(
+    fastGate,
+    /node --test[\s\S]*tests\/restaurateur-preview-ci-contract\.test\.mjs/
+  );
+  assert.doesNotMatch(fastGate, /^\s*(?:run:\s*)?npm\s+(?:ci|install)\b/m);
+  assert.match(staticQuality, /npm run test:restaurateur-preview:node/);
+});
+
+test("Prompt 7 path changes never leave an applicable CI family unselected", () => {
+  const result = classifyChanges({
+    eventName: "pull_request",
+    changedFiles: previewOwnedPaths
+  });
+  const selected = RUN_OUTPUTS.filter((name) => result[name]);
+  assert.deepEqual(selected, ["run_static", "run_build", "run_core", "run_webkit"]);
+});
