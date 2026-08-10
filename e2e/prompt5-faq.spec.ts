@@ -48,14 +48,9 @@ async function renderedFaqPage(page: Page) {
 }
 
 async function openHydratedFaqItem(question: Locator) {
-  await expect(async () => {
-    if ((await question.getAttribute("aria-expanded")) !== "true") {
-      await question.click();
-    }
-    await expect(question).toHaveAttribute("aria-expanded", "true", {
-      timeout: 750
-    });
-  }).toPass({ timeout: 15_000 });
+  await expect(question).toHaveAttribute("data-hydrated", "true");
+  await question.click();
+  await expect(question).toHaveAttribute("aria-expanded", "true");
 }
 
 async function expectRenderedParity(

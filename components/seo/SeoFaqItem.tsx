@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 
 type SeoFaqItemProps = {
   answer: string;
@@ -17,16 +17,21 @@ export function SeoFaqItem({
   const reactId = useId();
   const buttonId = `seo-faq-question-${reactId}`;
   const answerId = `seo-faq-answer-${reactId}`;
+  const markHydrated = useCallback((element: HTMLButtonElement | null) => {
+    if (element) element.dataset.hydrated = "true";
+  }, []);
 
   return (
     <article className="group p-5 sm:p-6">
       <h3>
         <button
+          ref={markHydrated}
           id={buttonId}
           type="button"
           className="flex min-h-11 w-full items-center justify-between gap-5 rounded-md text-left font-display text-xl leading-tight text-cream outline-none transition-colors hover:text-[#f1d8a6] focus-visible:ring-2 focus-visible:ring-[#e8cf9b] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0d0907] motion-reduce:transition-none"
           aria-controls={answerId}
           aria-expanded={isOpen}
+          data-hydrated="false"
           data-seo-faq-question
           onClick={() => setIsOpen((open) => !open)}
         >
