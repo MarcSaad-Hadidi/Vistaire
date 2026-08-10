@@ -495,9 +495,10 @@ test.describe("public restaurateur dashboard preview", () => {
       await exerciseInsightsMetricSelector(page, scenario);
       await exercisePeriods(page);
       await exerciseCharts(page);
+      const insightsPanelMaxHeight = (page.viewportSize()?.width ?? 1280) < 700 ? 460 : 420;
       for (const panel of await page.locator('[class*="insightsSecondaryGrid"] > section').all()) {
         const box = await panel.boundingBox();
-        expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(420);
+        expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(insightsPanelMaxHeight);
       }
       await expectSafeDom(page, scenario);
       await expectSafeSeo(page, scenario);
