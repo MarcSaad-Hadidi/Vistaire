@@ -165,12 +165,25 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     assert.notDeepEqual(changedComparison.summary, first.summary);
 
     const changedRanking = structuredClone(period);
-    const promotedDishId = fixture.dishes.at(-1).id;
+    const currentLeader = period.topDishes.reduce((leader, item) =>
+      item.count > leader.count ? item : leader
+    );
+    const promotedDish = fixture.dishes.findLast(({ id }) => id !== currentLeader.dishId);
+    assert.ok(promotedDish, "a non-leading dish must be available for the ranking mutation");
     const promotedCount = Math.max(...period.topDishes.map(({ count: value }) => value)) + 1;
     changedRanking.topDishes = changedRanking.topDishes.map((item) =>
-      item.dishId === promotedDishId ? { ...item, count: promotedCount } : item
+      item.dishId === promotedDish.id ? { ...item, count: promotedCount } : item
     );
     const changedInsights = derivePeriod(changedRanking, fixture, "fr");
     assert.notDeepEqual(changedInsights.keyInsights, first.keyInsights);
+    assert.equal(
+      changedInsights.keyInsights.some((insight) => insight.includes(promotedDish.name)),
+      true
+    );
+    const changedEnglishInsights = derivePeriod(changedRanking, fixture, "en");
+    assert.equal(
+      changedEnglishInsights.keyInsights.some((insight) => insight.includes(promotedDish.nameEn)),
+      true
+    );
   }
 });

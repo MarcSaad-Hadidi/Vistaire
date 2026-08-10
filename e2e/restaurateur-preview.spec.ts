@@ -391,18 +391,28 @@ async function exerciseInsightsMetricSelector(page: Page, scenario: Scenario) {
   const menu = selector.getByRole("button", { name: scenario.metricButtons[0], exact: true });
   const dishes = selector.getByRole("button", { name: scenario.metricButtons[1], exact: true });
   const searches = selector.getByRole("button", { name: scenario.metricButtons[2], exact: true });
+  const selectedButtons = selector.locator('button[aria-pressed="true"]');
+  await expect(selectedButtons).toHaveCount(1);
   await expect(menu).toHaveAttribute("aria-pressed", "true");
   const menuSignature = await signature();
   await dishes.click();
+  await expect(selectedButtons).toHaveCount(1);
   await expect(dishes).toHaveAttribute("aria-pressed", "true");
   await expect.poll(signature).not.toEqual(menuSignature);
   const dishSignature = await signature();
   await searches.click();
+  await expect(selectedButtons).toHaveCount(1);
   await expect(searches).toHaveAttribute("aria-pressed", "true");
   await expect.poll(signature).not.toEqual(dishSignature);
+  const searchSignature = await signature();
+  expect(searchSignature).not.toEqual(menuSignature);
+  expect(searchSignature).not.toEqual(dishSignature);
   await dishes.click();
+  await expect(selectedButtons).toHaveCount(1);
   await expect.poll(signature).toEqual(dishSignature);
   await menu.click();
+  await expect(selectedButtons).toHaveCount(1);
+  await expect(menu).toHaveAttribute("aria-pressed", "true");
   await expect.poll(signature).toEqual(menuSignature);
 }
 
