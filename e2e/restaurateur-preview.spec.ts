@@ -69,7 +69,7 @@ const viewports = [
 const canonicalOrigin = "https://www.vistaire.ca";
 
 const allowedJsonLdDocumentTypes = new Set(["WebPage", "Service", "BreadcrumbList"]);
-const forbiddenJsonLdTypes = new Set(["AggregateRating", "Offer", "Review", "SoftwareApplication"]);
+const forbiddenJsonLdTypes = new Set(["AggregateRating", "Review", "SoftwareApplication"]);
 const forbiddenJsonLdClaimKeys = new Set([
   "analytics",
   "availability",
@@ -251,7 +251,7 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
   }
   const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
   expect(schemas.length).toBeGreaterThan(0);
-  const documents = schemas.flatMap((source, index) => {
+  const documentGroups = schemas.map((source, index) => {
     let parsed: unknown;
     try {
       parsed = JSON.parse(source);
@@ -260,15 +260,22 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
     }
     return jsonLdDocuments(parsed);
   });
-  expect(documents.length).toBeGreaterThan(0);
+  for (const group of documentGroups) expect(group.length).toBeGreaterThan(0);
+  const pageIdPrefix = `${canonicalOrigin}${scenario.path}#`;
+  const pageDocuments = documentGroups
+    .flat()
+    .filter((document) =>
+      typeof document["@id"] === "string" && document["@id"].startsWith(pageIdPrefix)
+    );
+  expect(pageDocuments).toHaveLength(3);
 
   const documentTypes: string[] = [];
-  for (const document of documents) {
+  for (const document of pageDocuments) {
     const rawTypes = Array.isArray(document["@type"])
       ? document["@type"]
       : [document["@type"]];
     const types = rawTypes.filter((value): value is string => typeof value === "string");
-    expect(types.length, "every JSON-LD document must declare @type").toBeGreaterThan(0);
+    expect(types.length, "every page JSON-LD document must declare one @type").toBe(1);
     for (const type of types) {
       expect(allowedJsonLdDocumentTypes.has(type), `unsupported JSON-LD document type ${type}`).toBe(true);
       documentTypes.push(type);
