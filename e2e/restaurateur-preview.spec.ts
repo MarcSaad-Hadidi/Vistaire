@@ -230,10 +230,11 @@ async function expectSafeDom(page: Page, scenario: Scenario) {
     })
   );
   expect(privateDestinations).toEqual([]);
-  await expect(page.getByRole("link", { name: scenario.sampleMenu.label, exact: true })).toHaveAttribute(
-    "href",
-    scenario.sampleMenu.href
-  );
+  const sampleLinks = page.getByRole("link", { name: scenario.sampleMenu.label, exact: true });
+  expect(await sampleLinks.count()).toBeGreaterThan(0);
+  for (const sampleLink of await sampleLinks.all()) {
+    await expect(sampleLink).toHaveAttribute("href", scenario.sampleMenu.href);
+  }
   await expect(page.getByRole("contentinfo")).toBeVisible();
   const cookies = await page.context().cookies();
   expect(cookies, "the anonymous preview must not create any cookie").toEqual([]);
