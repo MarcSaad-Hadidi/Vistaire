@@ -67,6 +67,50 @@ const viewports = [
   { width: 1440, height: 900 }
 ] as const;
 
+const allowedJsonLdDocumentTypes = new Set(["WebPage", "Service", "BreadcrumbList"]);
+const forbiddenJsonLdTypes = new Set(["AggregateRating", "Offer", "Review", "SoftwareApplication"]);
+const forbiddenJsonLdClaimKeys = new Set([
+  "analytics",
+  "availability",
+  "availabledishes",
+  "categorybreakdown",
+  "comparison",
+  "dishopens",
+  "heatmap",
+  "immersive",
+  "keyinsights",
+  "menuopens",
+  "metrics",
+  "periods",
+  "readiness",
+  "searchbreakdown",
+  "searches",
+  "servicebreakdown",
+  "summary",
+  "topdishes"
+]);
+
+function visitJson(value: unknown, visit: (key: string | null, value: unknown) => void, key: string | null = null) {
+  visit(key, value);
+  if (Array.isArray(value)) {
+    for (const item of value) visitJson(item, visit);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [childKey, childValue] of Object.entries(value)) {
+      visitJson(childValue, visit, childKey);
+    }
+  }
+}
+
+function jsonLdDocuments(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.flatMap(jsonLdDocuments);
+  if (!value || typeof value !== "object") return [];
+  const object = value as Record<string, unknown>;
+  if (Array.isArray(object["@graph"])) return object["@graph"].flatMap(jsonLdDocuments);
+  return [object];
+}
+
 function requestHeaders(request: Request) {
   const headers = request.headers();
   return Object.fromEntries(
@@ -192,9 +236,7 @@ async function expectSafeDom(page: Page, scenario: Scenario) {
   );
   await expect(page.getByRole("contentinfo")).toBeVisible();
   const cookies = await page.context().cookies();
-  expect(
-    cookies.filter(({ name }) => /admin|owner|preview/i.test(name))
-  ).toEqual([]);
+  expect(cookies, "the anonymous preview must not create any cookie").toEqual([]);
 }
 
 async function expectSafeSeo(page: Page, scenario: Scenario, baseURL: string) {
@@ -207,10 +249,49 @@ async function expectSafeSeo(page: Page, scenario: Scenario, baseURL: string) {
   }
   const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
   expect(schemas.length).toBeGreaterThan(0);
-  const serialized = schemas.join("\n");
-  expect(serialized).not.toMatch(/Maison Élyse\s*[—-]\s*Démo/i);
-  expect(serialized).not.toMatch(/"(?:analytics|availableDishes|dishOpens|immersive|menuOpens|searches)"\s*:/i);
-  expect(serialized).not.toMatch(/"@type"\s*:\s*"(?:AggregateRating|Offer|Review|SoftwareApplication)"/i);
+  const documents = schemas.flatMap((source, index) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(source);
+    } catch (error) {
+      throw new Error(`JSON-LD script ${index + 1} is not valid JSON`, { cause: error });
+    }
+    return jsonLdDocuments(parsed);
+  });
+  expect(documents.length).toBeGreaterThan(0);
+
+  const documentTypes: string[] = [];
+  for (const document of documents) {
+    const rawTypes = Array.isArray(document["@type"])
+      ? document["@type"]
+      : [document["@type"]];
+    const types = rawTypes.filter((value): value is string => typeof value === "string");
+    expect(types.length, "every JSON-LD document must declare @type").toBeGreaterThan(0);
+    for (const type of types) {
+      expect(allowedJsonLdDocumentTypes.has(type), `unsupported JSON-LD document type ${type}`).toBe(true);
+      documentTypes.push(type);
+    }
+
+    visitJson(document, (key, value) => {
+      if (key) {
+        const normalizedKey = key.replace(/[^a-z]/gi, "").toLowerCase();
+        expect(forbiddenJsonLdClaimKeys.has(normalizedKey), `fixture/private JSON-LD claim ${key}`).toBe(false);
+      }
+      if (key === "@type") {
+        for (const nestedType of Array.isArray(value) ? value : [value]) {
+          if (typeof nestedType === "string") {
+            expect(forbiddenJsonLdTypes.has(nestedType), `unsupported JSON-LD claim type ${nestedType}`).toBe(false);
+          }
+        }
+      }
+      if (typeof value === "string") {
+        expect(value, "fixture/private JSON-LD value").not.toMatch(
+          /Maison Élyse\s*[—-]\s*Démo|(?:^|\/)admin(?:\/|$)|(?:^|\/)owner(?:\/|$)|supabase/i
+        );
+      }
+    });
+  }
+  expect(new Set(documentTypes)).toEqual(new Set(["WebPage", "Service", "BreadcrumbList"]));
 }
 
 async function periodSignature(page: Page) {
@@ -243,7 +324,12 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   const firstName = await rows.first().getByRole("heading").innerText();
   const search = page.getByRole("searchbox", { name: scenario.searchLabel });
   await search.fill(firstName);
-  await expect(rows.filter({ visible: true }).first()).toContainText(firstName);
+  await expect.poll(() => rows.filter({ visible: true }).count()).toBeLessThan(12);
+  const matchingRows = rows.filter({ visible: true });
+  expect(await matchingRows.count()).toBeGreaterThan(0);
+  for (const row of await matchingRows.all()) await expect(row).toContainText(firstName);
+  await search.fill("vistaire-no-matching-dish-zzzz");
+  await expect(rows.filter({ visible: true })).toHaveCount(0);
   await search.fill("");
 
   const all = page.getByRole("button", { name: scenario.filters[0], exact: true });

@@ -25,10 +25,12 @@ const forbiddenPackages = [
 ];
 
 const forbiddenLocalModules = [
-  /^app\/(?:admin|owner)(?:\/|$)/,
+  /^app\/admin(?:\/|$)/,
+  /^app\/owner(?:\/|$)/,
+  /^app\/api(?:\/|$)/,
+  /^lib\/admin(?:\/|$)/,
   /^lib\/owner(?:\/|$)/,
   /^lib\/analytics\/serverRows(?:\.|$)/,
-  /^lib\/admin\/(?:access|apiAuth|dashboardData|dishPhotoUrl|localPreview|requestBody)(?:\.|\/|$)/,
   /^components\/admin\/(?:AdminDishAvailabilityControl|AdminDishThumbnail|AdminMenuActions|AdminRestaurantDashboard)(?:\.|$)/,
   /^components\/admin\/availability\/(?:AdminAvailabilityList|AdminAvailabilityPage|availabilityMutation)(?:\.|$)/,
   /^components\/admin\/(?:overview\/AdminOverview|insights\/AdminInsightsPage)(?:\.|$)/,
@@ -43,6 +45,11 @@ const forbiddenSource = [
   ["network fetch", /\bfetch\s*\(/],
   ["router navigation", /\buseRouter\b|\brouter\.refresh\s*\(/],
   ["browser persistence", /\b(?:localStorage|sessionStorage)\b/],
+  ["document cookies", /\b(?:(?:(?:window|globalThis)\s*(?:(?:\?\.|\.)\s*document|\[\s*["']document["']\s*\]))|document)\s*(?:(?:\?\.|\.)\s*cookie|\[\s*["']cookie["']\s*\])/],
+  ["Cookie Store", /\b(?:(?:window|globalThis)\s*\.\s*)?cookieStore\b/],
+  ["IndexedDB", /\b(?:(?:window|globalThis)\s*\.\s*)?indexedDB\b/],
+  ["Cache Storage", /\bCacheStorage\b|\b(?:window|globalThis)\s*(?:(?:\?\.|\.)\s*caches|\[\s*["']caches["']\s*\])|\bcaches\s*(?:\?\.|\.)\s*(?:delete|has|keys|match|open)\s*\(/],
+  ["storage manager", /\bnavigator\s*(?:(?:\?\.|\.)\s*storage|\[\s*["']storage["']\s*\])/],
   ["request cookies or headers", /\b(?:cookies|headers)\s*\(/],
   ["private rendered destination", /\b(?:href|action|formAction)\s*[:=]\s*(?:\{\s*)?["'`]\/(?:admin|owner)(?:\/|["'`])/]
 ];
@@ -134,7 +141,57 @@ function publicPreviewGraph() {
   return { visited, violations };
 }
 
+function assertPrivateModulePolicy() {
+  const source = `
+    import type { AdminDashboardData } from "@/lib/admin/dashboardTypes";
+    export type { OwnerMutation } from "@/app/api/owner/restaurants/route";
+    export { privateLoader } from "@/app/api/private-preview/route";
+  `;
+  const parsed = importsFrom(source, path.join(root, "components", "preview-policy-probe.ts"));
+  const relativeModules = parsed.imports.map((specifier) => specifier.replace(/^@\//, ""));
+
+  assert.deepEqual(relativeModules, [
+    "lib/admin/dashboardTypes",
+    "app/api/owner/restaurants/route",
+    "app/api/private-preview/route"
+  ]);
+  assert.deepEqual(
+    relativeModules.map((relative) =>
+      forbiddenLocalModules.some((pattern) => pattern.test(relative))
+    ),
+    [true, true, true]
+  );
+}
+
+function assertBrowserStatePolicy() {
+  for (const source of [
+    "document.cookie = 'preview=1'",
+    "window.document.cookie",
+    "document['cookie']",
+    "globalThis.document?.cookie",
+    "indexedDB.open('preview')",
+    "window.indexedDB.deleteDatabase('preview')",
+    "caches.open('preview')",
+    "window.caches.match('/preview')",
+    "globalThis.caches.keys()",
+    "globalThis['caches']",
+    "cookieStore.get('preview')",
+    "navigator.storage.persist()",
+    "navigator['storage'].persist()",
+    "localStorage.setItem('preview', '1')",
+    "sessionStorage.getItem('preview')"
+  ]) {
+    assert.equal(
+      forbiddenSource.some(([, pattern]) => pattern.test(source)),
+      true,
+      source
+    );
+  }
+}
+
 test("the public preview import graph cannot reach private capabilities or browser persistence", () => {
+  assertPrivateModulePolicy();
+  assertBrowserStatePolicy();
   const graph = publicPreviewGraph();
   for (const [file, source] of graph.visited) {
     for (const [label, pattern] of forbiddenSource) {
