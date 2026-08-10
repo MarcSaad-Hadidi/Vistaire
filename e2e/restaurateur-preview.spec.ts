@@ -66,6 +66,7 @@ const viewports = [
   { width: 1280, height: 800 },
   { width: 1440, height: 900 }
 ] as const;
+const canonicalOrigin = "https://www.vistaire.ca";
 
 const allowedJsonLdDocumentTypes = new Set(["WebPage", "Service", "BreadcrumbList"]);
 const forbiddenJsonLdTypes = new Set(["AggregateRating", "Offer", "Review", "SoftwareApplication"]);
@@ -240,10 +241,10 @@ async function expectSafeDom(page: Page, scenario: Scenario) {
   expect(cookies, "the anonymous preview must not create any cookie").toEqual([]);
 }
 
-async function expectSafeSeo(page: Page, scenario: Scenario, baseURL: string) {
+async function expectSafeSeo(page: Page, scenario: Scenario) {
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
-    new URL(scenario.path, baseURL).toString()
+    new URL(scenario.path, canonicalOrigin).toString()
   );
   for (const hreflang of ["fr-CA", "en-CA", "x-default"]) {
     await expect(page.locator(`link[rel="alternate"][hreflang="${hreflang}"]`)).toHaveCount(1);
@@ -408,7 +409,7 @@ test.describe("public restaurateur dashboard preview", () => {
       await exercisePeriods(page);
       await exerciseCharts(page);
       await expectSafeDom(page, scenario);
-      await expectSafeSeo(page, scenario, origin);
+      await expectSafeSeo(page, scenario);
       await expect(page.locator("model-viewer")).toHaveCount(0);
       expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
       runtime.expectClean();
