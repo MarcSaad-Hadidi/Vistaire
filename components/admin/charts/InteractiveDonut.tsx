@@ -17,9 +17,15 @@ const donutVisuals = [
   { color: "#302e2a" },
 ] as const;
 
-export type InteractiveDonutCopy = { categoryDescription: string };
+export type InteractiveDonutCopy = {
+  categoryDescription: string;
+  segmentLabel: string;
+  segmentOfLabel: string;
+};
 const DEFAULT_DONUT_COPY: InteractiveDonutCopy = {
   categoryDescription: "Chaque catégorie est identifiée par son libellé et sa valeur exacte.",
+  segmentLabel: "catégorie",
+  segmentOfLabel: "sur",
 };
 
 export function InteractiveDonut({
@@ -107,7 +113,7 @@ export function InteractiveDonut({
           fill={donutVisuals[item.index % donutVisuals.length].color}
           tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
           aria-pressed={interaction.pinned && active === index}
-          aria-label={`${segmentDatum.label}, ${text(segmentDatum.value)}, ${percentage(segmentDatum.value)}, catégorie ${index + 1} sur ${segments.length}`}
+          aria-label={`${segmentDatum.label}, ${text(segmentDatum.value)}, ${percentage(segmentDatum.value)}, ${copy.segmentLabel} ${index + 1} ${copy.segmentOfLabel} ${segments.length}`}
           aria-describedby={ids.tooltip}
           onFocus={() => interaction.send({ type: "focus", index })}
           onPointerEnter={() => interaction.send({ type: "hover", index })}

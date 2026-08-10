@@ -334,6 +334,17 @@ test("line and donut charts accept localized copy and number locales while defau
   assert.match(donut, /copy=\{frameCopy\}/);
 });
 
+test("donut segment accessible names localize their ordinal copy with unchanged French defaults", async () => {
+  const source = await readFile("components/admin/charts/InteractiveDonut.tsx", "utf8");
+
+  assert.match(source, /segmentLabel: string/);
+  assert.match(source, /segmentOfLabel: string/);
+  assert.match(source, /segmentLabel: "catégorie"/);
+  assert.match(source, /segmentOfLabel: "sur"/);
+  assert.match(source, /\$\{copy\.segmentLabel\} \$\{index \+ 1\} \$\{copy\.segmentOfLabel\} \$\{segments\.length\}/);
+  assert.doesNotMatch(source, /aria-label=\{`[^`]*catégorie \$\{index \+ 1\} sur/);
+});
+
 test("heatmap and comparison charts localize their semantic copy without changing French defaults", async () => {
   const [heatmap, comparison] = await Promise.all([
     readFile("components/admin/charts/InteractiveHeatmap.tsx", "utf8"),
