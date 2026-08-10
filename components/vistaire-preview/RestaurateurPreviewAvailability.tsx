@@ -28,6 +28,17 @@ export function RestaurateurPreviewAvailability({
   const categoryMap = useMemo(() => new Map(fixture.categories.map((category) => [category.id, category])), [fixture.categories]);
   const availableCount = Object.values(availableById).filter(Boolean).length;
   const number = new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-CA", { style: "currency", currency: "CAD" });
+  const visibleDishes = useMemo(() => fixture.dishes.filter((dish) => {
+    const name = locale === "fr" ? dish.name : dish.nameEn;
+    const category = categoryMap.get(dish.categoryId)!;
+    const isAvailable = availableById[dish.id];
+    const matchesQuery = !normalizedQuery || `${name} ${category.label[locale]}`.toLocaleLowerCase(locale === "fr" ? "fr-CA" : "en-CA").includes(normalizedQuery);
+    const matchesFilter = filter === "all" || (filter === "available" ? isAvailable : !isAvailable);
+    return matchesQuery && matchesFilter;
+  }), [availableById, categoryMap, filter, fixture.dishes, locale, normalizedQuery]);
+  const resultCopy = visibleDishes.length === 1
+    ? copy.resultCountOne
+    : copy.resultCount.replace("{count}", String(visibleDishes.length));
 
   return (
     <section className={styles.availabilityPage} aria-labelledby="demo-availability-title">
@@ -60,16 +71,14 @@ export function RestaurateurPreviewAvailability({
           ))}
         </div>
       </div>
+      <p aria-atomic="true" aria-live="polite" className={styles.resultCount}>{resultCopy}</p>
       <div className={styles.dishList}>
-        {fixture.dishes.map((dish) => {
+        {visibleDishes.map((dish) => {
           const isAvailable = availableById[dish.id];
           const name = locale === "fr" ? dish.name : dish.nameEn;
           const category = categoryMap.get(dish.categoryId)!;
-          const matchesQuery = !normalizedQuery || `${name} ${category.label[locale]}`.toLocaleLowerCase(locale === "fr" ? "fr-CA" : "en-CA").includes(normalizedQuery);
-          const matchesFilter = filter === "all" || (filter === "available" ? isAvailable : !isAvailable);
-          const visible = matchesQuery && matchesFilter;
           return (
-            <article data-available={isAvailable} data-demo-dish hidden={!visible} key={dish.id}>
+            <article data-available={isAvailable} data-demo-dish key={dish.id}>
               <PublicPreviewDishImage alt="" sizes="72px" src={dish.imageSrc} />
               <div className={styles.dishIdentity}>
                 <h3>{name}</h3>
@@ -81,12 +90,7 @@ export function RestaurateurPreviewAvailability({
             </article>
           );
         })}
-        <p className={styles.emptyState} hidden={fixture.dishes.some((dish) => {
-          const name = locale === "fr" ? dish.name : dish.nameEn;
-          const category = categoryMap.get(dish.categoryId)!;
-          const isAvailable = availableById[dish.id];
-          return (!normalizedQuery || `${name} ${category.label[locale]}`.toLocaleLowerCase(locale === "fr" ? "fr-CA" : "en-CA").includes(normalizedQuery)) && (filter === "all" || (filter === "available" ? isAvailable : !isAvailable));
-        })}>{copy.noDishes}</p>
+        {visibleDishes.length === 0 ? <p className={styles.emptyState} role="status">{copy.noDishes}</p> : null}
       </div>
     </section>
   );

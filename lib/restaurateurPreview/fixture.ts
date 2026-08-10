@@ -61,9 +61,7 @@ const dishes = [
 
 const dishIds = dishes.map(({ id }) => id);
 const topDishes = (counts: number[]): PreviewDishCount[] =>
-  counts
-    .map((count, index) => ({ dishId: dishIds[index], count }))
-    .sort((a, b) => b.count - a.count);
+  counts.map((count, index) => ({ dishId: dishIds[index], count }));
 const categoryBreakdown = (counts: number[]): PreviewCategoryCount[] =>
   counts.map((count, index) => ({ categoryId: categories[index].id, count }));
 const searchTerms = [

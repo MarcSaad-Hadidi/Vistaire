@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { InteractiveDonut } from "@/components/admin/charts/InteractiveDonut";
 import { InteractiveLineChart } from "@/components/admin/charts/InteractiveLineChart";
 import {
@@ -15,6 +16,7 @@ import {
   AdminStatusBadge
 } from "@/components/admin/system/AdminPresentationPrimitives";
 import type { RestaurateurPreviewCopy } from "@/lib/restaurateurPreview/copy";
+import { rankRestaurateurPreviewDishes } from "@/lib/restaurateurPreview/insights";
 import type {
   RestaurateurPreviewFixture,
   RestaurateurPreviewLocale,
@@ -25,6 +27,7 @@ import { PublicPreviewDishImage } from "./PublicPreviewDishImage";
 import styles from "./VistaireRestaurateurDashboardPreview.module.css";
 
 const metricIds: RestaurateurPreviewMetricId[] = ["menuOpens", "dishOpens", "searches", "immersive"];
+const chartMetricIds: RestaurateurPreviewMetricId[] = ["menuOpens", "dishOpens", "searches"];
 
 const icons = {
   menuOpens: <MenuOpenIcon />,
@@ -86,6 +89,7 @@ export function RestaurateurPreviewOverview({
   locale: RestaurateurPreviewLocale;
   period: RestaurateurPreviewPeriod;
 }) {
+  const [activeMetric, setActiveMetric] = useState<RestaurateurPreviewMetricId>("menuOpens");
   const availableCount = Object.values(availableById).filter(Boolean).length;
   const number = new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-CA");
   const frameCopy = {
@@ -97,7 +101,7 @@ export function RestaurateurPreviewOverview({
   };
   const dish = (id: string) => fixture.dishes.find((item) => item.id === id)!;
   const category = (id: string) => fixture.categories.find((item) => item.id === id)!;
-  const top = [...period.topDishes].sort((a, b) => b.count - a.count).slice(0, 5);
+  const top = rankRestaurateurPreviewDishes(period.topDishes).slice(0, 5);
   const maxTop = Math.max(...top.map(({ count }) => count), 1);
 
   return (
@@ -105,15 +109,22 @@ export function RestaurateurPreviewOverview({
       <RestaurateurPreviewKpis availableCount={availableCount} copy={copy} locale={locale} period={period} totalDishes={fixture.dishes.length} />
       <div className={styles.overviewGrid}>
         <AdminPanel className={styles.activityPanel} title={copy.menuActivity}>
+          <div aria-label={copy.metricShown} className={styles.metricSelector} role="group">
+            {chartMetricIds.map((id) => (
+              <button aria-pressed={activeMetric === id} key={id} onClick={() => setActiveMetric(id)} type="button">
+                {copy.metrics[id]}
+              </button>
+            ))}
+          </div>
           <InteractiveLineChart
             copy={{ stableActivity: copy.stableActivity }}
-            data={period.series.menuOpens.map((value, index) => ({ label: period.seriesLabels[index][locale], value }))}
+            data={period.series[activeMetric].map((value, index) => ({ label: period.seriesLabels[index][locale], value }))}
             description={copy.activityTitle}
             frameCopy={frameCopy}
             numberLocale={locale === "fr" ? "fr-CA" : "en-CA"}
             period={copy.periods[period.id]}
-            summary={`${number.format(period.metrics.menuOpens)} ${copy.metrics.menuOpens.toLowerCase()}`}
-            title={copy.menuActivity}
+            summary={`${number.format(period.metrics[activeMetric])} ${copy.metrics[activeMetric].toLowerCase()}`}
+            title={copy.metrics[activeMetric]}
             unit={copy.interactions}
             variant="detailed"
           />
@@ -156,8 +167,9 @@ export function RestaurateurPreviewOverview({
               const current = category(item.categoryId);
               const share = Math.round((item.count / period.metrics.dishOpens) * 100);
               return (
-                <li key={item.categoryId}>
+                <li aria-label={`${current.label[locale]} : ${number.format(item.count)} ${copy.views}, ${share} %`} key={item.categoryId}>
                   <span>{current.label[locale]}</span>
+                  <small>{number.format(item.count)} {copy.views}</small>
                   <strong>{share} %</strong>
                   <i aria-hidden="true" style={{ "--bar-size": `${share}%` } as React.CSSProperties} />
                 </li>

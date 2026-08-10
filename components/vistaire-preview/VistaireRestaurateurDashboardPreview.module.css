@@ -43,6 +43,9 @@
 .overviewGrid { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr) minmax(270px,.75fr); gap:10px; align-items:stretch; }
 .activityPanel { grid-column:span 2; }
 .activityPanel :global([data-chart-plot-stack]) { min-height:250px; }
+.metricSelector { display:inline-flex; max-width:100%; gap:3px; margin-bottom:10px; padding:3px; border:1px solid var(--admin-border-soft); border-radius:8px; background:#11100e; }
+.metricSelector button { min-height:36px; border:0; border-radius:6px; padding:0 12px; color:var(--admin-muted); background:transparent; font:inherit; font-size:10px; cursor:pointer; }
+.metricSelector button[aria-pressed="true"] { color:#17130d; background:var(--admin-accent); }
 .topPanel { grid-row:span 2; }
 .donutPanel,.categoryPanel { min-height:220px; }
 .stripPanel { grid-column:1 / -1; }
@@ -58,7 +61,8 @@
 .rankDetail small { color:var(--admin-muted); font-size:9px; }
 .rankDetail i,.categoryBars i { grid-column:1/-1; height:3px; border-radius:99px; background:linear-gradient(90deg,var(--admin-accent) var(--bar-size),var(--admin-border-soft) var(--bar-size)); }
 .categoryBars { display:grid; gap:16px; }
-.categoryBars li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 10px; color:var(--admin-muted); font-size:11px; }
+.categoryBars li { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:6px 10px; color:var(--admin-muted); font-size:11px; }
+.categoryBars small { color:var(--admin-muted); font-size:10px; }
 .categoryBars strong { color:var(--admin-text); font-weight:400; }
 .categoryBars i { height:8px; }
 .availabilityStrip { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
@@ -80,6 +84,7 @@
 .availabilityControls { display:flex; align-items:end; justify-content:space-between; gap:20px; padding:18px 24px; border-bottom:1px solid var(--admin-border-soft); }
 .availabilityControls label { display:grid; width:min(460px,100%); gap:6px; color:var(--admin-muted); font-size:11px; }
 .availabilityControls input { width:100%; min-height:46px; border:1px solid var(--admin-border); border-radius:999px; padding:0 18px; color:var(--admin-text); background:#11100e; font:inherit; }
+.resultCount { margin:0; padding:12px 24px 0; color:var(--admin-muted); font-size:11px; }
 .filters { display:inline-grid; grid-template-columns:repeat(3,minmax(92px,1fr)); border:1px solid var(--admin-border); border-radius:999px; padding:3px; }
 .filters button { border-radius:999px; padding:0 13px; }
 .filters button[aria-pressed="true"] { color:#17130d; background:var(--admin-accent); }
@@ -97,6 +102,7 @@
 .insightsBottomGrid { display:grid; grid-template-columns:1.3fr 1fr; gap:10px; margin-top:10px; }
 .insightsPrimaryGrid > section { min-height:300px; }
 .insightsPrimaryGrid :global([data-chart-plot-stack]) { min-height:190px; }
+.utcNote { margin:0 0 8px; color:var(--admin-accent); font-size:10px; text-align:right; }
 .compactList { display:grid; gap:6px; }
 .compactList li { display:grid; min-height:34px; grid-template-columns:22px minmax(0,1fr) auto; align-items:center; gap:7px; border-bottom:1px solid var(--admin-border-soft); font-size:11px; }
 .compactList span { color:var(--admin-accent); }
@@ -152,12 +158,15 @@
   .activityPanel,.stripPanel,.insightsPrimaryGrid > section:last-child { grid-column:auto; }
   .dashboardDemo :global([class*="panel"]) { padding:16px; }
   .dashboardDemo :global([data-chart-plot-stack]) { min-height:150px; }
+  .metricSelector { display:grid; width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .metricSelector button { min-width:0; min-height:44px; padding:0 4px; font-size:9px; }
   .availabilityStrip { grid-template-columns:minmax(0,1fr); }
   .availabilityHeader { align-items:stretch; flex-direction:column; padding:18px; }
   .availabilityMetrics { width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); }
   .availabilityMetrics article { padding:10px; }
   .availabilityMetrics strong { font-size:24px; }
   .availabilityControls { align-items:stretch; flex-direction:column; padding:16px; }
+  .resultCount { padding:10px 16px 0; }
   .filters { width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); }
   .filters button { min-width:0; padding:0 4px; font-size:10px; }
   .dishList { padding:8px; }

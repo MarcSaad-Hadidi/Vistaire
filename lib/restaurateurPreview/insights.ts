@@ -1,10 +1,15 @@
 import type {
   DerivedPreviewPeriod,
+  PreviewDishCount,
   RestaurateurPreviewFixture,
   RestaurateurPreviewLocale,
   RestaurateurPreviewMetricId,
   RestaurateurPreviewPeriod
 } from "./types";
+
+export function rankRestaurateurPreviewDishes(items: readonly PreviewDishCount[]) {
+  return [...items].sort((left, right) => right.count - left.count);
+}
 
 const metricIds: RestaurateurPreviewMetricId[] = [
   "menuOpens",
@@ -26,7 +31,7 @@ export function deriveRestaurateurPreviewPeriod(
   const comparison = Object.fromEntries(
     metricIds.map((id) => [id, percentageChange(period.metrics[id], period.previousMetrics[id])])
   ) as Record<RestaurateurPreviewMetricId, number>;
-  const ranked = period.topDishes;
+  const ranked = rankRestaurateurPreviewDishes(period.topDishes);
   const leadingDishEntry = fixture.dishes.find((dish) => dish.id === ranked[0]?.dishId);
   const leadingDish = leadingDishEntry
     ? locale === "fr" ? leadingDishEntry.name : leadingDishEntry.nameEn
