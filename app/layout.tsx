@@ -91,8 +91,9 @@ export default async function RootLayout({
           ]}
         />
         <WebMcpProvider />
-        <MicrosoftClarity />
-        <div id="contenu">{children}</div>
+        <MicrosoftClarity>
+          <div id="contenu">{children}</div>
+        </MicrosoftClarity>
       </body>
     </html>
   );
