@@ -107,7 +107,7 @@ export type PricingPageContent = {
 const collectionImages = {
   acrylique: "/images/pricing/vistaire-acrylique.jpg",
   sculpte: "/images/pricing/vistaire-sculpte.jpg",
-  carre: "/images/pricing/vistaire-carre.jpg",
+  carre: "/images/pricing/vistaire-carre.png",
   signature: "/images/pricing/vistaire-signature.jpg"
 } as const;
 
@@ -169,8 +169,8 @@ export const PRICING_PAGE = {
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.carre,
       imageAlt:
-        "Supports QR carrés Vistaire en deux finitions de bois sur une table",
-      imagePosition: "65% 50%",
+        "Support QR carré Vistaire présenté recto et verso sur une table de restaurant",
+      imagePosition: "84% 50%",
       cta: {
         label: "Découvrir cette collection",
         href: "/prendre-rendez-vous"
@@ -358,8 +358,8 @@ export const PRICING_PAGE_EN = {
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.carre,
       imageAlt:
-        "Square Vistaire QR displays in two wood finishes on a restaurant table",
-      imagePosition: "65% 50%",
+        "Vistaire Square QR display shown from the front and back on a restaurant table",
+      imagePosition: "84% 50%",
       cta: {
         label: "Discover this collection",
         href: "/en/book-a-call"

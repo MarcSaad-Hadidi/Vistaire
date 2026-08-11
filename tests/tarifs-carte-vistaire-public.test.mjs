@@ -9,7 +9,11 @@ const PUBLIC_FILES_FOR_THIS_TASK = [
   "components/seo/pages/TarifsMenuDigitalRestaurantPage.tsx",
   "components/vistaire-preview/VistairePricingPreview.tsx",
   "components/vistaire-preview/VistairePricingPreview.module.css",
-  "lib/pricingPage.ts"
+  "lib/pricingPage.ts",
+  "public/images/pricing/vistaire-acrylique.jpg",
+  "public/images/pricing/vistaire-sculpte.jpg",
+  "public/images/pricing/vistaire-carre.png",
+  "public/images/pricing/vistaire-signature.jpg"
 ];
 
 const EXPECTED_COLLECTIONS = [
@@ -17,6 +21,13 @@ const EXPECTED_COLLECTIONS = [
   ["sculpte", "Vistaire Sculpté", 2_050],
   ["carre", "Vistaire Carré", 2_100],
   ["signature", "Vistaire Signature", 2_200]
+];
+
+const EXPECTED_COLLECTION_IMAGES = [
+  "/images/pricing/vistaire-acrylique.jpg",
+  "/images/pricing/vistaire-sculpte.jpg",
+  "/images/pricing/vistaire-carre.png",
+  "/images/pricing/vistaire-signature.jpg"
 ];
 
 const LEGACY_PRICING_TERMS = [
@@ -96,6 +107,10 @@ test("pricing exposes four physical collections and Pilotage as an add-on", asyn
   assert.deepEqual(
     PRICING_PAGE.collections.map(({ id, name, setupAmount }) => [id, name, setupAmount]),
     EXPECTED_COLLECTIONS
+  );
+  assert.deepEqual(
+    PRICING_PAGE.collections.map(({ image }) => image),
+    EXPECTED_COLLECTION_IMAGES
   );
   assert.equal(PRICING_PAGE.monthlyAmount, 200);
   assert.equal(PRICING_PAGE.pilotage.monthlyAmount, 100);

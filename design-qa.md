@@ -97,3 +97,35 @@ The source and implementation images were inspected together in two comparison i
 - Targeted Playwright suite: 40 tests passed, including 390, 430, 768, 1280 and 1440 px; no unexpected Pricing console errors, 404/500 responses, hydration errors, or horizontal overflow.
 
 final result: passed
+
+# Design QA — Pricing collection photography
+
+Date: 2026-08-11
+
+## Scope and source references
+
+- Acrylique: `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\89DDB8FB-940F-4D72-BB29-E092A4527024\3-Photo-3.jpg`.
+- Sculpté: `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\89DDB8FB-940F-4D72-BB29-E092A4527024\2-Photo-2.jpg`.
+- Carré, shown from the front and back: `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\89DDB8FB-940F-4D72-BB29-E092A4527024\4-sauge_noire_qr_fonctionnel.png`.
+- Signature: `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\89DDB8FB-940F-4D72-BB29-E092A4527024\1-Photo-1.jpg`.
+
+## Implementation evidence
+
+Codex in-app browser, device pixel ratio `1`, route `/tarifs-menu-digital-restaurant`:
+
+- Four-card desktop composition, `1440 × 900`: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-collections-1440x900.png`.
+- Focused Carré crop, `390 × 844`: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-carre-390x844.png`.
+- Focused Carré crop, `430 × 932`: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-carre-430x932.png`.
+
+The four source images and the desktop/mobile implementation screenshots were inspected together in one comparison input.
+
+## Findings and correction history
+
+1. Each source is mapped to the matching physical collection and retains its real restaurant setting, material, QR treatment and Sauge Noire identity.
+2. Carré remains one collection. Its alt text identifies the two visible pieces as the front and back, and the crop is biased right so both faces remain legible without presenting them as two offers.
+3. The lossless PNG is retained for Carré to avoid adding compression around the supplied functional QR artwork. The other three photographs remain JPEG.
+4. All four cards load the expected localized asset path in FR and EN. Natural image dimensions are non-zero and no 404/500 asset response or browser error was observed.
+5. At 390, 430 and 1440 px, the support remains visible, the images keep `object-fit: cover`, and the document has no horizontal overflow.
+6. The browser environment does not expose `BarcodeDetector`; QR scannability was therefore not claimed from automated browser QA. Visual integrity and successful rendering were verified.
+
+final result: passed
