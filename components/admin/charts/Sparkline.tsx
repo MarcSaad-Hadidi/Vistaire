@@ -5,7 +5,13 @@ import { buildLineGeometry } from "./geometry";
 import { useChartInteraction } from "./useChartInteraction";
 import styles from "./Charts.module.css";
 
-export function Sparkline({ values, label = "Tendance", interactive = false }: { values: number[]; label?: string; interactive?: boolean }) {
+export type SparklineCopy = { latestValue: string; unavailable: string };
+const DEFAULT_SPARKLINE_COPY: SparklineCopy = {
+  latestValue: "dernière valeur",
+  unavailable: "non disponible",
+};
+
+export function Sparkline({ values, label = "Tendance", interactive = false, copy = DEFAULT_SPARKLINE_COPY }: { values: number[]; label?: string; interactive?: boolean; copy?: SparklineCopy }) {
   const { active, pinned, rootRef, send, onKeyDown, onBlur } = useChartInteraction<HTMLSpanElement>(interactive ? 1 : 0);
   const suppressTouchClickUntil = useRef(0);
   const id = `sparkline-${useId()}`;
@@ -23,6 +29,6 @@ export function Sparkline({ values, label = "Tendance", interactive = false }: {
     }} onKeyDown={onKeyDown}>
       <polyline data-chart-animated="sparkline" className={styles.sparklineLine} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" pathLength="1" points={points.map((point) => `${point.x},${point.y}`).join(" ")}/>
     </svg>
-    {interactive ? <output id={id} className={styles.sparklineTooltip} role="tooltip" data-visible={active !== null}>{label} · dernière valeur {latest ?? "non disponible"}</output> : null}
+    {interactive ? <output id={id} className={styles.sparklineTooltip} role="tooltip" data-visible={active !== null}>{label} · {copy.latestValue} {latest ?? copy.unavailable}</output> : null}
   </span>;
 }

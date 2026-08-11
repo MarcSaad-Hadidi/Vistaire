@@ -1,7 +1,7 @@
 "use client";
 
 import { CartesianAxes, CARTESIAN_PLOT } from "./CartesianAxes";
-import { ChartFrame, MetricTooltip } from "./ChartFrame";
+import { ChartFrame, MetricTooltip, type ChartFrameCopy } from "./ChartFrame";
 import { normalizeComparisonSeries } from "./data";
 import { buildLineGeometry, buildMidpointHitRegions, buildNiceLineDomain } from "./geometry";
 import { formatChartValue } from "./formatters";
@@ -13,10 +13,24 @@ const plotWidth = CARTESIAN_PLOT.width - CARTESIAN_PLOT.left - CARTESIAN_PLOT.ri
 const plotHeight = CARTESIAN_PLOT.height - CARTESIAN_PLOT.top - CARTESIAN_PLOT.bottom;
 const plotBottom = CARTESIAN_PLOT.height - CARTESIAN_PLOT.bottom;
 
-export function ComparisonLineChart(props: AccessibleChartProps & { series: ChartSeries[] }) {
+export type ComparisonLineChartCopy = { unavailable: string; incompatibleSeries: string; delta: string };
+const DEFAULT_COMPARISON_COPY: ComparisonLineChartCopy = {
+  unavailable: "Comparaison indisponible.",
+  incompatibleSeries: "Les séries doivent partager exactement les mêmes repères, dans le même ordre.",
+  delta: "Écart",
+};
+type ComparisonLineChartProps = AccessibleChartProps & {
+  series: ChartSeries[];
+  numberLocale?: string;
+  frameCopy?: ChartFrameCopy;
+  copy?: ComparisonLineChartCopy;
+};
+
+export function ComparisonLineChart(props: ComparisonLineChartProps) {
   const normalized = normalizeComparisonSeries(props.series);
-  if (normalized.kind === "misaligned") return <p role="alert">Comparaison indisponible. {normalized.reason}</p>;
-  return <AlignedComparison {...props} series={normalized.series} />;
+  const copy = props.copy ?? DEFAULT_COMPARISON_COPY;
+  if (normalized.kind === "misaligned") return <p role="alert">{copy.unavailable} {copy.incompatibleSeries}</p>;
+  return <AlignedComparison {...props} copy={copy} series={normalized.series} />;
 }
 
 function AlignedComparison({
@@ -29,7 +43,10 @@ function AlignedComparison({
   summary,
   variant = "compact",
   valueFormatter,
-}: AccessibleChartProps & { series: ChartSeries[] }) {
+  numberLocale = "fr-CA",
+  frameCopy,
+  copy,
+}: Omit<ComparisonLineChartProps, "copy"> & { copy: ComparisonLineChartCopy }) {
   const count = series[0].values.length;
   const interaction = useChartInteraction(count);
   const reduced = useReducedMotion();
@@ -39,14 +56,14 @@ function AlignedComparison({
     const geometry = buildLineGeometry(item.values.map(({ value }) => value), { width: plotWidth, height: plotHeight }, domain);
     return geometry.points.map((point) => ({ x: point.x + CARTESIAN_PLOT.left, y: point.y + CARTESIAN_PLOT.top }));
   });
-  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit);
-  const axisText = (value: number) => new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(value);
+  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit, numberLocale);
+  const axisText = (value: number) => new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 1 }).format(value);
   const active = interaction.active;
   const activeX = active === null ? null : geometries[0][active]?.x ?? null;
   const currentValue = active === null ? null : series[0].values[active].value;
   const previousValue = active === null ? null : series[1].values[active].value;
   const difference = currentValue === null || previousValue === null ? null : currentValue - previousValue;
-  const delta = difference === null ? undefined : `Écart ${difference > 0 ? "+" : difference < 0 ? "−" : ""}${text(Math.abs(difference))}`;
+  const delta = difference === null ? undefined : `${copy.delta} ${difference > 0 ? "+" : difference < 0 ? "−" : ""}${text(Math.abs(difference))}`;
   const animationKey = `${title}:${period}:${series.map((item) => `${item.label}:${item.values.map(({ label, detail, value }) => `${label}:${detail ?? ""}:${value}`).join("|")}`).join("/")}`;
   const hitRegions = buildMidpointHitRegions(
     geometries[0].map(({ x }) => x),
@@ -65,6 +82,7 @@ function AlignedComparison({
     period={period}
     unit={unit}
     summary={summary}
+    copy={frameCopy}
     exactValues={series.flatMap((item) => item.values.map((value) => ({ label: value.detail ?? value.label, series: item.label, value: text(value.value) })))}
     chrome={variant === "detailed" ? <><span>{period}</span><span>{unit}</span></> : undefined}
     legend={<ul className={styles.legend} data-chart-legend>{series.map((item, index) => <li key={item.label}>

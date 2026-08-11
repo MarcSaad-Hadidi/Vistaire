@@ -1,7 +1,7 @@
 "use client";
 
 import { CartesianAxes, CARTESIAN_PLOT } from "./CartesianAxes";
-import { ChartFrame, MetricTooltip } from "./ChartFrame";
+import { ChartFrame, MetricTooltip, type ChartFrameCopy } from "./ChartFrame";
 import { buildAreaPath, buildLineGeometry, buildNiceLineDomain, isStableSeries } from "./geometry";
 import { formatChartValue } from "./formatters";
 import { useChartInteraction, useReducedMotion } from "./useChartInteraction";
@@ -11,6 +11,11 @@ import styles from "./Charts.module.css";
 const plotWidth = CARTESIAN_PLOT.width - CARTESIAN_PLOT.left - CARTESIAN_PLOT.right;
 const plotHeight = CARTESIAN_PLOT.height - CARTESIAN_PLOT.top - CARTESIAN_PLOT.bottom;
 const plotBottom = CARTESIAN_PLOT.height - CARTESIAN_PLOT.bottom;
+
+export type InteractiveLineChartCopy = { stableActivity: string };
+const DEFAULT_LINE_COPY: InteractiveLineChartCopy = {
+  stableActivity: "Activité stable sur cette période.",
+};
 
 export function InteractiveLineChart({
   data,
@@ -22,17 +27,20 @@ export function InteractiveLineChart({
   summary,
   variant = "compact",
   valueFormatter,
-}: AccessibleChartProps & { data: ChartDatum[] }) {
+  numberLocale = "fr-CA",
+  frameCopy,
+  copy = DEFAULT_LINE_COPY,
+}: AccessibleChartProps & { data: ChartDatum[]; numberLocale?: string; frameCopy?: ChartFrameCopy; copy?: InteractiveLineChartCopy }) {
   const interaction = useChartInteraction(data.length);
   const reduced = useReducedMotion();
   const values = data.map(({ value }) => value);
   const stable = isStableSeries(values);
-  const resolvedSummary = stable ? `${summary} Activité stable sur cette période.` : summary;
+  const resolvedSummary = stable ? `${summary} ${copy.stableActivity}` : summary;
   const domain = buildNiceLineDomain(values);
   const rawGeometry = buildLineGeometry(values, { width: plotWidth, height: plotHeight }, domain);
   const points = rawGeometry.points.map((point) => ({ x: point.x + CARTESIAN_PLOT.left, y: point.y + CARTESIAN_PLOT.top }));
-  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit);
-  const axisText = (value: number) => new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(value);
+  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit, numberLocale);
+  const axisText = (value: number) => new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 1 }).format(value);
   const activeIndex = interaction.active;
   const active = activeIndex === null ? null : data[activeIndex];
   const activePoint = activeIndex === null ? null : points[activeIndex];
@@ -50,6 +58,7 @@ export function InteractiveLineChart({
     period={period}
     unit={unit}
     summary={resolvedSummary}
+    copy={frameCopy}
     exactValues={data.map((datum) => ({ label: datum.label, value: text(datum.value) }))}
     chrome={variant === "detailed" ? <><span>{period}</span><span>{unit}</span></> : undefined}
     axes={(ids) => <svg
@@ -122,6 +131,6 @@ export function InteractiveLineChart({
       x={activePoint ? activePoint.x / CARTESIAN_PLOT.width * 100 : 50}
       y={activePoint ? activePoint.y / CARTESIAN_PLOT.height * 100 : 50}
     />}
-    footer={stable ? <span data-chart-stable>Activité stable sur cette période.</span> : undefined}
+    footer={stable ? <span data-chart-stable>{copy.stableActivity}</span> : undefined}
   />;
 }

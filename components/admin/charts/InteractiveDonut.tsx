@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartFrame, MetricTooltip } from "./ChartFrame";
+import { ChartFrame, MetricTooltip, type ChartFrameCopy } from "./ChartFrame";
 import { normalizeDonutData } from "./data";
 import { buildDonutSegments, donutPath, polarPoint } from "./geometry";
 import { formatChartValue } from "./formatters";
@@ -17,6 +17,17 @@ const donutVisuals = [
   { color: "#302e2a" },
 ] as const;
 
+export type InteractiveDonutCopy = {
+  categoryDescription: string;
+  segmentLabel: string;
+  segmentOfLabel: string;
+};
+const DEFAULT_DONUT_COPY: InteractiveDonutCopy = {
+  categoryDescription: "Chaque catégorie est identifiée par son libellé et sa valeur exacte.",
+  segmentLabel: "catégorie",
+  segmentOfLabel: "sur",
+};
+
 export function InteractiveDonut({
   data,
   title,
@@ -27,7 +38,10 @@ export function InteractiveDonut({
   summary,
   variant = "compact",
   valueFormatter,
-}: AccessibleChartProps & { data: ChartDatum[] }) {
+  numberLocale = "fr-CA",
+  frameCopy,
+  copy = DEFAULT_DONUT_COPY,
+}: AccessibleChartProps & { data: ChartDatum[]; numberLocale?: string; frameCopy?: ChartFrameCopy; copy?: InteractiveDonutCopy }) {
   const normalized = normalizeDonutData(data);
   const detailed = variant === "detailed";
   const outerRadius = detailed ? 88 : 58;
@@ -37,10 +51,10 @@ export function InteractiveDonut({
   const segments = buildDonutSegments(normalized.included.map(({ value }) => value), outerRadius, innerRadius);
   const interaction = useChartInteraction(segments.length);
   const reduced = useReducedMotion();
-  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit);
+  const text = (value: number) => valueFormatter?.(value) ?? formatChartValue(value, unit, numberLocale);
   const visibleText = (value: number) => text(value).replace(/\u00a0/g, " ");
   const total = normalized.included.reduce((sum, item) => sum + item.value, 0);
-  const percentage = (value: number) => `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(total > 0 && value > 0 ? value / total * 100 : 0)} %`;
+  const percentage = (value: number) => `${new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 1 }).format(total > 0 && value > 0 ? value / total * 100 : 0)} %`;
   const active = interaction.active;
   const segment = active === null ? null : segments[active];
   const datum = segment ? normalized.included[segment.index] : null;
@@ -62,6 +76,7 @@ export function InteractiveDonut({
     period={period}
     unit={unit}
     summary={summary}
+    copy={frameCopy}
     exactValues={exactValues}
     chrome={detailed ? <><span>{period}</span><span>{unit}</span></> : undefined}
     legend={<ul className={styles.donutLegend} data-chart-legend>{normalized.included.map((item, index) => {
@@ -84,7 +99,7 @@ export function InteractiveDonut({
       data-reduced-motion={reduced}
     >
       <title id={ids.title}>{title}</title>
-      <desc id={ids.description}>{description}. Chaque catégorie est identifiée par son libellé et sa valeur exacte. {summary}</desc>
+      <desc id={ids.description}>{description}. {copy.categoryDescription} {summary}</desc>
       <g key={animationKey} data-chart-animation-key={animationKey}>
       {segments.map((item, index) => {
         const segmentDatum = normalized.included[item.index];
@@ -98,7 +113,7 @@ export function InteractiveDonut({
           fill={donutVisuals[item.index % donutVisuals.length].color}
           tabIndex={active === index || (active === null && index === 0) ? 0 : -1}
           aria-pressed={interaction.pinned && active === index}
-          aria-label={`${segmentDatum.label}, ${text(segmentDatum.value)}, ${percentage(segmentDatum.value)}, catégorie ${index + 1} sur ${segments.length}`}
+          aria-label={`${segmentDatum.label}, ${text(segmentDatum.value)}, ${percentage(segmentDatum.value)}, ${copy.segmentLabel} ${index + 1} ${copy.segmentOfLabel} ${segments.length}`}
           aria-describedby={ids.tooltip}
           onFocus={() => interaction.send({ type: "focus", index })}
           onPointerEnter={() => interaction.send({ type: "hover", index })}

@@ -8,6 +8,21 @@ import styles from "./Charts.module.css";
 export type ExactValue = { label: string; value: string; series?: string };
 export type ChartFrameIds = { title: string; description: string; details: string; tooltip: string };
 export type ChartSlot = ReactNode | ((ids: ChartFrameIds) => ReactNode);
+export type ChartFrameCopy = {
+  unitLabel: string;
+  exactValuesLabel: string;
+  markerLabel: string;
+  seriesLabel: string;
+  valueLabel: string;
+};
+
+const DEFAULT_CHART_FRAME_COPY: ChartFrameCopy = {
+  unitLabel: "Unité",
+  exactValuesLabel: "Valeurs exactes",
+  markerLabel: "Repère",
+  seriesLabel: "Série",
+  valueLabel: "Valeur",
+};
 
 export type ChartFrameProps = {
   title: string;
@@ -28,6 +43,7 @@ export type ChartFrameProps = {
   children?: (ids: ChartFrameIds) => ReactNode;
   rootRef?: RefObject<HTMLDivElement | null>;
   className?: string;
+  copy?: ChartFrameCopy;
 };
 
 const renderSlot = (slot: ChartSlot | undefined, ids: ChartFrameIds) => typeof slot === "function" ? slot(ids) : slot;
@@ -51,6 +67,7 @@ export function ChartFrame({
   children,
   rootRef,
   className,
+  copy = DEFAULT_CHART_FRAME_COPY,
 }: ChartFrameProps) {
   const reactId = useId();
   const base = chartId(title, reactId);
@@ -71,7 +88,7 @@ export function ChartFrame({
       </div>
       {chrome ? <div className={styles.chartChrome} data-chart-chrome>{renderSlot(chrome, ids)}</div> : null}
     </header>
-    <p id={ids.details} className={styles.srOnly}>{description}. {period}. Unité: {unit}. {summary}</p>
+    <p id={ids.details} className={styles.srOnly}>{description}. {period}. {copy.unitLabel}: {unit}. {summary}</p>
     {legend ? <div className={styles.legendSlot}>{renderSlot(legend, ids)}</div> : null}
     <div className={styles.plotStack} data-chart-plot-stack>
       {renderSlot(axes, ids)}
@@ -80,8 +97,8 @@ export function ChartFrame({
     </div>
     {footer ? <footer className={styles.chartFooter}>{renderSlot(footer, ids)}</footer> : null}
     <div className={`${styles.srOnly} ${styles.exactTable}`}><table>
-      <caption>Valeurs exactes — {title}</caption>
-      <thead><tr><th>Repère</th><th>Série</th><th>Valeur ({unit})</th></tr></thead>
+      <caption>{copy.exactValuesLabel} — {title}</caption>
+      <thead><tr><th>{copy.markerLabel}</th><th>{copy.seriesLabel}</th><th>{copy.valueLabel} ({unit})</th></tr></thead>
       <tbody>{exactValues.map((item, index) => <tr key={`${item.series}:${item.label}:${index}`}><th>{item.label}</th><td>{item.series ?? title}</td><td>{item.value}</td></tr>)}</tbody>
     </table></div>
   </div>;

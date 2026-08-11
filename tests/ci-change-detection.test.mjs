@@ -64,11 +64,27 @@ test("public navigation chrome changes run the core browser family", () => {
   assert.equal(result.core, true);
   assert.equal(result.public_navigation, true);
   assert.equal(result.run_core, true);
+  assert.equal(result.run_webkit, true);
   assert.equal(result.run_build, true);
   assert.equal(result.run_static, true);
   assert.equal(result.run_landing, false);
   assert.equal(result.run_menu, false);
   assert.equal(result.run_seo, false);
+});
+
+test("restaurateur preview routes, fixture, components, and browser spec share one public family", () => {
+  for (const path of [
+    "app/apercu-restaurateur/page.tsx",
+    "app/en/restaurant-preview/page.tsx",
+    "components/vistaire-preview/RestaurateurDashboardDemo.tsx",
+    "lib/restaurateurPreview/fixture.ts",
+    "e2e/restaurateur-preview.spec.ts"
+  ]) {
+    const result = classify([path]);
+    assert.equal(result.public_navigation, true, path);
+    assert.equal(result.run_core, true, path);
+    assert.equal(result.run_webkit, true, path);
+  }
 });
 test("public navigation remains covered when a QR preview change overlaps", () => {
   const result = classify([

@@ -144,6 +144,7 @@ jobs:
           node --check scripts/ci/aggregate-test-reports.mjs
           node --check scripts/run-playwright-e2e.mjs
           node --test tests/ci-change-detection.test.mjs tests/ci-workflow-contract.test.mjs tests/preview-workflow-contract.test.mjs tests/workflow-security-contract.test.mjs
+          node --test tests/restaurateur-preview-ci-contract.test.mjs
       - name: Publish fast-gate summary
         if: ${{ always() }}
         env:
@@ -192,6 +193,7 @@ jobs:
           npm run test:landing:keyboard
           npm run test:translation:backfill
           npm run test:seo
+          npm run test:restaurateur-preview:node
       - name: Job summary
         if: ${{ always() }}
         env:
