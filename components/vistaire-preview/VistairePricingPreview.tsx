@@ -236,9 +236,10 @@ export function VistairePricingPreview({
           <div className={styles.pilotageVisual}>
             <p className={styles.dashboardCaption}>{copy.pilotagePreview}</p>
             <div
-              aria-label={copy.pilotagePreview}
+              aria-hidden="true"
               className={styles.laptop}
               data-pricing-dashboard
+              inert
             >
               <div className={styles.laptopScreen}>
                 <div className={styles.dashboardCanvas}>

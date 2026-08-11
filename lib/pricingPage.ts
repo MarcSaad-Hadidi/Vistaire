@@ -247,7 +247,7 @@ export const PRICING_PAGE = {
     monthlyAmount: 100,
     totalMonthlyAmount: 300,
     body:
-      "Ajoutez le dashboard Vistaire pour gérer votre menu et analyser l’expérience de vos clients.",
+      "Ajoutez le dashboard Vistaire pour gérer la disponibilité de vos plats et analyser l’expérience de vos clients.",
     features: [
       "Disponibilités gérées depuis le dashboard et répercutées sur la carte après validation",
       "Ouvertures du menu",
@@ -436,7 +436,7 @@ export const PRICING_PAGE_EN = {
     monthlyAmount: 100,
     totalMonthlyAmount: 300,
     body:
-      "Add the Vistaire dashboard to manage your menu and understand how guests experience it.",
+      "Add the Vistaire dashboard to manage dish availability and understand how guests experience your menu.",
     features: [
       "Availability managed from the dashboard and reflected in the menu after validation",
       "Menu openings",

@@ -87,6 +87,10 @@ test.describe("Vistaire pricing collections", () => {
     for (const scenario of [
       {
         path: "/tarifs-menu-digital-restaurant",
+        title: "Tarifs Vistaire | Supports QR et menu digital restaurant",
+        description:
+          "Découvrez les quatre collections de supports QR Vistaire dès 2 000 $ CAD, avec menu digital restaurant à 200 $ par mois et Pilotage en option.",
+        canonical: "https://www.vistaire.ca/tarifs-menu-digital-restaurant",
         h1: "Choisissez l’expérience qui prendra place sur vos tables.",
         collectionNames: ["Acrylique", "Sculpté", "Carré", "Signature"],
         prices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
@@ -94,10 +98,22 @@ test.describe("Vistaire pricing collections", () => {
         pilotage: "+ 100 $ CAD / mois",
         total: "Total — 300 $ / mois",
         pricingNav: "Tarifs",
-        demoCta: "Réserver une démo"
+        demoCta: "Réserver une démo",
+        forbiddenPrices: [
+          "950 $ CAD setup",
+          "125 $ CAD / mois",
+          "1 450 $ CAD setup",
+          "169 $ CAD / mois",
+          "2 500 $ CAD setup",
+          "249 $ CAD / mois"
+        ]
       },
       {
         path: "/en/pricing-digital-restaurant-menu",
+        title: "Vistaire Pricing | QR Displays & Digital Restaurant Menu",
+        description:
+          "Explore four Vistaire QR display collections from $2,000 CAD, with a digital restaurant menu at $200 per month and optional Pilotage controls.",
+        canonical: "https://www.vistaire.ca/en/pricing-digital-restaurant-menu",
         h1: "Choose the experience that belongs on your tables.",
         collectionNames: ["Acrylic", "Sculpted", "Square", "Signature"],
         prices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
@@ -105,11 +121,69 @@ test.describe("Vistaire pricing collections", () => {
         pilotage: "+ $100 CAD / month",
         total: "Total — $300 / month",
         pricingNav: "Pricing",
-        demoCta: "Book a demo"
+        demoCta: "Book a demo",
+        forbiddenPrices: [
+          "$950 CAD",
+          "$125 CAD / month",
+          "$1,450 CAD",
+          "$169 CAD / month",
+          "$2,500 CAD",
+          "$249 CAD / month"
+        ]
       }
     ] as const) {
       const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBeLessThan(400);
+      await expect(page).toHaveTitle(scenario.title);
+      await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+        "content",
+        scenario.description
+      );
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index, follow");
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+        "href",
+        scenario.canonical
+      );
+      await expect(page.locator('link[rel="alternate"][hreflang="fr-CA"]')).toHaveAttribute(
+        "href",
+        "https://www.vistaire.ca/tarifs-menu-digital-restaurant"
+      );
+      await expect(page.locator('link[rel="alternate"][hreflang="en-CA"]')).toHaveAttribute(
+        "href",
+        "https://www.vistaire.ca/en/pricing-digital-restaurant-menu"
+      );
+      await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+        "href",
+        "https://www.vistaire.ca/tarifs-menu-digital-restaurant"
+      );
+      await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+        "content",
+        scenario.title
+      );
+      await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+        "content",
+        scenario.description
+      );
+      await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+        "content",
+        scenario.canonical
+      );
+      await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+        "content",
+        "https://www.vistaire.ca/images/pricing/vistaire-acrylique.jpg"
+      );
+      await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+        "content",
+        "summary_large_image"
+      );
+      await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute(
+        "content",
+        scenario.title
+      );
+      await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
+        "content",
+        scenario.description
+      );
       await expect(page.getByRole("heading", { level: 1, name: scenario.h1 })).toBeVisible();
 
       const collections = page.locator("[data-pricing-collection]");
@@ -131,12 +205,23 @@ test.describe("Vistaire pricing collections", () => {
       ).toHaveAttribute("aria-current", "page");
       await expect(page.getByRole("link", { name: scenario.demoCta, exact: true }).last()).toBeVisible();
 
-      const publicText = await page.locator("body").innerText();
-      expect(publicText).not.toContain("Vistaire Base");
-      expect(publicText).not.toContain("Vistaire Premium");
-      expect(publicText).not.toContain("125 $ CAD");
-      expect(publicText).not.toContain("169 $ CAD");
-      expect(publicText).not.toContain("249 $ CAD");
+      const publicPayload = await page.evaluate(() =>
+        [
+          document.body.innerText,
+          ...Array.from(document.querySelectorAll("meta[content]"), (meta) =>
+            meta.getAttribute("content")
+          ),
+          ...Array.from(
+            document.querySelectorAll('script[type="application/ld+json"]'),
+            (script) => script.textContent
+          )
+        ].join("\n")
+      );
+      expect(publicPayload).not.toContain("Vistaire Base");
+      expect(publicPayload).not.toContain("Vistaire Premium");
+      for (const legacyPrice of scenario.forbiddenPrices) {
+        expect(publicPayload).not.toContain(legacyPrice);
+      }
       expect(await structuredDataTypes(page)).toEqual(
         expect.arrayContaining(["WebPage", "Service", "OfferCatalog", "BreadcrumbList"])
       );
@@ -175,7 +260,16 @@ test.describe("Vistaire pricing collections", () => {
         images.every((image) => {
           const element = image as HTMLImageElement;
           const bounds = element.getBoundingClientRect();
-          return element.complete && element.naturalWidth > 0 && bounds.width > 0 && bounds.height > 0;
+          const frame = element.parentElement?.getBoundingClientRect();
+          return (
+            element.complete &&
+            element.naturalWidth > 0 &&
+            bounds.width > 0 &&
+            bounds.height > 0 &&
+            Math.abs(bounds.width - bounds.height) <= 2 &&
+            Boolean(frame && Math.abs(frame.width - frame.height) <= 2) &&
+            getComputedStyle(element).objectFit === "cover"
+          );
         })
       );
       expect(imagesReady).toBe(true);
@@ -189,7 +283,9 @@ test.describe("Vistaire pricing collections", () => {
     await expectHealthyPricingPage(page, health);
   });
 
-  test("embeds the real interactive Pilotage dashboard at 30 days", async ({ page }) => {
+  test("embeds the real Pilotage dashboard preview at 30 days without tiny focus targets", async ({
+    page
+  }) => {
     const health = installPageHealth(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     const response = await page.goto("/tarifs-menu-digital-restaurant", {
@@ -199,13 +295,13 @@ test.describe("Vistaire pricing collections", () => {
 
     const dashboard = page.locator("[data-pricing-dashboard]");
     await dashboard.scrollIntoViewIfNeeded();
-    await expect(dashboard.getByRole("button", { name: "30 jours", exact: true })).toHaveAttribute(
+    await expect(dashboard).toHaveAttribute("aria-hidden", "true");
+    await expect(dashboard).toHaveAttribute("inert", "");
+    await expect(dashboard.locator('button[data-demo-period="30d"]')).toHaveAttribute(
       "aria-pressed",
       "true"
     );
-    const availabilityTab = dashboard.getByRole("tab", { name: "Disponibilités", exact: true });
-    await availabilityTab.click();
-    await expect(availabilityTab).toHaveAttribute("aria-selected", "true");
+    await expect(dashboard.locator("a, button, input, select, textarea").first()).not.toBeFocused();
     await expect(
       page.getByRole("link", { name: "Explorer l’aperçu restaurateur", exact: true })
     ).toHaveAttribute("href", "/apercu-restaurateur");

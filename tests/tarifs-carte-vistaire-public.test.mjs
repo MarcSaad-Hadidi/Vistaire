@@ -26,7 +26,13 @@ const LEGACY_PRICING_TERMS = [
   "1 450 $ CAD setup",
   "169 $ CAD / mois",
   "2 500 $ CAD setup",
-  "249 $ CAD / mois"
+  "249 $ CAD / mois",
+  "$950 CAD",
+  "$125 CAD / month",
+  "$1,450 CAD",
+  "$169 CAD / month",
+  "$2,500 CAD",
+  "$249 CAD / month"
 ];
 
 function readWorkspaceFile(path) {
@@ -94,6 +100,8 @@ test("pricing exposes four physical collections and Pilotage as an add-on", asyn
   assert.equal(PRICING_PAGE.monthlyAmount, 200);
   assert.equal(PRICING_PAGE.pilotage.monthlyAmount, 100);
   assert.equal(PRICING_PAGE.pilotage.totalMonthlyAmount, 300);
+  assert.match(PRICING_PAGE.pilotage.body, /gérer la disponibilité de vos plats/);
+  assert.doesNotMatch(PRICING_PAGE.pilotage.body, /gérer votre menu/);
   assert.equal(PRICING_PAGE.collections.filter(({ featured }) => featured).length, 1);
   assert.equal(PRICING_PAGE.collections.find(({ featured }) => featured)?.id, "signature");
   assert.equal(PRICING_PAGE.includedGroups.flatMap(({ items }) => items).length, 14);
@@ -123,6 +131,8 @@ test("French and English pricing stay commercially equivalent", async () => {
     PRICING_PAGE_EN.pilotage.totalMonthlyAmount,
     PRICING_PAGE.pilotage.totalMonthlyAmount
   );
+  assert.match(PRICING_PAGE_EN.pilotage.body, /manage dish availability/);
+  assert.doesNotMatch(PRICING_PAGE_EN.pilotage.body, /manage your menu/);
 
   const localizedPricing = JSON.stringify([PRICING_PAGE, PRICING_PAGE_EN]);
   for (const term of LEGACY_PRICING_TERMS) {
