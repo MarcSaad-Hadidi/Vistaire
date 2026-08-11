@@ -26,6 +26,48 @@
 
 final result: passed
 
+# Design QA — Pricing included-offer glass panel
+
+Date: 2026-08-11
+
+## Comparison target and evidence
+
+- Source visual truth: `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\497153AF-0D68-40E3-B6BD-5209A4606DF5\1-Photo-1.jpg` (825 × 1280 px). It shows the reported state: the complete “Inclus dans chaque offre” copy sits directly over the restaurant photograph.
+- Final mobile implementation: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-included-glass-390x844.jpg` (375 × 812 output raster from a 390 × 844 CSS viewport override, device pixel ratio 1).
+- Additional responsive evidence: `pricing-included-glass-430x932.jpg`, `pricing-included-glass-en-430x932.jpg`, and `pricing-included-glass-1440x900.jpg` in the same external visualization directory.
+- Routes and states: the included-offer section on `/tarifs-menu-digital-restaurant` and `/en/pricing-digital-restaurant-menu`, scrolled beneath the shared sticky navigation.
+- Density normalization: no resampling was used. The source is a higher-density user capture; comparison focused on the same content region and glass treatment rather than pixel-for-pixel browser chrome. The final mobile and desktop implementation captures use device pixel ratio 1.
+- Full-view and focused evidence: the source, 390 px implementation, and 1440 px implementation were opened together in one comparison input. A separate focused mobile check confirmed the panel boundary, text rhythm, list separators, and photograph visibility.
+
+## Findings
+
+- No remaining P0, P1, or P2 mismatch. One continuous glass panel now contains the section label, title, introduction, all three feature groups, and the pricing-difference note.
+- Fonts and typography: BT Suave and Neue Montreal remain unchanged; heading hierarchy, line height, wrapping, and list weights remain consistent with the existing Vistaire page.
+- Spacing and layout rhythm: the panel uses a 22 px desktop radius and 19 px mobile radius, generous responsive padding, three columns on desktop, and the existing single-column groups on mobile. No content crosses the panel edge and no horizontal overflow occurs at 390, 430, or 1440 px.
+- Colors and visual tokens: the border uses the existing champagne treatment. A warm `rgba(8, 5, 3, 0.14)` surface and 9 px backdrop blur separate the copy from the photograph while preserving the lighter restaurant ambience requested previously.
+- Image quality and asset fidelity: the real restaurant background remains visible through the panel; no crop, replacement, generated asset, or image distortion was introduced.
+- Copy and content: all French and English pricing copy remains unchanged and fully contained in the same panel.
+
+## Comparison history
+
+1. Initial state: the content had only top and bottom rules, with no radius, translucent surface, or backdrop blur. The text read as if it were placed directly on the photograph.
+2. First correction: a single bordered glass surface was added. Its initial 0.26 dark alpha improved separation but was classified P2 because it re-darkened a page that had just been intentionally brightened.
+3. Final correction: the surface alpha was reduced to 0.14 while keeping the champagne border, inset highlight, shadow, and blur. Post-fix captures show a clear container with the restaurant still visible and no responsive regression.
+
+## Functional checks
+
+- One panel is rendered and contains one level-two heading plus all three level-three groups.
+- Computed style confirms a solid border, non-zero radius, translucent background, and active backdrop blur.
+- FR and EN render the same treatment.
+- Browser console has no errors. The only warning is the existing Next.js development-only LCP suggestion for the first collection image.
+- All four collection images remain loaded with non-zero natural dimensions.
+
+## Follow-up polish
+
+- None required for this scoped correction.
+
+final result: passed
+
 # Design QA — Landing Vistaire showcase
 
 - Source visuelle principale : `9-Photo-9.jpg`, complétée par les neuf sections jointes et la dernière ambiance Trouvable.

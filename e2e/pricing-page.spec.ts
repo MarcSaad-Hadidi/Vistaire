@@ -423,6 +423,38 @@ test.describe("Vistaire pricing collections", () => {
     await expectHealthyPricingPage(page, health);
   });
 
+  test("contains the included copy in one translucent glass panel", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const response = await page.goto("/tarifs-menu-digital-restaurant", {
+      waitUntil: "domcontentloaded"
+    });
+    expect(response?.status()).toBeLessThan(400);
+
+    const panel = page.locator("[data-pricing-included-panel]");
+    await expect(panel).toHaveCount(1);
+    await expect(panel.getByRole("heading", { level: 2 })).toBeVisible();
+    await expect(panel.getByRole("heading", { level: 3 })).toHaveCount(3);
+
+    const treatment = await panel.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const background = style.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
+      return {
+        backdropFilter:
+          style.backdropFilter || style.getPropertyValue("-webkit-backdrop-filter"),
+        backgroundAlpha: background.length === 4 ? background[3] : 1,
+        borderStyle: style.borderTopStyle,
+        borderRadius: Number.parseFloat(style.borderTopLeftRadius)
+      };
+    });
+
+    expect(treatment.borderStyle).toBe("solid");
+    expect(treatment.borderRadius).toBeGreaterThan(0);
+    expect(treatment.backgroundAlpha).toBeGreaterThan(0);
+    expect(treatment.backgroundAlpha).toBeLessThan(1);
+    expect(treatment.backdropFilter).toContain("blur(");
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("embeds the real Pilotage dashboard preview at 30 days without tiny focus targets", async ({
     page
   }) => {

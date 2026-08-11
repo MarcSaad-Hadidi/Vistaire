@@ -167,7 +167,11 @@ export function VistairePricingPreview({
         </div>
       </section>
 
-      <section aria-labelledby="pricing-included-title" className={styles.includedSection}>
+      <section
+        aria-labelledby="pricing-included-title"
+        className={styles.includedSection}
+        data-pricing-included-panel
+      >
         <header className={styles.sectionIntro}>
           <p className={styles.eyebrow}>{page.included.eyebrow}</p>
           <h2 id="pricing-included-title">{page.included.title}</h2>
