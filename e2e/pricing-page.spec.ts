@@ -256,14 +256,19 @@ test.describe("Vistaire pricing collections", () => {
       });
       expect(renderedColumns).toBe(viewport.columns);
 
-      const imagesReady = await page.locator("[data-pricing-collection] img").evaluateAll((images) =>
+      const firstImage = page.locator("[data-pricing-collection] img").first();
+      await expect
+        .poll(() => firstImage.evaluate((image) => (image as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0);
+
+      const imageGeometryIsCorrect = await page
+        .locator("[data-pricing-collection] img")
+        .evaluateAll((images) =>
         images.every((image) => {
           const element = image as HTMLImageElement;
           const bounds = element.getBoundingClientRect();
           const frame = element.parentElement?.getBoundingClientRect();
           return (
-            element.complete &&
-            element.naturalWidth > 0 &&
             bounds.width > 0 &&
             bounds.height > 0 &&
             Math.abs(bounds.width - bounds.height) <= 2 &&
@@ -272,7 +277,7 @@ test.describe("Vistaire pricing collections", () => {
           );
         })
       );
-      expect(imagesReady).toBe(true);
+      expect(imageGeometryIsCorrect).toBe(true);
 
       await page.locator("[data-pricing-pilotage]").scrollIntoViewIfNeeded();
       await expect(page.locator("[data-pricing-dashboard]")).toBeVisible();

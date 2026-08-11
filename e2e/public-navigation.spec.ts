@@ -39,11 +39,6 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
     label: "Home",
     path: "/en/restaurant-preview",
     expectedPath: "/en"
-  },
-  {
-    label: "Home",
-    path: "/en/pricing-digital-restaurant-menu",
-    expectedPath: "/en"
   }
 ];
 
@@ -99,6 +94,38 @@ test.describe("Vistaire public navigation", () => {
       await expectHomeNavigation(page, scenario);
     });
   }
+
+  test("keeps the dedicated pricing navigation local in both languages", async ({ page }) => {
+    for (const scenario of [
+      {
+        path: "/tarifs-menu-digital-restaurant",
+        brand: "Vistaire - accueil",
+        home: "/",
+        links: ["Fonctionnalités", "Exemples", "Tarifs", "Réalisations", "À propos"],
+        active: "Tarifs"
+      },
+      {
+        path: "/en/pricing-digital-restaurant-menu",
+        brand: "Vistaire - home",
+        home: "/en",
+        links: ["Features", "Examples", "Pricing", "Work", "About"],
+        active: "Pricing"
+      }
+    ] as const) {
+      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      const nav = topNavigation(page);
+
+      await expect(
+        nav.getByRole("link", { name: scenario.brand, exact: true })
+      ).toHaveAttribute("href", scenario.home);
+      for (const label of scenario.links) {
+        await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
+      }
+      await expect(
+        nav.getByRole("link", { name: scenario.active, exact: true })
+      ).toHaveAttribute("aria-current", "page");
+    }
+  });
 
   test("keeps landing home anchors valid in both locales", async ({ page }) => {
     for (const scenario of [

@@ -313,7 +313,10 @@ export function PreviewNav({
               resolvedCurrentPath
             )
         ).map((item) => {
-          const isCurrentPage = item.active;
+          const isCurrentPage =
+            variant === "marketing"
+              ? item.active
+              : item.active && item.href.startsWith("#");
 
           return (
             <Link
