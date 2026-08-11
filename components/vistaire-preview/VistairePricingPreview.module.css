@@ -17,16 +17,26 @@
 @font-face {
   font-family: "Neue Montreal";
   font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/vistaire-preview/NeueMontreal-Medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  font-style: normal;
   font-weight: 700;
   font-display: swap;
   src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
 }
 
 .page {
-  --pricing-body: "Neue Montreal", Arial, sans-serif;
-  --pricing-display: "BT Suave", Georgia, serif;
+  --vistaire-font-body: "Neue Montreal", Arial, sans-serif;
+  --vistaire-font-display: "BT Suave", Georgia, serif;
+  --pricing-body: var(--vistaire-font-body);
+  --pricing-display: var(--vistaire-font-display);
   --pricing-cream: #fff8eb;
-  --pricing-muted: rgba(247, 234, 215, 0.72);
+  --pricing-muted: rgba(247, 234, 215, 0.8);
   --pricing-champagne: #e8cf9b;
   --pricing-border: rgba(232, 207, 155, 0.32);
   --pricing-width: min(1360px, calc(100vw - 40px));
@@ -34,7 +44,7 @@
   position: relative;
   min-height: 100svh;
   overflow-x: clip;
-  background: #120c08;
+  background: #1a100a;
   color: var(--pricing-cream);
   font-family: var(--pricing-body);
   isolation: isolate;
@@ -46,7 +56,7 @@
   z-index: 0;
   object-fit: cover;
   object-position: center top;
-  filter: saturate(0.92) brightness(0.84);
+  filter: saturate(0.98) brightness(1.02);
   transform: scale(1.02);
 }
 
@@ -55,8 +65,8 @@
   inset: 0;
   z-index: 1;
   background:
-    linear-gradient(180deg, rgba(6, 4, 2, 0.46) 0%, rgba(7, 4, 2, 0.64) 42%, rgba(8, 5, 3, 0.84) 74%),
-    radial-gradient(circle at 50% 4%, rgba(198, 135, 68, 0.12), transparent 36%);
+    linear-gradient(180deg, rgba(6, 4, 2, 0.24) 0%, rgba(7, 4, 2, 0.4) 42%, rgba(8, 5, 3, 0.62) 78%),
+    radial-gradient(circle at 50% 4%, rgba(198, 135, 68, 0.16), transparent 36%);
   pointer-events: none;
 }
 
@@ -84,7 +94,6 @@
 
 .topNav nav {
   margin-top: 0;
-  background: rgba(9, 6, 4, 0.7);
 }
 
 .hero {
@@ -156,7 +165,7 @@
   border-radius: 15px;
   background:
     linear-gradient(160deg, rgba(255, 250, 240, 0.055), rgba(255, 250, 240, 0.008) 35%),
-    rgba(8, 5, 3, 0.34);
+    rgba(8, 5, 3, 0.24);
   box-shadow:
     0 28px 70px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 250, 240, 0.1);
@@ -706,7 +715,7 @@
 
 .additionalSection {
   width: 100%;
-  background: rgba(8, 5, 3, 0.84);
+  background: rgba(8, 5, 3, 0.64);
   box-shadow: 0 -1px 0 rgba(232, 207, 155, 0.28);
 }
 
@@ -797,7 +806,7 @@
   margin: 0 auto 14px;
   border: 1px solid rgba(232, 207, 155, 0.28);
   border-radius: 15px;
-  background: rgba(8, 5, 3, 0.36);
+  background: rgba(8, 5, 3, 0.26);
   padding: clamp(36px, 5vw, 64px);
   box-shadow:
     0 26px 72px rgba(0, 0, 0, 0.28),

@@ -65,6 +65,29 @@ async function expectNoCurrent(
   }
 }
 
+async function expectPricingNavigation(
+  nav: ReturnType<typeof topNavigation>,
+  locale: "fr" | "en",
+  active = false
+) {
+  const label = locale === "en" ? "Pricing" : "Tarifs";
+  const href = active
+    ? "#pricing-title"
+    : locale === "en"
+      ? "/en/pricing-digital-restaurant-menu"
+      : "/tarifs-menu-digital-restaurant";
+  const link = nav.getByRole("link", { name: label, exact: true });
+
+  await expect(link).toHaveCount(1);
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("href", href);
+  if (active) {
+    await expect(link).toHaveAttribute("aria-current", "page");
+  } else {
+    await expect(link).not.toHaveAttribute("aria-current");
+  }
+}
+
 async function expectHomeNavigation(
   page: Page,
   scenario: HomeScenario
@@ -80,6 +103,12 @@ async function expectHomeNavigation(
     scenario.label === "Accueil" ? "À propos" : "About",
     "Contact"
   ]);
+  await expectPricingNavigation(
+    nav,
+    scenario.label === "Accueil" ? "fr" : "en",
+    scenario.path === "/tarifs-menu-digital-restaurant" ||
+      scenario.path === "/en/pricing-digital-restaurant-menu"
+  );
 
   await home.click();
   await expect
@@ -128,6 +157,12 @@ test.describe("Vistaire public navigation", () => {
         await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
       }
       await expectNoCurrent(nav, scenario.links);
+      await expect(page.locator("#pricing-title")).toBeVisible();
+      await expectPricingNavigation(
+        nav,
+        scenario.path.startsWith("/en/") ? "en" : "fr",
+        true
+      );
       await expect(nav.getByRole("link", { name: scenario.cta, exact: true })).toBeVisible();
     }
   });
@@ -149,6 +184,10 @@ test.describe("Vistaire public navigation", () => {
         scenario.label === "Accueil" ? "À propos" : "About",
         "Contact"
       ]);
+      await expectPricingNavigation(
+        nav,
+        scenario.path === "/en" ? "en" : "fr"
+      );
     }
   });
 
@@ -172,6 +211,10 @@ test.describe("Vistaire public navigation", () => {
         scenario.label === "Carte" ? "À propos" : "About",
         "Contact"
       ]);
+      await expectPricingNavigation(
+        nav,
+        scenario.path.startsWith("/en/") ? "en" : "fr"
+      );
     }
   });
 
@@ -215,6 +258,10 @@ test.describe("Vistaire public navigation", () => {
         ? ["Home", "Menu", "About", "Contact"]
         : ["Accueil", "Carte", "À propos", "Contact"];
       await expectNoCurrent(nav, labels.filter((label) => label !== scenario.label));
+      await expectPricingNavigation(
+        nav,
+        scenario.path.startsWith("/en/") ? "en" : "fr"
+      );
     }
   });
 
@@ -252,6 +299,10 @@ test.describe("Vistaire public navigation", () => {
         scenario.aboutLabel,
         "Contact"
       ]);
+      await expectPricingNavigation(
+        nav,
+        scenario.path.startsWith("/en/") ? "en" : "fr"
+      );
     }
   });
 
@@ -284,6 +335,10 @@ test.describe("Vistaire public navigation", () => {
         scenario.home === "/" ? "À propos" : "About",
         "Contact"
       ]);
+      await expectPricingNavigation(
+        nav,
+        scenario.home === "/" ? "fr" : "en"
+      );
     }
   });
 
@@ -295,6 +350,7 @@ test.describe("Vistaire public navigation", () => {
     await expect(nav.getByRole("link", { name: "Carte", exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "À propos", exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Contact", exact: true })).toBeVisible();
+    await expectPricingNavigation(nav, "fr");
 
     await page.keyboard.press("Tab");
     await expect(page.locator("a:focus-visible")).toHaveCount(1);

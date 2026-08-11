@@ -16,7 +16,7 @@ type PreviewNavItem = {
   label: string;
 };
 
-type PreviewNavSection = "home" | "menu" | "about" | "contact";
+type PreviewNavSection = "home" | "menu" | "pricing" | "about" | "contact";
 type PreviewChromeWidth = "standard" | "wide";
 export type VistaireRouteMode = "production";
 
@@ -79,12 +79,14 @@ const navLabels: Record<Locale, Record<PreviewNavSection, string>> = {
   fr: {
     home: "Accueil",
     menu: "Carte",
+    pricing: "Tarifs",
     about: "À propos",
     contact: "Contact"
   },
   en: {
     home: "Home",
     menu: "Menu",
+    pricing: "Pricing",
     about: "About",
     contact: "Contact"
   }
@@ -160,6 +162,11 @@ function getPreviewNav(
       label: labels.menu,
       href: isCurrentRoute(routes.menu) ? "#carte" : routes.menu,
       active: activeSection === "menu"
+    },
+    {
+      label: labels.pricing,
+      href: isCurrentRoute(routes.pricing) ? "#pricing-title" : routes.pricing,
+      active: activeSection === "pricing"
     },
     {
       label: labels.about,

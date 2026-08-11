@@ -146,6 +146,7 @@ export function VistairePricingPreview({
 
       <div className={styles.topNav}>
         <PreviewNav
+          activeSection="pricing"
           currentPath={page.path}
           locale={locale}
           routeMode={routeMode}

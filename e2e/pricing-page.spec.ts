@@ -58,6 +58,96 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
+async function expectPrimaryNavigationFits(
+  page: Page,
+  labels: readonly string[]
+) {
+  const navigation = page.getByRole("navigation").first();
+  await expect(navigation).toBeVisible();
+  const navigationBox = await navigation.boundingBox();
+  expect(navigationBox).not.toBeNull();
+  if (!navigationBox) return;
+
+  const linkBoxes = [];
+  for (const label of labels) {
+    const link = navigation.getByRole("link", { name: label, exact: true });
+    await expect(link).toHaveCount(1);
+    await expect(link).toBeVisible();
+    const box = await link.boundingBox();
+    expect(box, `${label} should have rendered geometry`).not.toBeNull();
+    if (!box) continue;
+    expect(box.x).toBeGreaterThanOrEqual(navigationBox.x - 1);
+    expect(box.y).toBeGreaterThanOrEqual(navigationBox.y - 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(
+      navigationBox.x + navigationBox.width + 1
+    );
+    expect(box.y + box.height).toBeLessThanOrEqual(
+      navigationBox.y + navigationBox.height + 1
+    );
+    linkBoxes.push({ box, label });
+  }
+  expect(linkBoxes).toHaveLength(labels.length);
+
+  for (let index = 0; index < linkBoxes.length; index += 1) {
+    for (let other = index + 1; other < linkBoxes.length; other += 1) {
+      const first = linkBoxes[index];
+      const second = linkBoxes[other];
+      const horizontalOverlap = Math.min(
+        first.box.x + first.box.width,
+        second.box.x + second.box.width
+      ) - Math.max(first.box.x, second.box.x);
+      const verticalOverlap = Math.min(
+        first.box.y + first.box.height,
+        second.box.y + second.box.height
+      ) - Math.max(first.box.y, second.box.y);
+      expect(
+        horizontalOverlap <= 1 || verticalOverlap <= 1,
+        `${first.label} and ${second.label} must not overlap`
+      ).toBe(true);
+    }
+  }
+
+  const internalOverflow = await navigation.evaluate(
+    (element) => element.scrollWidth - element.clientWidth
+  );
+  expect(internalOverflow).toBeLessThanOrEqual(1);
+  await expectNoHorizontalOverflow(page);
+}
+
+async function expectVistaireChromeTypography(
+  page: Page,
+  brandLabel: string,
+  bodyLinkLabel: string
+) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+
+  const navigation = page.getByRole("navigation").first();
+  const brand = navigation
+    .getByRole("link", { name: brandLabel, exact: true })
+    .locator("span")
+    .first();
+  const bodyLink = navigation.getByRole("link", {
+    name: bodyLinkLabel,
+    exact: true
+  });
+  const footerBrand = page.locator('footer section[aria-label="Vistaire"] h2');
+
+  await expect(brand).toBeVisible();
+  await expect(bodyLink).toBeVisible();
+  await expect(footerBrand).toHaveCount(1);
+  const [headerFamily, bodyFamily, footerFamily] = await Promise.all([
+    brand.evaluate((element) => getComputedStyle(element).fontFamily),
+    bodyLink.evaluate((element) => getComputedStyle(element).fontFamily),
+    footerBrand.evaluate((element) => getComputedStyle(element).fontFamily)
+  ]);
+
+  expect(headerFamily).toContain("BT Suave");
+  expect(footerFamily).toContain("BT Suave");
+  expect(bodyFamily).toContain("Neue Montreal");
+}
+
 async function structuredDataTypes(page: Page) {
   return page.evaluate(() => {
     const types: string[] = [];
@@ -97,7 +187,10 @@ test.describe("Vistaire pricing collections", () => {
         monthly: "+ 200 $ CAD / mois",
         pilotage: "+ 100 $ CAD / mois",
         total: "Total — 300 $ / mois",
-        navLinks: ["Accueil", "Carte", "À propos", "Contact"],
+        navLinks: ["Accueil", "Carte", "Tarifs", "À propos", "Contact"],
+        pricingLabel: "Tarifs",
+        pricingPath: "#pricing-title",
+        brandLabel: "Vistaire - accueil",
         navCta: "Prendre rendez-vous",
         demoCta: "Réserver une démo",
         forbiddenPrices: [
@@ -121,7 +214,10 @@ test.describe("Vistaire pricing collections", () => {
         monthly: "+ $200 CAD / month",
         pilotage: "+ $100 CAD / month",
         total: "Total — $300 / month",
-        navLinks: ["Home", "Menu", "About", "Contact"],
+        navLinks: ["Home", "Menu", "Pricing", "About", "Contact"],
+        pricingLabel: "Pricing",
+        pricingPath: "#pricing-title",
+        brandLabel: "Vistaire - home",
         navCta: "Book a call",
         demoCta: "Book a demo",
         forbiddenPrices: [
@@ -203,6 +299,32 @@ test.describe("Vistaire pricing collections", () => {
       for (const label of scenario.navLinks) {
         await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
       }
+      await expect(page.locator("#pricing-title")).toBeVisible();
+      await expect(
+        navigation.getByRole("link", {
+          name: scenario.pricingLabel,
+          exact: true
+        })
+      )
+        .toHaveAttribute("href", scenario.pricingPath);
+      await expect(
+        navigation.getByRole("link", {
+          name: scenario.pricingLabel,
+          exact: true
+        })
+      ).toHaveAttribute("aria-current", "page");
+      for (const label of scenario.navLinks.filter(
+        (navLabel) => navLabel !== scenario.pricingLabel
+      )) {
+        await expect(
+          navigation.getByRole("link", { name: label, exact: true })
+        ).not.toHaveAttribute("aria-current");
+      }
+      await expectVistaireChromeTypography(
+        page,
+        scenario.brandLabel,
+        scenario.pricingLabel
+      );
       await expect(
         navigation.getByRole("link", { name: scenario.navCta, exact: true })
       ).toBeVisible();
@@ -252,6 +374,16 @@ test.describe("Vistaire pricing collections", () => {
       expect(response?.status()).toBeLessThan(400);
       await expect(page.locator("[data-pricing-collection]")).toHaveCount(4);
       await expectNoHorizontalOverflow(page);
+
+      if (viewport.width === 390 || viewport.width === 430) {
+        await expectPrimaryNavigationFits(page, [
+          "Accueil",
+          "Carte",
+          "Tarifs",
+          "À propos",
+          "Contact"
+        ]);
+      }
 
       const renderedColumns = await page.locator("[data-pricing-collection]").first().evaluate((card) => {
         const grid = card.parentElement;

@@ -53,3 +53,47 @@ final result: passed
 - La comparaison côte à côte finale confirme la filiation de composition sans copier les faux contenus de la maquette.
 
 final result: passed
+
+# Design QA — Pricing navigation, typography and brightness
+
+Date: 2026-08-11
+
+## Scope
+
+- Shared Vistaire public navigation with the new `Tarifs` / `Pricing` destination.
+- Correct BT Suave / Neue Montreal typography in the Pricing header and footer.
+- Brighter Pricing photography and surfaces while preserving text contrast.
+
+## Source references
+
+- `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\416E86A2-129D-4A0B-BBC1-0C0A535D04C5\1-Photo-1.jpg` — reported Pricing header and dark hero.
+- `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\416E86A2-129D-4A0B-BBC1-0C0A535D04C5\2-Photo-2.jpg` — correct Vistaire public-header typography reference.
+- `C:\Users\hadid\.codex\codex-remote-attachments\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\416E86A2-129D-4A0B-BBC1-0C0A535D04C5\3-Photo-3.jpg` — reported Pricing footer typography.
+
+## Implementation evidence
+
+Codex in-app browser, `430 × 932`, device pixel ratio `1`, route `/tarifs-menu-digital-restaurant`:
+
+- Full mobile hero: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-mobile-430-hero.png`
+- Focused sticky-header / Pilotage state: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-mobile-430-pilotage.png`
+- Focused footer state: `C:\Users\hadid\.codex\visualizations\2026\08\11\019fefb0-08e7-7733-abaa-1ccb7c1e0c69\pricing-mobile-430-footer.png`
+
+The source and implementation images were inspected together in two comparison inputs: header/hero/footer, then the correct shared-header reference beside the final hero and Pilotage states.
+
+## Findings and correction history
+
+1. The Pricing root did not expose the shared `--vistaire-font-display` and `--vistaire-font-body` variables. The header and footer brand therefore fell back to sans-serif. The variables now resolve to BT Suave and Neue Montreal, and the real Medium font file is loaded for weight 500.
+2. The Pricing background combined `brightness(.84)` with a dark wash reaching `.84`. The image now renders at `brightness(1.02)` with a lighter warm wash, lighter collection glass, and lighter lower-page surfaces. The restaurant scene is visible without weakening primary text hierarchy.
+3. The Pricing-only dark header override made this page differ from the rest of the public site. It was removed. A single warm translucent treatment now belongs to the shared header and remains readable over both restaurant imagery and the ivory Pilotage section.
+4. Five navigation links fit at 390 and 430 px with no overlap or horizontal overflow. `Tarifs` / `Pricing` is active on Pricing and routes correctly from other public pages.
+5. No visible regression was found in border radii, spacing, image crop, sticky positioning, or footer layout during the paired comparison.
+
+## Functional and technical checks
+
+- FR public page → `Tarifs` → French Pricing route: passed.
+- FR Pricing → `EN` → English Pricing route with active `Pricing`: passed.
+- Header and footer computed font family contains `BT Suave`; navigation text contains `Neue Montreal`: passed.
+- Sticky header over the ivory Pilotage section: passed visually.
+- Targeted Playwright suite: 40 tests passed, including 390, 430, 768, 1280 and 1440 px; no unexpected Pricing console errors, 404/500 responses, hydration errors, or horizontal overflow.
+
+final result: passed
