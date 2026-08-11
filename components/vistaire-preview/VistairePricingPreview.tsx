@@ -149,7 +149,6 @@ export function VistairePricingPreview({
           currentPath={page.path}
           locale={locale}
           routeMode={routeMode}
-          variant="marketing"
         />
       </div>
 

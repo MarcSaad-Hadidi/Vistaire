@@ -97,7 +97,8 @@ test.describe("Vistaire pricing collections", () => {
         monthly: "+ 200 $ CAD / mois",
         pilotage: "+ 100 $ CAD / mois",
         total: "Total — 300 $ / mois",
-        pricingNav: "Tarifs",
+        navLinks: ["Accueil", "Carte", "À propos", "Contact"],
+        navCta: "Prendre rendez-vous",
         demoCta: "Réserver une démo",
         forbiddenPrices: [
           "950 $ CAD setup",
@@ -120,7 +121,8 @@ test.describe("Vistaire pricing collections", () => {
         monthly: "+ $200 CAD / month",
         pilotage: "+ $100 CAD / month",
         total: "Total — $300 / month",
-        pricingNav: "Pricing",
+        navLinks: ["Home", "Menu", "About", "Contact"],
+        navCta: "Book a call",
         demoCta: "Book a demo",
         forbiddenPrices: [
           "$950 CAD",
@@ -197,12 +199,13 @@ test.describe("Vistaire pricing collections", () => {
       const pilotage = page.locator("[data-pricing-pilotage]");
       await expect(pilotage.getByText(scenario.pilotage, { exact: true })).toBeVisible();
       await expect(pilotage.getByText(scenario.total, { exact: true })).toBeVisible();
+      const navigation = page.getByRole("navigation").first();
+      for (const label of scenario.navLinks) {
+        await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
+      }
       await expect(
-        page.getByRole("navigation").first().getByRole("link", {
-          name: scenario.pricingNav,
-          exact: true
-        })
-      ).toHaveAttribute("aria-current", "page");
+        navigation.getByRole("link", { name: scenario.navCta, exact: true })
+      ).toBeVisible();
       await expect(page.getByRole("link", { name: scenario.demoCta, exact: true }).last()).toBeVisible();
 
       const publicPayload = await page.evaluate(() =>

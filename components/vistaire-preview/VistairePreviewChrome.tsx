@@ -17,7 +17,6 @@ type PreviewNavItem = {
 };
 
 type PreviewNavSection = "home" | "menu" | "about" | "contact";
-type PreviewNavVariant = "default" | "marketing";
 type PreviewChromeWidth = "standard" | "wide";
 export type VistaireRouteMode = "production";
 
@@ -90,23 +89,6 @@ const navLabels: Record<Locale, Record<PreviewNavSection, string>> = {
     contact: "Contact"
   }
 };
-
-const marketingNavLabels = {
-  fr: {
-    features: "Fonctionnalités",
-    examples: "Exemples",
-    pricing: "Tarifs",
-    work: "Réalisations",
-    about: "À propos"
-  },
-  en: {
-    features: "Features",
-    examples: "Examples",
-    pricing: "Pricing",
-    work: "Work",
-    about: "About"
-  }
-} as const;
 
 const useCaseGeoSlugs = [
   "menu-qr-sans-pdf",
@@ -195,27 +177,6 @@ function getPreviewNav(
   ];
 }
 
-function getMarketingPreviewNav(
-  routes: VistaireChromeRoutes,
-  locale: Locale,
-  currentPath: string
-): PreviewNavItem[] {
-  const labels = marketingNavLabels[locale];
-  const normalizedCurrentPath = normalizePathname(currentPath);
-  const items = [
-    { label: labels.features, href: routes.menuDigital },
-    { label: labels.examples, href: routes.menu },
-    { label: labels.pricing, href: routes.pricing },
-    { label: labels.work, href: `${routes.home}#experiences` },
-    { label: labels.about, href: routes.about }
-  ];
-
-  return items.map((item) => ({
-    ...item,
-    active: normalizedCurrentPath === normalizePathname(item.href)
-  }));
-}
-
 function LanguageSwitcher({
   currentPath,
   locale
@@ -262,15 +223,13 @@ export function PreviewNav({
   contactHref,
   currentPath,
   locale = "fr",
-  routeMode = "production",
-  variant = "default"
+  routeMode = "production"
 }: {
   activeSection?: PreviewNavSection;
   contactHref?: string;
   currentPath?: string;
   locale?: Locale;
   routeMode?: VistaireRouteMode;
-  variant?: PreviewNavVariant;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const resolvedCurrentPath = normalizePathname(currentPath ?? routes.home);
@@ -278,11 +237,7 @@ export function PreviewNav({
   return (
     <nav
       aria-label={locale === "en" ? "Main navigation" : "Navigation preview"}
-      className={
-        variant === "marketing"
-          ? `${styles.previewNav} ${styles.previewNavMarketing}`
-          : styles.previewNav
-      }
+      className={styles.previewNav}
     >
       <Link
         aria-label={locale === "en" ? "Vistaire - home" : "Vistaire - accueil"}
@@ -296,27 +251,15 @@ export function PreviewNav({
         </span>
       </Link>
 
-      <div
-        className={
-          variant === "marketing"
-            ? `${styles.navLinks} ${styles.navLinksMarketing}`
-            : styles.navLinks
-        }
-      >
-        {(variant === "marketing"
-          ? getMarketingPreviewNav(routes, locale, resolvedCurrentPath)
-          : getPreviewNav(
-              routes,
-              activeSection,
-              contactHref,
-              locale,
-              resolvedCurrentPath
-            )
+      <div className={styles.navLinks}>
+        {getPreviewNav(
+          routes,
+          activeSection,
+          contactHref,
+          locale,
+          resolvedCurrentPath
         ).map((item) => {
-          const isCurrentPage =
-            variant === "marketing"
-              ? item.active
-              : item.active && item.href.startsWith("#");
+          const isCurrentPage = item.active && item.href.startsWith("#");
 
           return (
             <Link
@@ -340,22 +283,10 @@ export function PreviewNav({
 
       <Link className={styles.navCta} href={routes.appointment} prefetch={false}>
         <span className={styles.navCtaFull}>
-          {variant === "marketing"
-            ? locale === "en"
-              ? "Book a demo"
-              : "Réserver une démo"
-            : locale === "en"
-              ? "Book a call"
-              : "Prendre rendez-vous"}
+          {locale === "en" ? "Book a call" : "Prendre rendez-vous"}
         </span>
         <span className={styles.navCtaShort}>
-          {variant === "marketing"
-            ? locale === "en"
-              ? "Demo"
-              : "Démo"
-            : locale === "en"
-              ? "Book"
-              : "Rendez-vous"}
+          {locale === "en" ? "Book" : "Rendez-vous"}
         </span>
         <span aria-hidden="true" className={styles.navCtaArrow}>
           ↗

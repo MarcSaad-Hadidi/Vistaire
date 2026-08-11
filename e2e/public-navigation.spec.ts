@@ -11,7 +11,8 @@ const frenchSecondaryHomeScenarios: HomeScenario[] = [
   { label: "Accueil", path: "/menu-pdf-vs-menu-digital", expectedPath: "/" },
   { label: "Accueil", path: "/menu-digital-restaurant", expectedPath: "/" },
   { label: "Accueil", path: "/menu-3d-ar-restaurant", expectedPath: "/" },
-  { label: "Accueil", path: "/apercu-restaurateur", expectedPath: "/" }
+  { label: "Accueil", path: "/apercu-restaurateur", expectedPath: "/" },
+  { label: "Accueil", path: "/tarifs-menu-digital-restaurant", expectedPath: "/" }
 ];
 
 const englishSecondaryHomeScenarios: HomeScenario[] = [
@@ -38,6 +39,11 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
   {
     label: "Home",
     path: "/en/restaurant-preview",
+    expectedPath: "/en"
+  },
+  {
+    label: "Home",
+    path: "/en/pricing-digital-restaurant-menu",
     expectedPath: "/en"
   }
 ];
@@ -95,21 +101,21 @@ test.describe("Vistaire public navigation", () => {
     });
   }
 
-  test("keeps the dedicated pricing navigation local in both languages", async ({ page }) => {
+  test("uses the same public top bar on pricing in both languages", async ({ page }) => {
     for (const scenario of [
       {
         path: "/tarifs-menu-digital-restaurant",
         brand: "Vistaire - accueil",
         home: "/",
-        links: ["Fonctionnalités", "Exemples", "Tarifs", "Réalisations", "À propos"],
-        active: "Tarifs"
+        links: ["Accueil", "Carte", "À propos", "Contact"],
+        cta: "Prendre rendez-vous"
       },
       {
         path: "/en/pricing-digital-restaurant-menu",
         brand: "Vistaire - home",
         home: "/en",
-        links: ["Features", "Examples", "Pricing", "Work", "About"],
-        active: "Pricing"
+        links: ["Home", "Menu", "About", "Contact"],
+        cta: "Book a call"
       }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
@@ -121,9 +127,8 @@ test.describe("Vistaire public navigation", () => {
       for (const label of scenario.links) {
         await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
       }
-      await expect(
-        nav.getByRole("link", { name: scenario.active, exact: true })
-      ).toHaveAttribute("aria-current", "page");
+      await expectNoCurrent(nav, scenario.links);
+      await expect(nav.getByRole("link", { name: scenario.cta, exact: true })).toBeVisible();
     }
   });
 
