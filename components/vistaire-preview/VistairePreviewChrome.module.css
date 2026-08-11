@@ -20,6 +20,11 @@
   backdrop-filter: blur(5px) saturate(110%);
 }
 
+.previewNavMarketing {
+  width: min(1240px, calc(100vw - 48px));
+  grid-template-columns: minmax(178px, 0.7fr) minmax(500px, 1.35fr) minmax(86px, auto) minmax(154px, auto);
+}
+
 .previewNav::before {
   display: none;
   content: none;
@@ -89,6 +94,10 @@
   background: transparent;
   padding: 3px;
   box-shadow: none;
+}
+
+.navLinksMarketing {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .navLink {
@@ -537,6 +546,10 @@
     white-space: nowrap;
   }
 
+  .previewNavMarketing {
+    grid-template-columns: minmax(0, 1fr) minmax(76px, auto) minmax(142px, auto);
+  }
+
   .previewFooter,
   .previewFooterWide {
     width: min(560px, calc(100vw - 28px));
@@ -585,6 +598,22 @@
     gap: 3px;
     border-radius: 16px;
     padding: 2px;
+  }
+
+  .navLinksMarketing {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .navLinksMarketing .navLink {
+    padding-inline: 5px;
+  }
+
+  .navLinksMarketing .navLink:nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+
+  .navLinksMarketing .navLink:nth-child(n + 4) {
+    grid-column: span 3;
   }
 
   .navLink {

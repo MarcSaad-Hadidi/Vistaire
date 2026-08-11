@@ -63,7 +63,7 @@ Expected: failure because `collections` and Pilotage amounts do not exist yet.
 
 - [ ] **Step 3: Replace the legacy package/FAQ model in `lib/pricingPage.ts`**
 
-Implement exact FR/EN content, four collection objects, three included groups, factual Pilotage bullets, quoted extras, starting-price variables, and localized CTAs. Build exactly four OfferCatalog entries and represent Pilotage as a Service additional property.
+Implement exact FR/EN content, four collection objects, three included groups containing all 14 required inclusions, factual Pilotage bullets, quoted extras, starting-price variables, and localized CTAs. Build exactly four OfferCatalog entries and represent Pilotage as a Service additional property.
 
 - [ ] **Step 4: Run the pricing contract**
 

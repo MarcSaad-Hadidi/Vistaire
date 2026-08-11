@@ -20,11 +20,17 @@ const RestaurateurPreviewInsights = dynamic(
   { loading: () => <p role="status">…</p> }
 );
 
-export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPreviewLocale }) {
+export function RestaurateurDashboardDemo({
+  initialPeriodId = "24h",
+  locale
+}: {
+  initialPeriodId?: RestaurateurPreviewPeriodId;
+  locale: RestaurateurPreviewLocale;
+}) {
   const fixture = RESTAURATEUR_PREVIEW_FIXTURE;
   const copy = RESTAURATEUR_PREVIEW_COPY[locale];
   const [activeTab, setActiveTab] = useState<DemoTab>("overview");
-  const [periodId, setPeriodId] = useState<RestaurateurPreviewPeriodId>("24h");
+  const [periodId, setPeriodId] = useState<RestaurateurPreviewPeriodId>(initialPeriodId);
   const [availableById, setAvailableById] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(fixture.dishes.map((dish) => [dish.id, dish.available]))
   );

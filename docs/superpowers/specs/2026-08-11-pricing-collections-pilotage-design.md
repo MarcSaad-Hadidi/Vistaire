@@ -22,7 +22,7 @@ Replace the legacy Base / Premium / Signature SaaS-style packages on both public
 1. Existing Vistaire public navigation, extended with the requested five-item marketing set.
 2. Centered editorial hero with the supplied eyebrow, H1, and supporting copy.
 3. Four physical collection cards using the supplied product photographs.
-4. Open, editorial “included in every offer” section grouped into experience, physical/immersive, and delivery/continuity columns.
+4. Open, editorial “included in every offer” section grouping all 14 inclusions into experience, physical/immersive, and delivery/continuity columns.
 5. Full-width ivory Pilotage option section with factual copy and the real Vistaire restaurateur dashboard rendered inside a laptop frame.
 6. Compact quote-only information and “starting at” explanation.
 7. Dark final CTA and the existing shared public footer.

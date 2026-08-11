@@ -5,22 +5,28 @@ import { join } from "node:path";
 
 const PUBLIC_FILES_FOR_THIS_TASK = [
   "app/(seo)/tarifs-menu-digital-restaurant/page.tsx",
-  "app/sitemap.ts",
-  "components/landing/GuidesVistaireSection.tsx",
+  "app/en/pricing-digital-restaurant-menu/page.tsx",
   "components/seo/pages/TarifsMenuDigitalRestaurantPage.tsx",
-  "lib/pricingPage.ts",
-  "public/llms.txt"
+  "components/vistaire-preview/VistairePricingPreview.tsx",
+  "components/vistaire-preview/VistairePricingPreview.module.css",
+  "lib/pricingPage.ts"
 ];
 
-const FORBIDDEN_PUBLIC_TERMS = [
-  "demo",
-  "Demo",
-  "démo",
-  "Démo",
-  "démonstration",
-  "démonstratif",
-  "fictif",
-  "fictive"
+const EXPECTED_COLLECTIONS = [
+  ["acrylique", "Vistaire Acrylique", 2_000],
+  ["sculpte", "Vistaire Sculpté", 2_050],
+  ["carre", "Vistaire Carré", 2_100],
+  ["signature", "Vistaire Signature", 2_200]
+];
+
+const LEGACY_PRICING_TERMS = [
+  "Vistaire Base",
+  "950 $ CAD setup",
+  "125 $ CAD / mois",
+  "1 450 $ CAD setup",
+  "169 $ CAD / mois",
+  "2 500 $ CAD setup",
+  "249 $ CAD / mois"
 ];
 
 function readWorkspaceFile(path) {
@@ -45,96 +51,115 @@ function collectJsonLdTypes(value, types = []) {
   return types;
 }
 
-test("pricing public surfaces exist without forbidden public wording", () => {
-  for (const file of PUBLIC_FILES_FOR_THIS_TASK) {
-    const absolutePath = join(process.cwd(), file);
-    assert.equal(existsSync(absolutePath), true, `${file} should exist`);
-    const content = readWorkspaceFile(file);
-    const publicCopy = content.replaceAll("/demo", "");
-    for (const term of FORBIDDEN_PUBLIC_TERMS) {
-      assert.equal(
-        publicCopy.includes(term),
-        false,
-        `${file} should not contain forbidden term: ${term}`
-      );
+function findJsonLdType(value, targetType) {
+  if (!value || typeof value !== "object") return undefined;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const match = findJsonLdType(item, targetType);
+      if (match) return match;
     }
+    return undefined;
+  }
+  if (value["@type"] === targetType) return value;
+  for (const child of Object.values(value)) {
+    const match = findJsonLdType(child, targetType);
+    if (match) return match;
+  }
+  return undefined;
+}
+
+test("pricing public routes share one bilingual production surface", () => {
+  for (const file of PUBLIC_FILES_FOR_THIS_TASK) {
+    assert.equal(existsSync(join(process.cwd(), file)), true, `${file} should exist`);
   }
 });
 
-test("pricing data answers the required commercial questions", async () => {
+test("pricing exposes four physical collections and Pilotage as an add-on", async () => {
   const {
     PRICING_PAGE,
     PRICING_PATH,
-    SAMPLE_MENU_PATH,
-    buildPricingPageJsonLd
+    SAMPLE_MENU_PATH
   } = await import("../lib/pricingPage.ts");
 
   assert.equal(PRICING_PATH, "/tarifs-menu-digital-restaurant");
   assert.equal(SAMPLE_MENU_PATH, "/demo");
   assert.equal(
     PRICING_PAGE.h1,
-    "Tarifs Vistaire : menu digital premium avec plats 3D inclus"
+    "Choisissez l’expérience qui prendra place sur vos tables."
   );
-  assert.deepEqual(PRICING_PAGE.primaryCta, {
-    label: "Parler de votre menu",
+  assert.deepEqual(
+    PRICING_PAGE.collections.map(({ id, name, setupAmount }) => [id, name, setupAmount]),
+    EXPECTED_COLLECTIONS
+  );
+  assert.equal(PRICING_PAGE.monthlyAmount, 200);
+  assert.equal(PRICING_PAGE.pilotage.monthlyAmount, 100);
+  assert.equal(PRICING_PAGE.pilotage.totalMonthlyAmount, 300);
+  assert.equal(PRICING_PAGE.collections.filter(({ featured }) => featured).length, 1);
+  assert.equal(PRICING_PAGE.collections.find(({ featured }) => featured)?.id, "signature");
+  assert.equal(PRICING_PAGE.includedGroups.flatMap(({ items }) => items).length, 14);
+  assert.deepEqual(PRICING_PAGE.finalCta.primary, {
+    label: "Réserver une démo",
     href: "/prendre-rendez-vous"
   });
-  assert.deepEqual(PRICING_PAGE.secondaryCta, {
-    label: "Voir le menu exemple",
-    href: "/demo"
-  });
+});
 
-  assert.deepEqual(
-    PRICING_PAGE.plans.map((plan) => ({
-      name: plan.name,
-      menuDishLimit: plan.menuDishLimit,
-      included3dDishCount: plan.included3dDishCount,
-      setupPrice: plan.setupPrice,
-      monthlyPrice: plan.monthlyPrice
-    })),
-    [
-      {
-        name: "Vistaire Base",
-        menuDishLimit: 40,
-        included3dDishCount: 5,
-        setupPrice: "950 $ CAD setup",
-        monthlyPrice: "125 $ CAD / mois"
-      },
-      {
-        name: "Vistaire Premium",
-        menuDishLimit: 60,
-        included3dDishCount: 10,
-        setupPrice: "1 450 $ CAD setup",
-        monthlyPrice: "169 $ CAD / mois"
-      },
-      {
-        name: "Vistaire Signature",
-        menuDishLimit: 100,
-        included3dDishCount: 20,
-        setupPrice: "2 500 $ CAD setup",
-        monthlyPrice: "249 $ CAD / mois"
-      }
-    ]
-  );
+test("French and English pricing stay commercially equivalent", async () => {
+  const { PRICING_PAGE, PRICING_PAGE_EN } = await import("../lib/pricingPage.ts");
 
-  assert.equal(PRICING_PAGE.plans.find((plan) => plan.recommended)?.name, "Vistaire Premium");
-  assert.equal(PRICING_PAGE.threeDPacks.length, 4);
-  assert.equal(PRICING_PAGE.faq.length >= 12, true);
   assert.equal(
-    PRICING_PAGE.faq.some((item) => item.question === "Est-ce que les plats 3D sont inclus ?"),
-    true
+    PRICING_PAGE_EN.h1,
+    "Choose the experience that belongs on your tables."
+  );
+  assert.deepEqual(
+    PRICING_PAGE_EN.collections.map(({ id, setupAmount }) => [id, setupAmount]),
+    EXPECTED_COLLECTIONS.map(([id, , setupAmount]) => [id, setupAmount])
+  );
+  assert.deepEqual(
+    PRICING_PAGE_EN.collections.map(({ image }) => image),
+    PRICING_PAGE.collections.map(({ image }) => image)
+  );
+  assert.equal(PRICING_PAGE_EN.monthlyAmount, PRICING_PAGE.monthlyAmount);
+  assert.equal(
+    PRICING_PAGE_EN.pilotage.totalMonthlyAmount,
+    PRICING_PAGE.pilotage.totalMonthlyAmount
   );
 
-  const jsonLd = buildPricingPageJsonLd();
-  const jsonLdTypes = collectJsonLdTypes(jsonLd);
-  assert.deepEqual(
-    ["WebPage", "Service", "OfferCatalog", "FAQPage", "BreadcrumbList"].every((type) =>
-      jsonLdTypes.includes(type)
-    ),
-    true
-  );
-  assert.equal(JSON.stringify(jsonLd).includes("AggregateRating"), false);
-  assert.equal(JSON.stringify(jsonLd).includes("Review"), false);
+  const localizedPricing = JSON.stringify([PRICING_PAGE, PRICING_PAGE_EN]);
+  for (const term of LEGACY_PRICING_TERMS) {
+    assert.equal(localizedPricing.includes(term), false, `legacy pricing should be absent: ${term}`);
+  }
+});
+
+test("structured data publishes four collections and keeps Pilotage separate", async () => {
+  const { buildPricingPageJsonLd } = await import("../lib/pricingPage.ts");
+
+  for (const locale of ["fr", "en"]) {
+    const jsonLd = buildPricingPageJsonLd(undefined, locale);
+    const jsonLdTypes = collectJsonLdTypes(jsonLd);
+    const catalog = findJsonLdType(jsonLd, "OfferCatalog");
+
+    assert.deepEqual(
+      ["WebPage", "Service", "OfferCatalog", "BreadcrumbList"].every((type) =>
+        jsonLdTypes.includes(type)
+      ),
+      true
+    );
+    assert.equal(jsonLdTypes.includes("FAQPage"), false);
+    assert.equal(catalog.itemListElement.length, 4);
+    assert.deepEqual(
+      catalog.itemListElement.map(({ priceSpecification }) =>
+        priceSpecification.map(({ price }) => price)
+      ),
+      [[2_000, 200], [2_050, 200], [2_100, 200], [2_200, 200]]
+    );
+
+    const serialized = JSON.stringify(jsonLd);
+    assert.match(serialized, /Pilotage/);
+    assert.equal(serialized.includes("AggregateRating"), false);
+    assert.equal(serialized.includes("Review"), false);
+    assert.equal(serialized.includes("Vistaire Base"), false);
+    assert.equal(serialized.includes("Vistaire Premium"), false);
+  }
 });
 
 test("public sitemap and AI guide include pricing but not the removed card route", async () => {

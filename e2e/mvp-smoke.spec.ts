@@ -119,33 +119,6 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-async function expectNoForbiddenPublicText(page: Page) {
-  const inspectedText = await page.evaluate(() => {
-    const metadata = [
-      document.title,
-      document.querySelector('meta[name="description"]')?.getAttribute("content") ?? ""
-    ];
-    const structuredData = Array.from(
-      document.querySelectorAll('script[type="application/ld+json"]')
-    ).map((script) => script.textContent ?? "");
-
-    return [document.body.innerText, ...metadata, ...structuredData].join("\n");
-  });
-
-  for (const term of [
-    "demo",
-    "Demo",
-    "démo",
-    "Démo",
-    "démonstration",
-    "démonstratif",
-    "fictif",
-    "fictive"
-  ]) {
-    expect(inspectedText).not.toContain(term);
-  }
-}
-
 async function collectStructuredDataTypes(page: Page) {
   return page.evaluate(() => {
     function visit(value: unknown, types: string[]) {
@@ -337,7 +310,7 @@ test.describe("Vistaire MVP smoke", () => {
     await expect(phoneViewport.getByRole("button", { name: /Retour . la carte/i })).toBeVisible();
   });
 
-  test("pricing and card routes expose the clean public Vistaire offer", async ({
+  test("pricing exposes four physical collections and optional Pilotage", async ({
     page
   }) => {
     const health = installPageHealth(page);
@@ -359,34 +332,38 @@ test.describe("Vistaire MVP smoke", () => {
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: "Tarifs Vistaire : menu digital premium avec plats 3D inclus"
+          name: "Choisissez l’expérience qui prendra place sur vos tables."
         })
       ).toBeVisible();
-      for (const offer of ["Vistaire Base", "Vistaire Premium", "Vistaire Signature"]) {
+      await expect(page.locator("[data-pricing-collection]")).toHaveCount(4);
+      for (const offer of ["Acrylique", "Sculpté", "Carré", "Signature"]) {
         await expect(page.getByRole("heading", { name: offer })).toBeVisible();
       }
-      for (const count of ["5 plats 3D", "10 plats 3D", "20 plats 3D"]) {
-        await expect(page.getByText(count).first()).toBeVisible();
-      }
+      await expect(page.getByText("Jusqu’à 5 plats en 3D", { exact: true })).toBeVisible();
+      await expect(page.locator("[data-pricing-pilotage]")).toContainText(
+        "+ 100 $ CAD / mois"
+      );
+      await expect(page.locator("[data-pricing-pilotage]")).toContainText(
+        "Total — 300 $ / mois"
+      );
       await expect(
-        page.getByRole("link", { name: "Parler de votre menu" }).first()
+        page.getByRole("link", { name: "Réserver une démo", exact: true }).first()
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expect(
-        page.getByRole("link", { name: "Voir le menu exemple" }).first()
-      ).toHaveAttribute("href", "/demo");
-      await expect(
-        page.getByRole("link", { name: "514-715-2421" })
-      ).toHaveAttribute("href", "tel:+15147152421");
+        page.getByRole("link", { name: "Parler à un expert", exact: true })
+      ).toHaveAttribute("href", "/contact");
       expect(await collectStructuredDataTypes(page)).toEqual(
         expect.arrayContaining([
           "WebPage",
           "Service",
           "OfferCatalog",
-          "FAQPage",
           "BreadcrumbList"
         ])
       );
-      await expectNoForbiddenPublicText(page);
+      expect(await collectStructuredDataTypes(page)).not.toContain("FAQPage");
+      const bodyText = await page.locator("body").innerText();
+      expect(bodyText).not.toContain("Vistaire Base");
+      expect(bodyText).not.toContain("Vistaire Premium");
       await expectNoHorizontalOverflow(page);
     }
 
