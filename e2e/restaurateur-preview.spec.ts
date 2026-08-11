@@ -458,7 +458,7 @@ async function exerciseCharts(page: Page) {
 
 test.describe("public restaurateur dashboard preview", () => {
   for (const scenario of scenarios) {
-    test(`${scenario.path} is an anonymous local-only product demonstration`, async ({ baseURL, page }) => {
+    test(`${scenario.path} keeps the availability simulation anonymous and local`, async ({ baseURL, page }) => {
       const origin = baseURL ?? "http://127.0.0.1:3000";
       const runtime = observeRuntime(page, origin);
       const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
@@ -487,6 +487,21 @@ test.describe("public restaurateur dashboard preview", () => {
       await expect(availableKpi).toContainText("10 / 12");
       await expect(availableKpi).not.toContainText("9 / 12");
 
+      await expectSafeDom(page, scenario);
+      await expectSafeSeo(page, scenario);
+      await expect(page.locator("model-viewer")).toHaveCount(0);
+      expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
+      runtime.expectClean();
+    });
+
+    test(`${scenario.path} keeps localized insights metrics and charts interactive`, async ({ baseURL, page }) => {
+      const origin = baseURL ?? "http://127.0.0.1:3000";
+      const runtime = observeRuntime(page, origin);
+      const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      expect(response?.status()).toBe(200);
+      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
+      await expectTabContract(page, scenario);
+
       await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
       await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
       for (const heading of scenario.insights) {
@@ -501,7 +516,6 @@ test.describe("public restaurateur dashboard preview", () => {
         expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(insightsPanelMaxHeight);
       }
       await expectSafeDom(page, scenario);
-      await expectSafeSeo(page, scenario);
       await expect(page.locator("model-viewer")).toHaveCount(0);
       expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
       runtime.expectClean();
