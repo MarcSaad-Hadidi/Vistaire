@@ -391,7 +391,6 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await expect(summary("available")).toContainText("9");
   await expect(summary("unavailable")).toContainText("3");
-  await expect(simulationStatus).toBeHidden();
 }
 
 async function exerciseInsightsMetricSelector(page: Page, scenario: Scenario) {
@@ -458,6 +457,18 @@ async function exerciseCharts(page: Page) {
 }
 
 test.describe("public restaurateur dashboard preview", () => {
+  test("availability feedback clears after its live announcement", async ({ page }) => {
+    const scenario = scenarios[0];
+    const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
+    const toggle = page.locator("[data-demo-dish]").first().getByRole("switch");
+    await toggle.click();
+    const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });
+    await expect(simulationStatus).toBeVisible();
+    await expect(simulationStatus).toBeHidden();
+  });
+
   for (const scenario of scenarios) {
     test(`${scenario.path} keeps the availability simulation anonymous and local`, async ({ baseURL, page }) => {
       const origin = baseURL ?? "http://127.0.0.1:3000";
