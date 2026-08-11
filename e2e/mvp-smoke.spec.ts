@@ -347,7 +347,7 @@ test.describe("Vistaire MVP smoke", () => {
         "Total — 300 $ / mois"
       );
       await expect(
-        page.getByRole("link", { name: "Réserver une démo", exact: true }).first()
+        page.getByRole("link", { name: "Prendre rendez-vous", exact: true }).first()
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expect(
         page.getByRole("link", { name: "Parler à un expert", exact: true })

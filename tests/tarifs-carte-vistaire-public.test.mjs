@@ -121,7 +121,7 @@ test("pricing exposes four physical collections and Pilotage as an add-on", asyn
   assert.equal(PRICING_PAGE.collections.find(({ featured }) => featured)?.id, "signature");
   assert.equal(PRICING_PAGE.includedGroups.flatMap(({ items }) => items).length, 14);
   assert.deepEqual(PRICING_PAGE.finalCta.primary, {
-    label: "Réserver une démo",
+    label: "Prendre rendez-vous",
     href: "/prendre-rendez-vous"
   });
 });
@@ -148,6 +148,14 @@ test("French and English pricing stay commercially equivalent", async () => {
   );
   assert.match(PRICING_PAGE_EN.pilotage.body, /manage dish availability/);
   assert.doesNotMatch(PRICING_PAGE_EN.pilotage.body, /manage your menu/);
+  assert.deepEqual(PRICING_PAGE_EN.finalCta.primary, {
+    label: "Book a call",
+    href: "/en/book-a-call"
+  });
+  assert.doesNotMatch(
+    `${PRICING_PAGE.finalCta.primary.label} ${PRICING_PAGE_EN.finalCta.primary.label}`,
+    /démo|demo/i
+  );
 
   const localizedPricing = JSON.stringify([PRICING_PAGE, PRICING_PAGE_EN]);
   for (const term of LEGACY_PRICING_TERMS) {

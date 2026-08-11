@@ -192,7 +192,9 @@ test.describe("Vistaire pricing collections", () => {
         pricingPath: "#pricing-title",
         brandLabel: "Vistaire - accueil",
         navCta: "Prendre rendez-vous",
-        demoCta: "Réserver une démo",
+        appointmentCta: "Prendre rendez-vous",
+        appointmentPath: "/prendre-rendez-vous",
+        forbiddenPreviewVocabulary: /démo|démonstration/i,
         forbiddenPrices: [
           "950 $ CAD setup",
           "125 $ CAD / mois",
@@ -219,7 +221,9 @@ test.describe("Vistaire pricing collections", () => {
         pricingPath: "#pricing-title",
         brandLabel: "Vistaire - home",
         navCta: "Book a call",
-        demoCta: "Book a demo",
+        appointmentCta: "Book a call",
+        appointmentPath: "/en/book-a-call",
+        forbiddenPreviewVocabulary: /demo|demonstration/i,
         forbiddenPrices: [
           "$950 CAD",
           "$125 CAD / month",
@@ -328,7 +332,14 @@ test.describe("Vistaire pricing collections", () => {
       await expect(
         navigation.getByRole("link", { name: scenario.navCta, exact: true })
       ).toBeVisible();
-      await expect(page.getByRole("link", { name: scenario.demoCta, exact: true }).last()).toBeVisible();
+      await expect(
+        page
+          .locator('section[aria-labelledby="pricing-final-title"]')
+          .getByRole("link", { name: scenario.appointmentCta, exact: true })
+      ).toHaveAttribute("href", scenario.appointmentPath);
+      expect(await page.locator("body").innerText()).not.toMatch(
+        scenario.forbiddenPreviewVocabulary
+      );
 
       const publicPayload = await page.evaluate(() =>
         [
@@ -416,7 +427,11 @@ test.describe("Vistaire pricing collections", () => {
 
       await page.locator("[data-pricing-pilotage]").scrollIntoViewIfNeeded();
       await expect(page.locator("[data-pricing-dashboard]")).toBeVisible();
-      await expect(page.getByRole("link", { name: "Réserver une démo", exact: true }).last()).toBeVisible();
+      await expect(
+        page
+          .locator('section[aria-labelledby="pricing-final-title"]')
+          .getByRole("link", { name: "Prendre rendez-vous", exact: true })
+      ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoHorizontalOverflow(page);
     }
 

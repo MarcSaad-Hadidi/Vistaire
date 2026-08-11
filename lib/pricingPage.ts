@@ -290,7 +290,7 @@ export const PRICING_PAGE = {
     body:
       "Nous vous accompagnons dans le choix du support qui s’intègre le mieux à votre établissement.",
     primary: {
-      label: "Réserver une démo",
+      label: "Prendre rendez-vous",
       href: "/prendre-rendez-vous"
     },
     secondary: {
@@ -479,7 +479,7 @@ export const PRICING_PAGE_EN = {
     body:
       "We will help you choose the display that fits most naturally into your restaurant.",
     primary: {
-      label: "Book a demo",
+      label: "Book a call",
       href: "/en/book-a-call"
     },
     secondary: {

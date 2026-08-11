@@ -247,7 +247,11 @@ export function VistairePricingPreview({
             >
               <div className={styles.laptopScreen}>
                 <div className={styles.dashboardCanvas}>
-                  <RestaurateurDashboardDemo initialPeriodId="30d" locale={locale} />
+                  <RestaurateurDashboardDemo
+                    initialPeriodId="30d"
+                    locale={locale}
+                    presentation="pilotage"
+                  />
                 </div>
               </div>
               <div aria-hidden="true" className={styles.laptopBase} />
